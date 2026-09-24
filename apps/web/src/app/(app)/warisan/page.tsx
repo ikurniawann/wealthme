@@ -1,14 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  CloudUpload,
-  CircleAlert,
-  PieChart,
-  Plus,
-  Save,
-  X,
-} from "lucide-react";
+import { CircleAlert, PieChart, Plus, Save, X } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -60,6 +53,7 @@ const ASSET_TYPE_OPTIONS = [
   "Cash / Tunai",
   "Surat Berharga",
   "Saham",
+  "Emas",
   "Lainnya",
 ];
 
@@ -68,6 +62,7 @@ const ASSET_TYPE_ICON: Record<string, string> = {
   "Cash / Tunai": "💵",
   "Surat Berharga": "📜",
   Saham: "📈",
+  Emas: "🪙",
   Lainnya: "📋",
 };
 
@@ -76,6 +71,7 @@ const ASSET_TYPE_BG: Record<string, string> = {
   "Cash / Tunai": "#DCFCE7",
   "Surat Berharga": "#DBEAFE",
   Saham: "#EDE9FE",
+  Emas: "#FEF3C7",
   Lainnya: "#F3F4F6",
 };
 
@@ -552,7 +548,9 @@ export default function WarisanPage() {
   const [visible, setVisible] = useState(true);
   // EPIC-021 Group D (#11) — "Pilih dari Aset" mode: pick an existing Asset
   // instead of manual re-entry. Manual entry stays the default/available mode.
-  const [pickMode, setPickMode] = useState<"manual" | "asset">("manual");
+  // EPIC-033 R4 — manual entry is gone for new items; "manual" survives only
+  // while editing a legacy row that was never linked to an Asset.
+  const [pickMode, setPickMode] = useState<"manual" | "asset">("asset");
   const [selectedAssetId, setSelectedAssetId] = useState("");
   // EPIC-021 Group D (#12) — heirs are optional; percentages may sum to <= 100.
   const [heirs, setHeirs] = useState<HeirFormRow[]>([]);
@@ -687,7 +685,7 @@ export default function WarisanPage() {
     setValueInput("");
     setNotes("");
     setVisible(true);
-    setPickMode("manual");
+    setPickMode("asset");
     setSelectedAssetId("");
     setHeirs([]);
     setInvalidRelationshipHeirIds(new Set());
@@ -1045,14 +1043,6 @@ export default function WarisanPage() {
                 <span className="text-[16px]">🛡️</span>
                 <span>{t.warisan.insightDesc}</span>
               </div>
-              <button
-                type="button"
-                onClick={() => toast(t.warisan.toastUploadUnavailable)}
-                className="mt-2.5 flex w-full cursor-not-allowed items-center justify-center gap-1.5 rounded-md border-[1.5px] border-dashed p-2.5 text-[12.5px] font-semibold text-muted-foreground opacity-70"
-              >
-                <CloudUpload className="size-4" />
-                {t.warisan.uploadComingSoonButton}
-              </button>
             </SectionCard>
           </div>
         </div>
@@ -1091,38 +1081,9 @@ export default function WarisanPage() {
             {/* EPIC-021 Group D (#11) — pick an existing Asset instead of
                 manual re-entry; manual entry stays available. The prototype
                 folds both into a single "Aset" <select> whose last option is
-                "— Tidak dihubungkan (catat manual) —"; the app keeps the
+                "Tidak dihubungkan (catat manual)"; the app keeps the
                 explicit mode switch it already shipped and renders it with
                 the prototype's `.segmented` control. */}
-            <div className="field">
-              <span className="label" id="warisan-source-label">
-                {t.warisan.fieldSourceLabel}
-              </span>
-              <div
-                className="segmented flex w-full"
-                role="tablist"
-                aria-labelledby="warisan-source-label"
-              >
-                {(
-                  [
-                    ["manual", t.warisan.sourceManualOption],
-                    ["asset", t.warisan.sourceAssetOption],
-                  ] as const
-                ).map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="tab"
-                    aria-selected={pickMode === mode}
-                    onClick={() => setPickMode(mode)}
-                    className="segmented__item flex-1"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {pickMode === "asset" && (
               <div className="field">
                 <label className="label" htmlFor="warisan-asset">
@@ -1215,19 +1176,6 @@ export default function WarisanPage() {
             {/* App-only field with no prototype counterpart — kept because it
                 already shipped, and labeled honestly as unavailable rather
                 than pretending to upload. */}
-            <div className="field">
-              <span className="label">{t.warisan.fieldDocumentLabel}</span>
-              <button
-                type="button"
-                onClick={() => toast(t.warisan.toastUploadUnavailable)}
-                className="w-full cursor-not-allowed rounded-md border-[1.5px] border-dashed p-[18px] text-center opacity-60"
-              >
-                <CloudUpload className="mx-auto mb-1.5 size-[22px] text-muted-foreground" />
-                <span className="text-[12px] text-muted-foreground">
-                  {t.warisan.documentUploadHint}
-                </span>
-              </button>
-            </div>
 
             {/* Prototype's visibility row: label + switch on one line, hint
                 underneath (warisan.html:254). */}

@@ -730,7 +730,10 @@ export type I18nDictionary = {
        */
       religionSectionTitle: string;
       religionHint: string;
-      religionOptions: Record<"islam" | "kristen" | "none", string>;
+      religionOptions: Record<
+        "islam" | "kristen" | "katolik" | "hindu" | "buddha" | "none",
+        string
+      >;
       religionLabel: string;
       religionSaveButton: string;
       religionOwnerOnlyNote: string;
@@ -905,6 +908,7 @@ export type I18nDictionary = {
       allowanceRequestRejectButton: string;
       allowanceRequestApproveDialogTitle: string;
       allowanceRequestSourceAccountLabel: string;
+      allowanceRequestRequestedFromPrefix: string;
       allowanceRequestApproved: string;
       allowanceRequestApproveFailed: string;
       allowanceRequestRejected: string;
@@ -951,6 +955,7 @@ export type I18nDictionary = {
         // ONLY through this option, which locks the relationship picker
         // to "istri" below.
         istriCoMaster: string;
+        member: string;
       };
       // EPIC-024 A1 — shown when "Istri (Co-Master)" is selected.
       istriCoMasterHint: string;
@@ -2370,6 +2375,8 @@ export type I18nDictionary = {
     mintaDanaSubmitting: string;
     mintaDanaSuccessToast: string;
     mintaDanaFailToast: string;
+    mintaDanaTargetLabel: string;
+    mintaDanaNoOwnAccountHint: string;
     // EPIC-026 Wave 3 — prototype `dlg-minta-dana` / `dlg-rekening-hapus`
     // (docs/prototype/pages/rekening.html) supporting copy.
     mintaDanaDialogDesc: string;

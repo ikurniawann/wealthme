@@ -90,7 +90,7 @@ export async function sendResetPasswordEmail(
       console.log(`[reset-password] URL for ${to.email}: ${url}`);
     } else {
       console.error(
-        "[reset-password] No mail transport (SMTP_HOST / SENDGRID_API_KEY) — no reset email was sent.",
+        "[reset-password] No mail transport (SMTP_HOST / SENDGRID_API_KEY), no reset email was sent.",
       );
     }
     return;

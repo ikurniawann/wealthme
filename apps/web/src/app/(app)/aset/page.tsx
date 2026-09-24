@@ -212,23 +212,14 @@ function AddAssetModal({
       ? Number(BigInt(editing.valueChangeAmount)).toLocaleString("id-ID")
       : "",
   );
-  const [categoryId, setCategoryId] = useState(editing?.categoryId ?? "");
+  // EPIC-033 p15 — no picker any more; kept so an edit round-trips the
+  // value an older row may still carry.
+  const categoryId = editing?.categoryId ?? "";
   // EPIC-023 D19/US-ASSET-4: elapsed-time anchor for currentEstimatedValue,
   // falls back to createdAt server-side when left blank.
   const [acquisitionDate, setAcquisitionDate] = useState(
     editing?.acquisitionDate ? editing.acquisitionDate.slice(0, 10) : "",
   );
-
-  // EPIC-021 #16: real master-data categories for the optional category
-  // select (same query key/cache as /masterdata).
-  const { data: categories } = useQuery<CategoryDto[]>({
-    queryKey: queryKeys.categories.all(familyGroupId),
-    enabled: Boolean(familyGroupId) && Boolean(token),
-    queryFn: () =>
-      apiFetch<CategoryDto[]>(`/family-groups/${familyGroupId}/categories`, {
-        token,
-      }),
-  });
 
   const mutation = useMutation({
     mutationFn: (body: {
@@ -522,28 +513,9 @@ function AddAssetModal({
             </p>
           </div>
 
-          <div>
-            <label
-              htmlFor="asset-category"
-              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
-            >
-              {t.aset.fieldMasterDataCategoryLabel}
-            </label>
-            <select
-              id="asset-category"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-            >
-              <option value="">{t.aset.fieldMasterDataCategoryNone}</option>
-              {(categories ?? []).map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
+          {/* EPIC-033 p15 — the master-data category picker listed income/
+              expense transaction categories, which never fit a physical asset.
+              Removed until assets get their own master-data types (group 3). */}
           <div>
             <label
               htmlFor="asset-notes"
@@ -996,7 +968,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
                 />
                 <div className="flex-1 min-w-0">
                   <div className="text-[13.5px] font-semibold truncate">
-                    {inv.ticker} — {inv.name}
+                    {inv.ticker} · {inv.name}
                   </div>
                   <div className="text-[11.5px] text-muted-foreground truncate">
                     {t.aset.invTypeLabels[

@@ -710,11 +710,12 @@ export class FamilyGroupsService {
     if (
       dto.role !== Role.dependant &&
       dto.role !== Role.operational &&
+      dto.role !== Role.member &&
       !isIstriOwner
     ) {
       throw new BadRequestException(
         withCode(
-          "role must be 'dependant' or 'operational' for this endpoint (or 'owner' when relationship is 'istri')",
+          "role must be 'dependant', 'operational', or 'member' for this endpoint (or 'owner' when relationship is 'istri')",
           "INVALID_ROLE_FOR_DEPENDANT_CREATION",
         ),
       );

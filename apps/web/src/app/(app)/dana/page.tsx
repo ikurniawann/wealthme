@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Info } from "lucide-react";
+import { Plus, Info, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useLocale } from "@/hooks/use-locale";
+import { useMyRole } from "@/hooks/use-my-role";
+import { useFamilyMembers } from "@/hooks/use-family-members";
+import { useCanManage } from "@/hooks/use-role-permissions";
+import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import type { Locale } from "@/i18n";
 import { SectionCard, HeroCard, CardLink, SummaryCard } from "@/components/wm";
 import { Button } from "@/components/ui/button";
@@ -115,7 +119,7 @@ function resolveWalletBg(item: AccountDto): string {
  * (AccountDto has no notes/description field), only real owner + masked
  * number + last-updated fields. */
 /** Family-shared (ownerUserId null) wallets/cash — visible to every member with this page. */
-const SHARED_LABEL = "👥 Bersama";
+const SHARED_LABEL = "Bersama";
 
 function buildWalletMeta(
   item: AccountDto,
@@ -143,11 +147,14 @@ function WalletRow({
   border,
   onEdit,
   onDelete,
+  onRequest,
 }: {
   item: AccountDto;
   border: boolean;
   onEdit?: () => void;
   onDelete?: () => void;
+  /** EPIC-033 R5 — members ask for money FROM this family-shared wallet. */
+  onRequest?: () => void;
 }) {
   const { t, locale } = useLocale();
   const isEwallet = EWALLET_TYPES.has(item.type);
@@ -175,6 +182,15 @@ function WalletRow({
           {formatRupiah(parseFloat(item.balance))}
         </div>
       </div>
+      {onRequest && (
+        <button
+          type="button"
+          className="btn btn--outline btn--sm ml-2"
+          onClick={onRequest}
+        >
+          <HandCoins className="size-3.5" /> {t.rekening.mintaDanaButtonLabel}
+        </button>
+      )}
       {onEdit && onDelete && (
         <RowActions className="ml-2" onEdit={onEdit} onDelete={onDelete} />
       )}
@@ -333,6 +349,25 @@ export default function DanaPage() {
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AccountDto | null>(null);
+  const [requesting, setRequesting] = useState<AccountDto | null>(null);
+
+  // EPIC-033 R3 — "Pemilik" picker for cash/e-wallet, same shape as the
+  // bank form on /rekening (family-shared = "").
+  const { data: familyMembers } = useFamilyMembers();
+  const ownerOptions = [
+    { value: "", label: t.rekening.ownerSelectFamilyLabel },
+    ...(familyMembers ?? []).map((m) => ({ value: m.userId, label: m.name })),
+  ];
+  // EPIC-033 R2/R5 — only members request; Master/Co-Master approve.
+  const { myRole } = useMyRole();
+  const isMasterLike = myRole === "owner" || myRole === "spouse";
+  // Members with "Lihat" on this page could open edit/delete before; the
+  // API refused them, but the affordance should not show at all.
+  const { canManage } = useCanManage("Account");
+  const myUserId = session?.userId;
+  const myAccounts = (allAccounts ?? []).filter(
+    (a) => !!myUserId && a.ownerUserId === myUserId,
+  );
 
   async function invalidateAccounts() {
     if (!familyGroupId) return;
@@ -354,6 +389,7 @@ export default function DanaPage() {
       initialValues: {
         nama: item.name,
         saldo: String(item.balance),
+        ownerUserId: item.ownerUserId ?? "",
       },
     });
   }
@@ -394,6 +430,7 @@ export default function DanaPage() {
               ...(danaEntity === "ewallet" ? { institution: values.nama } : {}),
               balance,
               type: danaEntity,
+              ownerUserId: values.ownerUserId || null,
             }),
           },
         );
@@ -408,6 +445,7 @@ export default function DanaPage() {
             institution: danaEntity === "ewallet" ? values.nama : undefined,
             maskedNumber: values.phone || undefined,
             balance,
+            ownerUserId: values.ownerUserId || undefined,
           }),
         });
         toast.success(`${label}${t.dana.toastAddedSuffix}`);
@@ -591,8 +629,13 @@ export default function DanaPage() {
             key={item.id}
             item={item}
             border={i < cashItems.length - 1}
-            onEdit={() => openEdit("cash", item)}
-            onDelete={() => setDeleting(item)}
+            onEdit={canManage ? () => openEdit("cash", item) : undefined}
+            onDelete={canManage ? () => setDeleting(item) : undefined}
+            onRequest={
+              !isMasterLike && item.ownerUserId === null
+                ? () => setRequesting(item)
+                : undefined
+            }
           />
         ))}
       </SectionCard>
@@ -624,8 +667,13 @@ export default function DanaPage() {
             key={item.id}
             item={item}
             border={i < ewalletItems.length - 1}
-            onEdit={() => openEdit("ewallet", item)}
-            onDelete={() => setDeleting(item)}
+            onEdit={canManage ? () => openEdit("ewallet", item) : undefined}
+            onDelete={canManage ? () => setDeleting(item) : undefined}
+            onRequest={
+              !isMasterLike && item.ownerUserId === null
+                ? () => setRequesting(item)
+                : undefined
+            }
           />
         ))}
       </SectionCard>
@@ -682,6 +730,15 @@ export default function DanaPage() {
         state={crudState}
         onClose={() => setCrudState(null)}
         onSubmit={handleSubmit}
+        dynamicOptions={{ ownerUserId: ownerOptions }}
+      />
+
+      <MintaDanaDialog
+        source={requesting}
+        targets={myAccounts}
+        familyGroupId={familyGroupId ?? null}
+        token={token}
+        onClose={() => setRequesting(null)}
       />
 
       <ConfirmDeleteDialog

@@ -35,6 +35,19 @@ jest.mock("sonner", () => ({
   }),
 }));
 
+// EPIC-033 group 2 — the page now reads role/permissions/members through
+// hooks; pin them so the queued `mockResolvedValueOnce` account responses
+// below keep their order.
+jest.mock("../../../hooks/use-role-permissions", () => ({
+  useCanManage: () => ({ canManage: true, isLoading: false }),
+}));
+jest.mock("../../../hooks/use-my-role", () => ({
+  useMyRole: () => ({ myRole: "owner", isOwner: true, isLoading: false }),
+}));
+jest.mock("../../../hooks/use-family-members", () => ({
+  useFamilyMembers: () => ({ data: [], isLoading: false }),
+}));
+
 import DanaPage from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";

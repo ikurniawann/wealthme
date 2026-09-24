@@ -12,7 +12,8 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useSession } from "@/lib/auth-compat";
 
-export type FamilyReligion = "islam" | "kristen" | "none";
+export type { FamilyReligion } from "./family-religion-options";
+import type { FamilyReligion } from "./family-religion-options";
 
 // EPIC-023 Group F fix round (MEDIUM 9) — `religion` is nullable at the API
 // now: `null` means "the family has never chosen" (an honest state,

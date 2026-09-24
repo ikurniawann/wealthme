@@ -94,9 +94,9 @@ function buildAccount(overrides: Partial<AccountDto> = {}): AccountDto {
   return {
     id: "acc-1",
     familyGroupId: FAMILY_GROUP_ID,
-    name: "Kas Tunai",
-    type: "cash",
-    institution: null,
+    name: "Tabungan Utama",
+    type: "bank",
+    institution: "BCA",
     maskedNumber: null,
     balance: "500000",
     currency: "IDR",
@@ -140,7 +140,7 @@ function mockApiRoutes(accounts: AccountDto[]) {
   );
 }
 
-describe("RekeningPage — cash-account negative balance (EPIC-022 A2)", () => {
+describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
   beforeEach(() => {
     // `resetAllMocks` (not `clearAllMocks`) — a prior test's queued
     // `mockResolvedValueOnce`/`mockImplementation` must not survive.
@@ -173,55 +173,15 @@ describe("RekeningPage — cash-account negative balance (EPIC-022 A2)", () => {
     const sharedCard = screen
       .getByText("Tabungan Keluarga")
       .closest("article, li, div.card, [class*='card']") as HTMLElement;
-    expect(within(sharedCard).getByText("👥 Bersama")).toBeInTheDocument();
+    expect(within(sharedCard).getByText("Bersama")).toBeInTheDocument();
     const ownedCard = screen
       .getByText("Rekening Adit")
       .closest("article, li, div.card, [class*='card']") as HTMLElement;
-    expect(within(ownedCard).queryByText("👥 Bersama")).not.toBeInTheDocument();
+    expect(within(ownedCard).queryByText("Bersama")).not.toBeInTheDocument();
   });
 
-  it("preserves an already-negative cash balance across an unrelated edit (no sign-flip regression)", async () => {
-    // Arrange — this cash account already went negative (e.g. an
-    // over-budget expense debited it below zero).
-    mockApiRoutes([
-      buildAccount({ id: "acc-1", name: "Kas Tunai", balance: "-75000" }),
-    ]);
-    const user = userEvent.setup();
-    render(<RekeningPage />);
-    await screen.findByText("Kas Tunai");
-
-    // Act — open the kebab menu and click "Edit" without touching the
-    // balance field.
-    await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
-    await user.click(await screen.findByText("✏️ Edit"));
-
-    const dialog = within(await screen.findByRole("dialog"));
-    expect(
-      dialog.getByRole("heading", { name: "Edit Kas Tunai" }),
-    ).toBeInTheDocument();
-    // The amount field must display the existing negative balance, not a
-    // sign-stripped positive one — this is the actual regression: before
-    // the fix, this field showed "75.000" (no "-").
-    expect(dialog.getByPlaceholderText("0")).toHaveValue("-75.000");
-    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
-
-    // Assert — the PATCH resubmits the SAME negative balance, not +75000,
-    // and resends `type: "cash"` so the API's per-type negative-balance
-    // check still sees this as a cash account on the partial update.
-    const patchCall = mockApiFetch.mock.calls.find(
-      (call) => call[1]?.method === "PATCH",
-    );
-    expect(patchCall).toBeDefined();
-    expect(patchCall![0]).toBe(
-      `/family-groups/${FAMILY_GROUP_ID}/accounts/acc-1`,
-    );
-    const body = JSON.parse(patchCall![1].body as string) as {
-      balance: number;
-      type: string;
-    };
-    expect(body.balance).toBe(-75000);
-    expect(body.type).toBe("cash");
-  });
+  // EPIC-033 p24 — cash accounts moved off this page (Cash & E-Wallet owns
+  // them), so the negative-cash edit case now lives in dana.test.tsx.
 
   it("still edits a bank account through the 'Rekening Bank' form (non-cash unaffected)", async () => {
     mockApiRoutes([
@@ -238,7 +198,7 @@ describe("RekeningPage — cash-account negative balance (EPIC-022 A2)", () => {
     await screen.findByText("BCA Tahapan");
 
     await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
-    await user.click(await screen.findByText("✏️ Edit"));
+    await user.click(await screen.findByText("Edit"));
 
     const dialog = within(await screen.findByRole("dialog"));
     expect(

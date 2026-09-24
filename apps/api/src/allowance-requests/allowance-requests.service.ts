@@ -88,11 +88,35 @@ export class AllowanceRequestsService {
       );
     }
 
+    // EPIC-033 R5 — a member asks for money FROM a family-shared account
+    // they can see (never a private one, never another member's), INTO
+    // their own account above. The approver still owns the final source
+    // choice in approve().
+    if (dto.fromAccountId) {
+      if (dto.fromAccountId === dto.targetAccountId) {
+        throw new BadRequestException(
+          "Source and destination account must differ",
+        );
+      }
+      const fromAccount = await this.prisma.account.findUnique({
+        where: { id: dto.fromAccountId, familyGroupId },
+      });
+      if (!fromAccount) {
+        throw new NotFoundException(`Account ${dto.fromAccountId} not found`);
+      }
+      if (fromAccount.ownerUserId !== null || fromAccount.isPrivate) {
+        throw new ForbiddenException(
+          "You may only request funding from a family-shared account",
+        );
+      }
+    }
+
     const created = await this.prisma.allowanceRequest.create({
       data: {
         familyGroupId,
         requesterUserId,
         targetAccountId: dto.targetAccountId,
+        fromAccountId: dto.fromAccountId ?? null,
         amount: BigInt(dto.amount),
         note: dto.note ?? null,
       },
@@ -174,28 +198,31 @@ export class AllowanceRequestsService {
     // funding path (EPIC-019 Task B, unchanged behaviour). `fromAccountId`
     // is now optional on the DTO (a held_expense never supplies one), so a
     // funding approval must explicitly require it here.
-    if (!dto.fromAccountId) {
+    // EPIC-033 R5 — default to the source the member asked for; the
+    // approver may still pick a different one.
+    const fromAccountId = dto.fromAccountId ?? request.fromAccountId;
+    if (!fromAccountId) {
       throw new BadRequestException(
         "fromAccountId is required to approve a funding request",
       );
     }
-    if (dto.fromAccountId === request.targetAccountId) {
+    if (fromAccountId === request.targetAccountId) {
       throw new BadRequestException(
         "Source and destination account must differ",
       );
     }
     const fromAccount = await this.prisma.account.findUnique({
-      where: { id: dto.fromAccountId, familyGroupId },
+      where: { id: fromAccountId, familyGroupId },
     });
     if (!fromAccount) {
-      throw new NotFoundException(`Account ${dto.fromAccountId} not found`);
+      throw new NotFoundException(`Account ${fromAccountId} not found`);
     }
 
     const claim = await this.prisma.allowanceRequest.updateMany({
       where: { id, familyGroupId, status: "pending" },
       data: {
         status: "approved",
-        fromAccountId: dto.fromAccountId,
+        fromAccountId: fromAccountId,
         decidedAt: new Date(),
         decidedByUserId: ownerUserId,
       },
@@ -213,7 +240,7 @@ export class AllowanceRequestsService {
       // well within Number.MAX_SAFE_INTEGER in practice (matches the
       // existing BigInt -> Number conversions elsewhere in this service).
       await this.transactionsService.create(familyGroupId, {
-        accountId: dto.fromAccountId,
+        accountId: fromAccountId,
         toAccountId: request.targetAccountId,
         amount: Number(request.amount),
         type: "transfer",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -21,15 +21,6 @@ import { StatusBadge, SummaryCard } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
@@ -45,9 +36,11 @@ import {
 import type { CrudModalState } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import { useMyRole } from "@/hooks/use-my-role";
+import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 
 import type { AccountDto } from "@wealthme/contracts";
 
@@ -234,6 +227,8 @@ interface AccountCardItemProps {
   onEdit: (account: AccountCard) => void;
   onDelete: () => void;
   onMintaDana: () => void;
+  /** EPIC-033 R5 — members ask for money FROM a family-shared account. */
+  canRequest: boolean;
   canManage: boolean;
 }
 
@@ -243,6 +238,7 @@ function AccountCardItem({
   onEdit,
   onDelete,
   onMintaDana,
+  canRequest,
   canManage,
 }: AccountCardItemProps) {
   const router = useRouter();
@@ -371,9 +367,9 @@ function AccountCardItem({
           <RowActions onEdit={() => onEdit(account)} onDelete={onDelete} />
         )}
       </div>
-      {/* EPIC-019 Task B/D — a member requests funding for their OWN
-          account; the owner approves via /akun (family section). */}
-      {isMine && (
+      {/* EPIC-033 R5 — a member requests funding FROM this family-shared
+          account into one of their own; the Master approves on /persetujuan. */}
+      {canRequest && (
         <button
           type="button"
           aria-label={t.rekening.mintaDanaButtonLabel}
@@ -384,154 +380,6 @@ function AccountCardItem({
         </button>
       )}
     </Card>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Minta Dana (allowance request) dialog
-// ---------------------------------------------------------------------------
-
-function MintaDanaDialog({
-  account,
-  familyGroupId,
-  token,
-  onClose,
-}: {
-  account: AccountCard | null;
-  familyGroupId: string | null;
-  token: string | undefined;
-  onClose: () => void;
-}) {
-  return (
-    <Dialog open={!!account} onOpenChange={(open) => !open && onClose()}>
-      {/* EPIC-026 Wave 3 — prototype `dlg-minta-dana`
-          (docs/prototype/pages/rekening.html): `dialog--sm`, title + desc,
-          `.dialog__body` fields, and an outline-Batal / primary-submit
-          `.dialog__footer`. */}
-      <DialogContent className="dialog--sm">
-        {/* Keyed by account id (not an effect) so amount/note reset whenever
-            a different account's "Minta Dana" button is clicked. */}
-        {account && (
-          <MintaDanaForm
-            key={account.id}
-            account={account}
-            familyGroupId={familyGroupId}
-            token={token}
-            onClose={onClose}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function MintaDanaForm({
-  account,
-  familyGroupId,
-  token,
-  onClose,
-}: {
-  account: AccountCard;
-  familyGroupId: string | null;
-  token: string | undefined;
-  onClose: () => void;
-}) {
-  const { t } = useLocale();
-  const fieldId = useId();
-  const [amount, setAmount] = useState("");
-  const [note, setNote] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const queryClient = useQueryClient();
-
-  async function handleSend() {
-    if (!familyGroupId || !token) return;
-    const parsed = parseRupiah(amount);
-    if (parsed <= 0) {
-      toast.error(t.rekening.mintaDanaAmountInvalidToast);
-      return;
-    }
-    setIsSaving(true);
-    try {
-      await apiFetch(`/family-groups/${familyGroupId}/allowance-requests`, {
-        token,
-        method: "POST",
-        body: JSON.stringify({
-          targetAccountId: account.id,
-          amount: parsed,
-          note: note || undefined,
-        }),
-      });
-      // So the owner's pending-requests panel (/akun) and any other view of
-      // this member's own requests reflect the new request immediately.
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.allowanceRequests.all(familyGroupId),
-      });
-      toast.success(t.rekening.mintaDanaSuccessToast);
-      onClose();
-    } catch (err: unknown) {
-      toast.error(extractApiErrorMessage(err, t.rekening.mintaDanaFailToast));
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return (
-    <>
-      <DialogHeader>
-        {/* The prototype's "Rekening Tujuan" select is omitted on purpose:
-            the target account is fixed by the card whose "Minta Dana" button
-            was pressed (and is what the POST sends), so a picker here would
-            imply a switchable target it cannot honour. The account is named
-            in the title instead. */}
-        <DialogTitle>
-          {t.rekening.mintaDanaDialogTitle} — {account.name}
-        </DialogTitle>
-        <DialogDescription>{t.rekening.mintaDanaDialogDesc}</DialogDescription>
-      </DialogHeader>
-      <DialogBody>
-        <div className="field">
-          <label className="label" htmlFor={`${fieldId}-amount`}>
-            {t.rekening.mintaDanaAmountLabel}
-          </label>
-          <input
-            id={`${fieldId}-amount`}
-            inputMode="numeric"
-            className="input mono"
-            placeholder="0"
-            value={amount}
-            onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-          />
-        </div>
-        <div className="field">
-          <label className="label" htmlFor={`${fieldId}-note`}>
-            {t.rekening.mintaDanaNoteLabel}
-          </label>
-          <input
-            id={`${fieldId}-note`}
-            type="text"
-            className="input"
-            placeholder={t.rekening.mintaDanaNotePlaceholder}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <button type="button" className="btn btn--outline" onClick={onClose}>
-          {t.common.cancel}
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary disabled:opacity-60"
-          onClick={handleSend}
-          disabled={isSaving}
-        >
-          {isSaving
-            ? t.rekening.mintaDanaSubmitting
-            : t.rekening.mintaDanaSubmitButton}
-        </button>
-      </DialogFooter>
-    </>
   );
 }
 
@@ -605,7 +453,8 @@ export default function RekeningPage() {
   // visible in the audit's screenshot — GoPay/OVO) and `investment`/
   // `property` (which have their own dedicated pages), while `cash` stays
   // visible here until that regression test's fixture is revisited.
-  const RENDERED_TYPES = new Set(["bank", "cash"]);
+  // EPIC-033 p24 — cash lives on Cash & E-Wallet, not here.
+  const RENDERED_TYPES = new Set(["bank"]);
   const scopedAccounts = (accounts ?? []).filter((a) =>
     RENDERED_TYPES.has(a.type),
   );
@@ -645,7 +494,10 @@ export default function RekeningPage() {
   const [crudState, setCrudState] = useState<CrudModalState | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AccountCard | null>(null);
-  const [requesting, setRequesting] = useState<AccountCard | null>(null);
+  const [requesting, setRequesting] = useState<AccountDto | null>(null);
+  // EPIC-033 R2/R5 — only members request; Master/Co-Master approve.
+  const { myRole } = useMyRole();
+  const isMasterLike = myRole === "owner" || myRole === "spouse";
 
   const ownerOptions = [
     { value: "", label: t.rekening.ownerSelectFamilyLabel },
@@ -812,12 +664,9 @@ export default function RekeningPage() {
   }
 
   // Prototype structural port — header "Minta Dana" action. Reuses the
-  // SAME MintaDanaDialog/flow already wired per-card below (no new modal);
-  // defaults to the user's first own account since the header button has
-  // no target-account selector of its own — the dialog's own title always
-  // names the account, so this stays honest about which account is being
-  // requested into.
-  const myAccounts = scopedAccounts.filter(
+  // EPIC-033 R5 — every account the member owns (bank, cash, e-wallet) is a
+  // valid destination for a fund request.
+  const myAccounts = (accounts ?? []).filter(
     (a) => !!myUserId && a.ownerUserId === myUserId,
   );
 
@@ -843,15 +692,6 @@ export default function RekeningPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {myAccounts.length > 0 && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setRequesting(toCardData(myAccounts[0]!, t))}
-            >
-              <HandCoins className="size-4" /> {t.rekening.mintaDanaButtonLabel}
-            </Button>
-          )}
           {canManage && (
             <Button type="button" onClick={openAdd}>
               <Plus className="size-4" /> {t.rekening.addButton}
@@ -1047,7 +887,8 @@ export default function RekeningPage() {
               isMine={!!myUserId && account.ownerUserId === myUserId}
               onEdit={openEdit}
               onDelete={() => setDeleting(card)}
-              onMintaDana={() => setRequesting(card)}
+              onMintaDana={() => setRequesting(account)}
+              canRequest={!isMasterLike && account.ownerUserId === null}
               canManage={!!canManage}
             />
           );
@@ -1094,7 +935,8 @@ export default function RekeningPage() {
         onConfirm={handleDeleteConfirm}
       />
       <MintaDanaDialog
-        account={requesting}
+        source={requesting}
+        targets={myAccounts}
         familyGroupId={familyGroupId ?? null}
         token={token}
         onClose={() => setRequesting(null)}

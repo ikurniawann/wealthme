@@ -513,7 +513,7 @@ var ReferenceItemDtoSchema = z9.object({
   createdAt: z9.string()
 });
 var REFERENCE_ITEM_DEFAULTS = {
-  bank: ["BCA", "Mandiri", "BNI", "BRI", "CIMB Niaga", "Permata"],
+  bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
   txntype: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
   invtype: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
   ewallet: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],

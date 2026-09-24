@@ -86,7 +86,7 @@ export const id = {
     needsAttentionTitle: "Perlu Perhatian",
     pendingApprovalsNotice: "permintaan dana menunggu persetujuan kamu.",
     liabilityDueNotice: "jatuh tempo",
-    noNotices: "Tidak ada yang perlu perhatian saat ini 🎉",
+    noNotices: "Tidak ada yang perlu perhatian saat ini",
     // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
     // card + composition-row badges/due-notice + Arus Kas period toggle.
     budgetCardTitlePrefix: "Anggaran ",
@@ -212,10 +212,10 @@ export const id = {
       panduan: "Panduan",
     },
     transactionDialog: {
-      tabIncome: "📥 Pemasukan",
-      tabExpense: "📤 Pengeluaran",
-      tabTransfer: "↕️ Transfer",
-      tabCreditCard: "💳 Kartu Kredit",
+      tabIncome: "Pemasukan",
+      tabExpense: "Pengeluaran",
+      tabTransfer: "↕ Transfer",
+      tabCreditCard: "Kartu Kredit",
       saveFailedPrefix: "Gagal menyimpan: ",
       retryFallback: "Coba lagi",
       invalidAmount: "Jumlah tidak valid",
@@ -231,7 +231,7 @@ export const id = {
       // posted: it exceeds the member's per-account threshold and is held
       // pending the head's approval. Must never read as a success.
       heldToast:
-        "Pengeluaran melebihi batas — menunggu persetujuan kepala keluarga, belum dicatat.",
+        "Pengeluaran melebihi batas, menunggu persetujuan kepala keluarga, belum dicatat.",
       title: "Tambah Transaksi",
       manualInput: "Input Manual",
       scanReceipt: "Scan Struk",
@@ -263,7 +263,7 @@ export const id = {
       scanSubtitle: "Arahkan kamera ke struk belanja",
       scanGuidanceReady: "Pastikan semua teks terlihat jelas",
       scanGuidanceScanning: "Membaca struk...",
-      resultTitle: "✨ Hasil Pindai",
+      resultTitle: "Hasil Pindai",
       resultSubtitle: "Periksa hasilnya sebelum mengisi formulir",
       merchantLabel: "Merchant",
       totalLabel: "Total",
@@ -276,7 +276,7 @@ export const id = {
       scanStarting: "Menyiapkan kamera...",
       scanUse: "Gunakan",
       scanPrefilledToast:
-        "Data struk dimasukkan ke formulir — periksa lalu simpan.",
+        "Data struk dimasukkan ke formulir, periksa lalu simpan.",
       scanHint:
         "Scan struk memakai kamera perangkat dan API key AI keluarga. Hasilnya mengisi formulir; transaksi baru tersimpan setelah kamu menekan Simpan.",
       scanUnavailable:
@@ -293,62 +293,62 @@ export const id = {
         "Izin kamera ditolak. Aktifkan izin kamera untuk situs ini di pengaturan browser, lalu coba lagi.",
       cameraErrorNotFound: "Tidak ada kamera yang terdeteksi di perangkat ini.",
       cameraErrorInUse:
-        "Kamera sedang dipakai aplikasi lain — tutup aplikasi tersebut lalu coba lagi.",
-      cameraErrorUnknown: "Kamera tidak bisa dibuka — coba lagi.",
+        "Kamera sedang dipakai aplikasi lain, tutup aplikasi tersebut lalu coba lagi.",
+      cameraErrorUnknown: "Kamera tidak bisa dibuka, coba lagi.",
       cameraRetry: "Coba lagi",
-      captureFailed: "Foto struk gagal diambil — coba lagi.",
+      captureFailed: "Foto struk gagal diambil, coba lagi.",
       // EPIC-027 B9–B11 — unggah file struk. Satu pesan per penyebab: yang
       // perlu dilakukan pengguna berbeda-beda.
       scanUpload: "Unggah Struk",
       scanUploadReading: "Membaca file struk...",
       scanNoCamera:
-        "Kamera tidak tersedia di perangkat ini — unggah foto struk dari file.",
+        "Kamera tidak tersedia di perangkat ini, unggah foto struk dari file.",
       scanUploadGuidance: "Pilih foto struk yang jelas dan tidak terpotong",
-      uploadErrorEmpty: "File struk kosong (0 byte) — pilih file lain.",
+      uploadErrorEmpty: "File struk kosong (0 byte), pilih file lain.",
       uploadErrorFileTooLarge:
-        "Ukuran file terlalu besar (maks 20 MB) — pilih foto struk yang lebih kecil.",
+        "Ukuran file terlalu besar (maks 20 MB), pilih foto struk yang lebih kecil.",
       uploadErrorPdf:
         "File PDF belum bisa dipindai. Simpan struk sebagai gambar (JPG atau PNG) lalu unggah lagi.",
       uploadErrorNotImage:
-        "File ini bukan gambar — unggah foto struk berformat JPG, PNG, atau WEBP.",
+        "File ini bukan gambar, unggah foto struk berformat JPG, PNG, atau WEBP.",
       uploadErrorHeic:
         "Format HEIC dari iPhone tidak bisa dibaca browser ini. Bagikan atau simpan foto struk sebagai JPG lalu unggah lagi.",
       uploadErrorNoCanvas:
-        "Browser ini tidak bisa memproses gambar — coba browser lain.",
+        "Browser ini tidak bisa memproses gambar, coba browser lain.",
       uploadErrorTooSmall:
-        "Gambar terlalu kecil untuk dibaca — unggah foto struk dengan resolusi lebih besar.",
+        "Gambar terlalu kecil untuk dibaca, unggah foto struk dengan resolusi lebih besar.",
       uploadErrorTooLarge:
-        "Gambar struk tetap terlalu besar setelah dikecilkan — foto ulang atau unggah gambar lain.",
+        "Gambar struk tetap terlalu besar setelah dikecilkan, foto ulang atau unggah gambar lain.",
       uploadErrorDecodeFailed:
-        "File gambar tidak bisa dibuka — mungkin rusak atau belum selesai diunduh.",
+        "File gambar tidak bisa dibuka, mungkin rusak atau belum selesai diunduh.",
       uploadErrorDimensions:
-        "Resolusi gambar terlalu besar untuk diproses browser — kecilkan gambarnya lalu unggah lagi.",
+        "Resolusi gambar terlalu besar untuk diproses browser, kecilkan gambarnya lalu unggah lagi.",
       // Scan failures — one per `code` from ocr-http-error.util.ts.
       scanErrorNotConfigured:
         "Scan struk butuh API key AI keluarga. Master atau co-master bisa mengaturnya di Pengaturan.",
       scanErrorKeyCorrupted:
-        "API key AI keluarga tidak bisa dibaca — masukkan ulang di Pengaturan.",
+        "API key AI keluarga tidak bisa dibaca, masukkan ulang di Pengaturan.",
       scanErrorAuth:
-        "Penyedia AI menolak API key keluarga ini — periksa kembali key di Pengaturan.",
+        "Penyedia AI menolak API key keluarga ini, periksa kembali key di Pengaturan.",
       scanErrorRateLimited:
-        "Penyedia AI sedang membatasi permintaan — coba lagi sebentar lagi.",
+        "Penyedia AI sedang membatasi permintaan, coba lagi sebentar lagi.",
       scanErrorRateLimitedRetryIn:
-        "Penyedia AI sedang membatasi permintaan — coba lagi dalam {seconds} detik.",
+        "Penyedia AI sedang membatasi permintaan, coba lagi dalam {seconds} detik.",
       scanErrorRateLimitedDaily:
-        "Kuota harian penyedia AI sudah habis — scan bisa dipakai lagi besok atau setelah kuota ditambah.",
-      scanErrorTimeout: "Scan struk terlalu lama diproses — coba lagi.",
+        "Kuota harian penyedia AI sudah habis, scan bisa dipakai lagi besok atau setelah kuota ditambah.",
+      scanErrorTimeout: "Scan struk terlalu lama diproses, coba lagi.",
       scanErrorParseFailed:
-        "Struk tidak bisa dibaca — coba foto ulang dengan pencahayaan yang lebih baik.",
-      scanErrorUpstream: "Scan struk gagal — coba lagi sebentar lagi.",
+        "Struk tidak bisa dibaca, coba foto ulang dengan pencahayaan yang lebih baik.",
+      scanErrorUpstream: "Scan struk gagal, coba lagi sebentar lagi.",
       scanErrorPayloadTooLarge:
-        "Foto struk terlalu besar untuk dikirim — foto ulang atau pilih gambar yang lebih kecil, lalu coba lagi.",
+        "Foto struk terlalu besar untuk dikirim, foto ulang atau pilih gambar yang lebih kecil, lalu coba lagi.",
       attachmentLabel: "Lampiran",
       attachmentPlaceholder: "Pilih file (JPG, PNG, WEBP, atau PDF, maks 5MB)",
       attachmentSelected: "File dipilih: ",
       attachmentUploadFailedToast:
         "Transaksi tersimpan, tapi lampiran gagal diunggah.",
       attachmentInvalidTypeToast:
-        "Tipe file tidak didukung — hanya JPG, PNG, WEBP, atau PDF.",
+        "Tipe file tidak didukung, hanya JPG, PNG, WEBP, atau PDF.",
       attachmentTooLargeToast: "Ukuran file melebihi 5MB.",
       dialogDesc:
         "Catat pemasukan, pengeluaran, transfer, atau belanja kartu kredit.",
@@ -375,7 +375,7 @@ export const id = {
   akun: {
     heroMemberSince: "Member sejak Januari 2024",
     loadProfileError: "Gagal memuat profil. Silakan refresh halaman.",
-    familyGroupCardTitle: "👨‍👩‍👧‍👦 Group Family",
+    familyGroupCardTitle: "Group Family",
     noFamilyGroup: "Belum ada group",
     createOrJoinFamilyGroup: "Buat atau bergabung ke family group",
     memberCountSuffix: "anggota",
@@ -442,13 +442,13 @@ export const id = {
       pinRowSub: "6 digit PIN untuk buka aplikasi di perangkat ini",
       authSectionTitle: "Autentikasi",
       biometricLabel: "Sidik Jari / Face ID",
-      biometricSub: "Masuk dengan biometrik — segera hadir",
+      biometricSub: "Masuk dengan biometrik, segera hadir",
       bigTxnLabel: "Konfirmasi Transaksi Besar",
       bigTxnSub: "Minta autentikasi untuk transaksi >Rp 5 jt",
       newLoginLabel: "Notifikasi Login Baru",
       newLoginSub: "Alert jika ada login dari perangkat baru",
       authNote:
-        "Disimpan, tapi belum aktif — belum ada mekanisme autentikasi/notifikasi yang menegakkannya secara otomatis.",
+        "Disimpan, tapi belum aktif, belum ada mekanisme autentikasi/notifikasi yang menegakkannya secara otomatis.",
       sessionSectionTitle: "Sesi Aktif",
       sessionActivePrefix: "Aktif sejak ",
       deviceFallbackLabel: "Perangkat",
@@ -478,25 +478,25 @@ export const id = {
       currencySectionTitle: "Mata Uang",
       currencyHint: "Mata uang default untuk tampilan semua angka",
       currencies: {
-        IDR: { title: "IDR — Rupiah Indonesia", name: "Rp · Rupiah" },
-        USD: { title: "USD — US Dollar", name: "$ · Dollar Amerika" },
+        IDR: { title: "IDR, Rupiah Indonesia", name: "Rp · Rupiah" },
+        USD: { title: "USD, US Dollar", name: "$ · Dollar Amerika" },
         SGD: {
-          title: "SGD — Singapore Dollar",
+          title: "SGD, Singapore Dollar",
           name: "S$ · Dollar Singapura",
         },
-        EUR: { title: "EUR — Euro", name: "€ · Euro" },
-        JPY: { title: "JPY — Japanese Yen", name: "¥ · Yen Jepang" },
-        AUD: { title: "AUD — Dollar Australia", name: "A$ · Dollar Australia" },
-        CNY: { title: "CNY — Yuan Tiongkok", name: "CN¥ · Yuan Tiongkok" },
+        EUR: { title: "EUR, Euro", name: "€ · Euro" },
+        JPY: { title: "JPY, Japanese Yen", name: "¥ · Yen Jepang" },
+        AUD: { title: "AUD, Dollar Australia", name: "A$ · Dollar Australia" },
+        CNY: { title: "CNY, Yuan Tiongkok", name: "CN¥ · Yuan Tiongkok" },
       },
       displaySectionTitle: "Bahasa & Tampilan",
       languageLabel: "Bahasa",
       dateFormatLabel: "Format Tanggal",
       themeLabel: "Tema",
       themeOptions: {
-        light: "☀️ Terang (Light)",
-        dark: "🌙 Gelap (Dark)",
-        system: "🖥️ Ikuti Sistem",
+        light: "Terang (Light)",
+        dark: "Gelap (Dark)",
+        system: "Ikuti Sistem",
       },
       dataSectionTitle: "Tampilan Data",
       hideBalanceLabel: "Sembunyikan Saldo Default",
@@ -506,12 +506,12 @@ export const id = {
       weeklySummaryLabel: "Ringkasan Mingguan",
       weeklySummarySub: "Kirim ringkasan keuangan tiap Senin",
       saveButton: "Simpan Pengaturan",
-      toastCurrencyUpdated: "✅ Mata uang tampilan diperbarui",
+      toastCurrencyUpdated: "Mata uang tampilan diperbarui",
       toastCurrencyFailed: "Gagal menyimpan mata uang",
-      toastSettingsSaved: "✅ Pengaturan disimpan",
+      toastSettingsSaved: "Pengaturan disimpan",
       goldPriceSectionTitle: "Harga Emas",
       goldPriceHint:
-        "Harga emas per gram (IDR) untuk menghitung setara emas dari kekayaan bersih. Tidak ada feed harga pasar real-time — nilai ini diinput manual oleh pemilik keluarga.",
+        "Harga emas per gram (IDR) untuk menghitung setara emas dari kekayaan bersih. Tidak ada feed harga pasar real-time, nilai ini diinput manual oleh pemilik keluarga.",
       goldPriceLabel: "Harga per Gram (Rp)",
       goldPricePlaceholder: "Contoh: 1.150.000",
       goldPriceSaveButton: "Simpan Harga Emas",
@@ -519,7 +519,7 @@ export const id = {
       goldPriceManualLabelPrefix: "Diinput manual, per ",
       goldPriceOwnerOnlyNote:
         "Hanya pemilik keluarga (owner) yang dapat mengubah harga emas.",
-      toastGoldPriceUpdated: "✅ Harga emas diperbarui",
+      toastGoldPriceUpdated: "Harga emas diperbarui",
       toastGoldPriceFailed: "Gagal menyimpan harga emas",
       toastGoldPriceInvalid: "Masukkan harga emas yang valid (lebih dari 0)",
       religionSectionTitle: "Agama Keluarga",
@@ -528,13 +528,16 @@ export const id = {
       religionOptions: {
         islam: "Islam (Zakat)",
         kristen: "Kristen (Persepuluhan)",
+        katolik: "Katolik (Persepuluhan)",
+        hindu: "Hindu",
+        buddha: "Buddha",
         none: "Tidak diatur",
       },
       religionLabel: "Agama Keluarga",
       religionSaveButton: "Simpan Agama Keluarga",
       religionOwnerOnlyNote:
         "Hanya pemilik keluarga (owner) yang dapat mengubah agama keluarga.",
-      toastReligionUpdated: "✅ Agama keluarga diperbarui",
+      toastReligionUpdated: "Agama keluarga diperbarui",
       toastReligionFailed: "Gagal menyimpan agama keluarga",
       religionUnconfirmedPlaceholder: "Pilih agama keluarga",
       religionUnconfirmedLabel: "Belum dipilih",
@@ -567,7 +570,7 @@ export const id = {
       aiKeyOwnerOnlyNote:
         "Hanya pemilik keluarga (owner) atau pasangan yang dapat mengatur API key AI.",
       aiKeyNotConfiguredLabel: "Belum ada API key yang terhubung.",
-      toastAiKeySaved: "✅ API key AI berhasil disimpan",
+      toastAiKeySaved: "API key AI berhasil disimpan",
       toastAiKeySaveFailed: "Gagal menyimpan API key AI",
       toastAiKeyRemoved: "API key AI dihapus",
       toastAiKeyRemoveFailed: "Gagal menghapus API key AI",
@@ -593,8 +596,8 @@ export const id = {
       dividendLabel: "Dividen Masuk",
       dividendSub: "Notif saat dividen diterima",
       investNote:
-        "Disimpan, tapi belum aktif — sumber data harga & dividen belum tersedia.",
-      toastSaved: "✅ Pengaturan notifikasi disimpan",
+        "Disimpan, tapi belum aktif, sumber data harga & dividen belum tersedia.",
+      toastSaved: "Pengaturan notifikasi disimpan",
       toastFailed: "Gagal menyimpan pengaturan notifikasi",
     },
     privasi: {
@@ -613,7 +616,7 @@ export const id = {
       exportDataSub: "Download semua data dalam format CSV/PDF",
       deleteAccountName: "Hapus Akun",
       deleteAccountSub: "Semua data akan dihapus permanen",
-      toastExportSuccess: "📤 Data berhasil diekspor",
+      toastExportSuccess: "Data berhasil diekspor",
       toastExportFailed: "Gagal mengekspor data. Coba lagi.",
       deleteAccountConfirm:
         "Yakin ingin menghapus akun? Semua data akan dihapus permanen dan tidak bisa dikembalikan.",
@@ -669,7 +672,7 @@ export const id = {
       guideSectionTitle: "Panduan Fitur",
       tourName: "Mulai Setup Terpandu",
       tourSub:
-        "Setup ~2 menit yang membuat rekening, anggaran, dan transaksi pertamamu — sungguhan, bukan simulasi",
+        "Setup ~2 menit yang membuat rekening, anggaran, dan transaksi pertamamu, sungguhan, bukan simulasi",
       fullGuideName: "Panduan Fitur Lengkap",
       fullGuideSub: "Semua fitur, dikelompokkan per kategori",
       askAiName: "Tanya AI Advisor",
@@ -683,11 +686,11 @@ export const id = {
       emailName: "Email",
       emailSub: "support@wealthme.id · Respons 1x24 jam",
       phoneName: "Telepon",
-      phoneSub: "0800-1234-5678 · Senin–Jumat 08:00–17:00",
+      phoneSub: "0800-1234-5678 · Senin–Jumat 08:00-17:00",
       whatsappName: "WhatsApp",
       whatsappSub: "+62 811 2345 6789 · Chat langsung",
-      toastLiveChat: "Live chat belum tersedia — segera hadir.",
-      feedbackTitle: "💬 Kirim Feedback",
+      toastLiveChat: "Live chat belum tersedia, segera hadir.",
+      feedbackTitle: "Kirim Feedback",
       feedbackPlaceholder: "Ceritakan pengalamanmu atau laporkan bug...",
       feedbackButton: "Kirim Feedback",
       toastFeedbackOpening: "Membuka email…",
@@ -702,9 +705,9 @@ export const id = {
       privacyPolicyName: "Kebijakan Privasi",
       termsName: "Syarat & Ketentuan",
       licenseName: "Lisensi Open Source",
-      footerMade: "Dibuat dengan ❤️ di Indonesia",
+      footerMade: "Dibuat dengan di Indonesia",
       footerCopyright: "© 2025 WealthMe · Semua hak dilindungi",
-      toastComingSoon: "Fitur ini belum tersedia — segera hadir.",
+      toastComingSoon: "Fitur ini belum tersedia, segera hadir.",
     },
     family: {
       membersSectionTitle: "Anggota",
@@ -724,8 +727,7 @@ export const id = {
         "Pilih kategori pengeluaran yang boleh dicatat anggota ini. Kosongkan semua untuk tidak membatasi (default).",
       categoryLimitEmptyCategories:
         "Belum ada kategori pengeluaran. Tambahkan dulu di halaman Transaksi.",
-      categoryLimitUnrestrictedHint:
-        "Tidak dibatasi — semua kategori diizinkan",
+      categoryLimitUnrestrictedHint: "Tidak dibatasi, semua kategori diizinkan",
       categoryLimitSaveButton: "Simpan Batasan",
       categoryLimitSaving: "Menyimpan...",
       categoryLimitSaved: "Batasan kategori berhasil disimpan.",
@@ -738,8 +740,9 @@ export const id = {
       allowanceRequestRejectButton: "Tolak",
       allowanceRequestApproveDialogTitle: "Setujui Permintaan Dana",
       allowanceRequestSourceAccountLabel: "Sumber Dana",
+      allowanceRequestRequestedFromPrefix: "dari ",
       allowanceRequestApproved:
-        "Permintaan dana disetujui — dana telah ditransfer.",
+        "Permintaan dana disetujui, dana telah ditransfer.",
       allowanceRequestApproveFailed:
         "Gagal menyetujui permintaan dana. Coba lagi.",
       allowanceRequestRejected: "Permintaan dana ditolak.",
@@ -766,7 +769,7 @@ export const id = {
     addDependant: {
       dialogTitle: "Tambah Anak / Operasional",
       dialogDesc:
-        "Untuk anggota tanpa email sendiri (anak, supir, asisten). Buatkan username dan password awal — mereka wajib menggantinya saat login pertama.",
+        "Untuk anggota tanpa email sendiri (anak, supir, asisten). Buatkan username dan password awal, mereka wajib menggantinya saat login pertama.",
       nameLabel: "Nama",
       namePlaceholder: "Nama lengkap",
       usernameLabel: "Username",
@@ -775,19 +778,20 @@ export const id = {
       passwordLabel: "Password Awal",
       passwordPlaceholder: "Minimal 8 karakter",
       passwordHint:
-        "Beri tahu password ini secara langsung — wajib diganti saat login pertama.",
+        "Beri tahu password ini secara langsung, wajib diganti saat login pertama.",
       showPassword: "Tampilkan password",
       hidePassword: "Sembunyikan password",
       roleLabel: "Peran",
       roleOptions: {
-        dependant: "Anak (Dependant)",
-        operational: "Operasional (supir/asisten)",
         istriCoMaster: "Istri (Co-Master)",
+        dependant: "Anak",
+        operational: "Staff Operasional",
+        member: "Anggota",
       },
       istriCoMasterHint:
         'Istri menjadi pemilik kedua (co-master) dengan menu dan hak yang sama persis dengan suami — bukan anggota/dependant. Hubungan Keluarga otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.',
       relationshipLabel: "Hubungan Keluarga (opsional)",
-      relationshipNoneOption: "— Tidak diisi —",
+      relationshipNoneOption: "Tidak diisi",
       creating: "Membuat...",
       createButton: "Buat Akun",
       toastCreated: "Akun berhasil dibuat",
@@ -837,20 +841,20 @@ export const id = {
     // AllowanceRequestDto, so this notice states the fact (held, over the
     // member's limit) without fabricating a specific Rupiah figure.
     heldWarningNotice:
-      "Pengeluaran ini melebihi batas transaksi anggota dan ditahan — belum dicatat sampai kamu menyetujui atau menolaknya.",
+      "Pengeluaran ini melebihi batas transaksi anggota dan ditahan, belum dicatat sampai kamu menyetujui atau menolaknya.",
     fundingApproveHelperNotice:
       "Menyetujui akan mentransfer dana sungguhan antar rekening.",
     approveSourceAccountHint:
       "Dana ditransfer sungguhan dari rekening ini ke rekening tujuan.",
   },
   panduan: {
-    pageTitle: "📖 Panduan Fitur WealthMe",
+    pageTitle: "Panduan Fitur WealthMe",
     pageSubtitle:
-      "Semua fitur, dikelompokkan berdasarkan alur pemakaian — jelajahi sesuai kebutuhanmu.",
+      "Semua fitur, dikelompokkan berdasarkan alur pemakaian, jelajahi sesuai kebutuhanmu.",
     openLink: "Buka →",
     searchLabel: "Cari topik",
     searchPlaceholder: "cth. anggaran, rekonsiliasi, ganti peran…",
-    noResults: "Tidak ada topik yang cocok — coba kata kunci lain.",
+    noResults: "Tidak ada topik yang cocok, coba kata kunci lain.",
     journeys: {
       start: {
         title: "1. Mulai di sini",
@@ -869,7 +873,7 @@ export const id = {
       growProtect: {
         title: "5. Tumbuh & lindungi kekayaan",
         subtitle:
-          "Lengkapi gambaran kekayaanmu — opsional, isi sesuai kebutuhan.",
+          "Lengkapi gambaran kekayaanmu, opsional, isi sesuai kebutuhan.",
       },
       reportsTools: {
         title: "6. Laporan & alat bantu",
@@ -881,7 +885,7 @@ export const id = {
       },
       advancedConfig: {
         title: "8. Konfigurasi lanjutan",
-        subtitle: "Untuk kebutuhan akuntansi & multi-user — opsional.",
+        subtitle: "Untuk kebutuhan akuntansi & multi-user, opsional.",
       },
       aiAssistant: { title: "9. Asisten AI", subtitle: "Tanya kapan saja." },
     },
@@ -904,7 +908,7 @@ export const id = {
       },
       masterdata: {
         title: "Setup Master Data",
-        desc: "Sesuaikan kategori transaksi (makan, transport, gaji, dll) di sini — dipakai bersama oleh anggaran dan laporan.",
+        desc: "Sesuaikan kategori transaksi (makan, transport, gaji, dll) di sini, dipakai bersama oleh anggaran dan laporan.",
       },
       addTransactionButton: {
         title: 'Tombol "+" Tambah Transaksi',
@@ -960,7 +964,7 @@ export const id = {
       },
       rekonsiliasi: {
         title: "Rekonsiliasi Bank",
-        desc: "Unggah file mutasi bank (CSV) — WealthMe mencocokkannya otomatis dengan transaksi yang sudah kamu catat.",
+        desc: "Unggah file mutasi bank (CSV), WealthMe mencocokkannya otomatis dengan transaksi yang sudah kamu catat.",
       },
       donation: {
         title: "Donasi & Zakat",
@@ -980,7 +984,7 @@ export const id = {
       },
       ai: {
         title: "AI Advisor",
-        desc: "Ketik pertanyaan seputar keuanganmu — AI menganalisis data transaksimu dan memberi saran konkret.",
+        desc: "Ketik pertanyaan seputar keuanganmu, AI menganalisis data transaksimu dan memberi saran konkret.",
       },
       akun: {
         title: "Akun & Keluarga",
@@ -988,7 +992,7 @@ export const id = {
       },
       persetujuan: {
         title: "Persetujuan",
-        desc: "Permintaan dana dari anggota keluarga masuk ke sini — setujui atau tolak, lengkap dengan catatan.",
+        desc: "Permintaan dana dari anggota keluarga masuk ke sini, setujui atau tolak, lengkap dengan catatan.",
       },
       passwordLogin: {
         title: "Kata Sandi & Login",
@@ -996,7 +1000,7 @@ export const id = {
       },
       privateCategories: {
         title: "Kategori Privat",
-        desc: "Tandai kategori sebagai privat — transaksinya hanya terlihat olehmu dan tidak dikirim ke AI Advisor.",
+        desc: "Tandai kategori sebagai privat, transaksinya hanya terlihat olehmu dan tidak dikirim ke AI Advisor.",
       },
       apiKeyAi: {
         title: "API Key AI",
@@ -1039,14 +1043,14 @@ export const id = {
     searchResultMid: " dari ",
     searchResultSuffix: " topik",
     searchNoResultsFiltered:
-      "Tidak ada topik yang cocok — coba kata kunci lain atau hubungi kami.",
+      "Tidak ada topik yang cocok, coba kata kunci lain atau hubungi kami.",
     contactHeaderButton: "Hubungi Kami",
     faqSectionTitle: "Pertanyaan yang Sering Diajukan",
     faq: {
       pdfRejected: {
         q: "Kenapa statement PDF dari bank saya ditolak?",
         before:
-          "Tata letak PDF berbeda di tiap bank, dan angka hasil pembacaan otomatis sering meleset tanpa ketahuan — itu risiko yang lebih besar daripada repot sedikit. Ekspor mutasi rekening sebagai CSV dari aplikasi atau situs bank Anda, lalu unggah file CSV tersebut di halaman ",
+          "Tata letak PDF berbeda di tiap bank, dan angka hasil pembacaan otomatis sering meleset tanpa ketahuan, itu risiko yang lebih besar daripada repot sedikit. Ekspor mutasi rekening sebagai CSV dari aplikasi atau situs bank Anda, lalu unggah file CSV tersebut di halaman ",
         linkLabel: "Rekonsiliasi",
         after: ".",
       },
@@ -1060,14 +1064,14 @@ export const id = {
       mortgageNotFullExpense: {
         q: "Kenapa cicilan KPR saya tidak seluruhnya masuk pengeluaran?",
         before:
-          "Karena hanya bagian bunganya yang benar-benar pengeluaran. Pokok cicilan mengurangi utangmu, bukan labamu — uang itu memang bukan pemasukanmu waktu dulu kamu pinjam. Penjelasan lengkapnya ada di ",
+          "Karena hanya bagian bunganya yang benar-benar pengeluaran. Pokok cicilan mengurangi utangmu, bukan labamu, uang itu memang bukan pemasukanmu waktu dulu kamu pinjam. Penjelasan lengkapnya ada di ",
         linkLabel: "Master COA",
         after: ", grup 5 (Utang).",
       },
       aiNotAnswering: {
         q: "Kenapa AI Advisor saya tidak bisa menjawab?",
         before:
-          "AI Advisor memakai API key milikmu sendiri (Claude, OpenAI, atau Gemini). Selama key belum disambungkan, fitur ini sengaja dinonaktifkan dan tidak menampilkan jawaban apa pun — lebih baik kosong daripada saran yang dikarang. Owner atau pasangan bisa mengaturnya di ",
+          "AI Advisor memakai API key milikmu sendiri (Claude, OpenAI, atau Gemini). Selama key belum disambungkan, fitur ini sengaja dinonaktifkan dan tidak menampilkan jawaban apa pun, lebih baik kosong daripada saran yang dikarang. Owner atau pasangan bisa mengaturnya di ",
         linkLabel: "AI Advisor → Atur API Key",
         after: ".",
       },
@@ -1108,7 +1112,7 @@ export const id = {
       emailDesc: "Respons 1×24 jam kerja.",
       phoneTitle: "Telepon",
       phoneValue: "0800-1234-5678",
-      phoneDesc: "Senin–Jumat, 08.00–17.00 WIB.",
+      phoneDesc: "Senin–Jumat, 08.00-17.00 WIB.",
       whatsappTitle: "WhatsApp",
       whatsappValue: "+62 811 2345 6789",
       whatsappDesc: "Chat langsung.",
@@ -1184,7 +1188,7 @@ export const id = {
     paySourceAccountLabel: "Rekening Sumber",
     paySourceAccountPlaceholder: "Pilih rekening...",
     payAlreadyPaidTooltip: "Sudah dibayar periode ini",
-    toastRenewalRecordedPrefix: "Premi dibayar — jatuh tempo berikutnya ",
+    toastRenewalRecordedPrefix: "Premi dibayar, jatuh tempo berikutnya ",
     toastPaySuccessNoRenewal: "Premi berhasil dibayar.",
     toastRenewalFailed: "Gagal membayar premi. Coba lagi.",
     beneficiariesSectionTitle: "Ahli Waris Asuransi",
@@ -1204,11 +1208,11 @@ export const id = {
     validationSharePercentExceeded:
       "Total persentase ahli waris tidak boleh lebih dari 100%",
     validationBeneficiaryNameRequired:
-      "Ahli waris dengan persentase harus punya nama — isi nama atau hapus baris ini",
+      "Ahli waris dengan persentase harus punya nama, isi nama atau hapus baris ini",
     validationShareUnderAllocated:
-      "Baru {pct}% dialokasikan — sisanya tidak tercatat ke ahli waris manapun (mungkin memang disengaja, misalnya sisa ke ahli waris sesuai hukum waris)",
+      "Baru {pct}% dialokasikan, sisanya tidak tercatat ke ahli waris manapun (mungkin memang disengaja, misalnya sisa ke ahli waris sesuai hukum waris)",
     beneficiaryMemberPickerUnavailable:
-      "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
+      "Daftar anggota keluarga tidak tersedia untuk peran Anda, isi nama secara manual.",
     coverageAllocationTitle: "Uang Pertanggungan per Jenis",
     renewalWarningPrefix: "Premi",
     renewalWarningSuffix: "jatuh tempo",
@@ -1240,7 +1244,7 @@ export const id = {
     policyPickerPayDesc:
       "Pilih polis yang preminya ingin dibayar, lalu tentukan rekening sumbernya di langkah berikutnya.",
     policyPickerBeneficiaryDesc:
-      "Pilih polis dulu — ahli waris disimpan pada polis tersebut, dan total persentasenya tidak boleh lebih dari 100%.",
+      "Pilih polis dulu, ahli waris disimpan pada polis tersebut, dan total persentasenya tidak boleh lebih dari 100%.",
     deleteDialogTitle: "Hapus data ini?",
     deleteDialogBody:
       "Data polis akan dihapus permanen. Riwayat pembayaran premi tetap tersimpan di Transaksi.",
@@ -1251,16 +1255,16 @@ export const id = {
   },
   kalkulator: {
     tabs: {
-      zakat: "🌙 Zakat Maal",
-      pph21: "🧾 PPh 21",
-      investasi: "📈 Investasi",
+      zakat: "Zakat Maal",
+      pph21: "PPh 21",
+      investasi: "Investasi",
       // EPIC-025 N3 fidelity follow-up — prototype calls this calculator
       // "KPR" (it computes a property-loan/mortgage instalment); label
       // aligned, tab id/key kept as "kredit" so nothing downstream breaks.
-      kredit: "💳 KPR",
-      pensiun: "🏖️ Pensiun",
-      tabungan: "🏦 Tabungan",
-      splitgroup: "🧾 Split Group",
+      kredit: "KPR",
+      pensiun: "Pensiun",
+      tabungan: "Tabungan",
+      splitgroup: "Split Group",
     },
     months: [
       "Jan",
@@ -1282,14 +1286,14 @@ export const id = {
     // `docs/prototype/pages/kalkulator.html`'s `.page-lead`.
     pageTitle: "Kalkulator Keuangan",
     pageSubtitle:
-      "Semua kolom rupiah otomatis pakai titik ribuan — 100.000.000 tetap terbaca sebagai seratus juta saat disimpan.",
+      "Semua kolom rupiah otomatis pakai titik ribuan, 100.000.000 tetap terbaca sebagai seratus juta saat disimpan.",
     // EPIC-025 N3 fidelity follow-up — every calculator now pairs its input
     // card with its own "Hasil" result card (prototype's `grid--sidebar`).
     hasilCardTitle: "Hasil",
     zakat: {
       cardTitle: "Kalkulator Zakat Maal",
       nisabAutoNote:
-        "Nisab dihitung otomatis — dari harga emas keluarga (jika sudah diatur) atau harga acuan indikatif.",
+        "Nisab dihitung otomatis, dari harga emas keluarga (jika sudah diatur) atau harga acuan indikatif.",
       fieldCash: "Kas & Tabungan (Rp)",
       fieldInvestments: "Investasi (Rp)",
       fieldGold: "Nilai Emas (Rp)",
@@ -1311,11 +1315,11 @@ export const id = {
       // with no obvious reason unless this note ties the two together.
       belowNisabPrefix: "Harta zakatable belum mencapai nisab (",
       belowNisabSuffix:
-        "), sehingga belum ada kewajiban zakat saat ini — nilainya Rp 0.",
+        "), sehingga belum ada kewajiban zakat saat ini, nilainya Rp 0.",
       nisabSourceFamilyPrefix: "Nisab dari harga emas keluarga: Rp ",
       nisabSourceFamilyMidfix: "/gram (",
       nisabSourceFamilySuffix: ")",
-      nisabSourceIndicative: "Nisab indikatif — bukan harga emas real-time.",
+      nisabSourceIndicative: "Nisab indikatif, bukan harga emas real-time.",
     },
     pph21: {
       cardTitle: "Kalkulator PPh 21 (UU HPP)",
@@ -1337,11 +1341,11 @@ export const id = {
       // note + "Rincian lapisan tarif" dialog (real data: the same
       // `taxBreakdown` the result card already renders as rows).
       typingNote:
-        "Ketik angkanya saja — titik ribuan muncul sendiri. Nilai yang tersimpan tetap angka murni.",
+        "Ketik angkanya saja, titik ribuan muncul sendiri. Nilai yang tersimpan tetap angka murni.",
       bracketDialogLinkLabel: "Rincian lapisan tarif",
       bracketDialogTitle: "Rincian Lapisan Tarif PPh 21",
       bracketDialogDesc:
-        "Tarif progresif UU HPP — setiap lapisan dikenakan terpisah, bukan satu tarif rata.",
+        "Tarif progresif UU HPP, setiap lapisan dikenakan terpisah, bukan satu tarif rata.",
       bracketDialogBracketHeader: "Lapisan PKP",
       bracketDialogRateHeader: "Tarif",
       bracketDialogTaxableHeader: "Kena Pajak",
@@ -1408,7 +1412,7 @@ export const id = {
       resultLabel: "Dana Pensiun yang Dibutuhkan",
       detailMonthlyInvestmentNeededPrefix: "Investasi bulanan yang dibutuhkan:",
       targetBasisNote:
-        "Target diasumsikan 20× pengeluaran tahunan saat ini (≈5% tarik dana/tahun) — bukan aturan 25×/4% yang lebih umum digunakan.",
+        "Target diasumsikan 20× pengeluaran tahunan saat ini (≈5% tarik dana/tahun), bukan aturan 25×/4% yang lebih umum digunakan.",
       // EPIC-025 N3 fidelity follow-up — "Hasil" card breakdown rows, all
       // sourced from the real `/calculators/retirement` response fields
       // (no client-recomputed inflation/shortfall figures — see the E3
@@ -1441,9 +1445,9 @@ export const id = {
     },
   },
   quickinput: {
-    pageTitle: "⚡ Quick Input",
+    pageTitle: "Quick Input",
     pageSubtitle:
-      "Pilih jenis data yang ingin kamu input — langsung isi via popup",
+      "Pilih jenis data yang ingin kamu input, langsung isi via popup",
     cards: {
       transaksi: { name: "Transaksi", desc: "Pemasukan / pengeluaran" },
       investasi: { name: "Investasi", desc: "Saham, reksa dana, emas" },
@@ -1468,17 +1472,17 @@ export const id = {
     bannerTitle: "WealthMe AI Advisor",
     bannerSubtitle:
       "Analisa keuangan personal berdasarkan data nyata, memakai API key Anda sendiri.",
-    popularQuestionsLabel: "💡 Pertanyaan Populer",
+    popularQuestionsLabel: "Pertanyaan Populer",
     chips: [
-      "📊 Analisa keuangan bulan ini",
-      "🎯 Cara capai target DP Rumah lebih cepat",
-      "📈 Rekomendasi portofolio investasi",
-      "💡 Tips hemat pengeluaran",
-      "💳 Utang kartu kredit aman?",
-      "📅 Proyeksi kekayaan 5 tahun",
+      "Analisa keuangan bulan ini",
+      "Cara capai target DP Rumah lebih cepat",
+      "Rekomendasi portofolio investasi",
+      "Tips hemat pengeluaran",
+      "Utang kartu kredit aman?",
+      "Proyeksi kekayaan 5 tahun",
     ],
     initialMessage:
-      "Halo! 👋 Saya WealthMe AI Advisor. Tanyakan apa saja tentang keuangan keluargamu.",
+      "Halo! Saya WealthMe AI Advisor. Tanyakan apa saja tentang keuangan keluargamu.",
     errorGeneric: "Maaf, terjadi kesalahan. Coba lagi nanti.",
     errorConnection: "Maaf, koneksi terputus. Coba lagi.",
     noGroupTitle: "Bergabung ke family group untuk menggunakan AI Advisor",
@@ -1499,18 +1503,18 @@ export const id = {
     // must say so explicitly, and each provider-failure kind gets its own
     // message instead of one generic error for all of them.
     truncatedNotice:
-      "⚠️ Jawaban terpotong karena mencapai batas panjang respons AI.",
+      "Jawaban terpotong karena mencapai batas panjang respons AI.",
     errorKeyCorrupted:
-      "API key AI yang tersimpan tidak bisa dibaca — masukkan ulang di Akun → Pengaturan.",
+      "API key AI yang tersimpan tidak bisa dibaca, masukkan ulang di Akun → Pengaturan.",
     errorAuthFailed:
-      "Penyedia AI menolak API key ini — periksa kembali key Anda di Akun → Pengaturan.",
+      "Penyedia AI menolak API key ini, periksa kembali key Anda di Akun → Pengaturan.",
     errorRateLimited:
-      "Penyedia AI membatasi permintaan ini sementara — coba lagi sebentar lagi.",
+      "Penyedia AI membatasi permintaan ini sementara, coba lagi sebentar lagi.",
     errorRateLimitedRetryIn:
-      "Penyedia AI membatasi permintaan ini — coba lagi dalam {seconds} detik.",
+      "Penyedia AI membatasi permintaan ini, coba lagi dalam {seconds} detik.",
     errorRateLimitedDaily:
       "Kuota harian penyedia AI untuk model ini sudah habis. Coba lagi besok, atau ganti model / naikkan paket di akun penyedia AI Anda.",
-    errorTimeout: "Permintaan ke penyedia AI kehabisan waktu — coba lagi.",
+    errorTimeout: "Permintaan ke penyedia AI kehabisan waktu, coba lagi.",
     statusApiKeyLabel: "Status API Key",
     statusConnectedBadge: "Tersambung",
     manageApiKeyButton: "Atur API Key",
@@ -1591,7 +1595,7 @@ export const id = {
     fieldQuantityPlaceholder: "contoh: 10",
     fieldCostBasisLabel: "Harga Beli per Unit (Rp)",
     fieldCostBasisPlaceholder: "contoh: 9500",
-    fieldInterestRateLabel: "Suku Bunga Tahunan (%) — untuk Obligasi/Deposito",
+    fieldInterestRateLabel: "Suku Bunga Tahunan (%), untuk Obligasi/Deposito",
     fieldInterestRatePlaceholder: "contoh: 6.5",
     // EPIC-024 C3 (D9) — saham Lot/Lembar toggle. Canonical storage stays
     // lembar; 1 lot = 100 lembar (see toLembar/quantityToDisplay in
@@ -1680,33 +1684,33 @@ export const id = {
       computedInterest: "Bunga Sederhana (Dihitung)",
     },
     detailDelayedLabel: "Tertunda & tidak resmi",
-    detailRefreshFailedLabel: "Refresh gagal — menampilkan harga terakhir",
+    detailRefreshFailedLabel: "Refresh gagal, menampilkan harga terakhir",
     detailManualLabelPrefix: "Diinput manual, per ",
-    detailNoManualPrice: "Belum ada harga manual — edit untuk menambahkan.",
+    detailNoManualPrice: "Belum ada harga manual, edit untuk menambahkan.",
     detailPriceUnavailable: "Harga belum tersedia.",
     automatedUnmappedBadge: "Harga Manual",
     automatedUnmappedNote:
-      "Ticker ini belum didukung feed harga otomatis — masukkan harga secara manual.",
+      "Ticker ini belum didukung feed harga otomatis, masukkan harga secara manual.",
     fieldManualPriceLabel: "Harga Saat Ini (Rp, opsional)",
     fieldManualPricePlaceholder: "contoh: 15250",
     fieldManualPriceDateLabel: "Per Tanggal",
     manualPriceNote:
-      "Tidak ada feed harga otomatis untuk jenis ini — masukkan harga terkini secara manual, dengan tanggalnya.",
+      "Tidak ada feed harga otomatis untuk jenis ini, masukkan harga terkini secara manual, dengan tanggalnya.",
     autoPriceNoteSaham:
-      "Harga diperbarui otomatis dari Yahoo Finance (.JK) — tertunda & tidak resmi.",
+      "Harga diperbarui otomatis dari Yahoo Finance (.JK), tertunda & tidak resmi.",
     autoPriceNoteKripto: "Harga diperbarui otomatis dari CoinGecko.",
     depositoValuationNote:
-      "Nilai deposito dihitung otomatis dari nominal + bunga tahunan (bunga sederhana, pro-rata) — tidak perlu diinput manual.",
+      "Nilai deposito dihitung otomatis dari nominal + bunga tahunan (bunga sederhana, pro-rata), tidak perlu diinput manual.",
     refreshPriceButton: "Perbarui Harga",
     refreshPriceToast: "Memuat ulang harga terbaru…",
     capitalInvestedPrefix: "Modal ditanam",
     livePositionsSuffix: "posisi berharga live",
     pricingSourceNoticeTitle: "Dua sumber harga.",
     pricingSourceNoticeBody:
-      "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko — keduanya delayed ±15 menit, bukan real-time. Reksa dana, obligasi, emas, dan deposito tidak punya feed otomatis: nilainya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya.",
+      "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko, keduanya delayed ±15 menit, bukan real-time. Reksa dana, obligasi, emas, dan deposito tidak punya feed otomatis: nilainya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya.",
     allocationTitle: "Alokasi per Jenis",
     modalDesc:
-      "Isi jenis dulu — kolom di bawah menyesuaikan. Saham dihitung per lot, kripto per koin, deposito per bunga berjalan.",
+      "Isi jenis dulu, kolom di bawah menyesuaikan. Saham dihitung per lot, kripto per koin, deposito per bunga berjalan.",
     sectionIdentityTitle: "Informasi instrumen",
     sectionIdentityDesc:
       "Pilih jenis dan identitas investasi yang akan dicatat.",
@@ -1720,7 +1724,7 @@ export const id = {
     hintQuantityLocked:
       'Jumlah hanya bisa berubah lewat "Beli Lagi" / "Jual" — bukan dari sini.',
     hintCostBasisLocked:
-      "Harga rata-rata dihitung otomatis dari riwayat beli/jual — bukan dari sini.",
+      "Harga rata-rata dihitung otomatis dari riwayat beli/jual, bukan dari sini.",
     buySellButtonLabel: "Beli / Jual",
     buySellModalTitleBuy: "Catat Pembelian",
     buySellModalTitleSell: "Catat Penjualan",
@@ -1731,8 +1735,8 @@ export const id = {
     buySellFieldDateLabel: "Tanggal Transaksi",
     buySellSaveButton: "Simpan Transaksi",
     buySellSaving: "Menyimpan...",
-    toastBuySuccess: "Pembelian dicatat — harga rata-rata diperbarui.",
-    toastSellSuccessTemplate: "Penjualan dicatat — P/L terealisasi {pnl}.",
+    toastBuySuccess: "Pembelian dicatat, harga rata-rata diperbarui.",
+    toastSellSuccessTemplate: "Penjualan dicatat, P/L terealisasi {pnl}.",
     toastBuySellFailed: "Gagal mencatat transaksi. Coba lagi.",
     detailRealizedPnlLabel: "P/L Terealisasi",
     historySectionTitle: "Riwayat Beli/Jual",
@@ -1913,11 +1917,11 @@ export const id = {
     amortisationEstimatedPayoffPrefix: "Estimasi lunas dalam ~",
     amortisationEstimatedPayoffSuffix: " bulan",
     amortisationNoPayoffNote:
-      "Pembayaran minimum saat ini tidak menutup bunga bulanan — sisa utang tidak akan berkurang.",
+      "Pembayaran minimum saat ini tidak menutup bunga bulanan, sisa utang tidak akan berkurang.",
     amortisationUnavailableNote:
       "Atur min. bayar untuk melihat estimasi amortisasi.",
     amortisationDisclaimer:
-      "Estimasi kasar berdasarkan sisa saldo, bunga, dan min. bayar saat ini — bukan jadwal resmi.",
+      "Estimasi kasar berdasarkan sisa saldo, bunga, dan min. bayar saat ini, bukan jadwal resmi.",
     payDialogTitle: "Bayar Liabilitas",
     payAmountLabel: "Jumlah Bayar (Rp)",
     payPrincipalPreviewLabel: "Estimasi Pokok",
@@ -1959,36 +1963,36 @@ export const id = {
     payRemainingAfterLabel: "Sisa pokok setelah bayar",
   },
   masterdata: {
-    pageTitle: "🗄️ Setup Master Data",
+    pageTitle: "Setup Master Data",
     pageSubtitle:
       "Kelola data referensi yang dipakai di seluruh aplikasi. Semua daftar di halaman ini bisa kamu tambah dan hapus sendiri.",
     masterCoaButton: "Master COA",
     categoryFooterHint:
       "Kode di samping tiap kategori adalah akun COA tempat transaksinya tercatat di laporan.",
     groups: {
-      mdbank: { title: "🏦 Bank", label: "Bank" },
-      mdtxntype: { title: "↕️ Jenis Transaksi", label: "Jenis Transaksi" },
-      mdinvtype: { title: "📈 Jenis Investasi", label: "Jenis Investasi" },
-      mdewallet: { title: "💳 E-Wallet", label: "E-Wallet" },
-      mdlembaga: { title: "🤲 Lembaga Donasi", label: "Lembaga" },
-      mdasettype: { title: "🏠 Kategori Aset", label: "Kategori Aset" },
-      mdinstype: { title: "🛡️ Jenis Asuransi", label: "Jenis Asuransi" },
+      mdbank: { title: "Bank", label: "Bank" },
+      mdtxntype: { title: "↕ Jenis Transaksi", label: "Jenis Transaksi" },
+      mdinvtype: { title: "Jenis Investasi", label: "Jenis Investasi" },
+      mdewallet: { title: "E-Wallet", label: "E-Wallet" },
+      mdlembaga: { title: "Lembaga Donasi", label: "Lembaga" },
+      mdasettype: { title: "Kategori Aset", label: "Kategori Aset" },
+      mdinstype: { title: "Jenis Asuransi", label: "Jenis Asuransi" },
     },
-    categorySectionTitle: "🏷️ Kategori",
+    categorySectionTitle: "Kategori",
     masterCoaLink: "Master COA",
     addLink: "+ Tambah",
     categoryLoading: "Memuat kategori…",
     categoryEmpty: "Belum ada kategori",
     kindIncome: "Masuk",
     kindExpense: "Keluar",
-    privateLabel: "🔒 Privat",
+    privateLabel: "Privat",
     autoOptionLabel: "Otomatis (sesuai tipe)",
     groupEmpty: "Belum ada data",
     groupLoading: "Memuat…",
     systemBadge: "Bawaan",
     footerBold: "Kategori",
     footerRest:
-      " tersimpan ke server dan dipakai di transaksi & laporan. Daftar referensi lain (bank, e-wallet, jenis transaksi, jenis investasi, lembaga donasi, kategori aset, jenis asuransi) juga tersimpan per keluarga — bukan bawaan sistem yang terkunci. Menghapus item yang masih dipakai transaksi akan ditolak dengan pesan yang menyebutkan datanya.",
+      " tersimpan ke server dan dipakai di transaksi & laporan. Daftar referensi lain (bank, e-wallet, jenis transaksi, jenis investasi, lembaga donasi, kategori aset, jenis asuransi) juga tersimpan per keluarga, bukan bawaan sistem yang terkunci. Menghapus item yang masih dipakai transaksi akan ditolak dengan pesan yang menyebutkan datanya.",
     editAriaPrefix: "Edit ",
     deleteAriaPrefix: "Hapus ",
     categoryDeleteLabelPrefix: 'kategori "',
@@ -2015,7 +2019,7 @@ export const id = {
     topNoticeBold: "Semua daftar di halaman ini bisa diubah.",
     topNoticePrefix: "Item bertanda",
     topNoticeSuffix:
-      "adalah isian awal dari WealthMe — tetap bisa kamu hapus atau ganti kalau tidak dipakai keluargamu. Perubahan langsung tersimpan ke server dan berlaku untuk seluruh anggota keluarga.",
+      "adalah isian awal dari WealthMe, tetap bisa kamu hapus atau ganti kalau tidak dipakai keluargamu. Perubahan langsung tersimpan ke server dan berlaku untuk seluruh anggota keluarga.",
   },
   mastercoa: {
     groupLabels: {
@@ -2039,9 +2043,9 @@ export const id = {
     // EPIC-025 N3 prototype structural port (docs/prototype/pages/
     // mastercoa.html) — page header, numbered tab/badge copy, grouped
     // table section headers, and upper-case ARAH wording.
-    pageTitle: "📚 Master COA",
+    pageTitle: "Master COA",
     pageSubtitle:
-      "Struktur akun yang dipakai laporan laba-rugi & neraca. Untuk kebutuhan akuntansi lanjutan — opsional.",
+      "Struktur akun yang dipakai laporan laba-rugi & neraca. Untuk kebutuhan akuntansi lanjutan, opsional.",
     masterDataButton: "Master Data",
     groupBadgeLabels: {
       1: "Income",
@@ -2105,7 +2109,7 @@ export const id = {
     fieldCodeLabel: "Kode Akun",
     fieldCodePlaceholder: "20101",
     fieldCodeAutoPlaceholder: "Otomatis jika dikosongkan",
-    fieldGroupLabel: "Grup (1–6) *",
+    fieldGroupLabel: "Grup (1-6) *",
     fieldNameLabel: "Nama Akun *",
     fieldNamePlaceholder: "cth: Household Needs",
     fieldDirectionLabel: "Arah Transaksi *",
@@ -2118,9 +2122,9 @@ export const id = {
     modalDesc:
       "Kode dibuat otomatis dari grup yang dipilih, tapi masih bisa kamu ubah sendiri selama digit pertamanya sesuai.",
     fieldCodeHint:
-      "Dikosongkan = kode dibuat otomatis dari grup yang dipilih — bisa diubah.",
+      "Dikosongkan = kode dibuat otomatis dari grup yang dipilih, bisa diubah.",
     modalWarning:
-      "Mengubah grup atau arah akun yang sudah dipakai akan mengubah arti transaksi lama — laporan laba-rugi dan neraca ikut berubah.",
+      "Mengubah grup atau arah akun yang sudah dipakai akan mengubah arti transaksi lama, laporan laba-rugi dan neraca ikut berubah.",
     deleteConfirmNotice:
       "Transaksi lama yang memakai akun ini akan kehilangan klasifikasinya di laporan laba-rugi dan neraca.",
     toastAdded: "Akun COA berhasil ditambahkan",
@@ -2133,58 +2137,58 @@ export const id = {
     guide: {
       introTitle: "Apa itu Master COA?",
       introBody:
-        "Master COA (Chart of Accounts) adalah daftar 'kotak' tempat setiap transaksimu disimpan. Setiap kali kamu mencatat pemasukan, pengeluaran, atau transfer, WealthMe menaruhnya ke salah satu dari 6 grup di bawah — dan grup itulah yang menentukan bagaimana angka itu muncul di laporan laba-rugi dan neracamu.",
-      riskTitle: "⚠️ Risiko kalau salah edit",
+        "Master COA (Chart of Accounts) adalah daftar 'kotak' tempat setiap transaksimu disimpan. Setiap kali kamu mencatat pemasukan, pengeluaran, atau transfer, WealthMe menaruhnya ke salah satu dari 6 grup di bawah, dan grup itulah yang menentukan bagaimana angka itu muncul di laporan laba-rugi dan neracamu.",
+      riskTitle: "Risiko kalau salah edit",
       riskBody:
-        "Master COA adalah dasar dari semua laporanmu. Kalau kamu mengubah grup atau arah (pemasukan/pengeluaran/transfer) akun yang sudah dipakai, transaksi lama yang sudah tercatat ke akun itu ikut berubah artinya — laporan laba-rugi dan neracamu bisa langsung salah tanpa peringatan apa pun. Edit hanya jika kamu benar-benar paham konsekuensinya.",
+        "Master COA adalah dasar dari semua laporanmu. Kalau kamu mengubah grup atau arah (pemasukan/pengeluaran/transfer) akun yang sudah dipakai, transaksi lama yang sudah tercatat ke akun itu ikut berubah artinya, laporan laba-rugi dan neracamu bisa langsung salah tanpa peringatan apa pun. Edit hanya jika kamu benar-benar paham konsekuensinya.",
       groupsTitle: "6 grup, dan artinya untuk uangmu",
       groups: {
         1: {
           title: "1 · Pemasukan (Income)",
           meaning:
-            "Uang yang benar-benar menambah kekayaanmu — gaji, bonus, hasil jualan, bunga tabungan. Setiap rupiah di grup ini menaikkan laba di laporan laba-rugimu.",
+            "Uang yang benar-benar menambah kekayaanmu, gaji, bonus, hasil jualan, bunga tabungan. Setiap rupiah di grup ini menaikkan laba di laporan laba-rugimu.",
           example:
             'Contoh: gaji Rp 10.000.000 masuk ke rekening BCA-mu dan dicatat sebagai "Gaji" (grup 1). Laporan laba-rugi bulan ini langsung menunjukkan pemasukan Rp 10.000.000 — dan itu juga menambah kekayaan bersihmu di neraca.',
         },
         2: {
           title: "2 · Pengeluaran (Expense)",
           meaning:
-            "Uang yang benar-benar habis terpakai dan tidak kembali — belanja, makan, listrik, transportasi. Setiap rupiah di grup ini menurunkan laba di laporan laba-rugimu.",
+            "Uang yang benar-benar habis terpakai dan tidak kembali, belanja, makan, listrik, transportasi. Setiap rupiah di grup ini menurunkan laba di laporan laba-rugimu.",
           example:
             'Contoh: belanja bulanan Rp 1.500.000 dicatat sebagai "Kebutuhan Rumah Tangga" (grup 2). Laporan laba-rugi mencatatnya sebagai pengeluaran Rp 1.500.000 bulan ini.',
         },
         3: {
           title: "3 · Alokasi Kekayaan (Wealth Allocation)",
           meaning:
-            "Uang yang berpindah tempat, bukan hilang — menabung, membeli emas atau investasi, memindahkan uang antar rekeningmu sendiri. Uang ini TIDAK muncul sebagai pengeluaran, karena kekayaanmu tidak berkurang, cuma bentuknya berubah.",
+            "Uang yang berpindah tempat, bukan hilang, menabung, membeli emas atau investasi, memindahkan uang antar rekeningmu sendiri. Uang ini TIDAK muncul sebagai pengeluaran, karena kekayaanmu tidak berkurang, cuma bentuknya berubah.",
           example:
             'Contoh: dari gaji Rp 10.000.000 di atas, kalau Rp 2.000.000-nya kamu pindahkan ke rekening tabungan dan dicatat di grup 3 ("Tabungan"), laporan laba-rugi TIDAK mencatatnya sebagai pengeluaran — uang itu masih milikmu, hanya pindah rekening. Bandingkan dengan gaji di grup 1 yang MENAMBAH laba; uang yang pindah ke grup 3 TIDAK MENGURANGINYA.',
         },
         4: {
           title: "4 · Piutang (Account Receivable)",
           meaning:
-            "Uang yang kamu PINJAMKAN ke orang lain dan akan kembali. Ini bukan pengeluaran — uangmu belum hilang, cuma dipegang orang lain sementara. Karena itu grup ini arahnya TRANSFER, bukan expense.",
+            "Uang yang kamu PINJAMKAN ke orang lain dan akan kembali. Ini bukan pengeluaran, uangmu belum hilang, cuma dipegang orang lain sementara. Karena itu grup ini arahnya TRANSFER, bukan expense.",
           example:
             'Contoh yang sering salah dicatat: kamu pinjamkan Rp 500.000 ke teman, dicatat ke grup 4. Laporan laba-rugi TIDAK menganggapnya sebagai pengeluaran Rp 500.000 — kekayaan bersihmu tetap sama, cuma bentuknya berubah dari "uang tunai" jadi "piutang". Begitu temanmu bayar kembali, piutang itu berubah balik jadi uang tunai — juga bukan pemasukan.',
         },
         5: {
           title: "5 · Utang (Account Payable)",
           meaning:
-            "Uang yang kamu PINJAM dari orang lain atau lembaga (termasuk cicilan/KPR) dan harus kamu bayar kembali. Membayar KEMBALI pokok utang bukan pengeluaran — uang itu memang bukan milikmu sejak awal. Karena itu grup ini juga arahnya TRANSFER.",
+            "Uang yang kamu PINJAM dari orang lain atau lembaga (termasuk cicilan/KPR) dan harus kamu bayar kembali. Membayar KEMBALI pokok utang bukan pengeluaran, uang itu memang bukan milikmu sejak awal. Karena itu grup ini juga arahnya TRANSFER.",
           example:
-            "Contoh yang sering salah dicatat: kamu bayar cicilan KPR Rp 5.000.000 (pokok Rp 4.200.000 + bunga Rp 800.000). Hanya bunga Rp 800.000 yang tercatat sebagai pengeluaran (grup 2) — pokok Rp 4.200.000 dicatat sebagai pengurang utang di grup 5, bukan pengeluaran, karena uang itu memang bukan pemasukanmu waktu dulu kamu pinjam.",
+            "Contoh yang sering salah dicatat: kamu bayar cicilan KPR Rp 5.000.000 (pokok Rp 4.200.000 + bunga Rp 800.000). Hanya bunga Rp 800.000 yang tercatat sebagai pengeluaran (grup 2), pokok Rp 4.200.000 dicatat sebagai pengurang utang di grup 5, bukan pengeluaran, karena uang itu memang bukan pemasukanmu waktu dulu kamu pinjam.",
         },
         6: {
           title: "6 · Pajak (Tax)",
           meaning:
-            "Pajak yang kamu bayar ke negara — PPh, PBB, dan sejenisnya. Ini pengeluaran nyata yang tidak bisa kamu tarik kembali, jadi tetap dicatat sebagai expense.",
+            "Pajak yang kamu bayar ke negara, PPh, PBB, dan sejenisnya. Ini pengeluaran nyata yang tidak bisa kamu tarik kembali, jadi tetap dicatat sebagai expense.",
           example:
             "Contoh: PBB rumah Rp 800.000 dicatat di grup 6. Laporan laba-rugi mencatatnya sebagai pengeluaran Rp 800.000, sama seperti grup 2.",
         },
       },
       transferCalloutTitle: "Kenapa Piutang & Utang bukan expense/income?",
       transferCalloutBody:
-        "Ini bagian paling sering salah dicatat. Melunasi pokok utang BUKAN pengeluaran — uang itu memang titipan orang lain sejak awal, jadi membayarnya kembali tidak mengurangi labamu, hanya mengurangi utangmu. Sebaliknya, meminjamkan uang BUKAN pengeluaran (uangmu belum hilang) dan menerima kembali pinjaman itu BUKAN pemasukan (uangmu memang sudah milikmu). Kalau grup 4/5 diubah jadi income/expense, laporan laba-rugimu akan menghitung uang pinjaman sebagai untung/rugi yang sebenarnya tidak pernah terjadi.",
+        "Ini bagian paling sering salah dicatat. Melunasi pokok utang BUKAN pengeluaran, uang itu memang titipan orang lain sejak awal, jadi membayarnya kembali tidak mengurangi labamu, hanya mengurangi utangmu. Sebaliknya, meminjamkan uang BUKAN pengeluaran (uangmu belum hilang) dan menerima kembali pinjaman itu BUKAN pemasukan (uangmu memang sudah milikmu). Kalau grup 4/5 diubah jadi income/expense, laporan laba-rugimu akan menghitung uang pinjaman sebagai untung/rugi yang sebenarnya tidak pernah terjadi.",
     },
   },
   notifikasi: {
@@ -2219,7 +2223,7 @@ export const id = {
     groupOlder: "Lebih Lama",
   },
   dana: {
-    totalLabel: "💵 Total Cash & E-Wallet",
+    totalLabel: "Total Cash & E-Wallet",
     loadingLabel: "Memuat...",
     accountsConnectedSuffix: " akun terhubung",
     errorPrefixLabel: "Kesalahan: ",
@@ -2257,7 +2261,7 @@ export const id = {
       " Kas tunai bisa bernilai negatif (mis. talangan supir yang belum diganti). Saldo ",
     infoNoticeLinkLabel: "Bank & Account",
     infoNoticeSuffix:
-      " tidak bisa didebit sampai minus — kalau sudah minus (mis. dari transaksi lama), gunakan liabilitas untuk mencatat kekurangannya.",
+      " tidak bisa didebit sampai minus, kalau sudah minus (mis. dari transaksi lama), gunakan liabilitas untuk mencatat kekurangannya.",
     mutationsSectionTitle: "Mutasi Tunai & E-Wallet Terakhir",
     mutationsViewAllLabel: "Lihat Semua",
     mutationsEmptyLabel: "Belum ada mutasi tunai/e-wallet.",
@@ -2359,9 +2363,9 @@ export const id = {
     breakdownEmpty: "Belum ada data aset atau liabilitas untuk ditampilkan.",
     // Health Score debt-ratio insight note.
     healthDebtRatioNotePrefix: "Rasio utang terhadap aset ",
-    healthDebtRatioNoteSuffixSafe: " — masih dalam batas aman.",
+    healthDebtRatioNoteSuffixSafe: "- masih dalam batas aman.",
     healthDebtRatioNoteSuffixAttention:
-      " — mendekati batas, pertimbangkan mengurangi utang.",
+      "- mendekati batas, pertimbangkan mengurangi utang.",
   },
   tujuan: {
     statusLabels: {
@@ -2411,17 +2415,17 @@ export const id = {
     overallMonthlyPrefix: "Perlu menabung total ",
     overallMonthlySuffix: " / bulan",
     addGoalCardTitle: "Tambah Tujuan Baru",
-    addGoalCardDesc: "Liburan, DP rumah, dana pensiun — apa pun targetnya.",
+    addGoalCardDesc: "Liburan, DP rumah, dana pensiun, apa pun targetnya.",
     noticeSavingsPrefix: "Perlu menabung ",
     noticeSavingsPerMonthMiddle: " / bulan selama ",
     noticeSavingsMonthsSuffix: " bulan.",
-    noticeSavingsNoAutoDebitSuffix: " / bulan — belum ada alokasi rutin.",
+    noticeSavingsNoAutoDebitSuffix: " / bulan, belum ada alokasi rutin.",
   },
   tax: {
     sptStatusLabels: {
-      belum_lapor: "⏳ Belum Lapor",
-      sudah_lapor: "✅ Sudah Lapor",
-      terlambat: "⚠️ Terlambat",
+      belum_lapor: "Belum Lapor",
+      sudah_lapor: "Sudah Lapor",
+      terlambat: "Terlambat",
     },
     ptkpLabels: {
       tk0: "TK/0 (Lajang)",
@@ -2431,10 +2435,10 @@ export const id = {
       k3: "K/3 (Kawin, 3 anak)",
     },
     bracketLabels: {
-      b0: "0 – 60 jt",
-      b1: "60 – 250 jt",
-      b2: "250 – 500 jt",
-      b3: "500 jt – 5 M",
+      b0: "0 - 60 jt",
+      b1: "60 - 250 jt",
+      b2: "250 - 500 jt",
+      b3: "500 jt - 5 M",
       b4: "> 5 M",
     },
     heroLabelPrefix: "Estimasi Pajak Terutang ",
@@ -2447,7 +2451,7 @@ export const id = {
     zakatDeductionTitle: "Zakat Pengurang Pajak",
     zakatDeductionDash: "—",
     zakatDeductionDesc: "dari donasi tercatat",
-    calculatorTitle: "🧮 Kalkulator PPh 21 (Pribadi)",
+    calculatorTitle: "Kalkulator PPh 21 (Pribadi)",
     calculatorOtherLink: "Kalkulator Lain",
     calculatorSubtitle:
       "Hitung estimasi pajak penghasilan berdasarkan tarif progresif UU HPP",
@@ -2463,7 +2467,7 @@ export const id = {
     pkpPrefix: "PKP: ",
     effectiveRatePrefix: " · Efektif ",
     savingLabel: "Menyimpan...",
-    saveToTaxRecordButton: "💾 Simpan ke Catatan Pajak",
+    saveToTaxRecordButton: "Simpan ke Catatan Pajak",
     progressiveBreakdownTitle: "Rincian Tarif Progresif (UU HPP)",
     colBracket: "Lapisan PKP",
     colRate: "Tarif",
@@ -2476,27 +2480,27 @@ export const id = {
     documentsTitle: "Dokumen Pajak",
     uploadButton: "+ Upload",
     toastUploadUnavailable:
-      "Upload dokumen belum tersedia — fitur ini segera hadir.",
+      "Upload dokumen belum tersedia, fitur ini segera hadir.",
     emptyDocuments:
       "Belum ada dokumen. Fitur upload & daftar dokumen pajak segera hadir.",
     reportSptButton: "Lapor SPT Tahunan",
     downloadSummaryButton: "Unduh Ringkasan",
     toastDownloadUnavailable:
-      "Unduh ringkasan belum tersedia — fitur ini segera hadir.",
-    toastSaved: "✅ Data pajak berhasil disimpan!",
+      "Unduh ringkasan belum tersedia, fitur ini segera hadir.",
+    toastSaved: "Data pajak berhasil disimpan!",
     toastSaveFailed: "Gagal menyimpan data pajak",
-    toastStatusUpdated: "✅ Status SPT diperbarui!",
+    toastStatusUpdated: "Status SPT diperbarui!",
     toastStatusUpdateFailed: "Gagal memperbarui status SPT",
     // EPIC-023 Task I (I1) — the page used to offer Save to every role and
     // let the server's 403 come back as a bare "Gagal menyimpan data pajak".
     // Say up front who may record tax data, and why this session cannot.
     noWriteAccessNote:
-      "Peran Anda tidak dapat mencatat data pajak — pencatatan dilakukan oleh Pemilik, Pasangan, atau Anggota.",
+      "Peran Anda tidak dapat mencatat data pajak, pencatatan dilakukan oleh Pemilik, Pasangan, atau Anggota.",
     noFamilyGroupNote:
       "Belum ada keluarga aktif untuk sesi ini, jadi data pajak belum bisa disimpan.",
     checkingAccessLabel: "Memeriksa akses…",
     accessCheckFailedNote:
-      "Tidak dapat memverifikasi akses Anda — coba muat ulang halaman.",
+      "Tidak dapat memverifikasi akses Anda, coba muat ulang halaman.",
     fieldTaxYearLabel: "Tahun Pajak",
     fieldPerpuluhanLabel: "Perpuluhan (pengurang)",
     grossInputHint:
@@ -2507,12 +2511,12 @@ export const id = {
       "Hanya persembahan perpuluhan ke lembaga resmi yang boleh menjadi pengurang (PP 60/2010). Ambil otomatis dari ",
     perpuluhanHintLinkLabel: "Donasi",
     payloadCalloutPrefix: "Yang dikirim ke server: ",
-    payloadCalloutSuffix: " — angka murni tanpa titik.",
+    payloadCalloutSuffix: "- angka murni tanpa titik.",
     resetButton: "Reset",
     toastReset: "Perhitungan direset",
     colTaxableBase: "Dasar Kena Tarif",
     bracketFootnote:
-      "Jumlah kolom Pajak selalu sama dengan headline di atas — lapisan 30% (500 jt – 5 M) ikut ditampilkan.",
+      "Jumlah kolom Pajak selalu sama dengan headline di atas, lapisan 30% (500 jt - 5 M) ikut ditampilkan.",
     perpuluhanDeductionTitle: "Perpuluhan Pengurang Pajak",
     perpuluhanDeductionDesc: "dari donasi tercatat",
     emptyDocumentsTitle: "Belum ada dokumen",
@@ -2525,7 +2529,7 @@ export const id = {
     saveDialogPerpuluhanRow: "Perpuluhan pengurang",
     saveDialogTaxRow: "PPh 21 terutang",
     saveDialogNote:
-      "Nilai dikirim sebagai string angka murni — titik ribuan hanya untuk tampilan.",
+      "Nilai dikirim sebagai string angka murni, titik ribuan hanya untuk tampilan.",
     saveDialogConfirmButton: "Simpan",
   },
   rekening: {
@@ -2538,13 +2542,13 @@ export const id = {
     },
     balanceLabel: "Saldo",
     activeBadge: "Aktif",
-    privateBadge: "🔒 Privat",
+    privateBadge: "Privat",
     optionsAriaLabel: "Opsi rekening",
-    viewMutationMenuItem: "📄 Lihat Mutasi",
-    editMenuItem: "✏️ Edit",
-    deleteMenuItem: "🗑️ Hapus",
+    viewMutationMenuItem: "Lihat Mutasi",
+    editMenuItem: "Edit",
+    deleteMenuItem: "Hapus",
     viewMutationAriaLabel: "Lihat Mutasi",
-    viewMutationButton: "📋 Lihat Mutasi",
+    viewMutationButton: "Lihat Mutasi",
     loadingLabel: "Memuat...",
     accountsConnectedSuffix: " Rekening Terhubung",
     totalPrefix: "Total: ",
@@ -2561,13 +2565,13 @@ export const id = {
     toastDeleteFailed: "Gagal menghapus rekening. Coba lagi.",
     // EPIC-019 Task A — per-member account ownership.
     ownerSelectFamilyLabel: "Keluarga (bersama)",
-    ownerMineBadge: "👤 Milik Saya",
+    ownerMineBadge: "Milik Saya",
     ownerBadgePrefix: "👤 ",
     ownerUnknownLabel: "Anggota",
     filterGroupLabel: "Filter kepemilikan rekening",
     filterAllLabel: "Semua",
-    filterMineLabel: "👤 Milik saya",
-    filterSharedLabel: "👥 Bersama",
+    filterMineLabel: "Milik saya",
+    filterSharedLabel: "Bersama",
     emptyMineState: "Belum ada rekening yang menjadi milikmu.",
     statBankBalanceLabel: "Saldo Bank",
     statSharedLabel: "Rekening Bersama",
@@ -2586,6 +2590,9 @@ export const id = {
     mintaDanaSuccessToast:
       "Permintaan dana terkirim. Menunggu persetujuan pemilik family.",
     mintaDanaFailToast: "Gagal mengirim permintaan dana. Coba lagi.",
+    mintaDanaTargetLabel: "Ke akun milikmu",
+    mintaDanaNoOwnAccountHint:
+      "Kamu belum punya akun sendiri. Buat kas atau e-wallet milikmu dulu di Cash & E-Wallet.",
     mintaDanaDialogDesc:
       "Permintaan dikirim ke pemilik family untuk disetujui sebelum dana dipindahkan.",
     deleteDialogTitle: "Hapus rekening ini?",
@@ -2601,7 +2608,7 @@ export const id = {
     insightPrivacyLabel: "Privasi",
     insightPrivacyValue: "Saldo pribadi tetap tersegmentasi",
     filterNoteText:
-      "Rekening bank tidak bisa didebit sampai minus — saldo yang sudah minus dicatat sebagai liabilitas.",
+      "Rekening bank tidak bisa didebit sampai minus, saldo yang sudah minus dicatat sebagai liabilitas.",
     addCardTitle: "Tambah rekening baru",
     addCardSubtitle: "Hubungkan rekening bank dan tetapkan pemiliknya.",
     addCardButton: "Tambah Rekening",
@@ -2626,15 +2633,15 @@ export const id = {
       persepuluhan: "Persembahan Persepuluhan",
       lainnya: "Lainnya / Donasi Sosial",
     },
-    groupIslam: "🕌 Islam",
-    groupKristen: "✝️ Kristen",
-    groupUmum: "❤️ Umum",
+    groupIslam: "Islam",
+    groupKristen: "Kristen",
+    groupUmum: "Umum",
     heroTitle: "Total Donasi & Zakat",
     transactionsSuffix: " transaksi",
     yearRunningPrefix: " · tahun berjalan ",
     subheaderDesc: "Catat donasi & tunaikan kewajiban zakat",
     recordDonationButton: "Catat Donasi",
-    zakatCalculatorTitle: "🕌 Kalkulator Zakat Maal",
+    zakatCalculatorTitle: "Kalkulator Zakat Maal",
     zakatCalculatorSubtitle:
       "Zakat 2,5% dari total harta yang mencapai nisab & haul (1 tahun)",
     fieldCashLabel: "Tabungan & Kas (Rp)",
@@ -2645,18 +2652,18 @@ export const id = {
     zakatCalculatingMsg: "Menghitung...",
     zakatCalcErrorMsg: "Gagal menghitung zakat. Coba lagi.",
     haulCheckboxLabel: "Harta sudah dimiliki penuh selama 1 tahun (haul)",
-    nisabNotReachedPrefix: "⚠️ Harta belum mencapai nisab (",
-    nisabNotReachedSuffix: ") — belum wajib zakat",
+    nisabNotReachedPrefix: "Harta belum mencapai nisab (",
+    nisabNotReachedSuffix: "), belum wajib zakat",
     nisabReachedObligatedPrefix:
-      "✅ Harta mencapai nisab & haul — zakat wajib ditunaikan (nisab: ",
+      " Harta mencapai nisab & haul, zakat wajib ditunaikan (nisab: ",
     nisabReachedObligatedSuffix: ")",
-    nisabReachedEstimatePrefix: "🕓 Harta mencapai nisab (",
+    nisabReachedEstimatePrefix: "Harta mencapai nisab (",
     nisabReachedEstimateSuffix:
-      ") — estimasi, menunggu konfirmasi haul (1 tahun) sebelum wajib",
+      "), estimasi, menunggu konfirmasi haul (1 tahun) sebelum wajib",
     nisabFamilyPricePrefix: "Nisab dihitung dari harga emas keluarga: Rp ",
     nisabFamilyPriceSuffix: "/gram",
     nisabIndicativeNote:
-      "Nisab indikatif (≈85 gram emas) — bukan harga emas real-time.",
+      "Nisab indikatif (≈85 gram emas), bukan harga emas real-time.",
     payZakatNowButton: "Tunaikan Zakat Sekarang",
     recordZakatEstimateButton: "Catat Estimasi Zakat",
     historyTitle: "Riwayat Donasi & Zakat",
@@ -2670,7 +2677,7 @@ export const id = {
     statDeductibleDeltaMid: " dari ",
     statDeductibleDeltaSuffix: " transaksi memenuhi syarat",
     statVoluntaryLabel: "Donasi Sukarela",
-    statVoluntaryDelta: "Sedekah, infak, wakaf — tidak mengurangi pajak",
+    statVoluntaryDelta: "Sedekah, infak, wakaf, tidak mengurangi pajak",
     statReceiptsLabel: "Kuitansi Tersimpan",
     statReceiptsComplete: "Lengkap untuk lampiran SPT",
     statReceiptsIncomplete: "Belum lengkap untuk lampiran SPT",
@@ -2692,10 +2699,10 @@ export const id = {
       "Hanya Zakat Maal / Zakat Fitrah / Persembahan Persepuluhan yang dapat menjadi pengurang pajak.",
     savingLabel: "Menyimpan...",
     saveRecordButton: "Simpan Catatan",
-    toastSaved: "✅ Donasi berhasil dicatat!",
+    toastSaved: "Donasi berhasil dicatat!",
     toastSaveFailed: "Gagal menyimpan donasi",
     toastInvalidAmount: "Jumlah donasi tidak valid",
-    perpuluhanCalculatorTitle: "✝️ Kalkulator Persepuluhan",
+    perpuluhanCalculatorTitle: "Kalkulator Persepuluhan",
     perpuluhanCalculatorBadge: "10% dari penghasilan",
     perpuluhanCalculatorSubtitle:
       "Hitung perpuluhan dari penghasilan rutin dan penghasilan lain pada periode ini.",
@@ -2739,7 +2746,7 @@ export const id = {
       "Seluruh ahli waris dapat melihat daftar ini kapan saja. Tambahkan dokumen pendukung (sertifikat, BPKB, polis) agar lebih lengkap.",
     uploadComingSoonButton: "Upload Dokumen (Segera Hadir)",
     toastUploadUnavailable:
-      "Upload dokumen belum tersedia — fitur ini segera hadir.",
+      "Upload dokumen belum tersedia, fitur ini segera hadir.",
     modalTitleEdit: "Edit Aset Warisan",
     fieldCategoryLabel: "Kategori",
     fieldNameLabel: "Nama Aset",
@@ -2749,7 +2756,7 @@ export const id = {
     fieldNotesPlaceholder: "cth: SHM No. 1234, BPKB, Sertifikat...",
     fieldDocumentLabel: "Dokumen Pendukung",
     documentUploadHint:
-      "Upload sertifikat, BPKB, atau polis (PDF/JPG) — Coming soon",
+      "Upload sertifikat, BPKB, atau polis (PDF/JPG), Coming soon",
     fieldAccessLabel: "Akses Ahli Waris",
     visibleToHeirsLabel: "Terlihat oleh ahli waris",
     visibleToHeirsOnDesc: "Ahli waris dapat melihat aset ini",
@@ -2780,7 +2787,7 @@ export const id = {
     heirAllocationUnallocatedSuffix: "% belum dialokasikan",
     heirAllocationFullyAllocated: "Teralokasi penuh (100%)",
     heirMemberPickerUnavailable:
-      "Daftar anggota keluarga tidak tersedia untuk peran Anda — isi nama secara manual.",
+      "Daftar anggota keluarga tidak tersedia untuk peran Anda, isi nama secara manual.",
     heirAllocationChartTitle: "Alokasi Ahli Waris",
     heirAllocationUnallocatedLabel: "Belum dialokasikan",
     assetListCardTitle: "Aset Warisan",
@@ -2793,7 +2800,7 @@ export const id = {
     sourceManualOption: "Input Manual",
     sourceAssetOption: "Pilih dari Aset",
     fieldAssetLabel: "Aset",
-    assetPickerPlaceholder: "— Pilih aset —",
+    assetPickerPlaceholder: "Pilih aset",
     assetPickerHint:
       "Nilai estimasi terisi otomatis dari aset terhubung, tetap bisa kamu ubah.",
     visibleToHeirsHint:
@@ -2874,7 +2881,7 @@ export const id = {
     fieldExistingCategoryLabel: "Kategori",
     existingCategoryPlaceholder: "Pilih kategori",
     existingCategoryEmptyOption:
-      "Belum ada kategori jenis ini — minta pemilik keluarga menambahkannya",
+      "Belum ada kategori jenis ini, minta pemilik keluarga menambahkannya",
     // "Kewajiban Periode Ini" (This Period's Obligations) implied every row
     // fell within the current month — but a row's date is its REAL next
     // due/renewal date (deliberately not fabricated into a fake "this
@@ -2986,7 +2993,7 @@ export const id = {
     // cannot be edited/deleted here; the server now refuses it because
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
-      "Transaksi ini terkait pembayaran liabilitas/asuransi — sesuaikan liabilitas/asuransi terkait untuk mengoreksi",
+      "Transaksi ini terkait pembayaran liabilitas/asuransi, sesuaikan liabilitas/asuransi terkait untuk mengoreksi",
     attachmentsSectionLabel: "Lampiran",
     attachmentsLoadingLabel: "Memuat lampiran…",
     attachmentsLoadFailedLabel: "Gagal memuat lampiran",
@@ -3037,7 +3044,7 @@ export const id = {
       "Transaksi ini akan dihapus permanen dan saldo akun akan disesuaikan.",
   },
   splitbill: {
-    headerDesc: "Patungan jadi gampang — kamu nalangin, mereka bayar balik",
+    headerDesc: "Patungan jadi gampang, kamu nalangin, mereka bayar balik",
     createButton: "Buat Split Bill",
     totalDitalanginLabel: "Total Ditalangin",
     activeSplitsSuffix: " split aktif",
@@ -3063,7 +3070,7 @@ export const id = {
     // a payment (manually, by the owner). Recipients also don't need a
     // WealthMe account (see `publicNoAccountNotice`, already true today).
     insightDesc:
-      "Bikin tagihan, bagi rata atau custom, lalu kirim link ke teman. Penerima link tidak perlu punya akun WealthMe — halaman bagiannya terbuka publik. Kamu tetap yang mengonfirmasi pembayaran secara manual.",
+      "Bikin tagihan, bagi rata atau custom, lalu kirim link ke teman. Penerima link tidak perlu punya akun WealthMe, halaman bagiannya terbuka publik. Kamu tetap yang mengonfirmasi pembayaran secara manual.",
     badgeUnpaid: "Belum Lunas",
     badgeNoPayoutAccount: "Rekening tujuan kosong",
     badgeSettled: "Lunas",
@@ -3129,7 +3136,7 @@ export const id = {
     confirmPaymentButton: "Ya, Konfirmasi",
     copyDisabledRevokedTitle: "Link ini sudah dicabut dan tidak bisa disalin",
     publicNoAccountNotice:
-      "Halaman publik — kamu tidak perlu punya akun WealthMe untuk membuka atau membayar ini.",
+      "Halaman publik, kamu tidak perlu punya akun WealthMe untuk membuka atau membayar ini.",
     publicEyebrow: "Split Bill",
     publicLoading: "Memuat tagihan…",
     publicNotFoundTitle: "Link tidak ditemukan",
@@ -3157,7 +3164,7 @@ export const id = {
     publicToastClaimed: "Klaim terkirim!",
     publicToastClaimFailedDefault: "Gagal mengirim klaim",
     publicFooterPrefix: "Dibuat dengan",
-    publicFooterSuffix: "— Personal Wealth OS",
+    publicFooterSuffix: "- Personal Wealth OS",
     publicNetworkErrorTitle: "Gagal memuat",
     publicNetworkErrorDesc:
       "Terjadi masalah koneksi saat memuat tagihan ini. Periksa koneksi internet kamu dan coba lagi.",
@@ -3197,11 +3204,11 @@ export const id = {
     // ini disengaja". PDF is supported now, so the copy says what actually
     // happens, including the two things the user has to know up front: it
     // needs the family's own AI key, and a scan will still be refused.
-    pdfCalloutTitle: "PDF didukung — dibaca AI, lalu Anda yang menyetujui.",
+    pdfCalloutTitle: "PDF didukung, dibaca AI, lalu Anda yang menyetujui.",
     pdfCalloutBody:
-      "Teks di dalam PDF dibaca langsung di browser Anda — file dan password-nya tidak pernah dikirim ke server. Tabelnya lalu dirapikan memakai API key penyedia AI keluarga Anda sendiri, jadi key AI harus sudah diisi di Pengaturan. AI tidak pernah menghitung angka: setiap nominal diparse ulang oleh server dan totalnya dicocokkan dengan total yang tertulis di statement — kalau tidak cocok, impor dibatalkan.",
+      "Teks di dalam PDF dibaca langsung di browser Anda, file dan password-nya tidak pernah dikirim ke server. Tabelnya lalu dirapikan memakai API key penyedia AI keluarga Anda sendiri, jadi key AI harus sudah diisi di Pengaturan. AI tidak pernah menghitung angka: setiap nominal diparse ulang oleh server dan totalnya dicocokkan dengan total yang tertulis di statement, kalau tidak cocok, impor dibatalkan.",
     pdfCalloutScanNote:
-      "PDF hasil scan atau foto (tanpa lapisan teks) belum didukung, dan akan ditolak dengan alasan yang jelas — bukan diimpor sebagai nol baris.",
+      "PDF hasil scan atau foto (tanpa lapisan teks) belum didukung, dan akan ditolak dengan alasan yang jelas, bukan diimpor sebagai nol baris.",
     pdfReadingLabel: "Membaca PDF di browser...",
     pdfAnalyzingLabel: "AI sedang merapikan tabel transaksi...",
     /** Per-page progress. A statement is read one page at a time, so the
@@ -3212,13 +3219,13 @@ export const id = {
     pdfErrorPasswordRequired:
       "PDF ini terkunci password. Masukkan password statement dari bank Anda.",
     pdfErrorWrongPassword:
-      "Password PDF salah — coba lagi. Biasanya tanggal lahir (DDMMYYYY), nomor kartu, atau nomor rekening.",
+      "Password PDF salah, coba lagi. Biasanya tanggal lahir (DDMMYYYY), nomor kartu, atau nomor rekening.",
     pdfErrorTooManyPages:
       "PDF ini terlalu banyak halaman untuk dibaca sekaligus (maksimal 40 halaman). Unduh statement untuk periode yang lebih pendek.",
     pdfErrorTextTooLarge:
       "Teks di PDF ini terlalu panjang untuk dibaca sekaligus. Unduh statement untuk periode yang lebih pendek, atau ekspor mutasi sebagai CSV/Excel.",
     pdfErrorNoTextLayer:
-      "PDF ini tidak punya lapisan teks — kemungkinan hasil scan atau foto. Unduh e-statement asli dari aplikasi bank, atau ekspor mutasi sebagai CSV/Excel.",
+      "PDF ini tidak punya lapisan teks, kemungkinan hasil scan atau foto. Unduh e-statement asli dari aplikasi bank, atau ekspor mutasi sebagai CSV/Excel.",
     pdfErrorCorrupt:
       "File PDF ini tidak bisa dibuka. Pastikan file tidak rusak dan terunduh lengkap.",
     pdfErrorNotAFileUpload:
@@ -3242,13 +3249,13 @@ export const id = {
     pdfPreviewTotalsTitleVerified: "Pemeriksaan total: cocok",
     pdfPreviewTotalsTitleMismatch: "Pemeriksaan total: TIDAK cocok",
     pdfPreviewTotalsTitleUnverified:
-      "Belum terverifikasi — tidak ada total untuk dicocokkan",
+      "Belum terverifikasi, tidak ada total untuk dicocokkan",
     pdfPreviewTotalsMatched:
-      "Cocok dengan total yang tertulis di statement — tidak ada baris yang hilang.",
+      "Cocok dengan total yang tertulis di statement, tidak ada baris yang hilang.",
     pdfPreviewTotalsMismatch:
       "TIDAK cocok dengan total yang tertulis di statement. Impor dibatalkan supaya tidak ada baris yang diam-diam hilang atau salah.",
     pdfPreviewTotalsUnavailable:
-      "Statement ini tidak mencantumkan saldo awal/akhir maupun total dana masuk/keluar, jadi tidak ada angka untuk mencocokkan hasil pembacaan. Baris di bawah BELUM diperiksa terhadap apa pun — kalau ada baris yang terlewat, tidak ada yang bisa mendeteksinya selain Anda. Cocokkan sendiri dengan PDF aslinya sebelum mengimpor.",
+      "Statement ini tidak mencantumkan saldo awal/akhir maupun total dana masuk/keluar, jadi tidak ada angka untuk mencocokkan hasil pembacaan. Baris di bawah BELUM diperiksa terhadap apa pun, kalau ada baris yang terlewat, tidak ada yang bisa mendeteksinya selain Anda. Cocokkan sendiri dengan PDF aslinya sebelum mengimpor.",
     pdfPreviewUnverifiedConfirmNote:
       "Dengan menekan tombol di bawah, Anda mengimpor baris yang belum dicocokkan dengan total mana pun.",
     pdfPreviewConfirmButtonUnverified: "Impor tanpa pemeriksaan total",
@@ -3266,15 +3273,15 @@ export const id = {
     uploadErrorStatementAiKeyCorrupted:
       "API key AI keluarga tersimpan tapi tidak bisa dibuka. Masukkan ulang key-nya di Pengaturan.",
     uploadErrorStatementAiAuth:
-      "Penyedia AI menolak API key keluarga ini — periksa kembali key di Pengaturan.",
+      "Penyedia AI menolak API key keluarga ini, periksa kembali key di Pengaturan.",
     uploadErrorStatementAiRateLimited:
-      "Penyedia AI sedang membatasi permintaan atau kuotanya habis — coba lagi nanti.",
+      "Penyedia AI sedang membatasi permintaan atau kuotanya habis, coba lagi nanti.",
     uploadErrorStatementAiTimeout:
-      "Pembacaan statement terlalu lama diproses — coba lagi, atau unggah periode yang lebih pendek.",
+      "Pembacaan statement terlalu lama diproses, coba lagi, atau unggah periode yang lebih pendek.",
     uploadErrorStatementAiParseFailed:
-      "AI tidak mengembalikan tabel yang bisa dipakai — coba lagi, atau ekspor mutasi sebagai CSV/Excel dari aplikasi bank Anda.",
+      "AI tidak mengembalikan tabel yang bisa dipakai, coba lagi, atau ekspor mutasi sebagai CSV/Excel dari aplikasi bank Anda.",
     uploadErrorStatementAiUpstreamFailed:
-      "Pembacaan statement gagal — coba lagi sebentar lagi.",
+      "Pembacaan statement gagal, coba lagi sebentar lagi.",
     uploadErrorStatementTextTooLarge:
       "Statement ini terlalu panjang untuk dibaca sekaligus. Unggah periode yang lebih pendek, atau ekspor sebagai CSV/Excel.",
     uploadErrorStatementNoTextLayer:
@@ -3282,11 +3289,11 @@ export const id = {
     uploadErrorStatementNoRows:
       "Tidak ada baris transaksi yang bisa dibaca dari PDF ini. Pastikan file adalah mutasi rekening, bukan ringkasan atau surat pemberitahuan.",
     uploadErrorStatementZeroValidRows:
-      "Tidak ada baris valid dari hasil pembacaan PDF ini — coba lagi, atau ekspor mutasi sebagai CSV/Excel.",
+      "Tidak ada baris valid dari hasil pembacaan PDF ini, coba lagi, atau ekspor mutasi sebagai CSV/Excel.",
     uploadErrorStatementColumnMappingMismatch:
-      "Hasil pembacaan PDF tidak bisa dipetakan ke kolom tanggal/keterangan/nominal — coba lagi, atau ekspor mutasi sebagai CSV/Excel.",
+      "Hasil pembacaan PDF tidak bisa dipetakan ke kolom tanggal/keterangan/nominal, coba lagi, atau ekspor mutasi sebagai CSV/Excel.",
     uploadErrorStatementTotalsMismatch:
-      "Total hasil pembacaan tidak cocok dengan total yang tertulis di statement — impor dibatalkan.",
+      "Total hasil pembacaan tidak cocok dengan total yang tertulis di statement, impor dibatalkan.",
     mappingSectionTitle: "Pemetaan Kolom",
     mappingSectionHint:
       "Cocokkan nama kolom di file bank dengan kolom WealthMe. Simpan sekali sebagai template, dan setiap unggahan berikutnya dari bank yang sama otomatis memakainya.",
@@ -3312,7 +3319,7 @@ export const id = {
     bankSelectedWithTemplate:
       "Template pemetaan kolom untuk bank ini akan diterapkan.",
     bankSelectedNoTemplate:
-      "Belum ada template untuk bank ini — kolom akan dideteksi otomatis.",
+      "Belum ada template untuk bank ini, kolom akan dideteksi otomatis.",
     manageTemplatesLink: "Kelola Template",
     templateManagerTitle: "Template Pemetaan Kolom",
     templateManagerHint:
@@ -3332,7 +3339,7 @@ export const id = {
     templateSaveButton: "Simpan Template",
     templateColumnsHeader: "Kolom",
     templateActionHeader: "Aksi",
-    toastTemplateSaved: "✅ Template pemetaan kolom disimpan",
+    toastTemplateSaved: "Template pemetaan kolom disimpan",
     toastTemplateSaveFailed: "Gagal menyimpan template pemetaan kolom",
     toastTemplateDeleted: "Template dihapus",
     toastTemplateDeleteFailed: "Gagal menghapus template",
@@ -3357,9 +3364,9 @@ export const id = {
     totalSuffix: " total",
     continueButton: "Lanjut",
     startingScanLabel: "Memulai pemindaian...",
-    matchedStatLabel: "✅ Cocok",
-    needsReviewStatLabel: "⚠️ Perlu Review",
-    notMatchedStatLabel: "❌ Tidak Cocok",
+    matchedStatLabel: "Cocok",
+    needsReviewStatLabel: "Perlu Review",
+    notMatchedStatLabel: "Tidak Cocok",
     compositionTitle: "Komposisi Hasil",
     matchResultsTitle: "Hasil Pencocokan",
     transactionsCountBadgeSuffix: " Transaksi",
@@ -3395,10 +3402,10 @@ export const id = {
     newReconciliationButton: "Rekon Baru",
     toastUploaded: "File berhasil diunggah!",
     toastUploadedUnverified:
-      "Baris diimpor — tapi belum dicocokkan dengan total statement (statement ini tidak mencantumkan total).",
+      "Baris diimpor, tapi belum dicocokkan dengan total statement (statement ini tidak mencantumkan total).",
     toastUploadedPartialPrefix: "File diunggah, tapi ",
     toastUploadedPartialSuffix:
-      " baris tidak bisa diimpor — lihat detail di bawah.",
+      " baris tidak bisa diimpor, lihat detail di bawah.",
     skippedRowsTitleSuffix: " baris tidak bisa diimpor:",
     skippedRowLinePrefix: "Baris ",
     skippedRowsMorePrefix: "...dan ",
@@ -3408,29 +3415,29 @@ export const id = {
     // error unggahan yang stabil dari API (mirror bahasa Indonesia dari
     // pesan API — dipertahankan agar konsisten dengan pesan asli).
     uploadErrorPdfUnsupported:
-      "File PDF tidak diunggah lewat jalur ini. Pilih ulang file PDF dari halaman ini — teksnya dibaca langsung di browser, lalu ditinjau sebelum diimpor.",
+      "File PDF tidak diunggah lewat jalur ini. Pilih ulang file PDF dari halaman ini, teksnya dibaca langsung di browser, lalu ditinjau sebelum diimpor.",
     uploadErrorXlsUnsupported:
       "Format .xls (Excel 97-2003) lama tidak didukung. Simpan ulang sebagai .xlsx, atau ekspor sebagai CSV dari aplikasi/situs bank Anda.",
     uploadErrorUnsupportedFormat:
       "Format file ini tidak didukung. Gunakan CSV atau Excel (.xlsx).",
-    uploadErrorEmptyFile: "File kosong — tidak ada baris yang bisa diimpor.",
+    uploadErrorEmptyFile: "File kosong, tidak ada baris yang bisa diimpor.",
     uploadErrorXlsxUnreadable:
-      "File Excel tidak bisa dibaca — pastikan file benar-benar .xlsx (bukan .xls yang diganti nama) dan tidak rusak.",
+      "File Excel tidak bisa dibaca, pastikan file benar-benar .xlsx (bukan .xls yang diganti nama) dan tidak rusak.",
     uploadErrorXlsxLimitExceeded:
-      "File Excel ini terlalu besar untuk diproses — pisahkan menjadi beberapa file yang lebih kecil.",
+      "File Excel ini terlalu besar untuk diproses, pisahkan menjadi beberapa file yang lebih kecil.",
     uploadErrorColumnMappingMismatch:
-      "Pemetaan kolom tidak cocok dengan baris header file ini — periksa template tersimpan atau nama kolom.",
+      "Pemetaan kolom tidak cocok dengan baris header file ini, periksa template tersimpan atau nama kolom.",
     uploadErrorZeroValidRows:
-      "Tidak ada baris valid yang bisa diimpor dari file ini — periksa pemetaan kolom, atau format tanggal/jumlah.",
+      "Tidak ada baris valid yang bisa diimpor dari file ini, periksa pemetaan kolom, atau format tanggal/jumlah.",
     uploadErrorNoAutoDetectMapping:
       "Tidak bisa mendeteksi kolom tanggal/keterangan/jumlah secara otomatis. Simpan template pemetaan kolom untuk bank ini terlebih dahulu, atau pilih bank saat mengunggah.",
     uploadErrorNoSavedTemplate:
-      "Belum ada template pemetaan kolom untuk bank ini — buat template terlebih dahulu.",
+      "Belum ada template pemetaan kolom untuk bank ini, buat template terlebih dahulu.",
     protectedDialogTitle: "File ini terkunci password",
     protectedDialogDescXlsx:
-      "File Excel ini dilindungi password. Masukkan password statement dari bank Anda — password diproses di perangkat ini saja dan tidak pernah dikirim ke server.",
+      "File Excel ini dilindungi password. Masukkan password statement dari bank Anda, password diproses di perangkat ini saja dan tidak pernah dikirim ke server.",
     protectedDialogDescZip:
-      "File ZIP ini dilindungi password. Masukkan password statement dari bank Anda — password diproses di perangkat ini saja dan tidak pernah dikirim ke server.",
+      "File ZIP ini dilindungi password. Masukkan password statement dari bank Anda, password diproses di perangkat ini saja dan tidak pernah dikirim ke server.",
     protectedPasswordLabel: "Password file",
     protectedPasswordPlaceholder: "Password dari bank",
     protectedPasswordHint:
@@ -3442,37 +3449,37 @@ export const id = {
     protectedUnlockingLabel: "Membuka file…",
     protectedCalloutTitle: "File terkunci password?",
     protectedCalloutBody:
-      "File Excel (.xlsx) dan ZIP yang dikunci password bisa langsung diunggah — kami akan meminta passwordnya dan membukanya di perangkat Anda. Passwordnya tidak pernah dikirim ke server kami.",
+      "File Excel (.xlsx) dan ZIP yang dikunci password bisa langsung diunggah, kami akan meminta passwordnya dan membukanya di perangkat Anda. Passwordnya tidak pernah dikirim ke server kami.",
     protectedErrorEmptyFile:
-      "File ini kosong (0 byte) — coba unduh ulang dari aplikasi/situs bank Anda.",
+      "File ini kosong (0 byte), coba unduh ulang dari aplikasi/situs bank Anda.",
     protectedErrorFileTooLarge:
-      "Ukuran file melebihi 20MB — unduh statement per periode yang lebih pendek.",
+      "Ukuran file melebihi 20MB, unduh statement per periode yang lebih pendek.",
     protectedErrorPasswordRequired:
-      "File ini terkunci password — masukkan password statement Anda untuk membukanya.",
+      "File ini terkunci password, masukkan password statement Anda untuk membukanya.",
     protectedErrorWrongPassword:
-      "Password salah — file tidak bisa dibuka. Periksa kembali instruksi password di email bank Anda, lalu coba lagi.",
+      "Password salah, file tidak bisa dibuka. Periksa kembali instruksi password di email bank Anda, lalu coba lagi.",
     protectedErrorUnsupportedEncryption:
       "Jenis enkripsi file ini belum didukung. Buka file di Excel, lalu simpan ulang sebagai .xlsx tanpa password (atau ekspor sebagai CSV).",
     protectedErrorCryptoUnavailable:
       "Browser ini tidak menyediakan fungsi kriptografi yang dibutuhkan (biasanya karena halaman dibuka tanpa HTTPS). Buka aplikasi lewat alamat HTTPS, lalu coba lagi.",
     protectedErrorCorruptFile:
-      "File ini tidak bisa dibaca — kemungkinan rusak atau belum selesai terunduh. Unduh ulang dari aplikasi/situs bank Anda.",
+      "File ini tidak bisa dibaca, kemungkinan rusak atau belum selesai terunduh. Unduh ulang dari aplikasi/situs bank Anda.",
     protectedErrorIntegrityFailure:
-      "Password benar, tetapi isi file tidak cocok dengan tanda keasliannya — file kemungkinan berubah atau rusak setelah diterbitkan bank. Demi keamanan, file ini tidak kami proses. Unduh ulang langsung dari aplikasi/situs bank Anda.",
+      "Password benar, tetapi isi file tidak cocok dengan tanda keasliannya, file kemungkinan berubah atau rusak setelah diterbitkan bank. Demi keamanan, file ini tidak kami proses. Unduh ulang langsung dari aplikasi/situs bank Anda.",
     protectedErrorIntegrityMissing:
       "File ini tidak menyertakan tanda keaslian, jadi kami tidak bisa memastikan isinya belum diubah. Demi keamanan, file ini tidak kami proses. Unduh ulang langsung dari aplikasi/situs bank Anda, atau ekspor mutasi sebagai CSV.",
     protectedErrorZipNoStatement:
-      "Tidak ada file .csv atau .xlsx di dalam ZIP ini — pastikan Anda mengunggah arsip statement dari bank.",
+      "Tidak ada file .csv atau .xlsx di dalam ZIP ini, pastikan Anda mengunggah arsip statement dari bank.",
     protectedErrorZipMultipleStatements:
       "ZIP ini berisi lebih dari satu file statement. Ekstrak dulu, lalu unggah satu file saja agar tidak salah periode.",
     protectedErrorZipEntryTooLarge:
-      "Isi ZIP ini terlalu besar setelah diekstrak — unggah file statement-nya langsung, atau pilih periode yang lebih pendek.",
+      "Isi ZIP ini terlalu besar setelah diekstrak, unggah file statement-nya langsung, atau pilih periode yang lebih pendek.",
     protectedErrorDecryptedTooLarge:
-      "Setelah dibuka, ukuran file melebihi batas 20MB — unduh statement per periode yang lebih pendek.",
+      "Setelah dibuka, ukuran file melebihi batas 20MB, unduh statement per periode yang lebih pendek.",
     protectedErrorXlsxRepackageFailed:
       "Struktur file Excel ini tidak bisa kami rapikan agar terbaca. Buka file di Excel atau Google Sheets, lalu simpan ulang sebagai .xlsx (atau ekspor sebagai CSV), kemudian unggah lagi.",
     protectedErrorXlsxExpansionTooLarge:
-      "Isi file Excel ini terlalu besar saat dibuka — unduh statement per periode yang lebih pendek, atau ekspor sebagai CSV.",
+      "Isi file Excel ini terlalu besar saat dibuka, unduh statement per periode yang lebih pendek, atau ekspor sebagai CSV.",
     toastScanFailedDefault: "Gagal memindai entri",
     toastConfirmed: "Entri berhasil dikonfirmasi!",
     toastConfirmFailedDefault: "Gagal mengkonfirmasi",
@@ -3514,7 +3521,7 @@ export const id = {
     splitEntryAmountLabel: "Jumlah Entri",
     splitSubmitButton: "Simpan Pembagian",
     splitCancelButton: "Batal",
-    splitBalancedNotice: "Jumlah sudah seimbang — pembagian bisa disimpan.",
+    splitBalancedNotice: "Jumlah sudah seimbang, pembagian bisa disimpan.",
     splitUnbalancedNotice:
       "Jumlah pokok + biaya admin harus sama persis dengan jumlah entri.",
     splitValidationSelectSourceAccount: "Pilih akun sumber terlebih dahulu",
@@ -3563,7 +3570,7 @@ export const id = {
       presetCustom: "Bulan/Tahun Tertentu",
       // EPIC-023 Task B retry (HIGH) — lihat catatan di en.ts.
       periodNotApplicableNote:
-        "Tampilan ini selalu menampilkan data terkini — pemilih periode di atas tidak menyaringnya.",
+        "Tampilan ini selalu menampilkan data terkini, pemilih periode di atas tidak menyaringnya.",
     },
     totalIncomeLabel: "Total Pemasukan",
     totalExpenseLabel: "Total Pengeluaran",
@@ -3588,7 +3595,7 @@ export const id = {
     },
     cashBasisNotice: {
       title: "Cash basis.",
-      body: "Semua laporan di halaman ini dihitung saat uang benar-benar masuk atau keluar rekening — bukan saat tagihan terbit. Piutang, utang usaha, dan biaya yang belum dibayar tidak muncul di periode ini.",
+      body: "Semua laporan di halaman ini dihitung saat uang benar-benar masuk atau keluar rekening, bukan saat tagihan terbit. Piutang, utang usaha, dan biaya yang belum dibayar tidak muncul di periode ini.",
       activePeriodPrefix: "Periode aktif:",
     },
     tabStrip: {
@@ -3632,7 +3639,7 @@ export const id = {
       },
     },
     harian: {
-      titlePrefix: "Laporan Harian —",
+      titlePrefix: "Laporan Harian ·",
       incomeTodayLabel: "Pemasukan Hari Ini",
       expenseTodayLabel: "Pengeluaran Hari Ini",
       netDailyLabel: "Net Harian",
@@ -3670,7 +3677,7 @@ export const id = {
         "Konsolidasi ditampilkan pada level grup keluarga. Rincian saldo per-anggota berada di luar cakupan API saat ini.",
     },
     bank: {
-      title: "Laporan Bank — Konsolidasi Rekening",
+      title: "Laporan Bank, Konsolidasi Rekening",
       balancePerAccountTitle: "Saldo per Rekening",
       emptyAccounts: "Belum ada rekening",
       inOutTitle: "Mutasi Masuk vs Keluar per Bank",
@@ -3685,15 +3692,15 @@ export const id = {
     },
     aliran: {
       title: "Laporan Aliran Dana",
-      cardTitlePrefix: "Aliran Dana —",
+      cardTitlePrefix: "Aliran Dana ·",
       incomeSourceLabel: "SUMBER DANA MASUK",
       expenseAllocLabel: "ALOKASI DANA KELUAR",
       emptyFlow: "Belum ada data aliran dana bulan ini",
     },
     pnl: {
-      titlePrefix: "Profit & Loss Statement —",
+      titlePrefix: "Profit & Loss Statement ·",
       cashBasisNote:
-        "Basis kas — pendapatan diakui saat uang diterima, beban diakui saat uang dibayarkan",
+        "Basis kas, pendapatan diakui saat uang diterima, beban diakui saat uang dibayarkan",
       revenueLabel: "PENDAPATAN",
       totalRevenueLabel: "Total Pendapatan",
       expensesLabel: "BEBAN",
@@ -3704,7 +3711,7 @@ export const id = {
       masterCoaLink: "Master COA",
     },
     balance: {
-      titlePrefix: "Balance Sheet — Per",
+      titlePrefix: "Balance Sheet, Per",
       assetLabel: "ASET",
       liabilityEquityLabel: "LIABILITAS & EKUITAS",
       liabilitiesLabel: "Liabilitas",
@@ -3721,13 +3728,13 @@ export const id = {
         "Nilai di bawah ini adalah saldo saat ini, bukan nilai historis pada tanggal tersebut.",
       noDataTitle: "Belum Ada Data Historis",
       noDataDescription:
-        "Belum ada snapshot net worth pada atau sebelum tanggal ini — daripada menampilkan angka nol yang seolah nyata, kami tampilkan apa adanya: belum ada data.",
+        "Belum ada snapshot net worth pada atau sebelum tanggal ini, daripada menampilkan angka nol yang seolah nyata, kami tampilkan apa adanya: belum ada data.",
       restrictedForViewerTitle: "Tidak Tersedia Untuk Peran Anda",
       restrictedForViewerDescription:
         "Snapshot historis untuk tanggal ini ada, tapi diambil dengan menyertakan semua akun. Karena peran Anda tidak bisa melihat akun privat, kami tidak bisa menampilkannya tanpa membocorkan saldo yang disembunyikan.",
       bridgeTitle: "Jembatan Rekonsiliasi",
       bridgeDescription:
-        "Kenapa net worth berubah dengan jumlah berbeda dari profit — kontribusi tunai ke aset/investasi dan perubahan nilai aset & investasi ditampilkan terpisah, dengan sisa yang belum terjelaskan diberi nama, bukan disembunyikan.",
+        "Kenapa net worth berubah dengan jumlah berbeda dari profit, kontribusi tunai ke aset/investasi dan perubahan nilai aset & investasi ditampilkan terpisah, dengan sisa yang belum terjelaskan diberi nama, bukan disembunyikan.",
       bridgeOpeningLabel: "Net Worth Awal",
       bridgeProfitLabel: "+ Profit (Laba Rugi)",
       bridgeContributionLabel:
@@ -3743,7 +3750,7 @@ export const id = {
       bridgeUnexplainedWarningPrefix: "Peringatan:",
     },
     cashflow: {
-      titlePrefix: "Cashflow Statement —",
+      titlePrefix: "Cashflow Statement ·",
       operatingLabel: "ARUS KAS OPERASI",
       totalInflowLabel: "Total Penerimaan",
       totalOutflowLabel: "Total Pengeluaran",
@@ -3752,7 +3759,7 @@ export const id = {
       netInvestingLabel: "Net Investasi",
       investingUntrackedLabel: "Belum dilacak",
       investingDisclosure:
-        "Arus kas investasi (pembelian/penjualan instrumen) belum dilacak sebagai transaksi — nilainya bukan Rp 0 yang terukur, hanya belum tercatat.",
+        "Arus kas investasi (pembelian/penjualan instrumen) belum dilacak sebagai transaksi, nilainya bukan Rp 0 yang terukur, hanya belum tercatat.",
       openingBalanceLabel: "Saldo Awal",
       closingBalanceLabel: "Saldo Akhir",
       netCashflowLabel: "NET CASHFLOW",
@@ -3772,13 +3779,13 @@ export const id = {
       instrumentCountSuffix: "instrumen",
       portfolioByTypeTitle: "Portofolio per Jenis",
       typeLabels: {
-        saham: "📉 Saham",
-        reksa_dana: "📊 Reksa Dana",
-        obligasi: "🏛️ Obligasi",
-        emas: "🥇 Emas",
+        saham: "Saham",
+        reksa_dana: "Reksa Dana",
+        obligasi: "Obligasi",
+        emas: "Emas",
         kripto: "₿ Kripto",
-        lainnya: "💼 Lainnya",
-        deposito: "🏦 Deposito",
+        lainnya: "Lainnya",
+        deposito: "Deposito",
       },
       emptyInvestment: "Belum ada investasi.",
       addNowLink: "Tambah sekarang",
@@ -3815,7 +3822,7 @@ export const id = {
         "Net Worth Growth dan Budget Adherence memerlukan data historis lebih lengkap",
     },
     pajak: {
-      title: "Laporan Pajak — Estimasi PPh 21",
+      title: "Laporan Pajak, Estimasi PPh 21",
       grossYearLabel: "Bruto Setahun",
       pkpLabel: "PKP",
       estimatedTaxLabel: "Estimasi PPh 21",
@@ -3847,11 +3854,11 @@ export const id = {
       totalYearLabel: "Total setahun",
       txCountSuffix: "transaksi",
       matrixHint:
-        "Kolom = bulan, baris = tanggal. Satu hari bisa punya lebih dari satu transaksi — semuanya ditumpuk di sel yang sama. Klik sel berisi angka untuk melihat rinciannya.",
+        "Kolom = bulan, baris = tanggal. Satu hari bisa punya lebih dari satu transaksi, semuanya ditumpuk di sel yang sama. Klik sel berisi angka untuk melihat rinciannya.",
       scrollHint: "Geser ke kanan untuk bulan berikutnya →",
       expandButton: "Perbesar",
       expandAriaLabel: "Perbesar tabel COA",
-      title: "Ringkasan COA — Matriks Tahunan",
+      title: "Ringkasan COA, Matriks Tahunan",
       accountLabel: "Akun COA",
       accountPlaceholder: "Pilih akun COA",
       yearLabel: "Tahun",
@@ -3958,15 +3965,15 @@ export const id = {
     toastRegisterFailed: "Gagal mendaftarkan perangkat ini. Silakan coba lagi.",
   },
   onboarding: {
-    welcomeTitle: "Selamat datang di WealthMe 👋",
+    welcomeTitle: "Selamat datang di WealthMe",
     welcomeBody:
-      "Aplikasi keuangan keluarga — catat, rencanakan, dan pantau kekayaanmu dalam satu tempat.",
+      "Aplikasi keuangan keluarga, catat, rencanakan, dan pantau kekayaanmu dalam satu tempat.",
     startSetupButton: "Mulai Setup Pertama (~2 menit)",
     exploreAllButton: "Jelajahi Semua Fitur",
     skipButton: "Lewati",
     resumeTitle: "Lanjutkan setup pertamamu?",
     resumeBody:
-      "Kamu sudah mulai setup sebelumnya tapi belum selesai. Data yang sudah kamu buat tetap tersimpan — lanjutkan dari langkah terakhir, mulai ulang, atau lewati saja.",
+      "Kamu sudah mulai setup sebelumnya tapi belum selesai. Data yang sudah kamu buat tetap tersimpan, lanjutkan dari langkah terakhir, mulai ulang, atau lewati saja.",
     resumeContinueButton: "Lanjutkan Setup",
     resumeRestartButton: "Mulai Ulang",
     resumeSkipButton: "Lewati Saja",
@@ -3986,7 +3993,7 @@ export const id = {
     },
     account: {
       title: "Tambahkan rekening pertamamu",
-      body: "Setiap rekening (bank, tunai, atau e-wallet) yang kamu tambahkan langsung dihitung ke kekayaan bersihmu. Ini rekening SUNGGUHAN — akan muncul di halaman Rekening milikmu.",
+      body: "Setiap rekening (bank, tunai, atau e-wallet) yang kamu tambahkan langsung dihitung ke kekayaan bersihmu. Ini rekening SUNGGUHAN, akan muncul di halaman Rekening milikmu.",
       nameLabel: "Nama Rekening",
       namePlaceholder: "cth: BCA Tabungan",
       nameRequiredHint: "Nama rekening wajib diisi untuk melanjutkan.",
@@ -3995,7 +4002,7 @@ export const id = {
       submitting: "Menyimpan...",
       alreadyHaveNotice: "Kamu sudah punya rekening tercatat.",
       skipStepButton: "Lewati langkah ini",
-      consequenceTitle: "Lihat — kekayaan bersihmu langsung muncul",
+      consequenceTitle: "Lihat, kekayaan bersihmu langsung muncul",
       consequenceBefore: "Sebelum: ",
       consequenceAfter: "Sesudah: ",
       toastCreated: "Rekening berhasil dibuat",
@@ -4003,7 +4010,7 @@ export const id = {
     },
     budget: {
       title: "Buat anggaran pertamamu",
-      body: "Anggaran menetapkan batas pengeluaran untuk satu kategori. Ini anggaran SUNGGUHAN — akan muncul di halaman Anggaran milikmu, dan langsung memantau transaksi di kategori yang sama.",
+      body: "Anggaran menetapkan batas pengeluaran untuk satu kategori. Ini anggaran SUNGGUHAN, akan muncul di halaman Anggaran milikmu, dan langsung memantau transaksi di kategori yang sama.",
       nameLabel: "Nama Kategori",
       namePlaceholder: "cth: Makan & Minum",
       limitLabel: "Batas Bulanan",
@@ -4013,7 +4020,7 @@ export const id = {
       submitting: "Menyimpan...",
       alreadyHaveNotice: "Kamu sudah punya anggaran tercatat.",
       skipStepButton: "Lewati langkah ini",
-      consequenceTitle: "Anggaran siap — 0% terpakai",
+      consequenceTitle: "Anggaran siap, 0% terpakai",
       consequenceBody:
         "Begitu ada transaksi di kategori ini, angka pemakaiannya akan naik secara otomatis. Lanjut ke langkah berikutnya untuk melihatnya sendiri.",
       toastCreated: "Anggaran berhasil dibuat",
@@ -4021,7 +4028,7 @@ export const id = {
     },
     transaction: {
       title: "Catat pengeluaran pertamamu",
-      body: "Catat satu pengeluaran nyata dari rekening yang baru kamu buat, di kategori anggaran yang baru kamu buat. Ini transaksi SUNGGUHAN — akan muncul di halaman Transaksi milikmu.",
+      body: "Catat satu pengeluaran nyata dari rekening yang baru kamu buat, di kategori anggaran yang baru kamu buat. Ini transaksi SUNGGUHAN, akan muncul di halaman Transaksi milikmu.",
       amountLabel: "Jumlah",
       amountRequiredHint:
         "Jumlah wajib diisi dan lebih dari Rp 0 untuk melanjutkan.",
@@ -4029,21 +4036,21 @@ export const id = {
       descriptionPlaceholder: "cth: Makan siang",
       submitButton: "Catat & Lihat Perubahannya",
       submitting: "Menyimpan...",
-      consequenceTitle: "Lihat — dua hal berubah sekaligus",
+      consequenceTitle: "Lihat, dua hal berubah sekaligus",
       consequenceNetWorthPrefix: "Kekayaan bersihmu turun menjadi ",
       consequenceBudgetPrefix: "Anggaranmu sekarang terpakai ",
       consequenceBudgetSuffix: " dari batas",
       toastCreated: "Transaksi berhasil dicatat",
       toastHeld:
-        "Pengeluaran ini melewati batas dan menunggu persetujuan — belum tercatat sebagai transaksi.",
+        "Pengeluaran ini melewati batas dan menunggu persetujuan, belum tercatat sebagai transaksi.",
       toastFailed: "Gagal mencatat transaksi. Coba lagi.",
       noAccountError: "Buat rekening dulu di langkah sebelumnya.",
     },
     done: {
-      title: "Setup pertamamu selesai 🎉",
-      body: "Kamu baru saja membuat rekening, anggaran, dan transaksi SUNGGUHAN — bukan simulasi. Semuanya sudah bisa kamu lihat, edit, atau hapus di halaman masing-masing.",
+      title: "Setup pertamamu selesai",
+      body: "Kamu baru saja membuat rekening, anggaran, dan transaksi SUNGGUHAN, bukan simulasi. Semuanya sudah bisa kamu lihat, edit, atau hapus di halaman masing-masing.",
       bodyHeld:
-        "Kamu sudah membuat rekening dan anggaran SUNGGUHAN. Pengeluaran terakhir melewati batas keluargamu dan menunggu persetujuan — jadi belum tercatat sebagai transaksi, tapi kamu bisa memantau statusnya di halaman Rekening.",
+        "Kamu sudah membuat rekening dan anggaran SUNGGUHAN. Pengeluaran terakhir melewati batas keluargamu dan menunggu persetujuan, jadi belum tercatat sebagai transaksi, tapi kamu bisa memantau statusnya di halaman Rekening.",
       viewAccountsButton: "Lihat Rekening",
       viewBudgetsButton: "Lihat Anggaran",
       viewTransactionsButton: "Lihat Transaksi",

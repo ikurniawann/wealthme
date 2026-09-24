@@ -33,17 +33,17 @@ export function KasSection({
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <MoneyStat
             label={t.common.income}
-            value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
+            value={summary ? formatRupiah(summary.totalIncome) : "Rp ·"}
             valueClass="text-success"
           />
           <MoneyStat
             label={t.common.expense}
-            value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
+            value={summary ? formatRupiah(summary.totalExpense) : "Rp ·"}
             valueClass="text-destructive"
           />
           <MoneyStat
             label={t.laporan.surplusLabel}
-            value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
+            value={summary ? formatRupiah(summary.netSavings) : "Rp ·"}
             valueClass="text-success"
           />
           <MoneyStat

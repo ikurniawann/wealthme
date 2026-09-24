@@ -10,7 +10,7 @@ import { ActItem, StatTile } from "../atoms";
 const TX_ICON: Record<string, string> = {
   income: "📥",
   expense: "🛒",
-  transfer: "↔️",
+  transfer: "↔",
 };
 const TX_ICON_BG: Record<string, string> = {
   income: "#DCFCE7",
@@ -51,18 +51,18 @@ export function HarianSection({
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <StatTile
           label={t.laporan.harian.incomeTodayLabel}
-          value={dailyReport ? formatRupiah(dailyReport.totalIncome) : "Rp —"}
+          value={dailyReport ? formatRupiah(dailyReport.totalIncome) : "Rp ·"}
           valueClass="text-success"
         />
         <StatTile
           label={t.laporan.harian.expenseTodayLabel}
-          value={dailyReport ? formatRupiah(dailyReport.totalExpense) : "Rp —"}
+          value={dailyReport ? formatRupiah(dailyReport.totalExpense) : "Rp ·"}
           valueClass="text-destructive"
         />
         <StatTile
           label={t.laporan.harian.netDailyLabel}
           value={
-            dailyReport ? `${net >= 0 ? "+" : ""}${formatRupiah(net)}` : "Rp —"
+            dailyReport ? `${net >= 0 ? "+" : ""}${formatRupiah(net)}` : "Rp ·"
           }
           valueClass={net >= 0 ? "text-success" : "text-destructive"}
         />

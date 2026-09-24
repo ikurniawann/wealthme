@@ -36,7 +36,7 @@ export function AslSection({
             {t.laporan.totalAssetsLabel}
           </div>
           <div className="text-[22px] font-black text-success">
-            {balanceSheet ? formatRupiah(balanceSheet.totalAssets) : "Rp —"}
+            {balanceSheet ? formatRupiah(balanceSheet.totalAssets) : "Rp ·"}
           </div>
         </div>
         <div className="rounded-[12px] border bg-card p-4">
@@ -46,7 +46,7 @@ export function AslSection({
           <div className="text-[22px] font-black text-destructive">
             {balanceSheet
               ? `-${formatRupiah(balanceSheet.totalLiabilities)}`
-              : "Rp —"}
+              : "Rp ·"}
           </div>
         </div>
       </div>

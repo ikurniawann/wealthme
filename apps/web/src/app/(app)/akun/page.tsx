@@ -14,6 +14,7 @@ import { useSession } from "@/lib/auth-compat";
 import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
+import { FAMILY_RELIGION_OPTIONS } from "@/hooks/family-religion-options";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import {
   useFamilyReligion,
@@ -1150,8 +1151,8 @@ const THEME_OPTIONS: { value: "light" | "dark" | "system" }[] = [
 // a native <option>, and 🇮🇩/🇬🇧 render as tofu boxes on systems without an
 // emoji-flag font (same fix as the onboarding language picker).
 const LANGUAGE_OPTIONS: { value: "id" | "en"; label: string }[] = [
-  { value: "id", label: "ID — Bahasa Indonesia" },
-  { value: "en", label: "EN — English" },
+  { value: "id", label: "ID, Bahasa Indonesia" },
+  { value: "en", label: "EN, English" },
 ];
 
 type ThemeLabels = { light: string; dark: string; system: string };
@@ -1644,7 +1645,7 @@ export function PengaturanBody() {
                   {t.akun.pengaturan.religionUnconfirmedPlaceholder}
                 </option>
               )}
-              {(["islam", "kristen", "none"] as const).map((r) => (
+              {FAMILY_RELIGION_OPTIONS.map((r) => (
                 <option key={r} value={r}>
                   {t.akun.pengaturan.religionOptions[r]}
                 </option>
@@ -3329,7 +3330,7 @@ export default function AkunPage() {
         <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
           <ShieldHalf className="mt-0.5 size-3.5 shrink-0 text-primary" />
           <span>
-            Persetujuan permintaan dana kini punya halamannya sendiri —{" "}
+            Persetujuan permintaan dana kini punya halamannya sendiri:{" "}
             <button
               onClick={() => router.push("/persetujuan")}
               className="font-bold text-primary hover:underline"

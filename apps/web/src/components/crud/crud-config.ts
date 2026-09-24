@@ -94,10 +94,10 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         options: [
           "BCA",
           "Mandiri",
-          "BNI",
           "BRI",
-          "CIMB Niaga",
-          "Permata",
+          "BNI",
+          "CIMB",
+          "OCBC",
           "Bank Lainnya",
         ],
       },
@@ -154,6 +154,13 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         placeholder: "08xxxxxxxxxx",
       },
       { key: "saldo", label: "Saldo Saat Ini", type: "amount" },
+      {
+        // EPIC-033 R3 — options injected via CrudModal `dynamicOptions`.
+        key: "ownerUserId",
+        label: "Pemilik",
+        type: "select",
+        options: [],
+      },
     ],
   },
   // EPIC-021 #3 — cash accounts are real, plural master data (AccountType
@@ -177,6 +184,13 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Saldo Saat Ini",
         type: "amount",
         allowNegative: true,
+      },
+      {
+        // EPIC-033 R3 — options injected via CrudModal `dynamicOptions`.
+        key: "ownerUserId",
+        label: "Pemilik",
+        type: "select",
+        options: [],
       },
     ],
   },

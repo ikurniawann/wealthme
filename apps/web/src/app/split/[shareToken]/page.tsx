@@ -222,7 +222,7 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
 
             <div className="mt-4 rounded-[14px] bg-accent px-3.5 py-[18px] text-center">
               <div className="text-[11.5px] text-muted-foreground">
-                {t.splitbill.publicYourShareLabel} —{" "}
+                {t.splitbill.publicYourShareLabel}:{" "}
                 {participant.participantName}
               </div>
               <div className="mono mt-0.5 text-[26px] font-black text-primary">

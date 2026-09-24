@@ -119,7 +119,7 @@ function buildReferenceItem(
   };
 }
 
-describe("MasterDataPage — category delete surfaces the real server message (EPIC-022 A5)", () => {
+describe("MasterDataPage, category delete surfaces the real server message (EPIC-022 A5)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
@@ -170,7 +170,7 @@ describe("MasterDataPage — category delete surfaces the real server message (E
   });
 });
 
-describe("MasterDataPage — reference items are real API-backed data (EPIC-024 Task J)", () => {
+describe("MasterDataPage, reference items are real API-backed data (EPIC-024 Task J)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
@@ -211,7 +211,7 @@ describe("MasterDataPage — reference items are real API-backed data (EPIC-024 
     });
   }
 
-  it("shows a seeded ('Bawaan') item with no delete button — the API protects it, so the UI does not offer an action that will 403", async () => {
+  it("shows a seeded ('Bawaan') item with no delete button, the API protects it, so the UI does not offer an action that will 403", async () => {
     stubApiFetch([buildReferenceItem({ label: "BCA", isSystem: true })]);
     render(<MasterDataPage />);
 
@@ -238,12 +238,12 @@ describe("MasterDataPage — reference items are real API-backed data (EPIC-024 
     ).toBeInTheDocument();
   });
 
-  it("adding an item POSTs {group, label} to the real reference-items API — no more 'bawaan sistem' toast", async () => {
+  it("adding an item POSTs {group, label} to the real reference-items API, no more 'bawaan sistem' toast", async () => {
     stubApiFetch([]);
     const user = userEvent.setup();
     render(<MasterDataPage />);
 
-    await screen.findByText("🏦 Bank");
+    await screen.findByText("Bank");
     // Render order is Kategori, then Bank (first of the seven reference
     // groups) — "+ Tambah" (index 1) opens the Bank add modal. `findAllByRole`
     // (not `getAllByRole`) — F3 role-gating hides these links until

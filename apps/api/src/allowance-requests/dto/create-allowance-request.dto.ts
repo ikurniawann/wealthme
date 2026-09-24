@@ -29,4 +29,14 @@ export class CreateAllowanceRequestDto {
   @IsString()
   @MaxLength(500)
   note?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "EPIC-033 R5 — the family-shared account the member asks to be funded FROM. " +
+      "Pre-fills the source at approval; the approver may still override it.",
+  })
+  @IsOptional()
+  @IsUUID()
+  fromAccountId?: string;
 }

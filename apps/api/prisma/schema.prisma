@@ -186,6 +186,9 @@ enum DonationType {
 enum FamilyReligion {
   islam
   kristen
+  katolik
+  hindu
+  buddha
   none
 }
 

@@ -39,7 +39,7 @@ export function CashflowSection({
             />
             <StatementRow
               label={t.laporan.cashflow.totalInflowLabel}
-              value={cashflow ? fmt(cashflow.operatingInflows) : "Rp —"}
+              value={cashflow ? fmt(cashflow.operatingInflows) : "Rp ·"}
               indent
               valueColor="var(--success)"
             />
@@ -48,14 +48,14 @@ export function CashflowSection({
               value={
                 cashflow
                   ? `-${formatRupiah(cashflow.operatingOutflows)}`
-                  : "Rp —"
+                  : "Rp ·"
               }
               indent
               valueColor="var(--destructive)"
             />
             <StatementRow
               label={t.laporan.cashflow.netOperatingLabel}
-              value={cashflow ? fmt(cashflow.netOperating) : "Rp —"}
+              value={cashflow ? fmt(cashflow.netOperating) : "Rp ·"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass={
@@ -76,7 +76,7 @@ export function CashflowSection({
             <StatementRow
               label={t.laporan.cashflow.netInvestingLabel}
               value={
-                cashflow ? t.laporan.cashflow.investingUntrackedLabel : "Rp —"
+                cashflow ? t.laporan.cashflow.investingUntrackedLabel : "Rp ·"
               }
               className="border-b border-border"
               labelClass="py-2 font-bold"
@@ -84,7 +84,7 @@ export function CashflowSection({
             />
             <StatementRow
               label={t.laporan.cashflow.netCashflowLabel}
-              value={cashflow ? fmt(cashflow.netChange) : "Rp —"}
+              value={cashflow ? fmt(cashflow.netChange) : "Rp ·"}
               className="border-t-2 border-primary"
               labelClass="py-3 text-[15px] font-extrabold"
               valueClass={

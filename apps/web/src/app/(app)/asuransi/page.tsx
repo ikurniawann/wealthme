@@ -1524,7 +1524,7 @@ export default function AsuransiPage() {
             {t.asuransi.renewalWarningPrefix}{" "}
             <strong>{nearestRenewal.name}</strong>{" "}
             {t.asuransi.renewalWarningSuffix}{" "}
-            {formatLocaleDate(nearestRenewal.renewalDate, locale)} —{" "}
+            {formatLocaleDate(nearestRenewal.renewalDate, locale)} ·{" "}
             {nearestRenewal.daysUntilRenewal}{" "}
             {t.asuransi.renewalWarningDaysLeftSuffix}.
           </span>

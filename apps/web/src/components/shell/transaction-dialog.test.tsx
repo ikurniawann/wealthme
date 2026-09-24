@@ -211,7 +211,7 @@ function render(ui: ReactElement) {
   return { ...result, queryClient };
 }
 
-describe("TransactionDialog — credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {
+describe("TransactionDialog, credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockApiFetch.mockImplementation(defaultApiFetch);
@@ -337,7 +337,7 @@ describe("TransactionDialog — credit-card tab and transfer category removal (E
  * upload path uses its own raw `fetch` (see `uploadAttachment` in
  * `transaction-dialog.tsx`) — these tests mock `global.fetch` directly.
  */
-describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)", () => {
+describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockApiFetch.mockImplementation(defaultApiFetch);
@@ -412,7 +412,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     fetchSpy.mockRestore();
   });
 
-  it("surfaces an honest error toast when the attachment upload fails — the transaction itself is still saved", async () => {
+  it("surfaces an honest error toast when the attachment upload fails, the transaction itself is still saved", async () => {
     const user = userEvent.setup();
     const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
       ok: false,
@@ -458,11 +458,11 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
     selectFile(screen.getByTestId("attachment-file-input"), badFile);
 
     expect(mockToastError).toHaveBeenCalledWith(
-      "Tipe file tidak didukung — hanya JPG, PNG, WEBP, atau PDF.",
+      "Tipe file tidak didukung, hanya JPG, PNG, WEBP, atau PDF.",
     );
     expect(screen.queryByText(/virus\.exe/)).not.toBeInTheDocument();
     expect(
-      screen.getByText("Unggah foto struk atau PDF — maks 5 MB"),
+      screen.getByText("Unggah foto struk atau PDF, maks 5 MB"),
     ).toBeInTheDocument();
   });
 
@@ -503,7 +503,7 @@ describe("TransactionDialog — attachment upload (EPIC-024 Task L3, US-TXN-9)",
  * failure `code` produces its own message, and NOTHING is created until the
  * user confirms through the ordinary form.
  */
-describe("TransactionDialog — receipt scan (EPIC-027 B1-B4)", () => {
+describe("TransactionDialog, receipt scan (EPIC-027 B1-B4)", () => {
   const SCAN_RESULT = {
     amount: 58000,
     description: "Alfamart Pahlawan",
@@ -779,7 +779,7 @@ describe("TransactionDialog — receipt scan (EPIC-027 B1-B4)", () => {
     fetchSpy.mockRestore();
   });
 
-  it("B3 (D9): the review screen creates nothing — 'Gunakan' only prefills the real form", async () => {
+  it("B3 (D9): the review screen creates nothing, 'Gunakan' only prefills the real form", async () => {
     const fetchSpy = setScanResponse(okScan());
     const user = userEvent.setup();
     render(<TransactionDialog />);
@@ -1113,7 +1113,7 @@ describe("TransactionDialog — receipt scan (EPIC-027 B1-B4)", () => {
  * own message — a HEIC from an iPhone is a different problem from a corrupt
  * file, and telling the user the wrong one wastes their time.
  */
-describe("TransactionDialog — receipt upload (EPIC-027 B9-B11)", () => {
+describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
   const SCAN_RESULT = {
     amount: 58000,
     description: "Alfamart Pahlawan",
@@ -1447,7 +1447,7 @@ describe("TransactionDialog — receipt upload (EPIC-027 B9-B11)", () => {
     fetchSpy.mockRestore();
   });
 
-  it("B10 (D10): the RE-ENCODED JPEG — not the picked PNG — is attached after the transaction is created", async () => {
+  it("B10 (D10): the RE-ENCODED JPEG, not the picked PNG, is attached after the transaction is created", async () => {
     const fetchSpy = setScanResponse(okScan());
     const user = userEvent.setup();
     render(<TransactionDialog />);
@@ -1617,7 +1617,7 @@ describe("TransactionDialog — receipt upload (EPIC-027 B9-B11)", () => {
  * what these assert is that the dialog's state is not moved behind the
  * user's back.
  */
-describe("TransactionDialog — abandoned scan never steers the dialog (EPIC-027 group 8 review)", () => {
+describe("TransactionDialog, abandoned scan never steers the dialog (EPIC-027 group 8 review)", () => {
   const SCAN_RESULT = {
     amount: 58000,
     description: "Alfamart Pahlawan",

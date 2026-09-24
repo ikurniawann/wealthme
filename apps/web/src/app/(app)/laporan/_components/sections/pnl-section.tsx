@@ -53,7 +53,7 @@ export function PnlSection({
             ))}
             <StatementRow
               label={t.laporan.pnl.totalRevenueLabel}
-              value={pnl ? formatRupiah(pnl.revenue) : "Rp —"}
+              value={pnl ? formatRupiah(pnl.revenue) : "Rp ·"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-success"
@@ -73,14 +73,14 @@ export function PnlSection({
             ))}
             <StatementRow
               label={t.laporan.pnl.totalExpensesLabel}
-              value={pnl ? formatRupiah(pnl.expenses) : "Rp —"}
+              value={pnl ? formatRupiah(pnl.expenses) : "Rp ·"}
               className="border-b border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold text-destructive"
             />
             <StatementRow
               label={t.laporan.pnl.netProfitLabel}
-              value={pnl ? formatRupiah(pnl.netProfit) : "Rp —"}
+              value={pnl ? formatRupiah(pnl.netProfit) : "Rp ·"}
               className="border-t-2 border-primary"
               labelClass="py-3 text-[15px] font-extrabold"
               valueClass={

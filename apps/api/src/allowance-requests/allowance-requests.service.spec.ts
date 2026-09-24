@@ -85,6 +85,76 @@ describe("AllowanceRequestsService", () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    // EPIC-033 R5 — the member names the family-shared source they want
+    // the money taken from; approve() defaults to it.
+    it("stores a requested family-shared source account (EPIC-033 R5)", async () => {
+      prisma.account.findUnique
+        .mockResolvedValueOnce({
+          id: TARGET_ACCOUNT_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          ownerUserId: MEMBER_USER_ID,
+        })
+        .mockResolvedValueOnce({
+          id: "acc-shared",
+          familyGroupId: FAMILY_GROUP_ID,
+          ownerUserId: null,
+          isPrivate: false,
+        });
+      prisma.allowanceRequest.create.mockResolvedValue({
+        id: REQUEST_ID,
+        familyGroupId: FAMILY_GROUP_ID,
+        requesterUserId: MEMBER_USER_ID,
+        targetAccountId: TARGET_ACCOUNT_ID,
+        fromAccountId: "acc-shared",
+        amount: BigInt(50000),
+        note: null,
+        status: "pending",
+        createdAt: new Date(),
+        decidedAt: null,
+        decidedByUserId: null,
+        requester: { name: "Anak Pertama" },
+        targetAccount: { name: "Rekening Anak" },
+        fromAccount: { name: "Tabungan Keluarga" },
+        decidedByUser: null,
+      });
+
+      const result = await service.create(FAMILY_GROUP_ID, MEMBER_USER_ID, {
+        targetAccountId: TARGET_ACCOUNT_ID,
+        fromAccountId: "acc-shared",
+        amount: 50000,
+      });
+
+      expect(prisma.allowanceRequest.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ fromAccountId: "acc-shared" }),
+        }),
+      );
+      expect(result.fromAccountName).toBe("Tabungan Keluarga");
+    });
+
+    it("rejects a requested source that is another member's or private (EPIC-033 R5)", async () => {
+      prisma.account.findUnique
+        .mockResolvedValueOnce({
+          id: TARGET_ACCOUNT_ID,
+          familyGroupId: FAMILY_GROUP_ID,
+          ownerUserId: MEMBER_USER_ID,
+        })
+        .mockResolvedValueOnce({
+          id: "acc-other",
+          familyGroupId: FAMILY_GROUP_ID,
+          ownerUserId: "user-other",
+          isPrivate: false,
+        });
+      await expect(
+        service.create(FAMILY_GROUP_ID, MEMBER_USER_ID, {
+          targetAccountId: TARGET_ACCOUNT_ID,
+          fromAccountId: "acc-other",
+          amount: 50000,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.allowanceRequest.create).not.toHaveBeenCalled();
+    });
+
     it("creates a pending request and notifies the family group when the caller owns the account", async () => {
       prisma.account.findUnique.mockResolvedValue({
         id: TARGET_ACCOUNT_ID,

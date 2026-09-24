@@ -43,7 +43,12 @@ import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, formatNumber } from "@/lib/format";
+import {
+  formatRupiah,
+  formatNumber,
+  formatAmountInput,
+  parseRupiah,
+} from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   canonicalizeSahamQuantity,
@@ -463,7 +468,12 @@ function AddInvestmentModal({
           // lembar with zero conversion (idempotency by construction).
           quantity: editing.quantity,
           quantityUnit: "lembar",
-          costBasisPerUnit: editing.costBasisPerUnit,
+          costBasisPerUnit:
+            editing.type === "kripto"
+              ? editing.costBasisPerUnit
+              : formatAmountInput(
+                  String(Math.round(Number(editing.costBasisPerUnit))),
+                ),
           interestRatePct: editing.interestRatePct ?? "",
           purchasedAt: toDateInputValue(editing.purchasedAt),
           maturityDate: toDateInputValue(editing.maturityDate),
@@ -556,7 +566,10 @@ function AddInvestmentModal({
       // than send an unchanged value the API would 400 on.
       if (!isEditingLots) {
         body["quantity"] = canonicalQuantity;
-        body["costBasisPerUnit"] = form.costBasisPerUnit;
+        body["costBasisPerUnit"] =
+          form.type === "kripto"
+            ? form.costBasisPerUnit
+            : String(parseRupiah(form.costBasisPerUnit));
       }
       if (form.interestRatePct.trim()) {
         body["interestRatePct"] = form.interestRatePct.trim();
@@ -606,7 +619,7 @@ function AddInvestmentModal({
               method: "POST",
               token,
               body: JSON.stringify({
-                price: form.manualPrice.trim(),
+                price: String(parseRupiah(form.manualPrice)),
                 ...(form.manualPriceDate
                   ? { asOf: new Date(form.manualPriceDate).toISOString() }
                   : {}),
@@ -874,12 +887,26 @@ function AddInvestmentModal({
                   <input
                     id="costBasisPerUnit"
                     name="costBasisPerUnit"
-                    type="number"
+                    // EPIC-033 p31 — Rupiah amounts show thousand
+                    // separators while typing; kripto keeps a raw decimal
+                    // because its unit price can be fractional.
+                    type={form.type === "kripto" ? "number" : "text"}
+                    inputMode={form.type === "kripto" ? "decimal" : "numeric"}
                     required
                     min="0"
                     step="any"
                     value={form.costBasisPerUnit}
-                    onChange={handleChange}
+                    onChange={
+                      form.type === "kripto"
+                        ? handleChange
+                        : (e) =>
+                            setForm((f) => ({
+                              ...f,
+                              costBasisPerUnit: formatAmountInput(
+                                e.target.value,
+                              ),
+                            }))
+                    }
                     disabled={isEditingLots}
                     placeholder={
                       isDeposito
@@ -985,11 +1012,15 @@ function AddInvestmentModal({
                       <input
                         id="manualPrice"
                         name="manualPrice"
-                        type="number"
-                        min="0"
-                        step="any"
+                        type="text"
+                        inputMode="numeric"
                         value={form.manualPrice}
-                        onChange={handleChange}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            manualPrice: formatAmountInput(e.target.value),
+                          }))
+                        }
                         placeholder={t.investasi.fieldManualPricePlaceholder}
                         className="input mono"
                       />
@@ -1090,7 +1121,7 @@ function BuySellModal({
           body: JSON.stringify({
             type: txType,
             quantity,
-            pricePerUnit,
+            pricePerUnit: String(parseRupiah(pricePerUnit)),
             occurredAt: new Date(occurredAt).toISOString(),
           }),
         },
@@ -1178,12 +1209,13 @@ function BuySellModal({
               </label>
               <input
                 id="tx-price"
-                type="number"
+                type="text"
+                inputMode="numeric"
                 required
-                min="0"
-                step="any"
                 value={pricePerUnit}
-                onChange={(e) => setPricePerUnit(e.target.value)}
+                onChange={(e) =>
+                  setPricePerUnit(formatAmountInput(e.target.value))
+                }
                 className="input mono"
               />
             </div>

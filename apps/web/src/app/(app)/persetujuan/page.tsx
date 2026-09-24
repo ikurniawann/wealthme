@@ -487,6 +487,12 @@ export function AllowanceRequestsPanel({
                   <span className="text-[13.5px] font-bold">
                     {r.requesterName} {isHeld ? "·" : "→"} {r.targetAccountName}
                   </span>
+                  {!isHeld && r.fromAccountName && (
+                    <span className="text-[11.5px] text-muted-foreground">
+                      {t.akun.family.allowanceRequestRequestedFromPrefix}
+                      {r.fromAccountName}
+                    </span>
+                  )}
                   <StatusBadge
                     variant={isHeld ? "danger" : "warning"}
                     className="text-[10px]"
@@ -625,11 +631,18 @@ function ApproveRequestDialog({
               `aria-describedby`. */}
           {request && (
             <DialogDescription>
-              {request.requesterName} —{" "}
+              {request.requesterName} ·{" "}
               <span className="mono font-bold">
                 {formatRupiah(Number(request.amount))}
               </span>{" "}
               → {request.targetAccountName}
+              {request.fromAccountName && (
+                <>
+                  {" "}
+                  ({t.akun.family.allowanceRequestRequestedFromPrefix}
+                  {request.fromAccountName})
+                </>
+              )}
             </DialogDescription>
           )}
         </DialogHeader>
@@ -669,7 +682,10 @@ function ApproveRequestForm({
   onApproved: () => Promise<void>;
 }) {
   const { t } = useLocale();
-  const [fromAccountId, setFromAccountId] = useState("");
+  // EPIC-033 R5 — pre-filled with the source the member asked for.
+  const [fromAccountId, setFromAccountId] = useState(
+    request.fromAccountId ?? "",
+  );
   // EPIC-026 Wave 6 — the prototype's core point on this dialog (its own
   // comment: "pesan error asli dari server ditampilkan apa adanya di dalam
   // dialog, bukan ditelan jadi toast generik"): the server's real error

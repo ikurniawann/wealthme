@@ -11,6 +11,8 @@ import {
   type TxClient,
 } from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CryptoService } from "../crypto/crypto.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
 import type { ConfirmParticipantDto } from "./dto/confirm-participant.dto";
@@ -134,7 +136,10 @@ const PARTICIPANT_INCLUDE = {
 
 @Injectable()
 export class SplitBillsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly crypto: CryptoService,
+  ) {}
 
   async create(
     familyGroupId: string,
@@ -538,9 +543,18 @@ export class SplitBillsService {
     familyGroupId: string;
   }): Promise<PayoutAccount> {
     if (!bill.payoutAccountId) return null;
-    return this.prisma.account.findUnique({
+    const account = await this.prisma.account.findUnique({
       where: { id: bill.payoutAccountId, familyGroupId: bill.familyGroupId },
       select: { name: true, institution: true, maskedNumber: true },
     });
+    if (!account) return null;
+    // EPIC-033 p9 — the column is encrypted at rest; decrypt it here the
+    // same way AccountsService.toDto does, or the payer sees a hex blob.
+    return {
+      ...account,
+      maskedNumber: account.maskedNumber
+        ? this.crypto.decrypt(account.maskedNumber)
+        : null,
+    };
   }
 }

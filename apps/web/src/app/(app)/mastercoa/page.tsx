@@ -31,6 +31,7 @@ import {
   BookOpen,
   Database,
   AlertTriangle,
+  ChevronDown,
 } from "lucide-react";
 
 type CoaDirection = "INCOME" | "EXPENSE" | "TRANSFER";
@@ -100,6 +101,9 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
  */
 function MasterCoaGuide({ t }: { t: ReturnType<typeof useLocale>["t"] }) {
   const guide = t.mastercoa.guide;
+  // EPIC-033 p7 — the explainer is a tutorial, not a work surface, so it
+  // starts collapsed and toggles from its own header.
+  const [open, setOpen] = useState(false);
   return (
     // EPIC-023 Task H fix round (MEDIUM 13) — SectionCard's `title` renders
     // a plain `<div>` (components/wm/index.tsx, protected — not modified),
@@ -109,56 +113,75 @@ function MasterCoaGuide({ t }: { t: ReturnType<typeof useLocale>["t"] }) {
     // is typed `React.ReactNode`, so passing a real `<h2>`/`<h3>` INTO it
     // (rather than editing SectionCard) gives real heading semantics
     // without widening the protected-file exception.
-    <SectionCard title={<h2>{guide.introTitle}</h2>} bodyClassName="space-y-4">
-      <p className="text-[13px] leading-relaxed text-muted-foreground">
-        {guide.introBody}
-      </p>
+    <SectionCard
+      title={<h2>{guide.introTitle}</h2>}
+      action={
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls="mastercoa-guide-body"
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex size-7 items-center justify-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground"
+        >
+          <ChevronDown
+            aria-hidden="true"
+            className={`size-4 transition-transform ${open ? "rotate-180" : ""}`}
+          />
+        </button>
+      }
+      bodyClassName={open ? "space-y-4" : "hidden"}
+    >
+      <div id="mastercoa-guide-body" className="contents">
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          {guide.introBody}
+        </p>
 
-      <div className="flex gap-2.5 rounded-lg border border-warning/40 bg-warning-soft/60 p-3.5">
-        <AlertTriangle
-          aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-warning"
-        />
+        <div className="flex gap-2.5 rounded-lg border border-warning/40 bg-warning-soft/60 p-3.5">
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 size-4 shrink-0 text-warning"
+          />
+          <div>
+            <div className="text-[12.5px] font-bold text-foreground">
+              {guide.riskTitle}
+            </div>
+            <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
+              {guide.riskBody}
+            </p>
+          </div>
+        </div>
+
         <div>
-          <div className="text-[12.5px] font-bold text-foreground">
-            {guide.riskTitle}
+          <h3 className="mb-2 text-[12.5px] font-bold">{guide.groupsTitle}</h3>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {GROUP_NUMS.map((groupNum) => {
+              const group = guide.groups[groupNum];
+              return (
+                <div
+                  key={groupNum}
+                  className="rounded-lg border bg-background p-3.5"
+                >
+                  <div className="text-[13px] font-bold">{group.title}</div>
+                  <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+                    {group.meaning}
+                  </p>
+                  <p className="mt-2 rounded-md bg-secondary p-2 text-[11.5px] leading-relaxed text-foreground">
+                    {group.example}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-primary/30 bg-accent p-3.5">
+          <div className="text-[12.5px] font-bold text-primary-strong">
+            {guide.transferCalloutTitle}
           </div>
           <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-            {guide.riskBody}
+            {guide.transferCalloutBody}
           </p>
         </div>
-      </div>
-
-      <div>
-        <h3 className="mb-2 text-[12.5px] font-bold">{guide.groupsTitle}</h3>
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-          {GROUP_NUMS.map((groupNum) => {
-            const group = guide.groups[groupNum];
-            return (
-              <div
-                key={groupNum}
-                className="rounded-lg border bg-background p-3.5"
-              >
-                <div className="text-[13px] font-bold">{group.title}</div>
-                <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-                  {group.meaning}
-                </p>
-                <p className="mt-2 rounded-md bg-secondary p-2 text-[11.5px] leading-relaxed text-foreground">
-                  {group.example}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="rounded-lg border border-primary/30 bg-accent p-3.5">
-        <div className="text-[12.5px] font-bold text-primary-strong">
-          {guide.transferCalloutTitle}
-        </div>
-        <p className="mt-0.5 text-[12.5px] leading-relaxed text-muted-foreground">
-          {guide.transferCalloutBody}
-        </p>
       </div>
     </SectionCard>
   );
@@ -701,7 +724,7 @@ export default function MasterCoaPage() {
                 >
                   {GROUP_NUMS.map((groupNum) => (
                     <option key={groupNum} value={groupNum}>
-                      {groupNum} — {t.mastercoa.groupLabels[groupNum]}
+                      {groupNum} · {t.mastercoa.groupLabels[groupNum]}
                     </option>
                   ))}
                 </select>

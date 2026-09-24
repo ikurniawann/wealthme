@@ -17,6 +17,7 @@ import {
   HeroCard,
   SectionCard,
   StatusBadge,
+  InfoTip,
   SummaryCard,
 } from "@/components/wm";
 import {
@@ -31,6 +32,10 @@ import { Switch } from "@/components/ui/switch";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useApiError } from "@/hooks/use-api-error";
 import { useDebounce } from "@/hooks/use-debounce";
+import {
+  FAMILY_RELIGION_OPTIONS,
+  TITHE_RELIGIONS,
+} from "@/hooks/family-religion-options";
 import {
   useFamilyReligion,
   type FamilyReligion,
@@ -286,7 +291,8 @@ export default function DonationPage() {
   const showPerpuluhanPrototypeCalculator =
     !isReligionLoading &&
     !isReligionError &&
-    (religion === "kristen" || religion === null);
+    religion !== null &&
+    TITHE_RELIGIONS.has(religion);
 
   // Donation modal state
   const [open, setOpen] = useState(false);
@@ -431,10 +437,7 @@ export default function DonationPage() {
       </HeroCard>
 
       {/* Subheader + action */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] text-muted-foreground">
-          {t.donation.subheaderDesc}
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <Button onClick={() => openModal()} className="h-auto px-4 py-2.5">
           <Plus className="size-4" /> {t.donation.recordDonationButton}
         </Button>
@@ -466,20 +469,15 @@ export default function DonationPage() {
       )}
 
       {!isReligionLoading && !isReligionError && religion === null && (
-        <div className="rounded-[14px] border border-primary/20 bg-accent p-4">
-          <div className="flex items-center gap-3">
-            <div className="text-[24px]">🤲</div>
-            <div className="flex-1">
-              <div className="text-[13px] font-bold text-primary-strong">
-                {t.donation.religionCalculatorUnconfirmedTitle}
-              </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">
-                {t.donation.religionCalculatorUnconfirmedDesc}
-              </div>
+        <div className="rounded-[14px] border bg-card p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[13.5px] font-bold">
+              {t.donation.religionCalculatorUnconfirmedTitle}
             </div>
+            <InfoTip>{t.donation.religionCalculatorUnconfirmedDesc}</InfoTip>
           </div>
           {isReligionOwner ? (
-            <div className="mt-3.5 flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
               <select
                 aria-label={t.akun.pengaturan.religionLabel}
                 className="select sm:max-w-[240px]"
@@ -492,7 +490,7 @@ export default function DonationPage() {
                 <option value="" disabled>
                   {t.akun.pengaturan.religionUnconfirmedPlaceholder}
                 </option>
-                {(["islam", "kristen", "none"] as const).map((r) => (
+                {FAMILY_RELIGION_OPTIONS.map((r) => (
                   <option key={r} value={r}>
                     {t.akun.pengaturan.religionOptions[r]}
                   </option>
@@ -523,10 +521,10 @@ export default function DonationPage() {
       )}
 
       {!isReligionLoading && !isReligionError && religion === "islam" && (
-        <SectionCard title={t.donation.zakatCalculatorTitle}>
-          <div className="mb-3.5 text-xs text-muted-foreground">
-            {t.donation.zakatCalculatorSubtitle}
-          </div>
+        <SectionCard
+          title={t.donation.zakatCalculatorTitle}
+          action={<InfoTip>{t.donation.zakatCalculatorSubtitle}</InfoTip>}
+        >
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <ZkInput
               label={t.donation.fieldCashLabel}
@@ -611,14 +609,12 @@ export default function DonationPage() {
         <SectionCard
           title={t.donation.perpuluhanCalculatorTitle}
           action={
-            <StatusBadge variant="success" className="text-[11px]">
-              {t.donation.perpuluhanCalculatorBadge}
-            </StatusBadge>
+            <InfoTip>
+              {t.donation.perpuluhanCalculatorSubtitle}{" "}
+              {t.donation.fieldRateHint}
+            </InfoTip>
           }
         >
-          <div className="mb-3.5 text-xs text-muted-foreground">
-            {t.donation.perpuluhanCalculatorSubtitle}
-          </div>
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <ZkInput
               label={t.donation.fieldIncomeLabel}
@@ -643,9 +639,6 @@ export default function DonationPage() {
                 onChange={(e) => setTitheRate(e.target.value)}
                 className="input"
               />
-              <p className="mt-1.5 text-[11px] text-muted-foreground">
-                {t.donation.fieldRateHint}
-              </p>
             </div>
           </div>
           <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
@@ -654,11 +647,6 @@ export default function DonationPage() {
             </div>
             <div className="mt-1 text-[24px] font-black text-primary">
               {formatRupiah(tithe)}
-            </div>
-            <div className="mt-1.5 text-xs text-muted-foreground">
-              {titheRateNum}
-              {t.donation.perpuluhanResultSummaryMid}
-              {formatRupiah(titheBase)}
             </div>
           </div>
           <Button
@@ -671,31 +659,36 @@ export default function DonationPage() {
         </SectionCard>
       )}
 
-      {!isReligionLoading && !isReligionError && religion === "none" && (
-        <div className="flex items-center gap-3 rounded-[14px] border bg-card p-4">
-          <div className="text-[24px]">🤲</div>
-          <div className="flex-1">
-            <div className="text-[13px] font-bold">
+      {!isReligionLoading &&
+        !isReligionError &&
+        (religion === "none" ||
+          religion === "hindu" ||
+          religion === "buddha") && (
+          <div className="flex items-center justify-between gap-3 rounded-[14px] border bg-card p-4">
+            <div className="text-[13.5px] font-bold">
               {t.donation.religionCalculatorNoneTitle}
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {t.donation.religionCalculatorNoneDesc}
-            </div>
+            <InfoTip>{t.donation.religionCalculatorNoneDesc}</InfoTip>
           </div>
-        </div>
-      )}
+        )}
 
       {/* Riwayat Donasi */}
       <SectionCard
         title={t.donation.historyTitle}
         bodyClassName="-mt-1"
         action={
-          <Link
-            href="/laporan"
-            className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
-          >
-            {t.donation.historyLaporanLink}
-          </Link>
+          <div className="flex items-center gap-1">
+            <InfoTip>
+              <strong>{t.donation.insightTitle}</strong>{" "}
+              {t.donation.insightDesc}
+            </InfoTip>
+            <Link
+              href="/laporan"
+              className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+            >
+              {t.donation.historyLaporanLink}
+            </Link>
+          </div>
         }
       >
         {isLoading ? (
@@ -728,7 +721,7 @@ export default function DonationPage() {
                     the card on narrow viewports instead of wrapping. */}
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13.5px] font-semibold">
-                    {t.donation.typeLabels[d.type as DonationType] ?? d.type} —{" "}
+                    {t.donation.typeLabels[d.type as DonationType] ?? d.type}:{" "}
                     {d.recipient}
                   </div>
                   <div className="text-[11.5px] text-muted-foreground">
@@ -808,19 +801,6 @@ export default function DonationPage() {
         </div>
       )}
 
-      {/* Insight banner */}
-      <div className="flex items-center gap-3 rounded-[14px] border border-primary/20 bg-accent p-4">
-        <div className="text-[24px]">📋</div>
-        <div className="flex-1">
-          <div className="text-[13px] font-bold text-primary-strong">
-            {t.donation.insightTitle}
-          </div>
-          <div className="mt-0.5 text-xs text-muted-foreground">
-            {t.donation.insightDesc}
-          </div>
-        </div>
-      </div>
-
       {/* Donation modal */}
       <Dialog open={open} onOpenChange={setOpen}>
         {/* EPIC-026 — composition ported 1:1 from the prototype's
@@ -859,7 +839,7 @@ export default function DonationPage() {
                       : o.group === "kristen"
                         ? t.donation.groupKristen
                         : t.donation.groupUmum}{" "}
-                    — {t.donation.jenisOptionLabels[o.value]}
+                    · {t.donation.jenisOptionLabels[o.value]}
                   </option>
                 ))}
               </select>
