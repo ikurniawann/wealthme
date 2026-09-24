@@ -83,7 +83,7 @@ export const en = {
     needsAttentionTitle: "Needs Attention",
     pendingApprovalsNotice: "fund requests are waiting for your approval.",
     liabilityDueNotice: "due",
-    noNotices: "Nothing needs your attention right now 🎉",
+    noNotices: "Nothing needs your attention right now",
     // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
     // card + composition-row badges/due-notice + Arus Kas period toggle.
     budgetCardTitlePrefix: "Budget for ",
@@ -209,10 +209,10 @@ export const en = {
       panduan: "Guide",
     },
     transactionDialog: {
-      tabIncome: "📥 Income",
-      tabExpense: "📤 Expense",
-      tabTransfer: "↕️ Transfer",
-      tabCreditCard: "💳 Credit Card",
+      tabIncome: "Income",
+      tabExpense: "Expense",
+      tabTransfer: "↕ Transfer",
+      tabCreditCard: "Credit Card",
       saveFailedPrefix: "Failed to save: ",
       retryFallback: "Try again",
       invalidAmount: "Invalid amount",
@@ -228,7 +228,7 @@ export const en = {
       // posted: it exceeds the member's per-account threshold and is held
       // pending the head's approval. Must never read as a success.
       heldToast:
-        "Expense exceeds the threshold — held pending the head's approval, not recorded yet.",
+        "Expense exceeds the threshold, held pending the head's approval, not recorded yet.",
       title: "Add Transaction",
       manualInput: "Manual Input",
       scanReceipt: "Scan Receipt",
@@ -260,7 +260,7 @@ export const en = {
       scanSubtitle: "Point the camera at your receipt",
       scanGuidanceReady: "Make sure all text is clearly visible",
       scanGuidanceScanning: "Reading the receipt...",
-      resultTitle: "✨ Scan Result",
+      resultTitle: "Scan Result",
       resultSubtitle: "Check the result before it fills the form",
       merchantLabel: "Merchant",
       totalLabel: "Total",
@@ -272,7 +272,7 @@ export const en = {
       scanStarting: "Preparing the camera...",
       scanUse: "Use",
       scanPrefilledToast:
-        "Receipt data filled into the form — review it, then save.",
+        "Receipt data filled into the form, review it, then save.",
       scanHint:
         "Scanning uses the device camera and the family AI provider key. The result fills this form; nothing is recorded until you press Save.",
       scanUnavailable:
@@ -289,63 +289,63 @@ export const en = {
         "Camera permission was denied. Allow camera access for this site in your browser settings, then try again.",
       cameraErrorNotFound: "No camera was detected on this device.",
       cameraErrorInUse:
-        "The camera is in use by another app — close it and try again.",
-      cameraErrorUnknown: "The camera could not be opened — try again.",
+        "The camera is in use by another app, close it and try again.",
+      cameraErrorUnknown: "The camera could not be opened, try again.",
       cameraRetry: "Try again",
-      captureFailed: "Could not capture the receipt photo — try again.",
+      captureFailed: "Could not capture the receipt photo, try again.",
       // EPIC-027 B9–B11 — the upload path. One message per cause: what the
       // user has to do about it differs each time.
       scanUpload: "Upload Receipt",
       scanUploadReading: "Reading the receipt file...",
       scanNoCamera:
-        "No camera is available on this device — upload a photo of the receipt instead.",
+        "No camera is available on this device, upload a photo of the receipt instead.",
       scanUploadGuidance: "Pick a clear, uncropped photo of the receipt",
       uploadErrorEmpty:
-        "The receipt file is empty (0 bytes) — pick another file.",
+        "The receipt file is empty (0 bytes), pick another file.",
       uploadErrorFileTooLarge:
-        "That file is too large (max 20 MB) — pick a smaller photo of the receipt.",
+        "That file is too large (max 20 MB), pick a smaller photo of the receipt.",
       uploadErrorPdf:
         "PDF files cannot be scanned yet. Save the receipt as an image (JPG or PNG) and upload it again.",
       uploadErrorNotImage:
-        "That file is not an image — upload a receipt photo as JPG, PNG, or WEBP.",
+        "That file is not an image, upload a receipt photo as JPG, PNG, or WEBP.",
       uploadErrorHeic:
         "This browser cannot read the iPhone HEIC format. Share or save the receipt photo as JPG, then upload it again.",
       uploadErrorNoCanvas:
-        "This browser cannot process images — try a different browser.",
+        "This browser cannot process images, try a different browser.",
       uploadErrorTooSmall:
-        "The image is too small to read — upload a higher-resolution photo of the receipt.",
+        "The image is too small to read, upload a higher-resolution photo of the receipt.",
       uploadErrorTooLarge:
-        "The receipt image is still too large after shrinking — retake it or upload a different image.",
+        "The receipt image is still too large after shrinking, retake it or upload a different image.",
       uploadErrorDecodeFailed:
-        "The image file could not be opened — it may be corrupt or still downloading.",
+        "The image file could not be opened, it may be corrupt or still downloading.",
       uploadErrorDimensions:
-        "The image resolution is too large for the browser to process — resize it and upload again.",
+        "The image resolution is too large for the browser to process, resize it and upload again.",
       // Scan failures — one per `code` from ocr-http-error.util.ts.
       scanErrorNotConfigured:
         "Receipt scanning needs a family AI provider key. A master or co-master can set one up in Settings.",
       scanErrorKeyCorrupted:
-        "The family AI provider key could not be read — enter it again in Settings.",
+        "The family AI provider key could not be read, enter it again in Settings.",
       scanErrorAuth:
-        "The AI provider rejected this family's API key — check the key in Settings.",
+        "The AI provider rejected this family's API key, check the key in Settings.",
       scanErrorRateLimited:
-        "The AI provider is rate limiting requests — try again shortly.",
+        "The AI provider is rate limiting requests, try again shortly.",
       scanErrorRateLimitedRetryIn:
-        "The AI provider is rate limiting requests — try again in {seconds} seconds.",
+        "The AI provider is rate limiting requests, try again in {seconds} seconds.",
       scanErrorRateLimitedDaily:
-        "The AI provider's daily quota is used up — scanning works again tomorrow, or once the quota is raised.",
-      scanErrorTimeout: "The receipt scan took too long — try again.",
+        "The AI provider's daily quota is used up, scanning works again tomorrow, or once the quota is raised.",
+      scanErrorTimeout: "The receipt scan took too long, try again.",
       scanErrorParseFailed:
-        "The receipt could not be read — retake the photo with better lighting.",
-      scanErrorUpstream: "The receipt scan failed — try again shortly.",
+        "The receipt could not be read, retake the photo with better lighting.",
+      scanErrorUpstream: "The receipt scan failed, try again shortly.",
       scanErrorPayloadTooLarge:
-        "The photo is too large to send — retake it or pick a smaller image, then try again.",
+        "The photo is too large to send, retake it or pick a smaller image, then try again.",
       attachmentLabel: "Attachment",
       attachmentPlaceholder: "Choose file (JPG, PNG, WEBP, or PDF, max 5MB)",
       attachmentSelected: "File selected: ",
       attachmentUploadFailedToast:
         "Transaction saved, but the attachment failed to upload.",
       attachmentInvalidTypeToast:
-        "Unsupported file type — only JPG, PNG, WEBP, or PDF are allowed.",
+        "Unsupported file type, only JPG, PNG, WEBP, or PDF are allowed.",
       attachmentTooLargeToast: "File exceeds 5MB.",
       dialogDesc:
         "Record income, an expense, a transfer, or a credit-card purchase.",
@@ -372,7 +372,7 @@ export const en = {
   akun: {
     heroMemberSince: "Member since January 2024",
     loadProfileError: "Failed to load profile. Please refresh the page.",
-    familyGroupCardTitle: "👨‍👩‍👧‍👦 Family Group",
+    familyGroupCardTitle: "Family Group",
     noFamilyGroup: "No group yet",
     createOrJoinFamilyGroup: "Create or join a family group",
     memberCountSuffix: "members",
@@ -439,13 +439,13 @@ export const en = {
       pinRowSub: "6-digit PIN to open the app on this device",
       authSectionTitle: "Authentication",
       biometricLabel: "Fingerprint / Face ID",
-      biometricSub: "Sign in with biometrics — coming soon",
+      biometricSub: "Sign in with biometrics, coming soon",
       bigTxnLabel: "Confirm Large Transactions",
       bigTxnSub: "Require authentication for transactions >Rp 5 million",
       newLoginLabel: "New Login Notifications",
       newLoginSub: "Alert when there's a login from a new device",
       authNote:
-        "Saved, but not yet active — there's no authentication/notification mechanism enforcing it automatically yet.",
+        "Saved, but not yet active, there's no authentication/notification mechanism enforcing it automatically yet.",
       sessionSectionTitle: "Active Sessions",
       sessionActivePrefix: "Active since ",
       deviceFallbackLabel: "Device",
@@ -475,28 +475,28 @@ export const en = {
       currencySectionTitle: "Currency",
       currencyHint: "Default currency for displaying all figures",
       currencies: {
-        IDR: { title: "IDR — Indonesian Rupiah", name: "Rp · Rupiah" },
-        USD: { title: "USD — US Dollar", name: "$ · US Dollar" },
+        IDR: { title: "IDR, Indonesian Rupiah", name: "Rp · Rupiah" },
+        USD: { title: "USD, US Dollar", name: "$ · US Dollar" },
         SGD: {
-          title: "SGD — Singapore Dollar",
+          title: "SGD, Singapore Dollar",
           name: "S$ · Singapore Dollar",
         },
-        EUR: { title: "EUR — Euro", name: "€ · Euro" },
-        JPY: { title: "JPY — Japanese Yen", name: "¥ · Japanese Yen" },
+        EUR: { title: "EUR, Euro", name: "€ · Euro" },
+        JPY: { title: "JPY, Japanese Yen", name: "¥ · Japanese Yen" },
         AUD: {
-          title: "AUD — Australian Dollar",
+          title: "AUD, Australian Dollar",
           name: "A$ · Australian Dollar",
         },
-        CNY: { title: "CNY — Chinese Yuan", name: "CN¥ · Chinese Yuan" },
+        CNY: { title: "CNY, Chinese Yuan", name: "CN¥ · Chinese Yuan" },
       },
       displaySectionTitle: "Language & Display",
       languageLabel: "Language",
       dateFormatLabel: "Date Format",
       themeLabel: "Theme",
       themeOptions: {
-        light: "☀️ Light",
-        dark: "🌙 Dark",
-        system: "🖥️ Follow System",
+        light: "Light",
+        dark: "Dark",
+        system: "Follow System",
       },
       dataSectionTitle: "Data Display",
       hideBalanceLabel: "Hide Balance by Default",
@@ -506,12 +506,12 @@ export const en = {
       weeklySummaryLabel: "Weekly Summary",
       weeklySummarySub: "Send a financial summary every Monday",
       saveButton: "Save Settings",
-      toastCurrencyUpdated: "✅ Display currency updated",
+      toastCurrencyUpdated: "Display currency updated",
       toastCurrencyFailed: "Failed to save currency",
-      toastSettingsSaved: "✅ Settings saved",
+      toastSettingsSaved: "Settings saved",
       goldPriceSectionTitle: "Gold Price",
       goldPriceHint:
-        "Gold price per gram (IDR) used to compute the gold equivalent of net worth. No live market feed exists — this value is entered manually by the family owner.",
+        "Gold price per gram (IDR) used to compute the gold equivalent of net worth. No live market feed exists, this value is entered manually by the family owner.",
       goldPriceLabel: "Price per Gram (Rp)",
       goldPricePlaceholder: "e.g. 1,150,000",
       goldPriceSaveButton: "Save Gold Price",
@@ -519,7 +519,7 @@ export const en = {
       goldPriceManualLabelPrefix: "Manually entered, as of ",
       goldPriceOwnerOnlyNote:
         "Only the family owner can change the gold price.",
-      toastGoldPriceUpdated: "✅ Gold price updated",
+      toastGoldPriceUpdated: "Gold price updated",
       toastGoldPriceFailed: "Failed to save gold price",
       toastGoldPriceInvalid: "Enter a valid gold price (greater than 0)",
       religionSectionTitle: "Family Religion",
@@ -528,12 +528,15 @@ export const en = {
       religionOptions: {
         islam: "Islam (Zakat)",
         kristen: "Christian (Tithe)",
+        katolik: "Catholic (Tithe)",
+        hindu: "Hindu",
+        buddha: "Buddhist",
         none: "Not set",
       },
       religionLabel: "Family Religion",
       religionSaveButton: "Save Family Religion",
       religionOwnerOnlyNote: "Only the family owner can change the religion.",
-      toastReligionUpdated: "✅ Family religion updated",
+      toastReligionUpdated: "Family religion updated",
       toastReligionFailed: "Failed to save family religion",
       religionUnconfirmedPlaceholder: "Choose family religion",
       religionUnconfirmedLabel: "Not yet chosen",
@@ -566,7 +569,7 @@ export const en = {
       aiKeyOwnerOnlyNote:
         "Only the family owner or spouse can manage the AI key.",
       aiKeyNotConfiguredLabel: "No API key connected yet.",
-      toastAiKeySaved: "✅ AI key saved",
+      toastAiKeySaved: "AI key saved",
       toastAiKeySaveFailed: "Failed to save the AI key",
       toastAiKeyRemoved: "AI key removed",
       toastAiKeyRemoveFailed: "Failed to remove the AI key",
@@ -592,8 +595,8 @@ export const en = {
       dividendLabel: "Dividend Received",
       dividendSub: "Notification when a dividend is received",
       investNote:
-        "Saved, but not yet active — price & dividend data sources aren't available yet.",
-      toastSaved: "✅ Notification settings saved",
+        "Saved, but not yet active, price & dividend data sources aren't available yet.",
+      toastSaved: "Notification settings saved",
       toastFailed: "Failed to save notification settings",
     },
     privasi: {
@@ -612,7 +615,7 @@ export const en = {
       exportDataSub: "Download all data in CSV/PDF format",
       deleteAccountName: "Delete Account",
       deleteAccountSub: "All data will be permanently deleted",
-      toastExportSuccess: "📤 Data exported successfully",
+      toastExportSuccess: "Data exported successfully",
       toastExportFailed: "Failed to export data. Try again.",
       deleteAccountConfirm:
         "Are you sure you want to delete your account? All data will be permanently deleted and cannot be recovered.",
@@ -668,7 +671,7 @@ export const en = {
       guideSectionTitle: "Feature Guide",
       tourName: "Start Guided Setup",
       tourSub:
-        "A ~2-minute setup that creates your first account, budget, and transaction — real ones, not a simulation",
+        "A ~2-minute setup that creates your first account, budget, and transaction, real ones, not a simulation",
       fullGuideName: "Complete Feature Guide",
       fullGuideSub: "Every feature, grouped by category",
       askAiName: "Ask AI Advisor",
@@ -682,11 +685,11 @@ export const en = {
       emailName: "Email",
       emailSub: "support@wealthme.id · Response within 24 hours",
       phoneName: "Phone",
-      phoneSub: "0800-1234-5678 · Mon–Fri 08:00–17:00",
+      phoneSub: "0800-1234-5678 · Mon–Fri 08:00-17:00",
       whatsappName: "WhatsApp",
       whatsappSub: "+62 811 2345 6789 · Direct chat",
-      toastLiveChat: "Live chat isn't available yet — coming soon.",
-      feedbackTitle: "💬 Send Feedback",
+      toastLiveChat: "Live chat isn't available yet, coming soon.",
+      feedbackTitle: "Send Feedback",
       feedbackPlaceholder: "Share your experience or report a bug...",
       feedbackButton: "Send Feedback",
       toastFeedbackOpening: "Opening email…",
@@ -701,9 +704,9 @@ export const en = {
       privacyPolicyName: "Privacy Policy",
       termsName: "Terms & Conditions",
       licenseName: "Open Source License",
-      footerMade: "Made with ❤️ in Indonesia",
+      footerMade: "Made with in Indonesia",
       footerCopyright: "© 2025 WealthMe · All rights reserved",
-      toastComingSoon: "This feature isn't available yet — coming soon.",
+      toastComingSoon: "This feature isn't available yet, coming soon.",
     },
     family: {
       membersSectionTitle: "Members",
@@ -723,7 +726,7 @@ export const en = {
         "Choose the expense categories this member may record. Leave all unchecked for no restriction (default).",
       categoryLimitEmptyCategories:
         "No expense categories yet. Add one on the Transactions page first.",
-      categoryLimitUnrestrictedHint: "Unrestricted — every category is allowed",
+      categoryLimitUnrestrictedHint: "Unrestricted, every category is allowed",
       categoryLimitSaveButton: "Save Limit",
       categoryLimitSaving: "Saving...",
       categoryLimitSaved: "Category limit saved successfully.",
@@ -736,7 +739,8 @@ export const en = {
       allowanceRequestRejectButton: "Reject",
       allowanceRequestApproveDialogTitle: "Approve Funding Request",
       allowanceRequestSourceAccountLabel: "Source Account",
-      allowanceRequestApproved: "Funding request approved — funds transferred.",
+      allowanceRequestRequestedFromPrefix: "from ",
+      allowanceRequestApproved: "Funding request approved, funds transferred.",
       allowanceRequestApproveFailed:
         "Failed to approve the request. Try again.",
       allowanceRequestRejected: "Funding request rejected.",
@@ -763,7 +767,7 @@ export const en = {
     addDependant: {
       dialogTitle: "Add Child / Operational",
       dialogDesc:
-        "For a member with no email of their own (a child, driver, or assistant). Set a username and an initial password — they must change it at their first login.",
+        "For a member with no email of their own (a child, driver, or assistant). Set a username and an initial password, they must change it at their first login.",
       nameLabel: "Name",
       namePlaceholder: "Full name",
       usernameLabel: "Username",
@@ -772,19 +776,20 @@ export const en = {
       passwordLabel: "Initial Password",
       passwordPlaceholder: "At least 8 characters",
       passwordHint:
-        "Hand this password over directly — they must change it at their first login.",
+        "Hand this password over directly, they must change it at their first login.",
       showPassword: "Show password",
       hidePassword: "Hide password",
       roleLabel: "Role",
       roleOptions: {
-        dependant: "Child (Dependant)",
-        operational: "Operational (driver/assistant)",
         istriCoMaster: "Wife (Co-Master)",
+        dependant: "Child",
+        operational: "Operational Staff",
+        member: "Member",
       },
       istriCoMasterHint:
         'The wife becomes a second owner (co-master) with the exact same menu and powers as the husband — not a member/dependant. Family Relationship auto-locks to "istri". Maximum 1 wife per family.',
       relationshipLabel: "Family Relationship (optional)",
-      relationshipNoneOption: "— Not set —",
+      relationshipNoneOption: "Not set",
       creating: "Creating...",
       createButton: "Create Account",
       toastCreated: "Account created successfully",
@@ -833,20 +838,20 @@ export const en = {
     // AllowanceRequestDto, so this notice states the fact (held, over the
     // member's limit) without fabricating a specific Rupiah figure.
     heldWarningNotice:
-      "This expense exceeds the member's transaction limit and is held — it hasn't been recorded until you approve or reject it.",
+      "This expense exceeds the member's transaction limit and is held, it hasn't been recorded until you approve or reject it.",
     fundingApproveHelperNotice:
       "Approving will transfer real funds between accounts.",
     approveSourceAccountHint:
       "Funds are really transferred from this account to the destination account.",
   },
   panduan: {
-    pageTitle: "📖 WealthMe Feature Guide",
+    pageTitle: "WealthMe Feature Guide",
     pageSubtitle:
-      "Every feature, grouped by usage flow — explore based on what you need.",
+      "Every feature, grouped by usage flow, explore based on what you need.",
     openLink: "Open →",
     searchLabel: "Search topics",
     searchPlaceholder: "e.g. budget, reconciliation, change role…",
-    noResults: "No topics match — try a different keyword.",
+    noResults: "No topics match, try a different keyword.",
     journeys: {
       start: {
         title: "1. Start here",
@@ -863,8 +868,7 @@ export const en = {
       plan: { title: "4. Plan ahead", subtitle: "Give your money direction." },
       growProtect: {
         title: "5. Grow & protect your wealth",
-        subtitle:
-          "Round out your wealth picture — optional, fill in as needed.",
+        subtitle: "Round out your wealth picture, optional, fill in as needed.",
       },
       reportsTools: {
         title: "6. Reports & tools",
@@ -876,7 +880,7 @@ export const en = {
       },
       advancedConfig: {
         title: "8. Advanced configuration",
-        subtitle: "For accounting & multi-user needs — optional.",
+        subtitle: "For accounting & multi-user needs, optional.",
       },
       aiAssistant: { title: "9. AI Assistant", subtitle: "Ask anytime." },
     },
@@ -899,7 +903,7 @@ export const en = {
       },
       masterdata: {
         title: "Master Data Setup",
-        desc: "Customize transaction categories (food, transport, salary, etc.) here — shared by both budgets and reports.",
+        desc: "Customize transaction categories (food, transport, salary, etc.) here, shared by both budgets and reports.",
       },
       addTransactionButton: {
         title: 'The "+" Add Transaction Button',
@@ -955,7 +959,7 @@ export const en = {
       },
       rekonsiliasi: {
         title: "Bank Reconciliation",
-        desc: "Upload a bank statement file (CSV) — WealthMe automatically matches it against the transactions you've already logged.",
+        desc: "Upload a bank statement file (CSV), WealthMe automatically matches it against the transactions you've already logged.",
       },
       donation: {
         title: "Donation & Zakat",
@@ -975,7 +979,7 @@ export const en = {
       },
       ai: {
         title: "AI Advisor",
-        desc: "Type a question about your finances — the AI analyzes your transaction data and gives concrete advice.",
+        desc: "Type a question about your finances, the AI analyzes your transaction data and gives concrete advice.",
       },
       akun: {
         title: "Account & Family",
@@ -983,7 +987,7 @@ export const en = {
       },
       persetujuan: {
         title: "Approvals",
-        desc: "Fund requests from family members land here — approve or reject them, with notes.",
+        desc: "Fund requests from family members land here, approve or reject them, with notes.",
       },
       passwordLogin: {
         title: "Password & Login",
@@ -991,7 +995,7 @@ export const en = {
       },
       privateCategories: {
         title: "Private Categories",
-        desc: "Mark a category as private — its transactions are only visible to you and are not sent to the AI Advisor.",
+        desc: "Mark a category as private, its transactions are only visible to you and are not sent to the AI Advisor.",
       },
       apiKeyAi: {
         title: "AI API Key",
@@ -1036,14 +1040,14 @@ export const en = {
     searchResultMid: " of ",
     searchResultSuffix: " topics",
     searchNoResultsFiltered:
-      "No topics match — try a different keyword or contact us.",
+      "No topics match, try a different keyword or contact us.",
     contactHeaderButton: "Contact Us",
     faqSectionTitle: "Frequently Asked Questions",
     faq: {
       pdfRejected: {
         q: "Why was my bank's PDF statement rejected?",
         before:
-          "PDF layouts differ across banks, and auto-read numbers often drift without anyone noticing — a bigger risk than a bit of extra effort. Export your account mutations as CSV from your bank's app or site, then upload that CSV file on the ",
+          "PDF layouts differ across banks, and auto-read numbers often drift without anyone noticing, a bigger risk than a bit of extra effort. Export your account mutations as CSV from your bank's app or site, then upload that CSV file on the ",
         linkLabel: "Reconciliation",
         after: " page.",
       },
@@ -1057,14 +1061,14 @@ export const en = {
       mortgageNotFullExpense: {
         q: "Why doesn't my mortgage installment fully count as an expense?",
         before:
-          "Because only the interest portion is a real expense. The principal reduces your debt, not your profit — that money was never your income in the first place. Full explanation in ",
+          "Because only the interest portion is a real expense. The principal reduces your debt, not your profit, that money was never your income in the first place. Full explanation in ",
         linkLabel: "Master COA",
         after: ", group 5 (Debt).",
       },
       aiNotAnswering: {
         q: "Why isn't my AI Advisor answering?",
         before:
-          "AI Advisor uses your own API key (Claude, OpenAI, or Gemini). Until a key is connected, the feature is deliberately disabled and shows no answer at all — better empty than a made-up suggestion. The owner or partner can set it up at ",
+          "AI Advisor uses your own API key (Claude, OpenAI, or Gemini). Until a key is connected, the feature is deliberately disabled and shows no answer at all, better empty than a made-up suggestion. The owner or partner can set it up at ",
         linkLabel: "AI Advisor → Set API Key",
         after: ".",
       },
@@ -1101,7 +1105,7 @@ export const en = {
       emailDesc: "Response within 1x24 business hours.",
       phoneTitle: "Phone",
       phoneValue: "0800-1234-5678",
-      phoneDesc: "Mon–Fri, 08:00–17:00 WIB.",
+      phoneDesc: "Mon–Fri, 08:00-17:00 WIB.",
       whatsappTitle: "WhatsApp",
       whatsappValue: "+62 811 2345 6789",
       whatsappDesc: "Direct chat.",
@@ -1177,7 +1181,7 @@ export const en = {
     paySourceAccountLabel: "Source Account",
     paySourceAccountPlaceholder: "Select an account...",
     payAlreadyPaidTooltip: "Already paid this period",
-    toastRenewalRecordedPrefix: "Premium paid — next due date ",
+    toastRenewalRecordedPrefix: "Premium paid, next due date ",
     toastPaySuccessNoRenewal: "Premium paid successfully.",
     toastRenewalFailed: "Failed to pay premium. Try again.",
     beneficiariesSectionTitle: "Insurance Beneficiaries",
@@ -1197,11 +1201,11 @@ export const en = {
     validationSharePercentExceeded:
       "Total beneficiary share cannot exceed 100%",
     validationBeneficiaryNameRequired:
-      "A beneficiary with a share percentage needs a name — fill it in or remove this row",
+      "A beneficiary with a share percentage needs a name, fill it in or remove this row",
     validationShareUnderAllocated:
-      "Only {pct}% is allocated — the remainder isn't recorded for any beneficiary (this may be intentional, e.g. the remainder goes to the estate)",
+      "Only {pct}% is allocated, the remainder isn't recorded for any beneficiary (this may be intentional, e.g. the remainder goes to the estate)",
     beneficiaryMemberPickerUnavailable:
-      "The family member list isn't available for your role — enter the name manually.",
+      "The family member list isn't available for your role, enter the name manually.",
     coverageAllocationTitle: "Coverage by Type",
     renewalWarningPrefix: "The",
     renewalWarningSuffix: "premium is due",
@@ -1230,7 +1234,7 @@ export const en = {
     policyPickerPayDesc:
       "Pick the policy whose premium you want to pay; you choose the source account in the next step.",
     policyPickerBeneficiaryDesc:
-      "Pick a policy first — beneficiaries are stored on that policy, and their shares may not exceed 100% in total.",
+      "Pick a policy first, beneficiaries are stored on that policy, and their shares may not exceed 100% in total.",
     deleteDialogTitle: "Delete this record?",
     deleteDialogBody:
       "The policy will be permanently deleted. Premium payments already recorded stay in Transactions.",
@@ -1241,13 +1245,13 @@ export const en = {
   },
   kalkulator: {
     tabs: {
-      zakat: "🌙 Zakat Maal",
-      pph21: "🧾 PPh 21",
-      investasi: "📈 Investment",
-      kredit: "💳 Mortgage",
-      pensiun: "🏖️ Retirement",
-      tabungan: "🏦 Savings",
-      splitgroup: "🧾 Split Group",
+      zakat: "Zakat Maal",
+      pph21: "PPh 21",
+      investasi: "Investment",
+      kredit: "Mortgage",
+      pensiun: "Retirement",
+      tabungan: "Savings",
+      splitgroup: "Split Group",
     },
     months: [
       "Jan",
@@ -1267,12 +1271,12 @@ export const en = {
     calculating: "Calculating...",
     pageTitle: "Financial Calculators",
     pageSubtitle:
-      "Every rupiah field auto-formats with thousand separators — 100,000,000 still reads as one hundred million when saved.",
+      "Every rupiah field auto-formats with thousand separators, 100,000,000 still reads as one hundred million when saved.",
     hasilCardTitle: "Result",
     zakat: {
       cardTitle: "Zakat Maal Calculator",
       nisabAutoNote:
-        "Nisab is calculated automatically — from your family's gold price (if set) or an indicative reference price.",
+        "Nisab is calculated automatically, from your family's gold price (if set) or an indicative reference price.",
       fieldCash: "Cash & Savings (Rp)",
       fieldInvestments: "Investments (Rp)",
       fieldGold: "Gold Value (Rp)",
@@ -1291,11 +1295,11 @@ export const en = {
       // exists: it ties the headline "Rp 0" figure to its cause instead of
       // leaving a first-time visitor with an unexplained zero.
       belowNisabPrefix: "Zakatable assets haven't reached the nisab (",
-      belowNisabSuffix: "), so no zakat is due yet — the amount shown is Rp 0.",
+      belowNisabSuffix: "), so no zakat is due yet, the amount shown is Rp 0.",
       nisabSourceFamilyPrefix: "Nisab from your family's gold price: Rp ",
       nisabSourceFamilyMidfix: "/gram (",
       nisabSourceFamilySuffix: ")",
-      nisabSourceIndicative: "Indicative nisab — not a real-time gold price.",
+      nisabSourceIndicative: "Indicative nisab, not a real-time gold price.",
     },
     pph21: {
       cardTitle: "PPh 21 Income Tax Calculator (UU HPP)",
@@ -1314,11 +1318,11 @@ export const en = {
       zakatLabel: "Zakat",
       progressiveHeading: "Progressive Rates:",
       typingNote:
-        "Type digits only — thousand separators appear automatically. The stored value is always a plain number.",
+        "Type digits only, thousand separators appear automatically. The stored value is always a plain number.",
       bracketDialogLinkLabel: "Bracket breakdown",
       bracketDialogTitle: "PPh 21 Bracket Breakdown",
       bracketDialogDesc:
-        "UU HPP progressive rates — each bracket is taxed separately, not one flat rate.",
+        "UU HPP progressive rates, each bracket is taxed separately, not one flat rate.",
       bracketDialogBracketHeader: "PKP Bracket",
       bracketDialogRateHeader: "Rate",
       bracketDialogTaxableHeader: "Taxable",
@@ -1380,7 +1384,7 @@ export const en = {
       resultLabel: "Required Retirement Fund",
       detailMonthlyInvestmentNeededPrefix: "Monthly investment needed:",
       targetBasisNote:
-        "The target assumes 20× current annual expenses (a ~5% withdrawal rate) — not the more common 25×/4% rule.",
+        "The target assumes 20× current annual expenses (a ~5% withdrawal rate), not the more common 25×/4% rule.",
       rowMonthlyContributionLabel: "Monthly investment needed",
       rowTotalContributionsLabel: "Total contributions",
       rowProjectedValueLabel: "Projected retirement fund",
@@ -1409,9 +1413,9 @@ export const en = {
     },
   },
   quickinput: {
-    pageTitle: "⚡ Quick Input",
+    pageTitle: "Quick Input",
     pageSubtitle:
-      "Choose the type of data you want to enter — fill it in instantly via a popup",
+      "Choose the type of data you want to enter, fill it in instantly via a popup",
     cards: {
       transaksi: { name: "Transaction", desc: "Income / expense" },
       investasi: { name: "Investment", desc: "Stocks, mutual funds, gold" },
@@ -1436,17 +1440,17 @@ export const en = {
     bannerTitle: "WealthMe AI Advisor",
     bannerSubtitle:
       "Personal financial analysis based on real data, using your own API key.",
-    popularQuestionsLabel: "💡 Popular Questions",
+    popularQuestionsLabel: "Popular Questions",
     chips: [
-      "📊 Analyze this month's finances",
-      "🎯 How to reach my down payment goal faster",
-      "📈 Investment portfolio recommendations",
-      "💡 Tips to cut spending",
-      "💳 Is my credit card debt safe?",
-      "📅 5-year wealth projection",
+      "Analyze this month's finances",
+      "How to reach my down payment goal faster",
+      "Investment portfolio recommendations",
+      "Tips to cut spending",
+      "Is my credit card debt safe?",
+      "5-year wealth projection",
     ],
     initialMessage:
-      "Hi! 👋 I'm the WealthMe AI Advisor. Ask me anything about your family's finances.",
+      "Hi! I'm the WealthMe AI Advisor. Ask me anything about your family's finances.",
     errorGeneric: "Sorry, something went wrong. Please try again later.",
     errorConnection: "Sorry, the connection was interrupted. Try again.",
     noGroupTitle: "Join a family group to use the AI Advisor",
@@ -1467,18 +1471,18 @@ export const en = {
     // must say so explicitly, and each provider-failure kind gets its own
     // message instead of one generic error for all of them.
     truncatedNotice:
-      "⚠️ This answer was cut off because it reached the AI response length limit.",
+      "This answer was cut off because it reached the AI response length limit.",
     errorKeyCorrupted:
-      "The stored AI key could not be read — re-enter it in Account → Settings.",
+      "The stored AI key could not be read, re-enter it in Account → Settings.",
     errorAuthFailed:
-      "The AI provider rejected this key — check it again in Account → Settings.",
+      "The AI provider rejected this key, check it again in Account → Settings.",
     errorRateLimited:
-      "The AI provider is rate-limiting this request — try again shortly.",
+      "The AI provider is rate-limiting this request, try again shortly.",
     errorRateLimitedRetryIn:
-      "The AI provider is throttling this request — try again in {seconds}s.",
+      "The AI provider is throttling this request, try again in {seconds}s.",
     errorRateLimitedDaily:
       "The AI provider's daily quota for this model is used up. Try again tomorrow, or switch model / raise your plan with the provider.",
-    errorTimeout: "The request to the AI provider timed out — try again.",
+    errorTimeout: "The request to the AI provider timed out, try again.",
     statusApiKeyLabel: "API Key Status",
     statusConnectedBadge: "Connected",
     manageApiKeyButton: "Set API Key",
@@ -1559,7 +1563,7 @@ export const en = {
     fieldQuantityPlaceholder: "e.g. 10",
     fieldCostBasisLabel: "Purchase Price per Unit (Rp)",
     fieldCostBasisPlaceholder: "e.g. 9500",
-    fieldInterestRateLabel: "Annual Interest Rate (%) — for Bonds/Deposits",
+    fieldInterestRateLabel: "Annual Interest Rate (%), for Bonds/Deposits",
     fieldInterestRatePlaceholder: "e.g. 6.5",
     // EPIC-024 C3 (D9) — saham Lot/Lembar toggle. Canonical storage stays
     // lembar; 1 lot = 100 lembar (see toLembar/quantityToDisplay in
@@ -1648,33 +1652,33 @@ export const en = {
       computedInterest: "Simple Interest (Computed)",
     },
     detailDelayedLabel: "Delayed & unofficial",
-    detailRefreshFailedLabel: "Refresh failed — showing last known price",
+    detailRefreshFailedLabel: "Refresh failed, showing last known price",
     detailManualLabelPrefix: "Manually entered, as of ",
-    detailNoManualPrice: "No manual price yet — edit to add one.",
+    detailNoManualPrice: "No manual price yet, edit to add one.",
     detailPriceUnavailable: "Price not available yet.",
     automatedUnmappedBadge: "Manual Price",
     automatedUnmappedNote:
-      "No automated price feed supports this ticker yet — enter the price manually.",
+      "No automated price feed supports this ticker yet, enter the price manually.",
     fieldManualPriceLabel: "Current Price (Rp, optional)",
     fieldManualPricePlaceholder: "e.g. 15250",
     fieldManualPriceDateLabel: "As Of Date",
     manualPriceNote:
-      "No automated price feed exists for this type — enter the current price manually, with its date.",
+      "No automated price feed exists for this type, enter the current price manually, with its date.",
     autoPriceNoteSaham:
-      "Price updates automatically from Yahoo Finance (.JK) — delayed & unofficial.",
+      "Price updates automatically from Yahoo Finance (.JK), delayed & unofficial.",
     autoPriceNoteKripto: "Price updates automatically from CoinGecko.",
     depositoValuationNote:
-      "Deposit value is computed automatically from the nominal + annual interest rate (simple interest, pro-rata) — no manual entry needed.",
+      "Deposit value is computed automatically from the nominal + annual interest rate (simple interest, pro-rata), no manual entry needed.",
     refreshPriceButton: "Refresh Prices",
     refreshPriceToast: "Reloading latest prices…",
     capitalInvestedPrefix: "Capital invested",
     livePositionsSuffix: "positions priced live",
     pricingSourceNoticeTitle: "Two pricing sources.",
     pricingSourceNoticeBody:
-      "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko — both delayed ±15 minutes, not real-time. Mutual funds, bonds, gold, and time deposits have no automated feed: you enter the value manually and it's always shown with its valuation date.",
+      "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko, both delayed ±15 minutes, not real-time. Mutual funds, bonds, gold, and time deposits have no automated feed: you enter the value manually and it's always shown with its valuation date.",
     allocationTitle: "Allocation by Type",
     modalDesc:
-      "Pick the type first — the fields below adapt. Stocks are counted in lots, crypto in coins, time deposits by accrued interest.",
+      "Pick the type first, the fields below adapt. Stocks are counted in lots, crypto in coins, time deposits by accrued interest.",
     sectionIdentityTitle: "Instrument details",
     sectionIdentityDesc:
       "Choose the type and identity of the holding you're recording.",
@@ -1688,7 +1692,7 @@ export const en = {
     hintQuantityLocked:
       'Quantity can only change via "Buy More" / "Sell" — not here.',
     hintCostBasisLocked:
-      "Average cost is computed automatically from buy/sell history — not here.",
+      "Average cost is computed automatically from buy/sell history, not here.",
     buySellButtonLabel: "Buy / Sell",
     buySellModalTitleBuy: "Record a Purchase",
     buySellModalTitleSell: "Record a Sale",
@@ -1699,8 +1703,8 @@ export const en = {
     buySellFieldDateLabel: "Transaction Date",
     buySellSaveButton: "Save Transaction",
     buySellSaving: "Saving...",
-    toastBuySuccess: "Purchase recorded — average cost updated.",
-    toastSellSuccessTemplate: "Sale recorded — realized P/L {pnl}.",
+    toastBuySuccess: "Purchase recorded, average cost updated.",
+    toastSellSuccessTemplate: "Sale recorded, realized P/L {pnl}.",
     toastBuySellFailed: "Failed to record the transaction. Try again.",
     detailRealizedPnlLabel: "Realized P/L",
     historySectionTitle: "Buy/Sell History",
@@ -1881,11 +1885,11 @@ export const en = {
     amortisationEstimatedPayoffPrefix: "Est. payoff in ~",
     amortisationEstimatedPayoffSuffix: " months",
     amortisationNoPayoffNote:
-      "The current minimum payment does not cover monthly interest — the remaining balance will not decrease.",
+      "The current minimum payment does not cover monthly interest, the remaining balance will not decrease.",
     amortisationUnavailableNote:
       "Set a minimum payment to see the amortisation estimate.",
     amortisationDisclaimer:
-      "A rough estimate based on the current balance, interest rate, and minimum payment — not an official schedule.",
+      "A rough estimate based on the current balance, interest rate, and minimum payment, not an official schedule.",
     payDialogTitle: "Pay Liability",
     payAmountLabel: "Payment Amount (Rp)",
     payPrincipalPreviewLabel: "Est. Principal",
@@ -1923,36 +1927,36 @@ export const en = {
     payRemainingAfterLabel: "Remaining principal after payment",
   },
   masterdata: {
-    pageTitle: "🗄️ Master Data Setup",
+    pageTitle: "Master Data Setup",
     pageSubtitle:
       "Manage the reference data used across the app. Every list on this page can be added to and deleted by you.",
     masterCoaButton: "Master COA",
     categoryFooterHint:
       "The code next to each category is the COA account its transactions post to in reports.",
     groups: {
-      mdbank: { title: "🏦 Bank", label: "Bank" },
-      mdtxntype: { title: "↕️ Transaction Type", label: "Transaction Type" },
-      mdinvtype: { title: "📈 Investment Type", label: "Investment Type" },
-      mdewallet: { title: "💳 E-Wallet", label: "E-Wallet" },
-      mdlembaga: { title: "🤲 Donation Institution", label: "Institution" },
-      mdasettype: { title: "🏠 Asset Category", label: "Asset Category" },
-      mdinstype: { title: "🛡️ Insurance Type", label: "Insurance Type" },
+      mdbank: { title: "Bank", label: "Bank" },
+      mdtxntype: { title: "↕ Transaction Type", label: "Transaction Type" },
+      mdinvtype: { title: "Investment Type", label: "Investment Type" },
+      mdewallet: { title: "E-Wallet", label: "E-Wallet" },
+      mdlembaga: { title: "Donation Institution", label: "Institution" },
+      mdasettype: { title: "Asset Category", label: "Asset Category" },
+      mdinstype: { title: "Insurance Type", label: "Insurance Type" },
     },
-    categorySectionTitle: "🏷️ Category",
+    categorySectionTitle: "Category",
     masterCoaLink: "Master COA",
     addLink: "+ Add",
     categoryLoading: "Loading categories…",
     categoryEmpty: "No categories yet",
     kindIncome: "In",
     kindExpense: "Out",
-    privateLabel: "🔒 Private",
+    privateLabel: "Private",
     autoOptionLabel: "Automatic (matching type)",
     groupEmpty: "No data yet",
     groupLoading: "Loading…",
     systemBadge: "Built-in",
     footerBold: "Category",
     footerRest:
-      " is saved to the server and used in transactions & reports. The other reference lists (bank, e-wallet, transaction type, investment type, donation institution, asset category, insurance type) are also saved per family — not a locked system default. Deleting an item still in use by a transaction is rejected with a message naming that data.",
+      " is saved to the server and used in transactions & reports. The other reference lists (bank, e-wallet, transaction type, investment type, donation institution, asset category, insurance type) are also saved per family, not a locked system default. Deleting an item still in use by a transaction is rejected with a message naming that data.",
     editAriaPrefix: "Edit ",
     deleteAriaPrefix: "Remove ",
     categoryDeleteLabelPrefix: 'category "',
@@ -1979,7 +1983,7 @@ export const en = {
     topNoticeBold: "Every list on this page can be changed.",
     topNoticePrefix: "Items marked",
     topNoticeSuffix:
-      "are WealthMe's starter data — you can still delete or replace them if your family doesn't use them. Changes save to the server immediately and apply to every family member.",
+      "are WealthMe's starter data, you can still delete or replace them if your family doesn't use them. Changes save to the server immediately and apply to every family member.",
   },
   mastercoa: {
     groupLabels: {
@@ -2001,9 +2005,9 @@ export const en = {
       REIMBURSEMENT: "Reimbursement",
     },
     // EPIC-025 N3 prototype structural port — mirrors id.ts's additions.
-    pageTitle: "📚 Master COA",
+    pageTitle: "Master COA",
     pageSubtitle:
-      "The account structure your P&L and balance sheet reports use. For advanced accounting needs — optional.",
+      "The account structure your P&L and balance sheet reports use. For advanced accounting needs, optional.",
     masterDataButton: "Master Data",
     groupBadgeLabels: {
       1: "Income",
@@ -2067,7 +2071,7 @@ export const en = {
     fieldCodeLabel: "Account Code",
     fieldCodePlaceholder: "20101",
     fieldCodeAutoPlaceholder: "Auto-generated if left blank",
-    fieldGroupLabel: "Group (1–6) *",
+    fieldGroupLabel: "Group (1-6) *",
     fieldNameLabel: "Account Name *",
     fieldNamePlaceholder: "e.g. Household Needs",
     fieldDirectionLabel: "Transaction Direction *",
@@ -2080,9 +2084,9 @@ export const en = {
     modalDesc:
       "The code is generated automatically from the selected group, but you can still change it as long as the first digit matches.",
     fieldCodeHint:
-      "Leave blank and the code is generated automatically from the selected group — you can still change it.",
+      "Leave blank and the code is generated automatically from the selected group, you can still change it.",
     modalWarning:
-      "Changing the group or direction of an account already in use changes the meaning of older transactions — the profit-and-loss and balance sheet change with it.",
+      "Changing the group or direction of an account already in use changes the meaning of older transactions, the profit-and-loss and balance sheet change with it.",
     deleteConfirmNotice:
       "Older transactions using this account lose their classification in the profit-and-loss and balance sheet.",
     toastAdded: "COA account added successfully",
@@ -2096,57 +2100,57 @@ export const en = {
       introTitle: "What is the Master COA?",
       introBody:
         'The Master COA (Chart of Accounts) is the list of "boxes" every transaction gets filed into. Every time you record income, an expense, or a transfer, WealthMe puts it into one of the 6 groups below — and that group decides how the number shows up in your profit & loss and balance sheet.',
-      riskTitle: "⚠️ The risk of editing this wrong",
+      riskTitle: "The risk of editing this wrong",
       riskBody:
-        "The Master COA is the foundation every report rests on. If you change the group or direction (income/expense/transfer) of an account that's already in use, every past transaction filed under it changes meaning too — your profit & loss and balance sheet can go wrong instantly, with no warning. Only edit this if you genuinely understand the consequence.",
+        "The Master COA is the foundation every report rests on. If you change the group or direction (income/expense/transfer) of an account that's already in use, every past transaction filed under it changes meaning too, your profit & loss and balance sheet can go wrong instantly, with no warning. Only edit this if you genuinely understand the consequence.",
       groupsTitle: "6 groups, and what they mean for your money",
       groups: {
         1: {
           title: "1 · Income",
           meaning:
-            "Money that genuinely grows your wealth — salary, bonuses, sales proceeds, savings interest. Every rupiah in this group raises the profit on your P&L.",
+            "Money that genuinely grows your wealth, salary, bonuses, sales proceeds, savings interest. Every rupiah in this group raises the profit on your P&L.",
           example:
             'Example: a Rp 10,000,000 salary lands in your BCA account and is recorded as "Salary" (group 1). This month\'s P&L immediately shows Rp 10,000,000 of income — and it also raises your net worth on the balance sheet.',
         },
         2: {
           title: "2 · Expense",
           meaning:
-            "Money that's genuinely spent and gone — groceries, food, electricity, transport. Every rupiah in this group lowers the profit on your P&L.",
+            "Money that's genuinely spent and gone, groceries, food, electricity, transport. Every rupiah in this group lowers the profit on your P&L.",
           example:
             'Example: a Rp 1,500,000 monthly grocery run is recorded as "Household Needs" (group 2). The P&L records it as a Rp 1,500,000 expense this month.',
         },
         3: {
           title: "3 · Wealth Allocation",
           meaning:
-            "Money that moves, not money that's gone — saving, buying gold or investments, moving money between your own accounts. This money does NOT show up as an expense, because your wealth hasn't shrunk — only its shape changed.",
+            "Money that moves, not money that's gone, saving, buying gold or investments, moving money between your own accounts. This money does NOT show up as an expense, because your wealth hasn't shrunk, only its shape changed.",
           example:
             'Example: from the same Rp 10,000,000 salary above, if you move Rp 2,000,000 of it into a savings account and record it in group 3 ("Savings"), the P&L does NOT record it as an expense — the money is still yours, it just changed accounts. Compare with the salary in group 1, which DID raise profit; money moved into group 3 does NOT lower it.',
         },
         4: {
           title: "4 · Receivable",
           meaning:
-            "Money you LEND to someone else and expect back. That's not an expense — your money isn't gone, someone else is just holding it for now. That's why this group's direction is TRANSFER, not expense.",
+            "Money you LEND to someone else and expect back. That's not an expense, your money isn't gone, someone else is just holding it for now. That's why this group's direction is TRANSFER, not expense.",
           example:
             'A commonly mis-recorded example: you lend a friend Rp 500,000, recorded in group 4. The P&L does NOT treat it as a Rp 500,000 expense — your net worth stays the same, it just changed shape from "cash" to "receivable". Once your friend repays it, the receivable turns back into cash — also not income.',
         },
         5: {
           title: "5 · Payable",
           meaning:
-            "Money you BORROW from someone or an institution (including installments/mortgages) and owe back. Repaying the PRINCIPAL is not an expense — that money was never yours to begin with. That's why this group is also TRANSFER.",
+            "Money you BORROW from someone or an institution (including installments/mortgages) and owe back. Repaying the PRINCIPAL is not an expense, that money was never yours to begin with. That's why this group is also TRANSFER.",
           example:
-            "A commonly mis-recorded example: you pay a Rp 5,000,000 mortgage installment (Rp 4,200,000 principal + Rp 800,000 interest). Only the Rp 800,000 interest is recorded as an expense (group 2) — the Rp 4,200,000 principal reduces the liability in group 5, not an expense, because that money was never your income when you borrowed it.",
+            "A commonly mis-recorded example: you pay a Rp 5,000,000 mortgage installment (Rp 4,200,000 principal + Rp 800,000 interest). Only the Rp 800,000 interest is recorded as an expense (group 2), the Rp 4,200,000 principal reduces the liability in group 5, not an expense, because that money was never your income when you borrowed it.",
         },
         6: {
           title: "6 · Tax",
           meaning:
-            "Tax you pay to the government — income tax, property tax, and the like. This is a real expense you can never get back, so it stays an expense.",
+            "Tax you pay to the government, income tax, property tax, and the like. This is a real expense you can never get back, so it stays an expense.",
           example:
             "Example: a Rp 800,000 property tax bill is recorded in group 6. The P&L records it as a Rp 800,000 expense, same as group 2.",
         },
       },
       transferCalloutTitle: "Why aren't Receivable & Payable income/expense?",
       transferCalloutBody:
-        "This is the single most commonly mis-recorded thing. Repaying loan principal is NOT an expense — that money was someone else's all along, so paying it back doesn't lower your profit, only your debt. Likewise, lending money out is NOT an expense (your money isn't gone) and getting a loan repayment back is NOT income (it was already yours). If groups 4/5 were ever changed to income/expense, your P&L would count borrowed money as a profit or loss that never actually happened.",
+        "This is the single most commonly mis-recorded thing. Repaying loan principal is NOT an expense, that money was someone else's all along, so paying it back doesn't lower your profit, only your debt. Likewise, lending money out is NOT an expense (your money isn't gone) and getting a loan repayment back is NOT income (it was already yours). If groups 4/5 were ever changed to income/expense, your P&L would count borrowed money as a profit or loss that never actually happened.",
     },
   },
   notifikasi: {
@@ -2175,7 +2179,7 @@ export const en = {
     groupOlder: "Older",
   },
   dana: {
-    totalLabel: "💵 Total Cash & E-Wallet",
+    totalLabel: "Total Cash & E-Wallet",
     loadingLabel: "Loading...",
     accountsConnectedSuffix: " accounts connected",
     errorPrefixLabel: "Error: ",
@@ -2212,7 +2216,7 @@ export const en = {
       " A cash account can be negative (e.g. a driver's fuel advance not yet reimbursed). ",
     infoNoticeLinkLabel: "Bank & Account",
     infoNoticeSuffix:
-      " balances can't be debited into the negative — if one already is (e.g. an old transaction), use a liability to record the shortfall.",
+      " balances can't be debited into the negative, if one already is (e.g. an old transaction), use a liability to record the shortfall.",
     mutationsSectionTitle: "Recent Cash & E-Wallet Movement",
     mutationsViewAllLabel: "View All",
     mutationsEmptyLabel: "No cash/e-wallet movement yet.",
@@ -2314,9 +2318,9 @@ export const en = {
     breakdownEmpty: "No asset or liability data to show yet.",
     // Health Score debt-ratio insight note.
     healthDebtRatioNotePrefix: "Debt-to-asset ratio ",
-    healthDebtRatioNoteSuffixSafe: " — still within a safe range.",
+    healthDebtRatioNoteSuffixSafe: "- still within a safe range.",
     healthDebtRatioNoteSuffixAttention:
-      " — approaching the limit, consider reducing debt.",
+      "- approaching the limit, consider reducing debt.",
   },
   tujuan: {
     statusLabels: {
@@ -2365,17 +2369,17 @@ export const en = {
     overallMonthlyPrefix: "Need to save a total of ",
     overallMonthlySuffix: " / month",
     addGoalCardTitle: "Add a New Goal",
-    addGoalCardDesc: "A trip, a down payment, retirement — any target.",
+    addGoalCardDesc: "A trip, a down payment, retirement, any target.",
     noticeSavingsPrefix: "Need to save ",
     noticeSavingsPerMonthMiddle: " / month for ",
     noticeSavingsMonthsSuffix: " more months.",
-    noticeSavingsNoAutoDebitSuffix: " / month — no recurring allocation yet.",
+    noticeSavingsNoAutoDebitSuffix: " / month, no recurring allocation yet.",
   },
   tax: {
     sptStatusLabels: {
-      belum_lapor: "⏳ Not Filed",
-      sudah_lapor: "✅ Filed",
-      terlambat: "⚠️ Late",
+      belum_lapor: "Not Filed",
+      sudah_lapor: "Filed",
+      terlambat: "Late",
     },
     ptkpLabels: {
       tk0: "Single (TK/0)",
@@ -2385,10 +2389,10 @@ export const en = {
       k3: "Married, 3 children (K/3)",
     },
     bracketLabels: {
-      b0: "0 – 60 million",
-      b1: "60 – 250 million",
-      b2: "250 – 500 million",
-      b3: "500 million – 5 billion",
+      b0: "0 - 60 million",
+      b1: "60 - 250 million",
+      b2: "250 - 500 million",
+      b3: "500 million - 5 billion",
       b4: "> 5 billion",
     },
     heroLabelPrefix: "Estimated Tax Due ",
@@ -2401,7 +2405,7 @@ export const en = {
     zakatDeductionTitle: "Zakat Tax Deduction",
     zakatDeductionDash: "—",
     zakatDeductionDesc: "from recorded donations",
-    calculatorTitle: "🧮 PPh 21 Calculator (Individual)",
+    calculatorTitle: "PPh 21 Calculator (Individual)",
     calculatorOtherLink: "Other Calculators",
     calculatorSubtitle:
       "Calculate estimated income tax based on the progressive UU HPP rates",
@@ -2415,7 +2419,7 @@ export const en = {
     pkpPrefix: "Taxable Income: ",
     effectiveRatePrefix: " · Effective Rate ",
     savingLabel: "Saving...",
-    saveToTaxRecordButton: "💾 Save to Tax Records",
+    saveToTaxRecordButton: "Save to Tax Records",
     progressiveBreakdownTitle: "Progressive Rate Breakdown (UU HPP)",
     colBracket: "Taxable Income Bracket",
     colRate: "Rate",
@@ -2427,28 +2431,27 @@ export const en = {
     markReportedShortButton: "Mark Filed",
     documentsTitle: "Tax Documents",
     uploadButton: "+ Upload",
-    toastUploadUnavailable:
-      "Document upload isn't available yet — coming soon.",
+    toastUploadUnavailable: "Document upload isn't available yet, coming soon.",
     emptyDocuments:
       "No documents yet. Tax document upload & listing is coming soon.",
     reportSptButton: "File Annual SPT",
     downloadSummaryButton: "Download Summary",
     toastDownloadUnavailable:
-      "Summary download isn't available yet — coming soon.",
-    toastSaved: "✅ Tax data saved successfully!",
+      "Summary download isn't available yet, coming soon.",
+    toastSaved: "Tax data saved successfully!",
     toastSaveFailed: "Failed to save tax data",
-    toastStatusUpdated: "✅ SPT status updated!",
+    toastStatusUpdated: "SPT status updated!",
     toastStatusUpdateFailed: "Failed to update SPT status",
     // EPIC-023 Task I (I1) — the page used to offer Save to every role and
     // let the server's 403 come back as a bare "Failed to save tax data".
     // Say up front who may record tax data, and why this session cannot.
     noWriteAccessNote:
-      "Your role cannot record tax data — that is done by the Owner, Spouse, or a Member.",
+      "Your role cannot record tax data, that is done by the Owner, Spouse, or a Member.",
     noFamilyGroupNote:
       "This session has no active family yet, so tax data cannot be saved.",
     checkingAccessLabel: "Checking access…",
     accessCheckFailedNote:
-      "Couldn't verify your access — try refreshing the page.",
+      "Couldn't verify your access, try refreshing the page.",
     fieldTaxYearLabel: "Tax Year",
     fieldPerpuluhanLabel: "Tithe (deduction)",
     grossInputHint:
@@ -2459,12 +2462,12 @@ export const en = {
       "Only tithes paid to a registered institution qualify as a deduction (PP 60/2010). Pulled automatically from ",
     perpuluhanHintLinkLabel: "Donations",
     payloadCalloutPrefix: "Sent to the server: ",
-    payloadCalloutSuffix: " — plain digits, no separators.",
+    payloadCalloutSuffix: "- plain digits, no separators.",
     resetButton: "Reset",
     toastReset: "Calculation reset",
     colTaxableBase: "Taxable Base",
     bracketFootnote:
-      "The Tax column always sums to the headline above — the 30% bracket (500M–5B) is included.",
+      "The Tax column always sums to the headline above, the 30% bracket (500M–5B) is included.",
     perpuluhanDeductionTitle: "Tithe Tax Deduction",
     perpuluhanDeductionDesc: "from recorded donations",
     emptyDocumentsTitle: "No documents yet",
@@ -2477,7 +2480,7 @@ export const en = {
     saveDialogPerpuluhanRow: "Deductible tithe",
     saveDialogTaxRow: "PPh 21 owed",
     saveDialogNote:
-      "Values are sent as plain numeric strings — thousands separators are display-only.",
+      "Values are sent as plain numeric strings, thousands separators are display-only.",
     saveDialogConfirmButton: "Save",
   },
   rekening: {
@@ -2490,13 +2493,13 @@ export const en = {
     },
     balanceLabel: "Balance",
     activeBadge: "Active",
-    privateBadge: "🔒 Private",
+    privateBadge: "Private",
     optionsAriaLabel: "Account options",
-    viewMutationMenuItem: "📄 View Transactions",
-    editMenuItem: "✏️ Edit",
-    deleteMenuItem: "🗑️ Delete",
+    viewMutationMenuItem: "View Transactions",
+    editMenuItem: "Edit",
+    deleteMenuItem: "Delete",
     viewMutationAriaLabel: "View Transactions",
-    viewMutationButton: "📋 View Transactions",
+    viewMutationButton: "View Transactions",
     loadingLabel: "Loading...",
     accountsConnectedSuffix: " Accounts Connected",
     totalPrefix: "Total: ",
@@ -2513,13 +2516,13 @@ export const en = {
     toastDeleteFailed: "Failed to delete account. Please try again.",
     // EPIC-019 Task A — per-member account ownership.
     ownerSelectFamilyLabel: "Family (shared)",
-    ownerMineBadge: "👤 Mine",
+    ownerMineBadge: "Mine",
     ownerBadgePrefix: "👤 ",
     ownerUnknownLabel: "Member",
     filterGroupLabel: "Account ownership filter",
     filterAllLabel: "All",
-    filterMineLabel: "👤 Mine",
-    filterSharedLabel: "👥 Shared",
+    filterMineLabel: "Mine",
+    filterSharedLabel: "Shared",
     emptyMineState: "You don't own any accounts yet.",
     statBankBalanceLabel: "Bank Balance",
     statSharedLabel: "Shared Accounts",
@@ -2538,6 +2541,9 @@ export const en = {
     mintaDanaSuccessToast:
       "Funding request sent. Waiting for the family owner's approval.",
     mintaDanaFailToast: "Failed to send the funding request. Please try again.",
+    mintaDanaTargetLabel: "Into your account",
+    mintaDanaNoOwnAccountHint:
+      "You have no account of your own yet. Create a cash or e-wallet account first under Cash & E-Wallet.",
     mintaDanaDialogDesc:
       "The request is sent to the family owner for approval before any funds move.",
     deleteDialogTitle: "Delete this account?",
@@ -2553,7 +2559,7 @@ export const en = {
     insightPrivacyLabel: "Privacy",
     insightPrivacyValue: "Private balances stay segmented",
     filterNoteText:
-      "A bank account can't be debited into the negative — an already-negative balance is recorded as a liability.",
+      "A bank account can't be debited into the negative, an already-negative balance is recorded as a liability.",
     addCardTitle: "Add a new account",
     addCardSubtitle: "Connect a bank account and assign its owner.",
     addCardButton: "Add Account",
@@ -2578,15 +2584,15 @@ export const en = {
       persepuluhan: "Tithe Offering",
       lainnya: "Other / Social Donation",
     },
-    groupIslam: "🕌 Islamic",
-    groupKristen: "✝️ Christian",
-    groupUmum: "❤️ General",
+    groupIslam: "Islamic",
+    groupKristen: "Christian",
+    groupUmum: "General",
     heroTitle: "Total Donations & Zakat",
     transactionsSuffix: " transactions",
     yearRunningPrefix: " · year to date ",
     subheaderDesc: "Record donations & fulfill your zakat obligation",
     recordDonationButton: "Record Donation",
-    zakatCalculatorTitle: "🕌 Zakat Maal Calculator",
+    zakatCalculatorTitle: "Zakat Maal Calculator",
     zakatCalculatorSubtitle:
       "Zakat is 2.5% of total wealth that reaches nisab & haul (1 year)",
     fieldCashLabel: "Savings & Cash (Rp)",
@@ -2597,18 +2603,18 @@ export const en = {
     zakatCalculatingMsg: "Calculating...",
     zakatCalcErrorMsg: "Failed to calculate zakat. Try again.",
     haulCheckboxLabel: "Wealth has been held for a full year (haul)",
-    nisabNotReachedPrefix: "⚠️ Your wealth hasn't reached nisab (",
-    nisabNotReachedSuffix: ") — zakat isn't obligatory yet",
+    nisabNotReachedPrefix: "Your wealth hasn't reached nisab (",
+    nisabNotReachedSuffix: "), zakat isn't obligatory yet",
     nisabReachedObligatedPrefix:
-      "✅ Wealth reached nisab & haul — zakat is due (nisab: ",
+      " Wealth reached nisab & haul, zakat is due (nisab: ",
     nisabReachedObligatedSuffix: ")",
-    nisabReachedEstimatePrefix: "🕓 Wealth has reached nisab (",
+    nisabReachedEstimatePrefix: "Wealth has reached nisab (",
     nisabReachedEstimateSuffix:
-      ") — an estimate, pending haul (1 year) confirmation before it's due",
+      "), an estimate, pending haul (1 year) confirmation before it's due",
     nisabFamilyPricePrefix: "Nisab from your family's gold price: Rp ",
     nisabFamilyPriceSuffix: "/gram",
     nisabIndicativeNote:
-      "Indicative nisab (≈85 grams of gold) — not a real-time gold price.",
+      "Indicative nisab (≈85 grams of gold), not a real-time gold price.",
     payZakatNowButton: "Pay Zakat Now",
     recordZakatEstimateButton: "Record Zakat Estimate",
     historyTitle: "Donation & Zakat History",
@@ -2622,7 +2628,7 @@ export const en = {
     statDeductibleDeltaMid: " of ",
     statDeductibleDeltaSuffix: " transactions qualify",
     statVoluntaryLabel: "Voluntary Donations",
-    statVoluntaryDelta: "Sedekah, infaq, wakaf — not tax deductible",
+    statVoluntaryDelta: "Sedekah, infaq, wakaf, not tax deductible",
     statReceiptsLabel: "Receipts Saved",
     statReceiptsComplete: "Complete for tax filing",
     statReceiptsIncomplete: "Not yet complete for tax filing",
@@ -2644,10 +2650,10 @@ export const en = {
       "Only Zakat Maal / Zakat Fitrah / Tithe Offering can be tax deductible.",
     savingLabel: "Saving...",
     saveRecordButton: "Save Record",
-    toastSaved: "✅ Donation recorded successfully!",
+    toastSaved: "Donation recorded successfully!",
     toastSaveFailed: "Failed to save donation",
     toastInvalidAmount: "Invalid donation amount",
-    perpuluhanCalculatorTitle: "✝️ Tithe Calculator",
+    perpuluhanCalculatorTitle: "Tithe Calculator",
     perpuluhanCalculatorBadge: "10% of income",
     perpuluhanCalculatorSubtitle:
       "Calculate the tithe from your regular and other income for this period.",
@@ -2690,8 +2696,7 @@ export const en = {
     insightDesc:
       "All heirs can view this list anytime. Add supporting documents (certificates, vehicle titles, policies) for more completeness.",
     uploadComingSoonButton: "Upload Document (Coming Soon)",
-    toastUploadUnavailable:
-      "Document upload isn't available yet — coming soon.",
+    toastUploadUnavailable: "Document upload isn't available yet, coming soon.",
     modalTitleEdit: "Edit Inheritance Asset",
     fieldCategoryLabel: "Category",
     fieldNameLabel: "Asset Name",
@@ -2702,7 +2707,7 @@ export const en = {
       "e.g. Title No. 1234, Vehicle Registration, Certificate...",
     fieldDocumentLabel: "Supporting Document",
     documentUploadHint:
-      "Upload certificate, vehicle title, or policy (PDF/JPG) — Coming soon",
+      "Upload certificate, vehicle title, or policy (PDF/JPG), Coming soon",
     fieldAccessLabel: "Heir Access",
     visibleToHeirsLabel: "Visible to heirs",
     visibleToHeirsOnDesc: "Heirs can see this asset",
@@ -2732,7 +2737,7 @@ export const en = {
     heirAllocationUnallocatedSuffix: "% unallocated",
     heirAllocationFullyAllocated: "Fully allocated (100%)",
     heirMemberPickerUnavailable:
-      "The family member list isn't available for your role — enter the name manually.",
+      "The family member list isn't available for your role, enter the name manually.",
     heirAllocationChartTitle: "Beneficiary Allocation",
     heirAllocationUnallocatedLabel: "Unallocated",
     assetListCardTitle: "Inheritance Assets",
@@ -2745,7 +2750,7 @@ export const en = {
     sourceManualOption: "Manual Entry",
     sourceAssetOption: "Pick from Assets",
     fieldAssetLabel: "Asset",
-    assetPickerPlaceholder: "— Pick an asset —",
+    assetPickerPlaceholder: "Pick an asset",
     assetPickerHint:
       "The estimated value is filled in from the linked asset; you can still change it.",
     visibleToHeirsHint: "Heirs can see this asset on their Inheritance page.",
@@ -2823,7 +2828,7 @@ export const en = {
     fieldExistingCategoryLabel: "Category",
     existingCategoryPlaceholder: "Choose a category",
     existingCategoryEmptyOption:
-      "No categories of this type yet — ask the owner to add one",
+      "No categories of this type yet, ask the owner to add one",
     obligationsSectionTitle: "Unpaid Obligations",
     obligationsDueBadge: "Not Paid",
     obligationsPaidBadge: "Paid",
@@ -2924,7 +2929,7 @@ export const en = {
     // cannot be edited/deleted here; the server now refuses it because
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
-      "This transaction settles a liability/insurance payment — adjust the related liability/insurance to correct it",
+      "This transaction settles a liability/insurance payment, adjust the related liability/insurance to correct it",
     attachmentsSectionLabel: "Attachments",
     attachmentsLoadingLabel: "Loading attachments…",
     attachmentsLoadFailedLabel: "Failed to load attachments",
@@ -2975,7 +2980,7 @@ export const en = {
       "This transaction will be deleted permanently and the account balance adjusted.",
   },
   splitbill: {
-    headerDesc: "Splitting bills made easy — you cover it, they pay you back",
+    headerDesc: "Splitting bills made easy, you cover it, they pay you back",
     createButton: "Create Split Bill",
     totalDitalanginLabel: "Total Covered",
     activeSplitsSuffix: " active splits",
@@ -2996,7 +3001,7 @@ export const en = {
     pageTitle: "Split Bill",
     insightTitle: "How Split Bill works",
     insightDesc:
-      "Create a bill, split it evenly or custom, then send the link to friends. Recipients don't need a WealthMe account — their share page is public. You're still the one who confirms payment, manually.",
+      "Create a bill, split it evenly or custom, then send the link to friends. Recipients don't need a WealthMe account, their share page is public. You're still the one who confirms payment, manually.",
     badgeUnpaid: "Unpaid",
     badgeNoPayoutAccount: "No payout account",
     badgeSettled: "Settled",
@@ -3062,7 +3067,7 @@ export const en = {
     copyDisabledRevokedTitle:
       "This link is revoked and can no longer be copied",
     publicNoAccountNotice:
-      "Public page — you don't need a WealthMe account to open or pay this.",
+      "Public page, you don't need a WealthMe account to open or pay this.",
     publicEyebrow: "Split Bill",
     publicLoading: "Loading bill…",
     publicNotFoundTitle: "Link not found",
@@ -3088,7 +3093,7 @@ export const en = {
     publicToastClaimed: "Claim sent!",
     publicToastClaimFailedDefault: "Failed to send claim",
     publicFooterPrefix: "Made with",
-    publicFooterSuffix: "— Personal Wealth OS",
+    publicFooterSuffix: "- Personal Wealth OS",
     publicNetworkErrorTitle: "Couldn't load this",
     publicNetworkErrorDesc:
       "There was a connection problem loading this bill. Check your internet connection and try again.",
@@ -3101,7 +3106,7 @@ export const en = {
     detailCloseButton: "Close",
     remainderNeedTotalNote:
       "Enter the total bill first to work out each person's share.",
-    remainderExactLabel: "Exact — this matches the total bill",
+    remainderExactLabel: "Exact, this matches the total bill",
     remainderLeftPrefix: "Unallocated: ",
     remainderOverPrefix: "Over by ",
     remainderOverSuffix: " above the total bill",
@@ -3127,9 +3132,9 @@ export const en = {
     // EPIC-029 groups 1-3 — replaces the "PDF is rejected — on purpose."
     // callout. PDF is supported now, so the copy states what actually
     // happens, including the family-AI-key requirement and the scan refusal.
-    pdfCalloutTitle: "PDF is supported — read by AI, approved by you.",
+    pdfCalloutTitle: "PDF is supported, read by AI, approved by you.",
     pdfCalloutBody:
-      "The text inside the PDF is read in your browser — neither the file nor its password ever reaches the server. The table is then tidied up using your family's own AI provider API key, so that key must already be set in Settings. The AI never does arithmetic: every amount is re-parsed by the server and the totals are checked against the statement's own printed totals — if they disagree, the import is cancelled.",
+      "The text inside the PDF is read in your browser, neither the file nor its password ever reaches the server. The table is then tidied up using your family's own AI provider API key, so that key must already be set in Settings. The AI never does arithmetic: every amount is re-parsed by the server and the totals are checked against the statement's own printed totals, if they disagree, the import is cancelled.",
     pdfCalloutScanNote:
       "Scanned or photographed PDFs (no text layer) are not supported yet, and are refused with a clear reason rather than imported as zero rows.",
     pdfReadingLabel: "Reading the PDF in your browser...",
@@ -3142,13 +3147,13 @@ export const en = {
     pdfErrorPasswordRequired:
       "This PDF is password-protected. Enter the statement password from your bank.",
     pdfErrorWrongPassword:
-      "Wrong PDF password — try again. It is usually your date of birth (DDMMYYYY), card number, or account number.",
+      "Wrong PDF password, try again. It is usually your date of birth (DDMMYYYY), card number, or account number.",
     pdfErrorTooManyPages:
       "This PDF has too many pages to read in one go (40 maximum). Download the statement for a shorter period.",
     pdfErrorTextTooLarge:
       "The text in this PDF is too long to read in one go. Download the statement for a shorter period, or export it as CSV/Excel.",
     pdfErrorNoTextLayer:
-      "This PDF has no text layer — it is probably a scan or a photo. Download the original e-statement from your bank app, or export the transactions as CSV/Excel.",
+      "This PDF has no text layer, it is probably a scan or a photo. Download the original e-statement from your bank app, or export the transactions as CSV/Excel.",
     pdfErrorCorrupt:
       "This PDF could not be opened. Check that the file is not damaged and downloaded completely.",
     pdfErrorNotAFileUpload:
@@ -3171,13 +3176,13 @@ export const en = {
     // the toast is the only thing left on screen.
     pdfPreviewTotalsTitleVerified: "Totals check: verified",
     pdfPreviewTotalsTitleMismatch: "Totals check: does NOT agree",
-    pdfPreviewTotalsTitleUnverified: "Unverified — no totals to check against",
+    pdfPreviewTotalsTitleUnverified: "Unverified, no totals to check against",
     pdfPreviewTotalsMatched:
-      "Agrees with the statement's own totals — no row went missing.",
+      "Agrees with the statement's own totals, no row went missing.",
     pdfPreviewTotalsMismatch:
       "Does NOT agree with the statement's own totals. The import is cancelled so no row can go silently missing or wrong.",
     pdfPreviewTotalsUnavailable:
-      "This statement prints no opening/closing balance and no incoming/outgoing totals, so there is no figure to check the reading against. The rows below have NOT been verified against anything — if one was missed, nothing but you can detect it. Compare them with the original PDF before importing.",
+      "This statement prints no opening/closing balance and no incoming/outgoing totals, so there is no figure to check the reading against. The rows below have NOT been verified against anything, if one was missed, nothing but you can detect it. Compare them with the original PDF before importing.",
     pdfPreviewUnverifiedConfirmNote:
       "Pressing the button below imports rows that have not been cross-checked against any total.",
     pdfPreviewConfirmButtonUnverified: "Import without a totals check",
@@ -3195,15 +3200,15 @@ export const en = {
     uploadErrorStatementAiKeyCorrupted:
       "The stored family AI key could not be decrypted. Re-enter it in Settings.",
     uploadErrorStatementAiAuth:
-      "The AI provider rejected this family's API key — check the key in Settings.",
+      "The AI provider rejected this family's API key, check the key in Settings.",
     uploadErrorStatementAiRateLimited:
-      "The AI provider is rate-limiting requests, or the quota ran out — try again later.",
+      "The AI provider is rate-limiting requests, or the quota ran out, try again later.",
     uploadErrorStatementAiTimeout:
-      "Reading the statement took too long — try again, or upload a shorter period.",
+      "Reading the statement took too long, try again, or upload a shorter period.",
     uploadErrorStatementAiParseFailed:
-      "The AI did not return a usable table — try again, or export the transactions as CSV/Excel from your bank app.",
+      "The AI did not return a usable table, try again, or export the transactions as CSV/Excel from your bank app.",
     uploadErrorStatementAiUpstreamFailed:
-      "Reading the statement failed — try again shortly.",
+      "Reading the statement failed, try again shortly.",
     uploadErrorStatementTextTooLarge:
       "This statement is too long to read in one go. Upload a shorter period, or export it as CSV/Excel.",
     uploadErrorStatementNoTextLayer:
@@ -3211,11 +3216,11 @@ export const en = {
     uploadErrorStatementNoRows:
       "No transaction rows could be read from this PDF. Check that it is an account statement, not a summary or a notice.",
     uploadErrorStatementZeroValidRows:
-      "No valid rows came out of reading this PDF — try again, or export the transactions as CSV/Excel.",
+      "No valid rows came out of reading this PDF, try again, or export the transactions as CSV/Excel.",
     uploadErrorStatementColumnMappingMismatch:
-      "What was read from the PDF could not be mapped to date/description/amount columns — try again, or export as CSV/Excel.",
+      "What was read from the PDF could not be mapped to date/description/amount columns, try again, or export as CSV/Excel.",
     uploadErrorStatementTotalsMismatch:
-      "The totals of what was read disagree with the statement's own totals — the import was cancelled.",
+      "The totals of what was read disagree with the statement's own totals, the import was cancelled.",
     mappingSectionTitle: "Column Mapping",
     mappingSectionHint:
       "Match your bank file's column names to WealthMe's columns. Save it once as a template, and every later upload from the same bank uses it automatically.",
@@ -3241,7 +3246,7 @@ export const en = {
     bankSelectedWithTemplate:
       "This bank's saved column-mapping template will be applied.",
     bankSelectedNoTemplate:
-      "No template for this bank yet — columns will be auto-detected.",
+      "No template for this bank yet, columns will be auto-detected.",
     manageTemplatesLink: "Manage Templates",
     templateManagerTitle: "Column-Mapping Templates",
     templateManagerHint:
@@ -3261,7 +3266,7 @@ export const en = {
     templateSaveButton: "Save Template",
     templateColumnsHeader: "Columns",
     templateActionHeader: "Action",
-    toastTemplateSaved: "✅ Column-mapping template saved",
+    toastTemplateSaved: "Column-mapping template saved",
     toastTemplateSaveFailed: "Failed to save the column-mapping template",
     toastTemplateDeleted: "Template deleted",
     toastTemplateDeleteFailed: "Failed to delete the template",
@@ -3286,9 +3291,9 @@ export const en = {
     totalSuffix: " total",
     continueButton: "Continue",
     startingScanLabel: "Starting scan...",
-    matchedStatLabel: "✅ Matched",
-    needsReviewStatLabel: "⚠️ Needs Review",
-    notMatchedStatLabel: "❌ Not Matched",
+    matchedStatLabel: "Matched",
+    needsReviewStatLabel: "Needs Review",
+    notMatchedStatLabel: "Not Matched",
     compositionTitle: "Result Composition",
     matchResultsTitle: "Matching Results",
     transactionsCountBadgeSuffix: " Transactions",
@@ -3326,10 +3331,10 @@ export const en = {
     newReconciliationButton: "New Reconciliation",
     toastUploaded: "File uploaded successfully!",
     toastUploadedUnverified:
-      "Rows imported — but not cross-checked against any statement total (this statement prints none).",
+      "Rows imported, but not cross-checked against any statement total (this statement prints none).",
     toastUploadedPartialPrefix: "File uploaded, but ",
     toastUploadedPartialSuffix:
-      " row(s) could not be imported — see details below.",
+      " row(s) could not be imported, see details below.",
     skippedRowsTitleSuffix: " row(s) could not be imported:",
     skippedRowLinePrefix: "Line ",
     skippedRowsMorePrefix: "...and ",
@@ -3339,29 +3344,29 @@ export const en = {
     // stable upload-refusal error code the API can return, so an
     // English-locale user never sees the raw Indonesian API message.
     uploadErrorPdfUnsupported:
-      "A PDF isn't uploaded through this route. Pick the PDF again from this page — its text is read in your browser, then reviewed before import.",
+      "A PDF isn't uploaded through this route. Pick the PDF again from this page, its text is read in your browser, then reviewed before import.",
     uploadErrorXlsUnsupported:
       "The old .xls (Excel 97-2003) format isn't supported. Save it as .xlsx, or export as CSV from your bank's app/site.",
     uploadErrorUnsupportedFormat:
       "This file format isn't supported. Use CSV or Excel (.xlsx).",
-    uploadErrorEmptyFile: "The file is empty — there are no rows to import.",
+    uploadErrorEmptyFile: "The file is empty, there are no rows to import.",
     uploadErrorXlsxUnreadable:
-      "The Excel file couldn't be read — make sure it's a real .xlsx (not a renamed .xls) and isn't corrupted.",
+      "The Excel file couldn't be read, make sure it's a real .xlsx (not a renamed .xls) and isn't corrupted.",
     uploadErrorXlsxLimitExceeded:
-      "This Excel file is too large to process — split it into smaller files.",
+      "This Excel file is too large to process, split it into smaller files.",
     uploadErrorColumnMappingMismatch:
-      "The column mapping doesn't match this file's header row — check the saved template or column names.",
+      "The column mapping doesn't match this file's header row, check the saved template or column names.",
     uploadErrorZeroValidRows:
-      "No valid rows could be imported from this file — check the column mapping, or the date/amount format.",
+      "No valid rows could be imported from this file, check the column mapping, or the date/amount format.",
     uploadErrorNoAutoDetectMapping:
       "Couldn't auto-detect the date/description/amount columns. Save a column-mapping template for this bank first, or pick a bank when uploading.",
     uploadErrorNoSavedTemplate:
-      "There's no saved column-mapping template for this bank yet — create one first.",
+      "There's no saved column-mapping template for this bank yet, create one first.",
     protectedDialogTitle: "This file is password-protected",
     protectedDialogDescXlsx:
-      "This Excel file is password-protected. Enter the statement password from your bank — it is processed on this device only and is never sent to our server.",
+      "This Excel file is password-protected. Enter the statement password from your bank, it is processed on this device only and is never sent to our server.",
     protectedDialogDescZip:
-      "This ZIP file is password-protected. Enter the statement password from your bank — it is processed on this device only and is never sent to our server.",
+      "This ZIP file is password-protected. Enter the statement password from your bank, it is processed on this device only and is never sent to our server.",
     protectedPasswordLabel: "File password",
     protectedPasswordPlaceholder: "Password from your bank",
     protectedPasswordHint:
@@ -3373,37 +3378,37 @@ export const en = {
     protectedUnlockingLabel: "Unlocking file…",
     protectedCalloutTitle: "File locked with a password?",
     protectedCalloutBody:
-      "Password-protected Excel (.xlsx) and ZIP files can be uploaded directly — we'll ask for the password and unlock the file on your device. The password is never sent to our server.",
+      "Password-protected Excel (.xlsx) and ZIP files can be uploaded directly, we'll ask for the password and unlock the file on your device. The password is never sent to our server.",
     protectedErrorEmptyFile:
-      "This file is empty (0 bytes) — try downloading it again from your bank's app or site.",
+      "This file is empty (0 bytes), try downloading it again from your bank's app or site.",
     protectedErrorFileTooLarge:
-      "The file is larger than 20MB — download the statement for a shorter period.",
+      "The file is larger than 20MB, download the statement for a shorter period.",
     protectedErrorPasswordRequired:
-      "This file is password-protected — enter your statement password to open it.",
+      "This file is password-protected, enter your statement password to open it.",
     protectedErrorWrongPassword:
-      "Wrong password — the file could not be opened. Check the password instructions in your bank's email and try again.",
+      "Wrong password, the file could not be opened. Check the password instructions in your bank's email and try again.",
     protectedErrorUnsupportedEncryption:
       "This file's encryption type isn't supported yet. Open it in Excel and re-save it as .xlsx without a password (or export it as CSV).",
     protectedErrorCryptoUnavailable:
       "This browser doesn't expose the cryptography it needs (usually because the page was opened without HTTPS). Open the app over HTTPS and try again.",
     protectedErrorCorruptFile:
-      "This file can't be read — it's likely damaged or incompletely downloaded. Download it again from your bank's app or site.",
+      "This file can't be read, it's likely damaged or incompletely downloaded. Download it again from your bank's app or site.",
     protectedErrorIntegrityFailure:
-      "The password was correct, but the file's contents don't match its integrity signature — it was likely altered or damaged after your bank issued it. We won't process it. Download it again directly from your bank's app or site.",
+      "The password was correct, but the file's contents don't match its integrity signature, it was likely altered or damaged after your bank issued it. We won't process it. Download it again directly from your bank's app or site.",
     protectedErrorIntegrityMissing:
       "This file carries no integrity signature, so we can't confirm its contents haven't been changed. We won't process it. Download it again directly from your bank's app or site, or export the statement as CSV.",
     protectedErrorZipNoStatement:
-      "There's no .csv or .xlsx inside this ZIP — make sure you're uploading the statement archive from your bank.",
+      "There's no .csv or .xlsx inside this ZIP, make sure you're uploading the statement archive from your bank.",
     protectedErrorZipMultipleStatements:
       "This ZIP contains more than one statement file. Extract it first and upload a single file, so the wrong period can't be imported.",
     protectedErrorZipEntryTooLarge:
-      "The contents of this ZIP are too large once extracted — upload the statement file directly, or pick a shorter period.",
+      "The contents of this ZIP are too large once extracted, upload the statement file directly, or pick a shorter period.",
     protectedErrorDecryptedTooLarge:
-      "Once unlocked, the file is larger than the 20MB limit — download the statement for a shorter period.",
+      "Once unlocked, the file is larger than the 20MB limit, download the statement for a shorter period.",
     protectedErrorXlsxRepackageFailed:
       "This Excel file's structure couldn't be rewritten into a readable form. Open it in Excel or Google Sheets, re-save it as .xlsx (or export it as CSV), then upload it again.",
     protectedErrorXlsxExpansionTooLarge:
-      "This Excel file's contents are too large once opened — download the statement for a shorter period, or export it as CSV.",
+      "This Excel file's contents are too large once opened, download the statement for a shorter period, or export it as CSV.",
     toastScanFailedDefault: "Failed to scan entries",
     toastConfirmed: "Entry confirmed successfully!",
     toastConfirmFailedDefault: "Failed to confirm",
@@ -3445,7 +3450,7 @@ export const en = {
     splitEntryAmountLabel: "Entry Amount",
     splitSubmitButton: "Save Split",
     splitCancelButton: "Cancel",
-    splitBalancedNotice: "The amounts balance — this split can be saved.",
+    splitBalancedNotice: "The amounts balance, this split can be saved.",
     splitUnbalancedNotice:
       "Principal + admin fee must match the entry amount exactly.",
     splitValidationSelectSourceAccount: "Select a source account first",
@@ -3500,7 +3505,7 @@ export const en = {
       // current-holdings views with no date param on their endpoint), so
       // the control's inapplicability there is visible, not silent.
       periodNotApplicableNote:
-        "This view always shows current data — the period selector above does not filter it.",
+        "This view always shows current data, the period selector above does not filter it.",
     },
     totalIncomeLabel: "Total Income",
     totalExpenseLabel: "Total Expenses",
@@ -3525,7 +3530,7 @@ export const en = {
     },
     cashBasisNotice: {
       title: "Cash basis.",
-      body: "Every report on this page is computed when money actually moves in or out of an account — not when a bill is issued. Receivables, unpaid payables, and unbilled expenses do not appear in this period.",
+      body: "Every report on this page is computed when money actually moves in or out of an account, not when a bill is issued. Receivables, unpaid payables, and unbilled expenses do not appear in this period.",
       activePeriodPrefix: "Active period:",
     },
     tabStrip: {
@@ -3569,7 +3574,7 @@ export const en = {
       },
     },
     harian: {
-      titlePrefix: "Daily Report —",
+      titlePrefix: "Daily Report ·",
       incomeTodayLabel: "Today's Income",
       expenseTodayLabel: "Today's Expenses",
       netDailyLabel: "Daily Net",
@@ -3607,7 +3612,7 @@ export const en = {
         "Consolidation is shown at the family group level. Per-member balance breakdowns are outside the current API's scope.",
     },
     bank: {
-      title: "Bank Report — Account Consolidation",
+      title: "Bank Report, Account Consolidation",
       balancePerAccountTitle: "Balance per Account",
       emptyAccounts: "No accounts yet",
       inOutTitle: "In vs Out Transactions per Bank",
@@ -3622,15 +3627,15 @@ export const en = {
     },
     aliran: {
       title: "Fund Flow Report",
-      cardTitlePrefix: "Fund Flow —",
+      cardTitlePrefix: "Fund Flow ·",
       incomeSourceLabel: "INCOME SOURCES",
       expenseAllocLabel: "EXPENSE ALLOCATION",
       emptyFlow: "No fund flow data yet this month",
     },
     pnl: {
-      titlePrefix: "Profit & Loss Statement —",
+      titlePrefix: "Profit & Loss Statement ·",
       cashBasisNote:
-        "Cash basis — revenue recognised when money is received, expenses recognised when money is paid",
+        "Cash basis, revenue recognised when money is received, expenses recognised when money is paid",
       revenueLabel: "REVENUE",
       totalRevenueLabel: "Total Revenue",
       expensesLabel: "EXPENSES",
@@ -3641,7 +3646,7 @@ export const en = {
       masterCoaLink: "Master COA",
     },
     balance: {
-      titlePrefix: "Balance Sheet — As of",
+      titlePrefix: "Balance Sheet, As of",
       assetLabel: "ASSETS",
       liabilityEquityLabel: "LIABILITIES & EQUITY",
       liabilitiesLabel: "Liabilities",
@@ -3658,13 +3663,13 @@ export const en = {
         "The figures below are current balances, not historical values as of the stated date.",
       noDataTitle: "No Historical Data Yet",
       noDataDescription:
-        "No net worth snapshot exists on or before this date yet — nothing to show honestly, so we're not showing a made-up zero.",
+        "No net worth snapshot exists on or before this date yet, nothing to show honestly, so we're not showing a made-up zero.",
       restrictedForViewerTitle: "Not Available For Your Role",
       restrictedForViewerDescription:
         "A historical snapshot exists for this date, but it was captured with every account included. Since your role can't see private accounts, we can't show it without revealing hidden balances.",
       bridgeTitle: "Reconciliation Bridge",
       bridgeDescription:
-        "Why your net worth moved by a different amount than your profit — cash contributed to assets/investments and the change in asset/investment value are named separately, with any remaining gap named too, never hidden.",
+        "Why your net worth moved by a different amount than your profit, cash contributed to assets/investments and the change in asset/investment value are named separately, with any remaining gap named too, never hidden.",
       bridgeOpeningLabel: "Opening Net Worth",
       bridgeProfitLabel: "+ Profit (P&L)",
       bridgeContributionLabel:
@@ -3680,7 +3685,7 @@ export const en = {
       bridgeUnexplainedWarningPrefix: "Warning:",
     },
     cashflow: {
-      titlePrefix: "Cashflow Statement —",
+      titlePrefix: "Cashflow Statement ·",
       operatingLabel: "OPERATING CASH FLOW",
       totalInflowLabel: "Total Inflows",
       totalOutflowLabel: "Total Outflows",
@@ -3689,7 +3694,7 @@ export const en = {
       netInvestingLabel: "Net Investing",
       investingUntrackedLabel: "Not tracked yet",
       investingDisclosure:
-        "Investing cash flow (buying/selling instruments) isn't tracked as transactions yet — this isn't a measured Rp 0, it simply isn't recorded.",
+        "Investing cash flow (buying/selling instruments) isn't tracked as transactions yet, this isn't a measured Rp 0, it simply isn't recorded.",
       openingBalanceLabel: "Opening Balance",
       closingBalanceLabel: "Closing Balance",
       netCashflowLabel: "NET CASHFLOW",
@@ -3709,13 +3714,13 @@ export const en = {
       instrumentCountSuffix: "instruments",
       portfolioByTypeTitle: "Portfolio by Type",
       typeLabels: {
-        saham: "📉 Stocks",
-        reksa_dana: "📊 Mutual Funds",
-        obligasi: "🏛️ Bonds",
-        emas: "🥇 Gold",
+        saham: "Stocks",
+        reksa_dana: "Mutual Funds",
+        obligasi: "Bonds",
+        emas: "Gold",
         kripto: "₿ Crypto",
-        lainnya: "💼 Other",
-        deposito: "🏦 Time Deposit",
+        lainnya: "Other",
+        deposito: "Time Deposit",
       },
       emptyInvestment: "No investments yet.",
       addNowLink: "Add now",
@@ -3752,7 +3757,7 @@ export const en = {
         "Net Worth Growth and Budget Adherence require more complete historical data",
     },
     pajak: {
-      title: "Tax Report — PPh 21 Estimate",
+      title: "Tax Report, PPh 21 Estimate",
       grossYearLabel: "Annual Gross",
       pkpLabel: "Taxable Income",
       estimatedTaxLabel: "Estimated PPh 21",
@@ -3783,11 +3788,11 @@ export const en = {
       totalYearLabel: "Yearly total",
       txCountSuffix: "transactions",
       matrixHint:
-        "Columns = months, rows = dates. A single day can hold more than one transaction — they stack in the same cell. Click a filled cell to see its detail.",
+        "Columns = months, rows = dates. A single day can hold more than one transaction, they stack in the same cell. Click a filled cell to see its detail.",
       scrollHint: "Scroll right for later months →",
       expandButton: "Expand",
       expandAriaLabel: "Expand COA table",
-      title: "COA Summary — Yearly Matrix",
+      title: "COA Summary, Yearly Matrix",
       accountLabel: "COA Account",
       accountPlaceholder: "Select a COA account",
       yearLabel: "Year",
@@ -3873,7 +3878,7 @@ export const en = {
     toastUnlockLockedPrefix: "Too many attempts. Try again in ",
     toastUnlockLockedSuffix: ", or use your password.",
     toastUnlockServiceUnavailable:
-      "Quick unlock is having server trouble — this is not your PIN. Use your password for now.",
+      "Quick unlock is having server trouble, this is not your PIN. Use your password for now.",
     toastUnlockNetworkError:
       "Could not reach the server. Check your internet connection and try again.",
     manageSectionTitle: "Devices with quick unlock",
@@ -3894,15 +3899,15 @@ export const en = {
     toastRegisterFailed: "Failed to register this device. Please try again.",
   },
   onboarding: {
-    welcomeTitle: "Welcome to WealthMe 👋",
+    welcomeTitle: "Welcome to WealthMe",
     welcomeBody:
-      "Your family's finance app — record, plan, and track your wealth in one place.",
+      "Your family's finance app, record, plan, and track your wealth in one place.",
     startSetupButton: "Start First Setup (~2 min)",
     exploreAllButton: "Explore All Features",
     skipButton: "Skip",
     resumeTitle: "Continue your first setup?",
     resumeBody:
-      "You started setup before but didn't finish. Anything you already created is still saved — continue from your last step, start over, or just skip it.",
+      "You started setup before but didn't finish. Anything you already created is still saved, continue from your last step, start over, or just skip it.",
     resumeContinueButton: "Continue Setup",
     resumeRestartButton: "Start Over",
     resumeSkipButton: "Just Skip",
@@ -3922,7 +3927,7 @@ export const en = {
     },
     account: {
       title: "Add your first account",
-      body: "Every account (bank, cash, or e-wallet) you add is counted into your net worth immediately. This is a REAL account — it will show up on your own Accounts page.",
+      body: "Every account (bank, cash, or e-wallet) you add is counted into your net worth immediately. This is a REAL account, it will show up on your own Accounts page.",
       nameLabel: "Account Name",
       namePlaceholder: "e.g. BCA Savings",
       nameRequiredHint: "Account name is required to continue.",
@@ -3931,7 +3936,7 @@ export const en = {
       submitting: "Saving...",
       alreadyHaveNotice: "You already have an account on record.",
       skipStepButton: "Skip this step",
-      consequenceTitle: "Watch — your net worth just appeared",
+      consequenceTitle: "Watch, your net worth just appeared",
       consequenceBefore: "Before: ",
       consequenceAfter: "After: ",
       toastCreated: "Account created",
@@ -3939,7 +3944,7 @@ export const en = {
     },
     budget: {
       title: "Create your first budget",
-      body: "A budget sets a spending limit for one category. This is a REAL budget — it will show up on your own Budget page, and will start tracking transactions in the same category right away.",
+      body: "A budget sets a spending limit for one category. This is a REAL budget, it will show up on your own Budget page, and will start tracking transactions in the same category right away.",
       nameLabel: "Category Name",
       namePlaceholder: "e.g. Food & Drink",
       limitLabel: "Monthly Limit",
@@ -3948,7 +3953,7 @@ export const en = {
       submitting: "Saving...",
       alreadyHaveNotice: "You already have a budget on record.",
       skipStepButton: "Skip this step",
-      consequenceTitle: "Budget ready — 0% used",
+      consequenceTitle: "Budget ready, 0% used",
       consequenceBody:
         "As soon as a transaction lands in this category, the usage number rises automatically. Continue to the next step to watch it happen.",
       toastCreated: "Budget created",
@@ -3956,7 +3961,7 @@ export const en = {
     },
     transaction: {
       title: "Record your first expense",
-      body: "Record one real expense from the account you just created, in the budget category you just created. This is a REAL transaction — it will show up on your own Transactions page.",
+      body: "Record one real expense from the account you just created, in the budget category you just created. This is a REAL transaction, it will show up on your own Transactions page.",
       amountLabel: "Amount",
       amountRequiredHint:
         "Amount is required and must be more than Rp 0 to continue.",
@@ -3964,21 +3969,21 @@ export const en = {
       descriptionPlaceholder: "e.g. Lunch",
       submitButton: "Record & See What Changes",
       submitting: "Saving...",
-      consequenceTitle: "Watch — two things change at once",
+      consequenceTitle: "Watch, two things change at once",
       consequenceNetWorthPrefix: "Your net worth dropped to ",
       consequenceBudgetPrefix: "Your budget is now ",
       consequenceBudgetSuffix: " of the limit used",
       toastCreated: "Transaction recorded",
       toastHeld:
-        "This expense is over the threshold and is waiting for approval — it wasn't posted as a transaction yet.",
+        "This expense is over the threshold and is waiting for approval, it wasn't posted as a transaction yet.",
       toastFailed: "Couldn't record the transaction. Try again.",
       noAccountError: "Create an account in the previous step first.",
     },
     done: {
-      title: "Your first setup is done 🎉",
-      body: "You just created a REAL account, budget, and transaction — not a simulation. All of them are already visible, editable, and deletable on their own pages.",
+      title: "Your first setup is done",
+      body: "You just created a REAL account, budget, and transaction, not a simulation. All of them are already visible, editable, and deletable on their own pages.",
       bodyHeld:
-        "You created a REAL account and budget. Your last expense was over your family's threshold and is waiting for approval — so it wasn't posted as a transaction yet, but you can watch its status on your Accounts page.",
+        "You created a REAL account and budget. Your last expense was over your family's threshold and is waiting for approval, so it wasn't posted as a transaction yet, but you can watch its status on your Accounts page.",
       viewAccountsButton: "View Accounts",
       viewBudgetsButton: "View Budgets",
       viewTransactionsButton: "View Transactions",

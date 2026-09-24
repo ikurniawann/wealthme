@@ -166,7 +166,7 @@ function render(ui: ReactElement, queryClient = createTestQueryClient()) {
 // the same 5s default one CI run at a time.
 jest.setTimeout(30_000);
 
-describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
+describe("GuidedSetup, guided first setup (EPIC-023 H3)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.clear();
@@ -185,7 +185,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     });
   });
 
-  it("creates a real account, budget, and transaction — and shows the consequence of each", async () => {
+  it("creates a real account, budget, and transaction, and shows the consequence of each", async () => {
     const user = userEvent.setup({ delay: null });
     const onClose = jest.fn();
     const { queryClient } = render(<GuidedSetup open onClose={onClose} />);
@@ -203,7 +203,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
 
     // Consequence — net worth appears (before/after).
     const accountConsequenceHeading = await screen.findByText(
-      "Lihat — kekayaan bersihmu langsung muncul",
+      "Lihat, kekayaan bersihmu langsung muncul",
     );
     expect(screen.getByText(/Sebelum: Rp 0/)).toBeInTheDocument();
     expect(screen.getByText(/Sesudah: Rp 5\.000\.000/)).toBeInTheDocument();
@@ -237,7 +237,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
 
     const budgetConsequenceHeading = await screen.findByText(
-      "Anggaran siap — 0% terpakai",
+      "Anggaran siap, 0% terpakai",
     );
     expect(mockApiFetch).toHaveBeenCalledWith(
       `/family-groups/${FAMILY_GROUP_ID}/budgets`,
@@ -258,7 +258,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
 
     // Consequence — net worth moves AND the budget usage rises together.
     const txConsequenceHeading = await screen.findByText(
-      "Lihat — dua hal berubah sekaligus",
+      "Lihat, dua hal berubah sekaligus",
     );
     expect(screen.getByText(/Rp 4\.700\.000/)).toBeInTheDocument();
     expect(screen.getByText(/30%/)).toBeInTheDocument();
@@ -275,7 +275,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
 
     // Step 4 — done. Finishing marks onboarded and clears resumable state.
-    await screen.findByText("Setup pertamamu selesai 🎉");
+    await screen.findByText("Setup pertamamu selesai");
     await user.click(screen.getByRole("button", { name: "Selesai" }));
 
     expect(onClose).toHaveBeenCalled();
@@ -314,7 +314,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
         name: "Tambah Rekening & Lihat Kekayaan Bersih",
       }),
     );
-    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+    await screen.findByText("Lihat, kekayaan bersihmu langsung muncul");
 
     // Abandon mid-way: close without finishing. Progress must be saved and
     // the user must NOT be marked onboarded (they can still be re-prompted).
@@ -397,10 +397,10 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
 
     await waitFor(() =>
       expect(mockToastWarning).toHaveBeenCalledWith(
-        "Pengeluaran ini melewati batas dan menunggu persetujuan — belum tercatat sebagai transaksi.",
+        "Pengeluaran ini melewati batas dan menunggu persetujuan, belum tercatat sebagai transaksi.",
       ),
     );
-    await screen.findByText("Setup pertamamu selesai 🎉");
+    await screen.findByText("Setup pertamamu selesai");
     expect(
       screen.getByText(/Pengeluaran terakhir melewati batas keluargamu/),
     ).toBeInTheDocument();
@@ -428,14 +428,14 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
         name: "Tambah Rekening & Lihat Kekayaan Bersih",
       }),
     );
-    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+    await screen.findByText("Lihat, kekayaan bersihmu langsung muncul");
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
 
     await screen.findByText("Buat anggaran pertamamu");
     await user.type(screen.getByLabelText("Nama Kategori"), "Makan & Minum");
     await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
     await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
-    await screen.findByText("Anggaran siap — 0% terpakai");
+    await screen.findByText("Anggaran siap, 0% terpakai");
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
 
     await screen.findByText("Catat pengeluaran pertamamu");
@@ -443,10 +443,10 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
     await user.click(
       screen.getByRole("button", { name: "Catat & Lihat Perubahannya" }),
     );
-    await screen.findByText("Lihat — dua hal berubah sekaligus");
+    await screen.findByText("Lihat, dua hal berubah sekaligus");
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
 
-    await screen.findByText("Setup pertamamu selesai 🎉");
+    await screen.findByText("Setup pertamamu selesai");
     await user.click(screen.getByRole("button", { name: "Lihat Rekening" }));
 
     // Previously this only navigated — the dialog stayed open and blocked
@@ -467,7 +467,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
         name: "Tambah Rekening & Lihat Kekayaan Bersih",
       }),
     );
-    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+    await screen.findByText("Lihat, kekayaan bersihmu langsung muncul");
 
     await user.click(screen.getByRole("button", { name: "Lewati Setup" }));
 
@@ -503,7 +503,7 @@ describe("GuidedSetup — guided first setup (EPIC-023 H3)", () => {
       }),
     );
     // Creating fresh works — the dangling id didn't get reused.
-    await screen.findByText("Lihat — kekayaan bersihmu langsung muncul");
+    await screen.findByText("Lihat, kekayaan bersihmu langsung muncul");
   });
 
   it("restores focus to whatever opened it once it closes (HIGH 6)", async () => {

@@ -76,23 +76,23 @@ export function FamilySection({
             value={
               netWorth
                 ? formatRupiah(parseFloat(netWorth.netWorth) || 0)
-                : "Rp —"
+                : "Rp ·"
             }
             valueClass="text-primary"
           />
           <MoneyStat
             label={t.laporan.totalIncomeLabel}
-            value={summary ? formatRupiah(summary.totalIncome) : "Rp —"}
+            value={summary ? formatRupiah(summary.totalIncome) : "Rp ·"}
             valueClass="text-success"
           />
           <MoneyStat
             label={t.laporan.totalExpenseLabel}
-            value={summary ? formatRupiah(summary.totalExpense) : "Rp —"}
+            value={summary ? formatRupiah(summary.totalExpense) : "Rp ·"}
             valueClass="text-destructive"
           />
           <MoneyStat
             label={t.laporan.surplusLabel}
-            value={summary ? formatRupiah(summary.netSavings) : "Rp —"}
+            value={summary ? formatRupiah(summary.netSavings) : "Rp ·"}
             valueClass="text-success"
           />
         </div>

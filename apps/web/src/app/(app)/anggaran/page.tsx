@@ -1464,7 +1464,7 @@ export default function AnggaranPage() {
                     <option value="">{t.anggaran.coaAutoOptionLabel}</option>
                     {selectableCoaAccounts.map((a) => (
                       <option key={a.id} value={a.id}>
-                        {a.code} — {a.name}
+                        {a.code} · {a.name}
                       </option>
                     ))}
                   </select>

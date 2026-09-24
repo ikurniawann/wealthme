@@ -26,15 +26,15 @@ export function PajakSection({
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <StatTile
           label={t.laporan.pajak.grossYearLabel}
-          value={grossIncome != null ? formatRupiah(grossIncome) : "Rp —"}
+          value={grossIncome != null ? formatRupiah(grossIncome) : "Rp ·"}
         />
         <StatTile
           label={t.laporan.pajak.pkpLabel}
-          value={pph21 ? formatRupiah(pph21.pkp) : "Rp —"}
+          value={pph21 ? formatRupiah(pph21.pkp) : "Rp ·"}
         />
         <StatTile
           label={t.laporan.pajak.estimatedTaxLabel}
-          value={pph21 ? formatRupiah(pph21.totalTax) : "Rp —"}
+          value={pph21 ? formatRupiah(pph21.totalTax) : "Rp ·"}
           valueClass="text-destructive"
         />
         <StatTile
@@ -49,16 +49,16 @@ export function PajakSection({
           <tbody>
             <StatementRow
               label={t.laporan.pajak.grossIncomeLabel}
-              value={grossIncome != null ? formatRupiah(grossIncome) : "Rp —"}
+              value={grossIncome != null ? formatRupiah(grossIncome) : "Rp ·"}
             />
             <StatementRow
               label={t.laporan.pajak.laborCostLabel}
-              value={pph21 ? `-${formatRupiah(pph21.biayaJabatan)}` : "Rp —"}
+              value={pph21 ? `-${formatRupiah(pph21.biayaJabatan)}` : "Rp ·"}
               indent
             />
             <StatementRow
               label={t.laporan.pajak.ptkpLabel}
-              value={pph21 ? `-${formatRupiah(pph21.ptkp)}` : "Rp —"}
+              value={pph21 ? `-${formatRupiah(pph21.ptkp)}` : "Rp ·"}
               indent
             />
             {pph21 && pph21.zakatDeduction > 0 && (
@@ -70,7 +70,7 @@ export function PajakSection({
             )}
             <StatementRow
               label={t.laporan.pajak.pkpFullLabel}
-              value={pph21 ? formatRupiah(pph21.pkp) : "Rp —"}
+              value={pph21 ? formatRupiah(pph21.pkp) : "Rp ·"}
               className="border-t border-border"
               labelClass="py-2 font-bold"
               valueClass="font-extrabold"

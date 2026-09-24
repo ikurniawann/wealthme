@@ -157,7 +157,7 @@ export function MemberAccessDialog({
       onOpenChange={(o) => !o && !save.isPending && onClose()}
     >
       <DialogContent className="dialog--wide">
-        <DialogTitle>Atur Akses — {member?.name}</DialogTitle>
+        <DialogTitle>Atur Akses: {member?.name}</DialogTitle>
         <DialogDescription>
           Tentukan halaman apa saja yang bisa dibuka anggota ini dan data siapa
           yang dia lihat.

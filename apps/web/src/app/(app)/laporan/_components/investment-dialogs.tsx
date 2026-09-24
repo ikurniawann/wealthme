@@ -8,6 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
+import { formatAmountInput } from "@/lib/format";
 import type { InvestmentDto, InvestmentType } from "@wealthme/contracts";
 
 type InvestmentFormState = {
@@ -139,13 +140,20 @@ export function InvestmentDialogs({
                     : t.investasi.fieldCostBasisLabel}
                 </label>
                 <input
-                  type="number"
+                  type={field === "quantity" ? "number" : "text"}
+                  inputMode={field === "quantity" ? "decimal" : "numeric"}
                   required
                   min="0"
                   step="any"
                   value={invForm[field]}
                   onChange={(e) =>
-                    setInvForm((f) => ({ ...f, [field]: e.target.value }))
+                    setInvForm((f) => ({
+                      ...f,
+                      [field]:
+                        field === "quantity"
+                          ? e.target.value
+                          : formatAmountInput(e.target.value),
+                    }))
                   }
                   className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
                 />
@@ -174,7 +182,7 @@ export function InvestmentDialogs({
           <p className="text-[13px] text-muted-foreground">
             {t.laporan.investasi.deleteConfirmPrefix}{" "}
             <span className="font-semibold text-foreground">
-              {deletingInv?.ticker} — {deletingInv?.name}
+              {deletingInv?.ticker} · {deletingInv?.name}
             </span>
             {t.laporan.investasi.deleteConfirmSuffix}
           </p>

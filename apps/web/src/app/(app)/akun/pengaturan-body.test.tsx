@@ -131,7 +131,7 @@ beforeEach(() => {
   });
 });
 
-describe("PengaturanBody — Theme & Language Picker Wiring", () => {
+describe("PengaturanBody, Theme & Language Picker Wiring", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Clear the orphaned localStorage key
@@ -150,7 +150,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const themeSelect = selects[2]; // 0=language, 1=dateFormat, 2=theme
 
       // Act — select "Gelap (Dark)"
-      await user.selectOptions(themeSelect, "🌙 Gelap (Dark)");
+      await user.selectOptions(themeSelect, "Gelap (Dark)");
 
       // Assert — the real setTheme should have been called with "dark"
       // (Currently FAILS because PengaturanBody doesn't call setTheme)
@@ -166,7 +166,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const themeSelect = selects[2];
 
       // Act
-      await user.selectOptions(themeSelect, "🖥️ Ikuti Sistem");
+      await user.selectOptions(themeSelect, "Ikuti Sistem");
 
       // Assert
       expect(mockSetTheme).toHaveBeenCalledWith("system");
@@ -209,7 +209,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const languageSelect = selects[0];
 
       // Act
-      await user.selectOptions(languageSelect, "EN — English");
+      await user.selectOptions(languageSelect, "EN, English");
 
       // Assert
       // (Currently FAILS because PengaturanBody doesn't call setLocale)
@@ -233,7 +233,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const languageSelect = selects[0];
 
       // Act
-      await user.selectOptions(languageSelect, "ID — Bahasa Indonesia");
+      await user.selectOptions(languageSelect, "ID, Bahasa Indonesia");
 
       // Assert
       expect(mockSetLocale).toHaveBeenCalledWith("id");
@@ -286,7 +286,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
 
       // Currently FAILS: languageSelect.value === "ID — Bahasa Indonesia"
       // (from orphaned settings default) instead of "EN — English"
-      expect(languageSelect.value).toBe("EN — English");
+      expect(languageSelect.value).toBe("EN, English");
     });
 
     it("should not show a mismatch where picker says Light but app is in Dark mode", async () => {
@@ -324,7 +324,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
       const saveButton = screen.getByText("Simpan Pengaturan");
 
       // Act — change language and click save
-      await user.selectOptions(languageSelect, "EN — English");
+      await user.selectOptions(languageSelect, "EN, English");
       await user.click(saveButton);
 
       // Assert — clicking save should have triggered setLocale,
@@ -336,7 +336,7 @@ describe("PengaturanBody — Theme & Language Picker Wiring", () => {
   });
 });
 
-describe("PengaturanBody — Currency Picker Wiring (EPIC-016 Task B2)", () => {
+describe("PengaturanBody, Currency Picker Wiring (EPIC-016 Task B2)", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     localStorage.removeItem("wealthme_settings");
@@ -395,7 +395,7 @@ describe("PengaturanBody — Currency Picker Wiring (EPIC-016 Task B2)", () => {
       // not the default "IDR" from orphaned localStorage
       // (exact title text — "EUR — Euro" — since "Euro" alone also matches
       // the "€ · Euro" subtitle rendered right below it)
-      const eurOption = screen.getByText("EUR — Euro");
+      const eurOption = screen.getByText("EUR, Euro");
       // The EUR option should be visually selected (has "selected" class or
       // aria-checked). The title text sits two divs deep inside the
       // selectable row, so target the row container specifically (it's the
@@ -442,7 +442,7 @@ describe("PengaturanBody — Currency Picker Wiring (EPIC-016 Task B2)", () => {
       expect(screen.getByText(/Dollar Singapura/)).toBeInTheDocument();
       // "Euro" alone matches both the title and subtitle text — assert the
       // full title so this stays a single-element query.
-      expect(screen.getByText("EUR — Euro")).toBeInTheDocument();
+      expect(screen.getByText("EUR, Euro")).toBeInTheDocument();
       expect(screen.getByText(/Yen Jepang/)).toBeInTheDocument();
     });
 

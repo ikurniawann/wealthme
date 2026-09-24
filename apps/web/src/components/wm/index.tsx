@@ -19,3 +19,5 @@ export { IconChip } from "./icon-chip";
 // Searchable emoji picker — replaces the fixed 8/10-emoji grids that used to
 // stand in for an icon chooser in the budget and category dialogs.
 export { EmojiPicker } from "./emoji-picker";
+// EPIC-032 — (i) popover that replaces explainer copy across pages.
+export { InfoTip } from "./info-tip";

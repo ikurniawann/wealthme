@@ -1120,7 +1120,7 @@ export function TransactionDialog() {
                       <span className="min-w-0 leading-tight">
                         {attachmentFile
                           ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
-                          : "Unggah foto struk atau PDF — maks 5 MB"}
+                          : "Unggah foto struk atau PDF, maks 5 MB"}
                       </span>
                     </label>
                     {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI

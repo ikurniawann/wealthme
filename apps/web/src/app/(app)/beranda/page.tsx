@@ -50,14 +50,11 @@ function BerandaPage() {
 
   return (
     <div className="stack gap-3.5">
-      <div className="mb-[18px]">
-        <div className="row row--between gap-2">
-          <div className="section-title">
-            {t.greeting[greetingKey]}, {firstName} 👋
-          </div>
-          <LocaleSwitcher />
+      <div className="row row--between gap-2">
+        <div className="section-title">
+          {t.greeting[greetingKey]}, {firstName}
         </div>
-        <div className="t-sm t-muted mt-0.5">{t.beranda.subtitle}</div>
+        <LocaleSwitcher />
       </div>
 
       <section className="bento-dashboard" aria-label={t.beranda.title}>

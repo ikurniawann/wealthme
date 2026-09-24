@@ -15,6 +15,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { useApiError } from "@/hooks/use-api-error";
 import { REPORT_TABS } from "@/lib/nav";
 import {
@@ -289,7 +290,9 @@ export function LaporanInner() {
       name: inv.name,
       type: inv.type,
       quantity: inv.quantity,
-      costBasisPerUnit: inv.costBasisPerUnit,
+      costBasisPerUnit: formatAmountInput(
+        String(Math.round(Number(inv.costBasisPerUnit))),
+      ),
     });
     setEditingInv(inv);
   }
@@ -305,7 +308,10 @@ export function LaporanInner() {
       await apiFetch(url, {
         method: isEdit ? "PATCH" : "POST",
         token,
-        body: JSON.stringify(invForm),
+        body: JSON.stringify({
+          ...invForm,
+          costBasisPerUnit: String(parseRupiah(invForm.costBasisPerUnit)),
+        }),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.all(familyGroupId),

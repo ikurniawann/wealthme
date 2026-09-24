@@ -81,9 +81,9 @@ export function AddMemberDialog({
   // in lockstep — the API independently re-enforces that pairing
   // (FamilyGroupsService#createDependantMember), so this is UX
   // convenience, not the only guard.
-  const [role, setRole] = useState<"dependant" | "operational" | "owner">(
-    "dependant",
-  );
+  const [role, setRole] = useState<
+    "dependant" | "operational" | "member" | "owner"
+  >("dependant");
   const [relationship, setRelationship] = useState<MemberRelationship | "">("");
   const isIstriCoMaster = role === "owner";
   // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
@@ -97,7 +97,7 @@ export function AddMemberDialog({
       username: string;
       email?: string;
       initialPassword: string;
-      role: "dependant" | "operational" | "owner";
+      role: "dependant" | "operational" | "member" | "owner";
       relationship?: MemberRelationship;
     }) =>
       apiFetch<{ username: string; pendingEmail?: string | null }>(
@@ -208,7 +208,7 @@ export function AddMemberDialog({
               </option>
               {MemberRelationshipSchema.options.map((r) => (
                 <option key={r} value={r}>
-                  {r}
+                  {r.charAt(0).toUpperCase() + r.slice(1)}
                 </option>
               ))}
             </select>
@@ -317,6 +317,7 @@ export function AddMemberDialog({
                 const next = e.target.value as
                   | "dependant"
                   | "operational"
+                  | "member"
                   | "owner";
                 setRole(next);
                 // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
@@ -326,14 +327,17 @@ export function AddMemberDialog({
                 setRelationship(next === "owner" ? "istri" : "");
               }}
             >
+              <option value="owner">
+                {t.akun.addDependant.roleOptions.istriCoMaster}
+              </option>
               <option value="dependant">
                 {t.akun.addDependant.roleOptions.dependant}
               </option>
               <option value="operational">
                 {t.akun.addDependant.roleOptions.operational}
               </option>
-              <option value="owner">
-                {t.akun.addDependant.roleOptions.istriCoMaster}
+              <option value="member">
+                {t.akun.addDependant.roleOptions.member}
               </option>
             </select>
           </div>

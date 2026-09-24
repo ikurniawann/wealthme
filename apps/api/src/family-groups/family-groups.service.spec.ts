@@ -1099,11 +1099,13 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
     return userId;
   }
 
-  it("rejects a role other than dependant/operational with INVALID_ROLE_FOR_DEPENDANT_CREATION", async () => {
+  // EPIC-033 p1 — `member` is now a valid managed-member role; `admin_staff`
+  // and `spouse` still are not.
+  it("rejects a role other than dependant/operational/member with INVALID_ROLE_FOR_DEPENDANT_CREATION", async () => {
     try {
       await service.createDependantMember(FAMILY_GROUP_ID, {
         ...BASE_DTO,
-        role: Role.member,
+        role: Role.admin_staff,
       });
       throw new Error("expected createDependantMember to reject");
     } catch (err) {

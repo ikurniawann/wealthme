@@ -157,7 +157,7 @@ function mockCoaRoutes(accounts: CoaAccountFixture[]) {
   );
 }
 
-describe("MasterCoaPage — COA code auto-gen + editable (EPIC-021 #4)", () => {
+describe("MasterCoaPage, COA code auto-gen + editable (EPIC-021 #4)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
@@ -294,7 +294,7 @@ describe("MasterCoaPage — COA code auto-gen + editable (EPIC-021 #4)", () => {
 
 // EPIC-023 Task H2 (D18) — the plain-language guide + worked examples that
 // now sit above the account list, and the honest risk statement it carries.
-describe("MasterCoaPage — plain-language guide (EPIC-023 H2)", () => {
+describe("MasterCoaPage, plain-language guide (EPIC-023 H2)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
@@ -315,7 +315,7 @@ describe("MasterCoaPage — plain-language guide (EPIC-023 H2)", () => {
     await screen.findByText("Belanja");
 
     // Assert — the risk (D18) is stated plainly, not buried.
-    expect(screen.getByText("⚠️ Risiko kalau salah edit")).toBeInTheDocument();
+    expect(screen.getByText("Risiko kalau salah edit")).toBeInTheDocument();
     expect(
       screen.getByText(/laporan laba-rugi dan neracamu bisa langsung salah/),
     ).toBeInTheDocument();

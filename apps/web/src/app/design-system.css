@@ -4350,3 +4350,168 @@
     }
   }
 }
+
+/* ==========================================================================
+ * EPIC-032/033 — foundation polish (reviewed foundation change, 2026-09-25).
+ * One motion curve, one radius scale, elevation only where it means
+ * something, a concentric inner bezel on the hero, thinner icon strokes and
+ * a staggered page entry. Appended as its own block so the prototype port
+ * above stays diff-able; every rule here overrides by later cascade order.
+ * ========================================================================== */
+@layer components {
+  :root {
+    --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+    --dur-fast: 0.18s;
+    --dur-base: 0.32s;
+    --radius-control: 10px;
+    --radius-surface: 16px;
+  }
+
+  /* Icons: one stroke weight everywhere (lucide defaults to 2). */
+  svg.lucide {
+    stroke-width: 1.75;
+  }
+
+  /* Surfaces sit flat on a hairline; hover lifts by tint, not by shadow. */
+  .card {
+    border-radius: var(--radius-surface);
+    box-shadow: 0 1px 1px rgb(16 32 42 / 0.03);
+    transition:
+      border-color var(--dur-base) var(--ease-spring),
+      transform var(--dur-base) var(--ease-spring);
+  }
+  .card:hover {
+    box-shadow: 0 1px 1px rgb(16 32 42 / 0.03);
+  }
+  .dark .card {
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.04);
+  }
+
+  /* Hero: the one elevated surface. Inner hairline = concentric bezel. */
+  .hero {
+    border-radius: var(--radius-surface);
+    padding: 24px;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.22),
+      0 24px 48px -28px color-mix(in oklab, var(--primary) 70%, black);
+  }
+  /* Replaces the prototype's decorative white circle (same pseudo). */
+  .hero::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    bottom: 6px;
+    left: 6px;
+    width: auto;
+    height: auto;
+    background: transparent;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: calc(var(--radius-surface) - 6px);
+    pointer-events: none;
+  }
+
+  /* Controls: one radius, press feedback on every button. */
+  .btn {
+    border-radius: var(--radius-control);
+    transition:
+      background var(--dur-fast) var(--ease-spring),
+      border-color var(--dur-fast) var(--ease-spring),
+      color var(--dur-fast) var(--ease-spring),
+      transform var(--dur-fast) var(--ease-spring),
+      box-shadow var(--dur-base) var(--ease-spring);
+  }
+  .btn:active {
+    transform: scale(0.98);
+  }
+  .btn--primary {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.16),
+      0 10px 20px -14px color-mix(in oklab, var(--primary) 70%, black);
+  }
+  .btn--primary:hover {
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.16),
+      0 14px 26px -14px color-mix(in oklab, var(--primary) 70%, black);
+  }
+  .input,
+  .select,
+  .textarea {
+    border-radius: var(--radius-control);
+    transition:
+      border-color var(--dur-fast) var(--ease-spring),
+      box-shadow var(--dur-fast) var(--ease-spring);
+  }
+  .input:focus-visible,
+  .select:focus-visible,
+  .textarea:focus-visible {
+    outline: none;
+    border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 16%, transparent);
+  }
+
+  /* Sidebar: active state is a solid tint, no gradient; quieter headers. */
+  .nav-item {
+    border-radius: var(--radius-control);
+    transition:
+      background var(--dur-fast) var(--ease-spring),
+      color var(--dur-fast) var(--ease-spring),
+      transform var(--dur-fast) var(--ease-spring);
+  }
+  .nav-item:active {
+    transform: scale(0.985);
+  }
+  .nav-item--active {
+    background: var(--accent);
+  }
+  .sidebar__section-header {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+  }
+
+  /* Dialogs: settle in with mass, not a snap. */
+  .dialog {
+    border-radius: var(--radius-surface);
+    animation: dialog-in var(--dur-base) var(--ease-spring);
+  }
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+  }
+
+  /* Page entry: sections rise in sequence; nothing pops in. */
+  @keyframes page-in {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+  }
+  .page > * > * {
+    animation: page-in 0.55s var(--ease-spring) both;
+  }
+  .page > * > :nth-child(2) {
+    animation-delay: 45ms;
+  }
+  .page > * > :nth-child(3) {
+    animation-delay: 90ms;
+  }
+  .page > * > :nth-child(4) {
+    animation-delay: 135ms;
+  }
+  .page > * > :nth-child(n + 5) {
+    animation-delay: 180ms;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .page > * > * {
+      animation: none;
+    }
+    .btn:active,
+    .nav-item:active {
+      transform: none;
+    }
+  }
+}

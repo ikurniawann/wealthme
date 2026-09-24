@@ -240,10 +240,6 @@ const STEP_NUMS = [1, 2, 3, 4] as const;
 const SUPPORTED_BANKS = [
   { code: "BCA", name: "BCA", bg: "#0061AF", color: "#fff" },
   { code: "MDR", name: "Mandiri", bg: "#F9A01B", color: "#000" },
-  { code: "BNI", name: "BNI", bg: "#FF6600", color: "#fff" },
-  { code: "BRI", name: "BRI", bg: "#E31937", color: "#fff" },
-  { code: "CMB", name: "CIMB", bg: "#C8282E", color: "#fff" },
-  { code: "PMT", name: "Permata", bg: "#E8002D", color: "#fff" },
 ] as const;
 
 type MatchStatus = "ok" | "warn" | "err";

@@ -213,7 +213,7 @@ export function RingkasanSection({
           iconBg="var(--success-soft)"
           iconColor="var(--success)"
           label={t.laporan.totalIncomeLabel}
-          value={detailReport ? formatRupiah(headlineIncome) : "Rp —"}
+          value={detailReport ? formatRupiah(headlineIncome) : "Rp ·"}
           valueClass="text-success"
           delta={incomeDeltaLabel}
           deltaClass={
@@ -227,7 +227,7 @@ export function RingkasanSection({
           iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
           iconColor="var(--destructive)"
           label={t.laporan.totalExpenseLabel}
-          value={detailReport ? formatRupiah(headlineExpense) : "Rp —"}
+          value={detailReport ? formatRupiah(headlineExpense) : "Rp ·"}
           valueClass="text-destructive"
           delta={expenseDeltaLabel}
           deltaClass={
@@ -241,7 +241,7 @@ export function RingkasanSection({
           iconBg="var(--accent)"
           iconColor="var(--accent-foreground)"
           label={t.laporan.ringkasan.statNetCashflowLabel}
-          value={detailReport ? formatSignedRupiah(headlineNet) : "Rp —"}
+          value={detailReport ? formatSignedRupiah(headlineNet) : "Rp ·"}
           valueClass={
             detailReport && headlineNet >= 0
               ? "text-success"
@@ -476,7 +476,7 @@ export function RingkasanSection({
             <div className="text-[20px] font-black">
               {invSummary
                 ? formatRupiah(parseFloat(invSummary.totalCurrentValue))
-                : "Rp —"}
+                : "Rp ·"}
             </div>
             {invSummary && (
               <>

@@ -7,6 +7,7 @@ import {
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 
+import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 import { SplitBillsService } from "./split-bills.service";
@@ -97,6 +98,10 @@ describe("SplitBillsService", () => {
       providers: [
         SplitBillsService,
         { provide: PrismaService, useValue: prisma },
+        {
+          provide: CryptoService,
+          useValue: { decrypt: (v: string) => `dec(${v})` },
+        },
       ],
     }).compile();
 
@@ -236,7 +241,7 @@ describe("SplitBillsService", () => {
         payout: {
           accountName: ACCOUNT.name,
           accountInstitution: ACCOUNT.institution,
-          accountMaskedNumber: ACCOUNT.maskedNumber,
+          accountMaskedNumber: `dec(${ACCOUNT.maskedNumber})`,
           instructions: null,
           configured: true,
         },
