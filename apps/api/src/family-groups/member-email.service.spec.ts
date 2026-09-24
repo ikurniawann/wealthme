@@ -135,4 +135,37 @@ describe("MemberEmailService (EPIC-031)", () => {
     );
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
+
+  it("refuses a resend within the cooldown (no mail relay)", async () => {
+    const { prisma, mail, service } = setup();
+    prisma.member.findFirst.mockResolvedValue({
+      userId: "u1",
+      user: {
+        managedByFamilyGroupId: FG,
+        // sent 30s ago → expires 7 days minus 30s from now
+        pendingEmailExpiresAt: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000 - 30_000,
+        ),
+      },
+    });
+    await expect(
+      service.setForMember(FG, "m1", OWNER, "a@b.co"),
+    ).rejects.toMatchObject({ status: 429 });
+    expect(mail.send).not.toHaveBeenCalled();
+  });
+
+  it("allows a resend after the cooldown", async () => {
+    const { prisma, mail, service } = setup();
+    prisma.member.findFirst.mockResolvedValue({
+      userId: "u1",
+      user: {
+        managedByFamilyGroupId: FG,
+        pendingEmailExpiresAt: new Date(
+          Date.now() + 7 * 24 * 60 * 60 * 1000 - 3 * 60_000,
+        ),
+      },
+    });
+    await service.setForMember(FG, "m1", OWNER, "a@b.co");
+    expect(mail.send).toHaveBeenCalledTimes(1);
+  });
 });

@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -20,6 +22,8 @@ import { PrismaService } from "../prisma/prisma.service";
 import type { Env } from "../config/env";
 
 const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+/** A Master may send (or resend) a member's confirmation mail once per window. */
+const RESEND_COOLDOWN_MS = 2 * 60 * 1000;
 
 const hashToken = (token: string) =>
   createHash("sha256").update(token).digest("hex");
@@ -68,7 +72,9 @@ export class MemberEmailService {
       where: { id: memberId, familyGroupId },
       select: {
         userId: true,
-        user: { select: { managedByFamilyGroupId: true } },
+        user: {
+          select: { managedByFamilyGroupId: true, pendingEmailExpiresAt: true },
+        },
       },
     });
     if (!member) throw new NotFoundException("Member not found");
@@ -90,6 +96,20 @@ export class MemberEmailService {
         },
       });
       return { pendingEmail: null };
+    }
+    // The link goes to an address the Master typed: without a cooldown this
+    // endpoint would relay unlimited mail to arbitrary inboxes.
+    const lastSentAt = member.user.pendingEmailExpiresAt
+      ? member.user.pendingEmailExpiresAt.getTime() - TOKEN_TTL_MS
+      : null;
+    if (lastSentAt !== null && Date.now() - lastSentAt < RESEND_COOLDOWN_MS) {
+      throw new HttpException(
+        withCode(
+          "Link baru saja dikirim. Tunggu 2 menit sebelum mengirim ulang.",
+          "EMAIL_RESEND_COOLDOWN",
+        ),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
     }
     await this.startConfirmation(member.userId, email);
     return { pendingEmail: email.trim().toLowerCase() };

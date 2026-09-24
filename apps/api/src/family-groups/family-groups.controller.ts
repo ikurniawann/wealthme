@@ -19,6 +19,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { type Request as ExpressRequest } from "express";
 
 import { type JwtPayload } from "../auth/strategies/jwt.strategy";
@@ -184,6 +185,8 @@ export class FamilyGroupsController {
   }
 
   @Put(":familyGroupId/members/:memberId/email")
+  // Sends mail to an address the Master typed — keep it far below the global limit.
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "memberId", type: String })
@@ -207,6 +210,7 @@ export class FamilyGroupsController {
 
   /** Public — the mailbox owner confirms from the link in the email. */
   @Public()
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @Post("member-email/confirm")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: "Confirm a member email from its emailed link" })
