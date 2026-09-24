@@ -1,14 +1,8 @@
 "use client";
 
-// EPIC-022 Group F (F3) — CASL (apps/api/src/casl/casl-ability.factory.ts)
-// already enforces who may create/update/delete Account, CoaAccount,
-// Category, Budget, Goal and Investment rows; the UI offered the same
-// create/edit/delete affordances to every role regardless, so a role CASL
-// rejects only found out via a 403 after filling in a form. This mirrors
-// ONLY the `can("manage", Subject)` grants for those six subjects — the
-// same shape `useMyRole` already established for "owner/co-master only"
-// gating (see its own header comment) — so a page can hide/disable an
-// action the API would reject instead of inventing a new gating pattern.
+import { canAccessPage, type AccessPage } from "@wealthme/contracts";
+
+import { useMyAccess } from "./use-my-access";
 import { useMyRole } from "./use-my-role";
 
 type ManagedSubject =
@@ -21,30 +15,36 @@ type ManagedSubject =
   | "Goal"
   | "Investment";
 
-// Roles that hold `can("manage", Subject)` in the CASL factory, per subject.
-// Every role NOT listed only has "read" (or no grant at all) for that
-// subject and must not be offered create/edit/delete for it.
-const MANAGE_ROLES: Record<ManagedSubject, ReadonlySet<string>> = {
-  Account: new Set(["owner", "spouse"]),
-  // EPIC-022 D5 — matches casl-ability.factory.ts's `can("manage", "Asset")`
-  // grants (owner/spouse/member; admin_staff only has "read").
-  Asset: new Set(["owner", "spouse", "member"]),
-  CoaAccount: new Set(["owner", "spouse"]),
-  Category: new Set(["owner", "spouse"]),
-  ReferenceItem: new Set(["owner", "spouse"]),
-  Budget: new Set(["owner", "spouse", "member"]),
-  Goal: new Set(["owner", "spouse", "member"]),
-  Investment: new Set(["owner", "spouse", "member"]),
+/**
+ * EPIC-030 — "may this member edit X?" now comes from the Master's IAM grant
+ * on the page that owns X (`manage`). For members the Master has not
+ * customised, the legacy presets reproduce the old per-role table exactly.
+ */
+const SUBJECT_PAGES: Record<ManagedSubject, readonly AccessPage[]> = {
+  Account: ["dana", "rekening"],
+  Asset: ["aset"],
+  CoaAccount: ["mastercoa"],
+  Category: ["masterdata"],
+  ReferenceItem: ["masterdata"],
+  Budget: ["anggaran"],
+  Goal: ["tujuan"],
+  Investment: ["investasi"],
 };
 
 export function useCanManage(subject: ManagedSubject): {
-  /** `undefined` while the role is still resolving — treat as "not yet known". */
+  /** `undefined` while access is still resolving — treat as "not yet known". */
   canManage: boolean | undefined;
   myRole: string | null | undefined;
   isLoading: boolean;
 } {
-  const { myRole, isLoading } = useMyRole();
+  const { myRole } = useMyRole();
+  const { access, isLoading } = useMyAccess();
   const canManage =
-    myRole === undefined ? undefined : MANAGE_ROLES[subject].has(myRole ?? "");
+    access === undefined
+      ? undefined
+      : access !== null &&
+        SUBJECT_PAGES[subject].some((page) =>
+          canAccessPage(access, page, "manage"),
+        );
   return { canManage, myRole, isLoading };
 }

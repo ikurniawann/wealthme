@@ -74,6 +74,27 @@ describe("NotificationsService — visibility", () => {
     },
   );
 
+  // EPIC-030 — the Master's effective data scope wins over the built-in type.
+  it("narrows a Master-scoped 'own data' member to their own rows", async () => {
+    await service.findAll(FAMILY_GROUP_ID, VIEWER_ID, {
+      role: "member",
+      rowScoped: true,
+    });
+    expect(prisma.notification.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: ROW_SCOPED_WHERE }),
+    );
+  });
+
+  it("widens a dependant the Master gave family data to household rows", async () => {
+    await service.findAll(FAMILY_GROUP_ID, VIEWER_ID, {
+      role: "dependant",
+      rowScoped: false,
+    });
+    expect(prisma.notification.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: TRUSTED_WHERE }),
+    );
+  });
+
   it("applies the same clause to the unread badge as to the list", async () => {
     // A mismatch shows a badge counting rows the list refuses to render —
     // a count the user can never clear.

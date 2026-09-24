@@ -15,6 +15,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import {
   assertHouseholdWideReadAllowed,
   canSeePrivateItems,
@@ -27,6 +28,7 @@ import type { Request } from "express";
 
 @ApiTags("dashboard")
 @ApiBearerAuth()
+@PageAccess("dashboard")
 @Controller("family-groups/:familyGroupId/dashboard")
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
@@ -44,7 +46,7 @@ export class DashboardController {
     return this.dashboardService.getSummary(
       familyGroupId,
       canSeePrivate,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }
@@ -62,7 +64,7 @@ export class DashboardController {
     return this.dashboardService.getNetWorth(
       familyGroupId,
       canSeePrivate,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }
@@ -83,7 +85,7 @@ export class DashboardController {
     // dependant/operational cannot be scoped to "their own" history without
     // a new snapshot dimension this task does not add, so this endpoint is
     // denied outright rather than leaking the household's wealth trend.
-    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member);
     return this.dashboardService.getNetWorthHistory(familyGroupId, range);
   }
 }

@@ -1705,4 +1705,105 @@ declare const ATTACHMENT_MAX_FILE_BYTES: number;
 declare const ATTACHMENT_ACCEPTED_MIME_TYPES: readonly ["image/jpeg", "image/png", "image/webp", "application/pdf"];
 type AttachmentAcceptedMimeType = (typeof ATTACHMENT_ACCEPTED_MIME_TYPES)[number];
 
-export { ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type ReconciliationBridgeDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, buildReferenceItemSeed, defaultCoaCodeForCategory, defaultRoleForRelationship };
+/**
+ * EPIC-030 — IAM page access. One catalog shared by web (menu, route guard,
+ * IAM matrix) and API (PageAccessGuard, CASL), so both sides always agree on
+ * what a member may open.
+ *
+ * Only pages a Master may grant are listed. Always open to every member (not
+ * configurable): akun, akses-saya, notifikasi (personal), panduan (help).
+ * `iam` is Master-only and deliberately NOT in this catalog — granting it
+ * would let a member raise their own access.
+ */
+declare const ACCESS_PAGES: readonly ["beranda", "ringkasan", "transaksi", "anggaran", "laporan", "tujuan", "dana", "rekening", "investasi", "aset", "liabilitas", "asuransi", "warisan", "donation", "tax", "persetujuan", "splitbill", "rekonsiliasi", "ai", "kalkulator", "quickinput", "mastercoa", "masterdata"];
+declare const AccessPageSchema: z.ZodEnum<["beranda", "ringkasan", "transaksi", "anggaran", "laporan", "tujuan", "dana", "rekening", "investasi", "aset", "liabilitas", "asuransi", "warisan", "donation", "tax", "persetujuan", "splitbill", "rekonsiliasi", "ai", "kalkulator", "quickinput", "mastercoa", "masterdata"]>;
+type AccessPage = z.infer<typeof AccessPageSchema>;
+/** Routes every signed-in member may open regardless of access. */
+declare const ALWAYS_OPEN_PAGES: readonly ["akun", "akses-saya", "notifikasi", "panduan"];
+declare const ACCESS_LEVELS: readonly ["none", "view", "manage"];
+declare const AccessLevelSchema: z.ZodEnum<["none", "view", "manage"]>;
+type AccessLevel = z.infer<typeof AccessLevelSchema>;
+/** `all` = the whole family's data; `own` = only rows the member owns/created. */
+declare const AccessDataScopeSchema: z.ZodEnum<["all", "own"]>;
+type AccessDataScope = z.infer<typeof AccessDataScopeSchema>;
+/** Sparse page → level map. A page that is absent means `none`. */
+declare const AccessPermissionsSchema: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "quickinput" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+type AccessPermissions = Partial<Record<AccessPage, AccessLevel>>;
+type MemberRoleKey = "owner" | "spouse" | "member" | "admin_staff" | "dependant" | "operational";
+/**
+ * What each built-in role could reach before EPIC-030 (nav.ts allowlists +
+ * casl-ability.factory.ts). A member with no custom role and no overrides
+ * resolves to exactly this, so nobody's access changes until the Master
+ * assigns something.
+ */
+declare const LEGACY_ACCESS_PRESETS: Record<Exclude<MemberRoleKey, "owner">, {
+    permissions: AccessPermissions;
+    dataScope: AccessDataScope;
+}>;
+type EffectiveAccess = {
+    /** Master: bypasses every page check. */
+    isMaster: boolean;
+    permissions: Record<AccessPage, AccessLevel>;
+    dataScope: AccessDataScope;
+    /** Where the base came from — shown on /iam. */
+    source: "master" | "custom-role" | "legacy";
+    /** Member has at least one per-member override on top of the base. */
+    hasOverrides: boolean;
+};
+declare function levelAtLeast(have: AccessLevel, need: AccessLevel): boolean;
+/**
+ * Master → full. Otherwise: custom role's map (or the legacy preset of the
+ * built-in role when none is assigned), then per-member overrides on top.
+ * Pure — the API and web both call this, so they cannot disagree.
+ */
+declare function resolveEffectiveAccess(input: {
+    role: MemberRoleKey;
+    accessRole?: {
+        permissions: AccessPermissions;
+        dataScope: AccessDataScope;
+    } | null;
+    overrides?: AccessPermissions | null;
+}): EffectiveAccess;
+declare function canAccessPage(access: EffectiveAccess, page: AccessPage, need?: AccessLevel): boolean;
+declare const AccessRoleInputSchema: z.ZodObject<{
+    name: z.ZodString;
+    description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    dataScope: z.ZodEnum<["all", "own"]>;
+    permissions: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "quickinput" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+}, "strip", z.ZodTypeAny, {
+    name: string;
+    dataScope: "all" | "own";
+    permissions: Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "quickinput" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
+    description?: string | null | undefined;
+}, {
+    name: string;
+    dataScope: "all" | "own";
+    permissions: Record<string, "none" | "view" | "manage">;
+    description?: string | null | undefined;
+}>;
+type AccessRoleInput = z.infer<typeof AccessRoleInputSchema>;
+type AccessRoleResponse = {
+    id: string;
+    name: string;
+    description: string | null;
+    dataScope: AccessDataScope;
+    permissions: AccessPermissions;
+    memberCount: number;
+    createdAt: string;
+};
+declare const MemberAccessInputSchema: z.ZodObject<{
+    /** null = no custom role (use the built-in role's preset). */
+    accessRoleId: z.ZodNullable<z.ZodString>;
+    /** Sparse overrides on top of the role; {} clears them. */
+    overrides: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "quickinput" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+}, "strip", z.ZodTypeAny, {
+    accessRoleId: string | null;
+    overrides: Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "quickinput" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
+}, {
+    accessRoleId: string | null;
+    overrides: Record<string, "none" | "view" | "manage">;
+}>;
+type MemberAccessInput = z.infer<typeof MemberAccessInputSchema>;
+type MyAccessResponse = EffectiveAccess;
+
+export { ACCESS_LEVELS, ACCESS_PAGES, ALWAYS_OPEN_PAGES, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, LEGACY_ACCESS_PRESETS, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type ReconciliationBridgeDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, buildReferenceItemSeed, canAccessPage, defaultCoaCodeForCategory, defaultRoleForRelationship, levelAtLeast, resolveEffectiveAccess };

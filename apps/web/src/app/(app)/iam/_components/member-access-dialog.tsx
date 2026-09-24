@@ -1,0 +1,270 @@
+"use client";
+
+import { useId, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  LEGACY_ACCESS_PRESETS,
+  type AccessDataScope,
+  type AccessLevel,
+  type AccessPage,
+  type AccessPermissions,
+  type AccessRoleResponse,
+} from "@wealthme/contracts";
+
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useLocale } from "@/hooks/use-locale";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
+
+import { SCOPE_COPY, fillPermissions } from "./access-shared";
+import { PageAccessMatrix } from "./page-access-matrix";
+
+/** Built-in member types a Master may assign (API: ASSIGNABLE_ROLES; never owner). */
+export const MEMBER_TYPES = [
+  "dependant",
+  "operational",
+  "admin_staff",
+  "member",
+  "spouse",
+] as const;
+export type MemberType = (typeof MEMBER_TYPES)[number];
+
+export type AccessMember = {
+  id: string;
+  name: string;
+  role: string;
+  accessRoleId?: string | null;
+  accessOverrides?: AccessPermissions;
+};
+
+type MemberAccessDialogProps = {
+  member: AccessMember | null;
+  roles: AccessRoleResponse[];
+  onClose: () => void;
+  familyGroupId: string | null;
+  token: string | undefined;
+};
+
+function baselineFor(
+  type: MemberType,
+  roleId: string | null,
+  roles: AccessRoleResponse[],
+): {
+  permissions: Record<AccessPage, AccessLevel>;
+  dataScope: AccessDataScope;
+} {
+  const custom = roleId ? roles.find((r) => r.id === roleId) : undefined;
+  const base = custom ?? LEGACY_ACCESS_PRESETS[type];
+  return {
+    permissions: fillPermissions(base.permissions),
+    dataScope: base.dataScope,
+  };
+}
+
+const asMemberType = (role: string): MemberType =>
+  (MEMBER_TYPES as readonly string[]).includes(role)
+    ? (role as MemberType)
+    : "member";
+
+/**
+ * "Atur Akses" for one member, top to bottom in the order a Master thinks:
+ * who is this person (type) → which role do they get → any exceptions just
+ * for them. Exceptions are what differs from the role; they are saved as
+ * per-member overrides and flagged "Khusus" so nothing is hidden.
+ */
+export function MemberAccessDialog({
+  member,
+  roles,
+  onClose,
+  familyGroupId,
+  token,
+}: MemberAccessDialogProps) {
+  const { t } = useLocale();
+  const fieldId = useId();
+  const queryClient = useQueryClient();
+
+  const initialType = asMemberType(member?.role ?? "member");
+  const initialRoleId = member?.accessRoleId ?? null;
+  const [memberType, setMemberType] = useState<MemberType>(initialType);
+  const [roleId, setRoleId] = useState<string | null>(initialRoleId);
+  const [perms, setPerms] = useState<Record<AccessPage, AccessLevel>>(() => ({
+    ...baselineFor(initialType, initialRoleId, roles).permissions,
+    ...(member?.accessOverrides ?? {}),
+  }));
+
+  const baseline = baselineFor(memberType, roleId, roles);
+  const overrides = Object.fromEntries(
+    Object.entries(perms).filter(
+      ([page, level]) => baseline.permissions[page as AccessPage] !== level,
+    ),
+  ) as AccessPermissions;
+  const overrideCount = Object.keys(overrides).length;
+
+  // Changing the type or role starts from that baseline again — keeping
+  // exceptions made against a different role would silently mean something else.
+  const resetTo = (type: MemberType, nextRoleId: string | null) => {
+    setMemberType(type);
+    setRoleId(nextRoleId);
+    setPerms(baselineFor(type, nextRoleId, roles).permissions);
+  };
+
+  const save = useMutation({
+    mutationFn: async () => {
+      if (!member) return;
+      if (memberType !== initialType) {
+        await apiFetch(`/family-groups/${familyGroupId}/members/${member.id}`, {
+          token,
+          method: "PATCH",
+          body: JSON.stringify({ role: memberType }),
+        });
+      }
+      await apiFetch(
+        `/family-groups/${familyGroupId}/members/${member.id}/access`,
+        {
+          token,
+          method: "PUT",
+          body: JSON.stringify({ accessRoleId: roleId, overrides }),
+        },
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
+      });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.accessRoles(familyGroupId ?? ""),
+      });
+      toast.success("Akses diperbarui", {
+        description: `${member?.name} melihat menu barunya saat membuka ulang aplikasi.`,
+      });
+      onClose();
+    },
+    onError: (e: { message?: string }) =>
+      toast.error(e.message ?? "Gagal menyimpan akses"),
+  });
+
+  return (
+    <Dialog
+      open={member !== null}
+      onOpenChange={(o) => !o && !save.isPending && onClose()}
+    >
+      <DialogContent className="dialog--wide">
+        <DialogTitle>Atur Akses — {member?.name}</DialogTitle>
+        <DialogDescription>
+          Tentukan halaman apa saja yang bisa dibuka anggota ini dan data siapa
+          yang dia lihat.
+        </DialogDescription>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            save.mutate();
+          }}
+        >
+          <DialogBody>
+            <div className="field-row">
+              <label className="field" htmlFor={`${fieldId}-type`}>
+                <span className="label">1. Tipe anggota</span>
+                <select
+                  id={`${fieldId}-type`}
+                  className="select"
+                  value={memberType}
+                  disabled={save.isPending}
+                  onChange={(e) =>
+                    resetTo(e.target.value as MemberType, roleId)
+                  }
+                >
+                  {MEMBER_TYPES.map((r) => (
+                    <option key={r} value={r}>
+                      {t.common.roleLabels[r]}
+                    </option>
+                  ))}
+                </select>
+                <span className="hint">
+                  Dipakai sebagai akses bawaan bila tidak memilih role.
+                </span>
+              </label>
+              <label className="field" htmlFor={`${fieldId}-role`}>
+                <span className="label">2. Role akses</span>
+                <select
+                  id={`${fieldId}-role`}
+                  className="select"
+                  value={roleId ?? ""}
+                  disabled={save.isPending}
+                  onChange={(e) => resetTo(memberType, e.target.value || null)}
+                >
+                  <option value="">
+                    Bawaan {t.common.roleLabels[memberType]}
+                  </option>
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+                <span className="hint">
+                  Data terlihat: {SCOPE_COPY[baseline.dataScope].short}
+                  {roles.length === 0 &&
+                    " · Buat role di tab Role Akses untuk dipakai ulang."}
+                </span>
+              </label>
+            </div>
+
+            <div className="field">
+              <div className="row row--between row--wrap">
+                <span className="label">
+                  3. Pengecualian khusus anggota ini
+                </span>
+                {overrideCount > 0 && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm"
+                    onClick={() => setPerms(baseline.permissions)}
+                  >
+                    Hapus {overrideCount} pengecualian
+                  </button>
+                )}
+              </div>
+              <p className="hint">
+                Awalnya sama dengan role. Ubah hanya bila anggota ini perlu
+                berbeda — halaman yang diubah ditandai &quot;Khusus&quot;.
+              </p>
+              <PageAccessMatrix
+                value={perms}
+                baseline={baseline.permissions}
+                onChange={(page, level) =>
+                  setPerms((prev) => ({ ...prev, [page]: level }))
+                }
+                disabled={save.isPending}
+              />
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <button
+              type="button"
+              className="btn btn--outline"
+              disabled={save.isPending}
+              onClick={onClose}
+            >
+              Batal
+            </button>
+            <button
+              type="submit"
+              className="btn btn--primary"
+              disabled={save.isPending}
+            >
+              {save.isPending ? "Menyimpan…" : "Simpan Akses"}
+            </button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

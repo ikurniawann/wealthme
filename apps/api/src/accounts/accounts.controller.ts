@@ -21,6 +21,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -37,6 +38,7 @@ import type { Request } from "express";
 
 @ApiTags("accounts")
 @ApiBearerAuth()
+@PageAccess("accounts")
 @Controller("family-groups/:familyGroupId/accounts")
 export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
@@ -57,7 +59,7 @@ export class AccountsController {
       canSeePrivate,
       query.owner,
       req.tenantContext?.userId,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
     );
   }
 
@@ -90,7 +92,7 @@ export class AccountsController {
       familyGroupId,
       id,
       canSeePrivate,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }

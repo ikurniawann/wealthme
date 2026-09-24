@@ -3,11 +3,11 @@ import { Injectable } from "@nestjs/common";
 import {
   restrictedAccountWhere,
   restrictedTransactionWhere,
+  type ScopeSubject,
 } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import type { Role } from "@prisma/client";
 import type { SearchResponseDto, SearchResultDto } from "@wealthme/contracts";
 
 @Injectable()
@@ -25,7 +25,7 @@ export class SearchService {
   async search(
     familyGroupId: string,
     q: string,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<SearchResponseDto> {
     const trimmed = q.trim();

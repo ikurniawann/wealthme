@@ -36,8 +36,8 @@ type ResetPasswordDialogProps = {
  * their only way back in. The API refuses real-email accounts, so the page
  * only opens this dialog for rows with `managedLogin`.
  *
- * The new password is final (no forced change at next login) and the member
- * is signed out of every device.
+ * The password is TEMPORARY: the member is signed out of every device and,
+ * at their next login, must choose their own password (/ubah-password-wajib).
  */
 export function ResetPasswordDialog({
   member,
@@ -74,8 +74,8 @@ export function ResetPasswordDialog({
         },
       ),
     onSuccess: (_data, vars) => {
-      toast.success("Password berhasil diganti", {
-        description: `Beri tahu password baru ini langsung ke ${vars.memberName}. Semua sesi login lamanya sudah dikeluarkan.`,
+      toast.success("Password sementara dibuat", {
+        description: `Berikan password sementara ini ke ${vars.memberName}. Saat login, dia akan diminta membuat password baru sendiri.`,
         duration: 10000,
       });
       close();
@@ -108,11 +108,12 @@ export function ResetPasswordDialog({
       onOpenChange={(o) => !o && !resetPassword.isPending && close()}
     >
       <DialogContent className="dialog--sm">
-        <DialogTitle>Ganti Password</DialogTitle>
+        <DialogTitle>Reset Password</DialogTitle>
         <DialogDescription>
           {member?.name}
-          {member?.username ? ` (login: ${member.username})` : ""} — password
-          baru langsung berlaku dan dia akan dikeluarkan dari semua perangkat.
+          {member?.username ? ` (login: ${member.username})` : ""} — dia
+          dikeluarkan dari semua perangkat dan wajib membuat password baru
+          sendiri saat login berikutnya.
         </DialogDescription>
         <form
           onSubmit={(e) => {
@@ -123,7 +124,7 @@ export function ResetPasswordDialog({
           <DialogBody>
             <div className="field">
               <label className="label" htmlFor={`${fieldId}-new`}>
-                Password Baru
+                Password Sementara
               </label>
               <div className="relative">
                 <input
@@ -167,7 +168,7 @@ export function ResetPasswordDialog({
             </div>
             <div className="field">
               <label className="label" htmlFor={`${fieldId}-confirm`}>
-                Ulangi Password Baru
+                Ulangi Password Sementara
               </label>
               <input
                 id={`${fieldId}-confirm`}
@@ -206,7 +207,7 @@ export function ResetPasswordDialog({
               className="btn btn--primary"
               disabled={!canSubmit}
             >
-              {resetPassword.isPending ? "Menyimpan…" : "Simpan Password"}
+              {resetPassword.isPending ? "Menyimpan…" : "Reset Password"}
             </button>
           </DialogFooter>
         </form>

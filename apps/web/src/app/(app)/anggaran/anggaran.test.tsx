@@ -11,6 +11,10 @@
 
 import type { ReactElement, ReactNode } from "react";
 import {
+  resolveEffectiveAccess,
+  type MemberRoleKey,
+} from "@wealthme/contracts";
+import {
   render as rtlRender,
   screen,
   waitFor,
@@ -88,6 +92,12 @@ function mockSession(
     isPending: false,
   });
   mockApiFetch.mockImplementation((path: string, options?: RequestInit) => {
+    // EPIC-030 — menu/permission gating reads the resolved IAM access.
+    if (path.endsWith("/access/me")) {
+      return Promise.resolve(
+        resolveEffectiveAccess({ role: role as MemberRoleKey }),
+      );
+    }
     if (path.endsWith("/family-groups/mine")) {
       return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: role }]);
     }

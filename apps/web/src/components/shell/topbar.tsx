@@ -5,11 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { Bell, LogOut, Plus, Search } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
-import { isPageTitleId } from "@/lib/nav";
+import { canRecordTransaction, isPageTitleId } from "@/lib/nav";
 import { useAuth } from "@/components/providers/auth-provider";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import { useMyAccess } from "@/hooks/use-my-access";
 import type { I18nDictionary } from "@/i18n/types";
 import { NavSheet } from "./nav-sheet";
 import { ThemePicker } from "./theme-picker";
@@ -30,6 +31,7 @@ function usePageTitle(t: I18nDictionary): string {
  * both is present here.
  */
 export function Topbar() {
+  const { access } = useMyAccess();
   const { t } = useLocale();
   const title = usePageTitle(t);
   const { setSearchOpen, setTxnOpen } = useShell();
@@ -72,15 +74,17 @@ export function Topbar() {
         <span>{t.shell.searchPlaceholder}</span>
         <span className="kbd">⌘K</span>
       </button>
-      <button
-        type="button"
-        onClick={() => setTxnOpen(true)}
-        className="btn btn--primary btn--sm topbar__txn"
-        aria-label={t.shell.addTransaction}
-      >
-        <Plus className="size-[15px] shrink-0" aria-hidden="true" />
-        <span>{t.shell.addTransaction}</span>
-      </button>
+      {canRecordTransaction(access) && (
+        <button
+          type="button"
+          onClick={() => setTxnOpen(true)}
+          className="btn btn--primary btn--sm topbar__txn"
+          aria-label={t.shell.addTransaction}
+        >
+          <Plus className="size-[15px] shrink-0" aria-hidden="true" />
+          <span>{t.shell.addTransaction}</span>
+        </button>
+      )}
       <ThemeToggle />
       <Link
         href="/notifikasi"

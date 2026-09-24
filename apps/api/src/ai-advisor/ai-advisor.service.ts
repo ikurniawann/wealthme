@@ -5,6 +5,7 @@ import {
   canSeePrivateItems,
   categoryPrivacyWhere,
   transactionPrivacyWhere,
+  type ScopeSubject,
 } from "../common/utils/privacy.util";
 // VALUE import, deliberately — see the AiAdvisorFactory comment below for why
 // a `type` import here stops the API from booting. `eslint --fix` rewrote this
@@ -64,7 +65,6 @@ import type {
   AdvisorContext,
   AdvisorMessage,
 } from "./ai-advisor.port";
-import type { Role } from "@prisma/client";
 
 @Injectable()
 export class AiAdvisorService {
@@ -86,7 +86,7 @@ export class AiAdvisorService {
    */
   buildToolRunner(
     familyGroupId: string,
-    viewerRole: Role | null | undefined,
+    viewerRole: ScopeSubject,
   ): AdvisorToolRunner {
     const canSeePrivate = canSeePrivateItems(viewerRole);
     const txPrivacy = transactionPrivacyWhere(canSeePrivate);
@@ -233,7 +233,7 @@ export class AiAdvisorService {
    */
   async buildContext(
     familyGroupId: string,
-    viewerRole: Role | null | undefined,
+    viewerRole: ScopeSubject,
   ): Promise<AdvisorContext> {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -408,7 +408,7 @@ export class AiAdvisorService {
     familyGroupId: string,
     messages: AdvisorMessage[],
     onToken: (token: string) => void,
-    viewerRole?: Role | null,
+    viewerRole?: ScopeSubject,
   ): Promise<AdvisorChatResult> {
     const resolvedKey =
       await this.aiKeyService.resolveDecryptedKey(familyGroupId);

@@ -27,6 +27,7 @@ import { memoryStorage } from "multer";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CommitStatementDraftDto } from "./dto/commit-statement-draft.dto";
@@ -80,6 +81,7 @@ const MAX_STATEMENT_FILE_BYTES = 20 * 1024 * 1024;
 
 @ApiTags("reconciliation")
 @ApiBearerAuth()
+@PageAccess("reconciliation")
 @Controller("family-groups/:familyGroupId/reconciliation")
 export class ReconciliationController {
   private readonly logger = new Logger(ReconciliationController.name);

@@ -17,9 +17,11 @@ import {
 } from "../categorization/categorization.port";
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 import {
+  isRowScoped,
   isRowScopedRole,
   restrictedTransactionWhere,
   transactionPrivacyWhere,
+  type ScopeSubject,
 } from "../common/utils/privacy.util";
 import {
   NOTIFICATION_SENDER_PORT,
@@ -57,7 +59,13 @@ import type { Prisma, TransactionType } from "@prisma/client";
 // like the pre-existing `canSeePrivate = true` default elsewhere in this file.
 // `userId` (EPIC-023 Task C) is needed to stamp `createdByUserId` and to
 // enforce the row-scoped roles' "own account only" invariant in `create()`.
-export type ActingMember = { id: string; userId: string; role: Role } | null;
+export type ActingMember = {
+  id: string;
+  userId: string;
+  role: Role;
+  /** EPIC-030 — effective data scope; absent → the built-in role rule. */
+  rowScoped?: boolean;
+} | null;
 
 // EPIC-021 Group B #28 — description for the linked admin-fee expense
 // auto-created on the destination account of a transfer (e.g. e-wallet
@@ -90,7 +98,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionListResponseDto> {
     const page = query.page ?? 1;
@@ -142,7 +150,7 @@ export class TransactionsService {
     familyGroupId: string,
     id: string,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionResponseDto> {
     // findFirst (not findUnique) so the relation-based privacy filter can apply:
@@ -754,7 +762,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionSummaryDto> {
     return this.computeSummary(
@@ -825,7 +833,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ) {
     // `transactionPrivacyWhere`, `restrictedTransactionWhere` (EPIC-023 Task
@@ -867,7 +875,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionSummaryDto> {
     const where = this.buildWhere(
@@ -993,7 +1001,9 @@ export class TransactionsService {
     account: { ownerUserId: string | null },
     actingMember?: ActingMember,
   ): void {
-    if (!actingMember || !isRowScopedRole(actingMember.role)) return;
+    // EPIC-030 — effective scope: a Master-customised "own data" role is held
+    // to its own accounts on writes too, not only on reads.
+    if (!actingMember || !isRowScoped(actingMember)) return;
     if (account.ownerUserId !== actingMember.userId) {
       throw new ForbiddenException(
         "This role may only record transactions on an account they own",

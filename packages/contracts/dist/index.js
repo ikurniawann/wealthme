@@ -547,9 +547,162 @@ var ATTACHMENT_ACCEPTED_MIME_TYPES = [
   "image/webp",
   "application/pdf"
 ];
+
+// src/access/index.ts
+import { z as z11 } from "zod";
+var ACCESS_PAGES = [
+  "beranda",
+  "ringkasan",
+  "transaksi",
+  "anggaran",
+  "laporan",
+  "tujuan",
+  "dana",
+  "rekening",
+  "investasi",
+  "aset",
+  "liabilitas",
+  "asuransi",
+  "warisan",
+  "donation",
+  "tax",
+  "persetujuan",
+  "splitbill",
+  "rekonsiliasi",
+  "ai",
+  "kalkulator",
+  "quickinput",
+  "mastercoa",
+  "masterdata"
+];
+var AccessPageSchema = z11.enum(ACCESS_PAGES);
+var ALWAYS_OPEN_PAGES = [
+  "akun",
+  "akses-saya",
+  "notifikasi",
+  "panduan"
+];
+var ACCESS_LEVELS = ["none", "view", "manage"];
+var AccessLevelSchema = z11.enum(ACCESS_LEVELS);
+var AccessDataScopeSchema = z11.enum(["all", "own"]);
+var AccessPermissionsSchema = z11.record(z11.string(), AccessLevelSchema).transform((raw) => {
+  const clean = {};
+  for (const [page, level] of Object.entries(raw)) {
+    if (AccessPageSchema.safeParse(page).success) {
+      clean[page] = level;
+    }
+  }
+  return clean;
+});
+var all = (level) => Object.fromEntries(ACCESS_PAGES.map((p) => [p, level]));
+var LEGACY_ACCESS_PRESETS = {
+  // Everything except Persetujuan (ownerOnly in the nav) and IAM.
+  spouse: {
+    permissions: { ...all("manage"), persetujuan: "none" },
+    dataScope: "all"
+  },
+  member: {
+    permissions: {
+      ...all("manage"),
+      beranda: "view",
+      ringkasan: "view",
+      laporan: "view",
+      dana: "view",
+      rekening: "view",
+      persetujuan: "none",
+      ai: "view",
+      kalkulator: "view",
+      mastercoa: "view",
+      masterdata: "view"
+    },
+    dataScope: "all"
+  },
+  // Bookkeeper: reads everything, works reconciliation and records transactions.
+  admin_staff: {
+    permissions: {
+      ...all("view"),
+      persetujuan: "none",
+      rekonsiliasi: "manage",
+      transaksi: "manage",
+      quickinput: "manage"
+    },
+    dataScope: "all"
+  },
+  dependant: {
+    permissions: {
+      transaksi: "manage",
+      quickinput: "manage",
+      dana: "view",
+      rekening: "view",
+      warisan: "view"
+    },
+    dataScope: "own"
+  },
+  operational: {
+    permissions: {
+      transaksi: "manage",
+      quickinput: "manage",
+      dana: "view",
+      rekening: "view"
+    },
+    dataScope: "own"
+  }
+};
+var LEVEL_RANK = { none: 0, view: 1, manage: 2 };
+function levelAtLeast(have, need) {
+  return LEVEL_RANK[have] >= LEVEL_RANK[need];
+}
+function resolveEffectiveAccess(input) {
+  if (input.role === "owner") {
+    return {
+      isMaster: true,
+      permissions: all("manage"),
+      dataScope: "all",
+      source: "master",
+      hasOverrides: false
+    };
+  }
+  const base = input.accessRole ?? LEGACY_ACCESS_PRESETS[input.role];
+  const permissions = Object.fromEntries(
+    ACCESS_PAGES.map((page) => [
+      page,
+      input.overrides?.[page] ?? base.permissions[page] ?? "none"
+    ])
+  );
+  return {
+    isMaster: false,
+    permissions,
+    dataScope: base.dataScope,
+    source: input.accessRole ? "custom-role" : "legacy",
+    hasOverrides: Object.keys(input.overrides ?? {}).length > 0
+  };
+}
+function canAccessPage(access, page, need = "view") {
+  return access.isMaster || levelAtLeast(access.permissions[page], need);
+}
+var AccessRoleInputSchema = z11.object({
+  name: z11.string().trim().min(1).max(60),
+  description: z11.string().trim().max(200).nullable().optional(),
+  dataScope: AccessDataScopeSchema,
+  permissions: AccessPermissionsSchema
+});
+var MemberAccessInputSchema = z11.object({
+  /** null = no custom role (use the built-in role's preset). */
+  accessRoleId: z11.string().min(1).nullable(),
+  /** Sparse overrides on top of the role; {} clears them. */
+  overrides: AccessPermissionsSchema
+});
 export {
+  ACCESS_LEVELS,
+  ACCESS_PAGES,
+  ALWAYS_OPEN_PAGES,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
+  AccessDataScopeSchema,
+  AccessLevelSchema,
+  AccessPageSchema,
+  AccessPermissionsSchema,
+  AccessRoleInputSchema,
   AccountDtoSchema,
   AccountOwnerFilterSchema,
   AccountTypeSchema,
@@ -570,7 +723,9 @@ export {
   DEFAULT_ROLE_BY_RELATIONSHIP,
   GENERIC_COA_CHART,
   HeldExpenseResponseSchema,
+  LEGACY_ACCESS_PRESETS,
   LoginInputSchema,
+  MemberAccessInputSchema,
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
   REFERENCE_ITEM_DEFAULTS,
@@ -587,6 +742,9 @@ export {
   TransactionTypeSchema,
   UpdateAccountInputSchema,
   buildReferenceItemSeed,
+  canAccessPage,
   defaultCoaCodeForCategory,
-  defaultRoleForRelationship
+  defaultRoleForRelationship,
+  levelAtLeast,
+  resolveEffectiveAccess
 };

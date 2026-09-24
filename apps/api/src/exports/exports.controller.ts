@@ -10,6 +10,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import {
   assertHouseholdWideReadAllowed,
   canSeePrivateItems,
@@ -26,6 +27,7 @@ import type { Request } from "express";
 
 @ApiTags("exports")
 @ApiBearerAuth()
+@PageAccess("exports")
 @Controller("family-groups/:familyGroupId/exports")
 export class ExportsController {
   constructor(private readonly exportsService: ExportsService) {}
@@ -66,7 +68,7 @@ export class ExportsController {
     // EPIC-023 Task C — exports repackage the same family-wide reports as
     // ReportsController; denied outright for dependant/operational for the
     // identical reason (see reports.controller.ts).
-    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member);
     // Snapshotted now — the job runs later on a background worker with no
     // request scope, so the requester's privacy visibility must travel with it.
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
@@ -88,7 +90,7 @@ export class ExportsController {
     // EPIC-023 Task C — defense-in-depth: a dependant/operational could
     // otherwise poll another member's real jobId (this route has no other
     // per-role check) and read its status/download link.
-    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member);
     return Promise.resolve(
       this.exportsService.getJobStatus(jobId, familyGroupId),
     );

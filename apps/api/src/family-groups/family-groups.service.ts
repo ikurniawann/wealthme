@@ -15,6 +15,7 @@ import { ConfigService } from "@nestjs/config";
 import { MemberRelationship, Prisma, Role } from "@prisma/client";
 import * as argon2 from "argon2";
 
+import { parsePermissions } from "../access/member-access.util";
 import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
@@ -169,7 +170,10 @@ export class FamilyGroupsService {
     await this.assertMember(familyGroupId, requesterId);
     const members = await this.prisma.member.findMany({
       where: { familyGroupId },
-      include: { user: { select: MEMBER_USER_SELECT } },
+      include: {
+        user: { select: MEMBER_USER_SELECT },
+        accessRole: { select: { name: true } },
+      },
       orderBy: { createdAt: "asc" },
     });
 
@@ -183,6 +187,9 @@ export class FamilyGroupsService {
       email: m.user.email,
       username: m.user.username,
       managedLogin: isManagedLogin(m.user.email),
+      accessRoleId: m.accessRoleId,
+      accessRoleName: m.accessRole?.name ?? null,
+      accessOverrides: parsePermissions(m.accessOverrides),
       createdAt: m.createdAt.toISOString(),
       largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
     }));
@@ -335,8 +342,10 @@ export class FamilyGroupsService {
    * refused: they own their credential, and letting one owner silently take
    * over another's email login would be an account-takeover primitive.
    *
-   * The new password is final (mustChangePassword cleared, product decision)
-   * and every live session of the member is revoked so the old password's
+   * The password is TEMPORARY: mustChangePassword is set, so the member's
+   * next login is sent to /ubah-password-wajib (ForcePasswordChangeGuard)
+   * and must pick their own — the Master never knows the final password.
+   * Every live session of the member is revoked so the old password's
    * sessions cannot outlive the change.
    */
   async resetMemberPassword(
@@ -389,7 +398,7 @@ export class FamilyGroupsService {
       }
       await tx.user.update({
         where: { id: member.userId },
-        data: { mustChangePassword: false },
+        data: { mustChangePassword: true },
       });
     });
 

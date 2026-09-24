@@ -11,6 +11,9 @@ export const queryKeys = {
     // EPIC-027 A8 — the "Anggota Nonaktif" panel on /iam.
     removedMembers: (id: string) =>
       ["familyGroups", id, "members", "removed"] as const,
+    // EPIC-030 — IAM.
+    myAccess: (id: string) => ["familyGroups", id, "access", "me"] as const,
+    accessRoles: (id: string) => ["familyGroups", id, "access-roles"] as const,
   },
   transactions: {
     all: (familyGroupId: string) => ["transactions", familyGroupId] as const,

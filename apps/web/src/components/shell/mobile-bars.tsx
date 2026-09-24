@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Plus } from "lucide-react";
-import { mobileNavForRole } from "@/lib/nav";
+import { canRecordTransaction, mobileNavForAccess } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/hooks/use-locale";
-import { useMyRole } from "@/hooks/use-my-role";
+import { useMyAccess } from "@/hooks/use-my-access";
 import { useVisualViewportInset } from "@/hooks/use-visual-viewport-inset";
 import { useShell } from "./shell-context";
 
@@ -20,7 +20,9 @@ export function MobileNav() {
   const pathname = usePathname();
   const { setTxnOpen } = useShell();
   const { t } = useLocale();
-  const { myRole } = useMyRole();
+  const { access } = useMyAccess();
+  // The "Tambah transaksi" FAB only for members who may record one.
+  const canAddTxn = canRecordTransaction(access);
   // Keeps both bars pinned to the visual viewport while a mobile browser's URL
   // bar collapses/expands — see the hook for why `position: fixed` alone is
   // not enough on a real phone.
@@ -28,16 +30,18 @@ export function MobileNav() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setTxnOpen(true)}
-        aria-label={t.shell.addTransaction}
-        className="mobile-fab"
-      >
-        <Plus className="size-5" aria-hidden="true" />
-      </button>
+      {canAddTxn && (
+        <button
+          type="button"
+          onClick={() => setTxnOpen(true)}
+          aria-label={t.shell.addTransaction}
+          className="mobile-fab"
+        >
+          <Plus className="size-5" aria-hidden="true" />
+        </button>
+      )}
       <nav className="mobile-nav" aria-label={t.shell.mobileNavTitle}>
-        {mobileNavForRole(myRole).map((item) => {
+        {mobileNavForAccess(access).map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href;
           return (

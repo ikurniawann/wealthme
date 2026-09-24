@@ -12,6 +12,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
+import { resolveEffectiveAccess } from "@wealthme/contracts";
 import { render as rtlRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -138,6 +139,10 @@ describe("MasterDataPage — category delete surfaces the real server message (E
       // F3 — `useCanManage("Category")` resolves the signed-in role via
       // this endpoint; an "owner" role keeps the edit/delete affordances
       // this suite asserts on visible.
+      // EPIC-030 — menu/permission gating reads the resolved IAM access.
+      if (path.endsWith("/access/me")) {
+        return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+      }
       if (path.endsWith("/family-groups/mine")) {
         return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
       }
@@ -185,6 +190,10 @@ describe("MasterDataPage — reference items are real API-backed data (EPIC-024 
       // F3 — `useCanManage("Category"/"ReferenceItem")` resolves the role
       // via this endpoint; an "owner" role keeps the add/delete affordances
       // this suite asserts on visible.
+      // EPIC-030 — menu/permission gating reads the resolved IAM access.
+      if (path.endsWith("/access/me")) {
+        return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+      }
       if (path.endsWith("/family-groups/mine")) {
         return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
       }

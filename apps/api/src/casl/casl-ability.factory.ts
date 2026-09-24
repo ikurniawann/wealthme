@@ -6,6 +6,14 @@ import {
 import { Injectable } from "@nestjs/common";
 import { Role } from "@prisma/client";
 
+import {
+  canReadResource,
+  canWriteResource,
+  type ResourceKey,
+} from "../access/resource-access";
+
+import type { EffectiveAccess } from "@wealthme/contracts";
+
 export type Action = "manage" | "create" | "read" | "update" | "delete";
 export type Subject =
   | "Account"
@@ -36,9 +44,70 @@ export type Subject =
 
 export type AppAbility = MongoAbility<[Action, Subject]>;
 
+/** EPIC-030 — CASL subject → IAM resource (see access/resource-access.ts). */
+const SUBJECT_RESOURCE: ReadonlyArray<[Subject, ResourceKey]> = [
+  ["Account", "accounts"],
+  ["Transaction", "transactions"],
+  ["Category", "categories"],
+  ["ReferenceItem", "reference-items"],
+  ["CoaAccount", "coa-accounts"],
+  ["Budget", "budgets"],
+  ["Goal", "goals"],
+  ["Liability", "liabilities"],
+  ["Insurance", "insurances"],
+  ["Investment", "investments"],
+  ["Asset", "assets"],
+  ["Inheritance", "inheritance"],
+  ["Donation", "donations"],
+  ["TaxRecord", "tax"],
+  ["SplitBill", "split-bills"],
+  ["Reconciliation", "reconciliation"],
+  ["ReconciliationTemplate", "reconciliation"],
+  ["AiKey", "ai-key"],
+  ["AllowanceRequest", "allowance-requests.decide"],
+];
+
 @Injectable()
 export class CaslAbilityFactory {
-  createForMember(member: { role: Role }): AppAbility {
+  /**
+   * EPIC-030 — once the Master customises a member (custom role or any
+   * override), their grants come from the IAM page map instead of the fixed
+   * per-role switch below; otherwise the switch applies unchanged.
+   */
+  createForMember(
+    member: { role: Role },
+    access?: EffectiveAccess | null,
+  ): AppAbility {
+    if (
+      access &&
+      !access.isMaster &&
+      (access.source === "custom-role" || access.hasOverrides)
+    ) {
+      return this.createFromAccess(access);
+    }
+    return this.createForRole(member);
+  }
+
+  private createFromAccess(access: EffectiveAccess): AppAbility {
+    const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
+    for (const [subject, resource] of SUBJECT_RESOURCE) {
+      if (canWriteResource(access, resource)) can("manage", subject);
+      else if (canReadResource(access, resource)) can("read", subject);
+    }
+    // Baseline every family member has regardless of pages: read the family
+    // and its members, ask for money / see their own requests, and read +
+    // mark their own notifications (services row-scope these).
+    can("read", "FamilyGroup");
+    can("read", "Member");
+    can("read", "MemberCategoryAllowance");
+    can("create", "AllowanceRequest");
+    can("read", "AllowanceRequest");
+    can("read", "Notification");
+    can("update", "Notification");
+    return build();
+  }
+
+  private createForRole(member: { role: Role }): AppAbility {
     const { can, build } = new AbilityBuilder<AppAbility>(createMongoAbility);
 
     switch (member.role) {

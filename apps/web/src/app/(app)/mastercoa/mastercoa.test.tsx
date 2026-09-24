@@ -9,6 +9,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
+import { resolveEffectiveAccess } from "@wealthme/contracts";
 import {
   render as rtlRender,
   screen,
@@ -127,6 +128,10 @@ function mockCoaRoutes(accounts: CoaAccountFixture[]) {
       // F3 — `useCanManage("CoaAccount")` resolves the signed-in role via
       // this endpoint; an "owner" role keeps the add/edit/delete
       // affordances this suite asserts on visible.
+      // EPIC-030 — menu/permission gating reads the resolved IAM access.
+      if (path.endsWith("/access/me")) {
+        return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+      }
       if (path.endsWith("/family-groups/mine")) {
         return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
       }
@@ -241,6 +246,10 @@ describe("MasterCoaPage — COA code auto-gen + editable (EPIC-021 #4)", () => {
       (path: string, options?: RequestInit & { method?: string }) => {
         const method = options?.method ?? "GET";
         if (path.endsWith("/categories")) return Promise.resolve([]);
+        // EPIC-030 — menu/permission gating reads the resolved IAM access.
+        if (path.endsWith("/access/me")) {
+          return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+        }
         if (path.endsWith("/family-groups/mine")) {
           return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
         }

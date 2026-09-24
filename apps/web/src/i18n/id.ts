@@ -209,6 +209,7 @@ export const id = {
       akun: "Akun",
       "akses-saya": "Akses Saya",
       notifikasi: "Notifikasi",
+      panduan: "Panduan",
     },
     transactionDialog: {
       tabIncome: "📥 Pemasukan",

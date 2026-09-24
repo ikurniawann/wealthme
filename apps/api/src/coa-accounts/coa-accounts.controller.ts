@@ -19,6 +19,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CoaAccountsService } from "./coa-accounts.service";
@@ -30,6 +31,7 @@ import { UpdateCoaAccountDto } from "./dto/update-coa-account.dto";
 
 @ApiTags("coa-accounts")
 @ApiBearerAuth()
+@PageAccess("coa-accounts")
 @Controller("family-groups/:familyGroupId/coa-accounts")
 export class CoaAccountsController {
   constructor(private readonly coaAccountsService: CoaAccountsService) {}

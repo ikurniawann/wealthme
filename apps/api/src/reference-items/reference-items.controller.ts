@@ -22,6 +22,7 @@ import { ReferenceItemGroup } from "@prisma/client";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateReferenceItemDto } from "./dto/create-reference-item.dto";
@@ -31,6 +32,7 @@ import { ReferenceItemsService } from "./reference-items.service";
 
 @ApiTags("reference-items")
 @ApiBearerAuth()
+@PageAccess("reference-items")
 @Controller("family-groups/:familyGroupId/reference-items")
 export class ReferenceItemsController {
   constructor(private readonly referenceItemsService: ReferenceItemsService) {}

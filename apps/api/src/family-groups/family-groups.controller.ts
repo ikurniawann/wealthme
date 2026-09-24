@@ -23,6 +23,7 @@ import { type Request as ExpressRequest } from "express";
 import { type JwtPayload } from "../auth/strategies/jwt.strategy";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -54,6 +55,7 @@ interface AuthRequest extends ExpressRequest {
 
 @ApiTags("family-groups")
 @ApiBearerAuth()
+@PageAccess("family-groups")
 @Controller("family-groups")
 export class FamilyGroupsController {
   constructor(private readonly familyGroupsService: FamilyGroupsService) {}

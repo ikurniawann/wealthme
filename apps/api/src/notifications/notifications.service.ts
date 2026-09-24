@@ -1,11 +1,11 @@
 import { Injectable } from "@nestjs/common";
 
-import { isRowScopedRole } from "../common/utils/privacy.util";
+import { isRowScoped, type ScopeSubject } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
 import type { MarkReadDto } from "./dto/mark-read.dto";
-import type { Prisma, Role } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 
 type NotificationDto = {
   id: string;
@@ -39,9 +39,11 @@ type NotificationDto = {
 function visibilityWhere(
   familyGroupId: string,
   viewerUserId: string,
-  role: Role | null | undefined,
+  role: ScopeSubject,
 ): Prisma.NotificationWhereInput {
-  if (isRowScopedRole(role)) {
+  // EPIC-030 — effective data scope (a Master-customised role), not just the
+  // built-in type.
+  if (isRowScoped(role)) {
     return { familyGroupId, userId: viewerUserId };
   }
   return {
@@ -57,7 +59,7 @@ export class NotificationsService {
   async findAll(
     familyGroupId: string,
     viewerUserId: string,
-    role: Role | null | undefined,
+    role: ScopeSubject,
   ): Promise<NotificationDto[]> {
     const rows = await this.prisma.notification.findMany({
       where: visibilityWhere(familyGroupId, viewerUserId, role),
@@ -81,7 +83,7 @@ export class NotificationsService {
   async getUnreadCount(
     familyGroupId: string,
     viewerUserId: string,
-    role: Role | null | undefined,
+    role: ScopeSubject,
   ): Promise<{ count: number }> {
     const count = await this.prisma.notification.count({
       where: {
@@ -95,7 +97,7 @@ export class NotificationsService {
   async markRead(
     familyGroupId: string,
     viewerUserId: string,
-    role: Role | null | undefined,
+    role: ScopeSubject,
     dto: MarkReadDto,
   ): Promise<{ updated: number }> {
     // The visibility clause is what stops "mark all read" from reaching rows

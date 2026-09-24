@@ -42,6 +42,7 @@ export class AbilitiesGuard implements CanActivate {
 
     const ability = this.caslAbilityFactory.createForMember(
       tenantContext.member,
+      tenantContext.access,
     );
 
     const allAllowed = handlers.every((handler) => handler(ability));

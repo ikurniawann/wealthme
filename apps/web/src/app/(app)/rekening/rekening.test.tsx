@@ -11,6 +11,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
+import { resolveEffectiveAccess } from "@wealthme/contracts";
 import { render as rtlRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -127,6 +128,10 @@ function mockApiRoutes(accounts: AccountDto[]) {
       // endpoint; an "owner" role keeps every create/edit/delete affordance
       // this suite already asserts on visible (CASL grants owner "manage
       // Account" — see casl-ability.factory.ts).
+      // EPIC-030 — menu/permission gating reads the resolved IAM access.
+      if (path.endsWith("/access/me")) {
+        return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+      }
       if (path.endsWith("/family-groups/mine")) {
         return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
       }

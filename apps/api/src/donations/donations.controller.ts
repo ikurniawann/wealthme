@@ -21,6 +21,7 @@ import {
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DonationsService } from "./donations.service";
@@ -32,6 +33,7 @@ import { UpdateDonationDto } from "./dto/update-donation.dto";
 
 @ApiTags("donations")
 @ApiBearerAuth()
+@PageAccess("donations")
 @Controller("family-groups/:familyGroupId/donations")
 export class DonationsController {
   constructor(private readonly donationsService: DonationsService) {}

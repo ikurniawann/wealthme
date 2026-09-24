@@ -14,6 +14,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
+import { resolveEffectiveAccess } from "@wealthme/contracts";
 import {
   render as rtlRender,
   screen,
@@ -92,6 +93,10 @@ const mockApiFetch = jest.fn(
     if (url.includes("/categories")) return Promise.resolve([]);
     // EPIC-022 D5 — useCanManage("Asset") now runs on this page (RowActions
     // edit/delete gating); it depends on useMyRole's `/family-groups/mine`.
+    // EPIC-030 — menu/permission gating reads the resolved IAM access.
+    if (url.includes("/access/me")) {
+      return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+    }
     if (url.includes("/family-groups/mine")) {
       return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
     }

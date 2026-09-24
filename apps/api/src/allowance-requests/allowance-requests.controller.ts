@@ -16,9 +16,11 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { Role } from "@prisma/client";
+import { canAccessPage } from "@wealthme/contracts";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
+import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AllowanceRequestsService } from "./allowance-requests.service";
@@ -49,6 +51,7 @@ function requireMember(req: Request) {
 
 @ApiTags("allowance-requests")
 @ApiBearerAuth()
+@PageAccess("allowance-requests")
 @Controller("family-groups/:familyGroupId/allowance-requests")
 export class AllowanceRequestsController {
   constructor(
@@ -92,10 +95,13 @@ export class AllowanceRequestsController {
     // "manage AllowanceRequest" (D2, full financial co-owner) and CAN
     // approve/reject, but was missing from this list here, so they could
     // never discover a request to act on in the first place.
+    // EPIC-030 — or anyone the Master granted the Persetujuan page.
+    const access = req.tenantContext?.access;
     const canSeeAll =
       member.role === Role.owner ||
       member.role === Role.admin_staff ||
-      member.role === Role.spouse;
+      member.role === Role.spouse ||
+      (access != null && canAccessPage(access, "persetujuan", "view"));
     return this.allowanceRequestsService.findAll(
       familyGroupId,
       member.userId,
@@ -104,6 +110,7 @@ export class AllowanceRequestsController {
   }
 
   @Patch(":id/approve")
+  @PageAccess("allowance-requests.decide")
   @CheckAbility((ab: AppAbility) => ab.can("manage", "AllowanceRequest"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })
@@ -128,6 +135,7 @@ export class AllowanceRequestsController {
   }
 
   @Patch(":id/reject")
+  @PageAccess("allowance-requests.decide")
   @CheckAbility((ab: AppAbility) => ab.can("manage", "AllowanceRequest"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "id", type: String })

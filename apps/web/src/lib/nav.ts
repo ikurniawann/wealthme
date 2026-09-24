@@ -23,10 +23,17 @@ import {
   ShieldCheck,
   Target,
   User,
+  UserCheck,
   Wallet,
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import {
+  ALWAYS_OPEN_PAGES,
+  AccessPageSchema,
+  canAccessPage,
+  type EffectiveAccess,
+} from "@wealthme/contracts";
 
 export type BadgeVariant = "danger" | "new-purple" | "new-success";
 
@@ -334,6 +341,8 @@ export const MOBILE_NAV_IDS = [
   // `mobileNavForRole`. Both of those call household-wide endpoints that
   // `assertHouseholdWideReadAllowed` denies outright for dependant/operational.
   "akses-saya",
+  // EPIC-030 — last-resort fourth item for a member granted very little.
+  "panduan",
 ] as const;
 
 export type MobileNavId = (typeof MOBILE_NAV_IDS)[number];
@@ -374,4 +383,89 @@ export function mobileNavForRole(
     { id: "notifikasi", href: "/notifikasi", icon: Bell },
     { id: "akun", href: "/akun", icon: User },
   ];
+}
+
+// ── EPIC-030 — IAM page access ─────────────────────────────────────────────
+// The Master's grants (custom role + per-member overrides, resolved by the
+// API at GET /family-groups/:id/access/me) now decide the menu and routes.
+// `undefined` = still loading (permissive, so nobody's menu flickers shut);
+// `null` = no active membership (nothing). The API enforces the same grants.
+
+const ALWAYS_OPEN: readonly string[] = ALWAYS_OPEN_PAGES;
+
+function pageAllowed(page: string, access: EffectiveAccess): boolean {
+  if (access.isMaster) return true;
+  if (ALWAYS_OPEN.includes(page)) return true;
+  if (page === "iam") return false;
+  const parsed = AccessPageSchema.safeParse(page);
+  return parsed.success && canAccessPage(access, parsed.data, "view");
+}
+
+/** Whether `access` shows nav item `item` in the sidebar. */
+export function isNavItemVisibleForAccess(
+  item: Pick<NavItem, "id" | "ownerOnly">,
+  access: EffectiveAccess | null | undefined,
+): boolean {
+  if (access === null) return false;
+  if (access === undefined) return !item.ownerOnly;
+  return pageAllowed(item.id, access);
+}
+
+/** Whether `access` may open `pathname` (first path segment). */
+export function isRouteAllowedForAccess(
+  pathname: string,
+  access: EffectiveAccess | null | undefined,
+): boolean {
+  if (access === undefined) return true;
+  const seg = pathname.split("/").filter(Boolean)[0];
+  if (access === null) return seg === "akun" || seg === "akses-saya";
+  if (!seg) return access.isMaster || canAccessPage(access, "beranda");
+  return pageAllowed(seg, access);
+}
+
+/**
+ * Four bottom-bar items (the centred FAB needs an even count): Beranda /
+ * Transaksi / Laporan / Akun when granted, falling back to Akses Saya and
+ * Notifikasi, which every member may open.
+ */
+export function mobileNavForAccess(
+  access: EffectiveAccess | null | undefined,
+): MobileNavItem[] {
+  if (access === undefined || access?.isMaster) return MOBILE_NAV;
+  if (access === null) {
+    return [
+      { id: "akses-saya", href: "/akses-saya", icon: UserCheck },
+      { id: "notifikasi", href: "/notifikasi", icon: Bell },
+      { id: "panduan", href: "/panduan", icon: HelpCircle },
+      MOBILE_NAV.find((i) => i.id === "akun")!,
+    ];
+  }
+  const byId = new Map(MOBILE_NAV.map((i) => [i.id, i]));
+  const picks: MobileNavItem[] = [];
+  if (canAccessPage(access, "beranda")) picks.push(byId.get("beranda")!);
+  else picks.push({ id: "akses-saya", href: "/akses-saya", icon: Home });
+  if (canAccessPage(access, "transaksi")) picks.push(byId.get("transaksi")!);
+  if (canAccessPage(access, "laporan")) picks.push(byId.get("laporan")!);
+  const fallbacks: MobileNavItem[] = [
+    { id: "notifikasi", href: "/notifikasi", icon: Bell },
+    { id: "akses-saya", href: "/akses-saya", icon: UserCheck },
+    { id: "panduan", href: "/panduan", icon: HelpCircle },
+  ];
+  for (const f of fallbacks) {
+    if (picks.length >= 3) break;
+    if (!picks.some((p) => p.id === f.id)) picks.push(f);
+  }
+  return [...picks.slice(0, 3), byId.get("akun")!];
+}
+
+/** Whether the global "Tambah transaksi" button makes sense for `access`. */
+export function canRecordTransaction(
+  access: EffectiveAccess | null | undefined,
+): boolean {
+  if (access === undefined) return true;
+  if (access === null) return false;
+  return (
+    canAccessPage(access, "transaksi", "manage") ||
+    canAccessPage(access, "quickinput", "manage")
+  );
 }

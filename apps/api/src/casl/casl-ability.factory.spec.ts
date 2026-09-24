@@ -313,3 +313,44 @@ describe("CaslAbilityFactory", () => {
     });
   });
 });
+
+describe("CaslAbilityFactory — EPIC-030 page-derived grants", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { resolveEffectiveAccess } = require("@wealthme/contracts");
+  const factory = new CaslAbilityFactory();
+
+  it("keeps the fixed role switch for an uncustomised member", () => {
+    const access = resolveEffectiveAccess({ role: "dependant" });
+    const ab = factory.createForMember({ role: Role.dependant }, access);
+    expect(ab.can("create", "Transaction")).toBe(true);
+    expect(ab.can("update", "Transaction")).toBe(false); // legacy: create only
+  });
+
+  it("derives grants from the custom role's pages", () => {
+    const access = resolveEffectiveAccess({
+      role: "dependant",
+      accessRole: {
+        dataScope: "own",
+        permissions: { investasi: "manage", tujuan: "view" },
+      },
+    });
+    const ab = factory.createForMember({ role: Role.dependant }, access);
+    expect(ab.can("manage", "Investment")).toBe(true);
+    expect(ab.can("read", "Goal")).toBe(true);
+    expect(ab.can("update", "Goal")).toBe(false);
+    expect(ab.can("read", "TaxRecord")).toBe(false);
+    expect(ab.can("create", "Transaction")).toBe(false);
+    expect(ab.can("manage", "Member")).toBe(false);
+    expect(ab.can("create", "AllowanceRequest")).toBe(true);
+  });
+
+  it("an override alone switches to page-derived grants", () => {
+    const access = resolveEffectiveAccess({
+      role: "member",
+      overrides: { tax: "none" },
+    });
+    const ab = factory.createForMember({ role: Role.member }, access);
+    expect(ab.can("read", "TaxRecord")).toBe(false);
+    expect(ab.can("manage", "Investment")).toBe(true);
+  });
+});

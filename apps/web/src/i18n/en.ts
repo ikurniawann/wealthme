@@ -206,6 +206,7 @@ export const en = {
       akun: "Account",
       "akses-saya": "My Access",
       notifikasi: "Notifications",
+      panduan: "Guide",
     },
     transactionDialog: {
       tabIncome: "📥 Income",
