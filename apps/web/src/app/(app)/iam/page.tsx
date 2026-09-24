@@ -552,7 +552,7 @@ export default function IamRolesPage() {
                             className="btn btn--ghost btn--sm"
                             onClick={() => setResettingPassword(member)}
                           >
-                            Ganti Password
+                            Reset Password
                           </button>
                         ) : (
                           <span className="t-muted t-xs">—</span>
@@ -568,7 +568,7 @@ export default function IamRolesPage() {
                               className="btn btn--ghost btn--sm"
                               onClick={() => setResettingPassword(member)}
                             >
-                              Ganti Password
+                              Reset Password
                             </button>
                           )}
                           <button

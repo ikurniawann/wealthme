@@ -1544,7 +1544,7 @@ describe("FamilyGroupsService.resetMemberPassword", () => {
     expect(prisma.baAccount.updateMany).not.toHaveBeenCalled();
   });
 
-  it("stores an argon2 hash of the new password and clears the forced change", async () => {
+  it("stores an argon2 hash of the temporary password and forces a change at next login", async () => {
     prisma.member.findFirst.mockResolvedValue({
       userId: MEMBER_USER_ID,
       user: { email: MANAGED_EMAIL },
@@ -1562,7 +1562,7 @@ describe("FamilyGroupsService.resetMemberPassword", () => {
     ).resolves.toBe(true);
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: MEMBER_USER_ID },
-      data: { mustChangePassword: false },
+      data: { mustChangePassword: true },
     });
   });
 

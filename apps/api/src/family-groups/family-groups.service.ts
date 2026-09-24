@@ -335,8 +335,10 @@ export class FamilyGroupsService {
    * refused: they own their credential, and letting one owner silently take
    * over another's email login would be an account-takeover primitive.
    *
-   * The new password is final (mustChangePassword cleared, product decision)
-   * and every live session of the member is revoked so the old password's
+   * The password is TEMPORARY: mustChangePassword is set, so the member's
+   * next login is sent to /ubah-password-wajib (ForcePasswordChangeGuard)
+   * and must pick their own — the Master never knows the final password.
+   * Every live session of the member is revoked so the old password's
    * sessions cannot outlive the change.
    */
   async resetMemberPassword(
@@ -389,7 +391,7 @@ export class FamilyGroupsService {
       }
       await tx.user.update({
         where: { id: member.userId },
-        data: { mustChangePassword: false },
+        data: { mustChangePassword: true },
       });
     });
 
