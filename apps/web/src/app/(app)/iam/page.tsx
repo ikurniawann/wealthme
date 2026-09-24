@@ -1,302 +1,135 @@
 "use client";
 
-import {
-  CheckCircle2,
-  Crown,
-  Eye,
-  KeyRound,
-  Lock,
-  Plus,
-  ShieldCheck,
-  WalletCards,
-} from "lucide-react";
 import { useState } from "react";
+import { Plus, ShieldCheck, SlidersHorizontal, UserCog } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { IconChip, ProgressBar, StatusBadge } from "@/components/wm";
-import { apiFetch } from "@/lib/api-client";
-import { useSession } from "@/lib/auth-compat";
-import { queryKeys } from "@/lib/query-keys";
-import { useLocale } from "@/hooks/use-locale";
+import type { AccessRoleResponse } from "@wealthme/contracts";
+
 import {
   Dialog,
-  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { StatusBadge } from "@/components/wm";
+import { useLocale } from "@/hooks/use-locale";
+import { apiFetch } from "@/lib/api-client";
+import { useSession } from "@/lib/auth-compat";
+import { queryKeys } from "@/lib/query-keys";
+
 import { AddMemberDialog } from "./_components/add-member-dialog";
+import { MemberAccessDialog } from "./_components/member-access-dialog";
+import { MembersTab, type MemberRow } from "./_components/members-tab";
 import {
   ResetPasswordDialog,
   type ResetPasswordTarget,
 } from "./_components/reset-password-dialog";
+import { RoleEditorDialog } from "./_components/role-editor-dialog";
+import { RolesTab } from "./_components/roles-tab";
 
 /**
- * EPIC-027 group 1 (D1/D2) — these cards used to advertise a "Co-Master" role
- * that cannot manage IAM. It can: a co-master is created by
- * `createDependantMember` as `role: owner` paired with `relationship: istri`
- * (EPIC-024 A1), and `owner` holds `manage Member` in casl-ability.factory.ts.
- * The app was right and this screen was lying, so Co-Master is folded into the
- * Master card rather than given a column that contradicts the ability factory.
+ * EPIC-030 — /iam rebuilt as a conventional IAM screen (Master only; the
+ * route guard and the API's Master-only `iam` resource keep everyone else
+ * out). Two tabs, one mental model:
  *
- * Only the three roles an owner can actually create are shown. `spouse`,
- * `member` and `admin_staff` still exist in the schema and still render with
- * their own labels in the roster below; they are surfaced here by the
- * "Lainnya" card only when a family actually has one, instead of being
- * silently counted as Co-Masters the way they were before.
+ *  - Anggota: every member, how they log in, what access they have, whose
+ *    data they see, and the per-person actions (Atur Akses, Reset Password,
+ *    Hapus).
+ *  - Role Akses: reusable page-access bundles the Master assigns to members.
+ *
+ * The old static "Role Permission Matrix" and role cards are gone: they
+ * described fixed grants that the Master can now change, so they would have
+ * contradicted the real configuration.
  */
-const roles = [
+type Tab = "members" | "roles";
+
+const HOW_IT_WORKS = [
   {
-    name: "Master",
-    description:
-      "Pemilik utama keluarga — termasuk Co-Master (istri). Akses penuh ke data, role, dan audit.",
-    icon: Crown,
-    tone: "success",
-    permissions: [
-      "Kelola role",
-      "Semua rekening",
-      "Export laporan",
-      "Audit log",
-    ],
-  },
-  {
-    name: "Anak",
-    description:
-      "Akses terbatas untuk tabungan, tujuan, dan edukasi finansial.",
-    icon: Eye,
-    tone: "purple",
-    permissions: ["Saldo sendiri", "Tujuan pribadi", "Tidak bisa hapus"],
-  },
-  {
-    name: "Staff Operasional",
-    description:
-      "Asisten, supir, atau admin yang hanya mencatat transaksi tertentu.",
-    icon: WalletCards,
-    tone: "warning",
-    permissions: [
-      "Input transaksi",
-      "Rekening ditugaskan",
-      "Tanpa saldo keluarga",
-    ],
-  },
-  /* Legacy roles (`spouse` / `member` / `admin_staff`) — no form creates one,
-     so this card is rendered only when the roster actually contains one. */
-  {
-    name: "Lainnya",
-    description:
-      "Role lama (pasangan, anggota, admin pembukuan) yang tidak bisa dibuat lagi dari form mana pun.",
     icon: ShieldCheck,
-    tone: "info",
-    permissions: ["Lihat data keluarga", "Tanpa kelola role"],
+    title: "Buat role",
+    text: "Kumpulan halaman yang boleh dibuka (Lihat / Kelola) dan data siapa yang terlihat.",
+  },
+  {
+    icon: UserCog,
+    title: "Pasang ke anggota",
+    text: "Lewat tombol Atur Akses. Tanpa role, anggota memakai akses bawaan tipenya.",
+  },
+  {
+    icon: SlidersHorizontal,
+    title: "Pengecualian (opsional)",
+    text: "Buka atau tutup halaman tertentu hanya untuk satu anggota.",
   },
 ] as const;
-
-/**
- * Mirrors casl-ability.factory.ts for the three roles shown above. Master =
- * `owner` (which is what a Co-Master is). Verified per row against the
- * factory's grants, not against the prototype's picture of them.
- *
- * Exception, called out so a future reader does not check the wrong file:
- * the LAST row is not CASL-derived. The factory declares a `Report` subject
- * but grants it to nobody; report/export access is enforced by
- * `assertHouseholdWideReadAllowed()` in reports.controller.ts. The values
- * below match that function — if real `Report` grants are ever added to the
- * factory, this row must be re-checked against both.
- */
-const permissionRows = [
-  ["Lihat kekayaan keluarga", "Ya", "Tidak", "Tidak"],
-  ["Kelola rekening & saldo", "Ya", "Tidak", "Tidak"],
-  ["Input transaksi", "Ya", "Terbatas", "Terbatas"],
-  ["Setujui permintaan dana", "Ya", "Tidak", "Tidak"],
-  ["Kelola IAM roles", "Ya", "Tidak", "Tidak"],
-  ["Export laporan", "Ya", "Tidak", "Tidak"], // ← assertHouseholdWideReadAllowed, not CASL
-] as const;
-
-const roleToneClass = {
-  success: "bg-emerald-500/12 text-emerald-600",
-  info: "bg-cyan-500/12 text-cyan-600",
-  purple: "bg-violet-500/12 text-violet-600",
-  warning: "bg-amber-500/12 text-amber-600",
-} as const;
-
-/**
- * "Anggota & Akses Aktif" used to be a hardcoded four-row array (Demo User /
- * Siti / Aisyah / Pak Dedi) with no network call anywhere on this page — the
- * table showed the same four invented people to every family. It now reads
- * the real roster from the endpoint that already existed for it,
- * `GET /family-groups/:id/members` (`listMembers`, gated on CASL
- * `read Member`), so a family sees its own members and a newly created
- * dependant appears here immediately.
- *
- * Two columns the prototype's mock filled in are deliberately NOT invented:
- * `MemberResponseDto` carries no last-login timestamp and no per-member
- * account scope, so "Cakupan" is derived from the role's own scope (which
- * IS knowable — a row-scoped role sees only its own rows) and "Terakhir
- * aktif" renders "—". Fabricating a plausible login date on a security
- * screen would be worse than an honest blank.
- */
-type MemberRow = {
-  id: string;
-  userId: string;
-  name: string;
-  role: string;
-  relationship: string | null;
-  username: string | null;
-  /**
-   * Head-created username login — the only kind a Master may set a password
-   * for (incl. a Co-Master the head created). Real-email accounts use
-   * "Lupa Password" instead; the API refuses them.
-   */
-  managedLogin: boolean;
-};
-
-function RoleCard({
-  role,
-  count,
-}: {
-  role: (typeof roles)[number];
-  count: number;
-}) {
-  const Icon = role.icon;
-
-  return (
-    <article className="card">
-      <div className="card__body stack">
-        <div className="row row--between">
-          <IconChip icon={Icon} className={roleToneClass[role.tone]} />
-          <StatusBadge variant={role.tone}>{count} anggota</StatusBadge>
-        </div>
-        <div>
-          <h3 className="t-md">{role.name}</h3>
-          <p className="t-sm text-muted-foreground">{role.description}</p>
-        </div>
-        <div className="chips">
-          {role.permissions.map((permission) => (
-            <span className="badge badge--gray" key={permission}>
-              {permission}
-            </span>
-          ))}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function PermissionValue({ value }: { value: string }) {
-  const variant =
-    value === "Ya" ? "success" : value === "Tidak" ? "danger" : "warning";
-
-  return <StatusBadge variant={variant}>{value}</StatusBadge>;
-}
-
-/** Roles the API lets an owner assign (`ASSIGNABLE_ROLES` in update-member-role.dto.ts — `owner` is deliberately excluded there). */
-const ASSIGNABLE_ROLES = [
-  "member",
-  "admin_staff",
-  "spouse",
-  "dependant",
-  "operational",
-] as const;
-
-/* The creatable roles and the relationship list now live with the dialog that
-   uses them (`_components/add-member-dialog.tsx`), which sources relationships
-   from `MemberRelationshipSchema` in @wealthme/contracts rather than a
-   hand-copied literal. */
 
 export default function IamRolesPage() {
   const { t } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const token = session?.accessToken;
-  const familyGroupId = session?.familyGroupId;
+  const familyGroupId = session?.familyGroupId ?? null;
+  const [tab, setTab] = useState<Tab>("members");
+
+  const membersKey = queryKeys.familyGroups.members(familyGroupId ?? "");
+  const removedKey = queryKeys.familyGroups.removedMembers(familyGroupId ?? "");
+  const rolesKey = queryKeys.familyGroups.accessRoles(familyGroupId ?? "");
+  const enabled = Boolean(token) && Boolean(familyGroupId);
 
   const { data: members, isLoading: membersLoading } = useQuery<MemberRow[]>({
-    queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
+    queryKey: membersKey,
     queryFn: ({ signal }) =>
       apiFetch<MemberRow[]>(`/family-groups/${familyGroupId}/members`, {
         token,
         signal,
       }),
-    enabled: Boolean(token) && Boolean(familyGroupId),
+    enabled,
     staleTime: 60_000,
   });
 
-  const invalidateMembers = async () => {
-    await queryClient.invalidateQueries({
-      queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
-    });
-    // EPIC-027 A8 — removing/restoring moves a row between the two lists, so
-    // both have to be refetched or one of them shows the member twice (or not
-    // at all) until the next reload.
-    await queryClient.invalidateQueries({
-      queryKey: queryKeys.familyGroups.removedMembers(familyGroupId ?? ""),
-    });
-  };
-
-  /**
-   * EPIC-027 A8 (D5) — removed members are soft-deleted, so they can be put
-   * back. Restoring is in fact the ONLY way back: their User row still holds
-   * the username, so re-creating them under it would 409, and the
-   * (userId, familyGroupId) unique constraint counts the removed row.
-   */
   const { data: removedMembers } = useQuery<MemberRow[]>({
-    queryKey: queryKeys.familyGroups.removedMembers(familyGroupId ?? ""),
+    queryKey: removedKey,
     queryFn: ({ signal }) =>
       apiFetch<MemberRow[]>(`/family-groups/${familyGroupId}/members/removed`, {
         token,
         signal,
       }),
-    enabled: Boolean(token) && Boolean(familyGroupId),
+    enabled,
     staleTime: 60_000,
   });
 
-  const restoreMember = useMutation({
-    mutationFn: (m: MemberRow) =>
-      apiFetch(`/family-groups/${familyGroupId}/members/${m.id}/restore`, {
-        token,
-        method: "POST",
-      }),
-    onSuccess: async () => {
-      await invalidateMembers();
-      toast.success("Anggota diaktifkan kembali");
-    },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal mengaktifkan anggota"),
+  const { data: roles, isLoading: rolesLoading } = useQuery<
+    AccessRoleResponse[]
+  >({
+    queryKey: rolesKey,
+    queryFn: ({ signal }) =>
+      apiFetch<AccessRoleResponse[]>(
+        `/family-groups/${familyGroupId}/access-roles`,
+        { token, signal },
+      ),
+    enabled,
+    staleTime: 60_000,
   });
 
-  // ── Add member ────────────────────────────────────────────────────────
-  const [addOpen, setAddOpen] = useState(false);
+  const invalidateMembers = async () => {
+    // Removing/restoring moves a row between both lists.
+    await queryClient.invalidateQueries({ queryKey: membersKey });
+    await queryClient.invalidateQueries({ queryKey: removedKey });
+    await queryClient.invalidateQueries({ queryKey: rolesKey });
+  };
 
-  // ── Reset password (managed logins only, never your own) ──────────────
+  // ── Dialog state ─────────────────────────────────────────────────────
+  const [addOpen, setAddOpen] = useState(false);
+  const [editingAccess, setEditingAccess] = useState<MemberRow | null>(null);
   const [resettingPassword, setResettingPassword] =
     useState<ResetPasswordTarget | null>(null);
-  const canResetPassword = (m: MemberRow) =>
-    m.managedLogin && m.userId !== session?.userId;
-
-  // ── Change role ───────────────────────────────────────────────────────
-  const [editing, setEditing] = useState<MemberRow | null>(null);
-  const [editRole, setEditRole] =
-    useState<(typeof ASSIGNABLE_ROLES)[number]>("member");
-
-  const updateRole = useMutation({
-    mutationFn: (m: MemberRow) =>
-      apiFetch(`/family-groups/${familyGroupId}/members/${m.id}`, {
-        token,
-        method: "PATCH",
-        body: JSON.stringify({ role: editRole }),
-      }),
-    onSuccess: async () => {
-      await invalidateMembers();
-      setEditing(null);
-      toast.success("Role anggota diperbarui");
-    },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal mengubah role"),
-  });
-
-  // ── Remove member ─────────────────────────────────────────────────────
   const [removing, setRemoving] = useState<MemberRow | null>(null);
+  const [editingRole, setEditingRole] = useState<
+    AccessRoleResponse | "new" | null
+  >(null);
+  const [deletingRole, setDeletingRole] = useState<AccessRoleResponse | null>(
+    null,
+  );
 
   const removeMember = useMutation({
     mutationFn: (m: MemberRow) =>
@@ -313,44 +146,40 @@ export default function IamRolesPage() {
       toast.error(e.message ?? "Gagal menghapus anggota"),
   });
 
-  // Role-card counts, counted off the real roster. EPIC-027 group 1: a
-  // `member` or `admin_staff` is no longer counted as a "Co-Master" — a
-  // co-master IS an owner (D1), and the legacy roles get their own card,
-  // rendered only when the family actually has one.
-  const countByRole = (roles: readonly string[]) =>
-    (members ?? []).filter((m) => roles.includes(m.role)).length;
-  const roleCounts: Record<string, number> = {
-    Master: countByRole(["owner"]),
-    Anak: countByRole(["dependant"]),
-    "Staff Operasional": countByRole(["operational"]),
-    Lainnya: countByRole(["spouse", "member", "admin_staff"]),
-  };
-  const visibleRoles = roles.filter(
-    (role) => role.name !== "Lainnya" || (roleCounts["Lainnya"] ?? 0) > 0,
-  );
+  const restoreMember = useMutation({
+    mutationFn: (m: MemberRow) =>
+      apiFetch(`/family-groups/${familyGroupId}/members/${m.id}/restore`, {
+        token,
+        method: "POST",
+      }),
+    onSuccess: async () => {
+      await invalidateMembers();
+      toast.success("Anggota diaktifkan kembali");
+    },
+    onError: (e: { message?: string }) =>
+      toast.error(e.message ?? "Gagal mengaktifkan anggota"),
+  });
 
-  // A row-scoped role only ever sees its own rows (privacy.util.ts's
-  // `isRowScopedRole`); every trusted role sees the whole household. That is
-  // real, derivable scope — unlike the mock's per-member account names.
-  const scopeFor = (role: string) =>
-    role === "dependant" || role === "operational"
-      ? "Hanya data miliknya sendiri"
-      : "Semua data keluarga";
-  const isRestricted = (role: string) =>
-    role === "dependant" || role === "operational";
+  const deleteRole = useMutation({
+    mutationFn: (r: AccessRoleResponse) =>
+      apiFetch(`/family-groups/${familyGroupId}/access-roles/${r.id}`, {
+        token,
+        method: "DELETE",
+      }),
+    onSuccess: async () => {
+      await invalidateMembers();
+      setDeletingRole(null);
+      toast.success("Role dihapus");
+    },
+    onError: (e: { message?: string }) =>
+      toast.error(e.message ?? "Gagal menghapus role"),
+  });
 
-  // EPIC-027 group 1 (A6) — this gauge used to be a hardcoded 82% computed
-  // from nothing. It is the share of the roster that is row-scoped, which is
-  // exactly what "cakupan akses terbatas" claims to measure.
-  const totalMembers = (members ?? []).length;
-  const restrictedShare =
-    totalMembers === 0
-      ? 0
-      : Math.round(
-          ((members ?? []).filter((m) => isRestricted(m.role)).length /
-            totalMembers) *
-            100,
-        );
+  const memberCount = (members ?? []).length;
+  const roleCount = (roles ?? []).length;
+  const restrictedCount = (members ?? []).filter(
+    (m) => m.role !== "owner",
+  ).length;
 
   return (
     <div className="page stack">
@@ -360,256 +189,100 @@ export default function IamRolesPage() {
             <div className="hero__label">Master Account</div>
             <h1 className="hero__value">IAM Roles</h1>
             <p className="text-white/80">
-              Atur siapa yang boleh melihat, mencatat, menyetujui, dan mengubah
-              data keluarga.
+              Atur halaman apa saja yang boleh dibuka setiap anggota, dan data
+              siapa yang mereka lihat.
             </p>
           </div>
-          {/* EPIC-027 group 1 (A3) — the "Preview Anak / Staff" link is gone.
-              It opened /akses-saya as the SIGNED-IN OWNER, so it showed the
-              owner's own data on the child's page rather than simulating the
-              child's view. /akses-saya itself is untouched: it remains the
-              landing page for row-scoped roles and the redirect target of
-              RowScopedRouteGuard. */}
-          <div className="row">
-            <button
-              className="btn bg-white text-slate-900 hover:bg-white/90"
-              type="button"
-              onClick={() => setAddOpen(true)}
-            >
-              <Plus size={16} />
-              Tambah Anggota
-            </button>
-          </div>
+          <button
+            className="btn bg-white text-slate-900 hover:bg-white/90"
+            type="button"
+            onClick={() => setAddOpen(true)}
+          >
+            <Plus size={16} aria-hidden="true" />
+            Tambah Anggota
+          </button>
         </div>
       </section>
 
-      <section className="auto-grid auto-grid--wide">
-        {visibleRoles.map((role) => (
-          <RoleCard
-            key={role.name}
-            role={role}
-            count={roleCounts[role.name] ?? 0}
-          />
-        ))}
-      </section>
-
-      <section className="grid grid--sidebar grid--stack-sm">
-        <article className="card">
-          <div className="card__header">
-            <div>
-              <h2>Role Permission Matrix</h2>
-              <p className="text-muted-foreground">
-                Ringkasan hak akses utama per role.
-              </p>
-            </div>
-            {/* The prototype shows a "Kelola Permission" button, but these
-                grants are compiled into casl-ability.factory.ts and there is
-                no endpoint to edit them at runtime — a dialog here would be
-                a button that cannot do anything. Stating where the rules
-                actually live is more useful than a dead control. */}
-            <span className="badge badge--gray">
-              <KeyRound size={14} />
-              Ditetapkan sistem
-            </span>
-          </div>
-          <div className="card__body">
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Permission</th>
-                    <th>Master</th>
-                    <th>Anak</th>
-                    <th>Staff</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {permissionRows.map(([permission, master, child, staff]) => (
-                    <tr key={permission}>
-                      <td className="font-semibold">{permission}</td>
-                      {[master, child, staff].map((value, index) => (
-                        <td key={`${permission}-${index}`}>
-                          <PermissionValue value={value} />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </article>
-
-        <aside className="stack">
-          <article className="card">
-            <div className="card__header">
-              <h2>Security Defaults</h2>
-            </div>
-            <div className="card__body stack">
-              <div className="notice notice--info">
-                <Lock size={16} />
-                Anak dan staff tidak bisa melihat saldo keluarga kecuali
-                ditugaskan langsung oleh Master.
-              </div>
-              <div>
-                <div className="row row--between">
-                  <span className="t-sm font-semibold">
-                    Cakupan akses terbatas
-                  </span>
-                  <span className="mono t-sm">{restrictedShare}%</span>
+      <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {HOW_IT_WORKS.map((step, i) => {
+          const Icon = step.icon;
+          return (
+            <li key={step.title} className="card">
+              <div
+                className="card__body row"
+                style={{ alignItems: "flex-start", gap: 10 }}
+              >
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-extrabold text-primary">
+                  {i + 1}
+                </span>
+                <div>
+                  <div className="row" style={{ gap: 6 }}>
+                    <Icon
+                      size={14}
+                      aria-hidden="true"
+                      className="text-primary"
+                    />
+                    <span className="text-[13px] font-bold">{step.title}</span>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground">
+                    {step.text}
+                  </p>
                 </div>
-                <ProgressBar value={restrictedShare} />
               </div>
-            </div>
-          </article>
+            </li>
+          );
+        })}
+      </ol>
 
-          {/* The prototype's "Permintaan Akses" panel is NOT ported, and the
-              hardcoded stand-in that used to sit here ("Pak Dedi minta akses
-              GoPay", "Aisyah minta lihat tujuan DP", "2 pending") has been
-              removed. There is no access-request feature behind it at any
-              layer: no `AccessRequest` model in schema.prisma, no endpoint,
-              and `AllowanceRequest` only carries `funding` / `held_expense`
-              — money, not access. So nothing could be requested, approved or
-              rejected; the panel was a picture of a feature. Showing a
-              permanent "2 pending" badge on a security screen is worse than
-              showing nothing. Rebuild this together with the real feature
-              (model + migration + endpoints + a request UI on /akses-saya). */}
-        </aside>
-      </section>
-
-      <section className="card">
-        <div className="card__header">
-          <div>
-            <h2>Anggota & Akses Aktif</h2>
-            <p className="text-muted-foreground">
-              Pantau role, cakupan data, dan aktivitas login terakhir.
-            </p>
-          </div>
-          {/* EPIC-027 group 1 (A4) — "Assign Akses" opened the very same
-              add-member dialog as the hero button. Two controls, one action:
-              the hero adds, the per-row "Ubah Role" assigns. */}
+      <div className="row row--between row--wrap">
+        <div className="segmented" role="tablist" aria-label="Bagian IAM">
+          <button
+            type="button"
+            role="tab"
+            className="segmented__item"
+            aria-selected={tab === "members"}
+            onClick={() => setTab("members")}
+          >
+            Anggota ({memberCount})
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="segmented__item"
+            aria-selected={tab === "roles"}
+            onClick={() => setTab("roles")}
+          >
+            Role Akses ({roleCount})
+          </button>
         </div>
-        <div className="card__body">
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Nama</th>
-                  <th>Role</th>
-                  <th>Cakupan</th>
-                  <th>Status</th>
-                  <th>Terakhir aktif</th>
-                  <th style={{ textAlign: "right" }}>Aksi</th>
-                </tr>
-              </thead>
-              <tbody>
-                {membersLoading && (
-                  <tr>
-                    <td colSpan={6} className="py-4 text-center t-muted">
-                      Memuat…
-                    </td>
-                  </tr>
-                )}
-                {!membersLoading && (members ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-4 text-center t-muted">
-                      Belum ada anggota
-                    </td>
-                  </tr>
-                )}
-                {(members ?? []).map((member) => (
-                  <tr key={member.id}>
-                    <td className="font-semibold">{member.name}</td>
-                    <td>
-                      <StatusBadge variant="info">
-                        {t.common.roleLabels[
-                          member.role as keyof typeof t.common.roleLabels
-                        ] ?? member.role}
-                      </StatusBadge>
-                    </td>
-                    <td>{scopeFor(member.role)}</td>
-                    <td>
-                      <StatusBadge
-                        variant={
-                          isRestricted(member.role) ? "warning" : "success"
-                        }
-                      >
-                        {isRestricted(member.role) ? "Terbatas" : "Aktif"}
-                      </StatusBadge>
-                    </td>
-                    {/* No last-login field exists on MemberResponseDto — see
-                        the MemberRow comment; an em dash beats a fake date. */}
-                    <td className="t-muted">—</td>
-                    <td style={{ textAlign: "right" }}>
-                      {/* `owner` is excluded from ASSIGNABLE_ROLES server-side
-                          and `removeMember` refuses the last owner, so the
-                          row for an owner offers no destructive action here
-                          rather than surfacing a button that always 400s. */}
-                      {member.role === "owner" ? (
-                        canResetPassword(member) ? (
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            onClick={() => setResettingPassword(member)}
-                          >
-                            Reset Password
-                          </button>
-                        ) : (
-                          <span className="t-muted t-xs">—</span>
-                        )
-                      ) : (
-                        <div
-                          className="row"
-                          style={{ justifyContent: "flex-end", gap: 6 }}
-                        >
-                          {canResetPassword(member) && (
-                            <button
-                              type="button"
-                              className="btn btn--ghost btn--sm"
-                              onClick={() => setResettingPassword(member)}
-                            >
-                              Reset Password
-                            </button>
-                          )}
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            onClick={() => {
-                              setEditing(member);
-                              setEditRole(
-                                (
-                                  ASSIGNABLE_ROLES as readonly string[]
-                                ).includes(member.role)
-                                  ? (member.role as (typeof ASSIGNABLE_ROLES)[number])
-                                  : "member",
-                              );
-                            }}
-                          >
-                            Ubah Role
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm text-destructive"
-                            onClick={() => setRemoving(member)}
-                          >
-                            Hapus
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+        <p className="t-xs t-muted">
+          Master selalu punya akses penuh · {restrictedCount} anggota diatur
+          aksesnya
+        </p>
+      </div>
 
-      {/* ── Anggota Nonaktif ──────────────────────────────────────────
-          Only rendered when the family actually has removed members, so a
-          family that has never removed anyone is not shown an empty panel
-          implying it should have. */}
-      {(removedMembers ?? []).length > 0 && (
+      {tab === "members" ? (
+        <MembersTab
+          members={members}
+          isLoading={membersLoading}
+          roles={roles ?? []}
+          currentUserId={session?.userId}
+          onEditAccess={setEditingAccess}
+          onResetPassword={setResettingPassword}
+          onRemove={setRemoving}
+        />
+      ) : (
+        <RolesTab
+          roles={roles}
+          isLoading={rolesLoading}
+          onCreate={() => setEditingRole("new")}
+          onEdit={setEditingRole}
+          onDelete={setDeletingRole}
+        />
+      )}
+
+      {tab === "members" && (removedMembers ?? []).length > 0 && (
         <section className="card">
           <div className="card__header">
             <div>
@@ -626,19 +299,19 @@ export default function IamRolesPage() {
                 <thead>
                   <tr>
                     <th>Nama</th>
-                    <th>Role Sebelumnya</th>
+                    <th>Tipe sebelumnya</th>
                     <th style={{ textAlign: "right" }}>Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(removedMembers ?? []).map((member) => (
-                    <tr key={member.id}>
-                      <td className="font-semibold">{member.name}</td>
+                  {(removedMembers ?? []).map((m) => (
+                    <tr key={m.id}>
+                      <td className="font-semibold">{m.name}</td>
                       <td>
                         <StatusBadge variant="gray">
                           {t.common.roleLabels[
-                            member.role as keyof typeof t.common.roleLabels
-                          ] ?? member.role}
+                            m.role as keyof typeof t.common.roleLabels
+                          ] ?? m.role}
                         </StatusBadge>
                       </td>
                       <td style={{ textAlign: "right" }}>
@@ -646,7 +319,7 @@ export default function IamRolesPage() {
                           type="button"
                           className="btn btn--ghost btn--sm"
                           disabled={restoreMember.isPending}
-                          onClick={() => restoreMember.mutate(member)}
+                          onClick={() => restoreMember.mutate(m)}
                         >
                           Aktifkan Kembali
                         </button>
@@ -660,83 +333,46 @@ export default function IamRolesPage() {
         </section>
       )}
 
-      <div className="notice notice--success">
-        <CheckCircle2 size={16} />
-        Semua perubahan role tercatat di audit log dan berlaku langsung di
-        halaman anak / staff.
-      </div>
-
-      {/* EPIC-027 group 2 (D3) — /iam used to carry its own, lesser copy of
-          this dialog: no Istri/Co-Master option, no show-password toggle, no
-          relationship<->role locking, despite posting to the same endpoint as
-          the profile page's version. Both are now the one component below. */}
       <AddMemberDialog
         open={addOpen}
         onOpenChange={setAddOpen}
-        familyGroupId={familyGroupId ?? null}
+        familyGroupId={familyGroupId}
+        token={token}
+      />
+
+      <MemberAccessDialog
+        // Remount per member so the draft never carries over.
+        key={editingAccess?.id ?? "none"}
+        member={editingAccess}
+        roles={roles ?? []}
+        onClose={() => setEditingAccess(null)}
+        familyGroupId={familyGroupId}
         token={token}
       />
 
       <ResetPasswordDialog
-        // Remount per member so typed passwords never carry over.
         key={resettingPassword?.id ?? "none"}
         member={resettingPassword}
         onClose={() => setResettingPassword(null)}
-        familyGroupId={familyGroupId ?? null}
+        familyGroupId={familyGroupId}
         token={token}
       />
 
-      {/* ── Ubah role ──────────────────────────────────────────────────── */}
-      <Dialog
-        open={editing !== null}
-        onOpenChange={(o) => !o && setEditing(null)}
-      >
-        <DialogContent className="dialog--sm">
-          <DialogTitle>Ubah Role</DialogTitle>
-          <DialogDescription>
-            {editing?.name} — role menentukan menu dan data yang bisa dia buka.
-          </DialogDescription>
-          <DialogBody>
-            <label className="field">
-              <span className="label">Role Baru</span>
-              <select
-                className="select"
-                value={editRole}
-                onChange={(e) =>
-                  setEditRole(
-                    e.target.value as (typeof ASSIGNABLE_ROLES)[number],
-                  )
-                }
-              >
-                {ASSIGNABLE_ROLES.map((r) => (
-                  <option key={r} value={r}>
-                    {t.common.roleLabels[r]}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </DialogBody>
-          <DialogFooter>
-            <button
-              type="button"
-              className="btn btn--outline"
-              onClick={() => setEditing(null)}
-            >
-              Batal
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={updateRole.isPending}
-              onClick={() => editing && updateRole.mutate(editing)}
-            >
-              {updateRole.isPending ? "Menyimpan…" : "Simpan"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RoleEditorDialog
+        key={
+          editingRole === null
+            ? "none"
+            : editingRole === "new"
+              ? "new"
+              : editingRole.id
+        }
+        target={editingRole}
+        onClose={() => setEditingRole(null)}
+        familyGroupId={familyGroupId}
+        token={token}
+      />
 
-      {/* ── Hapus anggota ──────────────────────────────────────────────── */}
+      {/* ── Hapus anggota ───────────────────────────────────────────── */}
       <Dialog
         open={removing !== null}
         onOpenChange={(o) => !o && setRemoving(null)}
@@ -745,7 +381,8 @@ export default function IamRolesPage() {
           <DialogTitle>Hapus Anggota</DialogTitle>
           <DialogDescription>
             {removing?.name} akan kehilangan akses ke data keluarga ini.
-            Transaksi yang sudah dicatat tetap tersimpan.
+            Transaksi yang sudah dicatat tetap tersimpan, dan Anda bisa
+            mengaktifkannya kembali.
           </DialogDescription>
           <DialogFooter>
             <button
@@ -762,6 +399,38 @@ export default function IamRolesPage() {
               onClick={() => removing && removeMember.mutate(removing)}
             >
               {removeMember.isPending ? "Menghapus…" : "Hapus"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Hapus role ──────────────────────────────────────────────── */}
+      <Dialog
+        open={deletingRole !== null}
+        onOpenChange={(o) => !o && setDeletingRole(null)}
+      >
+        <DialogContent className="dialog--sm">
+          <DialogTitle>Hapus Role</DialogTitle>
+          <DialogDescription>
+            {deletingRole && deletingRole.memberCount > 0
+              ? `${deletingRole.memberCount} anggota yang memakai "${deletingRole.name}" akan kembali ke akses bawaan tipenya.`
+              : `Role "${deletingRole?.name}" belum dipakai siapa pun.`}
+          </DialogDescription>
+          <DialogFooter>
+            <button
+              type="button"
+              className="btn btn--outline"
+              onClick={() => setDeletingRole(null)}
+            >
+              Batal
+            </button>
+            <button
+              type="button"
+              className="btn btn--destructive"
+              disabled={deleteRole.isPending}
+              onClick={() => deletingRole && deleteRole.mutate(deletingRole)}
+            >
+              {deleteRole.isPending ? "Menghapus…" : "Hapus Role"}
             </button>
           </DialogFooter>
         </DialogContent>

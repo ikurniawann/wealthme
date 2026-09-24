@@ -1,6 +1,6 @@
 # EPIC-030: IAM — custom roles, per-member overrides, page access enforced end to end
 
-status: coding
+status: review
 environment: dev
 retries: 0
 
@@ -64,21 +64,21 @@ next login).
 
 ### B. Model + resolver
 
-- [ ] Page catalog + level/scope schemas in contracts (rebuild `dist`)
-- [ ] Prisma: `AccessRole` (name, description, dataScope, permissions JSON), `Member.accessRoleId`, `Member.accessOverrides`; migration
-- [ ] `resolveEffectiveAccess()` + legacy presets, unit-tested against today's CASL/nav
+- [x] Page catalog + level/scope schemas in contracts (rebuild `dist`)
+- [x] Prisma: `AccessRole` (name, description, dataScope, permissions JSON), `Member.accessRoleId`, `Member.accessOverrides`; migration
+- [x] `resolveEffectiveAccess()` + legacy presets, unit-tested against today's CASL/nav
 
 ### C. API
 
-- [ ] CRUD `family-groups/:id/access-roles`; assign role + overrides to a member; `GET .../me/access`
-- [ ] `PageAccessGuard` + `@PageAccess` on every tenant controller; coverage spec
-- [ ] Data scope via `tenantContext`; CASL from effective access
+- [x] CRUD `family-groups/:id/access-roles`; assign role + overrides to a member; `GET .../me/access`
+- [x] `PageAccessGuard` + `@PageAccess` on every tenant controller; coverage spec
+- [x] Data scope via `tenantContext`; CASL from effective access
 
 ### D. Web
 
-- [ ] `useMyAccess()`; sidebar/mobile/route guard driven by effective access
-- [ ] `/iam` rebuilt: Roles tab (list/create/edit: page × level matrix + scope), Anggota tab (role assignment, overrides, reset password)
-- [ ] UX cleanup (user request 2026-09-24): one clear mental model — "Anggota" first, "Role" second; plain-language labels, no system jargon, no static/decorative matrices that cannot be edited
+- [x] `useMyAccess()`; sidebar/mobile/route guard driven by effective access
+- [x] `/iam` rebuilt: Roles tab (list/create/edit: page × level matrix + scope), Anggota tab (role assignment, overrides, reset password)
+- [x] UX cleanup (user request 2026-09-24): one clear mental model — "Anggota" first, "Role" second; plain-language labels, no system jargon, no static/decorative matrices that cannot be edited
 
 ## Acceptance Criteria
 
@@ -90,3 +90,24 @@ next login).
 - A reset password forces a new password at next login.
 
 ## Automation Log
+
+### 2026-09-24 — groups A–D implemented (Claude Code)
+
+- A: reset password is temporary (`mustChangePassword: true`).
+- B: `AccessRole` + `Member.accessRoleId/accessOverrides` (migration
+  `20260924120000_epic030_iam_access_roles`, additive); shared catalog and
+  `resolveEffectiveAccess` in contracts; legacy presets keep uncustomised
+  members' access unchanged (tested against the old nav allowlists and role
+  table).
+- C: `PageAccessGuard` (fail closed for undecorated family routes, coverage
+  spec), `RESOURCE_ACCESS` table shared by guard + CASL, Master-only
+  `/access-roles` + `members/:id/access`, `GET access/me`. Data scope via
+  `tenantContext.member.rowScoped` into `privacy.util` (a subject without the
+  flag falls back to the role rule).
+- D: menu / mobile bar / route guard / "Tambah transaksi" / `useCanManage` /
+  Persetujuan driven by `useMyAccess()`; `/iam` rebuilt (Anggota + Role Akses
+  tabs, "Atur Akses" dialog with type → role → per-member exceptions,
+  username shown for accounts without email).
+- Known limits: private-account visibility (`canSeePrivateItems`) stays tied to
+  the built-in type; `/kalkulator` is not tenant-scoped, so it is hidden in the
+  UI only; large-transaction holds still follow the built-in type.
