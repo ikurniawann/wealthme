@@ -2013,6 +2013,7 @@ export type I18nDictionary = {
     errorLoad: string;
     emptyState: string;
     unreadBadge: string;
+    markOneRead: string;
     groupUnreadSuffix: string;
     metaCountSuffix: string;
     relativeJustNow: string;

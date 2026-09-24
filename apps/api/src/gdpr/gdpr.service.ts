@@ -118,8 +118,9 @@ export class GdprService {
           id: true,
           title: true,
           body: true,
-          isRead: true,
           createdAt: true,
+          // Per-member read state (NotificationRead): this user's receipt.
+          reads: { where: { userId }, select: { readAt: true } },
         },
         take: 100,
       }),
@@ -148,7 +149,10 @@ export class GdprService {
         targetAmount: g.targetAmount.toString(),
         currentAmount: g.currentAmount.toString(),
       })),
-      notifications,
+      notifications: notifications.map(({ reads, ...n }) => ({
+        ...n,
+        isRead: reads.length > 0,
+      })),
     };
   }
 

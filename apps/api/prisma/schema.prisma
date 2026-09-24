@@ -338,6 +338,7 @@ model User {
   // Notifications addressed to this user specifically (household-wide ones
   // carry a null userId and belong to no one) — see Notification.userId.
   notifications            Notification[]
+  notificationReads        NotificationRead[]
 
   @@map("users")
 }
@@ -913,7 +914,7 @@ model Goal {
 }
 
 model Notification {
-  id            String      @id @default(uuid())
+  id            String             @id @default(uuid())
   familyGroupId String
   // Recipient. `null` = addressed to the household (budget thresholds, goal
   // progress, due-date reminders — everything that is genuinely everyone's
@@ -935,20 +936,35 @@ model Notification {
   title         String
   body          String
   icon          String?
-  // Single shared flag, deliberately not per-user: a targeted row has one
-  // reader so it is exact, but two members marking a household row read still
-  // share the state. Per-recipient read tracking would need its own join
-  // table; recorded as a known limitation rather than half-built here.
-  isRead        Boolean     @default(false)
-  createdAt     DateTime    @default(now())
-  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  user          User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // DEPRECATED — the old single shared flag (one member marking a household
+  // row read hid it for everyone). Read state is per member now, in
+  // NotificationRead; this column is kept only so the change is additive and
+  // is no longer read or written by the API.
+  isRead        Boolean            @default(false)
+  reads         NotificationRead[]
+  createdAt     DateTime           @default(now())
+  familyGroup   FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  user          User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId])
   // Serves the only list query there is: household rows plus this viewer's
   // own, newest first.
   @@index([familyGroupId, userId, createdAt])
   @@map("notifications")
+}
+
+/// Who has read a notification — one row per (notification, member), so a
+/// household notification is read or unread for each member separately.
+model NotificationRead {
+  notificationId String
+  userId         String
+  readAt         DateTime     @default(now())
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([notificationId, userId])
+  @@index([userId])
+  @@map("notification_reads")
 }
 
 model Asset {

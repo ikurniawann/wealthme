@@ -236,6 +236,10 @@ export class CaslAbilityFactory {
         can("read", "Member");
         can("read", "MemberCategoryAllowance");
         can("read", "Notification");
+        // Marking a notification read writes a receipt for the bookkeeper
+        // themself only (NotificationsService.markRead) — without this the
+        // "Tandai dibaca" buttons 403'd for this role.
+        can("update", "Notification");
         // EPIC-021 Group C (#29) — bookkeeper role can perform the
         // reconciliation fee-split (see the owner-case comment above).
         can("manage", "Reconciliation");
