@@ -15,7 +15,8 @@ import type { Prisma } from "@prisma/client";
  * plain `member` (and the row-scoped `dependant`/`operational`, handled
  * separately below) are the roles privacy shields against.
  */
-export function canSeePrivateItems(role: Role | null | undefined): boolean {
+export function canSeePrivateItems(subject: ScopeSubject): boolean {
+  const role = roleOf(subject);
   return (
     role === Role.owner || role === Role.admin_staff || role === Role.spouse
   );
@@ -108,16 +109,48 @@ export function isRowScopedRole(role: Role | null | undefined): boolean {
 }
 
 /**
+ * EPIC-030 — who the privacy helpers are asked about. A bare `Role` keeps the
+ * pre-IAM rule (dependant/operational are row-scoped). A `{ role, rowScoped }`
+ * object — what TenantGuard stamps on `tenantContext.member` — carries the
+ * member's EFFECTIVE data scope, so a Master-defined role can widen a child
+ * to the whole family's data or narrow an adult to their own rows.
+ */
+export type ScopeSubject =
+  | Role
+  | null
+  | undefined
+  | { role: Role; rowScoped?: boolean };
+
+function roleOf(subject: ScopeSubject): Role | null | undefined {
+  return subject !== null && typeof subject === "object"
+    ? subject.role
+    : subject;
+}
+
+/**
+ * Effective row-scoping for a subject (see ScopeSubject). An object without
+ * `rowScoped` falls back to the role rule — never to "unrestricted".
+ */
+export function isRowScoped(subject: ScopeSubject): boolean {
+  if (subject !== null && typeof subject === "object") {
+    return typeof subject.rowScoped === "boolean"
+      ? subject.rowScoped
+      : isRowScopedRole(subject.role);
+  }
+  return isRowScopedRole(subject);
+}
+
+/**
  * `where` fragment restricting Account rows to the ones this user owns, or a
  * no-op for a role that is not row-scoped. `userId` missing on a row-scoped
  * role matches nothing rather than silently falling back to "all" (mirrors
  * `accountOwnerWhere`'s own guard).
  */
 export function restrictedAccountWhere(
-  role: Role | null | undefined,
+  subject: ScopeSubject,
   userId: string | undefined,
 ): Prisma.AccountWhereInput {
-  if (!isRowScopedRole(role)) return {};
+  if (!isRowScoped(subject)) return {};
   return { ownerUserId: userId ?? "" };
 }
 
@@ -144,10 +177,10 @@ export function restrictedAccountWhere(
  * (see transactions.service.ts#buildWhere for the established pattern).
  */
 export function restrictedTransactionWhere(
-  role: Role | null | undefined,
+  subject: ScopeSubject,
   userId: string | undefined,
 ): Prisma.TransactionWhereInput {
-  if (!isRowScopedRole(role)) return {};
+  if (!isRowScoped(subject)) return {};
   return {
     OR: [
       { account: { ownerUserId: userId ?? "" } },
@@ -166,10 +199,8 @@ export function restrictedTransactionWhere(
  * (above) wherever a read path CAN be restricted to "my own"; this is the
  * fallback for the paths that fundamentally cannot.
  */
-export function assertHouseholdWideReadAllowed(
-  role: Role | null | undefined,
-): void {
-  if (isRowScopedRole(role)) {
+export function assertHouseholdWideReadAllowed(subject: ScopeSubject): void {
+  if (isRowScoped(subject)) {
     throw new ForbiddenException(
       "This role does not have access to household-wide reports",
     );

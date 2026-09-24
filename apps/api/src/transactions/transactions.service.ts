@@ -20,6 +20,7 @@ import {
   isRowScopedRole,
   restrictedTransactionWhere,
   transactionPrivacyWhere,
+  type ScopeSubject,
 } from "../common/utils/privacy.util";
 import {
   NOTIFICATION_SENDER_PORT,
@@ -90,7 +91,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionListResponseDto> {
     const page = query.page ?? 1;
@@ -142,7 +143,7 @@ export class TransactionsService {
     familyGroupId: string,
     id: string,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionResponseDto> {
     // findFirst (not findUnique) so the relation-based privacy filter can apply:
@@ -754,7 +755,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionSummaryDto> {
     return this.computeSummary(
@@ -825,7 +826,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ) {
     // `transactionPrivacyWhere`, `restrictedTransactionWhere` (EPIC-023 Task
@@ -867,7 +868,7 @@ export class TransactionsService {
     familyGroupId: string,
     query: ListTransactionsQueryDto,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<TransactionSummaryDto> {
     const where = this.buildWhere(

@@ -28,7 +28,7 @@ export class SearchController {
     return this.searchService.search(
       familyGroupId,
       q ?? "",
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }

@@ -11,6 +11,7 @@ import {
   canSeePrivateItems,
   restrictedTransactionWhere,
   transactionPrivacyWhere,
+  isRowScopedRole,
 } from "../common/utils/privacy.util";
 // PrismaService/StoragePort are injected by class reference (NestJS DI
 // resolves the provider from the constructor parameter's runtime type via
@@ -31,7 +32,12 @@ import type { TransactionAttachmentResponseDto } from "./dto/transaction-attachm
 // attachments.controller.ts's MAX_ATTACHMENT_FILE_BYTES).
 const MAX_ATTACHMENT_FILE_BYTES = 5 * 1024 * 1024;
 
-export type ActingMember = { userId: string; role: Role } | null;
+export type ActingMember = {
+  userId: string;
+  role: Role;
+  /** EPIC-030 — effective data scope; defaults to the role rule when absent. */
+  rowScoped?: boolean;
+} | null;
 
 export type AttachmentFileInput = {
   buffer: Buffer;
@@ -84,7 +90,14 @@ export class AttachmentsService {
         AND: [
           transactionPrivacyWhere(canSeePrivate),
           restrictedTransactionWhere(
-            actingMember?.role ?? null,
+            actingMember
+              ? {
+                  role: actingMember.role,
+                  rowScoped:
+                    actingMember.rowScoped ??
+                    isRowScopedRole(actingMember.role),
+                }
+              : null,
             actingMember?.userId,
           ),
         ],

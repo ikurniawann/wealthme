@@ -1,14 +1,15 @@
 import { Injectable } from "@nestjs/common";
-import { CoaDirection, type Role } from "@prisma/client";
+import { CoaDirection } from "@prisma/client";
 
 import { txCoaDirection } from "../common/utils/coa-classify.util";
 import { investmentPositionValue } from "../common/utils/investment-value.util";
 import {
   accountPrivacyWhere,
-  isRowScopedRole,
   restrictedAccountWhere,
   restrictedTransactionWhere,
   transactionPrivacyWhere,
+  isRowScoped,
+  type ScopeSubject,
 } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -71,7 +72,7 @@ export class DashboardService {
   async getSummary(
     familyGroupId: string,
     canSeePrivate: boolean,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<DashboardSummaryDto> {
     const now = new Date();
@@ -85,7 +86,7 @@ export class DashboardService {
       select: { balance: true, type: true, name: true },
     });
 
-    const isRestricted = isRowScopedRole(viewerRole);
+    const isRestricted = isRowScoped(viewerRole);
     const assetsList = isRestricted
       ? []
       : await this.prisma.asset.findMany({
@@ -310,10 +311,10 @@ export class DashboardService {
   private async computeNetWorthBreakdown(
     familyGroupId: string,
     canSeePrivate: boolean,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<NetWorthBreakdown> {
-    const isRestricted = isRowScopedRole(viewerRole);
+    const isRestricted = isRowScoped(viewerRole);
 
     const accounts = await this.prisma.account.findMany({
       where: {
@@ -384,7 +385,7 @@ export class DashboardService {
   async getNetWorth(
     familyGroupId: string,
     canSeePrivate: boolean,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     viewerUserId?: string,
   ): Promise<NetWorthDto> {
     const b = await this.computeNetWorthBreakdown(

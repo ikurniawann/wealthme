@@ -5,6 +5,10 @@ import {
   type ExecutionContext,
 } from "@nestjs/common";
 
+import {
+  MEMBER_ACCESS_SELECT,
+  effectiveAccessForMember,
+} from "../../access/member-access.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../prisma/prisma.service";
 
@@ -29,22 +33,39 @@ export class TenantGuard implements CanActivate {
         familyGroupId: null,
         role: null,
         member: null,
+        access: null,
       };
       return true;
     }
 
     const member = await this.prisma.member.findUnique({
       where: { userId_familyGroupId: { userId: user.sub, familyGroupId } },
-      select: { id: true, userId: true, familyGroupId: true, role: true },
+      select: {
+        id: true,
+        userId: true,
+        familyGroupId: true,
+        ...MEMBER_ACCESS_SELECT,
+      },
     });
 
     if (!member) throw new ForbiddenException("Access denied");
+
+    // EPIC-030 — resolved once per request; PageAccessGuard, CASL and the
+    // privacy helpers all read this same object.
+    const access = effectiveAccessForMember(member);
 
     req.tenantContext = {
       userId: user.sub,
       familyGroupId,
       role: member.role,
-      member,
+      member: {
+        id: member.id,
+        userId: member.userId,
+        familyGroupId: member.familyGroupId,
+        role: member.role,
+        rowScoped: access.dataScope === "own",
+      },
+      access,
     };
     return true;
   }

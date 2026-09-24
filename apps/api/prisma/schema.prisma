@@ -409,6 +409,7 @@ model FamilyGroup {
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   members                 Member[]
+  accessRoles             AccessRole[]
   accounts                Account[]
   categories              Category[]
   transactions            Transaction[]
@@ -551,6 +552,14 @@ model Member {
   // EPIC-019 Task C — per-member allowed expense categories. Empty (no
   // rows) = unrestricted, backward compatible with every pre-existing member.
   categoryAllowances MemberCategoryAllowance[]
+  // EPIC-030 — IAM. `accessRoleId` null = no custom role: the built-in
+  // `role`'s legacy preset applies (@wealthme/contracts LEGACY_ACCESS_PRESETS),
+  // so pre-existing members keep exactly their old access. `accessOverrides`
+  // is a sparse page → level map applied on top of the role. Ignored for
+  // `owner` (Master always has full access).
+  accessRoleId       String?
+  accessRole         AccessRole?               @relation(fields: [accessRoleId], references: [id], onDelete: SetNull)
+  accessOverrides    Json?
 
   @@unique([userId, familyGroupId])
   @@index([familyGroupId])
@@ -664,7 +673,7 @@ model ReferenceItem {
 }
 
 model Transaction {
-  id              String          @id @default(uuid())
+  id              String                  @id @default(uuid())
   familyGroupId   String
   // EPIC-023 E3 (D12, US-LIAB-5) — nullable so a credit-card purchase can
   // touch NO bank/cash account at all: it debits nothing here and instead
@@ -687,7 +696,7 @@ model Transaction {
   type            TransactionType
   description     String?
   occurredAt      DateTime
-  createdAt       DateTime        @default(now())
+  createdAt       DateTime                @default(now())
   // EPIC-023 Task C — who recorded this row, so a row-scoped role (dependant/
   // operational) can see "transactions they own or that they recorded" even
   // on a family-shared account. Nullable, NOT backfilled: every pre-existing
@@ -706,13 +715,13 @@ model Transaction {
   // above.
   liabilityId     String?
   insuranceId     String?
-  familyGroup     FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  account         Account?        @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
-  toAccount       Account?        @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
-  category        Category?       @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdBy       User?           @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  liability       Liability?      @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
-  insurance       Insurance?      @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
+  familyGroup     FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  account         Account?                @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  toAccount       Account?                @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
+  category        Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy       User?                   @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  liability       Liability?              @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
+  insurance       Insurance?              @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
   // EPIC-024 Task L (L2, D15, US-TXN-9) — receipts/photos attached to this
   // transaction, stored on server disk behind StoragePort.
   attachments     TransactionAttachment[]
@@ -925,18 +934,18 @@ model Notification {
 }
 
 model Asset {
-  id                 String         @id @default(uuid())
+  id                 String               @id @default(uuid())
   familyGroupId      String
   name               String
   type               AssetType
   currentValue       BigInt
-  currency           String         @default("IDR")
+  currency           String               @default("IDR")
   notes              String?
   // EPIC-021 #17/#18 (Open Design Decision #8): ONE signed annual
   // value-change rate per asset — negative = depreciation, positive =
   // appreciation. Compute-on-read (see AssetsService); a snapshot still
   // lands in AssetHistory whenever currentValue itself is edited.
-  valueChangeRatePct Decimal?       @db.Decimal(5, 2)
+  valueChangeRatePct Decimal?             @db.Decimal(5, 2)
   // EPIC-024 D2/US-ASSET-6: which linear projection computeEstimatedValue
   // applies — "percent" reads valueChangeRatePct (existing behavior,
   // default so every pre-existing row keeps its current projection
@@ -954,16 +963,16 @@ model Asset {
   // the elapsed-time anchor for computeEstimatedValue's projection instead
   // of createdAt. Nullable and additive — existing rows keep falling back to
   // createdAt (AssetsService#toAssetDto), so no backfill is required.
-  acquisitionDate    DateTime?      @db.Date
+  acquisitionDate    DateTime?            @db.Date
   // EPIC-021 #16: optional physical-asset category sourced from master data.
   // Reuses the existing Category model (masterdata's only real API) instead
   // of a new table; the hardcoded `type` enum above remains as a fallback
   // display value when no category is set.
   categoryId         String?
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
-  familyGroup        FamilyGroup    @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  category           Category?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  familyGroup        FamilyGroup          @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  category           Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   history            AssetHistory[]
 
   @@index([familyGroupId])
@@ -1003,28 +1012,28 @@ model NetWorthSnapshot {
 }
 
 model Investment {
-  id               String            @id @default(uuid())
+  id               String                  @id @default(uuid())
   familyGroupId    String
   ticker           String
   name             String
   type             InvestmentType
-  quantity         Decimal           @db.Decimal(18, 8)
-  costBasisPerUnit Decimal           @db.Decimal(18, 2)
-  currency         String            @default("IDR")
+  quantity         Decimal                 @db.Decimal(18, 8)
+  costBasisPerUnit Decimal                 @db.Decimal(18, 2)
+  currency         String                  @default("IDR")
   notes            String?
   // EPIC-021 #20: interest rate for interest-bearing instruments (obligasi,
   // deposito). Optional — only meaningful for those types. Used to derive a
   // simple projected-annual-yield display (currentValue × rate).
-  interestRatePct  Decimal?          @db.Decimal(5, 2)
+  interestRatePct  Decimal?                @db.Decimal(5, 2)
   // EPIC-024 C2 (D7, D10) — "tanggal beli" for every type; deposito's
   // "jatuh tempo". Both nullable/additive: existing rows keep working, the
   // simple-interest valuation (investasi/page.tsx) treats a missing
   // purchasedAt as "not yet dated" rather than guessing a date.
   purchasedAt      DateTime?
   maturityDate     DateTime?
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  familyGroup      FamilyGroup       @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+  familyGroup      FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   prices           InvestmentPrice[]
   // EPIC-022 D2 — real buy/sell history, the honest counterpart to the
   // generic "edit" that used to silently overwrite quantity/costBasisPerUnit
@@ -1429,17 +1438,17 @@ model ReconciliationTemplate {
 // rows unsearchable. If that trade is ever revisited, the encryption belongs
 // in AiConversationService, not the controller.
 model AiConversation {
-  id            String        @id @default(uuid())
+  id            String      @id @default(uuid())
   familyGroupId String
   userId        String
   // Derived from the first user turn (truncated), never model-authored — a
   // title generated by a second provider call would cost a request and could
   // fail independently of the chat that produced it.
   title         String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  familyGroup   FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages      AiMessage[]
 
   // Serves the only list query there is: this user's sessions in this family,
@@ -1481,4 +1490,30 @@ model FamilyAiKey {
   familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@map("family_ai_keys")
+}
+
+/// EPIC-030 — a Master-defined IAM role: which pages its members may see or
+/// manage, and whether they see the whole family's data or only their own.
+model AccessRole {
+  id            String          @id @default(uuid())
+  familyGroupId String
+  name          String
+  description   String?
+  dataScope     AccessDataScope @default(all)
+  /// Sparse page → level map ("none" | "view" | "manage"), validated by
+  /// AccessPermissionsSchema in @wealthme/contracts on every write and read.
+  permissions   Json            @default("{}")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  familyGroup   FamilyGroup     @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  members       Member[]
+
+  @@unique([familyGroupId, name])
+  @@index([familyGroupId])
+  @@map("access_roles")
+}
+
+enum AccessDataScope {
+  all
+  own
 }

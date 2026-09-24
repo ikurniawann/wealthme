@@ -70,7 +70,7 @@ export class TransactionsController {
       familyGroupId,
       query,
       canSeePrivate,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }
@@ -90,7 +90,7 @@ export class TransactionsController {
       familyGroupId,
       query,
       canSeePrivate,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }
@@ -193,7 +193,7 @@ export class TransactionsController {
       familyGroupId,
       id,
       canSeePrivate,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }

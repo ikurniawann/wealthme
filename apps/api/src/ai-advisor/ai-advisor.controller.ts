@@ -68,7 +68,7 @@ export class AiAdvisorController {
     // household-wide surface reports/exports/net-worth history already deny
     // outright (see reports.controller.ts). A partial "my own" advisor
     // context is not a privacy-preserving one; it is a wrong one.
-    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member);
 
     // Saved sessions belong to the member who held them, not to the family
     // (see AiConversationService's class comment).
@@ -94,7 +94,7 @@ export class AiAdvisorController {
         },
         // Drives which private accounts/categories the context may include —
         // see AiAdvisorService#buildContext.
-        req.tenantContext?.member?.role ?? null,
+        req.tenantContext?.member ?? null,
       );
 
       // Persist only a completed exchange, and never let a storage failure
@@ -180,7 +180,7 @@ export class AiAdvisorController {
     @Param("familyGroupId") familyGroupId: string,
     @Req() req: Request,
   ): Promise<ConversationSummaryDto[]> {
-    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member);
     return this.conversations.list(familyGroupId, req.tenantContext!.userId);
   }
 
@@ -192,7 +192,7 @@ export class AiAdvisorController {
     @Param("conversationId", ParseUUIDPipe) conversationId: string,
     @Req() req: Request,
   ): Promise<ConversationDetailDto> {
-    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member);
     return this.conversations.findOne(
       familyGroupId,
       req.tenantContext!.userId,
@@ -209,7 +209,7 @@ export class AiAdvisorController {
     @Param("conversationId", ParseUUIDPipe) conversationId: string,
     @Req() req: Request,
   ): Promise<void> {
-    assertHouseholdWideReadAllowed(req.tenantContext?.member?.role);
+    assertHouseholdWideReadAllowed(req.tenantContext?.member);
     await this.conversations.remove(
       familyGroupId,
       req.tenantContext!.userId,

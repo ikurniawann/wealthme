@@ -57,7 +57,7 @@ export class AccountsController {
       canSeePrivate,
       query.owner,
       req.tenantContext?.userId,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
     );
   }
 
@@ -90,7 +90,7 @@ export class AccountsController {
       familyGroupId,
       id,
       canSeePrivate,
-      req.tenantContext?.member?.role ?? null,
+      req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
     );
   }

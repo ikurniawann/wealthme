@@ -116,7 +116,8 @@ describe("AiAdvisorController.chat (assertHouseholdWideReadAllowed)", () => {
         FAMILY_GROUP_ID,
         [{ role: "user", content: "Halo" }],
         expect.any(Function),
-        role,
+        // EPIC-030 — the member (carrying role + effective scope) is forwarded.
+        expect.objectContaining({ role }),
       );
       // A genuinely successful call writes a `done` frame carrying the
       // truncated flag — never an `error` frame from mishandling the

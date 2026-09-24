@@ -10,6 +10,7 @@ import {
   accountOwnerWhere,
   accountPrivacyWhere,
   restrictedAccountWhere,
+  type ScopeSubject,
 } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CryptoService } from "../crypto/crypto.service";
@@ -20,7 +21,6 @@ import type { AccountResponseDto } from "./dto/account-response.dto";
 import type { CreateAccountDto } from "./dto/create-account.dto";
 import type { AccountOwnerFilter } from "./dto/list-accounts-query.dto";
 import type { UpdateAccountDto } from "./dto/update-account.dto";
-import type { Role } from "@prisma/client";
 
 /**
  * `Account` has a unique index on `(familyGroupId, name)`, so saving a second
@@ -68,7 +68,7 @@ export class AccountsService {
     canSeePrivate = true,
     ownerFilter?: AccountOwnerFilter,
     requestingUserId?: string,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
   ): Promise<AccountResponseDto[]> {
     const accounts = await this.prisma.account.findMany({
       where: {
@@ -87,7 +87,7 @@ export class AccountsService {
     familyGroupId: string,
     id: string,
     canSeePrivate = true,
-    viewerRole: Role | null = null,
+    viewerRole: ScopeSubject = null,
     requestingUserId?: string,
   ): Promise<AccountResponseDto> {
     const account = await this.prisma.account.findUnique({

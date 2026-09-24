@@ -31,3 +31,4 @@ export * from "./donations/index.js";
 export * from "./tax/index.js";
 export * from "./reference-items/index.js";
 export * from "./attachments/index.js";
+export * from "./access/index.js";
