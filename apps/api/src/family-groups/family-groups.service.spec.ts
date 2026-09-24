@@ -1323,30 +1323,18 @@ describe("FamilyGroupsService.createDependantMember (EPIC-023 D1)", () => {
     );
   });
 
-  it("uses a real email when the Master provides one", async () => {
+  it("never writes a Master-typed email as the login email (it stays pending until confirmed)", async () => {
     mockCreatedRows();
     await service.createDependantMember(FAMILY_GROUP_ID, {
       ...BASE_DTO,
-      email: " Adit@Gmail.com ",
+      email: "someone@gmail.com",
     });
-    expect(tx.user.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ email: "adit@gmail.com" }),
-      }),
+    const data = tx.user.create.mock.calls[0][0].data as { email: string };
+    expect(data.email).toMatch(/@members\.internal\.wealthme\.invalid$/);
+    // No global email lookup either — nothing to enumerate.
+    expect(tx.user.findUnique).not.toHaveBeenCalledWith(
+      expect.objectContaining({ where: { email: "someone@gmail.com" } }),
     );
-  });
-
-  it("refuses an email that already has an account (EMAIL_TAKEN)", async () => {
-    tx.user.findUnique.mockImplementation(async (args: { where: object }) =>
-      "email" in args.where ? { id: "someone" } : null,
-    );
-    await expect(
-      service.createDependantMember(FAMILY_GROUP_ID, {
-        ...BASE_DTO,
-        email: "taken@gmail.com",
-      }),
-    ).rejects.toBeInstanceOf(ConflictException);
-    expect(tx.user.create).not.toHaveBeenCalled();
   });
 });
 

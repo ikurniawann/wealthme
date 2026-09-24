@@ -33,4 +33,8 @@ export class DependantMemberResponseDto {
 
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: string;
+
+  // EPIC-031 — the email awaiting its owner's confirmation, if one was given.
+  @ApiPropertyOptional({ type: String, nullable: true })
+  pendingEmail?: string | null;
 }

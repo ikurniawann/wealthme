@@ -1,8 +1,14 @@
 -- AlterTable
-ALTER TABLE "users" ADD COLUMN     "managedByFamilyGroupId" TEXT;
+ALTER TABLE "users" ADD COLUMN     "managedByFamilyGroupId" TEXT,
+ADD COLUMN     "pendingEmail" TEXT,
+ADD COLUMN     "pendingEmailExpiresAt" TIMESTAMP(3),
+ADD COLUMN     "pendingEmailTokenHash" TEXT;
 
 -- AlterTable
 ALTER TABLE "family_groups" ADD COLUMN     "handle" TEXT;
+
+-- CreateIndex
+CREATE UNIQUE INDEX "users_pendingEmailTokenHash_key" ON "users"("pendingEmailTokenHash");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "family_groups_handle_key" ON "family_groups"("handle");
@@ -38,3 +44,4 @@ FROM (
 WHERE m."userId" = u."id"
   AND u."email" LIKE '%@members.internal.wealthme.invalid'
   AND u."managedByFamilyGroupId" IS NULL;
+

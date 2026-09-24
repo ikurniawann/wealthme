@@ -79,6 +79,7 @@ const MEMBER_USER_SELECT = {
   email: true,
   username: true,
   managedByFamilyGroupId: true,
+  pendingEmail: true,
 } as const satisfies Prisma.UserSelect;
 
 function withCode(
@@ -196,6 +197,7 @@ export class FamilyGroupsService {
       email: m.user.email,
       username: m.user.username,
       managedLogin: isManagedLogin(m.user, m.familyGroupId),
+      pendingEmail: m.user.pendingEmail,
       accessRoleId: m.accessRoleId,
       accessRoleName: m.accessRole?.name ?? null,
       accessOverrides: parsePermissions(m.accessOverrides),
@@ -291,6 +293,7 @@ export class FamilyGroupsService {
       email: updated.user.email,
       username: updated.user.username,
       managedLogin: isManagedLogin(updated.user, updated.familyGroupId),
+      pendingEmail: updated.user.pendingEmail,
       createdAt: updated.createdAt.toISOString(),
       largeTxnThreshold: updated.largeTxnThreshold?.toString() ?? null,
     };
@@ -492,6 +495,7 @@ export class FamilyGroupsService {
       email: m.user.email,
       username: m.user.username,
       managedLogin: isManagedLogin(m.user, m.familyGroupId),
+      pendingEmail: m.user.pendingEmail,
       createdAt: m.createdAt.toISOString(),
       largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
     }));
@@ -668,6 +672,7 @@ export class FamilyGroupsService {
       email: member.user.email,
       username: member.user.username,
       managedLogin: isManagedLogin(member.user, member.familyGroupId),
+      pendingEmail: member.user.pendingEmail,
       createdAt: member.createdAt.toISOString(),
       largeTxnThreshold: member.largeTxnThreshold?.toString() ?? null,
     };
@@ -724,7 +729,8 @@ export class FamilyGroupsService {
     // username only has to be unique inside this family.
     const handle = await this.ensureHandle(familyGroupId);
     const normalizedUsername = buildFamilyLoginId(dto.username, handle);
-    const realEmail = dto.email?.trim().toLowerCase() || null;
+    // `dto.email` is NOT written here: an address a Master types only becomes
+    // the login email after its owner confirms it (MemberEmailService).
 
     // Same argon2 config used everywhere else in this codebase (auth.ts's
     // `emailAndPassword.password.hash`) — the hash must verify correctly
@@ -783,28 +789,13 @@ export class FamilyGroupsService {
             ),
           );
         }
-        if (realEmail) {
-          const existingEmail = await tx.user.findUnique({
-            where: { email: realEmail },
-            select: { id: true },
-          });
-          if (existingEmail) {
-            throw new ConflictException(
-              withCode(
-                "Email sudah terdaftar — undang lewat email, jangan buat akun baru",
-                "EMAIL_TAKEN",
-              ),
-            );
-          }
-        }
 
         const user = await tx.user.create({
           data: {
-            // A real email is optional (EPIC-031): with one the member can
-            // also sign in by email and use "Lupa Password". Without one, see
-            // SYNTHETIC_EMAIL_DOMAIN above for the placeholder's reasoning.
-            email:
-              realEmail ?? `member-${randomUUID()}@${SYNTHETIC_EMAIL_DOMAIN}`,
+            // See SYNTHETIC_EMAIL_DOMAIN above for the collision-avoidance
+            // reasoning (`.invalid` TLD + UUID). A real email is attached
+            // only after confirmation (EPIC-031, MemberEmailService).
+            email: `member-${randomUUID()}@${SYNTHETIC_EMAIL_DOMAIN}`,
             name: dto.name,
             username: normalizedUsername,
             displayUsername: dto.username,
@@ -859,15 +850,6 @@ export class FamilyGroupsService {
             "Username sudah dipakai anggota lain di keluarga ini",
             "USERNAME_TAKEN",
           ),
-        );
-      }
-      if (
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === "P2002" &&
-        (err.meta?.["target"] as string[] | undefined)?.includes("email")
-      ) {
-        throw new ConflictException(
-          withCode("Email sudah terdaftar", "EMAIL_TAKEN"),
         );
       }
       throw err;

@@ -100,7 +100,7 @@ export function AddMemberDialog({
       role: "dependant" | "operational" | "owner";
       relationship?: MemberRelationship;
     }) =>
-      apiFetch<{ username: string }>(
+      apiFetch<{ username: string; pendingEmail?: string | null }>(
         `/family-groups/${familyGroupId}/members/dependant`,
         {
           method: "POST",
@@ -122,7 +122,7 @@ export function AddMemberDialog({
         queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
       });
       toast.success(t.akun.addDependant.toastCreated, {
-        description: `${t.akun.addDependant.toastCreatedDesc} Login: ${created.username}`,
+        description: `${t.akun.addDependant.toastCreatedDesc} Login: ${created.username}${created.pendingEmail ? ` · Link konfirmasi dikirim ke ${created.pendingEmail}` : ""}`,
         duration: 10000,
       });
     },
@@ -263,8 +263,9 @@ export function AddMemberDialog({
               aria-describedby={`${fieldId}-email-hint`}
             />
             <p className="hint" id={`${fieldId}-email-hint`}>
-              Isi bila anggota punya email: dia bisa login dengan email juga dan
-              memakai Lupa Password.
+              Kami kirim link konfirmasi ke email ini. Setelah dikonfirmasi
+              pemiliknya, anggota bisa login dengan email juga dan memakai Lupa
+              Password.
             </p>
           </div>
           <div className="field">

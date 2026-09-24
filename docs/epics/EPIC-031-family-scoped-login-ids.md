@@ -38,6 +38,9 @@ member may also have a real email, so they can sign in by email and use
 - Renaming the kode keluarga keeps every Master-created member able to sign in with the new code.
 - Existing plain-username members sign in exactly as before.
 
+- [x] Pending email + confirmation (`PUT members/:id/email`, public `POST member-email/confirm`, `/konfirmasi-email` page), API `TransactionalMailService` over the same SMTP (notifications untouched)
+- [x] "Lupa Password" success copy made honest (the server answers the same for unknown emails)
+
 ## Automation Log
 
 ### 2026-09-24 — implemented (Claude Code), stacked on EPIC-030 / PR #328

@@ -91,6 +91,23 @@ const envSchema = z.object({
   // notifications.module.ts and disabled-notification-sender.service.ts).
   // In-app notifications are unaffected.
   NOTIFICATION_EMAIL_SENDER: z.enum(["disabled"]).optional(),
+  // EPIC-031 — SMTP for transactional mail sent by the API itself (the
+  // member email-confirmation link). Same variables the web app's
+  // "Lupa Password" uses; unset → the link is only logged outside production.
+  SMTP_HOST: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  SMTP_PORT: z.coerce.number().int().positive().optional(),
+  SMTP_USER: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
+  SMTP_PASSWORD: z.string().optional(),
+  SMTP_FROM: z
+    .string()
+    .optional()
+    .transform((v) => v?.trim() || undefined),
   // Observability — optional; Sentry error tracking.
   // Empty string (from .env placeholder) is treated as unset.
   SENTRY_DSN: z

@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Request,
 } from "@nestjs/common";
 import {
@@ -41,6 +42,11 @@ import { MemberResponseDto } from "./dto/member-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ResetMemberPasswordDto } from "./dto/reset-member-password.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import {
+  ConfirmMemberEmailDto,
+  SetMemberEmailDto,
+} from "./dto/set-member-email.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateFamilyReligionDto } from "./dto/update-family-religion.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
@@ -50,6 +56,8 @@ import { UpdateLoginHandleDto } from "./dto/update-login-handle.dto";
 import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FamilyGroupsService } from "./family-groups.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { MemberEmailService } from "./member-email.service";
 
 interface AuthRequest extends ExpressRequest {
   user: JwtPayload;
@@ -60,7 +68,10 @@ interface AuthRequest extends ExpressRequest {
 @PageAccess("family-groups")
 @Controller("family-groups")
 export class FamilyGroupsController {
-  constructor(private readonly familyGroupsService: FamilyGroupsService) {}
+  constructor(
+    private readonly familyGroupsService: FamilyGroupsService,
+    private readonly memberEmail: MemberEmailService,
+  ) {}
 
   @Get("mine")
   @ApiOperation({ summary: "List family groups the current user belongs to" })
@@ -146,7 +157,7 @@ export class FamilyGroupsController {
       "Create a dependant/operational member with a username + initial password (no email; forced password change at first login)",
   })
   @ApiResponse({ status: 201, type: DependantMemberResponseDto })
-  createDependantMember(
+  async createDependantMember(
     @Request() req: AuthRequest,
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateDependantMemberDto,
@@ -160,10 +171,49 @@ export class FamilyGroupsController {
     if (!tenantFamilyGroupId || tenantFamilyGroupId !== familyGroupId) {
       throw new ForbiddenException("Access denied");
     }
-    return this.familyGroupsService.createDependantMember(
+    const created = await this.familyGroupsService.createDependantMember(
       tenantFamilyGroupId,
       dto,
     );
+    // EPIC-031 — an email is only attached after its owner confirms it.
+    if (dto.email) {
+      await this.memberEmail.startConfirmation(created.userId, dto.email);
+      return { ...created, pendingEmail: dto.email.trim().toLowerCase() };
+    }
+    return created;
+  }
+
+  @Put(":familyGroupId/members/:memberId/email")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "memberId", type: String })
+  @ApiOperation({
+    summary:
+      "Set (and email a confirmation link to) or clear a Master-created member's email (owner only)",
+  })
+  setMemberEmail(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("memberId") memberId: string,
+    @Body() dto: SetMemberEmailDto,
+  ): Promise<{ pendingEmail: string | null }> {
+    return this.memberEmail.setForMember(
+      familyGroupId,
+      memberId,
+      req.user.sub,
+      dto.email ?? null,
+    );
+  }
+
+  /** Public — the mailbox owner confirms from the link in the email. */
+  @Public()
+  @Post("member-email/confirm")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "Confirm a member email from its emailed link" })
+  confirmMemberEmail(
+    @Body() dto: ConfirmMemberEmailDto,
+  ): Promise<{ email: string }> {
+    return this.memberEmail.confirm(dto.token);
   }
 
   // EPIC-031 — "kode keluarga" used in members' `username@kode` login IDs.

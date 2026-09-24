@@ -286,6 +286,13 @@ model User {
   // email). Only that family's Master may reset its password; a user who
   // registered on their own has null here and recovers via email.
   managedByFamilyGroupId   String?
+  // EPIC-031 — an email a Master entered for this member. It only becomes
+  // `email` (sign-in + Lupa Password) once its owner clicks the confirmation
+  // link, so a Master can never bind someone else's address without consent.
+  // The token is stored hashed (sha256), single use, 7-day expiry.
+  pendingEmail             String?
+  pendingEmailTokenHash    String?            @unique
+  pendingEmailExpiresAt    DateTime?
   managedByFamilyGroup     FamilyGroup?       @relation("ManagedUsers", fields: [managedByFamilyGroupId], references: [id], onDelete: SetNull)
   // EPIC-023 D1/D6 — true only for an account this endpoint just created;
   // ForcePasswordChangeGuard refuses every request except a small allowlist

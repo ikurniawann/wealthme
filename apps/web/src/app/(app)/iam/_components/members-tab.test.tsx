@@ -46,6 +46,7 @@ function setup() {
   const handlers = {
     onEditAccess: jest.fn(),
     onResetPassword: jest.fn(),
+    onEditEmail: jest.fn(),
     onRemove: jest.fn(),
   };
   render(
@@ -99,6 +100,7 @@ describe("IAM MembersTab", () => {
         currentUserId="u-master"
         onEditAccess={jest.fn()}
         onResetPassword={jest.fn()}
+        onEditEmail={jest.fn()}
         onRemove={jest.fn()}
       />,
     );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Crown, KeyRound, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Crown, KeyRound, Mail, SlidersHorizontal, Trash2 } from "lucide-react";
 import {
   LEGACY_ACCESS_PRESETS,
   type AccessDataScope,
@@ -26,6 +26,8 @@ export type MemberRow = {
   username: string | null;
   /** Head-created username login (no mailbox) — password reset lives here. */
   managedLogin: boolean;
+  /** EPIC-031 — email a Master entered, waiting for its owner to confirm. */
+  pendingEmail?: string | null;
   accessRoleId?: string | null;
   accessRoleName?: string | null;
   accessOverrides?: AccessPermissions;
@@ -38,6 +40,7 @@ type MembersTabProps = {
   currentUserId: string | undefined;
   onEditAccess: (m: MemberRow) => void;
   onResetPassword: (m: MemberRow) => void;
+  onEditEmail: (m: MemberRow) => void;
   onRemove: (m: MemberRow) => void;
 };
 
@@ -61,6 +64,7 @@ export function MembersTab({
   currentUserId,
   onEditAccess,
   onResetPassword,
+  onEditEmail,
   onRemove,
 }: MembersTabProps) {
   const { t } = useLocale();
@@ -131,6 +135,11 @@ export function MembersTab({
                           {line}
                         </div>
                       ))}
+                      {m.pendingEmail && (
+                        <div className="text-[11.5px] text-warning">
+                          {m.pendingEmail} · menunggu konfirmasi
+                        </div>
+                      )}
                     </td>
                     <td>
                       <StatusBadge variant={isMaster ? "success" : "gray"}>
@@ -174,6 +183,16 @@ export function MembersTab({
                           >
                             <SlidersHorizontal size={14} aria-hidden="true" />
                             Atur Akses
+                          </button>
+                        )}
+                        {m.managedLogin && !isSelf && (
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            onClick={() => onEditEmail(m)}
+                          >
+                            <Mail size={14} aria-hidden="true" />
+                            Email
                           </button>
                         )}
                         {m.managedLogin && !isSelf && (
