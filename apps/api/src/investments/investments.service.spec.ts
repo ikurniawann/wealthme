@@ -31,6 +31,10 @@ const mockPrisma = {
     // so every pre-existing remove()-adjacent test keeps passing.
     count: jest.fn().mockResolvedValue(0),
   },
+  // EPIC-033 p28 — settlement against a real account.
+  account: { findUnique: jest.fn(), update: jest.fn() },
+  transaction: { create: jest.fn() },
+  category: { findFirst: jest.fn() },
   $transaction: jest.fn(
     async (cb: (tx: typeof mockPrisma) => Promise<unknown>) => cb(mockPrisma),
   ),
@@ -852,6 +856,112 @@ describe("InvestmentsService P&L", () => {
       expect(updateCall.data.quantity.toString()).toBe("20");
       expect(updateCall.data.costBasisPerUnit.toString()).toBe("10000");
       expect(result.realizedPnl).toBeNull();
+    });
+  });
+
+  describe("recordTransaction() — settlement account (EPIC-033 p28)", () => {
+    it("buy with accountId debits the account and books a transfer out", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue({
+        id: "inv-1",
+        familyGroupId: "fg-1",
+        ticker: "TSTY",
+        quantity: new Decimal("1"),
+        costBasisPerUnit: new Decimal("10000"),
+      });
+      mockPrisma.account.findUnique.mockResolvedValue({
+        id: "acc-1",
+        familyGroupId: "fg-1",
+      });
+      mockPrisma.investmentTransaction.create.mockResolvedValue({
+        id: "tx-1",
+        investmentId: "inv-1",
+        type: "buy",
+        quantity: new Decimal("100"),
+        pricePerUnit: new Decimal("10000"),
+        occurredAt: new Date("2026-09-01T00:00:00.000Z"),
+        realizedPnl: null,
+        createdAt: new Date("2026-09-01T00:00:00.000Z"),
+      });
+
+      await service.recordTransaction("fg-1", "inv-1", {
+        type: "buy",
+        quantity: "100",
+        pricePerUnit: "10000",
+        accountId: "acc-1",
+      });
+
+      expect(mockPrisma.account.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: "acc-1" },
+          data: { balance: { decrement: 1_000_000n } },
+        }),
+      );
+      expect(mockPrisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            type: "transfer",
+            accountId: "acc-1",
+            toAccountId: null,
+            amount: 1_000_000n,
+          }),
+        }),
+      );
+    });
+
+    it("sell with accountId credits the proceeds and books the gain as income", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue({
+        id: "inv-1",
+        familyGroupId: "fg-1",
+        ticker: "TSTY",
+        quantity: new Decimal("101"),
+        costBasisPerUnit: new Decimal("10000"),
+      });
+      mockPrisma.account.findUnique.mockResolvedValue({
+        id: "acc-1",
+        familyGroupId: "fg-1",
+      });
+      mockPrisma.category.findFirst.mockResolvedValue({ id: "cat-inv" });
+      mockPrisma.investmentTransaction.create.mockResolvedValue({
+        id: "tx-2",
+        investmentId: "inv-1",
+        type: "sell",
+        quantity: new Decimal("40"),
+        pricePerUnit: new Decimal("12500"),
+        occurredAt: new Date("2026-09-02T00:00:00.000Z"),
+        realizedPnl: new Decimal("100000"),
+        createdAt: new Date("2026-09-02T00:00:00.000Z"),
+      });
+
+      const result = await service.recordTransaction("fg-1", "inv-1", {
+        type: "sell",
+        quantity: "40",
+        pricePerUnit: "12500",
+        accountId: "acc-1",
+      });
+
+      expect(result.realizedPnl).toBe("100000");
+      expect(mockPrisma.account.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: { balance: { increment: 500_000n } },
+        }),
+      );
+      const txCalls = mockPrisma.transaction.create.mock.calls.map(
+        (c) => (c[0] as { data: Record<string, unknown> }).data,
+      );
+      expect(txCalls).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: "transfer",
+            toAccountId: "acc-1",
+            amount: 400_000n,
+          }),
+          expect.objectContaining({
+            type: "income",
+            categoryId: "cat-inv",
+            amount: 100_000n,
+          }),
+        ]),
+      );
     });
   });
 

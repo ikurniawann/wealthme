@@ -50,15 +50,14 @@ are cross-referenced, not duplicated.
 
 ### 3. Asset and investment price history (p14, p16, p17, p18)
 
-- [ ] Asset form: file upload (p14).
-- [ ] Asset detail page on card click (p16): left date list + "Add History"; right value chart; below, list of price changes with who changed it (p17). Add-History popup: date, new value (up/down) or percent, computed.
-- [ ] Investment detail: price-change history list (p18).
-- New `asset_value_history` (and investment equivalent) tables + migration. Needs human review.
+- [ ] Asset form: file upload (p14). Deferred: needs an asset-scoped attachment table + S3 flow (the existing attachments module is transaction-scoped). No placeholder shown in the UI.
+- [x] Asset detail page `/aset/[id]` (p16/p17): asset name on the card links to it; left column = dated valuations; right = `TrendChart` of values; below = change list with percent vs previous, who recorded it, and note. "Tambah Riwayat" dialog takes a date plus either the new value or a percent change (computed server-side). `POST /assets/:id/history` (manage Asset) appends `asset_history` with `recordedByUserId` + `note` (migration `20260925150000_epic033_asset_history_actor`) and moves `currentValue` when the entry is the newest.
+- [x] Investment detail: "Riwayat Harga" list from the new `GET /investments/:id/prices` (existing `investment_prices` rows: manual + feed, with source and as-of date).
 
 ### 4. Calculations and reports (p20, p28)
 
-- [ ] Liabilities: credit-card figures wrong (p20). Reproduce on local data first; expected numbers to be confirmed with client.
-- [ ] PNL: asset/investment buy-sell transactions missing from the report (p28). Define which COA group they post to.
+- [x] Liabilities: credit-card figures wrong (p20). Reproduced with a real scenario: (a) a card purchase incremented `totalDebt`, which the UI shows as "Limit Kredit", so the limit grew with every purchase; (b) interest was computed as annual/12 while the card UI labels the rate "Bunga/Bulan". Fixed: purchases raise the running bill only; `kartu_kredit` uses the rate per month in `splitPayment` and in the web amortisation preview. Verified: limit 20.000.000 stays; bill 3.000.000, pay 1.000.000 @ 2%/bln → interest 60.000, principal 940.000, bill 2.060.000, source account −1.000.000.
+- [x] PNL: investment buy/sell now moves money when a settlement account is chosen (p28). `POST :id/transactions` accepts optional `accountId`; buy = transfer out (allocation, not an expense), sell = transfer in of the cost portion + `Hasil Investasi` income for the realised gain. Beli/Jual dialog gets a "Rekening (opsional)" picker. Verified: buy 100 @ 10.000 → −1.000.000; sell 40 @ 12.500 → +500.000 with realised 100.000 appearing under Hasil Investasi in the P&L. Realised losses are not booked as an expense (no loss category exists), noted as a follow-up.
 
 ### 5. New features (p27, p29, p30)
 

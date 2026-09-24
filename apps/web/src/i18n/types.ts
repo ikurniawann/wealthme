@@ -1639,6 +1639,8 @@ export type I18nDictionary = {
     buySellFieldQuantityLabel: string;
     buySellFieldPriceLabel: string;
     buySellFieldDateLabel: string;
+    buySellFieldAccountLabel: string;
+    buySellAccountNoneOption: string;
     buySellSaveButton: string;
     buySellSaving: string;
     toastBuySuccess: string;
@@ -1648,6 +1650,9 @@ export type I18nDictionary = {
     detailRealizedPnlLabel: string;
     historySectionTitle: string;
     historyEmptyLabel: string;
+    priceHistoryTitle: string;
+    priceHistoryEmpty: string;
+    priceSourceManual: string;
     historyBuyLabel: string;
     historySellLabel: string;
     /** Template with a `{pnl}` placeholder. */
@@ -1734,6 +1739,27 @@ export type I18nDictionary = {
     allocationTitle: string;
     recordedValueLabel: string;
     perYearSuffix: string;
+    detailBackLink: string;
+    detailHistoryTitle: string;
+    detailChartTitle: string;
+    detailChangesTitle: string;
+    addHistoryButton: string;
+    addHistoryDialogTitle: string;
+    historyModeValue: string;
+    historyModePercent: string;
+    historyValueLabel: string;
+    historyPercentLabel: string;
+    historyPercentHint: string;
+    historyDateLabel: string;
+    historyNoteLabel: string;
+    historyNotePlaceholder: string;
+    historyEmpty: string;
+    historyByPrefix: string;
+    historySystemActor: string;
+    historySaveButton: string;
+    toastHistorySaved: string;
+    toastHistoryFailed: string;
+    detailNotFound: string;
     // EPIC-025 N3 fidelity follow-up (prototype parity): hero sub-line,
     // breakdown stat-card "vs last month" delta suffix, the Aset Fisik
     // card's neutral (non-delta) note, and account-row ownership segment

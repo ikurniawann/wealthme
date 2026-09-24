@@ -24,6 +24,7 @@ import { PageAccess } from "../common/decorators/page-access.decorator";
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { AssetsService } from "./assets.service";
 import { CreateAssetDto } from "./dto/create-asset.dto";
+import { RecordAssetValueDto } from "./dto/record-asset-value.dto";
 import { UpdateAssetDto } from "./dto/update-asset.dto";
 /* eslint-enable @typescript-eslint/consistent-type-imports */
 
@@ -82,6 +83,23 @@ export class AssetsController {
     @Param("id") id: string,
   ): Promise<void> {
     return this.assetsService.remove(req.params.familyGroupId, id);
+  }
+
+  @Post(":id/history")
+  @CheckAbility((ab) => ab.can("manage", "Asset"))
+  @ApiOperation({ summary: "Record a dated valuation for an asset (EPIC-033)" })
+  @ApiResponse({ status: 201, description: "The created history entry" })
+  recordValue(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+    @Body() dto: RecordAssetValueDto,
+  ): Promise<AssetHistoryResponseDto> {
+    return this.assetsService.recordValue(
+      req.params.familyGroupId,
+      id,
+      dto,
+      req.tenantContext?.userId ?? null,
+    );
   }
 
   @Get(":id/history")

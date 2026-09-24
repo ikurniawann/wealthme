@@ -69,6 +69,10 @@ export interface AssetHistoryDto {
   assetId: string;
   value: string;
   recordedAt: string;
+  /** EPIC-033 group 3 — percent change vs the previous entry (2 decimals), null on the first. */
+  changePercent: string | null;
+  recordedByName: string | null;
+  note: string | null;
 }
 
 export interface CreateAssetDto {

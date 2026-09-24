@@ -138,6 +138,16 @@ export class InvestmentsController {
     );
   }
 
+  @Get(":id/prices")
+  @CheckAbility((ab) => ab.can("read", "Investment"))
+  @ApiOperation({ summary: "Price history for one holding (EPIC-033 p18)" })
+  findPrices(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+  ): Promise<InvestmentPriceDto[]> {
+    return this.investmentsService.findPrices(req.params.familyGroupId, id);
+  }
+
   @Get(":id/transactions")
   @CheckAbility((ab) => ab.can("read", "Investment"))
   @ApiOperation({ summary: "List the buy/sell history for one holding" })

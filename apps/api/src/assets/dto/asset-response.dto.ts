@@ -52,4 +52,8 @@ export class AssetHistoryResponseDto {
   @ApiProperty() assetId!: string;
   @ApiProperty() value!: string;
   @ApiProperty() recordedAt!: string;
+  /** EPIC-033 group 3 — change vs the previous entry, percent with 2 decimals; null on the first entry. */
+  @ApiProperty({ nullable: true }) changePercent!: string | null;
+  @ApiProperty({ nullable: true }) recordedByName!: string | null;
+  @ApiProperty({ nullable: true }) note!: string | null;
 }

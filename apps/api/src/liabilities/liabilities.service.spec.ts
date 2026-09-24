@@ -1395,7 +1395,6 @@ describe("LiabilitiesService", () => {
         where: { id: "card-1", familyGroupId: "fg-1" },
         data: {
           remainingBalance: { increment: BigInt(150_000) },
-          totalDebt: { increment: BigInt(150_000) },
         },
       });
 
