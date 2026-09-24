@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, Info, LogIn } from "lucide-react";
 import { toast } from "sonner";
+import { isFamilyLoginId } from "@wealthme/contracts";
 import { authClient } from "@/lib/auth-client";
 import { SectionCard } from "@/components/wm";
 
@@ -69,6 +70,12 @@ export default function LoginPage() {
       toast.warning("Email dan password harus diisi");
       return;
     }
+    // EPIC-031 — `budi@arsandi` (a family login ID, no dot after "@") typed
+    // into the Email tab is a username login, not an email.
+    if (isFamilyLoginId(email)) {
+      await signInWithUsername(email.trim());
+      return;
+    }
     setLoading(true);
     try {
       const result = await authClient.signIn.email({
@@ -95,12 +102,16 @@ export default function LoginPage() {
       toast.warning("Username dan password harus diisi");
       return;
     }
+    await signInWithUsername(username.trim());
+  };
+
+  const signInWithUsername = async (loginId: string) => {
     setLoading(true);
     try {
       const { error: fetchError } =
         await authClient.$fetch<UsernameSignInResponse>("/sign-in/username", {
           method: "POST",
-          body: { username, password },
+          body: { username: loginId.toLowerCase(), password },
         });
       if (fetchError) {
         const errorMsg = fetchError.message ?? "Login gagal";
@@ -209,8 +220,8 @@ export default function LoginPage() {
                   className={INPUT_CLASS}
                 />
                 <div className="mt-[5px] text-[11.5px] text-muted-foreground">
-                  Anggota bertipe <em>tanggungan</em>/<em>operasional</em> tidak
-                  punya email — mereka masuk lewat tab Username.
+                  Anggota yang dibuatkan akun oleh Master bisa masuk dengan
+                  username keluarga, misalnya <em>budi@arsandi</em>.
                 </div>
               </div>
             ) : (
@@ -223,6 +234,9 @@ export default function LoginPage() {
                   type="text"
                   autoCapitalize="none"
                   autoCorrect="off"
+                  autoComplete="username"
+                  placeholder="nama@kodekeluarga"
+                  aria-describedby="username-hint"
                   value={username}
                   onChange={(e) => {
                     setUsername(e.target.value);
@@ -230,6 +244,13 @@ export default function LoginPage() {
                   }}
                   className={INPUT_CLASS}
                 />
+                <div
+                  id="username-hint"
+                  className="mt-[5px] text-[11.5px] text-muted-foreground"
+                >
+                  Contoh: <em>budi@arsandi</em>. Username &amp; kode keluarga
+                  didapat dari Master keluarga Anda.
+                </div>
               </div>
             )}
 

@@ -13,6 +13,11 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfigService } from "@nestjs/config";
 import { MemberRelationship, Prisma, Role } from "@prisma/client";
+import {
+  FAMILY_HANDLE_PATTERN,
+  buildFamilyLoginId,
+  slugifyHandleBase,
+} from "@wealthme/contracts";
 import * as argon2 from "argon2";
 
 import { parsePermissions } from "../access/member-access.util";
@@ -56,20 +61,24 @@ const INVITATION_TTL_DAYS = 7;
 const SYNTHETIC_EMAIL_DOMAIN = "members.internal.wealthme.invalid";
 
 /**
- * A "managed login" is an account the head created from /iam (username +
- * initial password, synthetic `.invalid` email). Only these can have their
- * password set by a Master: the member has no mailbox, so email-based
- * "Lupa Password" can never reach them. An account with a real email owns
- * its own credential and recovers it through that email instead.
+ * A "managed login" is an account THIS family's Master created from /iam
+ * (EPIC-031: `User.managedByFamilyGroupId`, backfilled for the synthetic
+ * `.invalid` logins created before it). Only these can have their password
+ * set by that Master — with or without a real email. An account the person
+ * registered themselves owns its own credential and recovers it by email.
  */
-function isManagedLogin(email: string): boolean {
-  return email.endsWith(`@${SYNTHETIC_EMAIL_DOMAIN}`);
+function isManagedLogin(
+  user: { managedByFamilyGroupId: string | null },
+  familyGroupId: string,
+): boolean {
+  return user.managedByFamilyGroupId === familyGroupId;
 }
 
 const MEMBER_USER_SELECT = {
   name: true,
   email: true,
   username: true,
+  managedByFamilyGroupId: true,
 } as const satisfies Prisma.UserSelect;
 
 function withCode(
@@ -186,7 +195,7 @@ export class FamilyGroupsService {
       name: m.user.name,
       email: m.user.email,
       username: m.user.username,
-      managedLogin: isManagedLogin(m.user.email),
+      managedLogin: isManagedLogin(m.user, m.familyGroupId),
       accessRoleId: m.accessRoleId,
       accessRoleName: m.accessRole?.name ?? null,
       accessOverrides: parsePermissions(m.accessOverrides),
@@ -281,7 +290,7 @@ export class FamilyGroupsService {
       name: updated.user.name,
       email: updated.user.email,
       username: updated.user.username,
-      managedLogin: isManagedLogin(updated.user.email),
+      managedLogin: isManagedLogin(updated.user, updated.familyGroupId),
       createdAt: updated.createdAt.toISOString(),
       largeTxnThreshold: updated.largeTxnThreshold?.toString() ?? null,
     };
@@ -358,7 +367,7 @@ export class FamilyGroupsService {
 
     const member = await this.prisma.member.findFirst({
       where: { id: memberId, familyGroupId },
-      include: { user: { select: { email: true } } },
+      include: { user: { select: { managedByFamilyGroupId: true } } },
     });
     if (!member) throw new NotFoundException("Member not found");
 
@@ -370,10 +379,10 @@ export class FamilyGroupsService {
         ),
       );
     }
-    if (!isManagedLogin(member.user.email)) {
+    if (!isManagedLogin(member.user, familyGroupId)) {
       throw new ForbiddenException(
         withCode(
-          "Anggota ini login dengan email sendiri — minta dia memakai Lupa Password",
+          "Akun ini tidak dibuat oleh Master keluarga ini — minta dia memakai Lupa Password",
           "MEMBER_MANAGES_OWN_PASSWORD",
         ),
       );
@@ -482,7 +491,7 @@ export class FamilyGroupsService {
       name: m.user.name,
       email: m.user.email,
       username: m.user.username,
-      managedLogin: isManagedLogin(m.user.email),
+      managedLogin: isManagedLogin(m.user, m.familyGroupId),
       createdAt: m.createdAt.toISOString(),
       largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
     }));
@@ -658,7 +667,7 @@ export class FamilyGroupsService {
       name: member.user.name,
       email: member.user.email,
       username: member.user.username,
-      managedLogin: isManagedLogin(member.user.email),
+      managedLogin: isManagedLogin(member.user, member.familyGroupId),
       createdAt: member.createdAt.toISOString(),
       largeTxnThreshold: member.largeTxnThreshold?.toString() ?? null,
     };
@@ -711,7 +720,11 @@ export class FamilyGroupsService {
     // no override passed). Store/compare the same way so a case-insensitive
     // collision is caught here AND a real `/sign-in/username` lookup (which
     // normalizes the same way) actually finds this row.
-    const normalizedUsername = dto.username.toLowerCase();
+    // EPIC-031 — the stored login ID is `<username>@<kode keluarga>`, so a
+    // username only has to be unique inside this family.
+    const handle = await this.ensureHandle(familyGroupId);
+    const normalizedUsername = buildFamilyLoginId(dto.username, handle);
+    const realEmail = dto.email?.trim().toLowerCase() || null;
 
     // Same argon2 config used everywhere else in this codebase (auth.ts's
     // `emailAndPassword.password.hash`) — the hash must verify correctly
@@ -764,18 +777,38 @@ export class FamilyGroupsService {
         });
         if (existingUsername) {
           throw new ConflictException(
-            withCode("Username sudah digunakan", "USERNAME_TAKEN"),
+            withCode(
+              "Username sudah dipakai anggota lain di keluarga ini",
+              "USERNAME_TAKEN",
+            ),
           );
+        }
+        if (realEmail) {
+          const existingEmail = await tx.user.findUnique({
+            where: { email: realEmail },
+            select: { id: true },
+          });
+          if (existingEmail) {
+            throw new ConflictException(
+              withCode(
+                "Email sudah terdaftar — undang lewat email, jangan buat akun baru",
+                "EMAIL_TAKEN",
+              ),
+            );
+          }
         }
 
         const user = await tx.user.create({
           data: {
-            // See SYNTHETIC_EMAIL_DOMAIN above for the collision-avoidance
-            // reasoning (`.invalid` TLD + UUID).
-            email: `member-${randomUUID()}@${SYNTHETIC_EMAIL_DOMAIN}`,
+            // A real email is optional (EPIC-031): with one the member can
+            // also sign in by email and use "Lupa Password". Without one, see
+            // SYNTHETIC_EMAIL_DOMAIN above for the placeholder's reasoning.
+            email:
+              realEmail ?? `member-${randomUUID()}@${SYNTHETIC_EMAIL_DOMAIN}`,
             name: dto.name,
             username: normalizedUsername,
             displayUsername: dto.username,
+            managedByFamilyGroupId: familyGroupId,
             avatarInitials: initialsFromName(dto.name),
             mustChangePassword: true,
             emailVerified: false,
@@ -822,11 +855,130 @@ export class FamilyGroupsService {
         (err.meta?.["target"] as string[] | undefined)?.includes("username")
       ) {
         throw new ConflictException(
-          withCode("Username sudah digunakan", "USERNAME_TAKEN"),
+          withCode(
+            "Username sudah dipakai anggota lain di keluarga ini",
+            "USERNAME_TAKEN",
+          ),
+        );
+      }
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002" &&
+        (err.meta?.["target"] as string[] | undefined)?.includes("email")
+      ) {
+        throw new ConflictException(
+          withCode("Email sudah terdaftar", "EMAIL_TAKEN"),
         );
       }
       throw err;
     }
+  }
+
+  /**
+   * EPIC-031 — the family's "kode keluarga". Assigned lazily for a family
+   * created after the backfill migration: first word of its name + 6 random
+   * hex chars, retried on the (astronomically rare) unique collision.
+   */
+  async ensureHandle(familyGroupId: string): Promise<string> {
+    const group = await this.prisma.familyGroup.findUnique({
+      where: { id: familyGroupId },
+      select: { handle: true, name: true },
+    });
+    if (!group) throw new NotFoundException("Family group not found");
+    if (group.handle) return group.handle;
+
+    const base = slugifyHandleBase(group.name);
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const candidate = `${base}-${randomUUID().replace(/-/g, "").slice(0, 6)}`;
+      try {
+        const updated = await this.prisma.familyGroup.updateMany({
+          where: { id: familyGroupId, handle: null },
+          data: { handle: candidate },
+        });
+        if (updated.count === 1) return candidate;
+        // Someone else assigned one concurrently — use theirs.
+        const again = await this.prisma.familyGroup.findUnique({
+          where: { id: familyGroupId },
+          select: { handle: true },
+        });
+        if (again?.handle) return again.handle;
+      } catch (err) {
+        if (
+          !(err instanceof Prisma.PrismaClientKnownRequestError) ||
+          err.code !== "P2002"
+        ) {
+          throw err;
+        }
+      }
+    }
+    throw new ConflictException("Could not assign a family login handle");
+  }
+
+  async getLoginHandle(
+    familyGroupId: string,
+    requesterId: string,
+  ): Promise<{ handle: string }> {
+    await this.assertMember(familyGroupId, requesterId);
+    return { handle: await this.ensureHandle(familyGroupId) };
+  }
+
+  /**
+   * Master renames the kode keluarga. Every login ID this family's Master
+   * created (`x@old`) is rewritten to `x@new` in the same transaction, so
+   * members keep signing in — with the new code. Legacy plain usernames and
+   * self-registered accounts are untouched.
+   */
+  async updateLoginHandle(
+    familyGroupId: string,
+    requesterId: string,
+    rawHandle: string,
+  ): Promise<{ handle: string }> {
+    await this.assertOwner(familyGroupId, requesterId);
+    const next = rawHandle.trim().toLowerCase();
+    if (!FAMILY_HANDLE_PATTERN.test(next)) {
+      throw new BadRequestException(
+        withCode(
+          "Kode keluarga 3–24 karakter: huruf kecil, angka, dan tanda minus",
+          "INVALID_FAMILY_HANDLE",
+        ),
+      );
+    }
+    const current = await this.ensureHandle(familyGroupId);
+    if (current === next) return { handle: current };
+
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.familyGroup.update({
+          where: { id: familyGroupId },
+          data: { handle: next },
+        });
+        const managed = await tx.user.findMany({
+          where: {
+            managedByFamilyGroupId: familyGroupId,
+            username: { endsWith: `@${current}` },
+          },
+          select: { id: true, username: true },
+        });
+        for (const u of managed) {
+          const local = (u.username ?? "").slice(0, -(current.length + 1));
+          await tx.user.update({
+            where: { id: u.id },
+            data: { username: buildFamilyLoginId(local, next) },
+          });
+        }
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002"
+      ) {
+        throw new ConflictException(
+          withCode("Kode keluarga sudah dipakai keluarga lain", "HANDLE_TAKEN"),
+        );
+      }
+      throw err;
+    }
+    return { handle: next };
   }
 
   /**

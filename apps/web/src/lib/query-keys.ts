@@ -14,6 +14,8 @@ export const queryKeys = {
     // EPIC-030 — IAM.
     myAccess: (id: string) => ["familyGroups", id, "access", "me"] as const,
     accessRoles: (id: string) => ["familyGroups", id, "access-roles"] as const,
+    // EPIC-031 — kode keluarga for `username@kode` logins.
+    loginHandle: (id: string) => ["familyGroups", id, "login-handle"] as const,
   },
   transactions: {
     all: (familyGroupId: string) => ["transactions", familyGroupId] as const,

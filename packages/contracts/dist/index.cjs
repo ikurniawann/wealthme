@@ -48,10 +48,14 @@ __export(index_exports, {
   CreateTransactionInputSchema: () => CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: () => DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP: () => DEFAULT_ROLE_BY_RELATIONSHIP,
+  FAMILY_HANDLE_PATTERN: () => FAMILY_HANDLE_PATTERN,
   GENERIC_COA_CHART: () => GENERIC_COA_CHART,
   HeldExpenseResponseSchema: () => HeldExpenseResponseSchema,
   LEGACY_ACCESS_PRESETS: () => LEGACY_ACCESS_PRESETS,
+  LOGIN_USERNAME_PATTERN: () => LOGIN_USERNAME_PATTERN,
   LoginInputSchema: () => LoginInputSchema,
+  MAX_LOGIN_USERNAME_LENGTH: () => MAX_LOGIN_USERNAME_LENGTH,
+  MEMBER_USERNAME_PATTERN: () => MEMBER_USERNAME_PATTERN,
   MemberAccessInputSchema: () => MemberAccessInputSchema,
   MemberCategoryAllowanceDtoSchema: () => MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema: () => MemberRelationshipSchema,
@@ -68,12 +72,15 @@ __export(index_exports, {
   TransactionSummarySchema: () => TransactionSummarySchema,
   TransactionTypeSchema: () => TransactionTypeSchema,
   UpdateAccountInputSchema: () => UpdateAccountInputSchema,
+  buildFamilyLoginId: () => buildFamilyLoginId,
   buildReferenceItemSeed: () => buildReferenceItemSeed,
   canAccessPage: () => canAccessPage,
   defaultCoaCodeForCategory: () => defaultCoaCodeForCategory,
   defaultRoleForRelationship: () => defaultRoleForRelationship,
+  isFamilyLoginId: () => isFamilyLoginId,
   levelAtLeast: () => levelAtLeast,
-  resolveEffectiveAccess: () => resolveEffectiveAccess
+  resolveEffectiveAccess: () => resolveEffectiveAccess,
+  slugifyHandleBase: () => slugifyHandleBase
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -771,6 +778,24 @@ var MemberAccessInputSchema = import_zod11.z.object({
   /** Sparse overrides on top of the role; {} clears them. */
   overrides: AccessPermissionsSchema
 });
+
+// src/family-login/index.ts
+var MEMBER_USERNAME_PATTERN = /^[a-z0-9_.]{3,30}$/;
+var FAMILY_HANDLE_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,22})[a-z0-9]$/;
+var LOGIN_USERNAME_PATTERN = /^[a-z0-9_.]{3,30}(?:@[a-z0-9-]{3,24})?$/;
+var MAX_LOGIN_USERNAME_LENGTH = 30 + 1 + 24;
+function buildFamilyLoginId(username, handle) {
+  return `${username.trim().toLowerCase()}@${handle.trim().toLowerCase()}`;
+}
+function isFamilyLoginId(input) {
+  const value = input.trim().toLowerCase();
+  return value.includes("@") && LOGIN_USERNAME_PATTERN.test(value);
+}
+function slugifyHandleBase(name) {
+  const word = name.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\s-]/g, "").trim().split(/\s+/)[0];
+  const base = (word ?? "").replace(/[^a-z0-9]/g, "").slice(0, 16);
+  return base.length >= 3 ? base : "keluarga";
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ACCESS_LEVELS,
@@ -801,10 +826,14 @@ var MemberAccessInputSchema = import_zod11.z.object({
   CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
+  FAMILY_HANDLE_PATTERN,
   GENERIC_COA_CHART,
   HeldExpenseResponseSchema,
   LEGACY_ACCESS_PRESETS,
+  LOGIN_USERNAME_PATTERN,
   LoginInputSchema,
+  MAX_LOGIN_USERNAME_LENGTH,
+  MEMBER_USERNAME_PATTERN,
   MemberAccessInputSchema,
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
@@ -821,10 +850,13 @@ var MemberAccessInputSchema = import_zod11.z.object({
   TransactionSummarySchema,
   TransactionTypeSchema,
   UpdateAccountInputSchema,
+  buildFamilyLoginId,
   buildReferenceItemSeed,
   canAccessPage,
   defaultCoaCodeForCategory,
   defaultRoleForRelationship,
+  isFamilyLoginId,
   levelAtLeast,
-  resolveEffectiveAccess
+  resolveEffectiveAccess,
+  slugifyHandleBase
 });

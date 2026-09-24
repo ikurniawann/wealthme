@@ -1,11 +1,14 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { username } from "better-auth/plugins";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { PrismaClient } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 import argon2 from "argon2";
 import { sendResetPasswordEmail } from "./reset-password-mailer";
 import {
+  LOGIN_USERNAME_PATTERN,
+  MAX_LOGIN_USERNAME_LENGTH,
   GENERIC_COA_CHART,
   buildReferenceItemSeed,
   defaultCoaCodeForCategory,
@@ -192,5 +195,29 @@ export const auth = betterAuth({
   // operational members sign in by username, not email (they have no real
   // email). Field names/defaults verified against the installed plugin's
   // own schema (see User.username/displayUsername in prisma/schema.prisma).
-  plugins: [username()],
+  plugins: [
+    username({
+      // EPIC-031 — Master-created members sign in as `<username>@<kode
+      // keluarga>` (e.g. `budi@arsandi`); legacy plain usernames still work.
+      maxUsernameLength: MAX_LOGIN_USERNAME_LENGTH,
+      usernameValidator: (value) =>
+        LOGIN_USERNAME_PATTERN.test(value.toLowerCase()),
+    }),
+  ],
+  // EPIC-031 — a family login ID (`x@kode`) is only ever issued by the API
+  // when a Master creates a member. A user setting one on their OWN account
+  // could squat another family's namespace, so self-service username writes
+  // may never contain "@".
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email" && ctx.path !== "/update-user") return;
+      const requested = (ctx.body as { username?: unknown } | undefined)
+        ?.username;
+      if (typeof requested === "string" && requested.includes("@")) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Username tidak boleh mengandung @",
+        });
+      }
+    }),
+  },
 });

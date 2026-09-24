@@ -45,6 +45,8 @@ import { UpdateFamilyReligionDto } from "./dto/update-family-religion.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateGoldPriceDto } from "./dto/update-gold-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateLoginHandleDto } from "./dto/update-login-handle.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateMemberRoleDto } from "./dto/update-member-role.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FamilyGroupsService } from "./family-groups.service";
@@ -161,6 +163,37 @@ export class FamilyGroupsController {
     return this.familyGroupsService.createDependantMember(
       tenantFamilyGroupId,
       dto,
+    );
+  }
+
+  // EPIC-031 — "kode keluarga" used in members' `username@kode` login IDs.
+  @Get(":familyGroupId/login-handle")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "FamilyGroup"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({ summary: "The family's login handle (kode keluarga)" })
+  getLoginHandle(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+  ): Promise<{ handle: string }> {
+    return this.familyGroupsService.getLoginHandle(familyGroupId, req.user.sub);
+  }
+
+  @Patch(":familyGroupId/login-handle")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "FamilyGroup"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiOperation({
+    summary:
+      "Rename the kode keluarga; rewrites every Master-created login ID (owner only)",
+  })
+  updateLoginHandle(
+    @Request() req: AuthRequest,
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: UpdateLoginHandleDto,
+  ): Promise<{ handle: string }> {
+    return this.familyGroupsService.updateLoginHandle(
+      familyGroupId,
+      req.user.sub,
+      dto.handle,
     );
   }
 

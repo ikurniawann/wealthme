@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberRelationship, Role } from "@prisma/client";
 import {
+  IsEmail,
   IsEnum,
   IsOptional,
   IsString,
@@ -35,7 +36,7 @@ export class CreateDependantMemberDto {
     minLength: 3,
     maxLength: 30,
     description:
-      "Login username, 3-30 chars, letters/numbers/underscore/dot only",
+      "Username inside this family, 3-30 chars, letters/numbers/underscore/dot. The login ID becomes <username>@<family handle>.",
   })
   @IsString()
   @MinLength(3)
@@ -45,6 +46,14 @@ export class CreateDependantMemberDto {
       "username may only contain letters, numbers, underscores, and dots",
   })
   username!: string;
+
+  // EPIC-031 — optional real email. With one the member can also sign in by
+  // email and use "Lupa Password"; the username@kode-keluarga login still works.
+  @ApiPropertyOptional({ example: "adit@gmail.com" })
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(254)
+  email?: string;
 
   @ApiProperty({
     example: "changeMe123",

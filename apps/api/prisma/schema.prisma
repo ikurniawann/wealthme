@@ -282,6 +282,11 @@ model User {
   // keeps both null and continues signing in by email as before.
   username                 String?            @unique
   displayUsername          String?
+  // EPIC-031 — the family whose Master created this login (username and/or
+  // email). Only that family's Master may reset its password; a user who
+  // registered on their own has null here and recovers via email.
+  managedByFamilyGroupId   String?
+  managedByFamilyGroup     FamilyGroup?       @relation("ManagedUsers", fields: [managedByFamilyGroupId], references: [id], onDelete: SetNull)
   // EPIC-023 D1/D6 — true only for an account this endpoint just created;
   // ForcePasswordChangeGuard refuses every request except a small allowlist
   // until PasswordPolicyService#setPassword clears it back to false.
@@ -406,6 +411,12 @@ model Verification {
 model FamilyGroup {
   id                      String                   @id @default(uuid())
   name                    String
+  // EPIC-031 — "kode keluarga": members the Master creates sign in as
+  // `<username>@<handle>` (User.username holds the full ID). Unique app-wide,
+  // no dots (so a login ID never looks like an email). Nullable only so the
+  // column could be added; every family is backfilled / lazily assigned.
+  handle                  String?                  @unique
+  managedUsers            User[]                   @relation("ManagedUsers")
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   members                 Member[]

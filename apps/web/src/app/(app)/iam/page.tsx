@@ -20,6 +20,7 @@ import { useSession } from "@/lib/auth-compat";
 import { queryKeys } from "@/lib/query-keys";
 
 import { AddMemberDialog } from "./_components/add-member-dialog";
+import { FamilyHandleCard } from "./_components/family-handle-card";
 import { MemberAccessDialog } from "./_components/member-access-dialog";
 import { MembersTab, type MemberRow } from "./_components/members-tab";
 import {
@@ -261,6 +262,10 @@ export default function IamRolesPage() {
           aksesnya
         </p>
       </div>
+
+      {tab === "members" && (
+        <FamilyHandleCard familyGroupId={familyGroupId} token={token} />
+      )}
 
       {tab === "members" ? (
         <MembersTab

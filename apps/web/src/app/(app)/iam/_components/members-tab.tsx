@@ -13,6 +13,9 @@ import { useLocale } from "@/hooks/use-locale";
 import { SCOPE_COPY } from "./access-shared";
 import type { AccessRoleResponse } from "@wealthme/contracts";
 
+/** Placeholder mailbox for accounts created without an email (API-side). */
+const SYNTHETIC_EMAIL_SUFFIX = "@members.internal.wealthme.invalid";
+
 export type MemberRow = {
   id: string;
   userId: string;
@@ -100,11 +103,13 @@ export function MembersTab({
                   m.accessOverrides ?? {},
                 ).length;
                 const scope = scopeOf(m, roles);
-                const loginLine = m.managedLogin
-                  ? m.username
-                    ? `Username: ${m.username}`
-                    : "Login dengan username"
-                  : m.email;
+                // EPIC-031 — a Master-created member may have a username
+                // login (`nama@kode`), a real email, or both.
+                const hasRealEmail = !m.email.endsWith(SYNTHETIC_EMAIL_SUFFIX);
+                const loginLines = [
+                  m.username ? `Username: ${m.username}` : null,
+                  hasRealEmail ? m.email : null,
+                ].filter((l): l is string => l !== null);
                 return (
                   <tr key={m.id}>
                     <td>
@@ -114,15 +119,18 @@ export function MembersTab({
                           <span className="t-xs t-muted"> (Anda)</span>
                         )}
                       </div>
-                      <div
-                        className={
-                          m.managedLogin
-                            ? "mono text-[11.5px] text-muted-foreground"
-                            : "text-[11.5px] text-muted-foreground"
-                        }
-                      >
-                        {loginLine}
-                      </div>
+                      {loginLines.map((line) => (
+                        <div
+                          key={line}
+                          className={
+                            line.startsWith("Username:")
+                              ? "mono text-[11.5px] text-muted-foreground"
+                              : "text-[11.5px] text-muted-foreground"
+                          }
+                        >
+                          {line}
+                        </div>
+                      ))}
                     </td>
                     <td>
                       <StatusBadge variant={isMaster ? "success" : "gray"}>
