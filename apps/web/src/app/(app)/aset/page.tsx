@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Calculator,
   Eye,
@@ -675,9 +676,13 @@ function AssetRow({
             rounded="rounded-full"
           />
           <div className="min-w-0 flex-1">
-            <div className="text-[13.5px] font-semibold truncate">
+            {/* EPIC-033 p16 — the name opens the asset's own page. */}
+            <Link
+              href={`/aset/${asset.id}`}
+              className="block truncate text-[13.5px] font-semibold hover:underline"
+            >
               {asset.name}
-            </div>
+            </Link>
             <div className="text-[11.5px] text-muted-foreground truncate">
               {subtitle}
             </div>

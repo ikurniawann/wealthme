@@ -1,6 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { InvestmentTxType } from "@prisma/client";
-import { IsEnum, IsISO8601, IsNumberString, IsOptional } from "class-validator";
+import {
+  IsEnum,
+  IsISO8601,
+  IsNumberString,
+  IsOptional,
+  IsUUID,
+} from "class-validator";
 
 /**
  * EPIC-022 D2 — record a buy or sell against an existing holding instead of
@@ -28,4 +34,13 @@ export class CreateInvestmentTransactionDto {
   @IsOptional()
   @IsISO8601()
   occurredAt?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "EPIC-033 p28 — settle the trade against this account: a buy debits it " +
+      "(transfer out), a sell credits the proceeds and books the realised gain as income.",
+  })
+  @IsOptional()
+  @IsUUID()
+  accountId?: string;
 }

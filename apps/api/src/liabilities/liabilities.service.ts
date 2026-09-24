@@ -649,6 +649,7 @@ export class LiabilitiesService {
       paymentAmount,
       remainingBalance: liability.remainingBalance,
       annualInterestRatePercent: liability.interestRate.toString(),
+      rateIsMonthly: liability.type === "kartu_kredit",
     });
 
     const maxPayable = liability.remainingBalance + interest;
@@ -836,9 +837,10 @@ export class LiabilitiesService {
     const { updated, created } = await this.prisma.$transaction(async (tx) => {
       const nextLiability = await tx.liability.update({
         where: { id, familyGroupId },
+        // EPIC-033 p20 — for a card `totalDebt` is the credit LIMIT (the UI
+        // labels it "Limit Kredit"); a purchase raises the running bill only.
         data: {
           remainingBalance: { increment: amount },
-          totalDebt: { increment: amount },
         },
       });
 

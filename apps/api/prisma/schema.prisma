@@ -1018,10 +1018,14 @@ model Asset {
 }
 
 model AssetHistory {
-  id         String   @id @default(uuid())
-  assetId    String
-  value      BigInt
-  recordedAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  assetId          String
+  value            BigInt
+  recordedAt       DateTime @default(now())
+  // EPIC-033 group 3 — who entered this value (null for system writes) and
+  // an optional note ("harga taksiran notaris", etc.).
+  recordedByUserId String?
+  note             String?
   asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@index([assetId, recordedAt])
