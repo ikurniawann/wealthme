@@ -1571,7 +1571,7 @@ export default function InvestasiPage() {
 
       {familyGroupId && token && (
         <AddInvestmentModal
-          key={editingHolding?.id ?? "add"}
+          key={`edit-${editingHolding?.id ?? "add"}`}
           open={modalOpen}
           editing={editingHolding}
           onClose={() => {
@@ -1584,7 +1584,7 @@ export default function InvestasiPage() {
       )}
       {familyGroupId && token && (
         <BuySellModal
-          key={buySellHolding?.id ?? "none"}
+          key={`trade-${buySellHolding?.id ?? "none"}`}
           open={!!buySellHolding}
           holding={buySellHolding}
           onClose={() => setBuySellHolding(null)}
