@@ -3,11 +3,11 @@
 import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
-import { NAV_SECTIONS, isNavItemVisibleForRole } from "@/lib/nav";
+import { NAV_SECTIONS, isNavItemVisibleForAccess } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
-import { useMyRole } from "@/hooks/use-my-role";
+import { useMyAccess } from "@/hooks/use-my-access";
 import { NavBadge, SidebarNavItem } from "./sidebar-nav-item";
 
 /**
@@ -21,10 +21,9 @@ export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
-  // EPIC-024 A5 (D6) — gates the "Persetujuan" nav item to owner/co-master,
-  // and (via `isNavItemVisibleForRole`) cuts the menu down to the handful of
-  // surfaces the API actually grants a row-scoped `dependant`/`operational`.
-  const { myRole } = useMyRole();
+  // EPIC-030 — the menu shows exactly the pages the Master granted this
+  // member (custom role + overrides); IAM itself is Master-only.
+  const { access } = useMyAccess();
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
@@ -52,7 +51,7 @@ export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
             </div>
           )}
           {section.items
-            .filter((item) => isNavItemVisibleForRole(item, myRole))
+            .filter((item) => isNavItemVisibleForAccess(item, access))
             .map((item) => {
               const label = t.shell.navSections[item.id];
 

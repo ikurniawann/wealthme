@@ -55,7 +55,8 @@ import {
 
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
-import { useMyRole } from "@/hooks/use-my-role";
+import { canAccessPage } from "@wealthme/contracts";
+import { useMyAccess } from "@/hooks/use-my-access";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah } from "@/lib/format";
@@ -132,9 +133,10 @@ export default function PersetujuanPage() {
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId ?? null;
-  // D6 — "owner/co-master only"; a co-master (istri) holds role `owner`
-  // too per A1, so this single check already covers both.
-  const { isOwner, isLoading: roleLoading } = useMyRole();
+  // EPIC-030 — whoever the Master granted Persetujuan (the Master and a
+  // co-master always); approving still needs "manage" at the API.
+  const { access, isLoading: roleLoading } = useMyAccess();
+  const isOwner = !!access && canAccessPage(access, "persetujuan", "view");
   const [tab, setTab] = useState<Tab>("pending");
 
   // Same query key as `AllowanceRequestsPanel` below — React Query dedupes

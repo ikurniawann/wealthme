@@ -16,6 +16,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { Role } from "@prisma/client";
+import { canAccessPage } from "@wealthme/contracts";
 
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
@@ -94,10 +95,13 @@ export class AllowanceRequestsController {
     // "manage AllowanceRequest" (D2, full financial co-owner) and CAN
     // approve/reject, but was missing from this list here, so they could
     // never discover a request to act on in the first place.
+    // EPIC-030 — or anyone the Master granted the Persetujuan page.
+    const access = req.tenantContext?.access;
     const canSeeAll =
       member.role === Role.owner ||
       member.role === Role.admin_staff ||
-      member.role === Role.spouse;
+      member.role === Role.spouse ||
+      (access != null && canAccessPage(access, "persetujuan", "view"));
     return this.allowanceRequestsService.findAll(
       familyGroupId,
       member.userId,
