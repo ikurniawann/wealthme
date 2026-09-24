@@ -119,7 +119,27 @@ export type ScopeSubject =
   | Role
   | null
   | undefined
-  | { role: Role; rowScoped?: boolean };
+  | {
+      role: Role;
+      rowScoped?: boolean;
+      /**
+       * Row-scoped member who may still see the family-shared (ownerUserId
+       * null), non-private accounts and their history — granted by the Bank &
+       * Account / Cash & E-Wallet page. Absent → own rows only.
+       */
+      seesSharedAccounts?: boolean;
+    };
+
+function seesShared(subject: ScopeSubject): boolean {
+  return (
+    subject !== null &&
+    typeof subject === "object" &&
+    subject.seesSharedAccounts === true
+  );
+}
+
+/** A family-shared account a restricted member may read (never a private one). */
+const SHARED_VISIBLE_ACCOUNT = { ownerUserId: null, isPrivate: false } as const;
 
 function roleOf(subject: ScopeSubject): Role | null | undefined {
   return subject !== null && typeof subject === "object"
@@ -151,7 +171,8 @@ export function restrictedAccountWhere(
   userId: string | undefined,
 ): Prisma.AccountWhereInput {
   if (!isRowScoped(subject)) return {};
-  return { ownerUserId: userId ?? "" };
+  const own = { ownerUserId: userId ?? "" };
+  return seesShared(subject) ? { OR: [own, SHARED_VISIBLE_ACCOUNT] } : own;
 }
 
 /**
@@ -186,6 +207,9 @@ export function restrictedTransactionWhere(
       { account: { ownerUserId: userId ?? "" } },
       { createdByUserId: userId ?? "" },
       { toAccount: { ownerUserId: userId ?? "" } },
+      // Read-only history of family-shared accounts (writes stay own-only:
+      // TransactionsService.assertAccountOwnedByActingMember).
+      ...(seesShared(subject) ? [{ account: SHARED_VISIBLE_ACCOUNT }] : []),
     ],
   };
 }

@@ -252,3 +252,64 @@ describe("assertHouseholdWideReadAllowed", () => {
     expect(() => assertHouseholdWideReadAllowed(null)).not.toThrow();
   });
 });
+
+// Revisi: family-shared (ownerUserId null) accounts are visible to an
+// "own data" member who holds the Bank & Account / Cash & E-Wallet page —
+// balances and history, never another member's personal or private account.
+describe("shared family accounts for own-data members", () => {
+  const withShared = {
+    role: Role.dependant,
+    rowScoped: true,
+    seesSharedAccounts: true,
+  };
+  const withoutShared = {
+    role: Role.dependant,
+    rowScoped: true,
+    seesSharedAccounts: false,
+  };
+
+  it("accounts: own OR shared-and-not-private", () => {
+    expect(restrictedAccountWhere(withShared, "user-child")).toEqual({
+      OR: [
+        { ownerUserId: "user-child" },
+        { ownerUserId: null, isPrivate: false },
+      ],
+    });
+  });
+
+  it("accounts: no shared leg without the page grant", () => {
+    expect(restrictedAccountWhere(withoutShared, "user-child")).toEqual({
+      ownerUserId: "user-child",
+    });
+  });
+
+  it("accounts: a bare role keeps the pre-revision rule (own only)", () => {
+    expect(restrictedAccountWhere(Role.dependant, "user-child")).toEqual({
+      ownerUserId: "user-child",
+    });
+  });
+
+  it("transactions: adds the history of shared, non-private accounts", () => {
+    const where = restrictedTransactionWhere(withShared, "user-child");
+    expect(where.OR).toContainEqual({
+      account: { ownerUserId: null, isPrivate: false },
+    });
+    expect(where.OR).toContainEqual({ createdByUserId: "user-child" });
+  });
+
+  it("transactions: no shared leg without the page grant", () => {
+    const where = restrictedTransactionWhere(withoutShared, "user-child");
+    expect(where.OR).not.toContainEqual({
+      account: { ownerUserId: null, isPrivate: false },
+    });
+  });
+
+  it("an unrestricted member is unaffected", () => {
+    expect(
+      restrictedAccountWhere(
+        { role: Role.member, rowScoped: false, seesSharedAccounts: true },
+        "u",
+      ),
+    ).toEqual({});
+  });
+});

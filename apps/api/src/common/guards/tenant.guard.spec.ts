@@ -109,7 +109,7 @@ describe("TenantGuard", () => {
         userId: "user-1",
         familyGroupId: "group-1",
         role: Role.owner,
-        member: { ...member, rowScoped: false },
+        member: { ...member, rowScoped: false, seesSharedAccounts: true },
         access: expect.objectContaining({ isMaster: true, dataScope: "all" }),
       });
     });
@@ -160,6 +160,8 @@ describe("TenantGuard", () => {
 
       const tc = (ctx._req as Record<string, any>)["tenantContext"];
       expect(tc.member.rowScoped).toBe(true);
+      // Legacy dependant preset has Bank & Account → sees shared accounts.
+      expect(tc.member.seesSharedAccounts).toBe(true);
       expect(tc.access.source).toBe("legacy");
       expect(tc.access.permissions.transaksi).toBe("manage");
       expect(tc.access.permissions.investasi).toBe("none");

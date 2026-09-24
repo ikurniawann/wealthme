@@ -12,6 +12,8 @@ export interface TenantContext {
     role: Role;
     /** EPIC-030 — effective data scope (see privacy.util ScopeSubject). */
     rowScoped: boolean;
+    /** Row-scoped member granted Bank & Account / Cash & E-Wallet: sees shared accounts. */
+    seesSharedAccounts: boolean;
   } | null;
   /** EPIC-030 — effective page access; null outside a family route. */
   access: EffectiveAccess | null;

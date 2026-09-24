@@ -328,7 +328,14 @@ function AccountCardItem({
         <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
           <span>{account.type}</span>
           {/* EPIC-019 Task A — per-member ownership badge. Family-shared
-              (ownerUserId null) accounts show no badge, unchanged. */}
+              (ownerUserId null) accounts are labelled "Bersama" so it is
+              clear who they belong to — restricted members can now see them
+              (read-only). */}
+          {!account.ownerUserId && (
+            <StatusBadge variant="purple" className="text-[10px]">
+              {t.rekening.filterSharedLabel}
+            </StatusBadge>
+          )}
           {account.ownerUserId &&
             (isMine ? (
               <StatusBadge variant="info" className="text-[10px]">
