@@ -2061,6 +2061,27 @@ export const id = {
     paySourceAccountHint:
       "Saldo rekening akan didebet dan tercatat otomatis di Transaksi.",
     payRemainingAfterLabel: "Sisa pokok setelah bayar",
+    interestMethodLabels: {
+      efektif: "Efektif (saldo menurun)",
+      flat: "Flat",
+      anuitas: "Anuitas",
+    },
+    rateLabels: {
+      efektif: "Bunga Efektif/Tahun (%)",
+      flat: "Bunga Flat/Tahun (%)",
+      anuitas: "Bunga Anuitas/Tahun (%)",
+    },
+    fieldRateMonthlyLabel: "Bunga/Bulan (%)",
+    fieldRateFixedLabel: "Bunga Fixed/Tahun (%)",
+    fieldInterestMethodLabel: "Metode Bunga",
+    fieldTenorLabel: "Tenor (bulan)",
+    fieldStartDateLabel: "Tanggal Akad",
+    fieldInstallmentLabel: "Angsuran/Bulan (Rp)",
+    fieldInstallmentHint:
+      "Kosongkan agar dihitung otomatis dari pokok, bunga, dan tenor.",
+    fieldFixedRateMonthsLabel: "Masa Bunga Fixed (bulan)",
+    fieldFloatingRateLabel: "Bunga Floating/Tahun (%)",
+    toastInstallmentPrefix: "Angsuran/bulan: ",
   },
   masterdata: {
     pageTitle: "Setup Master Data",

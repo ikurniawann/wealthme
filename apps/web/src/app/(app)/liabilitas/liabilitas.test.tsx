@@ -94,11 +94,29 @@ const ACCOUNTS = [{ id: "acc-1", name: "BCA Tabungan", institution: "BCA" }];
 
 let liabilitiesFixture: LiabilityDto[] = [];
 let payOutcome: "ok" | "conflict" = "ok";
+let postBodies: Record<string, unknown>[] = [];
+let createdInstallment: string | null = null;
 
 const mockApiFetch = jest.fn(
   (url: string, options?: { method?: string; body?: string }) => {
     const method = options?.method ?? "GET";
 
+    if (
+      method === "POST" &&
+      url === `/family-groups/${FAMILY_GROUP_ID}/liabilities`
+    ) {
+      const body = options?.body
+        ? (JSON.parse(options.body) as Record<string, unknown>)
+        : {};
+      postBodies.push(body);
+      return Promise.resolve(
+        baseLiability({
+          ...(body as Partial<LiabilityDto>),
+          id: "liab-new",
+          installmentAmount: createdInstallment,
+        }),
+      );
+    }
     if (url === `/family-groups/${FAMILY_GROUP_ID}/liabilities`) {
       return Promise.resolve(liabilitiesFixture);
     }
@@ -167,6 +185,19 @@ function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: Providers });
 }
 
+/** Mirrors `DateField`'s private `formatFullDate` (id locale) so tests can
+ *  find a calendar day button by its accessible name (see
+ *  date-range-field.test.tsx's identical helper). */
+function dayLabel(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  const d = new Date(Number(year), Number(month) - 1, Number(day));
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 /*
  * CI stability. Every test here drives the pay/edit dialogs through
  * userEvent (open dialog -> clear -> type -> selectOptions -> click ->
@@ -188,6 +219,8 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     queryClient.clear();
     liabilitiesFixture = [baseLiability()];
     payOutcome = "ok";
+    postBodies = [];
+    createdInstallment = null;
 
     mockUseSessionAuth.mockReturnValue({
       data: {
@@ -364,5 +397,158 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(
       screen.queryByRole("button", { name: "Bayar" }),
     ).not.toBeInTheDocument();
+  });
+
+  async function openAddDialog(user: ReturnType<typeof userEvent.setup>) {
+    const [addButton] = await screen.findAllByRole("button", {
+      name: /tambah liabilitas/i,
+    });
+    await user.click(addButton!);
+    return within(await screen.findByRole("dialog"));
+  }
+
+  it("kartu kredit (default): monthly-rate label and min. bayar, no tenor fields", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    expect(dialog.getByLabelText("Bunga/Bulan (%)")).toBeInTheDocument();
+    expect(
+      dialog.getByLabelText("Min. Bayar (Rp, opsional)"),
+    ).toBeInTheDocument();
+    expect(dialog.queryByLabelText("Tenor (bulan)")).not.toBeInTheDocument();
+    expect(dialog.queryByLabelText("Metode Bunga")).not.toBeInTheDocument();
+  });
+
+  it("kendaraan: flat rate + tenor + start date, no min. bayar; POSTs flat terms and toasts the computed installment", async () => {
+    createdInstallment = "6555556";
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    await user.type(dialog.getByLabelText("Nama"), "Cicilan Mobil");
+    await user.selectOptions(dialog.getByLabelText("Jenis"), "kendaraan");
+    expect(
+      dialog.queryByLabelText("Min. Bayar (Rp, opsional)"),
+    ).not.toBeInTheDocument();
+    expect(dialog.queryByLabelText("Metode Bunga")).not.toBeInTheDocument();
+    await user.type(
+      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+      "200000000",
+    );
+    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "200000000");
+    await user.type(dialog.getByLabelText("Bunga Flat/Tahun (%)"), "6");
+    await user.type(dialog.getByLabelText("Tenor (bulan)"), "36");
+
+    // task-6-brief decision #1: "Tanggal Akad" is a `DateField` (trigger
+    // button + popover calendar), not a native date input, so
+    // `fireEvent.change` on it is a no-op. Drive it the same way
+    // date-range-field.test.tsx drives `DateField`: click the trigger, then
+    // click a day button in the popover. The 15th of the current month is
+    // always in range; the POST body is asserted against that resolved ISO
+    // date rather than a fixed brief date.
+    await user.click(dialog.getByLabelText("Tanggal Akad"));
+    const now = new Date();
+    const startIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-15`;
+    const pop = screen.getByRole("dialog", { name: "Tanggal Akad" });
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel(startIso) }),
+    );
+
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() => expect(postBodies).toHaveLength(1));
+    expect(postBodies[0]).toEqual(
+      expect.objectContaining({
+        type: "kendaraan",
+        interestMethod: "flat",
+        interestRate: "6",
+        tenorMonths: 36,
+        startDate: new Date(startIso).toISOString(),
+        totalDebt: "200000000",
+      }),
+    );
+    expect(postBodies[0]).not.toHaveProperty("minimumPayment");
+    expect(postBodies[0]).not.toHaveProperty("installmentAmount");
+    await waitFor(() =>
+      expect(toastSuccess).toHaveBeenCalledWith(
+        expect.stringContaining("6.555.556"),
+      ),
+    );
+  });
+
+  it("kpr: anuitas with fixed period + floating rate", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    await user.type(dialog.getByLabelText("Nama"), "KPR BTN");
+    await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
+    await user.type(
+      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+      "500000000",
+    );
+    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "500000000");
+    await user.type(dialog.getByLabelText("Bunga Fixed/Tahun (%)"), "8");
+    await user.type(dialog.getByLabelText("Tenor (bulan)"), "240");
+    await user.type(dialog.getByLabelText("Masa Bunga Fixed (bulan)"), "36");
+    await user.type(dialog.getByLabelText("Bunga Floating/Tahun (%)"), "11");
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() => expect(postBodies).toHaveLength(1));
+    expect(postBodies[0]).toEqual(
+      expect.objectContaining({
+        type: "kpr",
+        interestMethod: "anuitas",
+        interestRate: "8",
+        tenorMonths: 240,
+        fixedRateMonths: 36,
+        floatingRate: "11",
+      }),
+    );
+  });
+
+  it("pinjaman pribadi: method select offers only flat/anuitas and sends a typed installment override", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    await user.type(dialog.getByLabelText("Nama"), "KTA");
+    await user.selectOptions(
+      dialog.getByLabelText("Jenis"),
+      "pinjaman_pribadi",
+    );
+    const methodSelect = dialog.getByLabelText("Metode Bunga");
+    expect(
+      within(methodSelect)
+        .getAllByRole("option")
+        .map((o) => o.textContent),
+    ).toEqual(["Flat", "Anuitas"]);
+    await user.selectOptions(methodSelect, "anuitas");
+    await user.type(
+      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+      "50000000",
+    );
+    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "50000000");
+    await user.type(dialog.getByLabelText("Bunga Anuitas/Tahun (%)"), "12");
+    await user.type(dialog.getByLabelText("Tenor (bulan)"), "24");
+    await user.type(dialog.getByLabelText("Angsuran/Bulan (Rp)"), "2400000");
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() => expect(postBodies).toHaveLength(1));
+    expect(postBodies[0]).toEqual(
+      expect.objectContaining({
+        type: "pinjaman_pribadi",
+        interestMethod: "anuitas",
+        tenorMonths: 24,
+        installmentAmount: "2400000",
+      }),
+    );
   });
 });

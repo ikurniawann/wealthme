@@ -52,6 +52,7 @@ import {
 import { TrendChart } from "@/components/charts/apex-presets";
 
 import type {
+  InterestMethod,
   LiabilityDto,
   LiabilityType,
   NetWorthDto,
@@ -254,6 +255,22 @@ const LIABILITY_TYPES = [
 ] as const;
 type LiabilityTypeValue = LiabilityType;
 
+const DEFAULT_INTEREST_METHOD: Record<LiabilityTypeValue, InterestMethod> = {
+  kartu_kredit: "efektif",
+  pinjaman_pribadi: "flat",
+  kpr: "anuitas",
+  kendaraan: "flat",
+  lainnya: "efektif",
+};
+
+// Types without an entry have exactly one method, so no selector is shown.
+const INTEREST_METHOD_OPTIONS: Partial<
+  Record<LiabilityTypeValue, readonly InterestMethod[]>
+> = {
+  pinjaman_pribadi: ["flat", "anuitas"],
+  lainnya: ["efektif", "flat", "anuitas"],
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatLocaleDate(iso: string, locale: Locale): string {
@@ -386,6 +403,12 @@ interface LiabilityBody {
   dueDate?: string;
   autoAdvanceDueDate?: boolean;
   notes?: string;
+  interestMethod: InterestMethod;
+  tenorMonths?: number;
+  startDate?: string;
+  installmentAmount?: string;
+  fixedRateMonths?: number;
+  floatingRate?: string;
 }
 
 function LiabilityModal({
@@ -430,6 +453,30 @@ function LiabilityModal({
     editing?.autoAdvanceDueDate ?? false,
   );
   const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [interestMethod, setInterestMethod] = useState<InterestMethod>(
+    editing?.interestMethod ?? DEFAULT_INTEREST_METHOD.kartu_kredit,
+  );
+  const [tenorMonths, setTenorMonths] = useState(
+    editing?.tenorMonths ? String(editing.tenorMonths) : "",
+  );
+  const [startDate, setStartDate] = useState(
+    editing?.startDate ? editing.startDate.slice(0, 10) : "",
+  );
+  // Empty = let the server compute it; a PATCH without it recomputes from the terms.
+  const [installmentAmount, setInstallmentAmount] = useState("");
+  const [fixedRateMonths, setFixedRateMonths] = useState(
+    editing?.fixedRateMonths ? String(editing.fixedRateMonths) : "",
+  );
+  const [floatingRate, setFloatingRate] = useState(editing?.floatingRate ?? "");
+
+  const methodOptions = INTEREST_METHOD_OPTIONS[type];
+  const usesTenor = interestMethod !== "efektif";
+  const rateLabel =
+    type === "kartu_kredit"
+      ? t.liabilitas.fieldRateMonthlyLabel
+      : type === "kpr"
+        ? t.liabilitas.fieldRateFixedLabel
+        : t.liabilitas.rateLabels[interestMethod];
 
   const mutation = useMutation({
     mutationFn: (body: LiabilityBody) => {
@@ -446,10 +493,15 @@ function LiabilityModal({
             { method: "POST", token, body: JSON.stringify(body) },
           );
     },
-    onSuccess: () => {
+    onSuccess: (saved: LiabilityDto) => {
       invalidateLiabilityRelatedQueries(queryClient, familyGroupId);
+      const base = editing
+        ? t.liabilitas.toastUpdated
+        : t.liabilitas.toastAdded;
       toast.success(
-        editing ? t.liabilitas.toastUpdated : t.liabilitas.toastAdded,
+        saved.installmentAmount
+          ? `${base} · ${t.liabilitas.toastInstallmentPrefix}${formatRupiah(Number(saved.installmentAmount))}`
+          : base,
       );
       onClose();
     },
@@ -489,6 +541,8 @@ function LiabilityModal({
     const totalDigits = toDigits(totalDebt);
     const remainDigits = toDigits(remainingBalance);
     if (!name.trim() || !totalDigits || !remainDigits) return;
+    const tenorDigits = toDigits(tenorMonths);
+    const fixedDigits = toDigits(fixedRateMonths);
     mutation.mutate({
       name: name.trim(),
       institution: institution.trim() || undefined,
@@ -500,11 +554,21 @@ function LiabilityModal({
       // silently omitting the field from the request and leaving the old
       // (possibly non-zero) minimumPayment on the server untouched. Send
       // "0" explicitly instead so a cleared field always persists as 0.
-      minimumPayment: toDigits(minimumPayment) || "0",
+      minimumPayment: usesTenor ? undefined : toDigits(minimumPayment) || "0",
       interestRate: toDecimalString(interestRate),
       dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
       autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
       notes: notes.trim() || undefined,
+      interestMethod,
+      tenorMonths: usesTenor && tenorDigits ? Number(tenorDigits) : undefined,
+      startDate:
+        usesTenor && startDate ? new Date(startDate).toISOString() : undefined,
+      installmentAmount: usesTenor
+        ? toDigits(installmentAmount) || undefined
+        : undefined,
+      fixedRateMonths:
+        type === "kpr" && fixedDigits ? Number(fixedDigits) : undefined,
+      floatingRate: type === "kpr" ? toDecimalString(floatingRate) : undefined,
     });
   }
 
@@ -562,7 +626,11 @@ function LiabilityModal({
                 id="liability-type"
                 className="select"
                 value={type}
-                onChange={(e) => setType(e.target.value as LiabilityTypeValue)}
+                onChange={(e) => {
+                  const next = e.target.value as LiabilityTypeValue;
+                  setType(next);
+                  setInterestMethod(DEFAULT_INTEREST_METHOD[next]);
+                }}
               >
                 {LIABILITY_TYPES.map((liabilityType) => (
                   <option key={liabilityType} value={liabilityType}>
@@ -605,23 +673,49 @@ function LiabilityModal({
               </div>
             </div>
 
-            <div className="field-row mt-3">
-              <div className="field mt-0">
-                <label className="label" htmlFor="liability-min-payment">
-                  {t.liabilitas.fieldMinPaymentLabel}
+            {methodOptions && (
+              <div className="field">
+                <label className="label" htmlFor="liability-interest-method">
+                  {t.liabilitas.fieldInterestMethodLabel}
                 </label>
-                <input
-                  id="liability-min-payment"
-                  className="input mono"
-                  placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
-                  inputMode="numeric"
-                  value={minimumPayment}
-                  onChange={(e) => setMinimumPayment(formatNum(e.target.value))}
-                />
+                <select
+                  id="liability-interest-method"
+                  className="select"
+                  value={interestMethod}
+                  onChange={(e) =>
+                    setInterestMethod(e.target.value as InterestMethod)
+                  }
+                >
+                  {methodOptions.map((method) => (
+                    <option key={method} value={method}>
+                      {t.liabilitas.interestMethodLabels[method]}
+                    </option>
+                  ))}
+                </select>
               </div>
+            )}
+
+            <div className="field-row mt-3">
+              {!usesTenor && (
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-min-payment">
+                    {t.liabilitas.fieldMinPaymentLabel}
+                  </label>
+                  <input
+                    id="liability-min-payment"
+                    className="input mono"
+                    placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
+                    inputMode="numeric"
+                    value={minimumPayment}
+                    onChange={(e) =>
+                      setMinimumPayment(formatNum(e.target.value))
+                    }
+                  />
+                </div>
+              )}
               <div className="field mt-0">
                 <label className="label" htmlFor="liability-interest-rate">
-                  {t.liabilitas.fieldInterestRateLabel}
+                  {rateLabel}
                 </label>
                 <input
                   id="liability-interest-rate"
@@ -632,7 +726,97 @@ function LiabilityModal({
                   onChange={(e) => setInterestRate(e.target.value)}
                 />
               </div>
+              {usesTenor && (
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-tenor">
+                    {t.liabilitas.fieldTenorLabel}
+                  </label>
+                  <input
+                    id="liability-tenor"
+                    className="input mono"
+                    inputMode="numeric"
+                    placeholder="36"
+                    value={tenorMonths}
+                    onChange={(e) =>
+                      setTenorMonths(e.target.value.replace(/\D/g, ""))
+                    }
+                  />
+                </div>
+              )}
             </div>
+
+            {usesTenor && (
+              <div className="field-row mt-3">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-start-date">
+                    {t.liabilitas.fieldStartDateLabel}
+                  </label>
+                  <DateField
+                    id="liability-start-date"
+                    value={startDate}
+                    locale={locale}
+                    label={t.liabilitas.fieldStartDateLabel}
+                    onChange={setStartDate}
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-installment">
+                    {t.liabilitas.fieldInstallmentLabel}
+                  </label>
+                  <input
+                    id="liability-installment"
+                    className="input mono"
+                    inputMode="numeric"
+                    aria-describedby="liability-installment-hint"
+                    placeholder={
+                      editing?.installmentAmount
+                        ? formatNum(editing.installmentAmount)
+                        : ""
+                    }
+                    value={installmentAmount}
+                    onChange={(e) =>
+                      setInstallmentAmount(formatNum(e.target.value))
+                    }
+                  />
+                  <div className="hint" id="liability-installment-hint">
+                    {t.liabilitas.fieldInstallmentHint}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {type === "kpr" && (
+              <div className="field-row mt-3">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-fixed-months">
+                    {t.liabilitas.fieldFixedRateMonthsLabel}
+                  </label>
+                  <input
+                    id="liability-fixed-months"
+                    className="input mono"
+                    inputMode="numeric"
+                    placeholder="36"
+                    value={fixedRateMonths}
+                    onChange={(e) =>
+                      setFixedRateMonths(e.target.value.replace(/\D/g, ""))
+                    }
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-floating-rate">
+                    {t.liabilitas.fieldFloatingRateLabel}
+                  </label>
+                  <input
+                    id="liability-floating-rate"
+                    className="input mono"
+                    inputMode="decimal"
+                    placeholder="11"
+                    value={floatingRate}
+                    onChange={(e) => setFloatingRate(e.target.value)}
+                  />
+                </div>
+              </div>
+            )}
 
             <div className="field">
               <label className="label" htmlFor="liability-due-date">

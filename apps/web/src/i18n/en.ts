@@ -2025,6 +2025,27 @@ export const en = {
     paySourceAccountHint:
       "The account balance is debited and recorded automatically in Transactions.",
     payRemainingAfterLabel: "Remaining principal after payment",
+    interestMethodLabels: {
+      efektif: "Effective (declining balance)",
+      flat: "Flat",
+      anuitas: "Annuity",
+    },
+    rateLabels: {
+      efektif: "Effective Rate/Year (%)",
+      flat: "Flat Rate/Year (%)",
+      anuitas: "Annuity Rate/Year (%)",
+    },
+    fieldRateMonthlyLabel: "Interest/Month (%)",
+    fieldRateFixedLabel: "Fixed Rate/Year (%)",
+    fieldInterestMethodLabel: "Interest Method",
+    fieldTenorLabel: "Tenor (months)",
+    fieldStartDateLabel: "Start Date",
+    fieldInstallmentLabel: "Installment/Month (Rp)",
+    fieldInstallmentHint:
+      "Leave empty to compute it from principal, rate, and tenor.",
+    fieldFixedRateMonthsLabel: "Fixed-Rate Period (months)",
+    fieldFloatingRateLabel: "Floating Rate/Year (%)",
+    toastInstallmentPrefix: "Monthly installment: ",
   },
   masterdata: {
     pageTitle: "Master Data Setup",

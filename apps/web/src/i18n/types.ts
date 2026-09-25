@@ -204,6 +204,9 @@ type LiabilitasTypeId =
   | "kendaraan"
   | "lainnya";
 
+/** Revisi G — `/liabilitas` interest method ids (mirrors Prisma `InterestMethod`). */
+type LiabilitasInterestMethodId = "efektif" | "flat" | "anuitas";
+
 /**
  * EPIC-018 Task A5 — `/masterdata` system reference-group ids (mirrors the
  * `CrudEntity` `md*` variants). Each group's `title`/`label` translate; the
@@ -1926,6 +1929,19 @@ export type I18nDictionary = {
     payPresetPayoff: string;
     paySourceAccountHint: string;
     payRemainingAfterLabel: string;
+    // Revisi G — per-product interest terms in the add/edit form.
+    interestMethodLabels: Record<LiabilitasInterestMethodId, string>;
+    rateLabels: Record<LiabilitasInterestMethodId, string>;
+    fieldRateMonthlyLabel: string;
+    fieldRateFixedLabel: string;
+    fieldInterestMethodLabel: string;
+    fieldTenorLabel: string;
+    fieldStartDateLabel: string;
+    fieldInstallmentLabel: string;
+    fieldInstallmentHint: string;
+    fieldFixedRateMonthsLabel: string;
+    fieldFloatingRateLabel: string;
+    toastInstallmentPrefix: string;
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`
