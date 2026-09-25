@@ -13,6 +13,10 @@ import type {
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import {
+  referenceItemsQueryKey,
+  useReferenceItems,
+} from "@/hooks/use-reference-items";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { SectionCard, CardLink, StatusBadge, InfoTip } from "@/components/wm";
@@ -104,22 +108,8 @@ export default function MasterDataPage() {
     staleTime: 60_000,
   });
 
-  // EPIC-024 Task J — the seven reference lists, now real per-family-group
-  // data instead of a hardcoded local array. One query for every group;
-  // grouped client-side below.
-  const referenceItemsQueryKey = ["reference-items", familyGroupId] as const;
-  const { data: referenceItems, isLoading: isReferenceItemsLoading } = useQuery<
-    ReferenceItemDto[]
-  >({
-    queryKey: referenceItemsQueryKey,
-    queryFn: () =>
-      apiFetch<ReferenceItemDto[]>(
-        `/family-groups/${familyGroupId}/reference-items`,
-        { token },
-      ),
-    enabled,
-    staleTime: 60_000,
-  });
+  const { items: referenceItemList, isLoading: isReferenceItemsLoading } =
+    useReferenceItems();
 
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   const [editingCategoryId, setEditingCategoryId] = useState<string | null>(
@@ -262,7 +252,7 @@ export default function MasterDataPage() {
       });
       toast.success(t.masterdata.toastItemAdded);
       void queryClient.invalidateQueries({
-        queryKey: referenceItemsQueryKey,
+        queryKey: referenceItemsQueryKey(familyGroupId),
       });
     } catch (err) {
       toast.error(extractApiErrorMessage(err, t.masterdata.toastItemAddFailed));
@@ -285,7 +275,7 @@ export default function MasterDataPage() {
           `${t.masterdata.itemRemovedPrefix}${item.label}${t.masterdata.itemRemovedSuffix}`,
         );
         void queryClient.invalidateQueries({
-          queryKey: referenceItemsQueryKey,
+          queryKey: referenceItemsQueryKey(familyGroupId),
         });
       } catch (err) {
         toast.error(
@@ -335,7 +325,6 @@ export default function MasterDataPage() {
     ],
   };
 
-  const referenceItemList = referenceItems ?? [];
   const itemsByGroup = new Map<ReferenceItemGroup, ReferenceItemDto[]>();
   for (const item of referenceItemList) {
     const list = itemsByGroup.get(item.group) ?? [];

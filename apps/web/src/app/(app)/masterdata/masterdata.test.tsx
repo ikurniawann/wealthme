@@ -71,6 +71,7 @@ if (typeof window !== "undefined" && !window.PointerEvent) {
 }
 
 import MasterDataPage from "./page";
+import { useReferenceItems } from "../../../hooks/use-reference-items";
 
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
@@ -286,5 +287,87 @@ describe("MasterDataPage, reference items are real API-backed data (EPIC-024 Tas
       expect.objectContaining({ method: "DELETE" }),
     );
     expect(mockToastSuccess).toHaveBeenCalled();
+  });
+});
+
+describe("MasterDataPage, a new item reaches every form reading the same group (Revisi H)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  function BankProbe() {
+    const { items } = useReferenceItems("bank");
+    return (
+      <ul aria-label="bank-probe">
+        {items.map((i) => (
+          <li key={i.id}>{i.label}</li>
+        ))}
+      </ul>
+    );
+  }
+
+  it("adding a bank in Master Data refreshes a form-side useReferenceItems('bank') consumer", async () => {
+    let list: ReferenceItemDto[] = [
+      buildReferenceItem({ id: "ref-bca", label: "BCA" }),
+    ];
+    mockApiFetch.mockImplementation((path: string, options?: RequestInit) => {
+      if (path.includes("/coa-accounts")) return Promise.resolve([]);
+      if (path.endsWith("/access/me")) {
+        return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+      }
+      if (path.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+      }
+      if (path.includes("/reference-items")) {
+        if (options?.method === "POST") {
+          const body = JSON.parse(String(options.body)) as {
+            group: ReferenceItemDto["group"];
+            label: string;
+          };
+          const created = buildReferenceItem({
+            id: "ref-new",
+            group: body.group,
+            label: body.label,
+            isSystem: false,
+          });
+          list = [...list, created];
+          return Promise.resolve(created);
+        }
+        return Promise.resolve(list);
+      }
+      return Promise.resolve([]);
+    });
+    const user = userEvent.setup();
+    render(
+      <>
+        <MasterDataPage />
+        <BankProbe />
+      </>,
+    );
+
+    const probe = await screen.findByRole("list", { name: "bank-probe" });
+    await within(probe).findByText("BCA");
+
+    const addButtons = await screen.findAllByRole("button", {
+      name: "+ Tambah",
+    });
+    await user.click(addButtons[1]);
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Bank Jago"),
+      "Bank Tes MD",
+    );
+    await user.click(within(dialog).getByRole("button", { name: /Simpan/i }));
+
+    expect(await within(probe).findByText("Bank Tes MD")).toBeInTheDocument();
   });
 });
