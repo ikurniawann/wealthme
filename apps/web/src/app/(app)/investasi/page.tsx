@@ -1138,6 +1138,12 @@ function BuySellModal({
   const { handleError } = useApiError();
   const [txType, setTxType] = useState<InvestmentTxType>("buy");
   const [quantity, setQuantity] = useState("");
+  const isSaham = holding?.type === "saham";
+  const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("lot");
+  const effectiveUnit: QuantityUnit = isSaham ? quantityUnit : "lembar";
+  const unitLabel = holding
+    ? quantityUnitLabel(holding.type, effectiveUnit, unitLabels(t))
+    : "";
   const [pricePerUnit, setPricePerUnit] = useState("");
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -1158,9 +1164,27 @@ function BuySellModal({
   );
   const [submitting, setSubmitting] = useState(false);
 
+  function handleQuantityUnitChange(nextUnit: QuantityUnit) {
+    setQuantity((prev) => convertQuantityDisplay(prev, quantityUnit, nextUnit));
+    setQuantityUnit(nextUnit);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!holding) return;
+    const decimalsError = quantityDecimalsError(
+      t,
+      holding.type,
+      quantity,
+      effectiveUnit,
+    );
+    if (decimalsError) {
+      toast.error(decimalsError);
+      return;
+    }
+    const canonicalQuantity = isSaham
+      ? canonicalizeSahamQuantity(quantity, quantityUnit)
+      : quantity;
     setSubmitting(true);
     try {
       const created = await apiFetch<InvestmentTransactionDto>(
@@ -1170,7 +1194,7 @@ function BuySellModal({
           token,
           body: JSON.stringify({
             type: txType,
-            quantity,
+            quantity: canonicalQuantity,
             pricePerUnit: String(parseRupiah(pricePerUnit)),
             occurredAt: new Date(occurredAt).toISOString(),
             accountId: accountId || undefined,
@@ -1239,20 +1263,52 @@ function BuySellModal({
                 </button>
               ))}
             </div>
+            {isSaham && (
+              <div className="field">
+                <span className="label">
+                  {t.investasi.fieldQuantityUnitLabel}
+                </span>
+                <div
+                  className="segmented"
+                  role="tablist"
+                  aria-label={t.investasi.fieldQuantityUnitLabel}
+                >
+                  {(["lot", "lembar"] as const).map((unit) => (
+                    <button
+                      key={unit}
+                      type="button"
+                      role="tab"
+                      className="segmented__item"
+                      aria-selected={quantityUnit === unit}
+                      onClick={() => handleQuantityUnitChange(unit)}
+                    >
+                      {unit === "lot"
+                        ? t.investasi.unitLot
+                        : t.investasi.unitLembar}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="field">
               <label className="label" htmlFor="tx-quantity">
-                {t.investasi.buySellFieldQuantityLabel}
+                {t.investasi.buySellFieldQuantityLabel} ({unitLabel})
               </label>
               <input
                 id="tx-quantity"
                 type="number"
                 required
                 min="0"
-                step="any"
+                step={
+                  holding ? quantityStep(holding.type, effectiveUnit) : "any"
+                }
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
                 className="input mono"
               />
+              {isSaham && (
+                <div className="hint">{t.investasi.hintLotConversion}</div>
+              )}
             </div>
             <div className="field">
               <label className="label" htmlFor="tx-price">
@@ -1269,6 +1325,11 @@ function BuySellModal({
                 }
                 className="input mono"
               />
+              {isSaham && (
+                <div className="hint">
+                  {t.investasi.buySellPricePerLembarHint}
+                </div>
+              )}
             </div>
             <div className="field">
               <label className="label" htmlFor="tx-account">

@@ -1671,6 +1671,7 @@ export type I18nDictionary = {
     quantityDecimalsErrorTemplate: string;
     /** Template with a `{unit}` placeholder. */
     quantityWholeNumberErrorTemplate: string;
+    buySellPricePerLembarHint: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {

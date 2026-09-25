@@ -1792,6 +1792,8 @@ export const id = {
     quantityDecimalsErrorTemplate:
       "Jumlah {unit} maksimal {max} angka di belakang koma.",
     quantityWholeNumberErrorTemplate: "Jumlah {unit} harus bilangan bulat.",
+    buySellPricePerLembarHint:
+      "Harga tetap per lembar, walau jumlah diisi dalam lot.",
   },
   aset: {
     tabs: {

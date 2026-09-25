@@ -1761,6 +1761,8 @@ export const en = {
       "The {unit} quantity allows at most {max} decimal places.",
     quantityWholeNumberErrorTemplate:
       "The {unit} quantity must be a whole number.",
+    buySellPricePerLembarHint:
+      "Price stays per share (lembar), even when the quantity is entered in lots.",
   },
   aset: {
     tabs: {

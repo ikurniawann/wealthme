@@ -336,3 +336,156 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     expect(await screen.findByText(/2,5 gram @/)).toBeInTheDocument();
   });
 });
+
+describe("InvestasiPage — Beli/Jual Lot⇄Lembar toggle (Revisi D item 8)", () => {
+  const SAHAM = holdingOf({
+    id: "inv-saham",
+    ticker: "BBCA",
+    name: "Bank Central Asia",
+    type: "saham",
+    quantity: "1000",
+    costBasisPerUnit: "9000",
+    currentPrice: "9500",
+    currentValue: "9500000",
+  });
+  const EMAS = holdingOf({
+    id: "inv-emas",
+    ticker: "ANTM",
+    name: "Logam Mulia",
+    type: "emas",
+    quantity: "10",
+  });
+  const TX_CREATED = {
+    id: "tx-new",
+    investmentId: "inv-saham",
+    type: "sell",
+    quantity: "500",
+    pricePerUnit: "9500",
+    occurredAt: "2026-09-25T00:00:00.000Z",
+    realizedPnl: "250000",
+    createdAt: "2026-09-25T00:00:00.000Z",
+  };
+
+  function setup() {
+    mockSession("owner");
+    routeApi({
+      "/investments": [SAHAM, EMAS],
+      "/transactions": (_path: string, init?: ApiInit) =>
+        init?.method === "POST" ? TX_CREATED : [],
+    });
+    render(<InvestasiPage />);
+  }
+
+  async function openTrade(
+    user: ReturnType<typeof userEvent.setup>,
+    holdingName: string,
+  ) {
+    const row = (await screen.findByText(holdingName)).closest(
+      "tr",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Lihat Detail" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Beli / Jual" }),
+    );
+  }
+
+  function submitTrade(input: HTMLElement) {
+    fireEvent.change(screen.getByLabelText("Harga per Unit (Rp)"), {
+      target: { value: "9500" },
+    });
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
+  }
+
+  it("sells 5 lot as 500 lembar", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Bank Central Asia");
+
+    await user.click(screen.getByRole("tab", { name: "Jual" }));
+    expect(screen.getByRole("tab", { name: "Lot" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    const qty = screen.getByLabelText("Jumlah (Lot)");
+    fireEvent.change(qty, { target: { value: "5" } });
+    submitTrade(qty);
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments/inv-saham/transactions")).toEqual(
+        expect.objectContaining({
+          type: "sell",
+          quantity: "500",
+          pricePerUnit: "9500",
+        }),
+      ),
+    );
+  });
+
+  it("buys in lembar without conversion", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Bank Central Asia");
+
+    await user.click(screen.getByRole("tab", { name: "Lembar" }));
+    const qty = screen.getByLabelText("Jumlah (Lembar)");
+    fireEvent.change(qty, { target: { value: "250" } });
+    submitTrade(qty);
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments/inv-saham/transactions")).toEqual(
+        expect.objectContaining({ type: "buy", quantity: "250" }),
+      ),
+    );
+  });
+
+  it("sends an odd lot as exact lembar (0.07 lot → 7)", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Bank Central Asia");
+
+    const qty = screen.getByLabelText("Jumlah (Lot)");
+    fireEvent.change(qty, { target: { value: "0.07" } });
+    submitTrade(qty);
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments/inv-saham/transactions")?.quantity).toBe(
+        "7",
+      ),
+    );
+  });
+
+  it("converts the typed value when the unit is toggled", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Bank Central Asia");
+
+    fireEvent.change(screen.getByLabelText("Jumlah (Lot)"), {
+      target: { value: "5" },
+    });
+    await user.click(screen.getByRole("tab", { name: "Lembar" }));
+
+    expect(screen.getByLabelText("Jumlah (Lembar)")).toHaveValue(500);
+  });
+
+  it("explains that the price stays per lembar", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Bank Central Asia");
+
+    expect(
+      screen.getByText("Harga tetap per lembar, walau jumlah diisi dalam lot."),
+    ).toBeInTheDocument();
+  });
+
+  it("has no Lot/Lembar toggle for emas and labels the quantity in grams", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Logam Mulia");
+
+    expect(screen.queryByRole("tab", { name: "Lot" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Jumlah (gram)")).toHaveAttribute(
+      "step",
+      "0.001",
+    );
+  });
+});
