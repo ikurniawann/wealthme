@@ -1,13 +1,16 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { LiabilityType } from "@prisma/client";
+import { InterestMethod, LiabilityType } from "@prisma/client";
 import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
+  Min,
 } from "class-validator";
 
 export class UpdateLiabilityDto {
@@ -75,4 +78,42 @@ export class UpdateLiabilityDto {
   @IsString()
   @MaxLength(3)
   currency?: string;
+
+  @ApiPropertyOptional({ enum: InterestMethod })
+  @IsOptional()
+  @IsEnum(InterestMethod)
+  interestMethod?: InterestMethod;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 600 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  tenorMonths?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  startDate?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+$/, { message: "installmentAmount must be a numeric string" })
+  installmentAmount?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 600 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  fixedRateMonths?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: "floatingRate must be a decimal string",
+  })
+  floatingRate?: string;
 }

@@ -120,6 +120,12 @@ enum LiabilityType {
   lainnya
 }
 
+enum InterestMethod {
+  efektif
+  flat
+  anuitas
+}
+
 enum InsuranceType {
   jiwa
   kesehatan
@@ -1224,6 +1230,13 @@ model Liability {
   autoAdvanceDueDate  Boolean       @default(false)
   notes               String?
   currency            String        @default("IDR")
+  // Revisi G (catalog 12) — per-product interest engine; legacy rows stay efektif.
+  interestMethod      InterestMethod @default(efektif)
+  tenorMonths         Int?
+  startDate           DateTime?
+  installmentAmount   BigInt?
+  fixedRateMonths     Int?
+  floatingRate        Decimal?      @db.Decimal(5, 2)
   // EPIC-023 group E retry (HIGH 4) — this liability's OWN principal
   // Category, self-healed (created) the first time it needs a budget line
   // or a payment. Every liability gets its own category (instead of every

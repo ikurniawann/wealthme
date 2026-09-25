@@ -120,6 +120,12 @@ const BASE = {
   dueDate: null,
   notes: null,
   currency: "IDR",
+  interestMethod: "efektif",
+  tenorMonths: null,
+  startDate: null,
+  installmentAmount: null,
+  fixedRateMonths: null,
+  floatingRate: null,
   createdAt: new Date("2026-01-01"),
   updatedAt: new Date("2026-01-01"),
 };
@@ -184,6 +190,61 @@ describe("LiabilitiesService", () => {
       ]);
       const [result] = await service.findAll("fg-1");
       expect(result.paymentRatio).toBe(0);
+    });
+  });
+
+  describe("interest terms in the response (revisi G)", () => {
+    it("maps interestMethod, tenor, start date, installment and KPR floating terms to wire values", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        {
+          ...BASE,
+          type: "kpr",
+          totalDebt: BigInt(500_000_000),
+          remainingBalance: BigInt(500_000_000),
+          interestMethod: "anuitas",
+          tenorMonths: 240,
+          startDate: new Date("2026-01-15T00:00:00.000Z"),
+          installmentAmount: BigInt(4_182_200),
+          fixedRateMonths: 36,
+          floatingRate: { toString: () => "11" },
+        },
+      ]);
+
+      const [dto] = await service.findAll("fg-1");
+
+      expect(dto).toEqual(
+        expect.objectContaining({
+          interestMethod: "anuitas",
+          tenorMonths: 240,
+          startDate: "2026-01-15T00:00:00.000Z",
+          installmentAmount: "4182200",
+          fixedRateMonths: 36,
+          floatingRate: "11",
+        }),
+      );
+    });
+
+    it("maps a legacy efektif row with no terms to nulls", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        {
+          ...BASE,
+          totalDebt: BigInt(10_000_000),
+          remainingBalance: BigInt(5_000_000),
+        },
+      ]);
+
+      const [dto] = await service.findAll("fg-1");
+
+      expect(dto).toEqual(
+        expect.objectContaining({
+          interestMethod: "efektif",
+          tenorMonths: null,
+          startDate: null,
+          installmentAmount: null,
+          fixedRateMonths: null,
+          floatingRate: null,
+        }),
+      );
     });
   });
 

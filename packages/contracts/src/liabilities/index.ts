@@ -5,6 +5,8 @@ export type LiabilityType =
   | "kendaraan"
   | "lainnya";
 
+export type InterestMethod = "efektif" | "flat" | "anuitas";
+
 export interface LiabilityDto {
   id: string;
   familyGroupId: string;
@@ -23,6 +25,13 @@ export interface LiabilityDto {
   paidThisPeriod: boolean;
   notes: string | null;
   currency: string;
+  // Revisi G — per-product interest terms.
+  interestMethod: InterestMethod;
+  tenorMonths: number | null;
+  startDate: string | null;
+  installmentAmount: string | null;
+  fixedRateMonths: number | null;
+  floatingRate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +54,12 @@ export interface CreateLiabilityDto {
   autoAdvanceDueDate?: boolean;
   notes?: string;
   currency?: string;
+  interestMethod?: InterestMethod;
+  tenorMonths?: number;
+  startDate?: string;
+  installmentAmount?: string;
+  fixedRateMonths?: number;
+  floatingRate?: string;
 }
 
 export interface UpdateLiabilityDto {
@@ -59,4 +74,25 @@ export interface UpdateLiabilityDto {
   autoAdvanceDueDate?: boolean;
   notes?: string;
   currency?: string;
+  interestMethod?: InterestMethod;
+  tenorMonths?: number;
+  startDate?: string;
+  installmentAmount?: string;
+  fixedRateMonths?: number;
+  floatingRate?: string;
+}
+
+export interface LiabilityScheduleRowDto {
+  period: number;
+  installment: string;
+  interest: string;
+  principal: string;
+  remaining: string;
+}
+
+export interface LiabilityScheduleDto {
+  liabilityId: string;
+  interestMethod: InterestMethod;
+  installmentAmount: string | null;
+  rows: LiabilityScheduleRowDto[];
 }

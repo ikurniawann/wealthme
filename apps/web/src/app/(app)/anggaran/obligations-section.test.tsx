@@ -94,6 +94,12 @@ const DUE_LIABILITY: LiabilityDto = {
   paidThisPeriod: false,
   notes: null,
   currency: "IDR",
+  interestMethod: "efektif",
+  tenorMonths: null,
+  startDate: null,
+  installmentAmount: null,
+  fixedRateMonths: null,
+  floatingRate: null,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };

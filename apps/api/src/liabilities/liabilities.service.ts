@@ -25,7 +25,7 @@ import {
   notifyTransaction,
 } from "../transactions/transaction-alerts.util";
 
-import { splitPayment } from "./amortisation.util";
+import { splitPayment, type InterestMethod } from "./amortisation.util";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
@@ -69,6 +69,12 @@ type LiabilityRow = {
   autoAdvanceDueDate: boolean;
   notes: string | null;
   currency: string;
+  interestMethod: InterestMethod;
+  tenorMonths: number | null;
+  startDate: Date | null;
+  installmentAmount: bigint | null;
+  fixedRateMonths: number | null;
+  floatingRate: { toString(): string } | null;
   principalCategoryId?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -107,6 +113,12 @@ function toLiabilityDto(
     paidThisPeriod,
     notes: liability.notes,
     currency: liability.currency,
+    interestMethod: liability.interestMethod,
+    tenorMonths: liability.tenorMonths,
+    startDate: liability.startDate?.toISOString() ?? null,
+    installmentAmount: liability.installmentAmount?.toString() ?? null,
+    fixedRateMonths: liability.fixedRateMonths,
+    floatingRate: liability.floatingRate?.toString() ?? null,
     createdAt: liability.createdAt.toISOString(),
     updatedAt: liability.updatedAt.toISOString(),
   };

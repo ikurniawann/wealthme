@@ -20,6 +20,15 @@ export class LiabilityResponseDto {
   paidThisPeriod!: boolean;
   @ApiProperty({ nullable: true }) notes!: string | null;
   @ApiProperty() currency!: string;
+  @ApiProperty({ enum: ["efektif", "flat", "anuitas"] })
+  interestMethod!: string;
+  @ApiProperty({ nullable: true, type: Number }) tenorMonths!: number | null;
+  @ApiProperty({ nullable: true, type: String }) startDate!: string | null;
+  @ApiProperty({ nullable: true, type: String })
+  installmentAmount!: string | null;
+  @ApiProperty({ nullable: true, type: Number })
+  fixedRateMonths!: number | null;
+  @ApiProperty({ nullable: true, type: String }) floatingRate!: string | null;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 }
