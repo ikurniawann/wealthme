@@ -3287,6 +3287,10 @@
   .date-range__pop[data-open="true"] {
     display: block;
   }
+  /* Portaled by date-range-field.tsx; above dialogs (60) and toasts (80). */
+  .date-range__pop.date-range__pop--portal {
+    z-index: 90;
+  }
 
   .dr-head {
     display: flex;

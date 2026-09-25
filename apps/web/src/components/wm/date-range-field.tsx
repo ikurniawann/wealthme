@@ -12,12 +12,26 @@
  * the same helper on both screens), so it moved here rather than being copied —
  * two hand-maintained calendars would inevitably drift.
  *
+ * The popover is PORTALED (`useAnchoredPopover`): `.page > * > *` keeps an
+ * identity transform from the `page-in` animation (fill-mode `both`), which
+ * makes every card its own stacking context — an in-flow popover could never
+ * paint above the next card, whatever its z-index.
+ *
  * NOTE on `data-open`: this component sets `data-open="true"` itself, so the
  * `.date-range__pop[data-open="true"]` selector works. That selector is only
  * unreliable for Base UI popups, which emit a valueless `data-open=""`.
  */
 
-import { useEffect, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
 
 import type { Locale } from "@/i18n";
@@ -87,6 +101,11 @@ function toDateIso(year: number, month: number, day: number): string {
   ].join("-");
 }
 
+function todayIso(): string {
+  const now = new Date();
+  return toDateIso(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
@@ -102,6 +121,207 @@ function getDayLabels(locale: Locale): string[] {
   return locale === "en"
     ? ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
     : ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+}
+
+type MonthView = { year: number; month: number };
+
+function shiftMonth(view: MonthView, offset: number): MonthView {
+  const next = new Date(view.year, view.month + offset, 1);
+  return { year: next.getFullYear(), month: next.getMonth() };
+}
+
+type DayCell = { key: string; day: number; iso?: string; trail?: boolean };
+
+function buildMonthCells(view: MonthView): DayCell[] {
+  const cells: DayCell[] = [];
+  const firstWeekday = new Date(view.year, view.month, 1).getDay();
+  const daysThisMonth = getDaysInMonth(view.year, view.month);
+  const daysPrevMonth = getDaysInMonth(view.year, view.month - 1);
+
+  for (let index = firstWeekday - 1; index >= 0; index -= 1) {
+    const day = daysPrevMonth - index;
+    cells.push({ key: `prev-${day}`, day });
+  }
+
+  for (let day = 1; day <= daysThisMonth; day += 1) {
+    cells.push({
+      key: `day-${day}`,
+      day,
+      iso: toDateIso(view.year, view.month, day),
+    });
+  }
+
+  while (cells.length % 7 !== 0) {
+    cells.push({ key: `trail-${cells.length}`, day: 0, trail: true });
+  }
+
+  return cells;
+}
+
+const POP_GAP = 6;
+const EDGE_MARGIN = 8;
+// Base UI dialogs/sheets trap focus and dismiss on outside presses, so a picker
+// inside one is portaled into that popup rather than into <body>.
+const MODAL_HOST_SELECTOR =
+  '[data-slot="dialog-content"], [data-slot="sheet-content"]';
+
+function resolvePortalHost(trigger: HTMLElement | null): HTMLElement {
+  return trigger?.closest<HTMLElement>(MODAL_HOST_SELECTOR) ?? document.body;
+}
+
+function placePopover(
+  trigger: HTMLElement,
+  pop: HTMLElement,
+  host: HTMLElement,
+): void {
+  const anchor = trigger.getBoundingClientRect();
+  const hostRect = host === document.body ? null : host.getBoundingClientRect();
+  const boundTop = Math.max(0, hostRect?.top ?? 0);
+  const boundBottom = Math.min(
+    window.innerHeight,
+    hostRect?.bottom ?? window.innerHeight,
+  );
+  const boundLeft = Math.max(0, hostRect?.left ?? 0);
+  const boundRight = Math.min(
+    window.innerWidth,
+    hostRect?.right ?? window.innerWidth,
+  );
+  const popHeight = pop.offsetHeight;
+  const popWidth = pop.offsetWidth;
+
+  const fitsBelow =
+    anchor.bottom + POP_GAP + popHeight <= boundBottom - EDGE_MARGIN;
+  const fitsAbove = anchor.top - POP_GAP - popHeight >= boundTop + EDGE_MARGIN;
+  const viewTop =
+    !fitsBelow && fitsAbove
+      ? anchor.top - POP_GAP - popHeight
+      : anchor.bottom + POP_GAP;
+  const viewLeft = Math.max(
+    boundLeft + EDGE_MARGIN,
+    Math.min(anchor.left, boundRight - EDGE_MARGIN - popWidth),
+  );
+
+  if (!hostRect) {
+    pop.style.top = `${viewTop + window.scrollY}px`;
+    pop.style.left = `${viewLeft + window.scrollX}px`;
+    return;
+  }
+  pop.style.top = `${viewTop - hostRect.top - host.clientTop + host.scrollTop}px`;
+  pop.style.left = `${viewLeft - hostRect.left - host.clientLeft + host.scrollLeft}px`;
+}
+
+function useAnchoredPopover(
+  open: boolean,
+  close: () => void,
+  layoutKey: string,
+) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
+
+  const captureHost = () => setHost(resolvePortalHost(triggerRef.current));
+
+  useLayoutEffect(() => {
+    if (!open || !host || !triggerRef.current || !popRef.current) return;
+    placePopover(triggerRef.current, popRef.current, host);
+  }, [open, host, layoutKey]);
+
+  useEffect(() => {
+    if (!open || !host) return undefined;
+
+    const reposition = () => {
+      if (triggerRef.current && popRef.current) {
+        placePopover(triggerRef.current, popRef.current, host);
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (rootRef.current?.contains(target)) return;
+      if (popRef.current?.contains(target)) return;
+      close();
+    };
+    // Window capture runs before any document listener, so Escape closes the
+    // picker without also closing a Base UI dialog around it.
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.stopPropagation();
+      close();
+      triggerRef.current?.focus();
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown, true);
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+    };
+  }, [open, host, close]);
+
+  const renderPop = (pop: ReactNode) =>
+    open && host ? createPortal(pop, host) : null;
+
+  return { rootRef, triggerRef, popRef, captureHost, renderPop };
+}
+
+function CalendarMonth({
+  view,
+  locale,
+  title,
+  onNavigate,
+  renderDay,
+}: {
+  view: MonthView;
+  locale: Locale;
+  title: ReactNode;
+  onNavigate: (offset: number) => void;
+  renderDay: (iso: string, day: number) => ReactNode;
+}) {
+  return (
+    <>
+      <div className="dr-head">
+        <button
+          type="button"
+          className="btn btn--ghost btn--icon btn--sm"
+          aria-label={locale === "en" ? "Previous month" : "Bulan sebelumnya"}
+          onClick={() => onNavigate(-1)}
+        >
+          {/* Prototype uses the lucide chevrons here, not "‹"/"›" glyphs
+              (docs/prototype/assets/shell.js `renderPop`). */}
+          <ChevronLeft className="size-[15px]" />
+        </button>
+        {title}
+        <button
+          type="button"
+          className="btn btn--ghost btn--icon btn--sm"
+          aria-label={locale === "en" ? "Next month" : "Bulan berikutnya"}
+          onClick={() => onNavigate(1)}
+        >
+          <ChevronRight className="size-[15px]" />
+        </button>
+      </div>
+      <div className="dr-grid dr-grid--head">
+        {getDayLabels(locale).map((day) => (
+          <span key={day}>{day}</span>
+        ))}
+      </div>
+      <div className="dr-grid">
+        {buildMonthCells(view).map((cell) =>
+          cell.iso ? (
+            <Fragment key={cell.key}>{renderDay(cell.iso, cell.day)}</Fragment>
+          ) : (
+            <span key={cell.key} className="dr-day dr-day--muted">
+              {cell.trail ? "" : cell.day}
+            </span>
+          ),
+        )}
+      </div>
+    </>
+  );
 }
 
 export function DateRangeFilterField({
@@ -121,52 +341,24 @@ export function DateRangeFilterField({
   applyLabel: string;
   onApply: (from: string, to: string) => void;
 }) {
-  const today = new Date();
-  const initialView = parseDateParts(
-    to || from || today.toISOString().slice(0, 10),
-  );
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({ from, to });
   const [awaitingEnd, setAwaitingEnd] = useState(false);
-  const [view, setView] = useState({
-    year: initialView.year,
-    month: initialView.month,
+  const [view, setView] = useState<MonthView>(() => {
+    const initial = parseDateParts(to || from || todayIso());
+    return { year: initial.year, month: initial.month };
   });
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
+  const { rootRef, triggerRef, popRef, captureHost, renderPop } =
+    useAnchoredPopover(open, close, `${view.year}-${view.month}`);
 
   const openPicker = () => {
-    const nextView = parseDateParts(
-      to || from || today.toISOString().slice(0, 10),
-    );
+    const nextView = parseDateParts(to || from || todayIso());
     setDraft({ from, to });
     setAwaitingEnd(false);
     setView({ year: nextView.year, month: nextView.month });
+    captureHost();
     setOpen((current) => !current);
-  };
-
-  const goToMonth = (offset: number) => {
-    setView((current) => {
-      const next = new Date(current.year, current.month + offset, 1);
-      return { year: next.getFullYear(), month: next.getMonth() };
-    });
   };
 
   const selectDay = (iso: string) => {
@@ -188,46 +380,15 @@ export function DateRangeFilterField({
     if (awaitingEnd || !draft.from || !draft.to) return;
     onApply(draft.from, draft.to);
     setOpen(false);
+    triggerRef.current?.focus();
   };
 
   const cancelDraft = () => {
     setDraft({ from, to });
     setAwaitingEnd(false);
     setOpen(false);
+    triggerRef.current?.focus();
   };
-
-  const cells: Array<{
-    key: string;
-    day: number;
-    iso?: string;
-    muted?: boolean;
-    trail?: boolean;
-  }> = [];
-  const firstWeekday = new Date(view.year, view.month, 1).getDay();
-  const daysThisMonth = getDaysInMonth(view.year, view.month);
-  const daysPrevMonth = getDaysInMonth(view.year, view.month - 1);
-
-  for (let index = firstWeekday - 1; index >= 0; index -= 1) {
-    const day = daysPrevMonth - index;
-    cells.push({ key: `prev-${day}`, day, muted: true });
-  }
-
-  for (let day = 1; day <= daysThisMonth; day += 1) {
-    cells.push({
-      key: `day-${day}`,
-      day,
-      iso: toDateIso(view.year, view.month, day),
-    });
-  }
-
-  while (cells.length % 7 !== 0) {
-    cells.push({
-      key: `trail-${cells.length}`,
-      day: 0,
-      muted: true,
-      trail: true,
-    });
-  }
 
   const rangeFrom =
     draft.from && draft.to && draft.from > draft.to ? draft.to : draft.from;
@@ -246,6 +407,7 @@ export function DateRangeFilterField({
     <div ref={rootRef} className="field date-range">
       <span className="label">{label}</span>
       <button
+        ref={triggerRef}
         type="button"
         className="date-range__trigger"
         aria-haspopup="dialog"
@@ -257,96 +419,68 @@ export function DateRangeFilterField({
           {formatDateRangeLabel(from, to, locale)}
         </span>
       </button>
-      <div
-        className="date-range__pop"
-        data-open={open ? "true" : undefined}
-        role="dialog"
-        aria-label={label}
-      >
-        <div className="dr-head">
-          <button
-            type="button"
-            className="btn btn--ghost btn--icon btn--sm"
-            aria-label={locale === "en" ? "Previous month" : "Bulan sebelumnya"}
-            onClick={() => goToMonth(-1)}
-          >
-            {/* Prototype uses the lucide chevrons here, not "‹"/"›" glyphs
-                (docs/prototype/assets/shell.js `renderPop`). */}
-            <ChevronLeft className="size-[15px]" />
-          </button>
-          <span className="t-sm t-bold">
-            {getMonthTitle(view.year, view.month, locale)}
-          </span>
-          <button
-            type="button"
-            className="btn btn--ghost btn--icon btn--sm"
-            aria-label={locale === "en" ? "Next month" : "Bulan berikutnya"}
-            onClick={() => goToMonth(1)}
-          >
-            <ChevronRight className="size-[15px]" />
-          </button>
-        </div>
-        <div className="dr-grid dr-grid--head">
-          {getDayLabels(locale).map((day) => (
-            <span key={day}>{day}</span>
-          ))}
-        </div>
-        <div className="dr-grid">
-          {cells.map((cell) => {
-            if (cell.muted || !cell.iso) {
-              return (
-                <span key={cell.key} className="dr-day dr-day--muted">
-                  {cell.trail ? "" : cell.day}
-                </span>
-              );
+      {renderPop(
+        <div
+          ref={popRef}
+          className="date-range__pop date-range__pop--portal"
+          data-open="true"
+          role="dialog"
+          aria-label={label}
+        >
+          <CalendarMonth
+            view={view}
+            locale={locale}
+            onNavigate={(offset) =>
+              setView((current) => shiftMonth(current, offset))
             }
-
-            const isEdge = cell.iso === rangeFrom || cell.iso === rangeTo;
-            const isInRange =
-              !!rangeFrom &&
-              !!rangeTo &&
-              cell.iso > rangeFrom &&
-              cell.iso < rangeTo;
-
-            return (
+            title={
+              <span className="t-sm t-bold">
+                {getMonthTitle(view.year, view.month, locale)}
+              </span>
+            }
+            renderDay={(iso, day) => {
+              const isEdge = iso === rangeFrom || iso === rangeTo;
+              const isInRange =
+                !!rangeFrom && !!rangeTo && iso > rangeFrom && iso < rangeTo;
+              return (
+                <button
+                  type="button"
+                  className={[
+                    "dr-day",
+                    isEdge ? "dr-day--edge" : "",
+                    isInRange ? "dr-day--in-range" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() => selectDay(iso)}
+                >
+                  {day}
+                </button>
+              );
+            }}
+          />
+          <div className="dr-foot">
+            <span className="t-xs t-muted mono">{footerLabel}</span>
+            <div className="row">
               <button
-                key={cell.key}
                 type="button"
-                className={[
-                  "dr-day",
-                  isEdge ? "dr-day--edge" : "",
-                  isInRange ? "dr-day--in-range" : "",
-                ]
-                  .filter(Boolean)
-                  .join(" ")}
-                onClick={() => selectDay(cell.iso!)}
+                className="btn btn--outline btn--sm"
+                onClick={cancelDraft}
               >
-                {cell.day}
+                {cancelLabel}
               </button>
-            );
-          })}
-        </div>
-        <div className="dr-foot">
-          <span className="t-xs t-muted mono">{footerLabel}</span>
-          <div className="row">
-            <button
-              type="button"
-              className="btn btn--outline btn--sm"
-              onClick={cancelDraft}
-            >
-              {cancelLabel}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary btn--sm"
-              disabled={awaitingEnd || !draft.from || !draft.to}
-              onClick={applyDraft}
-            >
-              {applyLabel}
-            </button>
+              <button
+                type="button"
+                className="btn btn--primary btn--sm"
+                disabled={awaitingEnd || !draft.from || !draft.to}
+                onClick={applyDraft}
+              >
+                {applyLabel}
+              </button>
+            </div>
           </div>
-        </div>
-      </div>
+        </div>,
+      )}
     </div>
   );
 }
