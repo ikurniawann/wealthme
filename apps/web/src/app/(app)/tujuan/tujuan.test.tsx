@@ -15,7 +15,13 @@ import {
   resolveEffectiveAccess,
   type MemberRoleKey,
 } from "@wealthme/contracts";
-import { render as rtlRender, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { GoalDto } from "@wealthme/contracts";
@@ -72,6 +78,7 @@ function buildGoal(overrides: Partial<GoalDto> = {}): GoalDto {
     targetDate: "2026-12-01",
     autoDebitAmount: null,
     autoDebitDay: null,
+    sourceAccountId: null,
     status: "on_track",
     progressPercent: 10,
     remainingAmount: 9_000_000,
@@ -79,7 +86,22 @@ function buildGoal(overrides: Partial<GoalDto> = {}): GoalDto {
   };
 }
 
-function mockSession(role: string) {
+const ACCOUNT = { id: "acc-1", name: "BCA Tahapan", institution: "BCA" };
+const CONTRIBUTION = {
+  id: "contrib-1",
+  goalId: "goal-1",
+  amount: "250000",
+  accountId: ACCOUNT.id,
+  accountName: ACCOUNT.name,
+  transactionId: "txn-1",
+  occurredAt: "2026-09-20T00:00:00.000Z",
+  source: "manual",
+  createdAt: "2026-09-20T01:00:00.000Z",
+};
+
+type MockOptions = { contributionError?: string };
+
+function mockSession(role: string, opts: MockOptions = {}) {
   mockUseSessionAuth.mockReturnValue({
     data: {
       session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
@@ -96,6 +118,20 @@ function mockSession(role: string) {
     }
     if (path.endsWith("/family-groups/mine")) {
       return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: role }]);
+    }
+    if (path.endsWith("/accounts")) {
+      return Promise.resolve([ACCOUNT]);
+    }
+    if (path.endsWith("/goals/goal-1/contributions")) {
+      if (options?.method === "POST") {
+        return opts.contributionError
+          ? Promise.reject({ status: 400, message: opts.contributionError })
+          : Promise.resolve({
+              contribution: CONTRIBUTION,
+              goal: buildGoal({ currentAmount: 1_250_000 }),
+            });
+      }
+      return Promise.resolve([CONTRIBUTION]);
     }
     if (path.endsWith("/goals")) {
       if (options?.method === "POST") {
@@ -163,4 +199,131 @@ describe("TujuanPage — role gating (F3)", () => {
       screen.queryByRole("button", { name: /Tambah Tujuan/i }),
     ).not.toBeInTheDocument();
   });
+});
+
+describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
+  it("posts the amount as a digit string with the source account and a local-midnight date, then closes", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Setor ke Dana Liburan" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Setor ke Dana Liburan",
+    });
+    const amount = within(dialog).getByLabelText("Jumlah Setoran (Rp)");
+    await user.type(amount, "250000");
+    expect(amount).toHaveValue("250.000");
+    await user.selectOptions(
+      await within(dialog).findByLabelText("Rekening Sumber"),
+      ACCOUNT.id,
+    );
+    fireEvent.change(within(dialog).getByLabelText("Tanggal Setoran"), {
+      target: { value: "2026-09-20" },
+    });
+    await user.click(
+      within(dialog).getByRole("button", { name: "Simpan Setoran" }),
+    );
+
+    await waitFor(() =>
+      expect(mockToastSuccess).toHaveBeenCalledWith("Setoran tercatat!"),
+    );
+    const post = mockApiFetch.mock.calls.find(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path ===
+          `/family-groups/${FAMILY_GROUP_ID}/goals/goal-1/contributions` &&
+        (options as RequestInit | undefined)?.method === "POST",
+    );
+    expect(JSON.parse((post?.[1] as RequestInit).body as string)).toEqual({
+      amount: "250000",
+      accountId: ACCOUNT.id,
+      occurredAt: new Date("2026-09-20T00:00:00").toISOString(),
+    });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  }, 10000);
+
+  it("omits accountId when 'no account' is kept, and disables save for an empty or zero amount", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Setor ke Dana Liburan" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Setor ke Dana Liburan",
+    });
+    const save = within(dialog).getByRole("button", { name: "Simpan Setoran" });
+    expect(save).toBeDisabled();
+    await user.type(within(dialog).getByLabelText("Jumlah Setoran (Rp)"), "0");
+    expect(save).toBeDisabled();
+    await user.clear(within(dialog).getByLabelText("Jumlah Setoran (Rp)"));
+    await user.type(
+      within(dialog).getByLabelText("Jumlah Setoran (Rp)"),
+      "5000",
+    );
+    await user.click(save);
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+    const post = mockApiFetch.mock.calls.find(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path.endsWith("/contributions") &&
+        (options as RequestInit | undefined)?.method === "POST",
+    );
+    const body = JSON.parse((post?.[1] as RequestInit).body as string);
+    expect(body.amount).toBe("5000");
+    expect(body).not.toHaveProperty("accountId");
+  }, 10000);
+
+  it("a rejected contribution shows the server's message and keeps the dialog open", async () => {
+    mockSession("owner", {
+      contributionError: 'Saldo rekening bank "BCA Tahapan" tidak mencukupi',
+    });
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Setor ke Dana Liburan" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Setor ke Dana Liburan",
+    });
+    await user.type(
+      within(dialog).getByLabelText("Jumlah Setoran (Rp)"),
+      "250000",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Simpan Setoran" }),
+    );
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        'Saldo rekening bank "BCA Tahapan" tidak mencukupi',
+      ),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "Setor ke Dana Liburan" }),
+    ).toBeInTheDocument();
+  }, 10000);
+
+  it("admin_staff gets no Setor button but can open the contribution history", async () => {
+    mockSession("admin_staff");
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await screen.findByText("Dana Liburan");
+    expect(
+      screen.queryByRole("button", { name: /Setor ke/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Riwayat Setoran" }));
+    expect(await screen.findByText("Rp 250.000")).toBeInTheDocument();
+    expect(screen.getByText(/Manual · BCA Tahapan/)).toBeInTheDocument();
+  }, 10000);
 });

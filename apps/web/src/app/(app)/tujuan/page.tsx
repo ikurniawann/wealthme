@@ -11,6 +11,7 @@ import {
   TriangleAlert,
   PiggyBank,
   Target,
+  Wallet,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -34,6 +35,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
 import type { CrudModalState, CrudMode } from "@/components/crud";
+
+import {
+  ContributeDialog,
+  type SourceAccountOption,
+} from "./_components/contribute-dialog";
+import { ContributionHistory } from "./_components/contribution-history";
 
 import type { GoalDto, GoalStatus } from "@wealthme/contracts";
 
@@ -160,7 +167,10 @@ interface GoalCardProps {
   goal: GoalDto;
   onEdit: (goal: GoalDto) => void;
   onDelete: (goal: GoalDto) => void;
+  onContribute: (goal: GoalDto) => void;
   canManage: boolean;
+  familyGroupId: string;
+  token: string | undefined;
 }
 
 function isEducationGoal(goal: GoalDto): boolean {
@@ -168,8 +178,17 @@ function isEducationGoal(goal: GoalDto): boolean {
   return name.includes("pendidikan") || name.includes("education");
 }
 
-function GoalCard({ goal, onEdit, onDelete, canManage }: GoalCardProps) {
+function GoalCard({
+  goal,
+  onEdit,
+  onDelete,
+  onContribute,
+  canManage,
+  familyGroupId,
+  token,
+}: GoalCardProps) {
   const { t, locale } = useLocale();
+  const [showHistory, setShowHistory] = useState(false);
   const { label, variant, color, stripColor, iconBg } = statusToBadge(
     goal.status,
     t,
@@ -286,7 +305,16 @@ function GoalCard({ goal, onEdit, onDelete, canManage }: GoalCardProps) {
         {/* F3 — CASL grants "manage Goal" only to owner/spouse/member;
             admin_staff/dependant/operational get 403 on edit/delete. */}
         {canManage && (
-          <div className="mt-2.5 grid grid-cols-2 gap-1.5">
+          <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => onContribute(goal)}
+              aria-label={`${t.tujuan.contributeButtonAriaPrefix}${goal.name}`}
+              className="flex items-center justify-center gap-1.5 rounded-[7px] border border-primary/30 bg-accent px-3 py-[7px] text-[11px] font-semibold text-primary transition-colors hover:bg-accent/70"
+            >
+              <Wallet className="size-[13px]" aria-hidden="true" />{" "}
+              {t.tujuan.contributeButton}
+            </button>
             <button
               onClick={() => onEdit(goal)}
               className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent"
@@ -299,6 +327,25 @@ function GoalCard({ goal, onEdit, onDelete, canManage }: GoalCardProps) {
             >
               <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
             </button>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowHistory((open) => !open)}
+          aria-expanded={showHistory}
+          className="mt-2 w-full text-left text-[11px] font-semibold text-primary hover:underline"
+        >
+          {showHistory
+            ? t.tujuan.historyToggleHide
+            : t.tujuan.historyToggleShow}
+        </button>
+        {showHistory && (
+          <div className="mt-1.5 border-t pt-2">
+            <ContributionHistory
+              goalId={goal.id}
+              familyGroupId={familyGroupId}
+              token={token}
+            />
           </div>
         )}
       </div>
@@ -323,6 +370,9 @@ export default function TujuanPage() {
   const [editingOriginalCurrentAmount, setEditingOriginalCurrentAmount] =
     useState<number | null>(null);
   const [deletingGoal, setDeletingGoal] = useState<GoalDto | null>(null);
+  const [contributingGoal, setContributingGoal] = useState<GoalDto | null>(
+    null,
+  );
 
   const {
     data: goals,
@@ -338,6 +388,16 @@ export default function TujuanPage() {
         signal,
       });
     },
+  });
+
+  const { data: accounts = [] } = useQuery<SourceAccountOption[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    enabled: Boolean(familyGroupId) && Boolean(token) && canManage === true,
+    queryFn: ({ signal }) =>
+      apiFetch<SourceAccountOption[]>(
+        `/family-groups/${familyGroupId}/accounts`,
+        { token, signal },
+      ),
   });
 
   const onTrackCount =
@@ -458,9 +518,8 @@ export default function TujuanPage() {
             {t.tujuan.totalAllocatedPrefix}
             {isLoading ? "…" : <CountUpRupiah value={totalAllocated} />}
           </div>
-          {/* EPIC-022 A3 — goals are a manual tracker, not real money: make
-              that explicit here so this total can't be read as a bank
-              balance or a real transfer between accounts. */}
+          {/* Revisi F — contributions can now move real money; the line says
+              when. */}
           <div className="text-[10.5px] text-muted-foreground/70">
             {t.tujuan.trackerDisclaimer}
           </div>
@@ -589,7 +648,10 @@ export default function TujuanPage() {
                   goal={g}
                   onEdit={handleEdit}
                   onDelete={setDeletingGoal}
+                  onContribute={setContributingGoal}
                   canManage={!!canManage}
+                  familyGroupId={familyGroupId ?? ""}
+                  token={token}
                 />
               </Rise>
             ))}
@@ -623,6 +685,16 @@ export default function TujuanPage() {
         onClose={handleCloseCrud}
         onSubmit={handleSubmit}
       />
+      {contributingGoal && familyGroupId && token && (
+        <ContributeDialog
+          key={contributingGoal.id}
+          goal={contributingGoal}
+          accounts={accounts}
+          familyGroupId={familyGroupId}
+          token={token}
+          onClose={() => setContributingGoal(null)}
+        />
+      )}
       <ConfirmDeleteDialog
         label={deletingGoal ? `"${deletingGoal.name}"` : null}
         onClose={() => setDeletingGoal(null)}

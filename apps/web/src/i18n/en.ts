@@ -2463,7 +2463,8 @@ export const en = {
     // EPIC-022 A3 — goals are a manual tracker, not real money: this total
     // is an earmark the family maintains by hand, never a bank balance or a
     // real transfer between accounts.
-    trackerDisclaimer: "Tracked manually, separate from your account balances.",
+    trackerDisclaimer:
+      "Contributions from an account reduce that account's balance; without one, progress is only tracked.",
     addGoalButton: "Add Goal",
     onTrackLabel: "On Track",
     onTrackDesc: "goals on track",
@@ -2487,6 +2488,25 @@ export const en = {
     noticeSavingsPerMonthMiddle: " / month for ",
     noticeSavingsMonthsSuffix: " more months.",
     noticeSavingsNoAutoDebitSuffix: " / month, no recurring allocation yet.",
+    contributeButton: "Contribute",
+    contributeButtonAriaPrefix: "Contribute to ",
+    contributeDialogTitlePrefix: "Contribute to ",
+    contributeDialogDesc:
+      "If you pick an account, its balance goes down and the contribution is recorded as a transaction.",
+    contributeAmountLabel: "Amount (Rp)",
+    contributeAccountLabel: "Source account",
+    contributeNoAccountOption: "No account (track progress only)",
+    contributeDateLabel: "Date",
+    contributeSubmit: "Save contribution",
+    contributeSubmitting: "Saving…",
+    contributeToastSuccess: "Contribution recorded!",
+    historyToggleShow: "Contribution history",
+    historyToggleHide: "Hide history",
+    historyLoading: "Loading history…",
+    historyError: "Failed to load contribution history.",
+    historyEmpty: "No contributions yet.",
+    historySourceManual: "Manual",
+    historySourceAuto: "Auto-debit",
   },
   tax: {
     sptStatusLabels: {

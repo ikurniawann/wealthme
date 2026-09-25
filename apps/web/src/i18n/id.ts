@@ -2508,7 +2508,7 @@ export const id = {
     // is an earmark the family maintains by hand, never a bank balance or a
     // real transfer between accounts.
     trackerDisclaimer:
-      "Progres dicatat manual, terpisah dari saldo rekening/dompet.",
+      "Setoran dari rekening mengurangi saldo rekening itu; tanpa rekening, progres hanya dicatat.",
     addGoalButton: "Tambah Tujuan",
     onTrackLabel: "On Track",
     onTrackDesc: "tujuan berjalan baik",
@@ -2532,6 +2532,25 @@ export const id = {
     noticeSavingsPerMonthMiddle: " / bulan selama ",
     noticeSavingsMonthsSuffix: " bulan.",
     noticeSavingsNoAutoDebitSuffix: " / bulan, belum ada alokasi rutin.",
+    contributeButton: "Setor",
+    contributeButtonAriaPrefix: "Setor ke ",
+    contributeDialogTitlePrefix: "Setor ke ",
+    contributeDialogDesc:
+      "Jika memilih rekening, saldonya berkurang dan setoran tercatat sebagai transaksi.",
+    contributeAmountLabel: "Jumlah Setoran (Rp)",
+    contributeAccountLabel: "Rekening Sumber",
+    contributeNoAccountOption: "Tanpa rekening (hanya catat progres)",
+    contributeDateLabel: "Tanggal Setoran",
+    contributeSubmit: "Simpan Setoran",
+    contributeSubmitting: "Menyimpan…",
+    contributeToastSuccess: "Setoran tercatat!",
+    historyToggleShow: "Riwayat Setoran",
+    historyToggleHide: "Tutup Riwayat",
+    historyLoading: "Memuat riwayat…",
+    historyError: "Gagal memuat riwayat setoran.",
+    historyEmpty: "Belum ada setoran.",
+    historySourceManual: "Manual",
+    historySourceAuto: "Auto-debit",
   },
   tax: {
     sptStatusLabels: {

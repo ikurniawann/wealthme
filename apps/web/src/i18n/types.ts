@@ -2306,6 +2306,24 @@ export type I18nDictionary = {
     noticeSavingsPerMonthMiddle: string;
     noticeSavingsMonthsSuffix: string;
     noticeSavingsNoAutoDebitSuffix: string;
+    contributeButton: string;
+    contributeButtonAriaPrefix: string;
+    contributeDialogTitlePrefix: string;
+    contributeDialogDesc: string;
+    contributeAmountLabel: string;
+    contributeAccountLabel: string;
+    contributeNoAccountOption: string;
+    contributeDateLabel: string;
+    contributeSubmit: string;
+    contributeSubmitting: string;
+    contributeToastSuccess: string;
+    historyToggleShow: string;
+    historyToggleHide: string;
+    historyLoading: string;
+    historyError: string;
+    historyEmpty: string;
+    historySourceManual: string;
+    historySourceAuto: string;
   };
   /**
    * EPIC-018 Task A6 — `/tax` (tax center) page copy. `LEMBAGA_OPTIONS`-style
