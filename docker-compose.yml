@@ -71,7 +71,14 @@ services:
       start_period: 5s
 
   minio:
-    image: minio/minio
+    # MinIO stopped publishing community images: `minio/minio` on Docker Hub
+    # now answers "repository does not exist", so an unpinned pull aborts the
+    # whole deploy. Pinned to the exact build every existing host already runs
+    # (RELEASE.2025-09-07T16-13-09Z), and `pull_policy: missing` uses the local
+    # copy instead of re-pulling. Override MINIO_IMAGE to point at a mirror
+    # (e.g. ghcr.io/andrsrjld/wealthme-minio:<tag>) for a fresh host.
+    image: ${MINIO_IMAGE:-minio/minio:RELEASE.2025-09-07T16-13-09Z}
+    pull_policy: missing
     restart: unless-stopped
     command: server /data --console-address ":9001"
     env_file: [.env]

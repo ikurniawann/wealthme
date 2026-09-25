@@ -60,6 +60,32 @@ Docker caches this in `~/.docker/config.json` on that host — you do not need
 to log in again on every deploy, only if the token expires or the host's
 Docker config is wiped.
 
+Shortcut when the GitHub CLI is logged in with `read:packages`:
+
+```bash
+gh auth token | docker login ghcr.io -u <your-github-username> --password-stdin
+```
+
+Pull mode (`bash scripts/deploy-dev.sh`) pulls **only** our GHCR images
+(`api`, `web`, `migrate`). Third-party infra images are pulled by `up` only when
+missing, so an upstream registry problem cannot abort the deploy.
+
+### MinIO image
+
+MinIO stopped publishing community images: `docker pull minio/minio` now fails
+with "repository does not exist". `docker-compose.yml` therefore pins the build
+every existing host already runs, `minio/minio:RELEASE.2025-09-07T16-13-09Z`,
+with `pull_policy: missing` (the local copy is used). If an older host only has
+`minio/minio:latest` locally, tag it once after checking the version label:
+
+```bash
+docker image inspect minio/minio:latest --format '{{index .Config.Labels "version"}}'
+docker tag minio/minio:latest minio/minio:RELEASE.2025-09-07T16-13-09Z
+```
+
+A **fresh host** has no local copy: set `MINIO_IMAGE` in `.env` to a mirror of
+that build (e.g. pushed to `ghcr.io/andrsrjld/wealthme-minio:<tag>`).
+
 ## Public build-time URLs
 
 `apps/web`'s Docker build bakes `NEXT_PUBLIC_API_URL`/`NEXT_PUBLIC_APP_URL`
