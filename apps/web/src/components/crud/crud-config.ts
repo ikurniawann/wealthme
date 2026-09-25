@@ -61,6 +61,8 @@ export interface CrudField {
   hideOnEdit?: boolean;
   /** Select options come from this Master Data group; static `options` stay as the fallback. */
   referenceGroup?: ReferenceItemGroup;
+  /** Render the field only while this returns true for the current values. */
+  visibleWhen?: (values: Record<string, string>) => boolean;
 }
 
 export interface CrudEntityConfig {
@@ -337,6 +339,14 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Tanggal Auto-debit (1-28)",
         type: "number",
         placeholder: "cth: 25",
+      },
+      {
+        // Revisi F — label comes from i18n via CrudModal `labelOverrides`; options via `dynamicOptions`.
+        key: "sourceAccountId",
+        label: "Rekening Sumber",
+        type: "select",
+        options: [],
+        visibleWhen: (v) => parseRupiah(v.autodebit ?? "") > 0,
       },
     ],
   },

@@ -2551,6 +2551,9 @@ export const id = {
     historyEmpty: "Belum ada setoran.",
     historySourceManual: "Manual",
     historySourceAuto: "Auto-debit",
+    sourceAccountFieldLabel: "Rekening Sumber Auto-debit",
+    sourceAccountPlaceholder: "Pilih rekening…",
+    sourceAccountRequired: "Pilih rekening sumber untuk auto-debit.",
   },
   tax: {
     sptStatusLabels: {

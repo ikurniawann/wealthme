@@ -2324,6 +2324,9 @@ export type I18nDictionary = {
     historyEmpty: string;
     historySourceManual: string;
     historySourceAuto: string;
+    sourceAccountFieldLabel: string;
+    sourceAccountPlaceholder: string;
+    sourceAccountRequired: string;
   };
   /**
    * EPIC-018 Task A6 — `/tax` (tax center) page copy. `LEMBAGA_OPTIONS`-style

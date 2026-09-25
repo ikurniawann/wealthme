@@ -50,6 +50,8 @@ interface CrudModalProps {
    * distinct value/label (e.g. a COA account id vs its display label).
    */
   dynamicOptions?: Record<string, { value: string; label: string }[]>;
+  /** Runtime label overrides for a field's `label`, keyed by field key. */
+  labelOverrides?: Record<string, string>;
 }
 
 // EPIC-021 #21 — `allowNegative` (only `cash.saldo` today) preserves a
@@ -121,6 +123,7 @@ export function CrudModal({
   onClose,
   onSubmit,
   dynamicOptions,
+  labelOverrides,
 }: CrudModalProps) {
   if (!state) return null;
   // Keyed so consecutive opens with different entities/modes re-initialize.
@@ -131,6 +134,7 @@ export function CrudModal({
       onClose={onClose}
       onSubmit={onSubmit}
       dynamicOptions={dynamicOptions}
+      labelOverrides={labelOverrides}
     />
   );
 }
@@ -139,7 +143,13 @@ interface CrudFormProps extends CrudModalProps {
   state: CrudModalState;
 }
 
-function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
+function CrudForm({
+  state,
+  onClose,
+  onSubmit,
+  dynamicOptions,
+  labelOverrides,
+}: CrudFormProps) {
   const { t, locale } = useLocale();
   const config = CRUD_CONFIG[state.entity];
   const { items: referenceItems } = useReferenceItems(undefined, {
@@ -183,10 +193,11 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
   // F6 — a field with no real backing data on edit (e.g. `rekening.jenis`,
   // see its own `hideOnEdit` doc comment) is dropped from the edit form
   // entirely instead of rendering pre-filled-wrong and silently discarded.
-  const visibleFields =
+  const visibleFields = (
     state.mode === "edit"
       ? config.fields.filter((f) => !f.hideOnEdit)
-      : config.fields;
+      : config.fields
+  ).filter((f) => !f.visibleWhen || f.visibleWhen(values));
   const rows = groupFieldsIntoRows(visibleFields);
 
   const renderControl = (f: CrudField) => {
@@ -257,6 +268,7 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
   };
 
   const renderField = (f: CrudField, inRow: boolean) => {
+    const label = labelOverrides?.[f.key] ?? f.label;
     const fieldClass = inRow ? "field mt-0" : "field";
     const hint = f.helper?.(values);
 
@@ -266,14 +278,14 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
       return (
         <div key={f.key} className="row mt-3.5 gap-[9px]">
           <Switch
-            aria-label={f.label}
+            aria-label={label}
             checked={values[f.key] === "true"}
             onCheckedChange={(checked) =>
               setField(f.key, checked ? "true" : "false")
             }
           />
           <span>
-            <span className="t-sm t-bold">{f.label}</span>
+            <span className="t-sm t-bold">{label}</span>
             {f.helperText && (
               <span className="t-xs t-muted block">{f.helperText}</span>
             )}
@@ -289,13 +301,13 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
       return (
         <div key={f.key} className={fieldClass}>
           <label className="label" htmlFor={fieldId}>
-            {f.label}
+            {label}
           </label>
           <DateField
             id={fieldId}
             value={values[f.key] ?? ""}
             locale={locale}
-            label={f.label}
+            label={label}
             onChange={(iso) => setField(f.key, iso)}
           />
           {hint && <span className="hint block">{hint}</span>}
@@ -315,7 +327,7 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
       return (
         <div key={f.key} className={fieldClass}>
           <EmojiPicker
-            label={f.label}
+            label={label}
             value={values[f.key] ?? ""}
             onChange={(emoji) => setField(f.key, emoji)}
             searchPlaceholder={t.common.emojiSearchPlaceholder}
@@ -330,7 +342,7 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
 
     return (
       <label key={f.key} className={fieldClass}>
-        <span className="label">{f.label}</span>
+        <span className="label">{label}</span>
         {renderControl(f)}
         {hint && <span className="hint block">{hint}</span>}
         {f.referenceGroup && <AddToMasterDataLink group={f.referenceGroup} />}

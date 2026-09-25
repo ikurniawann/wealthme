@@ -24,7 +24,7 @@ import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
-import { buildGoalBody } from "@/lib/goals-utils";
+import { parseGoalFormValues } from "@/lib/goals-utils";
 import {
   StatusBadge,
   AnimatedProgress,
@@ -433,6 +433,7 @@ export default function TujuanPage() {
           goal.autoDebitAmount != null ? String(goal.autoDebitAmount) : "",
         autodebitDay:
           goal.autoDebitDay != null ? String(goal.autoDebitDay) : "",
+        sourceAccountId: goal.sourceAccountId ?? "",
       },
     });
   }
@@ -452,13 +453,21 @@ export default function TujuanPage() {
       toast.error(t.tujuan.toastSessionNotReady);
       return;
     }
+    const payload = parseGoalFormValues(
+      values,
+      mode === "edit" ? (editingOriginalCurrentAmount ?? undefined) : undefined,
+    );
+    if (payload.autoDebitAmount && !values.sourceAccountId) {
+      toast.error(t.tujuan.sourceAccountRequired);
+      // Rejecting keeps CrudModal open with the user's input.
+      throw new Error(t.tujuan.sourceAccountRequired);
+    }
+    const body = JSON.stringify(
+      payload.autoDebitAmount
+        ? { ...payload, sourceAccountId: values.sourceAccountId }
+        : payload,
+    );
     try {
-      const body = buildGoalBody(
-        values,
-        mode === "edit"
-          ? (editingOriginalCurrentAmount ?? undefined)
-          : undefined,
-      );
       if (mode === "edit" && editingGoalId) {
         await apiFetch(
           `/family-groups/${familyGroupId}/goals/${editingGoalId}`,
@@ -503,6 +512,14 @@ export default function TujuanPage() {
       setDeletingGoal(null);
     }
   }
+
+  const sourceAccountOptions = [
+    { value: "", label: t.tujuan.sourceAccountPlaceholder },
+    ...accounts.map((a) => ({
+      value: a.id,
+      label: a.institution ? `${a.name} (${a.institution})` : a.name,
+    })),
+  ];
 
   return (
     <div className="space-y-4">
@@ -684,6 +701,8 @@ export default function TujuanPage() {
         state={crud}
         onClose={handleCloseCrud}
         onSubmit={handleSubmit}
+        dynamicOptions={{ sourceAccountId: sourceAccountOptions }}
+        labelOverrides={{ sourceAccountId: t.tujuan.sourceAccountFieldLabel }}
       />
       {contributingGoal && familyGroupId && token && (
         <ContributeDialog

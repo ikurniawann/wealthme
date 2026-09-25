@@ -99,7 +99,7 @@ const CONTRIBUTION = {
   createdAt: "2026-09-20T01:00:00.000Z",
 };
 
-type MockOptions = { contributionError?: string };
+type MockOptions = { contributionError?: string; goalPostOk?: boolean };
 
 function mockSession(role: string, opts: MockOptions = {}) {
   mockUseSessionAuth.mockReturnValue({
@@ -135,10 +135,12 @@ function mockSession(role: string, opts: MockOptions = {}) {
     }
     if (path.endsWith("/goals")) {
       if (options?.method === "POST") {
-        return Promise.reject({
-          status: 400,
-          message: "Target tanggal tidak boleh di masa lalu",
-        });
+        return opts.goalPostOk
+          ? Promise.resolve(buildGoal({ id: "goal-new", name: "Rumah Baru" }))
+          : Promise.reject({
+              status: 400,
+              message: "Target tanggal tidak boleh di masa lalu",
+            });
       }
       return Promise.resolve([buildGoal()]);
     }
@@ -331,4 +333,93 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     expect(await screen.findByText("Rp 250.000")).toBeInTheDocument();
     expect(screen.getByText(/Manual · BCA Tahapan/)).toBeInTheDocument();
   }, 10000);
+});
+
+describe("TujuanPage — goal form source account for auto-debit (Revisi F item 5)", () => {
+  it("shows the source-account select only once an auto-debit amount is typed, and sends it", async () => {
+    mockSession("owner", { goalPostOk: true });
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Tujuan" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Dana Liburan"),
+      "Rumah Baru",
+    );
+    await user.type(
+      within(dialog).getByLabelText("Target Jumlah"),
+      "100000000",
+    );
+    expect(
+      within(dialog).queryByLabelText("Rekening Sumber Auto-debit"),
+    ).not.toBeInTheDocument();
+
+    await user.type(
+      within(dialog).getByLabelText("Auto-debit / Bulan"),
+      "500000",
+    );
+    await user.selectOptions(
+      await within(dialog).findByLabelText("Rekening Sumber Auto-debit"),
+      ACCOUNT.id,
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+    const post = mockApiFetch.mock.calls.find(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path.endsWith("/goals") &&
+        (options as RequestInit | undefined)?.method === "POST",
+    );
+    expect(JSON.parse((post?.[1] as RequestInit).body as string)).toMatchObject(
+      {
+        name: "Rumah Baru",
+        targetAmount: 100_000_000,
+        autoDebitAmount: 500_000,
+        sourceAccountId: ACCOUNT.id,
+      },
+    );
+  }, 30000);
+
+  it("blocks saving an auto-debit without a source account, keeps the dialog open, and never POSTs", async () => {
+    mockSession("owner", { goalPostOk: true });
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Tujuan" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Dana Liburan"),
+      "Rumah Baru",
+    );
+    await user.type(
+      within(dialog).getByLabelText("Target Jumlah"),
+      "100000000",
+    );
+    await user.type(
+      within(dialog).getByLabelText("Auto-debit / Bulan"),
+      "500000",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() =>
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Pilih rekening sumber untuk auto-debit.",
+      ),
+    );
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([path, options]) =>
+          typeof path === "string" &&
+          path.endsWith("/goals") &&
+          (options as RequestInit | undefined)?.method === "POST",
+      ),
+    ).toBe(false);
+  }, 30000);
 });

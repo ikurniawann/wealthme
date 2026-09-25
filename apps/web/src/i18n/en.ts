@@ -2507,6 +2507,9 @@ export const en = {
     historyEmpty: "No contributions yet.",
     historySourceManual: "Manual",
     historySourceAuto: "Auto-debit",
+    sourceAccountFieldLabel: "Auto-debit source account",
+    sourceAccountPlaceholder: "Choose an account…",
+    sourceAccountRequired: "Choose a source account for the auto-debit.",
   },
   tax: {
     sptStatusLabels: {
