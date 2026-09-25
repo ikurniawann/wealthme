@@ -21,7 +21,10 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { LiabilityDto } from "@wealthme/contracts";
+import type {
+  LiabilityDto,
+  LiabilityScheduleRowDto,
+} from "@wealthme/contracts";
 
 // jsdom has no PointerEvent — Base UI's Dialog primitives read pointer-event
 // fields internally (same fix as dana/rekening/crud-modal tests).
@@ -96,6 +99,24 @@ let liabilitiesFixture: LiabilityDto[] = [];
 let payOutcome: "ok" | "conflict" = "ok";
 let postBodies: Record<string, unknown>[] = [];
 let createdInstallment: string | null = null;
+const SCHEDULE_ROWS: LiabilityScheduleRowDto[] = [
+  {
+    period: 1,
+    installment: "800000",
+    interest: "180000",
+    principal: "620000",
+    remaining: "7380000",
+  },
+  {
+    period: 2,
+    installment: "7546050",
+    interest: "166050",
+    principal: "7380000",
+    remaining: "0",
+  },
+];
+let scheduleRows: LiabilityScheduleRowDto[] = SCHEDULE_ROWS;
+let scheduleOutcome: "ok" | "error" = "ok";
 
 const mockApiFetch = jest.fn(
   (url: string, options?: { method?: string; body?: string }) => {
@@ -119,6 +140,19 @@ const mockApiFetch = jest.fn(
     }
     if (url === `/family-groups/${FAMILY_GROUP_ID}/liabilities`) {
       return Promise.resolve(liabilitiesFixture);
+    }
+    if (
+      url === `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/schedule`
+    ) {
+      if (scheduleOutcome === "error") {
+        return Promise.reject({ status: 500, message: "boom" });
+      }
+      return Promise.resolve({
+        liabilityId: "liab-1",
+        interestMethod: "efektif",
+        installmentAmount: null,
+        rows: scheduleRows,
+      });
     }
     if (
       method === "PATCH" &&
@@ -221,6 +255,8 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     payOutcome = "ok";
     postBodies = [];
     createdInstallment = null;
+    scheduleRows = SCHEDULE_ROWS;
+    scheduleOutcome = "ok";
 
     mockUseSessionAuth.mockReturnValue({
       data: {
@@ -250,8 +286,9 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(dialog.getByText("Ringkasan Amortisasi")).toBeInTheDocument();
     // Honestly labeled as an estimate, not an authoritative schedule.
     expect(
-      dialog.getByText(/estimasi kasar berdasarkan sisa saldo/i),
+      await dialog.findByText(/estimasi kasar berdasarkan sisa saldo/i),
     ).toBeInTheDocument();
+    expect(dialog.getByText("Efektif (saldo menurun)")).toBeInTheDocument();
   });
 
   it("PATCHes the edited liability with the current form values", async () => {
@@ -550,5 +587,58 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
         installmentAmount: "2400000",
       }),
     );
+  });
+
+  it("renders the server-computed schedule in the Detail dialog", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Detail" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    const table = await dialog.findByRole("table");
+
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/schedule`,
+      expect.any(Object),
+    );
+    expect(
+      within(table).getByRole("columnheader", { name: "Angsuran" }),
+    ).toBeInTheDocument();
+    const rows = within(table).getAllByRole("row");
+    expect(rows).toHaveLength(3);
+    expect(within(rows[2]!).getByText("Rp 7.546.050")).toBeInTheDocument();
+    expect(
+      dialog.getByText("Estimasi lunas dalam ~2 bulan"),
+    ).toBeInTheDocument();
+  });
+
+  it("shows the unavailable note when the server returns no rows", async () => {
+    scheduleRows = [];
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Detail" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(
+      await dialog.findByText(
+        "Atur min. bayar atau tenor untuk melihat jadwal amortisasi.",
+      ),
+    ).toBeInTheDocument();
+    expect(dialog.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("shows an error instead of a fabricated schedule when the request fails", async () => {
+    scheduleOutcome = "error";
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Detail" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(
+      await dialog.findByText("Jadwal amortisasi gagal dimuat."),
+    ).toBeInTheDocument();
+    expect(dialog.queryByRole("table")).not.toBeInTheDocument();
   });
 });

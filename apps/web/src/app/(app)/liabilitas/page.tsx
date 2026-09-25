@@ -54,6 +54,7 @@ import { TrendChart } from "@/components/charts/apex-presets";
 import type {
   InterestMethod,
   LiabilityDto,
+  LiabilityScheduleDto,
   LiabilityType,
   NetWorthDto,
 } from "@wealthme/contracts";
@@ -146,58 +147,6 @@ function computeAmortisationPreview(
       ? Math.ceil(remainingBalance / monthlyPrincipal)
       : null;
   return { monthlyInterest, monthlyPrincipal, months };
-}
-
-// EPIC-026 Wave 5 — the prototype's Detail dialog shows a "Jadwal
-// Amortisasi (6 angsuran berikutnya)" table. Pure client-side roll-forward
-// of the SAME preview math as `computeAmortisationPreview`, month by month,
-// labeled with the same estimate disclaimer already shown in the dialog —
-// no official schedule is persisted server-side, so this never pretends to
-// be one. Unlike the prototype's absolute installment numbers (95, 96, …
-// — unknowable without a persisted schedule), rows are numbered 1..N
-// relative to today.
-interface AmortisationScheduleRow {
-  index: number;
-  date: Date;
-  principal: number;
-  interest: number;
-  remaining: number;
-}
-
-function computeAmortisationSchedule(
-  remainingBalance: number,
-  monthlyPaymentAmount: number,
-  annualRatePercent: number,
-  firstDueDate: Date,
-  count = 6,
-  rateIsMonthly = false,
-): AmortisationScheduleRow[] {
-  const rows: AmortisationScheduleRow[] = [];
-  let balance = remainingBalance;
-  for (let i = 0; i < count && balance > 0; i += 1) {
-    const { monthlyInterest, monthlyPrincipal } = computeAmortisationPreview(
-      balance,
-      monthlyPaymentAmount,
-      annualRatePercent,
-      rateIsMonthly,
-    );
-    balance = Math.max(0, balance - monthlyPrincipal);
-    rows.push({
-      index: i + 1,
-      date: new Date(
-        firstDueDate.getFullYear(),
-        firstDueDate.getMonth() + i,
-        firstDueDate.getDate(),
-      ),
-      principal: monthlyPrincipal,
-      interest: monthlyInterest,
-      remaining: balance,
-    });
-    // Payment doesn't cover the interest — the balance never decreases;
-    // one row says everything, repeating it 6× would only imply progress.
-    if (monthlyPrincipal <= 0) break;
-  }
-  return rows;
 }
 
 /**
@@ -1116,10 +1065,14 @@ function LiabilityCard({
 
 function LiabilityDetailDialog({
   item,
+  familyGroupId,
+  token,
   onClose,
   onPay,
 }: {
   item: LiabilityDto | null;
+  familyGroupId: string | undefined;
+  token: string | undefined;
   onClose: () => void;
   /** Prototype `dlg-lia-detail` footer's "Bayar Cicilan" (liabilitas.html:412)
    *  — closes Detail and hands off to the existing real pay flow. */
@@ -1133,23 +1086,22 @@ function LiabilityDetailDialog({
   const remaining = item ? Number(BigInt(item.remainingBalance)) : 0;
   const minimumPayment = item ? Number(BigInt(item.minimumPayment)) : 0;
   const interestRatePercent = item ? parseFloat(item.interestRate) || 0 : 0;
-  const preview = computeAmortisationPreview(
-    remaining,
-    minimumPayment,
-    interestRatePercent,
-    item?.type === "kartu_kredit",
-  );
-  // EPIC-026 Wave 5 — 6-installment schedule (see
-  // `computeAmortisationSchedule` above). Anchored on the next due date
-  // when set, today otherwise.
-  const schedule = item
-    ? computeAmortisationSchedule(
-        remaining,
-        minimumPayment,
-        interestRatePercent,
-        item.dueDate ? new Date(item.dueDate) : new Date(),
-      )
-    : [];
+  const scheduleQuery = useQuery<LiabilityScheduleDto>({
+    // Prefix of queryKeys.liabilities.all, so every liability mutation refreshes it.
+    queryKey: ["liabilities", familyGroupId ?? "", "schedule", item?.id ?? ""],
+    enabled: Boolean(item && familyGroupId && token),
+    queryFn: ({ signal }) => {
+      if (!item || !familyGroupId) throw new Error("liability not selected");
+      return apiFetch<LiabilityScheduleDto>(
+        `/family-groups/${familyGroupId}/liabilities/${item.id}/schedule`,
+        { token, signal },
+      );
+    },
+  });
+  const scheduleRows = scheduleQuery.data?.rows ?? [];
+  const firstRow = scheduleRows[0];
+  const paysOff = scheduleRows[scheduleRows.length - 1]?.remaining === "0";
+  const anchor = item?.dueDate ? new Date(item.dueDate) : new Date();
 
   return (
     // EPIC-026 Wave 8 — prototype `dlg-lia-detail` (liabilitas.html:312) is a
@@ -1166,11 +1118,7 @@ function LiabilityDetailDialog({
             </DialogDescription>
 
             <DialogBody className="space-y-3.5 text-[13px]">
-              {/* Prototype's `grid grid--4` headline figures. The prototype's
-                  "akad"/"tenor" meta and its "Sisa Tenor" / "Rekening
-                  Autodebet" cells are OMITTED: `LiabilityDto` carries no
-                  origination date, tenor, or autodebit account, and inventing
-                  them would be a fabricated record (Honest UI). */}
+              {/* Prototype's `grid grid--4` headline figures. */}
               <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-3.5 md:grid-cols-4">
                 <div>
                   <div className="t-xs t-muted">
@@ -1209,9 +1157,7 @@ function LiabilityDetailDialog({
                 </div>
               </div>
 
-              {/* Prototype's second `grid grid--3` row — only the two cells
-                  the API can actually answer. */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div>
                   <div className="t-xs t-muted mb-[3px]">
                     {t.liabilitas.detailNextDueLabel}
@@ -1234,13 +1180,39 @@ function LiabilityDetailDialog({
                       : t.liabilitas.detailNotPaidThisPeriodLabel}
                   </StatusBadge>
                 </div>
+                <div>
+                  <div className="t-xs t-muted mb-[3px]">
+                    {t.liabilitas.fieldInterestMethodLabel}
+                  </div>
+                  <div className="text-[13px] font-semibold">
+                    {t.liabilitas.interestMethodLabels[item.interestMethod]}
+                  </div>
+                </div>
+                <div>
+                  <div className="t-xs t-muted mb-[3px]">
+                    {t.liabilitas.detailTenorLabel}
+                  </div>
+                  <div className="text-[13px] font-semibold">
+                    {item.tenorMonths
+                      ? `${item.tenorMonths}${t.liabilitas.tenorMonthsSuffix}`
+                      : "—"}
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-lg border p-3.5">
                 <div className="mb-2 text-[12.5px] font-bold">
                   {t.liabilitas.amortisationTitle}
                 </div>
-                {minimumPayment > 0 ? (
+                {scheduleQuery.isError ? (
+                  <div className="text-[12px] text-destructive">
+                    {t.liabilitas.amortisationScheduleError}
+                  </div>
+                ) : scheduleQuery.isLoading ? (
+                  <div className="text-[12px] text-muted-foreground">
+                    {t.liabilitas.amortisationScheduleLoading}
+                  </div>
+                ) : firstRow ? (
                   <>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1248,7 +1220,7 @@ function LiabilityDetailDialog({
                           {t.liabilitas.amortisationMonthlyPrincipalLabel}
                         </div>
                         <div className="mono text-[13.5px] font-bold">
-                          {formatRupiah(preview.monthlyPrincipal)}
+                          {formatRupiah(Number(firstRow.principal))}
                         </div>
                       </div>
                       <div>
@@ -1259,14 +1231,14 @@ function LiabilityDetailDialog({
                           className="mono text-[13.5px] font-bold"
                           style={{ color: "var(--danger)" }}
                         >
-                          {formatRupiah(preview.monthlyInterest)}
+                          {formatRupiah(Number(firstRow.interest))}
                         </div>
                       </div>
                     </div>
-                    {preview.months !== null ? (
+                    {paysOff ? (
                       <div className="mt-2.5 text-[12.5px] font-semibold text-success">
                         {t.liabilitas.amortisationEstimatedPayoffPrefix}
-                        {preview.months}
+                        {scheduleRows.length}
                         {t.liabilitas.amortisationEstimatedPayoffSuffix}
                       </div>
                     ) : (
@@ -1274,63 +1246,77 @@ function LiabilityDetailDialog({
                         {t.liabilitas.amortisationNoPayoffNote}
                       </div>
                     )}
-                    {preview.monthlyPrincipal > 0 && schedule.length > 0 && (
-                      <div className="mt-3">
-                        <div className="section-title mb-2 text-[13px]">
-                          {t.liabilitas.amortisationScheduleTitle} (
-                          {schedule.length}
-                          {t.liabilitas.amortisationScheduleCountSuffix})
-                        </div>
-                        <div className="table-wrap">
-                          <table className="table table--num">
-                            <thead>
-                              <tr>
-                                <th>
-                                  {t.liabilitas.amortisationScheduleHeaderIndex}
-                                </th>
-                                <th>
-                                  {t.liabilitas.amortisationScheduleHeaderDate}
-                                </th>
-                                <th>
-                                  {
-                                    t.liabilitas
-                                      .amortisationScheduleHeaderPrincipal
-                                  }
-                                </th>
-                                <th>
-                                  {
-                                    t.liabilitas
-                                      .amortisationScheduleHeaderInterest
-                                  }
-                                </th>
-                                <th>
-                                  {t.liabilitas.loanRemainingPrincipalLabel}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {schedule.map((row) => (
-                                <tr key={row.index}>
-                                  <td className="mono">{row.index}</td>
-                                  <td className="whitespace-nowrap">
-                                    {formatScheduleDate(row.date, locale)}
-                                  </td>
-                                  <td className="mono whitespace-nowrap">
-                                    {formatRupiah(row.principal)}
-                                  </td>
-                                  <td className="mono whitespace-nowrap">
-                                    {formatRupiah(row.interest)}
-                                  </td>
-                                  <td className="mono whitespace-nowrap">
-                                    {formatRupiah(row.remaining)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                    <div className="mt-3">
+                      <div className="section-title mb-2 text-[13px]">
+                        {t.liabilitas.amortisationScheduleTitle} (
+                        {scheduleRows.length}
+                        {t.liabilitas.amortisationScheduleCountSuffix})
                       </div>
-                    )}
+                      <div className="table-wrap max-h-80 overflow-y-auto">
+                        <table className="table table--num">
+                          <thead>
+                            <tr>
+                              <th>
+                                {t.liabilitas.amortisationScheduleHeaderIndex}
+                              </th>
+                              <th>
+                                {t.liabilitas.amortisationScheduleHeaderDate}
+                              </th>
+                              <th>
+                                {
+                                  t.liabilitas
+                                    .amortisationScheduleHeaderInstallment
+                                }
+                              </th>
+                              <th>
+                                {
+                                  t.liabilitas
+                                    .amortisationScheduleHeaderPrincipal
+                                }
+                              </th>
+                              <th>
+                                {
+                                  t.liabilitas
+                                    .amortisationScheduleHeaderInterest
+                                }
+                              </th>
+                              <th>
+                                {t.liabilitas.loanRemainingPrincipalLabel}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scheduleRows.map((row, index) => (
+                              <tr key={row.period}>
+                                <td className="mono">{row.period}</td>
+                                <td className="whitespace-nowrap">
+                                  {formatScheduleDate(
+                                    new Date(
+                                      anchor.getFullYear(),
+                                      anchor.getMonth() + index,
+                                      anchor.getDate(),
+                                    ),
+                                    locale,
+                                  )}
+                                </td>
+                                <td className="mono whitespace-nowrap">
+                                  {formatRupiah(Number(row.installment))}
+                                </td>
+                                <td className="mono whitespace-nowrap">
+                                  {formatRupiah(Number(row.principal))}
+                                </td>
+                                <td className="mono whitespace-nowrap">
+                                  {formatRupiah(Number(row.interest))}
+                                </td>
+                                <td className="mono whitespace-nowrap">
+                                  {formatRupiah(Number(row.remaining))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                     <div className="hint">
                       {t.liabilitas.amortisationDisclaimer}
                     </div>
@@ -1958,6 +1944,8 @@ export default function LiabilitasPage() {
 
       <LiabilityDetailDialog
         item={detailItem}
+        familyGroupId={familyGroupId ?? undefined}
+        token={token}
         onClose={() => setDetailItem(null)}
         onPay={(liability) => {
           setDetailItem(null);

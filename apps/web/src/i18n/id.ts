@@ -2019,7 +2019,7 @@ export const id = {
     amortisationNoPayoffNote:
       "Pembayaran minimum saat ini tidak menutup bunga bulanan, sisa utang tidak akan berkurang.",
     amortisationUnavailableNote:
-      "Atur min. bayar untuk melihat estimasi amortisasi.",
+      "Atur min. bayar atau tenor untuk melihat jadwal amortisasi.",
     amortisationDisclaimer:
       "Estimasi kasar berdasarkan sisa saldo, bunga, dan min. bayar saat ini, bukan jadwal resmi.",
     payDialogTitle: "Bayar Liabilitas",
@@ -2082,6 +2082,11 @@ export const id = {
     fieldFixedRateMonthsLabel: "Masa Bunga Fixed (bulan)",
     fieldFloatingRateLabel: "Bunga Floating/Tahun (%)",
     toastInstallmentPrefix: "Angsuran/bulan: ",
+    amortisationScheduleHeaderInstallment: "Angsuran",
+    amortisationScheduleLoading: "Memuat jadwal…",
+    amortisationScheduleError: "Jadwal amortisasi gagal dimuat.",
+    detailTenorLabel: "Tenor",
+    tenorMonthsSuffix: " bulan",
   },
   masterdata: {
     pageTitle: "Setup Master Data",

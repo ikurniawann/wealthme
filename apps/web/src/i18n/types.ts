@@ -1942,6 +1942,11 @@ export type I18nDictionary = {
     fieldFixedRateMonthsLabel: string;
     fieldFloatingRateLabel: string;
     toastInstallmentPrefix: string;
+    amortisationScheduleHeaderInstallment: string;
+    amortisationScheduleLoading: string;
+    amortisationScheduleError: string;
+    detailTenorLabel: string;
+    tenorMonthsSuffix: string;
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`

@@ -1987,7 +1987,7 @@ export const en = {
     amortisationNoPayoffNote:
       "The current minimum payment does not cover monthly interest, the remaining balance will not decrease.",
     amortisationUnavailableNote:
-      "Set a minimum payment to see the amortisation estimate.",
+      "Set a minimum payment or a tenor to see the amortisation schedule.",
     amortisationDisclaimer:
       "A rough estimate based on the current balance, interest rate, and minimum payment, not an official schedule.",
     payDialogTitle: "Pay Liability",
@@ -2046,6 +2046,11 @@ export const en = {
     fieldFixedRateMonthsLabel: "Fixed-Rate Period (months)",
     fieldFloatingRateLabel: "Floating Rate/Year (%)",
     toastInstallmentPrefix: "Monthly installment: ",
+    amortisationScheduleHeaderInstallment: "Installment",
+    amortisationScheduleLoading: "Loading schedule…",
+    amortisationScheduleError: "Could not load the amortisation schedule.",
+    detailTenorLabel: "Tenor",
+    tenorMonthsSuffix: " months",
   },
   masterdata: {
     pageTitle: "Master Data Setup",
