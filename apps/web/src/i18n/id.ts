@@ -21,6 +21,7 @@ export const id = {
     expense: "Pengeluaran",
     net: "Bersih",
     save: "Simpan",
+    apply: "Terapkan",
     cancel: "Batal",
     loading: "Memuat…",
     error: "Gagal memuat data",

@@ -248,7 +248,7 @@ describe("CrudModal — date fields use the shared DateField", () => {
     const pop = screen.getByRole("dialog", { name: "Target Tanggal" });
     expect(dialog).toContainElement(pop);
 
-    await user.click(within(pop).getByRole("button", { name: "20" }));
+    await user.click(within(pop).getByRole("button", { name: /^20 / }));
     expect(
       screen.getByRole("dialog", { name: /tambah tujuan keuangan/i }),
     ).toBeInTheDocument();

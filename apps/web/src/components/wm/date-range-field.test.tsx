@@ -9,6 +9,19 @@ function localMonthPrefix(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+/** Mirrors the component's private `formatFullDate` (id locale) so tests can
+ *  find a day button by its accessible name (`aria-label`) rather than its
+ *  bare visible number. */
+function dayLabel(iso: string): string {
+  const [year, month, day] = iso.split("-");
+  const d = new Date(Number(year), Number(month) - 1, Number(day));
+  return d.toLocaleDateString("id-ID", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
 function renderRangeInCard(onApply = jest.fn()) {
   render(
     <div
@@ -109,13 +122,67 @@ describe("DateRangeFilterField — portaled popover", () => {
 
     await user.click(screen.getByRole("button", { name: /semua tanggal/i }));
     const pop = screen.getByRole("dialog", { name: "Rentang Tanggal" });
-    await user.click(within(pop).getByRole("button", { name: "3" }));
-    await user.click(within(pop).getByRole("button", { name: "10" }));
+    const month = localMonthPrefix();
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel(`${month}-03`) }),
+    );
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel(`${month}-10`) }),
+    );
     await user.click(within(pop).getByRole("button", { name: "Terapkan" }));
 
-    const month = localMonthPrefix();
     expect(onApply).toHaveBeenCalledWith(`${month}-03`, `${month}-10`);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("moves focus into the popover on open, landing on the selected/today's day, and returns it to the trigger on close via Escape", async () => {
+    const user = userEvent.setup();
+    renderRangeInCard();
+    const trigger = screen.getByRole("button", { name: /semua tanggal/i });
+
+    await user.click(trigger);
+    const pop = screen.getByRole("dialog", { name: "Rentang Tanggal" });
+    const now = new Date();
+    const todayIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    expect(document.activeElement).toBe(
+      within(pop).getByRole("button", { name: dayLabel(todayIso) }),
+    );
+
+    await user.keyboard("{Escape}");
+    expect(trigger).toHaveFocus();
+  });
+
+  it("commits a range and returns focus to the trigger via Enter inside the popover", async () => {
+    const user = userEvent.setup();
+    const onApply = renderRangeInCard();
+    const trigger = screen.getByRole("button", { name: /semua tanggal/i });
+
+    await user.click(trigger);
+    const pop = screen.getByRole("dialog", { name: "Rentang Tanggal" });
+    const month = localMonthPrefix();
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel(`${month}-03`) }),
+    );
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel(`${month}-10`) }),
+    );
+    await user.click(within(pop).getByRole("button", { name: "Terapkan" }));
+
+    expect(onApply).toHaveBeenCalledWith(`${month}-03`, `${month}-10`);
+    expect(trigger).toHaveFocus();
+  });
+
+  it("gives each day button an accessible name containing month and year", async () => {
+    const user = userEvent.setup();
+    renderRangeInCard();
+    await user.click(screen.getByRole("button", { name: /semua tanggal/i }));
+    const pop = screen.getByRole("dialog", { name: "Rentang Tanggal" });
+
+    const dayFive = within(pop).getByRole("button", { name: /^5 / });
+    const label = dayFive.getAttribute("aria-label") ?? "";
+    const now = new Date();
+    const yearStr = String(now.getFullYear());
+    expect(label).toContain(yearStr);
   });
 
   it("flips above the trigger and clamps to the right edge when there is no room below", async () => {
@@ -208,7 +275,9 @@ describe("DateField", () => {
     await user.click(trigger);
     const pop = screen.getByRole("dialog", { name: "Tanggal" });
     expect(pop.parentElement).toBe(document.body);
-    await user.click(within(pop).getByRole("button", { name: "15" }));
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel("2026-09-15") }),
+    );
 
     expect(onChange).toHaveBeenCalledWith("2026-09-15");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -228,7 +297,9 @@ describe("DateField", () => {
       within(pop).getByRole("combobox", { name: "Tahun" }),
       "1990",
     );
-    await user.click(within(pop).getByRole("button", { name: "1" }));
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel("1990-09-01") }),
+    );
 
     expect(onChange).toHaveBeenCalledWith("1990-09-01");
   });
@@ -246,10 +317,18 @@ describe("DateField", () => {
     await user.click(screen.getByLabelText("Tanggal"));
     const pop = screen.getByRole("dialog", { name: "Tanggal" });
 
-    expect(within(pop).getByRole("button", { name: "4" })).toBeDisabled();
-    expect(within(pop).getByRole("button", { name: "21" })).toBeDisabled();
-    expect(within(pop).getByRole("button", { name: "5" })).toBeEnabled();
-    expect(within(pop).getByRole("button", { name: "20" })).toBeEnabled();
+    expect(
+      within(pop).getByRole("button", { name: dayLabel("2026-09-04") }),
+    ).toBeDisabled();
+    expect(
+      within(pop).getByRole("button", { name: dayLabel("2026-09-21") }),
+    ).toBeDisabled();
+    expect(
+      within(pop).getByRole("button", { name: dayLabel("2026-09-05") }),
+    ).toBeEnabled();
+    expect(
+      within(pop).getByRole("button", { name: dayLabel("2026-09-20") }),
+    ).toBeEnabled();
   });
 
   it("lets an optional date be cleared back to an empty string", async () => {
@@ -300,6 +379,35 @@ describe("DateField", () => {
       "data-value",
       "2026-01-02",
     );
+  });
+
+  it("moves focus into the popover on open, landing on the selected day, and returns it to the trigger on close via Escape", async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateField initial="2026-09-10" />);
+    const trigger = screen.getByLabelText("Tanggal");
+
+    await user.click(trigger);
+    const pop = screen.getByRole("dialog", { name: "Tanggal" });
+    expect(document.activeElement).toBe(
+      within(pop).getByRole("button", { name: dayLabel("2026-09-10") }),
+    );
+
+    await user.keyboard("{Escape}");
+    expect(trigger).toHaveFocus();
+  });
+
+  it("focuses the visible trigger instead of blocking silently when the hidden native input reports invalid", () => {
+    const { container } = render(<ControlledDateField initial="" required />);
+    const trigger = screen.getByLabelText("Tanggal");
+    const native = container.querySelector<HTMLInputElement>(
+      '.date-field input[type="date"]',
+    );
+    if (!native) throw new Error("native date input missing");
+
+    trigger.blur();
+    fireEvent.invalid(native);
+
+    expect(trigger).toHaveFocus();
   });
 
   it("names itself from `label` + value when no external label is wired", () => {

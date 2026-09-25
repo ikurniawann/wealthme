@@ -348,6 +348,7 @@ export type I18nDictionary = {
     expense: string;
     net: string;
     save: string;
+    apply: string;
     cancel: string;
     loading: string;
     error: string;

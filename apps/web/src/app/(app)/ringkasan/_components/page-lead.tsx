@@ -146,7 +146,7 @@ export function RingkasanPageLead({
               locale={locale}
               label={t.ringkasan.trendRangeLabelCustom}
               cancelLabel={t.common.cancel}
-              applyLabel={t.common.save}
+              applyLabel={t.common.apply}
               onApply={(from, to) => onCustomRangeChange({ from, to })}
             />
           </div>

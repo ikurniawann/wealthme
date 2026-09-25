@@ -222,6 +222,39 @@ function placePopover(
   pop.style.left = `${viewLeft - hostRect.left - host.clientLeft + host.scrollLeft}px`;
 }
 
+/** Every focusable day/nav/foot control inside the popover, in DOM order —
+ *  used both to pick the initial focus target and to trap Tab inside the
+ *  popover while it is open. */
+function getFocusable(pop: HTMLElement): HTMLElement[] {
+  return Array.from(
+    pop.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), select:not(:disabled), [href], input:not(:disabled), [tabindex]:not([tabindex="-1"])',
+    ),
+  );
+}
+
+/** On open, focus the selected day if present, else today's day, else the
+ *  first enabled day/control — so Tab after Enter/click lands inside the
+ *  calendar instead of skipping past it. */
+function focusInitialDay(pop: HTMLElement): void {
+  const selected = pop.querySelector<HTMLButtonElement>(
+    ".dr-day--edge:not(:disabled)",
+  );
+  if (selected) {
+    selected.focus();
+    return;
+  }
+  const today = pop.querySelector<HTMLButtonElement>(
+    `.dr-day[data-iso="${todayIso()}"]:not(:disabled)`,
+  );
+  if (today) {
+    today.focus();
+    return;
+  }
+  const focusable = getFocusable(pop);
+  if (focusable.length > 0) focusable[0].focus();
+}
+
 function useAnchoredPopover(
   open: boolean,
   close: () => void,
@@ -238,6 +271,13 @@ function useAnchoredPopover(
     if (!open || !host || !triggerRef.current || !popRef.current) return;
     placePopover(triggerRef.current, popRef.current, host);
   }, [open, host, layoutKey]);
+
+  // Runs once per open (not per `layoutKey`/month navigation), so moving
+  // between months while the popover is open never yanks focus back.
+  useLayoutEffect(() => {
+    if (!open || !popRef.current) return;
+    focusInitialDay(popRef.current);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !host) return undefined;
@@ -256,10 +296,30 @@ function useAnchoredPopover(
     // Window capture runs before any document listener, so Escape closes the
     // picker without also closing a Base UI dialog around it.
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
-      close();
-      triggerRef.current?.focus();
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        close();
+        triggerRef.current?.focus();
+        return;
+      }
+      // Trap Tab within the popover: it is portaled to the end of its host,
+      // so without this, Tab from the last control escapes to whatever the
+      // host happens to render next instead of cycling inside the calendar.
+      if (event.key === "Tab" && popRef.current) {
+        const focusable = getFocusable(popRef.current);
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const active = document.activeElement;
+        if (!popRef.current.contains(active)) return;
+        if (event.shiftKey && active === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
     };
 
     document.addEventListener("pointerdown", handlePointerDown);
@@ -464,6 +524,8 @@ export function DateRangeFilterField({
                   ]
                     .filter(Boolean)
                     .join(" ")}
+                  data-iso={iso}
+                  aria-label={formatFullDate(iso, locale)}
                   onClick={() => selectDay(iso)}
                 >
                   {day}
@@ -588,6 +650,10 @@ export function DateField({
         max={max}
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        onInvalid={(event) => {
+          event.preventDefault();
+          triggerRef.current?.focus();
+        }}
       />
       {renderPop(
         <div
@@ -639,6 +705,8 @@ export function DateField({
                   ]
                     .filter(Boolean)
                     .join(" ")}
+                  data-iso={iso}
+                  aria-label={formatFullDate(iso, locale)}
                   aria-pressed={iso === value}
                   disabled={outOfBounds}
                   onClick={() => commit(iso)}

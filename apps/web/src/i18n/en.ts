@@ -21,6 +21,7 @@ export const en = {
     expense: "Expense",
     net: "Net",
     save: "Save",
+    apply: "Apply",
     cancel: "Cancel",
     loading: "Loading…",
     error: "Failed to load data",

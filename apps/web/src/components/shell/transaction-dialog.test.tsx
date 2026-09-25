@@ -334,7 +334,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     await user.click(
       within(screen.getByRole("dialog", { name: dateLabel })).getByRole(
         "button",
-        { name: "20" },
+        { name: /^20 / },
       ),
     );
     expect(
