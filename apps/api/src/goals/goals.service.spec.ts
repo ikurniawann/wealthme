@@ -621,3 +621,59 @@ describe("GoalsService create/update — sourceAccountId (Revisi F)", () => {
     );
   });
 });
+
+// Revisi F final-review Finding 1 — explicit `autoDebitAmount: null` must
+// clear BOTH autoDebitAmount and sourceAccountId, distinct from omitting the
+// field entirely (which keeps the existing value untouched).
+describe("GoalsService.update — clearing auto-debit (Revisi F Finding 1)", () => {
+  let service: GoalsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [GoalsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get(GoalsService);
+    prisma.goal.update.mockImplementation(
+      ({ data }: { data: Partial<FakeGoal> }) =>
+        Promise.resolve(makeGoal({ ...data })),
+    );
+  });
+
+  it("PATCH { autoDebitAmount: null } clears both autoDebitAmount and sourceAccountId", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ autoDebitAmount: 500_000n, sourceAccountId: ACCOUNT_ID }),
+    );
+    const result = await service.update(FAMILY_GROUP_ID, GOAL_ID, {
+      autoDebitAmount: null,
+    });
+    expect(prisma.goal.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          autoDebitAmount: null,
+          sourceAccountId: null,
+        }),
+      }),
+    );
+    expect(result.autoDebitAmount).toBeNull();
+    expect(result.sourceAccountId).toBeNull();
+    // Clearing must not re-validate a source account that is being removed.
+    expect(prisma.account.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("omitting autoDebitAmount entirely keeps the existing value (not cleared)", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ autoDebitAmount: 500_000n, sourceAccountId: ACCOUNT_ID }),
+    );
+    await service.update(FAMILY_GROUP_ID, GOAL_ID, { name: "Renamed" });
+    expect(prisma.goal.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          autoDebitAmount: 500_000n,
+          sourceAccountId: ACCOUNT_ID,
+        }),
+      }),
+    );
+  });
+});

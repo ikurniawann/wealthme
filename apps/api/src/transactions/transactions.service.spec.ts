@@ -54,6 +54,11 @@ function makePrisma() {
     // EPIC-023 E1 — tenant-scoped lookups for the optional obligation links.
     liability: { findUnique: jest.fn() },
     insurance: { findUnique: jest.fn() },
+    // Revisi F Finding 2 — `assertNotObligationLinked` also looks up
+    // whether a GoalContribution references this transactionId; defaults
+    // to "no linked goal contribution" so every pre-existing test keeps
+    // passing unmodified.
+    goalContribution: { findUnique: jest.fn().mockResolvedValue(null) },
     notification: { findFirst: jest.fn(), create: jest.fn() },
     transaction: {
       create: jest.fn(),
@@ -1457,6 +1462,77 @@ describe("TransactionsService", () => {
     });
   });
 
+  // Revisi F final-review Finding 2 — a Setor's ledger Transaction can be
+  // edited/deleted today with no check for GoalContribution.transactionId,
+  // silently desyncing Goal.currentAmount from the account balance. This
+  // mirrors the liabilityId/insuranceId obligation-link tests above.
+  describe("update()/remove() on a goal-contribution-linked transaction (Revisi F Finding 2)", () => {
+    const now = new Date("2026-06-15T10:00:00.000Z");
+    const GOAL_TX = {
+      id: "tx-goal-1",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: "acc-1",
+      toAccountId: null,
+      categoryId: null,
+      liabilityId: null,
+      insuranceId: null,
+      amount: BigInt(500000),
+      type: "expense" as const,
+      description: null,
+      occurredAt: now,
+      createdAt: now,
+    };
+
+    it("update(): refuses to edit a transaction linked to a GoalContribution, naming the goal", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(GOAL_TX);
+      prisma.goalContribution.findUnique.mockResolvedValue({
+        goal: { name: "Dana Liburan" },
+      });
+
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-goal-1", { amount: 600000 }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.goalContribution.findUnique).toHaveBeenCalledWith({
+        where: { transactionId: "tx-goal-1" },
+        select: { goal: { select: { name: true } } },
+      });
+      expect(prisma.transaction.update).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("remove(): refuses to delete a transaction linked to a GoalContribution", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(GOAL_TX);
+      prisma.goalContribution.findUnique.mockResolvedValue({
+        goal: { name: "Dana Liburan" },
+      });
+
+      await expect(
+        service.remove(FAMILY_GROUP_ID, "tx-goal-1"),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(prisma.transaction.delete).not.toHaveBeenCalled();
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("update(): a transaction with no linked GoalContribution is unaffected", async () => {
+      prisma.transaction.findFirst.mockResolvedValue(GOAL_TX);
+      prisma.goalContribution.findUnique.mockResolvedValue(null);
+      prisma.transaction.update.mockResolvedValue({
+        ...GOAL_TX,
+        amount: BigInt(600000),
+      });
+      prisma.$transaction.mockImplementation(
+        async (fn: Parameters<typeof prisma.$transaction>[0]) =>
+          (fn as (p: typeof prisma) => Promise<unknown>)(prisma),
+      );
+
+      const result = await service.update(FAMILY_GROUP_ID, "tx-goal-1", {
+        amount: 600000,
+      });
+
+      expect(result.amount).toBe("600000");
+    });
+  });
+
   describe("update() category allow-list enforcement (EPIC-019 Task C)", () => {
     const now = new Date("2026-06-15T10:00:00.000Z");
     const ALLOWED_CATEGORY_ID = "cat-belanja";
@@ -2024,6 +2100,8 @@ function makeFakePrivacyPrisma(
       }),
       delete: jest.fn().mockResolvedValue({}),
     },
+    // Revisi F Finding 2 — see the same field in `makePrisma()` above.
+    goalContribution: { findUnique: jest.fn().mockResolvedValue(null) },
   };
   return {
     ...prisma,

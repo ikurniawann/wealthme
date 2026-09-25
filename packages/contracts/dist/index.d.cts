@@ -743,7 +743,7 @@ interface UpdateGoalDto {
     targetAmount?: number;
     currentAmount?: number;
     targetDate?: string;
-    autoDebitAmount?: number;
+    autoDebitAmount?: number | null;
     autoDebitDay?: number;
     sourceAccountId?: string;
 }

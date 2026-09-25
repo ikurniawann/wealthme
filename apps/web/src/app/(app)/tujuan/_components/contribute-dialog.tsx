@@ -101,6 +101,10 @@ export function ContributeDialog({
       <DialogContent>
         <DialogTitle>{`${t.tujuan.contributeDialogTitlePrefix}${goal.name}`}</DialogTitle>
         <DialogDescription>{t.tujuan.contributeDialogDesc}</DialogDescription>
+        {/* Revisi F final-review Finding 4 — honest, minimal scope notice:
+            a Setor has no destination account, so it is never counted in
+            net worth. Plain copy, no invented feature. */}
+        <p className="hint">{t.tujuan.contributeNetWorthNotice}</p>
         <DialogBody>
           <div className="field">
             <label className="label" htmlFor="goal-contribute-amount">

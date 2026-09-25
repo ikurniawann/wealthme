@@ -273,8 +273,18 @@ export class GoalsService {
           ? new Date(dto.targetDate)
           : null
         : existing.targetDate;
-    const autoDebitAmount =
-      dto.autoDebitAmount != null
+    // Revisi F Finding 1 — `dto.autoDebitAmount === null` is an EXPLICIT
+    // clear request (the web form sends it when the user blanks the
+    // field), distinct from `undefined` (field omitted, keep existing).
+    // `!= null` used to conflate both, so a PATCH that explicitly cleared
+    // auto-debit silently kept the old value — real money kept auto-
+    // debiting. Clearing the amount also clears `sourceAccountId`: a source
+    // account with no auto-debit amount is meaningless, and leaving it set
+    // would trip `assertSourceAccount`'s guard on the next unrelated edit.
+    const clearingAutoDebit = dto.autoDebitAmount === null;
+    const autoDebitAmount = clearingAutoDebit
+      ? null
+      : dto.autoDebitAmount != null
         ? BigInt(dto.autoDebitAmount)
         : existing.autoDebitAmount;
 
@@ -293,11 +303,19 @@ export class GoalsService {
       );
     }
 
-    const sourceAccountId =
-      dto.sourceAccountId !== undefined
+    // Revisi F Finding 1 — clearing auto-debit clears its source account
+    // in the SAME update; a leftover sourceAccountId with no
+    // autoDebitAmount is meaningless and would 400 the next unrelated edit
+    // via `assertSourceAccount` below.
+    const sourceAccountId = clearingAutoDebit
+      ? null
+      : dto.sourceAccountId !== undefined
         ? dto.sourceAccountId
         : existing.sourceAccountId;
-    if (dto.autoDebitAmount != null || dto.sourceAccountId !== undefined) {
+    if (
+      !clearingAutoDebit &&
+      (dto.autoDebitAmount != null || dto.sourceAccountId !== undefined)
+    ) {
       await this.assertSourceAccount(
         familyGroupId,
         autoDebitAmount,

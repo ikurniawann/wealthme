@@ -369,6 +369,14 @@ export default function TujuanPage() {
   // the user never touched "Sudah Terkumpul" (see goals-utils.ts).
   const [editingOriginalCurrentAmount, setEditingOriginalCurrentAmount] =
     useState<number | null>(null);
+  // Revisi F final-review Finding 1/3 — the "original" autoDebitAmount the
+  // edit form was seeded with (as opposed to `null` for a genuinely new
+  // goal), so `handleSubmit` can tell "the user cleared it" apart from
+  // "the field was never touched", and only require a source account when
+  // auto-debit is actually being set/changed (not on an unrelated edit of
+  // a legacy goal that already had it set with no source account).
+  const [editingOriginalAutoDebitAmount, setEditingOriginalAutoDebitAmount] =
+    useState<number | null>(null);
   const [deletingGoal, setDeletingGoal] = useState<GoalDto | null>(null);
   const [contributingGoal, setContributingGoal] = useState<GoalDto | null>(
     null,
@@ -420,6 +428,7 @@ export default function TujuanPage() {
   function handleEdit(goal: GoalDto) {
     setEditingGoalId(goal.id);
     setEditingOriginalCurrentAmount(goal.currentAmount);
+    setEditingOriginalAutoDebitAmount(goal.autoDebitAmount);
     setCrud({
       entity: "tujuan",
       mode: "edit",
@@ -442,6 +451,7 @@ export default function TujuanPage() {
     setCrud(null);
     setEditingGoalId(null);
     setEditingOriginalCurrentAmount(null);
+    setEditingOriginalAutoDebitAmount(null);
   }
 
   async function handleSubmit(
@@ -457,16 +467,39 @@ export default function TujuanPage() {
       values,
       mode === "edit" ? (editingOriginalCurrentAmount ?? undefined) : undefined,
     );
-    if (payload.autoDebitAmount && !values.sourceAccountId) {
+    // Revisi F Finding 1 — `parseGoalFormValues` (protected, not editable)
+    // OMITS `autoDebitAmount` entirely when the field is blank, and a
+    // blank/"0" field is indistinguishable from "0" itself. An edit of a
+    // goal that HAD auto-debit set must send an EXPLICIT `null` so the API
+    // actually clears it (an omitted field means "unchanged" there), not
+    // silently keep the old value while the toast says success.
+    const clearingAutoDebit =
+      mode === "edit" &&
+      editingOriginalAutoDebitAmount != null &&
+      (payload.autoDebitAmount === undefined || payload.autoDebitAmount <= 0);
+    // Revisi F Finding 3 — only require a source account when auto-debit is
+    // newly being set or its amount is actually changing (or on create); a
+    // pure rename/notes edit of a legacy goal that already had
+    // autoDebitAmount set with no sourceAccountId must still save.
+    const autoDebitChanging =
+      mode === "create" ||
+      payload.autoDebitAmount !== editingOriginalAutoDebitAmount;
+    if (
+      !clearingAutoDebit &&
+      autoDebitChanging &&
+      payload.autoDebitAmount &&
+      !values.sourceAccountId
+    ) {
       toast.error(t.tujuan.sourceAccountRequired);
       // Rejecting keeps CrudModal open with the user's input.
       throw new Error(t.tujuan.sourceAccountRequired);
     }
-    const body = JSON.stringify(
-      payload.autoDebitAmount
+    const outgoing: Record<string, unknown> = clearingAutoDebit
+      ? { ...payload, autoDebitAmount: null, sourceAccountId: null }
+      : payload.autoDebitAmount
         ? { ...payload, sourceAccountId: values.sourceAccountId }
-        : payload,
-    );
+        : payload;
+    const body = JSON.stringify(outgoing);
     try {
       if (mode === "edit" && editingGoalId) {
         await apiFetch(
@@ -716,6 +749,14 @@ export default function TujuanPage() {
       )}
       <ConfirmDeleteDialog
         label={deletingGoal ? `"${deletingGoal.name}"` : null}
+        // Revisi F final-review Finding 4 — the default body is one
+        // sentence; append the net-worth scope note the same honest,
+        // plain-copy way the Setor dialog does.
+        body={
+          deletingGoal
+            ? `"${deletingGoal.name}" yang dihapus tidak bisa dikembalikan. ${t.tujuan.deleteConfirmNetWorthNote}`
+            : undefined
+        }
         onClose={() => setDeletingGoal(null)}
         onConfirm={handleDeleteConfirm}
       />

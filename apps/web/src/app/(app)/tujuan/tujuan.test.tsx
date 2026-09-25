@@ -99,7 +99,14 @@ const CONTRIBUTION = {
   createdAt: "2026-09-20T01:00:00.000Z",
 };
 
-type MockOptions = { contributionError?: string; goalPostOk?: boolean };
+type MockOptions = {
+  contributionError?: string;
+  goalPostOk?: boolean;
+  // Revisi F final-review Finding 1/3 — lets edit-flow tests seed a goal
+  // that already has autoDebitAmount/sourceAccountId set (e.g. a legacy
+  // goal with no source account), instead of always the plain default.
+  goalOverrides?: Partial<GoalDto>;
+};
 
 function mockSession(role: string, opts: MockOptions = {}) {
   mockUseSessionAuth.mockReturnValue({
@@ -142,7 +149,7 @@ function mockSession(role: string, opts: MockOptions = {}) {
               message: "Target tanggal tidak boleh di masa lalu",
             });
       }
-      return Promise.resolve([buildGoal()]);
+      return Promise.resolve([buildGoal(opts.goalOverrides)]);
     }
     return Promise.resolve([]);
   });
@@ -421,5 +428,70 @@ describe("TujuanPage — goal form source account for auto-debit (Revisi F item 
           (options as RequestInit | undefined)?.method === "POST",
       ),
     ).toBe(false);
+  }, 30000);
+});
+
+describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", () => {
+  it("Finding 1: clearing the auto-debit amount on edit sends autoDebitAmount: null explicitly", async () => {
+    // targetDate: null — the "Saran: ... / bulan" helper hint (rendered
+    // INSIDE the same <label>, per crud-modal.tsx) only computes when a
+    // deadline is set; keeping it null keeps the label's accessible name
+    // exactly "Auto-debit / Bulan" so `getByLabelText` stays unambiguous,
+    // same as the passing create-flow tests above.
+    mockSession("owner", {
+      goalOverrides: {
+        autoDebitAmount: 500_000,
+        sourceAccountId: ACCOUNT.id,
+        targetDate: null,
+      },
+    });
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog");
+    const autodebitInput = within(dialog).getByLabelText("Auto-debit / Bulan");
+    expect(autodebitInput).toHaveValue("500.000");
+    await user.clear(autodebitInput);
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+    const patch = mockApiFetch.mock.calls.find(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path === `/family-groups/${FAMILY_GROUP_ID}/goals/goal-1` &&
+        (options as RequestInit | undefined)?.method === "PATCH",
+    );
+    expect(patch).toBeDefined();
+    const body = JSON.parse((patch?.[1] as RequestInit).body as string);
+    expect(body.autoDebitAmount).toBeNull();
+  }, 30000);
+
+  it("Finding 3: a name-only edit of a legacy auto-debit goal (no source account) saves without the source-account guard", async () => {
+    mockSession("owner", {
+      goalOverrides: { autoDebitAmount: 500_000, sourceAccountId: null },
+    });
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Dana Liburan"),
+      " Renamed",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+    expect(mockToastError).not.toHaveBeenCalledWith(
+      "Pilih rekening sumber untuk auto-debit.",
+    );
+    const patch = mockApiFetch.mock.calls.find(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path === `/family-groups/${FAMILY_GROUP_ID}/goals/goal-1` &&
+        (options as RequestInit | undefined)?.method === "PATCH",
+    );
+    expect(patch).toBeDefined();
   }, 30000);
 });

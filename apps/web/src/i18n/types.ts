@@ -2317,6 +2317,12 @@ export type I18nDictionary = {
     contributeSubmit: string;
     contributeSubmitting: string;
     contributeToastSuccess: string;
+    // Revisi F final-review Finding 4 — honest scope notices: a goal
+    // contribution has no destination account, so it never enters net
+    // worth; deleting a goal doesn't return its contributions to net worth
+    // either (the underlying account transactions are unaffected).
+    contributeNetWorthNotice: string;
+    deleteConfirmBody: string;
     historyToggleShow: string;
     historyToggleHide: string;
     historyLoading: string;

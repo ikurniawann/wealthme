@@ -2500,6 +2500,10 @@ export const en = {
     contributeSubmit: "Save contribution",
     contributeSubmitting: "Saving…",
     contributeToastSuccess: "Contribution recorded!",
+    contributeNetWorthNotice:
+      "This is tracked as savings progress toward the goal, but is NOT counted in your household's net worth — there's no destination account for it.",
+    deleteConfirmNetWorthNote:
+      "Deleting a goal does not return its recorded contributions to net worth — the underlying account transactions are unaffected, only this goal's own progress record is gone.",
     historyToggleShow: "Contribution history",
     historyToggleHide: "Hide history",
     historyLoading: "Loading history…",

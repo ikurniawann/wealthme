@@ -527,7 +527,7 @@ export class TransactionsService {
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
-    this.assertNotObligationLinked(existing);
+    await this.assertNotObligationLinked(existing);
 
     if (dto.accountId) {
       const acct = await this.prisma.account.findUnique({
@@ -721,7 +721,7 @@ export class TransactionsService {
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
-    this.assertNotObligationLinked(existing);
+    await this.assertNotObligationLinked(existing);
 
     await this.prisma.$transaction(async (prisma) => {
       // Mirrors create()/update() — a real two-sided transfer must reverse
@@ -972,10 +972,11 @@ export class TransactionsService {
    * the Insurance's `renewalDate`) directly via its own `PATCH`, THEN
    * edit/delete this ledger row once the obligation is back in sync.
    */
-  private assertNotObligationLinked(tx: {
+  private async assertNotObligationLinked(tx: {
+    id: string;
     liabilityId?: string | null;
     insuranceId?: string | null;
-  }): void {
+  }): Promise<void> {
     if (tx.liabilityId) {
       throw new ConflictException(
         "Transaksi ini terkait pembayaran/pembelian liabilitas — tidak dapat diedit atau dihapus di sini. Sesuaikan saldo liabilitas terkait terlebih dahulu (PATCH liabilitas), lalu koreksi transaksi ini.",
@@ -984,6 +985,21 @@ export class TransactionsService {
     if (tx.insuranceId) {
       throw new ConflictException(
         "Transaksi ini terkait pembayaran premi asuransi — tidak dapat diedit atau dihapus di sini. Sesuaikan tanggal jatuh tempo polis terkait terlebih dahulu (PATCH asuransi), lalu koreksi transaksi ini.",
+      );
+    }
+    // Revisi F Finding 2 — a Setor (goal contribution) records its funding
+    // via `GoalContribution.transactionId`, a link Transaction itself has no
+    // column for, unlike `liabilityId`/`insuranceId` above. Without this
+    // check, editing or deleting the ledger row silently desyncs
+    // `Goal.currentAmount` from the account balance: the money moves back
+    // (or changes amount) but the goal still shows it as contributed.
+    const linkedContribution = await this.prisma.goalContribution.findUnique({
+      where: { transactionId: tx.id },
+      select: { goal: { select: { name: true } } },
+    });
+    if (linkedContribution) {
+      throw new ConflictException(
+        `Transaksi ini terkait setoran tujuan "${linkedContribution.goal.name}" — tidak dapat diedit atau dihapus di sini. Sesuaikan tujuan terkait terlebih dahulu, lalu koreksi transaksi ini.`,
       );
     }
   }

@@ -38,7 +38,9 @@ export interface UpdateGoalDto {
   targetAmount?: number;
   currentAmount?: number;
   targetDate?: string;
-  autoDebitAmount?: number;
+  // Revisi F Finding 1 — explicit `null` clears auto-debit (and its
+  // sourceAccountId); `undefined` (the field omitted) leaves it unchanged.
+  autoDebitAmount?: number | null;
   autoDebitDay?: number;
   sourceAccountId?: string;
 }

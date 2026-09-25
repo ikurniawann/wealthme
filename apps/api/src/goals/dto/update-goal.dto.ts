@@ -50,12 +50,18 @@ export class UpdateGoalDto {
   @IsDateString()
   targetDate?: string;
 
-  @ApiPropertyOptional()
+  // Revisi F Finding 1 — `null` is a distinct, explicit value from
+  // `undefined` here: the web form omits the field entirely when unchanged,
+  // but sends `autoDebitAmount: null` when the user clears it, so
+  // auto-debit CAN be turned off. `@IsOptional()` (class-validator) skips
+  // all following validators for BOTH `undefined` and `null`, so `null`
+  // reaches the service untouched instead of being rejected by `@IsInt()`.
+  @ApiPropertyOptional({ nullable: true })
   @IsOptional()
   @IsInt()
   @IsPositive()
   @Max(MAX_AMOUNT)
-  autoDebitAmount?: number;
+  autoDebitAmount?: number | null;
 
   @ApiPropertyOptional({
     description: "EPIC-033 group 5 — day of month (1-28) the auto-debit runs",

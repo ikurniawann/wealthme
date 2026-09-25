@@ -2544,6 +2544,10 @@ export const id = {
     contributeSubmit: "Simpan Setoran",
     contributeSubmitting: "Menyimpan…",
     contributeToastSuccess: "Setoran tercatat!",
+    contributeNetWorthNotice:
+      "Setoran dicatat sebagai progres tabungan tujuan, tapi TIDAK dihitung dalam total kekayaan bersih keluarga karena tidak ada rekening tujuan.",
+    deleteConfirmNetWorthNote:
+      "Menghapus tujuan tidak mengembalikan setoran yang tercatat ke kekayaan bersih — transaksi rekening yang mendasarinya tidak berubah, hanya catatan progres tujuan ini yang hilang.",
     historyToggleShow: "Riwayat Setoran",
     historyToggleHide: "Tutup Riwayat",
     historyLoading: "Memuat riwayat…",
