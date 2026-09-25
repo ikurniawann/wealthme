@@ -570,3 +570,126 @@ describe("InvestasiPage — emas priced from the family gold price (Revisi D ite
     expect(screen.getByText(/Harga emas keluarga ·/)).toBeInTheDocument();
   });
 });
+
+describe("InvestasiPage — detail dialog layout + history date filter (Revisi D item 8b)", () => {
+  const now = new Date();
+  const dayIso = (day: number) =>
+    new Date(now.getFullYear(), now.getMonth(), day, 10, 0).toISOString();
+  const TXS = [
+    {
+      id: "tx-early",
+      investmentId: "inv-1",
+      type: "buy",
+      quantity: "3",
+      pricePerUnit: "100000",
+      occurredAt: dayIso(2),
+      realizedPnl: null,
+      createdAt: dayIso(2),
+    },
+    {
+      id: "tx-late",
+      investmentId: "inv-1",
+      type: "buy",
+      quantity: "7",
+      pricePerUnit: "100000",
+      occurredAt: dayIso(20),
+      realizedPnl: null,
+      createdAt: dayIso(20),
+    },
+  ];
+
+  async function applyRange(
+    user: ReturnType<typeof userEvent.setup>,
+    dialog: HTMLElement,
+  ) {
+    await user.click(
+      within(dialog).getByRole("button", { name: "Semua tanggal" }),
+    );
+    const picker = screen.getByRole("dialog", { name: "Filter tanggal" });
+    await user.click(within(picker).getByRole("button", { name: "10" }));
+    await user.click(within(picker).getByRole("button", { name: "25" }));
+    await user.click(within(picker).getByRole("button", { name: "Terapkan" }));
+  }
+
+  it("opens wide with a two-column body", async () => {
+    mockSession("owner");
+    routeApi({ "/investments/inv-1/transactions": TXS });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Lihat Detail" }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Emas Batangan" });
+
+    expect(dialog).toHaveClass("min-[769px]:w-[min(56rem,calc(100%-2rem))]");
+    expect(dialog).not.toHaveClass("max-w-lg");
+    expect(dialog.querySelector(".dialog__body")).toHaveClass("md:grid-cols-2");
+    expect(within(dialog).getByText("Riwayat Harga")).toBeInTheDocument();
+    expect(await within(dialog).findByText(/3 unit @/)).toBeInTheDocument();
+    expect(within(dialog).getByText(/7 unit @/)).toBeInTheDocument();
+  });
+
+  it("filters the buy/sell history to the chosen range and clears back to all", async () => {
+    mockSession("owner");
+    routeApi({ "/investments/inv-1/transactions": TXS });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Lihat Detail" }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Emas Batangan" });
+    await within(dialog).findByText(/3 unit @/);
+
+    await applyRange(user, dialog);
+
+    expect(within(dialog).queryByText(/3 unit @/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/7 unit @/)).toBeInTheDocument();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Hapus filter" }),
+    );
+
+    expect(within(dialog).getByText(/3 unit @/)).toBeInTheDocument();
+  });
+
+  it("does not carry a filter over to another holding", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        HOLDING,
+        holdingOf({
+          id: "inv-2",
+          name: "Reksa Dana Pasar Uang",
+          ticker: "RDPU",
+          type: "reksa_dana",
+        }),
+      ],
+      "/investments/inv-1/transactions": TXS,
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    const [firstDetail] = await screen.findAllByRole("button", {
+      name: "Lihat Detail",
+    });
+    await user.click(firstDetail as HTMLElement);
+    const dialog = await screen.findByRole("dialog", { name: "Emas Batangan" });
+    await within(dialog).findByText(/3 unit @/);
+    await applyRange(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: "Tutup" }));
+
+    const [, secondDetail] = await screen.findAllByRole("button", {
+      name: "Lihat Detail",
+    });
+    await user.click(secondDetail as HTMLElement);
+    const second = await screen.findByRole("dialog", {
+      name: "Reksa Dana Pasar Uang",
+    });
+
+    expect(
+      within(second).getByRole("button", { name: "Semua tanggal" }),
+    ).toBeInTheDocument();
+  });
+});

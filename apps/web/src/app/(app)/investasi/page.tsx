@@ -26,6 +26,7 @@ import {
 } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
+import { DateRangeFilterField } from "@/components/wm/date-range-field";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,6 +72,7 @@ import type {
 } from "@wealthme/contracts";
 import type { QuantityUnit } from "./quantity-conversion";
 import type { UnitLabels } from "./instrument-units";
+import { filterByOccurredAt } from "./history-filter";
 
 const TYPE_BADGE_VARIANT: Record<
   string,
@@ -1580,6 +1582,22 @@ export default function InvestasiPage() {
     enabled: !!token && !!familyGroupId && !!detailHolding,
   });
 
+  // Keyed by holding so a range never leaks into the next holding opened.
+  const [historyRange, setHistoryRange] = useState<{
+    holdingId: string;
+    from: string;
+    to: string;
+  } | null>(null);
+  const activeHistoryRange =
+    historyRange && historyRange.holdingId === detailHolding?.id
+      ? historyRange
+      : null;
+  const visibleTransactions = filterByOccurredAt(
+    detailTransactions ?? [],
+    activeHistoryRange?.from ?? "",
+    activeHistoryRange?.to ?? "",
+  );
+
   // Live price updates via Socket.io — join family-group room for tenant isolation
   useEffect(() => {
     if (!familyGroupId || !token) return;
@@ -1756,7 +1774,7 @@ export default function InvestasiPage() {
           if (!open) setDetailHolding(null);
         }}
       >
-        <DialogContent className="max-w-lg">
+        <DialogContent className="min-[769px]:w-[min(56rem,calc(100%-2rem))]">
           {detailHolding && (
             <>
               <DialogHeader>
@@ -1765,205 +1783,244 @@ export default function InvestasiPage() {
                   {formatInstrumentSubline(detailHolding, t, locale)}
                 </DialogDescription>
               </DialogHeader>
-              <DialogBody className="space-y-3">
-                <div className="rounded-[10px] border bg-muted/30 p-3">
-                  <SparklinePreview />
-                  <div className="mt-2 text-[12px] text-muted-foreground">
-                    Harga penutupan 12 bulan terakhir
+              <DialogBody className="grid gap-4 md:grid-cols-2">
+                <div className="min-w-0 space-y-3">
+                  <div className="rounded-[10px] border bg-muted/30 p-3">
+                    <SparklinePreview />
+                    <div className="mt-2 text-[12px] text-muted-foreground">
+                      Harga penutupan 12 bulan terakhir
+                    </div>
                   </div>
-                </div>
-                <div className="grid gap-2 text-[12.5px] sm:grid-cols-2">
-                  <DetailMetric
-                    label={t.investasi.detailLatestPriceLabel}
-                    value={formatDecimalRupiah(detailHolding.currentPrice)}
-                  />
-                  <DetailMetric
-                    label={t.investasi.tableValue}
-                    value={formatDecimalRupiah(detailHolding.currentValue)}
-                  />
-                  <DetailMetric
-                    label={t.investasi.detailSourceLabel}
-                    value={String(
-                      detailHolding.latestPriceSource === "manual"
-                        ? t.investasi.detailManualLabelPrefix.replace(
-                            /:?\s*$/,
-                            "",
-                          )
-                        : PRICE_SOURCE_LABEL_KEYS[
-                              detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
-                            ]
-                          ? t.investasi.sourceLabels[
-                              PRICE_SOURCE_LABEL_KEYS[
+                  <div className="grid gap-2 text-[12.5px] sm:grid-cols-2">
+                    <DetailMetric
+                      label={t.investasi.detailLatestPriceLabel}
+                      value={formatDecimalRupiah(detailHolding.currentPrice)}
+                    />
+                    <DetailMetric
+                      label={t.investasi.tableValue}
+                      value={formatDecimalRupiah(detailHolding.currentValue)}
+                    />
+                    <DetailMetric
+                      label={t.investasi.detailSourceLabel}
+                      value={String(
+                        detailHolding.latestPriceSource === "manual"
+                          ? t.investasi.detailManualLabelPrefix.replace(
+                              /:?\s*$/,
+                              "",
+                            )
+                          : PRICE_SOURCE_LABEL_KEYS[
                                 detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
                               ]
-                            ]
-                          : detailHolding.latestPriceSource,
-                    )}
-                  />
-                  <DetailMetric
-                    label={t.investasi.totalReturnSuffix}
-                    value={`${formatDecimalRupiah(detailHolding.returnRp)} (${formatReturnPct(
-                      detailHolding.returnPct,
-                    )})`}
-                    tone={
-                      parseFloat(detailHolding.returnRp ?? "0") >= 0
-                        ? "text-success"
-                        : "text-destructive"
-                    }
-                  />
-                  {/* EPIC-022 D2 — realized P/L, the sum of every SELL ever
+                            ? t.investasi.sourceLabels[
+                                PRICE_SOURCE_LABEL_KEYS[
+                                  detailHolding.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
+                                ]
+                              ]
+                            : detailHolding.latestPriceSource,
+                      )}
+                    />
+                    <DetailMetric
+                      label={t.investasi.totalReturnSuffix}
+                      value={`${formatDecimalRupiah(detailHolding.returnRp)} (${formatReturnPct(
+                        detailHolding.returnPct,
+                      )})`}
+                      tone={
+                        parseFloat(detailHolding.returnRp ?? "0") >= 0
+                          ? "text-success"
+                          : "text-destructive"
+                      }
+                    />
+                    {/* EPIC-022 D2 — realized P/L, the sum of every SELL ever
                       recorded against this holding. Null (never a
                       fabricated "0") until a sell has been recorded. */}
-                  <DetailMetric
-                    label={t.investasi.detailRealizedPnlLabel}
-                    value={formatDecimalRupiah(detailHolding.realizedPnlRp)}
-                    tone={
-                      detailHolding.realizedPnlRp &&
-                      parseFloat(detailHolding.realizedPnlRp) >= 0
-                        ? "text-success"
-                        : detailHolding.realizedPnlRp
-                          ? "text-destructive"
-                          : undefined
-                    }
-                  />
-                </div>
-                <div className="rounded-[10px] bg-accent p-3 text-[12px] text-accent-foreground">
-                  {detailHolding.currentPrice === null
-                    ? detailHolding.automatedPriceUnmapped
-                      ? t.investasi.automatedUnmappedNote
-                      : isManualPriceType(detailHolding.type as InvestmentType)
-                        ? t.investasi.detailNoManualPrice
-                        : t.investasi.detailPriceUnavailable
-                    : detailHolding.latestPriceSource === "manual"
-                      ? `${t.investasi.detailManualLabelPrefix}${formatManualDate(
-                          detailHolding.latestPriceAsOf ??
-                            detailHolding.latestPriceRecordedAt ??
-                            new Date().toISOString(),
-                          locale,
-                        )}`
-                      : `${t.investasi.detailRecordedAtLabel}: ${
-                          (detailHolding.latestPriceAsOf ??
-                          detailHolding.latestPriceRecordedAt)
-                            ? formatLocaleDateTime(
-                                detailHolding.latestPriceAsOf ??
-                                  detailHolding.latestPriceRecordedAt ??
-                                  "",
-                                locale,
-                              )
-                            : "—"
-                        }`}
-                </div>
-                {/* EPIC-033 p18 — price history (manual + feed). */}
-                <div>
-                  <div className="mb-1.5 text-[12px] font-semibold text-muted-foreground">
-                    {t.investasi.priceHistoryTitle}
+                    <DetailMetric
+                      label={t.investasi.detailRealizedPnlLabel}
+                      value={formatDecimalRupiah(detailHolding.realizedPnlRp)}
+                      tone={
+                        detailHolding.realizedPnlRp &&
+                        parseFloat(detailHolding.realizedPnlRp) >= 0
+                          ? "text-success"
+                          : detailHolding.realizedPnlRp
+                            ? "text-destructive"
+                            : undefined
+                      }
+                    />
                   </div>
-                  {(detailPrices ?? []).length === 0 ? (
-                    <div className="text-[12px] text-muted-foreground">
-                      {t.investasi.priceHistoryEmpty}
+                  <div className="rounded-[10px] bg-accent p-3 text-[12px] text-accent-foreground">
+                    {detailHolding.currentPrice === null
+                      ? detailHolding.automatedPriceUnmapped
+                        ? t.investasi.automatedUnmappedNote
+                        : isManualPriceType(
+                              detailHolding.type as InvestmentType,
+                            )
+                          ? t.investasi.detailNoManualPrice
+                          : t.investasi.detailPriceUnavailable
+                      : detailHolding.latestPriceSource === "manual"
+                        ? `${t.investasi.detailManualLabelPrefix}${formatManualDate(
+                            detailHolding.latestPriceAsOf ??
+                              detailHolding.latestPriceRecordedAt ??
+                              new Date().toISOString(),
+                            locale,
+                          )}`
+                        : `${t.investasi.detailRecordedAtLabel}: ${
+                            (detailHolding.latestPriceAsOf ??
+                            detailHolding.latestPriceRecordedAt)
+                              ? formatLocaleDateTime(
+                                  detailHolding.latestPriceAsOf ??
+                                    detailHolding.latestPriceRecordedAt ??
+                                    "",
+                                  locale,
+                                )
+                              : "—"
+                          }`}
+                  </div>
+                  {/* EPIC-033 p18 — price history (manual + feed). */}
+                  <div>
+                    <div className="mb-1.5 text-[12px] font-semibold text-muted-foreground">
+                      {t.investasi.priceHistoryTitle}
                     </div>
-                  ) : (
-                    <ul className="max-h-40 space-y-1 overflow-y-auto pr-1">
-                      {(detailPrices ?? []).map((p) => (
-                        <li
-                          key={p.id}
-                          className="flex items-center justify-between gap-2 rounded-[8px] border p-2 text-[11.5px]"
-                        >
-                          <span className="text-muted-foreground">
-                            {new Date(p.asOf).toLocaleDateString(
-                              locale === "id" ? "id-ID" : "en-US",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              },
-                            )}
-                            {" · "}
-                            {p.source === "manual"
-                              ? t.investasi.priceSourceManual
-                              : p.source}
-                          </span>
-                          <span className="mono font-semibold">
-                            {formatDecimalRupiah(p.price)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                    {(detailPrices ?? []).length === 0 ? (
+                      <div className="text-[12px] text-muted-foreground">
+                        {t.investasi.priceHistoryEmpty}
+                      </div>
+                    ) : (
+                      <ul className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                        {(detailPrices ?? []).map((p) => (
+                          <li
+                            key={p.id}
+                            className="flex items-center justify-between gap-2 rounded-[8px] border p-2 text-[11.5px]"
+                          >
+                            <span className="text-muted-foreground">
+                              {new Date(p.asOf).toLocaleDateString(
+                                locale === "id" ? "id-ID" : "en-US",
+                                {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                },
+                              )}
+                              {" · "}
+                              {p.source === "manual"
+                                ? t.investasi.priceSourceManual
+                                : p.source}
+                            </span>
+                            <span className="mono font-semibold">
+                              {formatDecimalRupiah(p.price)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 </div>
-                {/* EPIC-022 D2 — the real buy/sell history a whole-record
+                <div className="min-w-0 space-y-3">
+                  <div className="flex flex-wrap items-end justify-between gap-2">
+                    <DateRangeFilterField
+                      from={activeHistoryRange?.from ?? ""}
+                      to={activeHistoryRange?.to ?? ""}
+                      locale={locale}
+                      label={t.investasi.historyFilterLabel}
+                      cancelLabel={t.common.cancel}
+                      applyLabel={t.investasi.historyFilterApply}
+                      onApply={(from, to) =>
+                        setHistoryRange({
+                          holdingId: detailHolding.id,
+                          from,
+                          to,
+                        })
+                      }
+                    />
+                    {activeHistoryRange && (
+                      <button
+                        type="button"
+                        className="text-[11.5px] font-semibold text-primary"
+                        onClick={() => setHistoryRange(null)}
+                      >
+                        {t.investasi.historyFilterClear}
+                      </button>
+                    )}
+                  </div>
+                  {/* EPIC-022 D2 — the real buy/sell history a whole-record
                     "edit" used to destroy with no trace. */}
-                <div>
-                  <div className="mb-1.5 text-[12px] font-semibold text-muted-foreground">
-                    {t.investasi.historySectionTitle}
-                  </div>
-                  {(detailTransactions ?? []).length === 0 ? (
-                    <div className="text-[12px] text-muted-foreground">
-                      {t.investasi.historyEmptyLabel}
+                  <div>
+                    <div className="mb-1.5 text-[12px] font-semibold text-muted-foreground">
+                      {t.investasi.historySectionTitle}
                     </div>
-                  ) : (
-                    <ul className="space-y-1.5">
-                      {(detailTransactions ?? []).map((tx) => (
-                        <li
-                          key={tx.id}
-                          className="flex items-center justify-between gap-2 rounded-[8px] border p-2 text-[11.5px]"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <StatusBadge
-                              variant={tx.type === "buy" ? "info" : "warning"}
-                            >
-                              {tx.type === "buy"
-                                ? t.investasi.historyBuyLabel
-                                : t.investasi.historySellLabel}
-                            </StatusBadge>
-                            <span className="mono">
-                              {formatQuantity(tx.quantity, detailHolding.type)}{" "}
-                              {quantityUnitLabel(
-                                detailHolding.type,
-                                "lembar",
-                                unitLabels(t),
-                              ).toLowerCase()}{" "}
-                              @ {formatDecimalRupiah(tx.pricePerUnit)}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            {tx.realizedPnl && (
-                              <span
-                                className={cn(
-                                  "mono",
-                                  parseFloat(tx.realizedPnl) >= 0
-                                    ? "text-success"
-                                    : "text-destructive",
-                                )}
+                    {(detailTransactions ?? []).length === 0 ? (
+                      <div className="text-[12px] text-muted-foreground">
+                        {t.investasi.historyEmptyLabel}
+                      </div>
+                    ) : visibleTransactions.length === 0 ? (
+                      <div className="text-[12px] text-muted-foreground">
+                        {t.investasi.historyFilterEmpty}
+                      </div>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {visibleTransactions.map((tx) => (
+                          <li
+                            key={tx.id}
+                            className="flex items-center justify-between gap-2 rounded-[8px] border p-2 text-[11.5px]"
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <StatusBadge
+                                variant={tx.type === "buy" ? "info" : "warning"}
                               >
-                                {t.investasi.historyRealizedPnlTemplate.replace(
-                                  "{pnl}",
-                                  formatDecimalRupiah(tx.realizedPnl),
-                                )}
+                                {tx.type === "buy"
+                                  ? t.investasi.historyBuyLabel
+                                  : t.investasi.historySellLabel}
+                              </StatusBadge>
+                              <span className="mono">
+                                {formatQuantity(
+                                  tx.quantity,
+                                  detailHolding.type,
+                                )}{" "}
+                                {quantityUnitLabel(
+                                  detailHolding.type,
+                                  "lembar",
+                                  unitLabels(t),
+                                ).toLowerCase()}{" "}
+                                @ {formatDecimalRupiah(tx.pricePerUnit)}
                               </span>
-                            )}
-                            <span>
-                              {formatManualDate(tx.occurredAt, locale)}
-                            </span>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
+                            </div>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              {tx.realizedPnl && (
+                                <span
+                                  className={cn(
+                                    "mono",
+                                    parseFloat(tx.realizedPnl) >= 0
+                                      ? "text-success"
+                                      : "text-destructive",
+                                  )}
+                                >
+                                  {t.investasi.historyRealizedPnlTemplate.replace(
+                                    "{pnl}",
+                                    formatDecimalRupiah(tx.realizedPnl),
+                                  )}
+                                </span>
+                              )}
+                              <span>
+                                {formatManualDate(tx.occurredAt, locale)}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  {canManage && detailHolding.type !== "deposito" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setBuySellHolding(detailHolding);
+                        setDetailHolding(null);
+                      }}
+                    >
+                      {t.investasi.buySellButtonLabel}
+                    </Button>
                   )}
                 </div>
-                {canManage && detailHolding.type !== "deposito" && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setBuySellHolding(detailHolding);
-                      setDetailHolding(null);
-                    }}
-                  >
-                    {t.investasi.buySellButtonLabel}
-                  </Button>
-                )}
               </DialogBody>
               <DialogFooter>
                 <Button type="button" onClick={() => setDetailHolding(null)}>

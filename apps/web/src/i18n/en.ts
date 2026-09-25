@@ -1772,6 +1772,10 @@ export const en = {
       "The family gold price isn't set yet. Until it is set in Settings › Gold Price, gold is valued at its last manual price.",
     familyGoldPriceLinkLabel: "Open Settings",
     priceFamilyGoldBadgeTemplate: "Family gold price · {date}",
+    historyFilterLabel: "Date filter",
+    historyFilterApply: "Apply",
+    historyFilterClear: "Clear filter",
+    historyFilterEmpty: "No transactions in this date range.",
   },
   aset: {
     tabs: {

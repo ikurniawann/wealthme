@@ -1684,6 +1684,10 @@ export type I18nDictionary = {
     familyGoldPriceLinkLabel: string;
     /** Template with a `{date}` placeholder. */
     priceFamilyGoldBadgeTemplate: string;
+    historyFilterLabel: string;
+    historyFilterApply: string;
+    historyFilterClear: string;
+    historyFilterEmpty: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {

@@ -1803,6 +1803,10 @@ export const id = {
       "Harga emas keluarga belum diatur. Sampai diatur di Pengaturan › Harga Emas, emas dinilai dengan harga manual terakhirnya.",
     familyGoldPriceLinkLabel: "Buka Pengaturan",
     priceFamilyGoldBadgeTemplate: "Harga emas keluarga · {date}",
+    historyFilterLabel: "Filter tanggal",
+    historyFilterApply: "Terapkan",
+    historyFilterClear: "Hapus filter",
+    historyFilterEmpty: "Tidak ada transaksi pada rentang tanggal ini.",
   },
   aset: {
     tabs: {
