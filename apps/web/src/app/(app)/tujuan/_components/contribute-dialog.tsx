@@ -13,6 +13,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DateField } from "@/components/wm";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
@@ -53,7 +54,7 @@ export function ContributeDialog({
   token,
   onClose,
 }: ContributeDialogProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const { handleError } = useApiError();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
@@ -61,7 +62,10 @@ export function ContributeDialog({
   const [date, setDate] = useState(todayLocalIsoDate);
 
   const digits = amount.replace(/\D/g, "");
-  const canSubmit = /^[1-9]\d*$/.test(digits) && date !== "";
+  // Mirrors CreateGoalContributionInputSchema.amount (@wealthme/contracts):
+  // 1-12 digits, no leading zero — reject an over-long amount client-side
+  // instead of round-tripping to a 400.
+  const canSubmit = /^[1-9]\d{0,11}$/.test(digits) && date !== "";
 
   const mutation = useMutation({
     mutationFn: (input: CreateGoalContributionInput) =>
@@ -135,13 +139,14 @@ export function ContributeDialog({
             <label className="label" htmlFor="goal-contribute-date">
               {t.tujuan.contributeDateLabel}
             </label>
-            <input
+            <DateField
               id="goal-contribute-date"
-              type="date"
-              max={todayLocalIsoDate()}
               value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="input"
+              locale={locale}
+              label={t.tujuan.contributeDateLabel}
+              max={todayLocalIsoDate()}
+              required
+              onChange={setDate}
             />
           </div>
         </DialogBody>

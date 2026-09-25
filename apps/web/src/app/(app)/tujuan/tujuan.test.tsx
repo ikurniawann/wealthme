@@ -220,9 +220,14 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
       await within(dialog).findByLabelText("Rekening Sumber"),
       ACCOUNT.id,
     );
-    fireEvent.change(within(dialog).getByLabelText("Tanggal Setoran"), {
-      target: { value: "2026-09-20" },
-    });
+    // "Tanggal Setoran" is a shared `DateField` (a button named by its
+    // label, portaled calendar) — set it through its hidden native
+    // `<input type="date">`, mirroring akun/profil-body.test.tsx.
+    const dateInput = dialog.querySelector<HTMLInputElement>(
+      '.date-field input[type="date"]',
+    );
+    if (!dateInput) throw new Error("DateField native input missing");
+    fireEvent.change(dateInput, { target: { value: "2026-09-20" } });
     await user.click(
       within(dialog).getByRole("button", { name: "Simpan Setoran" }),
     );
