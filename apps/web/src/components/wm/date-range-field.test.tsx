@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import { DateRangeFilterField } from "./date-range-field";
+import { DateField, DateRangeFilterField } from "./date-range-field";
 
 function localMonthPrefix(): string {
   const now = new Date();
@@ -151,5 +152,169 @@ describe("DateRangeFilterField — portaled popover", () => {
       heightSpy.mockRestore();
       widthSpy.mockRestore();
     }
+  });
+});
+
+function ControlledDateField({
+  initial = "",
+  onChange,
+  min,
+  max,
+  required,
+}: {
+  initial?: string;
+  onChange?: (iso: string) => void;
+  min?: string;
+  max?: string;
+  required?: boolean;
+}) {
+  const [value, setValue] = useState(initial);
+  return (
+    <>
+      <label htmlFor="df">Tanggal</label>
+      <DateField
+        id="df"
+        value={value}
+        locale="id"
+        label="Tanggal"
+        min={min}
+        max={max}
+        required={required}
+        onChange={(iso) => {
+          setValue(iso);
+          onChange?.(iso);
+        }}
+      />
+    </>
+  );
+}
+
+describe("DateField", () => {
+  it("is named by its external <label> and shows the placeholder when empty", () => {
+    render(<ControlledDateField />);
+    const trigger = screen.getByLabelText("Tanggal");
+    expect(trigger.tagName).toBe("BUTTON");
+    expect(trigger).toHaveTextContent("Pilih tanggal");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("one click on a day emits the ISO date, closes, and shows 'D Month YYYY'", async () => {
+    const onChange = jest.fn();
+    const user = userEvent.setup();
+    render(<ControlledDateField initial="2026-09-10" onChange={onChange} />);
+    const trigger = screen.getByLabelText("Tanggal");
+    expect(trigger).toHaveTextContent("10 September 2026");
+
+    await user.click(trigger);
+    const pop = screen.getByRole("dialog", { name: "Tanggal" });
+    expect(pop.parentElement).toBe(document.body);
+    await user.click(within(pop).getByRole("button", { name: "15" }));
+
+    expect(onChange).toHaveBeenCalledWith("2026-09-15");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveTextContent("15 September 2026");
+    expect(trigger).toHaveAttribute("data-value", "2026-09-15");
+    expect(trigger).toHaveFocus();
+  });
+
+  it("jumps decades with the year select (birth dates)", async () => {
+    const onChange = jest.fn();
+    const user = userEvent.setup();
+    render(<ControlledDateField initial="2026-09-10" onChange={onChange} />);
+
+    await user.click(screen.getByLabelText("Tanggal"));
+    const pop = screen.getByRole("dialog", { name: "Tanggal" });
+    await user.selectOptions(
+      within(pop).getByRole("combobox", { name: "Tahun" }),
+      "1990",
+    );
+    await user.click(within(pop).getByRole("button", { name: "1" }));
+
+    expect(onChange).toHaveBeenCalledWith("1990-09-01");
+  });
+
+  it("disables days outside min/max", async () => {
+    const user = userEvent.setup();
+    render(
+      <ControlledDateField
+        initial="2026-09-10"
+        min="2026-09-05"
+        max="2026-09-20"
+      />,
+    );
+
+    await user.click(screen.getByLabelText("Tanggal"));
+    const pop = screen.getByRole("dialog", { name: "Tanggal" });
+
+    expect(within(pop).getByRole("button", { name: "4" })).toBeDisabled();
+    expect(within(pop).getByRole("button", { name: "21" })).toBeDisabled();
+    expect(within(pop).getByRole("button", { name: "5" })).toBeEnabled();
+    expect(within(pop).getByRole("button", { name: "20" })).toBeEnabled();
+  });
+
+  it("lets an optional date be cleared back to an empty string", async () => {
+    const onChange = jest.fn();
+    const user = userEvent.setup();
+    render(<ControlledDateField initial="2026-09-10" onChange={onChange} />);
+
+    await user.click(screen.getByLabelText("Tanggal"));
+    await user.click(
+      within(screen.getByRole("dialog", { name: "Tanggal" })).getByRole(
+        "button",
+        { name: "Hapus tanggal" },
+      ),
+    );
+
+    expect(onChange).toHaveBeenCalledWith("");
+    expect(screen.getByLabelText("Tanggal")).toHaveTextContent("Pilih tanggal");
+  });
+
+  it("offers no clear action on a required date", async () => {
+    const user = userEvent.setup();
+    render(<ControlledDateField initial="2026-09-10" required />);
+
+    await user.click(screen.getByLabelText("Tanggal"));
+
+    expect(
+      within(screen.getByRole("dialog", { name: "Tanggal" })).queryByRole(
+        "button",
+        { name: "Hapus tanggal" },
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a native date input in sync for forms and native validation", () => {
+    const { container } = render(
+      <ControlledDateField initial="2026-09-10" required />,
+    );
+    const native = container.querySelector<HTMLInputElement>(
+      '.date-field input[type="date"]',
+    );
+    if (!native) throw new Error("native date input missing");
+
+    expect(native).toHaveValue("2026-09-10");
+    expect(native).toBeRequired();
+
+    fireEvent.change(native, { target: { value: "2026-01-02" } });
+    expect(screen.getByLabelText("Tanggal")).toHaveAttribute(
+      "data-value",
+      "2026-01-02",
+    );
+  });
+
+  it("names itself from `label` + value when no external label is wired", () => {
+    render(
+      <DateField
+        value="2026-09-10"
+        locale="id"
+        label="Tanggal laporan"
+        onChange={jest.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Tanggal laporan: 10 September 2026",
+      }),
+    ).toBeInTheDocument();
   });
 });

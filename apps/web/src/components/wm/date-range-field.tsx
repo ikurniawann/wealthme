@@ -32,9 +32,14 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { CalendarRange, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  CalendarDays,
+  CalendarRange,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
-import type { Locale } from "@/i18n";
+import { en as enDict, id as idDict, type Locale } from "@/i18n";
 
 /** Absolute "D Month YYYY" — parsed from parts, never `new Date(iso)`, so the
  *  displayed calendar day cannot shift with the viewer's timezone. */
@@ -114,6 +119,13 @@ function getMonthTitle(year: number, month: number, locale: Locale): string {
   return new Date(year, month, 1).toLocaleDateString(
     locale === "en" ? "en-US" : "id-ID",
     { month: "long", year: "numeric" },
+  );
+}
+
+function getMonthName(month: number, locale: Locale): string {
+  return new Date(2000, month, 1).toLocaleDateString(
+    locale === "en" ? "en-US" : "id-ID",
+    { month: "long" },
   );
 }
 
@@ -479,6 +491,176 @@ export function DateRangeFilterField({
               </button>
             </div>
           </div>
+        </div>,
+      )}
+    </div>
+  );
+}
+
+export function DateField({
+  value,
+  locale,
+  label,
+  onChange,
+  min,
+  max,
+  required = false,
+  id,
+  name,
+}: {
+  value: string;
+  locale: Locale;
+  label: string;
+  onChange: (iso: string) => void;
+  min?: string;
+  max?: string;
+  required?: boolean;
+  id?: string;
+  name?: string;
+}) {
+  const dict = locale === "en" ? enDict : idDict;
+  const [open, setOpen] = useState(false);
+  const [view, setView] = useState<MonthView>(() => {
+    const initial = parseDateParts(value || todayIso());
+    return { year: initial.year, month: initial.month };
+  });
+  const close = useCallback(() => setOpen(false), []);
+  const { rootRef, triggerRef, popRef, captureHost, renderPop } =
+    useAnchoredPopover(open, close, `${view.year}-${view.month}`);
+
+  const openPicker = () => {
+    const next = parseDateParts(value || todayIso());
+    setView({ year: next.year, month: next.month });
+    captureHost();
+    setOpen((current) => !current);
+  };
+
+  const commit = (iso: string) => {
+    onChange(iso);
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
+  const thisYear = new Date().getFullYear();
+  const firstYear = Math.min(
+    min ? parseDateParts(min).year : thisYear - 100,
+    view.year,
+  );
+  const lastYear = Math.max(
+    max ? parseDateParts(max).year : thisYear + 30,
+    view.year,
+  );
+  const years: number[] = [];
+  for (let year = lastYear; year >= firstYear; year -= 1) years.push(year);
+
+  const display = value
+    ? formatFullDate(value, locale)
+    : dict.common.datePickerPlaceholder;
+
+  return (
+    <div ref={rootRef} className="date-range date-field">
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        className="date-range__trigger"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={id ? undefined : `${label}: ${display}`}
+        data-value={value}
+        onClick={openPicker}
+      >
+        <CalendarDays className="size-[15px] shrink-0" />
+        <span
+          className={value ? "date-range__label" : "date-range__label t-muted"}
+        >
+          {display}
+        </span>
+      </button>
+      <input
+        type="date"
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        name={name}
+        required={required}
+        min={min}
+        max={max}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {renderPop(
+        <div
+          ref={popRef}
+          className="date-range__pop date-range__pop--portal"
+          data-open="true"
+          role="dialog"
+          aria-label={label}
+        >
+          <CalendarMonth
+            view={view}
+            locale={locale}
+            onNavigate={(offset) =>
+              setView((current) => shiftMonth(current, offset))
+            }
+            title={
+              <span className="row gap-1.5">
+                <span className="t-sm t-bold">
+                  {getMonthName(view.month, locale)}
+                </span>
+                <select
+                  aria-label={dict.common.datePickerYearLabel}
+                  className="select h-8 w-auto py-0 pr-7 pl-2 text-[12.5px]"
+                  value={view.year}
+                  onChange={(event) =>
+                    setView((current) => ({
+                      ...current,
+                      year: Number(event.target.value),
+                    }))
+                  }
+                >
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            }
+            renderDay={(iso, day) => {
+              const outOfBounds = (!!min && iso < min) || (!!max && iso > max);
+              return (
+                <button
+                  type="button"
+                  className={[
+                    "dr-day",
+                    iso === value ? "dr-day--edge" : "",
+                    outOfBounds ? "dr-day--muted" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  aria-pressed={iso === value}
+                  disabled={outOfBounds}
+                  onClick={() => commit(iso)}
+                >
+                  {day}
+                </button>
+              );
+            }}
+          />
+          {!required && value && (
+            <div className="dr-foot">
+              <div className="row">
+                <button
+                  type="button"
+                  className="btn btn--outline btn--sm"
+                  onClick={() => commit("")}
+                >
+                  {dict.common.datePickerClear}
+                </button>
+              </div>
+            </div>
+          )}
         </div>,
       )}
     </div>

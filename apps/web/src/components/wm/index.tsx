@@ -21,3 +21,5 @@ export { IconChip } from "./icon-chip";
 export { EmojiPicker } from "./emoji-picker";
 // EPIC-032 — (i) popover that replaces explainer copy across pages.
 export { InfoTip } from "./info-tip";
+// Revisi C — the one app-wide date picker (range + single date), portaled.
+export { DateField, DateRangeFilterField } from "./date-range-field";
