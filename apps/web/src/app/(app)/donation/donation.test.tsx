@@ -387,4 +387,41 @@ describe("DonationPage — Lembaga options come from Master Data (Revisi H)", ()
       ).toBe("Masjid Al-Ikhlas");
     });
   });
+
+  it("shows no near-duplicate lembaga entries when Master Data returns the seeded spelling", async () => {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url.endsWith("/reference-items")) {
+        return Promise.resolve([
+          lembaga("l1", "BAZNAS", true),
+          lembaga("l2", "Dompet Dhuafa", true),
+          lembaga("l3", "Gereja / Paroki", true),
+          lembaga("l4", "Pura / Vihara", true),
+        ]);
+      }
+      if (url.endsWith("/access/me")) {
+        return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+      }
+      if (url.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: "fg-1", myRole: "owner" }]);
+      }
+      return Promise.resolve([]);
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: mockDictionary.donation.recordDonationButton,
+      }),
+    );
+    const select = await screen.findByLabelText(
+      mockDictionary.donation.fieldLembagaLabel,
+    );
+    await waitFor(() =>
+      expect(within(select).getAllByRole("option").length).toBeGreaterThan(0),
+    );
+    expect(
+      within(select).getAllByRole("option", { name: /pura/i }),
+    ).toHaveLength(1);
+  });
 });

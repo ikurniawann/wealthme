@@ -2797,6 +2797,194 @@ function MenuRow({
   );
 }
 
+/**
+ * The "Anggota Keluarga" table on the main /akun page (Revisi H final-review
+ * fix) — extracted out of `AkunPage` so its header labels can be unit
+ * tested. Uses the same `t.akun.memberConcepts.*` concept labels as /iam's
+ * `MembersTab` (`relationship`/`systemRole`) instead of the page's own
+ * literal "Peran" and the "(opsional)" `addDependant.relationshipLabel`,
+ * which read wrong in a table header.
+ */
+export function FamilyMembersTableCard({
+  familyMembers,
+  myUserId,
+  displayInitials,
+  displayName,
+  displayEmail,
+  isElevated,
+  isOwner,
+  onCategoryLimit,
+  onThreshold,
+}: {
+  familyMembers: FamilyMember[] | undefined;
+  myUserId: string;
+  displayInitials: string;
+  displayName: string;
+  displayEmail: string;
+  isElevated: boolean;
+  isOwner: boolean;
+  onCategoryLimit: (member: FamilyMember) => void;
+  onThreshold: (member: FamilyMember) => void;
+}) {
+  const { t } = useLocale();
+  return (
+    <SectionCard
+      title={`${t.akun.family.membersSectionTitle} (${(familyMembers ?? []).filter((m) => m.role !== "admin_staff").length})`}
+      action={
+        isOwner ? (
+          /* EPIC-027 group 2 (D3) — links to /iam instead of opening a
+             second copy of the add-member form. */
+          <Link
+            href="/iam"
+            className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[11.5px] font-semibold text-white"
+          >
+            <UserCog className="size-3" /> {t.akun.family.manageOnIamLink}
+          </Link>
+        ) : undefined
+      }
+    >
+      {/* Direct-creation notice */}
+      <InfoTip>{t.akun.addDependant.dialogDesc}</InfoTip>
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[560px] text-[13px]">
+          <thead>
+            {/* Prototype table headers (akun.html) — no i18n keys existed for
+                these; Revisi H final-review fix swaps in the shared
+                `t.akun.memberConcepts.*` labels /iam already uses so the two
+                pages name the same concepts the same way. "Rekening
+                Ditugaskan" column is omitted: FamilyMember carries no
+                assigned-accounts data (honest UI). */}
+            <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
+              <th className="pb-2 text-left font-semibold">Anggota</th>
+              <th className="pb-2 text-left font-semibold">
+                {t.akun.memberConcepts.systemRole}
+              </th>
+              <th className="pb-2 text-left font-semibold">
+                {t.akun.memberConcepts.relationship}
+              </th>
+              <th className="pb-2 text-right font-semibold">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(familyMembers ?? [])
+              .filter((m) => m.role !== "admin_staff")
+              .map((m, i) => {
+                const isMe = m.userId === myUserId;
+                const initials = isMe
+                  ? displayInitials
+                  : memberInitials(m.name);
+                const gradient =
+                  MEMBER_GRADIENTS[i % MEMBER_GRADIENTS.length] ??
+                  MEMBER_GRADIENTS[0]!;
+                return (
+                  <tr
+                    key={m.id}
+                    className="border-b last:border-0 hover:bg-secondary/30"
+                  >
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
+                          style={{ background: gradient }}
+                        >
+                          {initials}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-foreground">
+                            {m.name}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground truncate max-w-[140px]">
+                            {m.email.endsWith(
+                              "@members.internal.wealthme.invalid",
+                            )
+                              ? "-"
+                              : m.email}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="py-3 pr-3">
+                      <StatusBadge
+                        variant={
+                          m.role === "owner"
+                            ? "info"
+                            : m.role === "spouse"
+                              ? "purple"
+                              : m.role === "dependant"
+                                ? "warning"
+                                : "gray"
+                        }
+                      >
+                        {t.common.roleLabels[m.role] ?? m.role}
+                      </StatusBadge>
+                    </td>
+                    <td className="py-3 pr-3 text-muted-foreground text-[12px]">
+                      {/* FamilyMember carries no relationship field (honest
+                        UI) — only the role-derived "Kepala keluarga" for
+                        the owner row, per the prototype. */}
+                      {m.role === "owner" ? "Kepala keluarga" : "—"}
+                    </td>
+                    <td className="py-3 text-right">
+                      {isMe ? (
+                        <StatusBadge variant="gray">
+                          {t.akun.family.youBadge}
+                        </StatusBadge>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Same gating as FamilyBody (EPIC-019 Task C /
+                            EPIC-023 Task D) — member edit/delete UI stays
+                            a J2 follow-up. */}
+                          {isElevated && m.role === "member" && (
+                            <button
+                              type="button"
+                              aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
+                              className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                              onClick={() => onCategoryLimit(m)}
+                            >
+                              <Target className="size-4" />
+                            </button>
+                          )}
+                          {isOwner &&
+                            (m.role === "dependant" ||
+                              m.role === "operational") && (
+                              <button
+                                type="button"
+                                aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
+                                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                                onClick={() => onThreshold(m)}
+                              >
+                                <Gauge className="size-4" />
+                              </button>
+                            )}
+                          {!(
+                            (isElevated && m.role === "member") ||
+                            (isOwner &&
+                              (m.role === "dependant" ||
+                                m.role === "operational"))
+                          ) && <span className="text-muted-foreground">—</span>}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            {(familyMembers ?? []).length === 0 && (
+              <tr>
+                <td
+                  colSpan={4}
+                  className="py-6 text-center text-[12px] text-muted-foreground"
+                >
+                  {displayName} · {displayEmail}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </SectionCard>
+  );
+}
+
 /* ─────────────────────────── Page ─────────────────────────── */
 
 export default function AkunPage() {
@@ -3162,158 +3350,17 @@ export default function AkunPage() {
       </div>
 
       {/* 3. Anggota Keluarga table */}
-      <SectionCard
-        title={`${t.akun.family.membersSectionTitle} (${(familyMembers ?? []).filter((m) => m.role !== "admin_staff").length})`}
-        action={
-          primaryGroup?.myRole === "owner" ? (
-            /* EPIC-027 group 2 (D3) — links to /iam instead of opening a
-               second copy of the add-member form. */
-            <Link
-              href="/iam"
-              className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[11.5px] font-semibold text-white"
-            >
-              <UserCog className="size-3" /> {t.akun.family.manageOnIamLink}
-            </Link>
-          ) : undefined
-        }
-      >
-        {/* Direct-creation notice */}
-        <InfoTip>{t.akun.addDependant.dialogDesc}</InfoTip>
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[13px]">
-            <thead>
-              {/* Prototype table headers (akun.html) — no i18n keys exist for
-                  these; literal Indonesian per the prototype. "Rekening
-                  Ditugaskan" column is omitted: FamilyMember carries no
-                  assigned-accounts data (honest UI). */}
-              <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="pb-2 text-left font-semibold">Anggota</th>
-                <th className="pb-2 text-left font-semibold">Peran</th>
-                <th className="pb-2 text-left font-semibold">
-                  {t.akun.addDependant.relationshipLabel}
-                </th>
-                <th className="pb-2 text-right font-semibold">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(familyMembers ?? [])
-                .filter((m) => m.role !== "admin_staff")
-                .map((m, i) => {
-                  const isMe = m.userId === myUserId;
-                  const initials = isMe
-                    ? displayInitials
-                    : memberInitials(m.name);
-                  const gradient =
-                    MEMBER_GRADIENTS[i % MEMBER_GRADIENTS.length] ??
-                    MEMBER_GRADIENTS[0]!;
-                  return (
-                    <tr
-                      key={m.id}
-                      className="border-b last:border-0 hover:bg-secondary/30"
-                    >
-                      <td className="py-3 pr-3">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
-                            style={{ background: gradient }}
-                          >
-                            {initials}
-                          </div>
-                          <div>
-                            <div className="font-semibold text-foreground">
-                              {m.name}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground truncate max-w-[140px]">
-                              {m.email.endsWith(
-                                "@members.internal.wealthme.invalid",
-                              )
-                                ? "-"
-                                : m.email}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 pr-3">
-                        <StatusBadge
-                          variant={
-                            m.role === "owner"
-                              ? "info"
-                              : m.role === "spouse"
-                                ? "purple"
-                                : m.role === "dependant"
-                                  ? "warning"
-                                  : "gray"
-                          }
-                        >
-                          {t.common.roleLabels[m.role] ?? m.role}
-                        </StatusBadge>
-                      </td>
-                      <td className="py-3 pr-3 text-muted-foreground text-[12px]">
-                        {/* FamilyMember carries no relationship field (honest
-                          UI) — only the role-derived "Kepala keluarga" for
-                          the owner row, per the prototype. */}
-                        {m.role === "owner" ? "Kepala keluarga" : "—"}
-                      </td>
-                      <td className="py-3 text-right">
-                        {isMe ? (
-                          <StatusBadge variant="gray">
-                            {t.akun.family.youBadge}
-                          </StatusBadge>
-                        ) : (
-                          <div className="flex items-center justify-end gap-1.5">
-                            {/* Same gating as FamilyBody (EPIC-019 Task C /
-                              EPIC-023 Task D) — member edit/delete UI stays
-                              a J2 follow-up. */}
-                            {isElevated && m.role === "member" && (
-                              <button
-                                type="button"
-                                aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
-                                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                onClick={() => setCategoryLimitMember(m)}
-                              >
-                                <Target className="size-4" />
-                              </button>
-                            )}
-                            {primaryGroup?.myRole === "owner" &&
-                              (m.role === "dependant" ||
-                                m.role === "operational") && (
-                                <button
-                                  type="button"
-                                  aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
-                                  className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                  onClick={() => setThresholdMember(m)}
-                                >
-                                  <Gauge className="size-4" />
-                                </button>
-                              )}
-                            {!(
-                              (isElevated && m.role === "member") ||
-                              (primaryGroup?.myRole === "owner" &&
-                                (m.role === "dependant" ||
-                                  m.role === "operational"))
-                            ) && (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              {(familyMembers ?? []).length === 0 && (
-                <tr>
-                  <td
-                    colSpan={4}
-                    className="py-6 text-center text-[12px] text-muted-foreground"
-                  >
-                    {displayName} · {displayEmail}
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
+      <FamilyMembersTableCard
+        familyMembers={familyMembers}
+        myUserId={myUserId}
+        displayInitials={displayInitials}
+        displayName={displayName}
+        displayEmail={displayEmail}
+        isElevated={isElevated}
+        isOwner={primaryGroup?.myRole === "owner"}
+        onCategoryLimit={setCategoryLimitMember}
+        onThreshold={setThresholdMember}
+      />
 
       {/* 4. Keamanan — inline KeamananBody */}
       <SectionCard title={t.akun.menuKeamananName}>

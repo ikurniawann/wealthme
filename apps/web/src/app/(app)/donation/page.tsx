@@ -108,6 +108,12 @@ const TAX_DEDUCTIBLE_DONATION_TYPES: ReadonlySet<DonationType> = new Set([
 // record (free-text institution name), not a translated enum — kept in
 // Indonesian in both locales so switching language never changes what gets
 // stored, matching the value-locked crud-config select option convention.
+// Revisi H final-review fix — entries that overlap the Master Data seed
+// (`REFERENCE_ITEM_DEFAULTS.lembaga` in packages/contracts) must use its
+// exact spelling, or the merge in `mergeReferenceOptions` shows both as
+// near-duplicate options ("Pura / Parisada" + "Vihara" next to the seed's
+// "Pura / Vihara"). "Lainnya" and the static-only entries below (no seed
+// counterpart) are unaffected.
 const LEMBAGA_OPTIONS = [
   "BAZNAS",
   "Dompet Dhuafa",
@@ -115,8 +121,7 @@ const LEMBAGA_OPTIONS = [
   "LAZ Lokal / Masjid",
   "Gereja / Paroki",
   "Yayasan Keagamaan",
-  "Pura / Parisada",
-  "Vihara",
+  "Pura / Vihara",
   "Yayasan Sosial",
   "Lainnya",
 ];
