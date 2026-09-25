@@ -17,8 +17,7 @@ import { ZakatRequestDto } from "./dto/zakat.dto";
 
 import type { INestApplication } from "@nestjs/common";
 
-// A type-only DTO import degrades design:paramtypes to Object, and the global
-// ValidationPipe({ whitelist: true }) then strips every field from the body.
+// A type-only DTO import degrades design:paramtypes Object (ts-jest) or Function (tsc); ValidationPipe then skips or strips body.
 function paramTypesOf(method: string): unknown[] {
   const types = Reflect.getMetadata(
     "design:paramtypes",
@@ -41,6 +40,7 @@ describe("CalculatorsController — request DTOs survive to runtime", () => {
     const types = paramTypesOf(method as string);
     expect(types).toContain(dto);
     expect(types).not.toContain(Object);
+    expect(types).not.toContain(Function);
   });
 });
 
