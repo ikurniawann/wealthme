@@ -42,6 +42,9 @@ import {
 } from "@/hooks/use-family-religion";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useLocale } from "@/hooks/use-locale";
+import { mergeReferenceOptions } from "@/hooks/reference-options";
+import { useReferenceItems } from "@/hooks/use-reference-items";
+import { AddToMasterDataLink } from "@/components/crud";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
@@ -299,6 +302,12 @@ export default function DonationPage() {
   const [jenis, setJenis] = useState<DonationType>("zakat_maal");
   const [jumlah, setJumlah] = useState("");
   const [lembaga, setLembaga] = useState(LEMBAGA_OPTIONS[0]);
+  const { items: lembagaItems } = useReferenceItems("lembaga");
+  const lembagaOptions = mergeReferenceOptions(
+    lembagaItems.map((i) => i.label),
+    LEMBAGA_OPTIONS,
+    lembaga,
+  );
   const [tanggal, setTanggal] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -878,10 +887,11 @@ export default function DonationPage() {
                 onChange={(e) => setLembaga(e.target.value)}
                 className="select"
               >
-                {LEMBAGA_OPTIONS.map((o) => (
+                {lembagaOptions.map((o) => (
                   <option key={o}>{o}</option>
                 ))}
               </select>
+              <AddToMasterDataLink group="lembaga" />
             </div>
 
             <div className="field">
