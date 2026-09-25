@@ -1,10 +1,12 @@
-/** The local (WIB in production) calendar day of an ISO instant — the same day the list prints. */
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+/** The WIB calendar day of an ISO instant, independent of the browser's timezone. */
 export function localDateKey(iso: string): string {
-  const d = new Date(iso);
+  const d = new Date(new Date(iso).getTime() + WIB_OFFSET_MS);
   return [
-    String(d.getFullYear()).padStart(4, "0"),
-    String(d.getMonth() + 1).padStart(2, "0"),
-    String(d.getDate()).padStart(2, "0"),
+    String(d.getUTCFullYear()).padStart(4, "0"),
+    String(d.getUTCMonth() + 1).padStart(2, "0"),
+    String(d.getUTCDate()).padStart(2, "0"),
   ].join("-");
 }
 

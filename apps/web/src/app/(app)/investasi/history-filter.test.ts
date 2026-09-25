@@ -9,7 +9,18 @@ const rows = [
 
 describe("localDateKey", () => {
   it("uses the WIB calendar day, not the UTC one", () => {
-    expect(localDateKey("2026-03-01T18:30:00.000Z")).toBe("2026-03-02");
+    const year = jest
+      .spyOn(Date.prototype, "getFullYear")
+      .mockReturnValue(2026);
+    const month = jest.spyOn(Date.prototype, "getMonth").mockReturnValue(1);
+    const day = jest.spyOn(Date.prototype, "getDate").mockReturnValue(1);
+    try {
+      expect(localDateKey("2026-03-01T18:30:00.000Z")).toBe("2026-03-02");
+    } finally {
+      year.mockRestore();
+      month.mockRestore();
+      day.mockRestore();
+    }
   });
 });
 

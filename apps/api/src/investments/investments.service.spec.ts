@@ -872,6 +872,30 @@ describe("InvestmentsService P&L", () => {
       expect(result?.currentPrice).toBe("1300000");
     });
 
+    it.each([null, BigInt(0)])(
+      "falls back to cost basis when family gold price is %s and no stored price exists",
+      async (goldPricePerGram) => {
+        mockPrisma.investment.findMany.mockResolvedValue([
+          emasRow({
+            prices: [],
+            familyGroup: {
+              goldPricePerGram,
+              goldPriceUpdatedAt:
+                goldPricePerGram === null ? null : GOLD_UPDATED_AT,
+            },
+          }),
+        ]);
+
+        const [result] = await service.findAll("fg-1");
+
+        expect(result?.currentPrice).toBe("1200000");
+        expect(result?.currentValue).toBe("12600000");
+        expect(result?.returnRp).toBe("0");
+        expect(result?.returnPct).toBe(0);
+        expect(result?.latestPriceSource).toBeNull();
+      },
+    );
+
     it("never applies the family gold price to a non-emas holding", async () => {
       mockPrisma.investment.findMany.mockResolvedValue([
         emasRow({ type: "lainnya" }),

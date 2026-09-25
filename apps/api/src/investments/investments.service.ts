@@ -235,7 +235,9 @@ export class InvestmentsService {
           : null;
         let currentPrice = isDeposito
           ? null
-          : (familyGoldPrice ?? latestPrice?.price ?? null);
+          : (familyGoldPrice ??
+            latestPrice?.price ??
+            (inv.type === "emas" ? costBasis : null));
 
         let currentValue: Decimal | null = null;
         let returnRp: Decimal | null = null;
