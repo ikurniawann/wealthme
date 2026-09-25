@@ -10,9 +10,17 @@
 
 import { Eye, EyeOff } from "lucide-react";
 
+import { FOREIGN_CURRENCIES } from "@/hooks/currencies";
 import { useLocale } from "@/hooks/use-locale";
+import { isForeignCurrency, type DisplayCurrency } from "./display-currency";
 import type { TrendCustomRange, TrendRangeKey } from "./use-ringkasan-data";
-import type { DisplayCurrency } from "./display-currency";
+
+// design-system.css styles the active segment via [aria-selected], which a <select> cannot carry.
+const ACTIVE_SEGMENT_STYLE = {
+  background: "var(--card)",
+  color: "var(--foreground)",
+  boxShadow: "var(--shadow-card)",
+} as const;
 
 type PageLeadProps = {
   familyName: string;
@@ -49,11 +57,11 @@ export function RingkasanPageLead({
     { key: "all", label: t.ringkasan.trendRangeLabelAll },
     { key: "custom", label: t.ringkasan.trendRangeLabelCustom },
   ];
-  const currencies: { key: DisplayCurrency; label: string }[] = [
+  const fixedCurrencies: { key: "IDR" | "GOLD"; label: string }[] = [
     { key: "IDR", label: t.ringkasan.currencyIdr },
-    { key: "USD", label: t.ringkasan.currencyUsd },
     { key: "GOLD", label: t.ringkasan.currencyGold },
   ];
+  const foreignSelected = isForeignCurrency(displayCurrency);
 
   return (
     <section className="page-lead">
@@ -67,22 +75,49 @@ export function RingkasanPageLead({
       </div>
       <div className="row row--wrap">
         <div
-          role="tablist"
+          role="group"
           aria-label={t.ringkasan.currencyGroupAriaLabel}
           className="segmented"
         >
-          {currencies.map((c) => (
-            <button
-              key={c.key}
-              type="button"
-              role="tab"
-              aria-selected={displayCurrency === c.key}
-              onClick={() => onDisplayCurrencyChange(c.key)}
-              className="segmented__item"
-            >
-              {c.label}
-            </button>
-          ))}
+          <div
+            role="tablist"
+            aria-label={t.ringkasan.currencyGroupAriaLabel}
+            className="contents"
+          >
+            {fixedCurrencies.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                role="tab"
+                aria-selected={displayCurrency === c.key}
+                onClick={() => onDisplayCurrencyChange(c.key)}
+                className="segmented__item"
+              >
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <select
+            aria-label={t.ringkasan.currencyForeignAriaLabel}
+            className="segmented__item"
+            style={foreignSelected ? ACTIVE_SEGMENT_STYLE : undefined}
+            value={foreignSelected ? displayCurrency : ""}
+            onChange={(e) => {
+              const next = FOREIGN_CURRENCIES.find(
+                (c) => c.code === e.target.value,
+              );
+              if (next) onDisplayCurrencyChange(next.code);
+            }}
+          >
+            <option value="" disabled hidden>
+              {t.ringkasan.currencyForeignPlaceholder}
+            </option>
+            {FOREIGN_CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {`${c.flag} ${c.code}`}
+              </option>
+            ))}
+          </select>
         </div>
         <div
           role="tablist"

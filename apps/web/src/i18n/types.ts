@@ -2190,7 +2190,8 @@ export type I18nDictionary = {
     netWorthTrendTitleCustom: string;
     currencyGroupAriaLabel: string;
     currencyIdr: string;
-    currencyUsd: string;
+    currencyForeignAriaLabel: string;
+    currencyForeignPlaceholder: string;
     currencyGold: string;
     netWorthTrendTitle12m: string;
     netWorthTrendTitleAll: string;
