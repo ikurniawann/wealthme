@@ -454,23 +454,32 @@ export class LiabilitiesService {
     const interestMethod = dto.interestMethod ?? existing.interestMethod;
     assertMethodAllowed(type, interestMethod);
     const tenorMonths = dto.tenorMonths ?? existing.tenorMonths;
-    const termsChanged = [
-      dto.type,
-      dto.interestMethod,
-      dto.tenorMonths,
-      dto.interestRate,
-      dto.totalDebt,
-      dto.installmentAmount,
-    ].some((value) => value !== undefined);
-    const installmentAmount = termsChanged
-      ? resolveInstallment({
-          method: interestMethod,
-          totalDebt,
-          interestRate: dto.interestRate ?? existing.interestRate.toString(),
-          tenorMonths,
-          override: amounts.installmentAmount,
-        })
-      : existing.installmentAmount;
+    const resolvedInterestRate =
+      dto.interestRate ?? existing.interestRate.toString();
+    // Fix round 1 (Important #2) — the web edit form re-sends every term
+    // field on every save, so checking DTO field PRESENCE (as before)
+    // treated a no-op PATCH as "terms changed" and silently dropped a
+    // user-overridden installment. Compare resolved VALUES against
+    // `existing` instead; an explicit `installmentAmount` still wins below
+    // regardless of whether any other term actually changed.
+    const termsChanged =
+      type !== existing.type ||
+      interestMethod !== existing.interestMethod ||
+      tenorMonths !== existing.tenorMonths ||
+      resolvedInterestRate !== existing.interestRate.toString() ||
+      totalDebt !== existing.totalDebt;
+    const installmentAmount =
+      amounts.installmentAmount !== undefined
+        ? amounts.installmentAmount
+        : termsChanged
+          ? resolveInstallment({
+              method: interestMethod,
+              totalDebt,
+              interestRate: resolvedInterestRate,
+              tenorMonths,
+              override: undefined,
+            })
+          : existing.installmentAmount;
     const minimumPayment =
       installmentAmount ?? amounts.minimumPayment ?? existing.minimumPayment;
 
@@ -501,7 +510,9 @@ export class LiabilitiesService {
         tenorMonths,
         startDate:
           dto.startDate !== undefined
-            ? new Date(dto.startDate)
+            ? dto.startDate
+              ? new Date(dto.startDate)
+              : null
             : existing.startDate,
         installmentAmount,
         fixedRateMonths: dto.fixedRateMonths ?? existing.fixedRateMonths,

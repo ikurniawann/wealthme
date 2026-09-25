@@ -11,6 +11,7 @@ import { PrismaService } from "../prisma/prisma.service";
 // fragility of awaiting a `void`-called async function.
 import * as transactionAlerts from "../transactions/transaction-alerts.util";
 
+import { computeInstallment } from "./amortisation.util";
 import { LiabilitiesService } from "./liabilities.service";
 
 import type { TestingModule } from "@nestjs/testing";
@@ -1730,6 +1731,94 @@ describe("LiabilitiesService", () => {
             installmentAmount: BigInt(7_000_000),
             minimumPayment: BigInt(7_000_000),
             notes: "servis rutin",
+          }),
+        }),
+      );
+    });
+
+    it("update: clearing startDate stores null, not the epoch (1970-01-01)", async () => {
+      const kpr = {
+        ...FLAT_CAR,
+        startDate: new Date("2020-01-15T00:00:00.000Z"),
+      };
+      prisma.liability.findUnique.mockResolvedValue(kpr);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(kpr);
+      prisma.liability.update.mockResolvedValue(kpr);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", { startDate: null as never });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ startDate: null }),
+        }),
+      );
+    });
+
+    it("update: re-sending identical totalDebt/interestRate/tenorMonths/interestMethod with only new notes keeps the stored override", async () => {
+      const overridden = {
+        ...FLAT_CAR,
+        tenorMonths: 36,
+        installmentAmount: BigInt(7_000_000),
+        minimumPayment: BigInt(7_000_000),
+      };
+      prisma.liability.findUnique.mockResolvedValue(overridden);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
+      prisma.liability.update.mockResolvedValue(overridden);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", {
+        totalDebt: "200000000",
+        interestRate: "6.00",
+        tenorMonths: 36,
+        interestMethod: "flat" as never,
+        notes: "servis rutin",
+      });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: BigInt(7_000_000),
+            minimumPayment: BigInt(7_000_000),
+            notes: "servis rutin",
+          }),
+        }),
+      );
+    });
+
+    it("update: a real tenor change recomputes even when a prior override existed", async () => {
+      const overridden = {
+        ...FLAT_CAR,
+        tenorMonths: 36,
+        installmentAmount: BigInt(7_000_000),
+        minimumPayment: BigInt(7_000_000),
+      };
+      prisma.liability.findUnique.mockResolvedValue(overridden);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
+      prisma.liability.update.mockResolvedValue(overridden);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      const expected = computeInstallment({
+        method: "flat",
+        principal: BigInt(200_000_000),
+        annualInterestRatePercent: "6.00",
+        tenorMonths: 40,
+      });
+
+      await service.update("fg-1", "lid-1", { tenorMonths: 40 });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tenorMonths: 40,
+            installmentAmount: expected,
+            minimumPayment: expected,
           }),
         }),
       );
