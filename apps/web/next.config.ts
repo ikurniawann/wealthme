@@ -10,6 +10,9 @@ config({ path: path.resolve(process.cwd(), "../../.env") });
 const nextConfig: NextConfig = {
   // Required for Docker: bundles server + deps into .next/standalone.
   output: "standalone",
+  // Lets `next dev` serve its dev resources to a tunnelled hostname (comma-separated hosts).
+  allowedDevOrigins:
+    process.env.ALLOWED_DEV_ORIGINS?.split(",").filter(Boolean),
 };
 
 export default nextConfig;
