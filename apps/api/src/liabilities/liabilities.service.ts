@@ -26,6 +26,7 @@ import {
 } from "../transactions/transaction-alerts.util";
 
 import {
+  buildSchedule,
   computeInstallment,
   defaultInterestMethod,
   monthsElapsed,
@@ -37,6 +38,7 @@ import {
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
   LiabilityResponseDto,
+  LiabilityScheduleResponseDto,
   LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
 import type { PayLiabilityDto } from "./dto/pay-liability.dto";
@@ -254,6 +256,54 @@ export class LiabilitiesService {
       totalRemainingBalance: totalRemainingBalance.toString(),
       totalDebt: totalDebt.toString(),
       currency: "IDR",
+    };
+  }
+
+  /** Read-only projection from the liability's current state; nothing is persisted. */
+  async getSchedule(
+    familyGroupId: string,
+    id: string,
+    now: Date = new Date(),
+  ): Promise<LiabilityScheduleResponseDto> {
+    const liability = await this.prisma.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+
+    const elapsed = liability.startDate
+      ? monthsElapsed(liability.startDate, now)
+      : 0;
+    const tenor = liability.tenorMonths;
+    const rows = buildSchedule({
+      method: liability.interestMethod,
+      remainingBalance: liability.remainingBalance,
+      originalPrincipal: liability.totalDebt,
+      annualInterestRatePercent: liability.interestRate.toString(),
+      rateIsMonthly: liability.type === "kartu_kredit",
+      installmentAmount:
+        liability.installmentAmount ??
+        (liability.minimumPayment > BigInt(0)
+          ? liability.minimumPayment
+          : null),
+      remainingMonths: tenor === null ? null : Math.max(1, tenor - elapsed),
+      firstPeriod: tenor === null ? elapsed + 1 : Math.min(elapsed + 1, tenor),
+      fixedRateMonths: liability.fixedRateMonths,
+      floatingRatePercent: liability.floatingRate?.toString() ?? null,
+    });
+
+    return {
+      liabilityId: liability.id,
+      interestMethod: liability.interestMethod,
+      installmentAmount: liability.installmentAmount?.toString() ?? null,
+      rows: rows.map((row) => ({
+        period: row.period,
+        installment: row.installment.toString(),
+        interest: row.interest.toString(),
+        principal: row.principal.toString(),
+        remaining: row.remaining.toString(),
+      })),
     };
   }
 

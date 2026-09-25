@@ -1906,4 +1906,113 @@ describe("LiabilitiesService", () => {
       });
     });
   });
+
+  describe("getSchedule (revisi G)", () => {
+    const NOW = new Date("2026-09-25T00:00:00.000Z");
+
+    it("throws NotFoundException for a liability outside this family group", async () => {
+      prisma.liability.findUnique.mockResolvedValue(null);
+
+      await expect(service.getSchedule("fg-1", "lid-x", NOW)).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(prisma.liability.findUnique).toHaveBeenCalledWith({
+        where: { id: "lid-x", familyGroupId: "fg-1" },
+      });
+    });
+
+    it("anuitas 12 months into a 240-month KPR continues from period 13 on the current balance", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...BASE,
+        type: "kpr",
+        interestMethod: "anuitas",
+        totalDebt: BigInt(500_000_000),
+        remainingBalance: BigInt(489_431_673),
+        interestRate: { toString: () => "8.00" },
+        tenorMonths: 240,
+        startDate: new Date("2025-09-10T00:00:00.000Z"),
+        installmentAmount: BigInt(4_182_200),
+        minimumPayment: BigInt(4_182_200),
+      });
+
+      const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+
+      expect(schedule.liabilityId).toBe("lid-1");
+      expect(schedule.interestMethod).toBe("anuitas");
+      expect(schedule.installmentAmount).toBe("4182200");
+      expect(schedule.rows).toHaveLength(228);
+      expect(schedule.rows[0]).toEqual({
+        period: 13,
+        installment: "4182200",
+        interest: "3262878",
+        principal: "919322",
+        remaining: "488512351",
+      });
+      expect(schedule.rows[227]).toEqual({
+        period: 240,
+        installment: "4182420",
+        interest: "27698",
+        principal: "4154722",
+        remaining: "0",
+      });
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    it("kartu kredit: open-ended schedule from minimumPayment at the monthly rate", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...BASE,
+        type: "kartu_kredit",
+        totalDebt: BigInt(30_000_000),
+        remainingBalance: BigInt(8_000_000),
+        minimumPayment: BigInt(800_000),
+        interestRate: { toString: () => "2.25" },
+      });
+
+      const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+
+      expect(schedule.rows).toHaveLength(12);
+      expect(schedule.rows[0]?.interest).toBe("180000");
+      expect(schedule.rows[11]?.remaining).toBe("0");
+    });
+
+    it("past its tenor: a single payoff row, never an empty or negative schedule", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...BASE,
+        type: "kendaraan",
+        interestMethod: "flat",
+        totalDebt: BigInt(200_000_000),
+        remainingBalance: BigInt(5_555_540),
+        interestRate: { toString: () => "6.00" },
+        tenorMonths: 36,
+        startDate: new Date("2023-01-15T00:00:00.000Z"),
+        installmentAmount: BigInt(6_555_556),
+        minimumPayment: BigInt(6_555_556),
+      });
+
+      const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+
+      expect(schedule.rows).toEqual([
+        {
+          period: 36,
+          installment: "6555540",
+          interest: "1000000",
+          principal: "5555540",
+          remaining: "0",
+        },
+      ]);
+    });
+
+    it("returns no rows when there is neither an installment, a min. payment nor a tenor", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...BASE,
+        totalDebt: BigInt(5_000_000),
+        remainingBalance: BigInt(5_000_000),
+        minimumPayment: BigInt(0),
+      });
+
+      const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+
+      expect(schedule.rows).toEqual([]);
+    });
+  });
 });

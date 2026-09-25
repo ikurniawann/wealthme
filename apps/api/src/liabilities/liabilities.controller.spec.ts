@@ -18,12 +18,15 @@ import "reflect-metadata";
 
 import { ForbiddenException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { Test } from "@nestjs/testing";
 import { Role } from "@prisma/client";
+import request from "supertest";
 
 import { CaslAbilityFactory } from "../casl/casl-ability.factory";
 import { AbilitiesGuard } from "../common/guards/abilities.guard";
 
 import { LiabilitiesController } from "./liabilities.controller";
+import { LiabilitiesService } from "./liabilities.service";
 
 import type { ExecutionContext } from "@nestjs/common";
 
@@ -74,7 +77,7 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
     role: Role.operational,
   };
 
-  const readRoutes = ["findAll", "getSummary"] as const;
+  const readRoutes = ["findAll", "getSummary", "getSchedule"] as const;
   const manageRoutes = [
     "create",
     "update",
@@ -128,5 +131,32 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
     expect(() =>
       guard.canActivate(buildContext(controller, "purchase", null)),
     ).toThrow(ForbiddenException);
+  });
+});
+
+describe("LiabilitiesController — GET :id/schedule over HTTP", () => {
+  it("routes to getSchedule with the family group and liability ids", async () => {
+    const service = {
+      getSchedule: jest.fn().mockResolvedValue({
+        liabilityId: "lid-1",
+        interestMethod: "flat",
+        installmentAmount: "6555556",
+        rows: [],
+      }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [{ provide: LiabilitiesService, useValue: service }],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    await app.init();
+
+    const res = await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/schedule")
+      .expect(200);
+
+    expect(service.getSchedule).toHaveBeenCalledWith("fg-1", "lid-1");
+    expect(res.body.installmentAmount).toBe("6555556");
+    await app.close();
   });
 });

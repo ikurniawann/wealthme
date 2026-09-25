@@ -38,3 +38,21 @@ export class LiabilitySummaryResponseDto {
   @ApiProperty() totalDebt!: string;
   @ApiProperty() currency!: string;
 }
+
+export class LiabilityScheduleRowDto {
+  @ApiProperty() period!: number;
+  @ApiProperty() installment!: string;
+  @ApiProperty() interest!: string;
+  @ApiProperty() principal!: string;
+  @ApiProperty() remaining!: string;
+}
+
+export class LiabilityScheduleResponseDto {
+  @ApiProperty() liabilityId!: string;
+  @ApiProperty({ enum: ["efektif", "flat", "anuitas"] })
+  interestMethod!: string;
+  @ApiProperty({ nullable: true, type: String })
+  installmentAmount!: string | null;
+  @ApiProperty({ type: [LiabilityScheduleRowDto] })
+  rows!: LiabilityScheduleRowDto[];
+}

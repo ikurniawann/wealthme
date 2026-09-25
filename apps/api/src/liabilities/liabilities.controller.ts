@@ -26,6 +26,7 @@ import { PageAccess } from "../common/decorators/page-access.decorator";
 import { CreateLiabilityDto } from "./dto/create-liability.dto";
 import {
   LiabilityResponseDto,
+  LiabilityScheduleResponseDto,
   type LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -68,6 +69,23 @@ export class LiabilitiesController {
     @Param("familyGroupId") familyGroupId: string,
   ): Promise<LiabilitySummaryResponseDto> {
     return this.liabilitiesService.getSummary(familyGroupId);
+  }
+
+  @Get(":id/schedule")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Liability"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Projected installment schedule from the liability's current state (read-only, max 600 rows)",
+  })
+  @ApiResponse({ status: 200, type: LiabilityScheduleResponseDto })
+  @ApiResponse({ status: 404, description: "Liability not found" })
+  getSchedule(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+  ): Promise<LiabilityScheduleResponseDto> {
+    return this.liabilitiesService.getSchedule(familyGroupId, id);
   }
 
   @Post()
