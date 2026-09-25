@@ -59,8 +59,12 @@ fi
 # and baking the wrong origin into the built JS.
 if [ "$DEPLOY_MODE" = "pull" ]; then
   echo "[deploy] target=DEV, mode=pull — fetching prebuilt images (tag: ${DEPLOY_IMAGE_TAG:-dev})..."
-  if ! docker compose -f docker-compose.yml pull; then
-    echo "[deploy] REFUSED: image pull failed. If ghcr.io/andrsrjld/wealthme-web-{api,web} is private, run 'docker login ghcr.io' once on this host first (see docs/DEPLOYMENT.md). Falling back to DEPLOY_MODE=build is also an option for this run only." >&2
+  # Pull ONLY our own GHCR images (api/migrate share one). Third-party infra
+  # (postgres/redis/minio/mailhog/nginx) is pulled by `up` only when missing,
+  # so an upstream registry problem — e.g. MinIO removing `minio/minio` from
+  # Docker Hub — can no longer abort a deploy that has nothing to do with it.
+  if ! docker compose -f docker-compose.yml pull api web migrate; then
+    echo "[deploy] REFUSED: image pull failed. ghcr.io/andrsrjld/wealthme-web-{api,web} are private: log Docker in once with 'gh auth token | docker login ghcr.io -u <github-user> --password-stdin' (token needs read:packages; see docs/DEPLOYMENT.md). DEPLOY_MODE=build is the fallback for this run only." >&2
     exit 1
   fi
   # starts infra, runs the one-shot migrate service (migrate deploy + seed)
