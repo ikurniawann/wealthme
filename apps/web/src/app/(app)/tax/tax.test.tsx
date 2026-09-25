@@ -648,3 +648,69 @@ describe("toClampedDigitString", () => {
     expect(toClampedDigitString("Rp ", MAX_TAX_INPUT)).toBe("0");
   });
 });
+
+/**
+ * Task 3 — auto-fill the Perpuluhan/Zakat deduction field from Task 2's
+ * `/family-groups/:fg/donations/deductible-total` endpoint, without ever
+ * clobbering a value the user has typed themselves.
+ */
+describe("TaxPage — deduction auto-fill from recorded donations", () => {
+  const DEDUCTIBLE_URL = `/family-groups/${FAMILY_GROUP_ID}/donations/deductible-total?year=${new Date().getFullYear()}`;
+
+  function routeDeductible(total: string) {
+    const fallback = mockApiFetch.getMockImplementation();
+    mockApiFetch.mockImplementation((url: string, init?: unknown) => {
+      if (url === DEDUCTIBLE_URL) {
+        return Promise.resolve({ year: new Date().getFullYear(), total });
+      }
+      return fallback ? fallback(url, init) : Promise.reject(new Error(url));
+    });
+  }
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === "/calculators/pph21") {
+        return Promise.resolve(buildPph21Result());
+      }
+      if (url === "/auth/me") return Promise.resolve(OWNER_ME);
+      if (url.includes("/tax")) return Promise.resolve([]);
+      return Promise.reject(new Error(url));
+    });
+  });
+
+  it("pre-fills the Perpuluhan/Zakat field with the deductible total", async () => {
+    routeDeductible("2500000");
+    render(<TaxPage />);
+
+    const field = await screen.findByLabelText(/perpuluhan/i);
+    await waitFor(() => expect(field).toHaveValue("2.500.000"));
+    expect(
+      screen.getByText(/infaq, sedekah & wakaf tidak termasuk/i),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the user's own value once they edit the field", async () => {
+    routeDeductible("2500000");
+    const user = userEvent.setup();
+    render(<TaxPage />);
+
+    const field = await screen.findByLabelText(/perpuluhan/i);
+    await waitFor(() => expect(field).toHaveValue("2.500.000"));
+    await user.clear(field);
+    await user.type(field, "1000000");
+    await queryClient.invalidateQueries();
+
+    await waitFor(() => expect(field).toHaveValue("1.000.000"));
+  });
+});

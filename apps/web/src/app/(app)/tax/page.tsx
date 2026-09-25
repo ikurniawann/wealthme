@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Send, FileText, ShieldCheck } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
@@ -204,6 +204,7 @@ export default function TaxPage() {
   const [gross, setGross] = useState("");
   const [ptkp, setPtkp] = useState(54000000);
   const [zakat, setZakat] = useState("");
+  const [zakatTouched, setZakatTouched] = useState(false);
   // Prototype structural port follow-up — the calculator math itself is
   // year-independent (the BE brackets don't vary per year), but which
   // TaxRecord year a Save writes to genuinely is real, wired functionality
@@ -270,6 +271,30 @@ export default function TaxPage() {
       apiFetch<TaxRecordDto[]>(`/family-groups/${fgId}/tax`, { token }),
     enabled: !!fgId && !!token,
   });
+
+  // EPIC (revisi-ab) — pre-fill the Perpuluhan/Zakat deduction field from
+  // Task 2's donations/deductible-total endpoint (the sum of this year's
+  // zakat/tithe donations flagged tax-deductible), instead of leaving the
+  // user to retype a number that's already recorded elsewhere. `zakatTouched`
+  // below stops this from ever overwriting a value the user typed themselves.
+  const { data: deductible } = useQuery<{ year: number; total: string }>({
+    queryKey: ["donations", fgId ?? "", "deductible-total", taxYear],
+    queryFn: () =>
+      apiFetch<{ year: number; total: string }>(
+        `/family-groups/${fgId}/donations/deductible-total?year=${taxYear}`,
+        { token },
+      ),
+    enabled: !!token && !!fgId,
+  });
+
+  useEffect(() => {
+    if (zakatTouched || !deductible) return;
+    const total = Number(deductible.total);
+    // Syncing local zakat input state from a server-fetched query result (an
+    // external system), not deriving it from other React state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setZakat(total > 0 ? formatNumber(Math.min(total, MAX_TAX_INPUT)) : "");
+  }, [deductible, zakatTouched]);
 
   // Upsert tax record mutation
   const upsertMutation = useMutation({
@@ -346,6 +371,7 @@ export default function TaxPage() {
   function handleResetCalculator(): void {
     setGross("");
     setZakat("");
+    setZakatTouched(false);
     setPtkp(54000000);
     setTaxYear(CURRENT_YEAR);
     toast(t.tax.toastReset);
@@ -574,22 +600,27 @@ export default function TaxPage() {
             />
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
+            <label
+              htmlFor="tax-perpuluhan"
+              className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+            >
               {t.tax.fieldPerpuluhanLabel}
             </label>
             <input
+              id="tax-perpuluhan"
               type="text"
               inputMode="numeric"
               value={zakat}
-              onChange={(e) =>
+              onChange={(e) => {
+                setZakatTouched(true);
                 setZakat(
                   e.target.value === ""
                     ? ""
                     : formatNumber(
                         Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
                       ),
-                )
-              }
+                );
+              }}
               className="input"
             />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
@@ -598,6 +629,12 @@ export default function TaxPage() {
                 {t.tax.perpuluhanHintLinkLabel}
               </Link>
               .
+            </div>
+            <div className="mt-1 text-[11px] text-muted-foreground">
+              {t.tax.perpuluhanAutoFilledHint.replace(
+                "{year}",
+                String(taxYear),
+              )}
             </div>
           </div>
         </div>

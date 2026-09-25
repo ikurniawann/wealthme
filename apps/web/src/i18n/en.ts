@@ -2515,6 +2515,8 @@ export const en = {
     perpuluhanHint:
       "Only tithes paid to a registered institution qualify as a deduction (PP 60/2010). Pulled automatically from ",
     perpuluhanHintLinkLabel: "Donations",
+    perpuluhanAutoFilledHint:
+      "Auto-filled from recorded zakat & tithe for {year}. Infaq, sedekah & waqf are not tax-deductible (PP 60/2010).",
     payloadCalloutPrefix: "Sent to the server: ",
     payloadCalloutSuffix: "- plain digits, no separators.",
     resetButton: "Reset",

@@ -2565,6 +2565,8 @@ export const id = {
     perpuluhanHint:
       "Hanya persembahan perpuluhan ke lembaga resmi yang boleh menjadi pengurang (PP 60/2010). Ambil otomatis dari ",
     perpuluhanHintLinkLabel: "Donasi",
+    perpuluhanAutoFilledHint:
+      "Terisi otomatis dari total zakat & persepuluhan tercatat tahun {year}. Infaq, sedekah & wakaf tidak termasuk pengurang pajak (PP 60/2010).",
     payloadCalloutPrefix: "Yang dikirim ke server: ",
     payloadCalloutSuffix: "- angka murni tanpa titik.",
     resetButton: "Reset",

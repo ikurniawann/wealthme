@@ -2352,6 +2352,7 @@ export type I18nDictionary = {
     jabatanHint: string;
     perpuluhanHint: string;
     perpuluhanHintLinkLabel: string;
+    perpuluhanAutoFilledHint: string;
     payloadCalloutPrefix: string;
     payloadCalloutSuffix: string;
     resetButton: string;
