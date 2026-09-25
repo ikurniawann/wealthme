@@ -1786,6 +1786,7 @@ export const id = {
       kendaraan: "Kendaraan",
       elektronik: "Elektronik",
       perhiasan: "Perhiasan",
+      emas: "Emas",
       lainnya: "Lainnya",
     },
     accountTypeLabels: {

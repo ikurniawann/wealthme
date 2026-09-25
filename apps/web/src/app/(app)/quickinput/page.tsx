@@ -177,6 +177,7 @@ const ASSET_TYPE: Record<string, string> = {
   Kendaraan: "kendaraan",
   Elektronik: "elektronik",
   Perhiasan: "perhiasan",
+  Emas: "emas",
   Lainnya: "lainnya",
 };
 const LIABILITY_TYPE: Record<string, string> = {

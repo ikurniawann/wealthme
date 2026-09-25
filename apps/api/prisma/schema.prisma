@@ -78,6 +78,7 @@ enum AssetType {
   elektronik
   perhiasan
   lainnya
+  emas
 }
 
 // EPIC-024 D2/US-ASSET-6: which linear projection Asset.valueChangeRatePct

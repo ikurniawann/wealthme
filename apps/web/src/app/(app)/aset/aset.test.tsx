@@ -20,6 +20,7 @@ import {
   screen,
   waitFor,
   fireEvent,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -341,6 +342,37 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     const parsedBody = JSON.parse(postCall[1].body) as Record<string, unknown>;
     expect(parsedBody.valueChangeAmount).toBe("-20000000");
     expect(parsedBody.valueChangeRatePct).toBeUndefined();
+  });
+
+  it("offers Emas as a physical asset type and posts type emas (Revisi D item 10)", async () => {
+    const user = userEvent.setup();
+    render(<AsetPage />);
+
+    await user.click(screen.getByRole("button", { name: /tambah aset/i }));
+
+    const typeSelect = await screen.findByLabelText("Kategori");
+    expect(
+      within(typeSelect).getByRole("option", { name: "Emas" }),
+    ).toBeInTheDocument();
+    await user.selectOptions(typeSelect, "emas");
+    fireEvent.change(screen.getByLabelText("Nama Aset"), {
+      target: { value: "Logam Mulia 10 g" },
+    });
+    fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
+      target: { value: "15000000" },
+    });
+
+    await user.click(screen.getByRole("button", { name: /simpan aset/i }));
+
+    await waitFor(() => {
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `/family-groups/${FAMILY_GROUP_ID}/assets`,
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining('"type":"emas"'),
+        }),
+      );
+    });
   });
 });
 

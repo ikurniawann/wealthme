@@ -1754,6 +1754,7 @@ export const en = {
       kendaraan: "Vehicle",
       elektronik: "Electronics",
       perhiasan: "Jewelry",
+      emas: "Gold",
       lainnya: "Other",
     },
     accountTypeLabels: {

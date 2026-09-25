@@ -7,6 +7,7 @@ export type AssetTypeId =
   | "kendaraan"
   | "elektronik"
   | "perhiasan"
+  | "emas"
   | "lainnya";
 
 // EPIC-024 D2/US-ASSET-6: mirrors Prisma's `AssetValueChangeMode` enum —
@@ -61,6 +62,7 @@ export const DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: Record<AssetTypeId, number> =
     kendaraan: -12, // typical vehicle depreciation
     elektronik: -20, // fast depreciation
     perhiasan: 2, // mild appreciation
+    emas: 0, // valued at the recorded figure; no appreciation assumed
     lainnya: 0, // no assumption
   };
 

@@ -756,7 +756,7 @@ interface NotificationDto {
     createdAt: string;
 }
 
-type AssetTypeId = "properti" | "kendaraan" | "elektronik" | "perhiasan" | "lainnya";
+type AssetTypeId = "properti" | "kendaraan" | "elektronik" | "perhiasan" | "emas" | "lainnya";
 type AssetValueChangeMode = "percent" | "fixed";
 interface AssetDto {
     id: string;

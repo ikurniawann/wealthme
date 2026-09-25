@@ -239,6 +239,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
           "Kendaraan",
           "Elektronik",
           "Perhiasan",
+          "Emas",
           "Lainnya",
         ],
       },

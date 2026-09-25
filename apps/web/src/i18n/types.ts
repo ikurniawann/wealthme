@@ -180,6 +180,7 @@ type AsetTypeId =
   | "kendaraan"
   | "elektronik"
   | "perhiasan"
+  | "emas"
   | "lainnya";
 
 /** EPIC-018 Task A5 — `/aset` account-type ids used on the combined "Dana &

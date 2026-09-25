@@ -471,6 +471,8 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   // fast depreciation
   perhiasan: 2,
   // mild appreciation
+  emas: 0,
+  // valued at the recorded figure; no appreciation assumed
   lainnya: 0
   // no assumption
 };

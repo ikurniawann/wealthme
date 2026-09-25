@@ -91,6 +91,7 @@ const ASSET_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> = {
   kendaraan: { icon: Car, chip: "bg-blue-100 text-blue-600" },
   elektronik: { icon: Laptop, chip: "bg-gray-100 text-gray-600" },
   perhiasan: { icon: Gem, chip: "bg-amber-100 text-amber-600" },
+  emas: { icon: Gem, chip: "bg-yellow-100 text-yellow-600" },
   lainnya: { icon: Package, chip: "bg-gray-100 text-gray-600" },
 };
 
@@ -154,6 +155,7 @@ const ASSET_TYPES = [
   "kendaraan",
   "elektronik",
   "perhiasan",
+  "emas",
   "lainnya",
 ] as const satisfies readonly AssetTypeId[];
 
