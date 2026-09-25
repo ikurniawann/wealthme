@@ -258,7 +258,11 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             onClick={onPay}
             disabled={item.paidThisPeriod}
             title={
-              item.paidThisPeriod ? t.asuransi.payAlreadyPaidTooltip : undefined
+              item.paidThisPeriod
+                ? item.renewalDate && new Date(item.renewalDate) > new Date()
+                  ? `${t.asuransi.payPaidThroughTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
+                  : t.asuransi.payAlreadyPaidTooltip
+                : undefined
             }
             className="h-auto px-3 py-[7px] text-[12.5px]"
           >

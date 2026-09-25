@@ -1110,6 +1110,7 @@ export type I18nDictionary = {
      * `/asuransi` card's Bayar icon button when `paidThisPeriod` is true.
      */
     payAlreadyPaidTooltip: string;
+    payPaidThroughTooltipPrefix: string;
     toastRenewalRecordedPrefix: string;
     toastPaySuccessNoRenewal: string;
     toastRenewalFailed: string;
@@ -2382,6 +2383,7 @@ export type I18nDictionary = {
     balanceLabel: string;
     activeBadge: string;
     privateBadge: string;
+    privateBadgeTooltip: string;
     optionsAriaLabel: string;
     viewMutationMenuItem: string;
     editMenuItem: string;

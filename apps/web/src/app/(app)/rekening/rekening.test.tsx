@@ -43,9 +43,10 @@ jest.mock("sonner", () => ({
 // RekeningPage's AccountCardItem calls useRouter() (next/navigation) — not
 // present without a real Next.js App Router, so it must be mocked in a
 // component test (same fix as beranda/beranda.test.tsx).
+const mockPush = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     replace: jest.fn(),
     back: jest.fn(),
     forward: jest.fn(),
@@ -217,5 +218,29 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
     // Unchanged pre-existing behavior — no `type` resend for non-cash edits.
     expect(body.balance).toBe(1000000);
     expect(body.type).toBeUndefined();
+  });
+
+  it("Mutasi footer button opens Transaksi filtered to that account", async () => {
+    mockApiRoutes([buildAccount()]);
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+
+    const card = (await screen.findByText("Tabungan Utama")).closest(
+      "article, li, div.card, [class*='card']",
+    ) as HTMLElement;
+    await user.click(
+      within(card).getByRole("button", { name: /lihat mutasi/i }),
+    );
+
+    expect(mockPush).toHaveBeenCalledWith("/transaksi?accountId=acc-1");
+  });
+
+  it("explains what Privat means on the badge", async () => {
+    mockApiRoutes([buildAccount({ isPrivate: true })]);
+    render(<RekeningPage />);
+
+    expect(
+      await screen.findByTitle(/hanya terlihat oleh master/i),
+    ).toBeInTheDocument();
   });
 });

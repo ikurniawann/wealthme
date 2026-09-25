@@ -1184,6 +1184,7 @@ export const en = {
     paySourceAccountLabel: "Source Account",
     paySourceAccountPlaceholder: "Select an account...",
     payAlreadyPaidTooltip: "Already paid this period",
+    payPaidThroughTooltipPrefix: "Paid through ",
     toastRenewalRecordedPrefix: "Premium paid, next due date ",
     toastPaySuccessNoRenewal: "Premium paid successfully.",
     toastRenewalFailed: "Failed to pay premium. Try again.",
@@ -2550,6 +2551,8 @@ export const en = {
     balanceLabel: "Balance",
     activeBadge: "Active",
     privateBadge: "Private",
+    privateBadgeTooltip:
+      "Only visible to the Master & Co-Master. Other members can't see this account or its transactions.",
     optionsAriaLabel: "Account options",
     viewMutationMenuItem: "View Transactions",
     editMenuItem: "Edit",

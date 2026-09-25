@@ -275,7 +275,11 @@ function AccountCardItem({
         */}
         <StatusBadge variant="success">{t.rekening.activeBadge}</StatusBadge>
         {account.isPrivate && (
-          <StatusBadge variant="purple">{t.rekening.privateBadge}</StatusBadge>
+          <span title={t.rekening.privateBadgeTooltip}>
+            <StatusBadge variant="purple">
+              {t.rekening.privateBadge}
+            </StatusBadge>
+          </span>
         )}
 
         {/* Kebab menu: Edit + Hapus folded out of the main action row */}
@@ -293,7 +297,11 @@ function AccountCardItem({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[120px]">
             <DropdownMenuItem
-              onClick={() => router.push(`/transaksi?accountId=${account.id}`)}
+              onClick={() =>
+                router.push(
+                  `/transaksi?accountId=${encodeURIComponent(account.id)}`,
+                )
+              }
             >
               {t.rekening.viewMutationMenuItem}
             </DropdownMenuItem>
@@ -359,7 +367,11 @@ function AccountCardItem({
           type="button"
           aria-label={t.rekening.viewMutationAriaLabel}
           className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-          onClick={() => router.push("/transaksi")}
+          onClick={() =>
+            router.push(
+              `/transaksi?accountId=${encodeURIComponent(account.id)}`,
+            )
+          }
         >
           <List className="size-3.5" /> {t.rekening.mutasiFooterButton}
         </button>

@@ -1191,6 +1191,7 @@ export const id = {
     paySourceAccountLabel: "Rekening Sumber",
     paySourceAccountPlaceholder: "Pilih rekening...",
     payAlreadyPaidTooltip: "Sudah dibayar periode ini",
+    payPaidThroughTooltipPrefix: "Sudah dibayar hingga ",
     toastRenewalRecordedPrefix: "Premi dibayar, jatuh tempo berikutnya ",
     toastPaySuccessNoRenewal: "Premi berhasil dibayar.",
     toastRenewalFailed: "Gagal membayar premi. Coba lagi.",
@@ -2600,6 +2601,8 @@ export const id = {
     balanceLabel: "Saldo",
     activeBadge: "Aktif",
     privateBadge: "Privat",
+    privateBadgeTooltip:
+      "Hanya terlihat oleh Master & Co-Master. Anggota lain tidak melihat rekening ini maupun transaksinya.",
     optionsAriaLabel: "Opsi rekening",
     viewMutationMenuItem: "Lihat Mutasi",
     editMenuItem: "Edit",

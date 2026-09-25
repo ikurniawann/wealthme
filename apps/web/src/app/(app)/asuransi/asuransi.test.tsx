@@ -239,3 +239,84 @@ describe("AsuransiPage — beneficiary allocation validation (EPIC-022 D6)", () 
     );
   });
 });
+
+// Task 5 — a policy paid ahead of its period (paidThisPeriod true, but the
+// renewalDate is still in the future) shows a paid-through date on the
+// disabled Bayar Premi button instead of the generic "already paid" text.
+describe("AsuransiPage — paid-ahead premium tooltip", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it("tells the user the policy is paid through its renewal date", async () => {
+    const renewalDate = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([
+          {
+            id: "ins-1",
+            familyGroupId: FAMILY_GROUP_ID,
+            name: "Asuransi Jiwa",
+            provider: "Prudential",
+            type: "jiwa",
+            status: "aktif",
+            coverageAmount: "100000000",
+            premiumAmount: "100000",
+            premiumPeriod: "monthly",
+            renewalDate,
+            autoRenewDate: false,
+            policyNumber: "POL-1",
+            daysUntilRenewal: 30,
+            notes: null,
+            currency: "IDR",
+            beneficiaries: [],
+            paidThisPeriod: true,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+        return Promise.resolve({
+          activePolicies: 1,
+          totalMonthlyPremium: "100000",
+          currency: "IDR",
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+
+    render(<AsuransiPage />);
+
+    // Wait for the policy card itself (not just the always-present header
+    // "Bayar Premi" button) before asserting on the card's own button — the
+    // policy number is unique on the page, unlike the policy name (which
+    // also appears in a chart legend/tooltip).
+    await screen.findByText("POL-1");
+    const payButtons = screen.getAllByRole("button", {
+      name: /bayar premi/i,
+    });
+    const pay = payButtons.find(
+      (btn) => (btn as HTMLButtonElement).disabled,
+    ) as HTMLElement;
+    expect(pay).toBeDisabled();
+    expect(pay).toHaveAttribute(
+      "title",
+      expect.stringMatching(/sudah dibayar hingga/i),
+    );
+  });
+});
