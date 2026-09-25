@@ -22,6 +22,7 @@ var index_exports = {};
 __export(index_exports, {
   ACCESS_LEVELS: () => ACCESS_LEVELS,
   ACCESS_PAGES: () => ACCESS_PAGES,
+  ACTIVE_REFERENCE_ITEM_GROUPS: () => ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES: () => ALWAYS_OPEN_PAGES,
   ATTACHMENT_ACCEPTED_MIME_TYPES: () => ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES: () => ATTACHMENT_MAX_FILE_BYTES,
@@ -587,6 +588,11 @@ var ReferenceItemGroupSchema = import_zod9.z.enum([
   "asettype",
   "instype"
 ]);
+var ACTIVE_REFERENCE_ITEM_GROUPS = [
+  "bank",
+  "ewallet",
+  "lembaga"
+];
 var CreateReferenceItemDtoSchema = import_zod9.z.object({
   group: ReferenceItemGroupSchema,
   label: import_zod9.z.string().min(1).max(100)
@@ -602,15 +608,11 @@ var ReferenceItemDtoSchema = import_zod9.z.object({
 });
 var REFERENCE_ITEM_DEFAULTS = {
   bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
-  txntype: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
-  invtype: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
   ewallet: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
-  lembaga: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"],
-  asettype: ["Properti", "Kendaraan", "Elektronik", "Perhiasan"],
-  instype: ["Jiwa", "Kesehatan", "Kendaraan", "Properti"]
+  lembaga: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"]
 };
 function buildReferenceItemSeed() {
-  return ReferenceItemGroupSchema.options.flatMap(
+  return ACTIVE_REFERENCE_ITEM_GROUPS.flatMap(
     (group) => REFERENCE_ITEM_DEFAULTS[group].map((label, index) => ({
       group,
       label,
@@ -802,6 +804,7 @@ function slugifyHandleBase(name) {
 0 && (module.exports = {
   ACCESS_LEVELS,
   ACCESS_PAGES,
+  ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,

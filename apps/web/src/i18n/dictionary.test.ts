@@ -298,17 +298,9 @@ describe("i18n dictionary key parity", () => {
     }
   });
 
-  it("masterdata.groups covers all 7 system reference groups with a title+label in both locales", () => {
-    const groupIds = [
-      "mdbank",
-      "mdtxntype",
-      "mdinvtype",
-      "mdewallet",
-      "mdlembaga",
-      "mdasettype",
-      "mdinstype",
-    ] as const;
-    expect(Object.keys(id.masterdata.groups)).toHaveLength(7);
+  it("masterdata.groups covers all 3 active reference groups with a title+label in both locales", () => {
+    const groupIds = ["mdbank", "mdewallet", "mdlembaga"] as const;
+    expect(Object.keys(id.masterdata.groups)).toHaveLength(3);
     for (const key of groupIds) {
       expect(id.masterdata.groups[key].title).toBeTruthy();
       expect(id.masterdata.groups[key].label).toBeTruthy();

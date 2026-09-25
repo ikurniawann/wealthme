@@ -288,6 +288,38 @@ describe("MasterDataPage, reference items are real API-backed data (EPIC-024 Tas
     );
     expect(mockToastSuccess).toHaveBeenCalled();
   });
+
+  it("shows only Bank, E-Wallet and Lembaga Donasi; enum-duplicate groups and their old rows are gone (Revisi H)", async () => {
+    stubApiFetch([
+      buildReferenceItem({ id: "r-bank", group: "bank", label: "BCA" }),
+      buildReferenceItem({
+        id: "r-txn",
+        group: "txntype",
+        label: "Kartu Kredit",
+      }),
+      buildReferenceItem({ id: "r-inv", group: "invtype", label: "Crypto" }),
+      buildReferenceItem({
+        id: "r-lem",
+        group: "lembaga",
+        label: "BAZNAS",
+      }),
+    ]);
+    render(<MasterDataPage />);
+
+    await screen.findByText("BAZNAS");
+    expect(screen.getByText("Lembaga Donasi")).toBeInTheDocument();
+    expect(screen.getByText("E-Wallet")).toBeInTheDocument();
+    expect(screen.queryByText("Kartu Kredit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Crypto")).not.toBeInTheDocument();
+    for (const title of [
+      /Jenis Transaksi/,
+      /Jenis Investasi/,
+      /Kategori Aset/,
+      /Jenis Asuransi/,
+    ]) {
+      expect(screen.queryByText(title)).not.toBeInTheDocument();
+    }
+  });
 });
 
 describe("MasterDataPage, a new item reaches every form reading the same group (Revisi H)", () => {

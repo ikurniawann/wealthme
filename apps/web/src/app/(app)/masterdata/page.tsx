@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { BookOpen } from "lucide-react";
 import type {
+  ActiveReferenceItemGroup,
   CategoryDto,
   ReferenceItemDto,
   ReferenceItemGroup,
@@ -28,26 +29,14 @@ import {
   type CrudModalState,
 } from "@/components/crud";
 
-/**
- * EPIC-024 Task J (D14, US-MD-1) — maps the page's local `CrudEntity` ids to
- * the API's `ReferenceItemGroup` enum values. "Kategori" is intentionally
- * absent — it keeps its own real API (Category), handled separately below.
- */
-// Order matches the prototype's card grid (docs/prototype/pages/
-// masterdata.html): row 1 = Kategori · Bank · E-Wallet, row 2 = Jenis
-// Transaksi · Jenis Investasi · Lembaga Donasi, row 3 = the two groups the
-// prototype doesn't otherwise order (Kategori Aset, Jenis Asuransi).
+// Only the lists that feed real form selects (Rekening, E-Wallet, Donasi); order = card grid.
 const REFERENCE_GROUP_ENTITIES: {
   entity: CrudEntity;
-  group: ReferenceItemGroup;
+  group: ActiveReferenceItemGroup;
 }[] = [
   { entity: "mdbank", group: "bank" },
   { entity: "mdewallet", group: "ewallet" },
-  { entity: "mdtxntype", group: "txntype" },
-  { entity: "mdinvtype", group: "invtype" },
   { entity: "mdlembaga", group: "lembaga" },
-  { entity: "mdasettype", group: "asettype" },
-  { entity: "mdinstype", group: "instype" },
 ];
 
 type CoaAccountOption = {
@@ -452,7 +441,7 @@ export default function MasterDataPage() {
           )}
         </SectionCard>
 
-        {/* EPIC-024 Task J — the seven reference lists, real API-backed data */}
+        {/* EPIC-024 Task J — the three reference lists, real API-backed data */}
         {REFERENCE_GROUP_ENTITIES.map(({ entity, group }) => {
           const items = itemsByGroup.get(group) ?? [];
           return (

@@ -1975,12 +1975,8 @@ export const en = {
       "The code next to each category is the COA account its transactions post to in reports.",
     groups: {
       mdbank: { title: "Bank", label: "Bank" },
-      mdtxntype: { title: "↕ Transaction Type", label: "Transaction Type" },
-      mdinvtype: { title: "Investment Type", label: "Investment Type" },
       mdewallet: { title: "E-Wallet", label: "E-Wallet" },
       mdlembaga: { title: "Donation Institution", label: "Institution" },
-      mdasettype: { title: "Asset Category", label: "Asset Category" },
-      mdinstype: { title: "Insurance Type", label: "Insurance Type" },
     },
     categorySectionTitle: "Category",
     masterCoaLink: "Master COA",
@@ -1996,7 +1992,7 @@ export const en = {
     systemBadge: "Built-in",
     footerBold: "Category",
     footerRest:
-      " is saved to the server and used in transactions & reports. The other reference lists (bank, e-wallet, transaction type, investment type, donation institution, asset category, insurance type) are also saved per family, not a locked system default. Deleting an item still in use by a transaction is rejected with a message naming that data.",
+      " is saved to the server and used in transactions & reports. Banks, e-wallets and donation institutions are also saved per family and show up right away as choices in the Bank Account, E-Wallet and Donation forms. Deleting an item still in use by a transaction is rejected with a message naming that data.",
     editAriaPrefix: "Edit ",
     deleteAriaPrefix: "Remove ",
     categoryDeleteLabelPrefix: 'category "',

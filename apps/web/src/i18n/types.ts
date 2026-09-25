@@ -210,14 +210,7 @@ type LiabilitasTypeId =
  * stay untranslated in the page — same value-locked-copy caveat Task A4
  * documented for the shared, untranslated `crud-config.ts` select options.
  */
-type MasterDataGroupId =
-  | "mdbank"
-  | "mdtxntype"
-  | "mdinvtype"
-  | "mdewallet"
-  | "mdlembaga"
-  | "mdasettype"
-  | "mdinstype";
+type MasterDataGroupId = "mdbank" | "mdewallet" | "mdlembaga";
 
 /** EPIC-018 Task A5 — `/mastercoa` chart-of-accounts group numbers (1-6). */
 type MasterCoaGroupNum = 1 | 2 | 3 | 4 | 5 | 6;

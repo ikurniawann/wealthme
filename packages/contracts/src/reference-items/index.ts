@@ -23,6 +23,15 @@ export const ReferenceItemGroupSchema = z.enum([
 ]);
 export type ReferenceItemGroup = z.infer<typeof ReferenceItemGroupSchema>;
 
+// txntype/invtype/asettype/instype duplicate Prisma enums; they stay in the schema only so existing rows parse.
+export const ACTIVE_REFERENCE_ITEM_GROUPS = [
+  "bank",
+  "ewallet",
+  "lembaga",
+] as const satisfies readonly ReferenceItemGroup[];
+export type ActiveReferenceItemGroup =
+  (typeof ACTIVE_REFERENCE_ITEM_GROUPS)[number];
+
 export const CreateReferenceItemDtoSchema = z.object({
   group: ReferenceItemGroupSchema,
   label: z.string().min(1).max(100),
@@ -48,16 +57,12 @@ export type ReferenceItemDto = z.infer<typeof ReferenceItemDtoSchema>;
  * array index, so seeded rows keep the same order the demo always showed.
  */
 export const REFERENCE_ITEM_DEFAULTS: Record<
-  ReferenceItemGroup,
+  ActiveReferenceItemGroup,
   readonly string[]
 > = {
   bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
-  txntype: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
-  invtype: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
   ewallet: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
   lembaga: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"],
-  asettype: ["Properti", "Kendaraan", "Elektronik", "Perhiasan"],
-  instype: ["Jiwa", "Kesehatan", "Kendaraan", "Properti"],
 };
 
 export type ReferenceItemSeedEntry = {
@@ -73,7 +78,7 @@ export type ReferenceItemSeedEntry = {
  * static.
  */
 export function buildReferenceItemSeed(): ReferenceItemSeedEntry[] {
-  return ReferenceItemGroupSchema.options.flatMap((group) =>
+  return ACTIVE_REFERENCE_ITEM_GROUPS.flatMap((group) =>
     REFERENCE_ITEM_DEFAULTS[group].map((label, index) => ({
       group,
       label,

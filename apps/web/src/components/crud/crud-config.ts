@@ -75,12 +75,8 @@ export type CrudEntity =
   | "asuransi"
   | "tujuan"
   | "mdbank"
-  | "mdtxntype"
   | "mdkategori"
-  | "mdinvtype"
-  | "mdasettype"
   | "mdewallet"
-  | "mdinstype"
   | "mdlembaga";
 
 export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
@@ -344,11 +340,9 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
   // feature is hidden in the UI only. Family members are now added
   // directly (dependant/operational via `AddDependantMemberDialog`, istri
   // as a second owner via the same dialog per A1).
-  // EPIC-024 Task J (D14) — the `ReferenceItem` model backing mdbank/mdtxntype/
-  // mdinvtype/mdasettype/mdinstype/mdlembaga only stores a `label`; the demo's
-  // extra fields (kode/arah/risiko/penyusutan/jenis) had no real field to
-  // persist to, so they are dropped rather than shown and silently discarded
-  // (honest-UI: a field only appears if it does something).
+  // EPIC-024 Task J (D14) — the `ReferenceItem` model backing mdbank/mdewallet/
+  // mdlembaga only stores a `label`; the demo's extra fields had nothing real to
+  // persist to, so they are dropped rather than shown and silently discarded.
   mdbank: {
     title: "Bank",
     fields: [
@@ -357,17 +351,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nama Bank",
         type: "text",
         placeholder: "cth: Bank Jago",
-      },
-    ],
-  },
-  mdtxntype: {
-    title: "Jenis Transaksi",
-    fields: [
-      {
-        key: "nama",
-        label: "Nama Jenis",
-        type: "text",
-        placeholder: "cth: Investasi",
       },
     ],
   },
@@ -408,28 +391,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
       },
     ],
   },
-  mdinvtype: {
-    title: "Jenis Investasi",
-    fields: [
-      {
-        key: "nama",
-        label: "Nama Jenis",
-        type: "text",
-        placeholder: "cth: P2P Lending",
-      },
-    ],
-  },
-  mdasettype: {
-    title: "Jenis Aset",
-    fields: [
-      {
-        key: "nama",
-        label: "Nama Jenis",
-        type: "text",
-        placeholder: "cth: Tanah",
-      },
-    ],
-  },
   mdewallet: {
     title: "E-Wallet",
     fields: [
@@ -438,17 +399,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nama E-Wallet",
         type: "text",
         placeholder: "cth: Jenius",
-      },
-    ],
-  },
-  mdinstype: {
-    title: "Jenis Asuransi",
-    fields: [
-      {
-        key: "nama",
-        label: "Nama Jenis",
-        type: "text",
-        placeholder: "cth: Asuransi Perjalanan",
       },
     ],
   },

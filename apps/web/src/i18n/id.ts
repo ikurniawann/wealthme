@@ -2012,12 +2012,8 @@ export const id = {
       "Kode di samping tiap kategori adalah akun COA tempat transaksinya tercatat di laporan.",
     groups: {
       mdbank: { title: "Bank", label: "Bank" },
-      mdtxntype: { title: "↕ Jenis Transaksi", label: "Jenis Transaksi" },
-      mdinvtype: { title: "Jenis Investasi", label: "Jenis Investasi" },
       mdewallet: { title: "E-Wallet", label: "E-Wallet" },
       mdlembaga: { title: "Lembaga Donasi", label: "Lembaga" },
-      mdasettype: { title: "Kategori Aset", label: "Kategori Aset" },
-      mdinstype: { title: "Jenis Asuransi", label: "Jenis Asuransi" },
     },
     categorySectionTitle: "Kategori",
     masterCoaLink: "Master COA",
@@ -2033,7 +2029,7 @@ export const id = {
     systemBadge: "Bawaan",
     footerBold: "Kategori",
     footerRest:
-      " tersimpan ke server dan dipakai di transaksi & laporan. Daftar referensi lain (bank, e-wallet, jenis transaksi, jenis investasi, lembaga donasi, kategori aset, jenis asuransi) juga tersimpan per keluarga, bukan bawaan sistem yang terkunci. Menghapus item yang masih dipakai transaksi akan ditolak dengan pesan yang menyebutkan datanya.",
+      " tersimpan ke server dan dipakai di transaksi & laporan. Bank, e-wallet, dan lembaga donasi juga tersimpan per keluarga dan langsung muncul sebagai pilihan di formulir Rekening, E-Wallet, dan Donasi. Menghapus item yang masih dipakai transaksi akan ditolak dengan pesan yang menyebutkan datanya.",
     editAriaPrefix: "Edit ",
     deleteAriaPrefix: "Hapus ",
     categoryDeleteLabelPrefix: 'kategori "',

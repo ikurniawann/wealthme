@@ -501,6 +501,11 @@ var ReferenceItemGroupSchema = z9.enum([
   "asettype",
   "instype"
 ]);
+var ACTIVE_REFERENCE_ITEM_GROUPS = [
+  "bank",
+  "ewallet",
+  "lembaga"
+];
 var CreateReferenceItemDtoSchema = z9.object({
   group: ReferenceItemGroupSchema,
   label: z9.string().min(1).max(100)
@@ -516,15 +521,11 @@ var ReferenceItemDtoSchema = z9.object({
 });
 var REFERENCE_ITEM_DEFAULTS = {
   bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
-  txntype: ["Pemasukan", "Pengeluaran", "Transfer", "Kartu Kredit"],
-  invtype: ["Saham", "Reksa Dana", "Obligasi", "Emas", "Crypto"],
   ewallet: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
-  lembaga: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"],
-  asettype: ["Properti", "Kendaraan", "Elektronik", "Perhiasan"],
-  instype: ["Jiwa", "Kesehatan", "Kendaraan", "Properti"]
+  lembaga: ["BAZNAS", "Dompet Dhuafa", "Gereja / Paroki", "Pura / Vihara"]
 };
 function buildReferenceItemSeed() {
-  return ReferenceItemGroupSchema.options.flatMap(
+  return ACTIVE_REFERENCE_ITEM_GROUPS.flatMap(
     (group) => REFERENCE_ITEM_DEFAULTS[group].map((label, index) => ({
       group,
       label,
@@ -715,6 +716,7 @@ function slugifyHandleBase(name) {
 export {
   ACCESS_LEVELS,
   ACCESS_PAGES,
+  ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,

@@ -178,6 +178,33 @@ describe("AuthService", () => {
 
       expect(mockPrisma.account.create).not.toHaveBeenCalled();
     });
+
+    it("seeds only the bank, e-wallet and lembaga reference lists (Revisi H)", async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({
+        id: "user-1",
+        email: "user@example.com",
+        name: "Jane Doe",
+      });
+      mockJwt.sign
+        .mockReturnValueOnce("access-token")
+        .mockReturnValueOnce("refresh-token");
+      mockRedis.set.mockResolvedValue(undefined);
+
+      await service.register({
+        email: "user@example.com",
+        password: "strongPass123",
+        name: "Jane Doe",
+      });
+
+      const [[arg]] = mockPrisma.referenceItem.createMany.mock.calls as [
+        [{ data: { group: string; isSystem: boolean }[] }],
+      ];
+      expect(new Set(arg.data.map((d) => d.group))).toEqual(
+        new Set(["bank", "ewallet", "lembaga"]),
+      );
+      expect(arg.data.every((d) => d.isSystem)).toBe(true);
+    });
   });
 
   describe("login()", () => {
