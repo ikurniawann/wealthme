@@ -22,7 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SectionCard } from "@/components/wm";
+import { SectionCard, DateField } from "@/components/wm";
 import { TrendChart } from "@/components/charts/apex-presets";
 import type {
   AssetAttachmentDto,
@@ -371,7 +371,7 @@ function AddHistoryDialog({
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const fieldId = useId();
   const [mode, setMode] = useState<"value" | "percent">("value");
   const [value, setValue] = useState("");
@@ -480,13 +480,13 @@ function AddHistoryDialog({
             <label className="label" htmlFor={`${fieldId}-date`}>
               {t.aset.historyDateLabel}
             </label>
-            <input
+            <DateField
               id={`${fieldId}-date`}
-              type="date"
-              className="input"
-              max={new Date().toISOString().slice(0, 10)}
               value={recordedAt}
-              onChange={(e) => setRecordedAt(e.target.value)}
+              locale={locale}
+              label={t.aset.historyDateLabel}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={setRecordedAt}
             />
           </div>
           <div className="field">

@@ -31,7 +31,7 @@ import { formatRupiah } from "@/lib/format";
 import { uploadAssetDocument } from "@/lib/asset-attachments";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
-import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
+import { IconChip, CountUpRupiah, Rise, DateField } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
@@ -191,7 +191,7 @@ function AddAssetModal({
   onClose,
   editing,
 }: AddAssetModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -514,13 +514,13 @@ function AddAssetModal({
             >
               {t.aset.fieldAcquisitionDateLabel}
             </label>
-            <input
+            <DateField
               id="asset-acquisition-date"
-              type="date"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
-              max={wibTodayDateString()}
               value={acquisitionDate}
-              onChange={(e) => setAcquisitionDate(e.target.value)}
+              locale={locale}
+              label={t.aset.fieldAcquisitionDateLabel}
+              max={wibTodayDateString()}
+              onChange={setAcquisitionDate}
             />
             <p className="mt-1 text-[11px] text-muted-foreground">
               {t.aset.fieldAcquisitionDateHelper}

@@ -1,4 +1,4 @@
-import { SectionCard } from "@/components/wm";
+import { DateField, SectionCard } from "@/components/wm";
 import { formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import type { DetailReportDto } from "@wealthme/contracts";
@@ -41,11 +41,12 @@ export function HarianSection({
           {t.laporan.harian.titlePrefix}{" "}
           {formatLocaleDateLong(`${date}T00:00:00`, locale)}
         </div>
-        <input
-          type="date"
+        <DateField
           value={date}
-          onChange={(e) => onDateChange(e.target.value)}
-          className="rounded-md border bg-background px-3 py-[7px] text-[13.5px] outline-none focus:border-primary"
+          locale={locale}
+          label={t.laporan.harian.dateLabel}
+          required
+          onChange={onDateChange}
         />
       </div>
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">

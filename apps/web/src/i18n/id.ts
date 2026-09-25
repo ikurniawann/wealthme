@@ -3760,6 +3760,7 @@ export const id = {
     },
     harian: {
       titlePrefix: "Laporan Harian ·",
+      dateLabel: "Tanggal laporan",
       incomeTodayLabel: "Pemasukan Hari Ini",
       expenseTodayLabel: "Pengeluaran Hari Ini",
       netDailyLabel: "Net Harian",

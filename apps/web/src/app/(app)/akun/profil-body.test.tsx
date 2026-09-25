@@ -5,7 +5,7 @@
  * PATCH, not just name.
  */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 // `page.tsx` imports `@/lib/auth-client`, which calls better-auth's
@@ -61,15 +61,15 @@ describe("ProfilBody", () => {
       />,
     );
 
-    // Act — modify all fields and click save. The "Tanggal Lahir"/"Jenis
-    // Kelamin" <Field> labels aren't programmatically associated with their
-    // inputs (no htmlFor/id), so getByLabelText can't find them — fall back
-    // to a direct DOM query for just those two, matching how the E2E spec
-    // for this same page also has to locate them.
+    // Act — modify all fields and click save. "Tanggal Lahir" is a DateField
+    // (a button named by its label); "Jenis Kelamin" is still reached by role.
     const nameInput = screen.getByDisplayValue("Test User");
     const phoneInput = screen.getByPlaceholderText("+62 8xx xxxx xxxx");
-    const birthDateInput: HTMLInputElement =
-      container.querySelector('input[type="date"]')!;
+    const birthDateTrigger = screen.getByLabelText("Tanggal Lahir");
+    const birthDateInput = container.querySelector<HTMLInputElement>(
+      '.date-field input[type="date"]',
+    );
+    if (!birthDateInput) throw new Error("DateField native input missing");
     const genderSelect = screen.getByRole("combobox");
     const jobTitleInput = screen.getByPlaceholderText("cth: Software Engineer");
     const monthlyIncomeInput =
@@ -81,7 +81,8 @@ describe("ProfilBody", () => {
 
     await user.type(phoneInput, "+62 999 8888 7777");
 
-    await user.type(birthDateInput, "1990-01-01");
+    fireEvent.change(birthDateInput, { target: { value: "1990-01-01" } });
+    expect(birthDateTrigger).toHaveTextContent("1 Januari 1990");
 
     await user.selectOptions(genderSelect, "Perempuan");
 

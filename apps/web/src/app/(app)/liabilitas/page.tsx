@@ -43,6 +43,7 @@ import { ConfirmDeleteDialog } from "@/components/crud";
 import {
   AnimatedProgress,
   CountUpRupiah,
+  DateField,
   IconChip,
   Rise,
   SectionCard,
@@ -392,7 +393,7 @@ function LiabilityModal({
   editing,
   onClose,
 }: LiabilityModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -637,12 +638,12 @@ function LiabilityModal({
               <label className="label" htmlFor="liability-due-date">
                 {t.liabilitas.fieldDueDateLabel}
               </label>
-              <input
+              <DateField
                 id="liability-due-date"
-                type="date"
-                className="input"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                locale={locale}
+                label={t.liabilitas.fieldDueDateLabel}
+                onChange={setDueDate}
               />
             </div>
 

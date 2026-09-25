@@ -65,7 +65,7 @@ import {
 import { toast } from "sonner";
 
 import { CrudModal, type CrudModalState } from "@/components/crud";
-import { SectionCard, StatusBadge, InfoTip } from "@/components/wm";
+import { SectionCard, StatusBadge, InfoTip, DateField } from "@/components/wm";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -177,6 +177,7 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 // regression) rather than guessing which nested element is the real
 // control.
 const LABELABLE_TAGS = new Set(["input", "select", "textarea"]);
+const LABELABLE_COMPONENTS = new Set<unknown>([DateField]);
 
 function Field({
   label,
@@ -188,8 +189,8 @@ function Field({
   const generatedId = useId();
   const isLabelableElement =
     isValidElement(children) &&
-    typeof children.type === "string" &&
-    LABELABLE_TAGS.has(children.type);
+    ((typeof children.type === "string" && LABELABLE_TAGS.has(children.type)) ||
+      LABELABLE_COMPONENTS.has(children.type));
   const childId = isLabelableElement
     ? ((children.props as { id?: string }).id ?? generatedId)
     : undefined;
@@ -354,7 +355,7 @@ export function ProfilBody({
   // (see below) instead of assuming success the instant it's called.
   onSave: (data: ProfileSaveInput) => Promise<unknown>;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const genderLabels: Record<(typeof GENDER_OPTIONS)[number], string> = {
     "Laki-laki": t.akun.profil.genderOptions.male,
     Perempuan: t.akun.profil.genderOptions.female,
@@ -464,11 +465,12 @@ export function ProfilBody({
         />
       </Field>
       <Field label={t.akun.profil.birthDateLabel}>
-        <input
-          type="date"
-          className="input"
+        <DateField
           value={form.birthDate}
-          onChange={(e) => update("birthDate", e.target.value)}
+          locale={locale}
+          label={t.akun.profil.birthDateLabel}
+          max={new Date().toISOString().slice(0, 10)}
+          onChange={(iso) => update("birthDate", iso)}
         />
       </Field>
       <Field label={t.akun.profil.genderLabel}>

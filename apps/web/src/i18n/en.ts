@@ -3696,6 +3696,7 @@ export const en = {
     },
     harian: {
       titlePrefix: "Daily Report ·",
+      dateLabel: "Report date",
       incomeTodayLabel: "Today's Income",
       expenseTodayLabel: "Today's Expenses",
       netDailyLabel: "Daily Net",

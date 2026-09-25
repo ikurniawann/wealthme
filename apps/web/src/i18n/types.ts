@@ -3524,6 +3524,7 @@ export type I18nDictionary = {
     };
     harian: {
       titlePrefix: string;
+      dateLabel: string;
       incomeTodayLabel: string;
       expenseTodayLabel: string;
       netDailyLabel: string;

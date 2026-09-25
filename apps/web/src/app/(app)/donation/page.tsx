@@ -19,6 +19,7 @@ import {
   StatusBadge,
   InfoTip,
   SummaryCard,
+  DateField,
 } from "@/components/wm";
 import {
   Dialog,
@@ -918,12 +919,12 @@ export default function DonationPage() {
               <label className="label" htmlFor="dn-tanggal">
                 {t.donation.fieldTanggalLabel}
               </label>
-              <input
+              <DateField
                 id="dn-tanggal"
-                type="date"
                 value={tanggal}
-                onChange={(e) => setTanggal(e.target.value)}
-                className="input"
+                locale={locale}
+                label={t.donation.fieldTanggalLabel}
+                onChange={setTanggal}
               />
             </div>
 

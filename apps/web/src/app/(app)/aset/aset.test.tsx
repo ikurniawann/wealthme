@@ -288,9 +288,14 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
       target: { value: "500000000" },
     });
-    fireEvent.change(screen.getByLabelText(/Tanggal Perolehan/), {
-      target: { value: "2024-01-15" },
-    });
+    const acquisitionTrigger = screen.getByLabelText(/Tanggal Perolehan/);
+    expect(acquisitionTrigger.tagName).toBe("BUTTON");
+    const acquisitionNative = acquisitionTrigger
+      .closest(".date-field")
+      ?.querySelector<HTMLInputElement>('input[type="date"]');
+    if (!acquisitionNative) throw new Error("DateField native input missing");
+    fireEvent.change(acquisitionNative, { target: { value: "2024-01-15" } });
+    expect(acquisitionTrigger).toHaveTextContent("15 Januari 2024");
 
     await user.click(screen.getByRole("button", { name: /simpan aset/i }));
 

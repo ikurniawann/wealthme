@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { StatusBadge, SectionCard } from "@/components/wm";
+import { StatusBadge, SectionCard, DateField } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { ConfirmDeleteDialog } from "@/components/crud";
@@ -562,7 +562,7 @@ function InsuranceModal({
   membersUnavailable,
   onClose,
 }: InsuranceModalProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   // EPIC-026 Wave 8 — the hand-rolled "focus the first control on mount,
   // restore on unmount" effect is gone: this is now a real Base UI Dialog,
@@ -857,12 +857,12 @@ function InsuranceModal({
               <label className="label" htmlFor="ins-renewal">
                 {t.asuransi.fieldRenewalDateLabel}
               </label>
-              <input
+              <DateField
                 id="ins-renewal"
-                type="date"
                 value={renewalDate}
-                onChange={(e) => setRenewalDate(e.target.value)}
-                className="input"
+                locale={locale}
+                label={t.asuransi.fieldRenewalDateLabel}
+                onChange={setRenewalDate}
               />
             </div>
           </div>

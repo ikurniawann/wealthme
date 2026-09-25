@@ -23,6 +23,7 @@ import {
   IconChip,
   CountUpRupiah,
   Rise,
+  DateField,
 } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
@@ -181,7 +182,7 @@ interface AddInvestmentForm {
   manualPriceDate: string;
 }
 
-/** yyyy-mm-dd for a native `<input type="date">`, or "" when absent. */
+/** yyyy-mm-dd for a DateField value, or "" when absent. */
 function toDateInputValue(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
@@ -806,13 +807,15 @@ function AddInvestmentModal({
                   <label className="label" htmlFor="purchasedAt">
                     {t.investasi.fieldPurchaseDateLabel}
                   </label>
-                  <input
+                  <DateField
                     id="purchasedAt"
                     name="purchasedAt"
-                    type="date"
                     value={form.purchasedAt}
-                    onChange={handleChange}
-                    className="input"
+                    locale={locale}
+                    label={t.investasi.fieldPurchaseDateLabel}
+                    onChange={(iso) =>
+                      setForm((prev) => ({ ...prev, purchasedAt: iso }))
+                    }
                   />
                   <div className="hint">{t.investasi.hintPurchaseDate}</div>
                 </div>
@@ -1018,13 +1021,15 @@ function AddInvestmentModal({
                     <label className="label" htmlFor="maturityDate">
                       {t.investasi.fieldMaturityDateLabel}
                     </label>
-                    <input
+                    <DateField
                       id="maturityDate"
                       name="maturityDate"
-                      type="date"
                       value={form.maturityDate}
-                      onChange={handleChange}
-                      className="input"
+                      locale={locale}
+                      label={t.investasi.fieldMaturityDateLabel}
+                      onChange={(iso) =>
+                        setForm((prev) => ({ ...prev, maturityDate: iso }))
+                      }
                     />
                   </div>
                 )}
@@ -1123,13 +1128,15 @@ function AddInvestmentModal({
                       <label className="label" htmlFor="manualPriceDate">
                         {t.investasi.fieldManualPriceDateLabel}
                       </label>
-                      <input
+                      <DateField
                         id="manualPriceDate"
                         name="manualPriceDate"
-                        type="date"
                         value={form.manualPriceDate}
-                        onChange={handleChange}
-                        className="input"
+                        locale={locale}
+                        label={t.investasi.fieldManualPriceDateLabel}
+                        onChange={(iso) =>
+                          setForm((prev) => ({ ...prev, manualPriceDate: iso }))
+                        }
                       />
                     </div>
                   </div>
@@ -1191,7 +1198,7 @@ function BuySellModal({
   token: string;
   holding: InvestmentDto | null;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
   const [txType, setTxType] = useState<InvestmentTxType>("buy");
@@ -1411,13 +1418,13 @@ function BuySellModal({
               <label className="label" htmlFor="tx-date">
                 {t.investasi.buySellFieldDateLabel}
               </label>
-              <input
+              <DateField
                 id="tx-date"
-                type="date"
-                required
                 value={occurredAt}
-                onChange={(e) => setOccurredAt(e.target.value)}
-                className="input"
+                locale={locale}
+                label={t.investasi.buySellFieldDateLabel}
+                required
+                onChange={setOccurredAt}
               />
             </div>
           </DialogBody>
