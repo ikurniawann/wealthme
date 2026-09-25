@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Calculator,
   Eye,
@@ -27,6 +28,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
+import { uploadAssetDocument } from "@/lib/asset-attachments";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { IconChip, CountUpRupiah, Rise } from "@/components/wm";
@@ -215,6 +217,7 @@ function AddAssetModal({
   // EPIC-033 p15 — no picker any more; kept so an edit round-trips the
   // value an older row may still carry.
   const categoryId = editing?.categoryId ?? "";
+  const [docFile, setDocFile] = useState<File | null>(null);
   // EPIC-023 D19/US-ASSET-4: elapsed-time anchor for currentEstimatedValue,
   // falls back to createdAt server-side when left blank.
   const [acquisitionDate, setAcquisitionDate] = useState(
@@ -245,7 +248,16 @@ function AddAssetModal({
         body: JSON.stringify(body),
       });
     },
-    onSuccess: () => {
+    onSuccess: async (created) => {
+      // EPIC-033 p14 — a document picked in the form is uploaded once the
+      // asset exists (attachments hang off the asset id).
+      if (docFile) {
+        try {
+          await uploadAssetDocument(familyGroupId, created.id, docFile, token);
+        } catch {
+          toast.error(t.aset.toastDocumentFailed);
+        }
+      }
       void queryClient.invalidateQueries({
         queryKey: queryKeys.assets.all(familyGroupId),
       });
@@ -541,11 +553,27 @@ function AddAssetModal({
                 <strong className="wm-money mono">
                   {formatRupiah(projectedIn5Years)}
                 </strong>{" "}
-                — dihitung dari nilai tercatat, mode perubahan, dan tanggal
+                dihitung dari nilai tercatat, mode perubahan, dan tanggal
                 perolehan.
               </span>
             </div>
           )}
+
+          <div>
+            <label
+              htmlFor="asset-document"
+              className="mb-1 block text-[12px] font-semibold text-muted-foreground"
+            >
+              {t.aset.fieldDocumentLabel}
+            </label>
+            <input
+              id="asset-document"
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.pdf"
+              className="block w-full text-[12.5px] text-muted-foreground file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
+              onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
 
           <Button
             type="submit"
@@ -675,9 +703,13 @@ function AssetRow({
             rounded="rounded-full"
           />
           <div className="min-w-0 flex-1">
-            <div className="text-[13.5px] font-semibold truncate">
+            {/* EPIC-033 p16 — the name opens the asset's own page. */}
+            <Link
+              href={`/aset/${asset.id}`}
+              className="block truncate text-[13.5px] font-semibold hover:underline"
+            >
               {asset.name}
-            </div>
+            </Link>
             <div className="text-[11.5px] text-muted-foreground truncate">
               {subtitle}
             </div>

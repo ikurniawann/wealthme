@@ -215,7 +215,9 @@ var RoleSchema = import_zod5.z.enum([
   "operational"
 ]);
 var DEFAULT_ROLE_BY_RELATIONSHIP = {
-  istri: "owner",
+  // EPIC-032 R1 — istri is the Co-Master: full money reach, but member
+  // management and family settings stay with the single head (owner).
+  istri: "spouse",
   anak: "dependant",
   kakek: "member",
   nenek: "member",

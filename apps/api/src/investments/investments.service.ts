@@ -657,6 +657,7 @@ export class InvestmentsService {
         qty,
         price,
         occurredAt,
+        dto.accountId ?? null,
       ),
     );
 
@@ -687,12 +688,19 @@ export class InvestmentsService {
     qty: Decimal,
     price: Decimal,
     occurredAt: Date,
+    accountId: string | null = null,
   ) {
     const existing = await tx.investment.findUnique({
       where: { id, familyGroupId },
     });
     if (!existing) {
       throw new NotFoundException("Investment not found");
+    }
+    const settleAccount = accountId
+      ? await tx.account.findUnique({ where: { id: accountId, familyGroupId } })
+      : null;
+    if (accountId && !settleAccount) {
+      throw new NotFoundException(`Account ${accountId} not found`);
     }
 
     const oldQty = existing.quantity;
@@ -729,6 +737,89 @@ export class InvestmentsService {
       where: { id, familyGroupId },
       data: { quantity: newQty, costBasisPerUnit: newAvgCost },
     });
+
+    // EPIC-033 p28 — money actually moves when a settlement account is
+    // named. A buy is an allocation (transfer out, never an expense); a sell
+    // returns the cost through a transfer in and books the realised gain as
+    // "Hasil Investasi" income so the P&L sees it.
+    if (settleAccount) {
+      const gross = BigInt(qty.times(price).toFixed(0));
+      const label = `${qty.toString()} ${existing.ticker} @ ${price.toString()}`;
+      if (type === "buy") {
+        await tx.account.update({
+          where: { id: settleAccount.id },
+          data: { balance: { decrement: gross } },
+        });
+        await tx.transaction.create({
+          data: {
+            familyGroupId,
+            accountId: settleAccount.id,
+            toAccountId: null,
+            type: "transfer",
+            amount: gross,
+            description: `Beli ${label}`,
+            occurredAt,
+          },
+        });
+      } else {
+        const pnl = BigInt((realizedPnl ?? new Decimal(0)).toFixed(0));
+        const gain = pnl > BigInt(0) ? pnl : BigInt(0);
+        const loss = pnl < BigInt(0) ? -pnl : BigInt(0);
+        await tx.account.update({
+          where: { id: settleAccount.id },
+          data: { balance: { increment: gross } },
+        });
+        await tx.transaction.create({
+          data: {
+            familyGroupId,
+            accountId: null,
+            toAccountId: settleAccount.id,
+            type: "transfer",
+            amount: gross - gain + loss,
+            description: `Jual ${label}`,
+            occurredAt,
+          },
+        });
+        if (loss > BigInt(0)) {
+          // The cost portion transferred back exceeds the proceeds; the
+          // difference is a realised loss, booked as an expense so the P&L
+          // and the account balance agree.
+          const lossCategory = await this.resolveLossCategoryId(
+            tx,
+            familyGroupId,
+          );
+          await tx.transaction.create({
+            data: {
+              familyGroupId,
+              accountId: settleAccount.id,
+              categoryId: lossCategory,
+              type: "expense",
+              amount: loss,
+              description: `Rugi jual ${label}`,
+              occurredAt,
+            },
+          });
+        }
+        if (gain > BigInt(0)) {
+          const incomeCategory = await tx.category.findFirst({
+            where: { familyGroupId, kind: "income", name: "Hasil Investasi" },
+            select: { id: true },
+          });
+          await tx.transaction.create({
+            data: {
+              familyGroupId,
+              accountId: settleAccount.id,
+              categoryId: incomeCategory?.id ?? null,
+              type: "income",
+              amount: gain,
+              description: `Untung jual ${label}`,
+              occurredAt,
+            },
+          });
+        }
+      }
+    }
+
     return tx.investmentTransaction.create({
       data: {
         investmentId: id,
@@ -739,6 +830,63 @@ export class InvestmentsService {
         realizedPnl,
       },
     });
+  }
+
+  /**
+   * EPIC-033 p28 — "Rugi Investasi" expense category, created on first use
+   * against the family's catch-all expense COA account (20099) when missing.
+   */
+  private async resolveLossCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+  ): Promise<string | null> {
+    const existing = await tx.category.findFirst({
+      where: { familyGroupId, kind: "expense", name: "Rugi Investasi" },
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    const coa = await tx.coaAccount.findFirst({
+      where: { familyGroupId, code: "20099" },
+      select: { id: true },
+    });
+    if (!coa) return null;
+    const created = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: "Rugi Investasi",
+        kind: "expense",
+        coaAccountId: coa.id,
+      },
+      select: { id: true },
+    });
+    return created.id;
+  }
+
+  /** EPIC-033 p18 — every recorded price for one holding, most recent first. */
+  async findPrices(
+    familyGroupId: string,
+    id: string,
+  ): Promise<InvestmentPriceDto[]> {
+    const existing = await this.prisma.investment.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!existing) {
+      throw new NotFoundException("Investment not found");
+    }
+    const rows = await this.prisma.investmentPrice.findMany({
+      where: { investmentId: id },
+      orderBy: { recordedAt: "desc" },
+      take: 200,
+    });
+    return rows.map((r) => ({
+      id: r.id,
+      investmentId: r.investmentId,
+      price: decimalToString(r.price),
+      source: r.source,
+      delayed: r.delayed,
+      asOf: (r.asOf ?? r.recordedAt).toISOString(),
+      recordedAt: r.recordedAt.toISOString(),
+    }));
   }
 
   /** EPIC-022 D2 — the real buy/sell history for one holding, most recent first. */

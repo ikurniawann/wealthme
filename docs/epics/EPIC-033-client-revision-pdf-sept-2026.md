@@ -28,6 +28,7 @@ are cross-referenced, not duplicated.
 - [x] p1 Add-member dialog role select: drop "(Dependant)"; options Istri (Co-Master), Anak, Staff Operasional, Anggota. API now accepts `member` for Master-created accounts.
 - [x] p4 Default banks: BCA, Mandiri, BRI, BNI, CIMB, OCBC. Contracts defaults + crud config + migration `20260925120100_epic033_default_banks` renames seeded rows in place.
 - [x] p6 Family religion enum + settings select: islam, kristen, katolik, hindu, buddha, none (R1). Migration `20260925120000_epic033_family_religion_five`. Donation page: katolik → perpuluhan calculator; hindu/buddha → general donations only.
+- [x] p6 follow-up: the "Catat Donasi" type list follows the religion (Islam: zakat/infaq/wakaf + umum; Kristen/Katolik: persepuluhan + umum; Hindu/Buddha: umum only; none: all). Hindu/Buddha banner reads "Donasi umum" instead of "kalkulator tidak aktif". Existing rows keep their original type.
 - [x] p10 Donation page shows no calculator until a religion is set (perpuluhan no longer shows for `null`).
 - [x] p7 Master COA explainer is collapsible, default collapsed.
 - [x] p8 Reconciliation "Bank yang didukung": only BCA and Mandiri.
@@ -43,28 +44,29 @@ are cross-referenced, not duplicated.
 - [~] Members must not see another member's private bank accounts (p2/p3 bug 1). Not reproducible on current code: an operational member (dataScope `own`) lists only family-shared accounts; another member's owned account is hidden. Re-verify on dev after deploy.
 - [x] "Minta Dana" only for members, never Master/Co-Master (p3 bug 2, p21) (R2). Header button removed; card button shows only on family-shared accounts for non-owner/spouse roles.
 - [x] Cash and e-wallet owner picker ("Pemilik": Keluarga / member) on add + edit, backed by the existing `Account.ownerUserId` (p22, p23, p25) (R3). No migration.
+- [x] R3 follow-up (user found 2026-09-25): a child/member with "Kelola" on Rekening or Dana could pick any member or "Keluarga" as Pemilik. Now the picker collapses to themselves and the API pins `ownerUserId` to the caller for every role other than owner/spouse (403 when another owner is sent; editing someone else's account is 403 too). Verified as the `operational` test member: other owner → 403, omitted owner → 201 owned by self.
 - [x] Members request funds FROM a family-shared account INTO their own (p26) (R5): shared `MintaDanaDialog` on /rekening and /dana; API `CreateAllowanceRequestDto.fromAccountId` (must be family-shared, non-private); approve defaults to the requested source, Master may override. Verified locally end to end: Kas Tunai 3.000.000 → 2.900.000, Kas Dede 0 → 100.000.
 - [x] Cash accounts no longer listed on Bank & Account (p24).
+- [x] Liability/insurance auto-categories are named `Utang: <nama>` / `Asuransi: <nama>` (no raw id suffix). Existing rows keep their old names.
 - [x] Dana page: edit/delete affordances hidden for members without manage rights (was visible, API refused).
 - Depends on EPIC-032 Task 4 (istri = Co-Master) for who counts as approver.
 
 ### 3. Asset and investment price history (p14, p16, p17, p18)
 
-- [ ] Asset form: file upload (p14).
-- [ ] Asset detail page on card click (p16): left date list + "Add History"; right value chart; below, list of price changes with who changed it (p17). Add-History popup: date, new value (up/down) or percent, computed.
-- [ ] Investment detail: price-change history list (p18).
-- New `asset_value_history` (and investment equivalent) tables + migration. Needs human review.
+- [x] Asset documents (p14): `asset_attachments` table (migration `20260925180000_epic033_asset_attachments`), `AssetAttachmentsService` + `POST/GET/DELETE /assets/:id/attachments[/:attachmentId]` (sniffed mime jpg/png/webp/pdf, ≤5MB, key `<fg>/assets/<id>/<uuid>.<ext>` on `StoragePort`). `/aset/[id]` "Dokumen" card: upload, open in a new tab, delete. Tambah Aset dialog: optional document uploaded right after create. Local dev needs `STORAGE_DIR` in `.env` (API default `/data/storage`).
+- [x] Asset detail page `/aset/[id]` (p16/p17): asset name on the card links to it; left column = dated valuations; right = `TrendChart` of values; below = change list with percent vs previous, who recorded it, and note. "Tambah Riwayat" dialog takes a date plus either the new value or a percent change (computed server-side). `POST /assets/:id/history` (manage Asset) appends `asset_history` with `recordedByUserId` + `note` (migration `20260925150000_epic033_asset_history_actor`) and moves `currentValue` when the entry is the newest.
+- [x] Investment detail: "Riwayat Harga" list from the new `GET /investments/:id/prices` (existing `investment_prices` rows: manual + feed, with source and as-of date).
 
 ### 4. Calculations and reports (p20, p28)
 
-- [ ] Liabilities: credit-card figures wrong (p20). Reproduce on local data first; expected numbers to be confirmed with client.
-- [ ] PNL: asset/investment buy-sell transactions missing from the report (p28). Define which COA group they post to.
+- [x] Liabilities: credit-card figures wrong (p20). Reproduced with a real scenario: (a) a card purchase incremented `totalDebt`, which the UI shows as "Limit Kredit", so the limit grew with every purchase; (b) interest was computed as annual/12 while the card UI labels the rate "Bunga/Bulan". Fixed: purchases raise the running bill only; `kartu_kredit` uses the rate per month in `splitPayment` and in the web amortisation preview. Verified: limit 20.000.000 stays; bill 3.000.000, pay 1.000.000 @ 2%/bln → interest 60.000, principal 940.000, bill 2.060.000, source account −1.000.000.
+- [x] PNL: investment buy/sell now moves money when a settlement account is chosen (p28). `POST :id/transactions` accepts optional `accountId`; buy = transfer out (allocation, not an expense), sell = transfer in of the cost portion + `Hasil Investasi` income for the realised gain. Beli/Jual dialog gets a "Rekening (opsional)" picker. Verified: buy 100 @ 10.000 → −1.000.000; sell 40 @ 12.500 → +500.000 with realised 100.000 appearing under Hasil Investasi in the P&L. Realised losses are booked as an expense "Rugi jual …" under `Rugi Investasi` (expense category on COA 20099, created on first use); transfer-in = cost portion. Verified: buy 100 @ 10.000, sell 50 @ 8.000 → account +400.000 net, expense 100.000 in the P&L expense breakdown.
 
 ### 5. New features (p27, p29, p30)
 
-- [ ] Goals: autodebit date (p27).
-- [ ] Budget category: autodebit date (p29).
-- [ ] Ringkasan: currency filter; net-worth trend filter by date / month / year (p30).
+- [x] Goals: `autoDebitDay` (1-28) on create/edit + "tgl D" on the card (p27). Migration `20260925160000_epic033_autodebit_day`. `lib/goals-utils.ts` (protected) gained a 4-line passthrough, reviewed foundation change.
+- [x] Budget category: `autoDebitDay` (1-28) on add/edit + "autodebet tgl D" in the usage list (p29). Same migration.
+- [x] Ringkasan: display-currency segmented control (IDR / USD / Emas) on the headline figures, using the shared FX cache and the family's gold price; trend ranges now 1 Bln / 3 Bln / 6 Bln / 12 Bln / Tahun Ini / Semua / Kustom (from-to dates), cut client-side from the widest history fetch (p30).
 
 ## Acceptance Criteria
 
@@ -77,4 +79,7 @@ are cross-referenced, not duplicated.
 
 - 2026-09-25 — PDF digested into 26 items, grouped 1-5. R1-R4 confirmed by user. Starting group 1 locally.
 - 2026-09-25 — Group 1 done locally except p19 (not reproducible: buy 1 @ 900.000 → 201) and the display side of p31. Both migrations applied to the local DB only. Gates: web tsc/eslint clean, jest 773 passed; api jest 245 passed across family-groups, split-bills, assets, investments, reference-items. Verified in local browser: role select, 5 religions, COA toggle, reconciliation chips, warisan dialog/placeholders, asset save with Kendaraan. Not committed yet.
+- 2026-09-25 — Groups 3-5 done locally, driven by real-number scenarios run through the browser session against the API (`scenario*.js` in the session scratchpad): salary/expense/transfer balances, budget spend, card purchase + payment (found and fixed the limit-growth and annual/12 bugs), buy/sell with settlement (found the P&L gap), goal/budget autodebit days, asset valuation history (-2.50% entry attributed to the acting user), Ringkasan USD + custom range. Full suites: api 1638 passed, web 772 passed. EPIC-032 T2 (sidebar accordion) and T4 (istri = Co-Master) landed in the same branch.
 - 2026-09-25 — Group 2 done locally (R2, R3, R5). New shared `components/allowance/minta-dana-dialog.tsx`, `hooks/use-family-members.ts`. Gates: web jest 772 passed (one cash-on-rekening test retired), api allowance-requests 28 passed, security-check OK. End-to-end as test member `bidedetest@keluarga-seedfg` (local DB only): request 100.000 from Kas Tunai → Master approves with prefilled source → balances moved.
+- 2026-09-25 — p14 and the investment loss booking closed (both were listed as deferred). Verified through the browser session against the API: upload 201 → list 1 → stream 200 image/png → html upload 400 → delete 204; loss sell books `Rugi Investasi` 100.000 and the account moves +400.000. Tambah Aset with a document creates the asset (201) and attaches the file. Notification bodies now `Rp 3.000.000 · Belanja`. Full suites: api 1639 passed, web 774 passed (one anggaran test flaked once in a full run, green on rerun and on the second full run).
+- 2026-09-25 — Review round on PR #333: IAM two-column dialog alignment, duplicate React keys on /iam and /investasi, Base UI `nativeButton={false}` on the Tax link button, donation types filtered by religion, and the account owner lock for non-Master members (API + Rekening + Dana). Console sweep across all 28 app pages: clean except the socket.io reconnect warning on /investasi.

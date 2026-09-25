@@ -41,12 +41,26 @@ const COMPOSITION_COLOR: Record<string, string> = {
 // ── Trend range segmented control ("6 Bln / 12 Bln / Semua") ───────────────
 // Mirrors `beranda/page.tsx`'s PERIOD_RANGE mapping onto the same
 // `/dashboard/net-worth/history` endpoint — no new backend work.
-export type TrendRangeKey = "6m" | "12m" | "all";
+export type TrendRangeKey =
+  | "1m"
+  | "3m"
+  | "6m"
+  | "12m"
+  | "ytd"
+  | "all"
+  | "custom";
+/** EPIC-033 group 5 (p30) — a user-picked date window for the trend. */
+export type TrendCustomRange = { from: string; to: string };
 
 const TREND_RANGE_PARAM: Record<TrendRangeKey, string> = {
+  "1m": "1m",
+  "3m": "3m",
   "6m": "6m",
   "12m": "12m",
+  // ytd/custom fetch the widest window and are narrowed client-side.
+  ytd: "12m",
   all: "120m",
+  custom: "120m",
 };
 
 // ── Root cause of the x-axis label bug ──────────────────────────────────────
@@ -93,7 +107,10 @@ export type AssetBreakdownRow = {
 
 export type RingkasanData = ReturnType<typeof useRingkasanData>;
 
-export function useRingkasanData(trendRange: TrendRangeKey) {
+export function useRingkasanData(
+  trendRange: TrendRangeKey,
+  customRange?: TrendCustomRange,
+) {
   const { t } = useLocale();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? null;
@@ -122,9 +139,13 @@ export function useRingkasanData(trendRange: TrendRangeKey) {
         : formatRupiah(value);
 
   const trendTitleByRange: Record<TrendRangeKey, string> = {
+    "1m": t.ringkasan.netWorthTrendTitle1m,
+    "3m": t.ringkasan.netWorthTrendTitle3m,
     "6m": t.ringkasan.netWorthTrendTitle,
     "12m": t.ringkasan.netWorthTrendTitle12m,
+    ytd: t.ringkasan.netWorthTrendTitleYtd,
     all: t.ringkasan.netWorthTrendTitleAll,
+    custom: t.ringkasan.netWorthTrendTitleCustom,
   };
 
   const {
@@ -239,7 +260,24 @@ export function useRingkasanData(trendRange: TrendRangeKey) {
       enabled: Boolean(familyGroupId) && Boolean(session?.accessToken),
       staleTime: 60_000,
     });
-  const netWorthHistoryPoints = netWorthHistory?.points ?? [];
+  // EPIC-033 group 5 (p30) — "Tahun Ini" and a custom from/to window are
+  // cut from the widest fetch rather than adding endpoint params.
+  const windowStart =
+    trendRange === "ytd"
+      ? new Date(new Date().getFullYear(), 0, 1).getTime()
+      : trendRange === "custom" && customRange?.from
+        ? new Date(customRange.from).getTime()
+        : null;
+  const windowEnd =
+    trendRange === "custom" && customRange?.to
+      ? new Date(customRange.to).getTime() + 86_400_000 - 1
+      : null;
+  const netWorthHistoryPoints = (netWorthHistory?.points ?? []).filter((p) => {
+    const ts = new Date(p.capturedAt).getTime();
+    if (windowStart !== null && ts < windowStart) return false;
+    if (windowEnd !== null && ts > windowEnd) return false;
+    return true;
+  });
   // Bucketed to one (closing) point per calendar month — see
   // `groupHistoryPointsByMonth`'s header comment for why the raw points
   // produced repeated x-axis labels.

@@ -13,6 +13,7 @@ import type {
   AssetResponseDto,
 } from "./dto/asset-response.dto";
 import type { CreateAssetDto } from "./dto/create-asset.dto";
+import type { RecordAssetValueDto } from "./dto/record-asset-value.dto";
 import type { UpdateAssetDto } from "./dto/update-asset.dto";
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
@@ -133,17 +134,32 @@ function toAssetDto(asset: {
   };
 }
 
-function toHistoryDto(h: {
-  id: string;
-  assetId: string;
-  value: bigint;
-  recordedAt: Date;
-}): AssetHistoryResponseDto {
+function toHistoryDto(
+  h: {
+    id: string;
+    assetId: string;
+    value: bigint;
+    recordedAt: Date;
+    recordedByUserId?: string | null;
+    note?: string | null;
+  },
+  previousValue: bigint | null = null,
+  recordedByName: string | null = null,
+): AssetHistoryResponseDto {
+  let changePercent: string | null = null;
+  if (previousValue !== null && previousValue !== BigInt(0)) {
+    // two-decimal percent, computed in integers to keep BigInt exactness
+    const scaled = ((h.value - previousValue) * BigInt(10_000)) / previousValue;
+    changePercent = (Number(scaled) / 100).toFixed(2);
+  }
   return {
     id: h.id,
     assetId: h.assetId,
     value: h.value.toString(),
     recordedAt: h.recordedAt.toISOString(),
+    changePercent,
+    recordedByName,
+    note: h.note ?? null,
   };
 }
 
@@ -366,6 +382,107 @@ export class AssetsService {
       where: { assetId: id },
       orderBy: { recordedAt: "asc" },
     });
-    return history.map(toHistoryDto);
+    const userIds = [
+      ...new Set(
+        history.map((h) => h.recordedByUserId).filter((v): v is string => !!v),
+      ),
+    ];
+    const users = userIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const nameById = new Map(users.map((u) => [u.id, u.name]));
+    return history.map((h, i) =>
+      toHistoryDto(
+        h,
+        i > 0 ? (history[i - 1]?.value ?? null) : null,
+        h.recordedByUserId ? (nameById.get(h.recordedByUserId) ?? null) : null,
+      ),
+    );
+  }
+
+  /**
+   * EPIC-033 group 3 (p17) — a member-entered valuation. Appends a history
+   * row (dated, attributed, optionally annotated) and moves the asset's
+   * `currentValue` to it when the entry is the newest one.
+   */
+  async recordValue(
+    familyGroupId: string,
+    id: string,
+    dto: RecordAssetValueDto,
+    actingUserId: string | null,
+  ): Promise<AssetHistoryResponseDto> {
+    const asset = await this.prisma.asset.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!asset) {
+      throw new NotFoundException("Asset not found");
+    }
+    if ((dto.value == null) === (dto.changePercent == null)) {
+      throw new BadRequestException(
+        "Provide exactly one of value or changePercent",
+      );
+    }
+    const recordedAt = dto.recordedAt ? new Date(dto.recordedAt) : new Date();
+    if (recordedAt.getTime() > Date.now() + 60_000) {
+      throw new BadRequestException("recordedAt cannot be in the future");
+    }
+    let value: bigint;
+    if (dto.value != null) {
+      value = BigInt(dto.value);
+    } else {
+      // percent with 2 decimals → scale by 10_000 to stay in integers
+      const pctScaled = BigInt(
+        Math.round(Number.parseFloat(dto.changePercent!) * 100),
+      );
+      value =
+        asset.currentValue + (asset.currentValue * pctScaled) / BigInt(10_000);
+      if (value < BigInt(0)) {
+        throw new BadRequestException("Resulting value cannot be negative");
+      }
+    }
+
+    const latest = await this.prisma.assetHistory.findFirst({
+      where: { assetId: id },
+      orderBy: { recordedAt: "desc" },
+    });
+    const isNewest =
+      !latest || latest.recordedAt.getTime() <= recordedAt.getTime();
+    const previous = await this.prisma.assetHistory.findFirst({
+      where: { assetId: id, recordedAt: { lte: recordedAt } },
+      orderBy: { recordedAt: "desc" },
+    });
+
+    const [row] = await this.prisma.$transaction([
+      this.prisma.assetHistory.create({
+        data: {
+          assetId: id,
+          value,
+          recordedAt,
+          recordedByUserId: actingUserId,
+          note: dto.note ?? null,
+        },
+      }),
+      ...(isNewest
+        ? [
+            this.prisma.asset.update({
+              where: { id, familyGroupId },
+              data: { currentValue: value },
+            }),
+          ]
+        : []),
+    ]);
+
+    const name = actingUserId
+      ? ((
+          await this.prisma.user.findUnique({
+            where: { id: actingUserId },
+            select: { name: true },
+          })
+        )?.name ?? null)
+      : null;
+    return toHistoryDto(row, previous?.value ?? null, name);
   }
 }

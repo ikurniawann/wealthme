@@ -30,11 +30,11 @@ Baseline scan (`i18n/id.ts`, 2026-09-24): 279 em-dashes, 88 lines with emoji,
 
 Shared rules for every page:
 
-- [ ] Page subtitles/taglines and per-card explainer paragraphs → removed or moved behind one (i) tooltip at the card's top-right.
+- [x] Page subtitles/taglines and per-card explainer paragraphs → removed or moved behind one (i) tooltip at the card's top-right. (P0/P1 pass 2026-09-25: Persetujuan, Master COA, Dana, Laporan, Master Data, Quick Input, Investasi, Panduan, Kalkulator, Rekonsiliasi, Notifikasi, Akun, Tax, Anggaran.)
 - [ ] No em-dash (`—`) in visible copy; no emoji in titles/labels (use lucide icons, already the project's set).
 - [ ] Helper text only where it prevents a mistake; ≤1 short line.
-- [ ] Info banners ("Untuk anggota tanpa email…", "Persetujuan … kini punya halamannya sendiri") → (i) or removed.
-- [ ] One shared `InfoTip` pattern (Base UI tooltip) instead of per-page inventions — needs a reviewed `components/wm` addition.
+- [x] Info banners ("Untuk anggota tanpa email…", "Persetujuan … kini punya halamannya sendiri") → (i) or removed. Akun also hides synthetic `@members.internal…` emails ("-"); Master Data notice and Rekonsiliasi's three callouts are each one (i).
+- [x] One shared `InfoTip` pattern (`components/wm/info-tip.tsx`, reviewed foundation addition).
 - [ ] Per page: audit screenshot before/after (light + dark, desktop + 390px).
 
 #### Page audit (demo site, 1440×900, light, 2026-09-24)
@@ -82,7 +82,8 @@ Files: `apps/web/src/app/(app)/donation/page.tsx`, `apps/web/src/i18n/{id,en}.ts
 
 Client: "toggle ke pinggir, toggle ke bawah" with reference screenshot; grouping left to us.
 
-- [ ] Group headers are `<button aria-expanded>` with icon, label, chevron on the right edge; children render below with a left rail.
+- [x] Group headers are `<button aria-expanded>` with label + chevron on the right edge; children render below on a hairline rail. Groups: ungrouped (Beranda, Ringkasan, Transaksi, Notifikasi) · Perencanaan · Kekayaan · Kewajiban & Keluarga · Alat · Pengaturan. Closed set persisted in `localStorage` (`wm.sidebarGroups`) via `useSyncExternalStore`; the group holding the active page never folds; the collapsed rail keeps every item. Files: `lib/nav.ts`, `components/shell/sidebar-sections.tsx`, `app/design-system.css` (reviewed foundation change).
+- [x] Task 4 (R1, istri = Co-Master): `DEFAULT_ROLE_BY_RELATIONSHIP.istri = "spouse"`; API `createDependantMember` accepts `spouse` + `istri` (never `owner`); migration `20260925170000_epic032_istri_co_master` moves existing `istri`+`owner` rows to `spouse` (the head is never flagged `istri`, so it is untouched); add-member dialog's "Istri (Co-Master)" posts `spouse`; hint copy rewritten.
 - [ ] Proposed groups (awaiting OK): ungrouped Beranda/Ringkasan/Transaksi/Notifikasi · Perencanaan (Anggaran, Laporan, Tujuan) · Kekayaan (Dana, Rekening, Investasi, Aset, Liabilitas, Asuransi) · Kewajiban & Keluarga (Warisan, Donasi, Tax, Persetujuan) · Alat (Split Bill, Rekonsiliasi, AI, Kalkulator, Quick Input) · Pengaturan (Master COA, Master Data, IAM, Panduan).
 - [ ] Group containing the active page auto-opens; open state persisted in localStorage; collapsed rail stays icon-only; mobile nav sheet follows; empty groups (after access filter) hidden; honors `prefers-reduced-motion`.
 
@@ -116,3 +117,4 @@ Today `DEFAULT_ROLE_BY_RELATIONSHIP.istri = "owner"` (EPIC-024 A1), enforced ser
 - 2026-09-24 — Revisions collected from client screenshots (WhatsApp). Decision R1 (option A) confirmed by user. Task 3 first item implemented ahead of this list; the rest is not started.
 - 2026-09-25 — Task 1 shared pieces + Donasi done: `components/wm/info-tip.tsx` (i) popover; Donasi subtitle/banners/helper text moved behind (i); app-wide copy pass on `i18n/{id,en}.ts` + 20 components (emoji out of titles/labels/toasts, " — " → ", "); 10 visible JSX em-dash separators replaced with ":" / "·"; beranda 👋 + subtitle removed.
 - 2026-09-25 — **Reviewed foundation change** (user asked for a full dashboard UI audit): appended a "foundation polish" block to `app/design-system.css` (protected file). One motion curve (`--ease-spring`), radius scale (16px surfaces / 10px controls), cards flat on a hairline with elevation reserved for the hero + dialogs, concentric inner bezel on `.hero` (replaces the decorative circle), press feedback on buttons/nav, solid accent for the active nav item (no gradient), softer section headers, lucide stroke 1.75, dialog and page-entry motion honouring `prefers-reduced-motion`. Verified light, dark and 390px. Audit lenses: taste-skill, soft-skill, antislop-ui.
+- 2026-09-25 — Task 1 P0/P1 page pass done (subtitles, banners, helper lines, emoji tile on Notifikasi → bell, "Belum Dibayar" pill only on paid rows). Remaining em-dashes on Notifikasi/Master Data come from stored data (old notification bodies, old `Utang — …` category names); new rows use the short forms. Two tests retargeted (notifikasi aria label ":" separator, anggaran pill).

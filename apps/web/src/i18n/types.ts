@@ -1639,6 +1639,8 @@ export type I18nDictionary = {
     buySellFieldQuantityLabel: string;
     buySellFieldPriceLabel: string;
     buySellFieldDateLabel: string;
+    buySellFieldAccountLabel: string;
+    buySellAccountNoneOption: string;
     buySellSaveButton: string;
     buySellSaving: string;
     toastBuySuccess: string;
@@ -1648,6 +1650,9 @@ export type I18nDictionary = {
     detailRealizedPnlLabel: string;
     historySectionTitle: string;
     historyEmptyLabel: string;
+    priceHistoryTitle: string;
+    priceHistoryEmpty: string;
+    priceSourceManual: string;
     historyBuyLabel: string;
     historySellLabel: string;
     /** Template with a `{pnl}` placeholder. */
@@ -1734,6 +1739,36 @@ export type I18nDictionary = {
     allocationTitle: string;
     recordedValueLabel: string;
     perYearSuffix: string;
+    detailBackLink: string;
+    detailHistoryTitle: string;
+    detailChartTitle: string;
+    detailChangesTitle: string;
+    addHistoryButton: string;
+    addHistoryDialogTitle: string;
+    historyModeValue: string;
+    historyModePercent: string;
+    historyValueLabel: string;
+    historyPercentLabel: string;
+    historyPercentHint: string;
+    historyDateLabel: string;
+    historyNoteLabel: string;
+    historyNotePlaceholder: string;
+    historyEmpty: string;
+    historyByPrefix: string;
+    historySystemActor: string;
+    historySaveButton: string;
+    toastHistorySaved: string;
+    toastHistoryFailed: string;
+    detailNotFound: string;
+    documentsTitle: string;
+    documentsEmpty: string;
+    uploadDocumentButton: string;
+    fieldDocumentLabel: string;
+    toastDocumentUploaded: string;
+    toastDocumentFailed: string;
+    toastDocumentDeleted: string;
+    deleteDocumentAria: string;
+    openDocumentAria: string;
     // EPIC-025 N3 fidelity follow-up (prototype parity): hero sub-line,
     // breakdown stat-card "vs last month" delta suffix, the Aset Fisik
     // card's neutral (non-delta) note, and account-row ownership segment
@@ -2142,6 +2177,20 @@ export type I18nDictionary = {
     trendRangeLabel6m: string;
     trendRangeLabel12m: string;
     trendRangeLabelAll: string;
+    trendRangeLabel1m: string;
+    trendRangeLabel3m: string;
+    trendRangeLabelYtd: string;
+    trendRangeLabelCustom: string;
+    trendCustomFromLabel: string;
+    trendCustomToLabel: string;
+    netWorthTrendTitle1m: string;
+    netWorthTrendTitle3m: string;
+    netWorthTrendTitleYtd: string;
+    netWorthTrendTitleCustom: string;
+    currencyGroupAriaLabel: string;
+    currencyIdr: string;
+    currencyUsd: string;
+    currencyGold: string;
     netWorthTrendTitle12m: string;
     netWorthTrendTitleAll: string;
     yoyUpPrefix: string;
@@ -2190,6 +2239,7 @@ export type I18nDictionary = {
     autoDebitPrefix: string;
     autoDebitSuffix: string;
     noAutoDebit: string;
+    autoDebitDayPrefix: string;
     toastSessionNotReady: string;
     toastUpdated: string;
     toastAdded: string;
@@ -2504,6 +2554,8 @@ export type I18nDictionary = {
      * family hasn't set. */
     religionCalculatorNoneTitle: string;
     religionCalculatorNoneDesc: string;
+    religionGeneralOnlyTitle: string;
+    religionGeneralOnlyDesc: string;
     /**
      * EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) — loading/error states
      * for the religion setting itself (previously silently fell through to
@@ -2665,6 +2717,8 @@ export type I18nDictionary = {
     iconAriaLabelPrefix: string;
     fieldAmountLabel: string;
     fieldPeriodLabel: string;
+    fieldAutoDebitDayLabel: string;
+    autoDebitDayPrefix: string;
     savingLabel: string;
     saveCategoryButton: string;
     toastCategoryAddedPrefix: string;

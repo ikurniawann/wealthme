@@ -38,7 +38,9 @@ export type Role = z.infer<typeof RoleSchema>;
  * `spouse` role/invite flow remains in code for non-wife cases only.
  */
 export const DEFAULT_ROLE_BY_RELATIONSHIP: Record<MemberRelationship, Role> = {
-  istri: "owner",
+  // EPIC-032 R1 — istri is the Co-Master: full money reach, but member
+  // management and family settings stay with the single head (owner).
+  istri: "spouse",
   anak: "dependant",
   kakek: "member",
   nenek: "member",

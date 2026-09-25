@@ -360,7 +360,24 @@ export default function DonationPage() {
   // which calculator triggered the modal, so "Tunaikan Persepuluhan
   // Sekarang" prefills its own type/amount/recipient instead of always
   // assuming zakat.
+  // EPIC-033 R1 — the type list follows the family religion: Islam sees
+  // zakat/infaq/wakaf, Kristen/Katolik see persepuluhan, Hindu/Buddha only
+  // the general types. No religion set = every type.
+  const allowedJenisOptions = JENIS_OPTIONS.filter((o) => {
+    if (o.group === "umum" || religion === null || religion === "none") {
+      return true;
+    }
+    if (o.group === "islam") return religion === "islam";
+    return TITHE_RELIGIONS.has(religion);
+  });
+
   function openModal(prefill?: "zakat" | "perpuluhan"): void {
+    if (
+      !allowedJenisOptions.some((o) => o.value === jenis) &&
+      allowedJenisOptions.length > 0
+    ) {
+      setJenis(allowedJenisOptions[0].value);
+    }
     if (prefill === "zakat") {
       setJenis("zakat_maal");
       setJumlah(formatAmountInput(String(zakat)));
@@ -666,9 +683,15 @@ export default function DonationPage() {
           religion === "buddha") && (
           <div className="flex items-center justify-between gap-3 rounded-[14px] border bg-card p-4">
             <div className="text-[13.5px] font-bold">
-              {t.donation.religionCalculatorNoneTitle}
+              {religion === "none"
+                ? t.donation.religionCalculatorNoneTitle
+                : t.donation.religionGeneralOnlyTitle}
             </div>
-            <InfoTip>{t.donation.religionCalculatorNoneDesc}</InfoTip>
+            <InfoTip>
+              {religion === "none"
+                ? t.donation.religionCalculatorNoneDesc
+                : t.donation.religionGeneralOnlyDesc}
+            </InfoTip>
           </div>
         )}
 
@@ -832,7 +855,7 @@ export default function DonationPage() {
                 }}
                 className="select"
               >
-                {JENIS_OPTIONS.map((o) => (
+                {allowedJenisOptions.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.group === "islam"
                       ? t.donation.groupIslam

@@ -541,9 +541,6 @@ export default function TaxPage() {
               }
               className="input"
             />
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {t.tax.grossInputHint}
-            </div>
           </div>
           <div>
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
@@ -575,9 +572,6 @@ export default function TaxPage() {
               disabled
               className="input opacity-70"
             />
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {t.tax.jabatanHint}
-            </div>
           </div>
           <div className="md:col-span-2">
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
@@ -829,6 +823,7 @@ export default function TaxPage() {
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2.5">
         <Button
+          nativeButton={false}
           render={
             <a
               href="https://djponline.pajak.go.id"

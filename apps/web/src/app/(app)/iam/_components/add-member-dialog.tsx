@@ -82,10 +82,10 @@ export function AddMemberDialog({
   // (FamilyGroupsService#createDependantMember), so this is UX
   // convenience, not the only guard.
   const [role, setRole] = useState<
-    "dependant" | "operational" | "member" | "owner"
+    "dependant" | "operational" | "member" | "spouse"
   >("dependant");
   const [relationship, setRelationship] = useState<MemberRelationship | "">("");
-  const isIstriCoMaster = role === "owner";
+  const isIstriCoMaster = role === "spouse";
   // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
   // the head can verify the initial password before handing it over, same
   // pattern as login/page.tsx, without it being permanently plaintext.
@@ -97,7 +97,7 @@ export function AddMemberDialog({
       username: string;
       email?: string;
       initialPassword: string;
-      role: "dependant" | "operational" | "member" | "owner";
+      role: "dependant" | "operational" | "member" | "spouse";
       relationship?: MemberRelationship;
     }) =>
       apiFetch<{ username: string; pendingEmail?: string | null }>(
@@ -318,16 +318,16 @@ export function AddMemberDialog({
                   | "dependant"
                   | "operational"
                   | "member"
-                  | "owner";
+                  | "spouse";
                 setRole(next);
                 // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
                 // relationship picker above to "istri" (the API rejects any
                 // other pairing with role owner); switching away clears it
                 // back to editable.
-                setRelationship(next === "owner" ? "istri" : "");
+                setRelationship(next === "spouse" ? "istri" : "");
               }}
             >
-              <option value="owner">
+              <option value="spouse">
                 {t.akun.addDependant.roleOptions.istriCoMaster}
               </option>
               <option value="dependant">

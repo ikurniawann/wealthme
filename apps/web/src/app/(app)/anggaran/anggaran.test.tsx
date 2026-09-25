@@ -215,7 +215,9 @@ describe("AnggaranPage — owner still creates a new category (regression guard)
     await within(dialog).findByLabelText("Nama Kategori");
 
     expect(within(dialog).queryByLabelText("Kategori")).not.toBeInTheDocument();
-  }, 10000);
+    // The create-category form mounts the full EmojiPicker grid in jsdom
+    // (~2.5s alone, 10s+ when the whole suite runs in parallel).
+  }, 30000);
 });
 
 describe("AnggaranPage — edit and delete a budget (EPIC-022 C2)", () => {

@@ -18,6 +18,18 @@ import { splitPayment } from "./amortisation.util";
  * computed independently by hand.
  */
 describe("splitPayment (amortisation) — EPIC-023 A2", () => {
+  // EPIC-033 p20 — kartu_kredit rates are quoted per month.
+  it("uses the rate per month (no /12) when rateIsMonthly is set", () => {
+    const result = splitPayment({
+      paymentAmount: 1_000_000n,
+      remainingBalance: 3_000_000n,
+      annualInterestRatePercent: "2",
+      rateIsMonthly: true,
+    });
+    expect(result.interest).toBe(60_000n);
+    expect(result.principal).toBe(940_000n);
+  });
+
   describe("golden schedule — 12.00% annual, Rp 5.000.000 fixed instalment, Rp 100.000.000 opening balance", () => {
     // Hand-computed month by month (monthlyRate = 12/100/12 = 0.01):
     //   interest_n = round-half-up(opening_n * 0.01)

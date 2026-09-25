@@ -1,10 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Role } from "@prisma/client";
 
 import {
   accountOwnerWhere,
@@ -46,6 +47,13 @@ function mapDuplicateAccountName(err: unknown, name: string): unknown {
   }
   return err;
 }
+
+export interface AccountActor {
+  userId: string;
+  role: Role;
+}
+
+const MASTER_LIKE_ROLES: ReadonlySet<Role> = new Set<Role>(["owner", "spouse"]);
 
 @Injectable()
 export class AccountsService {
@@ -109,12 +117,33 @@ export class AccountsService {
     return this.toDto(account);
   }
 
+  /**
+   * EPIC-033 R3 follow-up — only Master/Co-Master may create or reassign
+   * accounts for someone else (or for the family). Any other role is pinned
+   * to itself as owner: a child could previously open "Tambah Rekening" and
+   * pick any family member (or "Keluarga") as Pemilik.
+   */
+  private assertOwnerAllowedFor(
+    actor: AccountActor | undefined,
+    ownerUserId: string | null | undefined,
+  ): string | null | undefined {
+    if (!actor || MASTER_LIKE_ROLES.has(actor.role)) return ownerUserId;
+    if (ownerUserId === undefined || ownerUserId === actor.userId) {
+      return actor.userId;
+    }
+    throw new ForbiddenException(
+      "Only Master or Co-Master can set another owner on an account",
+    );
+  }
+
   async create(
     familyGroupId: string,
     dto: CreateAccountDto,
+    actor?: AccountActor,
   ): Promise<AccountResponseDto> {
-    if (dto.ownerUserId) {
-      await this.assertOwnerIsFamilyMember(familyGroupId, dto.ownerUserId);
+    const ownerUserId = this.assertOwnerAllowedFor(actor, dto.ownerUserId);
+    if (ownerUserId) {
+      await this.assertOwnerIsFamilyMember(familyGroupId, ownerUserId);
     }
 
     try {
@@ -130,7 +159,7 @@ export class AccountsService {
           balance: BigInt(dto.balance),
           currency: dto.currency ?? "IDR",
           isPrivate: dto.isPrivate ?? false,
-          ownerUserId: dto.ownerUserId ?? null,
+          ownerUserId: ownerUserId ?? null,
         },
         include: { owner: { select: { name: true } } },
       });
@@ -144,6 +173,7 @@ export class AccountsService {
     familyGroupId: string,
     id: string,
     dto: UpdateAccountDto,
+    actor?: AccountActor,
   ): Promise<AccountResponseDto> {
     const existing = await this.prisma.account.findUnique({
       where: { id, familyGroupId },
@@ -151,13 +181,21 @@ export class AccountsService {
     if (!existing) {
       throw new NotFoundException("Account not found");
     }
+    if (
+      actor &&
+      !MASTER_LIKE_ROLES.has(actor.role) &&
+      existing.ownerUserId !== actor.userId
+    ) {
+      throw new ForbiddenException("You can only edit your own accounts");
+    }
+    const ownerUserId = this.assertOwnerAllowedFor(actor, dto.ownerUserId);
 
     // `undefined` = leave ownership unchanged; `null` = explicit clear back
     // to family-shared; any other string = reassign (validated below against
     // Member so an owner can never point an account at a cross-tenant or
     // non-member user id).
-    if (dto.ownerUserId) {
-      await this.assertOwnerIsFamilyMember(familyGroupId, dto.ownerUserId);
+    if (ownerUserId) {
+      await this.assertOwnerIsFamilyMember(familyGroupId, ownerUserId);
     }
 
     try {
@@ -175,9 +213,7 @@ export class AccountsService {
           ...(dto.balance !== undefined && { balance: BigInt(dto.balance) }),
           ...(dto.currency !== undefined && { currency: dto.currency }),
           ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
-          ...(dto.ownerUserId !== undefined && {
-            ownerUserId: dto.ownerUserId,
-          }),
+          ...(ownerUserId !== undefined && { ownerUserId }),
         },
         include: { owner: { select: { name: true } } },
       });

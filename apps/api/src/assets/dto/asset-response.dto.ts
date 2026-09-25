@@ -47,9 +47,21 @@ export class AssetResponseDto {
   @ApiProperty() updatedAt!: string;
 }
 
+export class AssetAttachmentResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() assetId!: string;
+  @ApiProperty() mimeType!: string;
+  @ApiProperty() size!: number;
+  @ApiProperty() createdAt!: string;
+}
+
 export class AssetHistoryResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() assetId!: string;
   @ApiProperty() value!: string;
   @ApiProperty() recordedAt!: string;
+  /** EPIC-033 group 3 — change vs the previous entry, percent with 2 decimals; null on the first entry. */
+  @ApiProperty({ nullable: true }) changePercent!: string | null;
+  @ApiProperty({ nullable: true }) recordedByName!: string | null;
+  @ApiProperty({ nullable: true }) note!: string | null;
 }

@@ -121,12 +121,16 @@ function computeAmortisationPreview(
   remainingBalance: number,
   monthlyPaymentAmount: number,
   annualRatePercent: number,
+  rateIsMonthly = false,
 ): {
   monthlyInterest: number;
   monthlyPrincipal: number;
   months: number | null;
 } {
-  const monthlyRate = annualRatePercent / 100 / 12;
+  // EPIC-033 p20 — cards quote "Bunga/Bulan", so no /12 for them.
+  const monthlyRate = rateIsMonthly
+    ? annualRatePercent / 100
+    : annualRatePercent / 100 / 12;
   const monthlyInterest = Math.min(
     Math.round(remainingBalance * monthlyRate),
     monthlyPaymentAmount,
@@ -164,6 +168,7 @@ function computeAmortisationSchedule(
   annualRatePercent: number,
   firstDueDate: Date,
   count = 6,
+  rateIsMonthly = false,
 ): AmortisationScheduleRow[] {
   const rows: AmortisationScheduleRow[] = [];
   let balance = remainingBalance;
@@ -172,6 +177,7 @@ function computeAmortisationSchedule(
       balance,
       monthlyPaymentAmount,
       annualRatePercent,
+      rateIsMonthly,
     );
     balance = Math.max(0, balance - monthlyPrincipal);
     rows.push({
@@ -218,6 +224,7 @@ function projectRemainingBalance(liabilities: LiabilityDto[]): number[] {
         balances[i] ?? 0,
         minimumPayment,
         parseFloat(l.interestRate) || 0,
+        l.type === "kartu_kredit",
       );
       balances[i] = Math.max(0, (balances[i] ?? 0) - monthlyPrincipal);
     }
@@ -945,6 +952,7 @@ function LiabilityDetailDialog({
     remaining,
     minimumPayment,
     interestRatePercent,
+    item?.type === "kartu_kredit",
   );
   // EPIC-026 Wave 5 — 6-installment schedule (see
   // `computeAmortisationSchedule` above). Anchored on the next due date
@@ -1221,6 +1229,7 @@ function PayLiabilityDialog({
         remainingBalance,
         parsedAmount,
         parseFloat(item.interestRate) || 0,
+        item.type === "kartu_kredit",
       )
     : { monthlyInterest: 0, monthlyPrincipal: 0, months: null };
 

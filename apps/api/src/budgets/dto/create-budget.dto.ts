@@ -1,5 +1,13 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsEnum, IsInt, IsPositive, IsUUID, Max } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsEnum,
+  IsInt,
+  IsPositive,
+  IsUUID,
+  Max,
+  Min,
+  IsOptional,
+} from "class-validator";
 
 enum BudgetPeriodEnum {
   monthly = "monthly",
@@ -31,4 +39,14 @@ export class CreateBudgetDto {
   @IsPositive()
   @Max(MAX_BUDGET_AMOUNT)
   limitAmount!: number;
+
+  @ApiPropertyOptional({
+    description: "EPIC-033 group 5 — day of month (1-28) the auto-debit runs",
+    example: 25,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(28)
+  autoDebitDay?: number;
 }

@@ -350,7 +350,7 @@ export default function IamRolesPage() {
 
       <MemberAccessDialog
         // Remount per member so the draft never carries over.
-        key={editingAccess?.id ?? "none"}
+        key={`access-${editingAccess?.id ?? "none"}`}
         member={editingAccess}
         roles={roles ?? []}
         onClose={() => setEditingAccess(null)}
@@ -359,7 +359,7 @@ export default function IamRolesPage() {
       />
 
       <ResetPasswordDialog
-        key={resettingPassword?.id ?? "none"}
+        key={`reset-${resettingPassword?.id ?? "none"}`}
         member={resettingPassword}
         onClose={() => setResettingPassword(null)}
         familyGroupId={familyGroupId}

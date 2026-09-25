@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   ConflictException,
   NotFoundException,
 } from "@nestjs/common";
@@ -425,6 +426,70 @@ describe("AccountsService ownership assignment", () => {
       ],
     }).compile();
     service = module.get(AccountsService);
+  });
+
+  // EPIC-033 R3 follow-up — non-Master callers are pinned to themselves.
+  it("create by a child pins ownerUserId to the caller even when omitted (family-shared not allowed)", async () => {
+    prisma.member.findUnique.mockResolvedValue({ id: "member-1" });
+    prisma.account.create.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "BNI Hima",
+      type: "bank",
+      institution: null,
+      maskedNumber: null,
+      balance: 0n,
+      currency: "IDR",
+      isPrivate: false,
+      ownerUserId: MEMBER_USER_ID,
+      owner: { name: "Hima" },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await service.create(
+      FAMILY_GROUP_ID,
+      { name: "BNI Hima", type: "bank", balance: 0 },
+      { userId: MEMBER_USER_ID, role: "dependant" },
+    );
+    expect(prisma.account.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ ownerUserId: MEMBER_USER_ID }),
+      }),
+    );
+  });
+
+  it("create by a child with another member as owner is forbidden", async () => {
+    await expect(
+      service.create(
+        FAMILY_GROUP_ID,
+        {
+          name: "BNI Ibu",
+          type: "bank",
+          balance: 0,
+          ownerUserId: OTHER_FAMILY_USER_ID,
+        },
+        { userId: MEMBER_USER_ID, role: "dependant" },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.account.create).not.toHaveBeenCalled();
+  });
+
+  it("update by a child of an account they do not own is forbidden", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: null,
+    });
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        ACCOUNT_ID,
+        { name: "x" },
+        { userId: MEMBER_USER_ID, role: "dependant" },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.account.update).not.toHaveBeenCalled();
   });
 
   it("create rejects ownerUserId for a user who is not a member of this family group", async () => {

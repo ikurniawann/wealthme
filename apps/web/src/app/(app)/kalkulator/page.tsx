@@ -1254,9 +1254,6 @@ export default function KalkulatorPage() {
         <h1 className="text-[17px] font-extrabold tracking-tight">
           {t.kalkulator.pageTitle}
         </h1>
-        <p className="mt-1 text-[12.5px] text-muted-foreground">
-          {t.kalkulator.pageSubtitle}
-        </p>
       </div>
 
       {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered `bg-card`

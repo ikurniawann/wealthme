@@ -153,7 +153,7 @@ export function RoleEditorDialog({
                   required
                 />
               </label>
-              <label className="field" htmlFor={`${fieldId}-desc`}>
+              <label className="field mt-0" htmlFor={`${fieldId}-desc`}>
                 <span className="label">Keterangan (opsional)</span>
                 <input
                   id={`${fieldId}-desc`}

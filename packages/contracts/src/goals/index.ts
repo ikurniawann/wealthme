@@ -8,6 +8,8 @@ export interface GoalDto {
   currentAmount: number;
   targetDate: string | null;
   autoDebitAmount: number | null;
+  /** EPIC-033 group 5 — day of month (1-28) the auto-debit runs. */
+  autoDebitDay: number | null;
   status: GoalStatus;
   progressPercent: number;
   remainingAmount: number;
@@ -22,6 +24,7 @@ export interface CreateGoalDto {
   currentAmount?: number;
   targetDate?: string;
   autoDebitAmount?: number;
+  autoDebitDay?: number;
 }
 
 export interface UpdateGoalDto {
@@ -31,4 +34,5 @@ export interface UpdateGoalDto {
   currentAmount?: number;
   targetDate?: string;
   autoDebitAmount?: number;
+  autoDebitDay?: number;
 }

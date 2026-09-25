@@ -58,7 +58,9 @@ import {
 
 import type { Locale } from "@/i18n";
 import type {
+  AccountDto,
   InvestmentDto,
+  InvestmentPriceDto,
   InvestmentSummaryDto,
   InvestmentTransactionDto,
   InvestmentTxType,
@@ -1106,6 +1108,20 @@ function BuySellModal({
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
+  // EPIC-033 p28 — optional settlement account: a buy debits it, a sell
+  // credits the proceeds and books the realised gain as income.
+  const [accountId, setAccountId] = useState("");
+  const { data: settleAccounts } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: open && !!token && !!familyGroupId,
+  });
+  const settleOptions = (settleAccounts ?? []).filter((a) =>
+    ["bank", "cash", "ewallet"].includes(a.type),
+  );
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1123,6 +1139,7 @@ function BuySellModal({
             quantity,
             pricePerUnit: String(parseRupiah(pricePerUnit)),
             occurredAt: new Date(occurredAt).toISOString(),
+            accountId: accountId || undefined,
           }),
         },
       );
@@ -1218,6 +1235,24 @@ function BuySellModal({
                 }
                 className="input mono"
               />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="tx-account">
+                {t.investasi.buySellFieldAccountLabel}
+              </label>
+              <select
+                id="tx-account"
+                className="select"
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+              >
+                <option value="">{t.investasi.buySellAccountNoneOption}</option>
+                {settleOptions.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="field">
               <label className="label" htmlFor="tx-date">
@@ -1378,6 +1413,21 @@ export default function InvestasiPage() {
       ),
     enabled: !!token && !!familyGroupId && !!detailHolding,
   });
+  // EPIC-033 p18 — every recorded price for the holding in view.
+  const { data: detailPrices } = useQuery<InvestmentPriceDto[]>({
+    queryKey: [
+      "investments",
+      familyGroupId ?? "",
+      detailHolding?.id ?? "",
+      "prices",
+    ],
+    queryFn: () =>
+      apiFetch<InvestmentPriceDto[]>(
+        `/family-groups/${familyGroupId}/investments/${detailHolding?.id}/prices`,
+        { token },
+      ),
+    enabled: !!token && !!familyGroupId && !!detailHolding,
+  });
 
   // Live price updates via Socket.io — join family-group room for tenant isolation
   useEffect(() => {
@@ -1490,9 +1540,6 @@ export default function InvestasiPage() {
           <h1 className="text-[17px] font-extrabold tracking-tight">
             {t.shell.pageTitles.investasi}
           </h1>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
-            {t.investasi.pageSubtitle}
-          </p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -1524,7 +1571,7 @@ export default function InvestasiPage() {
 
       {familyGroupId && token && (
         <AddInvestmentModal
-          key={editingHolding?.id ?? "add"}
+          key={`edit-${editingHolding?.id ?? "add"}`}
           open={modalOpen}
           editing={editingHolding}
           onClose={() => {
@@ -1537,7 +1584,7 @@ export default function InvestasiPage() {
       )}
       {familyGroupId && token && (
         <BuySellModal
-          key={buySellHolding?.id ?? "none"}
+          key={`trade-${buySellHolding?.id ?? "none"}`}
           open={!!buySellHolding}
           holding={buySellHolding}
           onClose={() => setBuySellHolding(null)}
@@ -1654,6 +1701,44 @@ export default function InvestasiPage() {
                               )
                             : "—"
                         }`}
+                </div>
+                {/* EPIC-033 p18 — price history (manual + feed). */}
+                <div>
+                  <div className="mb-1.5 text-[12px] font-semibold text-muted-foreground">
+                    {t.investasi.priceHistoryTitle}
+                  </div>
+                  {(detailPrices ?? []).length === 0 ? (
+                    <div className="text-[12px] text-muted-foreground">
+                      {t.investasi.priceHistoryEmpty}
+                    </div>
+                  ) : (
+                    <ul className="max-h-40 space-y-1 overflow-y-auto pr-1">
+                      {(detailPrices ?? []).map((p) => (
+                        <li
+                          key={p.id}
+                          className="flex items-center justify-between gap-2 rounded-[8px] border p-2 text-[11.5px]"
+                        >
+                          <span className="text-muted-foreground">
+                            {new Date(p.asOf).toLocaleDateString(
+                              locale === "id" ? "id-ID" : "en-US",
+                              {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )}
+                            {" · "}
+                            {p.source === "manual"
+                              ? t.investasi.priceSourceManual
+                              : p.source}
+                          </span>
+                          <span className="mono font-semibold">
+                            {formatDecimalRupiah(p.price)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
                 {/* EPIC-022 D2 — the real buy/sell history a whole-record
                     "edit" used to destroy with no trace. */}

@@ -18,6 +18,8 @@
  */
 
 export interface SplitPaymentInput {
+  /** EPIC-033 p20 — true for kartu_kredit: the rate is already per month. */
+  rateIsMonthly?: boolean;
   paymentAmount: bigint;
   remainingBalance: bigint;
   annualInterestRatePercent: string;
@@ -30,6 +32,9 @@ export interface SplitPaymentResult {
 
 // (percent scale 100) * (fixed-point scale 100) * (12 months/year)
 const MONTHLY_RATE_DENOMINATOR = 120_000n;
+// EPIC-033 p20 — credit cards quote their rate PER MONTH ("Bunga/Bulan"),
+// so the /12 step is skipped for them.
+const PER_MONTH_RATE_DENOMINATOR = 10_000n;
 
 /**
  * Parses a decimal string with at most 2 fractional digits (matching
@@ -63,7 +68,7 @@ export function splitPayment(input: SplitPaymentInput): SplitPaymentResult {
   const rateScaled = parseRateScaledByHundred(input.annualInterestRatePercent);
   const interestDue = roundHalfUpDivide(
     input.remainingBalance * rateScaled,
-    MONTHLY_RATE_DENOMINATOR,
+    input.rateIsMonthly ? PER_MONTH_RATE_DENOMINATOR : MONTHLY_RATE_DENOMINATOR,
   );
 
   const interest =

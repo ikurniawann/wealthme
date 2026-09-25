@@ -191,7 +191,7 @@ export function MemberAccessDialog({
                   Dipakai sebagai akses bawaan bila tidak memilih role.
                 </span>
               </label>
-              <label className="field" htmlFor={`${fieldId}-role`}>
+              <label className="field mt-0" htmlFor={`${fieldId}-role`}>
                 <span className="label">2. Role akses</span>
                 <select
                   id={`${fieldId}-role`}

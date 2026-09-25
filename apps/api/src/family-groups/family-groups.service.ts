@@ -704,18 +704,20 @@ export class FamilyGroupsService {
     // endpoint accepts `role: owner` is paired with `relationship: istri`.
     // Every other relationship/role combination still goes through the
     // dependant/operational path unchanged.
-    const isIstriOwner =
-      dto.role === Role.owner && dto.relationship === MemberRelationship.istri;
+    // EPIC-032 R1 — istri = Co-Master (`spouse`): the head stays the only
+    // `owner`. This supersedes EPIC-024 A1's "istri = owner".
+    const isIstriCoMaster =
+      dto.role === Role.spouse && dto.relationship === MemberRelationship.istri;
 
     if (
       dto.role !== Role.dependant &&
       dto.role !== Role.operational &&
       dto.role !== Role.member &&
-      !isIstriOwner
+      !isIstriCoMaster
     ) {
       throw new BadRequestException(
         withCode(
-          "role must be 'dependant', 'operational', or 'member' for this endpoint (or 'owner' when relationship is 'istri')",
+          "role must be 'dependant', 'operational', or 'member' for this endpoint (or 'spouse' when relationship is 'istri')",
           "INVALID_ROLE_FOR_DEPENDANT_CREATION",
         ),
       );
@@ -756,7 +758,7 @@ export class FamilyGroupsService {
         // proceeds. Only taken on the istri path — every other
         // dependant/operational creation is unaffected and keeps its
         // existing (lock-free) throughput.
-        if (isIstriOwner) {
+        if (isIstriCoMaster) {
           // NOTE: raw SQL table name is "family_groups", the `@@map`'d
           // Postgres table for the `FamilyGroup` model (schema.prisma) —
           // not the Prisma model name itself.

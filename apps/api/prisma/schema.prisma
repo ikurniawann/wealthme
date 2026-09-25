@@ -861,6 +861,8 @@ model Budget {
   categoryId    String
   period        BudgetPeriod
   limitAmount   BigInt
+  // EPIC-033 group 5 — day of month (1-28) the auto-debit runs.
+  autoDebitDay  Int?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   // EPIC-023 E2 (D11) / group E retry (HIGH 4) — set on the FIXED budget
@@ -906,6 +908,8 @@ model Goal {
   currentAmount   BigInt      @default(0)
   targetDate      DateTime?
   autoDebitAmount BigInt?
+  // EPIC-033 group 5 — day of month (1-28) the auto-debit runs.
+  autoDebitDay    Int?
   lastAutoDebitAt DateTime?
   status          GoalStatus  @default(on_track)
   createdAt       DateTime    @default(now())
@@ -1015,13 +1019,34 @@ model Asset {
   @@index([familyGroupId])
   @@index([categoryId])
   @@map("assets")
+  attachments      AssetAttachment[]
+}
+
+// EPIC-033 p14 — documents attached to a physical asset (sertifikat, BPKB,
+// polis). Same storage contract as TransactionAttachment.
+model AssetAttachment {
+  id            String   @id @default(uuid())
+  assetId       String
+  familyGroupId String
+  path          String
+  mimeType      String
+  size          Int
+  createdAt     DateTime @default(now())
+  asset         Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, familyGroupId])
+  @@map("asset_attachments")
 }
 
 model AssetHistory {
-  id         String   @id @default(uuid())
-  assetId    String
-  value      BigInt
-  recordedAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  assetId          String
+  value            BigInt
+  recordedAt       DateTime @default(now())
+  // EPIC-033 group 3 — who entered this value (null for system writes) and
+  // an optional note ("harga taksiran notaris", etc.).
+  recordedByUserId String?
+  note             String?
   asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@index([assetId, recordedAt])
