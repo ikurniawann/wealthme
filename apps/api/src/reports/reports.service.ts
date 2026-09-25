@@ -861,9 +861,11 @@ export class ReportsService {
           select: {
             name: true,
             ticker: true,
+            type: true,
             quantity: true,
             costBasisPerUnit: true,
             prices: { orderBy: { recordedAt: "desc" }, take: 1 },
+            familyGroup: { select: { goldPricePerGram: true } },
           },
         }),
       ]);

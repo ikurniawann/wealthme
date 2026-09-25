@@ -8,6 +8,10 @@ import {
 } from "@nestjs/common";
 import { Decimal } from "@prisma/client/runtime/library";
 
+import {
+  FAMILY_GOLD_PRICE_SOURCE,
+  familyGoldUnitPrice,
+} from "../common/utils/investment-value.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -135,6 +139,9 @@ export class InvestmentsService {
           orderBy: { recordedAt: "desc" },
           take: 1,
         },
+        familyGroup: {
+          select: { goldPricePerGram: true, goldPriceUpdatedAt: true },
+        },
       },
     });
 
@@ -222,7 +229,13 @@ export class InvestmentsService {
         // quantity is expected to be "1" (the form enforces this).
         const isDeposito = inv.type === "deposito";
         const depositoAsOf = isDeposito ? new Date() : null;
-        let currentPrice = isDeposito ? null : (latestPrice?.price ?? null);
+        const familyGoldPrice = familyGoldUnitPrice(inv);
+        const familyGoldAsOf = familyGoldPrice
+          ? inv.familyGroup.goldPriceUpdatedAt
+          : null;
+        let currentPrice = isDeposito
+          ? null
+          : (familyGoldPrice ?? latestPrice?.price ?? null);
 
         let currentValue: Decimal | null = null;
         let returnRp: Decimal | null = null;
@@ -279,21 +292,29 @@ export class InvestmentsService {
           // never delayed) rather than read from `latestPrice`.
           latestPriceRecordedAt: isDeposito
             ? (depositoAsOf as Date).toISOString()
-            : (latestPrice?.recordedAt.toISOString() ?? null),
+            : familyGoldPrice
+              ? (familyGoldAsOf?.toISOString() ?? null)
+              : (latestPrice?.recordedAt.toISOString() ?? null),
           latestPriceSource: isDeposito
             ? "computed-interest"
-            : (latestPrice?.source ?? null),
+            : familyGoldPrice
+              ? FAMILY_GOLD_PRICE_SOURCE
+              : (latestPrice?.source ?? null),
           // EPIC-023 G1 (D15) — as-of time + delayed flag, so the UI can
           // label every automated price with its source and delay honestly.
           // `asOf` falls back to `recordedAt` for legacy rows written before
           // this column existed (never null-vs-unknown ambiguity on screen).
           latestPriceAsOf: isDeposito
             ? (depositoAsOf as Date).toISOString()
-            : ((latestPrice?.asOf ?? latestPrice?.recordedAt)?.toISOString() ??
-              null),
-          latestPriceDelayed: isDeposito
-            ? false
-            : (latestPrice?.delayed ?? null),
+            : familyGoldPrice
+              ? (familyGoldAsOf?.toISOString() ?? null)
+              : ((
+                  latestPrice?.asOf ?? latestPrice?.recordedAt
+                )?.toISOString() ?? null),
+          latestPriceDelayed:
+            isDeposito || familyGoldPrice
+              ? false
+              : (latestPrice?.delayed ?? null),
           priceRefreshFailed,
           automatedPriceUnmapped,
           interestRatePct: inv.interestRatePct?.toString() ?? null,
@@ -571,7 +592,8 @@ export class InvestmentsService {
    * EPIC-023 G1 (D15) — manual price entry, the honest counterpart to the
    * automated CoinGecko/Yahoo feeds. Available for any instrument type (an
    * owner may still want to correct a stale automated price), but it is the
-   * ONLY way a manual-only type (reksa_dana, obligasi, emas, lainnya) ever
+   * ONLY way a manual-only type (reksa_dana, obligasi, lainnya — and emas
+   * while no family gold price is set) ever
    * gets a price — never fabricated, always dated, `source: "manual"`.
    */
   async setManualPrice(

@@ -345,9 +345,11 @@ export class DashboardService {
       : await this.prisma.investment.findMany({
           where: { familyGroupId },
           select: {
+            type: true,
             quantity: true,
             costBasisPerUnit: true,
             prices: { orderBy: { recordedAt: "desc" }, take: 1 },
+            familyGroup: { select: { goldPricePerGram: true } },
           },
         });
     const totalInvestments = BigInt(

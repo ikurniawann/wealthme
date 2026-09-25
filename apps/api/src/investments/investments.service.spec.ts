@@ -772,6 +772,127 @@ describe("InvestmentsService P&L", () => {
     });
   });
 
+  describe("findAll() — emas valued from the family gold price (Revisi D item 11)", () => {
+    const GOLD_UPDATED_AT = new Date("2026-09-20T03:00:00.000Z");
+    const MANUAL_AT = new Date("2026-09-01T03:00:00.000Z");
+    const MANUAL_PRICE = {
+      id: "p-manual",
+      investmentId: "inv-emas",
+      price: new Decimal("1300000"),
+      source: "manual",
+      asOf: MANUAL_AT,
+      delayed: false,
+      recordedAt: MANUAL_AT,
+    };
+
+    function emasRow(overrides: Record<string, unknown> = {}) {
+      return {
+        id: "inv-emas",
+        familyGroupId: "fg-1",
+        ticker: "ANTM",
+        name: "Logam Mulia",
+        type: "emas",
+        quantity: new Decimal("10.5"),
+        costBasisPerUnit: new Decimal("1200000"),
+        currency: "IDR",
+        notes: null,
+        interestRatePct: null,
+        purchasedAt: null,
+        maturityDate: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        prices: [MANUAL_PRICE],
+        familyGroup: {
+          goldPricePerGram: BigInt(1_500_000),
+          goldPriceUpdatedAt: GOLD_UPDATED_AT,
+        },
+        ...overrides,
+      };
+    }
+
+    it("values emas at quantity × family gold price and labels the source", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([emasRow()]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentPrice).toBe("1500000");
+      expect(result?.currentValue).toBe("15750000");
+      expect(result?.returnRp).toBe("3150000");
+      expect(result?.returnPct).toBe(25);
+      expect(result?.latestPriceSource).toBe("family-gold-price");
+      expect(result?.latestPriceAsOf).toBe(GOLD_UPDATED_AT.toISOString());
+      expect(result?.latestPriceRecordedAt).toBe(GOLD_UPDATED_AT.toISOString());
+      expect(result?.latestPriceDelayed).toBe(false);
+      expect(mockMarketData.getPrice).not.toHaveBeenCalled();
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+    });
+
+    it("reads the gold price through the familyGroup relation (no extra query)", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([]);
+
+      await service.findAll("fg-1");
+
+      expect(mockPrisma.investment.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            familyGroup: {
+              select: { goldPricePerGram: true, goldPriceUpdatedAt: true },
+            },
+          }),
+        }),
+      );
+    });
+
+    it("falls back to the last manual price when the family gold price is unset", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        emasRow({
+          familyGroup: { goldPricePerGram: null, goldPriceUpdatedAt: null },
+        }),
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentPrice).toBe("1300000");
+      expect(result?.currentValue).toBe("13650000");
+      expect(result?.latestPriceSource).toBe("manual");
+    });
+
+    it("treats a zero family gold price as unset", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        emasRow({
+          familyGroup: {
+            goldPricePerGram: BigInt(0),
+            goldPriceUpdatedAt: GOLD_UPDATED_AT,
+          },
+        }),
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentPrice).toBe("1300000");
+    });
+
+    it("never applies the family gold price to a non-emas holding", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([
+        emasRow({ type: "lainnya" }),
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.currentPrice).toBe("1300000");
+      expect(result?.latestPriceSource).toBe("manual");
+    });
+
+    it("getSummary totals the gold-priced value", async () => {
+      mockPrisma.investment.findMany.mockResolvedValue([emasRow()]);
+
+      const summary = await service.getSummary("fg-1");
+
+      expect(summary.totalCurrentValue).toBe("15750000");
+      expect(summary.totalCostBasis).toBe("12600000");
+    });
+  });
+
   describe("setManualPrice()", () => {
     it("creates a manual price record with source 'manual' and delayed=false", async () => {
       mockPrisma.investment.findUnique.mockResolvedValue({ id: "inv-1" });

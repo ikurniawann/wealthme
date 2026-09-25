@@ -186,4 +186,56 @@ describe("ReportsService.getBalanceSheet vs DashboardService.getNetWorth — cro
       balanceSheet.assets.some((group) => group.category === "Investasi"),
     ).toBe(false);
   });
+
+  it("both value an emas holding at the family gold price (Revisi D item 11)", async () => {
+    const prisma = makeFakePrisma();
+    prisma.investment.findMany.mockResolvedValue([
+      {
+        name: "Logam Mulia",
+        ticker: "ANTM",
+        type: "emas",
+        quantity: new Decimal(10),
+        costBasisPerUnit: new Decimal(1_000_000),
+        prices: [{ price: new Decimal(1_100_000) }],
+        familyGroup: { goldPricePerGram: 1_500_000n },
+      },
+    ]);
+
+    const reportsMod: TestingModule = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    const reportsService = reportsMod.get(ReportsService);
+    const dashboardMod: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    const dashboardService = dashboardMod.get(DashboardService);
+
+    const balanceSheet = await reportsService.getBalanceSheet(
+      FAMILY_GROUP_ID,
+      new Date(),
+      true,
+    );
+    const netWorth = await dashboardService.getNetWorth(FAMILY_GROUP_ID, true);
+
+    expect(Number(netWorth.investmentsTotal)).toBe(15_000_000);
+    expect(
+      balanceSheet.assets.find((group) => group.category === "Investasi")
+        ?.amount,
+    ).toBe(15_000_000);
+    const calls = prisma.investment.findMany.mock.calls as [
+      { select: Record<string, unknown> },
+    ][];
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    for (const [args] of calls) {
+      expect(args.select).toEqual(
+        expect.objectContaining({
+          type: true,
+          familyGroup: { select: { goldPricePerGram: true } },
+        }),
+      );
+    }
+  });
 });

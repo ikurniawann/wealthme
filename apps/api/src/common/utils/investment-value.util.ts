@@ -1,27 +1,32 @@
-import type { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "@prisma/client/runtime/library";
+
+export const FAMILY_GOLD_PRICE_SOURCE = "family-gold-price";
+
+/** Revisi D item 11 — emas follows FamilyGroup.goldPricePerGram when the owner has set a positive one. */
+export function familyGoldUnitPrice(inv: {
+  type?: string;
+  familyGroup?: { goldPricePerGram: bigint | null } | null;
+}): Decimal | null {
+  const perGram = inv.familyGroup?.goldPricePerGram ?? null;
+  if (inv.type !== "emas" || perGram === null || perGram <= 0n) return null;
+  return new Decimal(perGram.toString());
+}
 
 /**
- * The current position value for one investment holding: latest recorded
- * market price × quantity, falling back to cost basis × quantity when no
- * price has been recorded yet. This is the same basis
- * `investments.service.ts` (`InvestmentDto.currentValue`) and the web
- * client's `investmentCurrentValue` (`apps/web/src/lib/laporan-utils.ts`)
- * use — shared here (EPIC-022, adversarial review round 3) so
- * `DashboardService`'s net-worth rollup and `ReportsService`'s balance
- * sheet can never silently diverge from each other, or from what
- * `/investasi` shows, by hand-duplicating this formula per call site.
- *
- * Reads only the already-recorded latest price (no live market-data
- * refresh) — safe to call from read-only report/dashboard aggregation
- * without side effects or a dependency on the market-data adapter.
- * `prices` is expected pre-ordered `recordedAt desc` with `take: 1`, so
- * `prices[0]` (if present) is the latest recorded price.
+ * The current position value for one investment holding: family gold price
+ * (emas only, when set), else the latest recorded price, else cost basis —
+ * × quantity. Shared by `InvestmentsService`, `DashboardService` and
+ * `ReportsService` so /investasi, /ringkasan and /laporan never diverge.
+ * `prices` is expected pre-ordered `recordedAt desc` with `take: 1`.
  */
 export function investmentPositionValue(inv: {
+  type?: string;
   quantity: Decimal;
   costBasisPerUnit: Decimal;
   prices: { price: Decimal }[];
+  familyGroup?: { goldPricePerGram: bigint | null } | null;
 }): Decimal {
-  const price = inv.prices[0]?.price ?? inv.costBasisPerUnit;
+  const price =
+    familyGoldUnitPrice(inv) ?? inv.prices[0]?.price ?? inv.costBasisPerUnit;
   return price.times(inv.quantity);
 }

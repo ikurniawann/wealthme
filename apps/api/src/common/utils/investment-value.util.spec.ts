@@ -8,7 +8,10 @@
 
 import { Decimal } from "@prisma/client/runtime/library";
 
-import { investmentPositionValue } from "./investment-value.util";
+import {
+  familyGoldUnitPrice,
+  investmentPositionValue,
+} from "./investment-value.util";
 
 describe("investmentPositionValue", () => {
   it("values a holding at its latest recorded price × quantity", () => {
@@ -48,5 +51,51 @@ describe("investmentPositionValue", () => {
       prices: [{ price: new Decimal(10_000) }],
     });
     expect(result.toNumber()).toBe(5_000_000);
+  });
+});
+
+describe("emas follows the family gold price (Revisi D item 11)", () => {
+  const gold = { goldPricePerGram: BigInt(1_500_000) };
+
+  it("values emas at quantity × family gold price, ignoring the stored price", () => {
+    const result = investmentPositionValue({
+      type: "emas",
+      quantity: new Decimal("2.5"),
+      costBasisPerUnit: new Decimal(1_000_000),
+      prices: [{ price: new Decimal(1_200_000) }],
+      familyGroup: gold,
+    });
+    expect(result.toString()).toBe("3750000");
+  });
+
+  it("falls back to the latest stored price when the family gold price is unset", () => {
+    const result = investmentPositionValue({
+      type: "emas",
+      quantity: new Decimal("2.5"),
+      costBasisPerUnit: new Decimal(1_000_000),
+      prices: [{ price: new Decimal(1_200_000) }],
+      familyGroup: { goldPricePerGram: null },
+    });
+    expect(result.toString()).toBe("3000000");
+  });
+
+  it("never applies the gold price to a non-emas holding", () => {
+    const result = investmentPositionValue({
+      type: "lainnya",
+      quantity: new Decimal("2.5"),
+      costBasisPerUnit: new Decimal(1_000_000),
+      prices: [{ price: new Decimal(1_200_000) }],
+      familyGroup: gold,
+    });
+    expect(result.toString()).toBe("3000000");
+  });
+
+  it("treats a zero gold price as unset", () => {
+    expect(
+      familyGoldUnitPrice({
+        type: "emas",
+        familyGroup: { goldPricePerGram: BigInt(0) },
+      }),
+    ).toBeNull();
   });
 });
