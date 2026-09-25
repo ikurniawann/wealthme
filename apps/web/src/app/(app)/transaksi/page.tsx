@@ -42,7 +42,13 @@ import { useShell } from "@/components/shell/shell-context";
 import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-import { SectionCard, CardLink, StatusBadge, IconChip } from "@/components/wm";
+import {
+  SectionCard,
+  CardLink,
+  StatusBadge,
+  IconChip,
+  DateField,
+} from "@/components/wm";
 import {
   DateRangeFilterField,
   formatMonthYear,
@@ -966,7 +972,7 @@ export function TransactionDetailDialog({
   );
 }
 
-function EditTransactionDialog({
+export function EditTransactionDialog({
   tx,
   token,
   familyGroupId,
@@ -979,7 +985,7 @@ function EditTransactionDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   // State is initialised from props; parent passes key={tx.id} to reset on change
   const [amount, setAmount] = useState(
     tx ? formatAmountInput(String(Math.round(parseFloat(tx.amount)))) : "",
@@ -1056,15 +1062,19 @@ function EditTransactionDialog({
               maxLength={200}
             />
           </label>
-          <label className="field">
-            <span className="label">{t.transaksi.fieldDateLabel}</span>
-            <input
-              type="date"
-              className="input"
+          <div className="field">
+            <label className="label" htmlFor="tx-edit-date">
+              {t.transaksi.fieldDateLabel}
+            </label>
+            <DateField
+              id="tx-edit-date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              locale={locale}
+              label={t.transaksi.fieldDateLabel}
+              required
+              onChange={setDate}
             />
-          </label>
+          </div>
         </DialogBody>
         {/* Prototype `.dialog__footer` — Batal (outline) then Simpan
             (primary), right-aligned (transaksi.html:576-581). */}

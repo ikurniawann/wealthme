@@ -10,6 +10,7 @@
 
 import { Eye, EyeOff } from "lucide-react";
 
+import { DateRangeFilterField } from "@/components/wm";
 import { FOREIGN_CURRENCIES } from "@/hooks/currencies";
 import { useLocale } from "@/hooks/use-locale";
 import { isForeignCurrency, type DisplayCurrency } from "./display-currency";
@@ -47,7 +48,7 @@ export function RingkasanPageLead({
   privacyOn,
   onTogglePrivacy,
 }: PageLeadProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const trendRanges: { key: TrendRangeKey; label: string }[] = [
     { key: "1m", label: t.ringkasan.trendRangeLabel1m },
     { key: "3m", label: t.ringkasan.trendRangeLabel3m },
@@ -138,34 +139,15 @@ export function RingkasanPageLead({
           ))}
         </div>
         {trendRange === "custom" && (
-          <div className="row gap-2">
-            <label className="t-xs t-muted" htmlFor="trend-from">
-              {t.ringkasan.trendCustomFromLabel}
-            </label>
-            <input
-              id="trend-from"
-              type="date"
-              className="input"
-              style={{ width: 150 }}
-              value={customRange.from}
-              max={customRange.to || undefined}
-              onChange={(e) =>
-                onCustomRangeChange({ ...customRange, from: e.target.value })
-              }
-            />
-            <label className="t-xs t-muted" htmlFor="trend-to">
-              {t.ringkasan.trendCustomToLabel}
-            </label>
-            <input
-              id="trend-to"
-              type="date"
-              className="input"
-              style={{ width: 150 }}
-              value={customRange.to}
-              min={customRange.from || undefined}
-              onChange={(e) =>
-                onCustomRangeChange({ ...customRange, to: e.target.value })
-              }
+          <div className="min-w-[240px]">
+            <DateRangeFilterField
+              from={customRange.from}
+              to={customRange.to}
+              locale={locale}
+              label={t.ringkasan.trendRangeLabelCustom}
+              cancelLabel={t.common.cancel}
+              applyLabel={t.common.save}
+              onApply={(from, to) => onCustomRangeChange({ from, to })}
             />
           </div>
         )}
