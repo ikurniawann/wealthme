@@ -8,6 +8,7 @@ import type { NetWorthHistoryPointDto } from "@wealthme/contracts";
 
 import {
   bucketHistoryPoints,
+  effectiveGranularity,
   granularityForRange,
   trendCategoryLabel,
 } from "./history-buckets";
@@ -98,6 +99,30 @@ describe("bucketHistoryPoints", () => {
       ]);
     },
   );
+
+  // A brand-new family's history can sit entirely inside one calendar month
+  // (or one ISO week). Monthly bucketing would then collapse it to a single
+  // point and trip the "not enough points" empty state, even though there
+  // is a real day-to-day trend to show.
+  it("12m falls back all the way to daily buckets when every point falls in one ISO week", () => {
+    const points = dailyPoints("2026-09-07", 5); // Mon–Fri, one week, one month
+    const out = bucketHistoryPoints(points, "12m");
+    expect(out.map(dayOf)).toEqual([
+      "2026-09-07",
+      "2026-09-08",
+      "2026-09-09",
+      "2026-09-10",
+      "2026-09-11",
+    ]);
+    expect(effectiveGranularity(points, "12m")).toBe("day");
+  });
+
+  it("12m falls back to weekly buckets when the month's points span 3 ISO weeks", () => {
+    const points = dailyPoints("2026-09-06", 10); // Sun 6 Sep → Tue 15 Sep, one month
+    const out = bucketHistoryPoints(points, "12m");
+    expect(out.map(dayOf)).toEqual(["2026-09-06", "2026-09-13", "2026-09-15"]);
+    expect(effectiveGranularity(points, "12m")).toBe("week");
+  });
 });
 
 describe("trendCategoryLabel", () => {

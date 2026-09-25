@@ -2299,7 +2299,7 @@ export const en = {
     netWorthTrendRangeStart: "6 months ago",
     netWorthTrendRangeEnd: "Now",
     emptyNetWorthTrend:
-      "The trend fills in after the first daily snapshot (02:00).",
+      "The trend appears once there is data for at least two days.",
     compositionTitle: "Asset Composition",
     emptyComposition: "Add account balances to see your asset composition.",
     cashFlowTitlePrefix: "Cash Flow ",

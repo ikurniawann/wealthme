@@ -26,7 +26,7 @@ import type {
 } from "@wealthme/contracts";
 import {
   bucketHistoryPoints,
-  granularityForRange,
+  effectiveGranularity,
   trendCategoryLabel,
   type TrendRangeKey,
 } from "./history-buckets";
@@ -254,7 +254,10 @@ export function useRingkasanData(
     if (windowEnd !== null && ts > windowEnd) return false;
     return true;
   });
-  const trendGranularity = granularityForRange(trendRange);
+  const trendGranularity = effectiveGranularity(
+    netWorthHistoryPoints,
+    trendRange,
+  );
   const groupedHistoryPoints = bucketHistoryPoints(
     netWorthHistoryPoints,
     trendRange,
