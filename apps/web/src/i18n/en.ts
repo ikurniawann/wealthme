@@ -1739,6 +1739,28 @@ export const en = {
     historyBuyLabel: "Buy",
     historySellLabel: "Sell",
     historyRealizedPnlTemplate: "P/L: {pnl}",
+    fieldQuantityLabelByType: {
+      saham: "Number of Shares",
+      reksa_dana: "Fund Units",
+      obligasi: "Units",
+      emas: "Gold Weight (grams)",
+      kripto: "Coin Amount",
+      lainnya: "Units",
+      deposito: "Nominal",
+    },
+    fieldQuantityPlaceholderByType: {
+      saham: "e.g. 10",
+      reksa_dana: "e.g. 1250.5678",
+      obligasi: "e.g. 10",
+      emas: "e.g. 10.5",
+      kripto: "e.g. 0.015",
+      lainnya: "e.g. 10",
+      deposito: "",
+    },
+    quantityDecimalsErrorTemplate:
+      "The {unit} quantity allows at most {max} decimal places.",
+    quantityWholeNumberErrorTemplate:
+      "The {unit} quantity must be a whole number.",
   },
   aset: {
     tabs: {

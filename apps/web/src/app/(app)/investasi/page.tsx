@@ -43,18 +43,20 @@ import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  formatRupiah,
-  formatNumber,
-  formatAmountInput,
-  parseRupiah,
-} from "@/lib/format";
+import { formatRupiah, formatAmountInput, parseRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   canonicalizeSahamQuantity,
   convertQuantityDisplay,
   divideBy100,
 } from "./quantity-conversion";
+import {
+  formatQuantity,
+  hasAtMostDecimals,
+  maxQuantityDecimals,
+  quantityStep,
+  quantityUnitLabel,
+} from "./instrument-units";
 
 import type { Locale } from "@/i18n";
 import type {
@@ -66,6 +68,7 @@ import type {
   InvestmentTxType,
 } from "@wealthme/contracts";
 import type { QuantityUnit } from "./quantity-conversion";
+import type { UnitLabels } from "./instrument-units";
 
 const TYPE_BADGE_VARIANT: Record<
   string,
@@ -204,6 +207,36 @@ function formatLocaleDateTime(iso: string, locale: Locale): string {
 
 type Dict = ReturnType<typeof useLocale>["t"];
 
+function unitLabels(t: Dict): UnitLabels {
+  return {
+    lot: t.investasi.unitLot,
+    lembar: t.investasi.unitLembar,
+    unit: t.investasi.unitFundUnit,
+    gram: t.investasi.unitGram,
+    coin: t.investasi.unitCoinSuffix,
+  };
+}
+
+function quantityDecimalsError(
+  t: Dict,
+  type: string,
+  quantity: string,
+  quantityUnit: QuantityUnit,
+): string | null {
+  const max = maxQuantityDecimals(type, quantityUnit);
+  if (hasAtMostDecimals(quantity, max)) return null;
+  const unit = quantityUnitLabel(
+    type,
+    quantityUnit,
+    unitLabels(t),
+  ).toLowerCase();
+  return max === 0
+    ? t.investasi.quantityWholeNumberErrorTemplate.replace("{unit}", unit)
+    : t.investasi.quantityDecimalsErrorTemplate
+        .replace("{unit}", unit)
+        .replace("{max}", String(max));
+}
+
 // EPIC-025 N3 audit (structural port fidelity) — restores the prototype's
 // per-row "instrument" sub-line: ticker + purchase date for most types,
 // coupon + purchase date for obligasi, start + maturity for deposito. Every
@@ -241,16 +274,16 @@ function formatInstrumentSubline(
 // (never invented). Saham shows both lot and lembar via the SAME exact
 // decimal math (`divideBy100`) as the add/edit form's Lot/Lembar toggle.
 function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
-  const qty = parseFloat(h.quantity);
+  const labels = unitLabels(t);
   if (h.type === "saham") {
-    const lot = parseFloat(divideBy100(h.quantity));
     return (
       <>
         <div>
-          {formatNumber(lot)} {t.investasi.unitLot.toLowerCase()}
+          {formatQuantity(divideBy100(h.quantity), h.type, "lot")}{" "}
+          {labels.lot.toLowerCase()}
         </div>
         <div className="text-muted-foreground">
-          {formatNumber(qty)} {t.investasi.unitLembar.toLowerCase()}
+          {formatQuantity(h.quantity, h.type)} {labels.lembar.toLowerCase()}
         </div>
       </>
     );
@@ -258,21 +291,7 @@ function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
   if (h.type === "kripto") {
     return (
       <div>
-        {qty.toLocaleString("id-ID", { maximumFractionDigits: 8 })} {h.ticker}
-      </div>
-    );
-  }
-  if (h.type === "reksa_dana") {
-    return (
-      <div>
-        {formatNumber(qty)} {t.investasi.unitFundUnit}
-      </div>
-    );
-  }
-  if (h.type === "emas") {
-    return (
-      <div>
-        {formatNumber(qty)} {t.investasi.unitGram}
+        {formatQuantity(h.quantity, h.type)} {h.ticker}
       </div>
     );
   }
@@ -280,7 +299,7 @@ function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
     // Prototype shows the total nominal here, which equals this row's own
     // "Modal" column value (quantity × costBasisPerUnit) — not a separate,
     // invented figure.
-    const nominal = parseFloat(h.costBasisPerUnit) * qty;
+    const nominal = parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
     return (
       <div>
         {t.investasi.nominalPrefix}
@@ -288,7 +307,12 @@ function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
       </div>
     );
   }
-  return <div>{formatNumber(qty)}</div>;
+  return (
+    <div>
+      {formatQuantity(h.quantity, h.type)}{" "}
+      {quantityUnitLabel(h.type, "lembar", labels)}
+    </div>
+  );
 }
 
 // EPIC-025 N3 audit — restores the prototype's "Harga / Sumber" column and
@@ -534,6 +558,18 @@ function AddInvestmentModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isDeposito && !isEditingLots) {
+      const decimalsError = quantityDecimalsError(
+        t,
+        form.type,
+        form.quantity,
+        form.quantityUnit,
+      );
+      if (decimalsError) {
+        toast.error(decimalsError);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       const path = editing
@@ -842,9 +878,7 @@ function AddInvestmentModal({
                 {!isDeposito && (
                   <div className="field">
                     <label className="label" htmlFor="quantity">
-                      {form.type === "kripto"
-                        ? t.investasi.fieldQuantityKriptoLabel
-                        : t.investasi.fieldQuantityLabel}
+                      {t.investasi.fieldQuantityLabelByType[form.type]}
                     </label>
                     <input
                       id="quantity"
@@ -852,18 +886,18 @@ function AddInvestmentModal({
                       type="number"
                       required
                       min="0"
-                      step="any"
+                      step={quantityStep(form.type, form.quantityUnit)}
                       value={form.quantity}
                       onChange={handleChange}
                       disabled={isEditingLots}
                       placeholder={
-                        form.type === "kripto"
-                          ? t.investasi.fieldQuantityKriptoPlaceholder
-                          : form.type === "saham" && form.quantityUnit === "lot"
+                        form.type === "saham"
+                          ? form.quantityUnit === "lot"
                             ? t.investasi.fieldQuantityLotPlaceholder
-                            : form.type === "saham"
-                              ? t.investasi.fieldQuantityLembarPlaceholder
-                              : t.investasi.fieldQuantityPlaceholder
+                            : t.investasi.fieldQuantityLembarPlaceholder
+                          : t.investasi.fieldQuantityPlaceholderByType[
+                              form.type
+                            ]
                       }
                       className="input mono disabled:cursor-not-allowed disabled:opacity-60"
                     />
@@ -1766,8 +1800,13 @@ export default function InvestasiPage() {
                                 : t.investasi.historySellLabel}
                             </StatusBadge>
                             <span className="mono">
-                              {formatNumber(parseFloat(tx.quantity))} @{" "}
-                              {formatDecimalRupiah(tx.pricePerUnit)}
+                              {formatQuantity(tx.quantity, detailHolding.type)}{" "}
+                              {quantityUnitLabel(
+                                detailHolding.type,
+                                "lembar",
+                                unitLabels(t),
+                              ).toLowerCase()}{" "}
+                              @ {formatDecimalRupiah(tx.pricePerUnit)}
                             </span>
                           </div>
                           <div className="flex items-center gap-2 text-muted-foreground">

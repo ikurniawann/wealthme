@@ -1665,6 +1665,12 @@ export type I18nDictionary = {
     historySellLabel: string;
     /** Template with a `{pnl}` placeholder. */
     historyRealizedPnlTemplate: string;
+    fieldQuantityLabelByType: Record<InvestasiTypeId, string>;
+    fieldQuantityPlaceholderByType: Record<InvestasiTypeId, string>;
+    /** Template with `{unit}` and `{max}` placeholders. */
+    quantityDecimalsErrorTemplate: string;
+    /** Template with a `{unit}` placeholder. */
+    quantityWholeNumberErrorTemplate: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {

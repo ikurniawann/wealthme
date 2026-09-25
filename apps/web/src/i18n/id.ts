@@ -1771,6 +1771,27 @@ export const id = {
     historyBuyLabel: "Beli",
     historySellLabel: "Jual",
     historyRealizedPnlTemplate: "P/L: {pnl}",
+    fieldQuantityLabelByType: {
+      saham: "Jumlah Saham",
+      reksa_dana: "Jumlah Unit Penyertaan",
+      obligasi: "Jumlah Unit",
+      emas: "Berat Emas (gram)",
+      kripto: "Jumlah Koin",
+      lainnya: "Jumlah Unit",
+      deposito: "Nominal",
+    },
+    fieldQuantityPlaceholderByType: {
+      saham: "contoh: 10",
+      reksa_dana: "contoh: 1250.5678",
+      obligasi: "contoh: 10",
+      emas: "contoh: 10.5",
+      kripto: "contoh: 0.015",
+      lainnya: "contoh: 10",
+      deposito: "",
+    },
+    quantityDecimalsErrorTemplate:
+      "Jumlah {unit} maksimal {max} angka di belakang koma.",
+    quantityWholeNumberErrorTemplate: "Jumlah {unit} harus bilangan bulat.",
   },
   aset: {
     tabs: {

@@ -12,7 +12,15 @@ import {
   resolveEffectiveAccess,
   type MemberRoleKey,
 } from "@wealthme/contracts";
-import { render as rtlRender, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
 
@@ -136,6 +144,50 @@ beforeEach(() => {
   queryClient.clear();
 });
 
+type ApiInit = { method?: string; token?: string; body?: string };
+type RouteHandler = (path: string, init?: ApiInit) => unknown;
+
+function holdingOf(overrides: Partial<InvestmentDto>): InvestmentDto {
+  return { ...HOLDING, ...overrides };
+}
+
+// Layers path-suffix routes over whatever mockSession() installed.
+function routeApi(routes: Record<string, unknown>) {
+  const fallback = mockApiFetch.getMockImplementation();
+  mockApiFetch.mockImplementation((path: string, init?: ApiInit) => {
+    const hit = Object.keys(routes).find((suffix) => path.endsWith(suffix));
+    if (hit !== undefined) {
+      const route = routes[hit];
+      return Promise.resolve(
+        typeof route === "function"
+          ? (route as RouteHandler)(path, init)
+          : route,
+      );
+    }
+    return fallback ? fallback(path, init) : Promise.resolve([]);
+  });
+}
+
+function postBodyTo(suffix: string): Record<string, unknown> | undefined {
+  const call = mockApiFetch.mock.calls.find(
+    ([path, init]) =>
+      String(path).endsWith(suffix) &&
+      (init as ApiInit | undefined)?.method === "POST",
+  );
+  return call
+    ? (JSON.parse((call[1] as ApiInit).body ?? "{}") as Record<string, unknown>)
+    : undefined;
+}
+
+async function openAddModal(
+  user: ReturnType<typeof userEvent.setup>,
+): Promise<HTMLElement> {
+  await user.click(
+    await screen.findByRole("button", { name: /Catat Investasi/i }),
+  );
+  return screen.findByLabelText("Jenis");
+}
+
 describe("InvestasiPage — role gating (F3)", () => {
   it("hides the add/edit/delete affordances from a role without CASL's manage Investment", async () => {
     mockSession("admin_staff");
@@ -173,5 +225,114 @@ describe("InvestasiPage — role gating (F3)", () => {
     expect(
       within(row as HTMLElement).getByRole("button", { name: "Hapus" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 9)", () => {
+  it.each([
+    ["saham", "Jumlah Saham"],
+    ["reksa_dana", "Jumlah Unit Penyertaan"],
+    ["obligasi", "Jumlah Unit"],
+    ["emas", "Berat Emas (gram)"],
+    ["kripto", "Jumlah Koin"],
+    ["lainnya", "Jumlah Unit"],
+  ])("labels the %s quantity field %s", async (type, label) => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), type);
+
+    expect(screen.getByLabelText(label)).toHaveAttribute("name", "quantity");
+  });
+
+  it("uses a gram step and an emas placeholder", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), "emas");
+
+    const qty = screen.getByLabelText("Berat Emas (gram)");
+    expect(qty).toHaveAttribute("step", "0.001");
+    expect(qty).toHaveAttribute("placeholder", "contoh: 10.5");
+  });
+
+  it("rejects more than 3 decimals of gram without saving", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), "emas");
+    fireEvent.change(screen.getByLabelText("Nama"), {
+      target: { value: "Antam 10 g" },
+    });
+    fireEvent.change(screen.getByLabelText("Ticker"), {
+      target: { value: "ANTM" },
+    });
+    const qty = screen.getByLabelText("Berat Emas (gram)");
+    fireEvent.change(qty, { target: { value: "1.2345" } });
+    fireEvent.change(screen.getByLabelText("Harga Beli per Unit (Rp)"), {
+      target: { value: "1500000" },
+    });
+    fireEvent.submit(qty.closest("form") as HTMLFormElement);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Jumlah gram maksimal 3 angka di belakang koma.",
+      ),
+    );
+    expect(postBodyTo("/investments")).toBeUndefined();
+  });
+
+  it("shows an emas holding's grams without rounding", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        holdingOf({
+          type: "emas",
+          name: "Logam Mulia",
+          ticker: "ANTM",
+          quantity: "10.5",
+        }),
+      ],
+    });
+    render(<InvestasiPage />);
+
+    expect(await screen.findByText("10,5 gram")).toBeInTheDocument();
+  });
+
+  it("shows buy/sell history quantities in the instrument's unit", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        holdingOf({
+          type: "emas",
+          name: "Logam Mulia",
+          ticker: "ANTM",
+          quantity: "10.5",
+        }),
+      ],
+      "/investments/inv-1/transactions": [
+        {
+          id: "tx-1",
+          investmentId: "inv-1",
+          type: "buy",
+          quantity: "2.5",
+          pricePerUnit: "1400000",
+          occurredAt: "2026-09-10T03:00:00.000Z",
+          realizedPnl: null,
+          createdAt: "2026-09-10T03:00:00.000Z",
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Lihat Detail" }),
+    );
+
+    expect(await screen.findByText(/2,5 gram @/)).toBeInTheDocument();
   });
 });
