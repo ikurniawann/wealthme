@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -52,6 +53,36 @@ export class DonationsController {
       familyGroupId,
       year !== undefined ? parseInt(year, 10) : undefined,
     );
+  }
+
+  @Get("deductible-total")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Donation"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiQuery({ name: "year", required: false, type: Number })
+  @ApiOperation({
+    summary:
+      "Total tax-deductible donations (zakat + persepuluhan) for a calendar year",
+  })
+  async getDeductibleTotal(
+    @Param("familyGroupId") familyGroupId: string,
+    @Query("year") year?: string,
+  ): Promise<{ year: number; total: string }> {
+    const resolvedYear =
+      year === undefined ? new Date().getFullYear() : Number(year);
+    if (
+      !Number.isInteger(resolvedYear) ||
+      resolvedYear < 2000 ||
+      resolvedYear > 2100
+    ) {
+      throw new BadRequestException(
+        "year must be an integer between 2000 and 2100",
+      );
+    }
+    const total = await this.donationsService.getTotalDeductibleAmount(
+      familyGroupId,
+      resolvedYear,
+    );
+    return { year: resolvedYear, total: total.toString() };
   }
 
   @Post()
