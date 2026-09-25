@@ -7,6 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const mockUseSessionAuth = jest.fn();
@@ -37,6 +38,7 @@ if (typeof window !== "undefined" && !window.PointerEvent) {
   window.PointerEvent = PointerEventPolyfill;
 }
 
+import { setLocale } from "../../hooks/use-locale";
 import { CrudModal } from "./crud-modal";
 
 const FG = "fg-1";
@@ -191,6 +193,106 @@ describe("CrudModal — selects backed by Master Data (Revisi H)", () => {
     expect(mockApiFetch).not.toHaveBeenCalledWith(
       `/family-groups/${FG}/reference-items`,
       expect.anything(),
+    );
+  });
+});
+
+function localMonthPrefix(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function renderTujuan(
+  state:
+    | { mode: "add" }
+    | { mode: "edit"; initialValues: Record<string, string> },
+  onSubmit = jest.fn().mockResolvedValue(undefined),
+  onClose = jest.fn(),
+) {
+  function Providers({ children }: { children: ReactNode }) {
+    return (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+  }
+  return {
+    onSubmit,
+    onClose,
+    ...rtlRender(
+      <CrudModal
+        state={{ entity: "tujuan", ...state }}
+        onClose={onClose}
+        onSubmit={onSubmit}
+      />,
+      { wrapper: Providers },
+    ),
+  };
+}
+
+describe("CrudModal — date fields use the shared DateField", () => {
+  beforeEach(() => {
+    setLocale("id");
+    routeApi({ referenceItems: [] });
+  });
+
+  it("picks the tujuan deadline from the calendar inside the dialog and submits it as ISO", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderTujuan({ mode: "add" });
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /tambah tujuan keuangan/i,
+    });
+    const trigger = within(dialog).getByLabelText("Target Tanggal");
+    expect(trigger.tagName).toBe("BUTTON");
+
+    await user.click(trigger);
+    const pop = screen.getByRole("dialog", { name: "Target Tanggal" });
+    expect(dialog).toContainElement(pop);
+
+    await user.click(within(pop).getByRole("button", { name: "20" }));
+    expect(
+      screen.getByRole("dialog", { name: /tambah tujuan keuangan/i }),
+    ).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "tujuan",
+      "add",
+      expect.objectContaining({ deadline: `${localMonthPrefix()}-20` }),
+    );
+  });
+
+  it("Escape closes only the picker, never the CRUD dialog around it", async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderTujuan({ mode: "add" });
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /tambah tujuan keuangan/i,
+    });
+    await user.click(within(dialog).getByLabelText("Target Tanggal"));
+    expect(
+      screen.getByRole("dialog", { name: "Target Tanggal" }),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    expect(
+      screen.queryByRole("dialog", { name: "Target Tanggal" }),
+    ).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", { name: /tambah tujuan keuangan/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("pre-fills an edit with the stored date", async () => {
+    renderTujuan({ mode: "edit", initialValues: { deadline: "2026-12-01" } });
+
+    const dialog = await screen.findByRole("dialog", {
+      name: /edit tujuan keuangan/i,
+    });
+    expect(within(dialog).getByLabelText("Target Tanggal")).toHaveTextContent(
+      "1 Desember 2026",
     );
   });
 });

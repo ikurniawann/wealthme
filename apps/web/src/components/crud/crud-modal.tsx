@@ -16,7 +16,7 @@ import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { mergeReferenceOptions } from "@/hooks/reference-options";
 import { useReferenceItems } from "@/hooks/use-reference-items";
-import { EmojiPicker } from "@/components/wm";
+import { DateField, EmojiPicker } from "@/components/wm";
 import { CRUD_CONFIG, type CrudEntity, type CrudField } from "./crud-config";
 import { AddToMasterDataLink } from "./add-to-master-data-link";
 
@@ -140,7 +140,7 @@ interface CrudFormProps extends CrudModalProps {
 }
 
 function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const config = CRUD_CONFIG[state.entity];
   const { items: referenceItems } = useReferenceItems(undefined, {
     enabled: config.fields.some((f) => f.referenceGroup),
@@ -243,16 +243,6 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
         />
       );
     }
-    if (f.type === "date") {
-      return (
-        <input
-          className="input"
-          type="date"
-          value={values[f.key] ?? ""}
-          onChange={(e) => setField(f.key, e.target.value)}
-        />
-      );
-    }
     return (
       <input
         className="input"
@@ -288,6 +278,27 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
               <span className="t-xs t-muted block">{f.helperText}</span>
             )}
           </span>
+        </div>
+      );
+    }
+
+    // A DateField is a button + portaled calendar, so it gets an explicit
+    // htmlFor pairing instead of the wrapping <label> other controls use.
+    if (f.type === "date") {
+      const fieldId = `crud-${state.entity}-${f.key}`;
+      return (
+        <div key={f.key} className={fieldClass}>
+          <label className="label" htmlFor={fieldId}>
+            {f.label}
+          </label>
+          <DateField
+            id={fieldId}
+            value={values[f.key] ?? ""}
+            locale={locale}
+            label={f.label}
+            onChange={(iso) => setField(f.key, iso)}
+          />
+          {hint && <span className="hint block">{hint}</span>}
         </div>
       );
     }
