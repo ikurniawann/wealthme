@@ -1704,6 +1704,7 @@ export const id = {
       manual: "Input Manual",
       mock: "Simulasi",
       computedInterest: "Bunga Sederhana (Dihitung)",
+      familyGold: "Harga Emas Keluarga",
     },
     detailDelayedLabel: "Tertunda & tidak resmi",
     detailRefreshFailedLabel: "Refresh gagal, menampilkan harga terakhir",
@@ -1729,7 +1730,7 @@ export const id = {
     livePositionsSuffix: "posisi berharga live",
     pricingSourceNoticeTitle: "Dua sumber harga.",
     pricingSourceNoticeBody:
-      "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko, keduanya delayed ±15 menit, bukan real-time. Reksa dana, obligasi, emas, dan deposito tidak punya feed otomatis: nilainya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya.",
+      "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko, keduanya delayed ±15 menit, bukan real-time. Emas mengikuti Harga Emas keluarga di Pengaturan. Reksa dana, obligasi, dan lainnya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya; deposito dihitung dari bunganya.",
     allocationTitle: "Alokasi per Jenis",
     modalDesc:
       "Isi jenis dulu, kolom di bawah menyesuaikan. Saham dihitung per lot, kripto per koin, deposito per bunga berjalan.",
@@ -1794,6 +1795,14 @@ export const id = {
     quantityWholeNumberErrorTemplate: "Jumlah {unit} harus bilangan bulat.",
     buySellPricePerLembarHint:
       "Harga tetap per lembar, walau jumlah diisi dalam lot.",
+    familyGoldPriceNote:
+      "Harga emas mengikuti Harga Emas keluarga di Pengaturan, tidak perlu diinput per posisi.",
+    familyGoldPriceHintTemplate:
+      "Harga dari Pengaturan › Harga Emas ({price}/gram, diperbarui {date}).",
+    familyGoldPriceUnsetHint:
+      "Harga emas keluarga belum diatur. Sampai diatur di Pengaturan › Harga Emas, emas dinilai dengan harga manual terakhirnya.",
+    familyGoldPriceLinkLabel: "Buka Pengaturan",
+    priceFamilyGoldBadgeTemplate: "Harga emas keluarga · {date}",
   },
   aset: {
     tabs: {

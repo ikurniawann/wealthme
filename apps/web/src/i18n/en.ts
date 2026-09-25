@@ -1672,6 +1672,7 @@ export const en = {
       manual: "Manual Entry",
       mock: "Simulated",
       computedInterest: "Simple Interest (Computed)",
+      familyGold: "Family Gold Price",
     },
     detailDelayedLabel: "Delayed & unofficial",
     detailRefreshFailedLabel: "Refresh failed, showing last known price",
@@ -1697,7 +1698,7 @@ export const en = {
     livePositionsSuffix: "positions priced live",
     pricingSourceNoticeTitle: "Two pricing sources.",
     pricingSourceNoticeBody:
-      "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko, both delayed ±15 minutes, not real-time. Mutual funds, bonds, gold, and time deposits have no automated feed: you enter the value manually and it's always shown with its valuation date.",
+      "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko, both delayed ±15 minutes, not real-time. Gold follows the family Gold Price in Settings. Mutual funds, bonds and other holdings you value manually, always shown with their valuation date; time deposits are computed from their interest.",
     allocationTitle: "Allocation by Type",
     modalDesc:
       "Pick the type first, the fields below adapt. Stocks are counted in lots, crypto in coins, time deposits by accrued interest.",
@@ -1763,6 +1764,14 @@ export const en = {
       "The {unit} quantity must be a whole number.",
     buySellPricePerLembarHint:
       "Price stays per share (lembar), even when the quantity is entered in lots.",
+    familyGoldPriceNote:
+      "Gold follows the family Gold Price in Settings; no per-holding price entry needed.",
+    familyGoldPriceHintTemplate:
+      "Price from Settings › Gold Price ({price}/gram, updated {date}).",
+    familyGoldPriceUnsetHint:
+      "The family gold price isn't set yet. Until it is set in Settings › Gold Price, gold is valued at its last manual price.",
+    familyGoldPriceLinkLabel: "Open Settings",
+    priceFamilyGoldBadgeTemplate: "Family gold price · {date}",
   },
   aset: {
     tabs: {

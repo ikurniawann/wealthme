@@ -2,6 +2,7 @@
 
 import { Fragment, useEffect, useId, useState } from "react";
 import type { ReactNode } from "react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +42,7 @@ import { formatManualDate } from "@/components/consolidated-total-card";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import { useGoldPrice } from "@/hooks/use-gold-price";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatAmountInput, parseRupiah } from "@/lib/format";
@@ -129,8 +131,12 @@ const INTEREST_BEARING_TYPES: readonly InvestmentType[] = [
 // price; every other type is manual-only, matching MARKET_DATA_PORT's
 // AUTOMATED_PRICE_TYPES on the API.
 const AUTOMATED_PRICE_TYPES: readonly InvestmentType[] = ["saham", "kripto"];
+// Revisi D item 11 — valued from FamilyGroup.goldPricePerGram (Pengaturan › Harga Emas).
+const FAMILY_PRICED_TYPES: readonly InvestmentType[] = ["emas"];
 function isManualPriceType(type: InvestmentType): boolean {
-  return !AUTOMATED_PRICE_TYPES.includes(type);
+  return (
+    !AUTOMATED_PRICE_TYPES.includes(type) && !FAMILY_PRICED_TYPES.includes(type)
+  );
 }
 
 // EPIC-024 C1 (D8) — "computed-interest" (deposito's live simple-interest
@@ -142,6 +148,7 @@ const PRICE_SOURCE_LABEL_KEYS = {
   manual: "manual",
   mock: "mock",
   "computed-interest": "computedInterest",
+  "family-gold-price": "familyGold",
 } as const;
 
 interface AddInvestmentForm {
@@ -403,7 +410,28 @@ function formatPriceSourceCell(
     );
   }
 
-  // Manual-priced types: reksa_dana, obligasi, emas, lainnya.
+  if (h.latestPriceSource === "family-gold-price") {
+    const goldAsOf = h.latestPriceAsOf ?? h.latestPriceRecordedAt;
+    return (
+      <>
+        <div className="mono">
+          {formatDecimalRupiah(h.currentPrice)} / {t.investasi.unitGram}
+        </div>
+        <div className="mt-0.5">
+          <StatusBadge variant="warning">
+            {goldAsOf
+              ? t.investasi.priceFamilyGoldBadgeTemplate.replace(
+                  "{date}",
+                  formatManualDate(goldAsOf, locale),
+                )
+              : t.investasi.sourceLabels.familyGold}
+          </StatusBadge>
+        </div>
+      </>
+    );
+  }
+
+  // Manual-priced types: reksa_dana, obligasi, lainnya (+ emas with no family gold price).
   const unitSuffix =
     h.type === "reksa_dana"
       ? ` / ${t.investasi.unitFundUnit}`
@@ -474,7 +502,8 @@ function AddInvestmentModal({
   token: string;
   editing?: InvestmentDto | null;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const goldPrice = useGoldPrice();
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
   const [submitting, setSubmitting] = useState(false);
@@ -527,6 +556,7 @@ function AddInvestmentModal({
   // its instrument type is normally automated-only.
   const isAutomatedUnmapped = editing?.automatedPriceUnmapped ?? false;
   const isDeposito = form.type === "deposito";
+  const isFamilyGoldPriced = FAMILY_PRICED_TYPES.includes(form.type);
   const isManual =
     (isManualPriceType(form.type) && !isDeposito) || isAutomatedUnmapped;
   // EPIC-022 D2 — closing the "edit silently overwrites quantity/cost with
@@ -763,7 +793,9 @@ function AddInvestmentModal({
                         ? t.investasi.autoPriceNoteSaham
                         : form.type === "kripto"
                           ? t.investasi.autoPriceNoteKripto
-                          : t.investasi.manualPriceNote}
+                          : isFamilyGoldPriced
+                            ? t.investasi.familyGoldPriceNote
+                            : t.investasi.manualPriceNote}
                   </div>
                 </div>
 
@@ -1026,6 +1058,30 @@ function AddInvestmentModal({
                 <div className="notice notice--info">
                   <Calculator className="size-4 shrink-0" aria-hidden="true" />
                   <span>{t.investasi.depositoValuationNote}</span>
+                </div>
+              ) : isFamilyGoldPriced ? (
+                <div className="notice notice--info">
+                  <Info className="size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    <span>
+                      {goldPrice.hasPrice && goldPrice.pricePerGram !== null
+                        ? t.investasi.familyGoldPriceHintTemplate
+                            .replace(
+                              "{price}",
+                              formatRupiah(goldPrice.pricePerGram),
+                            )
+                            .replace(
+                              "{date}",
+                              goldPrice.updatedAt
+                                ? formatManualDate(goldPrice.updatedAt, locale)
+                                : "—",
+                            )
+                        : t.investasi.familyGoldPriceUnsetHint}
+                    </span>{" "}
+                    <Link href="/akun" className="font-semibold text-primary">
+                      {t.investasi.familyGoldPriceLinkLabel}
+                    </Link>
+                  </span>
                 </div>
               ) : isManual ? (
                 <>

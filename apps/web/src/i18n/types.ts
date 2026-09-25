@@ -1560,7 +1560,12 @@ export type I18nDictionary = {
     sourceLabels: Record<
       // EPIC-024 C1/C3 — "computedInterest" labels deposito's live
       // simple-interest value (never a stored/fetched price row).
-      "yahooFinance" | "coinGecko" | "manual" | "mock" | "computedInterest",
+      | "yahooFinance"
+      | "coinGecko"
+      | "manual"
+      | "mock"
+      | "computedInterest"
+      | "familyGold",
       string
     >;
     detailDelayedLabel: string;
@@ -1672,6 +1677,13 @@ export type I18nDictionary = {
     /** Template with a `{unit}` placeholder. */
     quantityWholeNumberErrorTemplate: string;
     buySellPricePerLembarHint: string;
+    familyGoldPriceNote: string;
+    /** Template with `{price}` and `{date}` placeholders. */
+    familyGoldPriceHintTemplate: string;
+    familyGoldPriceUnsetHint: string;
+    familyGoldPriceLinkLabel: string;
+    /** Template with a `{date}` placeholder. */
+    priceFamilyGoldBadgeTemplate: string;
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {

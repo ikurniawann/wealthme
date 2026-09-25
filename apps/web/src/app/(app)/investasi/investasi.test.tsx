@@ -489,3 +489,84 @@ describe("InvestasiPage — Beli/Jual Lot⇄Lembar toggle (Revisi D item 8)", ()
     );
   });
 });
+
+describe("InvestasiPage — emas priced from the family gold price (Revisi D item 11)", () => {
+  const GOLD = {
+    pricePerGram: "1500000",
+    updatedAt: "2026-09-20T03:00:00.000Z",
+  };
+
+  it("hides the manual price field for emas and points to Pengaturan › Harga Emas", async () => {
+    mockSession("owner");
+    routeApi({ "/gold-price": GOLD });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), "emas");
+
+    expect(
+      screen.queryByLabelText("Harga Saat Ini (Rp, opsional)"),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        /Harga dari Pengaturan › Harga Emas \(Rp 1\.500\.000\/gram, diperbarui .+\)/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Buka Pengaturan" }),
+    ).toHaveAttribute("href", "/akun");
+  });
+
+  it("says the family gold price is unset when the owner has not set one", async () => {
+    mockSession("owner");
+    routeApi({ "/gold-price": { pricePerGram: null, updatedAt: null } });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), "emas");
+
+    expect(
+      await screen.findByText(/Harga emas keluarga belum diatur/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Harga Saat Ini (Rp, opsional)"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("still offers the manual price field for reksa dana", async () => {
+    mockSession("owner");
+    routeApi({ "/gold-price": GOLD });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), "reksa_dana");
+
+    expect(
+      screen.getByLabelText("Harga Saat Ini (Rp, opsional)"),
+    ).toBeInTheDocument();
+  });
+
+  it("labels an emas row priced from the family gold price", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        holdingOf({
+          type: "emas",
+          name: "Logam Mulia",
+          ticker: "ANTM",
+          quantity: "10",
+          currentPrice: "1500000",
+          currentValue: "15000000",
+          latestPriceSource: "family-gold-price",
+          latestPriceAsOf: GOLD.updatedAt,
+          latestPriceRecordedAt: GOLD.updatedAt,
+          latestPriceDelayed: false,
+        }),
+      ],
+    });
+    render(<InvestasiPage />);
+
+    expect(await screen.findByText("Rp 1.500.000 / gram")).toBeInTheDocument();
+    expect(screen.getByText(/Harga emas keluarga ·/)).toBeInTheDocument();
+  });
+});
