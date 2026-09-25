@@ -17,9 +17,15 @@
  * then rounded half-up to the nearest rupiah.
  */
 
+export type InterestMethod = "efektif" | "flat" | "anuitas";
+
 export interface SplitPaymentInput {
   /** EPIC-033 p20 — true for kartu_kredit: the rate is already per month. */
   rateIsMonthly?: boolean;
+  /** Defaults to "efektif"; "anuitas" splits like "efektif", only its installment is fixed. */
+  method?: InterestMethod;
+  /** Required for "flat": interest accrues on the original principal every month. */
+  originalPrincipal?: bigint;
   paymentAmount: bigint;
   remainingBalance: bigint;
   annualInterestRatePercent: string;
@@ -28,6 +34,14 @@ export interface SplitPaymentInput {
 export interface SplitPaymentResult {
   interest: bigint;
   principal: bigint;
+}
+
+export interface InstallmentInput {
+  method: InterestMethod;
+  principal: bigint;
+  annualInterestRatePercent: string;
+  tenorMonths: number;
+  rateIsMonthly?: boolean;
 }
 
 // (percent scale 100) * (fixed-point scale 100) * (12 months/year)
@@ -56,20 +70,47 @@ function roundHalfUpDivide(numerator: bigint, denominator: bigint): bigint {
   return remainder * 2n >= denominator ? quotient + 1n : quotient;
 }
 
+function rateDenominator(rateIsMonthly: boolean | undefined): bigint {
+  return rateIsMonthly ? PER_MONTH_RATE_DENOMINATOR : MONTHLY_RATE_DENOMINATOR;
+}
+
+function monthlyInterestDue(input: {
+  method: InterestMethod;
+  originalPrincipal: bigint | undefined;
+  balance: bigint;
+  rateScaled: bigint;
+  denominator: bigint;
+}): bigint {
+  if (input.balance <= 0n) return 0n;
+  if (input.method === "flat") {
+    if (input.originalPrincipal === undefined) {
+      throw new Error("flat interest needs originalPrincipal");
+    }
+    return roundHalfUpDivide(
+      input.originalPrincipal * input.rateScaled,
+      input.denominator,
+    );
+  }
+  return roundHalfUpDivide(input.balance * input.rateScaled, input.denominator);
+}
+
 /**
  * Splits a liability payment into its interest and principal components.
  *
- * - `interest = round-half-up(remainingBalance * monthlyRate)`, capped at
- *   `paymentAmount` so principal never goes negative.
+ * - `interest = round-half-up(base * monthlyRate)` where `base` is the
+ *   original principal for "flat" and the remaining balance otherwise,
+ *   capped at `paymentAmount` so principal never goes negative.
  * - `principal = paymentAmount - interest`, capped at `remainingBalance` so
  *   the balance never goes negative.
  */
 export function splitPayment(input: SplitPaymentInput): SplitPaymentResult {
-  const rateScaled = parseRateScaledByHundred(input.annualInterestRatePercent);
-  const interestDue = roundHalfUpDivide(
-    input.remainingBalance * rateScaled,
-    input.rateIsMonthly ? PER_MONTH_RATE_DENOMINATOR : MONTHLY_RATE_DENOMINATOR,
-  );
+  const interestDue = monthlyInterestDue({
+    method: input.method ?? "efektif",
+    originalPrincipal: input.originalPrincipal,
+    balance: input.remainingBalance,
+    rateScaled: parseRateScaledByHundred(input.annualInterestRatePercent),
+    denominator: rateDenominator(input.rateIsMonthly),
+  });
 
   const interest =
     interestDue > input.paymentAmount ? input.paymentAmount : interestDue;
@@ -81,4 +122,54 @@ export function splitPayment(input: SplitPaymentInput): SplitPaymentResult {
       : principalRaw;
 
   return { interest, principal };
+}
+
+/**
+ * Monthly installment for a new loan of `principal` over `tenorMonths`.
+ * flat: (P + P·r·n) / n. anuitas: P·r·(1+r)^n / ((1+r)^n − 1).
+ * efektif: the FIRST month of an equal-principal loan, P/n + P·r.
+ */
+export function computeInstallment(input: InstallmentInput): bigint {
+  if (!Number.isInteger(input.tenorMonths) || input.tenorMonths < 1) {
+    throw new RangeError("tenorMonths must be a positive integer");
+  }
+  const principal = input.principal;
+  if (principal <= 0n) return 0n;
+  const n = BigInt(input.tenorMonths);
+  const rate = parseRateScaledByHundred(input.annualInterestRatePercent);
+  const denominator = rateDenominator(input.rateIsMonthly);
+
+  switch (input.method) {
+    case "flat":
+      return roundHalfUpDivide(
+        principal * denominator + principal * rate * n,
+        denominator * n,
+      );
+    case "anuitas": {
+      if (rate === 0n) return roundHalfUpDivide(principal, n);
+      // With r = rate/denominator the annuity formula becomes an exact integer ratio.
+      const growth = (denominator + rate) ** n;
+      return roundHalfUpDivide(
+        principal * rate * growth,
+        denominator * (growth - denominator ** n),
+      );
+    }
+    case "efektif":
+      return (
+        roundHalfUpDivide(principal, n) +
+        roundHalfUpDivide(principal * rate, denominator)
+      );
+  }
+}
+
+export function defaultInterestMethod(liabilityType: string): InterestMethod {
+  switch (liabilityType) {
+    case "kpr":
+      return "anuitas";
+    case "kendaraan":
+    case "pinjaman_pribadi":
+      return "flat";
+    default:
+      return "efektif";
+  }
 }

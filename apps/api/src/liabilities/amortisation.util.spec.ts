@@ -1,4 +1,8 @@
-import { splitPayment } from "./amortisation.util";
+import {
+  computeInstallment,
+  defaultInterestMethod,
+  splitPayment,
+} from "./amortisation.util";
 
 /**
  * EPIC-023 Task A2 (RED phase) — pins the principal/interest split against a
@@ -152,5 +156,162 @@ describe("splitPayment (amortisation) — EPIC-023 A2", () => {
     });
     expect(result.interest).toBe(10_000n);
     expect(result.principal).toBe(1_000_000n);
+  });
+});
+
+describe("computeInstallment — revisi G", () => {
+  it("anuitas: KPR Rp 500 jt @ 8%/yr over 240 bln -> Rp 4.182.200/bln", () => {
+    // Hand check: r = 0.08/12 = 0.0066667, (1+r)^240 = 4.926803, A = 500e6 × r × 4.926803 / 3.926803 = 4,182,200.34.
+    expect(
+      computeInstallment({
+        method: "anuitas",
+        principal: 500_000_000n,
+        annualInterestRatePercent: "8.00",
+        tenorMonths: 240,
+      }),
+    ).toBe(4_182_200n);
+  });
+
+  it("flat: kendaraan Rp 200 jt @ 6%/yr flat over 36 bln -> Rp 6.555.556/bln", () => {
+    // Hand check: interest 200e6 × 6% / 12 = 1,000,000; principal 200e6 / 36 = 5,555,555.56; sum 6,555,555.56.
+    expect(
+      computeInstallment({
+        method: "flat",
+        principal: 200_000_000n,
+        annualInterestRatePercent: "6",
+        tenorMonths: 36,
+      }),
+    ).toBe(6_555_556n);
+  });
+
+  it("efektif: first month = principal/tenor + interest on the full principal", () => {
+    // 120e6 / 12 = 10,000,000 principal; 120e6 × 1% = 1,200,000 interest.
+    expect(
+      computeInstallment({
+        method: "efektif",
+        principal: 120_000_000n,
+        annualInterestRatePercent: "12",
+        tenorMonths: 12,
+      }),
+    ).toBe(11_200_000n);
+  });
+
+  it("anuitas at 0%: principal / tenor, no division by zero", () => {
+    expect(
+      computeInstallment({
+        method: "anuitas",
+        principal: 120_000_000n,
+        annualInterestRatePercent: "0",
+        tenorMonths: 12,
+      }),
+    ).toBe(10_000_000n);
+  });
+
+  it("anuitas with a per-month rate (rateIsMonthly) skips the /12", () => {
+    // r = 1%/month, n = 12: A = 12e6 × 0.01 × 1.01^12 / (1.01^12 − 1) = 1,066,185.46.
+    expect(
+      computeInstallment({
+        method: "anuitas",
+        principal: 12_000_000n,
+        annualInterestRatePercent: "1",
+        tenorMonths: 12,
+        rateIsMonthly: true,
+      }),
+    ).toBe(1_066_185n);
+  });
+
+  it("returns 0 for a zero principal", () => {
+    expect(
+      computeInstallment({
+        method: "flat",
+        principal: 0n,
+        annualInterestRatePercent: "6",
+        tenorMonths: 36,
+      }),
+    ).toBe(0n);
+  });
+
+  it.each([0, -1, 1.5])("rejects tenorMonths %p", (tenorMonths) => {
+    expect(() =>
+      computeInstallment({
+        method: "anuitas",
+        principal: 1_000_000n,
+        annualInterestRatePercent: "8",
+        tenorMonths,
+      }),
+    ).toThrow(RangeError);
+  });
+});
+
+describe("splitPayment per interest method — revisi G", () => {
+  it("kartu kredit: Rp 10 jt outstanding @ 2.25%/bln -> interest Rp 225.000", () => {
+    const result = splitPayment({
+      paymentAmount: 500_000n,
+      remainingBalance: 10_000_000n,
+      annualInterestRatePercent: "2.25",
+      rateIsMonthly: true,
+    });
+    expect(result.interest).toBe(225_000n);
+    expect(result.principal).toBe(275_000n);
+  });
+
+  it("flat: interest is on the ORIGINAL principal, not the remaining balance", () => {
+    // 200e6 × 6% / 12 = 1,000,000 (efektif on the 150e6 balance would be 750,000).
+    const result = splitPayment({
+      method: "flat",
+      originalPrincipal: 200_000_000n,
+      paymentAmount: 6_555_556n,
+      remainingBalance: 150_000_000n,
+      annualInterestRatePercent: "6.00",
+    });
+    expect(result.interest).toBe(1_000_000n);
+    expect(result.principal).toBe(5_555_556n);
+  });
+
+  it("flat: no interest once the balance is 0", () => {
+    const result = splitPayment({
+      method: "flat",
+      originalPrincipal: 200_000_000n,
+      paymentAmount: 1_000_000n,
+      remainingBalance: 0n,
+      annualInterestRatePercent: "6.00",
+    });
+    expect(result.interest).toBe(0n);
+    expect(result.principal).toBe(0n);
+  });
+
+  it("flat without originalPrincipal is a programming error", () => {
+    expect(() =>
+      splitPayment({
+        method: "flat",
+        paymentAmount: 1_000_000n,
+        remainingBalance: 1_000_000n,
+        annualInterestRatePercent: "6",
+      }),
+    ).toThrow("flat interest needs originalPrincipal");
+  });
+
+  it("anuitas: month 1 of the KPR 500 jt / 8% / 240 schedule", () => {
+    // 500e6 × 0.08 / 12 = 3,333,333.33 -> 3,333,333; principal 4,182,200 − 3,333,333.
+    const result = splitPayment({
+      method: "anuitas",
+      paymentAmount: 4_182_200n,
+      remainingBalance: 500_000_000n,
+      annualInterestRatePercent: "8.00",
+    });
+    expect(result.interest).toBe(3_333_333n);
+    expect(result.principal).toBe(848_867n);
+  });
+});
+
+describe("defaultInterestMethod — revisi G", () => {
+  it.each([
+    ["kpr", "anuitas"],
+    ["kendaraan", "flat"],
+    ["pinjaman_pribadi", "flat"],
+    ["kartu_kredit", "efektif"],
+    ["lainnya", "efektif"],
+  ])("%s -> %s", (type, method) => {
+    expect(defaultInterestMethod(type)).toBe(method);
   });
 });
