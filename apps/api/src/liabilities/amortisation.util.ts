@@ -173,3 +173,132 @@ export function defaultInterestMethod(liabilityType: string): InterestMethod {
       return "efektif";
   }
 }
+
+export const MAX_SCHEDULE_ROWS = 600;
+
+export interface RatePeriodInput {
+  period: number;
+  baseRatePercent: string;
+  fixedRateMonths: number | null;
+  floatingRatePercent: string | null;
+}
+
+function isFloatingPeriod(input: RatePeriodInput): boolean {
+  return (
+    input.fixedRateMonths !== null &&
+    input.floatingRatePercent !== null &&
+    input.period > input.fixedRateMonths
+  );
+}
+
+export function rateForPeriod(input: RatePeriodInput): string {
+  return isFloatingPeriod(input) && input.floatingRatePercent !== null
+    ? input.floatingRatePercent
+    : input.baseRatePercent;
+}
+
+/** Whole installment months between `start` and `now` (UTC), never negative. */
+export function monthsElapsed(start: Date, now: Date): number {
+  const months =
+    (now.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (now.getUTCMonth() - start.getUTCMonth()) -
+    (now.getUTCDate() < start.getUTCDate() ? 1 : 0);
+  return Math.max(0, months);
+}
+
+export interface ScheduleInput {
+  method: InterestMethod;
+  remainingBalance: bigint;
+  originalPrincipal: bigint;
+  annualInterestRatePercent: string;
+  rateIsMonthly?: boolean;
+  /** Fixed monthly payment (flat/anuitas installment or efektif minimumPayment); null = none. */
+  installmentAmount: bigint | null;
+  /** Installments left on the contract; null = open-ended (e.g. a credit card). */
+  remainingMonths: number | null;
+  /** Contract period number of the next installment, 1-based. */
+  firstPeriod: number;
+  fixedRateMonths: number | null;
+  floatingRatePercent: string | null;
+}
+
+export interface ScheduleRow {
+  period: number;
+  installment: bigint;
+  interest: bigint;
+  principal: bigint;
+  remaining: bigint;
+}
+
+export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
+  const maxRows = Math.min(
+    MAX_SCHEDULE_ROWS,
+    input.remainingMonths ?? MAX_SCHEDULE_ROWS,
+  );
+  const equalPrincipal =
+    input.method === "efektif" &&
+    input.installmentAmount === null &&
+    input.remainingMonths !== null
+      ? roundHalfUpDivide(input.remainingBalance, BigInt(input.remainingMonths))
+      : null;
+  if (input.installmentAmount === null && equalPrincipal === null) return [];
+
+  const denominator = rateDenominator(input.rateIsMonthly);
+  const rows: ScheduleRow[] = [];
+  let balance = input.remainingBalance;
+  let installment = input.installmentAmount ?? 0n;
+  let floatingRecomputed = false;
+
+  for (let i = 0; i < maxRows && balance > 0n; i += 1) {
+    const ratePeriod: RatePeriodInput = {
+      period: input.firstPeriod + i,
+      baseRatePercent: input.annualInterestRatePercent,
+      fixedRateMonths: input.fixedRateMonths,
+      floatingRatePercent: input.floatingRatePercent,
+    };
+    const ratePercent = rateForPeriod(ratePeriod);
+    if (
+      input.method === "anuitas" &&
+      !floatingRecomputed &&
+      isFloatingPeriod(ratePeriod) &&
+      input.remainingMonths !== null
+    ) {
+      // Banks re-amortise the outstanding balance over the remaining tenor once the fixed period ends.
+      installment = computeInstallment({
+        method: "anuitas",
+        principal: balance,
+        annualInterestRatePercent: ratePercent,
+        tenorMonths: input.remainingMonths - i,
+        rateIsMonthly: input.rateIsMonthly,
+      });
+      floatingRecomputed = true;
+    }
+
+    const interestDue = monthlyInterestDue({
+      method: input.method,
+      originalPrincipal: input.originalPrincipal,
+      balance,
+      rateScaled: parseRateScaledByHundred(ratePercent),
+      denominator,
+    });
+    const payoff = balance + interestDue;
+    const isLastPeriod =
+      input.remainingMonths !== null && i === input.remainingMonths - 1;
+    const scheduled =
+      equalPrincipal !== null ? equalPrincipal + interestDue : installment;
+    const payment = isLastPeriod || scheduled > payoff ? payoff : scheduled;
+    const interest = interestDue > payment ? payment : interestDue;
+    const principal = payment - interest;
+    balance -= principal;
+
+    rows.push({
+      period: ratePeriod.period,
+      installment: payment,
+      interest,
+      principal,
+      remaining: balance,
+    });
+    if (principal === 0n) break;
+  }
+  return rows;
+}

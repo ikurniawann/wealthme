@@ -1,6 +1,9 @@
 import {
+  buildSchedule,
   computeInstallment,
   defaultInterestMethod,
+  monthsElapsed,
+  rateForPeriod,
   splitPayment,
 } from "./amortisation.util";
 
@@ -313,5 +316,276 @@ describe("defaultInterestMethod — revisi G", () => {
     ["lainnya", "efektif"],
   ])("%s -> %s", (type, method) => {
     expect(defaultInterestMethod(type)).toBe(method);
+  });
+});
+
+describe("rateForPeriod / monthsElapsed — revisi G", () => {
+  const kpr = {
+    baseRatePercent: "8.00",
+    fixedRateMonths: 36,
+    floatingRatePercent: "11.00",
+  };
+
+  it("uses the fixed rate through the last fixed month and the floating rate after", () => {
+    expect(rateForPeriod({ ...kpr, period: 36 })).toBe("8.00");
+    expect(rateForPeriod({ ...kpr, period: 37 })).toBe("11.00");
+  });
+
+  it("stays on the base rate when no floating rate is set", () => {
+    expect(
+      rateForPeriod({ ...kpr, floatingRatePercent: null, period: 100 }),
+    ).toBe("8.00");
+  });
+
+  it("counts whole months, minus one when the day of month has not come yet", () => {
+    const start = new Date("2025-09-10T00:00:00.000Z");
+    expect(monthsElapsed(start, new Date("2026-09-25T00:00:00.000Z"))).toBe(12);
+    expect(monthsElapsed(start, new Date("2026-09-05T00:00:00.000Z"))).toBe(11);
+    expect(monthsElapsed(start, start)).toBe(0);
+  });
+
+  it("monthsElapsed never goes negative for a future start date", () => {
+    expect(
+      monthsElapsed(
+        new Date("2027-01-01T00:00:00.000Z"),
+        new Date("2026-09-25T00:00:00.000Z"),
+      ),
+    ).toBe(0);
+  });
+});
+
+describe("buildSchedule — revisi G golden schedules", () => {
+  const NO_FLOAT = { fixedRateMonths: null, floatingRatePercent: null };
+
+  it("anuitas: KPR 500 jt / 8% / 240 bln, fixed installment 4.182.200, pays off exactly", () => {
+    const rows = buildSchedule({
+      method: "anuitas",
+      remainingBalance: 500_000_000n,
+      originalPrincipal: 500_000_000n,
+      annualInterestRatePercent: "8.00",
+      installmentAmount: 4_182_200n,
+      remainingMonths: 240,
+      firstPeriod: 1,
+      ...NO_FLOAT,
+    });
+    expect(rows).toHaveLength(240);
+    expect(rows[0]).toEqual({
+      period: 1,
+      installment: 4_182_200n,
+      interest: 3_333_333n,
+      principal: 848_867n,
+      remaining: 499_151_133n,
+    });
+    // 499,151,133 × 0.08/12 = 3,327,674.22 -> 3,327,674.
+    expect(rows[1]).toEqual({
+      period: 2,
+      installment: 4_182_200n,
+      interest: 3_327_674n,
+      principal: 854_526n,
+      remaining: 498_296_607n,
+    });
+    expect(rows[239]).toEqual({
+      period: 240,
+      installment: 4_182_420n,
+      interest: 27_698n,
+      principal: 4_154_722n,
+      remaining: 0n,
+    });
+    expect(rows.reduce((sum, r) => sum + r.principal, 0n)).toBe(500_000_000n);
+  });
+
+  it("anuitas KPR: fixed 8% for 36 bln, then floating 11% re-amortised over the remaining 204 bln", () => {
+    const rows = buildSchedule({
+      method: "anuitas",
+      remainingBalance: 500_000_000n,
+      originalPrincipal: 500_000_000n,
+      annualInterestRatePercent: "8.00",
+      installmentAmount: 4_182_200n,
+      remainingMonths: 240,
+      firstPeriod: 1,
+      fixedRateMonths: 36,
+      floatingRatePercent: "11.00",
+    });
+    expect(rows).toHaveLength(240);
+    expect(rows[35]).toEqual({
+      period: 36,
+      installment: 4_182_200n,
+      interest: 3_111_079n,
+      principal: 1_071_121n,
+      remaining: 465_590_716n,
+    });
+    // 465,590,716 × 0.11/12 = 4,267,914.90 -> 4,267,915.
+    expect(rows[36]).toEqual({
+      period: 37,
+      installment: 5_053_432n,
+      interest: 4_267_915n,
+      principal: 785_517n,
+      remaining: 464_805_199n,
+    });
+    expect(rows[239]?.remaining).toBe(0n);
+  });
+
+  it("anuitas mid-life: continues from period 13 with the current balance", () => {
+    const rows = buildSchedule({
+      method: "anuitas",
+      remainingBalance: 489_431_673n,
+      originalPrincipal: 500_000_000n,
+      annualInterestRatePercent: "8.00",
+      installmentAmount: 4_182_200n,
+      remainingMonths: 228,
+      firstPeriod: 13,
+      ...NO_FLOAT,
+    });
+    expect(rows).toHaveLength(228);
+    expect(rows[0]).toEqual({
+      period: 13,
+      installment: 4_182_200n,
+      interest: 3_262_878n,
+      principal: 919_322n,
+      remaining: 488_512_351n,
+    });
+    expect(rows[227]).toEqual({
+      period: 240,
+      installment: 4_182_420n,
+      interest: 27_698n,
+      principal: 4_154_722n,
+      remaining: 0n,
+    });
+  });
+
+  it("flat: kendaraan 200 jt / 6% / 36 bln — constant 1.000.000 interest, last row absorbs rounding", () => {
+    const rows = buildSchedule({
+      method: "flat",
+      remainingBalance: 200_000_000n,
+      originalPrincipal: 200_000_000n,
+      annualInterestRatePercent: "6",
+      installmentAmount: 6_555_556n,
+      remainingMonths: 36,
+      firstPeriod: 1,
+      ...NO_FLOAT,
+    });
+    expect(rows).toHaveLength(36);
+    expect(rows[0]).toEqual({
+      period: 1,
+      installment: 6_555_556n,
+      interest: 1_000_000n,
+      principal: 5_555_556n,
+      remaining: 194_444_444n,
+    });
+    expect(rows[35]).toEqual({
+      period: 36,
+      installment: 6_555_540n,
+      interest: 1_000_000n,
+      principal: 5_555_540n,
+      remaining: 0n,
+    });
+  });
+
+  it("efektif kartu kredit: open-ended, min. bayar 800.000 on 8 jt @ 2.25%/bln", () => {
+    const rows = buildSchedule({
+      method: "efektif",
+      remainingBalance: 8_000_000n,
+      originalPrincipal: 30_000_000n,
+      annualInterestRatePercent: "2.25",
+      rateIsMonthly: true,
+      installmentAmount: 800_000n,
+      remainingMonths: null,
+      firstPeriod: 1,
+      ...NO_FLOAT,
+    });
+    expect(rows).toHaveLength(12);
+    expect(rows[0]).toEqual({
+      period: 1,
+      installment: 800_000n,
+      interest: 180_000n,
+      principal: 620_000n,
+      remaining: 7_380_000n,
+    });
+    expect(rows[11]).toEqual({
+      period: 12,
+      installment: 366_622n,
+      interest: 8_067n,
+      principal: 358_555n,
+      remaining: 0n,
+    });
+  });
+
+  it("efektif with a tenor and no installment: equal principal, declining interest", () => {
+    const rows = buildSchedule({
+      method: "efektif",
+      remainingBalance: 12_000_000n,
+      originalPrincipal: 12_000_000n,
+      annualInterestRatePercent: "12",
+      installmentAmount: null,
+      remainingMonths: 12,
+      firstPeriod: 1,
+      ...NO_FLOAT,
+    });
+    expect(rows).toHaveLength(12);
+    expect(rows[0]).toEqual({
+      period: 1,
+      installment: 1_120_000n,
+      interest: 120_000n,
+      principal: 1_000_000n,
+      remaining: 11_000_000n,
+    });
+    expect(rows[11]).toEqual({
+      period: 12,
+      installment: 1_010_000n,
+      interest: 10_000n,
+      principal: 1_000_000n,
+      remaining: 0n,
+    });
+  });
+
+  it("stops after one row when the installment does not cover the interest", () => {
+    const rows = buildSchedule({
+      method: "efektif",
+      remainingBalance: 100_000_000n,
+      originalPrincipal: 100_000_000n,
+      annualInterestRatePercent: "12",
+      installmentAmount: 500_000n,
+      remainingMonths: null,
+      firstPeriod: 1,
+      ...NO_FLOAT,
+    });
+    expect(rows).toEqual([
+      {
+        period: 1,
+        installment: 500_000n,
+        interest: 500_000n,
+        principal: 0n,
+        remaining: 100_000_000n,
+      },
+    ]);
+  });
+
+  it("caps at 600 rows for an open-ended tiny installment", () => {
+    const rows = buildSchedule({
+      method: "efektif",
+      remainingBalance: 1_000_000_000_000n,
+      originalPrincipal: 1_000_000_000_000n,
+      annualInterestRatePercent: "0",
+      installmentAmount: 1n,
+      remainingMonths: null,
+      firstPeriod: 1,
+      ...NO_FLOAT,
+    });
+    expect(rows).toHaveLength(600);
+  });
+
+  it("returns no rows when neither an installment nor a tenor is known", () => {
+    expect(
+      buildSchedule({
+        method: "efektif",
+        remainingBalance: 5_000_000n,
+        originalPrincipal: 5_000_000n,
+        annualInterestRatePercent: "10",
+        installmentAmount: null,
+        remainingMonths: null,
+        firstPeriod: 1,
+        ...NO_FLOAT,
+      }),
+    ).toEqual([]);
   });
 });
