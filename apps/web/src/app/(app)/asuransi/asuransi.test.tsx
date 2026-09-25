@@ -316,7 +316,7 @@ describe("AsuransiPage — paid-ahead premium tooltip", () => {
     expect(pay).toBeDisabled();
     expect(pay).toHaveAttribute(
       "title",
-      expect.stringMatching(/sudah dibayar hingga/i),
+      expect.stringMatching(/jatuh tempo berikutnya/i),
     );
   });
 });

@@ -260,7 +260,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             title={
               item.paidThisPeriod
                 ? item.renewalDate && new Date(item.renewalDate) > new Date()
-                  ? `${t.asuransi.payPaidThroughTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
+                  ? `${t.asuransi.payNextDueTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
                   : t.asuransi.payAlreadyPaidTooltip
                 : undefined
             }

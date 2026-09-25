@@ -1191,7 +1191,7 @@ export const id = {
     paySourceAccountLabel: "Rekening Sumber",
     paySourceAccountPlaceholder: "Pilih rekening...",
     payAlreadyPaidTooltip: "Sudah dibayar periode ini",
-    payPaidThroughTooltipPrefix: "Sudah dibayar hingga ",
+    payNextDueTooltipPrefix: "Jatuh tempo berikutnya ",
     toastRenewalRecordedPrefix: "Premi dibayar, jatuh tempo berikutnya ",
     toastPaySuccessNoRenewal: "Premi berhasil dibayar.",
     toastRenewalFailed: "Gagal membayar premi. Coba lagi.",

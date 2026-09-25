@@ -1110,7 +1110,7 @@ export type I18nDictionary = {
      * `/asuransi` card's Bayar icon button when `paidThisPeriod` is true.
      */
     payAlreadyPaidTooltip: string;
-    payPaidThroughTooltipPrefix: string;
+    payNextDueTooltipPrefix: string;
     toastRenewalRecordedPrefix: string;
     toastPaySuccessNoRenewal: string;
     toastRenewalFailed: string;
