@@ -5,23 +5,24 @@ import { Public } from "../common/decorators/public.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CalculatorsService } from "./calculators.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
+  InvestmentCalcRequestDto,
   InvestmentCalcResultDto,
+  KprCalcRequestDto,
   KprCalcResultDto,
+  RetirementCalcRequestDto,
   RetirementCalcResultDto,
 } from "./dto/investment.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
+  PerpuluhanRequestDto,
   PerpuluhanResultDto,
-  type PerpuluhanRequestDto,
 } from "./dto/perpuluhan.dto";
-import { Pph21ResultDto, type Pph21RequestDto } from "./dto/pph21.dto";
-import { ZakatResultDto, type ZakatRequestDto } from "./dto/zakat.dto";
-
-import type {
-  InvestmentCalcRequestDto,
-  KprCalcRequestDto,
-  RetirementCalcRequestDto,
-} from "./dto/investment.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { Pph21RequestDto, Pph21ResultDto } from "./dto/pph21.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ZakatRequestDto, ZakatResultDto } from "./dto/zakat.dto";
 
 @ApiTags("calculators")
 @Public()
