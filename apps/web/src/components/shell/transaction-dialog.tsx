@@ -26,6 +26,7 @@ import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import { DateField } from "@/components/wm";
 import { useAiKeyStatus } from "@/hooks/use-ai-key";
 import {
   isCameraSupported,
@@ -181,7 +182,7 @@ function stripLeadingIcon(value: string): string {
 
 export function TransactionDialog() {
   const { txnOpen, setTxnOpen } = useShell();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const TABS = [
     t.shell.transactionDialog.tabIncome,
     t.shell.transactionDialog.tabExpense,
@@ -1062,12 +1063,13 @@ export function TransactionDialog() {
                   htmlFor={dateFieldId}
                   className="!mt-0"
                 >
-                  <input
+                  <DateField
                     id={dateFieldId}
-                    type="date"
                     value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="input"
+                    locale={locale}
+                    label={t.shell.transactionDialog.dateLabel}
+                    required
+                    onChange={setDate}
                   />
                 </Field>
 

@@ -117,7 +117,7 @@ export function scanErrorMessage(err: unknown, t: I18nDictionary): string {
 }
 
 /**
- * The scan returns an ISO instant; the form's `<input type="date">` needs a
+ * The scan returns an ISO instant; the form's date field needs a
  * `yyyy-mm-dd`. An unparseable date falls back to what the form already had
  * instead of writing `Invalid Date` into the field.
  *

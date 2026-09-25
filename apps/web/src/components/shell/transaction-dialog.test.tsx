@@ -19,6 +19,7 @@ import {
   render as rtlRender,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -311,6 +312,48 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
         expect.objectContaining({
           queryKey: queryKeys.budgets.all(FAMILY_GROUP_ID),
         }),
+      );
+    });
+  });
+
+  it("Tanggal is the shared calendar: picking a day posts that day and keeps the dialog open", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+    const dateLabel = mockDictionary.shell.transactionDialog.dateLabel;
+
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
+    await user.type(screen.getByPlaceholderText("250.000"), "50000");
+    await user.selectOptions(
+      await screen.findByRole("combobox", { name: "Akun" }),
+      "acc-1",
+    );
+
+    const trigger = screen.getByLabelText(dateLabel);
+    expect(trigger.tagName).toBe("BUTTON");
+    await user.click(trigger);
+    await user.click(
+      within(screen.getByRole("dialog", { name: dateLabel })).getByRole(
+        "button",
+        { name: "20" },
+      ),
+    );
+    expect(
+      screen.queryByRole("dialog", { name: dateLabel }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText("250.000")).toHaveValue("50.000");
+
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
+
+    // The dialog defaults to the UTC calendar day, so the calendar opens on that month.
+    const viewMonth = new Date().toISOString().slice(0, 7);
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(
+        ([url, opts]) =>
+          opts?.method === "POST" && String(url).endsWith("/transactions"),
+      );
+      expect(post).toBeDefined();
+      expect(JSON.parse(String(post?.[1]?.body)).occurredAt).toBe(
+        `${viewMonth}-20T00:00:00.000Z`,
       );
     });
   });
@@ -822,7 +865,7 @@ describe("TransactionDialog, receipt scan (EPIC-027 B1-B4)", () => {
     const expectedDate = isoToDateInputValue(SCAN_RESULT.occurredAt, "");
     expect(
       screen.getByLabelText(mockDictionary.shell.transactionDialog.dateLabel),
-    ).toHaveValue(expectedDate);
+    ).toHaveAttribute("data-value", expectedDate);
 
     fetchSpy.mockRestore();
   });
@@ -1419,7 +1462,8 @@ describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
     expect(
       await screen.findByRole("combobox", { name: "Kategori" }),
     ).toHaveValue("cat-1");
-    expect(screen.getByLabelText(dict.dateLabel)).toHaveValue(
+    expect(screen.getByLabelText(dict.dateLabel)).toHaveAttribute(
+      "data-value",
       isoToDateInputValue(SCAN_RESULT.occurredAt, ""),
     );
 
