@@ -15,6 +15,7 @@ import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
 import { FAMILY_RELIGION_OPTIONS } from "@/hooks/family-religion-options";
+import { CURRENCIES } from "@/hooks/currencies";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import {
   useFamilyReligion,
@@ -1092,21 +1093,6 @@ function KoneksiBody({
     </>
   );
 }
-
-// Structural only (code/flag) — title/name resolve from
-// `t.akun.pengaturan.currencies[code]` at render time.
-// EPIC-021 Group F (#1) — AUD + CNY added to the supported currency list.
-type CurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY";
-
-const CURRENCIES: { code: CurrencyCode; flag: string }[] = [
-  { code: "IDR", flag: "🇮🇩" },
-  { code: "USD", flag: "🇺🇸" },
-  { code: "SGD", flag: "🇸🇬" },
-  { code: "EUR", flag: "🇪🇺" },
-  { code: "JPY", flag: "🇯🇵" },
-  { code: "AUD", flag: "🇦🇺" },
-  { code: "CNY", flag: "🇨🇳" },
-];
 
 const SETTINGS_KEY = "wealthme_settings";
 
