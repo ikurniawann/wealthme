@@ -482,7 +482,7 @@ export default function TujuanPage() {
     // pure rename/notes edit of a legacy goal that already had
     // autoDebitAmount set with no sourceAccountId must still save.
     const autoDebitChanging =
-      mode === "create" ||
+      mode === "add" ||
       payload.autoDebitAmount !== editingOriginalAutoDebitAmount;
     if (
       !clearingAutoDebit &&
@@ -494,7 +494,7 @@ export default function TujuanPage() {
       // Rejecting keeps CrudModal open with the user's input.
       throw new Error(t.tujuan.sourceAccountRequired);
     }
-    const outgoing: Record<string, unknown> = clearingAutoDebit
+    const outgoing = clearingAutoDebit
       ? { ...payload, autoDebitAmount: null, sourceAccountId: null }
       : payload.autoDebitAmount
         ? { ...payload, sourceAccountId: values.sourceAccountId }

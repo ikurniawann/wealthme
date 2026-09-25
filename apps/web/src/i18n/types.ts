@@ -2322,7 +2322,7 @@ export type I18nDictionary = {
     // worth; deleting a goal doesn't return its contributions to net worth
     // either (the underlying account transactions are unaffected).
     contributeNetWorthNotice: string;
-    deleteConfirmBody: string;
+    deleteConfirmNetWorthNote: string;
     historyToggleShow: string;
     historyToggleHide: string;
     historyLoading: string;
