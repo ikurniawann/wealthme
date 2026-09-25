@@ -25,7 +25,7 @@ import { PageAccess } from "../common/decorators/page-access.decorator";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { AccountsService } from "./accounts.service";
+import { AccountsService, type AccountActor } from "./accounts.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateAccountDto } from "./dto/create-account.dto";
@@ -35,6 +35,12 @@ import { ListAccountsQueryDto } from "./dto/list-accounts-query.dto";
 import { UpdateAccountDto } from "./dto/update-account.dto";
 
 import type { Request } from "express";
+
+/** EPIC-033 R3 follow-up — who is creating/updating, for the owner rule. */
+function actorOf(req: Request): AccountActor | undefined {
+  const m = req.tenantContext?.member;
+  return m ? { userId: m.userId, role: m.role } : undefined;
+}
 
 @ApiTags("accounts")
 @ApiBearerAuth()
@@ -71,8 +77,9 @@ export class AccountsController {
   create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateAccountDto,
+    @Req() req: Request,
   ): Promise<AccountResponseDto> {
-    return this.accountsService.create(familyGroupId, dto);
+    return this.accountsService.create(familyGroupId, dto, actorOf(req));
   }
 
   @Get(":id")
@@ -108,8 +115,9 @@ export class AccountsController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: UpdateAccountDto,
+    @Req() req: Request,
   ): Promise<AccountResponseDto> {
-    return this.accountsService.update(familyGroupId, id, dto);
+    return this.accountsService.update(familyGroupId, id, dto, actorOf(req));
   }
 
   @Delete(":id")

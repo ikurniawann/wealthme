@@ -2725,6 +2725,9 @@ export const en = {
     religionCalculatorNoneTitle: "Religious donation calculator is off",
     religionCalculatorNoneDesc:
       "Set the family religion in Account Settings to enable the Zakat or Tithe calculator.",
+    religionGeneralOnlyTitle: "General donations",
+    religionGeneralOnlyDesc:
+      "Hindu and Buddhist families have no obligation calculator. Record donations as Sedekah or Other.",
     religionLoadingMsg: "Loading family religion setting...",
     religionErrorMsg:
       "Failed to load the family religion setting. Try reloading the page.",

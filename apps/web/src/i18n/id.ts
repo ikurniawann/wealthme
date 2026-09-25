@@ -2775,6 +2775,9 @@ export const id = {
     religionCalculatorNoneTitle: "Kalkulator donasi keagamaan tidak aktif",
     religionCalculatorNoneDesc:
       "Atur agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan.",
+    religionGeneralOnlyTitle: "Donasi umum",
+    religionGeneralOnlyDesc:
+      "Untuk agama Hindu dan Buddha tidak ada kalkulator kewajiban. Catat donasi sebagai Sedekah atau Lainnya.",
     religionLoadingMsg: "Memuat pengaturan agama keluarga...",
     religionErrorMsg:
       "Gagal memuat pengaturan agama keluarga. Coba muat ulang halaman.",

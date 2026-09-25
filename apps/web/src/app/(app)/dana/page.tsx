@@ -354,17 +354,26 @@ export default function DanaPage() {
   // EPIC-033 R3 — "Pemilik" picker for cash/e-wallet, same shape as the
   // bank form on /rekening (family-shared = "").
   const { data: familyMembers } = useFamilyMembers();
-  const ownerOptions = [
-    { value: "", label: t.rekening.ownerSelectFamilyLabel },
-    ...(familyMembers ?? []).map((m) => ({ value: m.userId, label: m.name })),
-  ];
   // EPIC-033 R2/R5 — only members request; Master/Co-Master approve.
   const { myRole } = useMyRole();
   const isMasterLike = myRole === "owner" || myRole === "spouse";
+  const myUserId = session?.userId;
+  // EPIC-033 R3 follow-up — non-Master members can only own what they
+  // create; the picker collapses to themselves (API enforces the same).
+  const ownerOptions = isMasterLike
+    ? [
+        { value: "", label: t.rekening.ownerSelectFamilyLabel },
+        ...(familyMembers ?? []).map((m) => ({
+          value: m.userId,
+          label: m.name,
+        })),
+      ]
+    : (familyMembers ?? [])
+        .filter((m) => m.userId === myUserId)
+        .map((m) => ({ value: m.userId, label: m.name }));
   // Members with "Lihat" on this page could open edit/delete before; the
   // API refused them, but the affordance should not show at all.
   const { canManage } = useCanManage("Account");
-  const myUserId = session?.userId;
   const myAccounts = (allAccounts ?? []).filter(
     (a) => !!myUserId && a.ownerUserId === myUserId,
   );
@@ -378,7 +387,13 @@ export default function DanaPage() {
 
   function openAdd(entity: DanaEntity) {
     setEditingId(null);
-    setCrudState({ entity, mode: "add" });
+    setCrudState({
+      entity,
+      mode: "add",
+      ...(isMasterLike || !myUserId
+        ? {}
+        : { initialValues: { ownerUserId: myUserId } }),
+    });
   }
 
   function openEdit(entity: DanaEntity, item: AccountDto) {

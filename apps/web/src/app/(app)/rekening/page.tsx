@@ -499,14 +499,30 @@ export default function RekeningPage() {
   const { myRole } = useMyRole();
   const isMasterLike = myRole === "owner" || myRole === "spouse";
 
-  const ownerOptions = [
-    { value: "", label: t.rekening.ownerSelectFamilyLabel },
-    ...(familyMembers ?? []).map((m) => ({ value: m.userId, label: m.name })),
-  ];
+  // EPIC-033 R3 follow-up — a member who is not Master/Co-Master can only
+  // own the accounts they create; the picker collapses to themselves (the
+  // API enforces the same rule).
+  const ownerOptions = isMasterLike
+    ? [
+        { value: "", label: t.rekening.ownerSelectFamilyLabel },
+        ...(familyMembers ?? []).map((m) => ({
+          value: m.userId,
+          label: m.name,
+        })),
+      ]
+    : (familyMembers ?? [])
+        .filter((m) => m.userId === myUserId)
+        .map((m) => ({ value: m.userId, label: m.name }));
 
   function openAdd() {
     setEditingId(null);
-    setCrudState({ entity: "rekening", mode: "add" });
+    setCrudState({
+      entity: "rekening",
+      mode: "add",
+      ...(isMasterLike || !myUserId
+        ? {}
+        : { initialValues: { ownerUserId: myUserId } }),
+    });
   }
 
   function openEdit(account: AccountCard) {

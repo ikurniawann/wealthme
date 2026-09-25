@@ -823,6 +823,7 @@ export default function TaxPage() {
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2.5">
         <Button
+          nativeButton={false}
           render={
             <a
               href="https://djponline.pajak.go.id"

@@ -2554,6 +2554,8 @@ export type I18nDictionary = {
      * family hasn't set. */
     religionCalculatorNoneTitle: string;
     religionCalculatorNoneDesc: string;
+    religionGeneralOnlyTitle: string;
+    religionGeneralOnlyDesc: string;
     /**
      * EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) — loading/error states
      * for the religion setting itself (previously silently fell through to
