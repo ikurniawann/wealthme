@@ -2344,7 +2344,8 @@ export const id = {
     netWorthTrendTitle: "Tren Kekayaan Bersih (6 Bulan)",
     netWorthTrendRangeStart: "6 bulan lalu",
     netWorthTrendRangeEnd: "Sekarang",
-    emptyNetWorthTrend: "Belum ada riwayat kekayaan bersih.",
+    emptyNetWorthTrend:
+      "Tren mulai terisi setelah snapshot harian pertama (02:00).",
     compositionTitle: "Komposisi Aset",
     emptyComposition: "Tambah saldo akun untuk melihat komposisi aset.",
     cashFlowTitlePrefix: "Cash Flow ",

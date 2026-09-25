@@ -22,9 +22,16 @@ import type {
   LiabilityDto,
   NetWorthDto,
   NetWorthHistoryDto,
-  NetWorthHistoryPointDto,
   ReportSummaryDto,
 } from "@wealthme/contracts";
+import {
+  bucketHistoryPoints,
+  granularityForRange,
+  trendCategoryLabel,
+  type TrendRangeKey,
+} from "./history-buckets";
+
+export type { TrendRangeKey } from "./history-buckets";
 
 /**
  * Prototype's asset-composition colours (`ringkasan.html`'s four
@@ -41,14 +48,6 @@ const COMPOSITION_COLOR: Record<string, string> = {
 // ── Trend range segmented control ("6 Bln / 12 Bln / Semua") ───────────────
 // Mirrors `beranda/page.tsx`'s PERIOD_RANGE mapping onto the same
 // `/dashboard/net-worth/history` endpoint — no new backend work.
-export type TrendRangeKey =
-  | "1m"
-  | "3m"
-  | "6m"
-  | "12m"
-  | "ytd"
-  | "all"
-  | "custom";
 /** EPIC-033 group 5 (p30) — a user-picked date window for the trend. */
 export type TrendCustomRange = { from: string; to: string };
 
@@ -62,29 +61,6 @@ const TREND_RANGE_PARAM: Record<TrendRangeKey, string> = {
   all: "120m",
   custom: "120m",
 };
-
-// ── Root cause of the x-axis label bug ──────────────────────────────────────
-// The history endpoint returns one snapshot PER DAY the scheduler ran
-// (`dashboard.service.ts#getNetWorthHistory`), not one per month. Mapping
-// every raw point straight to a chart category produced a category per
-// snapshot day — many of which fall in the same calendar month — so the
-// x-axis rendered the same "MMM YY" label repeated for every day inside
-// that month. Fix: bucket the ascending, already-sorted points by calendar
-// month and keep the LAST (most recent / "closing") snapshot per month, so
-// each category label is unique.
-export function groupHistoryPointsByMonth(
-  points: NetWorthHistoryPointDto[],
-): NetWorthHistoryPointDto[] {
-  const lastByMonth = new Map<string, NetWorthHistoryPointDto>();
-  const monthOrder: string[] = [];
-  for (const point of points) {
-    const captured = new Date(point.capturedAt);
-    const monthKey = `${captured.getFullYear()}-${captured.getMonth()}`;
-    if (!lastByMonth.has(monthKey)) monthOrder.push(monthKey);
-    lastByMonth.set(monthKey, point);
-  }
-  return monthOrder.map((key) => lastByMonth.get(key)!);
-}
 
 // Minimum days of history required before an "N% YoY" figure is honest —
 // under this span the badge is omitted instead of extrapolated (Honest UI).
@@ -278,18 +254,16 @@ export function useRingkasanData(
     if (windowEnd !== null && ts > windowEnd) return false;
     return true;
   });
-  // Bucketed to one (closing) point per calendar month — see
-  // `groupHistoryPointsByMonth`'s header comment for why the raw points
-  // produced repeated x-axis labels.
-  const groupedHistoryPoints = groupHistoryPointsByMonth(netWorthHistoryPoints);
+  const trendGranularity = granularityForRange(trendRange);
+  const groupedHistoryPoints = bucketHistoryPoints(
+    netWorthHistoryPoints,
+    trendRange,
+  );
   const netWorthTrendValues = groupedHistoryPoints.map((p) =>
     Number(p.netWorth),
   );
   const netWorthTrendCategories = groupedHistoryPoints.map((p) =>
-    new Date(p.capturedAt).toLocaleDateString(t.beranda.dateLocale, {
-      month: "short",
-      year: "2-digit",
-    }),
+    trendCategoryLabel(p.capturedAt, trendGranularity, t.beranda.dateLocale),
   );
   const netWorthTrendSeries = [
     { name: t.ringkasan.totalNetWorthLabel, data: netWorthTrendValues },

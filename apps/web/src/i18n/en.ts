@@ -2298,7 +2298,8 @@ export const en = {
     netWorthTrendTitle: "Net Worth Trend (6 Months)",
     netWorthTrendRangeStart: "6 months ago",
     netWorthTrendRangeEnd: "Now",
-    emptyNetWorthTrend: "No net worth history yet.",
+    emptyNetWorthTrend:
+      "The trend fills in after the first daily snapshot (02:00).",
     compositionTitle: "Asset Composition",
     emptyComposition: "Add account balances to see your asset composition.",
     cashFlowTitlePrefix: "Cash Flow ",
