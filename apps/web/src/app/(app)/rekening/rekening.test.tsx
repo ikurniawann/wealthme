@@ -12,10 +12,15 @@
 
 import type { ReactElement, ReactNode } from "react";
 import { resolveEffectiveAccess } from "@wealthme/contracts";
-import { render as rtlRender, screen, within } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { AccountDto } from "@wealthme/contracts";
+import type { AccountDto, ReferenceItemDto } from "@wealthme/contracts";
 
 // `./page` imports `auth-compat`, which re-exports the `better-auth` React
 // client (ESM, unparsable by jest without a transform) — mock it before
@@ -113,7 +118,10 @@ function buildAccount(overrides: Partial<AccountDto> = {}): AccountDto {
 /** Routes `apiFetch` calls by path/method instead of one blanket mock, since
  * this page fires 3 GETs (accounts, members, fx rates) plus the PATCH under
  * test. */
-function mockApiRoutes(accounts: AccountDto[]) {
+function mockApiRoutes(
+  accounts: AccountDto[],
+  referenceItems: ReferenceItemDto[] = [],
+) {
   mockApiFetch.mockImplementation(
     (path: string, options?: { method?: string }) => {
       if (options?.method === "PATCH") {
@@ -125,10 +133,6 @@ function mockApiRoutes(accounts: AccountDto[]) {
       if (path.startsWith("/fx/rates")) {
         return Promise.resolve({ base: "IDR", rates: {} });
       }
-      // F3 — `useCanManage`/`useMyRole` resolve the signed-in role via this
-      // endpoint; an "owner" role keeps every create/edit/delete affordance
-      // this suite already asserts on visible (CASL grants owner "manage
-      // Account" — see casl-ability.factory.ts).
       // EPIC-030 — menu/permission gating reads the resolved IAM access.
       if (path.endsWith("/access/me")) {
         return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
@@ -136,9 +140,28 @@ function mockApiRoutes(accounts: AccountDto[]) {
       if (path.endsWith("/family-groups/mine")) {
         return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
       }
+      if (path.endsWith("/reference-items")) {
+        return Promise.resolve(referenceItems);
+      }
       return Promise.resolve(accounts);
     },
   );
+}
+
+function buildBankItem(
+  id: string,
+  label: string,
+  isSystem: boolean,
+): ReferenceItemDto {
+  return {
+    id,
+    familyGroupId: FAMILY_GROUP_ID,
+    group: "bank",
+    label,
+    sortOrder: 0,
+    isSystem,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
 }
 
 describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
@@ -242,5 +265,46 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
     expect(
       await screen.findByTitle(/hanya terlihat oleh master/i),
     ).toBeInTheDocument();
+  });
+
+  it("edits an account whose bank was added in Master Data without resetting it to 'Bank Lainnya' (Revisi H)", async () => {
+    mockApiRoutes(
+      [
+        buildAccount({
+          id: "acc-md",
+          name: "Rekening MD",
+          institution: "Bank Tes MD",
+        }),
+      ],
+      [
+        buildBankItem("ref-bca", "BCA", true),
+        buildBankItem("ref-md", "Bank Tes MD", false),
+      ],
+    );
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+    await screen.findByText("Rekening MD");
+
+    await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
+    await user.click(await screen.findByText("Edit"));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    const bankSelect = dialog.getByRole("combobox", { name: /^Nama Bank/ });
+    await waitFor(() => expect(bankSelect).toHaveValue("Bank Tes MD"));
+    expect(
+      within(bankSelect).getByRole("option", { name: "Bank Lainnya" }),
+    ).toBeInTheDocument();
+    expect(
+      await dialog.findByRole("link", { name: "+ Tambah ke Master Data" }),
+    ).toHaveAttribute("href", "/masterdata#bank");
+
+    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
+    const patchCall = mockApiFetch.mock.calls.find(
+      (call) => call[1]?.method === "PATCH",
+    );
+    expect(
+      (JSON.parse(patchCall![1].body as string) as { institution: string })
+        .institution,
+    ).toBe("Bank Tes MD");
   });
 });

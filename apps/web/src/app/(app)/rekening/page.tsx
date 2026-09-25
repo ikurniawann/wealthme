@@ -27,12 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  CrudModal,
-  ConfirmDeleteDialog,
-  RowActions,
-  CRUD_CONFIG,
-} from "@/components/crud";
+import { CrudModal, ConfirmDeleteDialog, RowActions } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
@@ -556,20 +551,8 @@ export default function RekeningPage() {
       });
       return;
     }
-    // F6 — "Nama Bank"/"Nomor Rekening" used to render un-prefilled (the
-    // select silently defaulting to its first option, the text input
-    // blank) regardless of the account's real data, and neither was sent
-    // back in the PATCH below — any edit to either field was silently
-    // dropped. `bank` falls back to "Bank Lainnya" (the config's own
-    // catch-all option) when the stored institution isn't one of the six
-    // named banks, rather than mis-selecting a random one.
-    const bankOptions = CRUD_CONFIG.rekening.fields.find(
-      (f) => f.key === "bank",
-    )?.options;
-    const bank =
-      account.institution && bankOptions?.includes(account.institution)
-        ? account.institution
-        : (bankOptions?.[bankOptions.length - 1] ?? "");
+    // CrudModal keeps a stored bank selectable even when it is not in Master Data.
+    const bank = account.institution || "Bank Lainnya";
     setCrudState({
       entity: "rekening",
       mode: "edit",

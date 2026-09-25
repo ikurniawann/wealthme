@@ -14,8 +14,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
+import { mergeReferenceOptions } from "@/hooks/reference-options";
+import { useReferenceItems } from "@/hooks/use-reference-items";
 import { EmojiPicker } from "@/components/wm";
 import { CRUD_CONFIG, type CrudEntity, type CrudField } from "./crud-config";
+import { AddToMasterDataLink } from "./add-to-master-data-link";
 
 export type CrudMode = "add" | "edit";
 
@@ -139,6 +142,9 @@ interface CrudFormProps extends CrudModalProps {
 function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
   const { t } = useLocale();
   const config = CRUD_CONFIG[state.entity];
+  const { items: referenceItems } = useReferenceItems(undefined, {
+    enabled: config.fields.some((f) => f.referenceGroup),
+  });
   const [values, setValues] = useState<Record<string, string>>(() =>
     initialFieldValues(config.fields, state.initialValues),
   );
@@ -185,16 +191,25 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
 
   const renderControl = (f: CrudField) => {
     if (f.type === "select") {
+      const options =
+        dynamicOptions?.[f.key] ??
+        (f.referenceGroup
+          ? mergeReferenceOptions(
+              referenceItems
+                .filter((i) => i.group === f.referenceGroup)
+                .map((i) => i.label),
+              f.options ?? [],
+              values[f.key],
+            )
+          : (f.options ?? [])
+        ).map((o) => ({ value: o, label: o }));
       return (
         <select
           className="select"
           value={values[f.key] ?? ""}
           onChange={(e) => setField(f.key, e.target.value)}
         >
-          {(
-            dynamicOptions?.[f.key] ??
-            (f.options ?? []).map((o) => ({ value: o, label: o }))
-          ).map((o) => (
+          {options.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
@@ -307,6 +322,7 @@ function CrudForm({ state, onClose, onSubmit, dynamicOptions }: CrudFormProps) {
         <span className="label">{f.label}</span>
         {renderControl(f)}
         {hint && <span className="hint block">{hint}</span>}
+        {f.referenceGroup && <AddToMasterDataLink group={f.referenceGroup} />}
       </label>
     );
   };

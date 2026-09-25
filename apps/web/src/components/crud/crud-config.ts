@@ -2,6 +2,7 @@
 // (docs/WealthMe_Demo.html — "UNIVERSAL CRUD ENGINE").
 
 import { formatRupiah, parseRupiah } from "@/lib/format";
+import type { ReferenceItemGroup } from "@wealthme/contracts";
 
 /**
  * Whole months from today until `deadline` (yyyy-mm-dd), floored at 1 — a
@@ -58,6 +59,8 @@ export interface CrudField {
    * there's nothing for it to represent.
    */
   hideOnEdit?: boolean;
+  /** Select options come from this Master Data group; static `options` stay as the fallback. */
+  referenceGroup?: ReferenceItemGroup;
 }
 
 export interface CrudEntityConfig {
@@ -87,6 +90,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         key: "bank",
         label: "Nama Bank",
         type: "select",
+        referenceGroup: "bank",
         options: [
           "BCA",
           "Mandiri",
@@ -142,6 +146,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         key: "nama",
         label: "E-Wallet",
         type: "select",
+        referenceGroup: "ewallet",
         options: ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"],
       },
       {
