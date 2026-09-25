@@ -4122,5 +4122,6 @@ export const id = {
   crud: {
     addDescription: "Data baru langsung tersedia di seluruh formulir aplikasi.",
     editDescription: "Perubahan langsung berlaku di seluruh formulir aplikasi.",
+    addToMasterData: "+ Tambah ke Master Data",
   },
 } satisfies I18nDictionary;

@@ -3934,5 +3934,6 @@ export type I18nDictionary = {
   crud: {
     addDescription: string;
     editDescription: string;
+    addToMasterData: string;
   };
 };

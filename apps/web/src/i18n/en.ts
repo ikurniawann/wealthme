@@ -4055,5 +4055,6 @@ export const en = {
   crud: {
     addDescription: "New data is immediately available across every app form.",
     editDescription: "Changes take effect immediately across every app form.",
+    addToMasterData: "+ Add to Master Data",
   },
 } satisfies I18nDictionary;

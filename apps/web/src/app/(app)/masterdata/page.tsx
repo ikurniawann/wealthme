@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -110,6 +110,22 @@ export default function MasterDataPage() {
   const [pendingCatDelete, setPendingCatDelete] = useState<CategoryDto | null>(
     null,
   );
+
+  useEffect(() => {
+    if (!canManageReferenceItem) return;
+    const target = REFERENCE_GROUP_ENTITIES.find(
+      (g) => `#${g.group}` === window.location.hash,
+    );
+    if (!target) return;
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + window.location.search,
+    );
+    // Deep link from a form's "+ Tambah ke Master Data": open that group's add dialog once.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCrud({ entity: target.entity, mode: "add" });
+  }, [canManageReferenceItem]);
 
   function openEditCategory(cat: CategoryDto) {
     setEditingCategoryId(cat.id);

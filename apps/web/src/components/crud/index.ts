@@ -9,3 +9,4 @@ export { CrudModal } from "./crud-modal";
 export type { CrudMode, CrudModalState } from "./crud-modal";
 export { ConfirmDeleteDialog } from "./confirm-delete-dialog";
 export { RowActions, CardSideActions } from "./row-actions";
+export { AddToMasterDataLink } from "./add-to-master-data-link";

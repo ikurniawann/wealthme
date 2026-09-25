@@ -403,3 +403,49 @@ describe("MasterDataPage, a new item reaches every form reading the same group (
     expect(await within(probe).findByText("Bank Tes MD")).toBeInTheDocument();
   });
 });
+
+describe("MasterDataPage, /masterdata#<group> deep link (Revisi H)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+    mockApiFetch.mockImplementation((path: string) => {
+      if (path.endsWith("/access/me")) {
+        return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+      }
+      if (path.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+      }
+      return Promise.resolve([]);
+    });
+  });
+
+  afterEach(() => {
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("opens the Lembaga add dialog when arriving via #lembaga, then clears the hash", async () => {
+    window.history.replaceState(null, "", "/masterdata#lembaga");
+    render(<MasterDataPage />);
+
+    const dialog = await screen.findByRole("dialog");
+    expect(
+      within(dialog).getByPlaceholderText("cth: ACT, Kitabisa"),
+    ).toBeInTheDocument();
+    expect(window.location.hash).toBe("");
+  });
+
+  it("ignores a hash naming a removed group", async () => {
+    window.history.replaceState(null, "", "/masterdata#txntype");
+    render(<MasterDataPage />);
+
+    await screen.findAllByRole("button", { name: "+ Tambah" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
