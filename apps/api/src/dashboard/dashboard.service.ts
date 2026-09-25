@@ -459,8 +459,9 @@ export class DashboardService {
   async getNetWorthHistory(
     familyGroupId: string,
     range = "30d",
+    now: Date = new Date(),
   ): Promise<NetWorthHistoryDto> {
-    const since = new Date();
+    const since = new Date(now);
     const monthMatch = /^(\d+)m$/.exec(range);
     const dayMatch = /^(\d+)d$/.exec(range);
     if (monthMatch) {
@@ -484,6 +485,22 @@ export class DashboardService {
       totalLiabilities: r.totalLiabilities.toString(),
       netWorth: r.netWorth.toString(),
     }));
+
+    // Same UTC day boundary as captureSnapshot, so "today" means the same row key.
+    const startOfToday = new Date(now);
+    startOfToday.setUTCHours(0, 0, 0, 0);
+    const newest = rows[rows.length - 1];
+    if (!newest || newest.date.getTime() < startOfToday.getTime()) {
+      const b = await this.computeNetWorthBreakdown(familyGroupId, true);
+      points.push({
+        capturedAt: now.toISOString(),
+        totalCash: b.totalCash.toString(),
+        totalInvestments: b.totalInvestments.toString(),
+        totalAssets: b.totalAssets.toString(),
+        totalLiabilities: b.totalLiabilities.toString(),
+        netWorth: b.netWorth.toString(),
+      });
+    }
 
     return { range, currency: "IDR", points };
   }

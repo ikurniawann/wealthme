@@ -66,6 +66,16 @@ interface FakeInvestment {
   prices: { price: Decimal }[];
 }
 
+interface FakeSnapshot {
+  capturedAt: Date;
+  date: Date;
+  totalCash: bigint;
+  totalInvestments: bigint;
+  totalAssets: bigint;
+  totalLiabilities: bigint;
+  netWorth: bigint;
+}
+
 /**
  * A minimal in-memory Prisma stand-in that actually honors the `isPrivate`
  * and transitive account/category `where` filters the service builds, so
@@ -159,6 +169,7 @@ function makeFakePrisma(
       upsert: jest.fn(({ create }: { create: Record<string, unknown> }) =>
         Promise.resolve(create),
       ),
+      findMany: jest.fn((): Promise<FakeSnapshot[]> => Promise.resolve([])),
     },
     transaction: {
       // EPIC-023 Task C — the service now combines its privacy fragment and
@@ -592,5 +603,101 @@ describe("DashboardService net worth — recorded value is authoritative (EPIC-0
     expect(prisma.asset.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ select: { currentValue: true } }),
     );
+  });
+});
+
+function snapshotRow(day: string, netWorth: bigint): FakeSnapshot {
+  return {
+    capturedAt: new Date(`${day}T02:00:00.000Z`),
+    date: new Date(`${day}T00:00:00.000Z`),
+    totalCash: netWorth,
+    totalInvestments: 0n,
+    totalAssets: 0n,
+    totalLiabilities: 0n,
+    netWorth,
+  };
+}
+
+describe("DashboardService net-worth history — live today point", () => {
+  const NOW = new Date("2026-09-25T08:00:00.000Z");
+  let service: DashboardService;
+  let prisma: ReturnType<typeof makeFakePrisma>;
+
+  beforeEach(async () => {
+    const { accounts } = buildFixtures();
+    prisma = makeFakePrisma(accounts, [], []);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    service = module.get(DashboardService);
+  });
+
+  it("a family with no snapshot yet gets one live point from the family-wide rollup", async () => {
+    const history = await service.getNetWorthHistory(
+      FAMILY_GROUP_ID,
+      "1m",
+      NOW,
+    );
+
+    // 100 visible + 500 private: snapshots are family-wide, so private is included.
+    expect(history.points).toEqual([
+      {
+        capturedAt: NOW.toISOString(),
+        totalCash: "600",
+        totalInvestments: "0",
+        totalAssets: "0",
+        totalLiabilities: "0",
+        netWorth: "600",
+      },
+    ]);
+  });
+
+  it("appends the live point after persisted snapshots when the newest is older than today", async () => {
+    prisma.netWorthSnapshot.findMany.mockResolvedValueOnce([
+      snapshotRow("2026-09-23", 400n),
+      snapshotRow("2026-09-24", 500n),
+    ]);
+
+    const history = await service.getNetWorthHistory(
+      FAMILY_GROUP_ID,
+      "1m",
+      NOW,
+    );
+
+    expect(history.points.map((p) => [p.capturedAt, p.netWorth])).toEqual([
+      ["2026-09-23T02:00:00.000Z", "400"],
+      ["2026-09-24T02:00:00.000Z", "500"],
+      [NOW.toISOString(), "600"],
+    ]);
+  });
+
+  it("does not duplicate today when today's snapshot already exists", async () => {
+    prisma.netWorthSnapshot.findMany.mockResolvedValueOnce([
+      snapshotRow("2026-09-24", 500n),
+      snapshotRow("2026-09-25", 550n),
+    ]);
+
+    const history = await service.getNetWorthHistory(
+      FAMILY_GROUP_ID,
+      "1m",
+      NOW,
+    );
+
+    expect(history.points.map((p) => p.netWorth)).toEqual(["500", "550"]);
+    expect(prisma.account.findMany).not.toHaveBeenCalled();
+  });
+
+  it("filters persisted snapshots by the range measured from `now`", async () => {
+    await service.getNetWorthHistory(FAMILY_GROUP_ID, "1m", NOW);
+
+    const since = new Date(NOW);
+    since.setMonth(since.getMonth() - 1);
+    expect(prisma.netWorthSnapshot.findMany).toHaveBeenCalledWith({
+      where: { familyGroupId: FAMILY_GROUP_ID, capturedAt: { gte: since } },
+      orderBy: { capturedAt: "asc" },
+    });
   });
 });
