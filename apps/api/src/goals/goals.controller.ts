@@ -22,10 +22,16 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 
 /* eslint-disable @typescript-eslint/consistent-type-imports */
+import { CreateGoalContributionDto } from "./dto/create-goal-contribution.dto";
 import { CreateGoalDto } from "./dto/create-goal.dto";
 import { UpdateGoalDto } from "./dto/update-goal.dto";
 import { GoalsService, GoalDto } from "./goals.service";
 /* eslint-enable @typescript-eslint/consistent-type-imports */
+
+import type {
+  GoalContributionDto,
+  GoalContributionResult,
+} from "@wealthme/contracts";
 
 @ApiTags("goals")
 @ApiBearerAuth()
@@ -65,6 +71,34 @@ export class GoalsController {
     @Body() dto: UpdateGoalDto,
   ): Promise<GoalDto> {
     return this.goalsService.update(req.params.familyGroupId, id, dto);
+  }
+
+  @Get(":id/contributions")
+  @CheckAbility((ab) => ab.can("read", "Goal"))
+  @ApiOperation({ summary: "List a goal's contributions, newest first" })
+  @ApiResponse({ status: 200, description: "Array of contributions" })
+  listContributions(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+  ): Promise<GoalContributionDto[]> {
+    return this.goalsService.listContributions(req.params.familyGroupId, id);
+  }
+
+  @Post(":id/contributions")
+  @CheckAbility((ab) => ab.can("update", "Goal"))
+  @ApiOperation({
+    summary: "Pay into a goal, optionally debiting a source account",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "The contribution and the updated goal",
+  })
+  contribute(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+    @Body() dto: CreateGoalContributionDto,
+  ): Promise<GoalContributionResult> {
+    return this.goalsService.contribute(req.params.familyGroupId, id, dto);
   }
 
   @Delete(":id")
