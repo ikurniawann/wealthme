@@ -137,8 +137,13 @@ export function SplitShareView({ shareToken }: { shareToken: string }) {
   return (
     <div className="flex min-h-screen flex-col items-center gap-3.5 bg-background px-3.5 pt-5 pb-10">
       <div className="flex items-center justify-center gap-2.5">
-        <div className="gradient-wealth grid size-[30px] place-items-center rounded-[9px] text-[13px] font-extrabold text-white">
-          W
+        <div className="grid size-[30px] place-items-center rounded-[9px]">
+          {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
+          <img
+            src="/brand/wealthme-mark.png"
+            alt=""
+            className="size-full object-contain"
+          />
         </div>
         <div className="text-[16px] font-extrabold tracking-tight">
           WealthMe

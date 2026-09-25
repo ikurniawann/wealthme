@@ -47,7 +47,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex items-center gap-2.5 text-muted-foreground">
-          <div className="sidebar__logo gradient-wealth">W</div>
+          <div className="sidebar__logo">
+            {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
+            <img
+              src="/brand/wealthme-mark.png"
+              alt=""
+              className="size-full object-contain"
+            />
+          </div>
           <span className="t-md t-bold">{t.shell.loading}</span>
         </div>
       </div>

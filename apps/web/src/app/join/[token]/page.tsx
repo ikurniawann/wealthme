@@ -78,8 +78,13 @@ export default function JoinPage({
     <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
       <div className="w-full max-w-[440px]">
         <div className="mb-[18px] flex items-center justify-center gap-2.5">
-          <div className="gradient-wealth grid size-[34px] place-items-center rounded-[9px] text-[15px] font-extrabold text-white">
-            W
+          <div className="grid size-[34px] place-items-center rounded-[9px]">
+            {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
+            <img
+              src="/brand/wealthme-mark.png"
+              alt=""
+              className="size-full object-contain"
+            />
           </div>
           <div className="text-[18px] font-extrabold tracking-tight">
             WealthMe

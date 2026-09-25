@@ -73,8 +73,13 @@ export function Walkthrough() {
           <DialogContent className="min-[769px]:w-[min(420px,calc(100%-2rem))]">
             <DialogTitle className="sr-only">{tr.welcomeTitle}</DialogTitle>
             <div className="text-center">
-              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary text-2xl font-extrabold text-white">
-                W
+              <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl">
+                {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
+                <img
+                  src="/brand/wealthme-mark.png"
+                  alt=""
+                  className="size-full object-contain"
+                />
               </div>
               <h2 className="text-[19px] font-extrabold">{tr.welcomeTitle}</h2>
               <p className="mt-1.5 text-[13px] text-muted-foreground">

@@ -949,7 +949,10 @@ export function GuidedSetup({
           above ~504px. */}
       <DialogContent className="p-0 min-[769px]:w-[min(440px,calc(100%-2rem))]">
         <div className="p-6">
-          <div className="mb-4 flex items-center justify-between gap-2">
+          {/* pr-10 clears the Dialog's own absolute top-3 right-3 close
+              button (30px wide) so "Lewati Setup" never sits under it on
+              narrow screens. */}
+          <div className="mb-4 flex items-center justify-between gap-2 pr-10">
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-md bg-accent text-primary">
                 <StepIcon aria-hidden="true" className="size-4" />

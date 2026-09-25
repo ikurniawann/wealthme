@@ -10,8 +10,13 @@ import type { ReactNode } from "react";
 export function SidebarBrand({ action }: { action?: ReactNode }) {
   return (
     <div className="sidebar__brand">
-      <div className="sidebar__logo gradient-wealth" aria-hidden="true">
-        W
+      <div className="sidebar__logo" aria-hidden="true">
+        {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
+        <img
+          src="/brand/wealthme-mark.png"
+          alt=""
+          className="size-full object-contain"
+        />
       </div>
       <div className="sidebar__brand-text">
         <div className="sidebar__name">

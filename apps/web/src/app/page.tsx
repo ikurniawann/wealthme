@@ -15,8 +15,13 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="flex size-11 items-center justify-center rounded-[12px] bg-primary text-xl font-extrabold text-white">
-        W
+      <div className="flex size-11 items-center justify-center rounded-[12px]">
+        {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
+        <img
+          src="/brand/wealthme-mark.png"
+          alt=""
+          className="size-full object-contain"
+        />
       </div>
     </div>
   );
