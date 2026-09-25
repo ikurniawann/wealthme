@@ -5,6 +5,7 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -65,4 +66,9 @@ export class UpdateGoalDto {
   @Min(1)
   @Max(28)
   autoDebitDay?: number;
+
+  @ApiPropertyOptional({ description: "Account the auto-debit draws from" })
+  @IsOptional()
+  @IsUUID()
+  sourceAccountId?: string;
 }

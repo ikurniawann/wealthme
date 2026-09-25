@@ -215,6 +215,12 @@ export class GoalsService {
         "Sudah Terkumpul tidak boleh melebihi Target Jumlah",
       );
     }
+    const sourceAccountId = dto.sourceAccountId ?? null;
+    await this.assertSourceAccount(
+      familyGroupId,
+      autoDebitAmount,
+      sourceAccountId,
+    );
     const targetDate = dto.targetDate ? new Date(dto.targetDate) : null;
     const createdAt = new Date();
 
@@ -228,6 +234,7 @@ export class GoalsService {
         targetDate,
         autoDebitAmount,
         autoDebitDay: dto.autoDebitDay ?? null,
+        sourceAccountId,
         status: computeStatus(
           currentAmount,
           targetAmount,
@@ -286,6 +293,18 @@ export class GoalsService {
       );
     }
 
+    const sourceAccountId =
+      dto.sourceAccountId !== undefined
+        ? dto.sourceAccountId
+        : existing.sourceAccountId;
+    if (dto.autoDebitAmount != null || dto.sourceAccountId !== undefined) {
+      await this.assertSourceAccount(
+        familyGroupId,
+        autoDebitAmount,
+        sourceAccountId,
+      );
+    }
+
     const status = computeStatus(
       currentAmount,
       targetAmount,
@@ -306,6 +325,7 @@ export class GoalsService {
           dto.autoDebitDay !== undefined
             ? dto.autoDebitDay
             : existing.autoDebitDay,
+        sourceAccountId,
         status,
       },
     });
@@ -490,97 +510,134 @@ export class GoalsService {
     return category.id;
   }
 
-  /**
-   * Execute monthly auto-debit across every goal that has an `autoDebitAmount`.
-   * Idempotent per calendar month via `lastAutoDebitAt`, so re-running within the
-   * same month is a no-op. Each debit caps `currentAmount` at `targetAmount`,
-   * recomputes status, and fires a `Notification`.
-   *
-   * EPIC-022 A3 / USER DECISION — goals are a manual tracker, not real money.
-   * This does NOT move any real money and does NOT write a `Transaction`:
-   * `Goal.currentAmount` is an earmark the family maintains by hand (or via
-   * this scheduled bump), never backed by an `Account` balance. It previously
-   * also inserted a `type: transfer` Transaction row against an arbitrary
-   * account, which looked like a real transfer in the ledger but never
-   * touched that account's balance — a family reconciling against a real
-   * bank statement could never make that row add up. Real funding (backing
-   * a goal with an account and moving money through
-   * `TransactionsService.create`) is deliberately out of scope here.
-   * Returns the number of goals actually debited.
-   */
+  /** Daily: debits each goal whose autoDebitDay is today from its source account. Returns goals debited. */
   async runAutoDebit(now: Date = new Date()): Promise<number> {
+    const dayOfMonth = now.getDate();
     const goals = await this.prisma.goal.findMany({
-      where: { autoDebitAmount: { not: null } },
+      where: {
+        autoDebitAmount: { not: null },
+        sourceAccountId: { not: null },
+        // Pre-Revisi-F goals have no day; they keep running on the 1st.
+        OR:
+          dayOfMonth === 1
+            ? [{ autoDebitDay: 1 }, { autoDebitDay: null }]
+            : [{ autoDebitDay: dayOfMonth }],
+      },
     });
+    const dayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dayEnd = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    );
 
     let debited = 0;
-    for (const goal of goals) {
-      const autoDebit = goal.autoDebitAmount;
-      if (autoDebit === null || autoDebit <= 0n) continue;
+    for (const due of goals) {
+      try {
+        const result = await runSerializableWithRetry(this.prisma, (tx) =>
+          this.autoDebitOne(
+            tx,
+            due.id,
+            due.familyGroupId,
+            now,
+            dayStart,
+            dayEnd,
+          ),
+        );
+        if (!result) continue;
+        debited += 1;
 
-      // Idempotency: skip if already debited in the current calendar month.
-      if (
-        goal.lastAutoDebitAt &&
-        goal.lastAutoDebitAt.getUTCFullYear() === now.getUTCFullYear() &&
-        goal.lastAutoDebitAt.getUTCMonth() === now.getUTCMonth()
-      ) {
-        continue;
-      }
-
-      const projected = goal.currentAmount + autoDebit;
-      const newCurrent =
-        projected > goal.targetAmount ? goal.targetAmount : projected;
-      const actual = newCurrent - goal.currentAmount;
-
-      if (actual <= 0n) {
-        // Already at/over target — stamp the run so it isn't re-checked daily.
-        await this.prisma.goal.update({
-          where: { id: goal.id },
-          data: { lastAutoDebitAt: now },
-        });
-        continue;
-      }
-
-      const status = computeStatus(
-        newCurrent,
-        goal.targetAmount,
-        goal.targetDate,
-        goal.createdAt,
-        now,
-      );
-
-      const notifPrefs = await ownerNotifPrefs(this.prisma, goal.familyGroupId);
-
-      // EPIC-022 A3 / USER DECISION — goals are a manual tracker, not real
-      // money: `currentAmount` is an earmark the family maintains, it is
-      // never backed by a real account or a real transfer. This used to
-      // also insert a `type: transfer` Transaction row here, but no
-      // `Account.balance` was ever touched — the family saw a transaction
-      // that did not happen, and it could never be reconciled against a
-      // real bank statement. Real funding (backing a goal with an account
-      // and moving money through `TransactionsService.create`) is
-      // deliberately out of scope; this only bumps the tracker and notifies.
-      await this.prisma.$transaction(async (tx) => {
-        await tx.goal.update({
-          where: { id: goal.id },
-          data: { currentAmount: newCurrent, status, lastAutoDebitAt: now },
-        });
-
+        const notifPrefs = await ownerNotifPrefs(
+          this.prisma,
+          due.familyGroupId,
+        );
         if (notifPrefs.goalMilestone) {
-          await tx.notification.create({
+          await this.prisma.notification.create({
             data: {
-              familyGroupId: goal.familyGroupId,
+              familyGroupId: due.familyGroupId,
               title: "Auto-debit tujuan",
-              body: `${goal.name} bertambah Rp${actual.toString()} dari auto-debit bulanan.`,
-              icon: goal.icon ?? "🎯",
+              body: `${result.goal.name} bertambah Rp${result.contribution.amount} dari auto-debit.`,
+              icon: result.goal.icon ?? "🎯",
             },
           });
         }
-      });
+      } catch (err) {
+        this.logger.warn(
+          `Goal auto-debit failed for ${due.id}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+    return debited;
+  }
 
-      debited += 1;
+  private async autoDebitOne(
+    tx: TxClient,
+    goalId: string,
+    familyGroupId: string,
+    now: Date,
+    dayStart: Date,
+    dayEnd: Date,
+  ): Promise<GoalContributionResult | null> {
+    const goal = await tx.goal.findUnique({
+      where: { id: goalId, familyGroupId },
+    });
+    if (
+      !goal ||
+      goal.autoDebitAmount === null ||
+      goal.autoDebitAmount <= 0n ||
+      !goal.sourceAccountId
+    ) {
+      return null;
     }
 
-    return debited;
+    const already = await tx.goalContribution.findFirst({
+      where: {
+        familyGroupId,
+        goalId,
+        source: PrismaGoalContributionSource.auto,
+        occurredAt: { gte: dayStart, lt: dayEnd },
+      },
+      select: { id: true },
+    });
+    if (already) return null;
+
+    const remaining = goal.targetAmount - goal.currentAmount;
+    const amount =
+      goal.autoDebitAmount < remaining ? goal.autoDebitAmount : remaining;
+    if (amount <= 0n) {
+      await tx.goal.update({
+        where: { id: goal.id, familyGroupId },
+        data: { lastAutoDebitAt: now },
+      });
+      return null;
+    }
+
+    return this.contributeInTx(tx, goal, {
+      amount,
+      accountId: goal.sourceAccountId,
+      occurredAt: now,
+      source: PrismaGoalContributionSource.auto,
+      now,
+    });
+  }
+
+  private async assertSourceAccount(
+    familyGroupId: string,
+    autoDebitAmount: bigint | null,
+    sourceAccountId: string | null,
+  ): Promise<void> {
+    if (autoDebitAmount != null && !sourceAccountId) {
+      throw new BadRequestException(
+        "Rekening sumber wajib dipilih untuk auto-debit",
+      );
+    }
+    if (!sourceAccountId) return;
+    const account = await this.prisma.account.findUnique({
+      where: { id: sourceAccountId, familyGroupId },
+      select: { id: true },
+    });
+    if (!account) {
+      throw new NotFoundException(`Account ${sourceAccountId} not found`);
+    }
   }
 }

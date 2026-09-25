@@ -5,9 +5,11 @@ import {
   IsOptional,
   IsPositive,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from "class-validator";
 
 const MAX_AMOUNT = 999_999_999_999;
@@ -64,4 +66,15 @@ export class CreateGoalDto {
   @Min(1)
   @Max(28)
   autoDebitDay?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "Account the auto-debit draws from; required when autoDebitAmount is set",
+  })
+  @ValidateIf(
+    (o: CreateGoalDto) =>
+      o.autoDebitAmount != null || o.sourceAccountId !== undefined,
+  )
+  @IsUUID()
+  sourceAccountId?: string;
 }

@@ -17,10 +17,14 @@ interface FakeGoal {
   currentAmount: bigint;
   targetDate: Date | null;
   autoDebitAmount: bigint | null;
+  autoDebitDay: number | null;
+  sourceAccountId: string | null;
   status: PrismaGoalStatus;
   lastAutoDebitAt: Date | null;
   createdAt: Date;
 }
+
+const ACCOUNT_ID = "acc-1";
 
 // Far enough in the past that a goal with no explicit `createdAt` override
 // never gets mistaken for "brand new" by the C7 elapsed-pace heuristic.
@@ -36,6 +40,8 @@ function makeGoal(overrides: Partial<FakeGoal> = {}): FakeGoal {
     currentAmount: 0n,
     targetDate: null,
     autoDebitAmount: 500_000n,
+    autoDebitDay: 15,
+    sourceAccountId: ACCOUNT_ID,
     status: PrismaGoalStatus.on_track,
     lastAutoDebitAt: null,
     createdAt: OLD_CREATED_AT,
@@ -43,12 +49,6 @@ function makeGoal(overrides: Partial<FakeGoal> = {}): FakeGoal {
   };
 }
 
-/**
- * A minimal fake Prisma client. `$transaction` invokes its callback with the
- * SAME object (real Prisma would hand back a distinct `tx`, but nothing here
- * depends on that distinction) so assertions can inspect calls made both
- * inside and outside the transaction via one set of jest.fn()s.
- */
 function makePrisma() {
   const prisma = {
     goal: {
@@ -64,24 +64,42 @@ function makePrisma() {
         .fn()
         .mockResolvedValue({ user: { notificationPrefs: null } }),
     },
-    // EPIC-022 A3 — these must NEVER be called again: the phantom ledger row
-    // this auto-debit used to write picked an arbitrary account and category
-    // through these two lookups.
-    account: { findFirst: jest.fn() },
-    category: { findFirst: jest.fn() },
-    transaction: { create: jest.fn() },
+    account: {
+      findUnique: jest.fn().mockResolvedValue({
+        id: ACCOUNT_ID,
+        name: "BCA Tahapan",
+        type: "bank",
+        balance: 50_000_000n,
+      }),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    coaAccount: {
+      findFirst: jest
+        .fn()
+        .mockResolvedValue({ id: "coa-30001", name: "Tabungan" }),
+    },
+    category: { upsert: jest.fn().mockResolvedValue({ id: "cat-goal" }) },
+    transaction: { create: jest.fn().mockResolvedValue({ id: "txn-1" }) },
+    goalContribution: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve({ id: "contrib-1", createdAt: new Date(), ...data }),
+      ),
+    },
     notification: { create: jest.fn() },
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation(
-    (cb: (tx: typeof prisma) => Promise<void>) => cb(prisma),
+    (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
   );
   return prisma;
 }
 
-describe("GoalsService.runAutoDebit — goals are a manual tracker (EPIC-022 A3)", () => {
+describe("GoalsService.runAutoDebit — daily, real money, via the contribution path (Revisi F)", () => {
   let service: GoalsService;
   let prisma: ReturnType<typeof makePrisma>;
+  // Local-time constructor: the suite runs under TZ=Asia/Jakarta (jest.global-setup.js).
+  const NOW = new Date(2026, 2, 15, 3, 0, 0);
 
   beforeEach(async () => {
     prisma = makePrisma();
@@ -91,23 +109,74 @@ describe("GoalsService.runAutoDebit — goals are a manual tracker (EPIC-022 A3)
     service = module.get(GoalsService);
   });
 
-  it("bumps currentAmount and notifies, but writes NO Transaction and looks up NO account/category", async () => {
-    prisma.goal.findMany.mockResolvedValue([makeGoal()]);
-    const now = new Date("2026-03-15T00:00:00.000Z");
+  function dueGoal(overrides: Partial<FakeGoal> = {}) {
+    const goal = makeGoal(overrides);
+    prisma.goal.findMany.mockResolvedValue([goal]);
+    prisma.goal.findUnique.mockResolvedValue(goal);
+    prisma.goal.update.mockImplementation(
+      ({ data }: { data: { currentAmount?: { increment: bigint } } }) =>
+        Promise.resolve({
+          ...goal,
+          currentAmount:
+            goal.currentAmount + (data.currentAmount?.increment ?? 0n),
+        }),
+    );
+    return goal;
+  }
 
-    const debited = await service.runAutoDebit(now);
-
-    expect(debited).toBe(1);
-    // The tracker bump — unchanged behavior.
-    expect(prisma.goal.update).toHaveBeenCalledWith({
-      where: { id: GOAL_ID },
-      data: {
-        currentAmount: 500_000n,
-        status: PrismaGoalStatus.on_track,
-        lastAutoDebitAt: now,
+  it("queries only goals due today that have a source account", async () => {
+    prisma.goal.findMany.mockResolvedValue([]);
+    await service.runAutoDebit(NOW);
+    expect(prisma.goal.findMany).toHaveBeenCalledWith({
+      where: {
+        autoDebitAmount: { not: null },
+        sourceAccountId: { not: null },
+        OR: [{ autoDebitDay: 15 }],
       },
     });
-    // The notification — unchanged behavior.
+  });
+
+  it("on the 1st, a legacy goal with no autoDebitDay is due too", async () => {
+    prisma.goal.findMany.mockResolvedValue([]);
+    await service.runAutoDebit(new Date(2026, 3, 1, 3, 0, 0));
+    expect(prisma.goal.findMany).toHaveBeenCalledWith({
+      where: {
+        autoDebitAmount: { not: null },
+        sourceAccountId: { not: null },
+        OR: [{ autoDebitDay: 1 }, { autoDebitDay: null }],
+      },
+    });
+  });
+
+  it("debits the source account and records a source=auto contribution, then notifies", async () => {
+    dueGoal();
+
+    const debited = await service.runAutoDebit(NOW);
+
+    expect(debited).toBe(1);
+    expect(prisma.account.update).toHaveBeenCalledWith({
+      where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
+      data: { balance: { decrement: 500_000n } },
+    });
+    expect(prisma.transaction.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ type: "transfer", amount: 500_000n }),
+      }),
+    );
+    expect(prisma.goalContribution.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        goalId: GOAL_ID,
+        amount: 500_000n,
+        accountId: ACCOUNT_ID,
+        source: "auto",
+        occurredAt: NOW,
+      }),
+    });
+    expect(prisma.goal.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ lastAutoDebitAt: NOW }),
+      }),
+    );
     expect(prisma.notification.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -116,64 +185,92 @@ describe("GoalsService.runAutoDebit — goals are a manual tracker (EPIC-022 A3)
         }),
       }),
     );
-
-    // The fix: no phantom ledger row, and no arbitrary account/category pick.
-    expect(prisma.transaction.create).not.toHaveBeenCalled();
-    expect(prisma.account.findFirst).not.toHaveBeenCalled();
-    expect(prisma.category.findFirst).not.toHaveBeenCalled();
   });
 
-  it("caps the bump at targetAmount and reports the actual (not full) delta via currentAmount", async () => {
-    prisma.goal.findMany.mockResolvedValue([
-      makeGoal({
-        currentAmount: 9_800_000n,
-        targetAmount: 10_000_000n,
-        autoDebitAmount: 500_000n,
-      }),
-    ]);
-    const now = new Date("2026-03-15T00:00:00.000Z");
+  it("is idempotent per goal per calendar day", async () => {
+    dueGoal();
+    prisma.goalContribution.findFirst.mockResolvedValue({ id: "c-earlier" });
 
-    await service.runAutoDebit(now);
+    const debited = await service.runAutoDebit(NOW);
 
-    expect(prisma.goal.update).toHaveBeenCalledWith(
+    expect(debited).toBe(0);
+    expect(prisma.goalContribution.findFirst).toHaveBeenCalledWith({
+      where: {
+        familyGroupId: FAMILY_GROUP_ID,
+        goalId: GOAL_ID,
+        source: "auto",
+        occurredAt: {
+          gte: new Date(2026, 2, 15),
+          lt: new Date(2026, 2, 16),
+        },
+      },
+      select: { id: true },
+    });
+    expect(prisma.account.update).not.toHaveBeenCalled();
+    expect(prisma.goalContribution.create).not.toHaveBeenCalled();
+  });
+
+  it("caps the debit at what is left to reach the target", async () => {
+    dueGoal({ currentAmount: 9_800_000n, targetAmount: 10_000_000n });
+
+    await service.runAutoDebit(NOW);
+
+    expect(prisma.account.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          currentAmount: 10_000_000n,
-          status: PrismaGoalStatus.achieved,
-        }),
+        data: { balance: { decrement: 200_000n } },
       }),
     );
-    expect(prisma.transaction.create).not.toHaveBeenCalled();
+    expect(prisma.goal.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: PrismaGoalStatus.achieved }),
+      }),
+    );
   });
 
-  it("is idempotent within the same calendar month (no double bump, no transaction either way)", async () => {
-    prisma.goal.findMany.mockResolvedValue([
-      makeGoal({ lastAutoDebitAt: new Date("2026-03-01T00:00:00.000Z") }),
-    ]);
-    const now = new Date("2026-03-20T00:00:00.000Z");
+  it("a goal already at target moves no money but stamps the run", async () => {
+    dueGoal({ currentAmount: 10_000_000n, targetAmount: 10_000_000n });
 
-    const debited = await service.runAutoDebit(now);
+    const debited = await service.runAutoDebit(NOW);
 
     expect(debited).toBe(0);
-    expect(prisma.goal.update).not.toHaveBeenCalled();
-    expect(prisma.transaction.create).not.toHaveBeenCalled();
-  });
-
-  it("skips a goal already at/over target but stamps the run, without writing a transaction", async () => {
-    prisma.goal.findMany.mockResolvedValue([
-      makeGoal({ currentAmount: 10_000_000n, targetAmount: 10_000_000n }),
-    ]);
-    const now = new Date("2026-03-15T00:00:00.000Z");
-
-    const debited = await service.runAutoDebit(now);
-
-    expect(debited).toBe(0);
+    expect(prisma.account.update).not.toHaveBeenCalled();
     expect(prisma.goal.update).toHaveBeenCalledWith({
-      where: { id: GOAL_ID },
-      data: { lastAutoDebitAt: now },
+      where: { id: GOAL_ID, familyGroupId: FAMILY_GROUP_ID },
+      data: { lastAutoDebitAt: NOW },
     });
-    expect(prisma.transaction.create).not.toHaveBeenCalled();
-    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("one goal's insufficient balance does not stop the next goal", async () => {
+    const broke = makeGoal({ id: "goal-broke", sourceAccountId: "acc-empty" });
+    const fine = makeGoal({ id: "goal-fine" });
+    prisma.goal.findMany.mockResolvedValue([broke, fine]);
+    prisma.goal.findUnique.mockImplementation(
+      ({ where }: { where: { id: string } }) =>
+        Promise.resolve(where.id === broke.id ? broke : fine),
+    );
+    prisma.goal.update.mockResolvedValue(fine);
+    prisma.account.findUnique.mockImplementation(
+      ({ where }: { where: { id: string } }) =>
+        Promise.resolve(
+          where.id === "acc-empty"
+            ? { id: "acc-empty", name: "Kosong", type: "bank", balance: 0n }
+            : {
+                id: ACCOUNT_ID,
+                name: "BCA Tahapan",
+                type: "bank",
+                balance: 50_000_000n,
+              },
+        ),
+    );
+
+    const debited = await service.runAutoDebit(NOW);
+
+    expect(debited).toBe(1);
+    expect(prisma.goalContribution.create).toHaveBeenCalledTimes(1);
+    expect(prisma.goalContribution.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ goalId: "goal-fine" }),
+    });
+    expect(prisma.account.update).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -422,5 +519,105 @@ describe("GoalsService.findAll recomputes status on read (EPIC-022 C7)", () => {
     } finally {
       jest.useRealTimers();
     }
+  });
+});
+
+describe("GoalsService create/update — sourceAccountId (Revisi F)", () => {
+  let service: GoalsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [GoalsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get(GoalsService);
+    prisma.goal.create.mockImplementation(
+      ({ data }: { data: Partial<FakeGoal> }) =>
+        Promise.resolve(makeGoal({ ...data })),
+    );
+    prisma.goal.update.mockImplementation(
+      ({ data }: { data: Partial<FakeGoal> }) =>
+        Promise.resolve(makeGoal({ ...data })),
+    );
+  });
+
+  it("create rejects autoDebitAmount without a source account (400)", async () => {
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        name: "Dana Liburan",
+        targetAmount: 10_000_000,
+        autoDebitAmount: 500_000,
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.goal.create).not.toHaveBeenCalled();
+  });
+
+  it("create rejects a sourceAccountId from another family group (404)", async () => {
+    prisma.account.findUnique.mockResolvedValue(null);
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        name: "Dana Liburan",
+        targetAmount: 10_000_000,
+        autoDebitAmount: 500_000,
+        sourceAccountId: "acc-other",
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(prisma.account.findUnique).toHaveBeenCalledWith({
+      where: { id: "acc-other", familyGroupId: FAMILY_GROUP_ID },
+      select: { id: true },
+    });
+    expect(prisma.goal.create).not.toHaveBeenCalled();
+  });
+
+  it("create stores and returns the source account", async () => {
+    const result = await service.create(FAMILY_GROUP_ID, {
+      name: "Dana Liburan",
+      targetAmount: 10_000_000,
+      autoDebitAmount: 500_000,
+      sourceAccountId: ACCOUNT_ID,
+    });
+    expect(prisma.goal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ sourceAccountId: ACCOUNT_ID }),
+      }),
+    );
+    expect(result.sourceAccountId).toBe(ACCOUNT_ID);
+  });
+
+  it("update rejects setting autoDebitAmount on a goal with no source account (400)", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ autoDebitAmount: null, sourceAccountId: null }),
+    );
+    await expect(
+      service.update(FAMILY_GROUP_ID, GOAL_ID, { autoDebitAmount: 500_000 }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(prisma.goal.update).not.toHaveBeenCalled();
+  });
+
+  it("a name-only edit of a legacy auto-debit goal without a source account still saves", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ autoDebitAmount: 500_000n, sourceAccountId: null }),
+    );
+    const result = await service.update(FAMILY_GROUP_ID, GOAL_ID, {
+      name: "Renamed",
+    });
+    expect(result.name).toBe("Renamed");
+    expect(prisma.account.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("update can attach a source account to a legacy goal", async () => {
+    prisma.goal.findUnique.mockResolvedValue(
+      makeGoal({ autoDebitAmount: 500_000n, sourceAccountId: null }),
+    );
+    await service.update(FAMILY_GROUP_ID, GOAL_ID, {
+      autoDebitAmount: 500_000,
+      sourceAccountId: ACCOUNT_ID,
+    });
+    expect(prisma.goal.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ sourceAccountId: ACCOUNT_ID }),
+      }),
+    );
   });
 });

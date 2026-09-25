@@ -43,3 +43,45 @@ describe("CreateGoalDto.currentAmount — EPIC-022 C8", () => {
     expect(errors).toHaveLength(0);
   });
 });
+
+describe("CreateGoalDto.sourceAccountId — Revisi F item 5", () => {
+  const SOURCE = "5f0c1f7e-7c1a-4b8e-9d7a-2f1c3b4a5d6e";
+
+  it("is required when autoDebitAmount is set", async () => {
+    const dto = plainToInstance(CreateGoalDto, {
+      name: "Dana Liburan",
+      targetAmount: 10_000_000,
+      autoDebitAmount: 500_000,
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "sourceAccountId")).toBe(true);
+  });
+
+  it("accepts autoDebitAmount together with a UUID sourceAccountId", async () => {
+    const dto = plainToInstance(CreateGoalDto, {
+      name: "Dana Liburan",
+      targetAmount: 10_000_000,
+      autoDebitAmount: 500_000,
+      sourceAccountId: SOURCE,
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+
+  it("rejects a non-UUID sourceAccountId", async () => {
+    const dto = plainToInstance(CreateGoalDto, {
+      name: "Dana Liburan",
+      targetAmount: 10_000_000,
+      sourceAccountId: "acc-1",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "sourceAccountId")).toBe(true);
+  });
+
+  it("a goal without auto-debit needs no source account", async () => {
+    const dto = plainToInstance(CreateGoalDto, {
+      name: "Dana Liburan",
+      targetAmount: 10_000_000,
+    });
+    expect(await validate(dto)).toHaveLength(0);
+  });
+});
