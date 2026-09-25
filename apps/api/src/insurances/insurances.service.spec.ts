@@ -271,6 +271,26 @@ describe("InsurancesService", () => {
       const [item] = await service.findAll(FAMILY_GROUP_ID);
       expect(item!.paidThisPeriod).toBe(false);
     });
+
+    it("is true when renewalDate is already in the future (paid ahead), even with no transaction this period", async () => {
+      const future = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
+      prisma.insurance.findMany.mockResolvedValue([
+        { ...BASE_ROW, renewalDate: future },
+      ]);
+      prisma.transaction.findMany.mockResolvedValue([]);
+      const [item] = await service.findAll(FAMILY_GROUP_ID);
+      expect(item!.paidThisPeriod).toBe(true);
+    });
+
+    it("is false when renewalDate is in the past and no transaction landed this period", async () => {
+      const past = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+      prisma.insurance.findMany.mockResolvedValue([
+        { ...BASE_ROW, renewalDate: past },
+      ]);
+      prisma.transaction.findMany.mockResolvedValue([]);
+      const [item] = await service.findAll(FAMILY_GROUP_ID);
+      expect(item!.paidThisPeriod).toBe(false);
+    });
   });
 
   describe("create()", () => {

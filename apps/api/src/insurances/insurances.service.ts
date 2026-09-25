@@ -136,6 +136,14 @@ function toBeneficiaryDto(
   };
 }
 
+/** `pay()` treats a renewal date after now as "already paid through". */
+function isPaidAhead(
+  renewalDate: Date | null,
+  now: Date = new Date(),
+): boolean {
+  return renewalDate !== null && renewalDate > now;
+}
+
 function toInsuranceDto(
   row: InsuranceRow,
   // Group F (F1/D14) — resolves a linked beneficiary's CURRENT name and
@@ -276,7 +284,14 @@ export class InsurancesService {
       ),
     ]);
 
-    return rows.map((r) => toInsuranceDto(r, lookup, paidSet.has(r.id)));
+    const now = new Date();
+    return rows.map((r) =>
+      toInsuranceDto(
+        r,
+        lookup,
+        paidSet.has(r.id) || isPaidAhead(r.renewalDate, now),
+      ),
+    );
   }
 
   /**
@@ -835,7 +850,7 @@ export class InsurancesService {
     premiumPeriod: string,
     renewalDate: Date | null,
   ): Promise<void> {
-    if (renewalDate && renewalDate > new Date()) {
+    if (isPaidAhead(renewalDate)) {
       throw new ConflictException(
         `"${insuranceName}" sudah dibayar periode ini — koreksi transaksi yang ada, jangan bayar dua kali`,
       );
