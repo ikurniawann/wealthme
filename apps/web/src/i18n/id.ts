@@ -2985,8 +2985,6 @@ export const id = {
     iconAriaLabelPrefix: "Ikon ",
     fieldAmountLabel: "Budget per Bulan (Rp)",
     fieldPeriodLabel: "Periode",
-    fieldAutoDebitDayLabel: "Tanggal Auto-debet (1-28)",
-    autoDebitDayPrefix: "autodebet tgl ",
     savingLabel: "Menyimpan...",
     saveCategoryButton: "Simpan Kategori",
     toastCategoryAddedPrefix: 'Anggaran "',

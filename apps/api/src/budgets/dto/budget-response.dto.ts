@@ -29,13 +29,6 @@ export class BudgetResponseDto {
   })
   limitAmount!: number;
 
-  @ApiProperty({
-    type: Number,
-    nullable: true,
-    description: "Day of month (1-28) the auto-debit runs",
-  })
-  autoDebitDay!: number | null;
-
   @ApiProperty({ type: Number, description: "Amount spent in current period" })
   spentAmount!: number;
 

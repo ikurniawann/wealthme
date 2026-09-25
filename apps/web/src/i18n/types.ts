@@ -2755,8 +2755,6 @@ export type I18nDictionary = {
     iconAriaLabelPrefix: string;
     fieldAmountLabel: string;
     fieldPeriodLabel: string;
-    fieldAutoDebitDayLabel: string;
-    autoDebitDayPrefix: string;
     savingLabel: string;
     saveCategoryButton: string;
     toastCategoryAddedPrefix: string;

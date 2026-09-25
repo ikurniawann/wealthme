@@ -10,7 +10,6 @@ export interface BudgetDto {
   categoryIcon: string | null;
   period: BudgetPeriod;
   limitAmount: number;
-  autoDebitDay: number | null;
   spentAmount: number;
   remainingAmount: number;
   usagePercent: number;
@@ -25,11 +24,9 @@ export interface CreateBudgetDto {
   categoryId: string;
   period: BudgetPeriod;
   limitAmount: number;
-  autoDebitDay?: number;
 }
 
 export interface UpdateBudgetDto {
   limitAmount?: number;
-  autoDebitDay?: number;
   period?: BudgetPeriod;
 }

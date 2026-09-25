@@ -693,7 +693,6 @@ interface BudgetDto {
     categoryIcon: string | null;
     period: BudgetPeriod;
     limitAmount: number;
-    autoDebitDay: number | null;
     spentAmount: number;
     remainingAmount: number;
     usagePercent: number;
@@ -705,11 +704,9 @@ interface CreateBudgetDto {
     categoryId: string;
     period: BudgetPeriod;
     limitAmount: number;
-    autoDebitDay?: number;
 }
 interface UpdateBudgetDto {
     limitAmount?: number;
-    autoDebitDay?: number;
     period?: BudgetPeriod;
 }
 

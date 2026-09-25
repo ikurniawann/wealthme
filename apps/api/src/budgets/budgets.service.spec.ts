@@ -843,3 +843,51 @@ describe("BudgetsService.remove privacy enforcement (EPIC-022 A6 follow-up)", ()
     });
   });
 });
+
+describe("BudgetsService — budgets carry no auto-debit (Revisi F item 4)", () => {
+  let service: BudgetsService;
+  let prisma: ReturnType<typeof makePrisma>;
+
+  beforeEach(async () => {
+    prisma = makePrisma();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [BudgetsService, { provide: PrismaService, useValue: prisma }],
+    }).compile();
+    service = module.get(BudgetsService);
+  });
+
+  it("does not expose autoDebitDay on the budget DTO", async () => {
+    const [result] = await service.findAll(FAMILY_GROUP_ID, true);
+    expect(result).not.toHaveProperty("autoDebitDay");
+  });
+
+  it("never writes autoDebitDay on create, even if a caller smuggles one in", async () => {
+    await service.create(
+      FAMILY_GROUP_ID,
+      {
+        categoryId: PUBLIC_CATEGORY_ID,
+        period: "monthly",
+        limitAmount: 100,
+        autoDebitDay: 25,
+      } as never,
+      true,
+    );
+    const [[args]] = prisma.budget.create.mock.calls as unknown as [
+      [{ data: Record<string, unknown> }],
+    ];
+    expect(args.data).not.toHaveProperty("autoDebitDay");
+  });
+
+  it("never writes autoDebitDay on update, even if a caller smuggles one in", async () => {
+    await service.update(
+      FAMILY_GROUP_ID,
+      PUBLIC_BUDGET_ID,
+      { limitAmount: 200, autoDebitDay: 25 } as never,
+      true,
+    );
+    const [[args]] = prisma.budget.update.mock.calls as unknown as [
+      [{ data: Record<string, unknown> }],
+    ];
+    expect(args.data).not.toHaveProperty("autoDebitDay");
+  });
+});

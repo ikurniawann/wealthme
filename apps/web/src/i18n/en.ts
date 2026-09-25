@@ -2934,8 +2934,6 @@ export const en = {
     iconAriaLabelPrefix: "Icon ",
     fieldAmountLabel: "Monthly Budget (Rp)",
     fieldPeriodLabel: "Period",
-    fieldAutoDebitDayLabel: "Auto-debit Day (1-28)",
-    autoDebitDayPrefix: "auto-debit day ",
     savingLabel: "Saving...",
     saveCategoryButton: "Save Category",
     toastCategoryAddedPrefix: 'Budget "',

@@ -78,6 +78,7 @@ const EXISTING_BUDGET = {
   isOverBudget: false,
   isNearLimit: false,
   budgetType: null,
+  autoDebitDay: 25,
 };
 
 function mockSession(
@@ -295,6 +296,53 @@ describe("AnggaranPage — edit and delete a budget (EPIC-022 C2)", () => {
       screen.queryByRole("button", {
         name: `Hapus anggaran ${EXISTING_CATEGORY.name}`,
       }),
+    ).not.toBeInTheDocument();
+  }, 10000);
+});
+
+describe("AnggaranPage — budgets carry no auto-debit (Revisi F item 4)", () => {
+  it("shows no auto-debit day on the list, none in the edit dialog, and PATCH never sends one", async () => {
+    mockSession("owner", { withExistingBudget: true });
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    const editButton = await screen.findByRole("button", {
+      name: `Edit anggaran ${EXISTING_CATEGORY.name}`,
+    });
+    expect(screen.queryByText(/autodebet tgl/i)).not.toBeInTheDocument();
+
+    await user.click(editButton);
+    const dialog = await screen.findByRole("dialog", { name: "Edit Anggaran" });
+    expect(
+      within(dialog).queryByLabelText(/Auto-debet/i),
+    ).not.toBeInTheDocument();
+    await user.click(
+      within(dialog).getByRole("button", { name: "Simpan Perubahan" }),
+    );
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+    const patch = mockApiFetch.mock.calls.find(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path.endsWith(`/budgets/${EXISTING_BUDGET.id}`) &&
+        (options as RequestInit | undefined)?.method === "PATCH",
+    );
+    const body = JSON.parse((patch?.[1] as RequestInit).body as string);
+    expect(body).not.toHaveProperty("autoDebitDay");
+  }, 10000);
+
+  it("the add dialog offers no auto-debit day field", async () => {
+    mockSession("member");
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Kategori" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await within(dialog).findByLabelText("Kategori");
+    expect(
+      within(dialog).queryByLabelText(/Auto-debet/i),
     ).not.toBeInTheDocument();
   }, 10000);
 });
