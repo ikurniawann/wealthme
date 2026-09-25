@@ -9,7 +9,11 @@ import { useLocale } from "@/hooks/use-locale";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { apiFetch } from "@/lib/api-client";
 import type { RingkasanData } from "./use-ringkasan-data";
-import type { DisplayCurrency } from "./page-lead";
+import {
+  formatInDisplayCurrency,
+  isForeignCurrency,
+  type DisplayCurrency,
+} from "./display-currency";
 
 type FxRatesResponse = { base: string; rates: Record<string, number> };
 
@@ -21,17 +25,14 @@ export function HeroStatsSection({
   displayCurrency?: DisplayCurrency;
 }) {
   const { t } = useLocale();
-  // EPIC-033 group 5 (p30) — the headline figures can be read in USD or
-  // gram-emas. Same FX cache key as ConsolidatedTotalCard; gold uses the
-  // family's own manually-entered price per gram.
+  // Same FX cache key as ConsolidatedTotalCard; gold uses the family's own price per gram.
   const { data: fx } = useQuery<FxRatesResponse>({
     queryKey: ["fx", "rates", "IDR"],
     queryFn: () => apiFetch<FxRatesResponse>("/fx/rates?base=IDR"),
     staleTime: 5 * 60_000,
-    enabled: displayCurrency === "USD",
+    enabled: isForeignCurrency(displayCurrency),
   });
   const { pricePerGram } = useGoldPrice();
-  const usdRate = fx?.rates["USD"];
   const gramPrice = pricePerGram ? Number(pricePerGram) : null;
   const {
     isLoading,
@@ -45,19 +46,12 @@ export function HeroStatsSection({
     monthExpense,
     accountTypeCount,
   } = data;
-  const money = (v: number) => {
-    if (displayCurrency === "USD") {
-      return usdRate
-        ? `$ ${Math.round(v * usdRate).toLocaleString("en-US")}`
-        : "...";
-    }
-    if (displayCurrency === "GOLD") {
-      return gramPrice
-        ? `${(v / gramPrice).toLocaleString("id-ID", { maximumFractionDigits: 2 })} gr`
-        : "...";
-    }
-    return moneyIdr(v);
-  };
+  const money = (v: number) =>
+    formatInDisplayCurrency(v, displayCurrency, {
+      formatIdr: moneyIdr,
+      rates: fx?.rates,
+      gramPrice,
+    });
 
   return (
     <section className="bento-grid">

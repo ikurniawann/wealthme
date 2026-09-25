@@ -132,7 +132,9 @@ describe("AnggaranPage — budgets carry no auto-debit (Revisi F item 4)", () =>
 
     await user.click(editButton);
     const dialog = await screen.findByRole("dialog", { name: "Edit Anggaran" });
-    expect(within(dialog).queryByLabelText(/Auto-debet/i)).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByLabelText(/Auto-debet/i),
+    ).not.toBeInTheDocument();
     await user.click(
       within(dialog).getByRole("button", { name: "Simpan Perubahan" }),
     );
@@ -158,7 +160,9 @@ describe("AnggaranPage — budgets carry no auto-debit (Revisi F item 4)", () =>
     );
     const dialog = await screen.findByRole("dialog");
     await within(dialog).findByLabelText("Kategori");
-    expect(within(dialog).queryByLabelText(/Auto-debet/i)).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByLabelText(/Auto-debet/i),
+    ).not.toBeInTheDocument();
   }, 10000);
 });
 ```
@@ -185,6 +189,7 @@ import { IsEnum, IsInt, IsOptional, IsPositive, Max } from "class-validator";
 `budget-response.dto.ts`: delete the `@ApiProperty({ type: Number, nullable: true, description: "Day of month (1-28) the auto-debit runs" }) autoDebitDay!: number | null;` block (lines 32-37).
 
 `budgets.service.ts` makes four deletions:
+
 - `:26`: `autoDebitDay?: number | null;` in `BudgetWithCategory`
 - `:256`: `autoDebitDay: dto.autoDebitDay ?? null,` in `create()`'s `tx.budget.create` data
 - `:319-321`: the `...(dto.autoDebitDay !== undefined && { autoDebitDay: dto.autoDebitDay }),` spread in `update()`
@@ -202,24 +207,19 @@ In `apps/web/src/app/(app)/anggaran/page.tsx`:
 1. `:136-141`: the usage line becomes
 
 ```tsx
-                <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                  {usagePct}% dari {formatRupiah(budget.limitAmount)}
-                </div>
+<div className="mt-0.5 text-[11.5px] text-muted-foreground">
+  {usagePct}% dari {formatRupiah(budget.limitAmount)}
+</div>
 ```
 
-   `t` is still used in `BudgetUsageList`? Check with `grep -n "t\." ` inside `BudgetUsageList` (`:112-162`). If no other `t.` use remains in that function, also delete `const { t } = useLocale();` at `:113`.
-2. Delete `:814-815` (the comment and `const [autoDebitDay, setAutoDebitDay] = useState("");`) and `:821` (`const [editAutoDebitDay, setEditAutoDebitDay] = useState("");`).
-3. `createMutation` payload type: delete `autoDebitDay?: number;` (`:914`). In the `dto` literal, delete the line `...(payload.autoDebitDay ? { autoDebitDay: payload.autoDebitDay } : {}),` (`:974`).
-4. `updateMutation` payload type: delete `autoDebitDay?: number;` (`:1009`). In the `dto` literal, delete `autoDebitDay: payload.autoDebitDay,` (`:1015`).
-5. `openEdit`: delete the `setEditAutoDebitDay(…)` call (`:1041-1043`).
-6. `handleSaveEdit`: replace `:1053-1060` with
+`t` is still used in `BudgetUsageList`? Check with `grep -n "t\." ` inside `BudgetUsageList` (`:112-162`). If no other `t.` use remains in that function, also delete `const { t } = useLocale();` at `:113`. 2. Delete `:814-815` (the comment and `const [autoDebitDay, setAutoDebitDay] = useState("");`) and `:821` (`const [editAutoDebitDay, setEditAutoDebitDay] = useState("");`). 3. `createMutation` payload type: delete `autoDebitDay?: number;` (`:914`). In the `dto` literal, delete the line `...(payload.autoDebitDay ? { autoDebitDay: payload.autoDebitDay } : {}),` (`:974`). 4. `updateMutation` payload type: delete `autoDebitDay?: number;` (`:1009`). In the `dto` literal, delete `autoDebitDay: payload.autoDebitDay,` (`:1015`). 5. `openEdit`: delete the `setEditAutoDebitDay(…)` call (`:1041-1043`). 6. `handleSaveEdit`: replace `:1053-1060` with
 
 ```tsx
-    updateMutation.mutate({
-      id: editing.id,
-      limitAmount,
-      period: editPeriod,
-    });
+updateMutation.mutate({
+  id: editing.id,
+  limitAmount,
+  period: editPeriod,
+});
 ```
 
 7. `handleSave`: delete `const parsedDay = Number.parseInt(autoDebitDay, 10);` (`:1114`) and the `autoDebitDay: …` property (`:1120`) from the `createMutation.mutate({…})` argument.
@@ -227,6 +227,7 @@ In `apps/web/src/app/(app)/anggaran/page.tsx`:
 9. Edit dialog: delete the `<div className="field mt-0">…</div>` holding `budget-edit-autodebit-day` (`:1677-1692`).
 
 i18n: remove both keys from the `anggaran` block only, and leave `tujuan.autoDebitDayPrefix` alone:
+
 - `types.ts:2723-2724`: `fieldAutoDebitDayLabel: string;` and `autoDebitDayPrefix: string;`
 - `id.ts:2933-2934`: `fieldAutoDebitDayLabel: "Tanggal Auto-debet (1-28)",` and `autoDebitDayPrefix: "autodebet tgl ",`
 - `en.ts:2880-2881`: `fieldAutoDebitDayLabel: "Auto-debit Day (1-28)",` and `autoDebitDayPrefix: "auto-debit day ",`
@@ -598,7 +599,9 @@ function makePrisma() {
       update: jest.fn().mockResolvedValue({}),
     },
     coaAccount: {
-      findFirst: jest.fn().mockResolvedValue({ id: "coa-30001", name: "Tabungan" }),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue({ id: "coa-30001", name: "Tabungan" }),
     },
     category: { upsert: jest.fn().mockResolvedValue({ id: "cat-goal" }) },
     transaction: { create: jest.fn().mockResolvedValue({ id: "txn-1" }) },
@@ -890,8 +893,15 @@ describe("GoalsService.listContributions (Revisi F item 5)", () => {
       include: { account: { select: { name: true } } },
     });
     expect(rows.map((r) => r.id)).toEqual(["c-2", "c-1"]);
-    expect(rows[0]).toMatchObject({ amount: "500000", source: "auto", accountName: null });
-    expect(rows[1]).toMatchObject({ amount: "250000", accountName: "BCA Tahapan" });
+    expect(rows[0]).toMatchObject({
+      amount: "500000",
+      source: "auto",
+      accountName: null,
+    });
+    expect(rows[1]).toMatchObject({
+      amount: "250000",
+      accountName: "BCA Tahapan",
+    });
   });
 
   it("404s a goal outside the caller's family group", async () => {
@@ -935,7 +945,8 @@ export class CreateGoalContributionDto {
   amount!: string;
 
   @ApiPropertyOptional({
-    description: "Account to debit; omit to record progress without moving money",
+    description:
+      "Account to debit; omit to record progress without moving money",
   })
   @IsOptional()
   @IsUUID()
@@ -1316,7 +1327,9 @@ describe("GoalsController contributions (real ValidationPipe + AbilitiesGuard)",
       next();
     });
     // Must match apps/api/src/main.ts exactly.
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
   });
 
@@ -1357,7 +1370,11 @@ describe("GoalsController contributions (real ValidationPipe + AbilitiesGuard)",
     expect(goalsServiceMock.contribute).toHaveBeenCalledWith(
       FAMILY_GROUP_ID,
       GOAL_ID,
-      expect.objectContaining({ amount: "250000", accountId: ACCOUNT_ID, occurredAt }),
+      expect.objectContaining({
+        amount: "250000",
+        accountId: ACCOUNT_ID,
+        occurredAt,
+      }),
     );
   });
 
@@ -1637,7 +1654,9 @@ function makePrisma() {
       update: jest.fn().mockResolvedValue({}),
     },
     coaAccount: {
-      findFirst: jest.fn().mockResolvedValue({ id: "coa-30001", name: "Tabungan" }),
+      findFirst: jest
+        .fn()
+        .mockResolvedValue({ id: "coa-30001", name: "Tabungan" }),
     },
     category: { upsert: jest.fn().mockResolvedValue({ id: "cat-goal" }) },
     transaction: { create: jest.fn().mockResolvedValue({ id: "txn-1" }) },
@@ -1819,7 +1838,12 @@ describe("GoalsService.runAutoDebit — daily, real money, via the contribution 
         Promise.resolve(
           where.id === "acc-empty"
             ? { id: "acc-empty", name: "Kosong", type: "bank", balance: 0n }
-            : { id: ACCOUNT_ID, name: "BCA Tahapan", type: "bank", balance: 50_000_000n },
+            : {
+                id: ACCOUNT_ID,
+                name: "BCA Tahapan",
+                type: "bank",
+                balance: 50_000_000n,
+              },
         ),
     );
 
@@ -1977,9 +2001,9 @@ describe("GoalAutoDebitScheduler (Revisi F — daily)", () => {
       {},
       { repeat: { pattern: "0 3 * * *" }, jobId: "goal-auto-debit-cron" },
     );
-    expect(queue.removeRepeatableByKey.mock.invocationCallOrder[0]).toBeLessThan(
-      queue.add.mock.invocationCallOrder[0]!,
-    );
+    expect(
+      queue.removeRepeatableByKey.mock.invocationCallOrder[0],
+    ).toBeLessThan(queue.add.mock.invocationCallOrder[0]!);
   });
 
   it("leaves an already-daily repeatable alone on restart", async () => {
@@ -1999,6 +2023,7 @@ describe("GoalAutoDebitScheduler (Revisi F — daily)", () => {
 
 Run (from `apps/api`): `pnpm exec jest src/goals`
 Expected: FAIL.
+
 - `create-goal.dto.spec.ts`: "is required when autoDebitAmount is set" and "rejects a non-UUID" fail (`sourceAccountId` is unknown to the DTO).
 - `goals.service.spec.ts`: the new `runAutoDebit` tests fail because the `findMany` `where` is `{ autoDebitAmount: { not: null } }` and no account or contribution writes happen, and the create/update source tests fail (no 400/404).
 - `goal-auto-debit.scheduler.spec.ts` fails with `AUTO_DEBIT_CRON` undefined (not exported).
@@ -2034,8 +2059,8 @@ Expected: FAIL.
 In `create()`, after the `currentAmount > targetAmount` guard, add:
 
 ```ts
-    const sourceAccountId = dto.sourceAccountId ?? null;
-    await this.assertSourceAccount(familyGroupId, autoDebitAmount, sourceAccountId);
+const sourceAccountId = dto.sourceAccountId ?? null;
+await this.assertSourceAccount(familyGroupId, autoDebitAmount, sourceAccountId);
 ```
 
 Add `sourceAccountId,` to the `goal.create` data, after `autoDebitDay: dto.autoDebitDay ?? null,`.
@@ -2043,17 +2068,17 @@ Add `sourceAccountId,` to the `goal.create` data, after `autoDebitDay: dto.autoD
 In `update()`, after the `currentAmount > targetAmount` guard, add:
 
 ```ts
-    const sourceAccountId =
-      dto.sourceAccountId !== undefined
-        ? dto.sourceAccountId
-        : existing.sourceAccountId;
-    if (dto.autoDebitAmount != null || dto.sourceAccountId !== undefined) {
-      await this.assertSourceAccount(
-        familyGroupId,
-        autoDebitAmount,
-        sourceAccountId,
-      );
-    }
+const sourceAccountId =
+  dto.sourceAccountId !== undefined
+    ? dto.sourceAccountId
+    : existing.sourceAccountId;
+if (dto.autoDebitAmount != null || dto.sourceAccountId !== undefined) {
+  await this.assertSourceAccount(
+    familyGroupId,
+    autoDebitAmount,
+    sourceAccountId,
+  );
+}
 ```
 
 Add `sourceAccountId,` to the `goal.update` data, after the `autoDebitDay:` entry.
@@ -2395,7 +2420,8 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     const post = mockApiFetch.mock.calls.find(
       ([path, options]) =>
         typeof path === "string" &&
-        path === `/family-groups/${FAMILY_GROUP_ID}/goals/goal-1/contributions` &&
+        path ===
+          `/family-groups/${FAMILY_GROUP_ID}/goals/goal-1/contributions` &&
         (options as RequestInit | undefined)?.method === "POST",
     );
     expect(JSON.parse((post?.[1] as RequestInit).body as string)).toEqual({
@@ -2424,7 +2450,10 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     await user.type(within(dialog).getByLabelText("Jumlah Setoran (Rp)"), "0");
     expect(save).toBeDisabled();
     await user.clear(within(dialog).getByLabelText("Jumlah Setoran (Rp)"));
-    await user.type(within(dialog).getByLabelText("Jumlah Setoran (Rp)"), "5000");
+    await user.type(
+      within(dialog).getByLabelText("Jumlah Setoran (Rp)"),
+      "5000",
+    );
     await user.click(save);
 
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
@@ -2497,24 +2526,24 @@ Expected: FAIL. The 4 new tests fail with `Unable to find role="button" and name
 `types.ts`: in the `tujuan` block, after `noticeSavingsNoAutoDebitSuffix: string;`, add:
 
 ```ts
-    contributeButton: string;
-    contributeButtonAriaPrefix: string;
-    contributeDialogTitlePrefix: string;
-    contributeDialogDesc: string;
-    contributeAmountLabel: string;
-    contributeAccountLabel: string;
-    contributeNoAccountOption: string;
-    contributeDateLabel: string;
-    contributeSubmit: string;
-    contributeSubmitting: string;
-    contributeToastSuccess: string;
-    historyToggleShow: string;
-    historyToggleHide: string;
-    historyLoading: string;
-    historyError: string;
-    historyEmpty: string;
-    historySourceManual: string;
-    historySourceAuto: string;
+contributeButton: string;
+contributeButtonAriaPrefix: string;
+contributeDialogTitlePrefix: string;
+contributeDialogDesc: string;
+contributeAmountLabel: string;
+contributeAccountLabel: string;
+contributeNoAccountOption: string;
+contributeDateLabel: string;
+contributeSubmit: string;
+contributeSubmitting: string;
+contributeToastSuccess: string;
+historyToggleShow: string;
+historyToggleHide: string;
+historyLoading: string;
+historyError: string;
+historyEmpty: string;
+historySourceManual: string;
+historySourceAuto: string;
 ```
 
 `id.ts`: in `tujuan`, change `trackerDisclaimer` and add the keys after `noticeSavingsNoAutoDebitSuffix`:
@@ -2866,99 +2895,103 @@ interface GoalCardProps {
 4. Replace the `{canManage && ( <div className="mt-2.5 grid grid-cols-2 gap-1.5"> … </div> )}` block (`:288-303`) with:
 
 ```tsx
-        {canManage && (
-          <div className="mt-2.5 grid grid-cols-3 gap-1.5">
-            <button
-              type="button"
-              onClick={() => onContribute(goal)}
-              aria-label={`${t.tujuan.contributeButtonAriaPrefix}${goal.name}`}
-              className="flex items-center justify-center gap-1.5 rounded-[7px] border border-primary/30 bg-accent px-3 py-[7px] text-[11px] font-semibold text-primary transition-colors hover:bg-accent/70"
-            >
-              <Wallet className="size-[13px]" aria-hidden="true" />{" "}
-              {t.tujuan.contributeButton}
-            </button>
-            <button
-              onClick={() => onEdit(goal)}
-              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent"
-            >
-              <Pencil className="size-[13px]" /> {t.tujuan.editButton}
-            </button>
-            <button
-              onClick={() => onDelete(goal)}
-              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
-            >
-              <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
-            </button>
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={() => setShowHistory((open) => !open)}
-          aria-expanded={showHistory}
-          className="mt-2 w-full text-left text-[11px] font-semibold text-primary hover:underline"
-        >
-          {showHistory ? t.tujuan.historyToggleHide : t.tujuan.historyToggleShow}
-        </button>
-        {showHistory && (
-          <div className="mt-1.5 border-t pt-2">
-            <ContributionHistory
-              goalId={goal.id}
-              familyGroupId={familyGroupId}
-              token={token}
-            />
-          </div>
-        )}
+{
+  canManage && (
+    <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+      <button
+        type="button"
+        onClick={() => onContribute(goal)}
+        aria-label={`${t.tujuan.contributeButtonAriaPrefix}${goal.name}`}
+        className="flex items-center justify-center gap-1.5 rounded-[7px] border border-primary/30 bg-accent px-3 py-[7px] text-[11px] font-semibold text-primary transition-colors hover:bg-accent/70"
+      >
+        <Wallet className="size-[13px]" aria-hidden="true" />{" "}
+        {t.tujuan.contributeButton}
+      </button>
+      <button
+        onClick={() => onEdit(goal)}
+        className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent"
+      >
+        <Pencil className="size-[13px]" /> {t.tujuan.editButton}
+      </button>
+      <button
+        onClick={() => onDelete(goal)}
+        className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
+      >
+        <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
+      </button>
+    </div>
+  );
+}
+<button
+  type="button"
+  onClick={() => setShowHistory((open) => !open)}
+  aria-expanded={showHistory}
+  className="mt-2 w-full text-left text-[11px] font-semibold text-primary hover:underline"
+>
+  {showHistory ? t.tujuan.historyToggleHide : t.tujuan.historyToggleShow}
+</button>;
+{
+  showHistory && (
+    <div className="mt-1.5 border-t pt-2">
+      <ContributionHistory
+        goalId={goal.id}
+        familyGroupId={familyGroupId}
+        token={token}
+      />
+    </div>
+  );
+}
 ```
 
 5. In `TujuanPage`, after `const [deletingGoal, setDeletingGoal] = …` (`:325`), add:
 
 ```ts
-  const [contributingGoal, setContributingGoal] = useState<GoalDto | null>(
-    null,
-  );
+const [contributingGoal, setContributingGoal] = useState<GoalDto | null>(null);
 ```
 
 After the goals `useQuery` (`:327-341`), add:
 
 ```ts
-  const { data: accounts = [] } = useQuery<SourceAccountOption[]>({
-    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
-    enabled: Boolean(familyGroupId) && Boolean(token) && canManage === true,
-    queryFn: ({ signal }) =>
-      apiFetch<SourceAccountOption[]>(
-        `/family-groups/${familyGroupId}/accounts`,
-        { token, signal },
-      ),
-  });
+const { data: accounts = [] } = useQuery<SourceAccountOption[]>({
+  queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+  enabled: Boolean(familyGroupId) && Boolean(token) && canManage === true,
+  queryFn: ({ signal }) =>
+    apiFetch<SourceAccountOption[]>(
+      `/family-groups/${familyGroupId}/accounts`,
+      { token, signal },
+    ),
+});
 ```
 
 6. In the `goals?.map` render, pass the new props:
 
 ```tsx
-                <GoalCard
-                  goal={g}
-                  onEdit={handleEdit}
-                  onDelete={setDeletingGoal}
-                  onContribute={setContributingGoal}
-                  canManage={!!canManage}
-                  familyGroupId={familyGroupId ?? ""}
-                  token={token}
-                />
+<GoalCard
+  goal={g}
+  onEdit={handleEdit}
+  onDelete={setDeletingGoal}
+  onContribute={setContributingGoal}
+  canManage={!!canManage}
+  familyGroupId={familyGroupId ?? ""}
+  token={token}
+/>
 ```
 
 7. Before `<ConfirmDeleteDialog` (`:626`), add:
 
 ```tsx
-      {contributingGoal && familyGroupId && token && (
-        <ContributeDialog
-          key={contributingGoal.id}
-          goal={contributingGoal}
-          accounts={accounts}
-          familyGroupId={familyGroupId}
-          token={token}
-          onClose={() => setContributingGoal(null)}
-        />
-      )}
+{
+  contributingGoal && familyGroupId && token && (
+    <ContributeDialog
+      key={contributingGoal.id}
+      goal={contributingGoal}
+      accounts={accounts}
+      familyGroupId={familyGroupId}
+      token={token}
+      onClose={() => setContributingGoal(null)}
+    />
+  );
+}
 ```
 
 8. The header comment at `:461-463` ("EPIC-022 A3 — goals are a manual tracker, not real money …") no longer holds. Replace it with `{/* Revisi F — contributions can now move real money; the line says when. */}`.
@@ -3019,17 +3052,17 @@ type MockOptions = { contributionError?: string; goalPostOk?: boolean };
 ```
 
 ```ts
-    if (path.endsWith("/goals")) {
-      if (options?.method === "POST") {
-        return opts.goalPostOk
-          ? Promise.resolve(buildGoal({ id: "goal-new", name: "Rumah Baru" }))
-          : Promise.reject({
-              status: 400,
-              message: "Target tanggal tidak boleh di masa lalu",
-            });
-      }
-      return Promise.resolve([buildGoal()]);
-    }
+if (path.endsWith("/goals")) {
+  if (options?.method === "POST") {
+    return opts.goalPostOk
+      ? Promise.resolve(buildGoal({ id: "goal-new", name: "Rumah Baru" }))
+      : Promise.reject({
+          status: 400,
+          message: "Target tanggal tidak boleh di masa lalu",
+        });
+  }
+  return Promise.resolve([buildGoal()]);
+}
 ```
 
 Then append:
@@ -3049,12 +3082,18 @@ describe("TujuanPage — goal form source account for auto-debit (Revisi F item 
       within(dialog).getByPlaceholderText("cth: Dana Liburan"),
       "Rumah Baru",
     );
-    await user.type(within(dialog).getByLabelText("Target Jumlah"), "100000000");
+    await user.type(
+      within(dialog).getByLabelText("Target Jumlah"),
+      "100000000",
+    );
     expect(
       within(dialog).queryByLabelText("Rekening Sumber Auto-debit"),
     ).not.toBeInTheDocument();
 
-    await user.type(within(dialog).getByLabelText("Auto-debit / Bulan"), "500000");
+    await user.type(
+      within(dialog).getByLabelText("Auto-debit / Bulan"),
+      "500000",
+    );
     await user.selectOptions(
       await within(dialog).findByLabelText("Rekening Sumber Auto-debit"),
       ACCOUNT.id,
@@ -3068,12 +3107,14 @@ describe("TujuanPage — goal form source account for auto-debit (Revisi F item 
         path.endsWith("/goals") &&
         (options as RequestInit | undefined)?.method === "POST",
     );
-    expect(JSON.parse((post?.[1] as RequestInit).body as string)).toMatchObject({
-      name: "Rumah Baru",
-      targetAmount: 100_000_000,
-      autoDebitAmount: 500_000,
-      sourceAccountId: ACCOUNT.id,
-    });
+    expect(JSON.parse((post?.[1] as RequestInit).body as string)).toMatchObject(
+      {
+        name: "Rumah Baru",
+        targetAmount: 100_000_000,
+        autoDebitAmount: 500_000,
+        sourceAccountId: ACCOUNT.id,
+      },
+    );
   }, 30000);
 
   it("blocks saving an auto-debit without a source account, keeps the dialog open, and never POSTs", async () => {
@@ -3089,8 +3130,14 @@ describe("TujuanPage — goal form source account for auto-debit (Revisi F item 
       within(dialog).getByPlaceholderText("cth: Dana Liburan"),
       "Rumah Baru",
     );
-    await user.type(within(dialog).getByLabelText("Target Jumlah"), "100000000");
-    await user.type(within(dialog).getByLabelText("Auto-debit / Bulan"), "500000");
+    await user.type(
+      within(dialog).getByLabelText("Target Jumlah"),
+      "100000000",
+    );
+    await user.type(
+      within(dialog).getByLabelText("Auto-debit / Bulan"),
+      "500000",
+    );
     await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
 
     await waitFor(() =>
@@ -3121,9 +3168,9 @@ Expected: FAIL. The first test finds no "Rekening Sumber Auto-debit" label. The 
 `types.ts`: in `tujuan`, after `historySourceAuto: string;`, add:
 
 ```ts
-    sourceAccountFieldLabel: string;
-    sourceAccountPlaceholder: string;
-    sourceAccountRequired: string;
+sourceAccountFieldLabel: string;
+sourceAccountPlaceholder: string;
+sourceAccountRequired: string;
 ```
 
 `id.ts`: after `historySourceAuto: "Auto-debit",`, add:
@@ -3165,17 +3212,18 @@ In the `tujuan` entity, after the `autodebitDay` field object (ends `:337`), add
 ```
 
 `crud-modal.tsx`:
+
 - In `interface CrudModalProps`, after `dynamicOptions?: …;`, add `labelOverrides?: Record<string, string>;`.
 - In `CrudModal`, add `labelOverrides,` to the destructure, and pass `labelOverrides={labelOverrides}` to `<CrudForm …>`.
 - In `CrudForm`, change the signature to `function CrudForm({ state, onClose, onSubmit, dynamicOptions, labelOverrides }: CrudFormProps) {`.
 - Replace the `visibleFields` computation (`:180-183`) with:
 
 ```ts
-  const visibleFields = (
-    state.mode === "edit"
-      ? config.fields.filter((f) => !f.hideOnEdit)
-      : config.fields
-  ).filter((f) => !f.visibleWhen || f.visibleWhen(values));
+const visibleFields = (
+  state.mode === "edit"
+    ? config.fields.filter((f) => !f.hideOnEdit)
+    : config.fields
+).filter((f) => !f.visibleWhen || f.visibleWhen(values));
 ```
 
 - In `renderField`, add `const label = labelOverrides?.[f.key] ?? f.label;` as the first line, and replace each of the four `f.label` uses inside `renderField` with `label`: `aria-label={f.label}`, `<span className="t-sm t-bold">{f.label}</span>`, `label={f.label}` on `EmojiPicker`, and `<span className="label">{f.label}</span>`.
@@ -3183,6 +3231,7 @@ In the `tujuan` entity, after the `autodebitDay` field object (ends `:337`), add
 - [ ] **Step 5: Page wiring**
 
 In `page.tsx`:
+
 - Change `import { buildGoalBody } from "@/lib/goals-utils";` to `import { parseGoalFormValues } from "@/lib/goals-utils";`.
 - In `handleEdit`'s `initialValues`, add `sourceAccountId: goal.sourceAccountId ?? "",` after `autodebitDay`.
 - In `handleSubmit`, replace from `try {` through the `const body = buildGoalBody(…);` statement (`:395-401`) with:
@@ -3205,29 +3254,30 @@ In `page.tsx`:
     try {
 ```
 
-  The rest of the `try` block (the PATCH/POST calls, the toasts, the invalidation and the `catch`) is unchanged.
+The rest of the `try` block (the PATCH/POST calls, the toasts, the invalidation and the `catch`) is unchanged.
+
 - Before `return (`, add:
 
 ```ts
-  const sourceAccountOptions = [
-    { value: "", label: t.tujuan.sourceAccountPlaceholder },
-    ...accounts.map((a) => ({
-      value: a.id,
-      label: a.institution ? `${a.name} (${a.institution})` : a.name,
-    })),
-  ];
+const sourceAccountOptions = [
+  { value: "", label: t.tujuan.sourceAccountPlaceholder },
+  ...accounts.map((a) => ({
+    value: a.id,
+    label: a.institution ? `${a.name} (${a.institution})` : a.name,
+  })),
+];
 ```
 
 - Replace the `<CrudModal … />` element with:
 
 ```tsx
-      <CrudModal
-        state={crud}
-        onClose={handleCloseCrud}
-        onSubmit={handleSubmit}
-        dynamicOptions={{ sourceAccountId: sourceAccountOptions }}
-        labelOverrides={{ sourceAccountId: t.tujuan.sourceAccountFieldLabel }}
-      />
+<CrudModal
+  state={crud}
+  onClose={handleCloseCrud}
+  onSubmit={handleSubmit}
+  dynamicOptions={{ sourceAccountId: sourceAccountOptions }}
+  labelOverrides={{ sourceAccountId: t.tujuan.sourceAccountFieldLabel }}
+/>
 ```
 
 - [ ] **Step 6: Run the tests to verify they pass**

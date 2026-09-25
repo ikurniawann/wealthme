@@ -41,7 +41,10 @@ import {
   type TrendCustomRange,
   type TrendRangeKey,
 } from "./_components/use-ringkasan-data";
-import type { DisplayCurrency } from "./_components/page-lead";
+import {
+  indicativeNoteCurrency,
+  type DisplayCurrency,
+} from "./_components/display-currency";
 
 export default function RingkasanPage() {
   const { t } = useLocale();
@@ -60,6 +63,11 @@ export default function RingkasanPage() {
   const [displayCurrency, setDisplayCurrency] =
     useState<DisplayCurrency>("IDR");
   const data = useRingkasanData(trendRange, customRange);
+  const noteCurrency = indicativeNoteCurrency(
+    displayCurrency,
+    data.currency,
+    data.isIndicative,
+  );
 
   if (data.isError) {
     return (
@@ -94,10 +102,10 @@ export default function RingkasanPage() {
 
       <HeroStatsSection data={data} displayCurrency={displayCurrency} />
 
-      {data.isIndicative && (
+      {noteCurrency && (
         <div className="t-xs t-muted">
           {t.ringkasan.indicativeFxNotePrefix}
-          {data.currency}
+          {noteCurrency}
           {t.ringkasan.indicativeFxNoteSuffix}
         </div>
       )}

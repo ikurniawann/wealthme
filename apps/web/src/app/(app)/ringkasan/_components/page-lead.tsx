@@ -12,8 +12,7 @@ import { Eye, EyeOff } from "lucide-react";
 
 import { useLocale } from "@/hooks/use-locale";
 import type { TrendCustomRange, TrendRangeKey } from "./use-ringkasan-data";
-
-export type DisplayCurrency = "IDR" | "USD" | "GOLD";
+import type { DisplayCurrency } from "./display-currency";
 
 type PageLeadProps = {
   familyName: string;
