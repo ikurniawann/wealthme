@@ -72,6 +72,11 @@ enum GoalStatus {
   at_risk
 }
 
+enum GoalContributionSource {
+  manual
+  auto
+}
+
 enum AssetType {
   properti
   kendaraan
@@ -489,6 +494,7 @@ model FamilyGroup {
   // EPIC-024 Task L2 — denormalized tenant scope on TransactionAttachment
   // (see that model's comment for why).
   transactionAttachments  TransactionAttachment[]
+  goalContributions       GoalContribution[]
 
   @@map("family_groups")
 }
@@ -625,6 +631,8 @@ model Account {
   // request. Explicit relation names to disambiguate the two FKs.
   allowanceRequestsAsTarget AllowanceRequest[] @relation("AllowanceRequestTarget")
   allowanceRequestsAsSource AllowanceRequest[] @relation("AllowanceRequestSource")
+  goalsAsSource             Goal[]
+  goalContributions         GoalContribution[]
 
   @@unique([familyGroupId, name])
   @@index([familyGroupId])
@@ -696,15 +704,15 @@ model ReferenceItem {
 }
 
 model Transaction {
-  id              String                  @id @default(uuid())
-  familyGroupId   String
+  id               String                  @id @default(uuid())
+  familyGroupId    String
   // EPIC-023 E3 (D12, US-LIAB-5) — nullable so a credit-card purchase can
   // touch NO bank/cash account at all: it debits nothing here and instead
   // raises `Liability.remainingBalance`/`totalDebt` via `liabilityId` below
   // (see LiabilitiesService.purchase()). Every other transaction (income/
   // expense/transfer created through TransactionsService.create()) keeps a
   // required, non-null accountId — unchanged.
-  accountId       String?
+  accountId        String?
   // Nullable destination account (EPIC-021 Group B / EPIC-019 Decision #1 —
   // single row + nullable toAccountId, NOT paired debit/credit legs). Only
   // meaningful when type = transfer; null on income/expense and on legacy
@@ -713,13 +721,13 @@ model Transaction {
   // transfer destination cannot be deleted out from under its own history —
   // the source-side `account` FK below stays Cascade (unchanged, pre-existing
   // behavior) since that side already governs the row's lifecycle.
-  toAccountId     String?
-  categoryId      String?
-  amount          BigInt
-  type            TransactionType
-  description     String?
-  occurredAt      DateTime
-  createdAt       DateTime                @default(now())
+  toAccountId      String?
+  categoryId       String?
+  amount           BigInt
+  type             TransactionType
+  description      String?
+  occurredAt       DateTime
+  createdAt        DateTime                @default(now())
   // EPIC-023 Task C — who recorded this row, so a row-scoped role (dependant/
   // operational) can see "transactions they own or that they recorded" even
   // on a family-shared account. Nullable, NOT backfilled: every pre-existing
@@ -727,7 +735,7 @@ model Transaction {
   // none of the pre-existing household ledger. onDelete: SetNull — a member
   // leaving the family (or the app) must never cascade-delete transaction
   // history; the row just loses its "recorded by" attribution.
-  createdByUserId String?
+  createdByUserId  String?
   // EPIC-023 E1 — links a payment transaction back to the obligation it
   // settles (D10, US-LIAB-4, US-INS-4): one ledger, one truth, instead of a
   // description string being the only trace of which liability/insurance a
@@ -736,18 +744,19 @@ model Transaction {
   // onDelete: SetNull so deleting the Liability/Insurance never cascades
   // into deleting transaction history, mirroring `category`/`createdBy`
   // above.
-  liabilityId     String?
-  insuranceId     String?
-  familyGroup     FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  account         Account?                @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
-  toAccount       Account?                @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
-  category        Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdBy       User?                   @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  liability       Liability?              @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
-  insurance       Insurance?              @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
+  liabilityId      String?
+  insuranceId      String?
+  familyGroup      FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  account          Account?                @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  toAccount        Account?                @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
+  category         Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy        User?                   @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  liability        Liability?              @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
+  insurance        Insurance?              @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
   // EPIC-024 Task L (L2, D15, US-TXN-9) — receipts/photos attached to this
   // transaction, stored on server disk behind StoragePort.
-  attachments     TransactionAttachment[]
+  attachments      TransactionAttachment[]
+  goalContribution GoalContribution?
 
   @@index([familyGroupId, occurredAt])
   @@index([accountId])
@@ -901,24 +910,50 @@ model Budget {
 }
 
 model Goal {
-  id              String      @id @default(uuid())
+  id              String             @id @default(uuid())
   familyGroupId   String
   name            String
   icon            String?
   targetAmount    BigInt
-  currentAmount   BigInt      @default(0)
+  currentAmount   BigInt             @default(0)
   targetDate      DateTime?
   autoDebitAmount BigInt?
   // EPIC-033 group 5 — day of month (1-28) the auto-debit runs.
   autoDebitDay    Int?
+  // Revisi F — account the daily auto-debit draws from.
+  sourceAccountId String?
   lastAutoDebitAt DateTime?
-  status          GoalStatus  @default(on_track)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  familyGroup     FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  status          GoalStatus         @default(on_track)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  familyGroup     FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  sourceAccount   Account?           @relation(fields: [sourceAccountId], references: [id], onDelete: SetNull)
+  contributions   GoalContribution[]
 
   @@index([familyGroupId])
+  @@index([sourceAccountId])
   @@map("goals")
+}
+
+// Revisi F — a payment into a goal; transactionId is set only when money left an account.
+model GoalContribution {
+  id            String                 @id @default(uuid())
+  familyGroupId String
+  goalId        String
+  amount        BigInt
+  accountId     String?
+  transactionId String?                @unique
+  occurredAt    DateTime
+  source        GoalContributionSource @default(manual)
+  createdAt     DateTime               @default(now())
+  familyGroup   FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  goal          Goal                   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  account       Account?               @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  transaction   Transaction?           @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@index([familyGroupId, goalId, occurredAt])
+  @@index([accountId])
+  @@map("goal_contributions")
 }
 
 model Notification {
@@ -1016,11 +1051,11 @@ model Asset {
   familyGroup        FamilyGroup          @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   category           Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   history            AssetHistory[]
+  attachments        AssetAttachment[]
 
   @@index([familyGroupId])
   @@index([categoryId])
   @@map("assets")
-  attachments      AssetAttachment[]
 }
 
 // EPIC-033 p14 — documents attached to a physical asset (sertifikat, BPKB,
@@ -1048,7 +1083,7 @@ model AssetHistory {
   // an optional note ("harga taksiran notaris", etc.).
   recordedByUserId String?
   note             String?
-  asset      Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  asset            Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
   @@index([assetId, recordedAt])
   @@map("asset_history")

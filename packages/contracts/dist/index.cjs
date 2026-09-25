@@ -45,12 +45,15 @@ __export(index_exports, {
   CategoryKindSchema: () => CategoryKindSchema,
   CreateAccountInputSchema: () => CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema: () => CreateAllowanceRequestInputSchema,
+  CreateGoalContributionInputSchema: () => CreateGoalContributionInputSchema,
   CreateReferenceItemDtoSchema: () => CreateReferenceItemDtoSchema,
   CreateTransactionInputSchema: () => CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: () => DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP: () => DEFAULT_ROLE_BY_RELATIONSHIP,
   FAMILY_HANDLE_PATTERN: () => FAMILY_HANDLE_PATTERN,
   GENERIC_COA_CHART: () => GENERIC_COA_CHART,
+  GoalContributionDtoSchema: () => GoalContributionDtoSchema,
+  GoalContributionSourceSchema: () => GoalContributionSourceSchema,
   HeldExpenseResponseSchema: () => HeldExpenseResponseSchema,
   LEGACY_ACCESS_PRESETS: () => LEGACY_ACCESS_PRESETS,
   LOGIN_USERNAME_PATTERN: () => LOGIN_USERNAME_PATTERN,
@@ -548,6 +551,26 @@ var TransactionListResponseSchema = import_zod7.z.object({
   summary: TransactionSummarySchema
 });
 
+// src/goals/index.ts
+var import_zod8 = require("zod");
+var GoalContributionSourceSchema = import_zod8.z.enum(["manual", "auto"]);
+var CreateGoalContributionInputSchema = import_zod8.z.object({
+  amount: import_zod8.z.string().regex(/^[1-9]\d{0,11}$/),
+  accountId: import_zod8.z.string().uuid().optional(),
+  occurredAt: import_zod8.z.string().datetime().optional()
+});
+var GoalContributionDtoSchema = import_zod8.z.object({
+  id: import_zod8.z.string(),
+  goalId: import_zod8.z.string(),
+  amount: import_zod8.z.string(),
+  accountId: import_zod8.z.string().nullable(),
+  accountName: import_zod8.z.string().nullable(),
+  transactionId: import_zod8.z.string().nullable(),
+  occurredAt: import_zod8.z.string(),
+  source: GoalContributionSourceSchema,
+  createdAt: import_zod8.z.string()
+});
+
 // src/assets/index.ts
 var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   properti: 3,
@@ -565,23 +588,23 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
 };
 
 // src/member-category-allowances/index.ts
-var import_zod8 = require("zod");
-var SetMemberCategoryAllowanceInputSchema = import_zod8.z.object({
-  categoryIds: import_zod8.z.array(import_zod8.z.string().uuid())
+var import_zod9 = require("zod");
+var SetMemberCategoryAllowanceInputSchema = import_zod9.z.object({
+  categoryIds: import_zod9.z.array(import_zod9.z.string().uuid())
 });
-var AllowedCategoryDtoSchema = import_zod8.z.object({
-  id: import_zod8.z.string(),
-  name: import_zod8.z.string()
+var AllowedCategoryDtoSchema = import_zod9.z.object({
+  id: import_zod9.z.string(),
+  name: import_zod9.z.string()
 });
-var MemberCategoryAllowanceDtoSchema = import_zod8.z.object({
-  memberId: import_zod8.z.string(),
+var MemberCategoryAllowanceDtoSchema = import_zod9.z.object({
+  memberId: import_zod9.z.string(),
   // Empty = unrestricted (backward compatible default for every member).
-  categories: import_zod8.z.array(AllowedCategoryDtoSchema)
+  categories: import_zod9.z.array(AllowedCategoryDtoSchema)
 });
 
 // src/reference-items/index.ts
-var import_zod9 = require("zod");
-var ReferenceItemGroupSchema = import_zod9.z.enum([
+var import_zod10 = require("zod");
+var ReferenceItemGroupSchema = import_zod10.z.enum([
   "bank",
   "ewallet",
   "txntype",
@@ -595,18 +618,18 @@ var ACTIVE_REFERENCE_ITEM_GROUPS = [
   "ewallet",
   "lembaga"
 ];
-var CreateReferenceItemDtoSchema = import_zod9.z.object({
+var CreateReferenceItemDtoSchema = import_zod10.z.object({
   group: ReferenceItemGroupSchema,
-  label: import_zod9.z.string().min(1).max(100)
+  label: import_zod10.z.string().min(1).max(100)
 });
-var ReferenceItemDtoSchema = import_zod9.z.object({
-  id: import_zod9.z.string().uuid(),
-  familyGroupId: import_zod9.z.string().uuid(),
+var ReferenceItemDtoSchema = import_zod10.z.object({
+  id: import_zod10.z.string().uuid(),
+  familyGroupId: import_zod10.z.string().uuid(),
   group: ReferenceItemGroupSchema,
-  label: import_zod9.z.string(),
-  sortOrder: import_zod9.z.number().int(),
-  isSystem: import_zod9.z.boolean(),
-  createdAt: import_zod9.z.string()
+  label: import_zod10.z.string(),
+  sortOrder: import_zod10.z.number().int(),
+  isSystem: import_zod10.z.boolean(),
+  createdAt: import_zod10.z.string()
 });
 var REFERENCE_ITEM_DEFAULTS = {
   bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
@@ -624,13 +647,13 @@ function buildReferenceItemSeed() {
 }
 
 // src/attachments/index.ts
-var import_zod10 = require("zod");
-var TransactionAttachmentDtoSchema = import_zod10.z.object({
-  id: import_zod10.z.string().uuid(),
-  transactionId: import_zod10.z.string().uuid(),
-  mimeType: import_zod10.z.string(),
-  size: import_zod10.z.number().int().nonnegative(),
-  createdAt: import_zod10.z.string()
+var import_zod11 = require("zod");
+var TransactionAttachmentDtoSchema = import_zod11.z.object({
+  id: import_zod11.z.string().uuid(),
+  transactionId: import_zod11.z.string().uuid(),
+  mimeType: import_zod11.z.string(),
+  size: import_zod11.z.number().int().nonnegative(),
+  createdAt: import_zod11.z.string()
 });
 var ATTACHMENT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 var ATTACHMENT_ACCEPTED_MIME_TYPES = [
@@ -641,7 +664,7 @@ var ATTACHMENT_ACCEPTED_MIME_TYPES = [
 ];
 
 // src/access/index.ts
-var import_zod11 = require("zod");
+var import_zod12 = require("zod");
 var ACCESS_PAGES = [
   "beranda",
   "ringkasan",
@@ -667,7 +690,7 @@ var ACCESS_PAGES = [
   "mastercoa",
   "masterdata"
 ];
-var AccessPageSchema = import_zod11.z.enum(ACCESS_PAGES);
+var AccessPageSchema = import_zod12.z.enum(ACCESS_PAGES);
 var ALWAYS_OPEN_PAGES = [
   "akun",
   "akses-saya",
@@ -675,9 +698,9 @@ var ALWAYS_OPEN_PAGES = [
   "panduan"
 ];
 var ACCESS_LEVELS = ["none", "view", "manage"];
-var AccessLevelSchema = import_zod11.z.enum(ACCESS_LEVELS);
-var AccessDataScopeSchema = import_zod11.z.enum(["all", "own"]);
-var AccessPermissionsSchema = import_zod11.z.record(import_zod11.z.string(), AccessLevelSchema).transform((raw) => {
+var AccessLevelSchema = import_zod12.z.enum(ACCESS_LEVELS);
+var AccessDataScopeSchema = import_zod12.z.enum(["all", "own"]);
+var AccessPermissionsSchema = import_zod12.z.record(import_zod12.z.string(), AccessLevelSchema).transform((raw) => {
   const clean = {};
   for (const [page, level] of Object.entries(raw)) {
     if (AccessPageSchema.safeParse(page).success) {
@@ -772,15 +795,15 @@ function resolveEffectiveAccess(input) {
 function canAccessPage(access, page, need = "view") {
   return access.isMaster || levelAtLeast(access.permissions[page], need);
 }
-var AccessRoleInputSchema = import_zod11.z.object({
-  name: import_zod11.z.string().trim().min(1).max(60),
-  description: import_zod11.z.string().trim().max(200).nullable().optional(),
+var AccessRoleInputSchema = import_zod12.z.object({
+  name: import_zod12.z.string().trim().min(1).max(60),
+  description: import_zod12.z.string().trim().max(200).nullable().optional(),
   dataScope: AccessDataScopeSchema,
   permissions: AccessPermissionsSchema
 });
-var MemberAccessInputSchema = import_zod11.z.object({
+var MemberAccessInputSchema = import_zod12.z.object({
   /** null = no custom role (use the built-in role's preset). */
-  accessRoleId: import_zod11.z.string().min(1).nullable(),
+  accessRoleId: import_zod12.z.string().min(1).nullable(),
   /** Sparse overrides on top of the role; {} clears them. */
   overrides: AccessPermissionsSchema
 });
@@ -829,12 +852,15 @@ function slugifyHandleBase(name) {
   CategoryKindSchema,
   CreateAccountInputSchema,
   CreateAllowanceRequestInputSchema,
+  CreateGoalContributionInputSchema,
   CreateReferenceItemDtoSchema,
   CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
   FAMILY_HANDLE_PATTERN,
   GENERIC_COA_CHART,
+  GoalContributionDtoSchema,
+  GoalContributionSourceSchema,
   HeldExpenseResponseSchema,
   LEGACY_ACCESS_PRESETS,
   LOGIN_USERNAME_PATTERN,

@@ -721,6 +721,8 @@ interface GoalDto {
     autoDebitAmount: number | null;
     /** EPIC-033 group 5 — day of month (1-28) the auto-debit runs. */
     autoDebitDay: number | null;
+    /** Revisi F — account the daily auto-debit draws from. */
+    sourceAccountId: string | null;
     status: GoalStatus;
     progressPercent: number;
     remainingAmount: number;
@@ -733,6 +735,7 @@ interface CreateGoalDto {
     targetDate?: string;
     autoDebitAmount?: number;
     autoDebitDay?: number;
+    sourceAccountId?: string;
 }
 interface UpdateGoalDto {
     name?: string;
@@ -742,6 +745,59 @@ interface UpdateGoalDto {
     targetDate?: string;
     autoDebitAmount?: number;
     autoDebitDay?: number;
+    sourceAccountId?: string;
+}
+declare const GoalContributionSourceSchema: z.ZodEnum<["manual", "auto"]>;
+type GoalContributionSource = z.infer<typeof GoalContributionSourceSchema>;
+declare const CreateGoalContributionInputSchema: z.ZodObject<{
+    amount: z.ZodString;
+    accountId: z.ZodOptional<z.ZodString>;
+    occurredAt: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    amount: string;
+    accountId?: string | undefined;
+    occurredAt?: string | undefined;
+}, {
+    amount: string;
+    accountId?: string | undefined;
+    occurredAt?: string | undefined;
+}>;
+type CreateGoalContributionInput = z.infer<typeof CreateGoalContributionInputSchema>;
+declare const GoalContributionDtoSchema: z.ZodObject<{
+    id: z.ZodString;
+    goalId: z.ZodString;
+    amount: z.ZodString;
+    accountId: z.ZodNullable<z.ZodString>;
+    accountName: z.ZodNullable<z.ZodString>;
+    transactionId: z.ZodNullable<z.ZodString>;
+    occurredAt: z.ZodString;
+    source: z.ZodEnum<["manual", "auto"]>;
+    createdAt: z.ZodString;
+}, "strip", z.ZodTypeAny, {
+    id: string;
+    createdAt: string;
+    amount: string;
+    accountId: string | null;
+    occurredAt: string;
+    accountName: string | null;
+    goalId: string;
+    transactionId: string | null;
+    source: "manual" | "auto";
+}, {
+    id: string;
+    createdAt: string;
+    amount: string;
+    accountId: string | null;
+    occurredAt: string;
+    accountName: string | null;
+    goalId: string;
+    transactionId: string | null;
+    source: "manual" | "auto";
+}>;
+type GoalContributionDto = z.infer<typeof GoalContributionDtoSchema>;
+interface GoalContributionResult {
+    contribution: GoalContributionDto;
+    goal: GoalDto;
 }
 
 interface NotificationDto {
@@ -1852,4 +1908,4 @@ declare function isFamilyLoginId(input: string): boolean;
 /** Suggested handle from a family / person name: "Irfan Arsandi's Family" → "irfan". */
 declare function slugifyHandleBase(name: string): string;
 
-export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, GENERIC_COA_CHART, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, LEGACY_ACCESS_PRESETS, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type ReconciliationBridgeDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, defaultCoaCodeForCategory, defaultRoleForRelationship, isFamilyLoginId, levelAtLeast, resolveEffectiveAccess, slugifyHandleBase };
+export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, LEGACY_ACCESS_PRESETS, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type ReconciliationBridgeDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, defaultCoaCodeForCategory, defaultRoleForRelationship, isFamilyLoginId, levelAtLeast, resolveEffectiveAccess, slugifyHandleBase };
