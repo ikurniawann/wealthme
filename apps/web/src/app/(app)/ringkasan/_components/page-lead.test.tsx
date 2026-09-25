@@ -131,9 +131,9 @@ describe("RingkasanPageLead — custom trend range", () => {
 
     await user.click(screen.getByRole("button", { name: /semua tanggal/i }));
     const pop = screen.getByRole("dialog", { name: "Kustom" });
-    await user.click(within(pop).getByRole("button", { name: "3" }));
-    await user.click(within(pop).getByRole("button", { name: "10" }));
-    await user.click(within(pop).getByRole("button", { name: "Simpan" }));
+    await user.click(within(pop).getByRole("button", { name: /^3 / }));
+    await user.click(within(pop).getByRole("button", { name: /^10 / }));
+    await user.click(within(pop).getByRole("button", { name: "Terapkan" }));
 
     const month = localMonthPrefix();
     expect(onCustomRangeChange).toHaveBeenCalledWith({

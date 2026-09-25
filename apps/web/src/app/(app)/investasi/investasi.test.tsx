@@ -606,8 +606,8 @@ describe("InvestasiPage — detail dialog layout + history date filter (Revisi D
       within(dialog).getByRole("button", { name: "Semua tanggal" }),
     );
     const picker = screen.getByRole("dialog", { name: "Filter tanggal" });
-    await user.click(within(picker).getByRole("button", { name: "10" }));
-    await user.click(within(picker).getByRole("button", { name: "25" }));
+    await user.click(within(picker).getByRole("button", { name: /^10 / }));
+    await user.click(within(picker).getByRole("button", { name: /^25 / }));
     await user.click(within(picker).getByRole("button", { name: "Terapkan" }));
   }
 

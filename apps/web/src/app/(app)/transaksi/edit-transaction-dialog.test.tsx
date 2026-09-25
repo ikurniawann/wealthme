@@ -70,7 +70,7 @@ it("edits the date through the shared calendar and PATCHes that day", async () =
   await user.click(
     within(screen.getByRole("dialog", { name: "Tanggal" })).getByRole(
       "button",
-      { name: "12" },
+      { name: /^12 / },
     ),
   );
   await user.click(screen.getByRole("button", { name: "Simpan" }));

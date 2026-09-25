@@ -26,7 +26,7 @@ describe("HarianSection — report day picker", () => {
     await user.click(
       within(screen.getByRole("dialog", { name: "Tanggal laporan" })).getByRole(
         "button",
-        { name: "12" },
+        { name: /^12 / },
       ),
     );
 
