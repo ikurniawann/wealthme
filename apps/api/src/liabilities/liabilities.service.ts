@@ -25,7 +25,14 @@ import {
   notifyTransaction,
 } from "../transactions/transaction-alerts.util";
 
-import { splitPayment, type InterestMethod } from "./amortisation.util";
+import {
+  computeInstallment,
+  defaultInterestMethod,
+  monthsElapsed,
+  rateForPeriod,
+  splitPayment,
+  type InterestMethod,
+} from "./amortisation.util";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
@@ -131,6 +138,36 @@ function guardBigInt(field: string, value: string): bigint {
     );
   }
   return BigInt(value);
+}
+
+function assertMethodAllowed(type: string, method: InterestMethod): void {
+  if (type === "kartu_kredit" && method !== "efektif") {
+    throw new BadRequestException(
+      "Kartu kredit hanya mendukung metode bunga efektif",
+    );
+  }
+}
+
+function resolveInstallment(terms: {
+  method: InterestMethod;
+  totalDebt: bigint;
+  interestRate: string;
+  tenorMonths: number | null;
+  override: bigint | undefined;
+}): bigint | null {
+  if (terms.method === "efektif") return null;
+  if (terms.override !== undefined) return terms.override;
+  if (terms.tenorMonths === null) return null;
+  return computeInstallment({
+    method: terms.method,
+    principal: terms.totalDebt,
+    annualInterestRatePercent: terms.interestRate,
+    tenorMonths: terms.tenorMonths,
+  });
+}
+
+function currentPeriod(startDate: Date | null, now: Date): number {
+  return startDate ? monthsElapsed(startDate, now) + 1 : 1;
 }
 
 @Injectable()
@@ -251,15 +288,32 @@ export class LiabilitiesService {
       "remainingBalance",
       dto.remainingBalance,
     );
-    const minimumPayment = dto.minimumPayment
-      ? guardBigInt("minimumPayment", dto.minimumPayment)
-      : BigInt(0);
+    const interestMethod =
+      dto.interestMethod ?? defaultInterestMethod(dto.type);
+    assertMethodAllowed(dto.type, interestMethod);
+    const installmentAmount = resolveInstallment({
+      method: interestMethod,
+      totalDebt,
+      interestRate: dto.interestRate ?? "0",
+      tenorMonths: dto.tenorMonths ?? null,
+      override: dto.installmentAmount
+        ? guardBigInt("installmentAmount", dto.installmentAmount)
+        : undefined,
+    });
+    // A fixed installment IS the monthly obligation: it drives the budget line and the Pay preset.
+    const minimumPayment =
+      installmentAmount ??
+      (dto.minimumPayment
+        ? guardBigInt("minimumPayment", dto.minimumPayment)
+        : BigInt(0));
 
     const liability = await runSerializableWithRetry(this.prisma, (tx) =>
       this.runCreate(tx, familyGroupId, dto, {
         totalDebt,
         remainingBalance,
         minimumPayment,
+        installmentAmount,
+        interestMethod,
       }),
     );
 
@@ -274,6 +328,8 @@ export class LiabilitiesService {
       totalDebt: bigint;
       remainingBalance: bigint;
       minimumPayment: bigint;
+      installmentAmount: bigint | null;
+      interestMethod: InterestMethod;
     },
   ): Promise<LiabilityRow> {
     const created = await tx.liability.create({
@@ -290,6 +346,12 @@ export class LiabilitiesService {
         autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
         notes: dto.notes ?? null,
         currency: dto.currency ?? "IDR",
+        interestMethod: amounts.interestMethod,
+        tenorMonths: dto.tenorMonths ?? null,
+        startDate: dto.startDate ? new Date(dto.startDate) : null,
+        installmentAmount: amounts.installmentAmount,
+        fixedRateMonths: dto.fixedRateMonths ?? null,
+        floatingRate: dto.floatingRate ?? null,
       },
     });
 
@@ -334,12 +396,16 @@ export class LiabilitiesService {
     const minimumPayment = dto.minimumPayment
       ? guardBigInt("minimumPayment", dto.minimumPayment)
       : undefined;
+    const installmentAmount = dto.installmentAmount
+      ? guardBigInt("installmentAmount", dto.installmentAmount)
+      : undefined;
 
     const updated = await runSerializableWithRetry(this.prisma, (tx) =>
       this.runUpdate(tx, familyGroupId, id, dto, {
         totalDebt,
         remainingBalance,
         minimumPayment,
+        installmentAmount,
       }),
     );
 
@@ -372,6 +438,7 @@ export class LiabilitiesService {
       totalDebt: bigint | undefined;
       remainingBalance: bigint | undefined;
       minimumPayment: bigint | undefined;
+      installmentAmount: bigint | undefined;
     },
   ): Promise<LiabilityRow> {
     // Re-read fresh inside the (possibly retried) transaction — a retry
@@ -383,7 +450,29 @@ export class LiabilitiesService {
     const totalDebt = amounts.totalDebt ?? existing.totalDebt;
     const remainingBalance =
       amounts.remainingBalance ?? existing.remainingBalance;
-    const minimumPayment = amounts.minimumPayment ?? existing.minimumPayment;
+    const type = dto.type ?? existing.type;
+    const interestMethod = dto.interestMethod ?? existing.interestMethod;
+    assertMethodAllowed(type, interestMethod);
+    const tenorMonths = dto.tenorMonths ?? existing.tenorMonths;
+    const termsChanged = [
+      dto.type,
+      dto.interestMethod,
+      dto.tenorMonths,
+      dto.interestRate,
+      dto.totalDebt,
+      dto.installmentAmount,
+    ].some((value) => value !== undefined);
+    const installmentAmount = termsChanged
+      ? resolveInstallment({
+          method: interestMethod,
+          totalDebt,
+          interestRate: dto.interestRate ?? existing.interestRate.toString(),
+          tenorMonths,
+          override: amounts.installmentAmount,
+        })
+      : existing.installmentAmount;
+    const minimumPayment =
+      installmentAmount ?? amounts.minimumPayment ?? existing.minimumPayment;
 
     const updated = await tx.liability.update({
       where: { id, familyGroupId },
@@ -393,7 +482,7 @@ export class LiabilitiesService {
           dto.institution !== undefined
             ? (dto.institution ?? null)
             : existing.institution,
-        type: dto.type ?? existing.type,
+        type,
         totalDebt,
         remainingBalance,
         minimumPayment,
@@ -408,6 +497,15 @@ export class LiabilitiesService {
           dto.autoAdvanceDueDate ?? existing.autoAdvanceDueDate,
         notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
         currency: dto.currency ?? existing.currency,
+        interestMethod,
+        tenorMonths,
+        startDate:
+          dto.startDate !== undefined
+            ? new Date(dto.startDate)
+            : existing.startDate,
+        installmentAmount,
+        fixedRateMonths: dto.fixedRateMonths ?? existing.fixedRateMonths,
+        floatingRate: dto.floatingRate ?? existing.floatingRate,
       },
     });
 
@@ -660,8 +758,15 @@ export class LiabilitiesService {
     const { interest, principal } = splitPayment({
       paymentAmount,
       remainingBalance: liability.remainingBalance,
-      annualInterestRatePercent: liability.interestRate.toString(),
+      annualInterestRatePercent: rateForPeriod({
+        period: currentPeriod(liability.startDate, new Date()),
+        baseRatePercent: liability.interestRate.toString(),
+        fixedRateMonths: liability.fixedRateMonths,
+        floatingRatePercent: liability.floatingRate?.toString() ?? null,
+      }),
       rateIsMonthly: liability.type === "kartu_kredit",
+      method: liability.interestMethod,
+      originalPrincipal: liability.totalDebt,
     });
 
     const maxPayable = liability.remainingBalance + interest;

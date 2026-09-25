@@ -1537,4 +1537,284 @@ describe("LiabilitiesService", () => {
       );
     });
   });
+
+  describe("interest engine (revisi G)", () => {
+    function mockPrincipalCategorySelfHeal() {
+      prisma.coaAccount.findFirst.mockResolvedValue({
+        id: "coa-5",
+        code: "50001",
+        name: "Utang",
+      });
+      prisma.category.create.mockResolvedValue({ id: "cat-principal" });
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+    }
+
+    beforeEach(() => {
+      prisma.liability.create.mockResolvedValue({
+        ...BASE,
+        id: "lid-new",
+        totalDebt: BigInt(1),
+        remainingBalance: BigInt(1),
+        principalCategoryId: null,
+      });
+    });
+
+    it("create: kendaraan defaults to flat, computes the 6.555.556 installment and uses it as minimumPayment", async () => {
+      mockPrincipalCategorySelfHeal();
+
+      await service.create("fg-1", {
+        name: "Cicilan Mobil",
+        type: "kendaraan" as never,
+        totalDebt: "200000000",
+        remainingBalance: "200000000",
+        interestRate: "6",
+        tenorMonths: 36,
+        startDate: "2026-01-15T00:00:00.000Z",
+      });
+
+      expect(prisma.liability.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          interestMethod: "flat",
+          tenorMonths: 36,
+          startDate: new Date("2026-01-15T00:00:00.000Z"),
+          installmentAmount: BigInt(6_555_556),
+          minimumPayment: BigInt(6_555_556),
+        }),
+      });
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            limitAmount: BigInt(6_555_556),
+          }),
+        }),
+      );
+    });
+
+    it("create: kpr defaults to anuitas and stores the fixed/floating terms", async () => {
+      mockPrincipalCategorySelfHeal();
+
+      await service.create("fg-1", {
+        name: "KPR BTN",
+        type: "kpr" as never,
+        totalDebt: "500000000",
+        remainingBalance: "500000000",
+        interestRate: "8.00",
+        tenorMonths: 240,
+        fixedRateMonths: 36,
+        floatingRate: "11.00",
+      });
+
+      expect(prisma.liability.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          interestMethod: "anuitas",
+          installmentAmount: BigInt(4_182_200),
+          minimumPayment: BigInt(4_182_200),
+          fixedRateMonths: 36,
+          floatingRate: "11.00",
+        }),
+      });
+    });
+
+    it("create: a user-supplied installmentAmount overrides the computed one", async () => {
+      mockPrincipalCategorySelfHeal();
+
+      await service.create("fg-1", {
+        name: "KTA",
+        type: "pinjaman_pribadi" as never,
+        interestMethod: "anuitas" as never,
+        totalDebt: "50000000",
+        remainingBalance: "50000000",
+        interestRate: "12",
+        tenorMonths: 24,
+        installmentAmount: "2400000",
+      });
+
+      expect(prisma.liability.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          interestMethod: "anuitas",
+          installmentAmount: BigInt(2_400_000),
+          minimumPayment: BigInt(2_400_000),
+        }),
+      });
+    });
+
+    it("create: lainnya defaults to efektif and keeps the user's minimumPayment (no installment)", async () => {
+      mockPrincipalCategorySelfHeal();
+
+      await service.create("fg-1", {
+        name: "Pinjaman Keluarga",
+        type: "lainnya" as never,
+        totalDebt: "10000000",
+        remainingBalance: "10000000",
+        minimumPayment: "1500000",
+        tenorMonths: 12,
+      });
+
+      expect(prisma.liability.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          interestMethod: "efektif",
+          installmentAmount: null,
+          minimumPayment: BigInt(1_500_000),
+        }),
+      });
+    });
+
+    it("create: rejects a non-efektif method for a credit card before touching the DB", async () => {
+      await expect(
+        service.create("fg-1", {
+          name: "Kartu Kredit BCA",
+          type: "kartu_kredit" as never,
+          interestMethod: "flat" as never,
+          totalDebt: "30000000",
+          remainingBalance: "8000000",
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.liability.create).not.toHaveBeenCalled();
+    });
+
+    const FLAT_CAR = {
+      ...BASE,
+      type: "kendaraan",
+      interestMethod: "flat",
+      totalDebt: BigInt(200_000_000),
+      remainingBalance: BigInt(150_000_000),
+      interestRate: { toString: () => "6.00" },
+      tenorMonths: 24,
+      installmentAmount: BigInt(9_333_333),
+      minimumPayment: BigInt(9_333_333),
+      principalCategoryId: "cat-principal",
+    };
+
+    it("update: changing the tenor of a flat loan recomputes installment and minimumPayment", async () => {
+      prisma.liability.findUnique.mockResolvedValue(FLAT_CAR);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(FLAT_CAR);
+      prisma.liability.update.mockResolvedValue(FLAT_CAR);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", { tenorMonths: 36 });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tenorMonths: 36,
+            installmentAmount: BigInt(6_555_556),
+            minimumPayment: BigInt(6_555_556),
+          }),
+        }),
+      );
+    });
+
+    it("update: a notes-only PATCH keeps the stored (possibly user-overridden) installment", async () => {
+      const overridden = {
+        ...FLAT_CAR,
+        tenorMonths: 36,
+        installmentAmount: BigInt(7_000_000),
+        minimumPayment: BigInt(7_000_000),
+      };
+      prisma.liability.findUnique.mockResolvedValue(overridden);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
+      prisma.liability.update.mockResolvedValue(overridden);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", { notes: "servis rutin" });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: BigInt(7_000_000),
+            minimumPayment: BigInt(7_000_000),
+            notes: "servis rutin",
+          }),
+        }),
+      );
+    });
+
+    it("update: rejects switching a credit card to flat", async () => {
+      const card = { ...BASE, type: "kartu_kredit", principalCategoryId: null };
+      prisma.liability.findUnique.mockResolvedValue(card);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(card);
+
+      await expect(
+        service.update("fg-1", "lid-1", { interestMethod: "flat" as never }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    const ACCOUNT = {
+      id: "acc-1",
+      familyGroupId: "fg-1",
+      type: "bank",
+      balance: BigInt(50_000_000),
+      name: "BCA",
+    };
+
+    it("pay: flat charges interest on the original principal (totalDebt), not the remaining balance", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...FLAT_CAR,
+        tenorMonths: 36,
+        installmentAmount: BigInt(6_555_556),
+        minimumPayment: BigInt(6_555_556),
+      });
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue(FLAT_CAR);
+
+      await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "6555556",
+      });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: { remainingBalance: { decrement: BigInt(5_555_556) } },
+      });
+      expect(prisma.transaction.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            categoryId: "cat-interest",
+            amount: BigInt(1_000_000),
+          }),
+        }),
+      );
+    });
+
+    it("pay: anuitas past its fixed period charges the floating rate", async () => {
+      const kpr = {
+        ...BASE,
+        type: "kpr",
+        interestMethod: "anuitas",
+        totalDebt: BigInt(500_000_000),
+        remainingBalance: BigInt(465_590_716),
+        interestRate: { toString: () => "8.00" },
+        tenorMonths: 240,
+        startDate: new Date("2020-01-15T00:00:00.000Z"),
+        installmentAmount: BigInt(4_182_200),
+        minimumPayment: BigInt(4_182_200),
+        fixedRateMonths: 36,
+        floatingRate: { toString: () => "11.00" },
+        principalCategoryId: "cat-principal",
+      };
+      prisma.liability.findUnique.mockResolvedValue(kpr);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue(kpr);
+
+      await service.pay("fg-1", "lid-1", {
+        sourceAccountId: "acc-1",
+        amount: "5053432",
+      });
+
+      // 465,590,716 × 0.11/12 = 4,267,914.90 -> 4,267,915 (at 8% it would be 3,103,938).
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: { remainingBalance: { decrement: BigInt(785_517) } },
+      });
+    });
+  });
 });
