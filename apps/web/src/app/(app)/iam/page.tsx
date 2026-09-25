@@ -346,6 +346,7 @@ export default function IamRolesPage() {
         onOpenChange={setAddOpen}
         familyGroupId={familyGroupId}
         token={token}
+        roles={roles ?? []}
       />
 
       <MemberAccessDialog

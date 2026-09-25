@@ -954,6 +954,10 @@ export type I18nDictionary = {
       istriCoMasterHint: string;
       relationshipLabel: string;
       relationshipNoneOption: string;
+      accessRoleLabel: string;
+      accessRoleDefaultOption: string;
+      accessRoleEmptyHint: string;
+      toastAccessRoleFailed: string;
       creating: string;
       createButton: string;
       toastCreated: string;

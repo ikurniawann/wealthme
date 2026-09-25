@@ -793,6 +793,12 @@ export const en = {
         'The wife becomes Co-Master: full access to every finance surface. Member management and family settings stay with the Master. Family Relationship locks to "istri". Max 1 wife per family.',
       relationshipLabel: "Family Relationship (optional)",
       relationshipNoneOption: "Not set",
+      accessRoleLabel: "Access role",
+      accessRoleDefaultOption: "Default (follow role)",
+      accessRoleEmptyHint:
+        "No roles yet. Create one in the Access Roles tab to use it here.",
+      toastAccessRoleFailed:
+        "Account created, but the access role could not be saved. Set it with Atur Akses.",
       creating: "Creating...",
       createButton: "Create Account",
       toastCreated: "Account created successfully",

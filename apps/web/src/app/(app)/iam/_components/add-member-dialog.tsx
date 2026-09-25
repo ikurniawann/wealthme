@@ -18,7 +18,10 @@ import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { MemberRelationshipSchema } from "@wealthme/contracts";
-import type { MemberRelationship } from "@wealthme/contracts";
+import type {
+  AccessRoleResponse,
+  MemberRelationship,
+} from "@wealthme/contracts";
 
 /**
  * EPIC-027 group 2 (D3) — moved here verbatim from `akun/page.tsx`, which used
@@ -46,11 +49,13 @@ export function AddMemberDialog({
   onOpenChange,
   familyGroupId,
   token,
+  roles,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   familyGroupId: string | null;
   token: string | undefined;
+  roles: AccessRoleResponse[];
 }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
@@ -85,6 +90,7 @@ export function AddMemberDialog({
     "dependant" | "operational" | "member" | "spouse"
   >("dependant");
   const [relationship, setRelationship] = useState<MemberRelationship | "">("");
+  const [accessRoleId, setAccessRoleId] = useState("");
   const isIstriCoMaster = role === "spouse";
   // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
   // the head can verify the initial password before handing it over, same
@@ -92,39 +98,62 @@ export function AddMemberDialog({
   const [showPassword, setShowPassword] = useState(false);
 
   const { mutate: createMember, isPending } = useMutation({
-    mutationFn: (vars: {
+    mutationFn: async ({
+      accessRoleId: chosenRoleId,
+      ...body
+    }: {
       name: string;
       username: string;
       email?: string;
       initialPassword: string;
       role: "dependant" | "operational" | "member" | "spouse";
       relationship?: MemberRelationship;
-    }) =>
-      apiFetch<{ username: string; pendingEmail?: string | null }>(
-        `/family-groups/${familyGroupId}/members/dependant`,
-        {
-          method: "POST",
-          token,
-          body: JSON.stringify(vars),
-        },
-      ),
-    onSuccess: (created) => {
+      accessRoleId: string | null;
+    }) => {
+      const created = await apiFetch<{
+        id: string;
+        username: string;
+        pendingEmail?: string | null;
+      }>(`/family-groups/${familyGroupId}/members/dependant`, {
+        method: "POST",
+        token,
+        body: JSON.stringify(body),
+      });
+      if (!chosenRoleId) return { created, accessRoleFailed: false };
+      try {
+        await apiFetch(
+          `/family-groups/${familyGroupId}/members/${created.id}/access`,
+          {
+            method: "PUT",
+            token,
+            body: JSON.stringify({ accessRoleId: chosenRoleId, overrides: {} }),
+          },
+        );
+        return { created, accessRoleFailed: false };
+      } catch {
+        return { created, accessRoleFailed: true };
+      }
+    },
+    onSuccess: ({ created, accessRoleFailed }) => {
       onOpenChange(false);
-      // FIX 5 (MEDIUM, react-reviewer) — this dialog is mounted once at the
-      // page level; only the Base UI portal content unmounts on close, so
-      // `role`/`relationship` state (unlike the ref-based inputs, which
-      // reset with the portal) silently persisted across reopens. Reset
-      // alongside closing so the next member starts from the defaults.
+      // FIX 5 (MEDIUM, react-reviewer) — the dialog stays mounted; reset its state with the close.
       setRole("dependant");
       setRelationship("");
+      setAccessRoleId("");
       setShowPassword(false);
       void queryClient.invalidateQueries({
         queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.familyGroups.accessRoles(familyGroupId ?? ""),
       });
       toast.success(t.akun.addDependant.toastCreated, {
         description: `${t.akun.addDependant.toastCreatedDesc} Login: ${created.username}${created.pendingEmail ? ` · Link konfirmasi dikirim ke ${created.pendingEmail}` : ""}`,
         duration: 10000,
       });
+      if (accessRoleFailed) {
+        toast.error(t.akun.addDependant.toastAccessRoleFailed);
+      }
     },
     onError: (err) => {
       toast.error(
@@ -151,6 +180,7 @@ export function AddMemberDialog({
       initialPassword,
       role,
       ...(effectiveRelationship ? { relationship: effectiveRelationship } : {}),
+      accessRoleId: isIstriCoMaster ? null : accessRoleId || null,
     });
   }
 
@@ -163,6 +193,7 @@ export function AddMemberDialog({
     if (!next) {
       setRole("dependant");
       setRelationship("");
+      setAccessRoleId("");
       setShowPassword(false);
     }
     onOpenChange(next);
@@ -325,6 +356,7 @@ export function AddMemberDialog({
                 // other pairing with role owner); switching away clears it
                 // back to editable.
                 setRelationship(next === "spouse" ? "istri" : "");
+                if (next === "spouse") setAccessRoleId("");
               }}
             >
               <option value="spouse">
@@ -347,6 +379,35 @@ export function AddMemberDialog({
               <span>{t.akun.addDependant.istriCoMasterHint}</span>
             </div>
           )}
+          <div className="field">
+            <label className="label" htmlFor={`${fieldId}-access-role`}>
+              {t.akun.addDependant.accessRoleLabel}
+            </label>
+            <select
+              id={`${fieldId}-access-role`}
+              className="select"
+              value={accessRoleId}
+              disabled={isIstriCoMaster}
+              onChange={(e) => setAccessRoleId(e.target.value)}
+              aria-describedby={
+                roles.length === 0 ? `${fieldId}-access-role-hint` : undefined
+              }
+            >
+              <option value="">
+                {t.akun.addDependant.accessRoleDefaultOption}
+              </option>
+              {roles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+            {roles.length === 0 && (
+              <p className="hint" id={`${fieldId}-access-role-hint`}>
+                {t.akun.addDependant.accessRoleEmptyHint}
+              </p>
+            )}
+          </div>
           {/* Honest UI — the prototype's "Rekening yang ditugaskan
               (opsional)" select is omitted: POST
               /family-groups/:id/members/dependant accepts only

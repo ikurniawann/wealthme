@@ -795,6 +795,12 @@ export const id = {
         'Istri menjadi Co-Master: akses penuh ke semua data keuangan. Kelola anggota dan pengaturan keluarga tetap di Master. Hubungan Keluarga otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.',
       relationshipLabel: "Hubungan Keluarga (opsional)",
       relationshipNoneOption: "Tidak diisi",
+      accessRoleLabel: "Hak akses",
+      accessRoleDefaultOption: "Bawaan (ikuti peran)",
+      accessRoleEmptyHint:
+        "Belum ada role. Buat di tab Role Akses untuk dipakai di sini.",
+      toastAccessRoleFailed:
+        "Akun dibuat, tapi hak akses gagal disimpan. Atur lewat tombol Atur Akses.",
       creating: "Membuat...",
       createButton: "Buat Akun",
       toastCreated: "Akun berhasil dibuat",
