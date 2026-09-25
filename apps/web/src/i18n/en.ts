@@ -782,7 +782,7 @@ export const en = {
         "Hand this password over directly, they must change it at their first login.",
       showPassword: "Show password",
       hidePassword: "Hide password",
-      roleLabel: "Role",
+      roleLabel: "System role",
       roleOptions: {
         istriCoMaster: "Wife (Co-Master)",
         dependant: "Child",
@@ -790,8 +790,8 @@ export const en = {
         member: "Member",
       },
       istriCoMasterHint:
-        'The wife becomes Co-Master: full access to every finance surface. Member management and family settings stay with the Master. Family Relationship locks to "istri". Max 1 wife per family.',
-      relationshipLabel: "Family Relationship (optional)",
+        'The wife becomes Co-Master: full access to every finance surface. Member management and family settings stay with the Master. Relationship locks to "istri". Max 1 wife per family.',
+      relationshipLabel: "Relationship (optional)",
       relationshipNoneOption: "Not set",
       accessRoleLabel: "Access role",
       accessRoleDefaultOption: "Default (follow role)",
@@ -805,6 +805,18 @@ export const en = {
       toastCreatedDesc:
         "Hand this username and initial password directly to the member.",
       toastCreateFailed: "Failed to create the account. Try again.",
+    },
+    memberConcepts: {
+      relationship: "Relationship",
+      systemRole: "System role",
+      accessRole: "Access role",
+      relationshipInfo:
+        "Who they are in the family (child, driver, secretary…). A label only; it does not change access.",
+      systemRoleInfo:
+        "WealthMe's built-in tier: Co-Master, Member, Child, or Operational Staff. Sets the starting access when the access role is left at Default.",
+      accessRoleInfo:
+        'A role the Master created (e.g. "Sopir") that decides which pages they can open. When chosen, it replaces the system role\'s default access.',
+      infoLabelPrefix: "About ",
     },
     crud: {
       accountAdded: "Account added successfully!",

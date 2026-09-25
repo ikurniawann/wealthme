@@ -205,4 +205,17 @@ describe("AddMemberDialog — Hak akses at creation (Revisi H)", () => {
     renderDialog([]);
     expect(screen.getByText(L.accessRoleEmptyHint)).toBeInTheDocument();
   });
+
+  it("labels the three concepts and explains each one", () => {
+    renderDialog();
+    const c = mockDictionary.akun.memberConcepts;
+    expect(screen.getByLabelText("Hubungan (opsional)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Peran sistem")).toBeInTheDocument();
+    expect(screen.getByLabelText("Hak akses")).toBeInTheDocument();
+    for (const label of [c.relationship, c.systemRole, c.accessRole]) {
+      expect(
+        screen.getByRole("button", { name: `${c.infoLabelPrefix}${label}` }),
+      ).toBeInTheDocument();
+    }
+  });
 });

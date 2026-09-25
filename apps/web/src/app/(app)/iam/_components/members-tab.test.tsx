@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { id as mockDictionary } from "../../../../i18n/id";
@@ -131,5 +131,34 @@ describe("IAM MembersTab", () => {
     expect(edits).toHaveLength(1);
     await userEvent.click(edits[0]);
     expect(onEditAccess).toHaveBeenCalledWith(child);
+  });
+
+  it("names Hubungan, Peran sistem and Hak akses apart, each with its own explainer (Revisi H)", () => {
+    render(
+      <MembersTab
+        members={[{ ...child, relationship: "anak" }]}
+        isLoading={false}
+        roles={[]}
+        currentUserId="u-master"
+        onEditAccess={jest.fn()}
+        onResetPassword={jest.fn()}
+        onEditEmail={jest.fn()}
+        onRemove={jest.fn()}
+      />,
+    );
+    const c = mockDictionary.akun.memberConcepts;
+    for (const label of [c.relationship, c.systemRole, c.accessRole]) {
+      expect(
+        screen.getByRole("columnheader", { name: new RegExp(`^${label}`) }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: `${c.infoLabelPrefix}${label}` }),
+      ).toBeInTheDocument();
+    }
+    expect(
+      screen.queryByRole("columnheader", { name: "Tipe" }),
+    ).not.toBeInTheDocument();
+    const row = screen.getByRole("row", { name: /Aisyah/ });
+    expect(within(row).getAllByRole("cell")[1]).toHaveTextContent("Anak");
   });
 });

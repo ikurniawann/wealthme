@@ -964,6 +964,15 @@ export type I18nDictionary = {
       toastCreatedDesc: string;
       toastCreateFailed: string;
     };
+    memberConcepts: {
+      relationship: string;
+      systemRole: string;
+      accessRole: string;
+      relationshipInfo: string;
+      systemRoleInfo: string;
+      accessRoleInfo: string;
+      infoLabelPrefix: string;
+    };
     crud: {
       accountAdded: string;
       ewalletAdded: string;

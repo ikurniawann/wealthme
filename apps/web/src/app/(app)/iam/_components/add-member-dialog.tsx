@@ -14,6 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { InfoTip } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -58,6 +59,7 @@ export function AddMemberDialog({
   roles: AccessRoleResponse[];
 }) {
   const { t } = useLocale();
+  const concepts = t.akun.memberConcepts;
   const queryClient = useQueryClient();
   // EPIC-026 Wave 3 — this dialog composes the prototype's `.field` markup
   // directly (label + control + `.hint`) instead of the `Field` helper,
@@ -222,9 +224,16 @@ export function AddMemberDialog({
               re-enforces), so the Co-Master notice below stays attached to
               the control that actually triggers it. */}
           <div className="field">
-            <label className="label" htmlFor={`${fieldId}-relationship`}>
-              {t.akun.addDependant.relationshipLabel}
-            </label>
+            <div className="flex items-center gap-1">
+              <label className="label" htmlFor={`${fieldId}-relationship`}>
+                {t.akun.addDependant.relationshipLabel}
+              </label>
+              <InfoTip
+                label={`${concepts.infoLabelPrefix}${concepts.relationship}`}
+              >
+                {concepts.relationshipInfo}
+              </InfoTip>
+            </div>
             <select
               id={`${fieldId}-relationship`}
               className="select"
@@ -337,9 +346,16 @@ export function AddMemberDialog({
             <p className="hint">{t.akun.addDependant.passwordHint}</p>
           </div>
           <div className="field">
-            <label className="label" htmlFor={`${fieldId}-role`}>
-              {t.akun.addDependant.roleLabel}
-            </label>
+            <div className="flex items-center gap-1">
+              <label className="label" htmlFor={`${fieldId}-role`}>
+                {t.akun.addDependant.roleLabel}
+              </label>
+              <InfoTip
+                label={`${concepts.infoLabelPrefix}${concepts.systemRole}`}
+              >
+                {concepts.systemRoleInfo}
+              </InfoTip>
+            </div>
             <select
               id={`${fieldId}-role`}
               className="select"
@@ -380,9 +396,16 @@ export function AddMemberDialog({
             </div>
           )}
           <div className="field">
-            <label className="label" htmlFor={`${fieldId}-access-role`}>
-              {t.akun.addDependant.accessRoleLabel}
-            </label>
+            <div className="flex items-center gap-1">
+              <label className="label" htmlFor={`${fieldId}-access-role`}>
+                {t.akun.addDependant.accessRoleLabel}
+              </label>
+              <InfoTip
+                label={`${concepts.infoLabelPrefix}${concepts.accessRole}`}
+              >
+                {concepts.accessRoleInfo}
+              </InfoTip>
+            </div>
             <select
               id={`${fieldId}-access-role`}
               className="select"

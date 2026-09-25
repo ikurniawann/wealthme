@@ -7,7 +7,7 @@ import {
   type AccessPermissions,
 } from "@wealthme/contracts";
 
-import { StatusBadge } from "@/components/wm";
+import { InfoTip, StatusBadge } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 
 import { SCOPE_COPY } from "./access-shared";
@@ -70,6 +70,13 @@ export function MembersTab({
   const { t } = useLocale();
   const roleLabel = (role: string) =>
     t.common.roleLabels[role as keyof typeof t.common.roleLabels] ?? role;
+  const concepts = t.akun.memberConcepts;
+  const conceptHeader = (label: string, info: string) => (
+    <span className="inline-flex items-center gap-0.5">
+      {label}
+      <InfoTip label={`${concepts.infoLabelPrefix}${label}`}>{info}</InfoTip>
+    </span>
+  );
 
   return (
     <section className="card">
@@ -79,8 +86,18 @@ export function MembersTab({
             <thead>
               <tr>
                 <th>Anggota</th>
-                <th>Tipe</th>
-                <th>Akses</th>
+                <th>
+                  {conceptHeader(
+                    concepts.relationship,
+                    concepts.relationshipInfo,
+                  )}
+                </th>
+                <th>
+                  {conceptHeader(concepts.systemRole, concepts.systemRoleInfo)}
+                </th>
+                <th>
+                  {conceptHeader(concepts.accessRole, concepts.accessRoleInfo)}
+                </th>
                 <th>Data terlihat</th>
                 <th style={{ textAlign: "right" }}>Aksi</th>
               </tr>
@@ -88,14 +105,14 @@ export function MembersTab({
             <tbody>
               {isLoading && (
                 <tr>
-                  <td colSpan={5} className="py-4 text-center t-muted">
+                  <td colSpan={6} className="py-4 text-center t-muted">
                     Memuat…
                   </td>
                 </tr>
               )}
               {!isLoading && (members ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-4 text-center t-muted">
+                  <td colSpan={6} className="py-4 text-center t-muted">
                     Belum ada anggota
                   </td>
                 </tr>
@@ -139,6 +156,14 @@ export function MembersTab({
                         <div className="text-[11.5px] text-warning">
                           {m.pendingEmail} · menunggu konfirmasi
                         </div>
+                      )}
+                    </td>
+                    <td>
+                      {m.relationship ? (
+                        m.relationship.charAt(0).toUpperCase() +
+                        m.relationship.slice(1)
+                      ) : (
+                        <span className="t-muted">—</span>
                       )}
                     </td>
                     <td>

@@ -784,7 +784,7 @@ export const id = {
         "Beri tahu password ini secara langsung, wajib diganti saat login pertama.",
       showPassword: "Tampilkan password",
       hidePassword: "Sembunyikan password",
-      roleLabel: "Peran",
+      roleLabel: "Peran sistem",
       roleOptions: {
         istriCoMaster: "Istri (Co-Master)",
         dependant: "Anak",
@@ -792,8 +792,8 @@ export const id = {
         member: "Anggota",
       },
       istriCoMasterHint:
-        'Istri menjadi Co-Master: akses penuh ke semua data keuangan. Kelola anggota dan pengaturan keluarga tetap di Master. Hubungan Keluarga otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.',
-      relationshipLabel: "Hubungan Keluarga (opsional)",
+        'Istri menjadi Co-Master: akses penuh ke semua data keuangan. Kelola anggota dan pengaturan keluarga tetap di Master. Hubungan otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.',
+      relationshipLabel: "Hubungan (opsional)",
       relationshipNoneOption: "Tidak diisi",
       accessRoleLabel: "Hak akses",
       accessRoleDefaultOption: "Bawaan (ikuti peran)",
@@ -807,6 +807,18 @@ export const id = {
       toastCreatedDesc:
         "Beri tahu username dan password awal ini langsung ke anggota terkait.",
       toastCreateFailed: "Gagal membuat akun. Coba lagi.",
+    },
+    memberConcepts: {
+      relationship: "Hubungan",
+      systemRole: "Peran sistem",
+      accessRole: "Hak akses",
+      relationshipInfo:
+        "Siapa dia di keluarga (anak, supir, sekretaris…). Hanya label, tidak mengubah akses.",
+      systemRoleInfo:
+        "Tingkat bawaan WealthMe: Co-Master, Anggota, Anak, atau Staff Operasional. Menentukan akses awal bila hak akses dibiarkan Bawaan.",
+      accessRoleInfo:
+        'Role buatan Master (mis. "Sopir") yang menentukan halaman apa saja yang bisa dibuka. Bila dipilih, menggantikan akses bawaan dari peran sistem.',
+      infoLabelPrefix: "Tentang ",
     },
     crud: {
       accountAdded: "Rekening berhasil ditambahkan!",

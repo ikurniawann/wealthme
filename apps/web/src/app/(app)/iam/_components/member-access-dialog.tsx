@@ -171,7 +171,9 @@ export function MemberAccessDialog({
           <DialogBody>
             <div className="field-row">
               <label className="field" htmlFor={`${fieldId}-type`}>
-                <span className="label">1. Tipe anggota</span>
+                <span className="label">
+                  1. {t.akun.memberConcepts.systemRole}
+                </span>
                 <select
                   id={`${fieldId}-type`}
                   className="select"
@@ -192,7 +194,9 @@ export function MemberAccessDialog({
                 </span>
               </label>
               <label className="field mt-0" htmlFor={`${fieldId}-role`}>
-                <span className="label">2. Role akses</span>
+                <span className="label">
+                  2. {t.akun.memberConcepts.accessRole}
+                </span>
                 <select
                   id={`${fieldId}-role`}
                   className="select"
