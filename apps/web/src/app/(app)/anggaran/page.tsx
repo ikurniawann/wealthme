@@ -1093,7 +1093,6 @@ export default function AnggaranPage() {
   }
 
   function handleSave() {
-    if (amountField.resolved.isPending) return;
     // F3 fix — a member picks an existing category instead of naming a new
     // one; the create-a-category fields below don't apply to that flow.
     if (canManageCategory === false) {
@@ -1114,6 +1113,7 @@ export default function AnggaranPage() {
       toast.error(t.anggaran.toastNoFamilyGroup);
       return;
     }
+    if (amountField.resolved.isPending) return;
     createMutation.mutate(
       withFxInputs(
         {
@@ -1660,7 +1660,9 @@ export default function AnggaranPage() {
             </Button>
             <Button
               onClick={handleSaveEdit}
-              disabled={updateMutation.isPending}
+              disabled={
+                updateMutation.isPending || editField.resolved.isPending
+              }
             >
               <Save className="size-[14px]" />
               {updateMutation.isPending
