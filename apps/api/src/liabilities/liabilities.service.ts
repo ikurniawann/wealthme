@@ -28,12 +28,14 @@ import {
 import {
   buildSchedule,
   computeInstallment,
+  currentInstallment,
   defaultInterestMethod,
   monthsElapsed,
   parseRateScaledByHundred,
   rateForPeriod,
   splitPayment,
   type InterestMethod,
+  type ScheduleInput,
 } from "./amortisation.util";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
@@ -90,9 +92,64 @@ type LiabilityRow = {
   updatedAt: Date;
 };
 
+type InstallmentTerms = Pick<
+  LiabilityRow,
+  | "type"
+  | "interestMethod"
+  | "remainingBalance"
+  | "totalDebt"
+  | "interestRate"
+  | "installmentAmount"
+  | "minimumPayment"
+  | "tenorMonths"
+  | "startDate"
+  | "fixedRateMonths"
+  | "floatingRate"
+>;
+
+/** Schedule inputs from the liability's current state, starting at the next installment. */
+function scheduleInputFor(
+  liability: InstallmentTerms,
+  now: Date,
+): ScheduleInput {
+  const elapsed = liability.startDate
+    ? monthsElapsed(liability.startDate, now)
+    : 0;
+  const tenor = liability.tenorMonths;
+  return {
+    method: liability.interestMethod,
+    remainingBalance: liability.remainingBalance,
+    originalPrincipal: liability.totalDebt,
+    annualInterestRatePercent: liability.interestRate.toString(),
+    rateIsMonthly: liability.type === "kartu_kredit",
+    installmentAmount:
+      liability.installmentAmount ??
+      (liability.minimumPayment > BigInt(0) ? liability.minimumPayment : null),
+    remainingMonths: tenor === null ? null : Math.max(1, tenor - elapsed),
+    firstPeriod: tenor === null ? elapsed + 1 : Math.min(elapsed + 1, tenor),
+    fixedRateMonths: liability.fixedRateMonths,
+    floatingRatePercent: liability.floatingRate?.toString() ?? null,
+  };
+}
+
+// Derived per read/write instead of stored, so crossing into the floating period needs no cron.
+function currentInstallmentFor(
+  liability: InstallmentTerms,
+  now: Date,
+): bigint | null {
+  return currentInstallment(scheduleInputFor(liability, now));
+}
+
+/** Budget line limit: the installment now due; a liability with no minimumPayment has no line. */
+function budgetContribution(liability: InstallmentTerms, now: Date): bigint {
+  if (liability.minimumPayment <= BigInt(0)) return BigInt(0);
+  return currentInstallmentFor(liability, now) ?? liability.minimumPayment;
+}
+
 function toLiabilityDto(
   liability: LiabilityRow,
   paidThisPeriod = false,
+  now: Date = new Date(),
 ): LiabilityResponseDto {
   const paymentRatio =
     liability.totalDebt > BigInt(0)
@@ -127,6 +184,8 @@ function toLiabilityDto(
     tenorMonths: liability.tenorMonths,
     startDate: liability.startDate?.toISOString() ?? null,
     installmentAmount: liability.installmentAmount?.toString() ?? null,
+    currentInstallmentAmount:
+      currentInstallmentFor(liability, now)?.toString() ?? null,
     fixedRateMonths: liability.fixedRateMonths,
     floatingRate: liability.floatingRate?.toString() ?? null,
     createdAt: liability.createdAt.toISOString(),
@@ -184,7 +243,10 @@ export class LiabilitiesService {
     private readonly notificationSender: NotificationSenderPort,
   ) {}
 
-  async findAll(familyGroupId: string): Promise<LiabilityResponseDto[]> {
+  async findAll(
+    familyGroupId: string,
+    now: Date = new Date(),
+  ): Promise<LiabilityResponseDto[]> {
     const liabilities = await this.prisma.liability.findMany({
       where: { familyGroupId },
       orderBy: { createdAt: "asc" },
@@ -195,7 +257,7 @@ export class LiabilitiesService {
       liabilities.map((l) => l.id),
     );
 
-    return liabilities.map((l) => toLiabilityDto(l, paidSet.has(l.id)));
+    return liabilities.map((l) => toLiabilityDto(l, paidSet.has(l.id), now));
   }
 
   /**
@@ -274,26 +336,7 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
 
-    const elapsed = liability.startDate
-      ? monthsElapsed(liability.startDate, now)
-      : 0;
-    const tenor = liability.tenorMonths;
-    const rows = buildSchedule({
-      method: liability.interestMethod,
-      remainingBalance: liability.remainingBalance,
-      originalPrincipal: liability.totalDebt,
-      annualInterestRatePercent: liability.interestRate.toString(),
-      rateIsMonthly: liability.type === "kartu_kredit",
-      installmentAmount:
-        liability.installmentAmount ??
-        (liability.minimumPayment > BigInt(0)
-          ? liability.minimumPayment
-          : null),
-      remainingMonths: tenor === null ? null : Math.max(1, tenor - elapsed),
-      firstPeriod: tenor === null ? elapsed + 1 : Math.min(elapsed + 1, tenor),
-      fixedRateMonths: liability.fixedRateMonths,
-      floatingRatePercent: liability.floatingRate?.toString() ?? null,
-    });
+    const rows = buildSchedule(scheduleInputFor(liability, now));
 
     return {
       liabilityId: liability.id,
@@ -384,35 +427,34 @@ export class LiabilitiesService {
       interestMethod: InterestMethod;
     },
   ): Promise<LiabilityRow> {
-    const created = await tx.liability.create({
-      data: {
-        familyGroupId,
-        name: dto.name,
-        institution: dto.institution ?? null,
-        type: dto.type,
-        totalDebt: amounts.totalDebt,
-        remainingBalance: amounts.remainingBalance,
-        minimumPayment: amounts.minimumPayment,
-        interestRate: dto.interestRate ?? "0",
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-        autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
-        notes: dto.notes ?? null,
-        currency: dto.currency ?? "IDR",
-        interestMethod: amounts.interestMethod,
-        tenorMonths: dto.tenorMonths ?? null,
-        startDate: dto.startDate ? new Date(dto.startDate) : null,
-        installmentAmount: amounts.installmentAmount,
-        fixedRateMonths: dto.fixedRateMonths ?? null,
-        floatingRate: dto.floatingRate ?? null,
-      },
-    });
+    const data = {
+      familyGroupId,
+      name: dto.name,
+      institution: dto.institution ?? null,
+      type: dto.type,
+      totalDebt: amounts.totalDebt,
+      remainingBalance: amounts.remainingBalance,
+      minimumPayment: amounts.minimumPayment,
+      interestRate: dto.interestRate ?? "0",
+      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
+      notes: dto.notes ?? null,
+      currency: dto.currency ?? "IDR",
+      interestMethod: amounts.interestMethod,
+      tenorMonths: dto.tenorMonths ?? null,
+      startDate: dto.startDate ? new Date(dto.startDate) : null,
+      installmentAmount: amounts.installmentAmount,
+      fixedRateMonths: dto.fixedRateMonths ?? null,
+      floatingRate: dto.floatingRate ?? null,
+    };
+    const created = await tx.liability.create({ data });
 
     if (amounts.minimumPayment > BigInt(0)) {
       await this.syncPrincipalBudgetLine(
         tx,
         familyGroupId,
         created,
-        amounts.minimumPayment,
+        budgetContribution(data, new Date()),
       );
     }
 
@@ -423,6 +465,7 @@ export class LiabilitiesService {
     familyGroupId: string,
     id: string,
     dto: UpdateLiabilityDto,
+    now: Date = new Date(),
   ): Promise<LiabilityResponseDto> {
     const existing = await this.prisma.liability.findUnique({
       where: { id, familyGroupId },
@@ -453,15 +496,22 @@ export class LiabilitiesService {
       : undefined;
 
     const updated = await runSerializableWithRetry(this.prisma, (tx) =>
-      this.runUpdate(tx, familyGroupId, id, dto, {
-        totalDebt,
-        remainingBalance,
-        minimumPayment,
-        installmentAmount,
-      }),
+      this.runUpdate(
+        tx,
+        familyGroupId,
+        id,
+        dto,
+        {
+          totalDebt,
+          remainingBalance,
+          minimumPayment,
+          installmentAmount,
+        },
+        now,
+      ),
     );
 
-    return toLiabilityDto(updated);
+    return toLiabilityDto(updated, false, now);
   }
 
   /**
@@ -492,6 +542,7 @@ export class LiabilitiesService {
       minimumPayment: bigint | undefined;
       installmentAmount: bigint | undefined;
     },
+    now: Date,
   ): Promise<LiabilityRow> {
     // Re-read fresh inside the (possibly retried) transaction — a retry
     // must never reuse a `principalCategoryId` read before the conflict.
@@ -536,48 +587,48 @@ export class LiabilitiesService {
     const minimumPayment =
       installmentAmount ?? amounts.minimumPayment ?? existing.minimumPayment;
 
+    const data = {
+      name: dto.name ?? existing.name,
+      institution:
+        dto.institution !== undefined
+          ? (dto.institution ?? null)
+          : existing.institution,
+      type,
+      totalDebt,
+      remainingBalance,
+      minimumPayment,
+      interestRate: dto.interestRate ?? existing.interestRate,
+      dueDate:
+        dto.dueDate !== undefined
+          ? dto.dueDate
+            ? new Date(dto.dueDate)
+            : null
+          : existing.dueDate,
+      autoAdvanceDueDate: dto.autoAdvanceDueDate ?? existing.autoAdvanceDueDate,
+      notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+      currency: dto.currency ?? existing.currency,
+      interestMethod,
+      tenorMonths,
+      startDate:
+        dto.startDate !== undefined
+          ? dto.startDate
+            ? new Date(dto.startDate)
+            : null
+          : existing.startDate,
+      installmentAmount,
+      fixedRateMonths: dto.fixedRateMonths ?? existing.fixedRateMonths,
+      floatingRate: dto.floatingRate ?? existing.floatingRate,
+    };
     const updated = await tx.liability.update({
       where: { id, familyGroupId },
-      data: {
-        name: dto.name ?? existing.name,
-        institution:
-          dto.institution !== undefined
-            ? (dto.institution ?? null)
-            : existing.institution,
-        type,
-        totalDebt,
-        remainingBalance,
-        minimumPayment,
-        interestRate: dto.interestRate ?? existing.interestRate,
-        dueDate:
-          dto.dueDate !== undefined
-            ? dto.dueDate
-              ? new Date(dto.dueDate)
-              : null
-            : existing.dueDate,
-        autoAdvanceDueDate:
-          dto.autoAdvanceDueDate ?? existing.autoAdvanceDueDate,
-        notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-        currency: dto.currency ?? existing.currency,
-        interestMethod,
-        tenorMonths,
-        startDate:
-          dto.startDate !== undefined
-            ? dto.startDate
-              ? new Date(dto.startDate)
-              : null
-            : existing.startDate,
-        installmentAmount,
-        fixedRateMonths: dto.fixedRateMonths ?? existing.fixedRateMonths,
-        floatingRate: dto.floatingRate ?? existing.floatingRate,
-      },
+      data,
     });
 
     await this.syncPrincipalBudgetLine(
       tx,
       familyGroupId,
       { ...updated, principalCategoryId: existing.principalCategoryId },
-      minimumPayment,
+      budgetContribution({ ...existing, ...data }, now),
     );
 
     return updated;
@@ -889,7 +940,13 @@ export class LiabilitiesService {
         tx,
         familyGroupId,
         { ...liability, principalCategoryId },
-        liability.minimumPayment,
+        budgetContribution(
+          {
+            ...liability,
+            remainingBalance: liability.remainingBalance - principal,
+          },
+          now,
+        ),
       );
     }
 
@@ -943,7 +1000,10 @@ export class LiabilitiesService {
       });
     }
 
-    return { liability: toLiabilityDto(updated), principalCategoryId };
+    return {
+      liability: toLiabilityDto(updated, false, now),
+      principalCategoryId,
+    };
   }
 
   /**

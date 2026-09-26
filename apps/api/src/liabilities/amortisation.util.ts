@@ -220,6 +220,8 @@ export interface ScheduleInput {
   firstPeriod: number;
   fixedRateMonths: number | null;
   floatingRatePercent: string | null;
+  /** Caps the rows built; defaults to MAX_SCHEDULE_ROWS. */
+  maxRows?: number;
 }
 
 export interface ScheduleRow {
@@ -233,6 +235,7 @@ export interface ScheduleRow {
 export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
   const maxRows = Math.min(
     MAX_SCHEDULE_ROWS,
+    input.maxRows ?? MAX_SCHEDULE_ROWS,
     input.remainingMonths ?? MAX_SCHEDULE_ROWS,
   );
   const equalPrincipal =
@@ -301,4 +304,12 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
     if (principal === 0n) break;
   }
   return rows;
+}
+
+/**
+ * The installment due at `firstPeriod` — the schedule's first row, so a KPR
+ * past its fixed period gets the same floating re-amortisation as the schedule.
+ */
+export function currentInstallment(input: ScheduleInput): bigint | null {
+  return buildSchedule({ ...input, maxRows: 1 })[0]?.installment ?? null;
 }

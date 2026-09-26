@@ -98,6 +98,7 @@ const DUE_LIABILITY: LiabilityDto = {
   tenorMonths: null,
   startDate: null,
   installmentAmount: null,
+  currentInstallmentAmount: "2083000",
   fixedRateMonths: null,
   floatingRate: null,
   createdAt: "2026-01-01T00:00:00.000Z",
@@ -278,6 +279,7 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
       id: "liab-frac-1",
       name: "Cicilan Motor",
       minimumPayment: "2083000.75",
+      currentInstallmentAmount: null,
     };
     mockApiFetch.mockImplementation((path: unknown, init?: unknown) => {
       const method = (init as { method?: string } | undefined)?.method;
@@ -339,6 +341,35 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
         }),
       ),
     );
+  });
+
+  it("a KPR past its fixed period is due its re-amortised current installment, not the stale minimumPayment (revisi G final fix 2)", async () => {
+    const KPR: LiabilityDto = {
+      ...DUE_LIABILITY,
+      id: "liab-kpr",
+      name: "KPR BTN",
+      type: "kpr",
+      minimumPayment: "3299779",
+      currentInstallmentAmount: "4744030",
+    };
+    mockApiFetch.mockImplementation((path: unknown) => {
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/liabilities`) {
+        return Promise.resolve([KPR]);
+      }
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    });
+
+    renderWithClient(
+      <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
+      queryClient,
+    );
+
+    await screen.findByText(KPR.name);
+    expect(screen.getByText("Rp 4.744.030")).toBeInTheDocument();
+    expect(screen.queryByText("Rp 3.299.779")).not.toBeInTheDocument();
   });
 
   it("LOW 8 — paying a due insurance calls the insurance pay endpoint with just the source account (amount defaults server-side to premiumAmount)", async () => {

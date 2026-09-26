@@ -1,6 +1,7 @@
 import {
   buildSchedule,
   computeInstallment,
+  currentInstallment,
   defaultInterestMethod,
   monthsElapsed,
   parseRateScaledByHundred,
@@ -597,5 +598,71 @@ describe("parseRateScaledByHundred", () => {
     expect(parseRateScaledByHundred("6.00")).toBe(600n);
     expect(parseRateScaledByHundred("6.5")).toBe(650n);
     expect(parseRateScaledByHundred("6.50")).toBe(650n);
+  });
+});
+
+describe("currentInstallment (final fix 2)", () => {
+  // KPR 500 jt / 20 th, 5% fixed for 36 months, then 11% floating.
+  const KPR = {
+    method: "anuitas" as const,
+    originalPrincipal: 500_000_000n,
+    annualInterestRatePercent: "5.00",
+    fixedRateMonths: 36,
+    floatingRatePercent: "11.00",
+  };
+  const FIXED_INSTALLMENT = computeInstallment({
+    method: "anuitas",
+    principal: 500_000_000n,
+    annualInterestRatePercent: "5.00",
+    tenorMonths: 240,
+  });
+
+  it("is the contractual installment inside the fixed period", () => {
+    expect(
+      currentInstallment({
+        ...KPR,
+        remainingBalance: 480_000_000n,
+        installmentAmount: FIXED_INSTALLMENT,
+        remainingMonths: 229,
+        firstPeriod: 12,
+      }),
+    ).toBe(FIXED_INSTALLMENT);
+  });
+
+  it("is the balance re-amortised at the floating rate once the fixed period ends", () => {
+    const input = {
+      ...KPR,
+      remainingBalance: 450_000_000n,
+      installmentAmount: FIXED_INSTALLMENT,
+      remainingMonths: 204,
+      firstPeriod: 37,
+    };
+    const expected = computeInstallment({
+      method: "anuitas",
+      principal: 450_000_000n,
+      annualInterestRatePercent: "11.00",
+      tenorMonths: 204,
+    });
+
+    expect(currentInstallment(input)).toBe(expected);
+    expect(expected).toBeGreaterThan((450_000_000n * 1100n) / 120_000n);
+    expect(expected).toBeGreaterThan(FIXED_INSTALLMENT);
+    expect(buildSchedule(input)[0]?.installment).toBe(expected);
+  });
+
+  it("is null when nothing is scheduled (no installment, no tenor)", () => {
+    expect(
+      currentInstallment({
+        method: "efektif",
+        remainingBalance: 5_000_000n,
+        originalPrincipal: 5_000_000n,
+        annualInterestRatePercent: "10.00",
+        installmentAmount: null,
+        remainingMonths: null,
+        firstPeriod: 1,
+        fixedRateMonths: null,
+        floatingRatePercent: null,
+      }),
+    ).toBeNull();
   });
 });

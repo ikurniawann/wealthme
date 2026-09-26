@@ -952,6 +952,7 @@ interface LiabilityDto {
     tenorMonths: number | null;
     startDate: string | null;
     installmentAmount: string | null;
+    currentInstallmentAmount: string | null;
     fixedRateMonths: number | null;
     floatingRate: string | null;
     createdAt: string;

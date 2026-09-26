@@ -439,7 +439,9 @@ function toObligations(
       // byte-identical to the amount the pay mutation POSTS
       // (`String(Math.trunc(obligation.amountDue))`) instead of the two
       // computing the truncation independently and drifting apart.
-      amountDue: Math.trunc(Number(l.minimumPayment)),
+      amountDue: Math.trunc(
+        Number(l.currentInstallmentAmount ?? l.minimumPayment),
+      ),
       paidThisPeriod: l.paidThisPeriod,
       dueDate: l.dueDate,
       icon: LIABILITY_ICONS[l.type] ?? "📄",

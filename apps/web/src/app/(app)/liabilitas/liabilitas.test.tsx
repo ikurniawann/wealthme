@@ -85,6 +85,7 @@ function baseLiability(overrides: Partial<LiabilityDto> = {}): LiabilityDto {
     tenorMonths: null,
     startDate: null,
     installmentAmount: null,
+    currentInstallmentAmount: "800000",
     fixedRateMonths: null,
     floatingRate: null,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -640,5 +641,34 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       await dialog.findByText("Jadwal amortisasi gagal dimuat."),
     ).toBeInTheDocument();
     expect(dialog.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("prefills Pay with the server's current installment, not the stale fixed-period one (final fix 2)", async () => {
+    liabilitiesFixture = [
+      baseLiability({
+        name: "KPR BTN",
+        type: "kpr",
+        interestMethod: "anuitas",
+        totalDebt: "500000000",
+        remainingBalance: "450000000",
+        minimumPayment: "3299779",
+        installmentAmount: "3299779",
+        currentInstallmentAmount: "4744030",
+        tenorMonths: 240,
+        fixedRateMonths: 36,
+        floatingRate: "11",
+      }),
+    ];
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Bayar" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(dialog.getByLabelText(/jumlah bayar/i)).toHaveValue("4.744.030");
+    expect(dialog.getByRole("tab", { name: "Cicilan" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
   });
 });

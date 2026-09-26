@@ -222,6 +222,13 @@ const INTEREST_METHOD_OPTIONS: Partial<
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// Server-derived installment due now (a KPR past its fixed period is re-amortised).
+function installmentDue(liability: LiabilityDto): number {
+  return Number(
+    BigInt(liability.currentInstallmentAmount ?? liability.minimumPayment),
+  );
+}
+
 function formatLocaleDate(iso: string, locale: Locale): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
@@ -912,9 +919,7 @@ function LiabilityCard({
   const remaining = item.remainingBalance
     ? Number(BigInt(item.remainingBalance))
     : 0;
-  const minimumPayment = item.minimumPayment
-    ? Number(BigInt(item.minimumPayment))
-    : 0;
+  const minimumPayment = installmentDue(item);
 
   const progressValue = isCreditCard
     ? 100 - item.paymentRatio
@@ -1084,7 +1089,7 @@ function LiabilityDetailDialog({
     : "";
   const totalDebt = item ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item ? Number(BigInt(item.remainingBalance)) : 0;
-  const minimumPayment = item ? Number(BigInt(item.minimumPayment)) : 0;
+  const minimumPayment = item ? installmentDue(item) : 0;
   const interestRatePercent = item ? parseFloat(item.interestRate) || 0 : 0;
   const scheduleQuery = useQuery<LiabilityScheduleDto>({
     // Prefix of queryKeys.liabilities.all, so every liability mutation refreshes it.
@@ -1394,7 +1399,7 @@ function PayLiabilityDialog({
   const { t, locale } = useLocale();
   const parsedAmount = parseRupiah(amount);
   const remainingBalance = item ? Number(BigInt(item.remainingBalance)) : 0;
-  const minimumPayment = item ? Number(BigInt(item.minimumPayment)) : 0;
+  const minimumPayment = item ? installmentDue(item) : 0;
   const preview = item
     ? computeAmortisationPreview(
         remainingBalance,
@@ -1732,11 +1737,8 @@ export default function LiabilitasPage() {
   // the liability's own minimum payment.
   function openPayDialog(liability: LiabilityDto) {
     setPayTarget(liability);
-    setPayAmount(
-      Number(BigInt(liability.minimumPayment)) > 0
-        ? Number(BigInt(liability.minimumPayment)).toLocaleString("id-ID")
-        : "",
-    );
+    const due = installmentDue(liability);
+    setPayAmount(due > 0 ? due.toLocaleString("id-ID") : "");
   }
 
   const totalRemaining = (liabilities ?? []).reduce(
@@ -1748,7 +1750,7 @@ export default function LiabilitasPage() {
   // EPIC-025 N3-F4 — "Cicilan Bulan Ini" 3rd stat + type filter tabs, both
   // derived from the same already-fetched `liabilities` list.
   const totalMinimumPayment = (liabilities ?? []).reduce(
-    (sum, l) => sum + (l.minimumPayment ? BigInt(l.minimumPayment) : BigInt(0)),
+    (sum, l) => sum + BigInt(installmentDue(l)),
     BigInt(0),
   );
   const nearestDueDate = (liabilities ?? [])

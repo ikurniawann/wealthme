@@ -26,6 +26,13 @@ export class LiabilityResponseDto {
   @ApiProperty({ nullable: true, type: String }) startDate!: string | null;
   @ApiProperty({ nullable: true, type: String })
   installmentAmount!: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description:
+      "Installment due now; past a KPR's fixed period it is re-amortised at the floating rate",
+  })
+  currentInstallmentAmount!: string | null;
   @ApiProperty({ nullable: true, type: Number })
   fixedRateMonths!: number | null;
   @ApiProperty({ nullable: true, type: String }) floatingRate!: string | null;

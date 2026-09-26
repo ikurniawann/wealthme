@@ -30,6 +30,8 @@ export interface LiabilityDto {
   tenorMonths: number | null;
   startDate: string | null;
   installmentAmount: string | null;
+  // Installment due now; past a KPR's fixed period, re-amortised at the floating rate.
+  currentInstallmentAmount: string | null;
   fixedRateMonths: number | null;
   floatingRate: string | null;
   createdAt: string;
