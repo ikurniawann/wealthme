@@ -862,7 +862,7 @@ export function TransactionDialog() {
                 `.segmented__item` with `role="tablist"`/`role="tab"`
                 (shell.js:531-535). */}
               <div
-                className="segmented mb-[14px] max-w-full flex-wrap"
+                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto"
                 role="tablist"
                 aria-label={t.shell.transactionDialog.typeSwitchLabel}
               >
@@ -872,7 +872,7 @@ export function TransactionDialog() {
                     type="button"
                     role="tab"
                     aria-selected={tab === i}
-                    className="segmented__item"
+                    className="segmented__item shrink-0 whitespace-nowrap"
                     onClick={() => {
                       setTab(i);
                       // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,

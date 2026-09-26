@@ -221,6 +221,19 @@ function render(ui: ReactElement) {
   return { ...result, queryClient };
 }
 
+describe("TransactionDialog, mobile tab-strip scrolls instead of wrapping (batch-3)", () => {
+  it("the type-switch tablist scrolls horizontally and no longer wraps, each tab stays on one line", async () => {
+    render(<TransactionDialog />);
+    const tablist = await screen.findByRole("tablist");
+    expect(tablist.className).not.toMatch(/\bflex-wrap\b/);
+    expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab.className).toMatch(/\bshrink-0\b/);
+      expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
+    }
+  });
+});
+
 describe("TransactionDialog, credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {
   beforeEach(() => {
     jest.clearAllMocks();

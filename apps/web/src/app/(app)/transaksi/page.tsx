@@ -386,7 +386,7 @@ export function TxRow({
  * data is only fetched, lazily, once the detail dialog for a single
  * transaction is opened), so both are omitted here rather than faked.
  */
-function TxTableRow({
+export function TxTableRow({
   tx,
   onDeleteClick,
   onEditClick,
@@ -485,7 +485,7 @@ function TxTableRow({
         </td>
         <td
           className={cn(
-            "px-3 py-3 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-bold",
+            "px-3 py-3 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-bold whitespace-nowrap",
             isTransfer
               ? "text-muted-foreground"
               : isIncome
@@ -1501,7 +1501,7 @@ function TransaksiPageInner() {
           <div
             role="group"
             aria-label={t.transaksi.filterCardTitle}
-            className="hide-scrollbar flex gap-2 overflow-x-auto"
+            className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
           >
             {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered
                 `bg-card` idle, primary fill selected (app.css:2308,

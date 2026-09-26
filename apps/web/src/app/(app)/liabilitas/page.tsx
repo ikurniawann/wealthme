@@ -60,7 +60,10 @@ import {
 } from "@/components/wm";
 import { TrendChart } from "@/components/charts/apex-presets";
 
-import { extractApiErrorMessage } from "./api-error";
+import {
+  extractApiErrorMessage,
+  extractPreviewErrorMessage,
+} from "./api-error";
 import {
   draftFromLiability,
   draftFromPreset,
@@ -1596,7 +1599,7 @@ function PayLiabilityDialog({
                       aria-hidden="true"
                     />
                     <span>
-                      {extractApiErrorMessage(
+                      {extractPreviewErrorMessage(
                         previewQuery.error,
                         t.liabilitas.payPreviewError,
                       )}
@@ -1940,7 +1943,7 @@ export default function LiabilitasPage() {
         <div
           role="group"
           aria-label={t.liabilitas.fieldTypeLabel}
-          className="hide-scrollbar flex gap-2 overflow-x-auto"
+          className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
         >
           <button
             type="button"

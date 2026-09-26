@@ -152,6 +152,31 @@
     height: 0;
   }
 
+  /* Right-edge scroll cue for hide-scrollbar rows (batch-3): CSS mask fades
+     the row's own content instead of an overlay, so it needs no background
+     color match. Scoped to the mobile breakpoint where these rows are
+     narrow enough to clip; desktop rows have room and stay unmasked. */
+  @media (max-width: 768px) {
+    .scroll-fade-x {
+      mask-image: linear-gradient(
+        to right,
+        black calc(100% - 24px),
+        transparent
+      );
+      -webkit-mask-image: linear-gradient(
+        to right,
+        black calc(100% - 24px),
+        transparent
+      );
+    }
+  }
+  @media (max-width: 768px) and (prefers-reduced-transparency: reduce) {
+    .scroll-fade-x {
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+  }
+
   /* ─────────────────────────── App shell ─────────────────────────── */
 
   .app {
@@ -3582,11 +3607,18 @@
       height: calc(var(--topbar-h) + env(safe-area-inset-top));
       padding: env(safe-area-inset-top) 10px 0;
       align-items: center;
-      gap: 8px;
+      /* 8px -> 6px: the six fixed-width icon slots plus padding leave the
+         title (the only shrinkable child besides the zero-width spacer)
+         under 100px at 390px; a 2px trim across 7 gaps returns ~14px to the
+         title without a visually detectable change to icon rhythm. */
+      gap: 6px;
     }
 
     .topbar__title {
       max-width: 42vw;
+      /* One step down from the 13px desktop size (app.css base rule above)
+         so longer titles like "Tujuan Keuangan" fit before the ellipsis. */
+      font-size: 10px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
