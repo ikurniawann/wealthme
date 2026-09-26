@@ -3060,9 +3060,6 @@ export const id = {
       persepuluhan: "Persembahan Persepuluhan",
       lainnya: "Lainnya / Donasi Sosial",
     },
-    groupIslam: "Islam",
-    groupKristen: "Kristen",
-    groupUmum: "Umum",
     heroTitle: "Total Donasi & Zakat",
     transactionsSuffix: " transaksi",
     yearRunningPrefix: " · tahun berjalan ",
@@ -3118,12 +3115,6 @@ export const id = {
     fieldTanggalLabel: "Tanggal",
     fieldAccountLabel: "Bayar dari Rekening (opsional)",
     accountNoneOption: "Hanya catat, jangan potong saldo",
-    accountHint:
-      "Pilih rekening agar total kekayaan bersih ikut berkurang saat donasi dicatat.",
-    taxDeductibleCheckboxLabel:
-      "Pengurang pajak penghasilan (kontribusi keagamaan wajib ke lembaga resmi)",
-    taxDeductibleIneligibleNote:
-      "Hanya Zakat Maal / Zakat Fitrah / Persembahan Persepuluhan yang dapat menjadi pengurang pajak.",
     savingLabel: "Menyimpan...",
     saveRecordButton: "Simpan Catatan",
     toastSaved: "Donasi berhasil dicatat!",
@@ -3156,11 +3147,9 @@ export const id = {
     religionCalculatorUnconfirmedTitle: "Agama keluarga belum dipilih",
     religionCalculatorUnconfirmedDesc:
       "Pilih agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan yang sesuai.",
-    modalDesc:
-      "Tercatat sebagai pengeluaran dan memotong saldo rekening jika sumber dana dipilih.",
     taxDeductibleSwitchTitle: "Pengurang pajak penghasilan",
     taxDeductibleSwitchDesc:
-      "Kontribusi keagamaan wajib ke lembaga resmi (PP 60/2010).",
+      "Hanya zakat/persepuluhan ke lembaga resmi (PP 60/2010).",
   },
   warisan: {
     heroTitle: "Total Nilai Warisan",

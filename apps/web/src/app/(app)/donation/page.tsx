@@ -25,7 +25,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -872,7 +871,6 @@ export default function DonationPage() {
             Batal / Simpan Catatan `.dialog__footer`. */}
         <DialogContent>
           <DialogTitle>{t.donation.modalTitle}</DialogTitle>
-          <DialogDescription>{t.donation.modalDesc}</DialogDescription>
 
           <DialogBody>
             <div className="field">
@@ -895,12 +893,7 @@ export default function DonationPage() {
               >
                 {allowedJenisOptions.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.group === "islam"
-                      ? t.donation.groupIslam
-                      : o.group === "kristen"
-                        ? t.donation.groupKristen
-                        : t.donation.groupUmum}{" "}
-                    · {t.donation.jenisOptionLabels[o.value]}
+                    {t.donation.jenisOptionLabels[o.value]}
                   </option>
                 ))}
               </select>
@@ -960,9 +953,12 @@ export default function DonationPage() {
                   </option>
                 ))}
               </select>
-              <div className="hint">{t.donation.accountHint}</div>
             </div>
 
+            {/* polish-j batch 7a item 5 — the account hint, the switch
+                description, and the ineligibility note used to be 3
+                separate lines saying overlapping things; one line now
+                covers both what qualifies and why the toggle is disabled. */}
             <div className="row row--between mt-3.5 items-start gap-3">
               <div className="pr-3">
                 <div className="t-sm t-bold" id="dn-deductible-label">
@@ -980,7 +976,6 @@ export default function DonationPage() {
                 onCheckedChange={(checked) => setIsTaxDeductible(checked)}
               />
             </div>
-            <div className="hint">{t.donation.taxDeductibleIneligibleNote}</div>
           </DialogBody>
 
           <DialogFooter>

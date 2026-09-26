@@ -2806,11 +2806,6 @@ export type I18nDictionary = {
   donation: {
     typeLabels: Record<DonationTypeId, string>;
     jenisOptionLabels: Record<DonationTypeId, string>;
-    groupIslam: string;
-    /** EPIC-023 F2 (D20, US-DON-6/7) — groups the obligatory Christian
-     * contribution in the "Jenis" dropdown, alongside `groupIslam`. */
-    groupKristen: string;
-    groupUmum: string;
     heroTitle: string;
     transactionsSuffix: string;
     yearRunningPrefix: string;
@@ -2871,11 +2866,6 @@ export type I18nDictionary = {
     fieldTanggalLabel: string;
     fieldAccountLabel: string;
     accountNoneOption: string;
-    accountHint: string;
-    taxDeductibleCheckboxLabel: string;
-    /** EPIC-022 E5 — shown next to the checkbox when the selected donation
-     * type cannot legally be tax deductible (only zakat to an amil can). */
-    taxDeductibleIneligibleNote: string;
     savingLabel: string;
     saveRecordButton: string;
     toastSaved: string;
@@ -2921,11 +2911,13 @@ export type I18nDictionary = {
     religionCalculatorUnconfirmedDesc: string;
     /**
      * EPIC-026 — prototype `dlg-donasi` composition
-     * (`docs/prototype/pages/donation.html`): the dialog's supporting
-     * description line and the two-line label on the tax-deduction switch
-     * row (the prototype uses a `.switch`, not a checkbox).
+     * (`docs/prototype/pages/donation.html`): the tax-deduction switch row
+     * (the prototype uses a `.switch`, not a checkbox). polish-j batch 7a
+     * item 5 — `taxDeductibleSwitchDesc` is now the ONE line covering what
+     * qualifies (zakat/persepuluhan to a registered body) and the legal
+     * reference; the separate account hint, dialog subtitle, and
+     * ineligibility note it used to duplicate are gone.
      */
-    modalDesc: string;
     taxDeductibleSwitchTitle: string;
     taxDeductibleSwitchDesc: string;
   };

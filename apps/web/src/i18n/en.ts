@@ -3013,9 +3013,6 @@ export const en = {
       persepuluhan: "Tithe Offering",
       lainnya: "Other / Social Donation",
     },
-    groupIslam: "Islamic",
-    groupKristen: "Christian",
-    groupUmum: "General",
     heroTitle: "Total Donations & Zakat",
     transactionsSuffix: " transactions",
     yearRunningPrefix: " · year to date ",
@@ -3071,12 +3068,6 @@ export const en = {
     fieldTanggalLabel: "Date",
     fieldAccountLabel: "Pay from Account (optional)",
     accountNoneOption: "Record only, don't deduct balance",
-    accountHint:
-      "Select an account so your net worth decreases when the donation is recorded.",
-    taxDeductibleCheckboxLabel:
-      "Income tax deduction (obligatory religious contribution to an official institution)",
-    taxDeductibleIneligibleNote:
-      "Only Zakat Maal / Zakat Fitrah / Tithe Offering can be tax deductible.",
     savingLabel: "Saving...",
     saveRecordButton: "Save Record",
     toastSaved: "Donation recorded successfully!",
@@ -3109,11 +3100,9 @@ export const en = {
     religionCalculatorUnconfirmedTitle: "Family religion not yet chosen",
     religionCalculatorUnconfirmedDesc:
       "Choose the family religion in Account Settings to enable the matching Zakat or Tithe calculator.",
-    modalDesc:
-      "Recorded as an expense, and deducted from the account balance when a source account is selected.",
     taxDeductibleSwitchTitle: "Income tax deduction",
     taxDeductibleSwitchDesc:
-      "Obligatory religious contribution to an official institution (PP 60/2010).",
+      "Zakat/tithe to a registered institution only (PP 60/2010).",
   },
   warisan: {
     heroTitle: "Total Inheritance Value",
