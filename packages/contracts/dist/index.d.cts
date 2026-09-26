@@ -996,7 +996,7 @@ interface UpdateLiabilityDto {
     currency?: string;
     interestMethod?: InterestMethod;
     tenorMonths?: number;
-    startDate?: string;
+    startDate?: string | null;
     installmentAmount?: string;
     fixedRateMonths?: number;
     floatingRate?: string;

@@ -1748,7 +1748,7 @@ describe("LiabilitiesService", () => {
         coaAccountId: "coa-5",
       });
 
-      await service.update("fg-1", "lid-1", { startDate: null as never });
+      await service.update("fg-1", "lid-1", { startDate: null });
 
       expect(prisma.liability.update).toHaveBeenCalledWith(
         expect.objectContaining({

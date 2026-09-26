@@ -91,10 +91,14 @@ export class UpdateLiabilityDto {
   @Max(600)
   tenorMonths?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: "null clears the Tanggal Akad",
+  })
   @IsOptional()
   @IsDateString()
-  startDate?: string;
+  startDate?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

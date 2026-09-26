@@ -671,4 +671,42 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       "true",
     );
   });
+
+  it("edit: clearing a saved Tanggal Akad PATCHes startDate null (final fix 6)", async () => {
+    liabilitiesFixture = [
+      baseLiability({
+        name: "Cicilan Mobil",
+        type: "kendaraan",
+        interestMethod: "flat",
+        minimumPayment: "6555556",
+        installmentAmount: "6555556",
+        currentInstallmentAmount: "6555556",
+        tenorMonths: 36,
+        startDate: "2026-01-15T00:00:00.000Z",
+      }),
+    ];
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByLabelText("Tanggal Akad"));
+    await user.click(
+      await screen.findByRole("button", { name: "Hapus tanggal" }),
+    );
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() => {
+      const patchCall = mockApiFetch.mock.calls.find(
+        ([, opts]) => (opts as { method?: string })?.method === "PATCH",
+      );
+      expect(patchCall).toBeDefined();
+      const body = JSON.parse(
+        (patchCall?.[1] as { body: string }).body,
+      ) as Record<string, unknown>;
+      expect(body.startDate).toBeNull();
+    });
+  });
 });

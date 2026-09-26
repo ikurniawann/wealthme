@@ -57,4 +57,13 @@ describe("Create/UpdateLiabilityDto — revisi G interest terms", () => {
       await invalidProps(UpdateLiabilityDto, { interestMethod: "flat" }),
     ).toEqual([]);
   });
+
+  it("update accepts startDate null so a cleared Tanggal Akad can be persisted", async () => {
+    expect(await invalidProps(UpdateLiabilityDto, { startDate: null })).toEqual(
+      [],
+    );
+    expect(
+      await invalidProps(UpdateLiabilityDto, { startDate: "not-a-date" }),
+    ).toEqual(["startDate"]);
+  });
 });

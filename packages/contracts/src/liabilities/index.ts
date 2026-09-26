@@ -78,7 +78,8 @@ export interface UpdateLiabilityDto {
   currency?: string;
   interestMethod?: InterestMethod;
   tenorMonths?: number;
-  startDate?: string;
+  // null clears a previously set Tanggal Akad.
+  startDate?: string | null;
   installmentAmount?: string;
   fixedRateMonths?: number;
   floatingRate?: string;

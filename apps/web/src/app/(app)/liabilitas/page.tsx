@@ -361,7 +361,7 @@ interface LiabilityBody {
   notes?: string;
   interestMethod: InterestMethod;
   tenorMonths?: number;
-  startDate?: string;
+  startDate?: string | null;
   installmentAmount?: string;
   fixedRateMonths?: number;
   floatingRate?: string;
@@ -517,8 +517,13 @@ function LiabilityModal({
       notes: notes.trim() || undefined,
       interestMethod,
       tenorMonths: usesTenor && tenorDigits ? Number(tenorDigits) : undefined,
-      startDate:
-        usesTenor && startDate ? new Date(startDate).toISOString() : undefined,
+      startDate: !usesTenor
+        ? undefined
+        : startDate
+          ? new Date(startDate).toISOString()
+          : editing?.startDate
+            ? null
+            : undefined,
       installmentAmount: usesTenor
         ? toDigits(installmentAmount) || undefined
         : undefined,
