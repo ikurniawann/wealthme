@@ -53,6 +53,13 @@ function makePrisma() {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    // Revisi K — no K rows by default, so every G test runs on the legacy columns.
+    liabilityRatePeriod: {
+      findMany: jest.fn().mockResolvedValue([]),
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    liabilityFloatingRate: { findMany: jest.fn().mockResolvedValue([]) },
     account: {
       findUnique: jest.fn(),
       update: jest.fn(),

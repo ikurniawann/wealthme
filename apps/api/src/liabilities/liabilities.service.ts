@@ -31,8 +31,8 @@ import {
   currentInstallment,
   defaultInterestMethod,
   dueInstallment,
+  dueInstallmentPeriod,
   parseRateScaledByHundred,
-  rateForPeriod,
   ratePlanOf,
   splitPayment,
   type InterestMethod,
@@ -40,6 +40,13 @@ import {
   type ScheduleInput,
   type ScheduleRow,
 } from "./amortisation.util";
+import {
+  EMPTY_RATE_PLAN_ROWS,
+  loadRatePlanRows,
+  ratePlanFromRows,
+  type RatePlanClient,
+  type RatePlanRows,
+} from "./rate-plan.rows";
 import {
   hasFloatingSegment,
   rateAt,
@@ -101,6 +108,7 @@ export type LiabilityRow = {
   fixedRateMonths: number | null;
   floatingRate: { toString(): string } | null;
   kprScheme?: KprSchemeValue | null;
+  ratePlanRows?: RatePlanRows;
   principalCategoryId?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -119,6 +127,7 @@ type InstallmentTerms = Pick<
   | "startDate"
   | "fixedRateMonths"
   | "floatingRate"
+  | "ratePlanRows"
 >;
 
 /** Schedule inputs from the liability's current state, starting at `firstPeriod` (default: the installment due on or after `now`). */
@@ -143,6 +152,9 @@ function scheduleInputFor(
     firstPeriod: first,
     fixedRateMonths: liability.fixedRateMonths,
     floatingRatePercent: liability.floatingRate?.toString() ?? null,
+    ratePlan: liability.ratePlanRows
+      ? ratePlanFromRows(liability.ratePlanRows, liability)
+      : undefined,
   };
 }
 
@@ -199,6 +211,15 @@ function rateBandsFor(
   return bands;
 }
 
+async function withRatePlan<T extends { id: string }>(
+  client: RatePlanClient,
+  familyGroupId: string,
+  row: T,
+): Promise<T & { ratePlanRows: RatePlanRows }> {
+  const rows = await loadRatePlanRows(client, familyGroupId, [row.id]);
+  return { ...row, ratePlanRows: rows.get(row.id) ?? EMPTY_RATE_PLAN_ROWS };
+}
+
 function toLiabilityDto(
   liability: LiabilityRow,
   paidThisPeriod = false,
@@ -242,7 +263,11 @@ function toLiabilityDto(
     fixedRateMonths: liability.fixedRateMonths,
     floatingRate: liability.floatingRate?.toString() ?? null,
     kprScheme: liability.kprScheme ?? null,
-    ratePeriods: [],
+    ratePeriods: (liability.ratePlanRows?.ratePeriods ?? []).map((row) => ({
+      kind: row.kind,
+      months: row.months,
+      ratePercent: row.ratePercent.toString(),
+    })),
     currentRatePercent: currentRateFor(liability, now),
     currentInstallmentLate: dueInstallment(
       liability.startDate,
@@ -298,13 +323,10 @@ function splitLiabilityPayment(
   const split = splitPayment({
     paymentAmount,
     remainingBalance: liability.remainingBalance,
-    annualInterestRatePercent: rateForPeriod({
-      period: dueInstallment(liability.startDate, now, liability.tenorMonths)
-        .period,
-      baseRatePercent: liability.interestRate.toString(),
-      fixedRateMonths: liability.fixedRateMonths,
-      floatingRatePercent: liability.floatingRate?.toString() ?? null,
-    }),
+    annualInterestRatePercent: rateAt(
+      ratePlanOf(scheduleInputFor(liability, now)),
+      dueInstallmentPeriod(liability.startDate, now, liability.tenorMonths),
+    ).ratePercent,
     rateIsMonthly: liability.type === "kartu_kredit",
     method: liability.interestMethod,
     originalPrincipal: liability.totalDebt,
@@ -350,7 +372,18 @@ export class LiabilitiesService {
       liabilities.map((l) => l.id),
     );
 
-    return liabilities.map((l) => toLiabilityDto(l, paidSet.has(l.id), now));
+    const plans = await loadRatePlanRows(
+      this.prisma,
+      familyGroupId,
+      liabilities.map((l) => l.id),
+    );
+    return liabilities.map((l) =>
+      toLiabilityDto(
+        { ...l, ratePlanRows: plans.get(l.id) },
+        paidSet.has(l.id),
+        now,
+      ),
+    );
   }
 
   /**
@@ -429,7 +462,8 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
 
-    const input = scheduleInputFor(liability, now);
+    const planned = await withRatePlan(this.prisma, familyGroupId, liability);
+    const input = scheduleInputFor(planned, now);
     const rows = buildSchedule(input);
     const plan = ratePlanOf(input);
 
@@ -783,6 +817,22 @@ export class LiabilitiesService {
     });
   }
 
+  /** Revisi K — re-derives this liability's budget line after its rate plan changed the current installment. */
+  async resyncBudgetLine(
+    tx: TxClient,
+    familyGroupId: string,
+    liability: LiabilityRow,
+    now: Date,
+  ): Promise<void> {
+    if (liability.minimumPayment <= BigInt(0)) return;
+    await this.syncPrincipalBudgetLine(
+      tx,
+      familyGroupId,
+      liability,
+      budgetContribution(liability, now),
+    );
+  }
+
   /**
    * EPIC-023 E2 (D11) — CRITICAL 2 (group E retry round 3): the previous
    * "redesigned by HIGH 4" version of this method silently `deleteMany`'d
@@ -925,8 +975,9 @@ export class LiabilitiesService {
     if (!liability) {
       throw new NotFoundException("Liability not found");
     }
+    const planned = await withRatePlan(this.prisma, familyGroupId, liability);
     const { interest, principal } = splitLiabilityPayment(
-      liability,
+      planned,
       paymentAmount,
       now,
     );
@@ -935,7 +986,7 @@ export class LiabilitiesService {
       amount: paymentAmount.toString(),
       interest: interest.toString(),
       principal: principal.toString(),
-      remainingAfter: (liability.remainingBalance - principal).toString(),
+      remainingAfter: (planned.remainingBalance - principal).toString(),
     };
   }
 
@@ -956,6 +1007,7 @@ export class LiabilitiesService {
     if (!liability) {
       throw new NotFoundException("Liability not found");
     }
+    const planned = await withRatePlan(tx, familyGroupId, liability);
 
     // CRITICAL 1 (group E retry round 3) — the previous "already paid" guard
     // was a disabled BUTTON ONLY on the web page; neither this method nor
@@ -995,7 +1047,7 @@ export class LiabilitiesService {
     }
 
     const { interest, principal } = splitLiabilityPayment(
-      liability,
+      planned,
       paymentAmount,
       now,
     );
@@ -1059,7 +1111,7 @@ export class LiabilitiesService {
         { ...liability, principalCategoryId },
         budgetContribution(
           {
-            ...liability,
+            ...planned,
             remainingBalance: liability.remainingBalance - principal,
           },
           now,
@@ -1119,7 +1171,11 @@ export class LiabilitiesService {
     }
 
     return {
-      liability: toLiabilityDto(updated, false, now),
+      liability: toLiabilityDto(
+        { ...updated, ratePlanRows: planned.ratePlanRows },
+        false,
+        now,
+      ),
       principalCategoryId,
     };
   }
