@@ -1905,6 +1905,65 @@ describe("LiabilitiesService", () => {
         data: { remainingBalance: { decrement: BigInt(785_517) } },
       });
     });
+
+    describe("pay: the rate period is the installment being settled (final fix 1)", () => {
+      const KPR_2026 = {
+        ...BASE,
+        type: "kpr",
+        interestMethod: "anuitas",
+        totalDebt: BigInt(500_000_000),
+        remainingBalance: BigInt(465_590_716),
+        interestRate: { toString: () => "8.00" },
+        tenorMonths: 240,
+        startDate: new Date("2026-01-15T00:00:00.000Z"),
+        installmentAmount: BigInt(4_182_200),
+        minimumPayment: BigInt(4_182_200),
+        fixedRateMonths: 36,
+        floatingRate: { toString: () => "11.00" },
+        principalCategoryId: "cat-principal",
+      };
+
+      async function payOn(now: string) {
+        prisma.liability.findUnique.mockResolvedValue(KPR_2026);
+        prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+        prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+        prisma.liability.update.mockResolvedValue(KPR_2026);
+        await service.pay(
+          "fg-1",
+          "lid-1",
+          { sourceAccountId: "acc-1", amount: "5053432" },
+          new Date(now),
+        );
+      }
+
+      it("paying installment #36 on its due date still books the fixed rate", async () => {
+        await payOn("2029-01-15T08:00:00.000Z");
+
+        // 465,590,716 × 0.08/12 = 3,103,938 interest -> 1,949,494 principal.
+        expect(prisma.liability.update).toHaveBeenCalledWith({
+          where: { id: "lid-1", familyGroupId: "fg-1" },
+          data: { remainingBalance: { decrement: BigInt(1_949_494) } },
+        });
+      });
+
+      it("paying installment #37 on its due date books the floating rate", async () => {
+        await payOn("2029-02-15T08:00:00.000Z");
+
+        expect(prisma.liability.update).toHaveBeenCalledWith({
+          where: { id: "lid-1", familyGroupId: "fg-1" },
+          data: { remainingBalance: { decrement: BigInt(785_517) } },
+        });
+      });
+
+      it("paying before the first due date counts as installment #1, never period 0", async () => {
+        await payOn("2026-02-01T08:00:00.000Z");
+
+        expect(prisma.liability.update).toHaveBeenCalledWith({
+          where: { id: "lid-1", familyGroupId: "fg-1" },
+          data: { remainingBalance: { decrement: BigInt(1_949_494) } },
+        });
+      });
+    });
   });
 
   describe("getSchedule (revisi G)", () => {

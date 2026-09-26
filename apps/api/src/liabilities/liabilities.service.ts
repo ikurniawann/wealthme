@@ -168,8 +168,9 @@ function resolveInstallment(terms: {
   });
 }
 
-function currentPeriod(startDate: Date | null, now: Date): number {
-  return startDate ? monthsElapsed(startDate, now) + 1 : 1;
+// Installment k falls due k months after the akad, so a payment settles installment max(1, elapsed).
+function settledPeriod(startDate: Date | null, now: Date): number {
+  return startDate ? Math.max(1, monthsElapsed(startDate, now)) : 1;
 }
 
 @Injectable()
@@ -733,6 +734,7 @@ export class LiabilitiesService {
     familyGroupId: string,
     id: string,
     dto: PayLiabilityDto,
+    now: Date = new Date(),
   ): Promise<LiabilityResponseDto> {
     const paymentAmount = guardBigInt("amount", dto.amount);
     if (paymentAmount <= BigInt(0)) {
@@ -741,7 +743,7 @@ export class LiabilitiesService {
 
     const { liability, principalCategoryId } = await runSerializableWithRetry(
       this.prisma,
-      (tx) => this.runPayment(tx, familyGroupId, id, dto, paymentAmount),
+      (tx) => this.runPayment(tx, familyGroupId, id, dto, paymentAmount, now),
     );
 
     // H5 (group E retry round 4) — `purchase()` already fired this same
@@ -768,6 +770,7 @@ export class LiabilitiesService {
     id: string,
     dto: PayLiabilityDto,
     paymentAmount: bigint,
+    now: Date,
   ): Promise<{
     liability: LiabilityResponseDto;
     principalCategoryId: string | null;
@@ -820,7 +823,7 @@ export class LiabilitiesService {
       paymentAmount,
       remainingBalance: liability.remainingBalance,
       annualInterestRatePercent: rateForPeriod({
-        period: currentPeriod(liability.startDate, new Date()),
+        period: settledPeriod(liability.startDate, now),
         baseRatePercent: liability.interestRate.toString(),
         fixedRateMonths: liability.fixedRateMonths,
         floatingRatePercent: liability.floatingRate?.toString() ?? null,
@@ -862,7 +865,7 @@ export class LiabilitiesService {
       data: { remainingBalance: { decrement: principal } },
     });
 
-    const occurredAt = new Date();
+    const occurredAt = now;
 
     // CRITICAL 3 (group E retry round 3) — `syncPrincipalBudgetLine` used to
     // only ever be called from `create()`/`update()`. `pay()` self-healed
