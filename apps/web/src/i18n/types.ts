@@ -1945,6 +1945,9 @@ export type I18nDictionary = {
     amortisationScheduleHeaderInstallment: string;
     amortisationScheduleLoading: string;
     amortisationScheduleError: string;
+    payPreviewLoading: string;
+    payPreviewError: string;
+    payoffProjectionError: string;
     detailTenorLabel: string;
     tenorMonthsSuffix: string;
   };

@@ -2085,6 +2085,10 @@ export const id = {
     amortisationScheduleHeaderInstallment: "Angsuran",
     amortisationScheduleLoading: "Memuat jadwal…",
     amortisationScheduleError: "Jadwal amortisasi gagal dimuat.",
+    payPreviewLoading: "Menghitung pokok dan bunga…",
+    payPreviewError: "Rincian pokok dan bunga gagal dihitung.",
+    payoffProjectionError:
+      "Proyeksi gagal dimuat karena jadwal cicilan tidak tersedia.",
     detailTenorLabel: "Tenor",
     tenorMonthsSuffix: " bulan",
   },

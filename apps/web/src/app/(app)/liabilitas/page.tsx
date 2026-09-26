@@ -17,6 +17,7 @@ import {
 import { useSession } from "@/lib/auth-compat";
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type QueryClient,
@@ -54,6 +55,7 @@ import { TrendChart } from "@/components/charts/apex-presets";
 import type {
   InterestMethod,
   LiabilityDto,
+  LiabilityPaymentPreviewDto,
   LiabilityScheduleDto,
   LiabilityType,
   NetWorthDto,
@@ -114,74 +116,51 @@ function invalidateLiabilityRelatedQueries(
   });
 }
 
-/**
- * Client-side amortisation PREVIEW only — mirrors the shape of the backend's
- * `splitPayment` (apps/api/src/liabilities/amortisation.util.ts) using plain
- * numbers (not BigInt) since this never posts a transaction itself; the real
- * split for an actual payment is always computed server-side in `pay()`.
- */
-function computeAmortisationPreview(
-  remainingBalance: number,
-  monthlyPaymentAmount: number,
-  annualRatePercent: number,
-  rateIsMonthly = false,
-): {
-  monthlyInterest: number;
-  monthlyPrincipal: number;
-  months: number | null;
-} {
-  // EPIC-033 p20 — cards quote "Bunga/Bulan", so no /12 for them.
-  const monthlyRate = rateIsMonthly
-    ? annualRatePercent / 100
-    : annualRatePercent / 100 / 12;
-  const monthlyInterest = Math.min(
-    Math.round(remainingBalance * monthlyRate),
-    monthlyPaymentAmount,
-  );
-  const monthlyPrincipal = Math.max(
-    0,
-    Math.min(monthlyPaymentAmount - monthlyInterest, remainingBalance),
-  );
-  const months =
-    monthlyPrincipal > 0
-      ? Math.ceil(remainingBalance / monthlyPrincipal)
-      : null;
-  return { monthlyInterest, monthlyPrincipal, months };
+// Prefix of queryKeys.liabilities.all, so every liability mutation refreshes it.
+function scheduleQueryOptions(
+  familyGroupId: string,
+  liabilityId: string,
+  token: string | undefined,
+) {
+  return {
+    queryKey: ["liabilities", familyGroupId, "schedule", liabilityId],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      apiFetch<LiabilityScheduleDto>(
+        `/family-groups/${familyGroupId}/liabilities/${liabilityId}/schedule`,
+        { token, signal },
+      ),
+  };
 }
 
+const PROJECTION_MONTHS = 6;
+
 /**
- * EPIC-025 N3-F4 (J3 — payoff projection, FOLD): pure client-side 6-month
- * roll-forward of the SAME amortisation preview math as
- * `computeAmortisationPreview` above, summed across every liability with a
- * positive minimumPayment. A liability with no minimumPayment set has no
- * knowable payoff schedule, so its balance is carried flat rather than
- * guessed — never fabricated.
+ * Month-by-month total remaining balance, read off each liability's server
+ * schedule (`remaining` after installment m). A liability without a schedule
+ * is carried flat rather than guessed.
  */
-function projectRemainingBalance(liabilities: LiabilityDto[]): number[] {
-  const months = 6;
-  const balances = liabilities.map((l) =>
-    l.remainingBalance ? Number(BigInt(l.remainingBalance)) : 0,
+function projectRemainingBalance(
+  liabilities: LiabilityDto[],
+  schedules: ReadonlyMap<string, LiabilityScheduleDto>,
+): number[] {
+  return Array.from({ length: PROJECTION_MONTHS }, (_, month) =>
+    liabilities.reduce((sum, l) => {
+      const rows = schedules.get(l.id)?.rows ?? [];
+      const row = rows[Math.min(month, rows.length - 1)];
+      return sum + Number(row ? row.remaining : l.remainingBalance);
+    }, 0),
   );
-  const totals: number[] = [];
-  for (let m = 0; m < months; m += 1) {
-    for (let i = 0; i < liabilities.length; i += 1) {
-      const l = liabilities[i];
-      if (!l) continue;
-      const minimumPayment = l.minimumPayment
-        ? Number(BigInt(l.minimumPayment))
-        : 0;
-      if (minimumPayment <= 0 || (balances[i] ?? 0) <= 0) continue;
-      const { monthlyPrincipal } = computeAmortisationPreview(
-        balances[i] ?? 0,
-        minimumPayment,
-        parseFloat(l.interestRate) || 0,
-        l.type === "kartu_kredit",
-      );
-      balances[i] = Math.max(0, (balances[i] ?? 0) - monthlyPrincipal);
-    }
-    totals.push(balances.reduce((sum, b) => sum + b, 0));
-  }
-  return totals;
+}
+
+const PREVIEW_DEBOUNCE_MS = 300;
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -1070,8 +1049,8 @@ function LiabilityCard({
 
 // ── Detail Dialog ─────────────────────────────────────────────────────────
 // EPIC-024 group G (G1) — read-only Detail dialog: full field info + a
-// client-side amortisation summary (US-LIAB-6). Honestly labeled as an
-// estimate (`amortisationDisclaimer`) — no schedule is persisted server-side.
+// server-projected amortisation schedule (US-LIAB-6). Labeled as an estimate
+// (`amortisationDisclaimer`): projected from current state, nothing persisted.
 
 function LiabilityDetailDialog({
   item,
@@ -1097,16 +1076,8 @@ function LiabilityDetailDialog({
   const minimumPayment = item ? installmentDue(item) : 0;
   const interestRatePercent = item ? parseFloat(item.interestRate) || 0 : 0;
   const scheduleQuery = useQuery<LiabilityScheduleDto>({
-    // Prefix of queryKeys.liabilities.all, so every liability mutation refreshes it.
-    queryKey: ["liabilities", familyGroupId ?? "", "schedule", item?.id ?? ""],
+    ...scheduleQueryOptions(familyGroupId ?? "", item?.id ?? "", token),
     enabled: Boolean(item && familyGroupId && token),
-    queryFn: ({ signal }) => {
-      if (!item || !familyGroupId) throw new Error("liability not selected");
-      return apiFetch<LiabilityScheduleDto>(
-        `/family-groups/${familyGroupId}/liabilities/${item.id}/schedule`,
-        { token, signal },
-      );
-    },
   });
   const scheduleRows = scheduleQuery.data?.rows ?? [];
   const firstRow = scheduleRows[0];
@@ -1376,12 +1347,14 @@ function LiabilityDetailDialog({
 // ── Pay Dialog ─────────────────────────────────────────────────────────────
 // EPIC-024 group G (G1) — records a REAL payment via
 // `POST .../liabilities/:id/pay`: debits the chosen source account, and the
-// server splits principal/interest (`splitPayment`). This dialog's
-// principal/interest numbers are only a client-side PREVIEW of that split —
-// the authoritative split always happens server-side.
+// server splits principal/interest (`splitPayment`). The preview below comes
+// from `GET .../:id/payment-preview`, the same split `pay()` books; the web
+// does no interest math of its own.
 
 function PayLiabilityDialog({
   item,
+  familyGroupId,
+  token,
   accounts,
   amount,
   onAmountChange,
@@ -1392,6 +1365,8 @@ function PayLiabilityDialog({
   onConfirm,
 }: {
   item: LiabilityDto | null;
+  familyGroupId: string | undefined;
+  token: string | undefined;
   accounts: AccountDto[];
   amount: string;
   onAmountChange: (v: string) => void;
@@ -1405,14 +1380,29 @@ function PayLiabilityDialog({
   const parsedAmount = parseRupiah(amount);
   const remainingBalance = item ? Number(BigInt(item.remainingBalance)) : 0;
   const minimumPayment = item ? installmentDue(item) : 0;
-  const preview = item
-    ? computeAmortisationPreview(
-        remainingBalance,
-        parsedAmount,
-        parseFloat(item.interestRate) || 0,
-        item.type === "kartu_kredit",
-      )
-    : { monthlyInterest: 0, monthlyPrincipal: 0, months: null };
+  const previewAmount = useDebouncedValue(parsedAmount, PREVIEW_DEBOUNCE_MS);
+  const previewQuery = useQuery<LiabilityPaymentPreviewDto>({
+    queryKey: [
+      "liabilities",
+      familyGroupId ?? "",
+      "payment-preview",
+      item?.id ?? "",
+      previewAmount,
+    ],
+    enabled: Boolean(item && familyGroupId && token && previewAmount > 0),
+    retry: false,
+    queryFn: ({ signal }) => {
+      if (!item || !familyGroupId) throw new Error("liability not selected");
+      return apiFetch<LiabilityPaymentPreviewDto>(
+        `/family-groups/${familyGroupId}/liabilities/${item.id}/payment-preview?amount=${previewAmount}`,
+        { token, signal },
+      );
+    },
+  });
+  const preview =
+    previewAmount === parsedAmount && !previewQuery.isFetching
+      ? previewQuery.data
+      : undefined;
 
   // Prototype's `.segmented` amount presets (liabilitas.html:524). The
   // prototype offers "Cicilan penuh / Minimum / Pelunasan sebagian"; the API
@@ -1535,40 +1525,64 @@ function PayLiabilityDialog({
                   user's choice (Honest UI). */}
 
               {/* Prototype's `notice notice--info` split preview
-                  (liabilitas.html:566) — a client-side PREVIEW; the
-                  authoritative split is computed server-side by `pay()`. */}
-              {parsedAmount > 0 && (
-                <div className="notice notice--info mt-3.5">
-                  <Split className="size-4 shrink-0" aria-hidden="true" />
-                  <span>
-                    <strong>
-                      {t.liabilitas.payPrincipalPreviewLabel}{" "}
-                      <span className="mono">
-                        {formatRupiah(preview.monthlyPrincipal)}
-                      </span>
-                    </strong>{" "}
-                    ·{" "}
-                    <strong>
-                      {t.liabilitas.payInterestPreviewLabel}{" "}
-                      <span className="mono">
-                        {formatRupiah(preview.monthlyInterest)}
-                      </span>
-                    </strong>
-                    <br />
-                    <span className="t-xs">
-                      {t.liabilitas.payRemainingAfterLabel}:{" "}
-                      <span className="mono">
-                        {formatRupiah(
-                          Math.max(
-                            0,
-                            remainingBalance - preview.monthlyPrincipal,
-                          ),
-                        )}
+                  (liabilitas.html:566), computed server-side by the same
+                  split `pay()` books. */}
+              {parsedAmount > 0 &&
+                (previewQuery.isError && previewAmount === parsedAmount ? (
+                  <div className="notice notice--danger mt-3.5" role="alert">
+                    <TriangleAlert
+                      className="size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {extractApiErrorMessage(
+                        previewQuery.error,
+                        t.liabilitas.payPreviewError,
+                      )}
+                    </span>
+                  </div>
+                ) : preview ? (
+                  <div className="notice notice--info mt-3.5">
+                    <Split className="size-4 shrink-0" aria-hidden="true" />
+                    <span>
+                      <strong>
+                        {t.liabilitas.payPrincipalPreviewLabel}{" "}
+                        <span className="mono">
+                          {formatRupiah(Number(preview.principal))}
+                        </span>
+                      </strong>{" "}
+                      ·{" "}
+                      <strong>
+                        {t.liabilitas.payInterestPreviewLabel}{" "}
+                        <span className="mono">
+                          {formatRupiah(Number(preview.interest))}
+                        </span>
+                      </strong>
+                      <br />
+                      <span className="t-xs">
+                        {t.liabilitas.payRemainingAfterLabel}:{" "}
+                        <span className="mono">
+                          {formatRupiah(Number(preview.remainingAfter))}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div
+                    className="notice notice--info mt-3.5"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Split className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="flex-1">
+                      <span className="sr-only">
+                        {t.liabilitas.payPreviewLoading}
+                      </span>
+                      <Bone className="h-3.5 w-3/4" />
+                      <Bone className="mt-2 h-3 w-1/2" />
+                    </span>
+                  </div>
+                ))}
             </DialogBody>
           </>
         )}
@@ -1767,12 +1781,29 @@ export default function LiabilitasPage() {
     (l) => activeTypeFilter === "semua" || l.type === activeTypeFilter,
   );
 
-  // Payoff projection (FOLD per J3 — pure client-side amortization, no
-  // fetch). The prototype's chart is CUT-equivalent honesty-wise only in
-  // the sense that it's an estimate — labeled as such via the same
-  // disclaimer copy the Detail dialog already uses.
+  // Payoff projection read off each scheduled liability's server schedule
+  // (same query the Detail dialog uses, so the cache is shared).
+  const scheduledLiabilities = (liabilities ?? []).filter(
+    (l) => installmentDue(l) > 0,
+  );
+  const projectionSchedules = useQueries({
+    queries: scheduledLiabilities.map((l) => ({
+      ...scheduleQueryOptions(familyGroupId ?? "", l.id, token),
+      enabled: Boolean(familyGroupId && token),
+    })),
+    combine: (results) => ({
+      isPending: results.some((r) => r.isPending),
+      isError: results.some((r) => r.isError),
+      byId: new Map(
+        results.flatMap((r) => (r.data ? [[r.data.liabilityId, r.data]] : [])),
+      ) as ReadonlyMap<string, LiabilityScheduleDto>,
+    }),
+  });
   const payoffProjectionMonths = nextSixMonthLabels(locale);
-  const payoffProjectionSeries = projectRemainingBalance(liabilities ?? []);
+  const payoffProjectionSeries = projectRemainingBalance(
+    liabilities ?? [],
+    projectionSchedules.byId,
+  );
 
   return (
     <div className="space-y-4">
@@ -1910,13 +1941,21 @@ export default function LiabilitasPage() {
         ))
       )}
 
-      {/* Payoff projection (FOLD per J3 — pure client-side amortization
-          roll-forward, no fetch) */}
-      {!isLoading &&
-        (liabilities ?? []).some(
-          (l) => l.minimumPayment && Number(BigInt(l.minimumPayment)) > 0,
-        ) && (
-          <SectionCard title={t.liabilitas.payoffProjectionTitle}>
+      {!isLoading && scheduledLiabilities.length > 0 && (
+        <SectionCard title={t.liabilitas.payoffProjectionTitle}>
+          {projectionSchedules.isError ? (
+            <p className="notice notice--danger" role="alert">
+              <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+              <span>{t.liabilitas.payoffProjectionError}</span>
+            </p>
+          ) : projectionSchedules.isPending ? (
+            <div role="status" aria-live="polite">
+              <span className="sr-only">
+                {t.liabilitas.amortisationScheduleLoading}
+              </span>
+              <Bone className="h-[220px] w-full" />
+            </div>
+          ) : (
             <TrendChart
               categories={payoffProjectionMonths}
               series={[
@@ -1927,11 +1966,12 @@ export default function LiabilitasPage() {
               ]}
               ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${formatRupiah(Number(totalRemaining))} → ${formatRupiah(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
             />
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {t.liabilitas.amortisationDisclaimer}
-            </p>
-          </SectionCard>
-        )}
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {t.liabilitas.amortisationDisclaimer}
+          </p>
+        </SectionCard>
+      )}
 
       {showAddModal && familyGroupId && (
         <LiabilityModal
@@ -1971,6 +2011,8 @@ export default function LiabilitasPage() {
 
       <PayLiabilityDialog
         item={payTarget}
+        familyGroupId={familyGroupId ?? undefined}
+        token={token}
         accounts={accounts}
         amount={payAmount}
         onAmountChange={setPayAmount}

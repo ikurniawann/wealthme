@@ -118,6 +118,7 @@ const SCHEDULE_ROWS: LiabilityScheduleRowDto[] = [
 ];
 let scheduleRows: LiabilityScheduleRowDto[] = SCHEDULE_ROWS;
 let scheduleOutcome: "ok" | "error" = "ok";
+let previewOutcome: "ok" | "exceeds" = "ok";
 
 const mockApiFetch = jest.fn(
   (url: string, options?: { method?: string; body?: string }) => {
@@ -153,6 +154,23 @@ const mockApiFetch = jest.fn(
         interestMethod: "efektif",
         installmentAmount: null,
         rows: scheduleRows,
+      });
+    }
+    const previewPrefix = `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/payment-preview?amount=`;
+    if (url.startsWith(previewPrefix)) {
+      if (previewOutcome === "exceeds") {
+        return Promise.reject({
+          status: 400,
+          message:
+            "Payment amount exceeds the remaining balance plus interest due (max 8180000)",
+        });
+      }
+      return Promise.resolve({
+        liabilityId: "liab-1",
+        amount: url.slice(previewPrefix.length),
+        interest: "212345",
+        principal: "587655",
+        remainingAfter: "7412345",
       });
     }
     if (
@@ -258,6 +276,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     createdInstallment = null;
     scheduleRows = SCHEDULE_ROWS;
     scheduleOutcome = "ok";
+    previewOutcome = "ok";
 
     mockUseSessionAuth.mockReturnValue({
       data: {
@@ -708,5 +727,51 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       ) as Record<string, unknown>;
       expect(body.startDate).toBeNull();
     });
+  });
+
+  it("Pay preview shows the server's split for the typed amount, never client math (final fix 3)", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Bayar" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(await dialog.findByText("Rp 587.655")).toBeInTheDocument();
+    expect(dialog.getByText("Rp 212.345")).toBeInTheDocument();
+    expect(dialog.getByText("Rp 7.412.345")).toBeInTheDocument();
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/payment-preview?amount=800000`,
+      expect.any(Object),
+    );
+  });
+
+  it("Pay preview surfaces the server's refusal instead of a fabricated split", async () => {
+    previewOutcome = "exceeds";
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Bayar" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(
+      await dialog.findByText(
+        /exceeds the remaining balance plus interest due/,
+      ),
+    ).toBeInTheDocument();
+    expect(dialog.queryByText(/Estimasi Pokok/)).not.toBeInTheDocument();
+  });
+
+  it("payoff projection is built from the server schedule rows (final fix 3)", async () => {
+    render(<LiabilitasPage />);
+
+    expect(
+      await screen.findByRole("img", {
+        name: "Proyeksi Sisa Utang 6 Bulan: Rp 8.000.000 → Rp 0",
+      }),
+    ).toBeInTheDocument();
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/schedule`,
+      expect.any(Object),
+    );
   });
 });

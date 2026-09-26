@@ -2049,6 +2049,10 @@ export const en = {
     amortisationScheduleHeaderInstallment: "Installment",
     amortisationScheduleLoading: "Loading schedule…",
     amortisationScheduleError: "Could not load the amortisation schedule.",
+    payPreviewLoading: "Calculating principal and interest…",
+    payPreviewError: "Could not calculate the principal and interest split.",
+    payoffProjectionError:
+      "Could not load the projection: the installment schedule is unavailable.",
     detailTenorLabel: "Tenor",
     tenorMonthsSuffix: " months",
   },
