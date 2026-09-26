@@ -735,6 +735,99 @@ function slugifyHandleBase(name) {
   const base = (word ?? "").replace(/[^a-z0-9]/g, "").slice(0, 16);
   return base.length >= 3 ? base : "keluarga";
 }
+
+// src/fx/index.ts
+import { z as z13 } from "zod";
+
+// src/fx/currencies.ts
+var FX_CURRENCY_CODES = [
+  "IDR",
+  "USD",
+  "SGD",
+  "EUR",
+  "JPY",
+  "AUD",
+  "CNY"
+];
+var FOREIGN_FX_CURRENCY_CODES = FX_CURRENCY_CODES.filter(
+  (c) => c !== "IDR"
+);
+var FX_CURRENCY_DECIMALS = {
+  IDR: 0,
+  USD: 2,
+  SGD: 2,
+  EUR: 2,
+  JPY: 0,
+  AUD: 2,
+  CNY: 2
+};
+var FX_RATE_SCALE = 6;
+
+// src/fx/money.ts
+var DECIMAL_RE = /^(-?)(\d+)(?:\.(\d+))?$/;
+function isFxCurrency(value) {
+  return FX_CURRENCY_CODES.includes(value);
+}
+function parseScaled(value, scale) {
+  const match = DECIMAL_RE.exec(value);
+  if (!match) throw new RangeError(`"${value}" is not a decimal number`);
+  const [, sign, intPart, frac = ""] = match;
+  if (frac.length > scale) {
+    throw new RangeError(`"${value}" has more than ${scale} decimal places`);
+  }
+  const magnitude = BigInt(`${intPart}${frac.padEnd(scale, "0")}`);
+  return sign === "-" ? -magnitude : magnitude;
+}
+function parseMinor(amount, currency) {
+  return parseScaled(amount, FX_CURRENCY_DECIMALS[currency]);
+}
+function divRoundHalfUp(n, d) {
+  if (d <= 0n) throw new RangeError("divisor must be positive");
+  const negative = n < 0n;
+  const magnitude = negative ? -n : n;
+  const quotient = (magnitude * 2n + d) / (2n * d);
+  return negative ? -quotient : quotient;
+}
+function formatScaled(value, scale) {
+  const negative = value < 0n;
+  const digits = (negative ? -value : value).toString().padStart(scale + 1, "0");
+  const body = scale === 0 ? digits : `${digits.slice(0, -scale)}.${digits.slice(-scale)}`;
+  return negative ? `-${body}` : body;
+}
+function convertToIdr(input) {
+  const decimals = FX_CURRENCY_DECIMALS[input.currency];
+  const minor = parseScaled(input.amount, decimals);
+  if (input.currency === "IDR") return minor * 10n ** BigInt(input.targetScale);
+  const rate = parseScaled(input.idrPerUnit, FX_RATE_SCALE);
+  if (rate <= 0n)
+    throw new RangeError(`rate for ${input.currency} must be positive`);
+  const shift = decimals + FX_RATE_SCALE - input.targetScale;
+  return divRoundHalfUp(minor * rate, 10n ** BigInt(shift));
+}
+function deriveIdrPerUnit(eurToIdr, eurToX) {
+  const idr = parseScaled(eurToIdr, FX_RATE_SCALE);
+  const x = parseScaled(eurToX, FX_RATE_SCALE);
+  return formatScaled(
+    divRoundHalfUp(idr * 10n ** BigInt(FX_RATE_SCALE), x),
+    FX_RATE_SCALE
+  );
+}
+
+// src/fx/index.ts
+var FxCurrencyCodeSchema = z13.enum(FX_CURRENCY_CODES);
+var FxInputSchema = z13.object({
+  field: z13.string().min(1).max(96),
+  currency: FxCurrencyCodeSchema.exclude(["IDR"]),
+  amount: z13.string().regex(/^-?\d{1,13}(\.\d{1,2})?$/)
+});
+var FxRatesResponseSchema = z13.object({
+  base: z13.string(),
+  rates: z13.record(z13.number()),
+  rateDate: z13.string(),
+  source: z13.enum(["frankfurter", "indicative"]),
+  stale: z13.boolean(),
+  idrPerUnit: z13.record(z13.string())
+});
 export {
   ACCESS_LEVELS,
   ACCESS_PAGES,
@@ -767,6 +860,13 @@ export {
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
   FAMILY_HANDLE_PATTERN,
+  FOREIGN_FX_CURRENCY_CODES,
+  FX_CURRENCY_CODES,
+  FX_CURRENCY_DECIMALS,
+  FX_RATE_SCALE,
+  FxCurrencyCodeSchema,
+  FxInputSchema,
+  FxRatesResponseSchema,
   GENERIC_COA_CHART,
   GoalContributionDtoSchema,
   GoalContributionSourceSchema,
@@ -795,10 +895,17 @@ export {
   buildFamilyLoginId,
   buildReferenceItemSeed,
   canAccessPage,
+  convertToIdr,
   defaultCoaCodeForCategory,
   defaultRoleForRelationship,
+  deriveIdrPerUnit,
+  divRoundHalfUp,
+  formatScaled,
   isFamilyLoginId,
+  isFxCurrency,
   levelAtLeast,
+  parseMinor,
+  parseScaled,
   resolveEffectiveAccess,
   slugifyHandleBase
 };
