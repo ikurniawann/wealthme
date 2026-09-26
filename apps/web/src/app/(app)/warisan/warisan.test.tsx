@@ -76,6 +76,20 @@ const MEMBER_LIST = [
   },
 ];
 
+// Revisi K bug 1 — the family owner (Master) has no kinship `relationship`
+// (it's null, same as an operational member like "sopir").
+const OWNER_MEMBER = {
+  id: "member-owner",
+  userId: "user-owner",
+  familyGroupId: FAMILY_GROUP_ID,
+  role: "owner",
+  relationship: null,
+  name: "Master Keluarga",
+  email: "master@example.com",
+  largeTxnThreshold: null,
+  createdAt: "2026-01-01T00:00:00.000Z",
+};
+
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
 });
@@ -159,6 +173,44 @@ describe("WarisanPage — heir picker (EPIC-023 F1)", () => {
     expect(nameInput).toBeDisabled();
     expect(relationshipInput).toHaveValue("anak");
     expect(relationshipInput).toBeDisabled();
+  });
+
+  // Revisi K bug 1 — root cause: the relationship input was disabled AND
+  // empty whenever the linked member had no `relationship` (owner,
+  // operational members) — the field could never be filled, so the save
+  // always failed the API's `CreateHeirDto.relationship` @IsNotEmpty()
+  // check.
+  it("selecting the owner (null relationship) defaults relationship to 'self' and keeps it editable", async () => {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/inheritance`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/assets`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve([OWNER_MEMBER]);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+    render(<WarisanPage />);
+    const user = await openHeirEditor();
+
+    const memberSelect = await screen.findByRole("combobox", {
+      name: /hubungkan ke anggota keluarga/i,
+    });
+    await user.selectOptions(memberSelect, "user-owner");
+
+    const relationshipInput = screen.getByPlaceholderText(/anak, pasangan/i);
+    expect(relationshipInput).toHaveValue(
+      idDict.warisan.heirRelationshipSelfDefault,
+    );
+    expect(relationshipInput).not.toBeDisabled();
+
+    // The user may still edit it — the value is a default, not a lock.
+    await user.clear(relationshipInput);
+    await user.type(relationshipInput, "Kepala keluarga");
+    expect(relationshipInput).toHaveValue("Kepala keluarga");
   });
 
   it("shows an honest note instead of a silently empty picker when the members list 403s", async () => {

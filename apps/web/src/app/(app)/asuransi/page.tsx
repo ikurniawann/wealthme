@@ -45,6 +45,7 @@ import type {
   InsuranceStatus,
   MemberRelationship,
   PremiumPeriod,
+  Role,
   UpdateInsuranceDto,
 } from "@wealthme/contracts";
 
@@ -54,11 +55,15 @@ type CreateInsuranceDtoWithFx = CreateInsuranceDto & { fxInputs?: FxInput[] };
 // the optional "link a beneficiary to a family member" picker. EPIC-023 F1
 // (D14) added `relationship` so selecting a member can live-fill it too —
 // the API's response DTO already carries it (member-response.dto.ts).
+// Revisi K bug 1 — `role` distinguishes the owner (Master), whose
+// `relationship` is always null (not a kinship value), from a member whose
+// relationship is simply unset.
 type FamilyMember = {
   id: string;
   userId: string;
   name: string;
   relationship: MemberRelationship | null;
+  role: Role;
 };
 
 const INSURANCE_TYPE_ICON: Record<string, string> = {
@@ -407,12 +412,21 @@ function BeneficiaryEditor({
                     // Live-fill on selection; the API re-resolves from the
                     // CURRENT member record on every subsequent read
                     // regardless of what is stored here (see comment above).
+                    // Revisi K bug 1 — the owner's `relationship` is always
+                    // null (not a kinship value); default it to "Diri
+                    // sendiri" instead of leaving the (now-editable) field
+                    // blank, which used to fail the API's @IsNotEmpty()
+                    // check on save.
                     updateRow(row.id, {
                       memberUserId,
                       ...(picked
                         ? {
                             name: picked.name,
-                            relationship: picked.relationship ?? "",
+                            relationship:
+                              picked.relationship ??
+                              (picked.role === "owner"
+                                ? t.asuransi.beneficiaryRelationshipSelfDefault
+                                : ""),
                           }
                         : {}),
                     });
@@ -467,12 +481,17 @@ function BeneficiaryEditor({
                   <input
                     id={`beneficiary-relationship-${row.id}`}
                     type="text"
+                    // Revisi K bug 1 — only LOCK the field when the linked
+                    // member actually HAS a relationship; a null one (the
+                    // owner, an operational member) leaves it editable with
+                    // the row's own (possibly defaulted) value instead of
+                    // forcing it blank.
                     value={
-                      linkedMember
-                        ? (linkedMember.relationship ?? "")
+                      linkedMember?.relationship
+                        ? linkedMember.relationship
                         : row.relationship
                     }
-                    disabled={!!linkedMember}
+                    disabled={!!linkedMember?.relationship}
                     onChange={(e) =>
                       updateRow(row.id, { relationship: e.target.value })
                     }

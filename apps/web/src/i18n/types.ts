@@ -1153,6 +1153,10 @@ export type I18nDictionary = {
     beneficiaryNamePlaceholder: string;
     beneficiaryRelationshipLabel: string;
     beneficiaryRelationshipPlaceholder: string;
+    /** Revisi K bug 1 — default relationship text filled in when the picked
+     * member is the family owner (Master), whose `Member.relationship` is
+     * null (it's not a kinship value). */
+    beneficiaryRelationshipSelfDefault: string;
     beneficiarySharePercentLabel: string;
     beneficiaryMemberLabel: string;
     beneficiaryMemberNoneOption: string;
@@ -2805,6 +2809,10 @@ export type I18nDictionary = {
     heirNamePlaceholder: string;
     removeHeirAriaLabel: string;
     heirRelationshipPlaceholder: string;
+    /** Revisi K bug 1 — default relationship text filled in when the picked
+     * member is the family owner (Master), whose `Member.relationship` is
+     * null (it's not a kinship value). */
+    heirRelationshipSelfDefault: string;
     heirSharePercentPlaceholder: string;
     heirMemberAriaLabel: string;
     heirMemberNoneOption: string;

@@ -47,6 +47,7 @@ import type {
   InheritanceAssetDto,
   InheritanceVisibility,
   MemberRelationship,
+  Role,
   UpdateInheritanceAssetDto,
 } from "@wealthme/contracts";
 
@@ -105,11 +106,15 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 // the optional "link a heir to a family member" picker. EPIC-023 F1 (D14)
 // added `relationship` so selecting a member can live-fill it too — the
 // API's response DTO already carries it (member-response.dto.ts).
+// Revisi K bug 1 — `role` distinguishes the owner (Master), whose
+// `relationship` is always null (not a kinship value), from a member whose
+// relationship is simply unset.
 type FamilyMember = {
   id: string;
   userId: string;
   name: string;
   relationship: MemberRelationship | null;
+  role: Role;
 };
 
 // EPIC-021 Group D (#12) — one heir row bound to text inputs; parsed into a
@@ -376,9 +381,13 @@ function HeirEditor({
                 : undefined;
               // Review fix (attempt 2, HIGH) — associate the blank-
               // relationship guard's error with this specific row's input,
-              // not just a toast.
+              // not just a toast. Revisi K bug 1 — only a linked member WITH
+              // a relationship is locked/guaranteed non-blank; one with a
+              // null relationship (owner, operational) is still editable and
+              // can still be invalid.
               const isRelationshipInvalid =
-                !linkedMember && invalidRelationshipHeirIds?.has(row.id);
+                !linkedMember?.relationship &&
+                invalidRelationshipHeirIds?.has(row.id);
               const relationshipErrorId = `heir-relationship-error-${row.id}`;
               return (
                 <tr key={row.id}>
@@ -394,13 +403,21 @@ function HeirEditor({
                           // Live-fill on selection; the API re-resolves from
                           // the CURRENT member record on every subsequent
                           // read regardless of what is stored here (see the
-                          // comment above).
+                          // comment above). Revisi K bug 1 — the owner's
+                          // `relationship` is always null (not a kinship
+                          // value); default it to "Diri sendiri" instead of
+                          // leaving the (now-editable) field blank, which
+                          // used to fail the API's @IsNotEmpty() check.
                           updateRow(row.id, {
                             memberUserId,
                             ...(picked
                               ? {
                                   name: picked.name,
-                                  relationship: picked.relationship ?? "",
+                                  relationship:
+                                    picked.relationship ??
+                                    (picked.role === "owner"
+                                      ? t.warisan.heirRelationshipSelfDefault
+                                      : ""),
                                 }
                               : {}),
                           });
@@ -439,12 +456,17 @@ function HeirEditor({
                   <td>
                     <input
                       type="text"
+                      // Revisi K bug 1 — only LOCK the field when the linked
+                      // member actually HAS a relationship; a null one (the
+                      // owner, an operational member) leaves it editable
+                      // with the row's own (possibly defaulted) value
+                      // instead of forcing it blank.
                       value={
-                        linkedMember
-                          ? (linkedMember.relationship ?? "")
+                        linkedMember?.relationship
+                          ? linkedMember.relationship
                           : row.relationship
                       }
-                      disabled={!!linkedMember}
+                      disabled={!!linkedMember?.relationship}
                       onChange={(e) =>
                         updateRow(row.id, { relationship: e.target.value })
                       }

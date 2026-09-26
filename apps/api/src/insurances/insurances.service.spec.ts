@@ -864,6 +864,43 @@ describe("InsurancesService", () => {
       expect(prisma.member.findMany).not.toHaveBeenCalled();
     });
 
+    // Revisi K — the owner (Master) and operational members (e.g. "sopir")
+    // can have a null `Member.relationship` (it's purely descriptive
+    // kinship, not required). A linked beneficiary must still show the
+    // relationship typed at creation time (e.g. "Diri sendiri"), not fall
+    // through to null/empty just because the member's current record has
+    // none.
+    it("findAll() falls back to the stored relationship when the linked member's CURRENT relationship is null (e.g. the owner)", async () => {
+      prisma.insurance.findMany.mockResolvedValue([
+        {
+          ...BASE_ROW,
+          beneficiaries: [
+            {
+              id: "ben-1",
+              insuranceId: INSURANCE_ID,
+              name: "Budi (Master)",
+              relationship: "Diri sendiri",
+              sharePercent: { toString: () => "100.00" },
+              memberUserId: "user-owner",
+              createdAt: new Date("2024-01-01T00:00:00.000Z"),
+            },
+          ],
+        },
+      ]);
+      prisma.member.findMany.mockResolvedValue([
+        {
+          userId: "user-owner",
+          relationship: null,
+          user: { name: "Budi (Master)" },
+        },
+      ]);
+
+      const [item] = await service.findAll(FAMILY_GROUP_ID);
+
+      expect(item!.beneficiaries[0]!.name).toBe("Budi (Master)");
+      expect(item!.beneficiaries[0]!.relationship).toBe("Diri sendiri");
+    });
+
     // EPIC-023 Group F fix round (MEDIUM 8) — a beneficiary whose linked
     // member was removed from the family must not keep reading as a live
     // link: `memberUserId` is nulled out, and the last-known copy is shown.
