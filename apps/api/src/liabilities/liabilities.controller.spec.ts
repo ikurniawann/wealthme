@@ -83,6 +83,7 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
     "getSummary",
     "getSchedule",
     "previewPayment",
+    "previewPrepayment",
   ] as const;
   const manageRoutes = [
     "create",
@@ -224,4 +225,67 @@ describe("LiabilitiesController — GET :id/payment-preview over HTTP", () => {
     expect(service.previewPayment).not.toHaveBeenCalled();
     await app.close();
   });
+});
+
+describe("LiabilitiesController — GET :id/prepayment-preview over HTTP", () => {
+  async function bootstrap() {
+    const service = {
+      previewPrepayment: jest.fn().mockResolvedValue({
+        liabilityId: "lid-1",
+        mode: "reduce_tenor",
+      }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    await app.init();
+    return { app, service };
+  }
+
+  it("routes mode, amount and penalty to previewPrepayment", async () => {
+    const { app, service } = await bootstrap();
+
+    await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/prepayment-preview")
+      .query({
+        mode: "reduce_tenor",
+        amount: "100000000",
+        penaltyPercent: "1.00",
+      })
+      .expect(200);
+
+    expect(service.previewPrepayment).toHaveBeenCalledWith("fg-1", "lid-1", {
+      mode: "reduce_tenor",
+      amount: "100000000",
+      penaltyPercent: "1.00",
+    });
+    await app.close();
+  });
+
+  it.each([
+    [{ mode: "sebagian" }],
+    [{ mode: "reduce_tenor", amount: "1e8" }],
+    [{ mode: "full", penaltyPercent: "1,5" }],
+  ])(
+    "rejects %j before the service (the query DTO is a value import)",
+    async (query) => {
+      const { app, service } = await bootstrap();
+
+      await request(app.getHttpServer())
+        .get("/family-groups/fg-1/liabilities/lid-1/prepayment-preview")
+        .query(query)
+        .expect(400);
+
+      expect(service.previewPrepayment).not.toHaveBeenCalled();
+      await app.close();
+    },
+  );
 });

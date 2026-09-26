@@ -30,6 +30,7 @@ import { FxInputService } from "../fx/fx-input.service";
 import { CreateLiabilityDto } from "./dto/create-liability.dto";
 import {
   LiabilityPaymentPreviewResponseDto,
+  LiabilityPrepaymentPreviewResponseDto,
   LiabilityResponseDto,
   LiabilityScheduleResponseDto,
   type LiabilitySummaryResponseDto,
@@ -38,6 +39,8 @@ import {
 import { PayLiabilityDto } from "./dto/pay-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PaymentPreviewQueryDto } from "./dto/payment-preview-query.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PrepaymentPreviewQueryDto } from "./dto/prepayment-preview-query.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -122,6 +125,28 @@ export class LiabilitiesController {
       id,
       query.amount,
     );
+  }
+
+  @Get(":id/prepayment-preview")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Liability"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Early-repayment simulation (full / reduce tenor / reduce installment); read-only, records nothing",
+  })
+  @ApiResponse({ status: 200, type: LiabilityPrepaymentPreviewResponseDto })
+  @ApiResponse({ status: 404, description: "Liability not found" })
+  @ApiResponse({
+    status: 400,
+    description: "Not an anuitas loan, invalid amount or penalty",
+  })
+  previewPrepayment(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Query() query: PrepaymentPreviewQueryDto,
+  ): Promise<LiabilityPrepaymentPreviewResponseDto> {
+    return this.liabilitiesService.previewPrepayment(familyGroupId, id, query);
   }
 
   @Post()

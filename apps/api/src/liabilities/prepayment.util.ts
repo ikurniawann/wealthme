@@ -19,6 +19,10 @@ export type PrepaymentMode = "full" | "reduce_tenor" | "reduce_installment";
 // (percent scale 100) * (fixed-point scale 100)
 const PERCENT_DENOMINATOR = 10_000n;
 
+// Research: commonly 1-3% of the prepaid principal, up to 7% (docs/research/2026-09-26-kpr-indonesia.md §6).
+export const DEFAULT_PREPAYMENT_PENALTY_PERCENT = "1.00";
+export const MAX_PREPAYMENT_PENALTY_PERCENT = "10.00";
+
 /** Penalty on the prepaid principal, round-half-up to the rupiah. */
 export function prepaymentPenalty(
   prepaidPrincipal: bigint,

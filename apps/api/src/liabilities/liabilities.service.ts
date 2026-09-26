@@ -41,6 +41,14 @@ import {
   type ScheduleRow,
 } from "./amortisation.util";
 import {
+  DEFAULT_PREPAYMENT_PENALTY_PERCENT,
+  MAX_PREPAYMENT_PENALTY_PERCENT,
+  simulatePrepayment,
+  type PrepaymentInput,
+  type PrepaymentMode,
+  type PrepaymentResult,
+} from "./prepayment.util";
+import {
   EMPTY_RATE_PLAN_ROWS,
   loadRatePlanRows,
   ratePlanFromRows,
@@ -66,6 +74,7 @@ import {
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
   LiabilityPaymentPreviewResponseDto,
+  LiabilityPrepaymentPreviewResponseDto,
   LiabilityRateBandDto,
   LiabilityResponseDto,
   LiabilityScheduleResponseDto,
@@ -239,6 +248,19 @@ function assertNotMixedRateTerms(dto: {
     throw new BadRequestException(
       "Kirim ratePeriods atau fixedRateMonths/floatingRate, bukan keduanya",
     );
+  }
+}
+
+function simulateOrReject(input: PrepaymentInput): PrepaymentResult {
+  try {
+    return simulatePrepayment(input);
+  } catch (err) {
+    if (err instanceof RangeError) {
+      throw new BadRequestException(
+        "Jumlah pelunasan harus lebih dari 0 dan tidak melebihi sisa pokok",
+      );
+    }
+    throw err;
   }
 }
 
@@ -1132,6 +1154,75 @@ export class LiabilitiesService {
       interest: interest.toString(),
       principal: principal.toString(),
       remainingAfter: (planned.remainingBalance - principal).toString(),
+    };
+  }
+
+  /** Revisi K — early-repayment simulation on the current state; nothing is recorded. */
+  async previewPrepayment(
+    familyGroupId: string,
+    id: string,
+    query: { mode: PrepaymentMode; amount?: string; penaltyPercent?: string },
+    now: Date = new Date(),
+  ): Promise<LiabilityPrepaymentPreviewResponseDto> {
+    const liability = await this.prisma.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+    if (
+      liability.interestMethod !== "anuitas" ||
+      liability.tenorMonths === null
+    ) {
+      throw new BadRequestException(
+        "Simulasi pelunasan hanya untuk cicilan anuitas dengan tenor",
+      );
+    }
+    const penaltyPercent =
+      query.penaltyPercent ?? DEFAULT_PREPAYMENT_PENALTY_PERCENT;
+    if (
+      parseRateScaledByHundred(penaltyPercent) >
+      parseRateScaledByHundred(MAX_PREPAYMENT_PENALTY_PERCENT)
+    ) {
+      throw new BadRequestException(
+        `penaltyPercent must be between 0 and ${MAX_PREPAYMENT_PENALTY_PERCENT}`,
+      );
+    }
+    if (query.mode !== "full" && query.amount === undefined) {
+      throw new BadRequestException(
+        "amount is required for a partial prepayment",
+      );
+    }
+    const amount =
+      query.amount === undefined
+        ? BigInt(0)
+        : guardBigInt("amount", query.amount);
+
+    const planned = await withRatePlan(this.prisma, familyGroupId, liability);
+    const schedule = scheduleInputFor(planned, now);
+    const result = simulateOrReject({
+      schedule,
+      mode: query.mode,
+      amount,
+      penaltyPercent,
+    });
+    return {
+      liabilityId: liability.id,
+      mode: result.mode,
+      prepaidPrincipal: result.prepaidPrincipal.toString(),
+      penaltyPercent,
+      penalty: result.penalty.toString(),
+      cashOutNow: result.cashOutNow.toString(),
+      installmentBefore: result.installmentBefore?.toString() ?? null,
+      installmentAfter: result.installmentAfter?.toString() ?? null,
+      remainingMonthsBefore: result.remainingMonthsBefore,
+      remainingMonthsAfter: result.remainingMonthsAfter,
+      totalInterestBefore: result.totalInterestBefore.toString(),
+      totalInterestAfter: result.totalInterestAfter.toString(),
+      interestSaved: result.interestSaved.toString(),
+      netSaving: result.netSaving.toString(),
+      assumesCurrentFloatingRate:
+        rateAt(ratePlanOf(schedule), liability.tenorMonths).kind === "floating",
     };
   }
 

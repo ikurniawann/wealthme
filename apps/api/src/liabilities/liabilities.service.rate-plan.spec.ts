@@ -633,4 +633,140 @@ describe("LiabilitiesService — revisi K", () => {
       expect(prisma.budget.deleteMany).not.toHaveBeenCalled();
     });
   });
+
+  describe("previewPrepayment", () => {
+    // Single-rate 11% KPR, akad 2021-01-15: 2026-01-21 is six days after #60 fell due, so #61 (180 left) is being paid.
+    const AT_61 = {
+      ...KPR,
+      interestRate: { toString: () => "11.00" },
+      remainingBalance: 400_000_000n,
+      installmentAmount: 4_546_388n,
+      minimumPayment: 4_546_388n,
+      startDate: new Date("2021-01-15T00:00:00.000Z"),
+      kprScheme: null,
+    };
+    const NOW = new Date("2026-01-21T00:00:00.000Z");
+
+    it("reduce installment: golden numbers as strings, read-only", async () => {
+      prisma.liability.findUnique.mockResolvedValue(AT_61);
+
+      expect(
+        await service.previewPrepayment(
+          "fg-1",
+          "lid-1",
+          { mode: "reduce_installment", amount: "100000000" },
+          NOW,
+        ),
+      ).toEqual({
+        liabilityId: "lid-1",
+        mode: "reduce_installment",
+        prepaidPrincipal: "100000000",
+        penaltyPercent: "1.00",
+        penalty: "1000000",
+        cashOutNow: "101000000",
+        installmentBefore: "4546388",
+        installmentAfter: "3409791",
+        remainingMonthsBefore: 180,
+        remainingMonthsAfter: 180,
+        totalInterestBefore: "418349734",
+        totalInterestAfter: "313762283",
+        interestSaved: "104587451",
+        netSaving: "103587451",
+        assumesCurrentFloatingRate: false,
+      });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    it("reduce tenor: 180 -> 102 months at the same installment", async () => {
+      prisma.liability.findUnique.mockResolvedValue(AT_61);
+
+      const preview = await service.previewPrepayment(
+        "fg-1",
+        "lid-1",
+        { mode: "reduce_tenor", amount: "100000000", penaltyPercent: "1.00" },
+        NOW,
+      );
+
+      expect(preview.installmentAfter).toBe("4546388");
+      expect(preview.remainingMonthsAfter).toBe(102);
+      expect(preview.interestSaved).toBe("255703278");
+    });
+
+    it("full payoff ignores amount and applies the penalty to the whole balance", async () => {
+      prisma.liability.findUnique.mockResolvedValue(AT_61);
+
+      const preview = await service.previewPrepayment(
+        "fg-1",
+        "lid-1",
+        { mode: "full", penaltyPercent: "2.50" },
+        NOW,
+      );
+
+      expect(preview.penalty).toBe("10000000");
+      expect(preview.cashOutNow).toBe("410000000");
+      expect(preview.remainingMonthsAfter).toBe(0);
+    });
+
+    it("berjenjang at #13: reduce tenor keeps the tier step-ups and flags the floating assumption", async () => {
+      prisma.liabilityRatePeriod.findMany.mockResolvedValue(PERIOD_ROWS);
+      prisma.liability.findUnique.mockResolvedValue({
+        ...KPR,
+        remainingBalance: 482_422_215n,
+      });
+
+      const preview = await service.previewPrepayment(
+        "fg-1",
+        "lid-1",
+        { mode: "reduce_tenor", amount: "50000000" },
+        new Date("2027-01-21T00:00:00.000Z"),
+      );
+
+      expect(preview.penalty).toBe("500000");
+      expect(preview.remainingMonthsAfter).toBe(196);
+      expect(preview.interestSaved).toBe("158148844");
+      expect(preview.assumesCurrentFloatingRate).toBe(true);
+    });
+
+    it.each([
+      ["no amount on a partial prepayment", { mode: "reduce_tenor" as const }],
+      [
+        "an amount above the balance",
+        { mode: "reduce_tenor" as const, amount: "400000001" },
+      ],
+      ["a zero amount", { mode: "reduce_installment" as const, amount: "0" }],
+      [
+        "a penalty above 10%",
+        { mode: "full" as const, penaltyPercent: "10.01" },
+      ],
+    ])("400: %s", async (_label, query) => {
+      prisma.liability.findUnique.mockResolvedValue(AT_61);
+
+      await expect(
+        service.previewPrepayment("fg-1", "lid-1", query, NOW),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("400 for a liability that is not an anuitas loan", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...AT_61,
+        interestMethod: "flat",
+      });
+
+      await expect(
+        service.previewPrepayment("fg-1", "lid-1", { mode: "full" }, NOW),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("404 for a liability of another family (tenant-scoped lookup)", async () => {
+      prisma.liability.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.previewPrepayment("fg-2", "lid-1", { mode: "full" }, NOW),
+      ).rejects.toThrow("Liability not found");
+      expect(prisma.liability.findUnique).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-2" },
+      });
+    });
+  });
 });

@@ -126,3 +126,31 @@ export class LiabilityFloatingRateResponseDto {
   @ApiProperty({ nullable: true, type: String }) note!: string | null;
   @ApiProperty() createdAt!: string;
 }
+
+export class LiabilityPrepaymentPreviewResponseDto {
+  @ApiProperty() liabilityId!: string;
+  @ApiProperty({ enum: ["full", "reduce_tenor", "reduce_installment"] })
+  mode!: "full" | "reduce_tenor" | "reduce_installment";
+  @ApiProperty() prepaidPrincipal!: string;
+  @ApiProperty() penaltyPercent!: string;
+  @ApiProperty() penalty!: string;
+  @ApiProperty() cashOutNow!: string;
+  @ApiProperty({ nullable: true, type: String })
+  installmentBefore!: string | null;
+  @ApiProperty({ nullable: true, type: String })
+  installmentAfter!: string | null;
+  @ApiProperty() remainingMonthsBefore!: number;
+  @ApiProperty() remainingMonthsAfter!: number;
+  @ApiProperty() totalInterestBefore!: string;
+  @ApiProperty() totalInterestAfter!: string;
+  @ApiProperty() interestSaved!: string;
+  @ApiProperty({
+    description: "May be negative (penalty above interest saved)",
+  })
+  netSaving!: string;
+  @ApiProperty({
+    description:
+      "True when the projection runs into a floating period (today's floating rate assumed to persist)",
+  })
+  assumesCurrentFloatingRate!: boolean;
+}
