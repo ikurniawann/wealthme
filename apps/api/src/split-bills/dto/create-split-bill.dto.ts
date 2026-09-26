@@ -13,6 +13,8 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 import { CreateParticipantDto } from "./create-participant.dto";
 
 export class CreateSplitBillDto {
@@ -59,4 +61,7 @@ export class CreateSplitBillDto {
   @ArrayMinSize(2)
   @Type(() => CreateParticipantDto)
   participants!: CreateParticipantDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

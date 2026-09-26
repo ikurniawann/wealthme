@@ -1,6 +1,8 @@
 import { ApiPropertyOptional, ApiProperty } from "@nestjs/swagger";
 import { IsOptional, IsString, IsUUID, Matches } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 // EPIC-023 E1 — mirrors liabilities/dto/pay-liability.dto.ts's shape.
 // `amount` is OPTIONAL here (unlike PayLiabilityDto, where the payer chooses
 // how much of a variable balance to pay): the acceptance criterion is "the
@@ -23,4 +25,7 @@ export class PayInsuranceDto {
   @Matches(/^\d+$/, { message: "amount must be a numeric string" })
   @IsOptional()
   amount?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

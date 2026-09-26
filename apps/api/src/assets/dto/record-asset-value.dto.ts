@@ -7,6 +7,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 /**
  * EPIC-033 group 3 (p17) — "Add History": a dated valuation entered by a
  * member, either as the new value or as a percent change on the latest one.
@@ -42,4 +44,7 @@ export class RecordAssetValueDto {
   @IsString()
   @MaxLength(200)
   note?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

@@ -12,6 +12,8 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
 
 export class UpdateInsuranceDto {
@@ -87,4 +89,7 @@ export class UpdateInsuranceDto {
   @ValidateNested({ each: true })
   @Type(() => CreateInsuranceBeneficiaryDto)
   beneficiaries?: CreateInsuranceBeneficiaryDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

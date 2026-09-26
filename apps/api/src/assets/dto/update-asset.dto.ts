@@ -10,6 +10,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class UpdateAssetDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -87,4 +89,7 @@ export class UpdateAssetDto {
   @IsOptional()
   @IsDateString()
   acquisitionDate?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

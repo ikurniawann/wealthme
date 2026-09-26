@@ -13,6 +13,8 @@ import {
   Min,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class UpdateLiabilityDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -120,4 +122,7 @@ export class UpdateLiabilityDto {
     message: "floatingRate must be a decimal string",
   })
   floatingRate?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

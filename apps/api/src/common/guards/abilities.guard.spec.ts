@@ -285,7 +285,7 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
   });
 
   describe("SplitBillsController (CRITICAL six-reviewer finding — previously had NO @CheckAbility at all)", () => {
-    const controller = new SplitBillsController({} as never);
+    const controller = new SplitBillsController({} as never, {} as never);
 
     function ctxFor(
       handler: keyof SplitBillsController,

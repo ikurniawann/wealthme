@@ -12,6 +12,8 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 import { CreateHeirDto } from "./create-heir.dto";
 
 export class CreateInheritanceAssetDto {
@@ -61,4 +63,7 @@ export class CreateInheritanceAssetDto {
   @ValidateNested({ each: true })
   @Type(() => CreateHeirDto)
   heirs?: CreateHeirDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

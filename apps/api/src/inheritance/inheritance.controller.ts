@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -20,6 +21,9 @@ import {
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInheritanceAssetDto } from "./dto/create-inheritance-asset.dto";
@@ -29,12 +33,17 @@ import { UpdateInheritanceAssetDto } from "./dto/update-inheritance-asset.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InheritanceService } from "./inheritance.service";
 
+import type { Request } from "express";
+
 @ApiTags("inheritance")
 @ApiBearerAuth()
 @PageAccess("inheritance")
 @Controller("family-groups/:familyGroupId/inheritance")
 export class InheritanceController {
-  constructor(private readonly inheritanceService: InheritanceService) {}
+  constructor(
+    private readonly inheritanceService: InheritanceService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get()
   @CheckAbility((ab: AppAbility) => ab.can("read", "Inheritance"))
@@ -55,8 +64,18 @@ export class InheritanceController {
   create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateInheritanceAssetDto,
+    @Req() req: Request,
   ): Promise<InheritanceAssetResponseDto> {
-    return this.inheritanceService.create(familyGroupId, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "InheritanceAsset",
+        dto,
+        spec: FX_FIELD_SPECS.inheritance,
+      },
+      (converted) => this.inheritanceService.create(familyGroupId, converted),
+    );
   }
 
   @Get(":id")
@@ -84,8 +103,20 @@ export class InheritanceController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: UpdateInheritanceAssetDto,
+    @Req() req: Request,
   ): Promise<InheritanceAssetResponseDto> {
-    return this.inheritanceService.update(familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "InheritanceAsset",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.inheritance,
+      },
+      (converted) =>
+        this.inheritanceService.update(familyGroupId, id, converted),
+    );
   }
 
   @Delete(":id")

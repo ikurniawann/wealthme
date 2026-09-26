@@ -22,6 +22,9 @@ import {
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateLiabilityDto } from "./dto/create-liability.dto";
@@ -49,7 +52,10 @@ import type { Request } from "express";
 @PageAccess("liabilities")
 @Controller("family-groups/:familyGroupId/liabilities")
 export class LiabilitiesController {
-  constructor(private readonly liabilitiesService: LiabilitiesService) {}
+  constructor(
+    private readonly liabilitiesService: LiabilitiesService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get()
   @CheckAbility((ab: AppAbility) => ab.can("read", "Liability"))
@@ -126,8 +132,18 @@ export class LiabilitiesController {
   create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateLiabilityDto,
+    @Req() req: Request,
   ): Promise<LiabilityResponseDto> {
-    return this.liabilitiesService.create(familyGroupId, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Liability",
+        dto,
+        spec: FX_FIELD_SPECS.liability,
+      },
+      (converted) => this.liabilitiesService.create(familyGroupId, converted),
+    );
   }
 
   @Patch(":id")
@@ -141,8 +157,20 @@ export class LiabilitiesController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: UpdateLiabilityDto,
+    @Req() req: Request,
   ): Promise<LiabilityResponseDto> {
-    return this.liabilitiesService.update(familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Liability",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.liability,
+      },
+      (converted) =>
+        this.liabilitiesService.update(familyGroupId, id, converted),
+    );
   }
 
   @Post(":id/pay")
@@ -164,8 +192,20 @@ export class LiabilitiesController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: PayLiabilityDto,
+    @Req() req: Request,
   ): Promise<LiabilityResponseDto> {
-    return this.liabilitiesService.pay(familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Liability",
+        entityId: id,
+        fieldPrefix: "pay",
+        dto,
+        spec: FX_FIELD_SPECS.liabilityPayment,
+      },
+      (converted) => this.liabilitiesService.pay(familyGroupId, id, converted),
+    );
   }
 
   @Post(":id/purchase")
@@ -186,11 +226,23 @@ export class LiabilitiesController {
     @Body() dto: PurchaseLiabilityDto,
     @Req() req: Request,
   ): Promise<LiabilityResponseDto> {
-    return this.liabilitiesService.purchase(
-      familyGroupId,
-      id,
-      dto,
-      req.tenantContext?.member,
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Liability",
+        entityId: id,
+        fieldPrefix: "purchase",
+        dto,
+        spec: FX_FIELD_SPECS.liabilityPayment,
+      },
+      (converted) =>
+        this.liabilitiesService.purchase(
+          familyGroupId,
+          id,
+          converted,
+          req.tenantContext?.member,
+        ),
     );
   }
 

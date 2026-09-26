@@ -10,6 +10,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class UpdateDonationDto {
   @ApiPropertyOptional({ enum: DonationType })
   @IsOptional()
@@ -53,4 +55,7 @@ export class UpdateDonationDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

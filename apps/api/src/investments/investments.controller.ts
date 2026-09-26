@@ -26,6 +26,9 @@ import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
@@ -43,7 +46,10 @@ import { InvestmentsService } from "./investments.service";
 @PageAccess("investments")
 @Controller("family-groups/:familyGroupId/investments")
 export class InvestmentsController {
-  constructor(private readonly investmentsService: InvestmentsService) {}
+  constructor(
+    private readonly investmentsService: InvestmentsService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get()
   @CheckAbility((ab) => ab.can("read", "Investment"))
@@ -73,7 +79,17 @@ export class InvestmentsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Body() dto: CreateInvestmentDto,
   ): Promise<InvestmentDto> {
-    return this.investmentsService.create(req.params.familyGroupId, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Investment",
+        dto,
+        spec: FX_FIELD_SPECS.investment,
+      },
+      (converted) =>
+        this.investmentsService.create(req.params.familyGroupId, converted),
+    );
   }
 
   @Patch(":id")
@@ -85,7 +101,18 @@ export class InvestmentsController {
     @Param("id") id: string,
     @Body() dto: UpdateInvestmentDto,
   ): Promise<InvestmentDto> {
-    return this.investmentsService.update(req.params.familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Investment",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.investment,
+      },
+      (converted) =>
+        this.investmentsService.update(req.params.familyGroupId, id, converted),
+    );
   }
 
   @Delete(":id")
@@ -112,10 +139,22 @@ export class InvestmentsController {
     @Param("id") id: string,
     @Body() dto: SetManualPriceDto,
   ): Promise<InvestmentPriceDto> {
-    return this.investmentsService.setManualPrice(
-      req.params.familyGroupId,
-      id,
-      dto,
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Investment",
+        entityId: id,
+        fieldPrefix: "price",
+        dto,
+        spec: FX_FIELD_SPECS.investmentPrice,
+      },
+      (converted) =>
+        this.investmentsService.setManualPrice(
+          req.params.familyGroupId,
+          id,
+          converted,
+        ),
     );
   }
 
@@ -131,10 +170,22 @@ export class InvestmentsController {
     @Param("id") id: string,
     @Body() dto: CreateInvestmentTransactionDto,
   ): Promise<InvestmentTransactionDto> {
-    return this.investmentsService.recordTransaction(
-      req.params.familyGroupId,
-      id,
-      dto,
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Investment",
+        entityId: id,
+        fieldPrefix: "trade",
+        dto,
+        spec: FX_FIELD_SPECS.investmentTrade,
+      },
+      (converted) =>
+        this.investmentsService.recordTransaction(
+          req.params.familyGroupId,
+          id,
+          converted,
+        ),
     );
   }
 

@@ -22,6 +22,7 @@ import { Test } from "@nestjs/testing";
 import { Role } from "@prisma/client";
 import request from "supertest";
 
+import { fxTesting } from "../../test/fx-testing";
 import { CaslAbilityFactory } from "../casl/casl-ability.factory";
 import { AbilitiesGuard } from "../common/guards/abilities.guard";
 
@@ -93,7 +94,7 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
 
   beforeEach(() => {
     guard = new AbilitiesGuard(new Reflector(), new CaslAbilityFactory());
-    controller = new LiabilitiesController({} as never);
+    controller = new LiabilitiesController({} as never, fxTesting().service);
   });
 
   it("PERMISSION — owner/member/spouse can read AND pay/purchase (manage Liability)", () => {
@@ -151,7 +152,10 @@ describe("LiabilitiesController — GET :id/schedule over HTTP", () => {
     };
     const moduleRef = await Test.createTestingModule({
       controllers: [LiabilitiesController],
-      providers: [{ provide: LiabilitiesService, useValue: service }],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
     }).compile();
     const app = moduleRef.createNestApplication();
     await app.init();
@@ -179,7 +183,10 @@ describe("LiabilitiesController — GET :id/payment-preview over HTTP", () => {
     };
     const moduleRef = await Test.createTestingModule({
       controllers: [LiabilitiesController],
-      providers: [{ provide: LiabilitiesService, useValue: service }],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
     }).compile();
     const app = moduleRef.createNestApplication();
     app.useGlobalPipes(
