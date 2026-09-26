@@ -1044,6 +1044,7 @@ export default function AnggaranPage() {
 
   function handleSaveEdit() {
     if (!editing) return;
+    if (editField.resolved.isPending) return;
     const limitAmount = moneyIdr(editField, parseRupiah);
     if (limitAmount <= 0) {
       toast.warning(t.anggaran.toastAmountInvalid);
@@ -1092,6 +1093,7 @@ export default function AnggaranPage() {
   }
 
   function handleSave() {
+    if (amountField.resolved.isPending) return;
     // F3 fix — a member picks an existing category instead of naming a new
     // one; the create-a-category fields below don't apply to that flow.
     if (canManageCategory === false) {
@@ -1581,7 +1583,12 @@ export default function AnggaranPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t.common.cancel}
             </Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending}>
+            <Button
+              onClick={handleSave}
+              disabled={
+                createMutation.isPending || amountField.resolved.isPending
+              }
+            >
               <Save className="size-[14px]" />
               {createMutation.isPending
                 ? t.anggaran.savingLabel
