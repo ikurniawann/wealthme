@@ -112,3 +112,27 @@ export function ratePlanFromRows(
           .sort((a, b) => a.effectivePeriod - b.effectivePeriod);
   return { segments, floatingChanges };
 }
+
+/** Rewrites a liability's periods (sequence = array order) and returns the rows as now stored. */
+export async function replaceRatePeriods(
+  client: Pick<TxClient, "liabilityRatePeriod">,
+  familyGroupId: string,
+  liabilityId: string,
+  segments: RateSegment[],
+  floatingRates: FloatingRateRow[],
+): Promise<RatePlanRows> {
+  const ratePeriods = segments.map((segment, sequence) => ({
+    liabilityId,
+    sequence,
+    kind: segment.kind,
+    months: segment.months,
+    ratePercent: segment.ratePercent,
+  }));
+  await client.liabilityRatePeriod.deleteMany({
+    where: { familyGroupId, liabilityId },
+  });
+  await client.liabilityRatePeriod.createMany({
+    data: ratePeriods.map((row) => ({ ...row, familyGroupId })),
+  });
+  return { ratePeriods, floatingRates };
+}

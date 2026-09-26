@@ -44,6 +44,7 @@ import {
   EMPTY_RATE_PLAN_ROWS,
   loadRatePlanRows,
   ratePlanFromRows,
+  replaceRatePeriods,
   type RatePlanClient,
   type RatePlanRows,
 } from "./rate-plan.rows";
@@ -52,9 +53,15 @@ import {
   rateAt,
   sameRateRegime,
   type RatePlan,
+  type RateSegment,
   type ResolvedRate,
 } from "./rate-plan.util";
-import { type KprSchemeValue } from "./rate-plan.validation";
+import {
+  sameSegments,
+  validateKprScheme,
+  validateRatePeriods,
+  type KprSchemeValue,
+} from "./rate-plan.validation";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
@@ -218,6 +225,21 @@ async function withRatePlan<T extends { id: string }>(
 ): Promise<T & { ratePlanRows: RatePlanRows }> {
   const rows = await loadRatePlanRows(client, familyGroupId, [row.id]);
   return { ...row, ratePlanRows: rows.get(row.id) ?? EMPTY_RATE_PLAN_ROWS };
+}
+
+function assertNotMixedRateTerms(dto: {
+  ratePeriods?: unknown;
+  fixedRateMonths?: number;
+  floatingRate?: string;
+}): void {
+  if (
+    dto.ratePeriods !== undefined &&
+    (dto.fixedRateMonths !== undefined || dto.floatingRate !== undefined)
+  ) {
+    throw new BadRequestException(
+      "Kirim ratePeriods atau fixedRateMonths/floatingRate, bukan keduanya",
+    );
+  }
 }
 
 function toLiabilityDto(
@@ -517,10 +539,23 @@ export class LiabilitiesService {
     const interestMethod =
       dto.interestMethod ?? defaultInterestMethod(dto.type);
     assertMethodAllowed(dto.type, interestMethod);
+    const kprScheme = validateKprScheme(dto.type, dto.kprScheme);
+    assertNotMixedRateTerms(dto);
+    const segments = dto.ratePeriods
+      ? validateRatePeriods({
+          type: dto.type,
+          interestMethod,
+          tenorMonths: dto.tenorMonths ?? null,
+          kprScheme,
+          periods: dto.ratePeriods,
+          hasFloatingHistory: false,
+        })
+      : null;
+    const interestRate = segments?.[0]?.ratePercent ?? dto.interestRate ?? "0";
     const installmentAmount = resolveInstallment({
       method: interestMethod,
       totalDebt,
-      interestRate: dto.interestRate ?? "0",
+      interestRate,
       tenorMonths: dto.tenorMonths ?? null,
       override: dto.installmentAmount
         ? guardBigInt("installmentAmount", dto.installmentAmount)
@@ -540,6 +575,9 @@ export class LiabilitiesService {
         minimumPayment,
         installmentAmount,
         interestMethod,
+        interestRate,
+        kprScheme,
+        segments,
       }),
     );
 
@@ -556,6 +594,9 @@ export class LiabilitiesService {
       minimumPayment: bigint;
       installmentAmount: bigint | null;
       interestMethod: InterestMethod;
+      interestRate: string;
+      kprScheme: KprSchemeValue | null;
+      segments: RateSegment[] | null;
     },
   ): Promise<LiabilityRow> {
     const data = {
@@ -566,7 +607,7 @@ export class LiabilitiesService {
       totalDebt: amounts.totalDebt,
       remainingBalance: amounts.remainingBalance,
       minimumPayment: amounts.minimumPayment,
-      interestRate: dto.interestRate ?? "0",
+      interestRate: amounts.interestRate,
       dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
       autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
       notes: dto.notes ?? null,
@@ -575,21 +616,33 @@ export class LiabilitiesService {
       tenorMonths: dto.tenorMonths ?? null,
       startDate: dto.startDate ? new Date(dto.startDate) : null,
       installmentAmount: amounts.installmentAmount,
-      fixedRateMonths: dto.fixedRateMonths ?? null,
-      floatingRate: dto.floatingRate ?? null,
+      fixedRateMonths: amounts.segments ? null : (dto.fixedRateMonths ?? null),
+      floatingRate: amounts.segments ? null : (dto.floatingRate ?? null),
+      kprScheme: amounts.kprScheme,
     };
     const created = await tx.liability.create({ data });
+
+    const ratePlanRows = amounts.segments
+      ? await replaceRatePeriods(
+          tx,
+          familyGroupId,
+          created.id,
+          amounts.segments,
+          [],
+        )
+      : EMPTY_RATE_PLAN_ROWS;
+    const planned = { ...created, ratePlanRows };
 
     if (amounts.minimumPayment > BigInt(0)) {
       await this.syncPrincipalBudgetLine(
         tx,
         familyGroupId,
-        created,
-        budgetContribution(data, new Date()),
+        planned,
+        budgetContribution({ ...data, ratePlanRows }, new Date()),
       );
     }
 
-    return created;
+    return planned;
   }
 
   async update(
@@ -680,6 +733,9 @@ export class LiabilitiesService {
     const existing = await tx.liability.findUniqueOrThrow({
       where: { id, familyGroupId },
     });
+    const existingRows =
+      (await loadRatePlanRows(tx, familyGroupId, [id])).get(id) ??
+      EMPTY_RATE_PLAN_ROWS;
 
     const totalDebt = amounts.totalDebt ?? existing.totalDebt;
     const remainingBalance =
@@ -688,8 +744,44 @@ export class LiabilitiesService {
     const interestMethod = dto.interestMethod ?? existing.interestMethod;
     assertMethodAllowed(type, interestMethod);
     const tenorMonths = dto.tenorMonths ?? existing.tenorMonths;
+    const kprScheme =
+      dto.kprScheme !== undefined
+        ? validateKprScheme(type, dto.kprScheme)
+        : (existing.kprScheme ?? null);
+    assertNotMixedRateTerms(dto);
+    const hasStoredPeriods = existingRows.ratePeriods.length > 0;
+    if (
+      hasStoredPeriods &&
+      (dto.fixedRateMonths !== undefined || dto.floatingRate !== undefined)
+    ) {
+      throw new BadRequestException(
+        "KPR ini memakai periode bunga — kirim ratePeriods, bukan fixedRateMonths/floatingRate",
+      );
+    }
+    const previousSegments = ratePlanOf(
+      scheduleInputFor({ ...existing, ratePlanRows: existingRows }, now),
+    ).segments;
+    const nextPeriods =
+      dto.ratePeriods ?? (hasStoredPeriods ? previousSegments : null);
+    const validated =
+      nextPeriods === null
+        ? null
+        : validateRatePeriods({
+            type,
+            interestMethod,
+            tenorMonths,
+            kprScheme,
+            periods: nextPeriods,
+            hasFloatingHistory: existingRows.floatingRates.length > 0,
+          });
+    // Rows are rewritten only when the caller sent periods; otherwise they were just re-checked.
+    const segments = dto.ratePeriods ? validated : null;
+    const ratePlanChanged =
+      segments !== null && !sameSegments(segments, previousSegments);
     const resolvedInterestRate =
-      dto.interestRate ?? existing.interestRate.toString();
+      segments?.[0]?.ratePercent ??
+      dto.interestRate ??
+      existing.interestRate.toString();
     // Fix round 1 (Important #2) — the web edit form re-sends every term
     // field on every save, so checking DTO field PRESENCE (as before)
     // treated a no-op PATCH as "terms changed" and silently dropped a
@@ -702,7 +794,44 @@ export class LiabilitiesService {
       tenorMonths !== existing.tenorMonths ||
       parseRateScaledByHundred(resolvedInterestRate) !==
         parseRateScaledByHundred(existing.interestRate.toString()) ||
-      totalDebt !== existing.totalDebt;
+      totalDebt !== existing.totalDebt ||
+      ratePlanChanged;
+    // The loan as it will be after this PATCH (Task 9 re-anchors a prepaid installment from it).
+    const nextTerms = {
+      ...existing,
+      type,
+      interestMethod,
+      tenorMonths,
+      totalDebt,
+      remainingBalance,
+      interestRate: resolvedInterestRate,
+      fixedRateMonths: segments
+        ? null
+        : (dto.fixedRateMonths ?? existing.fixedRateMonths),
+      floatingRate: segments
+        ? null
+        : (dto.floatingRate ?? existing.floatingRate),
+      ratePlanRows: segments
+        ? {
+            ratePeriods: segments.map((segment, sequence) => ({
+              liabilityId: id,
+              sequence,
+              ...segment,
+            })),
+            floatingRates: existingRows.floatingRates,
+          }
+        : existingRows,
+    };
+    // Recorded floating changes need a floating period on an anuitas loan to apply to.
+    if (
+      existingRows.floatingRates.length > 0 &&
+      (interestMethod !== "anuitas" ||
+        !hasFloatingSegment(ratePlanOf(scheduleInputFor(nextTerms, now))))
+    ) {
+      throw new BadRequestException(
+        "Hapus riwayat bunga floating sebelum menghapus periode floating",
+      );
+    }
     const installmentAmount =
       amounts.installmentAmount !== undefined
         ? amounts.installmentAmount
@@ -728,7 +857,8 @@ export class LiabilitiesService {
       totalDebt,
       remainingBalance,
       minimumPayment,
-      interestRate: dto.interestRate ?? existing.interestRate,
+      interestRate:
+        segments?.[0]?.ratePercent ?? dto.interestRate ?? existing.interestRate,
       dueDate:
         dto.dueDate !== undefined
           ? dto.dueDate
@@ -747,22 +877,37 @@ export class LiabilitiesService {
             : null
           : existing.startDate,
       installmentAmount,
-      fixedRateMonths: dto.fixedRateMonths ?? existing.fixedRateMonths,
-      floatingRate: dto.floatingRate ?? existing.floatingRate,
+      fixedRateMonths: segments
+        ? null
+        : (dto.fixedRateMonths ?? existing.fixedRateMonths),
+      floatingRate: segments
+        ? null
+        : (dto.floatingRate ?? existing.floatingRate),
+      kprScheme,
     };
     const updated = await tx.liability.update({
       where: { id, familyGroupId },
       data,
     });
 
+    const ratePlanRows = segments
+      ? await replaceRatePeriods(
+          tx,
+          familyGroupId,
+          id,
+          segments,
+          existingRows.floatingRates,
+        )
+      : existingRows;
+
     await this.syncPrincipalBudgetLine(
       tx,
       familyGroupId,
       { ...updated, principalCategoryId: existing.principalCategoryId },
-      budgetContribution({ ...existing, ...data }, now),
+      budgetContribution({ ...existing, ...data, ratePlanRows }, now),
     );
 
-    return updated;
+    return { ...updated, ratePlanRows };
   }
 
   /**

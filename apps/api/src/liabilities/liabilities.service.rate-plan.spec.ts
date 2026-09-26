@@ -1,8 +1,10 @@
+import { BadRequestException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
 
+import { computeInstallment } from "./amortisation.util";
 import { LiabilitiesService } from "./liabilities.service";
 
 jest.mock("../transactions/transaction-alerts.util", () => ({
@@ -115,6 +117,12 @@ const PERIOD_ROWS = [
     ratePercent: { toString: () => "11.00" },
   },
 ];
+
+const BERJENJANG_BODY = [
+  { kind: "fixed", months: 24, ratePercent: "3.50" },
+  { kind: "fixed", months: 12, ratePercent: "5.50" },
+  { kind: "floating", months: null, ratePercent: "11.00" },
+] as never;
 
 describe("LiabilitiesService — revisi K", () => {
   let service: LiabilitiesService;
@@ -364,6 +372,220 @@ describe("LiabilitiesService — revisi K", () => {
       expect(dtos[0]?.currentRatePercent).toBe("5.50");
       expect(dtos[1]?.ratePeriods).toEqual([]);
       expect(dtos[1]?.currentRatePercent).toBe("8.00");
+    });
+  });
+
+  describe("rate plan writers", () => {
+    function withPeriods() {
+      prisma.liabilityRatePeriod.findMany.mockResolvedValue(PERIOD_ROWS);
+    }
+
+    it("create: stores berjenjang periods, derives interestRate and the tier-1 installment, nulls the legacy pair", async () => {
+      prisma.liability.create.mockResolvedValue({ ...KPR });
+
+      await service.create("fg-1", {
+        name: "KPR BTN",
+        type: "kpr" as never,
+        totalDebt: "500000000",
+        remainingBalance: "500000000",
+        interestRate: "9.99",
+        tenorMonths: 240,
+        kprScheme: "berjenjang" as never,
+        ratePeriods: BERJENJANG_BODY,
+      });
+
+      expect(prisma.liability.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          interestMethod: "anuitas",
+          interestRate: "3.50",
+          installmentAmount: 2_899_799n,
+          minimumPayment: 2_899_799n,
+          fixedRateMonths: null,
+          floatingRate: null,
+          kprScheme: "berjenjang",
+        }),
+      });
+      expect(prisma.liabilityRatePeriod.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            liabilityId: "lid-1",
+            familyGroupId: "fg-1",
+            sequence: 0,
+            kind: "fixed",
+            months: 24,
+            ratePercent: "3.50",
+          },
+          {
+            liabilityId: "lid-1",
+            familyGroupId: "fg-1",
+            sequence: 1,
+            kind: "fixed",
+            months: 12,
+            ratePercent: "5.50",
+          },
+          {
+            liabilityId: "lid-1",
+            familyGroupId: "fg-1",
+            sequence: 2,
+            kind: "floating",
+            months: null,
+            ratePercent: "11.00",
+          },
+        ],
+      });
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({ limitAmount: 2_899_799n }),
+        }),
+      );
+    });
+
+    it.each([
+      ["with fixedRateMonths", { fixedRateMonths: 36 }],
+      ["on a kendaraan", { type: "kendaraan" as never }],
+    ])("create: ratePeriods %s is refused", async (_label, patch) => {
+      await expect(
+        service.create("fg-1", {
+          name: "KPR",
+          type: "kpr" as never,
+          totalDebt: "500000000",
+          remainingBalance: "500000000",
+          tenorMonths: 240,
+          ratePeriods: BERJENJANG_BODY,
+          ...patch,
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.liability.create).not.toHaveBeenCalled();
+    });
+
+    it("legacy upgrade: G's pair re-sent as equal periods writes rows, nulls the pair, keeps an overridden installment", async () => {
+      const overridden = {
+        ...LEGACY_KPR,
+        installmentAmount: 4_200_000n,
+        minimumPayment: 4_200_000n,
+      };
+      prisma.liability.findUnique.mockResolvedValue(overridden);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
+      prisma.liability.update.mockResolvedValue(overridden);
+
+      await service.update(
+        "fg-1",
+        "lid-1",
+        {
+          ratePeriods: [
+            { kind: "fixed", months: 36, ratePercent: "8" },
+            { kind: "floating", months: null, ratePercent: "11" },
+          ] as never,
+        },
+        new Date("2026-03-01T00:00:00.000Z"),
+      );
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: 4_200_000n,
+            minimumPayment: 4_200_000n,
+            fixedRateMonths: null,
+            floatingRate: null,
+          }),
+        }),
+      );
+      expect(prisma.liabilityRatePeriod.createMany).toHaveBeenCalledWith({
+        data: [
+          {
+            liabilityId: "lid-1",
+            familyGroupId: "fg-1",
+            sequence: 0,
+            kind: "fixed",
+            months: 36,
+            ratePercent: "8",
+          },
+          {
+            liabilityId: "lid-1",
+            familyGroupId: "fg-1",
+            sequence: 1,
+            kind: "floating",
+            months: null,
+            ratePercent: "11",
+          },
+        ],
+      });
+    });
+
+    it("a real tier change recomputes the installment from the new first-tier rate", async () => {
+      withPeriods();
+      prisma.liability.findUnique.mockResolvedValue(KPR);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(KPR);
+      prisma.liability.update.mockResolvedValue(KPR);
+
+      await service.update(
+        "fg-1",
+        "lid-1",
+        {
+          ratePeriods: [
+            { kind: "fixed", months: 24, ratePercent: "3.00" },
+            { kind: "fixed", months: 12, ratePercent: "5.50" },
+            { kind: "floating", months: null, ratePercent: "11.00" },
+          ] as never,
+        },
+        new Date("2026-03-01T00:00:00.000Z"),
+      );
+
+      const expected = computeInstallment({
+        method: "anuitas",
+        principal: 500_000_000n,
+        annualInterestRatePercent: "3.00",
+        tenorMonths: 240,
+      });
+      expect(expected).toBe(2_772_988n);
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            interestRate: "3.00",
+            installmentAmount: expected,
+          }),
+        }),
+      );
+    });
+
+    it.each([
+      ["fixedRateMonths on a row that has periods", { fixedRateMonths: 36 }],
+      [
+        "a tenor no longer longer than the bounded periods",
+        { tenorMonths: 36 },
+      ],
+      ["switching a planned KPR to flat", { interestMethod: "flat" as never }],
+    ])("update refuses %s", async (_label, dto) => {
+      withPeriods();
+      prisma.liability.findUnique.mockResolvedValue(KPR);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(KPR);
+
+      await expect(service.update("fg-1", "lid-1", dto)).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    it("orphaned history: a legacy row with recorded floating changes refuses a PATCH that leaves them no floating period", async () => {
+      prisma.liabilityFloatingRate.findMany.mockResolvedValue([
+        {
+          id: "fr-1",
+          liabilityId: "lid-1",
+          effectiveDate: new Date("2031-01-15T00:00:00.000Z"),
+          ratePercent: { toString: () => "9.75" },
+          note: null,
+          createdAt: new Date("2031-01-10T00:00:00.000Z"),
+        },
+      ]);
+      prisma.liability.findUnique.mockResolvedValue(LEGACY_KPR);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(LEGACY_KPR);
+
+      await expect(
+        service.update("fg-1", "lid-1", { interestMethod: "flat" as never }),
+      ).rejects.toThrow(
+        "Hapus riwayat bunga floating sebelum menghapus periode floating",
+      );
+      expect(prisma.liability.update).not.toHaveBeenCalled();
     });
   });
 });
