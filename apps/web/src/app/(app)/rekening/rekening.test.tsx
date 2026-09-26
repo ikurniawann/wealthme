@@ -60,6 +60,24 @@ jest.mock("next/navigation", () => ({
   }),
 }));
 
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
 import RekeningPage from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
@@ -306,5 +324,30 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
       (JSON.parse(patchCall![1].body as string) as { institution: string })
         .institution,
     ).toBe("Bank Tes MD");
+  });
+
+  it("revisi I — editing a saved account without touching the amount sends no fxInputs", async () => {
+    mockApiRoutes([
+      buildAccount({
+        id: "acc-md",
+        name: "Rekening MD",
+        institution: "Bank Tes MD",
+        balance: "5000000",
+      }),
+    ]);
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+    await screen.findByText("Rekening MD");
+
+    await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
+    await user.click(await screen.findByText("Edit"));
+    const dialog = within(await screen.findByRole("dialog"));
+    await dialog.findByLabelText("Saldo Saat Ini");
+
+    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
+    const patch = mockApiFetch.mock.calls.find(
+      ([, init]) => init?.method === "PATCH",
+    );
+    expect(JSON.parse(patch![1].body)).not.toHaveProperty("fxInputs");
   });
 });

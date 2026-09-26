@@ -19,7 +19,12 @@ import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, parseRupiah } from "@/lib/format";
-import { CrudModal, RowActions, ConfirmDeleteDialog } from "@/components/crud";
+import {
+  CrudModal,
+  RowActions,
+  ConfirmDeleteDialog,
+  withCrudFx,
+} from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 
 import type {
@@ -434,19 +439,28 @@ export default function DanaPage() {
             // balance relaxation (cash only, see CreateAccountDto.balance)
             // can see this is a cash account even on a partial update that
             // doesn't otherwise touch `type`.
-            body: JSON.stringify({
-              name: values.nama,
-              // F6 — `nama` on the e-wallet form IS the provider select
-              // (GoPay/OVO/...), exactly like at create time; only sending
-              // `name` here let a provider change desync `name` from the
-              // account's real `institution`, and any picker keyed off
-              // `institution` (e.g. rekening's brand logo lookup) kept
-              // showing the OLD provider after the "rename".
-              ...(danaEntity === "ewallet" ? { institution: values.nama } : {}),
-              balance,
-              type: danaEntity,
-              ownerUserId: values.ownerUserId || null,
-            }),
+            body: JSON.stringify(
+              withCrudFx(
+                {
+                  name: values.nama,
+                  // F6 — `nama` on the e-wallet form IS the provider select
+                  // (GoPay/OVO/...), exactly like at create time; only
+                  // sending `name` here let a provider change desync
+                  // `name` from the account's real `institution`, and any
+                  // picker keyed off `institution` (e.g. rekening's brand
+                  // logo lookup) kept showing the OLD provider after the
+                  // "rename".
+                  ...(danaEntity === "ewallet"
+                    ? { institution: values.nama }
+                    : {}),
+                  balance,
+                  type: danaEntity,
+                  ownerUserId: values.ownerUserId || null,
+                },
+                values,
+                { saldo: "balance" },
+              ),
+            ),
           },
         );
         toast.success(`${label}${t.dana.toastUpdatedSuffix}`);
@@ -454,14 +468,20 @@ export default function DanaPage() {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
-          body: JSON.stringify({
-            type: danaEntity,
-            name: values.nama,
-            institution: danaEntity === "ewallet" ? values.nama : undefined,
-            maskedNumber: values.phone || undefined,
-            balance,
-            ownerUserId: values.ownerUserId || undefined,
-          }),
+          body: JSON.stringify(
+            withCrudFx(
+              {
+                type: danaEntity,
+                name: values.nama,
+                institution: danaEntity === "ewallet" ? values.nama : undefined,
+                maskedNumber: values.phone || undefined,
+                balance,
+                ownerUserId: values.ownerUserId || undefined,
+              },
+              values,
+              { saldo: "balance" },
+            ),
+          ),
         });
         toast.success(`${label}${t.dana.toastAddedSuffix}`);
       }

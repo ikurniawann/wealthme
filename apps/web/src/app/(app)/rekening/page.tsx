@@ -27,7 +27,12 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { CrudModal, ConfirmDeleteDialog, RowActions } from "@/components/crud";
+import {
+  CrudModal,
+  ConfirmDeleteDialog,
+  RowActions,
+  withCrudFx,
+} from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
@@ -594,7 +599,11 @@ export default function RekeningPage() {
           {
             token,
             method: "PATCH",
-            body: JSON.stringify({ name: values.nama, balance, type: "cash" }),
+            body: JSON.stringify(
+              withCrudFx({ name: values.nama, balance, type: "cash" }, values, {
+                saldo: "balance",
+              }),
+            ),
           },
         );
         toast.success(t.rekening.toastUpdated);
@@ -620,17 +629,23 @@ export default function RekeningPage() {
           {
             token,
             method: "PATCH",
-            body: JSON.stringify({
-              name: values.nama,
-              // F6 — "Nama Bank"/"Nomor Rekening" used to be dropped here
-              // entirely: an edit to either field was accepted by the form
-              // and silently discarded on save.
-              institution: values.bank || undefined,
-              maskedNumber: values.norek || undefined,
-              balance,
-              isPrivate,
-              ownerUserId,
-            }),
+            body: JSON.stringify(
+              withCrudFx(
+                {
+                  name: values.nama,
+                  // F6 — "Nama Bank"/"Nomor Rekening" used to be dropped
+                  // here entirely: an edit to either field was accepted by
+                  // the form and silently discarded on save.
+                  institution: values.bank || undefined,
+                  maskedNumber: values.norek || undefined,
+                  balance,
+                  isPrivate,
+                  ownerUserId,
+                },
+                values,
+                { saldo: "balance" },
+              ),
+            ),
           },
         );
         toast.success(t.rekening.toastUpdated);
@@ -638,15 +653,21 @@ export default function RekeningPage() {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
-          body: JSON.stringify({
-            type: "bank",
-            name: values.nama || `${values.bank} ${values.jenis}`,
-            institution: values.bank,
-            maskedNumber: values.norek || undefined,
-            balance,
-            isPrivate,
-            ...(ownerUserId ? { ownerUserId } : {}),
-          }),
+          body: JSON.stringify(
+            withCrudFx(
+              {
+                type: "bank",
+                name: values.nama || `${values.bank} ${values.jenis}`,
+                institution: values.bank,
+                maskedNumber: values.norek || undefined,
+                balance,
+                isPrivate,
+                ...(ownerUserId ? { ownerUserId } : {}),
+              },
+              values,
+              { saldo: "balance" },
+            ),
+          ),
         });
         toast.success(t.rekening.toastAdded);
       }

@@ -64,7 +64,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { CrudModal, type CrudModalState } from "@/components/crud";
+import { CrudModal, withCrudFx, type CrudModalState } from "@/components/crud";
 import { SectionCard, StatusBadge, InfoTip, DateField } from "@/components/wm";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -3110,19 +3110,25 @@ export default function AkunPage() {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
-          body: JSON.stringify({
-            type: entity === "rekening" ? "bank" : "ewallet",
-            name:
-              values.nama ||
-              (entity === "rekening"
-                ? `${values.bank ?? "Bank"} ${values.jenis ?? ""}`.trim()
-                : "E-Wallet"),
-            institution: entity === "rekening" ? values.bank : values.nama,
-            maskedNumber: values.norek || values.phone || undefined,
-            balance: parseRupiah(values.saldo ?? "0"),
-            isPrivate,
-            ...(ownerUserId ? { ownerUserId } : {}),
-          }),
+          body: JSON.stringify(
+            withCrudFx(
+              {
+                type: entity === "rekening" ? "bank" : "ewallet",
+                name:
+                  values.nama ||
+                  (entity === "rekening"
+                    ? `${values.bank ?? "Bank"} ${values.jenis ?? ""}`.trim()
+                    : "E-Wallet"),
+                institution: entity === "rekening" ? values.bank : values.nama,
+                maskedNumber: values.norek || values.phone || undefined,
+                balance: parseRupiah(values.saldo ?? "0"),
+                isPrivate,
+                ...(ownerUserId ? { ownerUserId } : {}),
+              },
+              values,
+              { saldo: "balance" },
+            ),
+          ),
         });
         await queryClient.invalidateQueries({
           queryKey: queryKeys.accounts.all(familyGroupId),

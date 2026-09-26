@@ -33,7 +33,7 @@ import {
   Rise,
 } from "@/components/wm";
 import { Button } from "@/components/ui/button";
-import { CrudModal, ConfirmDeleteDialog } from "@/components/crud";
+import { CrudModal, ConfirmDeleteDialog, withCrudFx } from "@/components/crud";
 import type { CrudModalState, CrudMode } from "@/components/crud";
 
 import {
@@ -499,7 +499,13 @@ export default function TujuanPage() {
       : payload.autoDebitAmount
         ? { ...payload, sourceAccountId: values.sourceAccountId }
         : payload;
-    const body = JSON.stringify(outgoing);
+    const body = JSON.stringify(
+      withCrudFx(outgoing, values, {
+        target: "targetAmount",
+        terkumpul: "currentAmount",
+        autodebit: "autoDebitAmount",
+      }),
+    );
     try {
       if (mode === "edit" && editingGoalId) {
         await apiFetch(

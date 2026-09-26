@@ -325,6 +325,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         // EPIC-021 #30 — "hitungan pecahan pembagi": suggest the per-month
         // contribution needed to close the gap by the target date.
         helper: (v) => {
+          if (
+            [v.target__currency, v.terkumpul__currency].some(
+              (c) => c && c !== "IDR",
+            )
+          )
+            return null;
           const remaining =
             parseRupiah(v.target ?? "0") - parseRupiah(v.terkumpul ?? "0");
           if (remaining <= 0 || !v.deadline) return null;

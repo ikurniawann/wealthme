@@ -47,6 +47,23 @@ jest.mock("../../../hooks/use-my-role", () => ({
 jest.mock("../../../hooks/use-family-members", () => ({
   useFamilyMembers: () => ({ data: [], isLoading: false }),
 }));
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
 
 import DanaPage from "./page";
 
@@ -192,6 +209,38 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     expect(postCall).toBeDefined();
     const body = JSON.parse(postCall![1].body as string) as { type: string };
     expect(body.type).toBe("cash");
+  });
+
+  it("revisi I — a negative USD cash balance posts the preview + fxInputs", async () => {
+    // Arrange
+    mockApiFetch.mockResolvedValueOnce([]); // initial accounts list
+    const user = userEvent.setup();
+    render(<DanaPage />);
+    await screen.findByText("Belum ada kas tunai.");
+
+    mockApiFetch.mockResolvedValueOnce({ id: "acc-new" }); // POST response
+    mockApiFetch.mockResolvedValueOnce([buildAccount({ id: "acc-new" })]); // refetch
+
+    // Act
+    await user.click(screen.getAllByText("+ Tambah")[0]!);
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.type(
+      dialog.getByPlaceholderText("cth: Kas Tunai, Dompet Kerja"),
+      "Kas Toko",
+    );
+    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "-20");
+    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
+
+    const post = mockApiFetch.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith("/accounts") && init?.method === "POST",
+    );
+    expect(JSON.parse(post![1].body)).toMatchObject({
+      type: "cash",
+      balance: -358_278,
+      fxInputs: [{ field: "balance", currency: "USD", amount: "-20" }],
+    });
   });
 
   it("edits an existing cash account by PATCHing its own id (not creating a new e-wallet)", async () => {
