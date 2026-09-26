@@ -149,6 +149,9 @@ export interface TerPreviewRequestDto {
   dependents: number;
   monthlyGross: string[];
   monthlyPension?: string[];
+  /** Fixed/regular monthly gross (excl. THR/bonus); used only for the DTP
+   * salary cap (PMK 10/2025, 105/2025). Defaults to monthlyGross per month. */
+  monthlyFixedGross?: string[];
   zakat?: string;
   dtp?: {
     sector: DtpSector | null;

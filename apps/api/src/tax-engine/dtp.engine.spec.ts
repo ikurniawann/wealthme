@@ -76,6 +76,36 @@ describe("dtpEligibility", () => {
     expect(oct.eligible).toBe(true);
     expect(oct.ref.verified).toBe(false);
   });
+  it("fixedMonthlyGross (regular salary) is used for the cap, not gross incl. THR", () => {
+    // PMK 10/2025, 105/2025: 8jt fixed salary + 5jt THR in March stays eligible.
+    expect(
+      dtpEligibility({
+        taxYear: 2026,
+        month: 3,
+        monthlyGross: 13_000_000n,
+        fixedMonthlyGross: 8_000_000n,
+        profile: permanent(),
+      }),
+    ).toMatchObject({ eligible: true, reasons: [] });
+  });
+  it("rejects negative gross and a month outside 1..12", () => {
+    expect(() =>
+      dtpEligibility({
+        taxYear: 2026,
+        month: 3,
+        monthlyGross: -1n,
+        profile: permanent(),
+      }),
+    ).toThrow(RangeError);
+    expect(() =>
+      dtpEligibility({
+        taxYear: 2026,
+        month: 13,
+        monthlyGross: 1n,
+        profile: permanent(),
+      }),
+    ).toThrow(RangeError);
+  });
   it("no sector chosen → sector_not_covered", () => {
     expect(
       dtpEligibility({

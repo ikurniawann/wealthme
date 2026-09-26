@@ -66,6 +66,31 @@ describe("terMonthly — category edges (inclusive upper bounds)", () => {
       }),
     ).toThrow(TerNotApplicableError);
   });
+
+  it("rejects negative gross and a month outside 1..12", () => {
+    expect(() =>
+      terMonthly({
+        taxYear: 2026,
+        month: 5,
+        status: st("TK", 0),
+        monthlyGross: -1n,
+      }),
+    ).toThrow(RangeError);
+    expect(() =>
+      terMonthly({
+        taxYear: 2026,
+        month: 13,
+        status: st("TK", 0),
+        monthlyGross: 1n,
+      }),
+    ).toThrow(RangeError);
+  });
+});
+
+describe("terCategoryFor — invalid dependents", () => {
+  it("throws RangeError for dependents outside 0..3", () => {
+    expect(() => terCategoryFor(st("TK", 4), "2026-01-01")).toThrow(RangeError);
+  });
 });
 
 describe("terYear — December true-up", () => {
@@ -168,5 +193,25 @@ describe("terYear — December true-up", () => {
     expect(r.dtpTotal).toBe(
       11n * 200_000n + (r.december > 0n ? r.december : 0n),
     );
+  });
+
+  it("monthlyFixedGross caps DTP eligibility by regular salary, not THR gross", () => {
+    const gross = twelve(8n * J).map((v, i) => (i === 2 ? v + 5n * J : v)); // March THR
+    const fixed = twelve(8n * J);
+    const r = terYear({
+      taxYear: 2026,
+      status: st("TK", 0),
+      monthlyGross: gross,
+      monthlyFixedGross: fixed,
+      monthlyPension: noPension,
+      zakat: 0n,
+      dtp: {
+        sector: "tekstil_pakaian",
+        employment: "permanent",
+        dailyWage: null,
+        nikValidated: true,
+      },
+    });
+    expect(r.months[2]?.dtp?.eligible).toBe(true);
   });
 });

@@ -23,6 +23,9 @@ export interface TerYearInput {
   status: TaxStatus;
   monthlyGross: readonly bigint[]; // length 12, Jan..Dec
   monthlyPension: readonly bigint[]; // length 12
+  /** Fixed/regular monthly gross (excl. THR/bonus), for the DTP salary cap
+   * only — defaults to monthlyGross per month when omitted. Length 12. */
+  monthlyFixedGross?: readonly bigint[] | null;
   zakat: bigint;
   dtp: DtpProfile | null;
 }
@@ -53,12 +56,19 @@ export function terCategoryFor(status: TaxStatus, date: string) {
   return { category, ref };
 }
 
+function assertMonth(month: number): void {
+  if (!Number.isInteger(month) || month < 1 || month > 12)
+    throw new RangeError("month must be 1..12");
+}
+
 export function terMonthly(args: {
   taxYear: number;
   month: number;
   status: TaxStatus;
   monthlyGross: bigint;
 }) {
+  assertMonth(args.month);
+  if (args.monthlyGross < 0n) throw new RangeError("monthlyGross must be >= 0");
   const date = monthStartDate(args.taxYear, args.month);
   const tables = ruleAt("pph21.terTables", date);
   if (tables.ref.outOfRange) throw new TerNotApplicableError(args.taxYear);
@@ -78,6 +88,9 @@ export function terYear(input: TerYearInput): TerYearResult {
   if (input.monthlyGross.length !== 12 || input.monthlyPension.length !== 12) {
     throw new RangeError("monthlyGross and monthlyPension need 12 entries");
   }
+  if (input.monthlyFixedGross && input.monthlyFixedGross.length !== 12) {
+    throw new RangeError("monthlyFixedGross needs 12 entries");
+  }
   const refs: TaxRuleRef[] = [];
   const months: TerMonth[] = [];
   let withheldJanNov = 0n;
@@ -90,6 +103,7 @@ export function terYear(input: TerYearInput): TerYearResult {
       taxYear: input.taxYear,
       month,
       monthlyGross: gross,
+      fixedMonthlyGross: input.monthlyFixedGross?.[month - 1],
       profile: input.dtp,
     });
     refs.push(d.ref);
