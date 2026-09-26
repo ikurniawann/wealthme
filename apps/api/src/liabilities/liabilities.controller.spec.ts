@@ -16,7 +16,7 @@
  */
 import "reflect-metadata";
 
-import { ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, ValidationPipe } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Test } from "@nestjs/testing";
 import { Role } from "@prisma/client";
@@ -77,7 +77,12 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
     role: Role.operational,
   };
 
-  const readRoutes = ["findAll", "getSummary", "getSchedule"] as const;
+  const readRoutes = [
+    "findAll",
+    "getSummary",
+    "getSchedule",
+    "previewPayment",
+  ] as const;
   const manageRoutes = [
     "create",
     "update",
@@ -157,6 +162,59 @@ describe("LiabilitiesController — GET :id/schedule over HTTP", () => {
 
     expect(service.getSchedule).toHaveBeenCalledWith("fg-1", "lid-1");
     expect(res.body.installmentAmount).toBe("6555556");
+    await app.close();
+  });
+});
+
+describe("LiabilitiesController — GET :id/payment-preview over HTTP", () => {
+  async function bootstrap() {
+    const service = {
+      previewPayment: jest.fn().mockResolvedValue({
+        liabilityId: "lid-1",
+        amount: "2500000",
+        interest: "833333",
+        principal: "1666667",
+        remainingAfter: "48333333",
+      }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [{ provide: LiabilitiesService, useValue: service }],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    await app.init();
+    return { app, service };
+  }
+
+  it("routes to previewPayment with the family group, liability id and amount", async () => {
+    const { app, service } = await bootstrap();
+
+    const res = await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/payment-preview")
+      .query({ amount: "2500000" })
+      .expect(200);
+
+    expect(service.previewPayment).toHaveBeenCalledWith(
+      "fg-1",
+      "lid-1",
+      "2500000",
+    );
+    expect(res.body.interest).toBe("833333");
+    await app.close();
+  });
+
+  it("rejects a non-numeric amount before reaching the service (the query DTO is a value import)", async () => {
+    const { app, service } = await bootstrap();
+
+    await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/payment-preview")
+      .query({ amount: "12abc" })
+      .expect(400);
+
+    expect(service.previewPayment).not.toHaveBeenCalled();
     await app.close();
   });
 });

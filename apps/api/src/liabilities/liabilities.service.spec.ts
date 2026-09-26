@@ -2233,6 +2233,93 @@ describe("LiabilitiesService", () => {
     });
   });
 
+  describe("previewPayment (final fix 3)", () => {
+    // Flat kendaraan: 100 jt original, 50 jt left @ 10% -> interest on the ORIGINAL principal.
+    const FLAT = {
+      ...BASE,
+      type: "kendaraan",
+      interestMethod: "flat",
+      totalDebt: BigInt(100_000_000),
+      remainingBalance: BigInt(50_000_000),
+      interestRate: { toString: () => "10.00" },
+      tenorMonths: 48,
+      installmentAmount: BigInt(2_916_667),
+      minimumPayment: BigInt(2_916_667),
+    };
+
+    it("returns the same split pay() books, read-only and tenant-scoped", async () => {
+      prisma.liability.findUnique.mockResolvedValue(FLAT);
+
+      const preview = await service.previewPayment("fg-1", "lid-1", "2916667");
+
+      expect(preview).toEqual({
+        liabilityId: "lid-1",
+        amount: "2916667",
+        interest: "833333",
+        principal: "2083334",
+        remainingAfter: "47916666",
+      });
+      expect(prisma.liability.findUnique).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+      });
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+    });
+
+    it("uses the floating rate for a KPR installment past its fixed period, like pay()", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...BASE,
+        type: "kpr",
+        interestMethod: "anuitas",
+        totalDebt: BigInt(500_000_000),
+        remainingBalance: BigInt(465_590_716),
+        interestRate: { toString: () => "8.00" },
+        tenorMonths: 240,
+        startDate: new Date("2026-01-15T00:00:00.000Z"),
+        installmentAmount: BigInt(4_182_200),
+        minimumPayment: BigInt(4_182_200),
+        fixedRateMonths: 36,
+        floatingRate: { toString: () => "11.00" },
+      });
+
+      const preview = await service.previewPayment(
+        "fg-1",
+        "lid-1",
+        "5053432",
+        new Date("2029-02-15T08:00:00.000Z"),
+      );
+
+      expect(preview.interest).toBe("4267915");
+      expect(preview.principal).toBe("785517");
+    });
+
+    it("throws NotFoundException for a liability outside this family group", async () => {
+      prisma.liability.findUnique.mockResolvedValue(null);
+
+      await expect(
+        service.previewPayment("fg-1", "lid-x", "100000"),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("rejects an amount above balance + interest due with pay()'s own message", async () => {
+      prisma.liability.findUnique.mockResolvedValue(FLAT);
+
+      await expect(
+        service.previewPayment("fg-1", "lid-1", "60000000"),
+      ).rejects.toThrow(
+        "Payment amount exceeds the remaining balance plus interest due (max 50833333)",
+      );
+    });
+
+    it("rejects a zero amount", async () => {
+      await expect(
+        service.previewPayment("fg-1", "lid-1", "0"),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.liability.findUnique).not.toHaveBeenCalled();
+    });
+  });
+
   describe("getSchedule (revisi G)", () => {
     const NOW = new Date("2026-09-25T00:00:00.000Z");
 

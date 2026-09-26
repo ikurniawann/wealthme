@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
 } from "@nestjs/common";
 import {
@@ -25,12 +26,15 @@ import { PageAccess } from "../common/decorators/page-access.decorator";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateLiabilityDto } from "./dto/create-liability.dto";
 import {
+  LiabilityPaymentPreviewResponseDto,
   LiabilityResponseDto,
   LiabilityScheduleResponseDto,
   type LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PayLiabilityDto } from "./dto/pay-liability.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PaymentPreviewQueryDto } from "./dto/payment-preview-query.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -86,6 +90,32 @@ export class LiabilitiesController {
     @Param("id") id: string,
   ): Promise<LiabilityScheduleResponseDto> {
     return this.liabilitiesService.getSchedule(familyGroupId, id);
+  }
+
+  @Get(":id/payment-preview")
+  @CheckAbility((ab: AppAbility) => ab.can("read", "Liability"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Principal/interest split a payment of `amount` would book right now (read-only, same math as pay)",
+  })
+  @ApiResponse({ status: 200, type: LiabilityPaymentPreviewResponseDto })
+  @ApiResponse({ status: 404, description: "Liability not found" })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid amount or amount exceeds what is owed",
+  })
+  previewPayment(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Query() query: PaymentPreviewQueryDto,
+  ): Promise<LiabilityPaymentPreviewResponseDto> {
+    return this.liabilitiesService.previewPayment(
+      familyGroupId,
+      id,
+      query.amount,
+    );
   }
 
   @Post()

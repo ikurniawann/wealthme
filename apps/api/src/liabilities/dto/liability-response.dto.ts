@@ -63,3 +63,11 @@ export class LiabilityScheduleResponseDto {
   @ApiProperty({ type: [LiabilityScheduleRowDto] })
   rows!: LiabilityScheduleRowDto[];
 }
+
+export class LiabilityPaymentPreviewResponseDto {
+  @ApiProperty() liabilityId!: string;
+  @ApiProperty() amount!: string;
+  @ApiProperty() interest!: string;
+  @ApiProperty() principal!: string;
+  @ApiProperty() remainingAfter!: string;
+}

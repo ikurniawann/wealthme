@@ -35,11 +35,13 @@ import {
   rateForPeriod,
   splitPayment,
   type InterestMethod,
+  type SplitPaymentResult,
   type ScheduleInput,
 } from "./amortisation.util";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
+  LiabilityPaymentPreviewResponseDto,
   LiabilityResponseDto,
   LiabilityScheduleResponseDto,
   LiabilitySummaryResponseDto,
@@ -231,6 +233,42 @@ function resolveInstallment(terms: {
 // Installment k falls due k months after the akad, so a payment settles installment max(1, elapsed).
 function settledPeriod(startDate: Date | null, now: Date): number {
   return startDate ? Math.max(1, monthsElapsed(startDate, now)) : 1;
+}
+
+/** The split pay() books for `paymentAmount` at `now`; refuses more than balance + interest due. */
+function splitLiabilityPayment(
+  liability: InstallmentTerms,
+  paymentAmount: bigint,
+  now: Date,
+): SplitPaymentResult {
+  const split = splitPayment({
+    paymentAmount,
+    remainingBalance: liability.remainingBalance,
+    annualInterestRatePercent: rateForPeriod({
+      period: settledPeriod(liability.startDate, now),
+      baseRatePercent: liability.interestRate.toString(),
+      fixedRateMonths: liability.fixedRateMonths,
+      floatingRatePercent: liability.floatingRate?.toString() ?? null,
+    }),
+    rateIsMonthly: liability.type === "kartu_kredit",
+    method: liability.interestMethod,
+    originalPrincipal: liability.totalDebt,
+  });
+  const maxPayable = liability.remainingBalance + split.interest;
+  if (paymentAmount > maxPayable) {
+    throw new BadRequestException(
+      `Payment amount exceeds the remaining balance plus interest due (max ${maxPayable.toString()})`,
+    );
+  }
+  return split;
+}
+
+function guardPaymentAmount(amount: string): bigint {
+  const paymentAmount = guardBigInt("amount", amount);
+  if (paymentAmount <= BigInt(0)) {
+    throw new BadRequestException("amount must be greater than zero");
+  }
+  return paymentAmount;
 }
 
 @Injectable()
@@ -789,10 +827,7 @@ export class LiabilitiesService {
     dto: PayLiabilityDto,
     now: Date = new Date(),
   ): Promise<LiabilityResponseDto> {
-    const paymentAmount = guardBigInt("amount", dto.amount);
-    if (paymentAmount <= BigInt(0)) {
-      throw new BadRequestException("amount must be greater than zero");
-    }
+    const paymentAmount = guardPaymentAmount(dto.amount);
 
     const { liability, principalCategoryId } = await runSerializableWithRetry(
       this.prisma,
@@ -815,6 +850,34 @@ export class LiabilitiesService {
     }
 
     return liability;
+  }
+
+  /** Read-only: the split `pay()` would book for `amount` right now. */
+  async previewPayment(
+    familyGroupId: string,
+    id: string,
+    amount: string,
+    now: Date = new Date(),
+  ): Promise<LiabilityPaymentPreviewResponseDto> {
+    const paymentAmount = guardPaymentAmount(amount);
+    const liability = await this.prisma.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+    const { interest, principal } = splitLiabilityPayment(
+      liability,
+      paymentAmount,
+      now,
+    );
+    return {
+      liabilityId: liability.id,
+      amount: paymentAmount.toString(),
+      interest: interest.toString(),
+      principal: principal.toString(),
+      remainingAfter: (liability.remainingBalance - principal).toString(),
+    };
   }
 
   private async runPayment(
@@ -872,26 +935,11 @@ export class LiabilitiesService {
       throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
     }
 
-    const { interest, principal } = splitPayment({
+    const { interest, principal } = splitLiabilityPayment(
+      liability,
       paymentAmount,
-      remainingBalance: liability.remainingBalance,
-      annualInterestRatePercent: rateForPeriod({
-        period: settledPeriod(liability.startDate, now),
-        baseRatePercent: liability.interestRate.toString(),
-        fixedRateMonths: liability.fixedRateMonths,
-        floatingRatePercent: liability.floatingRate?.toString() ?? null,
-      }),
-      rateIsMonthly: liability.type === "kartu_kredit",
-      method: liability.interestMethod,
-      originalPrincipal: liability.totalDebt,
-    });
-
-    const maxPayable = liability.remainingBalance + interest;
-    if (paymentAmount > maxPayable) {
-      throw new BadRequestException(
-        `Payment amount exceeds the remaining balance plus interest due (max ${maxPayable.toString()})`,
-      );
-    }
+      now,
+    );
 
     // EPIC-021 #22 — this is a fresh, user-initiated debit of the SOURCE
     // account, exactly the class of debit the bank-overdraft floor guards

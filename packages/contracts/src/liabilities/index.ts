@@ -99,3 +99,12 @@ export interface LiabilityScheduleDto {
   installmentAmount: string | null;
   rows: LiabilityScheduleRowDto[];
 }
+
+// Read-only split a payment of `amount` would book right now (same math as pay).
+export interface LiabilityPaymentPreviewDto {
+  liabilityId: string;
+  amount: string;
+  interest: string;
+  principal: string;
+  remainingAfter: string;
+}
