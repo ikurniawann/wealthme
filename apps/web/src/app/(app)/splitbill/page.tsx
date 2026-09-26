@@ -669,9 +669,21 @@ export default function SplitBillPage() {
                       )}
                       {" · "}
                       {t.splitbill.createdOnPrefix}
+                      {/* Batch 5 item 5 — no explicit `timeZone` means this
+                          resolves the runtime's local zone, which differs
+                          between the Node SSR pass and the browser: a real
+                          hydration-mismatch source. Pinning `timeZone: "UTC"`
+                          matches the fix in `money-format.ts`'s
+                          `formatRateDate` and `asuransi/page.tsx`'s
+                          `formatLocaleDate`. */}
                       {new Date(split.createdAt).toLocaleDateString(
                         locale === "en" ? "en-US" : "id-ID",
-                        { day: "numeric", month: "short", year: "numeric" },
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        },
                       )}
                     </div>
                   </div>

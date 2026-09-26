@@ -460,6 +460,68 @@ describe("AsuransiPage — paid-ahead premium tooltip", () => {
       expect.stringMatching(/jatuh tempo berikutnya/i),
     );
   });
+
+  it("batch 5 item 5 — the renewal date in the tooltip is pinned to UTC, not shifted by the viewer's local zone", async () => {
+    // 23:30 UTC on Sep 1 is already Sep 2 in this suite's pinned Jakarta
+    // zone (UTC+7, see jest.config.ts). Without `timeZone: "UTC"` on
+    // `formatLocaleDate`'s `toLocaleDateString` call, this renders the
+    // wrong calendar day locally and a different one again during a
+    // UTC-zoned SSR pass — the hydration mismatch this fix removes.
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([
+          {
+            id: "ins-1",
+            familyGroupId: FAMILY_GROUP_ID,
+            name: "Asuransi Jiwa",
+            provider: "Prudential",
+            type: "jiwa",
+            status: "aktif",
+            coverageAmount: "100000000",
+            premiumAmount: "100000",
+            premiumPeriod: "monthly",
+            renewalDate: "2026-09-01T23:30:00.000Z",
+            autoRenewDate: false,
+            policyNumber: "POL-1",
+            daysUntilRenewal: 30,
+            notes: null,
+            currency: "IDR",
+            beneficiaries: [],
+            paidThisPeriod: true,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+        return Promise.resolve({
+          activePolicies: 1,
+          totalMonthlyPremium: "100000",
+          currency: "IDR",
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+
+    render(<AsuransiPage />);
+
+    await screen.findByText("POL-1");
+    const payButtons = screen.getAllByRole("button", { name: /bayar premi/i });
+    const pay = payButtons.find(
+      (btn) => (btn as HTMLButtonElement).disabled,
+    ) as HTMLElement;
+    expect(pay).toHaveAttribute(
+      "title",
+      expect.stringContaining("1 September 2026"),
+    );
+    expect(pay).not.toHaveAttribute(
+      "title",
+      expect.stringContaining("2 September 2026"),
+    );
+  });
 });
 
 // Batch 4 item 1 — daysUntilRenewal is a real, legitimate negative number

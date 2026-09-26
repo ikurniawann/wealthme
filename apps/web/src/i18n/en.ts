@@ -385,6 +385,10 @@ export const en = {
       "Family reports are visible because this account is Master or Co-Master.",
     familyReportsLockedDescription:
       "Family reports are Master and Co-Master only. Your own transactions are still visible on the Transactions page.",
+    familyReportsRowStatusUnlocked: "Allowed",
+    familyReportsRowNoteUnlocked:
+      "Master and Co-Master can view family reports.",
+    familyReportsRowNoteLocked: "Master and Co-Master only.",
   },
   akun: {
     heroMemberSince: "Member since January 2024",

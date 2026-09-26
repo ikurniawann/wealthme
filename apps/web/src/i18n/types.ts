@@ -627,6 +627,12 @@ export type I18nDictionary = {
     familyReportsLocked: string;
     familyReportsUnlockedDescription: string;
     familyReportsLockedDescription: string;
+    /** Batch 5 (controller-added) — "Aktivitas yang Diizinkan" table's own
+     * "Melihat laporan keluarga" row status/note, derived from role like
+     * the permission card above it instead of hardcoded to always-locked. */
+    familyReportsRowStatusUnlocked: string;
+    familyReportsRowNoteUnlocked: string;
+    familyReportsRowNoteLocked: string;
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
   akun: {

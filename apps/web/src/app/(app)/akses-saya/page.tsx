@@ -204,9 +204,25 @@ export default function MyAccessPage() {
                 <tr>
                   <td className="font-semibold">Melihat laporan keluarga</td>
                   <td>
-                    <StatusBadge variant="danger">Dikunci</StatusBadge>
+                    {/* Controller-added batch 5 item — this row hardcoded
+                        "Dikunci" for every viewer regardless of role, the
+                        same self-contradiction the permission card above
+                        already had before batch 4 item 3. Derive from
+                        `familyReportsUnlocked` (same `useMyRole` rule) like
+                        that card does. */}
+                    <StatusBadge
+                      variant={familyReportsUnlocked ? "success" : "danger"}
+                    >
+                      {familyReportsUnlocked
+                        ? t.aksesSaya.familyReportsRowStatusUnlocked
+                        : t.aksesSaya.familyReportsLocked}
+                    </StatusBadge>
                   </td>
-                  <td>Hanya Master dan Co-Master.</td>
+                  <td>
+                    {familyReportsUnlocked
+                      ? t.aksesSaya.familyReportsRowNoteUnlocked
+                      : t.aksesSaya.familyReportsRowNoteLocked}
+                  </td>
                 </tr>
                 <tr>
                   <td className="font-semibold">Mengubah role anggota</td>

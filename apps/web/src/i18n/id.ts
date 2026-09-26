@@ -388,6 +388,10 @@ export const id = {
       "Laporan keluarga bisa dilihat karena akun ini Master atau Co-Master.",
     familyReportsLockedDescription:
       "Laporan keluarga hanya untuk Master dan Co-Master. Transaksimu sendiri tetap bisa dilihat di halaman Transaksi.",
+    familyReportsRowStatusUnlocked: "Diizinkan",
+    familyReportsRowNoteUnlocked:
+      "Master dan Co-Master bisa melihat laporan keluarga.",
+    familyReportsRowNoteLocked: "Hanya Master dan Co-Master.",
   },
   akun: {
     heroMemberSince: "Member sejak Januari 2024",

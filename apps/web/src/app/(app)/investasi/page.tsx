@@ -2248,53 +2248,64 @@ export default function InvestasiPage() {
         ))}
       </div>
 
-      {!isLoading && portfolioTrendSeries.length > 0 && (
-        <SectionCard
-          title="Kepemilikan"
-          action={
-            <span className="text-[12px] text-muted-foreground">
-              {filteredHoldings.length} {t.investasi.positionsCountSuffix}
-            </span>
-          }
-        >
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="min-w-0">
-              <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
-                Nilai Portofolio 6 Bulan
-              </div>
-              <TrendChart
-                categories={["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"]}
-                series={[
-                  {
-                    name: t.investasi.totalValueLabel,
-                    data: portfolioTrendSeries,
-                  },
-                ]}
-                height={230}
-                ariaLabel="Tren nilai portofolio 6 bulan"
-              />
-            </div>
-            {allocationSegments.length > 0 && (
-              <div className="min-w-0 rounded-[10px] border p-3">
-                <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
-                  {t.investasi.allocationTitle}
+      {/* Batch 5 item 2 — this was the ONLY instance of the allocation
+          donut prior to this fix; a second, visually narrower copy further
+          down the page rendered the same `allocationSegments` again
+          whenever both conditions were true (near-always, since both derive
+          from the same holdings/summary data). Removed the duplicate rather
+          than repurposing it (no other planned content for it) and widened
+          this guard so the donut still renders alone when there's no trend
+          series to share the row with. */}
+      {!isLoading &&
+        (portfolioTrendSeries.length > 0 || allocationSegments.length > 0) && (
+          <SectionCard
+            title="Kepemilikan"
+            action={
+              <span className="text-[12px] text-muted-foreground">
+                {filteredHoldings.length} {t.investasi.positionsCountSuffix}
+              </span>
+            }
+          >
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+              {portfolioTrendSeries.length > 0 && (
+                <div className="min-w-0">
+                  <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
+                    Nilai Portofolio 6 Bulan
+                  </div>
+                  <TrendChart
+                    categories={["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"]}
+                    series={[
+                      {
+                        name: t.investasi.totalValueLabel,
+                        data: portfolioTrendSeries,
+                      },
+                    ]}
+                    height={230}
+                    ariaLabel="Tren nilai portofolio 6 bulan"
+                  />
                 </div>
-                <DonutChart
-                  segments={allocationSegments}
-                  centerLabel={t.investasi.totalValueLabel}
-                  height={220}
-                  ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments
-                    .map(
-                      (s) =>
-                        `${s.label} ${formatDecimalRupiah(String(s.value))}`,
-                    )
-                    .join(", ")}`}
-                />
-              </div>
-            )}
-          </div>
-        </SectionCard>
-      )}
+              )}
+              {allocationSegments.length > 0 && (
+                <div className="min-w-0 rounded-[10px] border p-3">
+                  <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
+                    {t.investasi.allocationTitle}
+                  </div>
+                  <DonutChart
+                    segments={allocationSegments}
+                    centerLabel={t.investasi.totalValueLabel}
+                    height={220}
+                    ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments
+                      .map(
+                        (s) =>
+                          `${s.label} ${formatDecimalRupiah(String(s.value))}`,
+                      )
+                      .join(", ")}`}
+                  />
+                </div>
+              )}
+            </div>
+          </SectionCard>
+        )}
 
       <SectionCard
         title={t.investasi.portfolioSectionTitle}
@@ -2595,29 +2606,6 @@ export default function InvestasiPage() {
           </table>
         </div>
       </SectionCard>
-
-      {/* Allocation-by-instrument donut (FOLD per J3 — derived from the
-          holdings list already fetched above). Gap #7/#8 — the prototype's
-          "Nilai Portofolio 6 Bulan" trend chart stays CUT per J3 (no
-          historical price-snapshot series is persisted anywhere in the
-          schema — confirmed still true, not fabricated): with no second
-          chart to share the row, the donut is rendered on its own,
-          constrained to a sensible width (not full-bleed) with a thinner
-          ring and no legend row (matches `/aset`'s DonutChart treatment —
-          `DonutChart` itself is protected and exposes no legend toggle, so
-          the default ApexCharts legend is hidden page-locally). */}
-      {!isLoading && allocationSegments.length > 0 && (
-        <div className="max-w-md [&_.apexcharts-legend]:hidden!">
-          <SectionCard title={t.investasi.allocationTitle}>
-            <DonutChart
-              segments={allocationSegments}
-              centerLabel={t.investasi.totalValueLabel}
-              height={220}
-              ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`).join(", ")}`}
-            />
-          </SectionCard>
-        </div>
-      )}
     </div>
   );
 }
