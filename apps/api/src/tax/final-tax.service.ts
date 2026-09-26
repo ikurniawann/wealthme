@@ -242,7 +242,18 @@ export class FinalTaxService {
     const entryLinesResult = opts.includeEntries
       ? await this.entryLines(familyGroupId, taxYear)
       : [];
-    const lines = [...holdingLinesResult, ...entryLinesResult];
+    // A manual entry that names the same (investmentId, instrument) as a
+    // derived holding line replaces it instead of adding to it — manual
+    // wins (opus review fix round 1, Important #2).
+    const manualKeys = new Set(
+      entryLinesResult
+        .filter((l) => l.investmentId !== null)
+        .map((l) => `${l.investmentId}|${l.instrument}`),
+    );
+    const dedupedHoldingLines = holdingLinesResult.filter(
+      (l) => !manualKeys.has(`${l.investmentId}|${l.instrument}`),
+    );
+    const lines = [...dedupedHoldingLines, ...entryLinesResult];
     const totalTax = lines.reduce(
       (acc, l) => acc + (l.tax === null ? 0n : BigInt(l.tax)),
       0n,
@@ -344,7 +355,9 @@ export class FinalTaxService {
     const to =
       inv.maturityDate === null ? null : wibDateString(inv.maturityDate);
     const principal = toRupiah(inv.quantity.times(inv.costBasisPerUnit));
-    const rateHundredths = BigInt(inv.interestRatePct.times(100).toFixed(0));
+    // Explicit round-half-up (not the implicit `toFixed(0)` default) —
+    // matches `toRupiah` above and the amortisation.util.ts convention.
+    const rateHundredths = toRupiah(inv.interestRatePct.times(100));
     const { interest } = accruedInterest({
       principal,
       rateHundredths,

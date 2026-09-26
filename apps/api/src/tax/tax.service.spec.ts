@@ -71,6 +71,32 @@ describe("TaxService — legacy rows are unchanged", () => {
     });
     expect(data.sptFiledAt).toBeInstanceOf(Date);
   });
+
+  // Opus review fix round 1 (Important #1) — maritalStatus: null must not be
+  // treated as "maritalStatus is set": POST with an explicit null stays legacy.
+  it("POST with maritalStatus: null and ptkp given stays legacy (netTax 2.425.000)", async () => {
+    prisma.taxRecord.findUnique.mockResolvedValue(null);
+    prisma.taxRecord.upsert.mockImplementation(echo);
+    const r = await svc.upsertByYear(FG, {
+      taxYear: 2024,
+      grossIncome: "120000000",
+      ptkp: "63000000",
+      maritalStatus: null as never,
+    });
+    const create = prisma.taxRecord.upsert.mock.calls[0][0].create;
+    expect(create).toMatchObject({ calcMode: "legacy", netTax: 2_425_000n });
+    expect(r).toMatchObject({ calcMode: "legacy", netTax: "2425000" });
+  });
+
+  it("PATCH with maritalStatus: null keeps a legacy row legacy", async () => {
+    prisma.taxRecord.findUnique.mockResolvedValue(legacyRow());
+    prisma.taxRecord.update.mockImplementation(echo);
+    await svc.update(FG, "t1", { maritalStatus: null as never });
+    expect(prisma.taxRecord.update.mock.calls[0][0].data).toMatchObject({
+      calcMode: "legacy",
+      netTax: 2_425_000n,
+    });
+  });
 });
 
 describe("TaxService — detailed rows", () => {
@@ -145,5 +171,54 @@ describe("TaxService — detailed rows", () => {
     prisma.taxRecord.update.mockImplementation(echo);
     await svc.update(FG, "t1", { sptStatus: "terlambat" });
     expect(prisma.taxRecord.update.mock.calls[0][0].data.sptFiledAt).toBeNull();
+  });
+});
+
+describe("TaxService — fix round 1 minor fold-ins", () => {
+  const svc = new TaxService(prisma as never, donations as never);
+  beforeEach(() => {
+    jest.resetAllMocks();
+    donations.getTotalDeductibleAmount.mockResolvedValue(2_500_000n);
+  });
+
+  it("POST without maritalStatus onto an existing detailed row reverts it to legacy (full replace)", async () => {
+    prisma.taxRecord.findUnique.mockResolvedValue(
+      legacyRow({
+        taxYear: 2026,
+        calcMode: "detailed",
+        maritalStatus: "K",
+        dependents: 1,
+        pensionContribution: 3_600_000n,
+        freelanceGross: 1_000_000n,
+        nppnRateBps: 5000,
+        otherNetIncome: 500_000n,
+        withheldPph21: 2_000_000n,
+      }),
+    );
+    prisma.taxRecord.upsert.mockImplementation(echo);
+    const r = await svc.upsertByYear(FG, {
+      taxYear: 2026,
+      grossIncome: "120000000",
+      ptkp: "63000000",
+    });
+    const update = prisma.taxRecord.upsert.mock.calls[0][0].update;
+    expect(update).toMatchObject({
+      calcMode: "legacy",
+      maritalStatus: null,
+      dependents: null,
+      pensionContribution: null,
+      freelanceGross: null,
+      nppnRateBps: null,
+      otherNetIncome: null,
+      withheldPph21: null,
+    });
+    expect(r.calcMode).toBe("legacy");
+  });
+
+  it("a pre-2022 legacy record's response carries rules[].outOfRange: true for pph.pasal17", async () => {
+    prisma.taxRecord.findMany.mockResolvedValue([legacyRow({ taxYear: 2019 })]);
+    const [r] = await svc.findAll(FG);
+    const p17 = r!.rules.find((x) => x.key === "pph.pasal17");
+    expect(p17).toMatchObject({ outOfRange: true });
   });
 });

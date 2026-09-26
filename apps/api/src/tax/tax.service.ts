@@ -252,8 +252,10 @@ export class TaxService {
       where: { familyGroupId_taxYear: { familyGroupId, taxYear: dto.taxYear } },
     })) as TaxRecordRow | null;
 
+    // An explicit `maritalStatus: null` must NOT enable detailed mode — only
+    // a real marital status does (opus review fix round 1, Important #1).
     const calcMode: CalcMode =
-      dto.maritalStatus !== undefined ? "detailed" : "legacy";
+      dto.maritalStatus != null ? "detailed" : "legacy";
     const zakat = await this.donationsService.getTotalDeductibleAmount(
       familyGroupId,
       dto.taxYear,
@@ -342,8 +344,10 @@ export class TaxService {
       dto.grossIncome !== undefined
         ? BigInt(dto.grossIncome)
         : existing.grossIncome;
+    // Same null-vs-undefined guard as upsertByYear: an explicit
+    // `maritalStatus: null` PATCH keeps the row on its existing mode.
     const calcMode: CalcMode =
-      dto.maritalStatus !== undefined ? "detailed" : existing.calcMode;
+      dto.maritalStatus != null ? "detailed" : existing.calcMode;
 
     const maritalStatus =
       calcMode === "detailed"

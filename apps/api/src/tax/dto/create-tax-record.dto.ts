@@ -45,7 +45,7 @@ export class CreateTaxRecordDto {
     description:
       "PTKP amount as numeric string; required unless maritalStatus is set",
   })
-  @ValidateIf((o: CreateTaxRecordDto) => o.maritalStatus === undefined)
+  @ValidateIf((o: CreateTaxRecordDto) => o.maritalStatus == null)
   @IsString()
   @Matches(NUMERIC_STRING_PATTERN, { message: NUMERIC_STRING_MESSAGE("ptkp") })
   ptkp?: string;
@@ -79,7 +79,7 @@ export class CreateTaxRecordDto {
   maritalStatus?: "TK" | "K" | "KI";
 
   @ApiPropertyOptional()
-  @ValidateIf((o: CreateTaxRecordDto) => o.maritalStatus !== undefined)
+  @ValidateIf((o: CreateTaxRecordDto) => o.maritalStatus != null)
   @IsInt()
   @Min(0)
   @Max(3)

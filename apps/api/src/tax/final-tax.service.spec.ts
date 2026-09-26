@@ -114,6 +114,27 @@ describe("FinalTaxService.estimate", () => {
     );
   });
 
+  // Task 7 carry, opus review fix round 1 (#3) — interestRatePct.times(100)
+  // must round half-up explicitly (not rely on Decimal's implicit toFixed
+  // rounding mode): 4,255% → 425,5 hundredths → 426, not 425.
+  it("rounds a fractional interest rate (4,255%) half-up to 426 hundredths", async () => {
+    prisma.investment.findMany.mockResolvedValue([
+      inv({
+        id: "dep2",
+        type: "deposito",
+        quantity: d("1"),
+        costBasisPerUnit: d("100000000.00"),
+        interestRatePct: d("4.255"),
+        purchasedAt: at("2026-03-01"),
+        maturityDate: at("2027-03-01"),
+      }),
+    ]);
+    const r = await svc.estimate(FG, 2026, { includeEntries: false });
+    expect(r.lines.map((l) => [l.grossAmount, l.tax])).toEqual([
+      ["3571397", "714279"],
+    ]);
+  });
+
   it("splits kripto sells at 2025-08-01 and marks the domestic assumption", async () => {
     prisma.investment.findMany.mockResolvedValue([
       inv({
@@ -240,6 +261,42 @@ describe("FinalTaxService.estimate", () => {
       ["e3", "150000", "override"],
     ]);
     expect(r.totalTax).toBe("350000");
+  });
+
+  // Opus review fix round 1 (Important #2) — a manual entry that overrides a
+  // holding's own instrument (same investmentId + instrument) must replace
+  // the derived holding line, not add to it.
+  it("a manual entry for the same (investmentId, instrument) as a holding replaces it — manual wins", async () => {
+    prisma.investment.findMany.mockResolvedValue([
+      inv({
+        id: "dep",
+        type: "deposito",
+        quantity: d("1"),
+        costBasisPerUnit: d("100000000.00"),
+        interestRatePct: d("4.25"),
+        purchasedAt: at("2026-03-01"),
+        maturityDate: at("2027-03-01"),
+      }),
+    ]);
+    prisma.taxFinalIncomeEntry.findMany.mockResolvedValue([
+      {
+        id: "e-dep",
+        taxYear: 2026,
+        instrument: "bunga_deposito",
+        grossAmount: 5_000_000n,
+        occurredAt: at("2026-06-01"),
+        reinvested: false,
+        rateBpsOverride: null,
+        investmentId: "dep",
+        accountId: null,
+        notes: "manual override of the holding estimate",
+      },
+    ]);
+    const r = await svc.estimate(FG, 2026, { includeEntries: true });
+    expect(r.lines.map((l) => [l.source, l.investmentId, l.tax])).toEqual([
+      ["entry", "dep", "1000000"],
+    ]);
+    expect(r.totalTax).toBe("1000000");
   });
 });
 

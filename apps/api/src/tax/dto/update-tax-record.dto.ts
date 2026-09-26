@@ -63,7 +63,7 @@ export class UpdateTaxRecordDto {
   @ApiPropertyOptional()
   @ValidateIf(
     (o: UpdateTaxRecordDto) =>
-      o.maritalStatus !== undefined || o.dependents !== undefined,
+      o.maritalStatus != null || o.dependents !== undefined,
   )
   @IsInt()
   @Min(0)
