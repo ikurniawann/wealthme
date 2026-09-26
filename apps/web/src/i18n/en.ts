@@ -2043,8 +2043,6 @@ export const en = {
     fieldInstallmentLabel: "Installment/Month (Rp)",
     fieldInstallmentHint:
       "Leave empty to compute it from principal, rate, and tenor.",
-    fieldFixedRateMonthsLabel: "Fixed-Rate Period (months)",
-    fieldFloatingRateLabel: "Floating Rate/Year (%)",
     toastInstallmentPrefix: "Monthly installment: ",
     amortisationScheduleHeaderInstallment: "Installment",
     amortisationScheduleLoading: "Loading schedule…",
@@ -2055,6 +2053,41 @@ export const en = {
       "Could not load the projection: the installment schedule is unavailable.",
     detailTenorLabel: "Tenor",
     tenorMonthsSuffix: " months",
+    kpr: {
+      planLegend: "Mortgage rate structure",
+      presetLabel: "Mortgage scheme",
+      presetNames: {
+        manual: "Manual — enter your own",
+        flpp_tapak: "FLPP landed house — 5% fixed",
+        flpp_rusun: "FLPP apartment — 6% fixed",
+        konvensional: "Conventional — fixed then floating",
+        berjenjang: "Tiered fixed then floating",
+        syariah_murabahah: "Sharia murabahah — fixed margin",
+        syariah_mmq: "Sharia MMQ/ijarah — fixed then reset",
+      },
+      officialRateNote:
+        "Official 2026 FLPP rates (Ministry of Housing): 5% landed house, 6% apartment, fixed for the whole tenor, up to 40 years.",
+      exampleRateNote:
+        'Rates marked "Example" come from public 2026 data, not your bank\'s offer. Check them against your offer letter (SP3K) before saving.',
+      mmqResetNote:
+        "There is no public reference for the post-reset rate; the example uses a conventional floating rate.",
+      exampleBadge: "Example",
+      officialBadge: "Official",
+      periodLabel: "Period",
+      periodKindLabel: "Rate type",
+      kindFixed: "Fixed",
+      kindFloating: "Floating",
+      periodMonthsLabel: "Length (months)",
+      periodToMaturity: "Until maturity",
+      periodRateLabel: "Rate/year (%)",
+      periodMarginLabel: "Margin/year (%)",
+      addPeriod: "Add period",
+      removePeriod: "Remove period",
+      planHint:
+        "The installment is re-annuitised from the remaining principal and tenor every time the rate changes.",
+      planInvalid:
+        "Complete every period: at least 1 month (except the last) and a rate of 0–30%.",
+    },
   },
   masterdata: {
     pageTitle: "Master Data Setup",

@@ -635,7 +635,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(postBodies[0]).not.toHaveProperty("fxInputs");
   });
 
-  it("kpr: anuitas with fixed period + floating rate", async () => {
+  it("kpr: berjenjang preset prefills labelled example periods, each overridable (revisi K)", async () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);
     const dialog = await openAddDialog(user);
@@ -647,10 +647,20 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       "500000000",
     );
     await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "500000000");
-    await user.type(dialog.getByLabelText("Bunga Fixed/Tahun (%)"), "8");
     await user.type(dialog.getByLabelText("Tenor (bulan)"), "240");
-    await user.type(dialog.getByLabelText("Masa Bunga Fixed (bulan)"), "36");
-    await user.type(dialog.getByLabelText("Bunga Floating/Tahun (%)"), "11");
+    expect(
+      dialog.queryByLabelText("Bunga Fixed/Tahun (%)"),
+    ).not.toBeInTheDocument();
+    await user.selectOptions(dialog.getByLabelText("Skema KPR"), "berjenjang");
+
+    expect(dialog.getByText(/bukan penawaran bank Anda/)).toBeInTheDocument();
+    expect(dialog.getAllByText("Contoh")).toHaveLength(3);
+    const tier1 = dialog.getByLabelText("Bunga/tahun (%) · Periode 1");
+    expect(tier1).toHaveValue("3.50");
+    await user.clear(tier1);
+    await user.type(tier1, "3,25");
+    expect(dialog.getAllByText("Contoh")).toHaveLength(2);
+
     await user.click(
       dialog.getByRole("button", { name: /simpan liabilitas/i }),
     );
@@ -660,12 +670,106 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       expect.objectContaining({
         type: "kpr",
         interestMethod: "anuitas",
+        interestRate: "3.25",
+        tenorMonths: 240,
+        kprScheme: "berjenjang",
+        ratePeriods: [
+          { kind: "fixed", months: 24, ratePercent: "3.25" },
+          { kind: "fixed", months: 12, ratePercent: "5.50" },
+          { kind: "floating", months: null, ratePercent: "11.00" },
+        ],
+      }),
+    );
+    expect(postBodies[0]).not.toHaveProperty("fixedRateMonths");
+    expect(postBodies[0]).not.toHaveProperty("floatingRate");
+  });
+
+  it("kpr: FLPP preset carries the official 5% rate, badged Resmi, not Contoh (revisi K)", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    await user.type(dialog.getByLabelText("Nama"), "Rumah Subsidi");
+    await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
+    await user.type(
+      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+      "150000000",
+    );
+    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "150000000");
+    await user.type(dialog.getByLabelText("Tenor (bulan)"), "480");
+    await user.selectOptions(dialog.getByLabelText("Skema KPR"), "flpp_tapak");
+
+    expect(dialog.getByText(/Tarif resmi FLPP 2026/)).toBeInTheDocument();
+    expect(dialog.getByText("Resmi")).toBeInTheDocument();
+    expect(dialog.queryByText("Contoh")).not.toBeInTheDocument();
+
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() => expect(postBodies).toHaveLength(1));
+    expect(postBodies[0]).toEqual(
+      expect.objectContaining({
+        kprScheme: "flpp",
+        interestRate: "5.00",
+        ratePeriods: [{ kind: "fixed", months: null, ratePercent: "5.00" }],
+      }),
+    );
+  });
+
+  it("kpr: editing a G-era KPR shows its own pair as unlabelled periods and PATCHes ratePeriods (revisi K)", async () => {
+    liabilitiesFixture = [
+      baseLiability({
+        name: "KPR BTN",
+        type: "kpr",
+        interestMethod: "anuitas",
         interestRate: "8",
+        totalDebt: "500000000",
+        remainingBalance: "450000000",
+        minimumPayment: "4182200",
+        installmentAmount: "4182200",
+        currentInstallmentAmount: "4182200",
         tenorMonths: 240,
         fixedRateMonths: 36,
         floatingRate: "11",
       }),
+    ];
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(dialog.queryByText("Contoh")).not.toBeInTheDocument();
+    expect(dialog.getByLabelText("Bunga/tahun (%) · Periode 1")).toHaveValue(
+      "8",
     );
+    expect(dialog.getByLabelText("Lama (bulan) · Periode 1")).toHaveValue("36");
+    expect(dialog.getByLabelText("Bunga/tahun (%) · Periode 2")).toHaveValue(
+      "11",
+    );
+
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() =>
+      expect(
+        mockApiFetch.mock.calls.some(([, o]) => o?.method === "PATCH"),
+      ).toBe(true),
+    );
+    const patch = mockApiFetch.mock.calls.find(
+      ([, o]) => o?.method === "PATCH",
+    );
+    const body = JSON.parse(patch?.[1]?.body ?? "{}") as Record<
+      string,
+      unknown
+    >;
+    expect(body.ratePeriods).toEqual([
+      { kind: "fixed", months: 36, ratePercent: "8" },
+      { kind: "floating", months: null, ratePercent: "11" },
+    ]);
+    expect(body).not.toHaveProperty("fixedRateMonths");
   });
 
   it("pinjaman pribadi: method select offers only flat/anuitas and sends a typed installment override", async () => {

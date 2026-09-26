@@ -207,6 +207,16 @@ type LiabilitasTypeId =
 /** Revisi G — `/liabilitas` interest method ids (mirrors Prisma `InterestMethod`). */
 type LiabilitasInterestMethodId = "efektif" | "flat" | "anuitas";
 
+/** Revisi K — `/liabilitas` KPR scheme preset ids. */
+type LiabilitasKprPresetId =
+  | "manual"
+  | "flpp_tapak"
+  | "flpp_rusun"
+  | "konvensional"
+  | "berjenjang"
+  | "syariah_murabahah"
+  | "syariah_mmq";
+
 /**
  * EPIC-018 Task A5 — `/masterdata` system reference-group ids (mirrors the
  * `CrudEntity` `md*` variants). Each group's `title`/`label` translate; the
@@ -1939,8 +1949,6 @@ export type I18nDictionary = {
     fieldStartDateLabel: string;
     fieldInstallmentLabel: string;
     fieldInstallmentHint: string;
-    fieldFixedRateMonthsLabel: string;
-    fieldFloatingRateLabel: string;
     toastInstallmentPrefix: string;
     amortisationScheduleHeaderInstallment: string;
     amortisationScheduleLoading: string;
@@ -1950,6 +1958,29 @@ export type I18nDictionary = {
     payoffProjectionError: string;
     detailTenorLabel: string;
     tenorMonthsSuffix: string;
+    /** Revisi K — KPR rate structure (form); Task 12 adds the detail keys. */
+    kpr: {
+      planLegend: string;
+      presetLabel: string;
+      presetNames: Record<LiabilitasKprPresetId, string>;
+      officialRateNote: string;
+      exampleRateNote: string;
+      mmqResetNote: string;
+      exampleBadge: string;
+      officialBadge: string;
+      periodLabel: string;
+      periodKindLabel: string;
+      kindFixed: string;
+      kindFloating: string;
+      periodMonthsLabel: string;
+      periodToMaturity: string;
+      periodRateLabel: string;
+      periodMarginLabel: string;
+      addPeriod: string;
+      removePeriod: string;
+      planHint: string;
+      planInvalid: string;
+    };
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`

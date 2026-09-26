@@ -2079,8 +2079,6 @@ export const id = {
     fieldInstallmentLabel: "Angsuran/Bulan (Rp)",
     fieldInstallmentHint:
       "Kosongkan agar dihitung otomatis dari pokok, bunga, dan tenor.",
-    fieldFixedRateMonthsLabel: "Masa Bunga Fixed (bulan)",
-    fieldFloatingRateLabel: "Bunga Floating/Tahun (%)",
     toastInstallmentPrefix: "Angsuran/bulan: ",
     amortisationScheduleHeaderInstallment: "Angsuran",
     amortisationScheduleLoading: "Memuat jadwal…",
@@ -2091,6 +2089,41 @@ export const id = {
       "Proyeksi gagal dimuat karena jadwal cicilan tidak tersedia.",
     detailTenorLabel: "Tenor",
     tenorMonthsSuffix: " bulan",
+    kpr: {
+      planLegend: "Struktur bunga KPR",
+      presetLabel: "Skema KPR",
+      presetNames: {
+        manual: "Manual — isi sendiri",
+        flpp_tapak: "FLPP rumah tapak — 5% tetap",
+        flpp_rusun: "FLPP rumah susun — 6% tetap",
+        konvensional: "Konvensional — fixed lalu floating",
+        berjenjang: "Fixed berjenjang lalu floating",
+        syariah_murabahah: "Syariah murabahah — margin tetap",
+        syariah_mmq: "Syariah MMQ/ijarah — tetap lalu ditinjau ulang",
+      },
+      officialRateNote:
+        "Tarif resmi FLPP 2026 (Kementerian PKP): 5% rumah tapak, 6% rumah susun, tetap sepanjang tenor hingga 40 tahun.",
+      exampleRateNote:
+        'Bunga bertanda "Contoh" diambil dari data publik 2026, bukan penawaran bank Anda. Cocokkan dengan surat penawaran (SP3K) sebelum menyimpan.',
+      mmqResetNote:
+        "Belum ada acuan publik untuk tarif setelah ditinjau ulang; contoh memakai bunga floating konvensional.",
+      exampleBadge: "Contoh",
+      officialBadge: "Resmi",
+      periodLabel: "Periode",
+      periodKindLabel: "Tipe bunga",
+      kindFixed: "Fixed",
+      kindFloating: "Floating",
+      periodMonthsLabel: "Lama (bulan)",
+      periodToMaturity: "Sampai akhir tenor",
+      periodRateLabel: "Bunga/tahun (%)",
+      periodMarginLabel: "Margin/tahun (%)",
+      addPeriod: "Tambah periode",
+      removePeriod: "Hapus periode",
+      planHint:
+        "Cicilan dihitung ulang (anuitas) dari sisa pokok dan sisa tenor setiap kali bunga berganti.",
+      planInvalid:
+        "Lengkapi setiap periode: lama minimal 1 bulan (kecuali periode terakhir) dan bunga 0–30%.",
+    },
   },
   masterdata: {
     pageTitle: "Setup Master Data",

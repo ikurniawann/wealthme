@@ -60,11 +60,22 @@ import {
 } from "@/components/wm";
 import { TrendChart } from "@/components/charts/apex-presets";
 
+import { extractApiErrorMessage } from "./api-error";
+import {
+  draftFromLiability,
+  draftFromPreset,
+  toRatePeriodsBody,
+  type KprPlanDraft,
+} from "./kpr-presets";
+import { KprRatePeriodsField } from "./kpr-rate-periods-field";
+
 import type {
   FxInput,
   InterestMethod,
+  KprScheme,
   LiabilityDto,
   LiabilityPaymentPreviewDto,
+  LiabilityRatePeriodDto,
   LiabilityScheduleDto,
   LiabilityType,
   NetWorthDto,
@@ -75,22 +86,6 @@ import type {
 // EPIC-023 E2 — mirrors `asuransi/page.tsx`'s local `AccountDto` shape; only
 // the fields the source-account picker needs.
 type AccountDto = { id: string; name: string; institution: string | null };
-
-// Mirrors the local `extractApiErrorMessage` helper already used on
-// /rekening, /dana, /tax, /mastercoa, /akun, /masterdata — the server's real
-// message (e.g. `remove()`'s ConflictException naming the blocking budget,
-// or `pay()`'s BadRequestException naming the max payable amount) must reach
-// the user instead of a generic fallback (silent-failure-hunter routing).
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  // silent-failure-hunter (review round 2) — a browser network TypeError
-  // ("Failed to fetch") also satisfies `"message" in err`; only trust the
-  // message when the object also carries the ApiError shape's `status`
-  // field, otherwise a raw network/abort error would leak to the user
-  // verbatim instead of the localized fallback.
-  return err && typeof err === "object" && "status" in err && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 // Review round 2 (HIGH) — every liability mutation (create/edit/delete/pay)
 // changes remainingBalance, which feeds net worth and the dashboard summary
@@ -351,8 +346,8 @@ interface LiabilityBody {
   tenorMonths?: number;
   startDate?: string | null;
   installmentAmount?: string;
-  fixedRateMonths?: number;
-  floatingRate?: string;
+  kprScheme?: KprScheme;
+  ratePeriods?: LiabilityRatePeriodDto[];
   fxInputs?: FxInput[];
 }
 
@@ -408,13 +403,13 @@ function LiabilityModal({
   );
   // Empty = let the server compute it; a PATCH without it recomputes from the terms.
   const installmentField = useMoneyField({ initialRaw: "", isEdit: !!editing });
-  const [fixedRateMonths, setFixedRateMonths] = useState(
-    editing?.fixedRateMonths ? String(editing.fixedRateMonths) : "",
+  const [kprPlan, setKprPlan] = useState<KprPlanDraft>(() =>
+    editing ? draftFromLiability(editing) : draftFromPreset("manual"),
   );
-  const [floatingRate, setFloatingRate] = useState(editing?.floatingRate ?? "");
 
   const methodOptions = INTEREST_METHOD_OPTIONS[type];
   const usesTenor = interestMethod !== "efektif";
+  const usesRatePlan = type === "kpr" && interestMethod === "anuitas";
   const rateLabel =
     type === "kartu_kredit"
       ? t.liabilitas.fieldRateMonthlyLabel
@@ -497,7 +492,13 @@ function LiabilityModal({
     const remainDigits = moneyDigits(remainingField);
     if (!name.trim() || !totalDigits || !remainDigits) return;
     const tenorDigits = toDigits(tenorMonths);
-    const fixedDigits = toDigits(fixedRateMonths);
+    const ratePeriods = usesRatePlan
+      ? toRatePeriodsBody(kprPlan.periods)
+      : undefined;
+    if (ratePeriods === null) {
+      toast.error(t.liabilitas.kpr.planInvalid);
+      return;
+    }
     mutation.mutate(
       withFxInputs(
         {
@@ -514,7 +515,9 @@ function LiabilityModal({
           minimumPayment: usesTenor
             ? undefined
             : moneyDigits(minPaymentField) || "0",
-          interestRate: toDecimalString(interestRate),
+          interestRate: usesRatePlan
+            ? ratePeriods?.[0]?.ratePercent
+            : toDecimalString(interestRate),
           dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
           autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
           notes: notes.trim() || undefined,
@@ -531,10 +534,8 @@ function LiabilityModal({
           installmentAmount: usesTenor
             ? moneyDigits(installmentField) || undefined
             : undefined,
-          fixedRateMonths:
-            type === "kpr" && fixedDigits ? Number(fixedDigits) : undefined,
-          floatingRate:
-            type === "kpr" ? toDecimalString(floatingRate) : undefined,
+          kprScheme: usesRatePlan ? (kprPlan.scheme ?? undefined) : undefined,
+          ratePeriods,
         },
         [
           ["totalDebt", totalDebtField],
@@ -672,19 +673,21 @@ function LiabilityModal({
                   />
                 </div>
               )}
-              <div className="field mt-0">
-                <label className="label" htmlFor="liability-interest-rate">
-                  {rateLabel}
-                </label>
-                <input
-                  id="liability-interest-rate"
-                  className="input mono"
-                  placeholder={t.liabilitas.fieldInterestRatePlaceholder}
-                  inputMode="decimal"
-                  value={interestRate}
-                  onChange={(e) => setInterestRate(e.target.value)}
-                />
-              </div>
+              {!usesRatePlan && (
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-interest-rate">
+                    {rateLabel}
+                  </label>
+                  <input
+                    id="liability-interest-rate"
+                    className="input mono"
+                    placeholder={t.liabilitas.fieldInterestRatePlaceholder}
+                    inputMode="decimal"
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(e.target.value)}
+                  />
+                </div>
+              )}
               {usesTenor && (
                 <div className="field mt-0">
                   <label className="label" htmlFor="liability-tenor">
@@ -738,37 +741,8 @@ function LiabilityModal({
               </div>
             )}
 
-            {type === "kpr" && (
-              <div className="field-row mt-3">
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-fixed-months">
-                    {t.liabilitas.fieldFixedRateMonthsLabel}
-                  </label>
-                  <input
-                    id="liability-fixed-months"
-                    className="input mono"
-                    inputMode="numeric"
-                    placeholder="36"
-                    value={fixedRateMonths}
-                    onChange={(e) =>
-                      setFixedRateMonths(e.target.value.replace(/\D/g, ""))
-                    }
-                  />
-                </div>
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-floating-rate">
-                    {t.liabilitas.fieldFloatingRateLabel}
-                  </label>
-                  <input
-                    id="liability-floating-rate"
-                    className="input mono"
-                    inputMode="decimal"
-                    placeholder="11"
-                    value={floatingRate}
-                    onChange={(e) => setFloatingRate(e.target.value)}
-                  />
-                </div>
-              </div>
+            {usesRatePlan && (
+              <KprRatePeriodsField value={kprPlan} onChange={setKprPlan} />
             )}
 
             <div className="field">
