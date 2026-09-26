@@ -131,6 +131,19 @@ function renewalBadgeVariant(
   return "success";
 }
 
+// Batch 4 item 1 — a negative `daysUntilRenewal` is a real, legitimate value
+// (daysUntil() in insurances.service.ts), but the badge/banner had no branch
+// for it and rendered e.g. "-16 hari" instead of a real overdue label.
+function daysUntilRenewalLabel(
+  days: number,
+  t: ReturnType<typeof useLocale>["t"]["asuransi"],
+  notDueSuffix: string = t.daysUntilRenewalSuffix,
+): string {
+  return days < 0
+    ? `${t.daysOverduePrefix} ${Math.abs(days)} ${t.daysUntilRenewalSuffix}`
+    : `${days} ${notDueSuffix}`;
+}
+
 function PolicyCardSkeleton() {
   return (
     <div className="animate-pulse rounded-[14px] border bg-card p-[18px]">
@@ -237,7 +250,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
                 </div>
                 {item.daysUntilRenewal !== null && (
                   <StatusBadge variant={renewalVariant} className="text-[10px]">
-                    {item.daysUntilRenewal} {t.asuransi.daysUntilRenewalSuffix}
+                    {daysUntilRenewalLabel(item.daysUntilRenewal, t.asuransi)}
                   </StatusBadge>
                 )}
               </div>
@@ -1561,8 +1574,13 @@ export default function AsuransiPage() {
             <strong>{nearestRenewal.name}</strong>{" "}
             {t.asuransi.renewalWarningSuffix}{" "}
             {formatLocaleDate(nearestRenewal.renewalDate, locale)} ·{" "}
-            {nearestRenewal.daysUntilRenewal}{" "}
-            {t.asuransi.renewalWarningDaysLeftSuffix}.
+            {daysUntilRenewalLabel(
+              // filtered by `daysUntilRenewal !== null` above.
+              nearestRenewal.daysUntilRenewal!,
+              t.asuransi,
+              t.asuransi.renewalWarningDaysLeftSuffix,
+            )}
+            .
           </span>
         </div>
       )}

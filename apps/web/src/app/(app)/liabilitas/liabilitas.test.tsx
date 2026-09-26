@@ -1084,7 +1084,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     );
   });
 
-  it("Pay preview surfaces the server's refusal instead of a fabricated split", async () => {
+  it("Pay preview surfaces the localized fallback instead of a fabricated split or the raw English server message (batch 4)", async () => {
     previewOutcome = "exceeds";
     const user = userEvent.setup();
     render(<LiabilitasPage />);
@@ -1092,11 +1092,14 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     await user.click(await screen.findByRole("button", { name: "Bayar" }));
     const dialog = within(await screen.findByRole("dialog"));
 
+    // The preview endpoint's 400 has no stable code, so batch 4 always
+    // shows the localized fallback — never the raw English server message.
     expect(
-      await dialog.findByText(
-        /exceeds the remaining balance plus interest due/,
-      ),
+      await dialog.findByText(idDict.liabilitas.payPreviewError),
     ).toBeInTheDocument();
+    expect(
+      dialog.queryByText(/exceeds the remaining balance plus interest due/),
+    ).not.toBeInTheDocument();
     expect(dialog.queryByText(/Estimasi Pokok/)).not.toBeInTheDocument();
   });
 

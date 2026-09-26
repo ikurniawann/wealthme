@@ -461,3 +461,77 @@ describe("AsuransiPage — paid-ahead premium tooltip", () => {
     );
   });
 });
+
+// Batch 4 item 1 — daysUntilRenewal is a real, legitimate negative number
+// for an overdue policy (daysUntil() in insurances.service.ts); the badge
+// had no branch for it and rendered "-16 hari" instead of "terlambat 16 hari".
+describe("AsuransiPage — overdue renewal wording (batch 4)", () => {
+  function policyWithDaysUntilRenewal(daysUntilRenewal: number) {
+    return {
+      id: "ins-overdue",
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Asuransi Kendaraan",
+      provider: "Astra",
+      type: "kendaraan",
+      status: "aktif",
+      coverageAmount: "50000000",
+      premiumAmount: "50000",
+      premiumPeriod: "monthly",
+      renewalDate: new Date().toISOString(),
+      autoRenewDate: false,
+      policyNumber: "POL-2",
+      daysUntilRenewal,
+      notes: null,
+      currency: "IDR",
+      beneficiaries: [],
+      paidThisPeriod: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+  }
+
+  function mockInsurances(daysUntilRenewal: number) {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([policyWithDaysUntilRenewal(daysUntilRenewal)]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+        return Promise.resolve({
+          activePolicies: 1,
+          totalMonthlyPremium: "50000",
+          currency: "IDR",
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+  }
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it("renders 'terlambat N hari' for a policy overdue by 16 days", async () => {
+    mockInsurances(-16);
+    render(<AsuransiPage />);
+
+    expect(await screen.findByText("terlambat 16 hari")).toBeInTheDocument();
+  });
+
+  it("still renders 'N hari' (not-yet-due) for a non-negative day count", async () => {
+    mockInsurances(5);
+    render(<AsuransiPage />);
+
+    expect(await screen.findByText("5 hari")).toBeInTheDocument();
+  });
+});

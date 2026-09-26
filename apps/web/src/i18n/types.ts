@@ -614,6 +614,20 @@ export type I18nDictionary = {
       typeToSearchHint: string;
     };
   };
+  /**
+   * Batch 4 item 3 — `/akses-saya` (row-scoped member landing page) copy
+   * that must vary by viewer role. Only the strings that actually differ
+   * per role are here; the rest of the page's copy predates i18n and is
+   * out of this batch's scope.
+   */
+  aksesSaya: {
+    eyebrowMaster: string;
+    eyebrowDependant: string;
+    familyReportsUnlocked: string;
+    familyReportsLocked: string;
+    familyReportsUnlockedDescription: string;
+    familyReportsLockedDescription: string;
+  };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
   akun: {
     heroMemberSince: string;
@@ -1099,6 +1113,9 @@ export type I18nDictionary = {
     premiumLabel: string;
     renewalLabel: string;
     daysUntilRenewalSuffix: string;
+    // Batch 4 item 1 — overdue (negative daysUntilRenewal) prefix, paired
+    // with daysUntilRenewalSuffix: "{daysOverduePrefix} {abs(days)} {daysUntilRenewalSuffix}".
+    daysOverduePrefix: string;
     policyNumberLabel: string;
     toastAdded: string;
     toastAddFailed: string;

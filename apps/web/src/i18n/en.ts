@@ -376,6 +376,16 @@ export const en = {
       typeToSearchHint: "Type at least 2 characters to search",
     },
   },
+  aksesSaya: {
+    eyebrowMaster: "Master Account",
+    eyebrowDependant: "Child / Staff Account",
+    familyReportsUnlocked: "Unlocked",
+    familyReportsLocked: "Locked",
+    familyReportsUnlockedDescription:
+      "Family reports are visible because this account is Master or Co-Master.",
+    familyReportsLockedDescription:
+      "Family reports are Master and Co-Master only. Your own transactions are still visible on the Transactions page.",
+  },
   akun: {
     heroMemberSince: "Member since January 2024",
     loadProfileError: "Failed to load profile. Please refresh the page.",
@@ -1168,6 +1178,7 @@ export const en = {
     premiumLabel: "Premium",
     renewalLabel: "Due Date",
     daysUntilRenewalSuffix: "days",
+    daysOverduePrefix: "overdue by",
     policyNumberLabel: "Policy No.",
     toastAdded: "Insurance added successfully",
     toastAddFailed: "Failed to save insurance",

@@ -153,7 +153,7 @@ export const id = {
       rekonsiliasi: "Rekonsiliasi Bank",
       ai: "AI Advisor",
       kalkulator: "Kalkulator",
-      quickinput: "Quick Input",
+      quickinput: "Input Cepat",
       mastercoa: "Master COA",
       masterdata: "Setup Master Data",
       iam: "IAM Roles",
@@ -202,7 +202,7 @@ export const id = {
       donation: "Donasi",
       tax: "Tax Center",
       persetujuan: "Persetujuan",
-      quickinput: "Quick Input",
+      quickinput: "Input Cepat",
       mastercoa: "Master COA",
       masterdata: "Setup Master Data",
       iam: "IAM Roles",
@@ -378,6 +378,16 @@ export const id = {
       noResultsFor: "Tidak ada hasil untuk",
       typeToSearchHint: "Ketik minimal 2 karakter untuk mencari",
     },
+  },
+  aksesSaya: {
+    eyebrowMaster: "Akun Master",
+    eyebrowDependant: "Akun Anak / Staff",
+    familyReportsUnlocked: "Terbuka",
+    familyReportsLocked: "Dikunci",
+    familyReportsUnlockedDescription:
+      "Laporan keluarga bisa dilihat karena akun ini Master atau Co-Master.",
+    familyReportsLockedDescription:
+      "Laporan keluarga hanya untuk Master dan Co-Master. Transaksimu sendiri tetap bisa dilihat di halaman Transaksi.",
   },
   akun: {
     heroMemberSince: "Member sejak Januari 2024",
@@ -944,7 +954,7 @@ export const id = {
         desc: "Gunakan filter tanggal/kategori untuk menelusuri riwayat, atau ketuk satu baris untuk mengubah maupun menghapusnya.",
       },
       quickinput: {
-        title: "Quick Input",
+        title: "Input Cepat",
         desc: "Tekan tombol ini untuk memilih jenis data (transaksi, rekening, aset, dll), lalu langsung isi formulirnya tanpa pindah halaman.",
       },
       search: {
@@ -1175,6 +1185,7 @@ export const id = {
     premiumLabel: "Premi",
     renewalLabel: "Jatuh Tempo",
     daysUntilRenewalSuffix: "hari",
+    daysOverduePrefix: "terlambat",
     policyNumberLabel: "No. Polis",
     toastAdded: "Asuransi berhasil ditambahkan",
     toastAddFailed: "Gagal menyimpan asuransi",
@@ -1472,7 +1483,7 @@ export const id = {
     },
   },
   quickinput: {
-    pageTitle: "Quick Input",
+    pageTitle: "Input Cepat",
     pageSubtitle:
       "Pilih jenis data yang ingin kamu input, langsung isi via popup",
     cards: {
