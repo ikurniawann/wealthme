@@ -239,6 +239,39 @@ describe("FxInputService.run — revisi I", () => {
     expect(prisma.fxConversion.createMany).not.toHaveBeenCalled();
   });
 
+  // Revisi K bug 2 — the web app used to map EVERY 503 to the FX refusal
+  // toast, because it matched on HTTP status alone. The 503's response body
+  // now carries a machine code so the web app can match on THIS specific
+  // refusal instead of the status shared by every 503.
+  it("Revisi K bug 2 — the 503's response body carries code: FX_RATE_UNAVAILABLE", async () => {
+    const { service } = fxTesting({
+      ...TEST_SNAPSHOT,
+      source: "indicative",
+      stale: true,
+    });
+    const persist = jest.fn().mockResolvedValue({ id: "acc-1" });
+    try {
+      await service.run(
+        {
+          familyGroupId: "fg-1",
+          userId: "u-1",
+          entity: "Account",
+          dto: {
+            balance: 1,
+            fxInputs: [{ field: "balance", currency: "USD", amount: "1.00" }],
+          },
+          spec: SPEC,
+        },
+        persist,
+      );
+      throw new Error("expected service.run to reject");
+    } catch (err) {
+      expect(err).toBeInstanceOf(ServiceUnavailableException);
+      const response = (err as ServiceUnavailableException).getResponse();
+      expect(response).toMatchObject({ code: "FX_RATE_UNAVAILABLE" });
+    }
+  });
+
   it("I2 — an IDR submission (no fxInputs) is unaffected by an indicative snapshot", async () => {
     const { service, fxPort } = fxTesting({
       ...TEST_SNAPSHOT,

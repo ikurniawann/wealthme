@@ -4,20 +4,23 @@ import type { MoneyField } from "./use-money-field";
 
 interface ApiErrorLike {
   status?: number;
+  code?: string;
   message?: string;
 }
 
-/** I2 — the server refuses an fxInputs write with 503 when the snapshot is
- * indicative (no live rate). Map that one status to the friendly, localized
- * refusal copy instead of the server's raw technical message; every other
- * status passes through untouched (IDR submissions never send fxInputs, so
- * they never hit this branch). */
+/** I2 — the server refuses an fxInputs write with 503 + `code:
+ * "FX_RATE_UNAVAILABLE"` when the snapshot is indicative (no live rate).
+ * Map that specific code to the friendly, localized refusal copy instead of
+ * the server's raw technical message. Revisi K bug 2 — matching on status
+ * 503 alone used to swallow every unrelated 503 into this FX message; match
+ * on the machine code so other 503s keep their own handling. */
 export function extractApiErrorMessage(
   error: unknown,
   t: { money: { fxIndicativeRefused: string } },
 ): string | null {
   const apiError = error as ApiErrorLike;
-  if (apiError?.status === 503) return t.money.fxIndicativeRefused;
+  if (apiError?.code === "FX_RATE_UNAVAILABLE")
+    return t.money.fxIndicativeRefused;
   return null;
 }
 

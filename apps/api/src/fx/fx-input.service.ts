@@ -88,9 +88,15 @@ export class FxInputService {
     // is refused, and only here, the single choke point every fxInputs write
     // passes through.
     if (snapshot.source === "indicative") {
-      throw new ServiceUnavailableException(
-        "fxInputs: FX rate is indicative only, not a live rate — choose IDR or try again",
-      );
+      // Revisi K bug 2 — the web app used to map EVERY 503 to this FX
+      // refusal toast by matching on HTTP status alone (several distinct
+      // failures can share 503). `code` lets it match on THIS specific
+      // refusal instead, mirroring devices.service.ts's DEVICE_LOCKED body.
+      throw new ServiceUnavailableException({
+        message:
+          "fxInputs: FX rate is indicative only, not a live rate — choose IDR or try again",
+        code: "FX_RATE_UNAVAILABLE",
+      });
     }
     const { overrides, pending } = resolveFxInputs(
       fxInputs,
