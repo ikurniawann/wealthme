@@ -74,6 +74,15 @@ function taxRow(overrides: Record<string, unknown> = {}) {
     notes: null,
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    calcMode: "legacy",
+    maritalStatus: null,
+    dependents: null,
+    pensionContribution: null,
+    freelanceGross: null,
+    nppnRateBps: null,
+    otherNetIncome: null,
+    withheldPph21: null,
+    sptFiledAt: null,
     ...overrides,
   };
 }

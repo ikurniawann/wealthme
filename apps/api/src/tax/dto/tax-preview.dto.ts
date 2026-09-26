@@ -133,3 +133,19 @@ export class UmkmPreviewDto {
   @Max(2100)
   firstRegisteredYear?: number | null;
 }
+
+export class UmkmYearPutDto {
+  @ApiProperty({ type: [String] })
+  @IsArray()
+  @ArrayMinSize(12)
+  @ArrayMaxSize(12)
+  @Matches(TAX_DIGITS, { each: true })
+  monthlyOmzet!: string[];
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @ValidateIf((o: UmkmYearPutDto) => o.firstRegisteredYear !== null)
+  @IsInt()
+  @Min(1990)
+  @Max(2100)
+  firstRegisteredYear?: number | null;
+}
