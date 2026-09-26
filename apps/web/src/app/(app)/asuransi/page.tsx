@@ -25,12 +25,20 @@ import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  MoneyInput,
+  anyMoneyPending,
+  moneyDigits,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 
 import type {
   CreateInsuranceBeneficiaryDto,
   CreateInsuranceDto,
+  FxInput,
   InsuranceDto,
   InsuranceSummaryDto,
   InsuranceType,
@@ -39,6 +47,8 @@ import type {
   PremiumPeriod,
   UpdateInsuranceDto,
 } from "@wealthme/contracts";
+
+type CreateInsuranceDtoWithFx = CreateInsuranceDto & { fxInputs?: FxInput[] };
 
 // EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
 // the optional "link a beneficiary to a family member" picker. EPIC-023 F1
@@ -575,17 +585,19 @@ function InsuranceModal({
   const [status, setStatus] = useState<InsuranceStatus>(
     editing?.status ?? "aktif",
   );
-  const [premiumAmount, setPremiumAmount] = useState(
-    editing ? String(Number(BigInt(editing.premiumAmount))) : "",
-  );
+  const premiumField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.premiumAmount).toString() : "",
+    isEdit: !!editing,
+  });
   const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>(
     editing?.premiumPeriod ?? "monthly",
   );
-  const [coverageAmount, setCoverageAmount] = useState(
-    editing?.coverageAmount
-      ? String(Number(BigInt(editing.coverageAmount)))
+  const coverageField = useMoneyField({
+    initialRaw: editing?.coverageAmount
+      ? BigInt(editing.coverageAmount).toString()
       : "",
-  );
+    isEdit: !!editing,
+  });
   const [renewalDate, setRenewalDate] = useState(
     editing?.renewalDate ? editing.renewalDate.slice(0, 10) : "",
   );
@@ -605,7 +617,11 @@ function InsuranceModal({
   );
 
   const mutation = useMutation({
-    mutationFn: (dto: CreateInsuranceDto | UpdateInsuranceDto) =>
+    mutationFn: (
+      dto:
+        | CreateInsuranceDtoWithFx
+        | (UpdateInsuranceDto & { fxInputs?: FxInput[] }),
+    ) =>
       editing
         ? apiFetch<InsuranceDto>(
             `/family-groups/${familyGroupId}/insurances/${editing.id}`,
@@ -653,7 +669,11 @@ function InsuranceModal({
       toast.warning(t.asuransi.validationNameRequired);
       return;
     }
-    const parsedPremium = parseRupiah(premiumAmount);
+    if (anyMoneyPending(premiumField, coverageField)) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const parsedPremium = Number(moneyDigits(premiumField) || "0");
     if (parsedPremium <= 0) {
       toast.warning(t.asuransi.validationPremiumPositive);
       return;
@@ -699,15 +719,15 @@ function InsuranceModal({
       );
     }
 
-    const dto: CreateInsuranceDto = {
+    const dto: CreateInsuranceDtoWithFx = {
       name: trimmedName,
       type,
       status,
       premiumAmount: String(parsedPremium),
       premiumPeriod,
       ...(provider.trim() && { provider: provider.trim() }),
-      ...(coverageAmount && {
-        coverageAmount: String(parseRupiah(coverageAmount)),
+      ...(coverageField.raw && {
+        coverageAmount: moneyDigits(coverageField),
       }),
       ...(renewalDate && { renewalDate, autoRenewDate }),
       ...(policyNumber.trim() && { policyNumber: policyNumber.trim() }),
@@ -715,7 +735,12 @@ function InsuranceModal({
       beneficiaries: beneficiaryDtos,
     };
 
-    mutation.mutate(dto);
+    mutation.mutate(
+      withFxInputs(dto, [
+        ["premiumAmount", premiumField],
+        ["coverageAmount", coverageField.raw ? coverageField : null],
+      ]),
+    );
   }
 
   return (
@@ -803,16 +828,10 @@ function InsuranceModal({
               <label className="label" htmlFor="ins-premium">
                 {t.asuransi.fieldPremiumLabel}
               </label>
-              <input
+              <MoneyInput
+                field={premiumField}
                 id="ins-premium"
-                type="text"
-                inputMode="numeric"
-                value={premiumAmount}
-                onChange={(e) =>
-                  setPremiumAmount(formatAmountInput(e.target.value))
-                }
                 placeholder="0"
-                className="input mono"
               />
             </div>
             <div className="field mt-0">
@@ -841,16 +860,10 @@ function InsuranceModal({
               <label className="label" htmlFor="ins-coverage">
                 {t.asuransi.fieldCoverageLabel}
               </label>
-              <input
+              <MoneyInput
+                field={coverageField}
                 id="ins-coverage"
-                type="text"
-                inputMode="numeric"
-                value={coverageAmount}
-                onChange={(e) =>
-                  setCoverageAmount(formatAmountInput(e.target.value))
-                }
                 placeholder="0"
-                className="input mono"
               />
             </div>
             <div className="field mt-0">

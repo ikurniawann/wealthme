@@ -27,8 +27,16 @@ import { toast } from "sonner";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  MoneyInput,
+  anyMoneyPending,
+  moneyDigits,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
+import type { MoneyField } from "@/components/money";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -53,6 +61,7 @@ import {
 import { TrendChart } from "@/components/charts/apex-presets";
 
 import type {
+  FxInput,
   InterestMethod,
   LiabilityDto,
   LiabilityPaymentPreviewDto,
@@ -344,6 +353,7 @@ interface LiabilityBody {
   installmentAmount?: string;
   fixedRateMonths?: number;
   floatingRate?: string;
+  fxInputs?: FxInput[];
 }
 
 function LiabilityModal({
@@ -361,23 +371,22 @@ function LiabilityModal({
   const [type, setType] = useState<LiabilityTypeValue>(
     editing?.type ?? "kartu_kredit",
   );
-  const [totalDebt, setTotalDebt] = useState(
-    editing ? Number(BigInt(editing.totalDebt)).toLocaleString("id-ID") : "",
-  );
-  const [remainingBalance, setRemainingBalance] = useState(
-    editing
-      ? Number(BigInt(editing.remainingBalance)).toLocaleString("id-ID")
-      : "",
-  );
+  const totalDebtField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.totalDebt).toString() : "",
+    isEdit: !!editing,
+  });
+  const remainingField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.remainingBalance).toString() : "",
+    isEdit: !!editing,
+  });
   // Review round 2 (MEDIUM) — always prefill from the saved value, including
   // an explicit 0 (e.g. an interest-free family loan). The old `> 0` guard
   // blanked the field for a saved 0, making it indistinguishable from
   // "never set" and impossible to re-save as an explicit 0 below.
-  const [minimumPayment, setMinimumPayment] = useState(
-    editing
-      ? Number(BigInt(editing.minimumPayment)).toLocaleString("id-ID")
-      : "",
-  );
+  const minPaymentField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.minimumPayment).toString() : "",
+    isEdit: !!editing,
+  });
   const [interestRate, setInterestRate] = useState(
     editing && parseFloat(editing.interestRate) > 0 ? editing.interestRate : "",
   );
@@ -398,7 +407,7 @@ function LiabilityModal({
     editing?.startDate ? editing.startDate.slice(0, 10) : "",
   );
   // Empty = let the server compute it; a PATCH without it recomputes from the terms.
-  const [installmentAmount, setInstallmentAmount] = useState("");
+  const installmentField = useMoneyField({ initialRaw: "", isEdit: !!editing });
   const [fixedRateMonths, setFixedRateMonths] = useState(
     editing?.fixedRateMonths ? String(editing.fixedRateMonths) : "",
   );
@@ -473,43 +482,68 @@ function LiabilityModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const totalDigits = toDigits(totalDebt);
-    const remainDigits = toDigits(remainingBalance);
+    if (
+      anyMoneyPending(
+        totalDebtField,
+        remainingField,
+        minPaymentField,
+        installmentField,
+      )
+    ) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const totalDigits = moneyDigits(totalDebtField);
+    const remainDigits = moneyDigits(remainingField);
     if (!name.trim() || !totalDigits || !remainDigits) return;
     const tenorDigits = toDigits(tenorMonths);
     const fixedDigits = toDigits(fixedRateMonths);
-    mutation.mutate({
-      name: name.trim(),
-      institution: institution.trim() || undefined,
-      type,
-      totalDebt: totalDigits,
-      remainingBalance: remainDigits,
-      // Review round 2 (MEDIUM) — `toDigits(...) || undefined` used to
-      // coalesce an explicit "0" the same as "field cleared/never touched",
-      // silently omitting the field from the request and leaving the old
-      // (possibly non-zero) minimumPayment on the server untouched. Send
-      // "0" explicitly instead so a cleared field always persists as 0.
-      minimumPayment: usesTenor ? undefined : toDigits(minimumPayment) || "0",
-      interestRate: toDecimalString(interestRate),
-      dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
-      autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
-      notes: notes.trim() || undefined,
-      interestMethod,
-      tenorMonths: usesTenor && tenorDigits ? Number(tenorDigits) : undefined,
-      startDate: !usesTenor
-        ? undefined
-        : startDate
-          ? new Date(startDate).toISOString()
-          : editing?.startDate
-            ? null
+    mutation.mutate(
+      withFxInputs(
+        {
+          name: name.trim(),
+          institution: institution.trim() || undefined,
+          type,
+          totalDebt: totalDigits,
+          remainingBalance: remainDigits,
+          // Review round 2 (MEDIUM) — `toDigits(...) || undefined` used to
+          // coalesce an explicit "0" the same as "field cleared/never touched",
+          // silently omitting the field from the request and leaving the old
+          // (possibly non-zero) minimumPayment on the server untouched. Send
+          // "0" explicitly instead so a cleared field always persists as 0.
+          minimumPayment: usesTenor
+            ? undefined
+            : moneyDigits(minPaymentField) || "0",
+          interestRate: toDecimalString(interestRate),
+          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+          autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
+          notes: notes.trim() || undefined,
+          interestMethod,
+          tenorMonths:
+            usesTenor && tenorDigits ? Number(tenorDigits) : undefined,
+          startDate: !usesTenor
+            ? undefined
+            : startDate
+              ? new Date(startDate).toISOString()
+              : editing?.startDate
+                ? null
+                : undefined,
+          installmentAmount: usesTenor
+            ? moneyDigits(installmentField) || undefined
             : undefined,
-      installmentAmount: usesTenor
-        ? toDigits(installmentAmount) || undefined
-        : undefined,
-      fixedRateMonths:
-        type === "kpr" && fixedDigits ? Number(fixedDigits) : undefined,
-      floatingRate: type === "kpr" ? toDecimalString(floatingRate) : undefined,
-    });
+          fixedRateMonths:
+            type === "kpr" && fixedDigits ? Number(fixedDigits) : undefined,
+          floatingRate:
+            type === "kpr" ? toDecimalString(floatingRate) : undefined,
+        },
+        [
+          ["totalDebt", totalDebtField],
+          ["remainingBalance", remainingField],
+          ["minimumPayment", usesTenor ? null : minPaymentField],
+          ["installmentAmount", usesTenor ? installmentField : null],
+        ],
+      ),
+    );
   }
 
   return (
@@ -585,30 +619,20 @@ function LiabilityModal({
                 <label className="label" htmlFor="liability-total-debt">
                   {t.liabilitas.fieldTotalDebtLabel}
                 </label>
-                <input
+                <MoneyInput
+                  field={totalDebtField}
                   id="liability-total-debt"
-                  className="input mono"
                   placeholder={t.liabilitas.fieldTotalDebtPlaceholder}
-                  inputMode="numeric"
-                  value={totalDebt}
-                  onChange={(e) => setTotalDebt(formatNum(e.target.value))}
-                  required
                 />
               </div>
               <div className="field mt-0">
                 <label className="label" htmlFor="liability-remaining">
                   {t.liabilitas.fieldRemainingLabel}
                 </label>
-                <input
+                <MoneyInput
+                  field={remainingField}
                   id="liability-remaining"
-                  className="input mono"
                   placeholder={t.liabilitas.fieldRemainingPlaceholder}
-                  inputMode="numeric"
-                  value={remainingBalance}
-                  onChange={(e) =>
-                    setRemainingBalance(formatNum(e.target.value))
-                  }
-                  required
                 />
               </div>
             </div>
@@ -641,15 +665,10 @@ function LiabilityModal({
                   <label className="label" htmlFor="liability-min-payment">
                     {t.liabilitas.fieldMinPaymentLabel}
                   </label>
-                  <input
+                  <MoneyInput
+                    field={minPaymentField}
                     id="liability-min-payment"
-                    className="input mono"
                     placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
-                    inputMode="numeric"
-                    value={minimumPayment}
-                    onChange={(e) =>
-                      setMinimumPayment(formatNum(e.target.value))
-                    }
                   />
                 </div>
               )}
@@ -703,19 +722,13 @@ function LiabilityModal({
                   <label className="label" htmlFor="liability-installment">
                     {t.liabilitas.fieldInstallmentLabel}
                   </label>
-                  <input
+                  <MoneyInput
+                    field={installmentField}
                     id="liability-installment"
-                    className="input mono"
-                    inputMode="numeric"
-                    aria-describedby="liability-installment-hint"
                     placeholder={
                       editing?.installmentAmount
                         ? formatNum(editing.installmentAmount)
                         : ""
-                    }
-                    value={installmentAmount}
-                    onChange={(e) =>
-                      setInstallmentAmount(formatNum(e.target.value))
                     }
                   />
                   <div className="hint" id="liability-installment-hint">
@@ -1356,8 +1369,7 @@ function PayLiabilityDialog({
   familyGroupId,
   token,
   accounts,
-  amount,
-  onAmountChange,
+  payField,
   sourceAccountId,
   onSourceAccountChange,
   isPending,
@@ -1368,8 +1380,7 @@ function PayLiabilityDialog({
   familyGroupId: string | undefined;
   token: string | undefined;
   accounts: AccountDto[];
-  amount: string;
-  onAmountChange: (v: string) => void;
+  payField: MoneyField;
   sourceAccountId: string;
   onSourceAccountChange: (id: string) => void;
   isPending: boolean;
@@ -1377,7 +1388,7 @@ function PayLiabilityDialog({
   onConfirm: () => void;
 }) {
   const { t, locale } = useLocale();
-  const parsedAmount = parseRupiah(amount);
+  const parsedAmount = Number(moneyDigits(payField) || "0");
   const remainingBalance = item ? Number(BigInt(item.remainingBalance)) : 0;
   const minimumPayment = item ? installmentDue(item) : 0;
   const previewAmount = useDebouncedValue(parsedAmount, PREVIEW_DEBOUNCE_MS);
@@ -1389,7 +1400,13 @@ function PayLiabilityDialog({
       item?.id ?? "",
       previewAmount,
     ],
-    enabled: Boolean(item && familyGroupId && token && previewAmount > 0),
+    enabled: Boolean(
+      item &&
+      familyGroupId &&
+      token &&
+      previewAmount > 0 &&
+      !payField.resolved.isPending,
+    ),
     retry: false,
     queryFn: ({ signal }) => {
       if (!item || !familyGroupId) throw new Error("liability not selected");
@@ -1464,9 +1481,7 @@ function PayLiabilityDialog({
                       type="button"
                       role="tab"
                       aria-selected={parsedAmount === preset.value}
-                      onClick={() =>
-                        onAmountChange(preset.value.toLocaleString("id-ID"))
-                      }
+                      onClick={() => payField.reset(String(preset.value))}
                       className="segmented__item flex-1"
                     >
                       {preset.label}
@@ -1479,16 +1494,10 @@ function PayLiabilityDialog({
                 <label className="label" htmlFor="pay-liability-amount">
                   {t.liabilitas.payAmountLabel}
                 </label>
-                <input
+                <MoneyInput
+                  field={payField}
                   id="pay-liability-amount"
-                  type="text"
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) =>
-                    onAmountChange(formatAmountInput(e.target.value))
-                  }
                   placeholder="0"
-                  className="input mono"
                 />
               </div>
 
@@ -1592,7 +1601,12 @@ function PayLiabilityDialog({
           </Button>
           <Button
             type="button"
-            disabled={isPending || !sourceAccountId || parsedAmount <= 0}
+            disabled={
+              isPending ||
+              !sourceAccountId ||
+              parsedAmount <= 0 ||
+              payField.resolved.isPending
+            }
             onClick={onConfirm}
           >
             {isPending
@@ -1615,7 +1629,7 @@ export default function LiabilitasPage() {
   const [deleteTarget, setDeleteTarget] = useState<LiabilityDto | null>(null);
   const [payTarget, setPayTarget] = useState<LiabilityDto | null>(null);
   const [paySourceAccountId, setPaySourceAccountId] = useState("");
-  const [payAmount, setPayAmount] = useState("");
+  const payField = useMoneyField();
   // EPIC-025 N3-F4 — type filter tabs, matching the /aset and /investasi
   // filter-tab pattern (role="group"+aria-pressed, never a fake tablist).
   const [activeTypeFilter, setActiveTypeFilter] = useState<
@@ -1699,10 +1713,15 @@ export default function LiabilitasPage() {
         {
           token,
           method: "POST",
-          body: JSON.stringify({
-            sourceAccountId: params.sourceAccountId,
-            amount: params.amount,
-          }),
+          body: JSON.stringify(
+            withFxInputs(
+              {
+                sourceAccountId: params.sourceAccountId,
+                amount: params.amount,
+              },
+              [["amount", payField]],
+            ),
+          ),
         },
       ),
     onSuccess: () => {
@@ -1712,7 +1731,7 @@ export default function LiabilitasPage() {
       invalidateLiabilityRelatedQueries(queryClient, familyGroupId ?? "");
       setPayTarget(null);
       setPaySourceAccountId("");
-      setPayAmount("");
+      payField.reset();
       toast.success(t.liabilitas.toastPaid);
     },
     // silent-failure-hunter routing — `pay()` can 400 (amount exceeds max
@@ -1757,7 +1776,7 @@ export default function LiabilitasPage() {
   function openPayDialog(liability: LiabilityDto) {
     setPayTarget(liability);
     const due = installmentDue(liability);
-    setPayAmount(due > 0 ? due.toLocaleString("id-ID") : "");
+    payField.reset(due > 0 ? String(due) : undefined);
   }
 
   const totalRemaining = (liabilities ?? []).reduce(
@@ -2014,22 +2033,25 @@ export default function LiabilitasPage() {
         familyGroupId={familyGroupId ?? undefined}
         token={token}
         accounts={accounts}
-        amount={payAmount}
-        onAmountChange={setPayAmount}
+        payField={payField}
         sourceAccountId={paySourceAccountId}
         onSourceAccountChange={setPaySourceAccountId}
         isPending={payMutation.isPending}
         onClose={() => {
           setPayTarget(null);
           setPaySourceAccountId("");
-          setPayAmount("");
+          payField.reset();
         }}
         onConfirm={() => {
-          const amountDigits = parseRupiah(payAmount).toString();
+          if (anyMoneyPending(payField)) {
+            toast.error(t.money.rateNotReady);
+            return;
+          }
+          const amountDigits = moneyDigits(payField);
           if (
             !payTarget ||
             !paySourceAccountId ||
-            parseRupiah(payAmount) <= 0
+            Number(amountDigits || "0") <= 0
           ) {
             toast.warning(t.liabilitas.validationPayAmountPositive);
             return;

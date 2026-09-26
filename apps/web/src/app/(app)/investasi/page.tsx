@@ -62,9 +62,21 @@ import {
   quantityUnitLabel,
 } from "./instrument-units";
 
+import {
+  MoneyInput,
+  anyMoneyPending,
+  canonicalToTyping,
+  moneyIdrDecimal,
+  toCanonicalAmount,
+  useControlledMoneyField,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
+
 import type { Locale } from "@/i18n";
 import type {
   AccountDto,
+  FxCurrencyCode,
   InvestmentDto,
   InvestmentPriceDto,
   InvestmentSummaryDto,
@@ -528,7 +540,7 @@ function AddInvestmentModal({
           quantityUnit: "lembar",
           costBasisPerUnit:
             editing.type === "kripto"
-              ? editing.costBasisPerUnit
+              ? canonicalToTyping(editing.costBasisPerUnit, 2)
               : formatAmountInput(
                   String(Math.round(Number(editing.costBasisPerUnit))),
                 ),
@@ -570,6 +582,36 @@ function AddInvestmentModal({
   // really just the nominal, correctable like any other typo.
   const isEditingLots = Boolean(editing) && !isDeposito;
 
+  // null = follow the display currency until touched (add); edit opens on IDR (Decision 9/12).
+  const [costCurrency, setCostCurrency] = useState<FxCurrencyCode | null>(
+    editing ? "IDR" : null,
+  );
+  const [priceCurrency, setPriceCurrency] = useState<FxCurrencyCode | null>(
+    null,
+  );
+  const isKripto = form.type === "kripto";
+  const costField = useControlledMoneyField({
+    raw: form.costBasisPerUnit,
+    currency: costCurrency,
+    // costBasisPerUnit is a Decimal(18,2) column on the API (sen precision)
+    // for every instrument type, not just kripto — the foreign-currency
+    // preview must convert at scale 2, matching moneyIdrDecimal's contract.
+    idrScale: 2,
+    onChange: ({ raw, currency }) => {
+      setForm((f) => ({ ...f, costBasisPerUnit: raw }));
+      setCostCurrency(currency);
+    },
+  });
+  const manualPriceField = useControlledMoneyField({
+    raw: form.manualPrice,
+    currency: priceCurrency,
+    idrScale: 2,
+    onChange: ({ raw, currency }) => {
+      setForm((f) => ({ ...f, manualPrice: raw }));
+      setPriceCurrency(currency);
+    },
+  });
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
@@ -591,6 +633,10 @@ function AddInvestmentModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (anyMoneyPending(costField, manualPriceField)) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
     if (!isDeposito && !isEditingLots) {
       const decimalsError = quantityDecimalsError(
         t,
@@ -624,7 +670,7 @@ function AddInvestmentModal({
         canonicalQuantity = "1";
       }
 
-      const body: Record<string, string> = {
+      const body: Record<string, unknown> = {
         ticker: form.ticker,
         name: form.name,
         type: form.type,
@@ -637,10 +683,11 @@ function AddInvestmentModal({
       // than send an unchanged value the API would 400 on.
       if (!isEditingLots) {
         body["quantity"] = canonicalQuantity;
-        body["costBasisPerUnit"] =
-          form.type === "kripto"
-            ? form.costBasisPerUnit
-            : String(parseRupiah(form.costBasisPerUnit));
+        body["costBasisPerUnit"] = moneyIdrDecimal(costField, () =>
+          isKripto
+            ? (toCanonicalAmount(form.costBasisPerUnit) ?? "0")
+            : String(parseRupiah(form.costBasisPerUnit)),
+        );
       }
       if (form.interestRatePct.trim()) {
         body["interestRatePct"] = form.interestRatePct.trim();
@@ -663,7 +710,11 @@ function AddInvestmentModal({
         saved = await apiFetch<InvestmentDto>(path, {
           method: editing ? "PATCH" : "POST",
           token,
-          body: JSON.stringify(body),
+          body: JSON.stringify(
+            isEditingLots
+              ? body
+              : withFxInputs(body, [["costBasisPerUnit", costField]]),
+          ),
         });
       } catch (err) {
         // F1 — surface the server's real message (e.g. a validation reason)
@@ -689,12 +740,19 @@ function AddInvestmentModal({
             {
               method: "POST",
               token,
-              body: JSON.stringify({
-                price: String(parseRupiah(form.manualPrice)),
-                ...(form.manualPriceDate
-                  ? { asOf: new Date(form.manualPriceDate).toISOString() }
-                  : {}),
-              }),
+              body: JSON.stringify(
+                withFxInputs(
+                  {
+                    price: moneyIdrDecimal(manualPriceField, () =>
+                      String(parseRupiah(form.manualPrice)),
+                    ),
+                    ...(form.manualPriceDate
+                      ? { asOf: new Date(form.manualPriceDate).toISOString() }
+                      : {}),
+                  },
+                  [["price", manualPriceField]],
+                ),
+              ),
             },
           );
           await queryClient.invalidateQueries({
@@ -957,36 +1015,15 @@ function AddInvestmentModal({
                       ? t.investasi.fieldDepositoNominalLabel
                       : t.investasi.fieldCostBasisLabel}
                   </label>
-                  <input
+                  <MoneyInput
+                    field={costField}
                     id="costBasisPerUnit"
-                    name="costBasisPerUnit"
-                    // EPIC-033 p31 — Rupiah amounts show thousand
-                    // separators while typing; kripto keeps a raw decimal
-                    // because its unit price can be fractional.
-                    type={form.type === "kripto" ? "number" : "text"}
-                    inputMode={form.type === "kripto" ? "decimal" : "numeric"}
-                    required
-                    min="0"
-                    step="any"
-                    value={form.costBasisPerUnit}
-                    onChange={
-                      form.type === "kripto"
-                        ? handleChange
-                        : (e) =>
-                            setForm((f) => ({
-                              ...f,
-                              costBasisPerUnit: formatAmountInput(
-                                e.target.value,
-                              ),
-                            }))
-                    }
                     disabled={isEditingLots}
                     placeholder={
                       isDeposito
                         ? t.investasi.fieldDepositoNominalPlaceholder
                         : t.investasi.fieldCostBasisPlaceholder
                     }
-                    className="input mono disabled:cursor-not-allowed disabled:opacity-60"
                   />
                   {isEditingLots && (
                     <div className="hint">
@@ -1108,20 +1145,10 @@ function AddInvestmentModal({
                       <label className="label" htmlFor="manualPrice">
                         {t.investasi.fieldManualPriceLabel}
                       </label>
-                      <input
+                      <MoneyInput
+                        field={manualPriceField}
                         id="manualPrice"
-                        name="manualPrice"
-                        type="text"
-                        inputMode="numeric"
-                        value={form.manualPrice}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            manualPrice: formatAmountInput(e.target.value),
-                          }))
-                        }
                         placeholder={t.investasi.fieldManualPricePlaceholder}
-                        className="input mono"
                       />
                     </div>
                     <div className="field">
@@ -1209,7 +1236,10 @@ function BuySellModal({
   const unitLabel = holding
     ? quantityUnitLabel(holding.type, effectiveUnit, unitLabels(t))
     : "";
-  const [pricePerUnit, setPricePerUnit] = useState("");
+  // pricePerUnit is a Decimal(18,2) column on the API for every instrument
+  // type — the foreign-currency preview must convert at scale 2, matching
+  // moneyIdrDecimal's contract.
+  const priceField = useMoneyField({ idrScale: 2 });
   const [occurredAt, setOccurredAt] = useState(() =>
     new Date().toISOString().slice(0, 10),
   );
@@ -1237,6 +1267,10 @@ function BuySellModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!holding) return;
+    if (priceField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
     const decimalsError = quantityDecimalsError(
       t,
       holding.type,
@@ -1257,13 +1291,22 @@ function BuySellModal({
         {
           method: "POST",
           token,
-          body: JSON.stringify({
-            type: txType,
-            quantity: canonicalQuantity,
-            pricePerUnit: String(parseRupiah(pricePerUnit)),
-            occurredAt: new Date(occurredAt).toISOString(),
-            accountId: accountId || undefined,
-          }),
+          body: JSON.stringify(
+            withFxInputs(
+              {
+                type: txType,
+                quantity: canonicalQuantity,
+                pricePerUnit: moneyIdrDecimal(priceField, () =>
+                  holding.type === "kripto"
+                    ? (toCanonicalAmount(priceField.raw) ?? "0")
+                    : String(parseRupiah(priceField.raw)),
+                ),
+                occurredAt: new Date(occurredAt).toISOString(),
+                accountId: accountId || undefined,
+              },
+              [["pricePerUnit", priceField]],
+            ),
+          ),
         },
       );
       await queryClient.invalidateQueries({
@@ -1379,17 +1422,7 @@ function BuySellModal({
               <label className="label" htmlFor="tx-price">
                 {t.investasi.buySellFieldPriceLabel}
               </label>
-              <input
-                id="tx-price"
-                type="text"
-                inputMode="numeric"
-                required
-                value={pricePerUnit}
-                onChange={(e) =>
-                  setPricePerUnit(formatAmountInput(e.target.value))
-                }
-                className="input mono"
-              />
+              <MoneyInput field={priceField} id="tx-price" />
               {isSaham && (
                 <div className="hint">
                   {t.investasi.buySellPricePerLembarHint}

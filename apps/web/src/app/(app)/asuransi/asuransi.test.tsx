@@ -8,7 +8,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -33,6 +33,26 @@ jest.mock("sonner", () => ({
   }),
 }));
 
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
+import { id as idDict } from "../../../i18n/id";
 import AsuransiPage from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
@@ -237,6 +257,74 @@ describe("AsuransiPage — beneficiary allocation validation (EPIC-022 D6)", () 
       `/family-groups/${FAMILY_GROUP_ID}/insurances`,
       expect.objectContaining({ method: "POST" }),
     );
+  });
+
+  it("revisi I — AUD premium posts the preview + fxInputs; coverage in IDR stays plain", async () => {
+    mockApiFetch.mockImplementation(
+      (url: string, options?: { method?: string }) => {
+        if (
+          url === `/family-groups/${FAMILY_GROUP_ID}/insurances` &&
+          options?.method === "POST"
+        ) {
+          return Promise.resolve({ id: "ins-1" });
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+          return Promise.resolve([]);
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+          return Promise.resolve({
+            activePolicies: 0,
+            totalMonthlyPremium: "0",
+            currency: "IDR",
+          });
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+          return Promise.resolve(MEMBER_LIST);
+        }
+        return Promise.reject(new Error(`unexpected url: ${url}`));
+      },
+    );
+    render(<AsuransiPage />);
+    const user = await openBeneficiaryEditor();
+
+    await user.type(screen.getByLabelText(/nama asuransi/i), "Asuransi Jiwa");
+    await userEvent.selectOptions(
+      screen.getAllByLabelText("Mata uang")[0]!,
+      "AUD",
+    );
+    await userEvent.clear(
+      screen.getByLabelText(idDict.asuransi.fieldPremiumLabel),
+    );
+    await userEvent.type(
+      screen.getByLabelText(idDict.asuransi.fieldPremiumLabel),
+      "1200",
+    );
+    await userEvent.type(
+      screen.getByLabelText(idDict.asuransi.fieldCoverageLabel),
+      "100000000",
+    );
+
+    await user.click(screen.getByRole("button", { name: /simpan asuransi/i }));
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(
+        ([url, options]) =>
+          url === `/family-groups/${FAMILY_GROUP_ID}/insurances` &&
+          (options as { method?: string } | undefined)?.method === "POST",
+      );
+      expect(post).toBeDefined();
+    });
+    const post = mockApiFetch.mock.calls.find(
+      ([url, options]) =>
+        url === `/family-groups/${FAMILY_GROUP_ID}/insurances` &&
+        (options as { method?: string } | undefined)?.method === "POST",
+    ) as [string, { body: string }];
+    const body = JSON.parse(post[1].body) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      premiumAmount: "15112617",
+      coverageAmount: "100000000",
+      fxInputs: [{ field: "premiumAmount", currency: "AUD", amount: "1200" }],
+    });
   });
 });
 

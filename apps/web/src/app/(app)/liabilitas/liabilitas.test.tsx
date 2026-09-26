@@ -222,6 +222,26 @@ jest.mock("../../../lib/api-client", () => ({
   apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
 }));
 
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
+import { id as idDict } from "../../../i18n/id";
 import LiabilitasPage from "./page";
 
 const queryClient = new QueryClient({
@@ -415,6 +435,47 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     await waitFor(() => expect(toastSuccess).toHaveBeenCalled());
   });
 
+  it("revisi I — pay in SGD posts the preview + fxInputs", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Bayar" }));
+
+    const dialog = within(await screen.findByRole("dialog"));
+    await userEvent.selectOptions(
+      screen.getAllByLabelText("Mata uang").at(-1)!,
+      "SGD",
+    );
+    await userEvent.clear(
+      dialog.getByLabelText(idDict.liabilitas.payAmountLabel),
+    );
+    await userEvent.type(
+      dialog.getByLabelText(idDict.liabilitas.payAmountLabel),
+      "1500,25",
+    );
+    await user.selectOptions(
+      dialog.getByLabelText(/rekening sumber/i),
+      "acc-1",
+    );
+    await user.click(
+      dialog.getByRole("button", { name: /ya, bayar sekarang/i }),
+    );
+
+    await waitFor(() => {
+      const pay = mockApiFetch.mock.calls.find(([url]) =>
+        String(url).endsWith("/pay"),
+      );
+      expect(pay).toBeDefined();
+    });
+    const pay = mockApiFetch.mock.calls.find(([url]) =>
+      String(url).endsWith("/pay"),
+    ) as [string, { body: string }];
+    expect(JSON.parse(pay[1].body)).toMatchObject({
+      amount: "21043698",
+      fxInputs: [{ field: "amount", currency: "SGD", amount: "1500.25" }],
+    });
+  });
+
   it("surfaces the real 409 'already paid' server message, not a generic fallback", async () => {
     payOutcome = "conflict";
     const user = userEvent.setup();
@@ -534,6 +595,38 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
         expect.stringContaining("6.555.556"),
       ),
     );
+  });
+
+  it("revisi I — an IDR liability save sends no fxInputs", async () => {
+    createdInstallment = "6555556";
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    await user.type(dialog.getByLabelText("Nama"), "Cicilan Mobil");
+    await user.selectOptions(dialog.getByLabelText("Jenis"), "kendaraan");
+    await user.type(
+      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+      "200000000",
+    );
+    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "200000000");
+    await user.type(dialog.getByLabelText("Bunga Flat/Tahun (%)"), "6");
+    await user.type(dialog.getByLabelText("Tenor (bulan)"), "36");
+
+    await user.click(dialog.getByLabelText("Tanggal Akad"));
+    const now = new Date();
+    const startIso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-15`;
+    const pop = screen.getByRole("dialog", { name: "Tanggal Akad" });
+    await user.click(
+      within(pop).getByRole("button", { name: dayLabel(startIso) }),
+    );
+
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() => expect(postBodies).toHaveLength(1));
+    expect(postBodies[0]).not.toHaveProperty("fxInputs");
   });
 
   it("kpr: anuitas with fixed period + floating rate", async () => {

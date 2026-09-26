@@ -27,7 +27,16 @@ import {
   type ReportRangePreset,
   wibDateOf,
 } from "@/lib/laporan-period";
-import type { InvestmentDto, InvestmentType } from "@wealthme/contracts";
+import {
+  moneyIdrDecimal,
+  useControlledMoneyField,
+  withFxInputs,
+} from "@/components/money";
+import type {
+  FxCurrencyCode,
+  InvestmentDto,
+  InvestmentType,
+} from "@wealthme/contracts";
 import { useExportJob, ExportSection } from "./export-section";
 import { useLaporanReportQueries } from "./use-laporan-report-queries";
 import { InvestmentDialogs } from "./investment-dialogs";
@@ -273,6 +282,19 @@ export function LaporanInner() {
     costBasisPerUnit: "",
   });
   const [invSubmitting, setInvSubmitting] = useState(false);
+  // null = follow the display currency until touched (add); edit opens on IDR (Decision 9/12).
+  const [invCostCurrency, setInvCostCurrency] = useState<FxCurrencyCode | null>(
+    null,
+  );
+  const invCostField = useControlledMoneyField({
+    raw: invForm.costBasisPerUnit,
+    currency: invCostCurrency,
+    idrScale: 2,
+    onChange: ({ raw, currency }) => {
+      setInvForm((f) => ({ ...f, costBasisPerUnit: raw }));
+      setInvCostCurrency(currency);
+    },
+  });
 
   function openAdd() {
     setInvForm({
@@ -282,6 +304,7 @@ export function LaporanInner() {
       quantity: "",
       costBasisPerUnit: "",
     });
+    setInvCostCurrency(null);
     setShowAddInv(true);
   }
   function openEdit(inv: InvestmentDto) {
@@ -294,11 +317,16 @@ export function LaporanInner() {
         String(Math.round(Number(inv.costBasisPerUnit))),
       ),
     });
+    setInvCostCurrency("IDR");
     setEditingInv(inv);
   }
 
   async function handleInvSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (invCostField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
     setInvSubmitting(true);
     const isEdit = editingInv !== null;
     const url = isEdit
@@ -308,10 +336,17 @@ export function LaporanInner() {
       await apiFetch(url, {
         method: isEdit ? "PATCH" : "POST",
         token,
-        body: JSON.stringify({
-          ...invForm,
-          costBasisPerUnit: String(parseRupiah(invForm.costBasisPerUnit)),
-        }),
+        body: JSON.stringify(
+          withFxInputs(
+            {
+              ...invForm,
+              costBasisPerUnit: moneyIdrDecimal(invCostField, () =>
+                String(parseRupiah(invForm.costBasisPerUnit)),
+              ),
+            },
+            [["costBasisPerUnit", invCostField]],
+          ),
+        ),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.all(familyGroupId),
@@ -722,6 +757,7 @@ export function LaporanInner() {
         editingInv={editingInv}
         deletingInv={deletingInv}
         invForm={invForm}
+        costBasisField={invCostField}
         invSubmitting={invSubmitting}
         setShowAddInv={setShowAddInv}
         setEditingInv={setEditingInv}

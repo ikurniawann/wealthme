@@ -37,6 +37,14 @@ import type { DonutSegment } from "@/components/charts/donut";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 
 import { DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT } from "@wealthme/contracts";
+import {
+  MoneyInput,
+  anyMoneyPending,
+  moneyDigits,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
+
 import type {
   AssetDto,
   AccountDto,
@@ -44,6 +52,7 @@ import type {
   CategoryDto,
   AssetTypeId,
   AssetValueChangeMode,
+  FxInput,
   NetWorthHistoryDto,
   NetWorthHistoryPointDto,
 } from "@wealthme/contracts";
@@ -199,9 +208,10 @@ function AddAssetModal({
   const [type, setType] = useState<AssetTypeId>(
     (editing?.type as AssetTypeId) ?? "properti",
   );
-  const [value, setValue] = useState(
-    editing ? Number(BigInt(editing.currentValue)).toLocaleString("id-ID") : "",
-  );
+  const valueField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.currentValue).toString() : "",
+    isEdit: !!editing,
+  });
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [valueChangeRatePct, setValueChangeRatePct] = useState(
     editing?.valueChangeRatePct ?? "",
@@ -211,11 +221,13 @@ function AddAssetModal({
   const [valueChangeMode, setValueChangeMode] = useState<AssetValueChangeMode>(
     editing?.valueChangeMode ?? "percent",
   );
-  const [valueChangeAmount, setValueChangeAmount] = useState(
-    editing?.valueChangeAmount
-      ? Number(BigInt(editing.valueChangeAmount)).toLocaleString("id-ID")
+  const changeField = useMoneyField({
+    initialRaw: editing?.valueChangeAmount
+      ? BigInt(editing.valueChangeAmount).toString()
       : "",
-  );
+    isEdit: !!editing,
+    allowNegative: true,
+  });
   // EPIC-033 p15 — no picker any more; kept so an edit round-trips the
   // value an older row may still carry.
   const categoryId = editing?.categoryId ?? "";
@@ -237,6 +249,7 @@ function AddAssetModal({
       valueChangeAmount?: string;
       categoryId?: string;
       acquisitionDate?: string;
+      fxInputs?: FxInput[];
     }) => {
       if (!token || !familyGroupId) {
         return Promise.reject(new Error("Not authenticated"));
@@ -282,7 +295,7 @@ function AddAssetModal({
   // anchored at the acquisition date exactly like the server's
   // compute-on-read estimate.
   const projectedIn5Years = (() => {
-    const digits = value.replace(/\D/g, "");
+    const digits = moneyDigits(valueField);
     if (!digits) return null;
     const base = parseInt(digits, 10);
     if (valueChangeMode === "percent") {
@@ -290,7 +303,7 @@ function AddAssetModal({
       if (!Number.isFinite(rate) || rate === 0) return null;
       return Math.max(Math.round(base * (1 + (rate / 100) * 5)), 0);
     }
-    const amountDigits = valueChangeAmount.replace(/[^-\d]/g, "");
+    const amountDigits = moneyDigits(changeField);
     if (!amountDigits || amountDigits === "-") return null;
     const amount = parseInt(amountDigits, 10);
     if (!Number.isFinite(amount) || amount === 0) return null;
@@ -299,32 +312,46 @@ function AddAssetModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const digits = value.replace(/\D/g, "");
+    if (anyMoneyPending(valueField, changeField)) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const digits = moneyDigits(valueField);
     if (!name.trim() || !digits) return;
     // D2/US-ASSET-6: only the field matching the active mode is sent — the
     // backend also only reads the one that matches valueChangeMode, but
     // sending the other stale field would be confusing on GET/PATCH round
     // trips.
-    const amountDigits = valueChangeAmount.replace(/[^-\d]/g, "");
-    mutation.mutate({
-      name: name.trim(),
-      type,
-      currentValue: digits,
-      notes: notes.trim() || undefined,
-      valueChangeRatePct:
-        valueChangeMode === "percent"
-          ? valueChangeRatePct.trim() || undefined
-          : undefined,
-      valueChangeMode,
-      valueChangeAmount:
-        valueChangeMode === "fixed"
-          ? amountDigits && amountDigits !== "-"
-            ? amountDigits
-            : undefined
-          : undefined,
-      categoryId: categoryId || undefined,
-      acquisitionDate: acquisitionDate || undefined,
-    });
+    const amountDigits = moneyDigits(changeField);
+    mutation.mutate(
+      withFxInputs(
+        {
+          name: name.trim(),
+          type,
+          currentValue: digits,
+          notes: notes.trim() || undefined,
+          valueChangeRatePct:
+            valueChangeMode === "percent"
+              ? valueChangeRatePct.trim() || undefined
+              : undefined,
+          valueChangeMode,
+          valueChangeAmount:
+            valueChangeMode === "fixed"
+              ? amountDigits && amountDigits !== "-"
+                ? amountDigits
+                : undefined
+              : undefined,
+          categoryId: categoryId || undefined,
+          acquisitionDate: acquisitionDate || undefined,
+        },
+        [
+          ["currentValue", valueField],
+          ...(valueChangeMode === "fixed"
+            ? ([["valueChangeAmount", changeField]] as const)
+            : []),
+        ],
+      ),
+    );
   }
 
   return (
@@ -407,19 +434,10 @@ function AddAssetModal({
             >
               {t.aset.fieldValueLabel}
             </label>
-            <input
+            <MoneyInput
+              field={valueField}
               id="asset-value"
-              className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
               placeholder={t.aset.fieldValuePlaceholder}
-              inputMode="numeric"
-              value={value}
-              onChange={(e) => {
-                const digits = e.target.value.replace(/\D/g, "");
-                setValue(
-                  digits ? parseInt(digits, 10).toLocaleString("id-ID") : "",
-                );
-              }}
-              required
             />
           </div>
 
@@ -488,21 +506,10 @@ function AddAssetModal({
               >
                 {t.aset.fieldValueChangeAmountLabel}
               </label>
-              <input
+              <MoneyInput
+                field={changeField}
                 id="asset-value-change-amount"
-                className="w-full rounded-[10px] border bg-background px-3 py-2.5 text-[13px] outline-none focus:ring-2 focus:ring-primary"
                 placeholder={t.aset.fieldValueChangeAmountPlaceholder}
-                inputMode="decimal"
-                value={valueChangeAmount}
-                onChange={(e) => {
-                  const isNegative = e.target.value.trim().startsWith("-");
-                  const digits = e.target.value.replace(/\D/g, "");
-                  setValueChangeAmount(
-                    digits
-                      ? `${isNegative ? "-" : ""}${parseInt(digits, 10).toLocaleString("id-ID")}`
-                      : "",
-                  );
-                }}
               />
             </div>
           )}

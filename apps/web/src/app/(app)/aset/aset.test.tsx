@@ -108,6 +108,26 @@ jest.mock("../../../lib/api-client", () => ({
   apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
 }));
 
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
+import { id as idDict } from "../../../i18n/id";
 import AsetPage from "./page";
 
 const queryClient = new QueryClient({
@@ -347,6 +367,93 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     const parsedBody = JSON.parse(postCall[1].body) as Record<string, unknown>;
     expect(parsedBody.valueChangeAmount).toBe("-20000000");
     expect(parsedBody.valueChangeRatePct).toBeUndefined();
+  });
+
+  it("revisi I — CNY value and a negative JPY change post previews + fxInputs", async () => {
+    const user = userEvent.setup();
+    render(<AsetPage />);
+
+    await user.click(screen.getByRole("button", { name: /tambah aset/i }));
+
+    fireEvent.change(screen.getByLabelText("Nama Aset"), {
+      target: { value: "Mobil" },
+    });
+    await user.click(screen.getByRole("button", { name: "Rp per tahun" }));
+
+    const [valueCur, changeCur] = screen.getAllByLabelText("Mata uang");
+    await userEvent.selectOptions(valueCur!, "CNY");
+    await userEvent.clear(screen.getByLabelText(idDict.aset.fieldValueLabel));
+    await userEvent.type(
+      screen.getByLabelText(idDict.aset.fieldValueLabel),
+      "5000",
+    );
+    await userEvent.selectOptions(changeCur!, "JPY");
+    await userEvent.clear(
+      screen.getByLabelText(idDict.aset.fieldValueChangeAmountLabel),
+    );
+    await userEvent.type(
+      screen.getByLabelText(idDict.aset.fieldValueChangeAmountLabel),
+      "-1000",
+    );
+
+    await user.click(screen.getByRole("button", { name: /simpan aset/i }));
+
+    await waitFor(() => {
+      const postCall = mockApiFetch.mock.calls.find(
+        ([, options]) =>
+          (options as { method?: string } | undefined)?.method === "POST",
+      ) as [string, { body: string }] | undefined;
+      expect(postCall).toBeDefined();
+    });
+    const postCall2 = mockApiFetch.mock.calls.find(
+      ([, options]) =>
+        (options as { method?: string } | undefined)?.method === "POST",
+    ) as [string, { body: string }];
+    const body = JSON.parse(postCall2[1].body) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      currentValue: "13342229",
+      valueChangeAmount: "-113674",
+      fxInputs: [
+        { field: "currentValue", currency: "CNY", amount: "5000" },
+        { field: "valueChangeAmount", currency: "JPY", amount: "-1000" },
+      ],
+    });
+  });
+
+  it("revisi I — the IDR create body is unchanged (no fxInputs)", async () => {
+    const user = userEvent.setup();
+    render(<AsetPage />);
+
+    await user.click(screen.getByRole("button", { name: /tambah aset/i }));
+
+    fireEvent.change(screen.getByLabelText("Nama Aset"), {
+      target: { value: "Rumah Baru" },
+    });
+    fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
+      target: { value: "500000000" },
+    });
+    const acquisitionTrigger = screen.getByLabelText(/Tanggal Perolehan/);
+    const acquisitionNative = acquisitionTrigger
+      .closest(".date-field")
+      ?.querySelector<HTMLInputElement>('input[type="date"]');
+    if (!acquisitionNative) throw new Error("DateField native input missing");
+    fireEvent.change(acquisitionNative, { target: { value: "2024-01-15" } });
+
+    await user.click(screen.getByRole("button", { name: /simpan aset/i }));
+
+    await waitFor(() => {
+      const postCall = mockApiFetch.mock.calls.find(
+        ([, options]) =>
+          (options as { method?: string } | undefined)?.method === "POST",
+      ) as [string, { body: string }] | undefined;
+      expect(postCall).toBeDefined();
+    });
+    const postCall = mockApiFetch.mock.calls.find(
+      ([, options]) =>
+        (options as { method?: string } | undefined)?.method === "POST",
+    ) as [string, { body: string }];
+    const body = JSON.parse(postCall[1].body) as Record<string, unknown>;
+    expect(body).not.toHaveProperty("fxInputs");
   });
 
   it("offers Emas as a physical asset type and posts type emas (Revisi D item 10)", async () => {

@@ -7,7 +7,13 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen } from "@testing-library/react";
+import {
+  fireEvent,
+  render as rtlRender,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   BalanceSheetDto,
@@ -32,9 +38,11 @@ jest.mock("../../../lib/auth-client", () => ({
 }));
 
 // LaporanInner reads the active tab via next/navigation's useSearchParams —
-// pin it to "rbalance" (the Balance Sheet tab) for every test in this file.
+// pinned to "rbalance" (the Balance Sheet tab) by default for every test in
+// this file; the revisi I investment-dialog test overrides it to "rinv".
+const mockSearchParams = jest.fn(() => new URLSearchParams("tab=rbalance"));
 jest.mock("next/navigation", () => ({
-  useSearchParams: () => new URLSearchParams("tab=rbalance"),
+  useSearchParams: () => mockSearchParams(),
   useRouter: () => ({
     push: jest.fn(),
     replace: jest.fn(),
@@ -49,38 +57,74 @@ jest.mock("sonner", () => ({
   toast: Object.assign(jest.fn(), { success: jest.fn(), error: jest.fn() }),
 }));
 
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
 let balanceSheetFixture: BalanceSheetDto;
 let bridgeFixture: ReconciliationBridgeDto;
 let netWorthFixture: NetWorthDto;
 
-const mockApiFetch = jest.fn((url: string) => {
-  if (url.includes("/reports/balance-sheet")) {
-    return Promise.resolve(balanceSheetFixture);
-  }
-  if (url.includes("/reports/reconciliation-bridge")) {
-    return Promise.resolve(bridgeFixture);
-  }
-  if (url.includes("/dashboard/net-worth")) {
-    return Promise.resolve(netWorthFixture);
-  }
-  if (url.includes("/reports/summary")) {
-    return Promise.resolve({
-      period: "monthly",
-      points: [],
-      totalIncome: 0,
-      totalExpense: 0,
-      netSavings: 0,
-      savingsRate: 0,
-      topIncomeCategories: [],
-      topExpenseCategories: [],
-    });
-  }
-  return Promise.resolve({});
-});
+const mockApiFetch = jest.fn(
+  (url: string, init?: { method?: string; body?: string }) => {
+    if (url.includes("/reports/balance-sheet")) {
+      return Promise.resolve(balanceSheetFixture);
+    }
+    if (url.includes("/reports/reconciliation-bridge")) {
+      return Promise.resolve(bridgeFixture);
+    }
+    if (url.includes("/dashboard/net-worth")) {
+      return Promise.resolve(netWorthFixture);
+    }
+    if (url.includes("/reports/summary")) {
+      return Promise.resolve({
+        period: "monthly",
+        points: [],
+        totalIncome: 0,
+        totalExpense: 0,
+        netSavings: 0,
+        savingsRate: 0,
+        topIncomeCategories: [],
+        topExpenseCategories: [],
+      });
+    }
+    if (url.includes("/investments/summary")) {
+      return Promise.resolve({
+        totalCostBasis: "0",
+        totalCurrentValue: "0",
+        totalReturnRp: "0",
+        totalReturnPct: 0,
+        todayReturnRp: "0",
+        todayReturnPct: 0,
+      });
+    }
+    if (url.endsWith("/investments") && init?.method === "POST") {
+      return Promise.resolve({ id: "inv-new" });
+    }
+    if (url.includes("/investments")) return Promise.resolve([]);
+    return Promise.resolve({});
+  },
+);
 jest.mock("../../../lib/api-client", () => ({
   apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
 }));
 
+import { id as idDict } from "../../../i18n/id";
 import LaporanPage from "./page";
 
 const queryClient = new QueryClient({
@@ -136,6 +180,9 @@ describe("/laporan Balance Sheet tab — honest no-data states (EPIC-023 Task B 
   beforeEach(() => {
     jest.clearAllMocks();
     mockApiFetch.mockClear();
+    mockSearchParams.mockImplementation(
+      () => new URLSearchParams("tab=rbalance"),
+    );
     queryClient.clear();
     bridgeFixture = baseBridge();
     netWorthFixture = {
@@ -315,5 +362,75 @@ describe("/laporan Balance Sheet tab — honest no-data states (EPIC-023 Task B 
     // in the Unexplained slot would fail this test.
     expect(screen.getByText("-3 jt")).toBeInTheDocument();
     expect(screen.getByText("272 jt")).toBeInTheDocument();
+  });
+});
+
+describe("/laporan — revisi I multi-currency (investment dialog)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApiFetch.mockClear();
+    mockSearchParams.mockImplementation(() => new URLSearchParams("tab=rinv"));
+    queryClient.clear();
+    balanceSheetFixture = baseBalanceSheet();
+    bridgeFixture = baseBridge();
+    netWorthFixture = {
+      accountsTotal: "0",
+      investmentsTotal: "0",
+      assetsTotal: "0",
+      liabilitiesTotal: "0",
+      netWorth: "0",
+      currency: "IDR",
+    };
+  });
+
+  it("revisi I — laporan add-investment in EUR sends costBasisPerUnit with sen + fxInputs", async () => {
+    const user = userEvent.setup();
+    render(<LaporanPage />);
+
+    const [addButton] = await screen.findAllByRole("button", {
+      name: `+ ${idDict.common.add}`,
+    });
+    await user.click(addButton!);
+
+    await user.type(
+      screen.getByPlaceholderText(idDict.investasi.fieldTickerPlaceholder),
+      "BBCA",
+    );
+    await user.type(
+      screen.getByPlaceholderText(idDict.investasi.fieldNamePlaceholder),
+      "Bank Central Asia",
+    );
+    fireEvent.change(screen.getByRole("spinbutton"), {
+      target: { value: "10" },
+    });
+    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "EUR");
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
+      "10",
+    );
+
+    fireEvent.submit(
+      screen
+        .getByLabelText(idDict.investasi.fieldCostBasisLabel)
+        .closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(
+        ([url, init]) =>
+          String(url).endsWith("/investments") &&
+          (init as { method?: string } | undefined)?.method === "POST",
+      );
+      expect(post).toBeDefined();
+    });
+    const post = mockApiFetch.mock.calls.find(
+      ([url, init]) =>
+        String(url).endsWith("/investments") &&
+        (init as { method?: string } | undefined)?.method === "POST",
+    ) as [string, { body: string }];
+    expect(JSON.parse(post[1].body)).toMatchObject({
+      costBasisPerUnit: "204272.20",
+      fxInputs: [{ field: "costBasisPerUnit", currency: "EUR", amount: "10" }],
+    });
   });
 });
