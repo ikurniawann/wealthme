@@ -4276,5 +4276,7 @@ export const en = {
       "The final rupiah value is computed by the server when you save.",
     rateNotReady: "Wait for the exchange rate to load before saving.",
     storedAsIdr: "Stored as IDR, shown in {display}.",
+    fxIndicativeRefused:
+      "Exchange rate is unavailable right now — try again or use IDR",
   },
 } satisfies I18nDictionary;

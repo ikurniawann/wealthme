@@ -4123,5 +4123,6 @@ export type I18nDictionary = {
     serverNote: string;
     rateNotReady: string;
     storedAsIdr: string;
+    fxIndicativeRefused: string;
   };
 };

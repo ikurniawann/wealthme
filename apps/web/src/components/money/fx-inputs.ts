@@ -2,6 +2,25 @@ import { formatScaled, type FxInput } from "@wealthme/contracts";
 
 import type { MoneyField } from "./use-money-field";
 
+interface ApiErrorLike {
+  status?: number;
+  message?: string;
+}
+
+/** I2 — the server refuses an fxInputs write with 503 when the snapshot is
+ * indicative (no live rate). Map that one status to the friendly, localized
+ * refusal copy instead of the server's raw technical message; every other
+ * status passes through untouched (IDR submissions never send fxInputs, so
+ * they never hit this branch). */
+export function extractApiErrorMessage(
+  error: unknown,
+  t: { money: { fxIndicativeRefused: string } },
+): string | null {
+  const apiError = error as ApiErrorLike;
+  if (apiError?.status === 503) return t.money.fxIndicativeRefused;
+  return null;
+}
+
 /** Legacy IDR number: the exact old parse for IDR, the (informational) preview for a foreign currency. */
 export function moneyIdr(
   field: MoneyField,

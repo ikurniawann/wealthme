@@ -4340,5 +4340,7 @@ export const id = {
     serverNote: "Nilai rupiah final dihitung server saat disimpan.",
     rateNotReady: "Tunggu kurs selesai dimuat sebelum menyimpan.",
     storedAsIdr: "Disimpan sebagai IDR, ditampilkan dalam {display}.",
+    fxIndicativeRefused:
+      "Kurs tidak tersedia saat ini — coba lagi atau gunakan IDR",
   },
 } satisfies I18nDictionary;

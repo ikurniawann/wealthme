@@ -1,6 +1,6 @@
-import { Logger } from "@nestjs/common";
+import { Logger, ServiceUnavailableException } from "@nestjs/common";
 
-import { fxTesting } from "../../test/fx-testing";
+import { fxTesting, TEST_SNAPSHOT } from "../../test/fx-testing";
 
 const SPEC = { balance: { kind: "int" as const, allowNegative: true } };
 
@@ -211,6 +211,53 @@ describe("FxInputService.run — revisi I", () => {
       expect.any(String),
     );
     errorSpy.mockRestore();
+  });
+
+  it("I2 — refuses an fxInputs write with 503 when the snapshot is indicative", async () => {
+    const { service, prisma } = fxTesting({
+      ...TEST_SNAPSHOT,
+      source: "indicative",
+      stale: true,
+    });
+    const persist = jest.fn().mockResolvedValue({ id: "acc-1" });
+    await expect(
+      service.run(
+        {
+          familyGroupId: "fg-1",
+          userId: "u-1",
+          entity: "Account",
+          dto: {
+            balance: 1,
+            fxInputs: [{ field: "balance", currency: "USD", amount: "1.00" }],
+          },
+          spec: SPEC,
+        },
+        persist,
+      ),
+    ).rejects.toThrow(ServiceUnavailableException);
+    expect(persist).not.toHaveBeenCalled();
+    expect(prisma.fxConversion.createMany).not.toHaveBeenCalled();
+  });
+
+  it("I2 — an IDR submission (no fxInputs) is unaffected by an indicative snapshot", async () => {
+    const { service, fxPort } = fxTesting({
+      ...TEST_SNAPSHOT,
+      source: "indicative",
+      stale: true,
+    });
+    const persist = jest.fn().mockResolvedValue({ id: "acc-1" });
+    await service.run(
+      {
+        familyGroupId: "fg-1",
+        userId: "u-1",
+        entity: "Account",
+        dto: { name: "BCA", balance: 5000 },
+        spec: SPEC,
+      },
+      persist,
+    );
+    expect(persist).toHaveBeenCalledWith({ name: "BCA", balance: 5000 });
+    expect(fxPort.getSnapshot).not.toHaveBeenCalled();
   });
 
   it("the transform hook runs after overrides and before persist", async () => {

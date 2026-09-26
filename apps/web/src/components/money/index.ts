@@ -16,6 +16,7 @@ export {
 } from "./money-format";
 export {
   anyMoneyPending,
+  extractApiErrorMessage,
   moneyDigits,
   moneyIdr,
   moneyIdrDecimal,

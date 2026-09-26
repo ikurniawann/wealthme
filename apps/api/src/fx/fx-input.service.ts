@@ -1,4 +1,8 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -77,6 +81,17 @@ export class FxInputService {
     if (!fxInputs || fxInputs.length === 0) return persist(rest);
 
     const snapshot = await this.fx.getSnapshot();
+    // I2 (user decision) — an indicative snapshot (provider down AND no
+    // stored fx_rates, or FX_PROVIDER=mock) is not a real rate: refuse the
+    // write rather than convert against a placeholder table. Display/preview
+    // may still show the labelled indicative table; only a persisting write
+    // is refused, and only here, the single choke point every fxInputs write
+    // passes through.
+    if (snapshot.source === "indicative") {
+      throw new ServiceUnavailableException(
+        "fxInputs: FX rate is indicative only, not a live rate — choose IDR or try again",
+      );
+    }
     const { overrides, pending } = resolveFxInputs(
       fxInputs,
       args.spec,
