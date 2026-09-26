@@ -2,15 +2,20 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** The client asked: "Perhitungan KPR harus disesuaikan: kadang bunga fix, kadang floating sesuai kebijakan bank pemberi KPR; sesuaikan dengan use case nyata di Indonesia dengan data 2026." This plan makes KPR interest match how Indonesian mortgages are really sold in 2026. It covers five things: (a) tiered rate periods (an ordered list of fixed tiers, then floating); (b) a floating-rate history the user records, with the installment re-annuitised from each change; (c) scheme presets (FLPP, konvensional, berjenjang, syariah murabahah, syariah MMQ/ijarah) whose example numbers are visibly labelled as examples; (d) an early-repayment simulator; (e) manual rate input on every period.
+**Goal:** The client asked: "Perhitungan KPR harus disesuaikan: kadang bunga fix, kadang floating sesuai kebijakan bank pemberi KPR; sesuaikan dengan use case nyata di Indonesia dengan data 2026." This plan makes KPR interest match how Indonesian mortgages are really sold in 2026. It covers five things: (a) tiered rate periods (an ordered list of fixed tiers, then floating); (b) a floating-rate history the user records, with the installment re-annuitised from each change; (c) scheme presets (FLPP, konvensional, berjenjang, syariah murabahah, syariah MMQ/ijarah) whose example numbers are visibly labelled as examples; (d) early repayment — simulated first, then **recorded** (full or partial, reduce-tenor or reduce-installment, with a penalty); (e) manual rate input on every period. It also unifies the due-day rule — with a 5-day grace window, on the WIB calendar — so the Pay "Cicilan" preset and the installment `pay()` books are always the same installment, marked "Telat" when late.
 
 **Architecture:**
 
 - **Engine.** A new pure module `rate-plan.util.ts` models a KPR as `RatePlan = { segments, floatingChanges }`. `amortisation.util.ts`'s single `buildSchedule` is generalised from G's "recompute once when the fixed period ends" to "re-annuitise the remaining balance over the remaining tenor whenever the rate regime changes". A regime changes at a segment boundary or at a recorded floating change.
 - **One source of rates.** The schedule, the pay split, the payment preview, `currentInstallment`, the budget line and the new prepayment simulator all read rates through `rateAt(ratePlanOf(input), period)`. No installment or interest math is duplicated.
-- **Storage.** Two new tenant-scoped child tables hold the data: `liability_rate_periods` and `liability_floating_rates`.
+- **Storage.** Three new tenant-scoped child tables hold the data: `liability_rate_periods`, `liability_floating_rates` and `liability_prepayments`. They are joined by `liabilities.installmentFromPeriod` and `transactions.liabilityPrepaymentId`.
 - **Legacy rows.** A read-time adapter (`legacyRatePlan`) presents G's `fixedRateMonths` + `floatingRate` as a two-segment plan, so existing rows are neither migrated nor changed. That adapter provably reproduces G's golden schedules: G's untouched `amortisation.util.spec.ts` stays green.
-- **Prepayment.** Preview-only (`GET :id/prepayment-preview`). It runs `buildSchedule` twice, once before and once after the prepayment.
+- **One due installment.** `dueInstallment(akad, now, tenor)` returns the installment being paid today: the latest one due while it is at most 5 days late, otherwise the next, on the WIB calendar day. The schedule's first row, the Pay preset (`currentInstallmentAmount`), the period `pay()`/preview book, and the budget line all use it.
+- **Prepayment.**
+  - `GET :id/prepayment-preview` simulates by running `buildSchedule` before and after the prepayment.
+  - `POST :id/prepay` records the same computation. It debits the source account through the pay path's overdraft guard and books the principal (TRANSFER, a dedicated category, never the budget line's) and the penalty (EXPENSE, new COA `20011`).
+  - It persists the new installment and tenor with `installmentFromPeriod`, so the schedule, Pay preset and budget line follow.
+  - It is idempotent per `idempotencyKey`, and exempt from the one-installment-payment-per-month guard.
 
 **Tech Stack:**
 
@@ -34,11 +39,17 @@
 - **Money and rates.** Money is BigInt on the API and a digit string on the wire. Rates are `Decimal(5,2)` strings parsed with `parseRateScaledByHundred`. All math is BigInt with round-half-up; never `Number`/`parseFloat` in API math.
 - **Rate bounds.** Rates are accepted from `0` to `30.00` % (`MAX_KPR_RATE_PERCENT`). The prepayment penalty is accepted from `0` to `10.00` %.
 - **Migrations.**
-  - Migrations are additive only. The new migration folder must sort after the latest one on the branch. Re-run `ls apps/api/prisma/migrations` before Task 4; if something newer than `20260926090000_revisi_i_fx_rates_and_conversions` exists, bump K's timestamp past it.
+  - Migrations are additive only. The new migration folder must sort after the latest one on the branch. Re-run `ls apps/api/prisma/migrations` before Tasks 5 and 9; if something newer than `20260926090000_revisi_i_fx_rates_and_conversions` exists, bump K's timestamp past it.
   - Never hand-apply DDL with psql (project memory: "Never hand-apply DDL"). Migrations reach databases only through `prisma migrate deploy`.
   - After a schema change, run `pnpm exec prisma generate` from `apps/api`.
 - **Contracts.** `packages/contracts/dist` is committed. After editing `packages/contracts/src`, run `pnpm --filter @wealthme/contracts build` and `git add packages/contracts/dist`, or the web build dies.
-- **Sub-plan I compatibility.** K adds **no persisted money field**. Rate periods and floating history are percentages. The prepayment amount is a read-only query parameter and is **IDR-only by design**: a KPR's balance is IDR, and I's `fxInputs` audits writes, not simulations. So `FX_FIELD_SPECS.liability` / `liabilityPayment` are unchanged. The existing `fxInputs.run(...)` wrappers on create/update/pay stay exactly as they are, and `ratePeriods` passes through them untouched.
+- **Sub-plan I compatibility.**
+  - Rate periods and floating history are percentages, not money.
+  - The **preview** amount is a read-only query parameter and is IDR-only by design: I's `fxInputs` audits writes, not simulations.
+  - The **recorded** prepayment amount is persisted money that debits an account, so it gets an fx spec: `FX_FIELD_SPECS.liabilityPrepayment = { amount: { kind: "digits", positive: true } }`. `POST :id/prepay` runs through `fxInputs.run(... fieldPrefix: "prepay")`, exactly like `pay`.
+  - The penalty is derived server-side from the (converted) IDR principal, so it needs no spec.
+  - The web simulator stays IDR-only: the loan is IDR, and API clients can still send `fxInputs`.
+  - The existing `fxInputs.run(...)` wrappers on create/update/pay stay as they are.
 - **Tests.** Run only the focused jest commands each task names. No `next build`, no full `turbo` runs.
 - **Lint.** Every touched file must pass `pnpm exec eslint <files>` (exit 0), run from the owning app directory.
 - **Commits.** Use Conventional Commits. End each message with:
@@ -48,11 +59,11 @@
   ```
 - **Comments.** No code comments unless the WHY is non-obvious, and then one line at most.
 - **Husky.** The post-commit hook may print "post-commit script failed (code 1)" (graphify). The commit still lands. Never use `--no-verify`.
-- **UI tasks (8, 9).** Invoke the `taste-skill:taste-skill` skill before writing TSX and follow its pre-flight. Reuse the page's existing classes (`.field`, `.label`, `.input`, `.select`, `.hint`, `.notice notice--info|warning`, `.badge badge--info|warning`, `.btn btn--outline|ghost btn--sm`, `.table table--num`). Add no new CSS.
+- **UI tasks (11, 12, 13).** Invoke the `taste-skill:taste-skill` skill before writing TSX and follow its pre-flight. Reuse the page's existing classes (`.field`, `.label`, `.input`, `.select`, `.hint`, `.notice notice--info|warning`, `.badge badge--info|warning`, `.btn btn--outline|ghost btn--sm`, `.table table--num`). Add no new CSS.
 - **Honest UI.**
   - Every preset rate that is not official is shown with a "Contoh" badge next to it. A notice tells the user to check it against their bank's offer letter (SP3K). Official FLPP figures get a "Resmi" badge.
   - Floating schedule rows carry an "Estimasi" badge.
-  - The prepayment panel says it records nothing.
+  - The prepayment panel labels its numbers as a simulation until the user confirms "Catat pelunasan". The confirmation states the exact debit (principal + penalty).
 
 ## Key design decisions (read before coding)
 
@@ -62,22 +73,45 @@
      - It would duplicate the truth into two places: the G columns, plus new rows that must be kept in sync or dropped (not additive).
      - It would rewrite every KPR row on deploy.
      - It would change nothing numerically, because the adapter reproduces G's golden schedules exactly (proved in Task 2 by keeping G's `amortisation.util.spec.ts` untouched and green, plus an explicit "legacy terms = explicit plan" test).
-   - A legacy row upgrades lazily: the first time it is saved through the new form, the server writes period rows and nulls `fixedRateMonths`/`floatingRate`. Because the periods are equal to the old pair, the stored (possibly user-overridden) installment is kept (Task 5 test).
+   - A legacy row upgrades lazily: the first time it is saved through the new form, the server writes period rows and nulls `fixedRateMonths`/`floatingRate`. Because the periods are equal to the old pair, the stored (possibly user-overridden) installment is kept (Task 6b test).
 2. **Rate regime and re-annuitisation.** Installment `k` accrues at `rateAt(plan, k)`.
    - `anuitas` schedules re-annuitise (`computeInstallment` on the current balance over the remaining months) at every row whose regime (segment index + applied floating change) differs from the previous row. This matches the research: "the bank recalculates the installment using the current outstanding principal and the remaining tenor" **[R§3]**.
-   - On the first projected row, a re-annuitisation happens when that row's regime differs from period 1's. This is what G did when a schedule started past the fixed period.
+   - On the first projected row, a re-annuitisation happens when that row's regime differs from the **anchor** period's regime. The anchor is `installmentFromPeriod ?? 1`: the period the stored installment was computed for. With no anchor this is G's behaviour (a schedule starting past the fixed period re-annuitises). A recorded prepayment sets the anchor to its period, so a reduce-tenor installment is not silently re-annuitised in a floating regime (Task 2 "installmentAnchorPeriod" test: 4.869.889 kept vs 4.857.320 without the anchor).
 3. **When a floating change takes effect — the whole-month rule.** Installment `k` accrues over `[akad + (k−1) months, akad + k months)`, and there is no daily proration: monthly rest **[R§3]**, marked uncertain there, so we pick the simplest honest rule.
    - A rate whose effective date falls **on** a window start applies to that installment.
    - A **mid-window** date applies from the next installment. So `effectivePeriodFor(akad 2026-01-15, 2031-01-15) = 61` and `(…, 2031-01-20) = 62`.
    - A change recorded while the loan is still in a fixed tier is stored, and bites at the first floating period (it is the bank rate in force when floating starts).
    - Fixed tiers ignore recorded changes.
-4. **Pay/due-day convention is unchanged from G.** `pay()` settles period `max(1, monthsElapsed)`, and the schedule's first row is `monthsElapsed + 1`. K only swaps the rate lookup for `rateAt` over the full plan, and pins the tier-boundary behaviour with tests (Review Focus 1). Changing the convention would break G's pinned tests; see Open question 1.
-5. **Early repayment is preview-only (decided).** It is not recorded, because:
-   - `pay()` enforces one payment per liability per calendar month (CRITICAL guard `assertNotAlreadyPaidThisPeriod`). A prepayment in an installment month would be refused or would need that guard weakened.
-   - A penalty has no COA category. Booking it under "Bunga Pinjaman" would misstate interest expense.
-   - Reduce-tenor would have to rewrite `tenorMonths` while period numbering stays elapsed-based.
-
-   A full payoff can already be recorded honestly with the existing Pay button. `pay()` accepts up to balance + interest due; the penalty is then recorded by the user as an ordinary expense. The simulator says so. Recording a prepayment is Open question 2.
+4. **Unified due day with a 5-day grace window (user decisions).** One function, `dueInstallment(akad, now, tenor)` (Task 3), returns `{ period, late }`: the installment being paid today. Installment `k` falls due `k` months after the akad.
+   - From its due day through **5 days late**, `k` is still the installment being paid, at its own (possibly older tier) rate. `late` is true from day +1.
+   - From day +6, the installment being paid is `k + 1`.
+   - The result is clamped to `[1, tenor]` (past maturity it is `late`), and is `1` without an akad date.
+   - Days are the **WIB (Asia/Jakarta, UTC+7) calendar day** of `now`, compared with the akad's stored calendar date. A payment at 00:00–07:00 WIB is not a day off. There is no per-family timezone yet; revisit when one exists.
+   - The schedule's first row, `currentInstallmentAmount` (the Pay "Cicilan" preset), the rate `pay()`/`payment-preview` book, and the budget line all use this one number. `LiabilityDto.currentInstallmentLate` makes the Pay dialog show "Telat" during the grace window (Task 12).
+   - This replaces G's `settledPeriod = max(1, monthsElapsed)` / `firstPeriod = monthsElapsed + 1`, which disagreed on due days and near tier boundaries.
+   - Right after `pay()` settles `k`, the budget line is re-derived for `k + 1` (dated loans only).
+   - Residual, by design: we do not track which installment was paid. On a day inside the window **after** paying, `currentInstallmentAmount` still shows `k`, re-annuitised on the reduced balance. Pay is disabled then anyway (`paidThisPeriod`).
+   - Known G quirk kept: `monthsElapsed` compares day-of-month, so an akad on the 29th–31st counts short months late.
+5. **Early repayment is recordable (user decision).**
+   - **Preview.** The preview (`GET :id/prepayment-preview`) and the recording (`POST :id/prepay`) run the same `simulatePrepayment` on the same state, so the recorded numbers equal the previewed ones for the same day.
+   - **Recording, in one Serializable transaction:**
+     - Debit the source account by principal + penalty (the same `assertBankNotOverdrawn` as `pay()`).
+     - Insert a `liability_prepayments` row.
+     - Decrement `remainingBalance` by the principal.
+     - Persist the new terms:
+       - reduce-installment → new `installmentAmount`/`minimumPayment`, `installmentFromPeriod = d`;
+       - reduce-tenor → `tenorMonths = d − 1 + n′`, installment kept, `installmentFromPeriod = d`;
+       - full → `minimumPayment = 0` (the budget line is removed).
+     - Post two transactions, both linked by `liabilityId` + `liabilityPrepaymentId`:
+       - the principal as a TRANSFER on a dedicated family category "Pelunasan Dipercepat Pinjaman" (group-5 COA). It is deliberately **not** the liability's own principal category, so the extra principal never shows as overspending the monthly installment budget line.
+       - the penalty as an EXPENSE on a category backed by the new COA `20011` "Penalti Pelunasan Pinjaman". This follows the "never reuse a catch-all code for automatic behaviour" precedent of 20009/20010; the migration backfills the COA account for existing families.
+     - Re-sync the budget line.
+   - **Corrections after a prepayment (judge fix).** A term-changing PATCH on a prepaid (anchored) loan must not fall back to G's contract installment (`totalDebt` over the possibly shortened tenor).
+     - Task 9 re-annuitises the remaining balance from the installment now due, through the shared engine, and moves the anchor there.
+     - If that is impossible (not anuitas, or no tenor), the PATCH is refused with 400.
+   - **Guard exception.** `assertNotAlreadyPaidThisPeriod` and `paidThisPeriod` ignore rows with a `liabilityPrepaymentId`. A prepayment never blocks, or counts as, the month's installment. Prepayments are not limited per month.
+   - **Idempotency.** `idempotencyKey` (UUID, generated by the client once per simulation) is unique per liability. A repeated or concurrent submit returns the first record with `replayed: true`. A concurrent loser hits P2002, is retried by `runSerializableWithRetry`, and then finds the winner.
+   - **Protected rows.** Prepayment transactions carry `liabilityId`, so `TransactionsService` already refuses to edit or delete them (C4). Corrections go through the liability PATCH, as for `pay()`.
 
 6. **Scheme presets live in the web.** They sit in `apps/web/src/app/(app)/liabilitas/kpr-presets.ts` as prefill data only. The server stores `kprScheme` as a label and enforces only structural rules:
    - FLPP and murabahah must be a single fixed period for the full tenor.
@@ -97,21 +131,29 @@
    | `syariah_mmq`          | fixed 12 bln 3.30 %, then floating 11.00 %                 | Contoh + "no public syariah reset index" note | BSI ~3.3 % year 1 (unverified primary) **[R§5]**; no reset index found **[R§7]** |
    | `manual`               | one empty fixed period                                     | —                                             | —                                                                                |
 
-   Default prepayment penalty: **1.00 %**, labelled as an example. The research gives 1–3 % as common and up to 7 % **[R§6]**.
+   Default prepayment penalty: **1.00 %**, labelled as an example and editable. The research gives 1–3 % as common and up to 7 % **[R§6]**.
 
 ## Review Focus
 
 1. **Boundary months between periods (the G off-by-one class).**
    - For a berjenjang loan (24 @ 3.50, 12 @ 5.50, floating 11.00, akad 2026-01-15), period 24 is tier 1 and period 25 is tier 2 in every consumer.
    - Schedule rows 24 and 25 are Rp 2.899.799 and Rp 3.390.269; row 37 is Rp 4.869.888.
-   - A payment/preview on 2028-01-15 (elapsed 24) or 2028-02-14 books 3.50 % (interest 1.353.973 on 464.219.240). On 2028-02-15 it books 5.50 % (interest 2.127.672).
-   - Tests: Task 1, "segment boundaries"; Task 2, "berjenjang 500 jt…"; Task 5, "boundary: …".
+   - Unified due day with 5-day grace (akad 2026-01-15), for payments and previews:
+     - 2028-01-14 (the day before #24), 2028-01-15 (#24's due day) and 2028-01-20 (5 days late, "Telat") book #24 at 3.50 % (interest 1.353.973 on 464.219.240).
+     - 2028-01-21 (day +6) and 2028-02-15 book #25 at 5.50 % (interest 2.127.672).
+     - The Pay preset agrees: Rp 2.899.799 on 2028-01-15/20 (late on the 20th), Rp 3.390.269 on 2028-01-21.
+   - G legacy pair (8 % × 36, then 11 %), late tier-boundary payment:
+     - Paying 4.182.200 on 2029-01-20 (#36, 5 days late) books 8 % (interest 3.103.938, principal 1.078.262).
+     - The budget line moves to #37 at 11 % over 204 months: **5.041.728**.
+     - On 2029-01-21 the preset is #37, 5.053.432 (interest 4.267.915).
+   - WIB: 2028-01-20T16:59:59Z is still #24; 2028-01-20T17:00Z (00:00 WIB on day +6) is #25.
+   - Tests: Task 1, "segment boundaries"; Task 2, "berjenjang 500 jt…"; Task 3, `dueInstallment` ×12 plus "preset = booked" ×6 and the late pay; Task 6a, "boundary: …" ×5 and "Pay preset …" ×3; Task 12, Pay "Telat".
 2. **Rate change mid-month versus the installment date.**
    - A change effective 2031-01-15 applies from installment 61; one effective 2031-01-16 or 2031-01-20 applies from 62.
    - A change recorded during a fixed tier applies only at 37.
    - Two changes landing on the same period: the later date wins.
-   - Tests: Task 1, "effectivePeriodFor"; Task 2, "mid-month change"; Task 5, `ratePlanFromRows` "same-period dates".
-3. **Past tenor / overdue.** Past maturity with Rp 1.000.000 left and a recorded change to 9.75 %, there is exactly one payoff row: Rp 1.008.125 (interest 8.125). A floating change dated so late that it affects no installment is refused with 400. Tests: Task 2, "past tenor"; Task 6, "past maturity".
+   - Tests: Task 1, "effectivePeriodFor"; Task 2, "mid-month change"; Task 6a, `ratePlanFromRows` "same-period dates".
+3. **Past tenor / overdue.** Past maturity with Rp 1.000.000 left and a recorded change to 9.75 %, there is exactly one payoff row: Rp 1.008.125 (interest 8.125). A floating change dated so late that it affects no installment is refused with 400. `dueInstallmentPeriod` clamps to the last installment. Tests: Task 2, "past tenor"; Task 3, "past maturity"; Task 7, "past maturity".
 4. **0 % promo period.** At 0 % for 12 bln, then 10 % floating, on 120 jt / 120 bln:
    - Installments 1–12 are Rp 1.000.000 with 0 interest.
    - Row 13 re-annuitises to Rp 1.520.498, and the last row is Rp 1.520.511.
@@ -122,67 +164,86 @@
    - The last row absorbs rounding: Rp 2.531.721.
    - Total paid (the "harga jual" equivalent) is Rp 455.682.751.
    - The server refuses a floating period on murabahah/FLPP.
-   - Tests: Task 2, "murabahah"; Task 4, validation "murabahah with a floating tail".
+   - Tests: Task 2, "murabahah"; Task 5, validation "murabahah with a floating tail".
 6. **Prepayment golden numbers.** 400 jt left, 180 bln, 11.00 %, installment 4.546.388:
    - Prepaying 100 jt with 1 % penalty (Rp 1.000.000):
      - Reduce-installment: new installment Rp 3.409.791, tenor stays 180, interest saved Rp 104.587.451.
      - Reduce-tenor: installment kept, tenor 180 → **102**, interest saved Rp 255.703.278.
-   - On berjenjang at period 13, reduce-tenor still steps up at 25 and 37.
-   - Tests: Task 3.
-7. **Penalty rounding.** Round-half-up to the rupiah: 1 % of 12.345.650 = **123.457**; of 12.345.649 = 123.456; 1.25 % of 33.333.333 = 416.667. Test: Task 3, "prepaymentPenalty".
+   - On berjenjang at period 13, reduce-tenor still steps up at 25 and 37 (196 months, new tenor 208).
+   - **Recorded == previewed:**
+     - Reduce-installment persists installment 3.409.791 from #61.
+     - Reduce-tenor persists tenor 162 with 4.546.388 kept, and the schedule read back afterwards has 102 rows.
+     - Full with 2.5 % debits 410.000.000 and removes the budget line.
+   - Tests: Task 4; Task 10 "recordPrepayment".
+7. **Penalty rounding.** Round-half-up to the rupiah: 1 % of 12.345.650 = **123.457**; of 12.345.649 = 123.456; 1.25 % of 33.333.333 = 416.667. Test: Task 4, "prepaymentPenalty"; the recorded `penaltyAmount` equals it (Task 10).
 8. **Legacy rows unchanged.**
-   - G's `amortisation.util.spec.ts`, `liabilities.service.spec.ts` and `liabilities.controller.spec.ts` pass unmodified; the only edits to them are the new mock delegates and the new routes in the guard arrays.
+   - G's `amortisation.util.spec.ts` passes unmodified.
+   - The only edits to `liabilities.service.spec.ts` / `liabilities.controller.spec.ts` are: the new mock delegates; the new routes in the guard arrays; and the one explicitly listed due-day line in Task 3 (the shared `FLOATING_INSTALLMENT` constant in "current installment after the KPR fixed period (final fix 2)": `tenorMonths` 203 → 204, because 2029-02-20 is inside #37's grace window).
    - No migration touches existing rows.
    - A legacy KPR saved through the new form keeps its overridden installment.
-   - Tests: Task 2, full `src/liabilities` run; Task 5, "legacy upgrade".
+   - Tests: Task 2, full `src/liabilities` run; Task 6b, "legacy upgrade".
 9. **Tenant scoping and ability on floating history.**
    - Every query filters `familyGroupId` (loads, deletes, duplicate checks).
    - GET needs `read Liability`; POST/DELETE need `manage Liability`.
    - dependant/operational/anonymous are refused.
-   - Tests: Task 6 guard spec and service "other family".
+   - The same holds for `POST :id/prepay` (`manage Liability`): the source account and the idempotency lookup are family-scoped.
+   - Tests: Task 7 guard spec and service "other family"; Task 10 PERMISSION/DENIAL and "other family".
+10. **Prepayment safety.**
+    - A double submit posts once (web button disabled while pending plus server idempotency); a concurrent duplicate becomes a replay, not a 500 or a second debit.
+    - A prepayment never trips or satisfies the monthly installment guard.
+    - The bank overdraft floor applies to principal + penalty.
+    - The fx-converted amount is audited as `Liability prepay.amount`.
+    - Tests: Task 10 ("replay", "concurrent", "guard exception", "overdraft", fx wiring); Task 9 ("prepayment rows are ignored by the installment guard"); Task 13 ("posts once").
+11. **Term corrections after a prepayment (judge HIGH).**
+    - On the berjenjang loan prepaid to tenor 166 (4.869.889 anchored at #61), a tenor correction to 180 must write **4.524.568** (328.462.235 over 120 months at 11 %), and a floating correction to 10.50 % must write **4.767.352** (106 months). Never G's `totalDebt`-based contract installment.
+    - The budget line follows.
+    - A switch to flat on a prepaid loan is refused.
+    - Tests: Task 9 "…re-annuitises what is left…" ×2 and "…is refused".
+12. **Orphaned floating history (judge MEDIUM).** A PATCH that would leave recorded floating changes without a floating period, or that switches the loan off anuitas, is refused with the same 400 as `validateRatePeriods`. Tests: Task 6b "orphaned history"; Task 5 validation "dropping floating while history exists".
 
 ## Out of scope (deliberately untouched)
 
-- **Recording a prepayment or its penalty** — see decision 5 and Open question 2.
+- **Per-installment paid tracking.** See the decision 4 residual. The monthly calendar guard is unchanged.
+- **Prepayment history list/undo UI.** Rows are protected ledger entries; corrections go through the liability PATCH, as for `pay()`.
+- **Interest accrued between the last installment and the prepayment date.** Monthly rest is assumed, and the preview says so **[R§3]**.
+- **A floating change recorded later with an effective period at or before a prepayment's anchor.** It does not re-annuitise the anchored installment. Record rate notices before prepayments.
 - **Fees** (provisi 1 %, admin, appraisal, roya): these are one-off costs, not interest math. Several are unverified primary **[R§6]**.
 - **Floating caps**, which were not found in the 2026 market **[R§1]**. SBDK auto-fetch from `data.ojk.go.id` **[R§2]** — the user records bank notices manually (requirement b).
-- **Other readers of `liabilities`** (`dashboard`, `reports`, `ai-advisor`, `billing-cycle`) keep reading balances only. They never computed installments.
+- **Other readers of `liabilities`** (`dashboard`, `reports`, `ai-advisor`, `billing-cycle`) keep reading balances only. The penalty expense reaches reports through the ordinary expense ledger.
 - **Daily-rest interest accrual** — research uncertainty 2 **[R§ Uncertainties]**; monthly rest is assumed (decision 3).
 
-## Open questions for the user
+## Resolved questions (user decisions, 2026-09-26)
 
-1. **Due-day convention (inherited from G).**
-   - On the exact due day of installment 24, `pay()` books period 24's rate (tier 1), while the Pay preset (`currentInstallmentAmount`) already shows the tier-2 installment for period 25.
-   - Keep G's convention (this plan pins it with tests), or switch both to "the earliest installment due on or after today"? Switching would change G's pinned tests.
-2. **Record prepayments later?** Should a follow-up add a real `POST :id/prepay` that books principal, a new "Penalti Pelunasan KPR" expense category, and a tenor or installment rewrite? It would need a documented exception to the one-payment-per-month guard.
+1. **Due day.** Unify the Pay preset and `pay()` on one installment, with a 5-day grace window ("Telat") on the WIB calendar (decision 4, Task 3).
+2. **Prepayment.** Recordable in K (decision 5, Tasks 9, 10, 13).
 
 ## File Map
 
-| File                                                                                                                                                                                                               | Responsibility                                                                               | Tasks   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- | ------- |
-| `apps/api/src/liabilities/rate-plan.util.ts` (+ `.spec.ts`)                                                                                                                                                        | Pure plan model: segments, `rateAt`, regimes, legacy adapter                                 | 1       |
-| `apps/api/src/liabilities/amortisation.util.ts`                                                                                                                                                                    | `effectivePeriodFor`, `ratePlanOf`, plan-aware `buildSchedule`, exported `roundHalfUpDivide` | 1, 2    |
-| `apps/api/src/liabilities/amortisation.rate-plan.spec.ts`                                                                                                                                                          | K golden schedules (G's spec stays untouched)                                                | 2       |
-| `apps/api/src/liabilities/prepayment.util.ts` (+ `.spec.ts`)                                                                                                                                                       | Penalty, months-to-payoff, before/after simulation                                           | 3       |
-| `apps/api/prisma/schema.prisma` + `migrations/20260926120000_revisi_k_kpr_rate_plans/migration.sql`                                                                                                                | Enums `KprScheme`/`RatePeriodKind`, `kprScheme` column, two child tables                     | 4       |
-| `apps/api/src/liabilities/rate-plan.validation.ts` (+ `.spec.ts`)                                                                                                                                                  | Period/scheme/rate validation (400s)                                                         | 4       |
-| `apps/api/src/liabilities/dto/rate-period.dto.ts`, `create-floating-rate.dto.ts`, `prepayment-preview-query.dto.ts`, `create/update-liability.dto.ts`, `liability-response.dto.ts`, `create-liability.dto.spec.ts` | Wire validation + response classes                                                           | 4, 6, 7 |
-| `packages/contracts/src/liabilities/index.ts` (+ committed `dist/`)                                                                                                                                                | Web types                                                                                    | 4       |
-| `apps/api/src/liabilities/rate-plan.rows.ts` (+ `.spec.ts`)                                                                                                                                                        | Tenant-scoped load/replace of K rows; rows → `RatePlan`                                      | 5       |
-| `apps/api/src/liabilities/liabilities.service.ts` + `liabilities.service.rate-plan.spec.ts`                                                                                                                        | Wiring: create/update/findAll/schedule/pay/preview/budget                                    | 5, 7    |
-| `apps/api/src/liabilities/liabilities.service.spec.ts`                                                                                                                                                             | Only: two new mock delegates in `makePrisma`                                                 | 5       |
-| `apps/api/src/liabilities/liability-floating-rates.service.ts` + `.controller.ts` + specs, `liabilities.module.ts`                                                                                                 | Floating history CRUD + budget resync                                                        | 6       |
-| `apps/api/src/liabilities/liabilities.controller.ts` + `.spec.ts`                                                                                                                                                  | `GET :id/prepayment-preview`                                                                 | 7       |
-| `apps/web/src/app/(app)/liabilitas/kpr-presets.ts` (+ `.test.ts`)                                                                                                                                                  | Presets, drafts, body builder                                                                | 8       |
-| `apps/web/src/app/(app)/liabilitas/kpr-rate-periods-field.tsx`                                                                                                                                                     | Rate-period editor                                                                           | 8       |
-| `apps/web/src/app/(app)/liabilitas/api-error.ts`                                                                                                                                                                   | `extractApiErrorMessage` moved out of `page.tsx` (shared by new panels)                      | 8       |
-| `apps/web/src/app/(app)/liabilitas/kpr-floating-rates-panel.tsx` (+ `.test.tsx`)                                                                                                                                   | Floating history panel                                                                       | 9       |
-| `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.tsx` (+ `.test.tsx`)                                                                                                                                   | Prepayment simulator                                                                         | 9       |
-| `apps/web/src/app/(app)/liabilitas/page.tsx` + `liabilitas.test.tsx`                                                                                                                                               | Modal seam (KPR block), Detail seam (rate column + panels)                                   | 4, 8, 9 |
-| `apps/web/src/app/(app)/anggaran/obligations-section.test.tsx`                                                                                                                                                     | Fixture gains new required fields                                                            | 4       |
-| `apps/web/src/i18n/{types,id,en}.ts`                                                                                                                                                                               | `liabilitas.kpr.*` strings                                                                   | 8, 9    |
+| File                                                                                                                                                                                                    | Responsibility                                                                                                                                                                                          | Tasks                  |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `apps/api/src/liabilities/rate-plan.util.ts` (+ `.spec.ts`)                                                                                                                                             | Pure plan model: segments, `rateAt`, regimes, legacy adapter                                                                                                                                            | 1                      |
+| `apps/api/src/liabilities/amortisation.util.ts`                                                                                                                                                         | `effectivePeriodFor`, `ratePlanOf`, plan-aware `buildSchedule` (+ `installmentAnchorPeriod`), `dueInstallment`/`dueInstallmentPeriod`/`localCalendarDay`/`DUE_GRACE_DAYS`, exported `roundHalfUpDivide` | 1, 2, 3                |
+| `apps/api/src/liabilities/amortisation.rate-plan.spec.ts`, `amortisation.due-installment.spec.ts`                                                                                                       | K golden schedules; due-day rule (G's spec stays untouched)                                                                                                                                             | 2, 3                   |
+| `apps/api/src/liabilities/prepayment.util.ts` (+ `.spec.ts`)                                                                                                                                            | Penalty, months-to-payoff, before/after simulation plus the terms to persist                                                                                                                            | 4, 8                   |
+| `apps/api/prisma/schema.prisma` + `migrations/20260926120000_revisi_k_kpr_rate_plans`, `migrations/20260926130000_revisi_k_liability_prepayments`                                                       | Rate-plan tables; prepayment table, `installmentFromPeriod`, `transactions.liabilityPrepaymentId`, COA 20011 backfill                                                                                   | 5, 9                   |
+| `packages/contracts/src/coa/index.ts` + `apps/api/src/common/coa/default-coa-chart.spec.ts`                                                                                                             | COA `20011` Penalti Pelunasan Pinjaman in `GENERIC_COA_CHART`                                                                                                                                           | 9                      |
+| `apps/api/src/liabilities/rate-plan.validation.ts` (+ `.spec.ts`)                                                                                                                                       | Period/scheme/rate validation (400s)                                                                                                                                                                    | 5                      |
+| `apps/api/src/liabilities/dto/*` (`rate-period`, `create-floating-rate`, `prepayment-preview-query`, `record-prepayment`, `create/update-liability`, `liability-response`, `create-liability.dto.spec`) | Wire validation + response classes                                                                                                                                                                      | 5, 7, 8, 10            |
+| `packages/contracts/src/liabilities/index.ts` (+ committed `dist/`)                                                                                                                                     | Web types                                                                                                                                                                                               | 5, 10                  |
+| `apps/api/src/liabilities/rate-plan.rows.ts` (+ `.spec.ts`)                                                                                                                                             | Tenant-scoped load (6a) / replace (6b) of K rows; rows → `RatePlan`                                                                                                                                     | 6a, 6b                 |
+| `apps/api/src/liabilities/liabilities.service.ts` + `liabilities.service.rate-plan.spec.ts`                                                                                                             | Due day; readers (6a); writers + orphan check (6b); prepayment persistence, re-anchoring, recording                                                                                                     | 3, 5, 6a, 6b, 8, 9, 10 |
+| `apps/api/src/liabilities/liabilities.service.spec.ts`                                                                                                                                                  | Due-day boundary tests + the one listed G constant change (Task 3); two mock delegates (Task 6a)                                                                                                        | 3, 6a                  |
+| `apps/api/src/liabilities/liability-floating-rates.service.ts` + `.controller.ts` + specs, `liabilities.module.ts`                                                                                      | Floating history CRUD + budget resync                                                                                                                                                                   | 7                      |
+| `apps/api/src/liabilities/liabilities.controller.ts` + `.spec.ts`                                                                                                                                       | `GET :id/prepayment-preview`, `POST :id/prepay`                                                                                                                                                         | 8, 10                  |
+| `apps/api/src/fx/fx-field-specs.ts` + `fx-wiring-holdings.spec.ts`                                                                                                                                      | `liabilityPrepayment` fx spec                                                                                                                                                                           | 10                     |
+| `apps/web/src/app/(app)/liabilitas/kpr-presets.ts` (+ `.test.ts`), `kpr-rate-periods-field.tsx`, `api-error.ts`                                                                                         | Presets, editor, shared error helper                                                                                                                                                                    | 11                     |
+| `apps/web/src/app/(app)/liabilitas/schedule-rate-cell.tsx`, `kpr-floating-rates-panel.tsx` (+ test)                                                                                                     | Detail: rate column, floating history                                                                                                                                                                   | 12                     |
+| `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.tsx` (+ `.test.tsx`)                                                                                                                        | Simulator (12), "Catat pelunasan" (13)                                                                                                                                                                  | 12, 13                 |
+| `apps/web/src/app/(app)/liabilitas/page.tsx` + `liabilitas.test.tsx`                                                                                                                                    | Modal seam, Detail seam, Pay "Telat" seam, `onRecorded` wiring                                                                                                                                          | 5, 11, 12, 13          |
+| `apps/web/src/app/(app)/anggaran/obligations-section.test.tsx`                                                                                                                                          | Fixture gains new required fields                                                                                                                                                                       | 5                      |
+| `apps/web/src/i18n/{types,id,en}.ts`                                                                                                                                                                    | `liabilitas.kpr.*` strings                                                                                                                                                                              | 11, 12, 13             |
 
-All golden numbers in this plan were produced by a standalone BigInt reference implementation of the engine below. The API code in Tasks 1–3 and 4's validation was itself executed against G's untouched spec plus every new spec in this plan: 94/94 passing.
+All golden numbers in this plan were produced by a standalone BigInt reference implementation of the engine below. The pure API code was itself executed against G's untouched spec plus every new pure spec in this plan: 109/109 passing. That covers Tasks 1, 2, 3's `dueInstallment`, 4, 5's validation and 6a's `ratePlanFromRows`.
 
 ---
 
@@ -198,7 +259,7 @@ All golden numbers in this plan were produced by a standalone BigInt reference i
 
 - Consumes: `monthsElapsed(start: Date, now: Date): number` (existing, amortisation.util).
 - Produces (exported from `./rate-plan.util`; this module imports nothing):
-  - `type RatePeriodKind = "fixed" | "floating"` (string-identical to the Prisma enum added in Task 4).
+  - `type RatePeriodKind = "fixed" | "floating"` (string-identical to the Prisma enum added in Task 5).
   - `interface RateSegment { kind: RatePeriodKind; months: number | null; ratePercent: string }` — `months: null` only on the last segment.
   - `interface FloatingRateChange { effectivePeriod: number; ratePercent: string }`.
   - `interface RatePlan { segments: RateSegment[]; floatingChanges: FloatingRateChange[] }`, where `floatingChanges` is sorted by `effectivePeriod`.
@@ -505,11 +566,12 @@ EOF
 
 - Consumes: Task 1's `legacyRatePlan`, `rateAt`, `sameRateRegime`, `RatePlan`.
 - Produces (from `./amortisation.util`):
-  - `roundHalfUpDivide(numerator: bigint, denominator: bigint): bigint` is now **exported** (Task 3 uses it).
+  - `roundHalfUpDivide(numerator: bigint, denominator: bigint): bigint` is now **exported** (Task 4 uses it).
   - `ScheduleInput` gains two optional fields:
     - `ratePlan?: RatePlan` — when absent, the legacy `fixedRateMonths`/`floatingRatePercent` apply via `legacyRatePlan`.
-    - `recomputeAtStart?: boolean` — `true` forces a re-annuitisation at row 0, `false` forbids it, `undefined` means "only when row 0's regime differs from period 1's".
-  - `ratePlanOf(input: ScheduleInput): RatePlan` is the single place that picks K's plan or the legacy adapter. Tasks 3, 5 and 7 call it.
+    - `recomputeAtStart?: boolean` — `true` forces a re-annuitisation at row 0, `false` forbids it, `undefined` means "only when row 0's regime differs from the anchor's".
+    - `installmentAnchorPeriod?: number` (default `1`) — the period whose regime `installmentAmount` was computed for. Task 9 feeds it from `liabilities.installmentFromPeriod`, which a recorded prepayment sets.
+  - `ratePlanOf(input: ScheduleInput): RatePlan` is the single place that picks K's plan or the legacy adapter. Tasks 4, 6a and 8 call it.
   - `rateForPeriod` keeps its signature (G's tests) and becomes a thin reader over `legacyRatePlan`.
   - `ScheduleRow` is **unchanged** (G's `toEqual` goldens depend on its shape).
 
@@ -865,6 +927,46 @@ describe("buildSchedule over a rate plan — revisi K golden schedules", () => {
     expect(legacy[36]?.installment).toBe(5_053_432n);
   });
 });
+describe("installmentAnchorPeriod — revisi K (recorded prepayment)", () => {
+  // Berjenjang loan at #61 (floating 11%), 100 jt prepaid with reduce-tenor:
+  // installment 4.869.889 kept, tenor 60 + 106 = 166, anchored at #61.
+  const PERSISTED = {
+    method: "anuitas" as const,
+    remainingBalance: 328_462_235n,
+    originalPrincipal: 500_000_000n,
+    annualInterestRatePercent: "3.50",
+    installmentAmount: 4_869_889n,
+    remainingMonths: 106,
+    firstPeriod: 61,
+    fixedRateMonths: null,
+    floatingRatePercent: null,
+    ratePlan: BERJENJANG,
+  };
+
+  it("anchored at the prepayment period: the stored installment is used as-is and pays off at #166", () => {
+    const rows = buildSchedule({ ...PERSISTED, installmentAnchorPeriod: 61 });
+    expect(rows[0]).toEqual({
+      period: 61,
+      installment: 4_869_889n,
+      interest: 3_010_904n,
+      principal: 1_858_985n,
+      remaining: 326_603_250n,
+    });
+    expect(rows[12]?.installment).toBe(4_869_889n);
+    expect(rows).toHaveLength(106);
+    expect(rows[105]).toEqual({
+      period: 166,
+      installment: 2_633_995n,
+      interest: 23_926n,
+      principal: 2_610_069n,
+      remaining: 0n,
+    });
+  });
+
+  it("without the anchor the floating regime would silently re-annuitise it (4.857.320)", () => {
+    expect(buildSchedule(PERSISTED)[0]?.installment).toBe(4_857_320n);
+  });
+});
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -930,8 +1032,10 @@ with
   floatingRatePercent: string | null;
   /** Revisi K rate periods + recorded floating changes. */
   ratePlan?: RatePlan;
-  /** Re-annuitise at the first row: true forces, false forbids, undefined = only when the rate regime differs from period 1's. */
+  /** Re-annuitise at the first row: true forces, false forbids, undefined = only when the rate regime differs from the anchor's. */
   recomputeAtStart?: boolean;
+  /** Period whose rate regime `installmentAmount` was computed for (1 = the akad; a recorded prepayment moves it). */
+  installmentAnchorPeriod?: number;
   /** Caps the rows built; defaults to MAX_SCHEDULE_ROWS. */
   maxRows?: number;
 }
@@ -961,7 +1065,7 @@ export function ratePlanOf(input: ScheduleInput): RatePlan {
   const rows: ScheduleRow[] = [];
   let balance = input.remainingBalance;
   let installment = input.installmentAmount ?? 0n;
-  let previous = rateAt(plan, 1);
+  let previous = rateAt(plan, input.installmentAnchorPeriod ?? 1);
 
   for (let i = 0; i < maxRows && balance > 0n; i += 1) {
     const period = input.firstPeriod + i;
@@ -1012,7 +1116,7 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
   const rows: ScheduleRow[] = [];
   let balance = input.remainingBalance;
   let installment = input.installmentAmount ?? 0n;
-  let previous = rateAt(plan, 1);
+  let previous = rateAt(plan, input.installmentAnchorPeriod ?? 1);
 
   for (let i = 0; i < maxRows && balance > 0n; i += 1) {
     const period = input.firstPeriod + i;
@@ -1071,7 +1175,7 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run (from `apps/api`): `pnpm exec jest src/liabilities`
-Expected: PASS. The new spec has 11 tests; `amortisation.util.spec.ts` (G, untouched), `liabilities.service.spec.ts` and `liabilities.controller.spec.ts` are all still green.
+Expected: PASS. The new spec has 13 tests; `amortisation.util.spec.ts` (G, untouched), `liabilities.service.spec.ts` and `liabilities.controller.spec.ts` are all still green.
 
 - [ ] **Step 5: Lint**
 
@@ -1098,7 +1202,445 @@ EOF
 
 ---
 
-### Task 3: Early-repayment simulation (pure)
+### Task 3: One due installment (5-day grace, WIB calendar) for the Pay preset, `pay()`, preview, schedule and budget line
+
+**Files:**
+
+- Modify: `apps/api/src/liabilities/amortisation.util.ts` (add `DUE_GRACE_DAYS`, `localCalendarDay`, `dueInstallment` and `dueInstallmentPeriod` right after `effectivePeriodFor`)
+- Create: `apps/api/src/liabilities/amortisation.due-installment.spec.ts`
+- Modify: `apps/api/src/liabilities/liabilities.service.ts` — imports, `scheduleInputFor`, `currentInstallmentFor`, `budgetContribution`, delete `settledPeriod`, `splitLiabilityPayment`, `runPayment`'s budget sync
+- Modify: `apps/api/src/liabilities/liabilities.service.spec.ts` — **one** listed G test update + a new `describe` of boundary tests
+
+**Interfaces:**
+
+- Consumes: `monthsElapsed` (existing).
+- Produces:
+  - **From `./amortisation.util`:**
+    - `DUE_GRACE_DAYS = 5`.
+    - `localCalendarDay(now): Date` — the WIB (Asia/Jakarta, UTC+7, no DST) calendar day, as UTC midnight.
+    - `dueInstallment(startDate: Date | null, now: Date, tenorMonths: number | null): { period: number; late: boolean }`.
+    - `dueInstallmentPeriod(...) = dueInstallment(...).period`.
+  - **The rule (user decision).** Installment `k` falls due `k` months after the akad. The installment being paid today is the latest one already due while it is **at most 5 days late** (due day through +5 → `k`, `late` from +1); from +6 it is `k + 1`.
+    - The result is clamped to `tenorMonths`; past maturity it is `late: true`. Without an akad date it is `1`.
+    - Days are compared on the **WIB calendar day** of `now` against the akad's stored calendar date (UTC midnight, as the date picker writes it). A payment at 06:30 WIB is therefore not a day early.
+    - No per-family timezone exists yet; Asia/Jakarta is the app default. Revisit when the schema gains a family timezone.
+  - **In `liabilities.service.ts`:**
+    - `scheduleInputFor(liability, now, firstPeriod?: number)`: `firstPeriod` defaults to `dueInstallmentPeriod(...)`, and `remainingMonths = max(1, tenor − firstPeriod + 1)`.
+    - `currentInstallmentFor(liability, now, firstPeriod?)` and `budgetContribution(liability, now, firstPeriod?)` pass it through.
+    - `settledPeriod` is deleted. `splitLiabilityPayment` books `dueInstallmentPeriod(...)`.
+    - `runPayment` re-derives the budget line for `min(settled + 1, tenor)` on dated loans.
+    - Task 5 exposes `late` as `LiabilityDto.currentInstallmentLate`; Task 12 shows "Telat" in the Pay dialog.
+  - **G tests changed — exactly one line**, in `liabilities.service.spec.ts` › `describe("current installment after the KPR fixed period (final fix 2)")`: the shared constant `FLOATING_INSTALLMENT` goes from `tenorMonths: 203` to `204`, with its comment rewritten.
+    - Its `NOW` (2029-02-20) is 5 days after #37's due day, so #37 is still the installment being paid, with 204 left.
+    - The three tests reading the constant pass unchanged through it:
+      - `exposes the re-amortised floating installment as currentInstallmentAmount, matching schedule row 1`
+      - `pay re-derives the budget line to the installment now due, not the stale fixed-period one` — "Settles #37" stays true, and its next-installment expectation of 203 stays correct.
+      - `update re-derives the budget line to the installment now due`
+  - **G tests re-verified, unchanged:**
+    - `paying installment #36 on its due date still books the fixed rate`
+    - `paying installment #37 on its due date books the floating rate`
+    - `paying before the first due date counts as installment #1, never period 0`
+    - `is the stored installment inside the fixed period` (2027-06-20 is #17 five days late — still a fixed-tier installment)
+    - `uses the floating rate for a KPR installment past its fixed period, like pay()`
+    - `anuitas 12 months into a 240-month KPR continues from period 13 on the current balance` (2026-09-25 is +15 after #12)
+    - `past its tenor: a single payoff row, never an empty or negative schedule`
+
+- [ ] **Step 1: Write the failing tests**
+
+(a) Create `apps/api/src/liabilities/amortisation.due-installment.spec.ts`:
+
+```ts
+import {
+  DUE_GRACE_DAYS,
+  dueInstallment,
+  dueInstallmentPeriod,
+} from "./amortisation.util";
+
+describe("dueInstallment — revisi K (5-day grace, WIB calendar)", () => {
+  const AKAD = new Date("2026-01-15T00:00:00.000Z");
+
+  it.each([
+    ["before the first due date", "2026-01-10T08:00:00.000Z", 1, false],
+    ["on the akad day itself", "2026-01-15T08:00:00.000Z", 1, false],
+    ["the day before #24 falls due", "2028-01-14T08:00:00.000Z", 24, false],
+    ["on #24's due day", "2028-01-15T08:00:00.000Z", 24, false],
+    ["#24 one day late", "2028-01-16T08:00:00.000Z", 24, true],
+    [
+      "#24 five days late (last grace day)",
+      "2028-01-20T08:00:00.000Z",
+      24,
+      true,
+    ],
+    ["six days after #24: #25 is next", "2028-01-21T08:00:00.000Z", 25, false],
+    [
+      "the day before #25 (tier boundary)",
+      "2028-02-14T08:00:00.000Z",
+      25,
+      false,
+    ],
+    ["on #25's due day (tier boundary)", "2028-02-15T08:00:00.000Z", 25, false],
+    [
+      "past maturity: clamped to the last installment, late",
+      "2046-06-01T08:00:00.000Z",
+      240,
+      true,
+    ],
+  ])("%s (%s) -> #%s, late %s", (_label, now, period, late) => {
+    expect(dueInstallment(AKAD, new Date(now), 240)).toEqual({ period, late });
+  });
+
+  it("uses the WIB calendar day: 23:59 WIB on day +5 is still #24, 00:00 WIB on day +6 is #25", () => {
+    expect(
+      dueInstallmentPeriod(AKAD, new Date("2028-01-20T16:59:59.000Z"), 240),
+    ).toBe(24);
+    expect(
+      dueInstallmentPeriod(AKAD, new Date("2028-01-20T17:00:00.000Z"), 240),
+    ).toBe(25);
+    // 06:30 WIB on #24's due day is 23:30 UTC the day before — still the due day in WIB.
+    expect(
+      dueInstallment(AKAD, new Date("2028-01-14T23:30:00.000Z"), 240),
+    ).toEqual({ period: 24, late: false });
+  });
+
+  it("no akad date: installment 1; no tenor: not clamped; grace is 5 days", () => {
+    expect(
+      dueInstallmentPeriod(null, new Date("2030-01-01T00:00:00.000Z"), 240),
+    ).toBe(1);
+    expect(
+      dueInstallmentPeriod(AKAD, new Date("2046-06-01T08:00:00.000Z"), null),
+    ).toBe(245);
+    expect(DUE_GRACE_DAYS).toBe(5);
+  });
+});
+```
+
+(b) In `apps/api/src/liabilities/liabilities.service.spec.ts`, `describe("current installment after the KPR fixed period (final fix 2)")`, replace
+
+```ts
+// 2029-02-20: 37 months elapsed, so the next installment is #38 with 203 left.
+const NOW = new Date("2029-02-20T00:00:00.000Z");
+const FLOATING_INSTALLMENT = computeInstallment({
+  method: "anuitas",
+  principal: BigInt(450_000_000),
+  annualInterestRatePercent: "11.00",
+  tenorMonths: 203,
+});
+```
+
+with
+
+```ts
+// Revisi K due day: 2029-02-20 is 5 days after #37 fell due — inside the
+// grace window, so #37 is still the installment being paid, with 204 left.
+const NOW = new Date("2029-02-20T00:00:00.000Z");
+const FLOATING_INSTALLMENT = computeInstallment({
+  method: "anuitas",
+  principal: BigInt(450_000_000),
+  annualInterestRatePercent: "11.00",
+  tenorMonths: 204,
+});
+```
+
+Nothing else in that `describe` changes.
+
+(c) Append a new top-level-inner `describe` at the end of the `describe("LiabilitiesService", …)` block (before its final `});`):
+
+```ts
+describe("unified due day — revisi K (Pay preset = installment pay() books)", () => {
+  // G legacy pair: 8% fixed for 36 bln, then 11% floating; akad 2026-01-15.
+  const KPR_36 = {
+    ...BASE,
+    type: "kpr",
+    interestMethod: "anuitas",
+    totalDebt: BigInt(500_000_000),
+    remainingBalance: BigInt(465_590_716),
+    interestRate: { toString: () => "8.00" },
+    tenorMonths: 240,
+    startDate: new Date("2026-01-15T00:00:00.000Z"),
+    installmentAmount: BigInt(4_182_200),
+    minimumPayment: BigInt(4_182_200),
+    fixedRateMonths: 36,
+    floatingRate: { toString: () => "11.00" },
+    principalCategoryId: "cat-principal",
+  };
+
+  it.each([
+    ["the day before #36", "2029-01-14T08:00:00.000Z", "4182200", "3103938"],
+    ["#36's due day", "2029-01-15T08:00:00.000Z", "4182200", "3103938"],
+    [
+      "#36 one day late (grace)",
+      "2029-01-16T08:00:00.000Z",
+      "4182200",
+      "3103938",
+    ],
+    [
+      "#36 five days late (last grace day)",
+      "2029-01-20T08:00:00.000Z",
+      "4182200",
+      "3103938",
+    ],
+    [
+      "six days after #36: #37 at the floating rate",
+      "2029-01-21T08:00:00.000Z",
+      "5053432",
+      "4267915",
+    ],
+    ["the day before #37", "2029-02-14T08:00:00.000Z", "5053432", "4267915"],
+  ])(
+    "%s: the preset and the booked split are the same installment",
+    async (_label, now, preset, interest) => {
+      prisma.liability.findMany.mockResolvedValue([KPR_36]);
+      prisma.liability.findUnique.mockResolvedValue(KPR_36);
+
+      const [dto] = await service.findAll("fg-1", new Date(now));
+      const preview = await service.previewPayment(
+        "fg-1",
+        "lid-1",
+        preset,
+        new Date(now),
+      );
+
+      expect(dto?.currentInstallmentAmount).toBe(preset);
+      expect(preview.interest).toBe(interest);
+      // Paying exactly the preset settles that installment: principal = preset - its interest.
+      expect(BigInt(preview.principal)).toBe(BigInt(preset) - BigInt(interest));
+    },
+  );
+
+  it("a late payment inside the grace window settles #36 at 8% and moves the budget line to #37: 5.041.728", async () => {
+    prisma.liability.findUnique.mockResolvedValue(KPR_36);
+    prisma.account.findUnique.mockResolvedValue({
+      id: "acc-1",
+      familyGroupId: "fg-1",
+      type: "bank",
+      balance: BigInt(50_000_000),
+      name: "BCA",
+    });
+    prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+    prisma.liability.update.mockResolvedValue(KPR_36);
+
+    await service.pay(
+      "fg-1",
+      "lid-1",
+      { sourceAccountId: "acc-1", amount: "4182200" },
+      new Date("2029-01-20T08:00:00.000Z"),
+    );
+
+    // 465,590,716 x 8%/12 = 3,103,938 interest -> 1,078,262 principal (the old tier's rate).
+    expect(prisma.liability.update).toHaveBeenCalledWith({
+      where: { id: "lid-1", familyGroupId: "fg-1" },
+      data: { remainingBalance: { decrement: BigInt(1_078_262) } },
+    });
+    // #37 re-annuitised at 11% over 204 months on 464,512,454.
+    expect(prisma.budget.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ limitAmount: BigInt(5_041_728) }),
+      }),
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run (from `apps/api`): `pnpm exec jest src/liabilities/amortisation.due-installment.spec.ts src/liabilities/liabilities.service.spec.ts`
+Expected: FAIL. You should see:
+
+- `dueInstallment is not a function`;
+- on 2029-01-15 the preset is `5053432` (old `elapsed + 1` rule);
+- on 2029-01-16 and 2029-01-20 the old rule still reports #37;
+- `FLOATING_INSTALLMENT` (204) no longer matches the old #38 schedule row.
+
+- [ ] **Step 3: Write minimal implementation**
+
+(a) In `apps/api/src/liabilities/amortisation.util.ts`, insert directly after `effectivePeriodFor`:
+
+```ts
+/** Days after its due day an installment still counts as the one being paid (user decision, revisi K). */
+export const DUE_GRACE_DAYS = 5;
+// Asia/Jakarta (WIB, UTC+7, no DST): the app's calendar; there is no per-family timezone setting.
+const APP_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** `now`'s WIB calendar day as a UTC-midnight Date (akad dates are stored as UTC midnight of their calendar day). */
+export function localCalendarDay(now: Date): Date {
+  const shifted = new Date(now.getTime() + APP_UTC_OFFSET_MS);
+  return new Date(
+    Date.UTC(
+      shifted.getUTCFullYear(),
+      shifted.getUTCMonth(),
+      shifted.getUTCDate(),
+    ),
+  );
+}
+
+export interface DueInstallment {
+  /** The installment the Pay preset shows and pay() settles. */
+  period: number;
+  /** Past its due day (inside the grace window, or past maturity). */
+  late: boolean;
+}
+
+/**
+ * The installment being paid today: the latest one already due while it is
+ * at most DUE_GRACE_DAYS late, otherwise the next one (installment k falls
+ * due k months after the akad), clamped to [1, tenor]. The schedule's first
+ * row, the Pay preset, pay()/preview and the budget line all use it.
+ */
+export function dueInstallment(
+  startDate: Date | null,
+  now: Date,
+  tenorMonths: number | null,
+): DueInstallment {
+  if (startDate === null) return { period: 1, late: false };
+  const today = localCalendarDay(now);
+  const elapsed = monthsElapsed(startDate, today);
+  const lastDue = Date.UTC(
+    startDate.getUTCFullYear(),
+    startDate.getUTCMonth() + elapsed,
+    startDate.getUTCDate(),
+  );
+  const daysLate = Math.round((today.getTime() - lastDue) / DAY_MS);
+  const inGrace = elapsed >= 1 && daysLate <= DUE_GRACE_DAYS;
+  const period = inGrace ? elapsed : elapsed + 1;
+  if (tenorMonths !== null && period > tenorMonths) {
+    return { period: tenorMonths, late: true };
+  }
+  return { period, late: inGrace && daysLate > 0 };
+}
+
+export function dueInstallmentPeriod(
+  startDate: Date | null,
+  now: Date,
+  tenorMonths: number | null,
+): number {
+  return dueInstallment(startDate, now, tenorMonths).period;
+}
+```
+
+(b) In `apps/api/src/liabilities/liabilities.service.ts`:
+
+1. In the `./amortisation.util` import, add `dueInstallmentPeriod` and remove `monthsElapsed`. Task 5 adds `dueInstallment`. Nothing else in the service uses it once `settledPeriod` is gone; if something does, keep it.
+2. Replace the whole `scheduleInputFor` function with:
+
+   ```ts
+   /** Schedule inputs from the liability's current state, starting at `firstPeriod` (default: the installment due on or after `now`). */
+   function scheduleInputFor(
+     liability: InstallmentTerms,
+     now: Date,
+     firstPeriod?: number,
+   ): ScheduleInput {
+     const tenor = liability.tenorMonths;
+     const first =
+       firstPeriod ?? dueInstallmentPeriod(liability.startDate, now, tenor);
+     return {
+       method: liability.interestMethod,
+       remainingBalance: liability.remainingBalance,
+       originalPrincipal: liability.totalDebt,
+       annualInterestRatePercent: liability.interestRate.toString(),
+       rateIsMonthly: liability.type === "kartu_kredit",
+       installmentAmount:
+         liability.installmentAmount ??
+         (liability.minimumPayment > BigInt(0)
+           ? liability.minimumPayment
+           : null),
+       remainingMonths: tenor === null ? null : Math.max(1, tenor - first + 1),
+       firstPeriod: first,
+       fixedRateMonths: liability.fixedRateMonths,
+       floatingRatePercent: liability.floatingRate?.toString() ?? null,
+     };
+   }
+   ```
+
+3. Replace `currentInstallmentFor` and `budgetContribution` with:
+
+   ```ts
+   // Derived per read/write instead of stored, so crossing into the floating period needs no cron.
+   function currentInstallmentFor(
+     liability: InstallmentTerms,
+     now: Date,
+     firstPeriod?: number,
+   ): bigint | null {
+     return currentInstallment(scheduleInputFor(liability, now, firstPeriod));
+   }
+
+   /** Budget line limit: the installment due; a liability with no minimumPayment has no line. */
+   function budgetContribution(
+     liability: InstallmentTerms,
+     now: Date,
+     firstPeriod?: number,
+   ): bigint {
+     if (liability.minimumPayment <= BigInt(0)) return BigInt(0);
+     return (
+       currentInstallmentFor(liability, now, firstPeriod) ??
+       liability.minimumPayment
+     );
+   }
+   ```
+
+4. Delete `settledPeriod` and its comment. In `splitLiabilityPayment`, replace `period: settledPeriod(liability.startDate, now),` with:
+
+   ```ts
+         period: dueInstallmentPeriod(
+           liability.startDate,
+           now,
+           liability.tenorMonths,
+         ),
+   ```
+
+5. In `runPayment`, directly before `if (liability.minimumPayment > BigInt(0)) {` (the budget sync), add:
+
+   ```ts
+   // The installment just settled is no longer outstanding: the line tracks the next one.
+   const settled = dueInstallmentPeriod(
+     liability.startDate,
+     now,
+     liability.tenorMonths,
+   );
+   const nextPeriod =
+     liability.startDate === null
+       ? undefined
+       : Math.min(settled + 1, liability.tenorMonths ?? settled + 1);
+   ```
+
+   Then pass `nextPeriod` as the third argument of that `budgetContribution({ … }, now)` call: `budgetContribution({ …unchanged… }, now, nextPeriod)`.
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run (from `apps/api`): `pnpm exec jest src/liabilities`
+Expected: PASS. The new pure spec has 12 tests and the new service `describe` has 7. The G `describe` passes with the one-line constant change; every other G test is unchanged and green.
+
+Run (from `apps/api`): `pnpm exec tsc --noEmit -p tsconfig.json`
+Expected: exit 0.
+
+- [ ] **Step 5: Lint**
+
+Run (from `apps/api`): `pnpm exec eslint src/liabilities/amortisation.util.ts src/liabilities/amortisation.due-installment.spec.ts src/liabilities/liabilities.service.ts src/liabilities/liabilities.service.spec.ts`
+Expected: exit 0 (hand-fix only).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/src/liabilities/amortisation.util.ts apps/api/src/liabilities/amortisation.due-installment.spec.ts apps/api/src/liabilities/liabilities.service.ts apps/api/src/liabilities/liabilities.service.spec.ts
+git commit -m "$(cat <<'EOF'
+fix(liabilities): Pay preset and pay() mean the same installment
+
+dueInstallment picks the installment being paid today: the latest one due
+while it is at most 5 days late (grace), otherwise the next, on the WIB
+calendar day. The schedule's first row, currentInstallmentAmount, the
+pay/preview split and the budget line all use it; after a payment the
+budget line tracks the next installment. Replaces G's max(1, elapsed) vs
+elapsed+1 pair, which disagreed on due days and near tier boundaries.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RDbXyuMbb2WHtT74hdL9Zy
+EOF
+)"
+```
+
+---
+
+### Task 4: Early-repayment simulation (pure)
 
 **Files:**
 
@@ -1114,7 +1656,11 @@ EOF
   - `monthsToPayOff(balance: bigint, annualRatePercent: string, installment: bigint): number | null` — implemented with `buildSchedule`, so it has no interest math of its own.
   - `simulatePrepayment(input: { schedule: ScheduleInput; mode: PrepaymentMode; amount: bigint; penaltyPercent: string }): PrepaymentResult`.
     - Throws `RangeError` when the amount is ≤ 0 or greater than the balance, or when reduce-tenor cannot pay off.
-    - `PrepaymentResult = { mode; prepaidPrincipal; penalty; cashOutNow; installmentBefore: bigint | null; installmentAfter: bigint | null; remainingMonthsBefore: number; remainingMonthsAfter: number; totalInterestBefore; totalInterestAfter; interestSaved; netSaving }`. All money fields are `bigint`; `netSaving` may be negative.
+    - `PrepaymentResult = { mode; prepaidPrincipal; penalty; cashOutNow; installmentBefore: bigint | null; installmentAfter: bigint | null; remainingMonthsBefore: number; remainingMonthsAfter: number; totalInterestBefore; totalInterestAfter; interestSaved; netSaving; newInstallmentAmount: bigint | null; newTenorMonths: number | null }`. All money fields are `bigint`; `netSaving` may be negative.
+    - `newInstallmentAmount` / `newTenorMonths` are exactly what Task 10 persists from `schedule.firstPeriod` on:
+      - reduce-installment → the re-annuitised installment, with tenor `null` (unchanged);
+      - reduce-tenor → the kept installment, with tenor `firstPeriod − 1 + months`;
+      - full → both `null`.
   - Semantics:
     - The prepayment lands right before the next installment (`schedule.firstPeriod`). Interest accrued since the last installment is not modelled (monthly rest, **[R§3]**).
     - Reduce-installment re-annuitises now over the same remaining months.
@@ -1207,6 +1753,8 @@ describe("simulatePrepayment — revisi K golden numbers", () => {
       totalInterestAfter: 313_762_283n,
       interestSaved: 104_587_451n,
       netSaving: 103_587_451n,
+      newInstallmentAmount: 3_409_791n,
+      newTenorMonths: null,
     });
   });
 
@@ -1222,6 +1770,9 @@ describe("simulatePrepayment — revisi K golden numbers", () => {
     expect(r.totalInterestAfter).toBe(162_646_456n);
     expect(r.interestSaved).toBe(255_703_278n);
     expect(r.netSaving).toBe(254_703_278n);
+    // Persisted: installment kept from #61, tenor 60 + 102 = 162.
+    expect(r.newInstallmentAmount).toBe(4_546_388n);
+    expect(r.newTenorMonths).toBe(162);
   });
 
   it("full payoff: penalty on the whole balance, every future interest rupiah saved", () => {
@@ -1237,6 +1788,8 @@ describe("simulatePrepayment — revisi K golden numbers", () => {
     expect(r.installmentAfter).toBeNull();
     expect(r.remainingMonthsAfter).toBe(0);
     expect(r.interestSaved).toBe(418_349_734n);
+    expect(r.newInstallmentAmount).toBeNull();
+    expect(r.newTenorMonths).toBeNull();
   });
 
   it("partial equal to the balance is reported as full", () => {
@@ -1261,6 +1814,7 @@ describe("simulatePrepayment — revisi K golden numbers", () => {
     expect(r.installmentAfter).toBe(2_899_799n);
     expect(r.remainingMonthsAfter).toBe(196);
     expect(r.interestSaved).toBe(158_148_844n);
+    expect(r.newTenorMonths).toBe(208);
   });
 
   it("berjenjang at 13, 50 jt reduce installment: 2.599.253 now", () => {
@@ -1379,40 +1933,57 @@ export interface PrepaymentResult {
   totalInterestAfter: bigint;
   interestSaved: bigint;
   netSaving: bigint;
+  /** What recording persists: the installment and tenor from `schedule.firstPeriod` on (null = unchanged / paid off). */
+  newInstallmentAmount: bigint | null;
+  newTenorMonths: number | null;
 }
 
 function totalInterest(rows: ScheduleRow[]): bigint {
   return rows.reduce((sum, row) => sum + row.interest, 0n);
 }
 
-function afterSchedule(
-  input: PrepaymentInput,
-  balanceAfter: bigint,
-): ScheduleRow[] {
-  if (balanceAfter === 0n) return [];
+interface AfterState {
+  rows: ScheduleRow[];
+  newInstallmentAmount: bigint | null;
+  newTenorMonths: number | null;
+}
+
+function afterState(input: PrepaymentInput, balanceAfter: bigint): AfterState {
+  if (balanceAfter === 0n) {
+    return { rows: [], newInstallmentAmount: null, newTenorMonths: null };
+  }
   const base = { ...input.schedule, remainingBalance: balanceAfter };
   if (input.mode === "reduce_installment") {
-    return buildSchedule({ ...base, recomputeAtStart: true });
+    const rows = buildSchedule({ ...base, recomputeAtStart: true });
+    return {
+      rows,
+      newInstallmentAmount: rows[0]?.installment ?? null,
+      newTenorMonths: null,
+    };
   }
   const installment = currentInstallment(input.schedule);
-  const plan = ratePlanOf(input.schedule);
   const months =
     installment === null
       ? null
       : monthsToPayOff(
           balanceAfter,
-          rateAt(plan, input.schedule.firstPeriod).ratePercent,
+          rateAt(ratePlanOf(input.schedule), input.schedule.firstPeriod)
+            .ratePercent,
           installment,
         );
-  if (months === null) {
+  if (installment === null || months === null) {
     throw new RangeError("installment never pays off the balance");
   }
-  return buildSchedule({
-    ...base,
-    installmentAmount: installment,
-    remainingMonths: months,
-    recomputeAtStart: false,
-  });
+  return {
+    rows: buildSchedule({
+      ...base,
+      installmentAmount: installment,
+      remainingMonths: months,
+      recomputeAtStart: false,
+    }),
+    newInstallmentAmount: installment,
+    newTenorMonths: input.schedule.firstPeriod - 1 + months,
+  };
 }
 
 /**
@@ -1427,10 +1998,10 @@ export function simulatePrepayment(input: PrepaymentInput): PrepaymentResult {
     throw new RangeError("prepayment must be > 0 and <= the remaining balance");
   }
   const before = buildSchedule(input.schedule);
-  const after = afterSchedule(input, balance - prepaid);
+  const after = afterState(input, balance - prepaid);
   const penalty = prepaymentPenalty(prepaid, input.penaltyPercent);
   const totalInterestBefore = totalInterest(before);
-  const totalInterestAfter = totalInterest(after);
+  const totalInterestAfter = totalInterest(after.rows);
   const interestSaved = totalInterestBefore - totalInterestAfter;
   return {
     mode: prepaid === balance ? "full" : input.mode,
@@ -1438,13 +2009,15 @@ export function simulatePrepayment(input: PrepaymentInput): PrepaymentResult {
     penalty,
     cashOutNow: prepaid + penalty,
     installmentBefore: before[0]?.installment ?? null,
-    installmentAfter: after[0]?.installment ?? null,
+    installmentAfter: after.rows[0]?.installment ?? null,
     remainingMonthsBefore: before.length,
-    remainingMonthsAfter: after.length,
+    remainingMonthsAfter: after.rows.length,
     totalInterestBefore,
     totalInterestAfter,
     interestSaved,
     netSaving: interestSaved - penalty,
+    newInstallmentAmount: after.newInstallmentAmount,
+    newTenorMonths: after.newTenorMonths,
   };
 }
 ```
@@ -1477,7 +2050,7 @@ EOF
 
 ---
 
-### Task 4: Schema, migration, validation, DTOs, contracts, response shape
+### Task 5: Schema, migration, validation, DTOs, contracts, response shape
 
 **Files:**
 
@@ -1511,7 +2084,7 @@ EOF
     - All failures throw `BadRequestException` with an Indonesian message.
   - **Request DTOs.** `CreateLiabilityDto` and `UpdateLiabilityDto` gain `kprScheme?: KprScheme` and `ratePeriods?: RatePeriodDto[]` (1–10 entries). `RatePeriodDto = { kind; months?: number | null (1..600); ratePercent: /^\d{1,2}(\.\d{1,2})?$/ }`.
   - **Responses.**
-    - `LiabilityResponseDto` gains `kprScheme: string | null`, `ratePeriods: LiabilityRatePeriodResponseDto[]` (always `[]` until Task 5 loads rows) and `currentRatePercent: string`.
+    - `LiabilityResponseDto` gains `kprScheme: string | null`, `ratePeriods: LiabilityRatePeriodResponseDto[]` (always `[]` until Task 6a loads rows) , `currentRatePercent: string` and `currentInstallmentLate: boolean` (from `dueInstallment(...).late`, Task 3).
     - `LiabilityScheduleResponseDto` gains `rateBands: LiabilityRateBandDto[]` (`{ fromPeriod, toPeriod, ratePercent, kind }`) and `hasFloatingPeriod: boolean`.
     - Schedule **rows are unchanged**.
   - **Service helpers** (module-private in `liabilities.service.ts`):
@@ -1709,7 +2282,7 @@ describe("Create/UpdateLiabilityDto — revisi K rate periods", () => {
 });
 ```
 
-(c) Create `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts`. This is the shared K harness; Tasks 5 and 7 append `describe` blocks inside the top-level `describe`.
+(c) Create `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts`. This is the shared K harness; Tasks 6a, 6b, 7, 8, 9 and 10 append `describe` blocks inside the top-level `describe`.
 
 ```ts
 import { Test } from "@nestjs/testing";
@@ -1836,6 +2409,8 @@ describe("LiabilitiesService — revisi K", () => {
       );
 
       expect(dto?.currentRatePercent).toBe("11.00");
+      // #37 fell due 2029-02-15: 2029-02-20 is inside the 5-day grace window.
+      expect(dto?.currentInstallmentLate).toBe(true);
       expect(dto?.kprScheme).toBeNull();
       expect(dto?.ratePeriods).toEqual([]);
     });
@@ -2238,6 +2813,11 @@ In `LiabilityResponseDto`, after the `floatingRate` property, add:
   ratePeriods!: LiabilityRatePeriodResponseDto[];
   @ApiProperty({ description: "Annual rate the next installment accrues at" })
   currentRatePercent!: string;
+  @ApiProperty({
+    description:
+      "The installment now due is past its due day (inside the 5-day grace window) or the loan is past maturity",
+  })
+  currentInstallmentLate!: boolean;
 ```
 
 Insert **above** `export class LiabilityScheduleResponseDto`:
@@ -2276,6 +2856,7 @@ import {
   defaultInterestMethod,
   monthsElapsed,
   parseRateScaledByHundred,
+  dueInstallment,
   rateForPeriod,
   ratePlanOf,
   splitPayment,
@@ -2339,9 +2920,14 @@ function rateBandsFor(
     kprScheme: liability.kprScheme ?? null,
     ratePeriods: [],
     currentRatePercent: currentRateFor(liability, now),
+    currentInstallmentLate: dueInstallment(
+      liability.startDate,
+      now,
+      liability.tenorMonths,
+    ).late,
 ```
 
-Task 5 replaces `ratePeriods: []` with the stored rows. No K rows can exist before Task 5 writes them.
+Task 6a replaces `ratePeriods: []` with the stored rows. No K rows can exist before Task 6b writes them.
 
 (5) In `getSchedule`, replace
 
@@ -2397,6 +2983,8 @@ In `LiabilityDto`, after `floatingRate: string | null;`, add:
   ratePeriods: LiabilityRatePeriodDto[];
   // Annual rate the next installment accrues at.
   currentRatePercent: string;
+  // The installment now due is late (5-day grace window) or the loan is past maturity: the Pay dialog shows "Telat".
+  currentInstallmentLate: boolean;
 ```
 
 In **both** `CreateLiabilityDto` and `UpdateLiabilityDto`, after `floatingRate?: string;`, add:
@@ -2481,6 +3069,7 @@ Expected: build succeeds, and `packages/contracts/dist/index.d.ts` contains `Lia
       kprScheme: null,
       ratePeriods: [],
       currentRatePercent: "2.25",
+      currentInstallmentLate: false,
   ```
 
   In the schedule mock response (line ~156), after `rows: scheduleRows,`, add:
@@ -2490,7 +3079,7 @@ Expected: build succeeds, and `packages/contracts/dist/index.d.ts` contains `Lia
           hasFloatingPeriod: false,
   ```
 
-- In `apps/web/src/app/(app)/anggaran/obligations-section.test.tsx`, after `floatingRate: null,` (line 103), add the same three `LiabilityDto` lines as for `baseLiability`.
+- In `apps/web/src/app/(app)/anggaran/obligations-section.test.tsx`, after `floatingRate: null,` (line 103), add the same four `LiabilityDto` lines as for `baseLiability`.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
@@ -2534,37 +3123,34 @@ EOF
 
 ---
 
-### Task 5: Load K rows and wire the plan into create / update / findAll / schedule / pay / preview / budget
+### Task 6a: Load K rows and wire the plan into every reader (findAll / schedule / payment preview / pay / budget line)
 
 **Files:**
 
 - Create: `apps/api/src/liabilities/rate-plan.rows.ts`, `apps/api/src/liabilities/rate-plan.rows.spec.ts`
-- Modify: `apps/api/src/liabilities/liabilities.service.ts` — imports, `LiabilityRow`/`InstallmentTerms`, `scheduleInputFor`, `toLiabilityDto`, `splitLiabilityPayment`, `findAll`, `getSchedule`, `create`/`runCreate`, `runUpdate`, `previewPayment`, `runPayment`; also a new public `resyncBudgetLine`.
+- Modify: `apps/api/src/liabilities/liabilities.service.ts` — imports, `LiabilityRow`/`InstallmentTerms`, `scheduleInputFor`, `withRatePlan`, `toLiabilityDto`, `splitLiabilityPayment`, `findAll`, `getSchedule`, `previewPayment`, `runPayment`; also a new public `resyncBudgetLine`
 - Modify: `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts` (append)
 - Modify: `apps/api/src/liabilities/liabilities.service.spec.ts` — **only** `makePrisma()`: add the two delegates below, so G's tests keep a harmless `[]` default.
 
 **Interfaces:**
 
 - Consumes:
-  - Task 1: `RateSegment`, `RatePeriodKind`, `RatePlan`, `legacyRatePlan`.
+  - Task 1: `RatePeriodKind`, `RatePlan`, `legacyRatePlan`.
   - Task 2: `ratePlanOf`, `effectivePeriodFor`.
-  - Task 4: `validateRatePeriods`, `validateKprScheme`, `sameSegments`, `KprSchemeValue`; the Prisma delegates `liabilityRatePeriod` and `liabilityFloatingRate`; `currentRateFor`, `rateBandsFor`.
+  - Task 3: `dueInstallmentPeriod`, `scheduleInputFor(…, firstPeriod?)`.
+  - Task 5: the Prisma delegates `liabilityRatePeriod` / `liabilityFloatingRate`, `currentRateFor`, `rateBandsFor`.
 - Produces:
   - **`./rate-plan.rows`:**
     - `RatePeriodRow`, `FloatingRateRow`, `RatePlanRows`, `EMPTY_RATE_PLAN_ROWS`.
     - `type RatePlanClient = Pick<TxClient, "liabilityRatePeriod" | "liabilityFloatingRate">`.
-    - `loadRatePlanRows(client, familyGroupId, liabilityIds): Promise<Map<string, RatePlanRows>>` — two queries total, both filtered by `familyGroupId`.
+    - `loadRatePlanRows(client, familyGroupId, liabilityIds)` — two queries total, both filtered by `familyGroupId`.
     - `ratePlanFromRows(rows, terms): RatePlan | undefined` — `undefined` means "no K data, G's columns apply".
-    - `replaceRatePeriods(client, familyGroupId, liabilityId, segments, floatingRates): Promise<RatePlanRows>`.
   - **`LiabilitiesService`:**
     - `LiabilityRow` gains `ratePlanRows?: RatePlanRows`.
-    - New public method `resyncBudgetLine(tx: TxClient, familyGroupId: string, liability: LiabilityRow, now: Date): Promise<void>` (Task 6 calls it).
-    - Every reader that feeds `scheduleInputFor` attaches `ratePlanRows` first, so schedule, pay split, payment preview, `currentInstallmentAmount`, `currentRatePercent` and the budget line all see the same plan.
-  - **Rules enforced** (400 unless noted):
-    - `ratePeriods` together with `fixedRateMonths`/`floatingRate` in one request.
-    - `fixedRateMonths`/`floatingRate` sent for a liability that already has periods.
-    - Any update whose resulting terms break the stored periods (not KPR, not anuitas, tenor ≤ bounded months).
-    - On update, the installment is recomputed only when a term _value_ changed. Rate periods are compared by value (`sameSegments`), so re-sending G's pair as equal periods keeps a user override.
+    - New module helper `withRatePlan(client, familyGroupId, row)`.
+    - New public `resyncBudgetLine(tx, familyGroupId, liability: LiabilityRow, now)` (Task 7 calls it).
+    - Every reader that feeds `scheduleInputFor` attaches `ratePlanRows` first, so the schedule, pay split, payment preview, `currentInstallmentAmount`, `currentRatePercent` and the budget line all see the same plan.
+  - Writers (create/update) come in Task 6b. Until then, no K period rows can exist outside tests.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -2711,11 +3297,7 @@ describe("loadRatePlanRows — revisi K", () => {
 });
 ```
 
-(b) In `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts`:
-
-- Add `import { BadRequestException } from "@nestjs/common";` as the first import line.
-- Add `import { computeInstallment } from "./amortisation.util";` above the `./liabilities.service` import.
-- Add this constant right after `const KPR = { … };`:
+(b) In `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts`, add this constant right after `const KPR = { … };`:
 
 ```ts
 const PERIOD_ROWS = [
@@ -2741,100 +3323,17 @@ const PERIOD_ROWS = [
     ratePercent: { toString: () => "11.00" },
   },
 ];
-const BERJENJANG_BODY = [
-  { kind: "fixed", months: 24, ratePercent: "3.50" },
-  { kind: "fixed", months: 12, ratePercent: "5.50" },
-  { kind: "floating", months: null, ratePercent: "11.00" },
-] as never;
 ```
 
 Then, inside the top-level `describe("LiabilitiesService — revisi K", …)` after the `"response shape (legacy rows)"` block, add:
 
 ```ts
-describe("rate plan wiring", () => {
+describe("rate plan readers", () => {
   function withPeriods() {
     prisma.liabilityRatePeriod.findMany.mockResolvedValue(PERIOD_ROWS);
   }
 
-  it("create: stores berjenjang periods, derives interestRate and the tier-1 installment, nulls the legacy pair", async () => {
-    prisma.liability.create.mockResolvedValue({ ...KPR });
-
-    await service.create("fg-1", {
-      name: "KPR BTN",
-      type: "kpr" as never,
-      totalDebt: "500000000",
-      remainingBalance: "500000000",
-      interestRate: "9.99",
-      tenorMonths: 240,
-      kprScheme: "berjenjang" as never,
-      ratePeriods: BERJENJANG_BODY,
-    });
-
-    expect(prisma.liability.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
-        interestMethod: "anuitas",
-        interestRate: "3.50",
-        installmentAmount: 2_899_799n,
-        minimumPayment: 2_899_799n,
-        fixedRateMonths: null,
-        floatingRate: null,
-        kprScheme: "berjenjang",
-      }),
-    });
-    expect(prisma.liabilityRatePeriod.createMany).toHaveBeenCalledWith({
-      data: [
-        {
-          liabilityId: "lid-1",
-          familyGroupId: "fg-1",
-          sequence: 0,
-          kind: "fixed",
-          months: 24,
-          ratePercent: "3.50",
-        },
-        {
-          liabilityId: "lid-1",
-          familyGroupId: "fg-1",
-          sequence: 1,
-          kind: "fixed",
-          months: 12,
-          ratePercent: "5.50",
-        },
-        {
-          liabilityId: "lid-1",
-          familyGroupId: "fg-1",
-          sequence: 2,
-          kind: "floating",
-          months: null,
-          ratePercent: "11.00",
-        },
-      ],
-    });
-    expect(prisma.budget.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        create: expect.objectContaining({ limitAmount: 2_899_799n }),
-      }),
-    );
-  });
-
-  it.each([
-    ["with fixedRateMonths", { fixedRateMonths: 36 }],
-    ["on a kendaraan", { type: "kendaraan" as never }],
-  ])("create: ratePeriods %s is refused", async (_label, patch) => {
-    await expect(
-      service.create("fg-1", {
-        name: "KPR",
-        type: "kpr" as never,
-        totalDebt: "500000000",
-        remainingBalance: "500000000",
-        tenorMonths: 240,
-        ratePeriods: BERJENJANG_BODY,
-        ...patch,
-      }),
-    ).rejects.toThrow(BadRequestException);
-    expect(prisma.liability.create).not.toHaveBeenCalled();
-  });
-
-  it("schedule at 2028-02-20: next installment #26 re-annuitised in tier 2, floating from #37", async () => {
+  it("schedule at 2028-02-21 (six days after #25 fell due): next installment #26 re-annuitised in tier 2, floating from #37", async () => {
     withPeriods();
     prisma.liability.findUnique.mockResolvedValue({
       ...KPR,
@@ -2844,7 +3343,7 @@ describe("rate plan wiring", () => {
     const schedule = await service.getSchedule(
       "fg-1",
       "lid-1",
-      new Date("2028-02-20T00:00:00.000Z"),
+      new Date("2028-02-21T00:00:00.000Z"),
     );
 
     expect(schedule.rows[0]).toEqual({
@@ -2867,11 +3366,13 @@ describe("rate plan wiring", () => {
   });
 
   it.each([
+    ["2028-01-14T08:00:00.000Z", "1353973", "2036296"],
     ["2028-01-15T08:00:00.000Z", "1353973", "2036296"],
-    ["2028-02-14T08:00:00.000Z", "1353973", "2036296"],
+    ["2028-01-20T08:00:00.000Z", "1353973", "2036296"],
+    ["2028-01-21T08:00:00.000Z", "2127672", "1262597"],
     ["2028-02-15T08:00:00.000Z", "2127672", "1262597"],
   ])(
-    "boundary: a payment on %s books interest %s (tier 1 through installment 24, tier 2 from 25)",
+    "boundary: a payment on %s books interest %s (#24 from the day before through 5 days late in tier 1, #25 from day +6 in tier 2)",
     async (now, interest, principal) => {
       withPeriods();
       prisma.liability.findUnique.mockResolvedValue({
@@ -2888,6 +3389,26 @@ describe("rate plan wiring", () => {
 
       expect(preview.interest).toBe(interest);
       expect(preview.principal).toBe(principal);
+    },
+  );
+
+  it.each([
+    ["2028-01-15T08:00:00.000Z", 465_760_571n, "2899799", "3.50", false],
+    ["2028-01-20T08:00:00.000Z", 465_760_571n, "2899799", "3.50", true],
+    ["2028-01-21T08:00:00.000Z", 464_219_240n, "3390269", "5.50", false],
+  ])(
+    "Pay preset on %s is the installment pay() books (5-day grace at the tier boundary)",
+    async (now, balance, preset, rate, late) => {
+      withPeriods();
+      prisma.liability.findMany.mockResolvedValue([
+        { ...KPR, remainingBalance: balance },
+      ]);
+
+      const [dto] = await service.findAll("fg-1", new Date(now));
+
+      expect(dto?.currentInstallmentAmount).toBe(preset);
+      expect(dto?.currentRatePercent).toBe(rate);
+      expect(dto?.currentInstallmentLate).toBe(late);
     },
   );
 
@@ -2971,7 +3492,7 @@ describe("rate plan wiring", () => {
 
     const dtos = await service.findAll(
       "fg-1",
-      new Date("2028-02-20T00:00:00.000Z"),
+      new Date("2028-02-21T00:00:00.000Z"),
     );
 
     expect(prisma.liabilityRatePeriod.findMany).toHaveBeenCalledTimes(1);
@@ -2992,118 +3513,13 @@ describe("rate plan wiring", () => {
     expect(dtos[1]?.ratePeriods).toEqual([]);
     expect(dtos[1]?.currentRatePercent).toBe("8.00");
   });
-
-  it("legacy upgrade: G's pair re-sent as equal periods writes rows, nulls the pair, keeps an overridden installment", async () => {
-    const overridden = {
-      ...LEGACY_KPR,
-      installmentAmount: 4_200_000n,
-      minimumPayment: 4_200_000n,
-    };
-    prisma.liability.findUnique.mockResolvedValue(overridden);
-    prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
-    prisma.liability.update.mockResolvedValue(overridden);
-
-    await service.update(
-      "fg-1",
-      "lid-1",
-      {
-        ratePeriods: [
-          { kind: "fixed", months: 36, ratePercent: "8" },
-          { kind: "floating", months: null, ratePercent: "11" },
-        ] as never,
-      },
-      new Date("2026-03-01T00:00:00.000Z"),
-    );
-
-    expect(prisma.liability.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          installmentAmount: 4_200_000n,
-          minimumPayment: 4_200_000n,
-          fixedRateMonths: null,
-          floatingRate: null,
-        }),
-      }),
-    );
-    expect(prisma.liabilityRatePeriod.createMany).toHaveBeenCalledWith({
-      data: [
-        {
-          liabilityId: "lid-1",
-          familyGroupId: "fg-1",
-          sequence: 0,
-          kind: "fixed",
-          months: 36,
-          ratePercent: "8",
-        },
-        {
-          liabilityId: "lid-1",
-          familyGroupId: "fg-1",
-          sequence: 1,
-          kind: "floating",
-          months: null,
-          ratePercent: "11",
-        },
-      ],
-    });
-  });
-
-  it("a real tier change recomputes the installment from the new first-tier rate", async () => {
-    withPeriods();
-    prisma.liability.findUnique.mockResolvedValue(KPR);
-    prisma.liability.findUniqueOrThrow.mockResolvedValue(KPR);
-    prisma.liability.update.mockResolvedValue(KPR);
-
-    await service.update(
-      "fg-1",
-      "lid-1",
-      {
-        ratePeriods: [
-          { kind: "fixed", months: 24, ratePercent: "3.00" },
-          { kind: "fixed", months: 12, ratePercent: "5.50" },
-          { kind: "floating", months: null, ratePercent: "11.00" },
-        ] as never,
-      },
-      new Date("2026-03-01T00:00:00.000Z"),
-    );
-
-    const expected = computeInstallment({
-      method: "anuitas",
-      principal: 500_000_000n,
-      annualInterestRatePercent: "3.00",
-      tenorMonths: 240,
-    });
-    expect(expected).toBe(2_772_988n);
-    expect(prisma.liability.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          interestRate: "3.00",
-          installmentAmount: expected,
-        }),
-      }),
-    );
-  });
-
-  it.each([
-    ["fixedRateMonths on a row that has periods", { fixedRateMonths: 36 }],
-    ["a tenor no longer longer than the bounded periods", { tenorMonths: 36 }],
-    ["switching a planned KPR to flat", { interestMethod: "flat" as never }],
-  ])("update refuses %s", async (_label, dto) => {
-    withPeriods();
-    prisma.liability.findUnique.mockResolvedValue(KPR);
-    prisma.liability.findUniqueOrThrow.mockResolvedValue(KPR);
-
-    await expect(service.update("fg-1", "lid-1", dto)).rejects.toThrow(
-      BadRequestException,
-    );
-    expect(prisma.liability.update).not.toHaveBeenCalled();
-  });
 });
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run (from `apps/api`): `pnpm exec jest src/liabilities/rate-plan.rows.spec.ts src/liabilities/liabilities.service.rate-plan.spec.ts`
-Expected: FAIL. You should see "Cannot find module './rate-plan.rows'", `createMany` never called, the schedule's first installment still 2.899.799 (tier 1), and so on.
+Expected: FAIL. You should see "Cannot find module './rate-plan.rows'", the schedule's first installment is still 2.899.799 (tier 1), and so on.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -3224,7 +3640,431 @@ export function ratePlanFromRows(
           .sort((a, b) => a.effectivePeriod - b.effectivePeriod);
   return { segments, floatingChanges };
 }
+```
 
+(b) `apps/api/src/liabilities/liabilities.service.ts`:
+
+1. **Imports.**
+   - In the `./amortisation.util` import, remove `rateForPeriod`.
+   - Add below the `./amortisation.util` import:
+
+     ```ts
+     import {
+       EMPTY_RATE_PLAN_ROWS,
+       loadRatePlanRows,
+       ratePlanFromRows,
+       type RatePlanClient,
+       type RatePlanRows,
+     } from "./rate-plan.rows";
+     ```
+
+2. **Types.** In `LiabilityRow`, after `kprScheme?: KprSchemeValue | null;`, add `ratePlanRows?: RatePlanRows;`. In `InstallmentTerms`'s `Pick<…>` union, add `| "ratePlanRows"`.
+
+3. **`scheduleInputFor`.** In the returned object, after `floatingRatePercent: …,`, add:
+
+   ```ts
+       ratePlan: liability.ratePlanRows
+         ? ratePlanFromRows(liability.ratePlanRows, liability)
+         : undefined,
+   ```
+
+4. **New helper.** Add after `rateBandsFor`:
+
+   ```ts
+   async function withRatePlan<T extends { id: string }>(
+     client: RatePlanClient,
+     familyGroupId: string,
+     row: T,
+   ): Promise<T & { ratePlanRows: RatePlanRows }> {
+     const rows = await loadRatePlanRows(client, familyGroupId, [row.id]);
+     return { ...row, ratePlanRows: rows.get(row.id) ?? EMPTY_RATE_PLAN_ROWS };
+   }
+   ```
+
+5. **`toLiabilityDto`.** Replace `ratePeriods: [],` with:
+
+   ```ts
+       ratePeriods: (liability.ratePlanRows?.ratePeriods ?? []).map((row) => ({
+         kind: row.kind,
+         months: row.months,
+         ratePercent: row.ratePercent.toString(),
+       })),
+   ```
+
+6. **`splitLiabilityPayment`.** Replace the `annualInterestRatePercent: rateForPeriod({ … }),` property with:
+
+   ```ts
+       annualInterestRatePercent: rateAt(
+         ratePlanOf(scheduleInputFor(liability, now)),
+         dueInstallmentPeriod(liability.startDate, now, liability.tenorMonths),
+       ).ratePercent,
+   ```
+
+7. **`findAll`.** Replace the final `return liabilities.map(…)` with:
+
+   ```ts
+   const plans = await loadRatePlanRows(
+     this.prisma,
+     familyGroupId,
+     liabilities.map((l) => l.id),
+   );
+   return liabilities.map((l) =>
+     toLiabilityDto(
+       { ...l, ratePlanRows: plans.get(l.id) },
+       paidSet.has(l.id),
+       now,
+     ),
+   );
+   ```
+
+8. **`getSchedule`.** Replace `const input = scheduleInputFor(liability, now);` with:
+
+   ```ts
+   const planned = await withRatePlan(this.prisma, familyGroupId, liability);
+   const input = scheduleInputFor(planned, now);
+   ```
+
+9. **`previewPayment`.** After the `if (!liability) throw …` guard, add `const planned = await withRatePlan(this.prisma, familyGroupId, liability);`. Pass `planned` (not `liability`) to `splitLiabilityPayment`, and use `planned.remainingBalance` in `remainingAfter`.
+
+10. **`runPayment`.**
+    - After the `if (!liability) throw …` guard, add `const planned = await withRatePlan(tx, familyGroupId, liability);`.
+    - Pass `planned` to `splitLiabilityPayment(…)`.
+    - In the `budgetContribution({ ...liability, remainingBalance: … })` call, spread `planned` instead of `liability`.
+    - Change the final `liability: toLiabilityDto(updated, false, now),` to `liability: toLiabilityDto({ ...updated, ratePlanRows: planned.ratePlanRows }, false, now),`.
+
+11. **Public resync** — add as the first method after `syncPrincipalBudgetLine`:
+
+    ```ts
+      /** Revisi K — re-derives this liability's budget line after its rate plan changed the current installment. */
+      async resyncBudgetLine(
+        tx: TxClient,
+        familyGroupId: string,
+        liability: LiabilityRow,
+        now: Date,
+      ): Promise<void> {
+        if (liability.minimumPayment <= BigInt(0)) return;
+        await this.syncPrincipalBudgetLine(
+          tx,
+          familyGroupId,
+          liability,
+          budgetContribution(liability, now),
+        );
+      }
+    ```
+
+(c) In `apps/api/src/liabilities/liabilities.service.spec.ts` (`makePrisma`, after the `liability: { … },` entry), add exactly:
+
+```ts
+    // Revisi K — no K rows by default, so every G test runs on the legacy columns.
+    liabilityRatePeriod: {
+      findMany: jest.fn().mockResolvedValue([]),
+      createMany: jest.fn(),
+      deleteMany: jest.fn(),
+    },
+    liabilityFloatingRate: { findMany: jest.fn().mockResolvedValue([]) },
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run (from `apps/api`): `pnpm exec jest src/liabilities`
+Expected: PASS.
+
+- The rows spec has 6 tests.
+- The K service spec has 14: 2 from Task 5, plus 12 readers.
+- G's `liabilities.service.spec.ts` passes with only the two `makePrisma` delegates added. Its exact `findUnique({ where })` assertion on `previewPayment` still holds, because K rows come from separate queries.
+
+Run (from `apps/api`): `pnpm exec tsc --noEmit -p tsconfig.json`
+Expected: exit 0.
+
+- [ ] **Step 5: Lint**
+
+Run (from `apps/api`): `pnpm exec eslint src/liabilities/rate-plan.rows.ts src/liabilities/rate-plan.rows.spec.ts src/liabilities/liabilities.service.ts src/liabilities/liabilities.service.spec.ts src/liabilities/liabilities.service.rate-plan.spec.ts`
+Expected: exit 0 (hand-fix only).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/src/liabilities/rate-plan.rows.ts apps/api/src/liabilities/rate-plan.rows.spec.ts apps/api/src/liabilities/liabilities.service.ts apps/api/src/liabilities/liabilities.service.spec.ts apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts
+git commit -m "$(cat <<'EOF'
+feat(liabilities): KPR rate plan drives schedule, pay split, preview and budget line
+
+Every reader loads the liability's rate periods and floating changes with
+tenant-scoped queries (two per request) and runs the one plan-aware
+engine; G rows without K data keep their legacy columns.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RDbXyuMbb2WHtT74hdL9Zy
+EOF
+)"
+```
+
+---
+
+### Task 6b: Rate-period writers — create / update / legacy upgrade / orphaned history
+
+**Files:**
+
+- Modify: `apps/api/src/liabilities/rate-plan.rows.ts` (add `replaceRatePeriods`)
+- Modify: `apps/api/src/liabilities/liabilities.service.ts` — imports, `assertNotMixedRateTerms`, `create`/`runCreate`, `runUpdate`
+- Modify: `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts` (append)
+
+**Interfaces:**
+
+- Consumes:
+  - Task 6a: `loadRatePlanRows`, `ratePlanFromRows`, `EMPTY_RATE_PLAN_ROWS`, `withRatePlan`, `PERIOD_ROWS`.
+  - Task 5: `validateRatePeriods`, `validateKprScheme`, `sameSegments`, `KprSchemeValue`.
+  - Task 1: `RateSegment`, `hasFloatingSegment`.
+- Produces:
+  - `replaceRatePeriods(client, familyGroupId, liabilityId, segments, floatingRates): Promise<RatePlanRows>`.
+  - `runUpdate` builds `nextTerms` (the loan as it will be after the PATCH). Task 9 uses it to re-anchor a prepaid installment.
+  - **Rules enforced** (400):
+    - `ratePeriods` together with `fixedRateMonths`/`floatingRate` in one request.
+    - `fixedRateMonths`/`floatingRate` sent for a liability that already has periods.
+    - Any update whose resulting terms break the stored periods (not KPR, not anuitas, tenor ≤ bounded months).
+    - **Orphaned floating history:** recorded floating changes with no floating period left (or a non-anuitas method), with the same message as `validateRatePeriods`.
+  - On update, the installment is recomputed only when a term _value_ changed. Rate periods are compared by value (`sameSegments`), so re-sending G's pair as equal periods keeps a user override.
+
+- [ ] **Step 1: Write the failing tests**
+
+In `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts`:
+
+- Add `import { BadRequestException } from "@nestjs/common";` as the first import line.
+- Add `import { computeInstallment } from "./amortisation.util";` above the `./liabilities.service` import.
+- Add this constant right after `PERIOD_ROWS`:
+
+```ts
+const BERJENJANG_BODY = [
+  { kind: "fixed", months: 24, ratePercent: "3.50" },
+  { kind: "fixed", months: 12, ratePercent: "5.50" },
+  { kind: "floating", months: null, ratePercent: "11.00" },
+] as never;
+```
+
+Then, after Task 6a's `"rate plan readers"` block, add:
+
+```ts
+describe("rate plan writers", () => {
+  function withPeriods() {
+    prisma.liabilityRatePeriod.findMany.mockResolvedValue(PERIOD_ROWS);
+  }
+
+  it("create: stores berjenjang periods, derives interestRate and the tier-1 installment, nulls the legacy pair", async () => {
+    prisma.liability.create.mockResolvedValue({ ...KPR });
+
+    await service.create("fg-1", {
+      name: "KPR BTN",
+      type: "kpr" as never,
+      totalDebt: "500000000",
+      remainingBalance: "500000000",
+      interestRate: "9.99",
+      tenorMonths: 240,
+      kprScheme: "berjenjang" as never,
+      ratePeriods: BERJENJANG_BODY,
+    });
+
+    expect(prisma.liability.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        interestMethod: "anuitas",
+        interestRate: "3.50",
+        installmentAmount: 2_899_799n,
+        minimumPayment: 2_899_799n,
+        fixedRateMonths: null,
+        floatingRate: null,
+        kprScheme: "berjenjang",
+      }),
+    });
+    expect(prisma.liabilityRatePeriod.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          liabilityId: "lid-1",
+          familyGroupId: "fg-1",
+          sequence: 0,
+          kind: "fixed",
+          months: 24,
+          ratePercent: "3.50",
+        },
+        {
+          liabilityId: "lid-1",
+          familyGroupId: "fg-1",
+          sequence: 1,
+          kind: "fixed",
+          months: 12,
+          ratePercent: "5.50",
+        },
+        {
+          liabilityId: "lid-1",
+          familyGroupId: "fg-1",
+          sequence: 2,
+          kind: "floating",
+          months: null,
+          ratePercent: "11.00",
+        },
+      ],
+    });
+    expect(prisma.budget.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ limitAmount: 2_899_799n }),
+      }),
+    );
+  });
+
+  it.each([
+    ["with fixedRateMonths", { fixedRateMonths: 36 }],
+    ["on a kendaraan", { type: "kendaraan" as never }],
+  ])("create: ratePeriods %s is refused", async (_label, patch) => {
+    await expect(
+      service.create("fg-1", {
+        name: "KPR",
+        type: "kpr" as never,
+        totalDebt: "500000000",
+        remainingBalance: "500000000",
+        tenorMonths: 240,
+        ratePeriods: BERJENJANG_BODY,
+        ...patch,
+      }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.liability.create).not.toHaveBeenCalled();
+  });
+
+  it("legacy upgrade: G's pair re-sent as equal periods writes rows, nulls the pair, keeps an overridden installment", async () => {
+    const overridden = {
+      ...LEGACY_KPR,
+      installmentAmount: 4_200_000n,
+      minimumPayment: 4_200_000n,
+    };
+    prisma.liability.findUnique.mockResolvedValue(overridden);
+    prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
+    prisma.liability.update.mockResolvedValue(overridden);
+
+    await service.update(
+      "fg-1",
+      "lid-1",
+      {
+        ratePeriods: [
+          { kind: "fixed", months: 36, ratePercent: "8" },
+          { kind: "floating", months: null, ratePercent: "11" },
+        ] as never,
+      },
+      new Date("2026-03-01T00:00:00.000Z"),
+    );
+
+    expect(prisma.liability.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          installmentAmount: 4_200_000n,
+          minimumPayment: 4_200_000n,
+          fixedRateMonths: null,
+          floatingRate: null,
+        }),
+      }),
+    );
+    expect(prisma.liabilityRatePeriod.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          liabilityId: "lid-1",
+          familyGroupId: "fg-1",
+          sequence: 0,
+          kind: "fixed",
+          months: 36,
+          ratePercent: "8",
+        },
+        {
+          liabilityId: "lid-1",
+          familyGroupId: "fg-1",
+          sequence: 1,
+          kind: "floating",
+          months: null,
+          ratePercent: "11",
+        },
+      ],
+    });
+  });
+
+  it("a real tier change recomputes the installment from the new first-tier rate", async () => {
+    withPeriods();
+    prisma.liability.findUnique.mockResolvedValue(KPR);
+    prisma.liability.findUniqueOrThrow.mockResolvedValue(KPR);
+    prisma.liability.update.mockResolvedValue(KPR);
+
+    await service.update(
+      "fg-1",
+      "lid-1",
+      {
+        ratePeriods: [
+          { kind: "fixed", months: 24, ratePercent: "3.00" },
+          { kind: "fixed", months: 12, ratePercent: "5.50" },
+          { kind: "floating", months: null, ratePercent: "11.00" },
+        ] as never,
+      },
+      new Date("2026-03-01T00:00:00.000Z"),
+    );
+
+    const expected = computeInstallment({
+      method: "anuitas",
+      principal: 500_000_000n,
+      annualInterestRatePercent: "3.00",
+      tenorMonths: 240,
+    });
+    expect(expected).toBe(2_772_988n);
+    expect(prisma.liability.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          interestRate: "3.00",
+          installmentAmount: expected,
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ["fixedRateMonths on a row that has periods", { fixedRateMonths: 36 }],
+    ["a tenor no longer longer than the bounded periods", { tenorMonths: 36 }],
+    ["switching a planned KPR to flat", { interestMethod: "flat" as never }],
+  ])("update refuses %s", async (_label, dto) => {
+    withPeriods();
+    prisma.liability.findUnique.mockResolvedValue(KPR);
+    prisma.liability.findUniqueOrThrow.mockResolvedValue(KPR);
+
+    await expect(service.update("fg-1", "lid-1", dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(prisma.liability.update).not.toHaveBeenCalled();
+  });
+
+  it("orphaned history: a legacy row with recorded floating changes refuses a PATCH that leaves them no floating period", async () => {
+    prisma.liabilityFloatingRate.findMany.mockResolvedValue([
+      {
+        id: "fr-1",
+        liabilityId: "lid-1",
+        effectiveDate: new Date("2031-01-15T00:00:00.000Z"),
+        ratePercent: { toString: () => "9.75" },
+        note: null,
+        createdAt: new Date("2031-01-10T00:00:00.000Z"),
+      },
+    ]);
+    prisma.liability.findUnique.mockResolvedValue(LEGACY_KPR);
+    prisma.liability.findUniqueOrThrow.mockResolvedValue(LEGACY_KPR);
+
+    await expect(
+      service.update("fg-1", "lid-1", { interestMethod: "flat" as never }),
+    ).rejects.toThrow(
+      "Hapus riwayat bunga floating sebelum menghapus periode floating",
+    );
+    expect(prisma.liability.update).not.toHaveBeenCalled();
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run (from `apps/api`): `pnpm exec jest src/liabilities/liabilities.service.rate-plan.spec.ts -t "rate plan writers"`
+Expected: FAIL. You should see `createMany` never called, `interestRate` not derived from period 1, no 400 for mixed terms, and the orphaned-history PATCH succeeds.
+
+- [ ] **Step 3: Write minimal implementation**
+
+(a) Append to `apps/api/src/liabilities/rate-plan.rows.ts`:
+
+```ts
 /** Rewrites a liability's periods (sequence = array order) and returns the rows as now stored. */
 export async function replaceRatePeriods(
   client: Pick<TxClient, "liabilityRatePeriod">,
@@ -3253,20 +4093,7 @@ export async function replaceRatePeriods(
 (b) `apps/api/src/liabilities/liabilities.service.ts`:
 
 1. **Imports.**
-   - In the `./amortisation.util` import, remove `rateForPeriod`.
-   - Add below the `./amortisation.util` import:
-
-     ```ts
-     import {
-       EMPTY_RATE_PLAN_ROWS,
-       loadRatePlanRows,
-       ratePlanFromRows,
-       replaceRatePeriods,
-       type RatePlanClient,
-       type RatePlanRows,
-     } from "./rate-plan.rows";
-     ```
-
+   - Add `replaceRatePeriods` to the `./rate-plan.rows` import (Task 6a).
    - Extend the `./rate-plan.util` import with `type RateSegment`.
    - Change the `./rate-plan.validation` import to:
 
@@ -3279,27 +4106,9 @@ export async function replaceRatePeriods(
      } from "./rate-plan.validation";
      ```
 
-2. **Types.** In `LiabilityRow`, after `kprScheme?: KprSchemeValue | null;`, add `ratePlanRows?: RatePlanRows;`. In `InstallmentTerms`'s `Pick<…>` union, add `| "ratePlanRows"`.
-3. **`scheduleInputFor`.** In the returned object, after `floatingRatePercent: …,`, add:
+2. **New helper.** Add after `withRatePlan`:
 
    ```ts
-       ratePlan: liability.ratePlanRows
-         ? ratePlanFromRows(liability.ratePlanRows, liability)
-         : undefined,
-   ```
-
-4. **New helpers.** Add after `rateBandsFor`:
-
-   ```ts
-   async function withRatePlan<T extends { id: string }>(
-     client: RatePlanClient,
-     familyGroupId: string,
-     row: T,
-   ): Promise<T & { ratePlanRows: RatePlanRows }> {
-     const rows = await loadRatePlanRows(client, familyGroupId, [row.id]);
-     return { ...row, ratePlanRows: rows.get(row.id) ?? EMPTY_RATE_PLAN_ROWS };
-   }
-
    function assertNotMixedRateTerms(dto: {
      ratePeriods?: unknown;
      fixedRateMonths?: number;
@@ -3316,50 +4125,7 @@ export async function replaceRatePeriods(
    }
    ```
 
-5. **`toLiabilityDto`.** Replace `ratePeriods: [],` with:
-
-   ```ts
-       ratePeriods: (liability.ratePlanRows?.ratePeriods ?? []).map((row) => ({
-         kind: row.kind,
-         months: row.months,
-         ratePercent: row.ratePercent.toString(),
-       })),
-   ```
-
-6. **`splitLiabilityPayment`.** Replace the `annualInterestRatePercent: rateForPeriod({ … }),` property with:
-
-   ```ts
-       annualInterestRatePercent: rateAt(
-         ratePlanOf(scheduleInputFor(liability, now)),
-         settledPeriod(liability.startDate, now),
-       ).ratePercent,
-   ```
-
-7. **`findAll`.** Replace the final `return liabilities.map(…)` with:
-
-   ```ts
-   const plans = await loadRatePlanRows(
-     this.prisma,
-     familyGroupId,
-     liabilities.map((l) => l.id),
-   );
-   return liabilities.map((l) =>
-     toLiabilityDto(
-       { ...l, ratePlanRows: plans.get(l.id) },
-       paidSet.has(l.id),
-       now,
-     ),
-   );
-   ```
-
-8. **`getSchedule`.** Replace `const input = scheduleInputFor(liability, now);` with:
-
-   ```ts
-   const planned = await withRatePlan(this.prisma, familyGroupId, liability);
-   const input = scheduleInputFor(planned, now);
-   ```
-
-9. **`create`.** Replace everything from `const interestMethod =` down to the `runSerializableWithRetry(...)` call (inclusive) with:
+3. **`create`.** Replace everything from `const interestMethod =` down to the `runSerializableWithRetry(...)` call (inclusive) with:
 
    ```ts
    const interestMethod = dto.interestMethod ?? defaultInterestMethod(dto.type);
@@ -3407,184 +4173,186 @@ export async function replaceRatePeriods(
    );
    ```
 
-10. **`runCreate`.**
-    - Extend the `amounts` parameter type with `interestRate: string; kprScheme: KprSchemeValue | null; segments: RateSegment[] | null;`.
-    - In `data`, set `interestRate: amounts.interestRate,`, `fixedRateMonths: amounts.segments ? null : (dto.fixedRateMonths ?? null),`, `floatingRate: amounts.segments ? null : (dto.floatingRate ?? null),`, and add `kprScheme: amounts.kprScheme,`.
-    - Replace everything after `const created = await tx.liability.create({ data });` with:
+4. **`runCreate`.**
+   - Extend the `amounts` parameter type with `interestRate: string; kprScheme: KprSchemeValue | null; segments: RateSegment[] | null;`.
+   - In `data`, set `interestRate: amounts.interestRate,`, `fixedRateMonths: amounts.segments ? null : (dto.fixedRateMonths ?? null),`, `floatingRate: amounts.segments ? null : (dto.floatingRate ?? null),`, and add `kprScheme: amounts.kprScheme,`.
+   - Replace everything after `const created = await tx.liability.create({ data });` with:
 
-      ```ts
-          const ratePlanRows = amounts.segments
-            ? await replaceRatePeriods(
-                tx,
-                familyGroupId,
-                created.id,
-                amounts.segments,
-                [],
-              )
-            : EMPTY_RATE_PLAN_ROWS;
-          const planned = { ...created, ratePlanRows };
+     ```ts
+         const ratePlanRows = amounts.segments
+           ? await replaceRatePeriods(
+               tx,
+               familyGroupId,
+               created.id,
+               amounts.segments,
+               [],
+             )
+           : EMPTY_RATE_PLAN_ROWS;
+         const planned = { ...created, ratePlanRows };
 
-          if (amounts.minimumPayment > BigInt(0)) {
-            await this.syncPrincipalBudgetLine(
-              tx,
-              familyGroupId,
-              planned,
-              budgetContribution({ ...data, ratePlanRows }, new Date()),
-            );
-          }
+         if (amounts.minimumPayment > BigInt(0)) {
+           await this.syncPrincipalBudgetLine(
+             tx,
+             familyGroupId,
+             planned,
+             budgetContribution({ ...data, ratePlanRows }, new Date()),
+           );
+         }
 
-          return planned;
-        }
-      ```
+         return planned;
+       }
+     ```
 
-11. **`runUpdate`.**
-    - Right after `const existing = await tx.liability.findUniqueOrThrow({ … });`, add:
+5. **`runUpdate`.**
+   - Right after `const existing = await tx.liability.findUniqueOrThrow({ … });`, add:
 
-      ```ts
-      const existingRows =
-        (await loadRatePlanRows(tx, familyGroupId, [id])).get(id) ??
-        EMPTY_RATE_PLAN_ROWS;
-      ```
+     ```ts
+     const existingRows =
+       (await loadRatePlanRows(tx, familyGroupId, [id])).get(id) ??
+       EMPTY_RATE_PLAN_ROWS;
+     ```
 
-    - Replace the `const resolvedInterestRate = …;` statement **and** the `const termsChanged = …;` statement with:
+   - Replace the `const resolvedInterestRate = …;` statement **and** the `const termsChanged = …;` statement with:
 
-      ```ts
-      const kprScheme =
-        dto.kprScheme !== undefined
-          ? validateKprScheme(type, dto.kprScheme)
-          : (existing.kprScheme ?? null);
-      assertNotMixedRateTerms(dto);
-      const hasStoredPeriods = existingRows.ratePeriods.length > 0;
-      if (
-        hasStoredPeriods &&
-        (dto.fixedRateMonths !== undefined || dto.floatingRate !== undefined)
-      ) {
-        throw new BadRequestException(
-          "KPR ini memakai periode bunga — kirim ratePeriods, bukan fixedRateMonths/floatingRate",
-        );
-      }
-      const previousSegments = ratePlanOf(
-        scheduleInputFor({ ...existing, ratePlanRows: existingRows }, now),
-      ).segments;
-      const nextPeriods =
-        dto.ratePeriods ?? (hasStoredPeriods ? previousSegments : null);
-      const validated =
-        nextPeriods === null
-          ? null
-          : validateRatePeriods({
-              type,
-              interestMethod,
-              tenorMonths,
-              kprScheme,
-              periods: nextPeriods,
-              hasFloatingHistory: existingRows.floatingRates.length > 0,
-            });
-      // Rows are rewritten only when the caller sent periods; otherwise they were just re-checked.
-      const segments = dto.ratePeriods ? validated : null;
-      const ratePlanChanged =
-        segments !== null && !sameSegments(segments, previousSegments);
-      const resolvedInterestRate =
-        segments?.[0]?.ratePercent ??
-        dto.interestRate ??
-        existing.interestRate.toString();
-      // Fix round 1 (Important #2) — compare resolved VALUES, not DTO field presence (see G).
-      const termsChanged =
-        type !== existing.type ||
-        interestMethod !== existing.interestMethod ||
-        tenorMonths !== existing.tenorMonths ||
-        parseRateScaledByHundred(resolvedInterestRate) !==
-          parseRateScaledByHundred(existing.interestRate.toString()) ||
-        totalDebt !== existing.totalDebt ||
-        ratePlanChanged;
-      ```
+     ```ts
+     const kprScheme =
+       dto.kprScheme !== undefined
+         ? validateKprScheme(type, dto.kprScheme)
+         : (existing.kprScheme ?? null);
+     assertNotMixedRateTerms(dto);
+     const hasStoredPeriods = existingRows.ratePeriods.length > 0;
+     if (
+       hasStoredPeriods &&
+       (dto.fixedRateMonths !== undefined || dto.floatingRate !== undefined)
+     ) {
+       throw new BadRequestException(
+         "KPR ini memakai periode bunga — kirim ratePeriods, bukan fixedRateMonths/floatingRate",
+       );
+     }
+     const previousSegments = ratePlanOf(
+       scheduleInputFor({ ...existing, ratePlanRows: existingRows }, now),
+     ).segments;
+     const nextPeriods =
+       dto.ratePeriods ?? (hasStoredPeriods ? previousSegments : null);
+     const validated =
+       nextPeriods === null
+         ? null
+         : validateRatePeriods({
+             type,
+             interestMethod,
+             tenorMonths,
+             kprScheme,
+             periods: nextPeriods,
+             hasFloatingHistory: existingRows.floatingRates.length > 0,
+           });
+     // Rows are rewritten only when the caller sent periods; otherwise they were just re-checked.
+     const segments = dto.ratePeriods ? validated : null;
+     const ratePlanChanged =
+       segments !== null && !sameSegments(segments, previousSegments);
+     const resolvedInterestRate =
+       segments?.[0]?.ratePercent ??
+       dto.interestRate ??
+       existing.interestRate.toString();
+     // Fix round 1 (Important #2) — compare resolved VALUES, not DTO field presence (see G).
+     const termsChanged =
+       type !== existing.type ||
+       interestMethod !== existing.interestMethod ||
+       tenorMonths !== existing.tenorMonths ||
+       parseRateScaledByHundred(resolvedInterestRate) !==
+         parseRateScaledByHundred(existing.interestRate.toString()) ||
+       totalDebt !== existing.totalDebt ||
+       ratePlanChanged;
+     ```
 
-    - In `data`, set `interestRate: segments?.[0]?.ratePercent ?? dto.interestRate ?? existing.interestRate,`, `fixedRateMonths: segments ? null : (dto.fixedRateMonths ?? existing.fixedRateMonths),`, `floatingRate: segments ? null : (dto.floatingRate ?? existing.floatingRate),`, and add `kprScheme,`.
-    - Replace everything after `const updated = await tx.liability.update({ … });` with:
+   - Directly after `termsChanged`, add the resulting terms and the orphaned-history check. `validateRatePeriods` already covers rows that have periods; this covers legacy rows too. G's PATCH cannot null the legacy pair (`dto.floatingRate ?? existing…`), so on a legacy row the reachable path is a method switch; the check itself is plan-generic.
 
-      ```ts
-          const ratePlanRows = segments
-            ? await replaceRatePeriods(
-                tx,
-                familyGroupId,
-                id,
-                segments,
-                existingRows.floatingRates,
-              )
-            : existingRows;
+     ```ts
+     // The loan as it will be after this PATCH (Task 9 re-anchors a prepaid installment from it).
+     const nextTerms = {
+       ...existing,
+       type,
+       interestMethod,
+       tenorMonths,
+       totalDebt,
+       remainingBalance,
+       interestRate: resolvedInterestRate,
+       fixedRateMonths: segments
+         ? null
+         : (dto.fixedRateMonths ?? existing.fixedRateMonths),
+       floatingRate: segments
+         ? null
+         : (dto.floatingRate ?? existing.floatingRate),
+       ratePlanRows: segments
+         ? {
+             ratePeriods: segments.map((segment, sequence) => ({
+               liabilityId: id,
+               sequence,
+               ...segment,
+             })),
+             floatingRates: existingRows.floatingRates,
+           }
+         : existingRows,
+     };
+     // Recorded floating changes need a floating period on an anuitas loan to apply to.
+     if (
+       existingRows.floatingRates.length > 0 &&
+       (interestMethod !== "anuitas" ||
+         !hasFloatingSegment(ratePlanOf(scheduleInputFor(nextTerms, now))))
+     ) {
+       throw new BadRequestException(
+         "Hapus riwayat bunga floating sebelum menghapus periode floating",
+       );
+     }
+     ```
 
-          await this.syncPrincipalBudgetLine(
-            tx,
-            familyGroupId,
-            { ...updated, principalCategoryId: existing.principalCategoryId },
-            budgetContribution({ ...existing, ...data, ratePlanRows }, now),
-          );
+   - In `data`, set `interestRate: segments?.[0]?.ratePercent ?? dto.interestRate ?? existing.interestRate,`, `fixedRateMonths: segments ? null : (dto.fixedRateMonths ?? existing.fixedRateMonths),`, `floatingRate: segments ? null : (dto.floatingRate ?? existing.floatingRate),`, and add `kprScheme,`.
+   - Replace everything after `const updated = await tx.liability.update({ … });` with:
 
-          return { ...updated, ratePlanRows };
-        }
-      ```
+     ```ts
+         const ratePlanRows = segments
+           ? await replaceRatePeriods(
+               tx,
+               familyGroupId,
+               id,
+               segments,
+               existingRows.floatingRates,
+             )
+           : existingRows;
 
-12. **`previewPayment`.** After the `if (!liability) throw …` guard, add `const planned = await withRatePlan(this.prisma, familyGroupId, liability);`. Pass `planned` (not `liability`) to `splitLiabilityPayment`, and use `planned.remainingBalance` in `remainingAfter`.
-13. **`runPayment`.**
-    - After the `if (!liability) throw …` guard, add `const planned = await withRatePlan(tx, familyGroupId, liability);`.
-    - Pass `planned` to `splitLiabilityPayment(…)`.
-    - In the `budgetContribution({ ...liability, remainingBalance: … })` call, spread `planned` instead of `liability`.
-    - Change the final `liability: toLiabilityDto(updated, false, now),` to `liability: toLiabilityDto({ ...updated, ratePlanRows: planned.ratePlanRows }, false, now),`.
-14. **Public resync** — add as the first method after `syncPrincipalBudgetLine`:
+         await this.syncPrincipalBudgetLine(
+           tx,
+           familyGroupId,
+           { ...updated, principalCategoryId: existing.principalCategoryId },
+           budgetContribution({ ...existing, ...data, ratePlanRows }, now),
+         );
 
-    ```ts
-      /** Revisi K — re-derives this liability's budget line after its rate plan changed the current installment. */
-      async resyncBudgetLine(
-        tx: TxClient,
-        familyGroupId: string,
-        liability: LiabilityRow,
-        now: Date,
-      ): Promise<void> {
-        if (liability.minimumPayment <= BigInt(0)) return;
-        await this.syncPrincipalBudgetLine(
-          tx,
-          familyGroupId,
-          liability,
-          budgetContribution(liability, now),
-        );
-      }
-    ```
-
-(c) In `apps/api/src/liabilities/liabilities.service.spec.ts` (`makePrisma`, after the `liability: { … },` entry), add exactly:
-
-```ts
-    // Revisi K — no K rows by default, so every G test runs on the legacy columns.
-    liabilityRatePeriod: {
-      findMany: jest.fn().mockResolvedValue([]),
-      createMany: jest.fn(),
-      deleteMany: jest.fn(),
-    },
-    liabilityFloatingRate: { findMany: jest.fn().mockResolvedValue([]) },
-```
+         return { ...updated, ratePlanRows };
+       }
+     ```
 
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run (from `apps/api`): `pnpm exec jest src/liabilities`
-Expected: PASS. All suites are green: the rows spec has 6 tests, the K service spec has 18, and G's `liabilities.service.spec.ts` passes with only the two `makePrisma` delegates added. Its exact `findUnique({ where })` assertion on `previewPayment` still holds, because K rows come from separate queries.
+Expected: PASS. The K service spec has 23 tests: 14, plus 9 writers.
 
 Run (from `apps/api`): `pnpm exec tsc --noEmit -p tsconfig.json`
 Expected: exit 0.
 
 - [ ] **Step 5: Lint**
 
-Run (from `apps/api`): `pnpm exec eslint src/liabilities/rate-plan.rows.ts src/liabilities/rate-plan.rows.spec.ts src/liabilities/liabilities.service.ts src/liabilities/liabilities.service.spec.ts src/liabilities/liabilities.service.rate-plan.spec.ts`
+Run (from `apps/api`): `pnpm exec eslint src/liabilities/rate-plan.rows.ts src/liabilities/liabilities.service.ts src/liabilities/liabilities.service.rate-plan.spec.ts`
 Expected: exit 0 (hand-fix only).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add apps/api/src/liabilities/rate-plan.rows.ts apps/api/src/liabilities/rate-plan.rows.spec.ts apps/api/src/liabilities/liabilities.service.ts apps/api/src/liabilities/liabilities.service.spec.ts apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts
+git add apps/api/src/liabilities/rate-plan.rows.ts apps/api/src/liabilities/liabilities.service.ts apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts
 git commit -m "$(cat <<'EOF'
-feat(liabilities): KPR rate periods drive schedule, pay split, preview and budget line
+feat(liabilities): create and update KPR rate periods
 
 Create/update validate and store ordered rate periods (legacy pair nulled;
-equal periods keep a user-overridden installment). Every reader loads the
-liability's periods and floating changes with tenant-scoped queries and
-runs the one plan-aware engine.
+equal periods keep a user-overridden installment) and refuse an update
+that would orphan recorded floating-rate history.
 
 Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01RDbXyuMbb2WHtT74hdL9Zy
@@ -3594,7 +4362,7 @@ EOF
 
 ---
 
-### Task 6: Floating-rate history endpoints (tenant-scoped, ability-guarded, validated)
+### Task 7: Floating-rate history endpoints (tenant-scoped, ability-guarded, validated)
 
 **Files:**
 
@@ -3608,8 +4376,8 @@ EOF
 **Interfaces:**
 
 - Consumes:
-  - Task 5: `LiabilitiesService.resyncBudgetLine(tx, familyGroupId, liability: LiabilityRow, now)`, `loadRatePlanRows`, `ratePlanFromRows`, `EMPTY_RATE_PLAN_ROWS`, `FloatingRateRow`, `RatePlanRows`.
-  - Task 4: `assertKprRate`.
+  - Task 6a: `LiabilitiesService.resyncBudgetLine(tx, familyGroupId, liability: LiabilityRow, now)`, `loadRatePlanRows`, `ratePlanFromRows`, `EMPTY_RATE_PLAN_ROWS`, `FloatingRateRow`, `RatePlanRows`.
+  - Task 5: `assertKprRate`.
   - Task 1: `legacyRatePlan`, `hasFloatingSegment`.
   - Task 2: `effectivePeriodFor`.
   - Also `runSerializableWithRetry` and `TxClient` (`common/utils/serializable-retry.util`).
@@ -4028,7 +4796,7 @@ describe("resyncBudgetLine", () => {
           ],
         },
       } as never,
-      new Date("2031-02-20T00:00:00.000Z"),
+      new Date("2031-02-21T00:00:00.000Z"),
     );
 
     // Next is #62 with 179 left: 427,404,522 re-annuitised at 9.75%.
@@ -4044,7 +4812,7 @@ describe("resyncBudgetLine", () => {
       prisma as never,
       "fg-1",
       { ...KPR, minimumPayment: 0n } as never,
-      new Date("2031-02-20T00:00:00.000Z"),
+      new Date("2031-02-21T00:00:00.000Z"),
     );
     expect(prisma.budget.upsert).not.toHaveBeenCalled();
     expect(prisma.budget.deleteMany).not.toHaveBeenCalled();
@@ -4055,7 +4823,7 @@ describe("resyncBudgetLine", () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run (from `apps/api`): `pnpm exec jest src/liabilities/liability-floating-rates src/liabilities/liabilities.service.rate-plan.spec.ts -t "LiabilityFloatingRates|resyncBudgetLine"`
-Expected: FAIL with "Cannot find module './liability-floating-rates.service'" and "Cannot find module './liability-floating-rates.controller'". The `resyncBudgetLine` tests pass already (Task 5); they pin the number.
+Expected: FAIL with "Cannot find module './liability-floating-rates.service'" and "Cannot find module './liability-floating-rates.controller'". The `resyncBudgetLine` tests pass already (Task 6a); they pin the number.
 
 - [ ] **Step 3: Write minimal implementation**
 
@@ -4466,7 +5234,7 @@ export class LiabilityFloatingRatesController {
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run (from `apps/api`): `pnpm exec jest src/liabilities`
-Expected: PASS. The floating-rates service spec has 13 tests, the controller spec has 5, and the K service spec has 2 more (20 total). Everything else is unchanged.
+Expected: PASS. The floating-rates service spec has 13 tests, the controller spec has 5, and the K service spec has 2 more (25 total). Everything else is unchanged.
 
 Run (from `apps/api`): `pnpm exec tsc --noEmit -p tsconfig.json`
 Expected: exit 0.
@@ -4496,7 +5264,7 @@ EOF
 
 ---
 
-### Task 7: `GET :id/prepayment-preview` (read-only simulation endpoint)
+### Task 8: `GET :id/prepayment-preview` (read-only simulation endpoint)
 
 **Files:**
 
@@ -4510,15 +5278,15 @@ EOF
 **Interfaces:**
 
 - Consumes:
-  - Task 3: `simulatePrepayment`, `PrepaymentMode`, `PrepaymentInput`, `PrepaymentResult`.
-  - Task 5: `withRatePlan`, `scheduleInputFor`, `guardBigInt`.
+  - Task 4: `simulatePrepayment`, `PrepaymentMode`, `PrepaymentInput`, `PrepaymentResult`.
+  - Task 6a: `withRatePlan`, `scheduleInputFor`; the existing `guardBigInt`.
   - Task 2: `ratePlanOf`.
   - Task 1: `rateAt`.
 - Produces:
   - `DEFAULT_PREPAYMENT_PENALTY_PERCENT = "1.00"` and `MAX_PREPAYMENT_PENALTY_PERCENT = "10.00"`, exported from `./prepayment.util`.
   - Route `GET family-groups/:familyGroupId/liabilities/:id/prepayment-preview?mode=full|reduce_tenor|reduce_installment&amount=<digits>&penaltyPercent=<d.dd>`:
     - Requires `read Liability`, the same ability as `payment-preview`. It is read-only: no `$transaction`, no writes.
-    - Returns `LiabilityPrepaymentPreviewResponseDto`, which matches the contract `LiabilityPrepaymentPreviewDto` from Task 4. Money is sent as strings; `assumesCurrentFloatingRate` is true when the last installment falls in a floating period.
+    - Returns `LiabilityPrepaymentPreviewResponseDto`, which matches the contract `LiabilityPrepaymentPreviewDto` from Task 5. Money is sent as strings; `assumesCurrentFloatingRate` is true when the last installment falls in a floating period.
   - `LiabilitiesService.previewPrepayment(familyGroupId, id, query: { mode; amount?; penaltyPercent? }, now = new Date())`.
     - 404: liability outside the family.
     - 400: not anuitas, or no tenor; `amount` missing on a partial prepayment; amount ≤ 0 or greater than the balance; penalty above 10 %.
@@ -4530,7 +5298,7 @@ EOF
 
 ```ts
 describe("previewPrepayment", () => {
-  // Single-rate 11% KPR, akad 2021-01-15: on 2026-01-20 installment #61 is next, 180 left.
+  // Single-rate 11% KPR, akad 2021-01-15: 2026-01-21 is six days after #60 fell due, so #61 (180 left) is being paid.
   const AT_61 = {
     ...KPR,
     interestRate: { toString: () => "11.00" },
@@ -4540,7 +5308,7 @@ describe("previewPrepayment", () => {
     startDate: new Date("2021-01-15T00:00:00.000Z"),
     kprScheme: null,
   };
-  const NOW = new Date("2026-01-20T00:00:00.000Z");
+  const NOW = new Date("2026-01-21T00:00:00.000Z");
 
   it("reduce installment: golden numbers as strings, read-only", async () => {
     prisma.liability.findUnique.mockResolvedValue(AT_61);
@@ -4614,7 +5382,7 @@ describe("previewPrepayment", () => {
       "fg-1",
       "lid-1",
       { mode: "reduce_tenor", amount: "50000000" },
-      new Date("2027-01-20T00:00:00.000Z"),
+      new Date("2027-01-21T00:00:00.000Z"),
     );
 
     expect(preview.penalty).toBe("500000");
@@ -4959,7 +5727,7 @@ Add this public method directly after `previewPayment`:
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run (from `apps/api`): `pnpm exec jest src/liabilities`
-Expected: PASS. The K service spec has 10 more tests (30 total); the controller spec has 4 more, and the PERMISSION/DENIAL tests now cover `previewPrepayment`.
+Expected: PASS. The K service spec has 10 more tests (35 total); the controller spec has 4 more, and the PERMISSION/DENIAL tests now cover `previewPrepayment`.
 
 Run (from `apps/api`): `pnpm exec tsc --noEmit -p tsconfig.json`
 Expected: exit 0.
@@ -4989,7 +5757,1613 @@ EOF
 
 ---
 
-### Task 8: Web — scheme presets + rate-period editor in the add/edit form
+### Task 9: Prepayment persistence foundation — schema, COA 20011, anchored installment, guard exception
+
+**Files:**
+
+- Modify: `apps/api/prisma/schema.prisma` — new enum `PrepaymentMode`, `model Liability` (after `floatingRates`), new `model LiabilityPrepayment`, `model Transaction` (after `insuranceId` / its relation / indexes)
+- Create: `apps/api/prisma/migrations/20260926130000_revisi_k_liability_prepayments/migration.sql`
+- Modify: `packages/contracts/src/coa/index.ts` (+ rebuilt `packages/contracts/dist`), `apps/api/src/common/coa/default-coa-chart.spec.ts`
+- Modify: `apps/api/src/liabilities/liabilities.service.ts` — `LiabilityRow`/`InstallmentTerms`, `scheduleInputFor`, `reanchoredInstallment` + `runUpdate`, `paidThisPeriodIds`, `assertNotAlreadyPaidThisPeriod`
+- Modify: `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts` (append)
+
+**Interfaces:**
+
+- Consumes:
+  - Task 2: `ScheduleInput.installmentAnchorPeriod`.
+  - Task 3: `scheduleInputFor`.
+  - Task 6a: `withRatePlan`, the `PERIOD_ROWS` harness.
+  - Task 6b: `nextTerms` in `runUpdate`.
+- Produces:
+  - **Prisma.**
+    - `enum PrepaymentMode { full reduce_tenor reduce_installment }`.
+    - `Liability.installmentFromPeriod Int?` and `Liability.prepayments`.
+    - `LiabilityPrepayment { id, familyGroupId, liabilityId, idempotencyKey, mode, principalAmount BigInt, penaltyPercent Decimal(5,2), penaltyAmount BigInt, sourceAccountId, effectivePeriod Int, installmentBefore BigInt?, installmentAfter BigInt?, tenorMonthsBefore Int, tenorMonthsAfter Int, createdByUserId?, occurredAt, createdAt }` with unique `(liabilityId, idempotencyKey)`. It cascades from `liabilities`.
+    - `Transaction.liabilityPrepaymentId String?` (FK `ON DELETE SET NULL`, indexed).
+  - **COA.** `GENERIC_COA_CHART` gains `{ code: "20011", name: "Penalti Pelunasan Pinjaman", groupNum: 2, direction: "EXPENSE", budgetType: "VARIABLE" }`, which new families get at registration. The migration backfills it for existing families (idempotent, same pattern as 20010).
+  - **Engine wiring.** `scheduleInputFor` passes `installmentAnchorPeriod: liability.installmentFromPeriod ?? undefined`, so the schedule, Pay preset and budget line honour a recorded prepayment's stored installment.
+  - **Updates.**
+    - A term-changing PATCH on a **prepaid** (anchored) loan without an explicit `installmentAmount` re-annuitises the remaining balance from the installment now due, through the shared engine (`reanchoredInstallment`); the anchor moves there. If that is impossible (not anuitas, or no tenor) the PATCH is refused with 400.
+    - An unanchored loan keeps G's behaviour: the contract installment, anchor `null`.
+    - Every other PATCH keeps the anchor and the installment.
+  - **Guard exception.** `paidThisPeriodIds` and `assertNotAlreadyPaidThisPeriod` add `liabilityPrepaymentId: null` to their `where`, so a prepayment never blocks, or counts as, the month's installment.
+
+- [ ] **Step 1: Write the failing tests**
+
+(a) Append to `apps/api/src/common/coa/default-coa-chart.spec.ts`, inside its `describe` (after the 20010 test):
+
+```ts
+it("has a group-2 prepayment-penalty EXPENSE account at code 20011, distinct from interest and the catch-all (revisi K)", () => {
+  expect(GENERIC_COA_CHART.find((c) => c.code === "20011")).toEqual({
+    code: "20011",
+    name: "Penalti Pelunasan Pinjaman",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE",
+  });
+});
+```
+
+(b) Append inside the top-level `describe` of `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts`:
+
+```ts
+describe("prepayment persistence (installmentFromPeriod, guard exception)", () => {
+  // State after recording 100 jt reduce-tenor at #61 on the berjenjang loan:
+  // installment 4.869.889 kept from #61, tenor 60 + 106 = 166. NOW is six
+  // days after #60 fell due, so #61 is the installment being paid.
+  const PREPAID = {
+    ...KPR,
+    remainingBalance: 328_462_235n,
+    installmentAmount: 4_869_889n,
+    minimumPayment: 4_869_889n,
+    tenorMonths: 166,
+    installmentFromPeriod: 61,
+  };
+  const NOW = new Date("2031-01-21T00:00:00.000Z");
+
+  beforeEach(() => {
+    prisma.liabilityRatePeriod.findMany.mockResolvedValue(PERIOD_ROWS);
+  });
+
+  it("schedule and Pay preset use the stored installment from its anchor period", async () => {
+    prisma.liability.findUnique.mockResolvedValue(PREPAID);
+    prisma.liability.findMany.mockResolvedValue([PREPAID]);
+
+    const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+    const [dto] = await service.findAll("fg-1", NOW);
+
+    expect(schedule.rows[0]).toEqual({
+      period: 61,
+      installment: "4869889",
+      interest: "3010904",
+      principal: "1858985",
+      remaining: "326603250",
+    });
+    expect(schedule.rows).toHaveLength(106);
+    expect(schedule.rows[105]?.period).toBe(166);
+    expect(dto?.currentInstallmentAmount).toBe("4869889");
+  });
+
+  it("without the anchor the same row would be re-annuitised (the column is really read)", async () => {
+    prisma.liability.findUnique.mockResolvedValue({
+      ...PREPAID,
+      installmentFromPeriod: null,
+    });
+
+    const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+
+    expect(schedule.rows[0]?.installment).toBe("4857320");
+  });
+
+  it("a notes-only PATCH keeps the anchor and the prepaid installment", async () => {
+    prisma.liability.findUnique.mockResolvedValue(PREPAID);
+    prisma.liability.findUniqueOrThrow.mockResolvedValue(PREPAID);
+    prisma.liability.update.mockResolvedValue(PREPAID);
+
+    await service.update("fg-1", "lid-1", { notes: "cek" }, NOW);
+
+    expect(prisma.liability.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          installmentAmount: 4_869_889n,
+          installmentFromPeriod: 61,
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    ["a tenor correction to 180 bln", { tenorMonths: 180 }, 4_524_568n],
+    [
+      "a floating-rate correction to 10.50%",
+      {
+        ratePeriods: [
+          { kind: "fixed", months: 24, ratePercent: "3.50" },
+          { kind: "fixed", months: 12, ratePercent: "5.50" },
+          { kind: "floating", months: null, ratePercent: "10.50" },
+        ],
+      },
+      4_767_352n,
+    ],
+  ])(
+    "%s on a prepaid loan re-annuitises what is left from the installment now due (never totalDebt over the tenor)",
+    async (_label, dto, installment) => {
+      prisma.liability.findUnique.mockResolvedValue(PREPAID);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(PREPAID);
+      prisma.liability.update.mockResolvedValue(PREPAID);
+
+      await service.update("fg-1", "lid-1", dto as never, NOW);
+
+      // 328,462,235 left from #61: 180 - 61 + 1 = 120 months at 11.00%, or 106 months at 10.50%.
+      expect(prisma.liability.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: installment,
+            minimumPayment: installment,
+            installmentFromPeriod: 61,
+          }),
+        }),
+      );
+      expect(prisma.budget.upsert).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ limitAmount: installment }),
+        }),
+      );
+    },
+  );
+
+  it("a term change a prepaid loan cannot be re-annuitised under (switch to flat) is refused", async () => {
+    const legacyPrepaid = {
+      ...PREPAID,
+      fixedRateMonths: null,
+      floatingRate: null,
+    };
+    prisma.liabilityRatePeriod.findMany.mockResolvedValue([]);
+    prisma.liability.findUnique.mockResolvedValue(legacyPrepaid);
+    prisma.liability.findUniqueOrThrow.mockResolvedValue(legacyPrepaid);
+
+    await expect(
+      service.update("fg-1", "lid-1", { interestMethod: "flat" as never }, NOW),
+    ).rejects.toThrow("pelunasan dipercepat");
+    expect(prisma.liability.update).not.toHaveBeenCalled();
+  });
+
+  it("prepayment rows are ignored by the installment guard and by paidThisPeriod", async () => {
+    prisma.liability.findMany.mockResolvedValue([PREPAID]);
+    await service.findAll("fg-1", NOW);
+    expect(prisma.transaction.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          accountId: { not: null },
+          liabilityPrepaymentId: null,
+        }),
+      }),
+    );
+
+    prisma.liability.findUnique.mockResolvedValue(PREPAID);
+    prisma.account.findUnique.mockResolvedValue({
+      id: "acc-1",
+      familyGroupId: "fg-1",
+      type: "bank",
+      balance: 50_000_000n,
+      name: "BCA",
+    });
+    prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+    prisma.liability.update.mockResolvedValue(PREPAID);
+    await service.pay(
+      "fg-1",
+      "lid-1",
+      { sourceAccountId: "acc-1", amount: "4869889" },
+      NOW,
+    );
+    expect(prisma.transaction.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          liabilityId: "lid-1",
+          accountId: { not: null },
+          liabilityPrepaymentId: null,
+        }),
+      }),
+    );
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run (from `apps/api`): `pnpm exec jest src/common/coa/default-coa-chart.spec.ts src/liabilities/liabilities.service.rate-plan.spec.ts -t "20011|prepayment persistence"`
+Expected: FAIL. You should see:
+
+- no 20011 entry in the chart;
+- the anchored row shows `4857320` (the anchor is not read yet);
+- `installmentFromPeriod` is missing from the update data;
+- a tenor correction writes G's contract installment from `totalDebt` instead of 4.524.568;
+- `liabilityPrepaymentId` is missing from the guard `where`.
+
+- [ ] **Step 3a: Schema + migration**
+
+In `apps/api/prisma/schema.prisma`, after `enum RatePeriodKind { … }` (Task 5), add:
+
+```prisma
+
+enum PrepaymentMode {
+  full
+  reduce_tenor
+  reduce_installment
+}
+```
+
+In `model Liability`, after `floatingRates       LiabilityFloatingRate[]`, add:
+
+```prisma
+  // Revisi K — period the stored installment was computed for; a recorded prepayment moves it (null = the akad).
+  installmentFromPeriod Int?
+  prepayments           LiabilityPrepayment[]
+```
+
+After `model LiabilityFloatingRate { … }`, add:
+
+```prisma
+
+// Revisi K — a recorded early repayment (pelunasan dipercepat). Replay-safe per idempotencyKey.
+model LiabilityPrepayment {
+  id                String         @id @default(uuid())
+  familyGroupId     String
+  liabilityId       String
+  idempotencyKey    String
+  mode              PrepaymentMode
+  principalAmount   BigInt
+  penaltyPercent    Decimal        @db.Decimal(5, 2)
+  penaltyAmount     BigInt
+  sourceAccountId   String
+  effectivePeriod   Int
+  installmentBefore BigInt?
+  installmentAfter  BigInt?
+  tenorMonthsBefore Int
+  tenorMonthsAfter  Int
+  createdByUserId   String?
+  occurredAt        DateTime
+  createdAt         DateTime       @default(now())
+  liability         Liability      @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+
+  @@unique([liabilityId, idempotencyKey])
+  @@index([familyGroupId])
+  @@map("liability_prepayments")
+}
+```
+
+In `model Transaction`:
+
+- After `insuranceId      String?`, add `liabilityPrepaymentId String?`.
+- After the `insurance … @relation(…)` line, add `liabilityPrepayment LiabilityPrepayment? @relation(fields: [liabilityPrepaymentId], references: [id], onDelete: SetNull)`.
+- After `@@index([insuranceId])`, add `@@index([liabilityPrepaymentId])`.
+
+Create `apps/api/prisma/migrations/20260926130000_revisi_k_liability_prepayments/migration.sql`. Re-check `ls apps/api/prisma/migrations`: it must sort after Task 5's migration and after anything newer on the branch.
+
+```sql
+-- Revisi K: recordable KPR prepayments. Additive; existing rows untouched.
+CREATE TYPE "PrepaymentMode" AS ENUM ('full', 'reduce_tenor', 'reduce_installment');
+
+ALTER TABLE "liabilities" ADD COLUMN "installmentFromPeriod" INTEGER;
+
+CREATE TABLE "liability_prepayments" (
+    "id" TEXT NOT NULL,
+    "familyGroupId" TEXT NOT NULL,
+    "liabilityId" TEXT NOT NULL,
+    "idempotencyKey" TEXT NOT NULL,
+    "mode" "PrepaymentMode" NOT NULL,
+    "principalAmount" BIGINT NOT NULL,
+    "penaltyPercent" DECIMAL(5,2) NOT NULL,
+    "penaltyAmount" BIGINT NOT NULL,
+    "sourceAccountId" TEXT NOT NULL,
+    "effectivePeriod" INTEGER NOT NULL,
+    "installmentBefore" BIGINT,
+    "installmentAfter" BIGINT,
+    "tenorMonthsBefore" INTEGER NOT NULL,
+    "tenorMonthsAfter" INTEGER NOT NULL,
+    "createdByUserId" TEXT,
+    "occurredAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "liability_prepayments_pkey" PRIMARY KEY ("id")
+);
+
+CREATE UNIQUE INDEX "liability_prepayments_liabilityId_idempotencyKey_key" ON "liability_prepayments"("liabilityId", "idempotencyKey");
+
+CREATE INDEX "liability_prepayments_familyGroupId_idx" ON "liability_prepayments"("familyGroupId");
+
+ALTER TABLE "liability_prepayments" ADD CONSTRAINT "liability_prepayments_liabilityId_fkey" FOREIGN KEY ("liabilityId") REFERENCES "liabilities"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+ALTER TABLE "transactions" ADD COLUMN "liabilityPrepaymentId" TEXT;
+
+CREATE INDEX "transactions_liabilityPrepaymentId_idx" ON "transactions"("liabilityPrepaymentId");
+
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_liabilityPrepaymentId_fkey" FOREIGN KEY ("liabilityPrepaymentId") REFERENCES "liability_prepayments"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Dedicated prepayment-penalty expense account for every existing family
+-- (GENERIC_COA_CHART "20011"); same idempotent backfill as 20009/20010.
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+INSERT INTO "coa_accounts"
+  ("id", "familyGroupId", "code", "name", "groupNum", "direction", "budgetType", "createdAt", "updatedAt")
+SELECT
+  gen_random_uuid(),
+  fg."id",
+  '20011',
+  'Penalti Pelunasan Pinjaman',
+  2,
+  'EXPENSE'::"CoaDirection",
+  'VARIABLE'::"CoaBudgetType",
+  now(),
+  now()
+FROM "family_groups" fg
+ON CONFLICT ("familyGroupId", "code") DO NOTHING;
+```
+
+Run (from `apps/api`): `pnpm exec prisma generate`
+Expected: `✔ Generated Prisma Client`.
+
+Verify the DDL against Prisma's diff (the COA `INSERT` is data, so it is not part of the diff):
+
+```bash
+cd apps/api
+PREV=$(mktemp --suffix=.prisma) && git show HEAD:apps/api/prisma/schema.prisma > "$PREV"
+pnpm exec prisma migrate diff --from-schema-datamodel "$PREV" --to-schema-datamodel prisma/schema.prisma --script
+```
+
+Expected: the same DDL statements as the migration.
+
+- [ ] **Step 3b: COA chart**
+
+In `packages/contracts/src/coa/index.ts`, directly after the `code: "20010"` entry's closing `},`, add:
+
+```ts
+  // Revisi K — a recorded KPR prepayment's penalty is a real expense with its
+  // own account (never interest 20009, never the 20099 catch-all).
+  {
+    code: "20011",
+    name: "Penalti Pelunasan Pinjaman",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE",
+  },
+```
+
+Run (repo root): `pnpm --filter @wealthme/contracts build`
+Expected: build succeeds.
+
+- [ ] **Step 3c: Service**
+
+In `apps/api/src/liabilities/liabilities.service.ts`:
+
+1. **Types.** In `LiabilityRow`, after `ratePlanRows?: RatePlanRows;`, add `installmentFromPeriod?: number | null;`. In `InstallmentTerms`'s `Pick<…>` union, add `| "installmentFromPeriod"`.
+2. **`scheduleInputFor`.** In the returned object, after `ratePlan: …,`, add:
+
+   ```ts
+       installmentAnchorPeriod: liability.installmentFromPeriod ?? undefined,
+   ```
+
+3. **`runUpdate` — a prepaid loan re-annuitises instead of reverting to the contract installment.**
+
+   Why re-annuitise rather than refuse:
+   - Correcting a rate, tenor or type after a prepayment is normal (a bank notice, a typo).
+   - G's `resolveInstallment` would re-derive the installment from `totalDebt` over the (possibly shortened) tenor. For example, 500 jt at 3.50 % over 166 bln is 3.804.132, not what is owed. The budget line would inherit the wrong number.
+   - The shared engine already implements the bank's rule for any change: re-annuitise the remaining balance over the remaining months **[R§3]**. So the corrected installment is computed exactly like a regime change, with no new math.
+   - The months are counted from the installment now due (`d`), not from the old anchor: `remainingBalance` is today's balance, and installments paid since the prepayment have already used up months. `d` equals the anchor when nothing has been paid since. The anchor moves to `d`.
+   - Only a change that cannot be annuitised (a non-anuitas method, or no tenor) is refused with 400.
+
+   Steps:
+   - Add this module-private helper after `withRatePlan`:
+
+     ```ts
+     /** A prepaid loan's installment after a term correction: what is left, re-annuitised from the installment now due (shared engine). */
+     function reanchoredInstallment(
+       terms: InstallmentTerms,
+       now: Date,
+     ): { installmentAmount: bigint | null; installmentFromPeriod: number } {
+       const input = scheduleInputFor(terms, now);
+       const [row] = buildSchedule({
+         ...input,
+         installmentAmount: BigInt(0),
+         recomputeAtStart: true,
+         maxRows: 1,
+       });
+       return {
+         installmentAmount: row?.installment ?? null,
+         installmentFromPeriod: input.firstPeriod,
+       };
+     }
+     ```
+
+   - Directly after Task 6b's `nextTerms` + orphaned-history check, add:
+
+     ```ts
+     // Revisi K — after a recorded prepayment the contract installment (totalDebt over the tenor) no longer applies.
+     const reanchor =
+       termsChanged &&
+       amounts.installmentAmount === undefined &&
+       (existing.installmentFromPeriod ?? null) !== null;
+     if (reanchor && (interestMethod !== "anuitas" || tenorMonths === null)) {
+       throw new BadRequestException(
+         "Pinjaman ini punya pelunasan dipercepat tercatat — hanya cicilan anuitas dengan tenor yang bisa dihitung ulang",
+       );
+     }
+     const reanchored = reanchor ? reanchoredInstallment(nextTerms, now) : null;
+     ```
+
+   - Change the `installmentAmount` expression so the re-anchored value comes first among the fallbacks:
+
+     ```ts
+     const installmentAmount =
+       amounts.installmentAmount !== undefined
+         ? amounts.installmentAmount
+         : reanchored
+           ? reanchored.installmentAmount
+           : termsChanged
+             ? resolveInstallment({
+                 method: interestMethod,
+                 totalDebt,
+                 interestRate: resolvedInterestRate,
+                 tenorMonths,
+                 override: undefined,
+               })
+             : existing.installmentAmount;
+     ```
+
+   - In `data`, after `installmentAmount,`, add:
+
+     ```ts
+           installmentFromPeriod: reanchored
+             ? reanchored.installmentFromPeriod
+             : termsChanged
+               ? null
+               : (existing.installmentFromPeriod ?? null),
+     ```
+
+4. **`paidThisPeriodIds`.** In its `transaction.findMany` `where`, after `accountId: { not: null },`, add:
+
+   ```ts
+           // Revisi K — a recorded prepayment is never "this period's installment".
+           liabilityPrepaymentId: null,
+   ```
+
+5. **`assertNotAlreadyPaidThisPeriod`.** In its `transaction.findFirst` `where`, after `accountId: { not: null },`, add the same two lines.
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run (from `apps/api`): `pnpm exec jest src/liabilities src/common/coa src/auth/auth.service.spec.ts`
+Expected: PASS. The K service spec has 7 more tests and the chart spec 1 more. G's liabilities specs are green unchanged (their guard assertions use `objectContaining`). `auth.service.spec.ts` still passes because it reads `GENERIC_COA_CHART.length` dynamically.
+
+Run (from `apps/api`): `pnpm exec tsc --noEmit -p tsconfig.json`
+Expected: exit 0.
+
+- [ ] **Step 5: Lint**
+
+Run (from `apps/api`): `pnpm exec eslint src/liabilities/liabilities.service.ts src/liabilities/liabilities.service.rate-plan.spec.ts src/common/coa/default-coa-chart.spec.ts`
+Expected: exit 0 (hand-fix only).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/prisma/schema.prisma apps/api/prisma/migrations/20260926130000_revisi_k_liability_prepayments packages/contracts/src/coa/index.ts packages/contracts/dist apps/api/src/common/coa/default-coa-chart.spec.ts apps/api/src/liabilities/liabilities.service.ts apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts
+git commit -m "$(cat <<'EOF'
+feat(liabilities): prepayment ledger foundation for KPR
+
+Additive migration: liability_prepayments (idempotency key per liability),
+liabilities.installmentFromPeriod, transactions.liabilityPrepaymentId, and
+a dedicated 20011 prepayment-penalty expense account backfilled for every
+family. The schedule honours the anchored installment, a term correction on a
+prepaid loan re-annuitises what is left, and prepayment rows never count
+as the month's installment payment.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RDbXyuMbb2WHtT74hdL9Zy
+EOF
+)"
+```
+
+---
+
+### Task 10: `POST :id/prepay` — record a prepayment (debit, principal + penalty legs, persisted terms, idempotent, fx-aware)
+
+**Files:**
+
+- Modify: `apps/api/src/liabilities/prepayment.util.ts` (export `PREPAYMENT_MODES`)
+- Create: `apps/api/src/liabilities/dto/record-prepayment.dto.ts`
+- Modify: `apps/api/src/liabilities/dto/liability-response.dto.ts` (append two classes)
+- Modify: `apps/api/src/fx/fx-field-specs.ts` (`liabilityPrepayment`), `apps/api/src/fx/fx-wiring-holdings.spec.ts`
+- Modify: `apps/api/src/liabilities/liabilities.service.ts` — helpers, `previewPrepayment` refactor, `recordPrepayment` + private helpers
+- Modify: `apps/api/src/liabilities/liabilities.controller.ts` + `.spec.ts`
+- Modify: `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts` (`makePrisma` + append)
+- Modify: `packages/contracts/src/liabilities/index.ts` (+ rebuilt `dist`)
+
+**Interfaces:**
+
+- Consumes:
+  - Task 4: `simulatePrepayment` (`newInstallmentAmount`, `newTenorMonths`).
+  - Task 8: `DEFAULT_/MAX_PREPAYMENT_PENALTY_PERCENT`, `simulateOrReject`.
+  - Task 9: the schema, and `installmentFromPeriod` read through `scheduleInputFor`.
+  - Task 6a: `withRatePlan`, `toLiabilityDto`.
+  - Existing: `assertBankNotOverdrawn`, `syncPrincipalBudgetLine`, `runSerializableWithRetry`, `FxInputService.run`.
+- Produces:
+  - **Route** `POST family-groups/:familyGroupId/liabilities/:id/prepay` (`manage Liability`, `@HttpCode(200)`).
+    - Body `RecordPrepaymentDto { sourceAccountId: uuid; mode: "full"|"reduce_tenor"|"reduce_installment"; amount?: digits (required unless full, refused for full); penaltyPercent?: d.dd (default 1.00, ≤ 10); idempotencyKey: uuid; fxInputs? }`.
+    - Response `LiabilityPrepaymentRecordResponseDto { liability: LiabilityResponseDto; prepayment: LiabilityPrepaymentResponseDto; replayed: boolean }`.
+  - `FX_FIELD_SPECS.liabilityPrepayment = { amount: { kind: "digits", positive: true } }`, audited as `Liability` / `prepay.amount`.
+  - `LiabilitiesService.recordPrepayment(familyGroupId, id, dto, userId: string | null, now = new Date())`.
+  - **Shared helpers** (module-private): `parsePrepaymentRequest(query)` and `assertPrepayable(liability)`. `previewPrepayment` now uses them too, so preview and record apply identical rules.
+  - **Contracts:** `RecordLiabilityPrepaymentDto`, `LiabilityPrepaymentDto`, `LiabilityPrepaymentRecordResultDto`.
+  - **Errors:**
+    - 404: liability, or source account, outside the family.
+    - 400: not an anuitas loan with a tenor; amount rules; penalty > 10; overdraft on principal + penalty; no group-5 / 20011 COA.
+    - 409: a same-named user category bound to another COA.
+    - Replay: 200 with `replayed: true` and no writes.
+
+- [ ] **Step 1: Write the failing tests**
+
+(a) In `apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts`:
+
+- Add `import { Prisma } from "@prisma/client";` after the `@nestjs/testing` import.
+- In `makePrisma()`, add:
+
+  ```ts
+      liabilityPrepayment: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        create: jest.fn(),
+      },
+  ```
+
+Then append inside the top-level `describe`:
+
+```ts
+describe("recordPrepayment", () => {
+  // Single-rate 11% KPR, akad 2021-01-15: 2026-01-21 is six days after #60 fell due, so #61 (180 left) is being paid.
+  const AT_61 = {
+    ...KPR,
+    interestRate: { toString: () => "11.00" },
+    remainingBalance: 400_000_000n,
+    installmentAmount: 4_546_388n,
+    minimumPayment: 4_546_388n,
+    startDate: new Date("2021-01-15T00:00:00.000Z"),
+    kprScheme: null,
+    installmentFromPeriod: null,
+  };
+  const NOW = new Date("2026-01-21T00:00:00.000Z");
+  const KEY = "0b6f3f0e-8c1d-4a55-9e2f-3c5d7a9b1e20";
+  const BCA = {
+    id: "acc-1",
+    familyGroupId: "fg-1",
+    type: "bank",
+    balance: 500_000_000n,
+    name: "BCA",
+  };
+  const RECORDED = {
+    id: "pp-1",
+    familyGroupId: "fg-1",
+    liabilityId: "lid-1",
+    idempotencyKey: KEY,
+    mode: "reduce_installment",
+    principalAmount: 100_000_000n,
+    penaltyPercent: { toString: () => "1.00" },
+    penaltyAmount: 1_000_000n,
+    sourceAccountId: "acc-1",
+    effectivePeriod: 61,
+    installmentBefore: 4_546_388n,
+    installmentAfter: 3_409_791n,
+    tenorMonthsBefore: 240,
+    tenorMonthsAfter: 240,
+    createdByUserId: "user-1",
+    occurredAt: NOW,
+    createdAt: NOW,
+  };
+
+  function arrange(row: object = AT_61, account: object = BCA) {
+    prisma.liability.findUnique.mockResolvedValue(row);
+    prisma.account.findUnique.mockResolvedValue(account);
+    prisma.coaAccount.findFirst
+      .mockResolvedValueOnce({ id: "coa-5", name: "Utang" })
+      .mockResolvedValueOnce({
+        id: "coa-20011",
+        name: "Penalti Pelunasan Pinjaman",
+      });
+    prisma.category.findFirst
+      .mockResolvedValueOnce({ id: "cat-prepay", coaAccountId: "coa-5" })
+      .mockResolvedValueOnce({ id: "cat-penalty", coaAccountId: "coa-20011" });
+    prisma.liabilityPrepayment.create.mockImplementation(
+      ({ data }: { data: object }) =>
+        Promise.resolve({ id: "pp-1", createdAt: NOW, ...data }),
+    );
+    prisma.liability.update.mockResolvedValue(row);
+  }
+  const record = (body: object, userId: string | null = "user-1") =>
+    service.recordPrepayment(
+      "fg-1",
+      "lid-1",
+      { sourceAccountId: "acc-1", idempotencyKey: KEY, ...body } as never,
+      userId,
+      NOW,
+    );
+
+  it("reduce installment: debits principal + penalty, books both legs, persists 3.409.791 from #61", async () => {
+    arrange();
+
+    const res = await record({
+      mode: "reduce_installment",
+      amount: "100000000",
+    });
+
+    expect(prisma.account.update).toHaveBeenCalledWith({
+      where: { id: "acc-1", familyGroupId: "fg-1" },
+      data: { balance: { decrement: 101_000_000n } },
+    });
+    expect(prisma.liability.update).toHaveBeenCalledWith({
+      where: { id: "lid-1", familyGroupId: "fg-1" },
+      data: {
+        remainingBalance: { decrement: 100_000_000n },
+        installmentAmount: 3_409_791n,
+        minimumPayment: 3_409_791n,
+        installmentFromPeriod: 61,
+      },
+    });
+    expect(prisma.liabilityPrepayment.create).toHaveBeenCalledWith({
+      data: {
+        familyGroupId: "fg-1",
+        liabilityId: "lid-1",
+        idempotencyKey: KEY,
+        mode: "reduce_installment",
+        principalAmount: 100_000_000n,
+        penaltyPercent: "1.00",
+        penaltyAmount: 1_000_000n,
+        sourceAccountId: "acc-1",
+        effectivePeriod: 61,
+        installmentBefore: 4_546_388n,
+        installmentAfter: 3_409_791n,
+        tenorMonthsBefore: 240,
+        tenorMonthsAfter: 240,
+        createdByUserId: "user-1",
+        occurredAt: NOW,
+      },
+    });
+    expect(prisma.transaction.create).toHaveBeenNthCalledWith(1, {
+      data: {
+        familyGroupId: "fg-1",
+        accountId: "acc-1",
+        categoryId: "cat-prepay",
+        amount: 100_000_000n,
+        type: "transfer",
+        liabilityId: "lid-1",
+        liabilityPrepaymentId: "pp-1",
+        description: "Pelunasan dipercepat KPR BTN",
+        occurredAt: NOW,
+      },
+    });
+    expect(prisma.transaction.create).toHaveBeenNthCalledWith(2, {
+      data: {
+        familyGroupId: "fg-1",
+        accountId: "acc-1",
+        categoryId: "cat-penalty",
+        amount: 1_000_000n,
+        type: "expense",
+        liabilityId: "lid-1",
+        liabilityPrepaymentId: "pp-1",
+        description: "Penalti pelunasan KPR BTN",
+        occurredAt: NOW,
+      },
+    });
+    expect(prisma.budget.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ limitAmount: 3_409_791n }),
+      }),
+    );
+    expect(res.replayed).toBe(false);
+    expect(res.prepayment).toEqual({
+      id: "pp-1",
+      mode: "reduce_installment",
+      principalAmount: "100000000",
+      penaltyPercent: "1.00",
+      penaltyAmount: "1000000",
+      effectivePeriod: 61,
+      installmentBefore: "4546388",
+      installmentAfter: "3409791",
+      tenorMonthsBefore: 240,
+      tenorMonthsAfter: 240,
+      occurredAt: NOW.toISOString(),
+    });
+  });
+
+  it("reduce tenor: installment kept, tenor 240 -> 162, and the schedule read back has 102 rows", async () => {
+    arrange();
+
+    await record({ mode: "reduce_tenor", amount: "100000000" });
+
+    expect(prisma.liability.update).toHaveBeenCalledWith({
+      where: { id: "lid-1", familyGroupId: "fg-1" },
+      data: {
+        remainingBalance: { decrement: 100_000_000n },
+        installmentAmount: 4_546_388n,
+        minimumPayment: 4_546_388n,
+        installmentFromPeriod: 61,
+        tenorMonths: 162,
+      },
+    });
+    expect(prisma.budget.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        update: expect.objectContaining({ limitAmount: 4_546_388n }),
+      }),
+    );
+
+    prisma.liability.findUnique.mockResolvedValue({
+      ...AT_61,
+      remainingBalance: 300_000_000n,
+      tenorMonths: 162,
+      installmentFromPeriod: 61,
+    });
+    const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+    expect(schedule.rows).toHaveLength(102);
+    expect(schedule.rows[0]?.installment).toBe("4546388");
+    expect(schedule.rows[101]?.remaining).toBe("0");
+  });
+
+  it("full payoff at 2.5%: debits 410.000.000, zeroes the obligation and removes the budget line", async () => {
+    arrange();
+
+    const res = await record({ mode: "full", penaltyPercent: "2.50" });
+
+    expect(prisma.account.update).toHaveBeenCalledWith({
+      where: { id: "acc-1", familyGroupId: "fg-1" },
+      data: { balance: { decrement: 410_000_000n } },
+    });
+    expect(prisma.liability.update).toHaveBeenCalledWith({
+      where: { id: "lid-1", familyGroupId: "fg-1" },
+      data: {
+        remainingBalance: { decrement: 400_000_000n },
+        minimumPayment: 0n,
+      },
+    });
+    expect(prisma.budget.deleteMany).toHaveBeenCalledWith({
+      where: { familyGroupId: "fg-1", liabilityId: "lid-1" },
+    });
+    expect(res.prepayment.installmentAfter).toBeNull();
+    expect(res.prepayment.penaltyAmount).toBe("10000000");
+  });
+
+  it("zero penalty books no penalty leg", async () => {
+    arrange();
+
+    await record({
+      mode: "reduce_tenor",
+      amount: "100000000",
+      penaltyPercent: "0",
+    });
+
+    expect(prisma.transaction.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("replay: the same idempotencyKey returns the first record and writes nothing", async () => {
+    arrange();
+    prisma.liabilityPrepayment.findFirst.mockResolvedValue(RECORDED);
+
+    const res = await record({
+      mode: "reduce_installment",
+      amount: "100000000",
+    });
+
+    expect(prisma.liabilityPrepayment.findFirst).toHaveBeenCalledWith({
+      where: {
+        familyGroupId: "fg-1",
+        liabilityId: "lid-1",
+        idempotencyKey: KEY,
+      },
+    });
+    expect(res.replayed).toBe(true);
+    expect(res.prepayment.id).toBe("pp-1");
+    expect(prisma.account.update).not.toHaveBeenCalled();
+    expect(prisma.transaction.create).not.toHaveBeenCalled();
+    expect(prisma.liabilityPrepayment.create).not.toHaveBeenCalled();
+  });
+
+  it("concurrent double submit: the loser's P2002 retries into a replay, never a second debit or a 500", async () => {
+    arrange();
+    prisma.liabilityPrepayment.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(RECORDED);
+    prisma.liabilityPrepayment.create.mockRejectedValueOnce(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "test",
+      }),
+    );
+
+    const res = await record({
+      mode: "reduce_installment",
+      amount: "100000000",
+    });
+
+    expect(res.replayed).toBe(true);
+    expect(prisma.liabilityPrepayment.create).toHaveBeenCalledTimes(1);
+    expect(prisma.transaction.create).not.toHaveBeenCalled();
+  });
+
+  it("guard exception: an installment already paid this month does not block a prepayment", async () => {
+    arrange();
+    prisma.transaction.findFirst.mockResolvedValue({ id: "tx-installment" });
+
+    const res = await record({ mode: "reduce_tenor", amount: "100000000" });
+
+    expect(res.replayed).toBe(false);
+    expect(prisma.liabilityPrepayment.create).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no amount on a partial prepayment", { mode: "reduce_tenor" }],
+    ["an amount on a full payoff", { mode: "full", amount: "1" }],
+    [
+      "an amount above the balance",
+      { mode: "reduce_tenor", amount: "400000001" },
+    ],
+    ["a zero amount", { mode: "reduce_installment", amount: "0" }],
+    ["a penalty above 10%", { mode: "full", penaltyPercent: "10.01" }],
+  ])("400: %s", async (_label, body) => {
+    arrange();
+
+    await expect(record(body)).rejects.toThrow(BadRequestException);
+    expect(prisma.account.update).not.toHaveBeenCalled();
+  });
+
+  it("400 when the bank account cannot cover principal + penalty (overdraft floor)", async () => {
+    arrange(AT_61, { ...BCA, balance: 100_500_000n });
+
+    await expect(
+      record({ mode: "reduce_tenor", amount: "100000000" }),
+    ).rejects.toThrow(BadRequestException);
+    expect(prisma.account.update).not.toHaveBeenCalled();
+  });
+
+  it("400 for a liability that is not an anuitas loan", async () => {
+    arrange({ ...AT_61, interestMethod: "flat" });
+
+    await expect(record({ mode: "full" })).rejects.toThrow(BadRequestException);
+  });
+
+  it("404 for another family's liability or source account (tenant-scoped lookups)", async () => {
+    arrange();
+    prisma.liability.findUnique.mockResolvedValueOnce(null);
+    await expect(record({ mode: "full" })).rejects.toThrow(
+      "Liability not found",
+    );
+
+    prisma.account.findUnique.mockResolvedValueOnce(null);
+    await expect(record({ mode: "full" })).rejects.toThrow(
+      "Account acc-1 not found",
+    );
+    expect(prisma.account.findUnique).toHaveBeenCalledWith({
+      where: { id: "acc-1", familyGroupId: "fg-1" },
+    });
+  });
+
+  it("409 when a user's own category already uses the prepayment name on another COA", async () => {
+    arrange();
+    prisma.category.findFirst.mockReset();
+    prisma.category.findFirst.mockResolvedValueOnce({
+      id: "cat-user",
+      coaAccountId: "coa-other",
+    });
+
+    await expect(
+      record({ mode: "reduce_tenor", amount: "100000000" }),
+    ).rejects.toThrow("Pelunasan Dipercepat Pinjaman");
+  });
+});
+```
+
+(b) In `apps/api/src/liabilities/liabilities.controller.spec.ts`, add `"recordPrepayment",` to `manageRoutes` (after `"pay",`), then append:
+
+```ts
+describe("LiabilitiesController — POST :id/prepay over HTTP", () => {
+  const UUID = "5f0c1f7e-7c1a-4b8e-9d7a-2f1c3b4a5d6e";
+
+  async function bootstrap() {
+    const service = {
+      recordPrepayment: jest.fn().mockResolvedValue({ replayed: false }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    await app.init();
+    return { app, service };
+  }
+
+  it("routes a valid body to recordPrepayment with the acting user", async () => {
+    const { app, service } = await bootstrap();
+    const body = {
+      sourceAccountId: UUID,
+      mode: "reduce_tenor",
+      amount: "100000000",
+      idempotencyKey: UUID,
+    };
+
+    await request(app.getHttpServer())
+      .post("/family-groups/fg-1/liabilities/lid-1/prepay")
+      .send(body)
+      .expect(200);
+
+    expect(service.recordPrepayment).toHaveBeenCalledWith(
+      "fg-1",
+      "lid-1",
+      body,
+      null,
+    );
+    await app.close();
+  });
+
+  it.each([
+    [{ sourceAccountId: UUID, mode: "reduce_tenor", amount: "1" }],
+    [
+      {
+        sourceAccountId: UUID,
+        mode: "sebagian",
+        amount: "1",
+        idempotencyKey: UUID,
+      },
+    ],
+    [{ sourceAccountId: "acc-1", mode: "full", idempotencyKey: UUID }],
+  ])(
+    "rejects %j before the service (the DTO is a value import)",
+    async (body) => {
+      const { app, service } = await bootstrap();
+
+      await request(app.getHttpServer())
+        .post("/family-groups/fg-1/liabilities/lid-1/prepay")
+        .send(body)
+        .expect(400);
+
+      expect(service.recordPrepayment).not.toHaveBeenCalled();
+      await app.close();
+    },
+  );
+});
+```
+
+(c) In `apps/api/src/fx/fx-wiring-holdings.spec.ts`:
+
+- Add `recordPrepayment: jest.fn(),` to the `liabilities` mock object, and `liabilities.recordPrepayment,` to the `beforeEach` list.
+- Add after the `"liability pay: …"` test:
+
+```ts
+it("liability prepay: SGD amount, audited as Liability prepay.amount (revisi K)", async () => {
+  await http()
+    .post(`/family-groups/${FG}/liabilities/liab-1/prepay`)
+    .send({
+      sourceAccountId: UUID,
+      mode: "reduce_tenor",
+      amount: "1",
+      idempotencyKey: UUID,
+      fxInputs: [{ field: "amount", currency: "SGD", amount: "1500.25" }],
+    })
+    .expect(200);
+  expect(liabilities.recordPrepayment.mock.calls[0][2].amount).toBe("21043698");
+  expect(
+    fx.prisma.fxConversion.createMany.mock.calls[0][0].data[0],
+  ).toMatchObject({
+    entity: "Liability",
+    entityId: "liab-1",
+    field: "prepay.amount",
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run (from `apps/api`): `pnpm exec jest src/liabilities/liabilities.service.rate-plan.spec.ts src/liabilities/liabilities.controller.spec.ts src/fx/fx-wiring-holdings.spec.ts -t "recordPrepayment|prepay|PERMISSION|DENIAL"`
+Expected: FAIL. You should see "service.recordPrepayment is not a function", a 404 on `POST …/prepay`, and `controller.recordPrepayment` undefined in the guard tests.
+
+- [ ] **Step 3: Write minimal implementation**
+
+(a) In `apps/api/src/liabilities/prepayment.util.ts`, after `export type PrepaymentMode = …;`, add:
+
+```ts
+export const PREPAYMENT_MODES: readonly PrepaymentMode[] = [
+  "full",
+  "reduce_tenor",
+  "reduce_installment",
+];
+```
+
+(b) Create `apps/api/src/liabilities/dto/record-prepayment.dto.ts`:
+
+```ts
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsIn, IsOptional, IsString, IsUUID, Matches } from "class-validator";
+
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+import { PREPAYMENT_MODES, type PrepaymentMode } from "../prepayment.util";
+
+export class RecordPrepaymentDto {
+  @ApiProperty({
+    description: "Account debited for principal + penalty (same family group)",
+  })
+  @IsUUID()
+  sourceAccountId!: string;
+
+  @ApiProperty({ enum: PREPAYMENT_MODES })
+  @IsIn(PREPAYMENT_MODES)
+  mode!: PrepaymentMode;
+
+  @ApiPropertyOptional({
+    description:
+      "Principal to prepay, whole rupiah; required unless mode=full, refused for full",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+$/, { message: "amount must be a numeric string" })
+  amount?: string;
+
+  @ApiPropertyOptional({
+    description: "Penalty % of the prepaid principal (0-10), default 1.00",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{1,2}(\.\d{1,2})?$/, {
+    message: "penaltyPercent must be a decimal string",
+  })
+  penaltyPercent?: string;
+
+  @ApiProperty({
+    description:
+      "Client-generated UUID, one per simulation; a repeat returns the first record",
+  })
+  @IsUUID()
+  idempotencyKey!: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
+}
+```
+
+(c) Append to `apps/api/src/liabilities/dto/liability-response.dto.ts`:
+
+```ts
+export class LiabilityPrepaymentResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ enum: ["full", "reduce_tenor", "reduce_installment"] })
+  mode!: "full" | "reduce_tenor" | "reduce_installment";
+  @ApiProperty() principalAmount!: string;
+  @ApiProperty() penaltyPercent!: string;
+  @ApiProperty() penaltyAmount!: string;
+  @ApiProperty({ description: "Installment the prepayment landed before" })
+  effectivePeriod!: number;
+  @ApiProperty({ nullable: true, type: String })
+  installmentBefore!: string | null;
+  @ApiProperty({ nullable: true, type: String })
+  installmentAfter!: string | null;
+  @ApiProperty() tenorMonthsBefore!: number;
+  @ApiProperty() tenorMonthsAfter!: number;
+  @ApiProperty() occurredAt!: string;
+}
+
+export class LiabilityPrepaymentRecordResponseDto {
+  @ApiProperty({ type: LiabilityResponseDto }) liability!: LiabilityResponseDto;
+  @ApiProperty({ type: LiabilityPrepaymentResponseDto })
+  prepayment!: LiabilityPrepaymentResponseDto;
+  @ApiProperty({
+    description: "True when this idempotencyKey was already recorded",
+  })
+  replayed!: boolean;
+}
+```
+
+(d) In `apps/api/src/fx/fx-field-specs.ts`, after `liabilityPayment: …,`, add:
+
+```ts
+  // Revisi K — a recorded KPR prepayment debits an account like a payment does.
+  liabilityPrepayment: { amount: { kind: "digits", positive: true } },
+```
+
+(e) In `apps/api/src/liabilities/liabilities.service.ts`:
+
+1. **Imports.**
+   - Change the `@prisma/client` import to `import { type Prisma, type Role } from "@prisma/client";`.
+   - Add `PrepaymentResult` to the `./prepayment.util` import.
+   - Add `LiabilityPrepaymentRecordResponseDto, LiabilityPrepaymentResponseDto` to the `import type` list from `./dto/liability-response.dto`.
+   - Add `import type { RecordPrepaymentDto } from "./dto/record-prepayment.dto";`.
+2. **Constants.** Below `LOAN_INTEREST_COA_CODES`, add:
+
+```ts
+// Revisi K — a recorded prepayment's legs (decision 5): the principal on its
+// own family TRANSFER category (never the liability's budget-line category),
+// the penalty on the dedicated 20011 expense account.
+const PREPAYMENT_CATEGORY_NAME = "Pelunasan Dipercepat Pinjaman";
+const PREPAYMENT_PENALTY_COA_CODE = "20011";
+```
+
+3. **Module-private helpers.** Add after `simulateOrReject`:
+
+```ts
+interface PrepaymentRequest {
+  mode: PrepaymentMode;
+  amount: bigint;
+  penaltyPercent: string;
+}
+
+/** The same rules for preview and record. */
+function parsePrepaymentRequest(query: {
+  mode: PrepaymentMode;
+  amount?: string;
+  penaltyPercent?: string;
+}): PrepaymentRequest {
+  const penaltyPercent =
+    query.penaltyPercent ?? DEFAULT_PREPAYMENT_PENALTY_PERCENT;
+  if (
+    parseRateScaledByHundred(penaltyPercent) >
+    parseRateScaledByHundred(MAX_PREPAYMENT_PENALTY_PERCENT)
+  ) {
+    throw new BadRequestException(
+      `penaltyPercent must be between 0 and ${MAX_PREPAYMENT_PENALTY_PERCENT}`,
+    );
+  }
+  if (query.mode === "full" && query.amount !== undefined) {
+    throw new BadRequestException(
+      "amount is not used for a full payoff — the whole remaining balance is prepaid",
+    );
+  }
+  if (query.mode !== "full" && query.amount === undefined) {
+    throw new BadRequestException(
+      "amount is required for a partial prepayment",
+    );
+  }
+  return {
+    mode: query.mode,
+    amount:
+      query.amount === undefined
+        ? BigInt(0)
+        : guardBigInt("amount", query.amount),
+    penaltyPercent,
+  };
+}
+
+function assertPrepayable(liability: {
+  interestMethod: string;
+  tenorMonths: number | null;
+}): void {
+  if (
+    liability.interestMethod !== "anuitas" ||
+    liability.tenorMonths === null
+  ) {
+    throw new BadRequestException(
+      "Simulasi pelunasan hanya untuk cicilan anuitas dengan tenor",
+    );
+  }
+}
+
+/** Liability columns a recorded prepayment rewrites (decision 5). */
+function prepaidTerms(
+  result: PrepaymentResult,
+  fromPeriod: number,
+): {
+  minimumPayment: bigint;
+  installmentAmount?: bigint;
+  installmentFromPeriod?: number;
+  tenorMonths?: number;
+} {
+  if (result.mode === "full" || result.newInstallmentAmount === null) {
+    return { minimumPayment: BigInt(0) };
+  }
+  return {
+    installmentAmount: result.newInstallmentAmount,
+    minimumPayment: result.newInstallmentAmount,
+    installmentFromPeriod: fromPeriod,
+    ...(result.newTenorMonths === null
+      ? {}
+      : { tenorMonths: result.newTenorMonths }),
+  };
+}
+
+function toPrepaymentDto(row: {
+  id: string;
+  mode: PrepaymentMode;
+  principalAmount: bigint;
+  penaltyPercent: { toString(): string };
+  penaltyAmount: bigint;
+  effectivePeriod: number;
+  installmentBefore: bigint | null;
+  installmentAfter: bigint | null;
+  tenorMonthsBefore: number;
+  tenorMonthsAfter: number;
+  occurredAt: Date;
+}): LiabilityPrepaymentResponseDto {
+  return {
+    id: row.id,
+    mode: row.mode,
+    principalAmount: row.principalAmount.toString(),
+    penaltyPercent: row.penaltyPercent.toString(),
+    penaltyAmount: row.penaltyAmount.toString(),
+    effectivePeriod: row.effectivePeriod,
+    installmentBefore: row.installmentBefore?.toString() ?? null,
+    installmentAfter: row.installmentAfter?.toString() ?? null,
+    tenorMonthsBefore: row.tenorMonthsBefore,
+    tenorMonthsAfter: row.tenorMonthsAfter,
+    occurredAt: row.occurredAt.toISOString(),
+  };
+}
+```
+
+4. **`previewPrepayment` refactor** (behaviour unchanged, except that it now also refuses an amount on a full payoff).
+   - Replace everything from `if (\n      liability.interestMethod !== "anuitas" ||` down to (and including) the `const amount = … guardBigInt("amount", query.amount);` statement with:
+
+     ```ts
+     assertPrepayable(liability);
+     const request = parsePrepaymentRequest(query);
+     ```
+
+   - Change `const result = simulateOrReject({ schedule, mode: query.mode, amount, penaltyPercent });` to `const result = simulateOrReject({ schedule, ...request });`.
+   - In the returned object, change `penaltyPercent,` to `penaltyPercent: request.penaltyPercent,`.
+   - `assumesCurrentFloatingRate` needs a non-null tenor: use `liability.tenorMonths ?? 1`, which is safe after `assertPrepayable`.
+
+5. **Public method + private helpers.** Add directly after `previewPrepayment`:
+
+```ts
+  /**
+   * Revisi K — records an early repayment (decision 5): debit, principal +
+   * penalty legs, persisted installment/tenor from the prepayment's period,
+   * budget re-sync, all in one Serializable transaction. Replay-safe per
+   * idempotencyKey; deliberately NOT subject to the monthly installment guard.
+   */
+  async recordPrepayment(
+    familyGroupId: string,
+    id: string,
+    dto: Omit<RecordPrepaymentDto, "fxInputs">,
+    userId: string | null,
+    now: Date = new Date(),
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const request = parsePrepaymentRequest(dto);
+    return runSerializableWithRetry(this.prisma, (tx) =>
+      this.runPrepayment(tx, familyGroupId, id, dto, request, userId, now),
+    );
+  }
+
+  private async runPrepayment(
+    tx: TxClient,
+    familyGroupId: string,
+    id: string,
+    dto: Omit<RecordPrepaymentDto, "fxInputs">,
+    request: PrepaymentRequest,
+    userId: string | null,
+    now: Date,
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const liability = await tx.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+    const planned = await withRatePlan(tx, familyGroupId, liability);
+
+    const replay = await tx.liabilityPrepayment.findFirst({
+      where: { familyGroupId, liabilityId: id, idempotencyKey: dto.idempotencyKey },
+    });
+    if (replay) {
+      return {
+        liability: toLiabilityDto(planned, false, now),
+        prepayment: toPrepaymentDto(replay),
+        replayed: true,
+      };
+    }
+
+    assertPrepayable(liability);
+    const sourceAccount = await tx.account.findUnique({
+      where: { id: dto.sourceAccountId, familyGroupId },
+    });
+    if (!sourceAccount) {
+      throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
+    }
+
+    const schedule = scheduleInputFor(planned, now);
+    const result = simulateOrReject({ schedule, ...request });
+    await assertBankNotOverdrawn(
+      tx,
+      familyGroupId,
+      sourceAccount.id,
+      result.cashOutNow,
+    );
+    await tx.account.update({
+      where: { id: sourceAccount.id, familyGroupId },
+      data: { balance: { decrement: result.cashOutNow } },
+    });
+
+    const tenorBefore = liability.tenorMonths ?? 0;
+    const prepayment = await tx.liabilityPrepayment.create({
+      data: {
+        familyGroupId,
+        liabilityId: id,
+        idempotencyKey: dto.idempotencyKey,
+        mode: result.mode,
+        principalAmount: result.prepaidPrincipal,
+        penaltyPercent: request.penaltyPercent,
+        penaltyAmount: result.penalty,
+        sourceAccountId: sourceAccount.id,
+        effectivePeriod: schedule.firstPeriod,
+        installmentBefore: result.installmentBefore,
+        installmentAfter: result.newInstallmentAmount,
+        tenorMonthsBefore: tenorBefore,
+        tenorMonthsAfter: result.newTenorMonths ?? tenorBefore,
+        createdByUserId: userId,
+        occurredAt: now,
+      },
+    });
+
+    const terms = prepaidTerms(result, schedule.firstPeriod);
+    const updated = await tx.liability.update({
+      where: { id, familyGroupId },
+      data: { remainingBalance: { decrement: result.prepaidPrincipal }, ...terms },
+    });
+
+    await this.bookPrepaymentLegs(
+      tx,
+      familyGroupId,
+      liability,
+      sourceAccount.id,
+      prepayment.id,
+      result,
+      now,
+    );
+
+    await this.syncPrincipalBudgetLine(
+      tx,
+      familyGroupId,
+      { ...planned, ...terms },
+      budgetContribution(
+        {
+          ...planned,
+          ...terms,
+          remainingBalance: liability.remainingBalance - result.prepaidPrincipal,
+        },
+        now,
+      ),
+    );
+
+    return {
+      liability: toLiabilityDto(
+        { ...updated, ratePlanRows: planned.ratePlanRows },
+        false,
+        now,
+      ),
+      prepayment: toPrepaymentDto(prepayment),
+      replayed: false,
+    };
+  }
+
+  private async bookPrepaymentLegs(
+    tx: TxClient,
+    familyGroupId: string,
+    liability: { id: string; name: string },
+    accountId: string,
+    prepaymentId: string,
+    result: PrepaymentResult,
+    occurredAt: Date,
+  ): Promise<void> {
+    const principalCategoryId = await this.resolveSystemCategoryId(
+      tx,
+      familyGroupId,
+      { groupNum: 5, direction: "TRANSFER" },
+      PREPAYMENT_CATEGORY_NAME,
+    );
+    await tx.transaction.create({
+      data: {
+        familyGroupId,
+        accountId,
+        categoryId: principalCategoryId,
+        amount: result.prepaidPrincipal,
+        type: "transfer",
+        liabilityId: liability.id,
+        liabilityPrepaymentId: prepaymentId,
+        description: `Pelunasan dipercepat ${liability.name}`,
+        occurredAt,
+      },
+    });
+    if (result.penalty <= BigInt(0)) return;
+    const penaltyCategoryId = await this.resolveSystemCategoryId(
+      tx,
+      familyGroupId,
+      { code: PREPAYMENT_PENALTY_COA_CODE },
+    );
+    await tx.transaction.create({
+      data: {
+        familyGroupId,
+        accountId,
+        categoryId: penaltyCategoryId,
+        amount: result.penalty,
+        type: "expense",
+        liabilityId: liability.id,
+        liabilityPrepaymentId: prepaymentId,
+        description: `Penalti pelunasan ${liability.name}`,
+        occurredAt,
+      },
+    });
+  }
+
+  /** Finds or creates the family's category for a system COA; `name` defaults to the COA's own name. */
+  private async resolveSystemCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+    coaWhere: Prisma.CoaAccountWhereInput,
+    name?: string,
+  ): Promise<string> {
+    const coaAccount = await tx.coaAccount.findFirst({
+      where: { familyGroupId, ...coaWhere },
+      orderBy: { code: "asc" },
+    });
+    if (!coaAccount) {
+      throw new BadRequestException(
+        "Akun COA untuk pelunasan dipercepat belum tersedia di keluarga ini",
+      );
+    }
+    const categoryName = name ?? coaAccount.name;
+    const existing = await tx.category.findFirst({
+      where: { familyGroupId, name: categoryName, kind: "expense" },
+      select: { id: true, coaAccountId: true },
+    });
+    if (existing) {
+      if (existing.coaAccountId === coaAccount.id) return existing.id;
+      throw new ConflictException(
+        `Kategori "${categoryName}" sudah dipakai untuk akun COA lain — ganti nama kategori itu dulu`,
+      );
+    }
+    const created = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: categoryName,
+        kind: "expense",
+        coaAccountId: coaAccount.id,
+      },
+    });
+    return created.id;
+  }
+```
+
+(f) In `apps/api/src/liabilities/liabilities.controller.ts`:
+
+- Add `LiabilityPrepaymentRecordResponseDto` to the response-DTO import.
+- Add the value import with its disable comment:
+
+  ```ts
+  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+  import { RecordPrepaymentDto } from "./dto/record-prepayment.dto";
+  ```
+
+- Insert after the `pay(...) { … }` route:
+
+```ts
+  @Post(":id/prepay")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Liability"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Record an early repayment (full / reduce tenor / reduce installment): debits principal + penalty, persists the new terms; idempotent per idempotencyKey",
+  })
+  @ApiResponse({ status: 200, type: LiabilityPrepaymentRecordResponseDto })
+  @ApiResponse({ status: 404, description: "Liability or account not found" })
+  @ApiResponse({
+    status: 400,
+    description: "Not an anuitas loan, invalid amount/penalty, or overdraft",
+  })
+  @ApiResponse({ status: 409, description: "Category name conflict" })
+  recordPrepayment(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: RecordPrepaymentDto,
+    @Req() req: Request,
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const userId = req.tenantContext?.userId ?? null;
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId,
+        entity: "Liability",
+        entityId: id,
+        fieldPrefix: "prepay",
+        dto,
+        spec: FX_FIELD_SPECS.liabilityPrepayment,
+      },
+      (converted) =>
+        this.liabilitiesService.recordPrepayment(
+          familyGroupId,
+          id,
+          converted,
+          userId,
+        ),
+    );
+  }
+```
+
+(g) Append to `packages/contracts/src/liabilities/index.ts`:
+
+```ts
+// Revisi K — record an early repayment (the simulator's "Catat pelunasan").
+export interface RecordLiabilityPrepaymentDto {
+  sourceAccountId: string;
+  mode: PrepaymentMode;
+  amount?: string;
+  penaltyPercent?: string;
+  // Client UUID, one per simulation; a repeat returns the first record.
+  idempotencyKey: string;
+}
+
+export interface LiabilityPrepaymentDto {
+  id: string;
+  mode: PrepaymentMode;
+  principalAmount: string;
+  penaltyPercent: string;
+  penaltyAmount: string;
+  effectivePeriod: number;
+  installmentBefore: string | null;
+  installmentAfter: string | null;
+  tenorMonthsBefore: number;
+  tenorMonthsAfter: number;
+  occurredAt: string;
+}
+
+export interface LiabilityPrepaymentRecordResultDto {
+  liability: LiabilityDto;
+  prepayment: LiabilityPrepaymentDto;
+  replayed: boolean;
+}
+```
+
+Run (repo root): `pnpm --filter @wealthme/contracts build`
+Expected: build succeeds.
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run (from `apps/api`): `pnpm exec jest src/liabilities src/fx`
+Expected: PASS.
+
+- The K service spec has 16 more tests (`recordPrepayment`).
+- The controller spec has 4 more, and PERMISSION/DENIAL now cover `recordPrepayment`: owner/member/spouse allowed; admin_staff, dependant, operational and anonymous refused.
+- The fx holdings spec has 1 more.
+- Task 8's `previewPrepayment` tests are still green.
+
+Run (from `apps/api`): `pnpm exec tsc --noEmit -p tsconfig.json`
+Expected: exit 0.
+
+- [ ] **Step 5: Lint**
+
+Run (from `apps/api`): `pnpm exec eslint src/liabilities/prepayment.util.ts src/liabilities/dto/record-prepayment.dto.ts src/liabilities/dto/liability-response.dto.ts src/liabilities/liabilities.service.ts src/liabilities/liabilities.controller.ts src/liabilities/liabilities.controller.spec.ts src/liabilities/liabilities.service.rate-plan.spec.ts src/fx/fx-field-specs.ts src/fx/fx-wiring-holdings.spec.ts`
+Expected: exit 0 (hand-fix; never `--fix` on the service/controller).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add apps/api/src/liabilities/prepayment.util.ts apps/api/src/liabilities/dto/record-prepayment.dto.ts apps/api/src/liabilities/dto/liability-response.dto.ts apps/api/src/liabilities/liabilities.service.ts apps/api/src/liabilities/liabilities.controller.ts apps/api/src/liabilities/liabilities.controller.spec.ts apps/api/src/liabilities/liabilities.service.rate-plan.spec.ts apps/api/src/fx/fx-field-specs.ts apps/api/src/fx/fx-wiring-holdings.spec.ts packages/contracts/src/liabilities/index.ts packages/contracts/dist
+git commit -m "$(cat <<'EOF'
+feat(liabilities): record KPR early repayments
+
+POST .../liabilities/:id/prepay debits principal + penalty (overdraft
+floor applies), books the principal on a dedicated transfer category and
+the penalty on COA 20011, and persists the reduced installment or tenor
+from the prepayment's period so schedule, Pay preset and budget line
+follow. Idempotent per idempotencyKey (a concurrent duplicate becomes a
+replay); exempt from the monthly installment guard; fxInputs-aware.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RDbXyuMbb2WHtT74hdL9Zy
+EOF
+)"
+```
+
+---
+
+### Task 11: Web — scheme presets + rate-period editor in the add/edit form
 
 **Before you start:** invoke `taste-skill:taste-skill` and follow its pre-flight for this form section. Run `git status`: if `apps/web/src/app/(app)/liabilitas/page.tsx` has changes that are not yours (sub-plan I's money inputs), stop and report. Otherwise rebase or pull first, and touch only the lines named below.
 
@@ -5004,15 +7378,15 @@ EOF
 
 **Interfaces:**
 
-- Consumes (contracts, from Task 4): `KprScheme`, `RatePeriodKind`, `LiabilityRatePeriodDto`, and `LiabilityDto.{ratePeriods, kprScheme, fixedRateMonths, floatingRate, interestRate}`.
+- Consumes (contracts, from Task 5): `KprScheme`, `RatePeriodKind`, `LiabilityRatePeriodDto`, and `LiabilityDto.{ratePeriods, kprScheme, fixedRateMonths, floatingRate, interestRate}`.
 - Produces:
   - **`./kpr-presets`:**
     - Types: `KprPresetId`, `RateSource = "official" | "example" | "user"`, `RatePeriodDraft { kind; months: string; ratePercent: string; source }`, `KprPlanDraft { presetId; scheme: KprScheme | null; periods }`.
-    - Constants: `KPR_PRESETS`, `MAX_RATE_PERIODS = 10`, `DEFAULT_PREPAYMENT_PENALTY_PERCENT = "1.00"` (Task 9 uses it).
+    - Constants: `KPR_PRESETS`, `MAX_RATE_PERIODS = 10`, `DEFAULT_PREPAYMENT_PENALTY_PERCENT = "1.00"` (Task 12 uses it).
     - Functions: `presetById`, `draftFromPreset(id)`, `draftFromLiability(liability)`, `toRatePeriodsBody(periods): LiabilityRatePeriodDto[] | null`.
   - **`<KprRatePeriodsField value onChange />`.** Input labels follow `"<label> · Periode <n>"`, e.g. `Bunga/tahun (%) · Periode 1`. A rate taken from a preset shows a `Contoh` or `Resmi` badge until the user edits it.
-  - **`extractApiErrorMessage(err, fallback)`**, exported from `./api-error` (Task 9 uses it).
-  - **i18n:** `t.liabilitas.kpr.*` (form keys; Task 9 appends detail keys). G's now-unused `fieldFixedRateMonthsLabel` / `fieldFloatingRateLabel` are removed from all three files.
+  - **`extractApiErrorMessage(err, fallback)`**, exported from `./api-error` (Task 12 uses it).
+  - **i18n:** `t.liabilitas.kpr.*` (form keys; Task 12 appends detail keys). G's now-unused `fieldFixedRateMonthsLabel` / `fieldFloatingRateLabel` are removed from all three files.
   - **Behaviour:**
     - For `type === "kpr" && interestMethod === "anuitas"`, the form hides the single rate input and shows the editor. It sends `ratePeriods`, `kprScheme` and `interestRate = ratePeriods[0].ratePercent`, and never sends `fixedRateMonths`/`floatingRate`.
     - An incomplete editor blocks submit with a toast.
@@ -5300,7 +7674,7 @@ type LiabilitasKprPresetId =
 In the `liabilitas` block, delete `fieldFixedRateMonthsLabel: string;` and `fieldFloatingRateLabel: string;`. After `tenorMonthsSuffix: string;`, add:
 
 ```ts
-/** Revisi K — KPR rate structure (form); Task 9 adds the detail keys. */
+/** Revisi K — KPR rate structure (form); Task 12 adds the detail keys. */
 kpr: {
   planLegend: string;
   presetLabel: string;
@@ -5958,25 +8332,25 @@ EOF
 
 ---
 
-### Task 9: Web — Detail dialog: rate column with "Estimasi", floating history panel, prepayment simulator
+### Task 12: Web — Detail dialog: rate column with "Estimasi", floating history panel, prepayment simulator
 
-**Before you start:** invoke `taste-skill:taste-skill` (a data-dense panel inside an existing `dialog--wide`, using the existing classes only). Check `git status` for foreign edits in `page.tsx`, as in Task 8.
+**Before you start:** invoke `taste-skill:taste-skill` (a data-dense panel inside an existing `dialog--wide`, using the existing classes only). Check `git status` for foreign edits in `page.tsx`, as in Task 11.
 
 **Files:**
 
 - Create: `apps/web/src/app/(app)/liabilitas/schedule-rate-cell.tsx`
 - Create: `apps/web/src/app/(app)/liabilitas/kpr-floating-rates-panel.tsx`, `apps/web/src/app/(app)/liabilitas/kpr-floating-rates-panel.test.tsx`
 - Create: `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.tsx`, `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.test.tsx`
-- Modify: `apps/web/src/app/(app)/liabilitas/page.tsx` — `LiabilityDetailDialog` only (~lines 1055-1350)
+- Modify: `apps/web/src/app/(app)/liabilitas/page.tsx` — `LiabilityDetailDialog` (~lines 1055-1350), plus a one-block seam at the top of `PayLiabilityDialog`'s `<DialogBody>` (the "Telat" notice; sub-plan I's amount inputs are untouched)
 - Modify: `apps/web/src/app/(app)/liabilitas/liabilitas.test.tsx` — schedule mock variables, a floating-rates GET branch, one new test
 - Modify: `apps/web/src/i18n/types.ts`, `id.ts`, `en.ts` (append to `liabilitas.kpr`)
 
 **Interfaces:**
 
 - Consumes:
-  - Contracts from Task 4: `LiabilityScheduleDto.{rateBands, hasFloatingPeriod}`, `LiabilityRateBandDto`, `LiabilityFloatingRateDto`, `LiabilityPrepaymentPreviewDto`, `PrepaymentMode`.
-  - Task 6 routes (`GET/POST …/floating-rates`, `DELETE …/floating-rates/:rateId`) and the Task 7 route (`GET …/prepayment-preview`).
-  - Task 8's `extractApiErrorMessage` and `DEFAULT_PREPAYMENT_PENALTY_PERCENT`.
+  - Contracts from Task 5: `LiabilityScheduleDto.{rateBands, hasFloatingPeriod}`, `LiabilityRateBandDto`, `LiabilityFloatingRateDto`, `LiabilityPrepaymentPreviewDto`, `PrepaymentMode`.
+  - Task 7 routes (`GET/POST …/floating-rates`, `DELETE …/floating-rates/:rateId`) and the Task 8 route (`GET …/prepayment-preview`).
+  - Task 11's `extractApiErrorMessage` and `DEFAULT_PREPAYMENT_PENALTY_PERCENT`.
 - Produces:
   - `<ScheduleRateCell bands period estimateLabel />`.
   - `<KprFloatingRatesPanel familyGroupId liabilityId token onChanged />`, with query key `["liabilities", familyGroupId, "floating-rates", liabilityId]`. That key sits under `queryKeys.liabilities.all`, so the page's `invalidateLiabilityRelatedQueries` refreshes it, the schedule, the list and the budget together.
@@ -6274,7 +8648,7 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
   let scheduleHasFloating = false;
   ```
 
-- In the schedule mock, change the Task 4 literals to `rateBands: scheduleBands,` and `hasFloatingPeriod: scheduleHasFloating,`.
+- In the schedule mock, change the Task 5 literals to `rateBands: scheduleBands,` and `hasFloatingPeriod: scheduleHasFloating,`.
 - In `beforeEach`, after `scheduleRows = SCHEDULE_ROWS;`, add `scheduleBands = []; scheduleHasFloating = false;`.
 - In `mockApiFetch`, directly before the final `return Promise.reject(new Error(\`unexpected url…\`))`, add:
 
@@ -6342,6 +8716,32 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
     ).toBeInTheDocument();
   });
   ```
+
+(d) Also in `liabilitas.test.tsx`, add next to the Pay tests:
+
+```tsx
+it("Pay dialog marks an installment inside its 5-day grace window as Telat (revisi K)", async () => {
+  liabilitiesFixture = [baseLiability({ currentInstallmentLate: true })];
+  const user = userEvent.setup();
+  render(<LiabilitasPage />);
+
+  await user.click(await screen.findByRole("button", { name: "Bayar" }));
+  const dialog = within(await screen.findByRole("dialog"));
+
+  expect(dialog.getByText("Telat")).toBeInTheDocument();
+  expect(dialog.getByText(/masa tenggang 5 hari/)).toBeInTheDocument();
+});
+
+it("Pay dialog shows no Telat notice for an installment that is not late", async () => {
+  const user = userEvent.setup();
+  render(<LiabilitasPage />);
+
+  await user.click(await screen.findByRole("button", { name: "Bayar" }));
+  const dialog = within(await screen.findByRole("dialog"));
+
+  expect(dialog.queryByText("Telat")).not.toBeInTheDocument();
+});
+```
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -6480,6 +8880,12 @@ prepayFailed: string;
         "Estimate: future floating rates are assumed unchanged, and interest accrued since the last installment is not included.",
       prepayFailed: "Simulation failed",
 ```
+
+Also add, in the `liabilitas` block **outside** `kpr` (the Pay dialog serves every liability type):
+
+- `types.ts`: after `tenorMonthsSuffix: string;`, add `payLateBadge: string;` and `payLateNote: string;`.
+- `id.ts`: `payLateBadge: "Telat",` and `payLateNote: "Cicilan ini sudah lewat jatuh tempo — masih dihitung sebagai cicilan yang sama selama masa tenggang 5 hari.",`.
+- `en.ts`: `payLateBadge: "Late",` and `payLateNote: "This installment is past its due date — it still counts as the same installment during the 5-day grace window.",`.
 
 - [ ] **Step 3b: Components**
 
@@ -6959,10 +9365,27 @@ export function KprPrepaymentSimulator({
    }
    ```
 
+- [ ] **Step 3d: Pay dialog "Telat" seam (`PayLiabilityDialog`)**
+
+Insert as the first child of `PayLiabilityDialog`'s `<DialogBody>` (above the preset `.field`):
+
+```tsx
+{
+  item.currentInstallmentLate && (
+    <div className="notice notice--warning" role="status">
+      <span className="badge badge--danger">{t.liabilitas.payLateBadge}</span>{" "}
+      {t.liabilitas.payLateNote}
+    </div>
+  );
+}
+```
+
+The "Cicilan" preset keeps its label and value (`currentInstallmentAmount`). During the grace window that value _is_ the late installment, and `pay()` books that same installment (Task 3).
+
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run (from `apps/web`): `pnpm exec jest "src/app/\(app\)/(liabilitas|anggaran)"`
-Expected: PASS. The panel spec has 4 tests, the simulator spec has 4, and `liabilitas.test.tsx` has 1 more. Existing Detail tests (kartu kredit fixtures) are unchanged, because the K panels do not render for them.
+Expected: PASS. The panel spec has 4 tests, the simulator spec has 4, and `liabilitas.test.tsx` has 3 more (Detail + two Pay "Telat"). Existing Detail tests (kartu kredit fixtures) are unchanged, because the K panels do not render for them.
 
 Run (from `apps/web`): `pnpm exec tsc --noEmit`
 Expected: no errors in files this task touched.
@@ -7002,50 +9425,831 @@ EOF
 
 ---
 
+### Task 13: Web — "Catat pelunasan": record the simulated prepayment
+
+**Before you start:** invoke `taste-skill:taste-skill` (a money-moving confirmation inside an existing panel; existing classes only). Check `git status` for foreign edits in `page.tsx`, as in Task 11.
+
+**Files:**
+
+- Modify (full replacement): `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.tsx`
+- Modify (full replacement): `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.test.tsx`
+- Modify: `apps/web/src/app/(app)/liabilitas/page.tsx` — only the `<KprPrepaymentSimulator … />` element in `LiabilityDetailDialog`
+- Modify: `apps/web/src/i18n/types.ts`, `id.ts`, `en.ts` (append to `liabilitas.kpr`; reword `prepaySimulationNote`)
+
+**Interfaces:**
+
+- Consumes:
+  - Task 10 route `POST …/liabilities/:id/prepay`.
+  - Contracts `RecordLiabilityPrepaymentDto` and `LiabilityPrepaymentRecordResultDto`.
+  - Task 12 simulator and page seam; Task 11 `extractApiErrorMessage`.
+  - `queryKeys.accounts.all` (read-only use of `@/lib/query-keys`).
+- Produces:
+  - `<KprPrepaymentSimulator familyGroupId liabilityId token onRecorded makeIdempotencyKey? />`.
+    - Each simulation stores its exact request plus a fresh idempotency key (`crypto.randomUUID()` by default; tests inject one).
+    - "Catat pelunasan" needs a source account and then an explicit confirmation stating the exact debit.
+    - The confirm button is disabled while pending, and the same key is reused, so a double click or a retry posts at most one prepayment.
+    - On success it shows a toast and calls `onRecorded()` (the page passes `invalidateLiabilityRelatedQueries`), then clears the simulation.
+  - **IDR-only on the web by design** (Global Constraints). The API also accepts `fxInputs`.
+
+- [ ] **Step 1: Write the failing tests**
+
+Replace `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.test.tsx` with:
+
+```tsx
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+import { id as idDict } from "../../../i18n/id";
+
+import { KprPrepaymentSimulator } from "./kpr-prepayment-simulator";
+
+const mockApiFetch = jest.fn();
+jest.mock("../../../lib/api-client", () => ({
+  apiFetch: (...args: unknown[]) => mockApiFetch(...args),
+}));
+const toastSuccess = jest.fn();
+const toastError = jest.fn();
+jest.mock("sonner", () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccess(...args),
+    error: (...args: unknown[]) => toastError(...args),
+  },
+}));
+
+const k = idDict.liabilitas.kpr;
+const BASE = "/family-groups/fg-1/liabilities/liab-1";
+const PREVIEW_URL = `${BASE}/prepayment-preview?`;
+const ACCOUNTS = [{ id: "acc-1", name: "BCA Tabungan", institution: "BCA" }];
+const PREVIEW = {
+  liabilityId: "liab-1",
+  mode: "reduce_installment",
+  prepaidPrincipal: "100000000",
+  penaltyPercent: "1.00",
+  penalty: "1000000",
+  cashOutNow: "101000000",
+  installmentBefore: "4546388",
+  installmentAfter: "3409791",
+  remainingMonthsBefore: 180,
+  remainingMonthsAfter: 180,
+  totalInterestBefore: "418349734",
+  totalInterestAfter: "313762283",
+  interestSaved: "104587451",
+  netSaving: "103587451",
+  assumesCurrentFloatingRate: true,
+};
+
+function routeApi(opts: {
+  preview?: unknown;
+  previewError?: unknown;
+  record?: () => Promise<unknown>;
+}) {
+  mockApiFetch.mockImplementation((url: string, init?: { method?: string }) => {
+    if (url === "/family-groups/fg-1/accounts") {
+      return Promise.resolve(ACCOUNTS);
+    }
+    if (url.startsWith(PREVIEW_URL)) {
+      return opts.previewError
+        ? Promise.reject(opts.previewError)
+        : Promise.resolve(opts.preview);
+    }
+    if (url === `${BASE}/prepay` && init?.method === "POST") {
+      return opts.record ? opts.record() : Promise.resolve({ replayed: false });
+    }
+    return Promise.reject(new Error(`unexpected url: ${url}`));
+  });
+}
+
+function renderSimulator() {
+  const onRecorded = jest.fn();
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={client}>
+      <KprPrepaymentSimulator
+        familyGroupId="fg-1"
+        liabilityId="liab-1"
+        token="t"
+        onRecorded={onRecorded}
+        makeIdempotencyKey={() => "key-1"}
+      />
+    </QueryClientProvider>,
+  );
+  return onRecorded;
+}
+
+async function simulateReduceInstallment(
+  user: ReturnType<typeof userEvent.setup>,
+) {
+  await user.click(
+    screen.getByRole("radio", { name: k.prepayModes.reduce_installment }),
+  );
+  await user.type(screen.getByLabelText(k.prepayAmountLabel), "100000000");
+  await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
+  await screen.findByText(/3\.409\.791/);
+}
+
+async function chooseAccount(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByRole("option", { name: "BCA Tabungan · BCA" });
+  await user.selectOptions(
+    screen.getByLabelText(k.recordAccountLabel),
+    "acc-1",
+  );
+}
+
+function prepayPosts() {
+  return mockApiFetch.mock.calls.filter(
+    ([url, init]) => url === `${BASE}/prepay` && init?.method === "POST",
+  );
+}
+
+describe("KprPrepaymentSimulator (revisi K)", () => {
+  beforeEach(() => {
+    mockApiFetch.mockReset();
+    toastSuccess.mockReset();
+    toastError.mockReset();
+  });
+
+  it("labels the numbers a simulation, defaults the penalty to the 1% example, and fetches nothing up front", () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+
+    expect(screen.getByText(k.prepaySimulationNote)).toBeInTheDocument();
+    expect(screen.getByLabelText(k.prepayPenaltyLabel)).toHaveValue("1.00");
+    expect(screen.getByText(k.prepayPenaltyHint)).toBeInTheDocument();
+    expect(mockApiFetch).not.toHaveBeenCalled();
+  });
+
+  it("reduce installment: sends mode, penalty and the amount digits; shows the server's numbers", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `${PREVIEW_URL}mode=reduce_installment&penaltyPercent=1.00&amount=100000000`,
+      expect.objectContaining({ token: "t" }),
+    );
+    expect(screen.getByText(/104\.587\.451/)).toBeInTheDocument();
+    expect(screen.getByText(k.prepayEstimateNote)).toBeInTheDocument();
+  });
+
+  it("full payoff sends no amount", async () => {
+    routeApi({ preview: { ...PREVIEW, mode: "full" } });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("radio", { name: k.prepayModes.full }));
+    expect(
+      screen.queryByLabelText(k.prepayAmountLabel),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
+
+    await waitFor(() =>
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        `${PREVIEW_URL}mode=full&penaltyPercent=1.00`,
+        expect.anything(),
+      ),
+    );
+  });
+
+  it("shows the server's 400 message for a bad simulation", async () => {
+    routeApi({
+      previewError: {
+        status: 400,
+        message:
+          "Jumlah pelunasan harus lebih dari 0 dan tidak melebihi sisa pokok",
+      },
+    });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await user.type(screen.getByLabelText(k.prepayAmountLabel), "999999999999");
+    await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
+
+    expect(
+      await screen.findByText(/tidak melebihi sisa pokok/),
+    ).toBeInTheDocument();
+  });
+
+  it("Catat pelunasan needs a source account, then a confirmation stating the exact debit", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+
+    expect(screen.getByRole("button", { name: k.recordButton })).toBeDisabled();
+    await chooseAccount(user);
+    await user.click(screen.getByRole("button", { name: k.recordButton }));
+
+    expect(screen.getByRole("alert")).toHaveTextContent(/Rp 101\.000\.000/);
+    expect(prepayPosts()).toHaveLength(0);
+  });
+
+  it("records the simulated request exactly, with its idempotency key, then refreshes", async () => {
+    routeApi({ preview: PREVIEW });
+    const onRecorded = renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+    await chooseAccount(user);
+    await user.click(screen.getByRole("button", { name: k.recordButton }));
+    await user.click(
+      screen.getByRole("button", { name: k.recordConfirmButton }),
+    );
+
+    await waitFor(() => expect(onRecorded).toHaveBeenCalled());
+    const [, init] = prepayPosts()[0] ?? [];
+    expect(JSON.parse(init.body)).toEqual({
+      mode: "reduce_installment",
+      penaltyPercent: "1.00",
+      amount: "100000000",
+      sourceAccountId: "acc-1",
+      idempotencyKey: "key-1",
+    });
+    expect(toastSuccess).toHaveBeenCalledWith(k.recordSaved);
+  });
+
+  it("a double click posts once", async () => {
+    let settle: (value: unknown) => void = () => undefined;
+    routeApi({
+      preview: PREVIEW,
+      record: () => new Promise((resolve) => (settle = resolve)),
+    });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+    await chooseAccount(user);
+    await user.click(screen.getByRole("button", { name: k.recordButton }));
+    const confirm = screen.getByRole("button", { name: k.recordConfirmButton });
+    await user.dblClick(confirm);
+
+    expect(prepayPosts()).toHaveLength(1);
+    settle({ replayed: false });
+  });
+
+  it("a failed record keeps the simulation and shows the server's message", async () => {
+    routeApi({
+      preview: PREVIEW,
+      record: () =>
+        Promise.reject({
+          status: 400,
+          message:
+            'Saldo rekening bank "BCA Tabungan" tidak mencukupi untuk transaksi ini.',
+        }),
+    });
+    const onRecorded = renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+    await chooseAccount(user);
+    await user.click(screen.getByRole("button", { name: k.recordButton }));
+    await user.click(
+      screen.getByRole("button", { name: k.recordConfirmButton }),
+    );
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith(
+        'Saldo rekening bank "BCA Tabungan" tidak mencukupi untuk transaksi ini.',
+      ),
+    );
+    expect(onRecorded).not.toHaveBeenCalled();
+    expect(screen.getByText(/3\.409\.791/)).toBeInTheDocument();
+  });
+});
+```
+
+- [ ] **Step 2: Run tests to verify they fail**
+
+Run (from `apps/web`): `pnpm exec jest "src/app/\(app\)/liabilitas/kpr-prepayment-simulator"`
+Expected: FAIL. You should see "Unable to find a label with the text of: Rekening sumber", and the `onRecorded` / `makeIdempotencyKey` props are unknown.
+
+- [ ] **Step 3a: i18n**
+
+In `types.ts` `liabilitas.kpr`, after `prepayFailed: string;`, add:
+
+```ts
+recordAccountLabel: string;
+recordAccountPlaceholder: string;
+recordButton: string;
+recordConfirmPrefix: string;
+recordConfirmBreakdown: string;
+recordConfirmButton: string;
+recordCancelButton: string;
+recordSaved: string;
+recordFailed: string;
+```
+
+In `id.ts`, change `prepaySimulationNote` to:
+
+```ts
+      prepaySimulationNote:
+        "Angka di bawah hanya simulasi — belum ada yang dicatat sampai Anda menekan Catat pelunasan dan mengonfirmasi.",
+```
+
+and after `prepayFailed: …,`, add:
+
+```ts
+      recordAccountLabel: "Rekening sumber",
+      recordAccountPlaceholder: "Pilih rekening",
+      recordButton: "Catat pelunasan",
+      recordConfirmPrefix: "Rekening akan didebit ",
+      recordConfirmBreakdown:
+        " (pokok + penalti). Sisa pokok, cicilan atau tenor, jadwal, dan anggaran ikut diperbarui.",
+      recordConfirmButton: "Ya, catat",
+      recordCancelButton: "Batal",
+      recordSaved: "Pelunasan dipercepat dicatat",
+      recordFailed: "Gagal mencatat pelunasan",
+```
+
+In `en.ts`, change `prepaySimulationNote` to:
+
+```ts
+      prepaySimulationNote:
+        "The figures below are a simulation — nothing is recorded until you press Record prepayment and confirm.",
+```
+
+and after `prepayFailed: …,`, add:
+
+```ts
+      recordAccountLabel: "Source account",
+      recordAccountPlaceholder: "Choose an account",
+      recordButton: "Record prepayment",
+      recordConfirmPrefix: "The account will be debited ",
+      recordConfirmBreakdown:
+        " (principal + penalty). The remaining principal, installment or tenor, schedule and budget follow.",
+      recordConfirmButton: "Yes, record it",
+      recordCancelButton: "Cancel",
+      recordSaved: "Prepayment recorded",
+      recordFailed: "Could not record the prepayment",
+```
+
+- [ ] **Step 3b: Component**
+
+Replace `apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.tsx` with:
+
+```tsx
+"use client";
+
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
+import type {
+  LiabilityPrepaymentPreviewDto,
+  LiabilityPrepaymentRecordResultDto,
+  PrepaymentMode,
+  RecordLiabilityPrepaymentDto,
+} from "@wealthme/contracts";
+
+import { useLocale } from "@/hooks/use-locale";
+import { apiFetch } from "@/lib/api-client";
+import { formatAmountInput, formatRupiah } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
+
+import { extractApiErrorMessage } from "./api-error";
+import { DEFAULT_PREPAYMENT_PENALTY_PERCENT } from "./kpr-presets";
+
+const MODES: readonly PrepaymentMode[] = [
+  "reduce_tenor",
+  "reduce_installment",
+  "full",
+];
+
+type AccountOption = { id: string; name: string; institution: string | null };
+type PrepaymentRequest = Pick<
+  RecordLiabilityPrepaymentDto,
+  "mode" | "amount" | "penaltyPercent"
+>;
+
+function rupiah(value: string | null): string {
+  return value === null ? "—" : formatRupiah(Number(value));
+}
+
+function toSearch(request: PrepaymentRequest): string {
+  const params = new URLSearchParams({
+    mode: request.mode,
+    penaltyPercent:
+      request.penaltyPercent ?? DEFAULT_PREPAYMENT_PENALTY_PERCENT,
+  });
+  if (request.amount !== undefined) params.set("amount", request.amount);
+  return params.toString();
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="t-xs t-muted">{label}</dt>
+      <dd className="mono text-[13.5px] font-bold">{value}</dd>
+    </div>
+  );
+}
+
+// IDR-only on the web on purpose (revisi-k plan, Global Constraints); the API also accepts fxInputs.
+export function KprPrepaymentSimulator({
+  familyGroupId,
+  liabilityId,
+  token,
+  onRecorded,
+  makeIdempotencyKey = () => crypto.randomUUID(),
+}: {
+  familyGroupId: string;
+  liabilityId: string;
+  token: string | undefined;
+  onRecorded: () => void;
+  makeIdempotencyKey?: () => string;
+}) {
+  const { t } = useLocale();
+  const k = t.liabilitas.kpr;
+  const [mode, setMode] = useState<PrepaymentMode>("reduce_tenor");
+  const [amount, setAmount] = useState("");
+  const [penaltyPercent, setPenaltyPercent] = useState(
+    DEFAULT_PREPAYMENT_PENALTY_PERCENT,
+  );
+  // The request the shown result was computed for, and the key that records it at most once.
+  const [simulated, setSimulated] = useState<{
+    request: PrepaymentRequest;
+    idempotencyKey: string;
+  } | null>(null);
+  const [sourceAccountId, setSourceAccountId] = useState("");
+  const [confirming, setConfirming] = useState(false);
+
+  const base = `/family-groups/${familyGroupId}/liabilities/${liabilityId}`;
+  const search = simulated ? toSearch(simulated.request) : null;
+
+  const previewQuery = useQuery<LiabilityPrepaymentPreviewDto>({
+    queryKey: [
+      "liabilities",
+      familyGroupId,
+      "prepayment-preview",
+      liabilityId,
+      search,
+    ],
+    queryFn: ({ signal }) =>
+      apiFetch<LiabilityPrepaymentPreviewDto>(
+        `${base}/prepayment-preview?${search ?? ""}`,
+        { token, signal },
+      ),
+    enabled: Boolean(token && search),
+    retry: false,
+  });
+  const result = previewQuery.data;
+
+  const accountsQuery = useQuery<AccountOption[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId),
+    queryFn: ({ signal }) =>
+      apiFetch<AccountOption[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+        signal,
+      }),
+    enabled: Boolean(token && result),
+  });
+
+  const recordMutation = useMutation({
+    mutationFn: (body: RecordLiabilityPrepaymentDto) =>
+      apiFetch<LiabilityPrepaymentRecordResultDto>(`${base}/prepay`, {
+        method: "POST",
+        token,
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      toast.success(k.recordSaved);
+      setConfirming(false);
+      setSimulated(null);
+      onRecorded();
+    },
+    onError: (err: unknown) =>
+      toast.error(extractApiErrorMessage(err, k.recordFailed)),
+  });
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const digits = amount.replace(/\D/g, "");
+    if (mode !== "full" && !digits) return;
+    setConfirming(false);
+    setSimulated({
+      request: {
+        mode,
+        penaltyPercent: penaltyPercent.trim().replace(",", "."),
+        ...(mode === "full" ? {} : { amount: digits }),
+      },
+      idempotencyKey: makeIdempotencyKey(),
+    });
+  }
+
+  function handleRecord() {
+    if (!simulated || !sourceAccountId || recordMutation.isPending) return;
+    recordMutation.mutate({
+      ...simulated.request,
+      sourceAccountId,
+      idempotencyKey: simulated.idempotencyKey,
+    });
+  }
+
+  return (
+    <section
+      className="rounded-lg border p-3.5"
+      aria-labelledby="kpr-prepay-title"
+    >
+      <div id="kpr-prepay-title" className="mb-1 text-[12.5px] font-bold">
+        {k.prepayTitle}
+      </div>
+      <div className="notice notice--info">{k.prepaySimulationNote}</div>
+
+      <form className="mt-2" onSubmit={handleSubmit}>
+        <fieldset className="field mt-0">
+          <legend className="label">{k.prepayModeLabel}</legend>
+          <div className="segmented">
+            {MODES.map((m) => (
+              <label key={m} className="segmented__item">
+                <input
+                  type="radio"
+                  name="kpr-prepay-mode"
+                  value={m}
+                  checked={mode === m}
+                  onChange={() => setMode(m)}
+                />{" "}
+                {k.prepayModes[m]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="field-row mt-2">
+          {mode !== "full" && (
+            <div className="field mt-0">
+              <label className="label" htmlFor="kpr-prepay-amount">
+                {k.prepayAmountLabel}
+              </label>
+              <input
+                id="kpr-prepay-amount"
+                className="input mono"
+                inputMode="numeric"
+                value={amount}
+                onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+              />
+            </div>
+          )}
+          <div className="field mt-0">
+            <label className="label" htmlFor="kpr-prepay-penalty">
+              {k.prepayPenaltyLabel}
+            </label>
+            <input
+              id="kpr-prepay-penalty"
+              className="input mono"
+              inputMode="decimal"
+              aria-describedby="kpr-prepay-penalty-hint"
+              value={penaltyPercent}
+              onChange={(e) => setPenaltyPercent(e.target.value)}
+            />
+          </div>
+        </div>
+        <div className="hint" id="kpr-prepay-penalty-hint">
+          {k.prepayPenaltyHint}
+        </div>
+        <button type="submit" className="btn btn--outline btn--sm mt-2">
+          {k.prepaySubmit}
+        </button>
+      </form>
+
+      {previewQuery.isError && (
+        <div className="mt-2 text-[12px] text-destructive">
+          {extractApiErrorMessage(previewQuery.error, k.prepayFailed)}
+        </div>
+      )}
+      {result && (
+        <>
+          <dl className="mt-3 grid grid-cols-2 gap-3 rounded-lg bg-muted p-3.5">
+            <Stat
+              label={k.prepayResultPenalty}
+              value={rupiah(result.penalty)}
+            />
+            <Stat
+              label={k.prepayResultCashOut}
+              value={rupiah(result.cashOutNow)}
+            />
+            <Stat
+              label={k.prepayResultInstallment}
+              value={`${rupiah(result.installmentBefore)} → ${rupiah(result.installmentAfter)}`}
+            />
+            <Stat
+              label={k.prepayResultTenor}
+              value={`${result.remainingMonthsBefore} → ${result.remainingMonthsAfter}${k.prepayResultMonthsSuffix}`}
+            />
+            <Stat
+              label={k.prepayResultInterestSaved}
+              value={rupiah(result.interestSaved)}
+            />
+            <Stat
+              label={k.prepayResultNetSaving}
+              value={rupiah(result.netSaving)}
+            />
+          </dl>
+          {result.assumesCurrentFloatingRate && (
+            <div className="hint">{k.prepayEstimateNote}</div>
+          )}
+
+          <div className="mt-3 rounded-lg border p-3">
+            <div className="field mt-0">
+              <label className="label" htmlFor="kpr-prepay-account">
+                {k.recordAccountLabel}
+              </label>
+              <select
+                id="kpr-prepay-account"
+                className="select"
+                value={sourceAccountId}
+                onChange={(e) => setSourceAccountId(e.target.value)}
+              >
+                <option value="">{k.recordAccountPlaceholder}</option>
+                {(accountsQuery.data ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.institution ? `${a.name} · ${a.institution}` : a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {confirming ? (
+              <div className="notice notice--warning mt-2" role="alert">
+                <span>
+                  {k.recordConfirmPrefix}
+                  <strong className="mono">{rupiah(result.cashOutNow)}</strong>
+                  {k.recordConfirmBreakdown}
+                </span>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--sm"
+                    disabled={recordMutation.isPending}
+                    onClick={handleRecord}
+                  >
+                    {k.recordConfirmButton}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    disabled={recordMutation.isPending}
+                    onClick={() => setConfirming(false)}
+                  >
+                    {k.recordCancelButton}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn--primary btn--sm mt-2"
+                disabled={!sourceAccountId}
+                onClick={() => setConfirming(true)}
+              >
+                {k.recordButton}
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+```
+
+A double submit is stopped three ways: the confirm button is disabled while the mutation is pending; `handleRecord` ignores calls while pending; and a request that still gets through reuses the same idempotency key, so the server replays it instead of debiting twice (Task 10).
+
+- [ ] **Step 3c: Page seam**
+
+In `apps/web/src/app/(app)/liabilitas/page.tsx` (`LiabilityDetailDialog`), add the `onRecorded` prop to the existing `<KprPrepaymentSimulator … />`:
+
+```tsx
+<KprPrepaymentSimulator
+  familyGroupId={familyGroupId}
+  liabilityId={item.id}
+  token={token}
+  onRecorded={() =>
+    invalidateLiabilityRelatedQueries(queryClient, familyGroupId)
+  }
+/>
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run (from `apps/web`): `pnpm exec jest "src/app/\(app\)/(liabilitas|anggaran)"`
+Expected: PASS. The simulator spec has 8 tests, replacing Task 12's 4; the page tests are unchanged and green.
+
+Run (from `apps/web`): `pnpm exec tsc --noEmit`
+Expected: no errors in files this task touched.
+
+- [ ] **Step 5: Lint**
+
+Run (from `apps/web`): `pnpm exec eslint "src/app/(app)/liabilitas/kpr-prepayment-simulator.tsx" "src/app/(app)/liabilitas/kpr-prepayment-simulator.test.tsx" "src/app/(app)/liabilitas/page.tsx" src/i18n/types.ts src/i18n/id.ts src/i18n/en.ts`
+Expected: exit 0.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add "apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.tsx" "apps/web/src/app/(app)/liabilitas/kpr-prepayment-simulator.test.tsx" "apps/web/src/app/(app)/liabilitas/page.tsx" apps/web/src/i18n/types.ts apps/web/src/i18n/id.ts apps/web/src/i18n/en.ts
+git commit -m "$(cat <<'EOF'
+feat(web): record a simulated KPR prepayment ("Catat pelunasan")
+
+After a simulation the user picks a source account and confirms the
+exact debit (principal + penalty); the simulated request is posted once
+with its own idempotency key, then the liability, schedule, budget and
+accounts refresh. The simulation stays on screen if recording fails.
+
+Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01RDbXyuMbb2WHtT74hdL9Zy
+EOF
+)"
+```
+
+---
+
 ## Self-Review
+
+**Task list:**
+
+1. Rate plan model + `effectivePeriodFor` (pure)
+2. Plan-aware `buildSchedule` + `installmentAnchorPeriod` (pure)
+3. Unified due installment: 5-day grace, WIB calendar; drives the Pay preset, `pay()`, preview, schedule and budget line
+4. Early-repayment simulation (pure), including the terms to persist
+5. Schema, migration, validation, DTOs, contracts, response shape
+   6a. Load K rows and wire the plan into every reader
+   6b. Rate-period writers: create, update, legacy upgrade, orphaned-history guard
+6. Floating-rate history endpoints
+7. `GET :id/prepayment-preview`
+8. Prepayment persistence foundation: schema, COA 20011, anchored installment, re-anchoring term corrections, guard exception
+9. `POST :id/prepay`: record a prepayment
+10. Web: presets + rate-period editor
+11. Web: Detail rate column, floating history, simulator, Pay "Telat"
+12. Web: "Catat pelunasan"
 
 **Spec coverage:**
 
-| Requirement                                                                                                                                                       | Where it is covered                                                                                                                              |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| (a) Tiered rate periods                                                                                                                                           | Tasks 1–2 (engine), 4–5 (storage/wiring), 8 (editor)                                                                                             |
-| (b) Floating history, re-annuitised on remaining balance + tenor                                                                                                  | Tasks 1–2 (`effectivePeriodFor`, regime changes), 5 (reads), 6 (CRUD + budget resync), 9 (panel)                                                 |
-| (c) Scheme presets (FLPP 5 %/6 % full tenor up to 40 y, konvensional, berjenjang, murabahah, MMQ); examples labelled; FLPP labelled official                      | Decision 7, Task 4 (structural validation, FLPP ≤ 480), Task 8 (presets, badges, notices)                                                        |
-| (d) Early-repayment simulation (full/partial, reduce-tenor vs reduce-installment, editable penalty with a researched default); preview-only decided and justified | Decision 5, Tasks 3, 7, 9                                                                                                                        |
-| (e) Manual override on every period                                                                                                                               | Task 8 (every rate editable; editing clears the example badge); server never forces rates (decision 6)                                           |
-| Legacy rows unchanged                                                                                                                                             | Decision 1; G specs untouched (Tasks 2, 5); legacy-upgrade test (Task 5)                                                                         |
-| One shared engine (BigInt, round-half-up)                                                                                                                         | `rateAt(ratePlanOf(…))` + `buildSchedule` feed schedule, pay split, preview, `currentInstallment`, budget line and prepayment (Tasks 2, 3, 5, 7) |
-| Floating history tenant-scoped, ability-guarded, validated                                                                                                        | Task 6 (service + real-guard controller spec)                                                                                                    |
-| Honest UI                                                                                                                                                         | Tasks 8, 9: Contoh/Resmi badges, SP3K notice, Estimasi rows, "Simulasi saja"                                                                     |
-| i18n in types/id/en                                                                                                                                               | Tasks 8, 9                                                                                                                                       |
-| Protected files untouched                                                                                                                                         | Only route-local files, `page.tsx` and i18n are edited                                                                                           |
-| DTO value-import convention                                                                                                                                       | Tasks 6, 7                                                                                                                                       |
-| Migration after the latest one                                                                                                                                    | Task 4 (`20260926120000`, re-check before running)                                                                                               |
-| Sub-plan I compatibility                                                                                                                                          | Global Constraints; no new persisted money fields; prepayment amount is IDR-only                                                                 |
+| Requirement                                                                                                                       | Where it is covered                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| (a) Tiered rate periods                                                                                                           | Tasks 1–2 (engine), 5, 6a, 6b (storage/wiring), 11 (editor)                                                                                                                                                                                         |
+| (b) Floating history, re-annuitised on remaining balance + tenor                                                                  | Tasks 1–2 (`effectivePeriodFor`, regime changes), 6a (reads), 6b (orphan guard), 7 (CRUD + budget resync), 12 (panel)                                                                                                                               |
+| (c) Scheme presets; examples labelled; FLPP labelled official                                                                     | Decision 7, Task 5 (structural validation, FLPP ≤ 480), Task 11 (presets, badges, notices)                                                                                                                                                          |
+| (d) Early repayment: partial/full, reduce-tenor vs reduce-installment, editable penalty with a researched default, **recordable** | Decision 5; Tasks 4, 8 (simulate), 9, 10 (record), 12, 13 (UI)                                                                                                                                                                                      |
+| (e) Manual override on every period                                                                                               | Task 11 (every rate editable; editing clears the example badge); the server never forces rates (decision 6)                                                                                                                                         |
+| User decision: Pay preset = installment `pay()` books, 5-day grace, "Telat"                                                       | Decision 4; Task 3 (pure rule ×12 incl. WIB, preset = booked ×6, late pay 5.041.728; the one listed G constant change); Task 6a boundary ×5 + preset ×3; Task 5 `currentInstallmentLate`; Task 12 Pay "Telat"                                       |
+| User decision 2: recordable prepayment                                                                                            |                                                                                                                                                                                                                                                     |
+| – debit via the pay path's overdraft guard                                                                                        | Task 10 "reduce installment", "overdraft"                                                                                                                                                                                                           |
+| – separate penalty leg on a new penalty category                                                                                  | COA 20011, Task 9; Task 10 legs, "zero penalty", "409"                                                                                                                                                                                              |
+| – exception to the one-per-month guard                                                                                            | Task 9 "prepayment rows are ignored…"; Task 10 "guard exception"                                                                                                                                                                                    |
+| – reduce-tenor / reduce-installment persisted and followed by schedule, currentInstallment, budget                                | Task 9 anchor tests; Task 10 update data, budget, schedule read-back                                                                                                                                                                                |
+| Judge HIGH: term correction after a prepayment                                                                                    | Decision 5; Task 9 re-anchoring (4.524.568 / 4.767.352), refusal for flat                                                                                                                                                                           |
+| Judge MEDIUM: orphaned floating history                                                                                           | Task 6b orphan check + test                                                                                                                                                                                                                         |
+| Judge LOW: WIB day                                                                                                                | Decision 4; Task 3 `localCalendarDay` + WIB tests                                                                                                                                                                                                   |
+| Judge LOW: split Task 6                                                                                                           | Tasks 6a (readers) / 6b (writers)                                                                                                                                                                                                                   |
+| – tenant-scoped + ability-guarded                                                                                                 | Task 10 "404…", PERMISSION/DENIAL                                                                                                                                                                                                                   |
+| – idempotency against double submit                                                                                               | Task 10 "replay", "concurrent"; Task 13 "posts once"                                                                                                                                                                                                |
+| – fxInputs                                                                                                                        | Task 10 fx spec + wiring test                                                                                                                                                                                                                       |
+| – web UI                                                                                                                          | Task 13                                                                                                                                                                                                                                             |
+| Legacy rows unchanged                                                                                                             | Decision 1; G's amortisation spec untouched (Task 2); legacy-upgrade test (Task 6b); the one G service-spec line change is listed by name (Task 3)                                                                                                  |
+| One shared engine (BigInt, round-half-up)                                                                                         | `dueInstallmentPeriod` + `rateAt(ratePlanOf(…))` + `buildSchedule` feed schedule, pay split, preview, `currentInstallment`, budget line, prepayment preview **and** record (Tasks 2, 3, 4, 6a, 8, 10; Task 9's re-anchoring reuses `buildSchedule`) |
+| Floating history tenant-scoped, ability-guarded, validated                                                                        | Task 7                                                                                                                                                                                                                                              |
+| Honest UI                                                                                                                         | Tasks 11–13: Contoh/Resmi badges, SP3K notice, Estimasi rows, "simulasi" note, a confirmation stating the exact debit                                                                                                                               |
+| i18n in types/id/en                                                                                                               | Tasks 11, 12, 13                                                                                                                                                                                                                                    |
+| Protected files untouched                                                                                                         | Only route-local files, `page.tsx` and i18n are edited; `@/lib/query-keys` is only imported                                                                                                                                                         |
+| DTO value-import convention                                                                                                       | Tasks 7, 8, 10                                                                                                                                                                                                                                      |
+| Migrations after the latest one                                                                                                   | Task 5 (`20260926120000`), Task 9 (`20260926130000`); re-check before running                                                                                                                                                                       |
+| Sub-plan I compatibility                                                                                                          | Global Constraints: preview is IDR-only; the recorded amount has `FX_FIELD_SPECS.liabilityPrepayment`                                                                                                                                               |
 
 **Review Focus → tests:**
 
-| Focus                     | Tests                                                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Boundary months           | Task 1 "segment boundaries"; Task 2 berjenjang goldens; Task 5 `boundary:` ×3                                         |
-| Mid-month change          | Task 1 `effectivePeriodFor` ×5; Task 2 "mid-month change"; Task 5 rows "same-period dates"; Task 5 "floating history" |
-| Past tenor                | Task 2 "past tenor"; Task 6 "past maturity"                                                                           |
-| 0 % promo                 | Task 2                                                                                                                |
-| Murabahah equality        | Task 2; Task 4 validation                                                                                             |
-| Prepayment golden numbers | Task 3; Task 7                                                                                                        |
-| Penalty rounding          | Task 3                                                                                                                |
-| Legacy rows unchanged     | Task 2 (G spec untouched + parity test); Task 5 "legacy upgrade"                                                      |
+| Focus                               | Tests                                                                                                                   |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Boundary months / due day / grace   | Task 1 "segment boundaries"; Task 2 berjenjang goldens; Task 3 ×19; Task 6a `boundary:` ×5, "Pay preset" ×3             |
+| Mid-month change                    | Task 1 `effectivePeriodFor` ×5; Task 2 "mid-month change"; Task 6a rows "same-period dates"; Task 6a "floating history" |
+| Past tenor                          | Task 2 "past tenor"; Task 3 "past maturity"; Task 7 "past maturity"                                                     |
+| 0 % promo                           | Task 2                                                                                                                  |
+| Murabahah equality                  | Task 2; Task 5 validation                                                                                               |
+| Prepayment golden numbers           | Task 4; Task 8; Task 10 (recorded == previewed)                                                                         |
+| Penalty rounding                    | Task 4; Task 10 `penaltyAmount`                                                                                         |
+| Legacy rows unchanged               | Task 2 (G spec untouched + parity test); Task 3 (listed G constant only); Task 6b "legacy upgrade"                      |
+| Term corrections after a prepayment | Task 9                                                                                                                  |
+| Orphaned floating history           | Task 6b; Task 5 validation                                                                                              |
+| Prepayment safety                   | Tasks 9, 10, 13                                                                                                         |
 
 **Type consistency.** These names are used identically in every task:
 
 - `RatePlan`, `RateSegment`, `ResolvedRate`, `ratePlanOf`, `rateAt`, `sameRateRegime`, `sameSegments` (in `rate-plan.validation`)
+- `dueInstallment`/`dueInstallmentPeriod`, `DUE_GRACE_DAYS`, `localCalendarDay`, `currentInstallmentLate`; `installmentAnchorPeriod` (engine) ↔ `installmentFromPeriod` (column); `nextTerms`, `reanchoredInstallment`
 - `RatePlanRows`, `loadRatePlanRows`, `ratePlanFromRows`, `replaceRatePeriods`, `withRatePlan`, `resyncBudgetLine`
-- `simulatePrepayment`, `PrepaymentMode`
+- `simulatePrepayment` (`newInstallmentAmount`, `newTenorMonths`), `PrepaymentMode`, `PREPAYMENT_MODES`, `parsePrepaymentRequest`, `assertPrepayable`, `prepaidTerms`
+- `recordPrepayment`, `RecordPrepaymentDto` / `RecordLiabilityPrepaymentDto`, `LiabilityPrepaymentResponseDto` / `LiabilityPrepaymentDto`, `LiabilityPrepaymentRecordResponseDto` / `LiabilityPrepaymentRecordResultDto`
 - `LiabilityRateBandDto` (`fromPeriod`/`toPeriod`/`ratePercent`/`kind`)
 - `LiabilityFloatingRateDto.effectivePeriod: number | null`
 - `LiabilityPrepaymentPreviewDto.assumesCurrentFloatingRate`
 - the query key prefix `["liabilities", familyGroupId, …]`
 
-**Verification provenance.** The pure code in Tasks 1, 2, 3 and 4 (validation) and in Task 5 (`ratePlanFromRows`) was executed against G's unmodified `amortisation.util.spec.ts` plus all the new pure specs: 94/94 passing, ts-jest strict with `noUncheckedIndexedAccess`. Every golden number was also cross-checked with an independent BigInt script.
+**Verification provenance.** This pure code was executed against G's unmodified `amortisation.util.spec.ts` plus all the new pure specs: 109/109 passing, ts-jest strict with `noUncheckedIndexedAccess`.
+
+- Tasks 1, 2 (including the anchor), 3 (`dueInstallment` with grace + WIB) and 4 (including `newInstallmentAmount`/`newTenorMonths`);
+- Task 5's validation;
+- Task 6a's `ratePlanFromRows`.
+
+Every golden number was also cross-checked with an independent BigInt script. The due-day service expectations (3.103.938 / 4.267.915 / 5.053.432 / late-pay budget 5.041.728), the re-anchoring values (4.524.568 / 4.767.352) and the record expectations (3.409.791, tenor 162/102 rows, 4.869.889 vs 4.857.320) come from those same runs.
 
 The service, controller, DTO and web code was written against the files on this branch at commit `4a4be3a`, but has not been executed. Implementers must treat the named test commands as the gate.
