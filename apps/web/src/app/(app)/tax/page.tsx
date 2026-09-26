@@ -27,9 +27,13 @@ import { formatBps } from "@/components/tax/format-bps";
 import { TaxRuleBadge } from "@/components/tax/tax-rule-badge";
 import { usePphOpPreview } from "@/components/tax/use-tax-api";
 
+import { extractApiErrorMessage } from "./_components/api-error";
 import { MAX_TAX_INPUT, toClampedDigitString } from "./_components/digits";
+import { AnnualSummary } from "./_components/annual-summary";
+import { FinalIncomePanel } from "./_components/final-income-panel";
 import { PphOpFields } from "./_components/pph-op-fields";
 import { TerPanel } from "./_components/ter-panel";
+import { UmkmPanel } from "./_components/umkm-panel";
 
 import type {
   CreateTaxRecordDto,
@@ -88,27 +92,6 @@ type MeResponse = {
   familyGroupId: string | null;
   memberships?: { id: string; familyGroupId: string; role: Role }[];
 };
-
-// The API's ForbiddenException/BadRequestException carries a message worth
-// showing; the blind generic toast threw it away and left the next bug report
-// with nothing to go on (which is exactly how I1 arrived). NestJS's
-// ValidationPipe has no custom exceptionFactory (main.ts), so several failed
-// class-validator constraints come back as `message: string[]`, and the API
-// client's ApiError can also carry an empty string — only trust a non-empty
-// string or a non-empty array, and join the array readably.
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  if (!err || typeof err !== "object" || !("message" in err)) return fallback;
-  const { message } = err;
-  if (Array.isArray(message)) {
-    const joined = message
-      .filter((m): m is string => typeof m === "string" && m.trim() !== "")
-      .join(", ");
-    return joined !== "" ? joined : fallback;
-  }
-  return typeof message === "string" && message.trim() !== ""
-    ? message
-    : fallback;
-}
 
 export default function TaxPage() {
   const { t } = useLocale();
@@ -421,7 +404,17 @@ export default function TaxPage() {
           )}
         </div>
         <div className="mt-1.5 text-xs opacity-85">{t.tax.heroSubtitle}</div>
-        <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
+        {/* Task 10 carry (Task 9 review) — `.hero > *` (design-system.css,
+            protected) forces `position: relative` on every direct child,
+            which won the specificity tie against Tailwind's `.absolute` by
+            source order and put this decorative glyph back in normal flow
+            (clipped by `.hero`'s `overflow: hidden` instead of intentionally
+            peeking past the corner). The inline style wins over both classes
+            without touching the protected sheet. */}
+        <div
+          className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]"
+          style={{ position: "absolute" }}
+        >
           🧾
         </div>
       </HeroCard>
@@ -494,6 +487,10 @@ export default function TaxPage() {
           </div>
         </Card>
       </div>
+
+      {/* Ringkasan pajak tahunan — the page's one "answer" block (Task 10,
+          sub-plan L), directly after the SPT-status trio. */}
+      <AnnualSummary taxYear={taxYear} />
 
       {/* Kalkulator PPh 21 */}
       <SectionCard
@@ -579,7 +576,12 @@ export default function TaxPage() {
         </div>
 
         <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          <div>
+          {/* Task 10 carry (Task 9 review) — this read-only computed row
+              used to sit alone in a half-width cell, leaving an empty
+              column beside it at 1440. Every 2-col row here is either a
+              genuine pair or spans the full width; a single field never
+              gets a lone half row. */}
+          <div className="md:col-span-2">
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
               {t.tax.fieldJabatanLabel}
             </label>
@@ -781,6 +783,18 @@ export default function TaxPage() {
             BigInt(12)
           ).toString()}
         />
+      </SectionCard>
+
+      {/* Pajak final investasi & penghasilan lain */}
+      <section id="pajak-final">
+        <SectionCard title={t.tax.final.title}>
+          <FinalIncomePanel taxYear={taxYear} canManage={canManageTaxRecords} />
+        </SectionCard>
+      </section>
+
+      {/* PPh final UMKM 0,5% */}
+      <SectionCard title={t.tax.umkm.title}>
+        <UmkmPanel taxYear={taxYear} canManage={canManageTaxRecords} />
       </SectionCard>
 
       {/* Riwayat Pajak */}

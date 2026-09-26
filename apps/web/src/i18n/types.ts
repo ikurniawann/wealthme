@@ -272,6 +272,29 @@ type TaxDtpReasonId =
   | "daily_wage_above_cap"
   | "nik_not_validated";
 
+/** Task 10 (sub-plan L) — final-tax instrument ids (mirrors contracts'
+ * `TaxFinalInstrument`). */
+type TaxFinalInstrumentId =
+  | "bunga_deposito"
+  | "bunga_tabungan"
+  | "dividen"
+  | "saham_idx"
+  | "kupon_sbn"
+  | "reksa_dana"
+  | "p2p"
+  | "kripto_domestik"
+  | "kripto_luar"
+  | "emas"
+  | "sewa";
+
+/** Task 10 — machine-readable final-tax line caveats (mirrors contracts'
+ * `FinalTaxLineDto["caveat"]`, excluding `null`). */
+type TaxFinalCaveatId =
+  | "assumed_domestic"
+  | "assumed_sbn"
+  | "no_purchase_date"
+  | "no_interest_rate";
+
 /** EPIC-018 Task A6 — `/rekening` account-type ids (local wording distinct
  * from `aset.accountTypeLabels` — same keys as `Account.type`, different
  * copy for this page's context). */
@@ -2636,6 +2659,77 @@ export type I18nDictionary = {
       dtpReasons: Record<TaxDtpReasonId, string>;
       dtpEligible: string;
       dtpTotalPrefix: string;
+      // Task 10 carry (Task 9 review) — the panel used to render 12 rows
+      // of "Rp 0" before any gross was entered, with no loading state and
+      // no explanation when the caller has no family group.
+      emptyStateNote: string;
+      loadingLabel: string;
+      noFamilyNote: string;
+    };
+    // Task 10 (sub-plan L) — the UMKM 0.5% final-tax monthly-omzet
+    // calculator (contracts' `UmkmResultDto`/`UmkmPreviewRequestDto`).
+    umkm: {
+      title: string;
+      subtitle: string;
+      monthLabels: string[];
+      firstYearLabel: string;
+      pre2018Note: string;
+      noTimeLimitNote: string;
+      ineligible: string;
+      exceedsCeiling: string;
+      colOmzet: string;
+      colCumulative: string;
+      colTaxable: string;
+      colTax: string;
+      totalPrefix: string;
+      save: string;
+      saved: string;
+      saveFailed: string;
+    };
+    // Task 10 — final tax on investments/other income (contracts'
+    // `FinalTaxEstimateDto`/`TaxFinalIncomeEntryDto`).
+    final: {
+      title: string;
+      subtitle: string;
+      instruments: Record<TaxFinalInstrumentId, string>;
+      sourceHolding: string;
+      sourceEntry: string;
+      caveats: Record<TaxFinalCaveatId, string>;
+      belowThreshold: string;
+      missingRate: string;
+      missingRateNotice: string;
+      skippedForeign: string;
+      addEntry: string;
+      editEntry: string;
+      deleteEntry: string;
+      fieldInstrument: string;
+      fieldGross: string;
+      fieldDate: string;
+      fieldReinvested: string;
+      fieldRateOverride: string;
+      fieldNotes: string;
+      totalPrefix: string;
+      toastSaved: string;
+      toastDeleted: string;
+      toastFailed: string;
+    };
+    // Task 10 — the page's single "answer" block: total estimated tax +
+    // SPT timing (contracts' `TaxAnnualSummaryDto`).
+    summary: {
+      title: string;
+      totalLabel: string;
+      pphOpLabel: string;
+      finalLabel: string;
+      umkmLabel: string;
+      noRecord: string;
+      balanceDue: string;
+      balanceOver: string;
+      deadlineLabel: string;
+      daysLeft: string;
+      daysLate: string;
+      graceNote: string;
+      coretaxNote: string;
+      filedAtPrefix: string;
     };
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */

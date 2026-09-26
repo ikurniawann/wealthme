@@ -475,7 +475,18 @@ export default function DonationPage() {
           {t.donation.yearRunningPrefix}
           {currentYear}
         </div>
-        <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
+        {/* Task 10 carry (sub-plan L, /tax review) — `.hero > *`
+            (design-system.css, protected) forces `position: relative` on
+            every direct child, winning the specificity tie against
+            Tailwind's `.absolute` by source order and putting this glyph
+            back in normal flow, clipped by `.hero`'s `overflow: hidden`
+            instead of intentionally peeking past the corner. The inline
+            style wins over both classes without touching the protected
+            sheet. */}
+        <div
+          className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]"
+          style={{ position: "absolute" }}
+        >
           🤲
         </div>
       </HeroCard>

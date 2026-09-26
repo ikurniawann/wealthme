@@ -149,9 +149,15 @@ export function PphOpFields({
         onFreelanceChange,
       )}
       <div className="field">
-        <label htmlFor="tax-nppn-input" className="label">
-          {t.tax.op.nppnLabel} <TaxRuleBadge rules={nppnRule} />
-        </label>
+        {/* Task 10 carry — the badge used to sit inside the <label>,
+            widening the label's click/read target with disclosure content;
+            it now sits beside the label as its own element. */}
+        <div className="flex items-center gap-1.5">
+          <label htmlFor="tax-nppn-input" className="label">
+            {t.tax.op.nppnLabel}
+          </label>
+          <TaxRuleBadge rules={nppnRule} />
+        </div>
         <input
           id="tax-nppn-input"
           type="text"

@@ -6,7 +6,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { formatNumber, formatRupiah, parseRupiah } from "@/lib/format";
 import { formatBps } from "@/components/tax/format-bps";
 import { TaxRuleBadge } from "@/components/tax/tax-rule-badge";
-import { useTerPreview } from "@/components/tax/use-tax-api";
+import { useTaxSession, useTerPreview } from "@/components/tax/use-tax-api";
 
 import { MAX_TAX_INPUT, toClampedDigitString } from "./digits";
 
@@ -15,6 +15,7 @@ import type {
   DtpReason,
   DtpSector,
   TaxMaritalStatus,
+  TerMonthDto,
 } from "@wealthme/contracts";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -47,6 +48,7 @@ export function TerPanel({
   defaultMonthlyGross: string;
 }) {
   const { t } = useLocale();
+  const { fgId } = useTaxSession();
   const [editMonths, setEditMonths] = useState(false);
   const [singleGross, setSingleGross] = useState(
     formatNumber(Number(defaultMonthlyGross)),
@@ -79,8 +81,34 @@ export function TerPanel({
     },
   };
 
-  const { data: result, error, isError } = useTerPreview(req);
+  // Task 10 carry (Task 9 review) — before any gross is entered, all 12
+  // months are still "0"; skip the request entirely rather than show 12
+  // rows of Rp 0 (an honest empty state instead).
+  const isEmpty = monthlyGross.every((g) => g === "0");
+  const {
+    data: result,
+    error,
+    isError,
+    isFetching,
+  } = useTerPreview(!fgId || isEmpty ? null : req);
   const notApplicable = isError && isApiError(error) && error.status === 422;
+
+  function renderDtpCell(row: TerMonthDto) {
+    if (!row.dtp) return "—";
+    if (row.dtp.eligible) {
+      return (
+        <>
+          <div className="mono">{formatRupiah(Number(row.dtp.amount))}</div>
+          <div className="text-[10px] text-muted-foreground">
+            {t.tax.ter.dtpEligible}
+          </div>
+        </>
+      );
+    }
+    return row.dtp.reasons[0]
+      ? t.tax.ter.dtpReasons[row.dtp.reasons[0] as DtpReason]
+      : "—";
+  }
 
   function updateMonth(idx: number, value: string) {
     const digits =
@@ -212,7 +240,10 @@ export function TerPanel({
               />
             </div>
           )}
-          <div className="field flex items-center gap-2 pt-5">
+          {/* Task 10 carry — full-width regardless of whether the daily-wage
+              field beside it is rendered, so this never becomes an orphan
+              half row when `employment === "permanent"`. */}
+          <div className="field flex items-center gap-2 pt-5 md:col-span-2">
             <input
               id="ter-dtp-nik"
               type="checkbox"
@@ -229,8 +260,14 @@ export function TerPanel({
 
       {maritalStatus === "KI" && <div className="hint">{t.tax.ter.kiNote}</div>}
 
-      {notApplicable ? (
+      {!fgId ? (
+        <div className="notice notice--info">{t.tax.ter.noFamilyNote}</div>
+      ) : isEmpty ? (
+        <div className="notice notice--info">{t.tax.ter.emptyStateNote}</div>
+      ) : notApplicable ? (
         <div className="notice notice--info">{t.tax.ter.notApplicable}</div>
+      ) : isFetching && !result ? (
+        <div className="hint">{t.tax.ter.loadingLabel}</div>
       ) : (
         result && (
           <div className="table-wrap">
@@ -253,13 +290,6 @@ export function TerPanel({
                   const isDecember = row.month === 12;
                   const withheldNum = Number(row.withholding);
                   const isNegative = withheldNum < 0;
-                  const dtpCell = !row.dtp
-                    ? "—"
-                    : row.dtp.eligible
-                      ? formatRupiah(Number(row.dtp.amount))
-                      : row.dtp.reasons[0]
-                        ? t.tax.ter.dtpReasons[row.dtp.reasons[0] as DtpReason]
-                        : "—";
                   return (
                     <tr key={row.month}>
                       <td>
@@ -274,7 +304,7 @@ export function TerPanel({
                           ? `(${formatRupiah(Math.abs(withheldNum))})`
                           : formatRupiah(withheldNum)}
                       </td>
-                      <td>{dtpCell}</td>
+                      <td>{renderDtpCell(row)}</td>
                     </tr>
                   );
                 })}

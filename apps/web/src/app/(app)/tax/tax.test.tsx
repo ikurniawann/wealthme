@@ -126,6 +126,20 @@ function withDefaultTerRoute(
 ) {
   return (url: string, opts?: { body?: string; method?: string }) => {
     if (url === TER_PREVIEW_URL) return Promise.resolve(null);
+    // Task 10 (sub-plan L) — /tax now also mounts AnnualSummary,
+    // FinalIncomePanel and UmkmPanel, each firing their own query on every
+    // render; route them to a harmless null by default so the tests above
+    // (written before Task 10) don't have to know about them. The blanket
+    // `url.includes("/tax")` fallback further down in some of these tests
+    // would otherwise hand these hooks a bare `[]`, which crashes on
+    // `.finalTax`/`.spt` property access.
+    if (
+      /\/tax\/final-tax(\?|$)/.test(url) ||
+      /\/tax\/summary(\?|$)/.test(url) ||
+      /\/tax\/umkm\/preview$/.test(url) ||
+      /\/tax\/umkm\/\d+$/.test(url)
+    )
+      return Promise.resolve(null);
     return impl(url, opts);
   };
 }
