@@ -173,6 +173,24 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     expect(await screen.findByText("Makan di Sushi Tei")).toBeInTheDocument();
   });
 
+  it("batch 1 — the Total Ditalangin stat card renders through the shared SummaryCard, with a neutral (non-colored) caption", async () => {
+    mockApiFetchDefault();
+    render(<SplitBillPage />);
+
+    await screen.findByText("Makan di Sushi Tei");
+
+    expect(
+      screen.getByText(idDict.splitbill.totalDitalanginLabel),
+    ).toBeInTheDocument();
+    const caption = screen.getByText(`1${idDict.splitbill.activeSplitsSuffix}`);
+    expect(caption).toHaveClass("stat__delta");
+    expect(caption).toHaveClass("stat__delta--neutral");
+    expect(caption).not.toHaveClass("t-success");
+    expect(caption).not.toHaveClass("t-danger");
+    // All three cards now share the `.card.stat` shell — no hand-rolled markup.
+    expect(document.querySelectorAll(".card.stat")).toHaveLength(3);
+  });
+
   it("shows an honest error banner when the list fails to load", async () => {
     mockApiFetchDefault("error");
     render(<SplitBillPage />);

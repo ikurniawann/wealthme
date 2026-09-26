@@ -565,6 +565,17 @@
   .btn--primary:hover:not(:disabled) {
     background: var(--primary-strong);
   }
+  /* A distinct fixed muted-teal fill, not opacity-derived from --primary, so
+     an enabled CTA and a disabled one read as different colors at a glance
+     instead of the enabled teal just looking washed out. #3f6b64 keeps
+     --primary-foreground (#fff) at ~6:1 contrast, above WCAG AA's 4.5:1.
+     Inlined here rather than a new --primary-disabled token in globals.css,
+     which this batch doesn't touch. */
+  .btn--primary:disabled {
+    opacity: 1;
+    background: #3f6b64;
+    box-shadow: none;
+  }
 
   .btn--outline {
     background: var(--card);
@@ -1856,6 +1867,12 @@
     font-weight: 700;
   }
 
+  /* A neutral fact (a count), not a success/danger trend — SummaryCard's
+     `caption` slot (components/wm/stat.tsx). */
+  .stat__delta--neutral {
+    color: var(--muted-foreground);
+  }
+
   .hero {
     position: relative;
     overflow: hidden;
@@ -2527,7 +2544,13 @@
     cursor: pointer;
   }
 
-  .segmented__item[aria-selected="true"] {
+  /* [aria-selected] drives every other `.segmented__item` (role="tab" +
+     aria-selected, verified across iam/investasi/liabilitas/splitbill/etc.);
+     [aria-checked] is added alongside it, not in place of it, for the one
+     `role="radio"` consumer (kpr-prepayment-simulator.tsx) where
+     aria-selected is the wrong ARIA attribute for that role. */
+  .segmented__item[aria-selected="true"],
+  .segmented__item[aria-checked="true"] {
     background: var(--card);
     color: var(--foreground);
     box-shadow: var(--shadow-card);

@@ -11,7 +11,6 @@ import {
   ProgressBar,
   StatusBadge,
 } from "@/components/wm";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -553,28 +552,17 @@ export default function SplitBillPage() {
           are the same derived numbers the old inline cards rendered. */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {/* `activeSplits.length` is a neutral fact, not a good/bad trend —
-            SummaryCard's `delta` slot always colors it success/destructive
-            (foundation component, not ours to change), so this one card is
-            built locally with a muted sub-line instead of borrowing that
-            slot for something that isn't a trend. */}
-        <Card className="gap-0 p-4">
-          <div
-            className="mb-2 flex size-[34px] items-center justify-center rounded-md text-[15px]"
-            style={{ background: "var(--accent)", color: "var(--primary)" }}
-          >
-            <span aria-hidden="true">🧾</span>
-          </div>
-          <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
-            {t.splitbill.totalDitalanginLabel}
-          </div>
-          <div className="mb-[3px] text-[15px] font-extrabold">
-            {formatRupiah(totalDitalangin)}
-          </div>
-          <div className="text-[10.5px] font-bold text-muted-foreground">
-            {activeSplits.length}
-            {t.splitbill.activeSplitsSuffix}
-          </div>
-        </Card>
+            SummaryCard's `caption` slot renders it without the `delta`
+            slot's success/danger color, so all three cards share one
+            component (see components/wm/stat.tsx). */}
+        <SummaryCard
+          icon={<span aria-hidden="true">🧾</span>}
+          iconBg="var(--accent)"
+          iconColor="var(--primary)"
+          label={t.splitbill.totalDitalanginLabel}
+          amount={formatRupiah(totalDitalangin)}
+          caption={`${activeSplits.length}${t.splitbill.activeSplitsSuffix}`}
+        />
         <SummaryCard
           icon={<span aria-hidden="true">✅</span>}
           iconBg="var(--success-soft)"

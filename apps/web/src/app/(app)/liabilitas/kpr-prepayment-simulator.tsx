@@ -4,15 +4,22 @@ import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type {
+  FxInput,
   LiabilityPrepaymentPreviewDto,
   LiabilityPrepaymentRecordResultDto,
   PrepaymentMode,
   RecordLiabilityPrepaymentDto,
 } from "@wealthme/contracts";
 
+import {
+  MoneyInput,
+  moneyDigits,
+  useControlledMoneyField,
+} from "@/components/money";
+import type { MoneyField, ResolvedMoney } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import { extractApiErrorMessage } from "./api-error";
@@ -29,6 +36,11 @@ type PrepaymentRequest = Pick<
   RecordLiabilityPrepaymentDto,
   "mode" | "amount" | "penaltyPercent"
 >;
+// The API DTO doesn't carry `fxInputs` (see other pages' *WithFx locals,
+// e.g. asuransi/page.tsx) — the server converts and overwrites `amount`.
+type RecordPrepaymentWithFx = RecordLiabilityPrepaymentDto & {
+  fxInputs?: FxInput[];
+};
 
 function rupiah(value: string | null): string {
   return value === null ? "—" : formatRupiah(Number(value));
@@ -53,7 +65,6 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-// IDR-only on the web on purpose (revisi-k plan, Global Constraints); the API also accepts fxInputs.
 export function KprPrepaymentSimulator({
   familyGroupId,
   liabilityId,
@@ -70,13 +81,27 @@ export function KprPrepaymentSimulator({
   const { t } = useLocale();
   const k = t.liabilitas.kpr;
   const [mode, setMode] = useState<PrepaymentMode>("reduce_tenor");
-  const [amount, setAmount] = useState("");
+  const [amountState, setAmountState] = useState<{
+    raw: string;
+    currency: MoneyField["currency"] | null;
+  }>({ raw: "", currency: null });
+  const amountField = useControlledMoneyField({
+    raw: amountState.raw,
+    currency: amountState.currency,
+    onChange: (next) => {
+      setAmountState(next);
+      setSimulated(null);
+      setConfirming(false);
+    },
+  });
   const [penaltyPercent, setPenaltyPercent] = useState(
     DEFAULT_PREPAYMENT_PENALTY_PERCENT,
   );
-  // The request the shown result was computed for, and the key that records it at most once.
+  // The request the shown result was computed for, the fx origin (if any) of
+  // its amount, and the key that records it at most once.
   const [simulated, setSimulated] = useState<{
     request: PrepaymentRequest;
+    fx: ResolvedMoney["fx"];
     idempotencyKey: string;
   } | null>(null);
   const [sourceAccountId, setSourceAccountId] = useState("");
@@ -114,7 +139,7 @@ export function KprPrepaymentSimulator({
   });
 
   const recordMutation = useMutation({
-    mutationFn: (body: RecordLiabilityPrepaymentDto) =>
+    mutationFn: (body: RecordPrepaymentWithFx) =>
       apiFetch<LiabilityPrepaymentRecordResultDto>(`${base}/prepay`, {
         method: "POST",
         token,
@@ -132,8 +157,12 @@ export function KprPrepaymentSimulator({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const digits = amount.replace(/\D/g, "");
-    if (mode !== "full" && !digits) return;
+    const digits = mode === "full" ? "" : moneyDigits(amountField);
+    // Pending guard — a foreign amount whose IDR conversion hasn't resolved
+    // yet can't be simulated against a rate we don't have.
+    if (mode !== "full" && (!digits || amountField.resolved.isPending)) {
+      return;
+    }
     setConfirming(false);
     setSimulated({
       request: {
@@ -141,6 +170,7 @@ export function KprPrepaymentSimulator({
         penaltyPercent: penaltyPercent.trim().replace(",", "."),
         ...(mode === "full" ? {} : { amount: digits }),
       },
+      fx: mode === "full" ? null : amountField.resolved.fx,
       idempotencyKey: makeIdempotencyKey(),
     });
   }
@@ -151,6 +181,9 @@ export function KprPrepaymentSimulator({
       ...simulated.request,
       sourceAccountId,
       idempotencyKey: simulated.idempotencyKey,
+      ...(simulated.fx
+        ? { fxInputs: [{ field: "amount", ...simulated.fx }] }
+        : {}),
     });
   }
 
@@ -159,11 +192,6 @@ export function KprPrepaymentSimulator({
   // "Catat pelunasan" can never record a stale mode/amount/penalty.
   function updateMode(next: PrepaymentMode) {
     setMode(next);
-    setSimulated(null);
-    setConfirming(false);
-  }
-  function updateAmount(next: string) {
-    setAmount(next);
     setSimulated(null);
     setConfirming(false);
   }
@@ -199,7 +227,6 @@ export function KprPrepaymentSimulator({
                 type="button"
                 role="radio"
                 aria-checked={mode === m}
-                aria-selected={mode === m}
                 tabIndex={mode === m ? 0 : -1}
                 className="segmented__item flex-1"
                 onClick={() => updateMode(m)}
@@ -238,15 +265,7 @@ export function KprPrepaymentSimulator({
               <label className="label" htmlFor="kpr-prepay-amount">
                 {k.prepayAmountLabel}
               </label>
-              <input
-                id="kpr-prepay-amount"
-                className="input mono"
-                inputMode="numeric"
-                value={amount}
-                onChange={(e) =>
-                  updateAmount(formatAmountInput(e.target.value))
-                }
-              />
+              <MoneyInput id="kpr-prepay-amount" field={amountField} />
             </div>
           )}
           <div className="field mt-0">
@@ -266,7 +285,11 @@ export function KprPrepaymentSimulator({
         <div className="hint" id="kpr-prepay-penalty-hint">
           {k.prepayPenaltyHint}
         </div>
-        <button type="submit" className="btn btn--outline btn--sm mt-2">
+        <button
+          type="submit"
+          className="btn btn--outline btn--sm mt-2"
+          disabled={mode !== "full" && amountField.resolved.isPending}
+        >
           {k.prepaySubmit}
         </button>
       </form>

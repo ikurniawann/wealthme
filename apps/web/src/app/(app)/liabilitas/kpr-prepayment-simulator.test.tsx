@@ -19,6 +19,30 @@ jest.mock("sonner", () => ({
   },
 }));
 
+// Batch 1 (polish-j) — the amount field grew a currency picker
+// (useMoneyField/MoneyInput). These two hooks are mocked exactly like
+// donation.test.tsx's precedent so the suite controls the FX snapshot
+// deterministically instead of hitting the real /fx/rates + /auth/profile
+// endpoints through mockApiFetch.
+const mockUseFxSnapshot = jest.fn((enabled: boolean) => ({
+  data: enabled
+    ? jest.requireActual("../../../components/money/fx-test-rates")
+        .TEST_FX_RATES
+    : undefined,
+  isError: false,
+}));
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => mockUseFxSnapshot(enabled),
+}));
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
 const k = idDict.liabilitas.kpr;
 const BASE = "/family-groups/fg-1/liabilities/liab-1";
 const PREVIEW_URL = `${BASE}/prepayment-preview?`;
@@ -111,6 +135,13 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
     mockApiFetch.mockReset();
     toastSuccess.mockReset();
     toastError.mockReset();
+    mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+      data: enabled
+        ? jest.requireActual("../../../components/money/fx-test-rates")
+            .TEST_FX_RATES
+        : undefined,
+      isError: false,
+    }));
   });
 
   it("labels the numbers a simulation, defaults the penalty to the 1% example, and fetches nothing up front", () => {
@@ -359,5 +390,108 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
     );
     expect(onRecorded).not.toHaveBeenCalled();
     expect(screen.getByText(/3\.409\.791/)).toBeInTheDocument();
+  });
+
+  it("batch 1 — the amount field has a currency picker; a EUR amount previews and records with the converted IDR amount + fxInputs", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole("radio", { name: k.prepayModes.reduce_installment }),
+    );
+    await user.selectOptions(
+      screen.getByLabelText(idDict.money.currencyLabel),
+      "EUR",
+    );
+    await user.type(screen.getByLabelText(k.prepayAmountLabel), "75,50");
+    await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
+    await screen.findByText(/3\.409\.791/);
+
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `${PREVIEW_URL}mode=reduce_installment&penaltyPercent=1.00&amount=1542255`,
+      expect.objectContaining({ token: "t" }),
+    );
+
+    await chooseAccount(user);
+    await user.click(screen.getByRole("button", { name: k.recordButton }));
+    await user.click(
+      screen.getByRole("button", { name: k.recordConfirmButton }),
+    );
+
+    await waitFor(() => expect(prepayPosts()).toHaveLength(1));
+    const [, init] = prepayPosts()[0] ?? [];
+    expect(JSON.parse(init.body)).toEqual({
+      mode: "reduce_installment",
+      penaltyPercent: "1.00",
+      amount: "1542255",
+      fxInputs: [{ field: "amount", currency: "EUR", amount: "75.50" }],
+      sourceAccountId: "acc-1",
+      idempotencyKey: "key-1",
+    });
+  });
+
+  it("batch 1 — an IDR amount posts no fxInputs key (unchanged behaviour)", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+    await chooseAccount(user);
+    await user.click(screen.getByRole("button", { name: k.recordButton }));
+    await user.click(
+      screen.getByRole("button", { name: k.recordConfirmButton }),
+    );
+
+    await waitFor(() => expect(prepayPosts()).toHaveLength(1));
+    const [, init] = prepayPosts()[0] ?? [];
+    expect(JSON.parse(init.body)).not.toHaveProperty("fxInputs");
+  });
+
+  it("batch 1 — the pending-request guard blocks Simulasikan while a foreign rate hasn't resolved yet", async () => {
+    mockUseFxSnapshot.mockImplementation(() => ({
+      data: undefined,
+      isError: false,
+    }));
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole("radio", { name: k.prepayModes.reduce_installment }),
+    );
+    await user.selectOptions(
+      screen.getByLabelText(idDict.money.currencyLabel),
+      "USD",
+    );
+    await user.type(screen.getByLabelText(k.prepayAmountLabel), "10");
+
+    const submit = screen.getByRole("button", { name: k.prepaySubmit });
+    await waitFor(() => expect(submit).toBeDisabled());
+    await user.click(submit);
+
+    expect(
+      mockApiFetch.mock.calls.some(([url]) =>
+        String(url).startsWith(PREVIEW_URL),
+      ),
+    ).toBe(false);
+  });
+
+  it("batch 1 — the prepayment radiogroup exposes aria-checked (not aria-selected), and the active item still gets the segmented active look", () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+
+    const active = screen.getByRole("radio", {
+      name: k.prepayModes.reduce_tenor,
+    });
+    expect(active).toHaveAttribute("aria-checked", "true");
+    expect(active).not.toHaveAttribute("aria-selected");
+    expect(active).toHaveClass("segmented__item");
+
+    const inactive = screen.getByRole("radio", {
+      name: k.prepayModes.full,
+    });
+    expect(inactive).toHaveAttribute("aria-checked", "false");
+    expect(inactive).not.toHaveAttribute("aria-selected");
   });
 });

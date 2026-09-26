@@ -14,6 +14,7 @@ export function SummaryCard({
   amount,
   delta,
   deltaUp,
+  caption,
 }: {
   icon: React.ReactNode;
   iconBg: string;
@@ -22,6 +23,9 @@ export function SummaryCard({
   amount: React.ReactNode;
   delta?: React.ReactNode;
   deltaUp?: boolean;
+  /** A neutral fact (e.g. a count), not a trend — renders without the
+   *  success/danger color `delta` always gets. Ignored when `delta` is set. */
+  caption?: React.ReactNode;
 }) {
   return (
     <article className="card stat">
@@ -35,10 +39,14 @@ export function SummaryCard({
         <div className="stat__label">{label}</div>
         <div className="stat__value">{amount}</div>
       </div>
-      {delta && (
+      {delta ? (
         <div className={cn("stat__delta", deltaUp ? "t-success" : "t-danger")}>
           {delta}
         </div>
+      ) : (
+        caption && (
+          <div className="stat__delta stat__delta--neutral">{caption}</div>
+        )
       )}
     </article>
   );
