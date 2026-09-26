@@ -27,6 +27,9 @@ import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import { Public } from "../common/decorators/public.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateDependantMemberDto } from "./dto/create-dependant-member.dto";
@@ -72,6 +75,7 @@ export class FamilyGroupsController {
   constructor(
     private readonly familyGroupsService: FamilyGroupsService,
     private readonly memberEmail: MemberEmailService,
+    private readonly fxInputs: FxInputService,
   ) {}
 
   @Get("mine")
@@ -252,6 +256,7 @@ export class FamilyGroupsController {
   }
 
   @Patch(":familyGroupId/gold-price")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "FamilyGroup"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({
     summary:
@@ -263,10 +268,22 @@ export class FamilyGroupsController {
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: UpdateGoldPriceDto,
   ): Promise<GoldPriceResponseDto> {
-    return this.familyGroupsService.updateGoldPrice(
-      familyGroupId,
-      req.user.sub,
-      dto,
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.user.sub,
+        entity: "FamilyGroup",
+        entityId: familyGroupId,
+        fieldPrefix: "goldPrice",
+        dto,
+        spec: FX_FIELD_SPECS.goldPrice,
+      },
+      (converted) =>
+        this.familyGroupsService.updateGoldPrice(
+          familyGroupId,
+          req.user.sub,
+          converted,
+        ),
     );
   }
 
@@ -309,11 +326,22 @@ export class FamilyGroupsController {
     @Param("memberId") memberId: string,
     @Body() dto: UpdateMemberRoleDto,
   ): Promise<MemberResponseDto> {
-    return this.familyGroupsService.updateMemberRole(
-      familyGroupId,
-      memberId,
-      req.user.sub,
-      dto,
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.user.sub,
+        entity: "Member",
+        entityId: memberId,
+        dto,
+        spec: FX_FIELD_SPECS.memberThreshold,
+      },
+      (converted) =>
+        this.familyGroupsService.updateMemberRole(
+          familyGroupId,
+          memberId,
+          req.user.sub,
+          converted,
+        ),
     );
   }
 

@@ -6,6 +6,7 @@ import { Test } from "@nestjs/testing";
 import { Role } from "@prisma/client";
 import request from "supertest";
 
+import { fxTesting } from "../../test/fx-testing";
 import { CaslAbilityFactory } from "../casl/casl-ability.factory";
 import { AbilitiesGuard } from "../common/guards/abilities.guard";
 
@@ -47,6 +48,7 @@ describe("GoalsController contributions (real ValidationPipe + AbilitiesGuard)",
         CaslAbilityFactory,
         { provide: GoalsService, useValue: goalsServiceMock },
         { provide: APP_GUARD, useClass: AbilitiesGuard },
+        ...fxTesting().providers,
       ],
     }).compile();
 

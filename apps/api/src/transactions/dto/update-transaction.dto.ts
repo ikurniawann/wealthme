@@ -11,6 +11,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class UpdateTransactionDto {
   @ApiPropertyOptional({ type: String, description: "Account UUID" })
   @IsUUID()
@@ -59,4 +61,7 @@ export class UpdateTransactionDto {
   @IsDateString()
   @IsOptional()
   occurredAt?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

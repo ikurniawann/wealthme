@@ -8,6 +8,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class CreateAllowanceRequestDto {
   @ApiProperty({
     type: String,
@@ -39,4 +41,7 @@ export class CreateAllowanceRequestDto {
   @IsOptional()
   @IsUUID()
   fromAccountId?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

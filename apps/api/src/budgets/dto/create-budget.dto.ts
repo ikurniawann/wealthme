@@ -1,6 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEnum, IsInt, IsPositive, IsUUID, Max } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 enum BudgetPeriodEnum {
   monthly = "monthly",
   weekly = "weekly",
@@ -31,4 +33,7 @@ export class CreateBudgetDto {
   @IsPositive()
   @Max(MAX_BUDGET_AMOUNT)
   limitAmount!: number;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

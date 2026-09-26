@@ -13,6 +13,8 @@ import {
   ValidateIf,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class CreateAccountDto {
   @ApiProperty({ enum: AccountType, description: "Account type" })
   @IsEnum(AccountType)
@@ -92,4 +94,7 @@ export class CreateAccountDto {
   @IsString()
   @MinLength(1)
   ownerUserId?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

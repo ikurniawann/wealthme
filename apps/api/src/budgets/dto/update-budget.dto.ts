@@ -1,6 +1,8 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import { IsEnum, IsInt, IsOptional, IsPositive, Max } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 enum BudgetPeriodEnum {
   monthly = "monthly",
   weekly = "weekly",
@@ -28,4 +30,7 @@ export class UpdateBudgetDto {
   @IsOptional()
   @IsEnum(BudgetPeriodEnum)
   period?: BudgetPeriodEnum;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

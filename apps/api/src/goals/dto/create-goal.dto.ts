@@ -12,6 +12,8 @@ import {
   ValidateIf,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 const MAX_AMOUNT = 999_999_999_999;
 
 export class CreateGoalDto {
@@ -77,4 +79,7 @@ export class CreateGoalDto {
   )
   @IsUUID()
   sourceAccountId?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

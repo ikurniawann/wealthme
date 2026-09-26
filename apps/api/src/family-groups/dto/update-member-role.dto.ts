@@ -2,6 +2,8 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { MemberRelationship, Role } from "@prisma/client";
 import { IsEnum, IsIn, IsInt, IsOptional, IsPositive } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 // "owner" is intentionally excluded — the UI never offers minting a co-owner
 // through this endpoint, so a forged owner-caller request can't use it to
 // grant ownership outside the UI's intent (defense in depth).
@@ -49,4 +51,7 @@ export class UpdateMemberRoleDto {
   @IsInt()
   @IsPositive()
   largeTxnThreshold?: number | null;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }
