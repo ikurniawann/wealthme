@@ -589,101 +589,107 @@ export default function TujuanPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        <Rise index={0}>
-          <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4">
-            <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-[#BBF7D0] text-[#15803D]">
-              <CircleCheck className="size-[17px]" aria-hidden="true" />
-            </div>
-            <div className="text-[10.5px] text-[#15803D]">
-              {t.tujuan.onTrackLabel}
-            </div>
-            <div className="text-[22px] font-black text-[#15803D]">
-              {onTrackCount}
-            </div>
-            <div className="text-[11px] text-[#15803D]">
-              {t.tujuan.onTrackDesc}
-            </div>
-          </div>
-        </Rise>
-        <Rise index={1}>
-          <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-warning-soft text-warning">
-              <Gauge className="size-[17px]" aria-hidden="true" />
-            </div>
-            <div className="text-[10.5px] text-warning">
-              {t.tujuan.needsBoostLabel}
-            </div>
-            <div className="text-[22px] font-black text-warning">
-              {needsBoostCount}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {t.tujuan.needsBoostDesc}
-            </div>
-          </div>
-        </Rise>
-        <Rise index={2}>
-          <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-brand-purple/15 text-brand-purple">
-              <TriangleAlert className="size-[17px]" aria-hidden="true" />
-            </div>
-            <div className="text-[10.5px] text-muted-foreground">
-              {t.tujuan.atRiskLabel}
-            </div>
-            <div className="text-[22px] font-black text-primary">
-              {atRiskCount}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {t.tujuan.atRiskDesc}
-            </div>
-          </div>
-        </Rise>
-        <Rise index={3}>
-          <div className="flex flex-col justify-center rounded-[14px] border bg-card p-4">
-            <div className="mb-1.5 text-[10.5px] font-bold text-muted-foreground">
-              {t.tujuan.overallSectionTitle}
-            </div>
-            <div className="flex items-end justify-between gap-2">
-              <div>
-                <div className="text-[10.5px] text-muted-foreground">
-                  {t.tujuan.overallTotalLabel}
-                </div>
-                <div className="text-[22px] font-black text-primary">
-                  {overallPercent}%
-                </div>
+      {/* Polish batch 7b item 6 — with exactly one goal, these 4 KPI cards
+          (on-track/needs-boost/at-risk counts + the "overall" progress bar)
+          only restate what the single goal card below already shows;
+          hidden in that case, kept for 0 or 2+ goals. */}
+      {(isLoading || (goals?.length ?? 0) !== 1) && (
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+          <Rise index={0}>
+            <div className="rounded-[14px] border border-[#86EFAC] bg-[#DCFCE7] p-4">
+              <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-[#BBF7D0] text-[#15803D]">
+                <CircleCheck className="size-[17px]" aria-hidden="true" />
               </div>
-              <StatusBadge variant="success">
-                {goals?.length ?? 0}
-                {t.tujuan.overallActiveGoalsSuffix}
-              </StatusBadge>
+              <div className="text-[10.5px] text-[#15803D]">
+                {t.tujuan.onTrackLabel}
+              </div>
+              <div className="text-[22px] font-black text-[#15803D]">
+                {onTrackCount}
+              </div>
+              <div className="text-[11px] text-[#15803D]">
+                {t.tujuan.onTrackDesc}
+              </div>
             </div>
-            <div className="mt-2">
-              <AnimatedProgress
-                value={overallPercent}
-                color="var(--primary)"
-                height={9}
-              />
+          </Rise>
+          <Rise index={1}>
+            <div className="rounded-[14px] border bg-card p-4">
+              <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-warning-soft text-warning">
+                <Gauge className="size-[17px]" aria-hidden="true" />
+              </div>
+              <div className="text-[10.5px] text-warning">
+                {t.tujuan.needsBoostLabel}
+              </div>
+              <div className="text-[22px] font-black text-warning">
+                {needsBoostCount}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {t.tujuan.needsBoostDesc}
+              </div>
             </div>
-            <div className="mt-2 flex justify-between text-[10.5px] text-muted-foreground">
-              <span>
-                {formatRupiah(totalAllocated)}
-                {t.tujuan.collectedSuffix}
-              </span>
-              <span>
-                {t.tujuan.targetPrefix}
-                {formatRupiah(totalTarget)}
-              </span>
+          </Rise>
+          <Rise index={2}>
+            <div className="rounded-[14px] border bg-card p-4">
+              <div className="mb-1.5 flex size-[30px] items-center justify-center rounded-md bg-brand-purple/15 text-brand-purple">
+                <TriangleAlert className="size-[17px]" aria-hidden="true" />
+              </div>
+              <div className="text-[10.5px] text-muted-foreground">
+                {t.tujuan.atRiskLabel}
+              </div>
+              <div className="text-[22px] font-black text-primary">
+                {atRiskCount}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {t.tujuan.atRiskDesc}
+              </div>
             </div>
-            <div className="mt-2 border-t pt-2 text-[10.5px] text-muted-foreground">
-              {t.tujuan.overallMonthlyPrefix}
-              <strong className="font-[family-name:var(--font-mono)] text-foreground">
-                {formatRupiah(totalMonthlyNeeded)}
-              </strong>
-              {t.tujuan.overallMonthlySuffix}
+          </Rise>
+          <Rise index={3}>
+            <div className="flex flex-col justify-center rounded-[14px] border bg-card p-4">
+              <div className="mb-1.5 text-[10.5px] font-bold text-muted-foreground">
+                {t.tujuan.overallSectionTitle}
+              </div>
+              <div className="flex items-end justify-between gap-2">
+                <div>
+                  <div className="text-[10.5px] text-muted-foreground">
+                    {t.tujuan.overallTotalLabel}
+                  </div>
+                  <div className="text-[22px] font-black text-primary">
+                    {overallPercent}%
+                  </div>
+                </div>
+                <StatusBadge variant="success">
+                  {goals?.length ?? 0}
+                  {t.tujuan.overallActiveGoalsSuffix}
+                </StatusBadge>
+              </div>
+              <div className="mt-2">
+                <AnimatedProgress
+                  value={overallPercent}
+                  color="var(--primary)"
+                  height={9}
+                />
+              </div>
+              <div className="mt-2 flex justify-between text-[10.5px] text-muted-foreground">
+                <span>
+                  {formatRupiah(totalAllocated)}
+                  {t.tujuan.collectedSuffix}
+                </span>
+                <span>
+                  {t.tujuan.targetPrefix}
+                  {formatRupiah(totalTarget)}
+                </span>
+              </div>
+              <div className="mt-2 border-t pt-2 text-[10.5px] text-muted-foreground">
+                {t.tujuan.overallMonthlyPrefix}
+                <strong className="font-[family-name:var(--font-mono)] text-foreground">
+                  {formatRupiah(totalMonthlyNeeded)}
+                </strong>
+                {t.tujuan.overallMonthlySuffix}
+              </div>
             </div>
-          </div>
-        </Rise>
-      </div>
+          </Rise>
+        </div>
+      )}
 
       {isError && (
         <div className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
