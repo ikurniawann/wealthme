@@ -1713,17 +1713,9 @@ export type I18nDictionary = {
     navPricePrefix: string;
     nominalPrefix: string;
     pricingSourceLastSyncedPrefix: string;
-    // EPIC-026 Wave 8 — prototype #dlg-catat (`.investment-dialog`):
-    // dialog description + the `.investment-form__section` headings and
-    // the `.hint` lines under the identity fields.
+    // polish-j batch 7a item 3 — the per-section headings are gone; this is
+    // now the dialog's only subtitle line.
     modalDesc: string;
-    sectionIdentityTitle: string;
-    sectionIdentityDesc: string;
-    sectionPositionTitle: string;
-    sectionPositionDesc: string;
-    sectionValuationTitle: string;
-    sectionValuationDesc: string;
-    hintName: string;
     hintPurchaseDate: string;
     hintLotConversion: string;
     // EPIC-022 D2 — quantity/cost basis can no longer be silently overwritten

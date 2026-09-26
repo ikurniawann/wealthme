@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useId, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -522,12 +522,6 @@ function AddInvestmentModal({
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
   const [submitting, setSubmitting] = useState(false);
-  // Stable ids so each `investment-form__section` can be labelled by its own
-  // heading (prototype uses `aria-labelledby` on every section).
-  const sectionUid = useId();
-  const identitySectionId = `${sectionUid}-identity`;
-  const positionSectionId = `${sectionUid}-position`;
-  const valuationSectionId = `${sectionUid}-valuation`;
   const [form, setForm] = useState<AddInvestmentForm>(() =>
     editing
       ? {
@@ -802,297 +796,224 @@ function AddInvestmentModal({
           className="flex min-h-0 flex-1 flex-col"
         >
           <DialogBody className="investment-form">
-            <section
-              className="investment-form__section"
-              aria-labelledby={identitySectionId}
-            >
-              <div className="investment-form__section-heading">
-                <div>
-                  <h3
-                    className="investment-form__section-title"
-                    id={identitySectionId}
-                  >
-                    {t.investasi.sectionIdentityTitle}
-                  </h3>
-                  <p className="investment-form__section-desc">
-                    {t.investasi.sectionIdentityDesc}
-                  </p>
-                </div>
+            <div className="investment-form__grid">
+              <div className="field">
+                <label className="label" htmlFor="type">
+                  {t.investasi.fieldTypeLabel}
+                </label>
+                <select
+                  id="type"
+                  name="type"
+                  value={form.type}
+                  onChange={handleChange}
+                  className="select"
+                >
+                  {INVESTMENT_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {t.investasi.typeLabels[type]}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div className="investment-form__grid">
-                <div className="field">
-                  <label className="label" htmlFor="type">
-                    {t.investasi.fieldTypeLabel}
-                  </label>
-                  <select
-                    id="type"
-                    name="type"
-                    value={form.type}
-                    onChange={handleChange}
-                    className="select"
-                  >
-                    {INVESTMENT_TYPES.map((type) => (
-                      <option key={type} value={type}>
-                        {t.investasi.typeLabels[type]}
-                      </option>
-                    ))}
-                  </select>
-                  {/* Prototype `#h-jenis` — the per-type pricing hint. Uses
-                      this app's own honest copy (which feed, or none) rather
-                      than the prototype's hardcoded saham sentence. */}
-                  <div className="hint">
-                    {isDeposito
-                      ? t.investasi.depositoValuationNote
-                      : form.type === "saham"
-                        ? t.investasi.autoPriceNoteSaham
-                        : form.type === "kripto"
-                          ? t.investasi.autoPriceNoteKripto
-                          : isFamilyGoldPriced
-                            ? t.investasi.familyGoldPriceNote
-                            : t.investasi.manualPriceNote}
-                  </div>
-                </div>
-
-                {/* EPIC-024 C3 (D7) — "tanggal beli", every type. */}
-                <div className="field">
-                  <label className="label" htmlFor="purchasedAt">
-                    {t.investasi.fieldPurchaseDateLabel}
-                  </label>
-                  <DateField
-                    id="purchasedAt"
-                    name="purchasedAt"
-                    value={form.purchasedAt}
-                    locale={locale}
-                    label={t.investasi.fieldPurchaseDateLabel}
-                    onChange={(iso) =>
-                      setForm((prev) => ({ ...prev, purchasedAt: iso }))
-                    }
-                  />
-                  <div className="hint">{t.investasi.hintPurchaseDate}</div>
-                </div>
+              {/* EPIC-024 C3 (D7) — "tanggal beli", every type. */}
+              <div className="field">
+                <label className="label" htmlFor="purchasedAt">
+                  {t.investasi.fieldPurchaseDateLabel}
+                </label>
+                <DateField
+                  id="purchasedAt"
+                  name="purchasedAt"
+                  value={form.purchasedAt}
+                  locale={locale}
+                  label={t.investasi.fieldPurchaseDateLabel}
+                  onChange={(iso) =>
+                    setForm((prev) => ({ ...prev, purchasedAt: iso }))
+                  }
+                />
+                <div className="hint">{t.investasi.hintPurchaseDate}</div>
               </div>
+            </div>
 
-              <div className="investment-form__grid">
-                <div className="field">
-                  <label className="label" htmlFor="name">
-                    {t.investasi.fieldNameLabel}
-                  </label>
-                  <input
-                    id="name"
-                    name="name"
-                    required
-                    value={form.name}
-                    onChange={handleChange}
-                    placeholder={t.investasi.fieldNamePlaceholder}
-                    className="input"
-                  />
-                  <div className="hint">{t.investasi.hintName}</div>
-                </div>
-                <div className="field">
-                  <label className="label" htmlFor="ticker">
-                    {t.investasi.fieldTickerLabel}
-                  </label>
-                  <input
-                    id="ticker"
-                    name="ticker"
-                    required
-                    value={form.ticker}
-                    onChange={handleChange}
-                    placeholder={t.investasi.fieldTickerPlaceholder}
-                    className="input mono"
-                  />
-                </div>
+            <div className="investment-form__grid mt-3">
+              <div className="field">
+                <label className="label" htmlFor="name">
+                  {t.investasi.fieldNameLabel}
+                </label>
+                <input
+                  id="name"
+                  name="name"
+                  required
+                  value={form.name}
+                  onChange={handleChange}
+                  placeholder={t.investasi.fieldNamePlaceholder}
+                  className="input"
+                />
               </div>
-            </section>
+              <div className="field">
+                <label className="label" htmlFor="ticker">
+                  {t.investasi.fieldTickerLabel}
+                </label>
+                <input
+                  id="ticker"
+                  name="ticker"
+                  required
+                  value={form.ticker}
+                  onChange={handleChange}
+                  placeholder={t.investasi.fieldTickerPlaceholder}
+                  className="input mono"
+                />
+              </div>
+            </div>
 
-            <section
-              className="investment-form__section"
-              aria-labelledby={positionSectionId}
-            >
-              <div className="investment-form__section-heading">
-                <div>
-                  <h3
-                    className="investment-form__section-title"
-                    id={positionSectionId}
-                  >
-                    {t.investasi.sectionPositionTitle}
-                  </h3>
-                  <p className="investment-form__section-desc">
-                    {t.investasi.sectionPositionDesc}
-                  </p>
-                </div>
-                {/* Prototype `#seg-satuan` — the Lot/Lembar switch lives in
-                    the section heading, as a `.segmented` control. */}
-                {form.type === "saham" && (
-                  <div className="field investment-form__unit">
-                    <span className="label">
-                      {t.investasi.fieldQuantityUnitLabel}
-                    </span>
-                    {/* `.segmented__item`'s selected style keys off
-                        `[aria-selected="true"]`, which is only valid on a
-                        role that supports it — hence the prototype's own
-                        `role="tablist"`/`role="tab"` pairing (assets/shell.js
-                        uses exactly this for its `.segmented`). */}
-                    <div
-                      className="segmented"
-                      role="tablist"
-                      aria-label={t.investasi.fieldQuantityUnitLabel}
+            {/* batch 7a item 3 — the Lot/Lembar switch used to float at the
+                right of a now-removed section heading; it now sits as its
+                own labelled field, same rhythm as every other field in the
+                grid. */}
+            {form.type === "saham" && (
+              <div className="field mt-3">
+                <span className="label">
+                  {t.investasi.fieldQuantityUnitLabel}
+                </span>
+                {/* `.segmented__item`'s selected style keys off
+                    `[aria-selected="true"]`, which is only valid on a
+                    role that supports it — hence the prototype's own
+                    `role="tablist"`/`role="tab"` pairing (assets/shell.js
+                    uses exactly this for its `.segmented`). */}
+                <div
+                  className="segmented"
+                  role="tablist"
+                  aria-label={t.investasi.fieldQuantityUnitLabel}
+                >
+                  {(["lot", "lembar"] as const).map((unit) => (
+                    <button
+                      key={unit}
+                      type="button"
+                      role="tab"
+                      className="segmented__item"
+                      aria-selected={form.quantityUnit === unit}
+                      onClick={() => handleQuantityUnitChange(unit)}
                     >
-                      {(["lot", "lembar"] as const).map((unit) => (
-                        <button
-                          key={unit}
-                          type="button"
-                          role="tab"
-                          className="segmented__item"
-                          aria-selected={form.quantityUnit === unit}
-                          onClick={() => handleQuantityUnitChange(unit)}
-                        >
-                          {unit === "lot"
-                            ? t.investasi.unitLot
-                            : t.investasi.unitLembar}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                      {unit === "lot"
+                        ? t.investasi.unitLot
+                        : t.investasi.unitLembar}
+                    </button>
+                  ))}
+                </div>
               </div>
+            )}
 
-              <div className="investment-form__grid">
-                {/* EPIC-024 C3 (D9) — saham gets the Lot/Lembar toggle above
+            <div className="investment-form__grid mt-3">
+              {/* EPIC-024 C3 (D9) — saham gets the Lot/Lembar toggle above
                     (canonical lembar, ×100, converted only at submit — see
                     handleQuantityUnitChange); kripto is coin decimals;
                     deposito has no quantity input at all (fixed at 1, its
                     nominal lives in costBasisPerUnit). */}
-                {!isDeposito && (
-                  <div className="field">
-                    <label className="label" htmlFor="quantity">
-                      {t.investasi.fieldQuantityLabelByType[form.type]}
-                    </label>
-                    <input
-                      id="quantity"
-                      name="quantity"
-                      type="number"
-                      required
-                      min="0"
-                      step={quantityStep(form.type, form.quantityUnit)}
-                      value={form.quantity}
-                      onChange={handleChange}
-                      disabled={isEditingLots}
-                      placeholder={
-                        form.type === "saham"
-                          ? form.quantityUnit === "lot"
-                            ? t.investasi.fieldQuantityLotPlaceholder
-                            : t.investasi.fieldQuantityLembarPlaceholder
-                          : t.investasi.fieldQuantityPlaceholderByType[
-                              form.type
-                            ]
-                      }
-                      className="input mono disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                    {form.type === "saham" && !isEditingLots && (
-                      <div className="hint">
-                        {t.investasi.hintLotConversion}
-                      </div>
-                    )}
-                    {isEditingLots && (
-                      <div className="hint">
-                        {t.investasi.hintQuantityLocked}
-                      </div>
-                    )}
-                  </div>
-                )}
-
+              {!isDeposito && (
                 <div className="field">
-                  <label className="label" htmlFor="costBasisPerUnit">
-                    {isDeposito
-                      ? t.investasi.fieldDepositoNominalLabel
-                      : t.investasi.fieldCostBasisLabel}
+                  <label className="label" htmlFor="quantity">
+                    {t.investasi.fieldQuantityLabelByType[form.type]}
                   </label>
-                  <MoneyInput
-                    field={costField}
-                    id="costBasisPerUnit"
+                  <input
+                    id="quantity"
+                    name="quantity"
+                    type="number"
+                    required
+                    min="0"
+                    step={quantityStep(form.type, form.quantityUnit)}
+                    value={form.quantity}
+                    onChange={handleChange}
                     disabled={isEditingLots}
-                    required={!isEditingLots}
                     placeholder={
-                      isDeposito
-                        ? t.investasi.fieldDepositoNominalPlaceholder
-                        : t.investasi.fieldCostBasisPlaceholder
+                      form.type === "saham"
+                        ? form.quantityUnit === "lot"
+                          ? t.investasi.fieldQuantityLotPlaceholder
+                          : t.investasi.fieldQuantityLembarPlaceholder
+                        : t.investasi.fieldQuantityPlaceholderByType[form.type]
                     }
+                    className="input mono disabled:cursor-not-allowed disabled:opacity-60"
                   />
+                  {form.type === "saham" && !isEditingLots && (
+                    <div className="hint">{t.investasi.hintLotConversion}</div>
+                  )}
                   {isEditingLots && (
-                    <div className="hint">
-                      {t.investasi.hintCostBasisLocked}
-                    </div>
+                    <div className="hint">{t.investasi.hintQuantityLocked}</div>
                   )}
                 </div>
+              )}
 
-                {INTEREST_BEARING_TYPES.includes(form.type) && (
-                  <div className="field">
-                    <label className="label" htmlFor="interestRatePct">
-                      {t.investasi.fieldInterestRateLabel}
-                    </label>
-                    <input
-                      id="interestRatePct"
-                      name="interestRatePct"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={form.interestRatePct}
-                      onChange={handleChange}
-                      placeholder={t.investasi.fieldInterestRatePlaceholder}
-                      className="input mono"
-                    />
-                  </div>
-                )}
-
-                {/* EPIC-024 C3 (D10) — deposito's jatuh tempo. */}
-                {isDeposito && (
-                  <div className="field">
-                    <label className="label" htmlFor="maturityDate">
-                      {t.investasi.fieldMaturityDateLabel}
-                    </label>
-                    <DateField
-                      id="maturityDate"
-                      name="maturityDate"
-                      value={form.maturityDate}
-                      locale={locale}
-                      label={t.investasi.fieldMaturityDateLabel}
-                      onChange={(iso) =>
-                        setForm((prev) => ({ ...prev, maturityDate: iso }))
-                      }
-                    />
-                  </div>
+              <div className="field">
+                <label className="label" htmlFor="costBasisPerUnit">
+                  {isDeposito
+                    ? t.investasi.fieldDepositoNominalLabel
+                    : t.investasi.fieldCostBasisLabel}
+                </label>
+                <MoneyInput
+                  field={costField}
+                  id="costBasisPerUnit"
+                  disabled={isEditingLots}
+                  required={!isEditingLots}
+                  placeholder={
+                    isDeposito
+                      ? t.investasi.fieldDepositoNominalPlaceholder
+                      : t.investasi.fieldCostBasisPlaceholder
+                  }
+                />
+                {isEditingLots && (
+                  <div className="hint">{t.investasi.hintCostBasisLocked}</div>
                 )}
               </div>
-            </section>
+
+              {INTEREST_BEARING_TYPES.includes(form.type) && (
+                <div className="field">
+                  <label className="label" htmlFor="interestRatePct">
+                    {t.investasi.fieldInterestRateLabel}
+                  </label>
+                  <input
+                    id="interestRatePct"
+                    name="interestRatePct"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={form.interestRatePct}
+                    onChange={handleChange}
+                    placeholder={t.investasi.fieldInterestRatePlaceholder}
+                    className="input mono"
+                  />
+                </div>
+              )}
+
+              {/* EPIC-024 C3 (D10) — deposito's jatuh tempo. */}
+              {isDeposito && (
+                <div className="field">
+                  <label className="label" htmlFor="maturityDate">
+                    {t.investasi.fieldMaturityDateLabel}
+                  </label>
+                  <DateField
+                    id="maturityDate"
+                    name="maturityDate"
+                    value={form.maturityDate}
+                    locale={locale}
+                    label={t.investasi.fieldMaturityDateLabel}
+                    onChange={(iso) =>
+                      setForm((prev) => ({ ...prev, maturityDate: iso }))
+                    }
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Prototype `#blok-manual` + its automated counterpart, as the
-                third section. EPIC-023 G1 (D15) — per-type pricing: manual
+                third group. EPIC-023 G1 (D15) — per-type pricing: manual
                 types get a dated manual-price field; automated types
                 (saham/kripto) get an honest note instead, since the price
                 comes from Yahoo/CoinGecko. EPIC-024 C3 (D10) — deposito gets
                 neither: its value is computed from bunga %/thn, never
-                entered. */}
-            <section
-              className="investment-form__section"
-              aria-labelledby={valuationSectionId}
-            >
-              <div className="investment-form__section-heading">
-                <div>
-                  <h3
-                    className="investment-form__section-title"
-                    id={valuationSectionId}
-                  >
-                    {t.investasi.sectionValuationTitle}
-                  </h3>
-                  <p className="investment-form__section-desc">
-                    {t.investasi.sectionValuationDesc}
-                  </p>
-                </div>
-              </div>
-
+                entered. batch 7a item 3 — this notice is the ONE place the
+                per-type pricing-source note is shown now; the duplicate
+                hint that used to sit under the Jenis select is gone. */}
+            <div className="mt-3">
               {isDeposito ? (
                 <div className="notice notice--info">
                   <Calculator className="size-4 shrink-0" aria-hidden="true" />
@@ -1173,7 +1094,7 @@ function AddInvestmentModal({
                   </span>
                 </div>
               )}
-            </section>
+            </div>
           </DialogBody>
 
           {/* Prototype `.dialog__footer` — outline Batal, primary save

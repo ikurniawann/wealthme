@@ -1753,16 +1753,7 @@ export const id = {
     pricingSourceNoticeBody:
       "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko, keduanya delayed ±15 menit, bukan real-time. Emas mengikuti Harga Emas keluarga di Pengaturan. Reksa dana, obligasi, dan lainnya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya; deposito dihitung dari bunganya.",
     allocationTitle: "Alokasi per Jenis",
-    modalDesc:
-      "Isi jenis dulu, kolom di bawah menyesuaikan. Saham dihitung per lot, kripto per koin, deposito per bunga berjalan.",
-    sectionIdentityTitle: "Informasi instrumen",
-    sectionIdentityDesc:
-      "Pilih jenis dan identitas investasi yang akan dicatat.",
-    sectionPositionTitle: "Jumlah & harga beli",
-    sectionPositionDesc: "Masukkan posisi awal beserta harga belinya.",
-    sectionValuationTitle: "Penilaian",
-    sectionValuationDesc: "Dari mana nilai terkini posisi ini berasal.",
-    hintName: "Nama lengkap yang akan tampil di daftar kepemilikan.",
+    modalDesc: "Kolom menyesuaikan jenis.",
     hintPurchaseDate: "Dipakai untuk menghitung lama kepemilikan.",
     hintLotConversion: "1 lot = 100 lembar (aturan IDX).",
     hintQuantityLocked:

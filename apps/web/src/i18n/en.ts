@@ -1721,16 +1721,7 @@ export const en = {
     pricingSourceNoticeBody:
       "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko, both delayed ±15 minutes, not real-time. Gold follows the family Gold Price in Settings. Mutual funds, bonds and other holdings you value manually, always shown with their valuation date; time deposits are computed from their interest.",
     allocationTitle: "Allocation by Type",
-    modalDesc:
-      "Pick the type first, the fields below adapt. Stocks are counted in lots, crypto in coins, time deposits by accrued interest.",
-    sectionIdentityTitle: "Instrument details",
-    sectionIdentityDesc:
-      "Choose the type and identity of the holding you're recording.",
-    sectionPositionTitle: "Quantity & purchase price",
-    sectionPositionDesc: "Enter the opening position and what you paid for it.",
-    sectionValuationTitle: "Valuation",
-    sectionValuationDesc: "Where this position's current value comes from.",
-    hintName: "The full name shown in your holdings list.",
+    modalDesc: "The fields adapt to the type.",
     hintPurchaseDate: "Used to calculate how long you have held the position.",
     hintLotConversion: "1 lot = 100 shares (IDX rule).",
     hintQuantityLocked:
