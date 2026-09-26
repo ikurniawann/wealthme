@@ -2639,6 +2639,12 @@ export type I18nDictionary = {
       subtitle: string;
       monthlyGrossLabel: string;
       editMonthsToggle: string;
+      // Fix round 1 (DTP fixed-gross cap, PMK 10/2025) — an explicit
+      // per-month THR/bonus amount so the DTP salary cap can exclude it
+      // without under-capping a genuine mid-year raise.
+      thrBonusLabel: string;
+      thrBonusHint: string;
+      thrExceedsGrossError: string;
       categoryPrefix: string;
       kiNote: string;
       colMonth: string;
