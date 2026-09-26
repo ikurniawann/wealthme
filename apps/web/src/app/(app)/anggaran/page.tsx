@@ -16,12 +16,13 @@ import { toast } from "sonner";
 import {
   SectionCard,
   CardLink,
-  EmojiPicker,
   HeroCard,
   AnimatedProgress,
   Rise,
   StatusBadge,
 } from "@/components/wm";
+import { IconPickerField } from "@/components/crud/icon-picker-field";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import {
   Dialog,
   DialogBody,
@@ -1413,6 +1414,10 @@ export default function AnggaranPage() {
           <DialogTitle>{t.anggaran.modalAddTitle}</DialogTitle>
           <DialogDescription>{t.anggaran.modalAddDesc}</DialogDescription>
           <DialogBody>
+            {/* polish-j batch 7a item 2 — Budget (this dialog's actual
+                point) now leads; Tipe/COA/Privat/Ikon collapse under "Opsi
+                lanjutan" for the owner flow, since a default (expense, auto
+                COA, not private) already covers most budgets. */}
             {/* F3 fix — a member can "manage Budget" but only "read
                 Category": the create-a-category fields below would 403 on
                 submit, so a member instead picks an existing category of
@@ -1432,72 +1437,6 @@ export default function AnggaranPage() {
                 />
               </div>
             )}
-            {/* The fixed 8-emoji grid that used to live here is gone: a
-                category whose icon is a boat or a violin was simply not
-                expressible. Same component the master-data category dialog
-                uses, so the two no longer disagree about what an icon is. */}
-            {canManageCategory !== false && (
-              <EmojiPicker
-                label={t.anggaran.iconLabel}
-                value={icon}
-                onChange={setIcon}
-                searchPlaceholder={t.common.emojiSearchPlaceholder}
-                noResultsLabel={t.common.emojiNoResults}
-                loadingLabel={t.common.emojiLoading}
-                ariaLabel={t.anggaran.iconGroupAriaLabel}
-              />
-            )}
-            {/* The category half of the form. These were previously decided
-                for the user — always `expense`, always the server's default
-                COA account, never private — even though the budget's whole
-                identity comes from the category it creates. */}
-            <div
-              className={
-                canManageCategory !== false ? "field field-row" : "field"
-              }
-            >
-              <div className="field mt-0">
-                <label className="label" htmlFor="budget-kind">
-                  {t.anggaran.fieldKindLabel}
-                </label>
-                <select
-                  id="budget-kind"
-                  value={kind}
-                  onChange={(e) => {
-                    setKind(e.target.value as "income" | "expense");
-                    // The previously chosen account/category may not be
-                    // offered for the new kind; fall back rather than
-                    // silently submitting a value no longer in the list.
-                    setCoaAccountId("");
-                    setExistingCategoryId("");
-                  }}
-                  className="select"
-                >
-                  <option value="expense">{t.common.expense}</option>
-                  <option value="income">{t.common.income}</option>
-                </select>
-              </div>
-              {canManageCategory !== false && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="budget-coa">
-                    {t.anggaran.fieldCoaLabel}
-                  </label>
-                  <select
-                    id="budget-coa"
-                    value={coaAccountId}
-                    onChange={(e) => setCoaAccountId(e.target.value)}
-                    className="select"
-                  >
-                    <option value="">{t.anggaran.coaAutoOptionLabel}</option>
-                    {selectableCoaAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} · {a.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
             {canManageCategory === false && (
               <div className="field">
                 <label className="label" htmlFor="budget-existing-category">
@@ -1525,31 +1464,9 @@ export default function AnggaranPage() {
                 )}
               </div>
             )}
-            {canManageCategory !== false && (
-              <div className="field">
-                {/* polish-j batch 6 item 2 — switch first (left), label +
-                    hint after (right), matching crud-modal.tsx's toggle
-                    branch and every other visibility toggle in the app. */}
-                <div className="row mt-3.5 gap-[9px]">
-                  <Switch
-                    checked={isPrivate}
-                    onCheckedChange={setIsPrivate}
-                    aria-label={t.anggaran.fieldPrivateLabel}
-                  />
-                  <span>
-                    <span className="label">
-                      {t.anggaran.fieldPrivateLabel}
-                    </span>
-                    <span className="hint block">
-                      {t.anggaran.fieldPrivateHint}
-                    </span>
-                  </span>
-                </div>
-              </div>
-            )}
             {/* EPIC-026 Wave 4 — prototype puts amount + periode side by
                 side in a `field-row` (anggaran.html:410). */}
-            <div className="field field-row">
+            <div className="field field-row mt-3">
               <div className="field mt-0">
                 <label className="label" htmlFor="budget-amount">
                   {t.anggaran.fieldAmountLabel}
@@ -1578,6 +1495,91 @@ export default function AnggaranPage() {
                 </select>
               </div>
             </div>
+            {canManageCategory !== false && (
+              <AdvancedDisclosure label={t.common.advancedOptions}>
+                {/* The category half of the form. These were previously
+                    decided for the user — always `expense`, always the
+                    server's default COA account, never private — even
+                    though the budget's whole identity comes from the
+                    category it creates. */}
+                <div className="field field-row mt-0">
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="budget-kind">
+                      {t.anggaran.fieldKindLabel}
+                    </label>
+                    <select
+                      id="budget-kind"
+                      value={kind}
+                      onChange={(e) => {
+                        setKind(e.target.value as "income" | "expense");
+                        // The previously chosen account/category may not be
+                        // offered for the new kind; fall back rather than
+                        // silently submitting a value no longer in the list.
+                        setCoaAccountId("");
+                        setExistingCategoryId("");
+                      }}
+                      className="select"
+                    >
+                      <option value="expense">{t.common.expense}</option>
+                      <option value="income">{t.common.income}</option>
+                    </select>
+                  </div>
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="budget-coa">
+                      {t.anggaran.fieldCoaLabel}
+                    </label>
+                    <select
+                      id="budget-coa"
+                      value={coaAccountId}
+                      onChange={(e) => setCoaAccountId(e.target.value)}
+                      className="select"
+                    >
+                      <option value="">{t.anggaran.coaAutoOptionLabel}</option>
+                      {selectableCoaAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} · {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="field mt-0">
+                  {/* polish-j batch 6 item 2 — switch first (left), label +
+                      hint after (right), matching crud-modal.tsx's toggle
+                      branch and every other visibility toggle in the app. */}
+                  <div className="row mt-0 gap-[9px]">
+                    <Switch
+                      checked={isPrivate}
+                      onCheckedChange={setIsPrivate}
+                      aria-label={t.anggaran.fieldPrivateLabel}
+                    />
+                    <span>
+                      <span className="label">
+                        {t.anggaran.fieldPrivateLabel}
+                      </span>
+                      <span className="hint block">
+                        {t.anggaran.fieldPrivateHint}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                {/* The fixed 8-emoji grid that used to live here is gone: a
+                    category whose icon is a boat or a violin was simply not
+                    expressible. Same component the master-data category
+                    dialog uses, so the two no longer disagree about what an
+                    icon is; batch 7a item 1 collapses it behind a 40px
+                    trigger button instead of an always-open grid. */}
+                <IconPickerField
+                  label={t.anggaran.iconLabel}
+                  value={icon}
+                  onChange={setIcon}
+                  searchPlaceholder={t.common.emojiSearchPlaceholder}
+                  noResultsLabel={t.common.emojiNoResults}
+                  loadingLabel={t.common.emojiLoading}
+                  ariaLabel={t.anggaran.iconGroupAriaLabel}
+                />
+              </AdvancedDisclosure>
+            )}
           </DialogBody>
           {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
               Simpan side by side (anggaran.html:444), not a single

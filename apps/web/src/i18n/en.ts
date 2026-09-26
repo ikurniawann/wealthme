@@ -13,6 +13,7 @@ export const en = {
     emojiNoResults: "No icon found. Try another word.",
     emojiLoading: "Loading icons…",
     emojiGroupAriaLabel: "Frequently used icons",
+    advancedOptions: "Advanced options",
     datePickerPlaceholder: "Choose date",
     datePickerYearLabel: "Year",
     datePickerClear: "Clear date",

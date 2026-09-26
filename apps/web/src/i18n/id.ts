@@ -13,6 +13,7 @@ export const id = {
     emojiNoResults: "Ikon tidak ditemukan. Coba kata lain.",
     emojiLoading: "Memuat daftar ikon…",
     emojiGroupAriaLabel: "Ikon yang sering dipakai",
+    advancedOptions: "Opsi lanjutan",
     datePickerPlaceholder: "Pilih tanggal",
     datePickerYearLabel: "Tahun",
     datePickerClear: "Hapus tanggal",

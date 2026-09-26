@@ -391,6 +391,8 @@ export type I18nDictionary = {
     emojiNoResults: string;
     emojiLoading: string;
     emojiGroupAriaLabel: string;
+    /** Shared "Opsi lanjutan" disclosure summary (components/crud/advanced-disclosure.tsx). */
+    advancedOptions: string;
     /** Single-date picker (components/wm/date-range-field.tsx `DateField`). */
     datePickerPlaceholder: string;
     datePickerYearLabel: string;

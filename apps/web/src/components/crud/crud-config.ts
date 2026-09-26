@@ -309,12 +309,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         type: "text",
         placeholder: "cth: Dana Liburan",
       },
-      {
-        key: "icon",
-        label: "Ikon",
-        type: "iconpick",
-        options: ["🛡️", "✈️", "🏠", "🏖️", "🚗", "🎓", "💍", "👶"],
-      },
       { key: "target", label: "Target Jumlah", type: "amount" },
       { key: "terkumpul", label: "Sudah Terkumpul", type: "amount" },
       { key: "deadline", label: "Target Tanggal", type: "date" },
@@ -354,6 +348,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         options: [],
         visibleWhen: (v) => parseRupiah(v.autodebit ?? "") > 0,
       },
+      {
+        key: "icon",
+        label: "Ikon",
+        type: "iconpick",
+        options: ["🛡️", "✈️", "🏠", "🏖️", "🚗", "🎓", "💍", "👶"],
+      },
     ],
   },
   // EPIC-024 A2 (D2, item 18) — the "member" entity (email invite-link UI)
@@ -380,12 +380,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
     title: "Kategori",
     fields: [
       {
-        key: "icon",
-        label: "Ikon",
-        type: "iconpick",
-        options: ["🍽️", "🚗", "🏥", "🎮", "🛒", "💡", "📱", "🎓", "🏠", "✈️"],
-      },
-      {
         key: "nama",
         label: "Nama Kategori",
         type: "text",
@@ -410,6 +404,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Kategori Privat",
         type: "toggle",
         helperText: "Sembunyikan dari anggota keluarga lain",
+      },
+      {
+        key: "icon",
+        label: "Ikon",
+        type: "iconpick",
+        options: ["🍽️", "🚗", "🏥", "🎮", "🛒", "💡", "📱", "🎓", "🏠", "✈️"],
       },
     ],
   },

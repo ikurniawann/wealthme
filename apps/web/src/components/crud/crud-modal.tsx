@@ -16,7 +16,8 @@ import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { mergeReferenceOptions } from "@/hooks/reference-options";
 import { useReferenceItems } from "@/hooks/use-reference-items";
-import { DateField, EmojiPicker } from "@/components/wm";
+import { DateField } from "@/components/wm";
+import { IconPickerField } from "./icon-picker-field";
 import {
   MoneyInput,
   useControlledMoneyField,
@@ -360,7 +361,7 @@ function CrudForm({
     if (f.type === "iconpick") {
       return (
         <div key={f.key} className={fieldClass}>
-          <EmojiPicker
+          <IconPickerField
             label={label}
             value={values[f.key] ?? ""}
             onChange={(emoji) => setField(f.key, emoji)}
