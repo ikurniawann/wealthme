@@ -145,3 +145,10 @@ describe("LoginPage — family login IDs", () => {
     expect(authClient.$fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("LoginPage — polish batch 7b item 7 copy", () => {
+  it("has no emoji glyph on the welcome title", () => {
+    render(<LoginPage />);
+    expect(screen.getByText("Selamat Datang Kembali")).toBeInTheDocument();
+  });
+});
