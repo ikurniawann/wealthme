@@ -959,7 +959,15 @@ export default function SplitBillPage() {
             </div>
           </DialogBody>
 
-          <DialogFooter>
+          {/* polish-j batch 7a item 12 — `.dialog__footer` only sticks at
+              <=768px (design-system.css's own mobile media query); above
+              that, `.dialog` itself is the scrolling box (`max-height:
+              85dvh; overflow-y: auto`, unchanged), so a local Tailwind
+              class here — not a design-system.css/dialog.tsx edit — pins
+              the footer to that same scrolling box's bottom edge at
+              desktop widths too, mirroring the mobile block's own
+              negative-margin + padding technique. */}
+          <DialogFooter className="min-[769px]:sticky min-[769px]:bottom-0 min-[769px]:-mx-5 min-[769px]:-mb-5 min-[769px]:mt-[18px] min-[769px]:border-t min-[769px]:bg-popover min-[769px]:px-5 min-[769px]:pt-3 min-[769px]:pb-5">
             {/* Same teardown as the Escape/backdrop path above
                 (`onOpenChange` → `resetCreateForm`), so cancelling never
                 leaves a half-filled form behind for the next open. */}

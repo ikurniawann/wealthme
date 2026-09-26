@@ -211,6 +211,28 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     expect(document.querySelectorAll(".card.stat")).toHaveLength(3);
   });
 
+  it("polish-j batch 7a item 12 — the create dialog's footer sticks to the bottom on desktop widths too", async () => {
+    mockApiFetchDefault();
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: idDict.splitbill.createButton,
+      }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const footer = within(dialog)
+      .getByRole("button", { name: idDict.common.cancel })
+      .closest('[data-slot="dialog-footer"]');
+    expect(footer).not.toBeNull();
+    // Local Tailwind classes (batch 7a item 12), not a design-system.css or
+    // dialog.tsx edit — scoped to >=769px so the mobile sticky footer (its
+    // own media-query rule) is untouched.
+    expect(footer).toHaveClass("min-[769px]:sticky");
+    expect(footer).toHaveClass("min-[769px]:bottom-0");
+  });
+
   it("shows an honest error banner when the list fails to load", async () => {
     mockApiFetchDefault("error");
     render(<SplitBillPage />);
