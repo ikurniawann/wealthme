@@ -230,6 +230,67 @@ export function effectivePeriodFor(
     : elapsed + 2;
 }
 
+/** Days after its due day an installment still counts as the one being paid (user decision, revisi K). */
+export const DUE_GRACE_DAYS = 5;
+// Asia/Jakarta (WIB, UTC+7, no DST): the app's calendar; there is no per-family timezone setting.
+const APP_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** `now`'s WIB calendar day as a UTC-midnight Date (akad dates are stored as UTC midnight of their calendar day). */
+export function localCalendarDay(now: Date): Date {
+  const shifted = new Date(now.getTime() + APP_UTC_OFFSET_MS);
+  return new Date(
+    Date.UTC(
+      shifted.getUTCFullYear(),
+      shifted.getUTCMonth(),
+      shifted.getUTCDate(),
+    ),
+  );
+}
+
+export interface DueInstallment {
+  /** The installment the Pay preset shows and pay() settles. */
+  period: number;
+  /** Past its due day (inside the grace window, or past maturity). */
+  late: boolean;
+}
+
+/**
+ * The installment being paid today: the latest one already due while it is
+ * at most DUE_GRACE_DAYS late, otherwise the next one (installment k falls
+ * due k months after the akad), clamped to [1, tenor]. The schedule's first
+ * row, the Pay preset, pay()/preview and the budget line all use it.
+ */
+export function dueInstallment(
+  startDate: Date | null,
+  now: Date,
+  tenorMonths: number | null,
+): DueInstallment {
+  if (startDate === null) return { period: 1, late: false };
+  const today = localCalendarDay(now);
+  const elapsed = monthsElapsed(startDate, today);
+  const lastDue = Date.UTC(
+    startDate.getUTCFullYear(),
+    startDate.getUTCMonth() + elapsed,
+    startDate.getUTCDate(),
+  );
+  const daysLate = Math.round((today.getTime() - lastDue) / DAY_MS);
+  const inGrace = elapsed >= 1 && daysLate <= DUE_GRACE_DAYS;
+  const period = inGrace ? elapsed : elapsed + 1;
+  if (tenorMonths !== null && period > tenorMonths) {
+    return { period: tenorMonths, late: true };
+  }
+  return { period, late: inGrace && daysLate > 0 };
+}
+
+export function dueInstallmentPeriod(
+  startDate: Date | null,
+  now: Date,
+  tenorMonths: number | null,
+): number {
+  return dueInstallment(startDate, now, tenorMonths).period;
+}
+
 export interface ScheduleInput {
   method: InterestMethod;
   remainingBalance: bigint;

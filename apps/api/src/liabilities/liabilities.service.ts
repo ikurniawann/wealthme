@@ -30,7 +30,7 @@ import {
   computeInstallment,
   currentInstallment,
   defaultInterestMethod,
-  monthsElapsed,
+  dueInstallmentPeriod,
   parseRateScaledByHundred,
   rateForPeriod,
   splitPayment,
@@ -109,15 +109,15 @@ type InstallmentTerms = Pick<
   | "floatingRate"
 >;
 
-/** Schedule inputs from the liability's current state, starting at the next installment. */
+/** Schedule inputs from the liability's current state, starting at `firstPeriod` (default: the installment due on or after `now`). */
 function scheduleInputFor(
   liability: InstallmentTerms,
   now: Date,
+  firstPeriod?: number,
 ): ScheduleInput {
-  const elapsed = liability.startDate
-    ? monthsElapsed(liability.startDate, now)
-    : 0;
   const tenor = liability.tenorMonths;
+  const first =
+    firstPeriod ?? dueInstallmentPeriod(liability.startDate, now, tenor);
   return {
     method: liability.interestMethod,
     remainingBalance: liability.remainingBalance,
@@ -127,8 +127,8 @@ function scheduleInputFor(
     installmentAmount:
       liability.installmentAmount ??
       (liability.minimumPayment > BigInt(0) ? liability.minimumPayment : null),
-    remainingMonths: tenor === null ? null : Math.max(1, tenor - elapsed),
-    firstPeriod: tenor === null ? elapsed + 1 : Math.min(elapsed + 1, tenor),
+    remainingMonths: tenor === null ? null : Math.max(1, tenor - first + 1),
+    firstPeriod: first,
     fixedRateMonths: liability.fixedRateMonths,
     floatingRatePercent: liability.floatingRate?.toString() ?? null,
   };
@@ -138,14 +138,22 @@ function scheduleInputFor(
 function currentInstallmentFor(
   liability: InstallmentTerms,
   now: Date,
+  firstPeriod?: number,
 ): bigint | null {
-  return currentInstallment(scheduleInputFor(liability, now));
+  return currentInstallment(scheduleInputFor(liability, now, firstPeriod));
 }
 
-/** Budget line limit: the installment now due; a liability with no minimumPayment has no line. */
-function budgetContribution(liability: InstallmentTerms, now: Date): bigint {
+/** Budget line limit: the installment due; a liability with no minimumPayment has no line. */
+function budgetContribution(
+  liability: InstallmentTerms,
+  now: Date,
+  firstPeriod?: number,
+): bigint {
   if (liability.minimumPayment <= BigInt(0)) return BigInt(0);
-  return currentInstallmentFor(liability, now) ?? liability.minimumPayment;
+  return (
+    currentInstallmentFor(liability, now, firstPeriod) ??
+    liability.minimumPayment
+  );
 }
 
 function toLiabilityDto(
@@ -230,11 +238,6 @@ function resolveInstallment(terms: {
   });
 }
 
-// Installment k falls due k months after the akad, so a payment settles installment max(1, elapsed).
-function settledPeriod(startDate: Date | null, now: Date): number {
-  return startDate ? Math.max(1, monthsElapsed(startDate, now)) : 1;
-}
-
 /** The split pay() books for `paymentAmount` at `now`; refuses more than balance + interest due. */
 function splitLiabilityPayment(
   liability: InstallmentTerms,
@@ -245,7 +248,11 @@ function splitLiabilityPayment(
     paymentAmount,
     remainingBalance: liability.remainingBalance,
     annualInterestRatePercent: rateForPeriod({
-      period: settledPeriod(liability.startDate, now),
+      period: dueInstallmentPeriod(
+        liability.startDate,
+        now,
+        liability.tenorMonths,
+      ),
       baseRatePercent: liability.interestRate.toString(),
       fixedRateMonths: liability.fixedRateMonths,
       floatingRatePercent: liability.floatingRate?.toString() ?? null,
@@ -983,6 +990,16 @@ export class LiabilitiesService {
       familyGroupId,
       liability,
     );
+    // The installment just settled is no longer outstanding: the line tracks the next one.
+    const settled = dueInstallmentPeriod(
+      liability.startDate,
+      now,
+      liability.tenorMonths,
+    );
+    const nextPeriod =
+      liability.startDate === null
+        ? undefined
+        : Math.min(settled + 1, liability.tenorMonths ?? settled + 1);
     if (liability.minimumPayment > BigInt(0)) {
       await this.syncPrincipalBudgetLine(
         tx,
@@ -994,6 +1011,7 @@ export class LiabilitiesService {
             remainingBalance: liability.remainingBalance - principal,
           },
           now,
+          nextPeriod,
         ),
       );
     }

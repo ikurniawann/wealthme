@@ -2124,13 +2124,14 @@ describe("LiabilitiesService", () => {
       floatingRate: { toString: () => "11.00" },
       principalCategoryId: "cat-principal",
     };
-    // 2029-02-20: 37 months elapsed, so the next installment is #38 with 203 left.
+    // Revisi K due day: 2029-02-20 is 5 days after #37 fell due — inside the
+    // grace window, so #37 is still the installment being paid, with 204 left.
     const NOW = new Date("2029-02-20T00:00:00.000Z");
     const FLOATING_INSTALLMENT = computeInstallment({
       method: "anuitas",
       principal: BigInt(450_000_000),
       annualInterestRatePercent: "11.00",
-      tenorMonths: 203,
+      tenorMonths: 204,
     });
 
     it("exposes the re-amortised floating installment as currentInstallmentAmount, matching schedule row 1", async () => {
@@ -2426,6 +2427,102 @@ describe("LiabilitiesService", () => {
       const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
 
       expect(schedule.rows).toEqual([]);
+    });
+  });
+
+  describe("unified due day — revisi K (Pay preset = installment pay() books)", () => {
+    // G legacy pair: 8% fixed for 36 bln, then 11% floating; akad 2026-01-15.
+    const KPR_36 = {
+      ...BASE,
+      type: "kpr",
+      interestMethod: "anuitas",
+      totalDebt: BigInt(500_000_000),
+      remainingBalance: BigInt(465_590_716),
+      interestRate: { toString: () => "8.00" },
+      tenorMonths: 240,
+      startDate: new Date("2026-01-15T00:00:00.000Z"),
+      installmentAmount: BigInt(4_182_200),
+      minimumPayment: BigInt(4_182_200),
+      fixedRateMonths: 36,
+      floatingRate: { toString: () => "11.00" },
+      principalCategoryId: "cat-principal",
+    };
+
+    it.each([
+      ["the day before #36", "2029-01-14T08:00:00.000Z", "4182200", "3103938"],
+      ["#36's due day", "2029-01-15T08:00:00.000Z", "4182200", "3103938"],
+      [
+        "#36 one day late (grace)",
+        "2029-01-16T08:00:00.000Z",
+        "4182200",
+        "3103938",
+      ],
+      [
+        "#36 five days late (last grace day)",
+        "2029-01-20T08:00:00.000Z",
+        "4182200",
+        "3103938",
+      ],
+      [
+        "six days after #36: #37 at the floating rate",
+        "2029-01-21T08:00:00.000Z",
+        "5053432",
+        "4267915",
+      ],
+      ["the day before #37", "2029-02-14T08:00:00.000Z", "5053432", "4267915"],
+    ])(
+      "%s: the preset and the booked split are the same installment",
+      async (_label, now, preset, interest) => {
+        prisma.liability.findMany.mockResolvedValue([KPR_36]);
+        prisma.liability.findUnique.mockResolvedValue(KPR_36);
+
+        const [dto] = await service.findAll("fg-1", new Date(now));
+        const preview = await service.previewPayment(
+          "fg-1",
+          "lid-1",
+          preset,
+          new Date(now),
+        );
+
+        expect(dto?.currentInstallmentAmount).toBe(preset);
+        expect(preview.interest).toBe(interest);
+        // Paying exactly the preset settles that installment: principal = preset - its interest.
+        expect(BigInt(preview.principal)).toBe(
+          BigInt(preset) - BigInt(interest),
+        );
+      },
+    );
+
+    it("a late payment inside the grace window settles #36 at 8% and moves the budget line to #37: 5.041.728", async () => {
+      prisma.liability.findUnique.mockResolvedValue(KPR_36);
+      prisma.account.findUnique.mockResolvedValue({
+        id: "acc-1",
+        familyGroupId: "fg-1",
+        type: "bank",
+        balance: BigInt(50_000_000),
+        name: "BCA",
+      });
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue(KPR_36);
+
+      await service.pay(
+        "fg-1",
+        "lid-1",
+        { sourceAccountId: "acc-1", amount: "4182200" },
+        new Date("2029-01-20T08:00:00.000Z"),
+      );
+
+      // 465,590,716 x 8%/12 = 3,103,938 interest -> 1,078,262 principal (the old tier's rate).
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: { remainingBalance: { decrement: BigInt(1_078_262) } },
+      });
+      // #37 re-annuitised at 11% over 204 months on 464,512,454.
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ limitAmount: BigInt(5_041_728) }),
+        }),
+      );
     });
   });
 });
