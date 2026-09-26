@@ -97,19 +97,50 @@ export function KprPrepaymentSimulator({
 
       <form className="mt-2" onSubmit={handleSubmit}>
         <fieldset className="field mt-0">
-          <legend className="label">{k.prepayModeLabel}</legend>
-          <div className="segmented">
-            {MODES.map((m) => (
-              <label key={m} className="segmented__item">
-                <input
-                  type="radio"
-                  name="kpr-prepay-mode"
-                  value={m}
-                  checked={mode === m}
-                  onChange={() => setMode(m)}
-                />{" "}
+          <legend className="label" id="kpr-prepay-mode-label">
+            {k.prepayModeLabel}
+          </legend>
+          <div
+            className="segmented flex w-full"
+            role="radiogroup"
+            aria-labelledby="kpr-prepay-mode-label"
+          >
+            {MODES.map((m, index) => (
+              <button
+                key={m}
+                type="button"
+                role="radio"
+                aria-checked={mode === m}
+                aria-selected={mode === m}
+                tabIndex={mode === m ? 0 : -1}
+                className="segmented__item flex-1"
+                onClick={() => setMode(m)}
+                onKeyDown={(e) => {
+                  if (
+                    e.key !== "ArrowRight" &&
+                    e.key !== "ArrowLeft" &&
+                    e.key !== "ArrowDown" &&
+                    e.key !== "ArrowUp"
+                  ) {
+                    return;
+                  }
+                  e.preventDefault();
+                  const delta =
+                    e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1;
+                  const next =
+                    MODES[(index + delta + MODES.length) % MODES.length];
+                  if (next) setMode(next);
+                  (
+                    e.currentTarget
+                      .closest('[role="radiogroup"]')
+                      ?.querySelectorAll('[role="radio"]')[
+                      (index + delta + MODES.length) % MODES.length
+                    ] as HTMLElement | undefined
+                  )?.focus();
+                }}
+              >
                 {k.prepayModes[m]}
-              </label>
+              </button>
             ))}
           </div>
         </fieldset>

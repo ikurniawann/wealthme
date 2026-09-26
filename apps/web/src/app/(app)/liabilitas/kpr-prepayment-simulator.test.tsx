@@ -63,9 +63,14 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
     renderSimulator();
     const user = userEvent.setup();
 
-    await user.click(
-      screen.getByRole("radio", { name: k.prepayModes.reduce_installment }),
-    );
+    const reduceInstallmentRadio = screen.getByRole("radio", {
+      name: k.prepayModes.reduce_installment,
+    });
+    await user.click(reduceInstallmentRadio);
+    expect(reduceInstallmentRadio).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("radio", { name: k.prepayModes.reduce_tenor }),
+    ).toHaveAttribute("aria-selected", "false");
     await user.type(screen.getByLabelText(k.prepayAmountLabel), "100000000");
     await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
 
