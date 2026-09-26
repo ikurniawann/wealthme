@@ -156,6 +156,19 @@ describe("fx wiring — ledger routes (revisi I)", () => {
     expect(accounts.update).not.toHaveBeenCalled();
   });
 
+  it("stored cash account switched to bank in the same PATCH does NOT allow a negative foreign balance", async () => {
+    accounts.findOne.mockResolvedValue({ id: "acc-cash", type: "cash" });
+    const res = await http()
+      .patch(`/family-groups/${FG}/accounts/acc-cash`)
+      .send({
+        type: "bank",
+        balance: 0,
+        fxInputs: [{ field: "balance", currency: "USD", amount: "-20.00" }],
+      });
+    expect(res.status).toBe(400);
+    expect(accounts.update).not.toHaveBeenCalled();
+  });
+
   it("PATCH without fxInputs never converts (editing keeps the stored IDR)", async () => {
     await http()
       .patch(`/family-groups/${FG}/accounts/acc-1`)
@@ -202,7 +215,8 @@ describe("fx wiring — ledger routes (revisi I)", () => {
         type: "expense",
         occurredAt: "2026-09-26T00:00:00.000Z",
         fxInputs: [{ field: "amount", currency: "USD", amount: "10.00" }],
-      });
+      })
+      .expect(202);
     expect(transactions.create.mock.calls[0][1].amount).toBe(179_139);
     expect(
       fx.prisma.fxConversion.createMany.mock.calls[0][0].data[0],

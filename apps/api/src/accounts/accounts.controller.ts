@@ -146,6 +146,12 @@ export class AccountsController {
           )
         ).type
       : undefined;
+    // Both the STORED type and the type this request would leave the account as must be
+    // "cash" — `AccountsService.update` applies `dto.type` with no balance re-check, so a
+    // client sending `type: "bank"` alongside a negative foreign preview must not slip
+    // through just because the account was cash before this PATCH.
+    const effectiveType = dto.type ?? storedType;
+    const allowsNegative = storedType === "cash" && effectiveType === "cash";
     return this.fxInputs.run(
       {
         familyGroupId,
@@ -153,7 +159,7 @@ export class AccountsController {
         entity: "Account",
         entityId: id,
         dto,
-        spec: accountBalanceSpec(storedType),
+        spec: accountBalanceSpec(allowsNegative ? "cash" : undefined),
       },
       (converted) =>
         this.accountsService.update(familyGroupId, id, converted, actorOf(req)),

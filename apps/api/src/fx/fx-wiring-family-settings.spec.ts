@@ -77,6 +77,24 @@ describe("fx wiring — /akun settings (revisi I)", () => {
       .expect(403);
   });
 
+  it("gold price rejects a zero or negative foreign amount (400, service never called)", async () => {
+    await http()
+      .patch(`/family-groups/${FG}/gold-price`)
+      .send({
+        pricePerGram: 1,
+        fxInputs: [{ field: "pricePerGram", currency: "USD", amount: "0.00" }],
+      })
+      .expect(400);
+    await http()
+      .patch(`/family-groups/${FG}/gold-price`)
+      .send({
+        pricePerGram: 1,
+        fxInputs: [{ field: "pricePerGram", currency: "USD", amount: "-1.00" }],
+      })
+      .expect(400);
+    expect(svc.updateGoldPrice).not.toHaveBeenCalled();
+  });
+
   it("gold price in IDR is unchanged (no fxInputs, no snapshot)", async () => {
     await http()
       .patch(`/family-groups/${FG}/gold-price`)
@@ -117,5 +135,29 @@ describe("fx wiring — /akun settings (revisi I)", () => {
     expect(svc.updateMemberRole.mock.calls[1][3]).toMatchObject({
       largeTxnThreshold: null,
     });
+  });
+
+  it("member threshold rejects a zero or negative foreign amount (400, service never called)", async () => {
+    await http()
+      .patch(`/family-groups/${FG}/members/m-2`)
+      .send({
+        role: "dependant",
+        largeTxnThreshold: 1,
+        fxInputs: [
+          { field: "largeTxnThreshold", currency: "SGD", amount: "0.00" },
+        ],
+      })
+      .expect(400);
+    await http()
+      .patch(`/family-groups/${FG}/members/m-2`)
+      .send({
+        role: "dependant",
+        largeTxnThreshold: 1,
+        fxInputs: [
+          { field: "largeTxnThreshold", currency: "SGD", amount: "-100.00" },
+        ],
+      })
+      .expect(400);
+    expect(svc.updateMemberRole).not.toHaveBeenCalled();
   });
 });
