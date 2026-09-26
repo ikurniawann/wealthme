@@ -572,7 +572,6 @@ function LiabilityModal({
         <DialogTitle>
           {editing ? t.liabilitas.modalEditTitle : t.liabilitas.modalTitle}
         </DialogTitle>
-        <DialogDescription>{t.liabilitas.modalDesc}</DialogDescription>
 
         <form onSubmit={handleSubmit}>
           <DialogBody>
@@ -674,57 +673,59 @@ function LiabilityModal({
               </div>
             )}
 
-            <div className="field-row mt-3">
-              {!usesTenor && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-min-payment">
-                    {t.liabilitas.fieldMinPaymentLabel}
-                  </label>
-                  <MoneyInput
-                    field={minPaymentField}
-                    id="liability-min-payment"
-                    placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
-                  />
-                </div>
-              )}
-              {!usesRatePlan && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-interest-rate">
-                    {rateLabel}
-                  </label>
-                  <input
-                    id="liability-interest-rate"
-                    className="input mono"
-                    placeholder={t.liabilitas.fieldInterestRatePlaceholder}
-                    inputMode="decimal"
-                    value={interestRate}
-                    onChange={(e) => setInterestRate(e.target.value)}
-                  />
-                </div>
-              )}
-              {usesTenor && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-tenor">
-                    {t.liabilitas.fieldTenorLabel}
-                  </label>
-                  <input
-                    id="liability-tenor"
-                    className="input mono"
-                    inputMode="numeric"
-                    placeholder="36"
-                    value={tenorMonths}
-                    onChange={(e) =>
-                      setTenorMonths(e.target.value.replace(/\D/g, ""))
-                    }
-                  />
-                  {usesRatePlan && (
-                    <div className="hint">
-                      {t.liabilitas.kpr.tenorRequiredHint}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* polish-j batch 7a item 8 — Min. Bayar is a MoneyInput and
+                Bunga a plain percent input; pairing mismatched control
+                shapes in one field-row read as misaligned, so each gets its
+                own full-width row instead. */}
+            {!usesTenor && (
+              <div className="field mt-3">
+                <label className="label" htmlFor="liability-min-payment">
+                  {t.liabilitas.fieldMinPaymentLabel}
+                </label>
+                <MoneyInput
+                  field={minPaymentField}
+                  id="liability-min-payment"
+                  placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
+                />
+              </div>
+            )}
+            {!usesRatePlan && (
+              <div className="field mt-3">
+                <label className="label" htmlFor="liability-interest-rate">
+                  {rateLabel}
+                </label>
+                <input
+                  id="liability-interest-rate"
+                  className="input mono"
+                  placeholder={t.liabilitas.fieldInterestRatePlaceholder}
+                  inputMode="decimal"
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(e.target.value)}
+                />
+              </div>
+            )}
+            {usesTenor && (
+              <div className="field mt-3">
+                <label className="label" htmlFor="liability-tenor">
+                  {t.liabilitas.fieldTenorLabel}
+                </label>
+                <input
+                  id="liability-tenor"
+                  className="input mono"
+                  inputMode="numeric"
+                  placeholder="36"
+                  value={tenorMonths}
+                  onChange={(e) =>
+                    setTenorMonths(e.target.value.replace(/\D/g, ""))
+                  }
+                />
+                {usesRatePlan && (
+                  <div className="hint">
+                    {t.liabilitas.kpr.tenorRequiredHint}
+                  </div>
+                )}
+              </div>
+            )}
 
             {usesTenor && (
               <div className="field-row mt-3">

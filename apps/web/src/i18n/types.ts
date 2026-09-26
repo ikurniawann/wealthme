@@ -1982,10 +1982,11 @@ export type I18nDictionary = {
     overdueWarningPrefix: string;
     overdueWarningSuffix: string;
     // EPIC-026 Wave 8 — prototype dialog composition
-    // (docs/prototype/pages/liabilitas.html): `.dialog__desc` lines, the
-    // Detail dialog's amortisation-schedule table headers, the Bayar
-    // dialog's amount presets / source-account hint / split-preview notice.
-    modalDesc: string;
+    // (docs/prototype/pages/liabilitas.html): the Detail dialog's
+    // amortisation-schedule table headers, the Bayar dialog's amount
+    // presets / source-account hint / split-preview notice. polish-j
+    // batch 7a item 8 dropped the add/edit dialog's own `.dialog__desc`
+    // ("Perubahan langsung memengaruhi rasio...").
     detailNextDueLabel: string;
     detailPayButton: string;
     amortisationScheduleTitle: string;

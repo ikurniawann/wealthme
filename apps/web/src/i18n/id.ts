@@ -1883,8 +1883,7 @@ export const id = {
     fieldValueChangeAmountPlaceholder:
       "cth. -5.000.000 untuk penyusutan, 5.000.000 untuk apresiasi",
     fieldAcquisitionDateLabel: "Tanggal Perolehan (opsional)",
-    fieldAcquisitionDateHelper:
-      "Proyeksi nilai dihitung mulai dari tanggal ini. Jika dikosongkan, dihitung sejak aset ditambahkan.",
+    fieldAcquisitionDateHelper: "Kosong = sejak ditambahkan.",
     fieldMasterDataCategoryLabel: "Kategori Master Data (opsional)",
     fieldMasterDataCategoryNone: "Tidak ada kategori",
     fieldNotesLabel: "Catatan (opsional)",
@@ -2053,8 +2052,6 @@ export const id = {
     // missed due date.
     overdueWarningPrefix: "Cicilan ",
     overdueWarningSuffix: " belum dibayar.",
-    modalDesc:
-      "Perubahan langsung memengaruhi rasio utang terhadap aset dan proyeksi pelunasan.",
     detailNextDueLabel: "Jatuh Tempo Berikutnya",
     detailPayButton: "Bayar Cicilan",
     amortisationScheduleTitle: "Jadwal Amortisasi",

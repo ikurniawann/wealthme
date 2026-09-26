@@ -1852,8 +1852,7 @@ export const en = {
     fieldValueChangeAmountPlaceholder:
       "e.g. -5,000,000 for depreciation, 5,000,000 for appreciation",
     fieldAcquisitionDateLabel: "Acquisition Date (optional)",
-    fieldAcquisitionDateHelper:
-      "The value projection is measured from this date. Falls back to when the asset was added if left blank.",
+    fieldAcquisitionDateHelper: "Blank = since it was added.",
     fieldMasterDataCategoryLabel: "Master Data Category (optional)",
     fieldMasterDataCategoryNone: "No category",
     fieldNotesLabel: "Notes (optional)",
@@ -2017,8 +2016,6 @@ export const en = {
     payoffProjectionSeriesLabel: "Remaining Balance",
     overdueWarningPrefix: "The ",
     overdueWarningSuffix: " installment hasn't been paid.",
-    modalDesc:
-      "Changes feed straight into the debt-to-asset ratio and the payoff projection.",
     detailNextDueLabel: "Next Due Date",
     detailPayButton: "Pay Installment",
     amortisationScheduleTitle: "Amortisation Schedule",
