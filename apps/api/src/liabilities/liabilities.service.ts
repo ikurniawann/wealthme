@@ -31,6 +31,7 @@ import {
   currentInstallment,
   defaultInterestMethod,
   dueInstallment,
+  dueInstallmentEffectiveAt,
   dueInstallmentPeriod,
   parseRateScaledByHundred,
   ratePlanOf,
@@ -248,12 +249,23 @@ async function withRatePlan<T extends { id: string }>(
   return { ...row, ratePlanRows: rows.get(row.id) ?? EMPTY_RATE_PLAN_ROWS };
 }
 
-/** A prepaid loan's installment after a term correction: what is left, re-annuitised from the installment now due (shared engine). */
-function reanchoredInstallment(
-  terms: InstallmentTerms,
+/** A prepaid loan's installment after a term correction: what is left, re-annuitised from the installment now due (shared engine, same anchor as C1). */
+async function reanchoredInstallment(
+  client: TxClient,
+  familyGroupId: string,
+  terms: InstallmentTerms & { id: string },
   now: Date,
-): { installmentAmount: bigint | null; installmentFromPeriod: number } {
-  const input = scheduleInputFor(terms, now);
+): Promise<{
+  installmentAmount: bigint | null;
+  installmentFromPeriod: number;
+}> {
+  const firstPeriod = await resolveDueAnchorPeriod(
+    client,
+    familyGroupId,
+    terms,
+    now,
+  );
+  const input = scheduleInputFor(terms, now, firstPeriod);
   const [row] = buildSchedule({
     ...input,
     installmentAmount: BigInt(0),
@@ -351,15 +363,27 @@ function assertPrepayable(liability: {
 }
 
 /**
- * Review fix 1 — `dueInstallment` alone picks the installment CURRENTLY due
- * by date, including the whole 5-day grace window; it does not know that
- * installment was already paid this month. A prepayment simulated/recorded
- * inside that window, right after paying, must anchor to the NEXT period
- * (mirrors `runPayment`'s own `settled + 1`), or it re-derives numbers off
- * an installment whose principal has already left `remainingBalance`.
- * Shared by `previewPrepayment` and `recordPrepayment` so they never drift.
+ * Review fix 1 / C1 — `dueInstallment` alone picks the installment CURRENTLY
+ * due by date, including the whole 5-day grace window; it does not know
+ * whether THAT installment was already paid. A prepayment (or a term
+ * correction re-annuitising a prepaid loan) simulated/recorded/computed
+ * right after paying must anchor to the NEXT period (mirrors `runPayment`'s
+ * own `settled + 1`), or it re-derives numbers off an installment whose
+ * principal has already left `remainingBalance`.
+ *
+ * C1 fix: "already paid" means a non-prepayment payment leg on or after the
+ * WIB instant `due` itself BECAME the due installment
+ * (`dueInstallmentEffectiveAt`) — never "any payment this calendar month".
+ * The calendar month is the wrong window in both directions: a payment made
+ * for the PREVIOUS installment, on its own due day, falls in the same
+ * calendar month as `due` and would wrongly bump it; a payment made for
+ * `due` itself, near a month boundary, can fall in a DIFFERENT calendar
+ * month from the prepayment and would wrongly be missed.
+ *
+ * Shared by `previewPrepayment`, `recordPrepayment` and `reanchoredInstallment`
+ * so none of them drift from one another.
  */
-async function resolvePrepaymentFirstPeriod(
+async function resolveDueAnchorPeriod(
   client: TxClient,
   familyGroupId: string,
   liability: {
@@ -375,18 +399,18 @@ async function resolvePrepaymentFirstPeriod(
     liability.tenorMonths,
   ).period;
   if (liability.startDate === null) return due;
-  const { periodStart, periodEnd } = currentPaymentPeriodBounds("monthly");
-  const paidThisPeriod = await client.transaction.findFirst({
+  const becameDueAt = dueInstallmentEffectiveAt(liability.startDate, due);
+  const alreadyPaid = await client.transaction.findFirst({
     where: {
       familyGroupId,
       liabilityId: liability.id,
-      occurredAt: { gte: periodStart, lte: periodEnd },
+      occurredAt: { gte: becameDueAt },
       accountId: { not: null },
       liabilityPrepaymentId: null,
     },
     select: { id: true },
   });
-  if (!paidThisPeriod) return due;
+  if (!alreadyPaid) return due;
   return Math.min(due + 1, liability.tenorMonths ?? due + 1);
 }
 
@@ -1078,7 +1102,9 @@ export class LiabilitiesService {
         "Pinjaman ini punya pelunasan dipercepat tercatat — hanya cicilan anuitas dengan tenor yang bisa dihitung ulang",
       );
     }
-    const reanchored = reanchor ? reanchoredInstallment(nextTerms, now) : null;
+    const reanchored = reanchor
+      ? await reanchoredInstallment(tx, familyGroupId, nextTerms, now)
+      : null;
     const installmentAmount =
       amounts.installmentAmount !== undefined
         ? amounts.installmentAmount
@@ -1408,7 +1434,7 @@ export class LiabilitiesService {
     const request = parsePrepaymentRequest(query);
 
     const planned = await withRatePlan(this.prisma, familyGroupId, liability);
-    const firstPeriod = await resolvePrepaymentFirstPeriod(
+    const firstPeriod = await resolveDueAnchorPeriod(
       this.prisma,
       familyGroupId,
       liability,
@@ -1497,7 +1523,7 @@ export class LiabilitiesService {
       throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
     }
 
-    const firstPeriod = await resolvePrepaymentFirstPeriod(
+    const firstPeriod = await resolveDueAnchorPeriod(
       tx,
       familyGroupId,
       liability,

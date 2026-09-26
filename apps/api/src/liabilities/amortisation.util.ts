@@ -291,6 +291,30 @@ export function dueInstallmentPeriod(
   return dueInstallment(startDate, now, tenorMonths).period;
 }
 
+/**
+ * The WIB instant `period` BECOMES the due installment (review fix C1): day
+ * D(period-1)+6 — the same day+6 flip `dueInstallment` uses — or the akad's
+ * own WIB midnight for #1. Shared by every "was THIS installment already
+ * paid" check, so none of them mistake a payment for a different period, or
+ * a different calendar month's window, for evidence about `period`.
+ */
+export function dueInstallmentEffectiveAt(
+  startDate: Date,
+  period: number,
+): Date {
+  if (period <= 1) {
+    return new Date(startDate.getTime() - APP_UTC_OFFSET_MS);
+  }
+  const previousDueDay = Date.UTC(
+    startDate.getUTCFullYear(),
+    startDate.getUTCMonth() + (period - 1),
+    startDate.getUTCDate(),
+  );
+  return new Date(
+    previousDueDay + (DUE_GRACE_DAYS + 1) * DAY_MS - APP_UTC_OFFSET_MS,
+  );
+}
+
 export interface ScheduleInput {
   method: InterestMethod;
   remainingBalance: bigint;

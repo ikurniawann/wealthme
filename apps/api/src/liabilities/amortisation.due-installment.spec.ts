@@ -1,6 +1,7 @@
 import {
   DUE_GRACE_DAYS,
   dueInstallment,
+  dueInstallmentEffectiveAt,
   dueInstallmentPeriod,
 } from "./amortisation.util";
 
@@ -48,6 +49,17 @@ describe("dueInstallment — revisi K (5-day grace, WIB calendar)", () => {
     expect(
       dueInstallment(AKAD, new Date("2028-01-14T23:30:00.000Z"), 240),
     ).toEqual({ period: 24, late: false });
+  });
+
+  it("dueInstallmentEffectiveAt: the WIB instant a period BECOMES due (C1) — day D(period-1)+6, or the akad's own WIB midnight for #1", () => {
+    // #25 becomes due exactly when #24 flips (day +6 after #24's due day, WIB) — matches the boundary above.
+    expect(dueInstallmentEffectiveAt(AKAD, 25)).toEqual(
+      new Date("2028-01-20T17:00:00.000Z"),
+    );
+    // #1 becomes due at the akad's own WIB midnight, i.e. akad 00:00 WIB = akad-day 17:00 UTC the day before.
+    expect(dueInstallmentEffectiveAt(AKAD, 1)).toEqual(
+      new Date("2026-01-14T17:00:00.000Z"),
+    );
   });
 
   it("no akad date: installment 1; no tenor: not clamped; grace is 5 days", () => {

@@ -748,6 +748,62 @@ describe("LiabilitiesService — revisi K", () => {
       expect(preview.remainingMonthsBefore).toBe(180);
     });
 
+    it("C1: #60 paid ON its own due day, prepay 6 days later — anchors at #61 (3.409.791/180), never the falsely-bumped #62 (3.417.306/179)", async () => {
+      prisma.liability.findUnique.mockResolvedValue(AT_61);
+      // #60's due day (AT_61: akad 2021-01-15) — before the instant #61
+      // becomes due (2026-01-20T17:00Z WIB), so it must NOT count as #61 paid.
+      const paidOnDueDay = new Date("2026-01-15T00:00:00.000Z");
+      prisma.transaction.findFirst.mockImplementation(
+        ({ where }: { where: { occurredAt: { gte: Date } } }) =>
+          Promise.resolve(
+            where.occurredAt.gte.getTime() <= paidOnDueDay.getTime()
+              ? { id: "tx-60" }
+              : null,
+          ),
+      );
+
+      const preview = await service.previewPrepayment(
+        "fg-1",
+        "lid-1",
+        { mode: "reduce_installment", amount: "100000000" },
+        new Date("2026-01-21T00:00:00.000Z"),
+      );
+
+      expect(preview.installmentAfter).toBe("3409791");
+      expect(preview.remainingMonthsBefore).toBe(180);
+    });
+
+    it("C1 reverse: a payment for the due installment made near a month boundary is still detected across calendar months", async () => {
+      // akad on the 31st so #60's due day (2026-01-31) and the prepayment
+      // (2026-02-02, still in grace) fall in DIFFERENT calendar months —
+      // the old "any payment this calendar month" check would miss it.
+      const startDate = new Date("2021-01-31T00:00:00.000Z");
+      prisma.liability.findUnique.mockResolvedValue({
+        ...AT_61,
+        startDate,
+      });
+      const paidOnDueDay = new Date("2026-01-31T00:00:00.000Z");
+      prisma.transaction.findFirst.mockImplementation(
+        ({ where }: { where: { occurredAt: { gte: Date } } }) =>
+          Promise.resolve(
+            where.occurredAt.gte.getTime() <= paidOnDueDay.getTime()
+              ? { id: "tx-60" }
+              : null,
+          ),
+      );
+
+      const preview = await service.previewPrepayment(
+        "fg-1",
+        "lid-1",
+        { mode: "reduce_installment", amount: "100000000" },
+        new Date("2026-02-02T00:00:00.000Z"),
+      );
+
+      // due-by-date alone is still #60 (2 days late); the payment already
+      // recorded for #60 bumps the anchor to #61 (240 - 61 + 1 = 180).
+      expect(preview.remainingMonthsBefore).toBe(180);
+    });
+
     it.each([
       ["no amount on a partial prepayment", { mode: "reduce_tenor" as const }],
       [
@@ -1244,7 +1300,7 @@ describe("LiabilitiesService — revisi K", () => {
       expect(prisma.transaction.create).not.toHaveBeenCalled();
     });
 
-    it("guard exception: an installment already paid this month does not block a prepayment", async () => {
+    it("guard exception: an installment already paid this month does not block a prepayment, and correctly bumps the anchor past it (C1)", async () => {
       arrange();
       prisma.transaction.findFirst.mockResolvedValue({ id: "tx-installment" });
 
@@ -1252,6 +1308,15 @@ describe("LiabilitiesService — revisi K", () => {
 
       expect(res.replayed).toBe(false);
       expect(prisma.liabilityPrepayment.create).toHaveBeenCalled();
+      // due (at NOW=2026-01-21) is #61; the mocked payment bumps to #62.
+      expect(res.prepayment.effectivePeriod).toBe(62);
+      expect(prisma.transaction.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            occurredAt: { gte: new Date("2026-01-20T17:00:00.000Z") },
+          }),
+        }),
+      );
     });
 
     it("review fix 1: an installment paid within the grace window anchors to the NEXT period, not the late one still due by date", async () => {
@@ -1285,6 +1350,36 @@ describe("LiabilitiesService — revisi K", () => {
         { mode: "reduce_tenor", amount: "100000000" },
         "user-1",
         new Date("2026-01-17T00:00:00.000Z"),
+      );
+
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: {
+          remainingBalance: { decrement: 100_000_000n },
+          installmentAmount: 4_546_388n,
+          minimumPayment: 4_546_388n,
+          installmentFromPeriod: 61,
+          tenorMonths: 162,
+        },
+      });
+    });
+
+    it("C1: #60 paid ON its own due day, prepay 6 days later — reduce-tenor persists tenor 162 from #61, never the falsely-bumped 163 from #62", async () => {
+      arrange();
+      const paidOnDueDay = new Date("2026-01-15T00:00:00.000Z");
+      prisma.transaction.findFirst.mockImplementation(
+        ({ where }: { where: { occurredAt: { gte: Date } } }) =>
+          Promise.resolve(
+            where.occurredAt.gte.getTime() <= paidOnDueDay.getTime()
+              ? { id: "tx-60" }
+              : null,
+          ),
+      );
+
+      await record(
+        { mode: "reduce_tenor", amount: "100000000" },
+        "user-1",
+        new Date("2026-01-21T00:00:00.000Z"),
       );
 
       expect(prisma.liability.update).toHaveBeenCalledWith({
