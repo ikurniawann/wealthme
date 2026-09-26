@@ -1,5 +1,6 @@
 import { BadRequestException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
+import { Prisma } from "@prisma/client";
 
 import { NOTIFICATION_SENDER_PORT } from "../notifications/notification-sender.port";
 import { PrismaService } from "../prisma/prisma.service";
@@ -49,6 +50,10 @@ function makePrisma() {
       findFirst: jest.fn().mockResolvedValue(null),
     },
     notification: { create: jest.fn() },
+    liabilityPrepayment: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation(
@@ -933,6 +938,350 @@ describe("LiabilitiesService — revisi K", () => {
           }),
         }),
       );
+    });
+  });
+
+  describe("recordPrepayment", () => {
+    // Single-rate 11% KPR, akad 2021-01-15: 2026-01-21 is six days after #60 fell due, so #61 (180 left) is being paid.
+    const AT_61 = {
+      ...KPR,
+      interestRate: { toString: () => "11.00" },
+      remainingBalance: 400_000_000n,
+      installmentAmount: 4_546_388n,
+      minimumPayment: 4_546_388n,
+      startDate: new Date("2021-01-15T00:00:00.000Z"),
+      kprScheme: null,
+      installmentFromPeriod: null,
+    };
+    const NOW = new Date("2026-01-21T00:00:00.000Z");
+    const KEY = "0b6f3f0e-8c1d-4a55-9e2f-3c5d7a9b1e20";
+    const BCA = {
+      id: "acc-1",
+      familyGroupId: "fg-1",
+      type: "bank",
+      balance: 500_000_000n,
+      name: "BCA",
+    };
+    const RECORDED = {
+      id: "pp-1",
+      familyGroupId: "fg-1",
+      liabilityId: "lid-1",
+      idempotencyKey: KEY,
+      mode: "reduce_installment",
+      principalAmount: 100_000_000n,
+      penaltyPercent: { toString: () => "1.00" },
+      penaltyAmount: 1_000_000n,
+      sourceAccountId: "acc-1",
+      effectivePeriod: 61,
+      installmentBefore: 4_546_388n,
+      installmentAfter: 3_409_791n,
+      tenorMonthsBefore: 240,
+      tenorMonthsAfter: 240,
+      createdByUserId: "user-1",
+      occurredAt: NOW,
+      createdAt: NOW,
+    };
+
+    function arrange(row: object = AT_61, account: object = BCA) {
+      prisma.liability.findUnique.mockResolvedValue(row);
+      prisma.account.findUnique.mockResolvedValue(account);
+      prisma.coaAccount.findFirst
+        .mockResolvedValueOnce({ id: "coa-5", name: "Utang" })
+        .mockResolvedValueOnce({
+          id: "coa-20011",
+          name: "Penalti Pelunasan Pinjaman",
+        });
+      prisma.category.findFirst
+        .mockResolvedValueOnce({ id: "cat-prepay", coaAccountId: "coa-5" })
+        .mockResolvedValueOnce({
+          id: "cat-penalty",
+          coaAccountId: "coa-20011",
+        });
+      prisma.liabilityPrepayment.create.mockImplementation(
+        ({ data }: { data: object }) =>
+          Promise.resolve({ id: "pp-1", createdAt: NOW, ...data }),
+      );
+      prisma.liability.update.mockResolvedValue(row);
+    }
+    const record = (body: object, userId: string | null = "user-1") =>
+      service.recordPrepayment(
+        "fg-1",
+        "lid-1",
+        { sourceAccountId: "acc-1", idempotencyKey: KEY, ...body } as never,
+        userId,
+        NOW,
+      );
+
+    it("reduce installment: debits principal + penalty, books both legs, persists 3.409.791 from #61", async () => {
+      arrange();
+
+      const res = await record({
+        mode: "reduce_installment",
+        amount: "100000000",
+      });
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: "acc-1", familyGroupId: "fg-1" },
+        data: { balance: { decrement: 101_000_000n } },
+      });
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: {
+          remainingBalance: { decrement: 100_000_000n },
+          installmentAmount: 3_409_791n,
+          minimumPayment: 3_409_791n,
+          installmentFromPeriod: 61,
+        },
+      });
+      expect(prisma.liabilityPrepayment.create).toHaveBeenCalledWith({
+        data: {
+          familyGroupId: "fg-1",
+          liabilityId: "lid-1",
+          idempotencyKey: KEY,
+          mode: "reduce_installment",
+          principalAmount: 100_000_000n,
+          penaltyPercent: "1.00",
+          penaltyAmount: 1_000_000n,
+          sourceAccountId: "acc-1",
+          effectivePeriod: 61,
+          installmentBefore: 4_546_388n,
+          installmentAfter: 3_409_791n,
+          tenorMonthsBefore: 240,
+          tenorMonthsAfter: 240,
+          createdByUserId: "user-1",
+          occurredAt: NOW,
+        },
+      });
+      expect(prisma.transaction.create).toHaveBeenNthCalledWith(1, {
+        data: {
+          familyGroupId: "fg-1",
+          accountId: "acc-1",
+          categoryId: "cat-prepay",
+          amount: 100_000_000n,
+          type: "transfer",
+          liabilityId: "lid-1",
+          liabilityPrepaymentId: "pp-1",
+          description: "Pelunasan dipercepat KPR BTN",
+          occurredAt: NOW,
+        },
+      });
+      expect(prisma.transaction.create).toHaveBeenNthCalledWith(2, {
+        data: {
+          familyGroupId: "fg-1",
+          accountId: "acc-1",
+          categoryId: "cat-penalty",
+          amount: 1_000_000n,
+          type: "expense",
+          liabilityId: "lid-1",
+          liabilityPrepaymentId: "pp-1",
+          description: "Penalti pelunasan KPR BTN",
+          occurredAt: NOW,
+        },
+      });
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ limitAmount: 3_409_791n }),
+        }),
+      );
+      expect(res.replayed).toBe(false);
+      expect(res.prepayment).toEqual({
+        id: "pp-1",
+        mode: "reduce_installment",
+        principalAmount: "100000000",
+        penaltyPercent: "1.00",
+        penaltyAmount: "1000000",
+        effectivePeriod: 61,
+        installmentBefore: "4546388",
+        installmentAfter: "3409791",
+        tenorMonthsBefore: 240,
+        tenorMonthsAfter: 240,
+        occurredAt: NOW.toISOString(),
+      });
+    });
+
+    it("reduce tenor: installment kept, tenor 240 -> 162, and the schedule read back has 102 rows", async () => {
+      arrange();
+
+      await record({ mode: "reduce_tenor", amount: "100000000" });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: {
+          remainingBalance: { decrement: 100_000_000n },
+          installmentAmount: 4_546_388n,
+          minimumPayment: 4_546_388n,
+          installmentFromPeriod: 61,
+          tenorMonths: 162,
+        },
+      });
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ limitAmount: 4_546_388n }),
+        }),
+      );
+
+      prisma.liability.findUnique.mockResolvedValue({
+        ...AT_61,
+        remainingBalance: 300_000_000n,
+        tenorMonths: 162,
+        installmentFromPeriod: 61,
+      });
+      const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+      expect(schedule.rows).toHaveLength(102);
+      expect(schedule.rows[0]?.installment).toBe("4546388");
+      expect(schedule.rows[101]?.remaining).toBe("0");
+    });
+
+    it("full payoff at 2.5%: debits 410.000.000, zeroes the obligation and removes the budget line", async () => {
+      arrange();
+
+      const res = await record({ mode: "full", penaltyPercent: "2.50" });
+
+      expect(prisma.account.update).toHaveBeenCalledWith({
+        where: { id: "acc-1", familyGroupId: "fg-1" },
+        data: { balance: { decrement: 410_000_000n } },
+      });
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: {
+          remainingBalance: { decrement: 400_000_000n },
+          minimumPayment: 0n,
+        },
+      });
+      expect(prisma.budget.deleteMany).toHaveBeenCalledWith({
+        where: { familyGroupId: "fg-1", liabilityId: "lid-1" },
+      });
+      expect(res.prepayment.installmentAfter).toBeNull();
+      expect(res.prepayment.penaltyAmount).toBe("10000000");
+    });
+
+    it("zero penalty books no penalty leg", async () => {
+      arrange();
+
+      await record({
+        mode: "reduce_tenor",
+        amount: "100000000",
+        penaltyPercent: "0",
+      });
+
+      expect(prisma.transaction.create).toHaveBeenCalledTimes(1);
+    });
+
+    it("replay: the same idempotencyKey returns the first record and writes nothing", async () => {
+      arrange();
+      prisma.liabilityPrepayment.findFirst.mockResolvedValue(RECORDED);
+
+      const res = await record({
+        mode: "reduce_installment",
+        amount: "100000000",
+      });
+
+      expect(prisma.liabilityPrepayment.findFirst).toHaveBeenCalledWith({
+        where: {
+          familyGroupId: "fg-1",
+          liabilityId: "lid-1",
+          idempotencyKey: KEY,
+        },
+      });
+      expect(res.replayed).toBe(true);
+      expect(res.prepayment.id).toBe("pp-1");
+      expect(prisma.account.update).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+      expect(prisma.liabilityPrepayment.create).not.toHaveBeenCalled();
+    });
+
+    it("concurrent double submit: the loser's P2002 retries into a replay, never a second debit or a 500", async () => {
+      arrange();
+      prisma.liabilityPrepayment.findFirst
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(RECORDED);
+      prisma.liabilityPrepayment.create.mockRejectedValueOnce(
+        new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+          code: "P2002",
+          clientVersion: "test",
+        }),
+      );
+
+      const res = await record({
+        mode: "reduce_installment",
+        amount: "100000000",
+      });
+
+      expect(res.replayed).toBe(true);
+      expect(prisma.liabilityPrepayment.create).toHaveBeenCalledTimes(1);
+      expect(prisma.transaction.create).not.toHaveBeenCalled();
+    });
+
+    it("guard exception: an installment already paid this month does not block a prepayment", async () => {
+      arrange();
+      prisma.transaction.findFirst.mockResolvedValue({ id: "tx-installment" });
+
+      const res = await record({ mode: "reduce_tenor", amount: "100000000" });
+
+      expect(res.replayed).toBe(false);
+      expect(prisma.liabilityPrepayment.create).toHaveBeenCalled();
+    });
+
+    it.each([
+      ["no amount on a partial prepayment", { mode: "reduce_tenor" }],
+      ["an amount on a full payoff", { mode: "full", amount: "1" }],
+      [
+        "an amount above the balance",
+        { mode: "reduce_tenor", amount: "400000001" },
+      ],
+      ["a zero amount", { mode: "reduce_installment", amount: "0" }],
+      ["a penalty above 10%", { mode: "full", penaltyPercent: "10.01" }],
+    ])("400: %s", async (_label, body) => {
+      arrange();
+
+      await expect(record(body)).rejects.toThrow(BadRequestException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("400 when the bank account cannot cover principal + penalty (overdraft floor)", async () => {
+      arrange(AT_61, { ...BCA, balance: 100_500_000n });
+
+      await expect(
+        record({ mode: "reduce_tenor", amount: "100000000" }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.account.update).not.toHaveBeenCalled();
+    });
+
+    it("400 for a liability that is not an anuitas loan", async () => {
+      arrange({ ...AT_61, interestMethod: "flat" });
+
+      await expect(record({ mode: "full" })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it("404 for another family's liability or source account (tenant-scoped lookups)", async () => {
+      arrange();
+      prisma.liability.findUnique.mockResolvedValueOnce(null);
+      await expect(record({ mode: "full" })).rejects.toThrow(
+        "Liability not found",
+      );
+
+      prisma.account.findUnique.mockResolvedValueOnce(null);
+      await expect(record({ mode: "full" })).rejects.toThrow(
+        "Account acc-1 not found",
+      );
+      expect(prisma.account.findUnique).toHaveBeenCalledWith({
+        where: { id: "acc-1", familyGroupId: "fg-1" },
+      });
+    });
+
+    it("409 when a user's own category already uses the prepayment name on another COA", async () => {
+      arrange();
+      prisma.category.findFirst.mockReset();
+      prisma.category.findFirst.mockResolvedValueOnce({
+        id: "cat-user",
+        coaAccountId: "coa-other",
+      });
+
+      await expect(
+        record({ mode: "reduce_tenor", amount: "100000000" }),
+      ).rejects.toThrow("Pelunasan Dipercepat Pinjaman");
     });
   });
 });

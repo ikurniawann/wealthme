@@ -34,6 +34,7 @@ const liabilities = {
   create: jest.fn(),
   update: jest.fn(),
   purchase: jest.fn(),
+  recordPrepayment: jest.fn(),
 };
 const insurances = { pay: jest.fn(), create: jest.fn() };
 const donations = { create: jest.fn() };
@@ -78,6 +79,7 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
       investments.create,
       investments.setManualPrice,
       liabilities.pay,
+      liabilities.recordPrepayment,
       liabilities.create,
       insurances.pay,
       insurances.create,
@@ -152,6 +154,29 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
       entity: "Liability",
       entityId: "liab-1",
       field: "pay.amount",
+    });
+  });
+
+  it("liability prepay: SGD amount, audited as Liability prepay.amount (revisi K)", async () => {
+    await http()
+      .post(`/family-groups/${FG}/liabilities/liab-1/prepay`)
+      .send({
+        sourceAccountId: UUID,
+        mode: "reduce_tenor",
+        amount: "1",
+        idempotencyKey: UUID,
+        fxInputs: [{ field: "amount", currency: "SGD", amount: "1500.25" }],
+      })
+      .expect(200);
+    expect(liabilities.recordPrepayment.mock.calls[0][2].amount).toBe(
+      "21043698",
+    );
+    expect(
+      fx.prisma.fxConversion.createMany.mock.calls[0][0].data[0],
+    ).toMatchObject({
+      entity: "Liability",
+      entityId: "liab-1",
+      field: "prepay.amount",
     });
   });
 

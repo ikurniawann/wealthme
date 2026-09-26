@@ -31,6 +31,7 @@ import { CreateLiabilityDto } from "./dto/create-liability.dto";
 import {
   LiabilityPaymentPreviewResponseDto,
   LiabilityPrepaymentPreviewResponseDto,
+  LiabilityPrepaymentRecordResponseDto,
   LiabilityResponseDto,
   LiabilityScheduleResponseDto,
   type LiabilitySummaryResponseDto,
@@ -43,6 +44,8 @@ import { PaymentPreviewQueryDto } from "./dto/payment-preview-query.dto";
 import { PrepaymentPreviewQueryDto } from "./dto/prepayment-preview-query.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { RecordPrepaymentDto } from "./dto/record-prepayment.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -230,6 +233,49 @@ export class LiabilitiesController {
         spec: FX_FIELD_SPECS.liabilityPayment,
       },
       (converted) => this.liabilitiesService.pay(familyGroupId, id, converted),
+    );
+  }
+
+  @Post(":id/prepay")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Liability"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Record an early repayment (full / reduce tenor / reduce installment): debits principal + penalty, persists the new terms; idempotent per idempotencyKey",
+  })
+  @ApiResponse({ status: 200, type: LiabilityPrepaymentRecordResponseDto })
+  @ApiResponse({ status: 404, description: "Liability or account not found" })
+  @ApiResponse({
+    status: 400,
+    description: "Not an anuitas loan, invalid amount/penalty, or overdraft",
+  })
+  @ApiResponse({ status: 409, description: "Category name conflict" })
+  recordPrepayment(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: RecordPrepaymentDto,
+    @Req() req: Request,
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const userId = req.tenantContext?.userId ?? null;
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId,
+        entity: "Liability",
+        entityId: id,
+        fieldPrefix: "prepay",
+        dto,
+        spec: FX_FIELD_SPECS.liabilityPrepayment,
+      },
+      (converted) =>
+        this.liabilitiesService.recordPrepayment(
+          familyGroupId,
+          id,
+          converted,
+          userId,
+        ),
     );
   }
 

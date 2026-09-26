@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { type Role } from "@prisma/client";
+import { type Prisma, type Role } from "@prisma/client";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
@@ -75,6 +75,8 @@ import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
   LiabilityPaymentPreviewResponseDto,
   LiabilityPrepaymentPreviewResponseDto,
+  LiabilityPrepaymentRecordResponseDto,
+  LiabilityPrepaymentResponseDto,
   LiabilityRateBandDto,
   LiabilityResponseDto,
   LiabilityScheduleResponseDto,
@@ -82,6 +84,7 @@ import type {
 } from "./dto/liability-response.dto";
 import type { PayLiabilityDto } from "./dto/pay-liability.dto";
 import type { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
+import type { RecordPrepaymentDto } from "./dto/record-prepayment.dto";
 import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
 
 // EPIC-023 A1/A2 — the loan-interest EXPENSE account each chart provisions:
@@ -93,6 +96,12 @@ import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // it never gets a budget line, so it does not need the per-obligation
 // treatment `principalCategoryId` gets below (group E retry, HIGH 4).
 const LOAN_INTEREST_COA_CODES = ["20009", "21304"];
+
+// Revisi K — a recorded prepayment's legs (decision 5): the principal on its
+// own family TRANSFER category (never the liability's budget-line category),
+// the penalty on the dedicated 20011 expense account.
+const PREPAYMENT_CATEGORY_NAME = "Pelunasan Dipercepat Pinjaman";
+const PREPAYMENT_PENALTY_COA_CODE = "20011";
 
 // EPIC-023 group E retry (HIGH 3) — mirrors TransactionsService's own
 // ActingMember shape (not imported directly, to avoid a service-to-service
@@ -283,6 +292,113 @@ function simulateOrReject(input: PrepaymentInput): PrepaymentResult {
     }
     throw err;
   }
+}
+
+interface PrepaymentRequest {
+  mode: PrepaymentMode;
+  amount: bigint;
+  penaltyPercent: string;
+}
+
+/** The same rules for preview and record. */
+function parsePrepaymentRequest(query: {
+  mode: PrepaymentMode;
+  amount?: string;
+  penaltyPercent?: string;
+}): PrepaymentRequest {
+  const penaltyPercent =
+    query.penaltyPercent ?? DEFAULT_PREPAYMENT_PENALTY_PERCENT;
+  if (
+    parseRateScaledByHundred(penaltyPercent) >
+    parseRateScaledByHundred(MAX_PREPAYMENT_PENALTY_PERCENT)
+  ) {
+    throw new BadRequestException(
+      `penaltyPercent must be between 0 and ${MAX_PREPAYMENT_PENALTY_PERCENT}`,
+    );
+  }
+  if (query.mode === "full" && query.amount !== undefined) {
+    throw new BadRequestException(
+      "amount is not used for a full payoff — the whole remaining balance is prepaid",
+    );
+  }
+  if (query.mode !== "full" && query.amount === undefined) {
+    throw new BadRequestException(
+      "amount is required for a partial prepayment",
+    );
+  }
+  return {
+    mode: query.mode,
+    amount:
+      query.amount === undefined
+        ? BigInt(0)
+        : guardBigInt("amount", query.amount),
+    penaltyPercent,
+  };
+}
+
+function assertPrepayable(liability: {
+  interestMethod: string;
+  tenorMonths: number | null;
+}): void {
+  if (
+    liability.interestMethod !== "anuitas" ||
+    liability.tenorMonths === null
+  ) {
+    throw new BadRequestException(
+      "Simulasi pelunasan hanya untuk cicilan anuitas dengan tenor",
+    );
+  }
+}
+
+/** Liability columns a recorded prepayment rewrites (decision 5). */
+function prepaidTerms(
+  result: PrepaymentResult,
+  fromPeriod: number,
+): {
+  minimumPayment: bigint;
+  installmentAmount?: bigint;
+  installmentFromPeriod?: number;
+  tenorMonths?: number;
+} {
+  if (result.mode === "full" || result.newInstallmentAmount === null) {
+    return { minimumPayment: BigInt(0) };
+  }
+  return {
+    installmentAmount: result.newInstallmentAmount,
+    minimumPayment: result.newInstallmentAmount,
+    installmentFromPeriod: fromPeriod,
+    ...(result.newTenorMonths === null
+      ? {}
+      : { tenorMonths: result.newTenorMonths }),
+  };
+}
+
+function toPrepaymentDto(row: {
+  id: string;
+  mode: PrepaymentMode;
+  principalAmount: bigint;
+  penaltyPercent: { toString(): string };
+  penaltyAmount: bigint;
+  effectivePeriod: number;
+  installmentBefore: bigint | null;
+  installmentAfter: bigint | null;
+  tenorMonthsBefore: number;
+  tenorMonthsAfter: number;
+  occurredAt: Date;
+}): LiabilityPrepaymentResponseDto {
+  return {
+    id: row.id,
+    mode: row.mode,
+    principalAmount: row.principalAmount.toString(),
+    penaltyPercent: row.penaltyPercent.toString(),
+    penaltyAmount: row.penaltyAmount.toString(),
+    effectivePeriod: row.effectivePeriod,
+    installmentBefore: row.installmentBefore?.toString() ?? null,
+    installmentAfter: row.installmentAfter?.toString() ?? null,
+    tenorMonthsBefore: row.tenorMonthsBefore,
+    tenorMonthsAfter: row.tenorMonthsAfter,
+    occurredAt: row.occurredAt.toISOString(),
+  };
 }
 
 function toLiabilityDto(
@@ -1213,47 +1329,17 @@ export class LiabilitiesService {
     if (!liability) {
       throw new NotFoundException("Liability not found");
     }
-    if (
-      liability.interestMethod !== "anuitas" ||
-      liability.tenorMonths === null
-    ) {
-      throw new BadRequestException(
-        "Simulasi pelunasan hanya untuk cicilan anuitas dengan tenor",
-      );
-    }
-    const penaltyPercent =
-      query.penaltyPercent ?? DEFAULT_PREPAYMENT_PENALTY_PERCENT;
-    if (
-      parseRateScaledByHundred(penaltyPercent) >
-      parseRateScaledByHundred(MAX_PREPAYMENT_PENALTY_PERCENT)
-    ) {
-      throw new BadRequestException(
-        `penaltyPercent must be between 0 and ${MAX_PREPAYMENT_PENALTY_PERCENT}`,
-      );
-    }
-    if (query.mode !== "full" && query.amount === undefined) {
-      throw new BadRequestException(
-        "amount is required for a partial prepayment",
-      );
-    }
-    const amount =
-      query.amount === undefined
-        ? BigInt(0)
-        : guardBigInt("amount", query.amount);
+    assertPrepayable(liability);
+    const request = parsePrepaymentRequest(query);
 
     const planned = await withRatePlan(this.prisma, familyGroupId, liability);
     const schedule = scheduleInputFor(planned, now);
-    const result = simulateOrReject({
-      schedule,
-      mode: query.mode,
-      amount,
-      penaltyPercent,
-    });
+    const result = simulateOrReject({ schedule, ...request });
     return {
       liabilityId: liability.id,
       mode: result.mode,
       prepaidPrincipal: result.prepaidPrincipal.toString(),
-      penaltyPercent,
+      penaltyPercent: request.penaltyPercent,
       penalty: result.penalty.toString(),
       cashOutNow: result.cashOutNow.toString(),
       installmentBefore: result.installmentBefore?.toString() ?? null,
@@ -1265,8 +1351,234 @@ export class LiabilitiesService {
       interestSaved: result.interestSaved.toString(),
       netSaving: result.netSaving.toString(),
       assumesCurrentFloatingRate:
-        rateAt(ratePlanOf(schedule), liability.tenorMonths).kind === "floating",
+        rateAt(ratePlanOf(schedule), liability.tenorMonths ?? 1).kind ===
+        "floating",
     };
+  }
+
+  /**
+   * Revisi K — records an early repayment (decision 5): debit, principal +
+   * penalty legs, persisted installment/tenor from the prepayment's period,
+   * budget re-sync, all in one Serializable transaction. Replay-safe per
+   * idempotencyKey; deliberately NOT subject to the monthly installment guard.
+   */
+  async recordPrepayment(
+    familyGroupId: string,
+    id: string,
+    dto: Omit<RecordPrepaymentDto, "fxInputs">,
+    userId: string | null,
+    now: Date = new Date(),
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const request = parsePrepaymentRequest(dto);
+    return runSerializableWithRetry(this.prisma, (tx) =>
+      this.runPrepayment(tx, familyGroupId, id, dto, request, userId, now),
+    );
+  }
+
+  private async runPrepayment(
+    tx: TxClient,
+    familyGroupId: string,
+    id: string,
+    dto: Omit<RecordPrepaymentDto, "fxInputs">,
+    request: PrepaymentRequest,
+    userId: string | null,
+    now: Date,
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const liability = await tx.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+    const planned = await withRatePlan(tx, familyGroupId, liability);
+
+    const replay = await tx.liabilityPrepayment.findFirst({
+      where: {
+        familyGroupId,
+        liabilityId: id,
+        idempotencyKey: dto.idempotencyKey,
+      },
+    });
+    if (replay) {
+      return {
+        liability: toLiabilityDto(planned, false, now),
+        prepayment: toPrepaymentDto(replay),
+        replayed: true,
+      };
+    }
+
+    assertPrepayable(liability);
+    const sourceAccount = await tx.account.findUnique({
+      where: { id: dto.sourceAccountId, familyGroupId },
+    });
+    if (!sourceAccount) {
+      throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
+    }
+
+    const schedule = scheduleInputFor(planned, now);
+    const result = simulateOrReject({ schedule, ...request });
+    await assertBankNotOverdrawn(
+      tx,
+      familyGroupId,
+      sourceAccount.id,
+      result.cashOutNow,
+    );
+    await tx.account.update({
+      where: { id: sourceAccount.id, familyGroupId },
+      data: { balance: { decrement: result.cashOutNow } },
+    });
+
+    const tenorBefore = liability.tenorMonths ?? 0;
+    const prepayment = await tx.liabilityPrepayment.create({
+      data: {
+        familyGroupId,
+        liabilityId: id,
+        idempotencyKey: dto.idempotencyKey,
+        mode: result.mode,
+        principalAmount: result.prepaidPrincipal,
+        penaltyPercent: request.penaltyPercent,
+        penaltyAmount: result.penalty,
+        sourceAccountId: sourceAccount.id,
+        effectivePeriod: schedule.firstPeriod,
+        installmentBefore: result.installmentBefore,
+        installmentAfter: result.newInstallmentAmount,
+        tenorMonthsBefore: tenorBefore,
+        tenorMonthsAfter: result.newTenorMonths ?? tenorBefore,
+        createdByUserId: userId,
+        occurredAt: now,
+      },
+    });
+
+    const terms = prepaidTerms(result, schedule.firstPeriod);
+    const updated = await tx.liability.update({
+      where: { id, familyGroupId },
+      data: {
+        remainingBalance: { decrement: result.prepaidPrincipal },
+        ...terms,
+      },
+    });
+
+    await this.bookPrepaymentLegs(
+      tx,
+      familyGroupId,
+      liability,
+      sourceAccount.id,
+      prepayment.id,
+      result,
+      now,
+    );
+
+    await this.syncPrincipalBudgetLine(
+      tx,
+      familyGroupId,
+      { ...planned, ...terms },
+      budgetContribution(
+        {
+          ...planned,
+          ...terms,
+          remainingBalance:
+            liability.remainingBalance - result.prepaidPrincipal,
+        },
+        now,
+      ),
+    );
+
+    return {
+      liability: toLiabilityDto(
+        { ...updated, ratePlanRows: planned.ratePlanRows },
+        false,
+        now,
+      ),
+      prepayment: toPrepaymentDto(prepayment),
+      replayed: false,
+    };
+  }
+
+  private async bookPrepaymentLegs(
+    tx: TxClient,
+    familyGroupId: string,
+    liability: { id: string; name: string },
+    accountId: string,
+    prepaymentId: string,
+    result: PrepaymentResult,
+    occurredAt: Date,
+  ): Promise<void> {
+    const principalCategoryId = await this.resolveSystemCategoryId(
+      tx,
+      familyGroupId,
+      { groupNum: 5, direction: "TRANSFER" },
+      PREPAYMENT_CATEGORY_NAME,
+    );
+    await tx.transaction.create({
+      data: {
+        familyGroupId,
+        accountId,
+        categoryId: principalCategoryId,
+        amount: result.prepaidPrincipal,
+        type: "transfer",
+        liabilityId: liability.id,
+        liabilityPrepaymentId: prepaymentId,
+        description: `Pelunasan dipercepat ${liability.name}`,
+        occurredAt,
+      },
+    });
+    if (result.penalty <= BigInt(0)) return;
+    const penaltyCategoryId = await this.resolveSystemCategoryId(
+      tx,
+      familyGroupId,
+      { code: PREPAYMENT_PENALTY_COA_CODE },
+    );
+    await tx.transaction.create({
+      data: {
+        familyGroupId,
+        accountId,
+        categoryId: penaltyCategoryId,
+        amount: result.penalty,
+        type: "expense",
+        liabilityId: liability.id,
+        liabilityPrepaymentId: prepaymentId,
+        description: `Penalti pelunasan ${liability.name}`,
+        occurredAt,
+      },
+    });
+  }
+
+  /** Finds or creates the family's category for a system COA; `name` defaults to the COA's own name. */
+  private async resolveSystemCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+    coaWhere: Prisma.CoaAccountWhereInput,
+    name?: string,
+  ): Promise<string> {
+    const coaAccount = await tx.coaAccount.findFirst({
+      where: { familyGroupId, ...coaWhere },
+      orderBy: { code: "asc" },
+    });
+    if (!coaAccount) {
+      throw new BadRequestException(
+        "Akun COA untuk pelunasan dipercepat belum tersedia di keluarga ini",
+      );
+    }
+    const categoryName = name ?? coaAccount.name;
+    const existing = await tx.category.findFirst({
+      where: { familyGroupId, name: categoryName, kind: "expense" },
+      select: { id: true, coaAccountId: true },
+    });
+    if (existing) {
+      if (existing.coaAccountId === coaAccount.id) return existing.id;
+      throw new ConflictException(
+        `Kategori "${categoryName}" sudah dipakai untuk akun COA lain — ganti nama kategori itu dulu`,
+      );
+    }
+    const created = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: categoryName,
+        kind: "expense",
+        coaAccountId: coaAccount.id,
+      },
+    });
+    return created.id;
   }
 
   private async runPayment(

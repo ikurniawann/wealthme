@@ -44,6 +44,8 @@ export const FX_FIELD_SPECS = {
     installmentAmount: { kind: "digits" },
   },
   liabilityPayment: { amount: { kind: "digits", positive: true } },
+  // Revisi K — a recorded KPR prepayment debits an account like a payment does.
+  liabilityPrepayment: { amount: { kind: "digits", positive: true } },
   insurance: {
     premiumAmount: { kind: "digits" },
     coverageAmount: { kind: "digits" },

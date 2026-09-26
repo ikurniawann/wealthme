@@ -89,6 +89,7 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
     "create",
     "update",
     "pay",
+    "recordPrepayment",
     "purchase",
     "remove",
   ] as const;
@@ -285,6 +286,78 @@ describe("LiabilitiesController — GET :id/prepayment-preview over HTTP", () =>
         .expect(400);
 
       expect(service.previewPrepayment).not.toHaveBeenCalled();
+      await app.close();
+    },
+  );
+});
+
+describe("LiabilitiesController — POST :id/prepay over HTTP", () => {
+  const UUID = "5f0c1f7e-7c1a-4b8e-9d7a-2f1c3b4a5d6e";
+
+  async function bootstrap() {
+    const service = {
+      recordPrepayment: jest.fn().mockResolvedValue({ replayed: false }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    await app.init();
+    return { app, service };
+  }
+
+  it("routes a valid body to recordPrepayment with the acting user", async () => {
+    const { app, service } = await bootstrap();
+    const body = {
+      sourceAccountId: UUID,
+      mode: "reduce_tenor",
+      amount: "100000000",
+      idempotencyKey: UUID,
+    };
+
+    await request(app.getHttpServer())
+      .post("/family-groups/fg-1/liabilities/lid-1/prepay")
+      .send(body)
+      .expect(200);
+
+    expect(service.recordPrepayment).toHaveBeenCalledWith(
+      "fg-1",
+      "lid-1",
+      body,
+      null,
+    );
+    await app.close();
+  });
+
+  it.each([
+    [{ sourceAccountId: UUID, mode: "reduce_tenor", amount: "1" }],
+    [
+      {
+        sourceAccountId: UUID,
+        mode: "sebagian",
+        amount: "1",
+        idempotencyKey: UUID,
+      },
+    ],
+    [{ sourceAccountId: "acc-1", mode: "full", idempotencyKey: UUID }],
+  ])(
+    "rejects %j before the service (the DTO is a value import)",
+    async (body) => {
+      const { app, service } = await bootstrap();
+
+      await request(app.getHttpServer())
+        .post("/family-groups/fg-1/liabilities/lid-1/prepay")
+        .send(body)
+        .expect(400);
+
+      expect(service.recordPrepayment).not.toHaveBeenCalled();
       await app.close();
     },
   );

@@ -16,6 +16,12 @@ import { rateAt } from "./rate-plan.util";
 
 export type PrepaymentMode = "full" | "reduce_tenor" | "reduce_installment";
 
+export const PREPAYMENT_MODES: readonly PrepaymentMode[] = [
+  "full",
+  "reduce_tenor",
+  "reduce_installment",
+];
+
 // (percent scale 100) * (fixed-point scale 100)
 const PERCENT_DENOMINATOR = 10_000n;
 

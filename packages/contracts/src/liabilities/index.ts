@@ -185,3 +185,33 @@ export interface LiabilityPrepaymentPreviewDto {
   // True when the projection runs into a floating period (assumes today's floating rate persists).
   assumesCurrentFloatingRate: boolean;
 }
+
+// Revisi K — record an early repayment (the simulator's "Catat pelunasan").
+export interface RecordLiabilityPrepaymentDto {
+  sourceAccountId: string;
+  mode: PrepaymentMode;
+  amount?: string;
+  penaltyPercent?: string;
+  // Client UUID, one per simulation; a repeat returns the first record.
+  idempotencyKey: string;
+}
+
+export interface LiabilityPrepaymentDto {
+  id: string;
+  mode: PrepaymentMode;
+  principalAmount: string;
+  penaltyPercent: string;
+  penaltyAmount: string;
+  effectivePeriod: number;
+  installmentBefore: string | null;
+  installmentAfter: string | null;
+  tenorMonthsBefore: number;
+  tenorMonthsAfter: number;
+  occurredAt: string;
+}
+
+export interface LiabilityPrepaymentRecordResultDto {
+  liability: LiabilityDto;
+  prepayment: LiabilityPrepaymentDto;
+  replayed: boolean;
+}

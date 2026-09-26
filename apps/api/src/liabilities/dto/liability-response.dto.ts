@@ -154,3 +154,31 @@ export class LiabilityPrepaymentPreviewResponseDto {
   })
   assumesCurrentFloatingRate!: boolean;
 }
+
+export class LiabilityPrepaymentResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ enum: ["full", "reduce_tenor", "reduce_installment"] })
+  mode!: "full" | "reduce_tenor" | "reduce_installment";
+  @ApiProperty() principalAmount!: string;
+  @ApiProperty() penaltyPercent!: string;
+  @ApiProperty() penaltyAmount!: string;
+  @ApiProperty({ description: "Installment the prepayment landed before" })
+  effectivePeriod!: number;
+  @ApiProperty({ nullable: true, type: String })
+  installmentBefore!: string | null;
+  @ApiProperty({ nullable: true, type: String })
+  installmentAfter!: string | null;
+  @ApiProperty() tenorMonthsBefore!: number;
+  @ApiProperty() tenorMonthsAfter!: number;
+  @ApiProperty() occurredAt!: string;
+}
+
+export class LiabilityPrepaymentRecordResponseDto {
+  @ApiProperty({ type: LiabilityResponseDto }) liability!: LiabilityResponseDto;
+  @ApiProperty({ type: LiabilityPrepaymentResponseDto })
+  prepayment!: LiabilityPrepaymentResponseDto;
+  @ApiProperty({
+    description: "True when this idempotencyKey was already recorded",
+  })
+  replayed!: boolean;
+}
