@@ -15,7 +15,13 @@ import {
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatAmountInput, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyIdr,
+  withFxInputs,
+} from "@/components/money";
 import type { AccountDto } from "@wealthme/contracts";
 
 /**
@@ -78,7 +84,7 @@ function MintaDanaForm({
   const { t } = useLocale();
   const fieldId = useId();
   const [targetAccountId, setTargetAccountId] = useState(targets[0]?.id ?? "");
-  const [amount, setAmount] = useState("");
+  const amountField = useMoneyField();
   const [note, setNote] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const queryClient = useQueryClient();
@@ -86,7 +92,7 @@ function MintaDanaForm({
 
   async function handleSend() {
     if (!familyGroupId || !token || !targetAccountId) return;
-    const parsed = parseRupiah(amount);
+    const parsed = moneyIdr(amountField, parseRupiah);
     if (parsed <= 0) {
       toast.error(t.rekening.mintaDanaAmountInvalidToast);
       return;
@@ -96,12 +102,17 @@ function MintaDanaForm({
       await apiFetch(`/family-groups/${familyGroupId}/allowance-requests`, {
         token,
         method: "POST",
-        body: JSON.stringify({
-          targetAccountId,
-          fromAccountId: source.id,
-          amount: parsed,
-          note: note || undefined,
-        }),
+        body: JSON.stringify(
+          withFxInputs(
+            {
+              targetAccountId,
+              fromAccountId: source.id,
+              amount: parsed,
+              note: note || undefined,
+            },
+            [["amount", amountField]],
+          ),
+        ),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.allowanceRequests.all(familyGroupId),
@@ -150,14 +161,7 @@ function MintaDanaForm({
           <label className="label" htmlFor={`${fieldId}-amount`}>
             {t.rekening.mintaDanaAmountLabel}
           </label>
-          <input
-            id={`${fieldId}-amount`}
-            inputMode="numeric"
-            className="input mono"
-            placeholder="0"
-            value={amount}
-            onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-          />
+          <MoneyInput field={amountField} id={`${fieldId}-amount`} />
         </div>
         <div className="field">
           <label className="label" htmlFor={`${fieldId}-note`}>
@@ -181,7 +185,7 @@ function MintaDanaForm({
           type="button"
           className="btn btn--primary disabled:opacity-60"
           onClick={handleSend}
-          disabled={isSaving || !hasTarget}
+          disabled={isSaving || !hasTarget || amountField.resolved.isPending}
         >
           {isSaving
             ? t.rekening.mintaDanaSubmitting

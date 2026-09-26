@@ -45,6 +45,25 @@ jest.mock("sonner", () => ({
   }),
 }));
 
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
 import AnggaranPage from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
@@ -344,5 +363,46 @@ describe("AnggaranPage — budgets carry no auto-debit (Revisi F item 4)", () =>
     expect(
       within(dialog).queryByLabelText(/Auto-debet/i),
     ).not.toBeInTheDocument();
+  }, 10000);
+});
+
+describe("AnggaranPage — revisi I multi-currency", () => {
+  it("revisi I — budget limit in SGD posts the preview + fxInputs", async () => {
+    mockSession("member");
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Kategori" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(
+      within(dialog).getByLabelText("Kategori"),
+      EXISTING_CATEGORY.id,
+    );
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "SGD");
+    await user.type(
+      within(dialog).getByLabelText("Budget per Bulan (Rp)"),
+      "1500,25",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Simpan Kategori" }),
+    );
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+
+    const post = mockApiFetch.mock.calls.find(
+      ([url, i]) =>
+        String(url).endsWith("/budgets") &&
+        (i as RequestInit | undefined)?.method === "POST",
+    );
+    expect(JSON.parse((post?.[1] as RequestInit).body as string)).toMatchObject(
+      {
+        limitAmount: 21_043_698,
+        fxInputs: [
+          { field: "limitAmount", currency: "SGD", amount: "1500.25" },
+        ],
+      },
+    );
   }, 10000);
 });

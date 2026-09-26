@@ -39,7 +39,13 @@ import {
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { useShell } from "@/components/shell/shell-context";
-import { formatAmountInput, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyIdr,
+  withFxInputs,
+} from "@/components/money";
 import { cn } from "@/lib/utils";
 
 import {
@@ -987,9 +993,10 @@ export function EditTransactionDialog({
 }) {
   const { t, locale } = useLocale();
   // State is initialised from props; parent passes key={tx.id} to reset on change
-  const [amount, setAmount] = useState(
-    tx ? formatAmountInput(String(Math.round(parseFloat(tx.amount)))) : "",
-  );
+  const amountField = useMoneyField({
+    initialRaw: tx ? String(Math.round(parseFloat(tx.amount))) : "",
+    isEdit: true,
+  });
   const [description, setDescription] = useState(tx?.description ?? "");
   const [date, setDate] = useState(tx?.occurredAt.slice(0, 10) ?? "");
 
@@ -1010,16 +1017,21 @@ export function EditTransactionDialog({
   if (!tx) return null;
 
   const handleSave = () => {
-    const amountNum = parseRupiah(amount);
+    const amountNum = moneyIdr(amountField, parseRupiah);
     if (!amountNum || amountNum <= 0) {
       toast.error(t.transaksi.toastInvalidAmount);
       return;
     }
-    updateMutation.mutate({
-      amount: amountNum,
-      ...(description ? { description } : { description: null }),
-      occurredAt: new Date(date).toISOString(),
-    });
+    updateMutation.mutate(
+      withFxInputs(
+        {
+          amount: amountNum,
+          ...(description ? { description } : { description: null }),
+          occurredAt: new Date(date).toISOString(),
+        },
+        [["amount", amountField]],
+      ),
+    );
   };
 
   return (
@@ -1044,13 +1056,7 @@ export function EditTransactionDialog({
               2-up partner, so it stays a full-width `.field`. */}
           <label className="field">
             <span className="label">{t.transaksi.fieldAmountLabel}</span>
-            <input
-              className="input mono"
-              value={amount}
-              onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-              inputMode="numeric"
-              placeholder="0"
-            />
+            <MoneyInput field={amountField} id="tx-edit-amount" />
           </label>
           <label className="field">
             <span className="label">{t.transaksi.fieldDescLabel}</span>
@@ -1085,7 +1091,9 @@ export function EditTransactionDialog({
           <button
             type="button"
             onClick={handleSave}
-            disabled={updateMutation.isPending}
+            disabled={
+              updateMutation.isPending || amountField.resolved.isPending
+            }
             className="btn btn--primary"
           >
             {updateMutation.isPending

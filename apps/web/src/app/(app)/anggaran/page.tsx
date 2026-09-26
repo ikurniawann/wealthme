@@ -35,9 +35,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyIdr,
+  withFxInputs,
+} from "@/components/money";
 
 import type {
   BudgetDto,
@@ -49,6 +55,7 @@ import type {
   LiabilityType,
   InsuranceDto,
   InsuranceType,
+  FxInput,
 } from "@wealthme/contracts";
 import type { Locale } from "@/i18n";
 
@@ -807,12 +814,12 @@ export default function AnggaranPage() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(ICON_OPTIONS[0] ?? "🎓");
-  const [amount, setAmount] = useState("");
+  const amountField = useMoneyField();
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
   // EPIC-022 C2 — the API already exposed PATCH/DELETE for a budget;
   // `editing`/`deletingBudget` drive the two dialogs that finally reach them.
   const [editing, setEditing] = useState<BudgetDto | null>(null);
-  const [editAmount, setEditAmount] = useState("");
+  const editField = useMoneyField({ isEdit: true });
   const [editPeriod, setEditPeriod] = useState<BudgetPeriod>("monthly");
   const [deletingBudget, setDeletingBudget] = useState<BudgetDto | null>(null);
   // A budget has no fields of its own beyond amount + period: the icon, the
@@ -910,6 +917,7 @@ export default function AnggaranPage() {
       coaAccountId: string;
       isPrivate: boolean;
       existingCategoryId: string;
+      fxInputs?: FxInput[];
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
 
@@ -965,6 +973,7 @@ export default function AnggaranPage() {
         categoryId,
         period: payload.period,
         limitAmount: payload.limitAmount,
+        ...(payload.fxInputs ? { fxInputs: payload.fxInputs } : {}),
       };
       return apiFetch<BudgetDto>(`/family-groups/${familyGroupId}/budgets`, {
         method: "POST",
@@ -999,11 +1008,13 @@ export default function AnggaranPage() {
       id: string;
       limitAmount: number;
       period: BudgetPeriod;
+      fxInputs?: FxInput[];
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
       const dto: UpdateBudgetDto = {
         limitAmount: payload.limitAmount,
         period: payload.period,
+        ...(payload.fxInputs ? { fxInputs: payload.fxInputs } : {}),
       };
       return apiFetch<BudgetDto>(
         `/family-groups/${familyGroupId}/budgets/${payload.id}`,
@@ -1027,22 +1038,27 @@ export default function AnggaranPage() {
 
   function openEdit(budget: BudgetDto) {
     setEditing(budget);
-    setEditAmount(formatAmountInput(String(budget.limitAmount)));
+    editField.reset(String(budget.limitAmount));
     setEditPeriod(budget.period);
   }
 
   function handleSaveEdit() {
     if (!editing) return;
-    const limitAmount = parseRupiah(editAmount);
+    const limitAmount = moneyIdr(editField, parseRupiah);
     if (limitAmount <= 0) {
       toast.warning(t.anggaran.toastAmountInvalid);
       return;
     }
-    updateMutation.mutate({
-      id: editing.id,
-      limitAmount,
-      period: editPeriod,
-    });
+    updateMutation.mutate(
+      withFxInputs(
+        {
+          id: editing.id,
+          limitAmount,
+          period: editPeriod,
+        },
+        [["limitAmount", editField]],
+      ),
+    );
   }
 
   async function handleDeleteBudget() {
@@ -1067,7 +1083,7 @@ export default function AnggaranPage() {
   function resetForm() {
     setName("");
     setIcon(ICON_OPTIONS[0] ?? "🎓");
-    setAmount("");
+    amountField.reset();
     setPeriod("monthly");
     setKind("expense");
     setCoaAccountId("");
@@ -1087,7 +1103,7 @@ export default function AnggaranPage() {
       toast.warning(t.anggaran.toastNameRequired);
       return;
     }
-    const limitAmount = parseRupiah(amount);
+    const limitAmount = moneyIdr(amountField, parseRupiah);
     if (limitAmount <= 0) {
       toast.warning(t.anggaran.toastAmountInvalid);
       return;
@@ -1096,16 +1112,21 @@ export default function AnggaranPage() {
       toast.error(t.anggaran.toastNoFamilyGroup);
       return;
     }
-    createMutation.mutate({
-      name: name.trim(),
-      icon,
-      limitAmount,
-      period,
-      kind,
-      coaAccountId,
-      isPrivate,
-      existingCategoryId,
-    });
+    createMutation.mutate(
+      withFxInputs(
+        {
+          name: name.trim(),
+          icon,
+          limitAmount,
+          period,
+          kind,
+          coaAccountId,
+          isPrivate,
+          existingCategoryId,
+        },
+        [["limitAmount", amountField]],
+      ),
+    );
   }
 
   const totalLimit = budgets?.reduce((s, b) => s + b.limitAmount, 0) ?? 0;
@@ -1528,15 +1549,7 @@ export default function AnggaranPage() {
                 <label className="label" htmlFor="budget-amount">
                   {t.anggaran.fieldAmountLabel}
                 </label>
-                <input
-                  id="budget-amount"
-                  type="text"
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-                  placeholder="0"
-                  className="input mono"
-                />
+                <MoneyInput field={amountField} id="budget-amount" />
               </div>
               <div className="field mt-0">
                 <label className="label" htmlFor="budget-period">
@@ -1606,17 +1619,7 @@ export default function AnggaranPage() {
                   <label className="label" htmlFor="budget-edit-amount">
                     {t.anggaran.fieldAmountLabel}
                   </label>
-                  <input
-                    id="budget-edit-amount"
-                    type="text"
-                    inputMode="numeric"
-                    value={editAmount}
-                    onChange={(e) =>
-                      setEditAmount(formatAmountInput(e.target.value))
-                    }
-                    placeholder="0"
-                    className="input mono"
-                  />
+                  <MoneyInput field={editField} id="budget-edit-amount" />
                 </div>
                 <div className="field mt-0">
                   <label className="label" htmlFor="budget-edit-period">

@@ -17,8 +17,14 @@ import { DateField } from "@/components/wm";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput } from "@/lib/format";
+
 import { queryKeys } from "@/lib/query-keys";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyDigits,
+  withFxInputs,
+} from "@/components/money";
 
 import type {
   CreateGoalContributionInput,
@@ -57,15 +63,18 @@ export function ContributeDialog({
   const { t, locale } = useLocale();
   const { handleError } = useApiError();
   const queryClient = useQueryClient();
-  const [amount, setAmount] = useState("");
+  const amountField = useMoneyField();
   const [accountId, setAccountId] = useState(goal.sourceAccountId ?? "");
   const [date, setDate] = useState(todayLocalIsoDate);
 
-  const digits = amount.replace(/\D/g, "");
+  const digits = moneyDigits(amountField);
   // Mirrors CreateGoalContributionInputSchema.amount (@wealthme/contracts):
   // 1-12 digits, no leading zero — reject an over-long amount client-side
   // instead of round-tripping to a 400.
-  const canSubmit = /^[1-9]\d{0,11}$/.test(digits) && date !== "";
+  const canSubmit =
+    /^[1-9]\d{0,11}$/.test(digits) &&
+    date !== "" &&
+    !amountField.resolved.isPending;
 
   const mutation = useMutation({
     mutationFn: (input: CreateGoalContributionInput) =>
@@ -88,12 +97,17 @@ export function ContributeDialog({
 
   function handleSubmit() {
     if (!canSubmit || mutation.isPending) return;
-    mutation.mutate({
-      amount: digits,
-      ...(accountId ? { accountId } : {}),
-      // Local midnight, so picking "today" is never later than the server's now.
-      occurredAt: new Date(`${date}T00:00:00`).toISOString(),
-    });
+    mutation.mutate(
+      withFxInputs(
+        {
+          amount: digits,
+          ...(accountId ? { accountId } : {}),
+          // Local midnight, so picking "today" is never later than the server's now.
+          occurredAt: new Date(`${date}T00:00:00`).toISOString(),
+        },
+        [["amount", amountField]],
+      ),
+    );
   }
 
   return (
@@ -110,15 +124,7 @@ export function ContributeDialog({
             <label className="label" htmlFor="goal-contribute-amount">
               {t.tujuan.contributeAmountLabel}
             </label>
-            <input
-              id="goal-contribute-amount"
-              type="text"
-              inputMode="numeric"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-              className="input mono"
-            />
+            <MoneyInput field={amountField} id="goal-contribute-amount" />
           </div>
           <div className="field">
             <label className="label" htmlFor="goal-contribute-account">
