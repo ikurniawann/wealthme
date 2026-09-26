@@ -72,3 +72,4 @@ graphify-out/
 .agentic/loop-ledger.tsv
 .agentic/loop.pause
 .claude/worktrees/
+.playwright-cli/
