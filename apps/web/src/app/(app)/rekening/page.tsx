@@ -12,6 +12,7 @@ import {
   ScanLine,
   LockKeyhole,
   List,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
@@ -20,6 +21,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { StatusBadge, SummaryCard } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -883,9 +889,18 @@ export default function RekeningPage() {
               <Users className="size-3" /> {t.rekening.filterSharedLabel}
             </button>
           </div>
-          <span className="hidden shrink-0 text-[11.5px] text-muted-foreground md:inline">
-            {t.rekening.filterNoteText}
-          </span>
+          {/* polish-j batch 7a item 11 — the negative-balance rule used to
+              sit as always-visible text; it's context, not something every
+              visitor needs to read, so it's now an info tooltip. */}
+          <Tooltip>
+            <TooltipTrigger
+              aria-label={t.rekening.filterNoteText}
+              className="hidden shrink-0 text-muted-foreground md:inline-flex"
+            >
+              <Info className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>{t.rekening.filterNoteText}</TooltipContent>
+          </Tooltip>
         </div>
       )}
 

@@ -2922,8 +2922,7 @@ export const en = {
     balanceLabel: "Balance",
     activeBadge: "Active",
     privateBadge: "Private",
-    privateBadgeTooltip:
-      "Only visible to the Master & Co-Master. Other members can't see this account or its transactions.",
+    privateBadgeTooltip: "Master & Co-Master only.",
     optionsAriaLabel: "Account options",
     viewMutationMenuItem: "View Transactions",
     editMenuItem: "Edit",

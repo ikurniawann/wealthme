@@ -2969,8 +2969,7 @@ export const id = {
     balanceLabel: "Saldo",
     activeBadge: "Aktif",
     privateBadge: "Privat",
-    privateBadgeTooltip:
-      "Hanya terlihat oleh Master & Co-Master. Anggota lain tidak melihat rekening ini maupun transaksinya.",
+    privateBadgeTooltip: "Hanya Master & Co-Master.",
     optionsAriaLabel: "Opsi rekening",
     viewMutationMenuItem: "Lihat Mutasi",
     editMenuItem: "Edit",

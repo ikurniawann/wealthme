@@ -127,8 +127,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         key: "isPrivate",
         label: "Rekening Privat",
         type: "toggle",
-        helperText:
-          "Hanya terlihat oleh Master & Co-Master. Anggota lain tidak melihat rekening ini maupun transaksinya.",
+        helperText: "Hanya Master & Co-Master.",
       },
       {
         // EPIC-019 Task A — options injected at runtime via CrudModal
