@@ -3163,16 +3163,12 @@ export const en = {
     visibleToAllHeirsCaption: "Visible to all heirs",
     estimatedValueLabel: "Estimated value",
     linkedToAssetPrefix: "linked to Asset",
-    modalDesc:
-      "Link it to an asset you already track, then set how it is split between heirs.",
     fieldSourceLabel: "Data Source",
     sourceManualOption: "Manual Entry",
     sourceAssetOption: "Pick from Assets",
     fieldAssetLabel: "Asset",
     assetPickerPlaceholder: "Pick an asset",
-    assetPickerHint:
-      "The estimated value is filled in from the linked asset; you can still change it.",
-    visibleToHeirsHint: "Heirs can see this asset on their Inheritance page.",
+    assetPickerHint: "Filled in automatically, can be changed.",
     deleteConfirmBody:
       "The inheritance record and its heir allocation will be deleted. The original asset on the Assets page is kept.",
     toastSharePercentExceeded: "Total heir share cannot exceed 100%.",

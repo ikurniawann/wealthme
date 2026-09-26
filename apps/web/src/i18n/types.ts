@@ -3002,17 +3002,17 @@ export type I18nDictionary = {
     estimatedValueLabel: string;
     linkedToAssetPrefix: string;
     // EPIC-026 Wave 8 — prototype dialog composition
-    // (docs/prototype/pages/warisan.html): the `.dialog__desc`, the linked-
-    // asset picker + its hint, the visibility switch hint, and the two
-    // previously-hardcoded Indonesian strings in the save path.
-    modalDesc: string;
+    // (docs/prototype/pages/warisan.html): the linked-asset picker + its
+    // hint and the two previously-hardcoded Indonesian strings in the save
+    // path. polish-j batch 7a item 10 dropped the dialog's own
+    // `.dialog__desc` and the visibility switch's hint (both stated
+    // consequences already obvious from the field/switch itself).
     fieldSourceLabel: string;
     sourceManualOption: string;
     sourceAssetOption: string;
     fieldAssetLabel: string;
     assetPickerPlaceholder: string;
     assetPickerHint: string;
-    visibleToHeirsHint: string;
     deleteConfirmBody: string;
     toastSharePercentExceeded: string;
     heirTableHeaderName: string;

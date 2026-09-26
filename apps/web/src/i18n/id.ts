@@ -3211,17 +3211,12 @@ export const id = {
     visibleToAllHeirsCaption: "Terlihat oleh seluruh ahli waris",
     estimatedValueLabel: "Nilai estimasi",
     linkedToAssetPrefix: "terhubung ke Aset",
-    modalDesc:
-      "Hubungkan ke aset yang sudah tercatat, lalu tentukan pembagian ahli waris.",
     fieldSourceLabel: "Sumber Data",
     sourceManualOption: "Input Manual",
     sourceAssetOption: "Pilih dari Aset",
     fieldAssetLabel: "Aset",
     assetPickerPlaceholder: "Pilih aset",
-    assetPickerHint:
-      "Nilai estimasi terisi otomatis dari aset terhubung, tetap bisa kamu ubah.",
-    visibleToHeirsHint:
-      "Ahli waris dapat melihat aset ini di halaman Warisan mereka.",
+    assetPickerHint: "Terisi otomatis, bisa diubah.",
     deleteConfirmBody:
       "Catatan warisan beserta pembagian ahli warisnya akan dihapus. Aset aslinya di halaman Aset tidak ikut terhapus.",
     toastSharePercentExceeded:
