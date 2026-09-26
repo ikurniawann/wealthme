@@ -2449,7 +2449,6 @@ export type I18nDictionary = {
     toastDeleteFailed: string;
     activeGoalsSuffix: string;
     totalAllocatedPrefix: string;
-    trackerDisclaimer: string;
     addGoalButton: string;
     onTrackLabel: string;
     onTrackDesc: string;

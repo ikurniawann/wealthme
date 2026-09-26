@@ -2588,11 +2588,6 @@ export const en = {
     toastDeleteFailed: "Failed to delete goal. Please try again.",
     activeGoalsSuffix: " Active Goals",
     totalAllocatedPrefix: "Total allocated: ",
-    // EPIC-022 A3 — goals are a manual tracker, not real money: this total
-    // is an earmark the family maintains by hand, never a bank balance or a
-    // real transfer between accounts.
-    trackerDisclaimer:
-      "Contributions from an account reduce that account's balance; without one, progress is only tracked.",
     addGoalButton: "Add Goal",
     onTrackLabel: "On Track",
     onTrackDesc: "goals on track",

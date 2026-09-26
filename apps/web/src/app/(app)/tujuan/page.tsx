@@ -577,11 +577,6 @@ export default function TujuanPage() {
             {t.tujuan.totalAllocatedPrefix}
             {isLoading ? "…" : <CountUpRupiah value={totalAllocated} />}
           </div>
-          {/* Revisi F — contributions can now move real money; the line says
-              when. */}
-          <div className="text-[10.5px] text-muted-foreground/70">
-            {t.tujuan.trackerDisclaimer}
-          </div>
         </div>
         {canManage && (
           <Button
