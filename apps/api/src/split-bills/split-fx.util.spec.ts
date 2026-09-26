@@ -101,6 +101,35 @@ describe("split bill FX — revisi I", () => {
     );
   });
 
+  it("I1 — a JPY amount with decimals (JPY has none) throws 400, not an unguarded RangeError", () => {
+    // JPY has 0 minor-unit decimals; parseMinor("1000.5", "JPY") throws
+    // RangeError inside parseMinor, which assertSplitFxComplete must catch
+    // and turn into a BadRequestException (400), not let bubble as a 500.
+    const jpyDecimals = {
+      ...base,
+      participants: [
+        { name: "A", amountOwed: 1 },
+        { name: "B", amountOwed: 1 },
+      ],
+      fxInputs: [
+        { field: "totalAmount", currency: "JPY" as const, amount: "1000.5" },
+        {
+          field: "participants.0.amountOwed",
+          currency: "JPY" as const,
+          amount: "500",
+        },
+        {
+          field: "participants.1.amountOwed",
+          currency: "JPY" as const,
+          amount: "500.5",
+        },
+      ],
+    };
+    expect(() => assertSplitFxComplete(jpyDecimals)).toThrow(
+      BadRequestException,
+    );
+  });
+
   it("accepts fxInputs whose foreign shares sum exactly to the foreign total", () => {
     const exact = {
       ...base,

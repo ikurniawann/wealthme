@@ -34,11 +34,19 @@ export function assertSplitFxComplete(dto: CreateSplitBillDto): void {
 
   const byField = new Map<string, FxInputDto>(inputs.map((i) => [i.field, i]));
   const totalInput = byField.get("totalAmount")!;
-  const totalMinor = parseMinor(totalInput.amount, totalInput.currency);
-  const sharesMinor = dto.participants.reduce((sum, _, i) => {
-    const share = byField.get(`participants.${i}.amountOwed`)!;
-    return sum + parseMinor(share.amount, share.currency);
-  }, 0n);
+  let totalMinor: bigint;
+  let sharesMinor: bigint;
+  try {
+    totalMinor = parseMinor(totalInput.amount, totalInput.currency);
+    sharesMinor = dto.participants.reduce((sum, _, i) => {
+      const share = byField.get(`participants.${i}.amountOwed`)!;
+      return sum + parseMinor(share.amount, share.currency);
+    }, 0n);
+  } catch {
+    throw new BadRequestException(
+      "fxInputs: amount does not match its currency's minor units",
+    );
+  }
   if (sharesMinor !== totalMinor) {
     throw new BadRequestException(
       "fxInputs: the foreign shares must sum exactly to the foreign total",
