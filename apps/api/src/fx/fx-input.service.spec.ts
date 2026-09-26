@@ -135,6 +135,36 @@ describe("FxInputService.run — revisi I", () => {
     });
   });
 
+  it("still returns the persisted result when locate() throws after commit (no duplicate-write retry)", async () => {
+    const { service, prisma } = fxTesting();
+    const errorSpy = jest
+      .spyOn(Logger.prototype, "error")
+      .mockImplementation(() => undefined);
+    const result = await service.run(
+      {
+        familyGroupId: "fg-1",
+        userId: "u-1",
+        entity: "Transaction",
+        locate: () => {
+          throw new Error("locate blew up");
+        },
+        dto: {
+          amount: 1,
+          fxInputs: [{ field: "amount", currency: "USD", amount: "5.00" }],
+        },
+        spec: { amount: { kind: "int", positive: true } },
+      },
+      jest.fn().mockResolvedValue({ id: "acc-1" }),
+    );
+    expect(result).toEqual({ id: "acc-1" });
+    expect(prisma.fxConversion.createMany).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("locate() threw"),
+      expect.any(String),
+    );
+    errorSpy.mockRestore();
+  });
+
   it("does not call persist when resolution fails (400 before any write)", async () => {
     const { service } = fxTesting();
     const persist = jest.fn();

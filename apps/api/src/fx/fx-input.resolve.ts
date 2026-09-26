@@ -1,4 +1,7 @@
-import { BadRequestException } from "@nestjs/common";
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from "@nestjs/common";
 import {
   convertToIdr,
   formatScaled,
@@ -45,8 +48,21 @@ export interface FxResolution {
 const bad = (field: string, why: string) =>
   new BadRequestException(`fxInputs: ${field}: ${why}`);
 
+/** Own-property only — `spec[field]` would resolve inherited `Object.prototype`
+ * keys like "constructor"/"toString", letting them slip past the whitelist. */
 function ruleFor(spec: FxFieldSpec, field: string): FxFieldRule | undefined {
-  return spec[field] ?? spec[field.replace(/\.\d+\./, ".*.")];
+  if (Object.hasOwn(spec, field)) return spec[field];
+  const wildcard = field.replace(/\.\d+\./, ".*.");
+  return Object.hasOwn(spec, wildcard) ? spec[wildcard] : undefined;
+}
+
+/** Collapses a leading-zero array index ("01") to its canonical form ("1") so
+ * "participants.1.x" and "participants.01.x" are recognised as the same field
+ * for duplicate detection, instead of both resolving and double-writing. */
+function normalizeField(field: string): string {
+  return field.replace(/\.(\d+)\./, (_match, digits: string) => {
+    return `.${Number(digits)}.`;
+  });
 }
 
 export function resolveFxInputs(
@@ -61,24 +77,36 @@ export function resolveFxInputs(
     const rule = ruleFor(spec, input.field);
     if (!rule)
       throw bad(input.field, "not a convertible money field on this route");
-    if (seen.has(input.field)) throw bad(input.field, "listed twice");
-    seen.add(input.field);
+    const normalized = normalizeField(input.field);
+    if (seen.has(normalized)) throw bad(input.field, "listed twice");
+    seen.add(normalized);
 
     const targetScale = rule.kind === "decimal2" ? 2 : 0;
-    let idr: bigint;
     let original: bigint;
     try {
       original = parseMinor(input.amount, input.currency);
-      idr = convertToIdr({
-        amount: input.amount,
-        currency: input.currency,
-        idrPerUnit: snapshot.idrPerUnit[input.currency],
-        targetScale,
-      });
     } catch (err) {
       throw bad(
         input.field,
         err instanceof Error ? err.message : "invalid amount",
+      );
+    }
+    // The rate is server-controlled snapshot data, not user input: a missing,
+    // zero, or malformed rate is a server fault (500), never a 400.
+    const rateStr = snapshot.idrPerUnit[input.currency];
+    let idr: bigint;
+    try {
+      idr = convertToIdr({
+        amount: input.amount,
+        currency: input.currency,
+        idrPerUnit: rateStr,
+        targetScale,
+      });
+    } catch (err) {
+      throw new InternalServerErrorException(
+        `fx snapshot: invalid rate for ${input.currency}: ${
+          err instanceof Error ? err.message : "unknown error"
+        }`,
       );
     }
     const magnitude = idr < 0n ? -idr : idr;

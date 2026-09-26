@@ -1,7 +1,11 @@
-import { BadRequestException } from "@nestjs/common";
+import {
+  BadRequestException,
+  InternalServerErrorException,
+} from "@nestjs/common";
 
 import { TEST_SNAPSHOT } from "../../test/fx-testing";
 
+import { FX_FIELD_SPECS } from "./fx-field-specs";
 import { applyFxOverrides, resolveFxInputs } from "./fx-input.resolve";
 
 import type { FxFieldSpec } from "./fx-input.resolve";
@@ -147,6 +151,115 @@ describe("resolveFxInputs — revisi I", () => {
       rateStale: true,
       rateSource: "indicative",
     });
+  });
+
+  it("rejects an inherited Object.prototype key ('constructor') instead of resolving it as a rule", () => {
+    expect(() =>
+      resolveFxInputs(
+        [{ field: "constructor", currency: "USD", amount: "1.00" }],
+        SPEC,
+        TEST_SNAPSHOT,
+      ),
+    ).toThrow(BadRequestException);
+  });
+
+  it("rejects an inherited Object.prototype key ('toString') instead of resolving it as a rule", () => {
+    expect(() =>
+      resolveFxInputs(
+        [{ field: "toString", currency: "USD", amount: "1.00" }],
+        SPEC,
+        TEST_SNAPSHOT,
+      ),
+    ).toThrow(BadRequestException);
+  });
+
+  it("rejects the same array element addressed with a leading-zero index as a duplicate", () => {
+    expect(() =>
+      resolveFxInputs(
+        [
+          {
+            field: "participants.1.amountOwed",
+            currency: "USD",
+            amount: "1.00",
+          },
+          {
+            field: "participants.01.amountOwed",
+            currency: "USD",
+            amount: "1.00",
+          },
+        ],
+        SPEC,
+        TEST_SNAPSHOT,
+      ),
+    ).toThrow(BadRequestException);
+  });
+
+  it("treats a missing rate for the currency as a server fault (500), not a user error", () => {
+    const snapshot = {
+      ...TEST_SNAPSHOT,
+      idrPerUnit: { ...TEST_SNAPSHOT.idrPerUnit, USD: "" },
+    };
+    expect(() =>
+      resolveFxInputs(
+        [{ field: "balance", currency: "USD", amount: "1.00" }],
+        SPEC,
+        snapshot,
+      ),
+    ).toThrow(InternalServerErrorException);
+  });
+
+  it("treats a zero rate for the currency as a server fault (500)", () => {
+    const snapshot = {
+      ...TEST_SNAPSHOT,
+      idrPerUnit: { ...TEST_SNAPSHOT.idrPerUnit, USD: "0.000000" },
+    };
+    expect(() =>
+      resolveFxInputs(
+        [{ field: "balance", currency: "USD", amount: "1.00" }],
+        SPEC,
+        snapshot,
+      ),
+    ).toThrow(InternalServerErrorException);
+  });
+
+  it("treats a malformed rate string for the currency as a server fault (500)", () => {
+    const snapshot = {
+      ...TEST_SNAPSHOT,
+      idrPerUnit: { ...TEST_SNAPSHOT.idrPerUnit, USD: "not-a-number" },
+    };
+    expect(() =>
+      resolveFxInputs(
+        [{ field: "balance", currency: "USD", amount: "1.00" }],
+        SPEC,
+        snapshot,
+      ),
+    ).toThrow(InternalServerErrorException);
+  });
+
+  it("still rejects a malformed user amount as 400 when the rate itself is fine", () => {
+    expect(() =>
+      resolveFxInputs(
+        [{ field: "balance", currency: "USD", amount: "1.2345" }],
+        SPEC,
+        TEST_SNAPSHOT,
+      ),
+    ).toThrow(BadRequestException);
+  });
+
+  it("rejects a decimal2 amount beyond the field's max (investmentPrice.price, Decimal(18,2))", () => {
+    expect(() =>
+      resolveFxInputs(
+        [
+          {
+            field: "price",
+            currency: "EUR",
+            amount: "9999999999999.99",
+          },
+        ],
+        FX_FIELD_SPECS.investmentPrice,
+        TEST_SNAPSHOT,
+      ),
+    ).toThrow(BadRequestException);
   });
 });
 

@@ -26,7 +26,7 @@ export class FxInputDto {
   })
   @IsString()
   @MaxLength(96)
-  @Matches(/^[A-Za-z]+(\.\d{1,3}\.[A-Za-z]+)?$/)
+  @Matches(/^[A-Za-z]+(\.(0|[1-9]\d{0,2})\.[A-Za-z]+)?$/)
   field!: string;
 
   @ApiProperty({ enum: FOREIGN_FX_CURRENCY_CODES })

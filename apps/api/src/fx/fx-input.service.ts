@@ -84,9 +84,20 @@ export class FxInputService {
       args.transform ? args.transform(converted) : converted,
     );
 
-    const target = args.locate
-      ? args.locate(result)
-      : { entity: args.entity, entityId: args.entityId ?? idOf(result) };
+    let target: FxTarget | { entity: FxEntity; entityId: string | null };
+    try {
+      target = args.locate
+        ? args.locate(result)
+        : { entity: args.entity, entityId: args.entityId ?? idOf(result) };
+    } catch (err) {
+      // persist() already committed — a throw here must never surface as an
+      // error to the caller (it would trigger a duplicate-write retry).
+      this.logger.error(
+        `fx_conversions insert failed after commit: locate() threw`,
+        err instanceof Error ? err.stack : String(err),
+      );
+      return result;
+    }
     await this.record(args, target, pending);
     return result;
   }

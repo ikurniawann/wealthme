@@ -1,6 +1,8 @@
 import type { FxFieldSpec } from "./fx-input.resolve";
 
 const MAX_12_DIGITS = 999_999_999_999n;
+/** decimal2 fields store sen (value × 100); Decimal(18,2) columns cap magnitude at 10^18 - 1 sen. */
+const MAX_DECIMAL2_SEN = 10n ** 18n - 1n;
 
 export function accountBalanceSpec(type?: string): FxFieldSpec {
   return { balance: { kind: "int", allowNegative: type === "cash" } };
@@ -23,9 +25,15 @@ export const FX_FIELD_SPECS = {
     valueChangeAmount: { kind: "digits", allowNegative: true },
   },
   assetHistory: { value: { kind: "digits" } },
-  investment: { costBasisPerUnit: { kind: "decimal2" } },
-  investmentPrice: { price: { kind: "decimal2", positive: true } },
-  investmentTrade: { pricePerUnit: { kind: "decimal2", positive: true } },
+  investment: {
+    costBasisPerUnit: { kind: "decimal2", max: MAX_DECIMAL2_SEN },
+  },
+  investmentPrice: {
+    price: { kind: "decimal2", positive: true, max: MAX_DECIMAL2_SEN },
+  },
+  investmentTrade: {
+    pricePerUnit: { kind: "decimal2", positive: true, max: MAX_DECIMAL2_SEN },
+  },
   liability: {
     totalDebt: { kind: "digits" },
     remainingBalance: { kind: "digits" },
