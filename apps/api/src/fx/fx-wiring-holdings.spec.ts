@@ -180,6 +180,23 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
     });
   });
 
+  it("liability prepay: a replay skips the fx audit even with fxInputs (review fix 2)", async () => {
+    liabilities.recordPrepayment.mockResolvedValueOnce({ replayed: true });
+
+    await http()
+      .post(`/family-groups/${FG}/liabilities/liab-1/prepay`)
+      .send({
+        sourceAccountId: UUID,
+        mode: "reduce_tenor",
+        amount: "1",
+        idempotencyKey: UUID,
+        fxInputs: [{ field: "amount", currency: "SGD", amount: "1500.25" }],
+      })
+      .expect(200);
+
+    expect(fx.prisma.fxConversion.createMany).not.toHaveBeenCalled();
+  });
+
   it("an IDR liability save sends no fxInputs to the service", async () => {
     liabilities.update.mockResolvedValue({ id: "liab-1" });
     await http()

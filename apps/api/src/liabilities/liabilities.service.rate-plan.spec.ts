@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, ConflictException } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import { Prisma } from "@prisma/client";
 
@@ -733,6 +733,21 @@ describe("LiabilitiesService — revisi K", () => {
       expect(preview.assumesCurrentFloatingRate).toBe(true);
     });
 
+    it("review fix 1: an installment paid within the grace window previews from the NEXT period (shared with recordPrepayment)", async () => {
+      prisma.liability.findUnique.mockResolvedValue(AT_61);
+      prisma.transaction.findFirst.mockResolvedValue({ id: "tx-installment" });
+
+      const preview = await service.previewPrepayment(
+        "fg-1",
+        "lid-1",
+        { mode: "reduce_installment", amount: "100000000" },
+        new Date("2026-01-17T00:00:00.000Z"),
+      );
+
+      expect(preview.installmentAfter).toBe("3409791");
+      expect(preview.remainingMonthsBefore).toBe(180);
+    });
+
     it.each([
       ["no amount on a partial prepayment", { mode: "reduce_tenor" as const }],
       [
@@ -1003,13 +1018,17 @@ describe("LiabilitiesService — revisi K", () => {
       );
       prisma.liability.update.mockResolvedValue(row);
     }
-    const record = (body: object, userId: string | null = "user-1") =>
+    const record = (
+      body: object,
+      userId: string | null = "user-1",
+      now: Date = NOW,
+    ) =>
       service.recordPrepayment(
         "fg-1",
         "lid-1",
         { sourceAccountId: "acc-1", idempotencyKey: KEY, ...body } as never,
         userId,
-        NOW,
+        now,
       );
 
     it("reduce installment: debits principal + penalty, books both legs, persists 3.409.791 from #61", async () => {
@@ -1146,6 +1165,9 @@ describe("LiabilitiesService — revisi K", () => {
         data: {
           remainingBalance: { decrement: 400_000_000n },
           minimumPayment: 0n,
+          // Review fix 4 — the stale installment/anchor must not survive a full payoff.
+          installmentAmount: null,
+          installmentFromPeriod: null,
         },
       });
       expect(prisma.budget.deleteMany).toHaveBeenCalledWith({
@@ -1190,6 +1212,16 @@ describe("LiabilitiesService — revisi K", () => {
       expect(prisma.liabilityPrepayment.create).not.toHaveBeenCalled();
     });
 
+    it("review fix 3: 409 when the same idempotencyKey is replayed with a different request body", async () => {
+      arrange();
+      prisma.liabilityPrepayment.findFirst.mockResolvedValue(RECORDED);
+
+      await expect(
+        record({ mode: "reduce_installment", amount: "200000000" }),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
     it("concurrent double submit: the loser's P2002 retries into a replay, never a second debit or a 500", async () => {
       arrange();
       prisma.liabilityPrepayment.findFirst
@@ -1220,6 +1252,51 @@ describe("LiabilitiesService — revisi K", () => {
 
       expect(res.replayed).toBe(false);
       expect(prisma.liabilityPrepayment.create).toHaveBeenCalled();
+    });
+
+    it("review fix 1: an installment paid within the grace window anchors to the NEXT period, not the late one still due by date", async () => {
+      arrange();
+      prisma.transaction.findFirst.mockResolvedValue({ id: "tx-installment" });
+
+      const res = await record(
+        { mode: "reduce_installment", amount: "100000000" },
+        "user-1",
+        new Date("2026-01-17T00:00:00.000Z"),
+      );
+
+      expect(res.prepayment.effectivePeriod).toBe(61);
+      expect(res.prepayment.installmentAfter).toBe("3409791");
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: {
+          remainingBalance: { decrement: 100_000_000n },
+          installmentAmount: 3_409_791n,
+          minimumPayment: 3_409_791n,
+          installmentFromPeriod: 61,
+        },
+      });
+    });
+
+    it("review fix 1: the same correction applies to reduce-tenor (persists tenor 162, not 161)", async () => {
+      arrange();
+      prisma.transaction.findFirst.mockResolvedValue({ id: "tx-installment" });
+
+      await record(
+        { mode: "reduce_tenor", amount: "100000000" },
+        "user-1",
+        new Date("2026-01-17T00:00:00.000Z"),
+      );
+
+      expect(prisma.liability.update).toHaveBeenCalledWith({
+        where: { id: "lid-1", familyGroupId: "fg-1" },
+        data: {
+          remainingBalance: { decrement: 100_000_000n },
+          installmentAmount: 4_546_388n,
+          minimumPayment: 4_546_388n,
+          installmentFromPeriod: 61,
+          tenorMonths: 162,
+        },
+      });
     });
 
     it.each([

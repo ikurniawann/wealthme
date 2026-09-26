@@ -264,8 +264,16 @@ export class LiabilitiesController {
         familyGroupId,
         userId,
         entity: "Liability",
-        entityId: id,
         fieldPrefix: "prepay",
+        // Review fix 2 — a replay writes NOTHING (`recordPrepayment` returns
+        // the first attempt's row unchanged), so auditing its fxInputs again
+        // would insert a second `fx_conversions` row for money that already
+        // has one. `entityId: null` is the existing "skip" path `record()`
+        // already has for a locate lookup that finds nothing to attach to.
+        locate: (result) => ({
+          entity: "Liability",
+          entityId: result.replayed ? null : id,
+        }),
         dto,
         spec: FX_FIELD_SPECS.liabilityPrepayment,
       },

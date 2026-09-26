@@ -350,18 +350,93 @@ function assertPrepayable(liability: {
   }
 }
 
+/**
+ * Review fix 1 — `dueInstallment` alone picks the installment CURRENTLY due
+ * by date, including the whole 5-day grace window; it does not know that
+ * installment was already paid this month. A prepayment simulated/recorded
+ * inside that window, right after paying, must anchor to the NEXT period
+ * (mirrors `runPayment`'s own `settled + 1`), or it re-derives numbers off
+ * an installment whose principal has already left `remainingBalance`.
+ * Shared by `previewPrepayment` and `recordPrepayment` so they never drift.
+ */
+async function resolvePrepaymentFirstPeriod(
+  client: TxClient,
+  familyGroupId: string,
+  liability: {
+    id: string;
+    startDate: Date | null;
+    tenorMonths: number | null;
+  },
+  now: Date,
+): Promise<number> {
+  const due = dueInstallment(
+    liability.startDate,
+    now,
+    liability.tenorMonths,
+  ).period;
+  if (liability.startDate === null) return due;
+  const { periodStart, periodEnd } = currentPaymentPeriodBounds("monthly");
+  const paidThisPeriod = await client.transaction.findFirst({
+    where: {
+      familyGroupId,
+      liabilityId: liability.id,
+      occurredAt: { gte: periodStart, lte: periodEnd },
+      accountId: { not: null },
+      liabilityPrepaymentId: null,
+    },
+    select: { id: true },
+  });
+  if (!paidThisPeriod) return due;
+  return Math.min(due + 1, liability.tenorMonths ?? due + 1);
+}
+
+/**
+ * Review fix 3 — the SAME idempotencyKey is only a legitimate replay when it
+ * repeats the SAME request; a different mode/account/amount/penalty under
+ * the same key is a client bug (a reused UUID), not a resend, and must never
+ * silently return the first record.
+ */
+function assertReplayMatches(
+  replay: {
+    mode: PrepaymentMode;
+    principalAmount: bigint;
+    penaltyPercent: { toString(): string };
+    sourceAccountId: string;
+  },
+  dto: { sourceAccountId: string; mode: PrepaymentMode },
+  request: PrepaymentRequest,
+): void {
+  const mismatched =
+    replay.mode !== dto.mode ||
+    replay.sourceAccountId !== dto.sourceAccountId ||
+    replay.penaltyPercent.toString() !== request.penaltyPercent ||
+    (dto.mode !== "full" && replay.principalAmount !== request.amount);
+  if (mismatched) {
+    throw new ConflictException(
+      "idempotencyKey ini sudah dipakai untuk permintaan pelunasan yang berbeda",
+    );
+  }
+}
+
 /** Liability columns a recorded prepayment rewrites (decision 5). */
 function prepaidTerms(
   result: PrepaymentResult,
   fromPeriod: number,
 ): {
   minimumPayment: bigint;
-  installmentAmount?: bigint;
-  installmentFromPeriod?: number;
+  installmentAmount?: bigint | null;
+  installmentFromPeriod?: number | null;
   tenorMonths?: number;
 } {
+  // Review fix 4 — a full payoff must null the stale installment/anchor, or
+  // the response (and the next read) still shows an installment on a debt
+  // that is actually zero.
   if (result.mode === "full" || result.newInstallmentAmount === null) {
-    return { minimumPayment: BigInt(0) };
+    return {
+      minimumPayment: BigInt(0),
+      installmentAmount: null,
+      installmentFromPeriod: null,
+    };
   }
   return {
     installmentAmount: result.newInstallmentAmount,
@@ -1333,7 +1408,13 @@ export class LiabilitiesService {
     const request = parsePrepaymentRequest(query);
 
     const planned = await withRatePlan(this.prisma, familyGroupId, liability);
-    const schedule = scheduleInputFor(planned, now);
+    const firstPeriod = await resolvePrepaymentFirstPeriod(
+      this.prisma,
+      familyGroupId,
+      liability,
+      now,
+    );
+    const schedule = scheduleInputFor(planned, now, firstPeriod);
     const result = simulateOrReject({ schedule, ...request });
     return {
       liabilityId: liability.id,
@@ -1400,6 +1481,7 @@ export class LiabilitiesService {
       },
     });
     if (replay) {
+      assertReplayMatches(replay, dto, request);
       return {
         liability: toLiabilityDto(planned, false, now),
         prepayment: toPrepaymentDto(replay),
@@ -1415,7 +1497,13 @@ export class LiabilitiesService {
       throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
     }
 
-    const schedule = scheduleInputFor(planned, now);
+    const firstPeriod = await resolvePrepaymentFirstPeriod(
+      tx,
+      familyGroupId,
+      liability,
+      now,
+    );
+    const schedule = scheduleInputFor(planned, now, firstPeriod);
     const result = simulateOrReject({ schedule, ...request });
     await assertBankNotOverdrawn(
       tx,

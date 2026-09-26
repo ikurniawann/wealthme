@@ -32,7 +32,10 @@ export type FxEntity =
 
 export interface FxTarget {
   entity: FxEntity;
-  entityId: string;
+  // Revisi K review fix 2 — `null` lets a `locate` deliberately skip the
+  // audit (e.g. an idempotent replay that wrote nothing); `record()` already
+  // treats a falsy entityId as "nothing to attach to" below.
+  entityId: string | null;
 }
 
 export interface FxRunArgs<TDto extends { fxInputs?: FxInputLike[] }, TResult> {
