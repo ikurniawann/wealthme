@@ -34,7 +34,28 @@ jest.mock("sonner", () => ({
   }),
 }));
 
+const mockUseFxSnapshot = jest.fn((enabled: boolean) => ({
+  data: enabled
+    ? jest.requireActual("../../../components/money/fx-test-rates")
+        .TEST_FX_RATES
+    : undefined,
+  isError: false,
+}));
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => mockUseFxSnapshot(enabled),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
 import { toast } from "sonner";
+import { id as idDict } from "../../../i18n/id";
 
 import WarisanPage from "./page";
 
@@ -101,6 +122,13 @@ describe("WarisanPage — heir picker (EPIC-023 F1)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
+    mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+      data: enabled
+        ? jest.requireActual("../../../components/money/fx-test-rates")
+            .TEST_FX_RATES
+        : undefined,
+      isError: false,
+    }));
 
     mockUseSessionAuth.mockReturnValue({
       data: {
@@ -166,6 +194,13 @@ describe("WarisanPage — heir relationship validation & error surfacing (EPIC-0
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
+    mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+      data: enabled
+        ? jest.requireActual("../../../components/money/fx-test-rates")
+            .TEST_FX_RATES
+        : undefined,
+      isError: false,
+    }));
 
     mockUseSessionAuth.mockReturnValue({
       data: {
@@ -305,5 +340,154 @@ describe("WarisanPage — heir relationship validation & error surfacing (EPIC-0
     expect(toast.error).not.toHaveBeenCalledWith(
       expect.stringContaining("must not be empty"),
     );
+  });
+});
+
+/** Task 10b — revisi I multi-currency: `estimatedValue` gains a currency
+ * picker via `MoneyInput`/`useMoneyField`. */
+describe("WarisanPage — revisi I multi-currency", () => {
+  function mockApiFetchCreate(onPost?: () => void) {
+    mockApiFetch.mockImplementation((url: string, options?: unknown) => {
+      const opts = options as { method?: string; body?: string } | undefined;
+      if (
+        url === `/family-groups/${FAMILY_GROUP_ID}/inheritance` &&
+        opts?.method === "POST"
+      ) {
+        onPost?.();
+        return Promise.resolve({ id: "asset-1" });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/inheritance`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/assets`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+  }
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+    mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+      data: enabled
+        ? jest.requireActual("../../../components/money/fx-test-rates")
+            .TEST_FX_RATES
+        : undefined,
+      isError: false,
+    }));
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it("revisi I — estimated value in EUR posts the preview + fxInputs", async () => {
+    mockApiFetchCreate();
+    render(<WarisanPage />);
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /tambah aset warisan/i }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(/rumah utama, deposito bca/i),
+      "Rumah Utama",
+    );
+    await user.selectOptions(screen.getByLabelText("Mata uang"), "EUR");
+    await userEvent.type(
+      screen.getByLabelText(idDict.warisan.fieldValueLabel),
+      "75,50",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /simpan aset warisan/i }),
+    );
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    const post = mockApiFetch.mock.calls.find(
+      ([url, i]) =>
+        url === `/family-groups/${FAMILY_GROUP_ID}/inheritance` &&
+        (i as RequestInit | undefined)?.method === "POST",
+    );
+    expect(JSON.parse((post?.[1] as RequestInit).body as string)).toMatchObject(
+      {
+        estimatedValue: 1_542_255,
+        fxInputs: [
+          { field: "estimatedValue", currency: "EUR", amount: "75.50" },
+        ],
+      },
+    );
+  });
+
+  it("revisi I — an IDR estimated value posts no fxInputs key", async () => {
+    mockApiFetchCreate();
+    render(<WarisanPage />);
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /tambah aset warisan/i }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(/rumah utama, deposito bca/i),
+      "Rumah Utama",
+    );
+    await user.type(screen.getByPlaceholderText("0"), "1000000");
+
+    await user.click(
+      screen.getByRole("button", { name: /simpan aset warisan/i }),
+    );
+
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+    const post = mockApiFetch.mock.calls.find(
+      ([url, i]) =>
+        url === `/family-groups/${FAMILY_GROUP_ID}/inheritance` &&
+        (i as RequestInit | undefined)?.method === "POST",
+    );
+    const posted = JSON.parse((post?.[1] as RequestInit).body as string);
+    expect(posted).not.toHaveProperty("fxInputs");
+    expect(posted.estimatedValue).toBe(1_000_000);
+  });
+
+  it("revisi I — Simpan stays disabled and no POST fires while /fx/rates is pending for USD", async () => {
+    // /fx/rates never resolves: MoneyField.resolved.isPending stays true for
+    // as long as a foreign currency + amount is present.
+    mockUseFxSnapshot.mockImplementation(() => ({
+      data: undefined,
+      isError: false,
+    }));
+    mockApiFetchCreate();
+    render(<WarisanPage />);
+    const user = userEvent.setup();
+    await user.click(
+      screen.getByRole("button", { name: /tambah aset warisan/i }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(/rumah utama, deposito bca/i),
+      "Rumah Utama",
+    );
+    await user.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await user.type(
+      screen.getByLabelText(idDict.warisan.fieldValueLabel),
+      "10",
+    );
+
+    const saveButton = screen.getByRole("button", {
+      name: /simpan aset warisan/i,
+    });
+    await waitFor(() => expect(saveButton).toBeDisabled());
+    await user.click(saveButton);
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([url, i]) =>
+          url === `/family-groups/${FAMILY_GROUP_ID}/inheritance` &&
+          (i as RequestInit | undefined)?.method === "POST",
+      ),
+    ).toBe(false);
   });
 });

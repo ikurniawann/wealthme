@@ -8,7 +8,12 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen, within } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -32,6 +37,28 @@ jest.mock("sonner", () => ({
     warning: jest.fn(),
   }),
 }));
+
+const mockUseFxSnapshot = jest.fn((enabled: boolean) => ({
+  data: enabled
+    ? jest.requireActual("../../../components/money/fx-test-rates")
+        .TEST_FX_RATES
+    : undefined,
+  isError: false,
+}));
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => mockUseFxSnapshot(enabled),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
+import { id as idDict } from "../../../i18n/id";
 
 import SplitBillPage from "./page";
 
@@ -122,6 +149,13 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
+    mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+      data: enabled
+        ? jest.requireActual("../../../components/money/fx-test-rates")
+            .TEST_FX_RATES
+        : undefined,
+      isError: false,
+    }));
 
     mockUseSessionAuth.mockReturnValue({
       data: {
@@ -201,5 +235,177 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
       `/family-groups/${FAMILY_GROUP_ID}/split-bills/bill-1/revoke`,
       expect.objectContaining({ method: "PATCH" }),
     );
+  });
+});
+
+/** Task 10b — revisi I multi-currency: one currency per bill (Decision 10). */
+describe("SplitBillPage — revisi I multi-currency", () => {
+  function mockApiFetchCreate(onPost?: (body: unknown) => void) {
+    mockApiFetch.mockImplementation((url: string, options?: RequestInit) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/split-bills`) {
+        if (options?.method === "POST") {
+          onPost?.(JSON.parse(String(options.body)));
+          return Promise.resolve(SPLIT_BILL);
+        }
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/accounts`) {
+        return Promise.resolve([ACCOUNT]);
+      }
+      return Promise.reject(
+        new Error(`unexpected url: ${url} ${options?.method}`),
+      );
+    });
+  }
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+    mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+      data: enabled
+        ? jest.requireActual("../../../components/money/fx-test-rates")
+            .TEST_FX_RATES
+        : undefined,
+      isError: false,
+    }));
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  async function openCreateDialogWithTitle(
+    user: ReturnType<typeof userEvent.setup>,
+  ) {
+    await user.click(
+      await screen.findByRole("button", {
+        name: idDict.splitbill.createButton,
+      }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTitleLabel),
+      "Makan Bareng",
+    );
+    return dialog;
+  }
+
+  it("revisi I — a USD bill sends total + every share as fxInputs in one currency", async () => {
+    let posted: Record<string, unknown> | undefined;
+    mockApiFetchCreate((body) => {
+      posted = body as Record<string, unknown>;
+    });
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    const dialog = await openCreateDialogWithTitle(user);
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
+      "10",
+    );
+    await user.click(
+      within(dialog).getByRole("tab", {
+        name: idDict.splitbill.methodCustomLabel,
+      }),
+    );
+    const shares = within(dialog).getAllByLabelText(
+      new RegExp(`^${idDict.splitbill.fieldTotalLabel} `),
+    );
+    await user.type(shares[0]!, "3,33");
+    await user.type(shares[1]!, "3,33");
+    await user.type(shares[2]!, "3,34");
+    await user.selectOptions(
+      within(dialog).getByLabelText(idDict.splitbill.fieldPayoutAccountLabel),
+      ACCOUNT.id,
+    );
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: idDict.splitbill.createAndShareButton,
+      }),
+    );
+
+    await waitFor(() => expect(posted).toBeDefined());
+    expect(posted!.totalAmount).toBe(179_139);
+    expect(
+      (posted!.participants as { amountOwed: number }[]).map(
+        (p) => p.amountOwed,
+      ),
+    ).toEqual([59_653, 59_653, 59_832]);
+    expect(posted!.fxInputs).toEqual([
+      { field: "totalAmount", currency: "USD", amount: "10.00" },
+      { field: "participants.0.amountOwed", currency: "USD", amount: "3.33" },
+      { field: "participants.1.amountOwed", currency: "USD", amount: "3.33" },
+      { field: "participants.2.amountOwed", currency: "USD", amount: "3.34" },
+    ]);
+  });
+
+  it("revisi I — an IDR bill posts no fxInputs key", async () => {
+    let posted: Record<string, unknown> | undefined;
+    mockApiFetchCreate((body) => {
+      posted = body as Record<string, unknown>;
+    });
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    const dialog = await openCreateDialogWithTitle(user);
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
+      "300000",
+    );
+    await user.selectOptions(
+      within(dialog).getByLabelText(idDict.splitbill.fieldPayoutAccountLabel),
+      ACCOUNT.id,
+    );
+
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: idDict.splitbill.createAndShareButton,
+      }),
+    );
+
+    await waitFor(() => expect(posted).toBeDefined());
+    expect(posted).not.toHaveProperty("fxInputs");
+    expect(posted!.totalAmount).toBe(300_000);
+  });
+
+  it("revisi I — Buat & Bagikan Link stays disabled and no POST fires while /fx/rates is pending for USD", async () => {
+    mockUseFxSnapshot.mockImplementation(() => ({
+      data: undefined,
+      isError: false,
+    }));
+    mockApiFetchCreate();
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    const dialog = await openCreateDialogWithTitle(user);
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
+      "10",
+    );
+    await user.selectOptions(
+      within(dialog).getByLabelText(idDict.splitbill.fieldPayoutAccountLabel),
+      ACCOUNT.id,
+    );
+
+    const createButton = within(dialog).getByRole("button", {
+      name: idDict.splitbill.createAndShareButton,
+    });
+    await waitFor(() => expect(createButton).toBeDisabled());
+    await user.click(createButton);
+
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([url, i]) =>
+          url === `/family-groups/${FAMILY_GROUP_ID}/split-bills` &&
+          (i as RequestInit | undefined)?.method === "POST",
+      ),
+    ).toBe(false);
   });
 });

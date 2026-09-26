@@ -24,6 +24,12 @@ import {
   ProgressBar,
 } from "@/components/wm";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyDigits,
+  withFxInputs,
+} from "@/components/money";
 // EPIC-025 N3-E3 — J3 FOLD: beneficiary-allocation donut, derived from the
 // already-fetched inheritance-assets list — no new backend endpoint.
 import { DonutChart } from "@/components/charts/apex-presets";
@@ -31,7 +37,7 @@ import type { DonutSegment } from "@/components/charts/donut";
 import { useLocale } from "@/hooks/use-locale";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
@@ -543,7 +549,7 @@ export default function WarisanPage() {
   );
   const [assetType, setAssetType] = useState(ASSET_TYPE_OPTIONS[0]);
   const [name, setName] = useState("");
-  const [valueInput, setValueInput] = useState("");
+  const valueField = useMoneyField();
   const [notes, setNotes] = useState("");
   const [visible, setVisible] = useState(true);
   // EPIC-021 Group D (#11) — "Pilih dari Aset" mode: pick an existing Asset
@@ -682,7 +688,7 @@ export default function WarisanPage() {
   function resetForm() {
     setAssetType(ASSET_TYPE_OPTIONS[0] ?? "");
     setName("");
-    setValueInput("");
+    valueField.reset();
     setNotes("");
     setVisible(true);
     setPickMode("asset");
@@ -695,7 +701,7 @@ export default function WarisanPage() {
     setEditing(item);
     setAssetType(item.assetType);
     setName(item.name);
-    setValueInput(Number(BigInt(item.estimatedValue)).toLocaleString("id-ID"));
+    valueField.reset(BigInt(item.estimatedValue).toString());
     setNotes(item.notes ?? "");
     setVisible(visibilityToBoolean(item.visibility));
     setPickMode(item.assetId ? "asset" : "manual");
@@ -720,9 +726,7 @@ export default function WarisanPage() {
     const picked = pickableAssets.find((a) => a.id === assetId);
     if (picked) {
       setName(picked.name);
-      setValueInput(
-        Number(BigInt(picked.currentValue)).toLocaleString("id-ID"),
-      );
+      valueField.reset(BigInt(picked.currentValue).toString());
     }
   }
 
@@ -731,7 +735,7 @@ export default function WarisanPage() {
       toast.error(t.warisan.toastSessionNotReady);
       return;
     }
-    const raw = valueInput.replace(/\D/g, "");
+    const raw = moneyDigits(valueField);
     const estimatedValue = parseInt(raw, 10);
     if (!name.trim()) {
       toast.error(t.warisan.toastNameRequired);
@@ -769,6 +773,7 @@ export default function WarisanPage() {
       toast.error(t.warisan.toastSharePercentExceeded);
       return;
     }
+    if (valueField.resolved.isPending) return;
 
     const baseFields = {
       name: name.trim(),
@@ -791,7 +796,10 @@ export default function WarisanPage() {
         ...baseFields,
         ...(assetIdChanged ? { assetId: nextAssetId } : {}),
       };
-      updateMutation.mutate({ id: editing.id, dto });
+      updateMutation.mutate({
+        id: editing.id,
+        dto: withFxInputs(dto, [["estimatedValue", valueField]]),
+      });
     } else {
       const dto: CreateInheritanceAssetDto = {
         ...baseFields,
@@ -799,7 +807,9 @@ export default function WarisanPage() {
           ? { assetId: selectedAssetId }
           : {}),
       };
-      createMutation.mutate(dto);
+      createMutation.mutate(
+        withFxInputs(dto, [["estimatedValue", valueField]]),
+      );
     }
   }
 
@@ -1130,17 +1140,7 @@ export default function WarisanPage() {
                 <label className="label" htmlFor="warisan-value">
                   {t.warisan.fieldValueLabel}
                 </label>
-                <input
-                  id="warisan-value"
-                  type="text"
-                  inputMode="numeric"
-                  value={valueInput}
-                  onChange={(e) =>
-                    setValueInput(formatAmountInput(e.target.value))
-                  }
-                  placeholder="0"
-                  className="input mono"
-                />
+                <MoneyInput field={valueField} id="warisan-value" />
               </div>
               <div className="field mt-0">
                 <label className="label" htmlFor="warisan-category">
@@ -1231,7 +1231,11 @@ export default function WarisanPage() {
             <Button
               type="button"
               onClick={handleSave}
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={
+                createMutation.isPending ||
+                updateMutation.isPending ||
+                valueField.resolved.isPending
+              }
             >
               <Save className="size-4" />
               {createMutation.isPending || updateMutation.isPending

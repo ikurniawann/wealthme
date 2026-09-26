@@ -9,9 +9,15 @@ import type { AccountDto, BudgetDto, BudgetPeriod } from "@wealthme/contracts";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  MoneyInput,
+  moneyIdr,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 import { setOnboarded } from "./use-onboarded";
 import {
   clearSetupProgress,
@@ -145,11 +151,11 @@ export function GuidedSetup({
   // Form fields (this step's in-progress input, distinct from the resolved
   // values above).
   const [accountNameField, setAccountNameField] = useState("");
-  const [balanceField, setBalanceField] = useState("");
+  const balanceMoney = useMoneyField();
   const [categoryNameField, setCategoryNameField] = useState("");
-  const [limitField, setLimitField] = useState("");
+  const limitMoney = useMoneyField();
   const [period] = useState<BudgetPeriod>("monthly");
-  const [amountField, setAmountField] = useState("");
+  const txMoney = useMoneyField();
   const [descriptionField, setDescriptionField] = useState("");
 
   const [accountConsequence, setAccountConsequence] = useState<{
@@ -320,7 +326,8 @@ export function GuidedSetup({
   async function handleCreateAccount() {
     const trimmed = accountNameField.trim();
     if (!trimmed || !familyGroupId) return;
-    const balanceNum = parseRupiah(balanceField);
+    if (balanceMoney.resolved.isPending) return;
+    const balanceNum = moneyIdr(balanceMoney, parseRupiah);
     setIsSaving(true);
     try {
       const before = await fetchNetWorth(familyGroupId, token);
@@ -329,12 +336,17 @@ export function GuidedSetup({
         {
           token,
           method: "POST",
-          body: JSON.stringify({
-            type: "bank",
-            name: trimmed,
-            balance: balanceNum,
-            isPrivate: false,
-          }),
+          body: JSON.stringify(
+            withFxInputs(
+              {
+                type: "bank",
+                name: trimmed,
+                balance: balanceNum,
+                isPrivate: false,
+              },
+              [["balance", balanceMoney]],
+            ),
+          ),
         },
       );
       const after = await fetchNetWorth(familyGroupId, token);
@@ -371,7 +383,8 @@ export function GuidedSetup({
   async function handleCreateBudget() {
     const trimmed = categoryNameField.trim();
     if (!trimmed || !familyGroupId) return;
-    const limitNum = parseRupiah(limitField);
+    if (limitMoney.resolved.isPending) return;
+    const limitNum = moneyIdr(limitMoney, parseRupiah);
     setIsSaving(true);
     try {
       let newCategoryId: string;
@@ -403,11 +416,12 @@ export function GuidedSetup({
         {
           token,
           method: "POST",
-          body: JSON.stringify({
-            categoryId: newCategoryId,
-            period,
-            limitAmount: limitNum,
-          }),
+          body: JSON.stringify(
+            withFxInputs(
+              { categoryId: newCategoryId, period, limitAmount: limitNum },
+              [["limitAmount", limitMoney]],
+            ),
+          ),
         },
       );
       setCategoryId(newCategoryId);
@@ -453,12 +467,13 @@ export function GuidedSetup({
   }
 
   async function handleCreateTransaction() {
-    const amountNum = parseRupiah(amountField);
+    const amountNum = moneyIdr(txMoney, parseRupiah);
     if (!amountNum || amountNum <= 0) return;
     if (!accountId) {
       toast.error(tr.transaction.noAccountError);
       return;
     }
+    if (txMoney.resolved.isPending) return;
     setIsSaving(true);
     try {
       const result = await apiFetch<{ held?: true } & Record<string, unknown>>(
@@ -466,14 +481,19 @@ export function GuidedSetup({
         {
           token,
           method: "POST",
-          body: JSON.stringify({
-            accountId,
-            ...(categoryId ? { categoryId } : {}),
-            amount: amountNum,
-            type: "expense",
-            ...(descriptionField ? { description: descriptionField } : {}),
-            occurredAt: new Date().toISOString(),
-          }),
+          body: JSON.stringify(
+            withFxInputs(
+              {
+                accountId,
+                ...(categoryId ? { categoryId } : {}),
+                amount: amountNum,
+                type: "expense",
+                ...(descriptionField ? { description: descriptionField } : {}),
+                occurredAt: new Date().toISOString(),
+              },
+              [["amount", txMoney]],
+            ),
+          ),
         },
       );
       const wasHeld =
@@ -625,27 +645,17 @@ export function GuidedSetup({
             </p>
           </Field>
           <Field label={tr.account.balanceLabel} htmlFor={balanceId}>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                Rp
-              </span>
-              <input
-                id={balanceId}
-                inputMode="numeric"
-                value={balanceField}
-                onChange={(e) =>
-                  setBalanceField(formatAmountInput(e.target.value))
-                }
-                placeholder="0"
-                className="input pl-9"
-              />
-            </div>
+            <MoneyInput field={balanceMoney} id={balanceId} />
           </Field>
         </div>
         <button
           type="button"
           onClick={handleCreateAccount}
-          disabled={isSaving || !accountNameField.trim()}
+          disabled={
+            isSaving ||
+            !accountNameField.trim() ||
+            balanceMoney.resolved.isPending
+          }
           className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
         >
           {isSaving ? tr.account.submitting : tr.account.submitButton}
@@ -724,22 +734,7 @@ export function GuidedSetup({
             />
           </Field>
           <Field label={tr.budget.limitLabel} htmlFor={limitId}>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                Rp
-              </span>
-              <input
-                id={limitId}
-                inputMode="numeric"
-                value={limitField}
-                onChange={(e) =>
-                  setLimitField(formatAmountInput(e.target.value))
-                }
-                placeholder="0"
-                className="input pl-9"
-                aria-describedby={budgetHintId}
-              />
-            </div>
+            <MoneyInput field={limitMoney} id={limitId} />
           </Field>
           {/* EPIC-023 Task H fix round (MEDIUM 12) — see the account step's
               equivalent hint comment: the submit button becomes unreachable
@@ -751,7 +746,12 @@ export function GuidedSetup({
         <button
           type="button"
           onClick={handleCreateBudget}
-          disabled={isSaving || !categoryNameField.trim() || !limitField}
+          disabled={
+            isSaving ||
+            !categoryNameField.trim() ||
+            !limitMoney.raw ||
+            limitMoney.resolved.isPending
+          }
           className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
         >
           {isSaving ? tr.budget.submitting : tr.budget.submitButton}
@@ -815,22 +815,7 @@ export function GuidedSetup({
         </p>
         <div className="mt-4 space-y-3">
           <Field label={tr.transaction.amountLabel} htmlFor={amountId}>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                Rp
-              </span>
-              <input
-                id={amountId}
-                inputMode="numeric"
-                value={amountField}
-                onChange={(e) =>
-                  setAmountField(formatAmountInput(e.target.value))
-                }
-                placeholder="0"
-                className="input pl-9"
-                aria-describedby={amountHintId}
-              />
-            </div>
+            <MoneyInput field={txMoney} id={amountId} />
             {/* EPIC-023 Task H fix round (MEDIUM 12) — same reasoning as the
                 account/budget hints above. */}
             <p
@@ -857,7 +842,12 @@ export function GuidedSetup({
           // enabled while handleCreateTransaction silently no-ops on
           // amountNum <= 0; the account/budget steps already disable on the
           // equivalent falsy case, this now matches them.
-          disabled={isSaving || !amountField || parseRupiah(amountField) <= 0}
+          disabled={
+            isSaving ||
+            !txMoney.raw ||
+            moneyIdr(txMoney, parseRupiah) <= 0 ||
+            txMoney.resolved.isPending
+          }
           className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
         >
           {isSaving ? tr.transaction.submitting : tr.transaction.submitButton}

@@ -46,6 +46,12 @@ import { useLocale } from "@/hooks/use-locale";
 import { mergeReferenceOptions } from "@/hooks/reference-options";
 import { useReferenceItems } from "@/hooks/use-reference-items";
 import { AddToMasterDataLink } from "@/components/crud";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyIdr,
+  withFxInputs,
+} from "@/components/money";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
@@ -306,7 +312,7 @@ export default function DonationPage() {
   // Donation modal state
   const [open, setOpen] = useState(false);
   const [jenis, setJenis] = useState<DonationType>("zakat_maal");
-  const [jumlah, setJumlah] = useState("");
+  const jumlahField = useMoneyField();
   const [lembaga, setLembaga] = useState(LEMBAGA_OPTIONS[0]);
   const { items: lembagaItems } = useReferenceItems("lembaga");
   const lembagaOptions = mergeReferenceOptions(
@@ -395,16 +401,16 @@ export default function DonationPage() {
     }
     if (prefill === "zakat") {
       setJenis("zakat_maal");
-      setJumlah(formatAmountInput(String(zakat)));
+      jumlahField.reset(String(zakat));
       setLembaga("BAZNAS");
       setIsTaxDeductible(true);
     } else if (prefill === "perpuluhan") {
       setJenis("persepuluhan");
-      setJumlah(formatAmountInput(String(tithe)));
+      jumlahField.reset(String(tithe));
       setLembaga("Gereja / Paroki");
       setIsTaxDeductible(true);
     } else {
-      setJumlah("");
+      jumlahField.reset();
       setIsTaxDeductible(false);
     }
     setAccountId("");
@@ -412,20 +418,26 @@ export default function DonationPage() {
   }
 
   function handleSave(): void {
-    const amountNum = parseRupiah(jumlah);
+    const amountNum = moneyIdr(jumlahField, parseRupiah);
     if (!amountNum || amountNum <= 0) {
       toast.error(t.donation.toastInvalidAmount);
       return;
     }
-    createMutation.mutate({
-      type: jenis,
-      recipient: lembaga,
-      amount: String(amountNum),
-      donatedAt: new Date(tanggal).toISOString(),
-      // E5 — never send a deductible flag the API would reject for this type.
-      isTaxDeductible: isTaxDeductible && isDeductibleEligible,
-      accountId: accountId || undefined,
-    });
+    if (jumlahField.resolved.isPending) return;
+    createMutation.mutate(
+      withFxInputs(
+        {
+          type: jenis,
+          recipient: lembaga,
+          amount: String(amountNum),
+          donatedAt: new Date(tanggal).toISOString(),
+          // E5 — never send a deductible flag the API would reject for this type.
+          isTaxDeductible: isTaxDeductible && isDeductibleEligible,
+          accountId: accountId || undefined,
+        },
+        [["amount", jumlahField]],
+      ),
+    );
   }
 
   // Compute category totals from API data
@@ -904,15 +916,7 @@ export default function DonationPage() {
               <label className="label" htmlFor="dn-jumlah">
                 {t.donation.fieldJumlahLabel}
               </label>
-              <input
-                id="dn-jumlah"
-                type="text"
-                inputMode="numeric"
-                value={jumlah}
-                onChange={(e) => setJumlah(formatAmountInput(e.target.value))}
-                placeholder="0"
-                className="input mono"
-              />
+              <MoneyInput field={jumlahField} id="dn-jumlah" />
             </div>
 
             <div className="field">
@@ -972,7 +976,12 @@ export default function DonationPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t.common.cancel}
             </Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending}>
+            <Button
+              onClick={handleSave}
+              disabled={
+                createMutation.isPending || jumlahField.resolved.isPending
+              }
+            >
               <HandHeart className="size-4" />{" "}
               {createMutation.isPending
                 ? t.donation.savingLabel
