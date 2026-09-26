@@ -626,9 +626,10 @@ export type I18nDictionary = {
       // obviously-bad file).
       attachmentInvalidTypeToast: string;
       attachmentTooLargeToast: string;
-      // EPIC-026 Wave 8 — prototype `.dialog__desc` on `#dlg-transaksi`
-      // (assets/shell.js) and its `.dialog__footer` Batal button.
-      dialogDesc: string;
+      // polish-j batch 7a item 6 dropped the dialog's own `.dialog__desc`
+      // ("Catat pemasukan, pengeluaran, transfer, atau belanja kartu
+      // kredit.") — the tab strip itself already says which of those this
+      // is. `.dialog__footer` Batal button is unaffected.
       modeSwitchLabel: string;
       typeSwitchLabel: string;
     };

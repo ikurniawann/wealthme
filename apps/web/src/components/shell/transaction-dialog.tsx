@@ -17,7 +17,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -27,6 +26,7 @@ import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { DateField } from "@/components/wm";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useAiKeyStatus } from "@/hooks/use-ai-key";
 import {
   isCameraSupported,
@@ -849,11 +849,6 @@ export function TransactionDialog() {
         {view === "form" && (
           <>
             <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
-            {/* EPIC-026 Wave 8 — prototype `.dialog__desc` on #dlg-transaksi
-                (docs/prototype/assets/shell.js). */}
-            <DialogDescription>
-              {t.shell.transactionDialog.dialogDesc}
-            </DialogDescription>
 
             {/* Prototype field order (shell.js:536-570): type switch → Jumlah
                 → Akun → Kategori → [Tanggal | Deskripsi] → Lampiran. */}
@@ -1013,30 +1008,55 @@ export function TransactionDialog() {
                   </Field>
                 </>
               ) : (
-                <Field
-                  label={t.shell.transactionDialog.accountLabel}
-                  htmlFor={accountFieldId}
-                >
-                  <select
-                    id={accountFieldId}
-                    className="select"
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
+                // polish-j batch 7a item 6 — Akun and Kategori are both
+                // <select>s, so they now pair 2-up like Tanggal/Deskripsi
+                // below, instead of each stacking full-width.
+                <div className="field-row">
+                  <Field
+                    label={t.shell.transactionDialog.accountLabel}
+                    htmlFor={accountFieldId}
+                    className="!mt-0"
                   >
-                    <option value="">
-                      {t.shell.transactionDialog.accountPlaceholder}
-                    </option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                        {a.institution ? ` — ${a.institution}` : ""}
+                    <select
+                      id={accountFieldId}
+                      className="select"
+                      value={accountId}
+                      onChange={(e) => setAccountId(e.target.value)}
+                    >
+                      <option value="">
+                        {t.shell.transactionDialog.accountPlaceholder}
                       </option>
-                    ))}
-                  </select>
-                  <span className="hint">
-                    Master &amp; co-master melihat seluruh rekening keluarga.
-                  </span>
-                </Field>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                          {a.institution ? ` — ${a.institution}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field
+                    label={t.shell.transactionDialog.categoryLabel}
+                    htmlFor={categoryFieldId}
+                    className="!mt-0"
+                  >
+                    <select
+                      id={categoryFieldId}
+                      className="select"
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                    >
+                      <option value="">
+                        {t.shell.transactionDialog.categoryPlaceholder}
+                      </option>
+                      {relevantCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.icon ? `${c.icon} ` : ""}
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               )}
 
               {/* EPIC-023 Task E4 (D13) — reviewed foundation exception (see
@@ -1046,8 +1066,10 @@ export function TransactionDialog() {
                 (CategoryKind is only "income" | "expense" — schema.prisma),
                 so this select was previously ALWAYS empty on that tab; the
                 category belongs on the tab where the money is actually
-                spent. */}
-              {tabKind !== "transfer" && (
+                spent. The card tab's own Kartu Kredit select isn't the same
+                "Akun" concept, so its Kategori field stays standalone
+                rather than pairing into a field-row. */}
+              {tabKind === "card" && (
                 <Field
                   label={t.shell.transactionDialog.categoryLabel}
                   htmlFor={categoryFieldId}
@@ -1119,71 +1141,75 @@ export function TransactionDialog() {
                 transactionId to attach the file to (see the mutation's own
                 doc comment above). */}
               {tabKind !== "card" && (
-                <div className="field">
-                  <span className="label">
-                    {t.shell.transactionDialog.attachmentLabel}{" "}
-                    <span className="t-muted font-medium">
-                      {t.shell.transactionDialog.optionalSuffix}
-                    </span>
-                  </span>
-                  <div className="row row--wrap gap-2">
-                    <label
-                      htmlFor={attachmentFieldId}
-                      className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
-                    >
-                      <Paperclip
-                        className="size-4 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 leading-tight">
-                        {attachmentFile
-                          ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
-                          : "Unggah foto struk atau PDF, maks 5 MB"}
-                      </span>
-                    </label>
-                    {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
+                // polish-j batch 7a item 6 — Lampiran + the AI-scan control
+                // (and its setup notice) collapse under their own
+                // disclosure instead of always occupying dialog space.
+                <AdvancedDisclosure
+                  label={t.shell.transactionDialog.attachmentLabel}
+                >
+                  <div className="field mt-0">
+                    <div className="row row--wrap gap-2">
+                      <label
+                        htmlFor={attachmentFieldId}
+                        className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
+                      >
+                        <Paperclip
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 leading-tight">
+                          {attachmentFile
+                            ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
+                            : "Unggah foto struk atau PDF, maks 5 MB"}
+                        </span>
+                      </label>
+                      {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
                         key from a vision-capable provider). Disabled with
                         the reason and a link to Pengaturan rather than
                         offered and then failing: a control either does what
                         it implies or says plainly that it can't. */}
-                    <button
-                      type="button"
-                      ref={scanTriggerRef}
-                      onClick={startScan}
-                      disabled={!scanAvailable}
-                      aria-describedby={scanHintId}
-                      className={cn(
-                        "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
-                        scanAvailable
-                          ? "cursor-pointer"
-                          : "cursor-not-allowed opacity-60",
+                      <button
+                        type="button"
+                        ref={scanTriggerRef}
+                        onClick={startScan}
+                        disabled={!scanAvailable}
+                        aria-describedby={scanHintId}
+                        className={cn(
+                          "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
+                          scanAvailable
+                            ? "cursor-pointer"
+                            : "cursor-not-allowed opacity-60",
+                        )}
+                      >
+                        <Camera
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span>{t.shell.transactionDialog.scanReceipt}</span>
+                      </button>
+                      <input
+                        id={attachmentFieldId}
+                        data-testid="attachment-file-input"
+                        type="file"
+                        accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+                        onChange={handleAttachmentChange}
+                        className="sr-only"
+                      />
+                    </div>
+                    <span className="hint" id={scanHintId}>
+                      {scanAvailable ? (
+                        t.shell.transactionDialog.scanHint
+                      ) : (
+                        <>
+                          {t.shell.transactionDialog.scanUnavailable}{" "}
+                          <Link href="/akun" className="font-bold text-primary">
+                            {t.shell.transactionDialog.scanUnavailableLink}
+                          </Link>
+                        </>
                       )}
-                    >
-                      <Camera className="size-4 shrink-0" aria-hidden="true" />
-                      <span>{t.shell.transactionDialog.scanReceipt}</span>
-                    </button>
-                    <input
-                      id={attachmentFieldId}
-                      data-testid="attachment-file-input"
-                      type="file"
-                      accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
-                      onChange={handleAttachmentChange}
-                      className="sr-only"
-                    />
+                    </span>
                   </div>
-                  <span className="hint" id={scanHintId}>
-                    {scanAvailable ? (
-                      t.shell.transactionDialog.scanHint
-                    ) : (
-                      <>
-                        {t.shell.transactionDialog.scanUnavailable}{" "}
-                        <Link href="/akun" className="font-bold text-primary">
-                          {t.shell.transactionDialog.scanUnavailableLink}
-                        </Link>
-                      </>
-                    )}
-                  </span>
-                </div>
+                </AdvancedDisclosure>
               )}
             </DialogBody>
 

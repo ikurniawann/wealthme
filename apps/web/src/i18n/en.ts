@@ -283,9 +283,8 @@ export const en = {
         "Receipt data filled into the form, review it, then save.",
       scanHint:
         "Scanning uses the device camera and the family AI provider key. The result fills this form; nothing is recorded until you press Save.",
-      scanUnavailable:
-        "Receipt scanning needs a family AI provider key from a provider that supports images.",
-      scanUnavailableLink: "Set it up in Settings",
+      scanUnavailable: "Needs an AI API key.",
+      scanUnavailableLink: "Set up",
       categoryUnmatched: "No matching family category",
       // Camera failures — each one needs its own fix, so each one gets its
       // own message.
@@ -355,8 +354,6 @@ export const en = {
       attachmentInvalidTypeToast:
         "Unsupported file type, only JPG, PNG, WEBP, or PDF are allowed.",
       attachmentTooLargeToast: "File exceeds 5MB.",
-      dialogDesc:
-        "Record income, an expense, a transfer, or a credit-card purchase.",
       modeSwitchLabel: "Input method",
       typeSwitchLabel: "Transaction type",
     },

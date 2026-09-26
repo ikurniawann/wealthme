@@ -287,9 +287,8 @@ export const id = {
         "Data struk dimasukkan ke formulir, periksa lalu simpan.",
       scanHint:
         "Scan struk memakai kamera perangkat dan API key AI keluarga. Hasilnya mengisi formulir; transaksi baru tersimpan setelah kamu menekan Simpan.",
-      scanUnavailable:
-        "Scan struk butuh API key AI keluarga dari penyedia yang mendukung gambar.",
-      scanUnavailableLink: "Atur di Pengaturan",
+      scanUnavailable: "Butuh API key AI.",
+      scanUnavailableLink: "Atur",
       categoryUnmatched: "Tidak cocok dengan kategori keluarga",
       // Camera failures — each one needs its own fix, so each one gets its
       // own message (a denied permission must not look like a broken app).
@@ -358,8 +357,6 @@ export const id = {
       attachmentInvalidTypeToast:
         "Tipe file tidak didukung, hanya JPG, PNG, WEBP, atau PDF.",
       attachmentTooLargeToast: "Ukuran file melebihi 5MB.",
-      dialogDesc:
-        "Catat pemasukan, pengeluaran, transfer, atau belanja kartu kredit.",
       modeSwitchLabel: "Cara input",
       typeSwitchLabel: "Jenis transaksi",
     },
