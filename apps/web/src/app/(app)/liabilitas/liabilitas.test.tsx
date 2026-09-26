@@ -525,14 +525,14 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     );
   });
 
-  it("disables and relabels the pay button once paidThisPeriod is true", async () => {
+  it("shows a quiet status (not a disabled button) once paidThisPeriod is true", async () => {
     liabilitiesFixture = [baseLiability({ paidThisPeriod: true })];
     render(<LiabilitasPage />);
 
-    const payButton = await screen.findByRole("button", {
-      name: "Sudah dibayar periode ini",
-    });
-    expect(payButton).toBeDisabled();
+    await screen.findByText("Sudah dibayar periode ini");
+    expect(
+      screen.queryByRole("button", { name: "Sudah dibayar periode ini" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Bayar" }),
     ).not.toBeInTheDocument();

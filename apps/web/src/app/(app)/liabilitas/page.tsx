@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
   Banknote,
+  CheckCircle2,
   Split,
   StickyNote,
   TriangleAlert,
@@ -871,16 +872,23 @@ function LiabilityCardActionBar({
         <Trash2 className="size-3.5" /> Hapus
       </button>
       <span className="flex-1" />
-      <button
-        type="button"
-        onClick={onPay}
-        disabled={payDisabled}
-        title={payDisabled ? payDisabledLabel : undefined}
-        className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Banknote className="size-3.5" />{" "}
-        {payDisabled ? payDisabledLabel : "Bayar"}
-      </button>
+      {/* Polish batch 7b item 5 — this used to be a disabled `<button>`
+          showing "Sudah dibayar periode ini" on every already-paid card;
+          a disabled control implies an action that failed or is blocked,
+          not a settled status. It's now a quiet status badge instead. */}
+      {payDisabled ? (
+        <span className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground">
+          <CheckCircle2 className="size-3.5" /> {payDisabledLabel}
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onPay}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Banknote className="size-3.5" /> Bayar
+        </button>
+      )}
     </div>
   );
 }
@@ -1882,15 +1890,18 @@ export default function LiabilitasPage() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-4">
+      {/* Polish batch 7b item 5 — was `grid-cols-1` (3 full-width stacked
+          cards) on mobile, pushing the liability list well below the fold;
+          2-up at 390, 3-up from `sm` up. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
+        <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-3 sm:p-4">
           <div className="mb-1 text-[11px] text-[#B91C1C]">
             {t.liabilitas.totalLiabilitiesLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-36 rounded bg-red-200" />
           ) : (
-            <div className="mono text-[22px] font-black text-destructive">
+            <div className="mono text-[18px] font-black text-destructive sm:text-[22px]">
               <CountUpRupiah value={Number(totalRemaining)} />
             </div>
           )}
@@ -1900,7 +1911,7 @@ export default function LiabilitasPage() {
               ` · ${(liabilities ?? []).length}${t.liabilitas.remainingActiveCountSuffix}`}
           </div>
         </div>
-        <div className="rounded-[14px] border bg-card p-4">
+        <div className="rounded-[14px] border bg-card p-3 sm:p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.liabilitas.dtaRatioLabel}
           </div>
@@ -1908,7 +1919,7 @@ export default function LiabilitasPage() {
             <div className="animate-pulse h-7 w-20 rounded bg-muted" />
           ) : (
             <div
-              className="text-[22px] font-black"
+              className="text-[18px] font-black sm:text-[22px]"
               style={{ color: dtaRisk.color }}
             >
               {dtaDisplay}
@@ -1921,14 +1932,14 @@ export default function LiabilitasPage() {
             {dtaRisk.label}
           </div>
         </div>
-        <div className="rounded-[14px] border bg-card p-4">
+        <div className="col-span-2 rounded-[14px] border bg-card p-3 sm:col-span-1 sm:p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.liabilitas.monthlyInstallmentLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-32 rounded bg-muted" />
           ) : (
-            <div className="mono text-[22px] font-black">
+            <div className="mono text-[18px] font-black sm:text-[22px]">
               {formatRupiah(Number(totalMinimumPayment))}
             </div>
           )}
