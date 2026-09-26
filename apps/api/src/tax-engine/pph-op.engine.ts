@@ -73,7 +73,26 @@ export function pasal17Tax(pkp: bigint, date: string) {
   return { brackets, tax: brackets.reduce((s, b) => s + b.tax, 0n), ref };
 }
 
+// Review fix round 1 (fold-in #3) — a negative otherNetIncome/zakat used to
+// drive an intermediate hundredths amount negative and fail later inside
+// divHalfUp with a message that names no field ("expects n >= 0, d > 0");
+// withheldPph21 wasn't caught at all. Every amount is validated up front so
+// the RangeError always names the actual offending field.
+function assertNonNegative(name: string, value: bigint): void {
+  if (value < 0n) throw new RangeError(`${name} must be >= 0`);
+}
+
 export function computePphOp(input: PphOpInput): PphOpResult {
+  assertNonNegative("employmentGross", input.employmentGross);
+  assertNonNegative("pensionContribution", input.pensionContribution);
+  assertNonNegative("otherNetIncome", input.otherNetIncome);
+  assertNonNegative("zakat", input.zakat);
+  assertNonNegative("withheldPph21", input.withheldPph21);
+  if (input.freelance)
+    assertNonNegative("freelance.gross", input.freelance.gross);
+  if (input.ptkpOverride !== undefined)
+    assertNonNegative("ptkpOverride", input.ptkpOverride);
+
   const date = yearEndDate(input.taxYear);
   const refs: TaxRuleRef[] = [];
 

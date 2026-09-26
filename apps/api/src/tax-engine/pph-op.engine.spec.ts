@@ -160,6 +160,36 @@ describe("computePphOp", () => {
     const r = computePphOp(base({ taxYear: 2019, employmentGross: 120n * J }));
     expect(r.rules.find((x) => x.key === "pph.pasal17")?.outOfRange).toBe(true);
   });
+
+  // Review fix round 1 (fold-in #3) — a negative otherNetIncome/zakat drove
+  // zakat100 negative, and divHalfUp (money.ts) throws RangeError on a
+  // negative numerator with an unrelated message ("expects n >= 0, d > 0").
+  // Reject negative amounts explicitly at the boundary instead, with a
+  // message that names the offending field.
+  it("rejects negative otherNetIncome", () => {
+    expect(() => computePphOp(base({ otherNetIncome: -1n }))).toThrow(
+      RangeError,
+    );
+  });
+
+  it("rejects negative zakat", () => {
+    expect(() => computePphOp(base({ zakat: -1n }))).toThrow(RangeError);
+  });
+
+  it("rejects negative employmentGross, pensionContribution, withheldPph21, and freelance.gross", () => {
+    expect(() => computePphOp(base({ employmentGross: -1n }))).toThrow(
+      RangeError,
+    );
+    expect(() => computePphOp(base({ pensionContribution: -1n }))).toThrow(
+      RangeError,
+    );
+    expect(() => computePphOp(base({ withheldPph21: -1n }))).toThrow(
+      RangeError,
+    );
+    expect(() =>
+      computePphOp(base({ freelance: { gross: -1n, nppnBps: 5000 } })),
+    ).toThrow(RangeError);
+  });
 });
 
 describe("computeLegacyNetTax", () => {
