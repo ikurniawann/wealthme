@@ -1766,15 +1766,34 @@ interface TaxRecordDto {
     notes: string | null;
     createdAt: string;
     updatedAt: string;
+    calcMode: TaxCalcMode;
+    maritalStatus: TaxMaritalStatus | null;
+    dependents: number | null;
+    pensionContribution: string | null;
+    freelanceGross: string | null;
+    nppnRateBps: number | null;
+    otherNetIncome: string | null;
+    withheldPph21: string | null;
+    /** netTax − (withheldPph21 ?? 0) */
+    balance: string;
+    sptFiledAt: string | null;
+    rules: TaxRuleRefDto[];
 }
 interface CreateTaxRecordDto {
     taxYear: number;
     grossIncome: string;
-    ptkp: string;
+    ptkp?: string;
     netTax?: string;
     sptStatus?: SptStatus;
     documentUrl?: string;
     notes?: string;
+    maritalStatus?: TaxMaritalStatus;
+    dependents?: number;
+    pensionContribution?: string;
+    freelanceGross?: string;
+    nppnRateBps?: number;
+    otherNetIncome?: string;
+    withheldPph21?: string;
 }
 interface UpdateTaxRecordDto {
     taxYear?: number;
@@ -1784,6 +1803,224 @@ interface UpdateTaxRecordDto {
     sptStatus?: SptStatus;
     documentUrl?: string;
     notes?: string;
+    maritalStatus?: TaxMaritalStatus;
+    dependents?: number;
+    pensionContribution?: string;
+    freelanceGross?: string;
+    nppnRateBps?: number;
+    otherNetIncome?: string;
+    withheldPph21?: string;
+}
+type TaxMaritalStatus = "TK" | "K" | "KI";
+type TaxCalcMode = "legacy" | "detailed";
+type TerCategory = "A" | "B" | "C";
+type DtpSector = "alas_kaki" | "tekstil_pakaian" | "furnitur" | "kulit" | "pariwisata";
+type DtpEmployment = "permanent" | "non_permanent";
+type DtpReason = "no_program" | "sector_not_covered" | "gross_above_cap" | "daily_wage_above_cap" | "nik_not_validated";
+type TaxFinalInstrument = "bunga_deposito" | "bunga_tabungan" | "dividen" | "saham_idx" | "kupon_sbn" | "reksa_dana" | "p2p" | "kripto_domestik" | "kripto_luar" | "emas" | "sewa";
+type CryptoExchangeKind = "domestik" | "luar_negeri";
+interface TaxRuleRefDto {
+    key: string;
+    legalBasis: string;
+    source: string | null;
+    verified: boolean;
+    effectiveFrom: string;
+    effectiveTo: string | null;
+    outOfRange: boolean;
+    note: string | null;
+}
+/** Public GET /calculators/tax-rules: the ref plus its value (BigInt fields as digit strings). */
+interface TaxRuleDetailDto extends TaxRuleRefDto {
+    value: unknown;
+}
+interface PphOpPreviewRequestDto {
+    taxYear: number;
+    maritalStatus: TaxMaritalStatus;
+    dependents: number;
+    employmentGross: string;
+    pensionContribution?: string;
+    freelanceGross?: string;
+    nppnRateBps?: number;
+    otherNetIncome?: string;
+    zakat?: string;
+    withheldPph21?: string;
+}
+interface PphOpBracketDto {
+    from: string;
+    upTo: string | null;
+    rateBps: number;
+    label: string;
+    taxable: string;
+    tax: string;
+}
+interface PphOpResultDto {
+    taxYear: number;
+    ptkp: string;
+    biayaJabatan: string;
+    pensionDeduction: string;
+    freelanceNet: string;
+    neto: string;
+    zakatApplied: string;
+    pkp: string;
+    brackets: PphOpBracketDto[];
+    tax: string;
+    withheld: string;
+    /** tax − withheld; negative = lebih bayar */
+    balance: string;
+    rules: TaxRuleRefDto[];
+}
+interface TerPreviewRequestDto {
+    taxYear: number;
+    maritalStatus: TaxMaritalStatus;
+    dependents: number;
+    monthlyGross: string[];
+    monthlyPension?: string[];
+    zakat?: string;
+    dtp?: {
+        sector: DtpSector | null;
+        employment: DtpEmployment;
+        dailyWage?: string | null;
+        nikValidated: boolean;
+    } | null;
+}
+interface TerMonthDto {
+    month: number;
+    gross: string;
+    category: TerCategory;
+    rateBps: number | null;
+    withholding: string;
+    dtp: {
+        eligible: boolean;
+        reasons: DtpReason[];
+        amount: string;
+    } | null;
+}
+interface TerPreviewResultDto {
+    category: TerCategory;
+    months: TerMonthDto[];
+    annualTax: string;
+    withheldJanNov: string;
+    december: string;
+    isRefund: boolean;
+    dtpTotal: string;
+    rules: TaxRuleRefDto[];
+}
+interface UmkmPreviewRequestDto {
+    taxYear: number;
+    monthlyOmzet: string[];
+    firstRegisteredYear?: number | null;
+}
+interface UmkmMonthDto {
+    month: number;
+    omzet: string;
+    cumulative: string;
+    taxable: string;
+    tax: string | null;
+    eligible: boolean;
+}
+interface UmkmResultDto {
+    taxYear: number;
+    months: UmkmMonthDto[];
+    totalOmzet: string;
+    totalTax: string;
+    exceedsCeiling: boolean;
+    ineligibleReason: "time_limit" | null;
+    firstRegisteredYear: number | null;
+    saved: boolean;
+    rules: TaxRuleRefDto[];
+}
+interface PpnPreviewRequestDto {
+    date: string;
+    amount: string;
+    luxury: boolean;
+    priceIncludesPpn: boolean;
+}
+interface PpnPreviewResultDto {
+    priceExcludingPpn: string;
+    dpp: string;
+    ppn: string;
+    totalWithPpn: string;
+    nominalBps: number;
+    effectiveBps: number;
+    rules: TaxRuleRefDto[];
+}
+interface TaxFinalIncomeEntryDto {
+    id: string;
+    taxYear: number;
+    instrument: TaxFinalInstrument;
+    grossAmount: string;
+    occurredAt: string;
+    reinvested: boolean;
+    rateBpsOverride: number | null;
+    investmentId: string | null;
+    accountId: string | null;
+    notes: string | null;
+}
+interface CreateTaxFinalIncomeEntryDto {
+    instrument: TaxFinalInstrument;
+    grossAmount: string;
+    occurredAt: string;
+    reinvested?: boolean;
+    rateBpsOverride?: number | null;
+    investmentId?: string | null;
+    accountId?: string | null;
+    notes?: string | null;
+}
+type UpdateTaxFinalIncomeEntryDto = Partial<CreateTaxFinalIncomeEntryDto>;
+interface FinalTaxLineDto {
+    source: "holding" | "entry";
+    instrument: TaxFinalInstrument;
+    label: string;
+    investmentId: string | null;
+    accountId: string | null;
+    entryId: string | null;
+    grossAmount: string;
+    rateBps: number | null;
+    tax: string | null;
+    rateSource: "rule" | "override" | "missing";
+    belowThreshold: boolean;
+    /** Machine-readable caveat, rendered via i18n: "assumed_domestic" | "assumed_sbn" | "no_purchase_date" | "no_interest_rate" | null */
+    caveat: "assumed_domestic" | "assumed_sbn" | "no_purchase_date" | "no_interest_rate" | null;
+    rule: TaxRuleRefDto;
+}
+interface FinalTaxEstimateDto {
+    taxYear: number;
+    lines: FinalTaxLineDto[];
+    totalTax: string;
+    missingRateCount: number;
+    skippedForeign: number;
+}
+interface SptTimingDto {
+    status: SptStatus | null;
+    deadline: string;
+    graceUntil: string | null;
+    daysToDeadline: number;
+    pastDeadline: boolean;
+    withinGrace: boolean;
+    filedAt: string | null;
+}
+interface TaxAnnualSummaryDto {
+    taxYear: number;
+    pphOp: {
+        recordId: string;
+        calcMode: TaxCalcMode;
+        tax: string;
+        withheld: string;
+        balance: string;
+    } | null;
+    finalTax: {
+        totalTax: string;
+        lineCount: number;
+        missingRateCount: number;
+    };
+    umkm: {
+        totalTax: string;
+        exceedsCeiling: boolean;
+        ineligibleReason: "time_limit" | null;
+    } | null;
+    totalEstimatedTax: string;
+    spt: SptTimingDto;
+    rules: TaxRuleRefDto[];
 }
 
 /**
@@ -2093,4 +2330,4 @@ declare const FxRatesResponseSchema: z.ZodObject<{
 }>;
 type FxRatesResponse = z.infer<typeof FxRatesResponseSchema>;
 
-export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InterestMethod, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PremiumPeriod, type PrepaymentMode, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type TaxBracketDto, type TaxRecordDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, formatScaled, isFamilyLoginId, isFxCurrency, levelAtLeast, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase };
+export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, type BalanceSheetDto, type BankBreakdownItem, type BankReportDto, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type HeldExpenseResponse, HeldExpenseResponseSchema, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InterestMethod, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDto, type InvestmentPriceDto, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PnlDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, formatScaled, isFamilyLoginId, isFxCurrency, levelAtLeast, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase };

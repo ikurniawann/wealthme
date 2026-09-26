@@ -229,6 +229,36 @@ enum SptStatus {
   terlambat
 }
 
+enum TaxMaritalStatus {
+  TK
+  K
+  KI
+}
+
+enum TaxCalcMode {
+  legacy
+  detailed
+}
+
+enum TaxFinalInstrument {
+  bunga_deposito
+  bunga_tabungan
+  dividen
+  saham_idx
+  kupon_sbn
+  reksa_dana
+  p2p
+  kripto_domestik
+  kripto_luar
+  emas
+  sewa
+}
+
+enum CryptoExchangeKind {
+  domestik
+  luar_negeri
+}
+
 enum ReconStatus {
   matched
   unmatched
@@ -479,6 +509,8 @@ model FamilyGroup {
   inheritanceAssets       InheritanceAsset[]
   donations               Donation[]
   taxRecords              TaxRecord[]
+  taxFinalIncomeEntries   TaxFinalIncomeEntry[]
+  taxUmkmYears            TaxUmkmYear[]
   bankSyncs               BankSync[]
   netWorthSnapshots       NetWorthSnapshot[]
   coaAccounts             CoaAccount[]
@@ -660,6 +692,7 @@ model Account {
   allowanceRequestsAsSource AllowanceRequest[] @relation("AllowanceRequestSource")
   goalsAsSource             Goal[]
   goalContributions         GoalContribution[]
+  taxFinalIncomeEntries     TaxFinalIncomeEntry[]
 
   @@unique([familyGroupId, name])
   @@index([familyGroupId])
@@ -1161,6 +1194,7 @@ model Investment {
   // purchasedAt as "not yet dated" rather than guessing a date.
   purchasedAt      DateTime?
   maturityDate     DateTime?
+  cryptoExchange   CryptoExchangeKind?
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
   familyGroup      FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -1169,6 +1203,7 @@ model Investment {
   // generic "edit" that used to silently overwrite quantity/costBasisPerUnit
   // with no trace of what changed or any realized P/L.
   transactions     InvestmentTransaction[]
+  taxFinalIncomeEntries TaxFinalIncomeEntry[]
 
   @@index([familyGroupId])
   @@map("investments")
@@ -1555,6 +1590,16 @@ model TaxRecord {
   sptStatus      SptStatus   @default(belum_lapor)
   documentUrl    String?
   notes          String?
+  // Revisi L — legacy rows keep today's (gross, ptkp, zakat) formula; detailed rows use the full PPh OP engine.
+  calcMode            TaxCalcMode       @default(legacy)
+  maritalStatus       TaxMaritalStatus?
+  dependents          Int?
+  pensionContribution BigInt?
+  freelanceGross      BigInt?
+  nppnRateBps         Int?
+  otherNetIncome      BigInt?
+  withheldPph21       BigInt?
+  sptFiledAt          DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   familyGroup    FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -1562,6 +1607,44 @@ model TaxRecord {
   @@unique([familyGroupId, taxYear])
   @@index([familyGroupId])
   @@map("tax_records")
+}
+
+model TaxFinalIncomeEntry {
+  id              String             @id @default(uuid())
+  familyGroupId   String
+  taxYear         Int
+  instrument      TaxFinalInstrument
+  grossAmount     BigInt
+  occurredAt      DateTime
+  reinvested      Boolean            @default(false)
+  rateBpsOverride Int?
+  investmentId    String?
+  accountId       String?
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  familyGroup     FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  investment      Investment?        @relation(fields: [investmentId], references: [id], onDelete: SetNull)
+  account         Account?           @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([familyGroupId, taxYear])
+  @@index([investmentId])
+  @@index([accountId])
+  @@map("tax_final_income_entries")
+}
+
+model TaxUmkmYear {
+  id                  String      @id @default(uuid())
+  familyGroupId       String
+  taxYear             Int
+  omzetByMonth        BigInt[]
+  firstRegisteredYear Int?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  familyGroup         FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, taxYear])
+  @@map("tax_umkm_years")
 }
 
 model BankSync {
