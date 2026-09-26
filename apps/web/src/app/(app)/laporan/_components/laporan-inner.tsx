@@ -15,7 +15,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
-import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { useApiError } from "@/hooks/use-api-error";
 import { REPORT_TABS } from "@/lib/nav";
 import {
@@ -28,7 +27,9 @@ import {
   wibDateOf,
 } from "@/lib/laporan-period";
 import {
+  canonicalToTyping,
   moneyIdrDecimal,
+  toCanonicalAmount,
   useControlledMoneyField,
   withFxInputs,
 } from "@/components/money";
@@ -313,9 +314,7 @@ export function LaporanInner() {
       name: inv.name,
       type: inv.type,
       quantity: inv.quantity,
-      costBasisPerUnit: formatAmountInput(
-        String(Math.round(Number(inv.costBasisPerUnit))),
-      ),
+      costBasisPerUnit: canonicalToTyping(inv.costBasisPerUnit, 2),
     });
     setInvCostCurrency("IDR");
     setEditingInv(inv);
@@ -340,8 +339,9 @@ export function LaporanInner() {
           withFxInputs(
             {
               ...invForm,
-              costBasisPerUnit: moneyIdrDecimal(invCostField, () =>
-                String(parseRupiah(invForm.costBasisPerUnit)),
+              costBasisPerUnit: moneyIdrDecimal(
+                invCostField,
+                () => toCanonicalAmount(invForm.costBasisPerUnit) ?? "0",
               ),
             },
             [["costBasisPerUnit", invCostField]],

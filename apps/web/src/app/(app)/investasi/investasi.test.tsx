@@ -760,6 +760,95 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     );
   });
 
+  it("C1 — IDR cost basis with sen sends the canonical decimal, not the ×100 digit strip", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": (_path: string, init?: ApiInit) =>
+        init?.method === "POST" ? { id: "inv-new", type: "saham" } : [HOLDING],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await openAddModal(user);
+    fireEvent.change(screen.getByLabelText("Nama"), {
+      target: { value: "Test IDR Sen" },
+    });
+    fireEvent.change(screen.getByLabelText("Ticker"), {
+      target: { value: "TST" },
+    });
+    fireEvent.change(screen.getByLabelText("Jumlah Saham"), {
+      target: { value: "10" },
+    });
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
+      "9.500,50",
+    );
+    fireEvent.submit(
+      screen.getByLabelText("Nama").closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments")).toMatchObject({
+        costBasisPerUnit: "9500.50",
+      }),
+    );
+    expect(postBodyTo("/investments")?.fxInputs).toBeUndefined();
+  });
+
+  it("C1 — IDR cost basis without sen sends the plain canonical amount", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": (_path: string, init?: ApiInit) =>
+        init?.method === "POST" ? { id: "inv-new", type: "saham" } : [HOLDING],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await openAddModal(user);
+    fireEvent.change(screen.getByLabelText("Nama"), {
+      target: { value: "Test IDR Whole" },
+    });
+    fireEvent.change(screen.getByLabelText("Ticker"), {
+      target: { value: "TST" },
+    });
+    fireEvent.change(screen.getByLabelText("Jumlah Saham"), {
+      target: { value: "10" },
+    });
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
+      "9.500",
+    );
+    fireEvent.submit(
+      screen.getByLabelText("Nama").closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments")).toMatchObject({
+        costBasisPerUnit: "9500",
+      }),
+    );
+  });
+
+  it("M2 — edit prefill keeps sen instead of rounding to whole rupiah", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        holdingOf({ costBasisPerUnit: "100000.55", type: "reksa_dana" }),
+      ],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("Emas Batangan")).closest(
+      "tr",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Edit" }));
+
+    expect(
+      await screen.findByLabelText(idDict.investasi.fieldCostBasisLabel),
+    ).toHaveValue("100.000,55");
+  });
+
   it("revisi I — buy/sell price in USD sends pricePerUnit with sen + fxInputs", async () => {
     mockSession("owner");
     const user = userEvent.setup();
@@ -796,5 +885,41 @@ describe("InvestasiPage — revisi I multi-currency", () => {
         fxInputs: [{ field: "pricePerUnit", currency: "USD", amount: "99.99" }],
       }),
     );
+  });
+
+  it("C1 — IDR buy/sell price with sen sends the canonical decimal, not the ×100 digit strip", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("Emas Batangan")).closest(
+      "tr",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Lihat Detail" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Beli / Jual" }),
+    );
+
+    fireEvent.change(screen.getByLabelText(/Jumlah/), {
+      target: { value: "1" },
+    });
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.buySellFieldPriceLabel),
+      "9.500,50",
+    );
+    fireEvent.submit(
+      screen
+        .getByLabelText(idDict.investasi.buySellFieldPriceLabel)
+        .closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments/inv-1/transactions")).toMatchObject({
+        pricePerUnit: "9500.50",
+      }),
+    );
+    expect(
+      postBodyTo("/investments/inv-1/transactions")?.fxInputs,
+    ).toBeUndefined();
   });
 });

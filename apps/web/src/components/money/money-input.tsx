@@ -17,8 +17,10 @@ export interface MoneyInputProps {
   field: MoneyField;
   id?: string;
   ariaLabel?: string;
+  ariaDescribedBy?: string;
   placeholder?: string;
   disabled?: boolean;
+  required?: boolean;
   inputClassName?: string;
 }
 
@@ -26,8 +28,10 @@ export function MoneyInput({
   field,
   id,
   ariaLabel,
+  ariaDescribedBy,
   placeholder = "0",
   disabled,
+  required,
   inputClassName,
 }: MoneyInputProps) {
   const { t } = useLocale();
@@ -55,11 +59,13 @@ export function MoneyInput({
         <input
           id={id}
           aria-label={ariaLabel}
+          aria-describedby={ariaDescribedBy}
           className={cn("input mono min-w-0 flex-1", inputClassName)}
           inputMode={inputMode}
           placeholder={placeholder}
           value={field.raw}
           disabled={disabled}
+          required={required}
           onChange={(e) => field.setRaw(e.target.value)}
         />
       </div>

@@ -47,7 +47,7 @@ import { useCanManage } from "@/hooks/use-role-permissions";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, formatAmountInput, parseRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   canonicalizeSahamQuantity,
@@ -538,12 +538,7 @@ function AddInvestmentModal({
           // lembar with zero conversion (idempotency by construction).
           quantity: editing.quantity,
           quantityUnit: "lembar",
-          costBasisPerUnit:
-            editing.type === "kripto"
-              ? canonicalToTyping(editing.costBasisPerUnit, 2)
-              : formatAmountInput(
-                  String(Math.round(Number(editing.costBasisPerUnit))),
-                ),
+          costBasisPerUnit: canonicalToTyping(editing.costBasisPerUnit, 2),
           interestRatePct: editing.interestRatePct ?? "",
           purchasedAt: toDateInputValue(editing.purchasedAt),
           maturityDate: toDateInputValue(editing.maturityDate),
@@ -589,7 +584,6 @@ function AddInvestmentModal({
   const [priceCurrency, setPriceCurrency] = useState<FxCurrencyCode | null>(
     null,
   );
-  const isKripto = form.type === "kripto";
   const costField = useControlledMoneyField({
     raw: form.costBasisPerUnit,
     currency: costCurrency,
@@ -683,10 +677,9 @@ function AddInvestmentModal({
       // than send an unchanged value the API would 400 on.
       if (!isEditingLots) {
         body["quantity"] = canonicalQuantity;
-        body["costBasisPerUnit"] = moneyIdrDecimal(costField, () =>
-          isKripto
-            ? (toCanonicalAmount(form.costBasisPerUnit) ?? "0")
-            : String(parseRupiah(form.costBasisPerUnit)),
+        body["costBasisPerUnit"] = moneyIdrDecimal(
+          costField,
+          () => toCanonicalAmount(form.costBasisPerUnit) ?? "0",
         );
       }
       if (form.interestRatePct.trim()) {
@@ -743,8 +736,9 @@ function AddInvestmentModal({
               body: JSON.stringify(
                 withFxInputs(
                   {
-                    price: moneyIdrDecimal(manualPriceField, () =>
-                      String(parseRupiah(form.manualPrice)),
+                    price: moneyIdrDecimal(
+                      manualPriceField,
+                      () => toCanonicalAmount(form.manualPrice) ?? "0",
                     ),
                     ...(form.manualPriceDate
                       ? { asOf: new Date(form.manualPriceDate).toISOString() }
@@ -1019,6 +1013,7 @@ function AddInvestmentModal({
                     field={costField}
                     id="costBasisPerUnit"
                     disabled={isEditingLots}
+                    required={!isEditingLots}
                     placeholder={
                       isDeposito
                         ? t.investasi.fieldDepositoNominalPlaceholder
@@ -1296,10 +1291,9 @@ function BuySellModal({
               {
                 type: txType,
                 quantity: canonicalQuantity,
-                pricePerUnit: moneyIdrDecimal(priceField, () =>
-                  holding.type === "kripto"
-                    ? (toCanonicalAmount(priceField.raw) ?? "0")
-                    : String(parseRupiah(priceField.raw)),
+                pricePerUnit: moneyIdrDecimal(
+                  priceField,
+                  () => toCanonicalAmount(priceField.raw) ?? "0",
                 ),
                 occurredAt: new Date(occurredAt).toISOString(),
                 accountId: accountId || undefined,

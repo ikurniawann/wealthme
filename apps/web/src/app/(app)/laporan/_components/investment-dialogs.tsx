@@ -159,7 +159,11 @@ export function InvestmentDialogs({
               >
                 {t.investasi.fieldCostBasisLabel}
               </label>
-              <MoneyInput field={costBasisField} id="laporan-cost-basis" />
+              <MoneyInput
+                field={costBasisField}
+                id="laporan-cost-basis"
+                required
+              />
             </div>
             <DialogFooter>
               <Button type="submit" disabled={invSubmitting} className="w-full">

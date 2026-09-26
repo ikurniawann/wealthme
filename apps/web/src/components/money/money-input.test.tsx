@@ -196,4 +196,23 @@ describe("MoneyInput — revisi I", () => {
       screen.getByText("≈ $ 100.00 (mata uang tampilan)"),
     ).toBeInTheDocument();
   });
+
+  it("M1 — passes required and aria-describedby through to the amount input", () => {
+    function RequiredHarness() {
+      const field = useMoneyField({});
+      return (
+        <MoneyInput
+          field={field}
+          id="amt"
+          ariaLabel="Jumlah"
+          required
+          ariaDescribedBy="amt-hint"
+        />
+      );
+    }
+    render(<RequiredHarness />);
+    const input = screen.getByLabelText("Jumlah");
+    expect(input).toBeRequired();
+    expect(input).toHaveAttribute("aria-describedby", "amt-hint");
+  });
 });
