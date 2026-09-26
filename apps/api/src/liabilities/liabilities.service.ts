@@ -125,6 +125,7 @@ export type LiabilityRow = {
   floatingRate: { toString(): string } | null;
   kprScheme?: KprSchemeValue | null;
   ratePlanRows?: RatePlanRows;
+  installmentFromPeriod?: number | null;
   principalCategoryId?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -144,6 +145,7 @@ type InstallmentTerms = Pick<
   | "fixedRateMonths"
   | "floatingRate"
   | "ratePlanRows"
+  | "installmentFromPeriod"
 >;
 
 /** Schedule inputs from the liability's current state, starting at `firstPeriod` (default: the installment due on or after `now`). */
@@ -171,6 +173,7 @@ function scheduleInputFor(
     ratePlan: liability.ratePlanRows
       ? ratePlanFromRows(liability.ratePlanRows, liability)
       : undefined,
+    installmentAnchorPeriod: liability.installmentFromPeriod ?? undefined,
   };
 }
 
@@ -234,6 +237,24 @@ async function withRatePlan<T extends { id: string }>(
 ): Promise<T & { ratePlanRows: RatePlanRows }> {
   const rows = await loadRatePlanRows(client, familyGroupId, [row.id]);
   return { ...row, ratePlanRows: rows.get(row.id) ?? EMPTY_RATE_PLAN_ROWS };
+}
+
+/** A prepaid loan's installment after a term correction: what is left, re-annuitised from the installment now due (shared engine). */
+function reanchoredInstallment(
+  terms: InstallmentTerms,
+  now: Date,
+): { installmentAmount: bigint | null; installmentFromPeriod: number } {
+  const input = scheduleInputFor(terms, now);
+  const [row] = buildSchedule({
+    ...input,
+    installmentAmount: BigInt(0),
+    recomputeAtStart: true,
+    maxRows: 1,
+  });
+  return {
+    installmentAmount: row?.installment ?? null,
+    installmentFromPeriod: input.firstPeriod,
+  };
 }
 
 function assertNotMixedRateTerms(dto: {
@@ -462,6 +483,8 @@ export class LiabilitiesService {
         // Filtering on `accountId: { not: null }` therefore excludes every
         // purchase while keeping every real payment leg.
         accountId: { not: null },
+        // Revisi K — a recorded prepayment is never "this period's installment".
+        liabilityPrepaymentId: null,
       },
       select: { liabilityId: true },
       distinct: ["liabilityId"],
@@ -854,18 +877,31 @@ export class LiabilitiesService {
         "Hapus riwayat bunga floating sebelum menghapus periode floating",
       );
     }
+    // Revisi K — after a recorded prepayment the contract installment (totalDebt over the tenor) no longer applies.
+    const reanchor =
+      termsChanged &&
+      amounts.installmentAmount === undefined &&
+      (existing.installmentFromPeriod ?? null) !== null;
+    if (reanchor && (interestMethod !== "anuitas" || tenorMonths === null)) {
+      throw new BadRequestException(
+        "Pinjaman ini punya pelunasan dipercepat tercatat — hanya cicilan anuitas dengan tenor yang bisa dihitung ulang",
+      );
+    }
+    const reanchored = reanchor ? reanchoredInstallment(nextTerms, now) : null;
     const installmentAmount =
       amounts.installmentAmount !== undefined
         ? amounts.installmentAmount
-        : termsChanged
-          ? resolveInstallment({
-              method: interestMethod,
-              totalDebt,
-              interestRate: resolvedInterestRate,
-              tenorMonths,
-              override: undefined,
-            })
-          : existing.installmentAmount;
+        : reanchored
+          ? reanchored.installmentAmount
+          : termsChanged
+            ? resolveInstallment({
+                method: interestMethod,
+                totalDebt,
+                interestRate: resolvedInterestRate,
+                tenorMonths,
+                override: undefined,
+              })
+            : existing.installmentAmount;
     const minimumPayment =
       installmentAmount ?? amounts.minimumPayment ?? existing.minimumPayment;
 
@@ -899,6 +935,11 @@ export class LiabilitiesService {
             : null
           : existing.startDate,
       installmentAmount,
+      installmentFromPeriod: reanchored
+        ? reanchored.installmentFromPeriod
+        : termsChanged
+          ? null
+          : (existing.installmentFromPeriod ?? null),
       fixedRateMonths: segments
         ? null
         : (dto.fixedRateMonths ?? existing.fixedRateMonths),
@@ -1061,6 +1102,8 @@ export class LiabilitiesService {
         // that liability's own period, even though nothing has been paid
         // yet. See `paidThisPeriodIds`'s doc comment for the full reasoning.
         accountId: { not: null },
+        // Revisi K — a recorded prepayment is never "this period's installment".
+        liabilityPrepaymentId: null,
       },
       select: { id: true },
     });

@@ -769,4 +769,170 @@ describe("LiabilitiesService — revisi K", () => {
       });
     });
   });
+
+  describe("prepayment persistence (installmentFromPeriod, guard exception)", () => {
+    // State after recording 100 jt reduce-tenor at #61 on the berjenjang loan:
+    // installment 4.869.889 kept from #61, tenor 60 + 106 = 166. NOW is six
+    // days after #60 fell due, so #61 is the installment being paid.
+    const PREPAID = {
+      ...KPR,
+      remainingBalance: 328_462_235n,
+      installmentAmount: 4_869_889n,
+      minimumPayment: 4_869_889n,
+      tenorMonths: 166,
+      installmentFromPeriod: 61,
+    };
+    const NOW = new Date("2031-01-21T00:00:00.000Z");
+
+    beforeEach(() => {
+      prisma.liabilityRatePeriod.findMany.mockResolvedValue(PERIOD_ROWS);
+    });
+
+    it("schedule and Pay preset use the stored installment from its anchor period", async () => {
+      prisma.liability.findUnique.mockResolvedValue(PREPAID);
+      prisma.liability.findMany.mockResolvedValue([PREPAID]);
+
+      const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+      const [dto] = await service.findAll("fg-1", NOW);
+
+      expect(schedule.rows[0]).toEqual({
+        period: 61,
+        installment: "4869889",
+        interest: "3010904",
+        principal: "1858985",
+        remaining: "326603250",
+      });
+      expect(schedule.rows).toHaveLength(106);
+      expect(schedule.rows[105]?.period).toBe(166);
+      expect(dto?.currentInstallmentAmount).toBe("4869889");
+    });
+
+    it("without the anchor the same row would be re-annuitised (the column is really read)", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...PREPAID,
+        installmentFromPeriod: null,
+      });
+
+      const schedule = await service.getSchedule("fg-1", "lid-1", NOW);
+
+      expect(schedule.rows[0]?.installment).toBe("4857320");
+    });
+
+    it("a notes-only PATCH keeps the anchor and the prepaid installment", async () => {
+      prisma.liability.findUnique.mockResolvedValue(PREPAID);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(PREPAID);
+      prisma.liability.update.mockResolvedValue(PREPAID);
+
+      await service.update("fg-1", "lid-1", { notes: "cek" }, NOW);
+
+      expect(prisma.liability.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: 4_869_889n,
+            installmentFromPeriod: 61,
+          }),
+        }),
+      );
+    });
+
+    it.each([
+      ["a tenor correction to 180 bln", { tenorMonths: 180 }, 4_524_568n],
+      [
+        "a floating-rate correction to 10.50%",
+        {
+          ratePeriods: [
+            { kind: "fixed", months: 24, ratePercent: "3.50" },
+            { kind: "fixed", months: 12, ratePercent: "5.50" },
+            { kind: "floating", months: null, ratePercent: "10.50" },
+          ],
+        },
+        4_767_352n,
+      ],
+    ])(
+      "%s on a prepaid loan re-annuitises what is left from the installment now due (never totalDebt over the tenor)",
+      async (_label, dto, installment) => {
+        prisma.liability.findUnique.mockResolvedValue(PREPAID);
+        prisma.liability.findUniqueOrThrow.mockResolvedValue(PREPAID);
+        prisma.liability.update.mockResolvedValue(PREPAID);
+
+        await service.update("fg-1", "lid-1", dto as never, NOW);
+
+        // 328,462,235 left from #61: 180 - 61 + 1 = 120 months at 11.00%, or 106 months at 10.50%.
+        expect(prisma.liability.update).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              installmentAmount: installment,
+              minimumPayment: installment,
+              installmentFromPeriod: 61,
+            }),
+          }),
+        );
+        expect(prisma.budget.upsert).toHaveBeenLastCalledWith(
+          expect.objectContaining({
+            update: expect.objectContaining({ limitAmount: installment }),
+          }),
+        );
+      },
+    );
+
+    it("a term change a prepaid loan cannot be re-annuitised under (switch to flat) is refused", async () => {
+      const legacyPrepaid = {
+        ...PREPAID,
+        fixedRateMonths: null,
+        floatingRate: null,
+      };
+      prisma.liabilityRatePeriod.findMany.mockResolvedValue([]);
+      prisma.liability.findUnique.mockResolvedValue(legacyPrepaid);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(legacyPrepaid);
+
+      await expect(
+        service.update(
+          "fg-1",
+          "lid-1",
+          { interestMethod: "flat" as never },
+          NOW,
+        ),
+      ).rejects.toThrow("pelunasan dipercepat");
+      expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    it("prepayment rows are ignored by the installment guard and by paidThisPeriod", async () => {
+      prisma.liability.findMany.mockResolvedValue([PREPAID]);
+      await service.findAll("fg-1", NOW);
+      expect(prisma.transaction.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            accountId: { not: null },
+            liabilityPrepaymentId: null,
+          }),
+        }),
+      );
+
+      prisma.liability.findUnique.mockResolvedValue(PREPAID);
+      prisma.account.findUnique.mockResolvedValue({
+        id: "acc-1",
+        familyGroupId: "fg-1",
+        type: "bank",
+        balance: 50_000_000n,
+        name: "BCA",
+      });
+      prisma.category.findFirst.mockResolvedValueOnce({ id: "cat-interest" });
+      prisma.liability.update.mockResolvedValue(PREPAID);
+      await service.pay(
+        "fg-1",
+        "lid-1",
+        { sourceAccountId: "acc-1", amount: "4869889" },
+        NOW,
+      );
+      expect(prisma.transaction.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            liabilityId: "lid-1",
+            accountId: { not: null },
+            liabilityPrepaymentId: null,
+          }),
+        }),
+      );
+    });
+  });
 });
