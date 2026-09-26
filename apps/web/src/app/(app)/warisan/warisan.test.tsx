@@ -236,6 +236,48 @@ describe("WarisanPage — heir picker (EPIC-023 F1)", () => {
   });
 });
 
+// polish-j batch 6 item 2 — "Terlihat oleh ahli waris"'s switch was rendered
+// after its label (label-left/switch-right, `row row--between`), the mirror
+// image of every other visibility toggle in the app (crud-modal.tsx's shared
+// toggle branch, Anggaran's Kategori Privat). Asserts DOM order.
+describe("WarisanPage — visibility toggle order (polish-j batch 6)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+    mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+      data: enabled
+        ? jest.requireActual("../../../components/money/fx-test-rates")
+            .TEST_FX_RATES
+        : undefined,
+      isError: false,
+    }));
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it("renders the 'Terlihat oleh ahli waris' switch before its label, matching the app's other toggles", async () => {
+    mockApiFetchDefault("ok");
+    const user = userEvent.setup();
+    render(<WarisanPage />);
+    await user.click(
+      screen.getByRole("button", { name: /tambah aset warisan/i }),
+    );
+
+    const switchEl = await screen.findByLabelText("Terlihat oleh ahli waris");
+    const label = screen.getByText("Terlihat oleh ahli waris");
+
+    expect(
+      switchEl.compareDocumentPosition(label) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});
+
 /**
  * EPIC-024 Group H (item 15), review fix (attempt 2) — the blank-relationship
  * guard must block the API call entirely (not just show a toast after the

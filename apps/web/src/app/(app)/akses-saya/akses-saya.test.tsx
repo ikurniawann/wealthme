@@ -123,3 +123,65 @@ describe("MyAccessPage — role-derived copy (batch 4 item 3)", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+// Controller-added batch 5 item — the "Aktivitas yang Diizinkan" table's own
+// "Melihat laporan keluarga" row hardcoded "Dikunci" for every viewer,
+// contradicting the permission card above it (batch 4 item 3) for a
+// self-viewing Master/Co-Master. Same role rule, applied to this row too.
+describe("MyAccessPage — 'Melihat laporan keluarga' table row derives from role", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    queryClient.clear();
+  });
+
+  // "Melihat laporan keluarga" itself renders on the initial synchronous
+  // render regardless of role, so `findByText` on it alone resolves before
+  // the `myRole` query settles. Wait for the role-derived eyebrow first
+  // (same pattern as the describe block above), which only appears once
+  // the query has resolved, then read the row.
+  async function findActivityRow(expectMaster: boolean) {
+    await screen.findByText(
+      expectMaster
+        ? idDict.aksesSaya.eyebrowMaster
+        : idDict.aksesSaya.eyebrowDependant,
+    );
+    const cell = screen.getByText("Melihat laporan keluarga");
+    return within(cell.closest("tr") as HTMLElement);
+  }
+
+  it("a Master (owner) viewer sees the row Allowed, not Locked", async () => {
+    myRoleFixture = "owner";
+    render(<MyAccessPage />);
+
+    const row = await findActivityRow(true);
+    expect(
+      row.getByText(idDict.aksesSaya.familyReportsRowStatusUnlocked),
+    ).toBeInTheDocument();
+    expect(
+      row.queryByText(idDict.aksesSaya.familyReportsLocked),
+    ).not.toBeInTheDocument();
+  });
+
+  it("a Co-Master (spouse) viewer also sees the row Allowed", async () => {
+    myRoleFixture = "spouse";
+    render(<MyAccessPage />);
+
+    const row = await findActivityRow(true);
+    expect(
+      row.getByText(idDict.aksesSaya.familyReportsRowStatusUnlocked),
+    ).toBeInTheDocument();
+  });
+
+  it("a Staff/Anak (dependant) viewer still sees the row Locked — regression guard", async () => {
+    myRoleFixture = "dependant";
+    render(<MyAccessPage />);
+
+    const row = await findActivityRow(false);
+    expect(
+      row.getByText(idDict.aksesSaya.familyReportsLocked),
+    ).toBeInTheDocument();
+    expect(
+      row.queryByText(idDict.aksesSaya.familyReportsRowStatusUnlocked),
+    ).not.toBeInTheDocument();
+  });
+});

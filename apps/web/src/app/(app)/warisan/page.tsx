@@ -1199,20 +1199,27 @@ export default function WarisanPage() {
                 already shipped, and labeled honestly as unavailable rather
                 than pretending to upload. */}
 
-            {/* Prototype's visibility row: label + switch on one line, hint
-                underneath (warisan.html:254). */}
+            {/* polish-j batch 6 item 2 — switch first (left), label + hint
+                after (right), matching crud-modal.tsx's toggle branch and
+                Anggaran's/Liabilitas's visibility-style toggles. Was
+                label-left/switch-right (warisan.html:254's own layout),
+                the one deliberate deviation for this batch. */}
             <div className="field">
-              <div className="row row--between">
-                <span className="label m-0" id="warisan-visibility-label">
-                  {t.warisan.visibleToHeirsLabel}
-                </span>
+              <div className="row mt-3.5 gap-[9px]">
                 <Switch
                   checked={visible}
                   onCheckedChange={setVisible}
                   aria-labelledby="warisan-visibility-label"
                 />
+                <span>
+                  <span className="label m-0" id="warisan-visibility-label">
+                    {t.warisan.visibleToHeirsLabel}
+                  </span>
+                  <span className="hint block">
+                    {t.warisan.visibleToHeirsHint}
+                  </span>
+                </span>
               </div>
-              <span className="hint">{t.warisan.visibleToHeirsHint}</span>
             </div>
 
             {/* EPIC-021 Group D (#12) — heirs are optional; add/edit by

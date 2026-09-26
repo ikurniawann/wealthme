@@ -173,6 +173,26 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     expect(await screen.findByText("Makan di Sushi Tei")).toBeInTheDocument();
   });
 
+  it("batch 5 item 5 — the 'created on' date is pinned to UTC, not shifted by the viewer's local zone", async () => {
+    // 23:30 UTC on Aug 1 is already Aug 2 in this suite's pinned Jakarta
+    // zone (UTC+7, see jest.config.ts). Without an explicit `timeZone: "UTC"`
+    // on the `toLocaleDateString` call, this renders "2 Agu 2026" locally
+    // but a different day again during a UTC-zoned SSR pass — the
+    // hydration mismatch this fix removes.
+    mockApiFetchDefault("ok", [
+      { ...SPLIT_BILL, createdAt: "2026-08-01T23:30:00.000Z" },
+    ]);
+    render(<SplitBillPage />);
+
+    await screen.findByText("Makan di Sushi Tei");
+    expect(
+      screen.getByText((text) => text.includes("1 Agu 2026")),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText((text) => text.includes("2 Agu 2026")),
+    ).toBeNull();
+  });
+
   it("batch 1 — the Total Ditalangin stat card renders through the shared SummaryCard, with a neutral (non-colored) caption", async () => {
     mockApiFetchDefault();
     render(<SplitBillPage />);

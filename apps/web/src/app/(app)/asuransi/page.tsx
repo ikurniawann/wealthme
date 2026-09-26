@@ -113,12 +113,18 @@ const STATUS_OPTIONS: InsuranceStatus[] = [
 
 const PERIOD_OPTIONS: PremiumPeriod[] = ["monthly", "quarterly", "yearly"];
 
+// Batch 5 item 5 — `toLocaleDateString` without an explicit `timeZone`
+// resolves the runtime's local zone, which differs between the Node SSR
+// pass and the browser's own zone: a genuine hydration-mismatch source.
+// Pinning `timeZone: "UTC"` matches the fix already established for the
+// same class of bug in `money-format.ts`'s `formatRateDate`.
 function formatLocaleDate(iso: string | null, locale: Locale): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 
@@ -287,7 +293,16 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             disabled={item.paidThisPeriod}
             title={
               item.paidThisPeriod
-                ? item.renewalDate && new Date(item.renewalDate) > new Date()
+                ? // Batch 5 item 5 — `new Date() > new Date()` read the
+                  // clock twice during render (non-deterministic, and a
+                  // second hydration-mismatch source alongside the date
+                  // formatting above). The server already computes
+                  // `daysUntilRenewal`; a non-negative value means the
+                  // renewal date is today or still ahead, same as the
+                  // `> new Date()` check it replaces.
+                  item.renewalDate &&
+                  item.daysUntilRenewal !== null &&
+                  item.daysUntilRenewal >= 0
                   ? `${t.asuransi.payNextDueTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
                   : t.asuransi.payAlreadyPaidTooltip
                 : undefined

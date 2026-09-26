@@ -50,6 +50,18 @@ function writeClosedGroups(next: Set<string>) {
   window.dispatchEvent(new Event(GROUPS_EVENT));
 }
 
+/**
+ * Batch 5 item 1 — a strict `pathname === href` match never fires on a
+ * dynamic sub-route (`/aset/123` never equals `/aset`), so the nav item
+ * loses its own highlight there. First-segment matching, consistent with
+ * `nav.ts`'s `isRouteAllowedForRole`/`isRouteAllowedForAccess`. No `href`
+ * in `NAV_SECTIONS` is a bare prefix of another (all distinct single
+ * segments), so the trailing-slash guard can't false-positive across items.
+ */
+export function isNavItemActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const closedRaw = useSyncExternalStore(
@@ -103,7 +115,9 @@ export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
         if (visibleItems.length === 0) return null;
         const key = section.headerKey;
         // The group holding the current page never hides it.
-        const holdsActive = visibleItems.some((item) => pathname === item.href);
+        const holdsActive = visibleItems.some((item) =>
+          isNavItemActive(pathname, item.href),
+        );
         const isOpen = !key || holdsActive || !closedGroups.has(key);
         return (
           <div key={si} className="sidebar__group" data-open={isOpen}>
@@ -149,7 +163,7 @@ export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
                     href={item.href}
                     icon={item.icon}
                     label={label}
-                    active={pathname === item.href}
+                    active={isNavItemActive(pathname, item.href)}
                     badge={badge}
                     onNavigate={onNavigate}
                   />

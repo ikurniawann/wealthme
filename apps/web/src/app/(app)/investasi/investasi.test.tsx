@@ -923,3 +923,18 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     ).toBeUndefined();
   });
 });
+
+describe("InvestasiPage — allocation donut renders once (Batch 5 item 2)", () => {
+  it("renders the allocation-donut section exactly once, not twice", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+
+    // The page previously rendered the same `allocationSegments`-fed
+    // DonutChart twice: once beside the "Nilai Portofolio 6 Bulan" trend
+    // chart, once again on its own further down the page.
+    await screen.findByText("Emas Batangan");
+    expect(screen.getAllByText(idDict.investasi.allocationTitle)).toHaveLength(
+      1,
+    );
+  });
+});
