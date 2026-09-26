@@ -3,6 +3,7 @@ import {
   computeInstallment,
   defaultInterestMethod,
   monthsElapsed,
+  parseRateScaledByHundred,
   rateForPeriod,
   splitPayment,
 } from "./amortisation.util";
@@ -587,5 +588,14 @@ describe("buildSchedule — revisi G golden schedules", () => {
         ...NO_FLOAT,
       }),
     ).toEqual([]);
+  });
+});
+
+describe("parseRateScaledByHundred", () => {
+  it("treats equal values with different spellings as equal", () => {
+    expect(parseRateScaledByHundred("6")).toBe(600n);
+    expect(parseRateScaledByHundred("6.00")).toBe(600n);
+    expect(parseRateScaledByHundred("6.5")).toBe(650n);
+    expect(parseRateScaledByHundred("6.50")).toBe(650n);
   });
 });

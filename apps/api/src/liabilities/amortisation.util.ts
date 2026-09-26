@@ -55,7 +55,7 @@ const PER_MONTH_RATE_DENOMINATOR = 10_000n;
  * `Decimal(5,2)`) into an integer scaled by 100 — e.g. "12.00" -> 1200n,
  * "7.5" -> 750n, "0" -> 0n. Never touches floating point.
  */
-function parseRateScaledByHundred(rateStr: string): bigint {
+export function parseRateScaledByHundred(rateStr: string): bigint {
   const trimmed = rateStr.trim();
   const [intPartRaw, fracPartRaw = ""] = trimmed.split(".");
   const intPart = intPartRaw === "" ? "0" : intPartRaw;

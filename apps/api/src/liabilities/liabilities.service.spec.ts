@@ -1824,6 +1824,141 @@ describe("LiabilitiesService", () => {
       );
     });
 
+    it("update: an equal-value rate string ('6.00' vs stored 6) keeps the user's override (final fix 4)", async () => {
+      const overridden = {
+        ...FLAT_CAR,
+        interestRate: { toString: () => "6" },
+        tenorMonths: 36,
+        installmentAmount: BigInt(7_000_000),
+        minimumPayment: BigInt(7_000_000),
+      };
+      prisma.liability.findUnique.mockResolvedValue(overridden);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
+      prisma.liability.update.mockResolvedValue(overridden);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", {
+        interestRate: "6.00",
+        tenorMonths: 36,
+      });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: BigInt(7_000_000),
+            minimumPayment: BigInt(7_000_000),
+          }),
+        }),
+      );
+    });
+
+    it("update: a real rate change ('6.5' vs stored 6) recomputes the installment", async () => {
+      const overridden = {
+        ...FLAT_CAR,
+        interestRate: { toString: () => "6" },
+        tenorMonths: 36,
+        installmentAmount: BigInt(7_000_000),
+        minimumPayment: BigInt(7_000_000),
+      };
+      prisma.liability.findUnique.mockResolvedValue(overridden);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(overridden);
+      prisma.liability.update.mockResolvedValue(overridden);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+      const expected = computeInstallment({
+        method: "flat",
+        principal: BigInt(200_000_000),
+        annualInterestRatePercent: "6.5",
+        tenorMonths: 36,
+      });
+
+      await service.update("fg-1", "lid-1", { interestRate: "6.5" });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: expected,
+            minimumPayment: expected,
+          }),
+        }),
+      );
+    });
+
+    it("update: a PATCH carrying both installmentAmount and a new tenorMonths keeps the explicit override (final fix 5)", async () => {
+      prisma.liability.findUnique.mockResolvedValue(FLAT_CAR);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(FLAT_CAR);
+      prisma.liability.update.mockResolvedValue(FLAT_CAR);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", {
+        tenorMonths: 48,
+        installmentAmount: "5000000",
+      });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            tenorMonths: 48,
+            installmentAmount: BigInt(5_000_000),
+            minimumPayment: BigInt(5_000_000),
+          }),
+        }),
+      );
+    });
+
+    it("update: switching flat -> efektif drops the installment and takes the supplied minimumPayment (final fix 5)", async () => {
+      const loan = { ...FLAT_CAR, type: "lainnya" };
+      prisma.liability.findUnique.mockResolvedValue(loan);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(loan);
+      prisma.liability.update.mockResolvedValue(loan);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", {
+        interestMethod: "efektif" as never,
+        minimumPayment: "1500000",
+      });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            interestMethod: "efektif",
+            installmentAmount: null,
+            minimumPayment: BigInt(1_500_000),
+          }),
+        }),
+      );
+    });
+
+    it("update: switching flat -> efektif without a minimumPayment keeps the stored payment, never 0 or a stale null", async () => {
+      const loan = { ...FLAT_CAR, type: "lainnya" };
+      prisma.liability.findUnique.mockResolvedValue(loan);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(loan);
+      prisma.liability.update.mockResolvedValue(loan);
+      prisma.category.findUniqueOrThrow.mockResolvedValue({
+        coaAccountId: "coa-5",
+      });
+
+      await service.update("fg-1", "lid-1", {
+        interestMethod: "efektif" as never,
+      });
+
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            installmentAmount: null,
+            minimumPayment: BigInt(9_333_333),
+          }),
+        }),
+      );
+    });
+
     it("update: rejects switching a credit card to flat", async () => {
       const card = { ...BASE, type: "kartu_kredit", principalCategoryId: null };
       prisma.liability.findUnique.mockResolvedValue(card);

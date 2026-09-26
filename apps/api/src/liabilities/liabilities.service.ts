@@ -30,6 +30,7 @@ import {
   computeInstallment,
   defaultInterestMethod,
   monthsElapsed,
+  parseRateScaledByHundred,
   rateForPeriod,
   splitPayment,
   type InterestMethod,
@@ -517,7 +518,8 @@ export class LiabilitiesService {
       type !== existing.type ||
       interestMethod !== existing.interestMethod ||
       tenorMonths !== existing.tenorMonths ||
-      resolvedInterestRate !== existing.interestRate.toString() ||
+      parseRateScaledByHundred(resolvedInterestRate) !==
+        parseRateScaledByHundred(existing.interestRate.toString()) ||
       totalDebt !== existing.totalDebt;
     const installmentAmount =
       amounts.installmentAmount !== undefined
