@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import {
   FOREIGN_FX_CURRENCY_CODES,
   formatScaled,
@@ -6,13 +6,15 @@ import {
   type FxCurrencyCode,
 } from "@wealthme/contracts";
 
-import { FRANKFURTER_SOURCE } from "./frankfurter.client";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PrismaService } from "../prisma/prisma.service";
+
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FRANKFURTER_SOURCE, FrankfurterClient } from "./frankfurter.client";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxMockService } from "./fx-mock.service";
 import { ratesFromSnapshot, type FxSnapshot } from "./fx-snapshot";
 import { FxPort } from "./fx.port";
-
-import type { FrankfurterClient } from "./frankfurter.client";
-import type { FxMockService } from "./fx-mock.service";
-import type { PrismaService } from "../prisma/prisma.service";
 
 const MEMO_TTL_MS = 60 * 60 * 1000;
 const STALE_MEMO_TTL_MS = 5 * 60 * 1000;
@@ -29,6 +31,11 @@ export class FrankfurterFxService extends FxPort {
     private readonly prisma: PrismaService,
     private readonly client: FrankfurterClient,
     private readonly fallback: FxMockService,
+    // Function type, never Nest-resolved (only `new`d directly by FxModule's
+    // factory and by tests) — mark self-declared so DI reflection doesn't
+    // flag the always-erased `Function` runtime type as a lost dependency.
+    @Optional()
+    @Inject("FRANKFURTER_FX_NOW")
     private readonly now: () => number = Date.now,
   ) {
     super();
