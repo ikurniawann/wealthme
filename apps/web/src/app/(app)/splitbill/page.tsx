@@ -210,7 +210,12 @@ export default function SplitBillPage() {
       const next = { ...prev };
       for (const id of participantIds) {
         if (filled[id] !== customUnits[id]) {
-          const units = Number(filled[id] ?? "0");
+          // `filled[id]` is id-ID-grouped ("1.234"), not a plain number
+          // string — `Number()` would misread the "." as a decimal point,
+          // shrinking any fill >= 1000 minor units by ~1000x. `parseRupiah`
+          // strips every non-digit, which is exact here since this fill is
+          // always a non-negative integer unit count.
+          const units = parseRupiah(filled[id]);
           next[id] = units > 0 ? unitsToRaw(units) : (prev[id] ?? "");
         }
       }

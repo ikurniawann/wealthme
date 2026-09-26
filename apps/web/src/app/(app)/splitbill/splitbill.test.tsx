@@ -408,4 +408,135 @@ describe("SplitBillPage — revisi I multi-currency", () => {
       ),
     ).toBe(false);
   });
+
+  // Fix round 1 — "Bagi Rata Sisa" parsed split-math's id-ID-grouped output
+  // ("1.234") with `Number()`, which misreads the "." as a decimal point.
+  // Below 1000 minor units this is invisible (no grouping dot yet); at or
+  // above 1000 it silently shrinks the fill by ~1000x.
+  it("revisi I — Bagi Rata Sisa splits a USD 100.00 bill into shares summing exactly to 100.00", async () => {
+    mockApiFetchCreate();
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    const dialog = await openCreateDialogWithTitle(user);
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
+      "100",
+    );
+    await user.click(
+      within(dialog).getByRole("tab", {
+        name: idDict.splitbill.methodCustomLabel,
+      }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: idDict.splitbill.splitRemainderButton,
+      }),
+    );
+
+    const shares = within(dialog).getAllByLabelText(
+      new RegExp(`^${idDict.splitbill.fieldTotalLabel} `),
+    );
+    expect(shares.map((s) => (s as HTMLInputElement).value)).toEqual([
+      "33,33",
+      "33,33",
+      "33,34",
+    ]);
+  });
+
+  it("revisi I — Bagi Rata Sisa splits a JPY 10000 bill into whole-yen shares", async () => {
+    mockApiFetchCreate();
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    const dialog = await openCreateDialogWithTitle(user);
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "JPY");
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
+      "10000",
+    );
+    await user.click(
+      within(dialog).getByRole("tab", {
+        name: idDict.splitbill.methodCustomLabel,
+      }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: idDict.splitbill.splitRemainderButton,
+      }),
+    );
+
+    const shares = within(dialog).getAllByLabelText(
+      new RegExp(`^${idDict.splitbill.fieldTotalLabel} `),
+    );
+    expect(shares.map((s) => (s as HTMLInputElement).value)).toEqual([
+      "3.333",
+      "3.333",
+      "3.334",
+    ]);
+  });
+
+  it("revisi I — Bagi Rata Sisa still splits a sub-1000-unit USD bill correctly", async () => {
+    mockApiFetchCreate();
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    const dialog = await openCreateDialogWithTitle(user);
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
+      "9",
+    );
+    await user.click(
+      within(dialog).getByRole("tab", {
+        name: idDict.splitbill.methodCustomLabel,
+      }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: idDict.splitbill.splitRemainderButton,
+      }),
+    );
+
+    const shares = within(dialog).getAllByLabelText(
+      new RegExp(`^${idDict.splitbill.fieldTotalLabel} `),
+    );
+    expect(shares.map((s) => (s as HTMLInputElement).value)).toEqual([
+      "3,00",
+      "3,00",
+      "3,00",
+    ]);
+  });
+
+  it("revisi I — Bagi Rata Sisa on an IDR bill (>= 1000 rupiah) still fills exact shares", async () => {
+    mockApiFetchCreate();
+    const user = userEvent.setup();
+    render(<SplitBillPage />);
+
+    const dialog = await openCreateDialogWithTitle(user);
+    await user.type(
+      within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
+      "300000",
+    );
+    await user.click(
+      within(dialog).getByRole("tab", {
+        name: idDict.splitbill.methodCustomLabel,
+      }),
+    );
+    await user.click(
+      within(dialog).getByRole("button", {
+        name: idDict.splitbill.splitRemainderButton,
+      }),
+    );
+
+    const shares = within(dialog).getAllByLabelText(
+      new RegExp(`^${idDict.splitbill.fieldTotalLabel} `),
+    );
+    expect(shares.map((s) => (s as HTMLInputElement).value)).toEqual([
+      "100.000",
+      "100.000",
+      "100.000",
+    ]);
+  });
 });
