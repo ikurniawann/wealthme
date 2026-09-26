@@ -96,6 +96,18 @@ export function AllocationCard({
           <div
             className="allocation-card__list"
             aria-label={t.beranda.wealthBreakdown}
+            // Batch 2 (#4) — the shared 3-column grid (design-system.css,
+            // protected) reads fine with 2-3 short labels but truncates
+            // every label to ~5 characters once 4+ real allocation items
+            // are present (confirmed on the live 1440px screenshot: "Tuna",
+            // "Reke", "Invest", "AsetF"). The `title` tooltips above are the
+            // correctness fix; this inline override is the secondary
+            // "make it not look broken by default" call the brief allows.
+            style={
+              breakdown.length > 3
+                ? { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }
+                : undefined
+            }
           >
             {breakdown.map((item) => (
               <div className="allocation-row" key={item.label}>
