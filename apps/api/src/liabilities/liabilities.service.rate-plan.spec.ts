@@ -588,4 +588,49 @@ describe("LiabilitiesService — revisi K", () => {
       expect(prisma.liability.update).not.toHaveBeenCalled();
     });
   });
+
+  describe("resyncBudgetLine", () => {
+    it("re-derives the line from the plan including a recorded floating change (9.75% from #61)", async () => {
+      await service.resyncBudgetLine(
+        prisma as never,
+        "fg-1",
+        {
+          ...KPR,
+          remainingBalance: 427_404_522n,
+          ratePlanRows: {
+            ratePeriods: PERIOD_ROWS,
+            floatingRates: [
+              {
+                id: "fr-1",
+                liabilityId: "lid-1",
+                effectiveDate: new Date("2031-01-15T00:00:00.000Z"),
+                ratePercent: { toString: () => "9.75" },
+                note: null,
+                createdAt: new Date("2031-01-10T00:00:00.000Z"),
+              },
+            ],
+          },
+        } as never,
+        new Date("2031-02-21T00:00:00.000Z"),
+      );
+
+      // Next is #62 with 179 left: 427,404,522 re-annuitised at 9.75%.
+      expect(prisma.budget.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          update: expect.objectContaining({ limitAmount: 4_538_969n }),
+        }),
+      );
+    });
+
+    it("does nothing for a liability with no scheduled payment", async () => {
+      await service.resyncBudgetLine(
+        prisma as never,
+        "fg-1",
+        { ...KPR, minimumPayment: 0n } as never,
+        new Date("2031-02-21T00:00:00.000Z"),
+      );
+      expect(prisma.budget.upsert).not.toHaveBeenCalled();
+      expect(prisma.budget.deleteMany).not.toHaveBeenCalled();
+    });
+  });
 });

@@ -112,3 +112,17 @@ export class LiabilityPaymentPreviewResponseDto {
   @ApiProperty() principal!: string;
   @ApiProperty() remainingAfter!: string;
 }
+
+export class LiabilityFloatingRateResponseDto {
+  @ApiProperty() id!: string;
+  @ApiProperty({ description: "YYYY-MM-DD" }) effectiveDate!: string;
+  @ApiProperty() ratePercent!: string;
+  @ApiProperty({
+    nullable: true,
+    type: Number,
+    description: "First installment accruing at this rate",
+  })
+  effectivePeriod!: number | null;
+  @ApiProperty({ nullable: true, type: String }) note!: string | null;
+  @ApiProperty() createdAt!: string;
+}
