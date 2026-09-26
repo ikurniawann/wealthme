@@ -2127,6 +2127,8 @@ export const id = {
         "Cicilan dihitung ulang (anuitas) dari sisa pokok dan sisa tenor setiap kali bunga berganti.",
       planInvalid:
         "Lengkapi setiap periode: lama minimal 1 bulan (kecuali periode terakhir) dan bunga 0–30%.",
+      tenorRequiredHint:
+        "Tenor wajib diisi untuk KPR dengan periode bunga — dipakai untuk menghitung cicilan anuitas.",
       scheduleRateHeader: "Bunga",
       floatingEstimateBadge: "Estimasi",
       floatingEstimateNote:

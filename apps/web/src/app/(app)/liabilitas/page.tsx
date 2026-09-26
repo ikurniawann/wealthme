@@ -495,6 +495,14 @@ function LiabilityModal({
     const remainDigits = moneyDigits(remainingField);
     if (!name.trim() || !totalDigits || !remainDigits) return;
     const tenorDigits = toDigits(tenorMonths);
+    // M5 — the form always sends ratePeriods when usesRatePlan, and the
+    // server 400s any such PATCH (even a rename) without a tenor
+    // (`validateRatePeriods`: "Isi tenor sebelum periode bunga"). Block the
+    // save client-side instead of surfacing that as an opaque toast.
+    if (usesRatePlan && !tenorDigits) {
+      toast.error(t.liabilitas.kpr.tenorRequiredHint);
+      return;
+    }
     const ratePeriods = usesRatePlan
       ? toRatePeriodsBody(kprPlan.periods)
       : undefined;
@@ -706,6 +714,11 @@ function LiabilityModal({
                       setTenorMonths(e.target.value.replace(/\D/g, ""))
                     }
                   />
+                  {usesRatePlan && (
+                    <div className="hint">
+                      {t.liabilitas.kpr.tenorRequiredHint}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

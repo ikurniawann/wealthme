@@ -787,6 +787,53 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(body).not.toHaveProperty("fixedRateMonths");
   });
 
+  it("M5: a legacy KPR with no tenor shows an inline hint and blocks a save (even a rename) until tenor is filled in", async () => {
+    liabilitiesFixture = [
+      baseLiability({
+        name: "KPR Warisan",
+        type: "kpr",
+        interestMethod: "anuitas",
+        interestRate: "8",
+        totalDebt: "500000000",
+        remainingBalance: "450000000",
+        minimumPayment: "4182200",
+        installmentAmount: "4182200",
+        currentInstallmentAmount: "4182200",
+        tenorMonths: null,
+        fixedRateMonths: 36,
+        floatingRate: "11",
+      }),
+    ];
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(
+      dialog.getByText(/Tenor wajib diisi untuk KPR dengan periode bunga/),
+    ).toBeInTheDocument();
+
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    expect(mockApiFetch.mock.calls.some(([, o]) => o?.method === "PATCH")).toBe(
+      false,
+    );
+
+    await user.type(dialog.getByLabelText("Tenor (bulan)"), "240");
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() =>
+      expect(
+        mockApiFetch.mock.calls.some(([, o]) => o?.method === "PATCH"),
+      ).toBe(true),
+    );
+  });
+
   it("pinjaman pribadi: method select offers only flat/anuitas and sends a typed installment override", async () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);

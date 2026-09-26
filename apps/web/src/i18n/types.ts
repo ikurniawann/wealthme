@@ -1991,6 +1991,7 @@ export type I18nDictionary = {
       removePeriod: string;
       planHint: string;
       planInvalid: string;
+      tenorRequiredHint: string;
       scheduleRateHeader: string;
       floatingEstimateBadge: string;
       floatingEstimateNote: string;

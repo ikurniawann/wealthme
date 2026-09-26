@@ -2091,6 +2091,8 @@ export const en = {
         "The installment is re-annuitised from the remaining principal and tenor every time the rate changes.",
       planInvalid:
         "Complete every period: at least 1 month (except the last) and a rate of 0–30%.",
+      tenorRequiredHint:
+        "Tenor is required for a KPR with rate periods — it's used to compute the annuity installment.",
       scheduleRateHeader: "Rate",
       floatingEstimateBadge: "Estimate",
       floatingEstimateNote:
