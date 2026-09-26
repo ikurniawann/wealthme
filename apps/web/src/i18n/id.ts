@@ -2751,11 +2751,8 @@ export const id = {
       'Diketik dengan titik ribuan agar mudah dibaca — titik dihapus otomatis sebelum dikirim ("780.000.000" → "780000000").',
     ptkpSelectedPrefix: "PTKP terpilih: ",
     jabatanHint: "5% dari bruto, maksimal Rp 6.000.000/tahun.",
-    perpuluhanHint:
-      "Hanya persembahan perpuluhan ke lembaga resmi yang boleh menjadi pengurang (PP 60/2010). Ambil otomatis dari ",
-    perpuluhanHintLinkLabel: "Donasi",
     perpuluhanAutoFilledHint:
-      "Terisi otomatis dari total zakat & persepuluhan tercatat tahun {year}. Infaq, sedekah & wakaf tidak termasuk pengurang pajak (PP 60/2010).",
+      "Otomatis dari zakat & persepuluhan tercatat {year} (PP 60/2010).",
     resetButton: "Reset",
     toastReset: "Perhitungan direset",
     colTaxableBase: "Dasar Kena Tarif",
@@ -2774,7 +2771,8 @@ export const id = {
       "Nilai dikirim sebagai string angka murni, titik ribuan hanya untuk tampilan.",
     saveDialogConfirmButton: "Simpan",
     rules: {
-      unverifiedBadge: "perkiraan — cek aturan terbaru DJP",
+      unverifiedBadge: "Perkiraan",
+      unverifiedIntro: "Cek aturan terbaru DJP.",
       outOfRange:
         "aturan tahun itu tidak dimodelkan; memakai aturan tertua yang tersedia",
     },
@@ -2792,11 +2790,8 @@ export const id = {
         "PPh 21 sudah dipotong pemberi kerja (bukti potong 1721-A1)",
       freelanceLabel: "Omzet pekerjaan bebas (NPPN)",
       nppnLabel: "Persentase NPPN (%)",
-      nppnHint:
-        "Isi sesuai tabel PER-17/PJ/2015 untuk profesi & wilayah Anda. Jangan isi bila memakai PPh final UMKM 0,5%.",
+      nppnHint: "Lihat tabel PER-17/PJ/2015. Kosongkan bila UMKM 0,5%.",
       otherNetLabel: "Penghasilan neto lain",
-      zakatSavedNote:
-        "Saat disimpan, pengurang zakat diambil dari donasi zakat tercatat (lewat BAZNAS/LAZ resmi).",
       netoLabel: "Penghasilan neto",
       balanceLabel: "Kurang/(lebih) bayar",
       overpaidLabel: "Lebih bayar",
@@ -2882,6 +2877,10 @@ export const id = {
       save: "Simpan omzet tahun ini",
       saved: "Omzet disimpan",
       saveFailed: "Gagal menyimpan omzet",
+      disclosureLabel: "Isi omzet bulanan",
+      loadingLabel: "Menghitung estimasi...",
+      loadFailedLabel: "Gagal menghitung estimasi, coba lagi.",
+      emptyStateNote: "Isi omzet bulanan untuk melihat estimasi PPh final.",
     },
     final: {
       title: "Pajak final investasi & penghasilan lain",
@@ -2926,6 +2925,9 @@ export const id = {
       toastSaved: "Tersimpan",
       toastDeleted: "Dihapus",
       toastFailed: "Gagal menyimpan",
+      loadingLabel: "Menghitung estimasi...",
+      loadFailedLabel: "Gagal menghitung estimasi, coba lagi.",
+      emptyStateNote: "Belum ada penghasilan final tercatat.",
     },
     summary: {
       title: "Ringkasan pajak tahunan",

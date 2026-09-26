@@ -2704,11 +2704,8 @@ export const en = {
       'Typed with thousands separators for readability — dots are stripped automatically before sending ("780.000.000" → "780000000").',
     ptkpSelectedPrefix: "Selected PTKP: ",
     jabatanHint: "5% of gross, capped at Rp 6,000,000/year.",
-    perpuluhanHint:
-      "Only tithes paid to a registered institution qualify as a deduction (PP 60/2010). Pulled automatically from ",
-    perpuluhanHintLinkLabel: "Donations",
     perpuluhanAutoFilledHint:
-      "Auto-filled from recorded zakat & tithe for {year}. Infaq, sedekah & waqf are not tax-deductible (PP 60/2010).",
+      "Automatic from recorded zakat & tithe for {year} (PP 60/2010).",
     resetButton: "Reset",
     toastReset: "Calculation reset",
     colTaxableBase: "Taxable Base",
@@ -2727,7 +2724,8 @@ export const en = {
       "Values are sent as plain numeric strings, thousands separators are display-only.",
     saveDialogConfirmButton: "Save",
     rules: {
-      unverifiedBadge: "estimate — check the latest DJP rules",
+      unverifiedBadge: "Estimate",
+      unverifiedIntro: "Check the latest DJP rules.",
       outOfRange:
         "that year's rules are not modelled; using the oldest available",
     },
@@ -2744,11 +2742,8 @@ export const en = {
       withheldLabel: "PPh 21 already withheld (1721-A1 slip)",
       freelanceLabel: "Freelance turnover (NPPN)",
       nppnLabel: "NPPN percentage (%)",
-      nppnHint:
-        "Use the PER-17/PJ/2015 table for your profession and region. Leave empty if you use the 0.5% UMKM final regime.",
+      nppnHint: "See the PER-17/PJ/2015 table. Leave empty if UMKM 0.5%.",
       otherNetLabel: "Other net income",
-      zakatSavedNote:
-        "When saved, the zakat deduction comes from recorded zakat donations (via BAZNAS/official LAZ).",
       netoLabel: "Net income",
       balanceLabel: "Under/(over) payment",
       overpaidLabel: "Overpaid",
@@ -2835,6 +2830,10 @@ export const en = {
       save: "Save this year's turnover",
       saved: "Turnover saved",
       saveFailed: "Failed to save turnover",
+      disclosureLabel: "Fill in monthly turnover",
+      loadingLabel: "Calculating estimate...",
+      loadFailedLabel: "Couldn't calculate the estimate, try again.",
+      emptyStateNote: "Fill in monthly turnover to see the final-tax estimate.",
     },
     final: {
       title: "Final tax on investments & other income",
@@ -2880,6 +2879,9 @@ export const en = {
       toastSaved: "Saved",
       toastDeleted: "Deleted",
       toastFailed: "Save failed",
+      loadingLabel: "Calculating estimate...",
+      loadFailedLabel: "Couldn't calculate the estimate, try again.",
+      emptyStateNote: "No final income recorded yet.",
     },
     summary: {
       title: "Annual tax summary",

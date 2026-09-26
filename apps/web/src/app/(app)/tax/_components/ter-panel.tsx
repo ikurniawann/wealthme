@@ -5,10 +5,10 @@ import { useState } from "react";
 import { useLocale } from "@/hooks/use-locale";
 import { formatNumber, formatRupiah, parseRupiah } from "@/lib/format";
 import { formatBps } from "@/components/tax/format-bps";
-import { TaxRuleBadge } from "@/components/tax/tax-rule-badge";
 import { useTaxSession, useTerPreview } from "@/components/tax/use-tax-api";
 
 import { MAX_TAX_INPUT, toClampedDigitString } from "./digits";
+import { useReportTaxRules } from "./tax-rules-context";
 
 import type {
   DtpEmployment,
@@ -92,6 +92,7 @@ export function TerPanel({
     isFetching,
   } = useTerPreview(!fgId || isEmpty ? null : req);
   const notApplicable = isError && isApiError(error) && error.status === 422;
+  useReportTaxRules("ter", result?.rules ?? []);
 
   function renderDtpCell(row: TerMonthDto) {
     if (!row.dtp) return "—";
@@ -321,7 +322,6 @@ export function TerPanel({
             {result.isRefund && (
               <div className="hint">{t.tax.ter.refundNote}</div>
             )}
-            <TaxRuleBadge rules={result.rules} />
           </div>
         )
       )}

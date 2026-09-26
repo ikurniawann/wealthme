@@ -170,3 +170,25 @@ it("automatic lines have no edit/delete; manual lines do (when canManage)", asyn
   await screen.findByText("Sewa tanah/bangunan");
   expect(screen.getAllByRole("button", { name: "Hapus" })).toHaveLength(1);
 });
+
+it("shows an empty-state note when there are no final-income lines", async () => {
+  mockApiFetch.mockResolvedValue({
+    taxYear: 2026,
+    totalTax: "0",
+    missingRateCount: 0,
+    skippedForeign: 0,
+    lines: [],
+  });
+  render(<FinalIncomePanel taxYear={2026} canManage />);
+  expect(
+    await screen.findByText("Belum ada penghasilan final tercatat."),
+  ).toBeInTheDocument();
+});
+
+it("shows a load-failed note when the final-tax request errors", async () => {
+  mockApiFetch.mockRejectedValue(new Error("boom"));
+  render(<FinalIncomePanel taxYear={2026} canManage />);
+  expect(
+    await screen.findByText("Gagal menghitung estimasi, coba lagi."),
+  ).toBeInTheDocument();
+});

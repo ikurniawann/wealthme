@@ -2582,8 +2582,6 @@ export type I18nDictionary = {
     grossInputHint: string;
     ptkpSelectedPrefix: string;
     jabatanHint: string;
-    perpuluhanHint: string;
-    perpuluhanHintLinkLabel: string;
     perpuluhanAutoFilledHint: string;
     resetButton: string;
     toastReset: string;
@@ -2608,6 +2606,7 @@ export type I18nDictionary = {
     // unverified/out-of-range `TaxRuleRefDto` surfaced anywhere on /tax.
     rules: {
       unverifiedBadge: string;
+      unverifiedIntro: string;
       outOfRange: string;
     };
     // Task 9 — the detailed PPh OP calculator (replaces the old flat
@@ -2625,7 +2624,6 @@ export type I18nDictionary = {
       nppnLabel: string;
       nppnHint: string;
       otherNetLabel: string;
-      zakatSavedNote: string;
       netoLabel: string;
       balanceLabel: string;
       overpaidLabel: string;
@@ -2686,6 +2684,10 @@ export type I18nDictionary = {
       save: string;
       saved: string;
       saveFailed: string;
+      disclosureLabel: string;
+      loadingLabel: string;
+      loadFailedLabel: string;
+      emptyStateNote: string;
     };
     // Task 10 — final tax on investments/other income (contracts'
     // `FinalTaxEstimateDto`/`TaxFinalIncomeEntryDto`).
@@ -2713,6 +2715,9 @@ export type I18nDictionary = {
       toastSaved: string;
       toastDeleted: string;
       toastFailed: string;
+      loadingLabel: string;
+      loadFailedLabel: string;
+      emptyStateNote: string;
     };
     // Task 10 — the page's single "answer" block: total estimated tax +
     // SPT timing (contracts' `TaxAnnualSummaryDto`).

@@ -32,6 +32,11 @@ import { MAX_TAX_INPUT, toClampedDigitString } from "./_components/digits";
 import { AnnualSummary } from "./_components/annual-summary";
 import { FinalIncomePanel } from "./_components/final-income-panel";
 import { PphOpFields } from "./_components/pph-op-fields";
+import {
+  TaxRulesProvider,
+  useAllTaxRules,
+  useReportTaxRules,
+} from "./_components/tax-rules-context";
 import { TerPanel } from "./_components/ter-panel";
 import { UmkmPanel } from "./_components/umkm-panel";
 
@@ -94,6 +99,14 @@ type MeResponse = {
 };
 
 export default function TaxPage() {
+  return (
+    <TaxRulesProvider>
+      <TaxPageContent />
+    </TaxRulesProvider>
+  );
+}
+
+function TaxPageContent() {
   const { t } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -204,6 +217,12 @@ export default function TaxPage() {
     isFetching: isPph21Fetching,
     isError: isPph21Error,
   } = usePphOpPreview(fgId ? pphOpRequest : null);
+  useReportTaxRules("pph-op", pphOp?.rules ?? []);
+  // Polish batch 7b (item 1) — the one aggregate "Perkiraan" badge for the
+  // whole page (was repeated per section: pph-op field, TER table, UMKM
+  // table). Every live calculator reports its flagged rules into this
+  // context; this reads the union, deduped by `key|effectiveFrom`.
+  const allTaxRules = useAllTaxRules();
 
   // Whether the visible calculator numbers are a trustworthy, fully-computed
   // answer (vs. still loading / errored) — gates both what we render and
@@ -419,6 +438,16 @@ export default function TaxPage() {
         </div>
       </HeroCard>
 
+      {/* Polish batch 7b (item 1) — ONE "Perkiraan" badge at page top instead
+          of repeating "perkiraan — cek aturan terbaru DJP" per calculator
+          section; per-rule detail (legal basis, source link, note) still
+          lives in this badge's own popover. */}
+      {allTaxRules.length > 0 && (
+        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <TaxRuleBadge rules={allTaxRules} />
+        </div>
+      )}
+
       {/* Status SPT */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         <Card className="gap-0 p-4">
@@ -571,7 +600,6 @@ export default function TaxPage() {
             otherNet={otherNet}
             onOtherNetChange={setOtherNet}
             ptkp={pphOp?.ptkp}
-            nppnRule={pphOp?.rules.filter((r) => r.key === "pph.nppn") ?? []}
           />
         </div>
 
@@ -617,25 +645,16 @@ export default function TaxPage() {
               className="input"
             />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {t.tax.perpuluhanHint}
-              <Link href="/donation" className="text-primary hover:underline">
-                {t.tax.perpuluhanHintLinkLabel}
-              </Link>
-              .
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">
               {t.tax.perpuluhanAutoFilledHint.replace(
                 "{year}",
                 String(taxYear),
               )}
             </div>
-            <div className="hint">{t.tax.op.zakatSavedNote}</div>
           </div>
         </div>
         <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
           <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-muted-foreground">
             {t.tax.estimateLabel}
-            {pphOp && <TaxRuleBadge rules={pphOp.rules} />}
           </div>
           {!fgId ? (
             <div className="mt-1 text-[13px] text-muted-foreground">

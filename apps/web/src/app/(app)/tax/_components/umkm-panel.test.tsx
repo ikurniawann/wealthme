@@ -118,3 +118,37 @@ it("canManage=false disables Save", async () => {
     screen.getByRole("button", { name: "Simpan omzet tahun ini" }),
   ).toBeDisabled();
 });
+
+it("the monthly-omzet disclosure is collapsed by default and opens on click", async () => {
+  mockApiFetch.mockResolvedValue(null);
+  render(<UmkmPanel taxYear={2026} canManage />);
+  const disclosure = screen.getByText("Isi omzet bulanan").closest("details");
+  expect(disclosure).not.toBeNull();
+  expect(disclosure).not.toHaveAttribute("open");
+  await userEvent.click(screen.getByText("Isi omzet bulanan"));
+  expect(disclosure).toHaveAttribute("open");
+  expect(screen.getByLabelText("Jan")).toBeInTheDocument();
+});
+
+it("shows an empty-state note before any omzet is entered", async () => {
+  mockApiFetch.mockResolvedValue(null);
+  render(<UmkmPanel taxYear={2026} canManage />);
+  expect(
+    await screen.findByText(
+      "Isi omzet bulanan untuk melihat estimasi PPh final.",
+    ),
+  ).toBeInTheDocument();
+});
+
+it("shows a load-failed note when the preview request errors", async () => {
+  mockApiFetch.mockImplementation((url: string) =>
+    url.endsWith("/tax/umkm/preview")
+      ? Promise.reject(new Error("boom"))
+      : Promise.resolve(null),
+  );
+  render(<UmkmPanel taxYear={2026} canManage />);
+  await userEvent.type(screen.getByLabelText("Jan"), "70000000");
+  expect(
+    await screen.findByText("Gagal menghitung estimasi, coba lagi."),
+  ).toBeInTheDocument();
+});

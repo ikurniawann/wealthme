@@ -323,9 +323,7 @@ describe("TaxPage — PPh OP save uses the server-echoed result, never a stale/m
 
     render(<TaxPage />);
 
-    expect(
-      await screen.findByText("perkiraan — cek aturan terbaru DJP"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Perkiraan")).toBeInTheDocument();
   });
 });
 
@@ -813,7 +811,7 @@ describe("TaxPage — deduction auto-fill from recorded donations", () => {
     const field = await screen.findByLabelText(/perpuluhan/i);
     await waitFor(() => expect(field).toHaveValue("2.500.000"));
     expect(
-      screen.getByText(/infaq, sedekah & wakaf tidak termasuk/i),
+      screen.getByText(/otomatis dari zakat & persepuluhan tercatat/i),
     ).toBeInTheDocument();
   });
 
