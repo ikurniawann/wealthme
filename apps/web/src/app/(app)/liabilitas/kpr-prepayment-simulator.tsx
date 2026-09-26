@@ -1,15 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import type {
   LiabilityPrepaymentPreviewDto,
+  LiabilityPrepaymentRecordResultDto,
   PrepaymentMode,
+  RecordLiabilityPrepaymentDto,
 } from "@wealthme/contracts";
 
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { formatAmountInput, formatRupiah } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
 
 import { extractApiErrorMessage } from "./api-error";
 import { DEFAULT_PREPAYMENT_PENALTY_PERCENT } from "./kpr-presets";
@@ -20,8 +24,24 @@ const MODES: readonly PrepaymentMode[] = [
   "full",
 ];
 
+type AccountOption = { id: string; name: string; institution: string | null };
+type PrepaymentRequest = Pick<
+  RecordLiabilityPrepaymentDto,
+  "mode" | "amount" | "penaltyPercent"
+>;
+
 function rupiah(value: string | null): string {
   return value === null ? "—" : formatRupiah(Number(value));
+}
+
+function toSearch(request: PrepaymentRequest): string {
+  const params = new URLSearchParams({
+    mode: request.mode,
+    penaltyPercent:
+      request.penaltyPercent ?? DEFAULT_PREPAYMENT_PENALTY_PERCENT,
+  });
+  if (request.amount !== undefined) params.set("amount", request.amount);
+  return params.toString();
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -33,15 +53,19 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-// The amount is IDR-only on purpose: a read-only simulation of an IDR loan (see revisi-k plan, Global Constraints).
+// IDR-only on the web on purpose (revisi-k plan, Global Constraints); the API also accepts fxInputs.
 export function KprPrepaymentSimulator({
   familyGroupId,
   liabilityId,
   token,
+  onRecorded,
+  makeIdempotencyKey = () => crypto.randomUUID(),
 }: {
   familyGroupId: string;
   liabilityId: string;
   token: string | undefined;
+  onRecorded: () => void;
+  makeIdempotencyKey?: () => string;
 }) {
   const { t } = useLocale();
   const k = t.liabilitas.kpr;
@@ -50,7 +74,16 @@ export function KprPrepaymentSimulator({
   const [penaltyPercent, setPenaltyPercent] = useState(
     DEFAULT_PREPAYMENT_PENALTY_PERCENT,
   );
-  const [search, setSearch] = useState<string | null>(null);
+  // The request the shown result was computed for, and the key that records it at most once.
+  const [simulated, setSimulated] = useState<{
+    request: PrepaymentRequest;
+    idempotencyKey: string;
+  } | null>(null);
+  const [sourceAccountId, setSourceAccountId] = useState("");
+  const [confirming, setConfirming] = useState(false);
+
+  const base = `/family-groups/${familyGroupId}/liabilities/${liabilityId}`;
+  const search = simulated ? toSearch(simulated.request) : null;
 
   const previewQuery = useQuery<LiabilityPrepaymentPreviewDto>({
     queryKey: [
@@ -62,28 +95,64 @@ export function KprPrepaymentSimulator({
     ],
     queryFn: ({ signal }) =>
       apiFetch<LiabilityPrepaymentPreviewDto>(
-        `/family-groups/${familyGroupId}/liabilities/${liabilityId}/prepayment-preview?${search ?? ""}`,
+        `${base}/prepayment-preview?${search ?? ""}`,
         { token, signal },
       ),
     enabled: Boolean(token && search),
     retry: false,
   });
+  const result = previewQuery.data;
+
+  const accountsQuery = useQuery<AccountOption[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId),
+    queryFn: ({ signal }) =>
+      apiFetch<AccountOption[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+        signal,
+      }),
+    enabled: Boolean(token && result),
+  });
+
+  const recordMutation = useMutation({
+    mutationFn: (body: RecordLiabilityPrepaymentDto) =>
+      apiFetch<LiabilityPrepaymentRecordResultDto>(`${base}/prepay`, {
+        method: "POST",
+        token,
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      toast.success(k.recordSaved);
+      setConfirming(false);
+      setSimulated(null);
+      onRecorded();
+    },
+    onError: (err: unknown) =>
+      toast.error(extractApiErrorMessage(err, k.recordFailed)),
+  });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const params = new URLSearchParams({
-      mode,
-      penaltyPercent: penaltyPercent.trim().replace(",", "."),
+    const digits = amount.replace(/\D/g, "");
+    if (mode !== "full" && !digits) return;
+    setConfirming(false);
+    setSimulated({
+      request: {
+        mode,
+        penaltyPercent: penaltyPercent.trim().replace(",", "."),
+        ...(mode === "full" ? {} : { amount: digits }),
+      },
+      idempotencyKey: makeIdempotencyKey(),
     });
-    if (mode !== "full") {
-      const digits = amount.replace(/\D/g, "");
-      if (!digits) return;
-      params.set("amount", digits);
-    }
-    setSearch(params.toString());
   }
 
-  const result = previewQuery.data;
+  function handleRecord() {
+    if (!simulated || !sourceAccountId || recordMutation.isPending) return;
+    recordMutation.mutate({
+      ...simulated.request,
+      sourceAccountId,
+      idempotencyKey: simulated.idempotencyKey,
+    });
+  }
 
   return (
     <section
@@ -217,6 +286,63 @@ export function KprPrepaymentSimulator({
           {result.assumesCurrentFloatingRate && (
             <div className="hint">{k.prepayEstimateNote}</div>
           )}
+
+          <div className="mt-3 rounded-lg border p-3">
+            <div className="field mt-0">
+              <label className="label" htmlFor="kpr-prepay-account">
+                {k.recordAccountLabel}
+              </label>
+              <select
+                id="kpr-prepay-account"
+                className="select"
+                value={sourceAccountId}
+                onChange={(e) => setSourceAccountId(e.target.value)}
+              >
+                <option value="">{k.recordAccountPlaceholder}</option>
+                {(accountsQuery.data ?? []).map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.institution ? `${a.name} · ${a.institution}` : a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {confirming ? (
+              <div className="notice notice--warning mt-2" role="alert">
+                <span>
+                  {k.recordConfirmPrefix}
+                  <strong className="mono">{rupiah(result.cashOutNow)}</strong>
+                  {k.recordConfirmBreakdown}
+                </span>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn--primary btn--sm"
+                    disabled={recordMutation.isPending}
+                    onClick={handleRecord}
+                  >
+                    {k.recordConfirmButton}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    disabled={recordMutation.isPending}
+                    onClick={() => setConfirming(false)}
+                  >
+                    {k.recordCancelButton}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="btn btn--primary btn--sm mt-2"
+                disabled={!sourceAccountId}
+                onClick={() => setConfirming(true)}
+              >
+                {k.recordButton}
+              </button>
+            )}
+          </div>
         </>
       )}
     </section>

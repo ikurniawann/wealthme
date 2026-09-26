@@ -2111,7 +2111,7 @@ export const en = {
       historySaveFailed: "Could not save the rate change",
       prepayTitle: "Early repayment simulation",
       prepaySimulationNote:
-        "Simulation only — nothing is recorded. A full payoff you actually made is recorded with Pay.",
+        "The figures below are a simulation — nothing is recorded until you press Record prepayment and confirm.",
       prepayModeLabel: "Repayment type",
       prepayModes: {
         full: "Pay off in full",
@@ -2133,6 +2133,16 @@ export const en = {
       prepayEstimateNote:
         "Estimate: future floating rates are assumed unchanged, and interest accrued since the last installment is not included.",
       prepayFailed: "Simulation failed",
+      recordAccountLabel: "Source account",
+      recordAccountPlaceholder: "Choose an account",
+      recordButton: "Record prepayment",
+      recordConfirmPrefix: "The account will be debited ",
+      recordConfirmBreakdown:
+        " (principal + penalty). The remaining principal, installment or tenor, schedule and budget follow.",
+      recordConfirmButton: "Yes, record it",
+      recordCancelButton: "Cancel",
+      recordSaved: "Prepayment recorded",
+      recordFailed: "Could not record the prepayment",
     },
   },
   masterdata: {

@@ -2023,6 +2023,15 @@ export type I18nDictionary = {
       prepayResultNetSaving: string;
       prepayEstimateNote: string;
       prepayFailed: string;
+      recordAccountLabel: string;
+      recordAccountPlaceholder: string;
+      recordButton: string;
+      recordConfirmPrefix: string;
+      recordConfirmBreakdown: string;
+      recordConfirmButton: string;
+      recordCancelButton: string;
+      recordSaved: string;
+      recordFailed: string;
     };
   };
   /**

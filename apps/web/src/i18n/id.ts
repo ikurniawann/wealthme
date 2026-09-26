@@ -2147,7 +2147,7 @@ export const id = {
       historySaveFailed: "Gagal menyimpan perubahan bunga",
       prepayTitle: "Simulasi pelunasan dipercepat",
       prepaySimulationNote:
-        "Simulasi saja — tidak mencatat pembayaran apa pun. Pelunasan penuh yang benar-benar dibayar dicatat lewat tombol Bayar.",
+        "Angka di bawah hanya simulasi — belum ada yang dicatat sampai Anda menekan Catat pelunasan dan mengonfirmasi.",
       prepayModeLabel: "Jenis pelunasan",
       prepayModes: {
         full: "Lunas penuh",
@@ -2169,6 +2169,16 @@ export const id = {
       prepayEstimateNote:
         "Estimasi: bunga floating ke depan diasumsikan tetap, dan bunga berjalan sejak cicilan terakhir tidak dihitung.",
       prepayFailed: "Simulasi gagal",
+      recordAccountLabel: "Rekening sumber",
+      recordAccountPlaceholder: "Pilih rekening",
+      recordButton: "Catat pelunasan",
+      recordConfirmPrefix: "Rekening akan didebit ",
+      recordConfirmBreakdown:
+        " (pokok + penalti). Sisa pokok, cicilan atau tenor, jadwal, dan anggaran ikut diperbarui.",
+      recordConfirmButton: "Ya, catat",
+      recordCancelButton: "Batal",
+      recordSaved: "Pelunasan dipercepat dicatat",
+      recordFailed: "Gagal mencatat pelunasan",
     },
   },
   masterdata: {

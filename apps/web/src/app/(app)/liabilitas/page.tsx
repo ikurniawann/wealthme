@@ -1343,6 +1343,12 @@ function LiabilityDetailDialog({
                       familyGroupId={familyGroupId}
                       liabilityId={item.id}
                       token={token}
+                      onRecorded={() =>
+                        invalidateLiabilityRelatedQueries(
+                          queryClient,
+                          familyGroupId,
+                        )
+                      }
                     />
                   </>
                 )}
