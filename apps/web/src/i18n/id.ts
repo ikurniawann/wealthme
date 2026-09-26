@@ -2168,6 +2168,8 @@ export const id = {
       prepayResultNetSaving: "Hemat bersih (setelah penalti)",
       prepayEstimateNote:
         "Estimasi: bunga floating ke depan diasumsikan tetap, dan bunga berjalan sejak cicilan terakhir tidak dihitung.",
+      prepayReduceTenorNextTierNote:
+        "Cicilan tetap naik saat periode bunga berikutnya berlaku.",
       prepayFailed: "Simulasi gagal",
       recordAccountLabel: "Rekening sumber",
       recordAccountPlaceholder: "Pilih rekening",

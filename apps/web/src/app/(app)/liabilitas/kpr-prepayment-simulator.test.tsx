@@ -138,6 +138,60 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
     expect(screen.getByText(k.prepayEstimateNote)).toBeInTheDocument();
   });
 
+  it("M2: reduce-tenor shows a note that the installment still rises at the next rate period, when the plan runs into one", async () => {
+    routeApi({
+      preview: { ...PREVIEW, mode: "reduce_tenor", remainingMonthsAfter: 102 },
+    });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole("radio", { name: k.prepayModes.reduce_tenor }),
+    );
+    await user.type(screen.getByLabelText(k.prepayAmountLabel), "100000000");
+    await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
+
+    expect(
+      await screen.findByText(k.prepayReduceTenorNextTierNote),
+    ).toBeInTheDocument();
+  });
+
+  it("M2: no next-tier note for reduce-tenor when the rate plan never runs into a later period", async () => {
+    routeApi({
+      preview: {
+        ...PREVIEW,
+        mode: "reduce_tenor",
+        remainingMonthsAfter: 102,
+        assumesCurrentFloatingRate: false,
+      },
+    });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await user.click(
+      screen.getByRole("radio", { name: k.prepayModes.reduce_tenor }),
+    );
+    await user.type(screen.getByLabelText(k.prepayAmountLabel), "100000000");
+    await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
+
+    await screen.findByText(/104\.587\.451/);
+    expect(
+      screen.queryByText(k.prepayReduceTenorNextTierNote),
+    ).not.toBeInTheDocument();
+  });
+
+  it("M2: no next-tier note for reduce-installment, even when the plan runs into a later period", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+
+    expect(
+      screen.queryByText(k.prepayReduceTenorNextTierNote),
+    ).not.toBeInTheDocument();
+  });
+
   it("full payoff sends no amount", async () => {
     routeApi({ preview: { ...PREVIEW, mode: "full" } });
     renderSimulator();
@@ -232,6 +286,50 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
 
     expect(prepayPosts()).toHaveLength(1);
     settle({ replayed: false });
+  });
+
+  it("M1: changing the amount after simulating clears the stale result so 'Catat pelunasan' can't record it", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+    await user.type(screen.getByLabelText(k.prepayAmountLabel), "1");
+
+    expect(screen.queryByText(/3\.409\.791/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: k.recordButton }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("M1: changing the mode after simulating clears the stale result", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+    await user.click(
+      screen.getByRole("radio", { name: k.prepayModes.reduce_tenor }),
+    );
+
+    expect(screen.queryByText(/3\.409\.791/)).not.toBeInTheDocument();
+  });
+
+  it("M1: changing the penalty after simulating clears an open confirmation, never recording the old request", async () => {
+    routeApi({ preview: PREVIEW });
+    renderSimulator();
+    const user = userEvent.setup();
+
+    await simulateReduceInstallment(user);
+    await chooseAccount(user);
+    await user.click(screen.getByRole("button", { name: k.recordButton }));
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText(k.prepayPenaltyLabel));
+    await user.type(screen.getByLabelText(k.prepayPenaltyLabel), "2.00");
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(prepayPosts()).toHaveLength(0);
   });
 
   it("a failed record keeps the simulation and shows the server's message", async () => {

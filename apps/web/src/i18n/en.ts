@@ -2132,6 +2132,8 @@ export const en = {
       prepayResultNetSaving: "Net saving (after penalty)",
       prepayEstimateNote:
         "Estimate: future floating rates are assumed unchanged, and interest accrued since the last installment is not included.",
+      prepayReduceTenorNextTierNote:
+        "The installment still rises once the next rate period applies.",
       prepayFailed: "Simulation failed",
       recordAccountLabel: "Source account",
       recordAccountPlaceholder: "Choose an account",

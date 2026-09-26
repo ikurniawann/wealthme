@@ -154,6 +154,25 @@ export function KprPrepaymentSimulator({
     });
   }
 
+  // M1 — the shown result (and any open confirmation) is only valid for the
+  // request it was simulated for. Any input change invalidates it, so
+  // "Catat pelunasan" can never record a stale mode/amount/penalty.
+  function updateMode(next: PrepaymentMode) {
+    setMode(next);
+    setSimulated(null);
+    setConfirming(false);
+  }
+  function updateAmount(next: string) {
+    setAmount(next);
+    setSimulated(null);
+    setConfirming(false);
+  }
+  function updatePenaltyPercent(next: string) {
+    setPenaltyPercent(next);
+    setSimulated(null);
+    setConfirming(false);
+  }
+
   return (
     <section
       className="rounded-lg border p-3.5"
@@ -183,7 +202,7 @@ export function KprPrepaymentSimulator({
                 aria-selected={mode === m}
                 tabIndex={mode === m ? 0 : -1}
                 className="segmented__item flex-1"
-                onClick={() => setMode(m)}
+                onClick={() => updateMode(m)}
                 onKeyDown={(e) => {
                   if (
                     e.key !== "ArrowRight" &&
@@ -198,7 +217,7 @@ export function KprPrepaymentSimulator({
                     e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1;
                   const next =
                     MODES[(index + delta + MODES.length) % MODES.length];
-                  if (next) setMode(next);
+                  if (next) updateMode(next);
                   (
                     e.currentTarget
                       .closest('[role="radiogroup"]')
@@ -224,7 +243,9 @@ export function KprPrepaymentSimulator({
                 className="input mono"
                 inputMode="numeric"
                 value={amount}
-                onChange={(e) => setAmount(formatAmountInput(e.target.value))}
+                onChange={(e) =>
+                  updateAmount(formatAmountInput(e.target.value))
+                }
               />
             </div>
           )}
@@ -238,7 +259,7 @@ export function KprPrepaymentSimulator({
               inputMode="decimal"
               aria-describedby="kpr-prepay-penalty-hint"
               value={penaltyPercent}
-              onChange={(e) => setPenaltyPercent(e.target.value)}
+              onChange={(e) => updatePenaltyPercent(e.target.value)}
             />
           </div>
         </div>
@@ -286,6 +307,10 @@ export function KprPrepaymentSimulator({
           {result.assumesCurrentFloatingRate && (
             <div className="hint">{k.prepayEstimateNote}</div>
           )}
+          {result.mode === "reduce_tenor" &&
+            result.assumesCurrentFloatingRate && (
+              <div className="hint">{k.prepayReduceTenorNextTierNote}</div>
+            )}
 
           <div className="mt-3 rounded-lg border p-3">
             <div className="field mt-0">

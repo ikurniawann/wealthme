@@ -2022,6 +2022,7 @@ export type I18nDictionary = {
       prepayResultInterestSaved: string;
       prepayResultNetSaving: string;
       prepayEstimateNote: string;
+      prepayReduceTenorNextTierNote: string;
       prepayFailed: string;
       recordAccountLabel: string;
       recordAccountPlaceholder: string;
