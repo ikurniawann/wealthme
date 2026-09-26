@@ -44,4 +44,18 @@ describe("FxMockService", () => {
     expect(await service.getRate("AUD", "AUD")).toBe(1);
     expect(await service.getRate("CNY", "CNY")).toBe(1);
   });
+
+  it("revisi I — getSnapshot exposes the table as indicative IDR-per-unit strings", async () => {
+    const snap = await service.getSnapshot();
+    expect(snap).toMatchObject({ source: "indicative", stale: true });
+    expect(snap.idrPerUnit).toEqual({
+      IDR: "1.000000",
+      USD: "15873.015873",
+      SGD: "11764.705882",
+      EUR: "17241.379310",
+      JPY: "105.263158",
+      AUD: "10309.278351",
+      CNY: "2232.142857",
+    });
+  });
 });

@@ -17,12 +17,28 @@ export class FxController {
   @ApiQuery({ name: "base", required: false, example: "IDR" })
   @ApiResponse({
     status: 200,
-    description: "Base currency and rates map",
+    description:
+      "Base currency, legacy rates map, and the IDR-per-unit snapshot with rate date, source and staleness",
   })
-  async getRates(
-    @Query("base") base = "IDR",
-  ): Promise<{ base: string; rates: Record<string, number> }> {
-    const rates = await this.fxPort.getRates(base);
-    return { base, rates };
+  async getRates(@Query("base") base = "IDR"): Promise<{
+    base: string;
+    rates: Record<string, number>;
+    rateDate: string;
+    source: "frankfurter" | "indicative";
+    stale: boolean;
+    idrPerUnit: Record<string, string>;
+  }> {
+    const [rates, snapshot] = await Promise.all([
+      this.fxPort.getRates(base),
+      this.fxPort.getSnapshot(),
+    ]);
+    return {
+      base,
+      rates,
+      rateDate: snapshot.rateDate,
+      source: snapshot.source,
+      stale: snapshot.stale,
+      idrPerUnit: snapshot.idrPerUnit,
+    };
   }
 }
