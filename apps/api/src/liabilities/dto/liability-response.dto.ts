@@ -1,5 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
 
+export class LiabilityRatePeriodResponseDto {
+  @ApiProperty({ enum: ["fixed", "floating"] }) kind!: "fixed" | "floating";
+  @ApiProperty({ nullable: true, type: Number }) months!: number | null;
+  @ApiProperty() ratePercent!: string;
+}
+
 export class LiabilityResponseDto {
   @ApiProperty() id!: string;
   @ApiProperty() familyGroupId!: string;
@@ -36,6 +42,27 @@ export class LiabilityResponseDto {
   @ApiProperty({ nullable: true, type: Number })
   fixedRateMonths!: number | null;
   @ApiProperty({ nullable: true, type: String }) floatingRate!: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    enum: [
+      "konvensional",
+      "berjenjang",
+      "flpp",
+      "syariah_murabahah",
+      "syariah_mmq",
+    ],
+  })
+  kprScheme!: string | null;
+  @ApiProperty({ type: [LiabilityRatePeriodResponseDto] })
+  ratePeriods!: LiabilityRatePeriodResponseDto[];
+  @ApiProperty({ description: "Annual rate the next installment accrues at" })
+  currentRatePercent!: string;
+  @ApiProperty({
+    description:
+      "The installment now due is past its due day (inside the 5-day grace window) or the loan is past maturity",
+  })
+  currentInstallmentLate!: boolean;
   @ApiProperty() createdAt!: string;
   @ApiProperty() updatedAt!: string;
 }
@@ -54,6 +81,13 @@ export class LiabilityScheduleRowDto {
   @ApiProperty() remaining!: string;
 }
 
+export class LiabilityRateBandDto {
+  @ApiProperty() fromPeriod!: number;
+  @ApiProperty() toPeriod!: number;
+  @ApiProperty() ratePercent!: string;
+  @ApiProperty({ enum: ["fixed", "floating"] }) kind!: "fixed" | "floating";
+}
+
 export class LiabilityScheduleResponseDto {
   @ApiProperty() liabilityId!: string;
   @ApiProperty({ enum: ["efektif", "flat", "anuitas"] })
@@ -62,6 +96,13 @@ export class LiabilityScheduleResponseDto {
   installmentAmount!: string | null;
   @ApiProperty({ type: [LiabilityScheduleRowDto] })
   rows!: LiabilityScheduleRowDto[];
+  @ApiProperty({
+    type: [LiabilityRateBandDto],
+    description:
+      "Consecutive rows sharing one rate; floating bands are estimates",
+  })
+  rateBands!: LiabilityRateBandDto[];
+  @ApiProperty() hasFloatingPeriod!: boolean;
 }
 
 export class LiabilityPaymentPreviewResponseDto {

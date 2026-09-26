@@ -1,6 +1,10 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { InterestMethod, LiabilityType } from "@prisma/client";
+import { InterestMethod, KprScheme, LiabilityType } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -11,9 +15,12 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from "class-validator";
 
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
+import { RatePeriodDto } from "./rate-period.dto";
 
 export class UpdateLiabilityDto {
   @ApiPropertyOptional()
@@ -122,6 +129,27 @@ export class UpdateLiabilityDto {
     message: "floatingRate must be a decimal string",
   })
   floatingRate?: string;
+
+  @ApiPropertyOptional({
+    enum: KprScheme,
+    description: "KPR scheme label (kpr only)",
+  })
+  @IsOptional()
+  @IsEnum(KprScheme)
+  kprScheme?: KprScheme;
+
+  @ApiPropertyOptional({
+    type: [RatePeriodDto],
+    description:
+      "Revisi K — ordered rate periods (kpr + anuitas); supersedes fixedRateMonths/floatingRate",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => RatePeriodDto)
+  ratePeriods?: RatePeriodDto[];
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];

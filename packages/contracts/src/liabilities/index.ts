@@ -7,6 +7,24 @@ export type LiabilityType =
 
 export type InterestMethod = "efektif" | "flat" | "anuitas";
 
+export type KprScheme =
+  | "konvensional"
+  | "berjenjang"
+  | "flpp"
+  | "syariah_murabahah"
+  | "syariah_mmq";
+
+export type RatePeriodKind = "fixed" | "floating";
+
+export type PrepaymentMode = "full" | "reduce_tenor" | "reduce_installment";
+
+// Revisi K — one KPR rate period; months null = runs to maturity (last period only).
+export interface LiabilityRatePeriodDto {
+  kind: RatePeriodKind;
+  months: number | null;
+  ratePercent: string;
+}
+
 export interface LiabilityDto {
   id: string;
   familyGroupId: string;
@@ -34,6 +52,12 @@ export interface LiabilityDto {
   currentInstallmentAmount: string | null;
   fixedRateMonths: number | null;
   floatingRate: string | null;
+  kprScheme: KprScheme | null;
+  ratePeriods: LiabilityRatePeriodDto[];
+  // Annual rate the next installment accrues at.
+  currentRatePercent: string;
+  // The installment now due is late (5-day grace window) or the loan is past maturity: the Pay dialog shows "Telat".
+  currentInstallmentLate: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -62,6 +86,8 @@ export interface CreateLiabilityDto {
   installmentAmount?: string;
   fixedRateMonths?: number;
   floatingRate?: string;
+  kprScheme?: KprScheme;
+  ratePeriods?: LiabilityRatePeriodDto[];
 }
 
 export interface UpdateLiabilityDto {
@@ -83,6 +109,8 @@ export interface UpdateLiabilityDto {
   installmentAmount?: string;
   fixedRateMonths?: number;
   floatingRate?: string;
+  kprScheme?: KprScheme;
+  ratePeriods?: LiabilityRatePeriodDto[];
 }
 
 export interface LiabilityScheduleRowDto {
@@ -93,11 +121,21 @@ export interface LiabilityScheduleRowDto {
   remaining: string;
 }
 
+// Consecutive schedule rows sharing one rate; floating bands are estimates.
+export interface LiabilityRateBandDto {
+  fromPeriod: number;
+  toPeriod: number;
+  ratePercent: string;
+  kind: RatePeriodKind;
+}
+
 export interface LiabilityScheduleDto {
   liabilityId: string;
   interestMethod: InterestMethod;
   installmentAmount: string | null;
   rows: LiabilityScheduleRowDto[];
+  rateBands: LiabilityRateBandDto[];
+  hasFloatingPeriod: boolean;
 }
 
 // Read-only split a payment of `amount` would book right now (same math as pay).
@@ -107,4 +145,43 @@ export interface LiabilityPaymentPreviewDto {
   interest: string;
   principal: string;
   remainingAfter: string;
+}
+
+// Revisi K — a floating-rate change the user recorded from a bank notice.
+export interface LiabilityFloatingRateDto {
+  id: string;
+  // YYYY-MM-DD
+  effectiveDate: string;
+  ratePercent: string;
+  // First installment accruing at this rate; null when the loan has no Tanggal Akad.
+  effectivePeriod: number | null;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface CreateLiabilityFloatingRateDto {
+  effectiveDate: string;
+  ratePercent: string;
+  note?: string;
+}
+
+// Revisi K — read-only early-repayment simulation; nothing is recorded.
+export interface LiabilityPrepaymentPreviewDto {
+  liabilityId: string;
+  mode: PrepaymentMode;
+  prepaidPrincipal: string;
+  penaltyPercent: string;
+  penalty: string;
+  cashOutNow: string;
+  installmentBefore: string | null;
+  installmentAfter: string | null;
+  remainingMonthsBefore: number;
+  remainingMonthsAfter: number;
+  totalInterestBefore: string;
+  totalInterestAfter: string;
+  interestSaved: string;
+  // May be negative when the penalty exceeds the interest saved.
+  netSaving: string;
+  // True when the projection runs into a floating period (assumes today's floating rate persists).
+  assumesCurrentFloatingRate: boolean;
 }

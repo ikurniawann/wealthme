@@ -67,3 +67,54 @@ describe("Create/UpdateLiabilityDto — revisi G interest terms", () => {
     ).toEqual(["startDate"]);
   });
 });
+
+describe("Create/UpdateLiabilityDto — revisi K rate periods", () => {
+  const KPR = { ...BASE, type: "kpr" };
+  const BERJENJANG = [
+    { kind: "fixed", months: 24, ratePercent: "3.50" },
+    { kind: "fixed", months: 12, ratePercent: "5.50" },
+    { kind: "floating", months: null, ratePercent: "11.00" },
+  ];
+
+  it("accepts a berjenjang plan with a scheme", async () => {
+    expect(
+      await invalidProps(CreateLiabilityDto, {
+        ...KPR,
+        kprScheme: "berjenjang",
+        ratePeriods: BERJENJANG,
+      }),
+    ).toEqual([]);
+  });
+
+  it.each([
+    ["kprScheme", "kpr_biasa"],
+    ["ratePeriods", []],
+    ["ratePeriods", [{ kind: "tetap", ratePercent: "5" }]],
+    ["ratePeriods", [{ kind: "fixed", months: 0, ratePercent: "5" }]],
+    ["ratePeriods", [{ kind: "fixed", ratePercent: "5,5" }]],
+    ["ratePeriods", [{ kind: "fixed", ratePercent: "100" }]],
+    [
+      "ratePeriods",
+      Array.from({ length: 11 }, () => ({
+        kind: "fixed",
+        months: 1,
+        ratePercent: "5",
+      })),
+    ],
+  ])("CreateLiabilityDto rejects %s = %j", async (field, value) => {
+    expect(
+      await invalidProps(CreateLiabilityDto, { ...KPR, [field]: value }),
+    ).toContain(field);
+  });
+
+  it("UpdateLiabilityDto validates ratePeriods the same way", async () => {
+    expect(
+      await invalidProps(UpdateLiabilityDto, { ratePeriods: BERJENJANG }),
+    ).toEqual([]);
+    expect(
+      await invalidProps(UpdateLiabilityDto, {
+        ratePeriods: [{ kind: "fixed", months: 0, ratePercent: "5" }],
+      }),
+    ).toContain("ratePeriods");
+  });
+});

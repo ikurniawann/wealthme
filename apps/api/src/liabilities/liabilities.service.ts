@@ -30,18 +30,29 @@ import {
   computeInstallment,
   currentInstallment,
   defaultInterestMethod,
-  dueInstallmentPeriod,
+  dueInstallment,
   parseRateScaledByHundred,
   rateForPeriod,
+  ratePlanOf,
   splitPayment,
   type InterestMethod,
   type SplitPaymentResult,
   type ScheduleInput,
+  type ScheduleRow,
 } from "./amortisation.util";
+import {
+  hasFloatingSegment,
+  rateAt,
+  sameRateRegime,
+  type RatePlan,
+  type ResolvedRate,
+} from "./rate-plan.util";
+import { type KprSchemeValue } from "./rate-plan.validation";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
   LiabilityPaymentPreviewResponseDto,
+  LiabilityRateBandDto,
   LiabilityResponseDto,
   LiabilityScheduleResponseDto,
   LiabilitySummaryResponseDto,
@@ -69,7 +80,7 @@ export type ActingMember = { id: string; userId: string; role: Role } | null;
 
 type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
-type LiabilityRow = {
+export type LiabilityRow = {
   id: string;
   familyGroupId: string;
   name: string;
@@ -89,6 +100,7 @@ type LiabilityRow = {
   installmentAmount: bigint | null;
   fixedRateMonths: number | null;
   floatingRate: { toString(): string } | null;
+  kprScheme?: KprSchemeValue | null;
   principalCategoryId?: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -117,7 +129,7 @@ function scheduleInputFor(
 ): ScheduleInput {
   const tenor = liability.tenorMonths;
   const first =
-    firstPeriod ?? dueInstallmentPeriod(liability.startDate, now, tenor);
+    firstPeriod ?? dueInstallment(liability.startDate, now, tenor).period;
   return {
     method: liability.interestMethod,
     remainingBalance: liability.remainingBalance,
@@ -154,6 +166,37 @@ function budgetContribution(
     currentInstallmentFor(liability, now, firstPeriod) ??
     liability.minimumPayment
   );
+}
+
+/** Annual rate the next installment (the schedule's first row) accrues at. */
+function currentRateFor(liability: InstallmentTerms, now: Date): string {
+  const input = scheduleInputFor(liability, now);
+  return rateAt(ratePlanOf(input), input.firstPeriod).ratePercent;
+}
+
+/** Consecutive schedule rows under one rate regime, for the web's rate column. */
+function rateBandsFor(
+  plan: RatePlan,
+  rows: ScheduleRow[],
+): LiabilityRateBandDto[] {
+  const bands: LiabilityRateBandDto[] = [];
+  let previous: ResolvedRate | null = null;
+  for (const row of rows) {
+    const rate = rateAt(plan, row.period);
+    const last = bands.at(-1);
+    if (last && previous && sameRateRegime(previous, rate)) {
+      last.toPeriod = row.period;
+    } else {
+      bands.push({
+        fromPeriod: row.period,
+        toPeriod: row.period,
+        ratePercent: rate.ratePercent,
+        kind: rate.kind,
+      });
+    }
+    previous = rate;
+  }
+  return bands;
 }
 
 function toLiabilityDto(
@@ -198,6 +241,14 @@ function toLiabilityDto(
       currentInstallmentFor(liability, now)?.toString() ?? null,
     fixedRateMonths: liability.fixedRateMonths,
     floatingRate: liability.floatingRate?.toString() ?? null,
+    kprScheme: liability.kprScheme ?? null,
+    ratePeriods: [],
+    currentRatePercent: currentRateFor(liability, now),
+    currentInstallmentLate: dueInstallment(
+      liability.startDate,
+      now,
+      liability.tenorMonths,
+    ).late,
     createdAt: liability.createdAt.toISOString(),
     updatedAt: liability.updatedAt.toISOString(),
   };
@@ -248,11 +299,8 @@ function splitLiabilityPayment(
     paymentAmount,
     remainingBalance: liability.remainingBalance,
     annualInterestRatePercent: rateForPeriod({
-      period: dueInstallmentPeriod(
-        liability.startDate,
-        now,
-        liability.tenorMonths,
-      ),
+      period: dueInstallment(liability.startDate, now, liability.tenorMonths)
+        .period,
       baseRatePercent: liability.interestRate.toString(),
       fixedRateMonths: liability.fixedRateMonths,
       floatingRatePercent: liability.floatingRate?.toString() ?? null,
@@ -381,7 +429,9 @@ export class LiabilitiesService {
       throw new NotFoundException("Liability not found");
     }
 
-    const rows = buildSchedule(scheduleInputFor(liability, now));
+    const input = scheduleInputFor(liability, now);
+    const rows = buildSchedule(input);
+    const plan = ratePlanOf(input);
 
     return {
       liabilityId: liability.id,
@@ -394,6 +444,8 @@ export class LiabilitiesService {
         principal: row.principal.toString(),
         remaining: row.remaining.toString(),
       })),
+      rateBands: rateBandsFor(plan, rows),
+      hasFloatingPeriod: hasFloatingSegment(plan),
     };
   }
 
@@ -991,11 +1043,11 @@ export class LiabilitiesService {
       liability,
     );
     // The installment just settled is no longer outstanding: the line tracks the next one.
-    const settled = dueInstallmentPeriod(
+    const settled = dueInstallment(
       liability.startDate,
       now,
       liability.tenorMonths,
-    );
+    ).period;
     const nextPeriod =
       liability.startDate === null
         ? undefined

@@ -126,6 +126,19 @@ enum InterestMethod {
   anuitas
 }
 
+enum KprScheme {
+  konvensional
+  berjenjang
+  flpp
+  syariah_murabahah
+  syariah_mmq
+}
+
+enum RatePeriodKind {
+  fixed
+  floating
+}
+
 enum InsuranceType {
   jiwa
   kesehatan
@@ -1239,6 +1252,10 @@ model Liability {
   installmentAmount   BigInt?
   fixedRateMonths     Int?
   floatingRate        Decimal?      @db.Decimal(5, 2)
+  // Revisi K — scheme label; tiered periods and recorded floating changes live in child tables.
+  kprScheme           KprScheme?
+  ratePeriods         LiabilityRatePeriod[]
+  floatingRates       LiabilityFloatingRate[]
   // EPIC-023 group E retry (HIGH 4) — this liability's OWN principal
   // Category, self-healed (created) the first time it needs a budget line
   // or a payment. Every liability gets its own category (instead of every
@@ -1264,6 +1281,39 @@ model Liability {
   @@index([familyGroupId])
   @@index([principalCategoryId])
   @@map("liabilities")
+}
+
+// Revisi K — ordered KPR rate periods; only the last (months null) runs to maturity.
+model LiabilityRatePeriod {
+  id            String         @id @default(uuid())
+  familyGroupId String
+  liabilityId   String
+  sequence      Int
+  kind          RatePeriodKind
+  months        Int?
+  ratePercent   Decimal        @db.Decimal(5, 2)
+  liability     Liability      @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([liabilityId, sequence])
+  @@index([familyGroupId])
+  @@map("liability_rate_periods")
+}
+
+// Revisi K — floating-rate changes the user recorded from bank notices.
+model LiabilityFloatingRate {
+  id              String    @id @default(uuid())
+  familyGroupId   String
+  liabilityId     String
+  effectiveDate   DateTime  @db.Date
+  ratePercent     Decimal   @db.Decimal(5, 2)
+  note            String?   @db.VarChar(200)
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  liability       Liability @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([liabilityId, effectiveDate])
+  @@index([familyGroupId])
+  @@map("liability_floating_rates")
 }
 
 model Insurance {

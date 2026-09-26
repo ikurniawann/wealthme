@@ -88,6 +88,10 @@ function baseLiability(overrides: Partial<LiabilityDto> = {}): LiabilityDto {
     currentInstallmentAmount: "800000",
     fixedRateMonths: null,
     floatingRate: null,
+    kprScheme: null,
+    ratePeriods: [],
+    currentRatePercent: "2.25",
+    currentInstallmentLate: false,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides,
@@ -154,6 +158,8 @@ const mockApiFetch = jest.fn(
         interestMethod: "efektif",
         installmentAmount: null,
         rows: scheduleRows,
+        rateBands: [],
+        hasFloatingPeriod: false,
       });
     }
     const previewPrefix = `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/payment-preview?amount=`;
