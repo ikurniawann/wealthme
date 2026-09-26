@@ -4,11 +4,12 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Max,
   MaxLength,
   Min,
 } from "class-validator";
+
+import { IsUserId } from "../../common/decorators/is-user-id.decorator";
 
 // EPIC-021 Group D (#14) — mirrors CreateHeirDto (Decision #9: warisan and
 // asuransi share one beneficiary shape).
@@ -31,11 +32,11 @@ export class CreateInsuranceBeneficiaryDto {
   @Max(100)
   sharePercent!: number;
 
-  // EPIC-023 F1 (D14) — `User.id` is always a uuid (`@default(uuid())`);
-  // validating the shape here rejects garbage before it ever reaches the
-  // tenant-scope lookup in InsurancesService.
+  // Bugfix (2026-09-26) — NOT `@IsUUID()`: Better Auth ids aren't UUIDs (see
+  // accounts/dto/create-account.dto.ts). `IsUserId()` still rejects garbage
+  // before it reaches the tenant-scope lookup in InsurancesService.
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
+  @IsUserId()
   memberUserId?: string;
 }
