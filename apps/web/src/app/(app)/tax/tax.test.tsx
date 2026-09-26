@@ -1,18 +1,23 @@
 /**
  * TS review fix (HIGH #1) — /tax's "Save to Tax Records" used to build its
  * payload from the raw `gross` input state while the tax amount came from
- * the debounced /calculators/pph21 query result. Saving inside the debounce
- * window could persist a NEW gross income paired with an OLD netTax. The
- * fix builds the whole save payload from the server-echoed pph21Result and
+ * the debounced preview query result. Saving inside the debounce window
+ * could persist a NEW gross income paired with an OLD netTax. The fix
+ * builds the whole save payload from the server-echoed pphOp result and
  * disables Save while a newer calculation is in flight — this test locks
  * that in.
+ *
+ * Task 9 (sub-plan L) — the calculator moved from the legacy flat
+ * `/calculators/pph21` endpoint to the detailed
+ * `/family-groups/:fg/tax/pph-op/preview` endpoint (PTKP/pension/withheld/
+ * freelance NPPN/other-net inputs, server-derived PTKP, rules).
  */
 
 import type { ReactElement, ReactNode } from "react";
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { Pph21ResultDto, TaxRecordDto } from "@wealthme/contracts";
+import type { PphOpResultDto, TaxRecordDto } from "@wealthme/contracts";
 
 const mockUseSessionAuth = jest.fn();
 jest.mock("../../../lib/auth-client", () => ({
@@ -38,6 +43,8 @@ import TaxPage, { MAX_TAX_INPUT, toClampedDigitString } from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
+const PPH_OP_PREVIEW_URL = `/family-groups/${FAMILY_GROUP_ID}/tax/pph-op/preview`;
+const TER_PREVIEW_URL = `/family-groups/${FAMILY_GROUP_ID}/tax/ter/preview`;
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -53,18 +60,23 @@ function render(ui: ReactElement) {
   return rtlRender(ui, { wrapper: Providers });
 }
 
-function buildPph21Result(
-  overrides: Partial<Pph21ResultDto> = {},
-): Pph21ResultDto {
+function buildPphOpResult(
+  overrides: Partial<PphOpResultDto> = {},
+): PphOpResultDto {
   return {
-    grossIncome: 0,
-    biayaJabatan: 0,
-    ptkp: 54_000_000,
-    zakatDeduction: 0,
-    pkp: 0,
-    taxBreakdown: [],
-    totalTax: 0,
-    effectiveRate: 0,
+    taxYear: new Date().getFullYear(),
+    ptkp: "54000000",
+    biayaJabatan: "0",
+    pensionDeduction: "0",
+    freelanceNet: "0",
+    neto: "0",
+    zakatApplied: "0",
+    pkp: "0",
+    brackets: [],
+    tax: "0",
+    withheld: "0",
+    balance: "0",
+    rules: [],
     ...overrides,
   };
 }
@@ -106,7 +118,19 @@ const OWNER_ME = {
   memberships: [{ id: "m-1", familyGroupId: FAMILY_GROUP_ID, role: "owner" }],
 };
 
-describe("TaxPage — PPh21 save uses the server-echoed result, never a stale/mismatched pair", () => {
+// The TER panel (mounted below the progressive-breakdown SectionCard) hits
+// its own preview endpoint on every render; route it to a harmless empty
+// response by default so every test below doesn't have to know about it.
+function withDefaultTerRoute(
+  impl: (url: string, opts?: { body?: string; method?: string }) => unknown,
+) {
+  return (url: string, opts?: { body?: string; method?: string }) => {
+    if (url === TER_PREVIEW_URL) return Promise.resolve(null);
+    return impl(url, opts);
+  };
+}
+
+describe("TaxPage — PPh OP save uses the server-echoed result, never a stale/mismatched pair", () => {
   beforeEach(() => {
     jest.resetAllMocks();
     queryClient.clear();
@@ -121,15 +145,15 @@ describe("TaxPage — PPh21 save uses the server-echoed result, never a stale/mi
   });
 
   it("disables Save while a newer calculation is in flight, and never persists a gross/netTax pair the server hasn't echoed together", async () => {
-    // Arrange — the FIRST /calculators/pph21 call (fired for the initial
-    // empty gross on mount) resolves immediately; the SECOND call (fired
-    // once the user types a real gross income) resolves only when the test
-    // tells it to, so we can assert on the in-between "in flight" state.
-    let resolveSecondCalc: ((value: Pph21ResultDto) => void) | undefined;
+    // Arrange — the FIRST preview call (fired for the initial empty gross on
+    // mount) resolves immediately; the SECOND call (fired once the user
+    // types a real gross income) resolves only when the test tells it to,
+    // so we can assert on the in-between "in flight" state.
+    let resolveSecondCalc: ((value: PphOpResultDto) => void) | undefined;
     let calcCallCount = 0;
 
     mockApiFetch.mockImplementation(
-      (url: string, opts?: { body?: string; method?: string }) => {
+      withDefaultTerRoute((url: string, opts?) => {
         // EPIC-023 Task I (I1) — the page now resolves the caller's role
         // from /auth/me before enabling Save (see TAX_MANAGE_ROLES in
         // ./page.tsx); this user is the family owner.
@@ -141,18 +165,12 @@ describe("TaxPage — PPh21 save uses the server-echoed result, never a stale/mi
             ],
           });
         }
-        if (url === "/calculators/pph21") {
+        if (url === PPH_OP_PREVIEW_URL) {
           calcCallCount += 1;
-          const body = JSON.parse(opts?.body ?? "{}") as {
-            grossIncome: number;
-            ptkp: number;
-          };
           if (calcCallCount === 1) {
-            return Promise.resolve(
-              buildPph21Result({ grossIncome: 0, ptkp: body.ptkp }),
-            );
+            return Promise.resolve(buildPphOpResult());
           }
-          return new Promise<Pph21ResultDto>((resolve) => {
+          return new Promise<PphOpResultDto>((resolve) => {
             resolveSecondCalc = resolve;
           });
         }
@@ -163,7 +181,7 @@ describe("TaxPage — PPh21 save uses the server-echoed result, never a stale/mi
           return Promise.resolve([]); // tax records list
         }
         return Promise.resolve([]);
-      },
+      }),
     );
 
     const user = userEvent.setup();
@@ -187,14 +205,12 @@ describe("TaxPage — PPh21 save uses the server-echoed result, never a stale/mi
     expect(calcCallCount).toBeGreaterThanOrEqual(2);
 
     // Resolve the second calculation with its own self-consistent
-    // grossIncome/totalTax pair (matching the DTO the request actually sent).
+    // gross/tax pair (matching the request actually sent).
     resolveSecondCalc?.(
-      buildPph21Result({
-        grossIncome: 100_000_000,
-        biayaJabatan: 5_000_000,
-        pkp: 41_000_000,
-        totalTax: 2_050_000,
-        effectiveRate: 0.0205,
+      buildPphOpResult({
+        biayaJabatan: "5000000",
+        pkp: "41000000",
+        tax: "2050000",
       }),
     );
 
@@ -218,17 +234,84 @@ describe("TaxPage — PPh21 save uses the server-echoed result, never a stale/mi
       const postCall = mockApiFetch.mock.calls.find(
         (call) =>
           typeof call[0] === "string" &&
-          call[0].includes("/tax") &&
+          call[0] === `/family-groups/${FAMILY_GROUP_ID}/tax` &&
           call[1]?.method === "POST",
       );
       expect(postCall).toBeDefined();
       const body = JSON.parse(postCall![1].body as string) as {
         grossIncome: string;
         netTax: string;
+        ptkp?: string;
       };
       expect(body.grossIncome).toBe("100000000");
       expect(body.netTax).toBe("2050000");
+      expect(body.ptkp).toBeUndefined();
     });
+  });
+
+  it('choosing K/I with 2 dependents sends maritalStatus: "KI", dependents: 2 in the preview body', async () => {
+    mockApiFetch.mockImplementation(
+      withDefaultTerRoute((url: string) => {
+        if (url === "/auth/me") return Promise.resolve(OWNER_ME);
+        if (url === PPH_OP_PREVIEW_URL)
+          return Promise.resolve(buildPphOpResult());
+        return Promise.resolve([]);
+      }),
+    );
+
+    const user = userEvent.setup();
+    render(<TaxPage />);
+
+    await screen.findByRole("button", { name: /Simpan ke Catatan Pajak/i });
+    await user.selectOptions(
+      screen.getByLabelText("Status PTKP"),
+      "K/I (penghasilan istri digabung)",
+    );
+    await user.selectOptions(screen.getByLabelText("Tanggungan (0–3)"), "2");
+
+    await waitFor(() => {
+      const call = mockApiFetch.mock.calls.find((c) => {
+        if (c[0] !== PPH_OP_PREVIEW_URL || !c[1]?.body) return false;
+        const body = JSON.parse(c[1].body as string) as {
+          maritalStatus: string;
+          dependents: number;
+        };
+        return body.maritalStatus === "KI" && body.dependents === 2;
+      });
+      expect(call).toBeDefined();
+    });
+  });
+
+  it("a result with a verified: false rule shows the unverified badge", async () => {
+    mockApiFetch.mockImplementation(
+      withDefaultTerRoute((url: string) => {
+        if (url === "/auth/me") return Promise.resolve(OWNER_ME);
+        if (url === PPH_OP_PREVIEW_URL)
+          return Promise.resolve(
+            buildPphOpResult({
+              rules: [
+                {
+                  key: "pph.pasal17",
+                  legalBasis: "PER-17/PJ/2015",
+                  source: null,
+                  verified: false,
+                  effectiveFrom: "2015-01-01",
+                  effectiveTo: null,
+                  outOfRange: false,
+                  note: null,
+                },
+              ],
+            }),
+          );
+        return Promise.resolve([]);
+      }),
+    );
+
+    render(<TaxPage />);
+
+    expect(
+      await screen.findByText("perkiraan — cek aturan terbaru DJP"),
+    ).toBeInTheDocument();
   });
 });
 
@@ -261,17 +344,19 @@ describe("TaxPage — Save is only offered when the API would actually accept it
       },
       isPending: false,
     });
-    mockApiFetch.mockImplementation((url: string) => {
-      if (url === "/calculators/pph21") {
-        return Promise.resolve(buildPph21Result());
-      }
-      if (url === "/auth/me") {
-        return me === null
-          ? Promise.reject({ status: 403, message: "Access denied" })
-          : Promise.resolve(me);
-      }
-      return Promise.resolve([]);
-    });
+    mockApiFetch.mockImplementation(
+      withDefaultTerRoute((url: string) => {
+        if (url === PPH_OP_PREVIEW_URL) {
+          return Promise.resolve(buildPphOpResult());
+        }
+        if (url === "/auth/me") {
+          return me === null
+            ? Promise.reject({ status: 403, message: "Access denied" })
+            : Promise.resolve(me);
+        }
+        return Promise.resolve([]);
+      }),
+    );
   }
 
   function saveButton() {
@@ -294,7 +379,7 @@ describe("TaxPage — Save is only offered when the API would actually accept it
     return mockApiFetch.mock.calls.filter(
       (call) =>
         typeof call[0] === "string" &&
-        call[0].includes("/tax") &&
+        call[0] === `/family-groups/${FAMILY_GROUP_ID}/tax` &&
         (call[1] as { method?: string } | undefined)?.method === "POST",
     );
   }
@@ -383,7 +468,7 @@ describe("TaxPage — Save is only offered when the API would actually accept it
     },
   );
 
-  it("no family group yet: Save is disabled instead of posting to /family-groups/undefined/tax", async () => {
+  it("no family group yet: Save is disabled instead of posting to /family-groups/undefined/tax, and no preview request is sent", async () => {
     mockApi({ ...OWNER_ME, familyGroupId: null, memberships: [] }, null);
     const user = userEvent.setup();
     render(<TaxPage />);
@@ -406,15 +491,18 @@ describe("TaxPage — Save is only offered when the API would actually accept it
   it("surfaces the server's own message when a save still fails", async () => {
     mockApi(OWNER_ME);
     mockApiFetch.mockImplementation(
-      (url: string, opts?: { method?: string }) => {
-        if (url === "/calculators/pph21")
-          return Promise.resolve(buildPph21Result());
+      withDefaultTerRoute((url: string, opts?) => {
+        if (url === PPH_OP_PREVIEW_URL)
+          return Promise.resolve(buildPphOpResult());
         if (url === "/auth/me") return Promise.resolve(OWNER_ME);
-        if (url.includes("/tax") && opts?.method === "POST") {
+        if (
+          url === `/family-groups/${FAMILY_GROUP_ID}/tax` &&
+          opts?.method === "POST"
+        ) {
           return Promise.reject({ status: 403, message: "Access denied" });
         }
         return Promise.resolve([]);
-      },
+      }),
     );
 
     const { toast } = jest.requireMock("sonner") as {
@@ -461,17 +549,19 @@ describe("TaxPage — Save is only offered when the API would actually accept it
       isPending: false,
     });
     let resolveMe: ((value: unknown) => void) | undefined;
-    mockApiFetch.mockImplementation((url: string) => {
-      if (url === "/calculators/pph21") {
-        return Promise.resolve(buildPph21Result());
-      }
-      if (url === "/auth/me") {
-        return new Promise((resolve) => {
-          resolveMe = resolve;
-        });
-      }
-      return Promise.resolve([]);
-    });
+    mockApiFetch.mockImplementation(
+      withDefaultTerRoute((url: string) => {
+        if (url === PPH_OP_PREVIEW_URL) {
+          return Promise.resolve(buildPphOpResult());
+        }
+        if (url === "/auth/me") {
+          return new Promise((resolve) => {
+            resolveMe = resolve;
+          });
+        }
+        return Promise.resolve([]);
+      }),
+    );
 
     render(<TaxPage />);
 
@@ -509,9 +599,9 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
       isPending: false,
     });
     mockApiFetch.mockImplementation(
-      (url: string, opts?: { method?: string }) => {
-        if (url === "/calculators/pph21") {
-          return Promise.resolve(buildPph21Result());
+      withDefaultTerRoute((url: string, opts?) => {
+        if (url === PPH_OP_PREVIEW_URL) {
+          return Promise.resolve(buildPphOpResult());
         }
         if (url === "/auth/me") return Promise.resolve(me);
         if (url.includes("/tax/") && opts?.method === "PATCH") {
@@ -519,7 +609,7 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
         }
         if (url.includes("/tax")) return Promise.resolve(taxRecords);
         return Promise.resolve([]);
-      },
+      }),
     );
   }
 
@@ -580,9 +670,9 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
   it("surfaces the server's own message when a status update fails", async () => {
     mockApiWithTaxRecords(OWNER_ME, [PREV_RECORD]);
     mockApiFetch.mockImplementation(
-      (url: string, opts?: { method?: string }) => {
-        if (url === "/calculators/pph21") {
-          return Promise.resolve(buildPph21Result());
+      withDefaultTerRoute((url: string, opts?) => {
+        if (url === PPH_OP_PREVIEW_URL) {
+          return Promise.resolve(buildPphOpResult());
         }
         if (url === "/auth/me") return Promise.resolve(OWNER_ME);
         if (url.includes("/tax/") && opts?.method === "PATCH") {
@@ -590,7 +680,7 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
         }
         if (url.includes("/tax")) return Promise.resolve([PREV_RECORD]);
         return Promise.resolve([]);
-      },
+      }),
     );
 
     const { toast } = jest.requireMock("sonner") as {
@@ -690,14 +780,16 @@ describe("TaxPage — deduction auto-fill from recorded donations", () => {
       isPending: false,
     });
 
-    mockApiFetch.mockImplementation((url: string) => {
-      if (url === "/calculators/pph21") {
-        return Promise.resolve(buildPph21Result());
-      }
-      if (url === "/auth/me") return Promise.resolve(OWNER_ME);
-      if (url.includes("/tax")) return Promise.resolve([]);
-      return Promise.reject(new Error(url));
-    });
+    mockApiFetch.mockImplementation(
+      withDefaultTerRoute((url: string) => {
+        if (url === PPH_OP_PREVIEW_URL) {
+          return Promise.resolve(buildPphOpResult());
+        }
+        if (url === "/auth/me") return Promise.resolve(OWNER_ME);
+        if (url.includes("/tax")) return Promise.resolve([]);
+        return Promise.reject(new Error(url));
+      }),
+    );
   });
 
   it("pre-fills the Perpuluhan/Zakat field with the deductible total", async () => {
@@ -730,8 +822,8 @@ describe("TaxPage — deduction auto-fill from recorded donations", () => {
  * Batch 2 (#6) — the Kalkulator PPh 21 tab rendered two raw debug strings
  * unconditionally for every user: a `{ grossIncome: ..., ptkp: ..., ... }`
  * JSON-shaped payload callout and a bracket-total dev note. Neither had a
- * `NODE_ENV`/dev-flag gate. Both blocks are removed outright (never
- * intended as user-facing copy).
+ * `NODE_ENV`/dev-flag gate. Both blocks were removed outright (never
+ * intended as user-facing copy) — this guards against either reappearing.
  */
 describe("TaxPage — no debug strings in Kalkulator PPh 21 (batch-2 #6)", () => {
   beforeEach(() => {
@@ -745,32 +837,35 @@ describe("TaxPage — no debug strings in Kalkulator PPh 21 (batch-2 #6)", () =>
       },
       isPending: false,
     });
-    mockApiFetch.mockImplementation((url: string) => {
-      if (url === "/calculators/pph21") {
-        return Promise.resolve(
-          buildPph21Result({
-            grossIncome: 10_000_000,
-            pkp: 5_000_000,
-            taxBreakdown: [
-              {
-                bracket: "0 – 60 Juta",
-                taxableAmount: 5_000_000,
-                rate: 0.05,
-                tax: 250_000,
-              },
-            ],
-            totalTax: 250_000,
-          }),
-        );
-      }
-      if (url === "/auth/me") {
-        return Promise.resolve({
-          role: "owner",
-          familyGroupId: FAMILY_GROUP_ID,
-        });
-      }
-      return Promise.resolve([]);
-    });
+    mockApiFetch.mockImplementation(
+      withDefaultTerRoute((url: string) => {
+        if (url === PPH_OP_PREVIEW_URL) {
+          return Promise.resolve(
+            buildPphOpResult({
+              pkp: "5000000",
+              tax: "250000",
+              brackets: [
+                {
+                  from: "0",
+                  upTo: "60000000",
+                  rateBps: 500,
+                  label: "5% (0 - 60 jt)",
+                  taxable: "5000000",
+                  tax: "250000",
+                },
+              ],
+            }),
+          );
+        }
+        if (url === "/auth/me") {
+          return Promise.resolve({
+            role: "owner",
+            familyGroupId: FAMILY_GROUP_ID,
+          });
+        }
+        return Promise.resolve([]);
+      }),
+    );
   });
 
   it("never renders the raw payload-shaped debug callout", async () => {

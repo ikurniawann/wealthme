@@ -345,21 +345,28 @@ describe("i18n dictionary key parity", () => {
     }
   });
 
-  it("tax covers SPT-status, PTKP, and bracket labels in both locales without changing persisted values", () => {
+  it("tax covers SPT-status labels and the detailed PPh OP/TER/DTP copy in both locales", () => {
     const sptStatusIds = ["belum_lapor", "sudah_lapor", "terlambat"] as const;
     for (const key of sptStatusIds) {
       expect(id.tax.sptStatusLabels[key]).toBeTruthy();
       expect(en.tax.sptStatusLabels[key]).toBeTruthy();
     }
-    const ptkpIds = ["tk0", "k0", "k1", "k2", "k3"] as const;
-    for (const key of ptkpIds) {
-      expect(id.tax.ptkpLabels[key]).toBeTruthy();
-      expect(en.tax.ptkpLabels[key]).toBeTruthy();
+    const maritalIds = ["TK", "K", "KI"] as const;
+    for (const key of maritalIds) {
+      expect(id.tax.op.maritalLabels[key]).toBeTruthy();
+      expect(en.tax.op.maritalLabels[key]).toBeTruthy();
     }
-    const bracketIds = ["b0", "b1", "b2", "b4"] as const;
-    for (const key of bracketIds) {
-      expect(id.tax.bracketLabels[key]).toBeTruthy();
-      expect(en.tax.bracketLabels[key]).toBeTruthy();
+    const sectorIds = [
+      "none",
+      "alas_kaki",
+      "tekstil_pakaian",
+      "furnitur",
+      "kulit",
+      "pariwisata",
+    ] as const;
+    for (const key of sectorIds) {
+      expect(id.tax.ter.dtpSectors[key]).toBeTruthy();
+      expect(en.tax.ter.dtpSectors[key]).toBeTruthy();
     }
   });
 

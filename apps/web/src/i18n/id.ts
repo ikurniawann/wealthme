@@ -2700,20 +2700,6 @@ export const id = {
       sudah_lapor: "Sudah Lapor",
       terlambat: "Terlambat",
     },
-    ptkpLabels: {
-      tk0: "TK/0 (Lajang)",
-      k0: "K/0 (Kawin)",
-      k1: "K/1 (Kawin, 1 anak)",
-      k2: "K/2 (Kawin, 2 anak)",
-      k3: "K/3 (Kawin, 3 anak)",
-    },
-    bracketLabels: {
-      b0: "0 - 60 jt",
-      b1: "60 - 250 jt",
-      b2: "250 - 500 jt",
-      b3: "500 jt - 5 M",
-      b4: "> 5 M",
-    },
     heroLabelPrefix: "Estimasi Pajak Terutang ",
     heroSubtitle: "PPh 21 · Status: WP Orang Pribadi",
     prevYearStatusLabelPrefix: "Status SPT Tahunan ",
@@ -2785,13 +2771,9 @@ export const id = {
     perpuluhanHintLinkLabel: "Donasi",
     perpuluhanAutoFilledHint:
       "Terisi otomatis dari total zakat & persepuluhan tercatat tahun {year}. Infaq, sedekah & wakaf tidak termasuk pengurang pajak (PP 60/2010).",
-    payloadCalloutPrefix: "Yang dikirim ke server: ",
-    payloadCalloutSuffix: "- angka murni tanpa titik.",
     resetButton: "Reset",
     toastReset: "Perhitungan direset",
     colTaxableBase: "Dasar Kena Tarif",
-    bracketFootnote:
-      "Jumlah kolom Pajak selalu sama dengan headline di atas, lapisan 30% (500 jt - 5 M) ikut ditampilkan.",
     perpuluhanDeductionTitle: "Perpuluhan Pengurang Pajak",
     perpuluhanDeductionDesc: "dari donasi tercatat",
     emptyDocumentsTitle: "Belum ada dokumen",
@@ -2806,6 +2788,77 @@ export const id = {
     saveDialogNote:
       "Nilai dikirim sebagai string angka murni, titik ribuan hanya untuk tampilan.",
     saveDialogConfirmButton: "Simpan",
+    rules: {
+      unverifiedBadge: "perkiraan — cek aturan terbaru DJP",
+      outOfRange:
+        "aturan tahun itu tidak dimodelkan; memakai aturan tertua yang tersedia",
+    },
+    op: {
+      statusLabel: "Status PTKP",
+      maritalLabels: {
+        TK: "TK (tidak kawin)",
+        K: "K (kawin)",
+        KI: "K/I (penghasilan istri digabung)",
+      },
+      dependentsLabel: "Tanggungan (0–3)",
+      ptkpDerivedPrefix: "PTKP dihitung server: ",
+      pensionLabel: "Iuran pensiun/JHT/JP porsi Anda (setahun)",
+      withheldLabel:
+        "PPh 21 sudah dipotong pemberi kerja (bukti potong 1721-A1)",
+      freelanceLabel: "Omzet pekerjaan bebas (NPPN)",
+      nppnLabel: "Persentase NPPN (%)",
+      nppnHint:
+        "Isi sesuai tabel PER-17/PJ/2015 untuk profesi & wilayah Anda. Jangan isi bila memakai PPh final UMKM 0,5%.",
+      otherNetLabel: "Penghasilan neto lain",
+      zakatSavedNote:
+        "Saat disimpan, pengurang zakat diambil dari donasi zakat tercatat (lewat BAZNAS/LAZ resmi).",
+      netoLabel: "Penghasilan neto",
+      balanceLabel: "Kurang/(lebih) bayar",
+      overpaidLabel: "Lebih bayar",
+      noTaxRow: "PKP Rp0 — tidak ada PPh terutang",
+      previewNeedsFamily: "Buat atau gabung grup keluarga untuk menghitung.",
+    },
+    ter: {
+      title: "PPh 21 bulanan (TER) & koreksi Desember",
+      subtitle:
+        "Jan–Nov dipotong dengan tarif efektif (TER); Desember dihitung ulang dengan tarif Pasal 17 setahun.",
+      monthlyGrossLabel: "Gaji bruto per bulan",
+      editMonthsToggle: "Atur per bulan (bonus/THR)",
+      categoryPrefix: "Kategori TER: ",
+      kiNote: "Untuk K/I, pemotongan bulanan memakai kategori K/n suami.",
+      colMonth: "Bulan",
+      colGross: "Bruto",
+      colRate: "Tarif",
+      colWithheld: "Dipotong",
+      colDtp: "DTP",
+      decemberLabel: "Desember (koreksi)",
+      refundNote:
+        "Lebih potong — dikembalikan pemberi kerja pada gaji Desember.",
+      notApplicable: "TER berlaku mulai tahun pajak 2024.",
+      dtpTitle: "Insentif PPh 21 DTP",
+      dtpSectorLabel: "Sektor usaha pemberi kerja",
+      dtpSectors: {
+        none: "Bukan sektor penerima",
+        alas_kaki: "Alas kaki",
+        tekstil_pakaian: "Tekstil & pakaian jadi",
+        furnitur: "Furnitur",
+        kulit: "Kulit & barang dari kulit",
+        pariwisata: "Pariwisata",
+      },
+      dtpEmploymentLabel: "Status pegawai",
+      dtpEmployment: { permanent: "Tetap", non_permanent: "Tidak tetap" },
+      dtpDailyWageLabel: "Upah harian rata-rata",
+      dtpNikLabel: "NIK/NPWP sudah tervalidasi di Coretax",
+      dtpReasons: {
+        no_program: "Tidak ada program DTP",
+        sector_not_covered: "Sektor tidak termasuk",
+        gross_above_cap: "Bruto di atas Rp10 jt/bulan",
+        daily_wage_above_cap: "Upah harian di atas batas",
+        nik_not_validated: "NIK belum tervalidasi",
+      },
+      dtpEligible: "Ditanggung pemerintah — dibayar tunai bersama gaji",
+      dtpTotalPrefix: "Total DTP setahun: ",
+    },
   },
   rekening: {
     typeLabels: {

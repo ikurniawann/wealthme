@@ -251,16 +251,26 @@ type DanaEntityId = "cash" | "ewallet";
 /** EPIC-018 Task A6 — `/tax` SPT-status ids (mirrors `SptStatus`). */
 type TaxSptStatusId = "belum_lapor" | "sudah_lapor" | "terlambat";
 
-/** EPIC-018 Task A6 — `/tax` PPh21 PTKP status-option ids (local to the
- * calculator; the numeric threshold `value` stays fixed, only the label
- * translates). */
-type TaxPtkpId = "tk0" | "k0" | "k1" | "k2" | "k3";
+/** Task 9 (sub-plan L) — `/tax` PTKP status ids for the detailed PPh OP
+ * calculator's marital-status select (mirrors `TaxMaritalStatus`). */
+type TaxMaritalStatusId = "TK" | "K" | "KI";
 
-/** EPIC-018 Task A6 — `/tax` progressive-bracket row ids (local display
- * rows for the breakdown table; `idx` maps into the fixed bracket math).
- * EPIC-022 E4 added `b3` (30%, 500jt–5M) — the table previously skipped it,
- * so displayed rows never summed to the headline tax above Rp 500jt. */
-type TaxBracketId = "b0" | "b1" | "b2" | "b3" | "b4";
+/** Task 9 (sub-plan L) — DTP incentive sector/employment/reason ids
+ * (mirror the contracts' `DtpSector` and `DtpReason` unions; `none` is a
+ * local addition for "not a covered sector" in the select). */
+type TaxDtpSectorId =
+  | "none"
+  | "alas_kaki"
+  | "tekstil_pakaian"
+  | "furnitur"
+  | "kulit"
+  | "pariwisata";
+type TaxDtpReasonId =
+  | "no_program"
+  | "sector_not_covered"
+  | "gross_above_cap"
+  | "daily_wage_above_cap"
+  | "nik_not_validated";
 
 /** EPIC-018 Task A6 — `/rekening` account-type ids (local wording distinct
  * from `aset.accountTypeLabels` — same keys as `Account.type`, different
@@ -2471,8 +2481,6 @@ export type I18nDictionary = {
    */
   tax: {
     sptStatusLabels: Record<TaxSptStatusId, string>;
-    ptkpLabels: Record<TaxPtkpId, string>;
-    bracketLabels: Record<TaxBracketId, string>;
     heroLabelPrefix: string;
     heroSubtitle: string;
     prevYearStatusLabelPrefix: string;
@@ -2547,12 +2555,9 @@ export type I18nDictionary = {
     perpuluhanHint: string;
     perpuluhanHintLinkLabel: string;
     perpuluhanAutoFilledHint: string;
-    payloadCalloutPrefix: string;
-    payloadCalloutSuffix: string;
     resetButton: string;
     toastReset: string;
     colTaxableBase: string;
-    bracketFootnote: string;
     perpuluhanDeductionTitle: string;
     perpuluhanDeductionDesc: string;
     emptyDocumentsTitle: string;
@@ -2569,6 +2574,63 @@ export type I18nDictionary = {
     saveDialogTaxRow: string;
     saveDialogNote: string;
     saveDialogConfirmButton: string;
+    // Task 9 (sub-plan L) — shared `<TaxRuleBadge>` copy for any
+    // unverified/out-of-range `TaxRuleRefDto` surfaced anywhere on /tax.
+    rules: {
+      unverifiedBadge: string;
+      outOfRange: string;
+    };
+    // Task 9 — the detailed PPh OP calculator (replaces the old flat
+    // PTKP/gross-only form): marital status + dependents drive the
+    // server-computed PTKP, plus pension/withheld/freelance NPPN/other-net
+    // inputs the legacy calculator never had.
+    op: {
+      statusLabel: string;
+      maritalLabels: Record<TaxMaritalStatusId, string>;
+      dependentsLabel: string;
+      ptkpDerivedPrefix: string;
+      pensionLabel: string;
+      withheldLabel: string;
+      freelanceLabel: string;
+      nppnLabel: string;
+      nppnHint: string;
+      otherNetLabel: string;
+      zakatSavedNote: string;
+      netoLabel: string;
+      balanceLabel: string;
+      overpaidLabel: string;
+      noTaxRow: string;
+      previewNeedsFamily: string;
+    };
+    // Task 9 — monthly PPh 21 TER (tarif efektif rata-rata) withholding +
+    // the December Pasal 17 true-up, plus the PPh 21 DTP (ditanggung
+    // pemerintah) incentive fieldset.
+    ter: {
+      title: string;
+      subtitle: string;
+      monthlyGrossLabel: string;
+      editMonthsToggle: string;
+      categoryPrefix: string;
+      kiNote: string;
+      colMonth: string;
+      colGross: string;
+      colRate: string;
+      colWithheld: string;
+      colDtp: string;
+      decemberLabel: string;
+      refundNote: string;
+      notApplicable: string;
+      dtpTitle: string;
+      dtpSectorLabel: string;
+      dtpSectors: Record<TaxDtpSectorId, string>;
+      dtpEmploymentLabel: string;
+      dtpEmployment: { permanent: string; non_permanent: string };
+      dtpDailyWageLabel: string;
+      dtpNikLabel: string;
+      dtpReasons: Record<TaxDtpReasonId, string>;
+      dtpEligible: string;
+      dtpTotalPrefix: string;
+    };
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
