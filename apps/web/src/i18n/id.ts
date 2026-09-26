@@ -4238,4 +4238,18 @@ export const id = {
     editDescription: "Perubahan langsung berlaku di seluruh formulir aplikasi.",
     addToMasterData: "+ Tambah ke Master Data",
   },
+  money: {
+    currencyLabel: "Mata uang",
+    convertedIdr: "≈ {amount}",
+    convertedDisplay: "≈ {amount} (mata uang tampilan)",
+    rateLine: "1 {code} = Rp {rate} · ECB {date}",
+    rateStale:
+      "Kurs terakhir tersedia {date}: 1 {code} = Rp {rate}. Penyedia kurs sedang tidak bisa dihubungi.",
+    rateIndicative: "Kurs indikatif, bukan kurs pasar: 1 {code} = Rp {rate}",
+    rateLoading: "Memuat kurs…",
+    rateUnavailable: "Kurs tidak tersedia. Pilih IDR atau coba lagi.",
+    serverNote: "Nilai rupiah final dihitung server saat disimpan.",
+    rateNotReady: "Tunggu kurs selesai dimuat sebelum menyimpan.",
+    storedAsIdr: "Disimpan sebagai IDR, ditampilkan dalam {display}.",
+  },
 } satisfies I18nDictionary;

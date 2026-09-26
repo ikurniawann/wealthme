@@ -4173,4 +4173,19 @@ export const en = {
     editDescription: "Changes take effect immediately across every app form.",
     addToMasterData: "+ Add to Master Data",
   },
+  money: {
+    currencyLabel: "Currency",
+    convertedIdr: "≈ {amount}",
+    convertedDisplay: "≈ {amount} (display currency)",
+    rateLine: "1 {code} = Rp {rate} · ECB {date}",
+    rateStale:
+      "Last available rate {date}: 1 {code} = Rp {rate}. The rate provider is currently unreachable.",
+    rateIndicative: "Indicative rate, not a market rate: 1 {code} = Rp {rate}",
+    rateLoading: "Loading rate…",
+    rateUnavailable: "Rate unavailable. Choose IDR or try again.",
+    serverNote:
+      "The final rupiah value is computed by the server when you save.",
+    rateNotReady: "Wait for the exchange rate to load before saving.",
+    storedAsIdr: "Stored as IDR, shown in {display}.",
+  },
 } satisfies I18nDictionary;

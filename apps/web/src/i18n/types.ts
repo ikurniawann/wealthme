@@ -4028,4 +4028,17 @@ export type I18nDictionary = {
     editDescription: string;
     addToMasterData: string;
   };
+  money: {
+    currencyLabel: string;
+    convertedIdr: string;
+    convertedDisplay: string;
+    rateLine: string;
+    rateStale: string;
+    rateIndicative: string;
+    rateLoading: string;
+    rateUnavailable: string;
+    serverNote: string;
+    rateNotReady: string;
+    storedAsIdr: string;
+  };
 };
