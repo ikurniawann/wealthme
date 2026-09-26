@@ -68,6 +68,9 @@ import {
   type KprPlanDraft,
 } from "./kpr-presets";
 import { KprRatePeriodsField } from "./kpr-rate-periods-field";
+import { KprFloatingRatesPanel } from "./kpr-floating-rates-panel";
+import { KprPrepaymentSimulator } from "./kpr-prepayment-simulator";
+import { ScheduleRateCell } from "./schedule-rate-cell";
 
 import type {
   FxInput,
@@ -1055,6 +1058,7 @@ function LiabilityDetailDialog({
   onPay: (item: LiabilityDto) => void;
 }) {
   const { t, locale } = useLocale();
+  const queryClient = useQueryClient();
   const typeLabel = item
     ? (t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type)
     : "";
@@ -1067,6 +1071,8 @@ function LiabilityDetailDialog({
     enabled: Boolean(item && familyGroupId && token),
   });
   const scheduleRows = scheduleQuery.data?.rows ?? [];
+  const rateBands = scheduleQuery.data?.rateBands ?? [];
+  const hasFloatingPeriod = scheduleQuery.data?.hasFloatingPeriod ?? false;
   const firstRow = scheduleRows[0];
   const paysOff = scheduleRows[scheduleRows.length - 1]?.remaining === "0";
   const anchor = item?.dueDate ? new Date(item.dueDate) : new Date();
@@ -1215,12 +1221,17 @@ function LiabilityDetailDialog({
                       </div>
                     )}
                     <div className="mt-3">
-                      <div className="section-title mb-2 text-[13px]">
-                        {t.liabilitas.amortisationScheduleTitle} (
-                        {scheduleRows.length}
-                        {t.liabilitas.amortisationScheduleCountSuffix})
+                      <div className="section-title mb-2 flex items-baseline justify-between gap-2 text-[13px]">
+                        <span>
+                          {t.liabilitas.amortisationScheduleTitle} (
+                          {scheduleRows.length}
+                          {t.liabilitas.amortisationScheduleCountSuffix})
+                        </span>
+                        <span className="t-xs t-muted font-normal whitespace-nowrap">
+                          {t.liabilitas.amortisationScheduleScrollHint}
+                        </span>
                       </div>
-                      <div className="table-wrap max-h-80 overflow-y-auto">
+                      <div className="table-wrap max-h-80 overflow-y-auto overflow-x-auto">
                         <table className="table table--num">
                           <thead>
                             <tr>
@@ -1230,19 +1241,20 @@ function LiabilityDetailDialog({
                               <th>
                                 {t.liabilitas.amortisationScheduleHeaderDate}
                               </th>
-                              <th>
+                              <th>{t.liabilitas.kpr.scheduleRateHeader}</th>
+                              <th className="text-right">
                                 {
                                   t.liabilitas
                                     .amortisationScheduleHeaderInstallment
                                 }
                               </th>
-                              <th>
+                              <th className="text-right">
                                 {
                                   t.liabilitas
                                     .amortisationScheduleHeaderPrincipal
                                 }
                               </th>
-                              <th>
+                              <th className="text-right">
                                 {
                                   t.liabilitas
                                     .amortisationScheduleHeaderInterest
@@ -1268,12 +1280,21 @@ function LiabilityDetailDialog({
                                   )}
                                 </td>
                                 <td className="mono whitespace-nowrap">
+                                  <ScheduleRateCell
+                                    bands={rateBands}
+                                    period={row.period}
+                                    estimateLabel={
+                                      t.liabilitas.kpr.floatingEstimateBadge
+                                    }
+                                  />
+                                </td>
+                                <td className="mono text-right whitespace-nowrap">
                                   {formatRupiah(Number(row.installment))}
                                 </td>
-                                <td className="mono whitespace-nowrap">
+                                <td className="mono text-right whitespace-nowrap">
                                   {formatRupiah(Number(row.principal))}
                                 </td>
-                                <td className="mono whitespace-nowrap">
+                                <td className="mono text-right whitespace-nowrap">
                                   {formatRupiah(Number(row.interest))}
                                 </td>
                                 <td className="mono whitespace-nowrap">
@@ -1288,6 +1309,11 @@ function LiabilityDetailDialog({
                     <div className="hint">
                       {t.liabilitas.amortisationDisclaimer}
                     </div>
+                    {hasFloatingPeriod && (
+                      <div className="notice notice--warning mt-2">
+                        {t.liabilitas.kpr.floatingEstimateNote}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-[12px] text-muted-foreground">
@@ -1295,6 +1321,31 @@ function LiabilityDetailDialog({
                   </div>
                 )}
               </div>
+
+              {item.type === "kpr" &&
+                item.interestMethod === "anuitas" &&
+                familyGroupId && (
+                  <>
+                    {hasFloatingPeriod && (
+                      <KprFloatingRatesPanel
+                        familyGroupId={familyGroupId}
+                        liabilityId={item.id}
+                        token={token}
+                        onChanged={() =>
+                          invalidateLiabilityRelatedQueries(
+                            queryClient,
+                            familyGroupId,
+                          )
+                        }
+                      />
+                    )}
+                    <KprPrepaymentSimulator
+                      familyGroupId={familyGroupId}
+                      liabilityId={item.id}
+                      token={token}
+                    />
+                  </>
+                )}
 
               {/* Prototype's `.notice` note row (liabilitas.html:405). */}
               {item.notes && (
@@ -1440,6 +1491,14 @@ function PayLiabilityDialog({
             </DialogDescription>
 
             <DialogBody>
+              {item.currentInstallmentLate && (
+                <div className="notice notice--warning" role="status">
+                  <span className="badge badge--danger">
+                    {t.liabilitas.payLateBadge}
+                  </span>{" "}
+                  {t.liabilitas.payLateNote}
+                </div>
+              )}
               <div className="field">
                 <span className="label" id="pay-liability-preset-label">
                   {t.liabilitas.payPresetLabel}

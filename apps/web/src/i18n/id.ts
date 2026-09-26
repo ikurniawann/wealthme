@@ -2051,6 +2051,7 @@ export const id = {
     detailPayButton: "Bayar Cicilan",
     amortisationScheduleTitle: "Jadwal Amortisasi",
     amortisationScheduleCountSuffix: " angsuran berikutnya",
+    amortisationScheduleScrollHint: "Geser untuk melihat kolom lainnya →",
     amortisationScheduleHeaderIndex: "Ke-",
     amortisationScheduleHeaderDate: "Tanggal",
     amortisationScheduleHeaderPrincipal: "Pokok",
@@ -2089,6 +2090,9 @@ export const id = {
       "Proyeksi gagal dimuat karena jadwal cicilan tidak tersedia.",
     detailTenorLabel: "Tenor",
     tenorMonthsSuffix: " bulan",
+    payLateBadge: "Telat",
+    payLateNote:
+      "Cicilan ini sudah lewat jatuh tempo — masih dihitung sebagai cicilan yang sama selama masa tenggang 5 hari.",
     kpr: {
       planLegend: "Struktur bunga KPR",
       presetLabel: "Skema KPR",
@@ -2123,6 +2127,48 @@ export const id = {
         "Cicilan dihitung ulang (anuitas) dari sisa pokok dan sisa tenor setiap kali bunga berganti.",
       planInvalid:
         "Lengkapi setiap periode: lama minimal 1 bulan (kecuali periode terakhir) dan bunga 0–30%.",
+      scheduleRateHeader: "Bunga",
+      floatingEstimateBadge: "Estimasi",
+      floatingEstimateNote:
+        "Baris floating adalah estimasi: dihitung dengan bunga floating terakhir yang diketahui, yang bisa diubah bank kapan saja.",
+      historyTitle: "Riwayat bunga floating",
+      historyHint:
+        "Catat dari pemberitahuan bank. Bunga baru berlaku mulai cicilan penuh pertama sejak tanggal efektif; cicilan dihitung ulang dari sisa pokok dan sisa tenor.",
+      historyEmpty:
+        "Belum ada perubahan tercatat — jadwal memakai bunga floating dari periode bunga.",
+      historyLoadFailed: "Riwayat bunga gagal dimuat.",
+      historyDateLabel: "Tanggal efektif",
+      historyRateLabel: "Bunga baru/tahun (%)",
+      historyAddButton: "Catat perubahan",
+      historyDeleteButton: "Hapus perubahan",
+      historyFromPeriodPrefix: "berlaku dari cicilan ke-",
+      historySaved: "Perubahan bunga dicatat",
+      historyDeleted: "Perubahan bunga dihapus",
+      historySaveFailed: "Gagal menyimpan perubahan bunga",
+      prepayTitle: "Simulasi pelunasan dipercepat",
+      prepaySimulationNote:
+        "Simulasi saja — tidak mencatat pembayaran apa pun. Pelunasan penuh yang benar-benar dibayar dicatat lewat tombol Bayar.",
+      prepayModeLabel: "Jenis pelunasan",
+      prepayModes: {
+        full: "Lunas penuh",
+        reduce_tenor: "Sebagian — tenor lebih pendek",
+        reduce_installment: "Sebagian — cicilan lebih kecil",
+      },
+      prepayAmountLabel: "Pokok yang dilunasi (Rp)",
+      prepayPenaltyLabel: "Penalti (%)",
+      prepayPenaltyHint:
+        "Contoh 1% — umumnya 1–3% dari pokok yang dilunasi (bisa sampai 7%), sering lebih ringan di masa floating. Cek perjanjian kredit Anda.",
+      prepaySubmit: "Hitung simulasi",
+      prepayResultPenalty: "Penalti",
+      prepayResultCashOut: "Total dibayar sekarang",
+      prepayResultInstallment: "Cicilan",
+      prepayResultTenor: "Sisa tenor",
+      prepayResultMonthsSuffix: " bln",
+      prepayResultInterestSaved: "Bunga yang dihemat",
+      prepayResultNetSaving: "Hemat bersih (setelah penalti)",
+      prepayEstimateNote:
+        "Estimasi: bunga floating ke depan diasumsikan tetap, dan bunga berjalan sejak cicilan terakhir tidak dihitung.",
+      prepayFailed: "Simulasi gagal",
     },
   },
   masterdata: {

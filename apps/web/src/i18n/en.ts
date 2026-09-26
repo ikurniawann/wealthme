@@ -2015,6 +2015,7 @@ export const en = {
     detailPayButton: "Pay Installment",
     amortisationScheduleTitle: "Amortisation Schedule",
     amortisationScheduleCountSuffix: " upcoming installments",
+    amortisationScheduleScrollHint: "Scroll for more columns →",
     amortisationScheduleHeaderIndex: "No.",
     amortisationScheduleHeaderDate: "Date",
     amortisationScheduleHeaderPrincipal: "Principal",
@@ -2053,6 +2054,9 @@ export const en = {
       "Could not load the projection: the installment schedule is unavailable.",
     detailTenorLabel: "Tenor",
     tenorMonthsSuffix: " months",
+    payLateBadge: "Late",
+    payLateNote:
+      "This installment is past its due date — it still counts as the same installment during the 5-day grace window.",
     kpr: {
       planLegend: "Mortgage rate structure",
       presetLabel: "Mortgage scheme",
@@ -2087,6 +2091,48 @@ export const en = {
         "The installment is re-annuitised from the remaining principal and tenor every time the rate changes.",
       planInvalid:
         "Complete every period: at least 1 month (except the last) and a rate of 0–30%.",
+      scheduleRateHeader: "Rate",
+      floatingEstimateBadge: "Estimate",
+      floatingEstimateNote:
+        "Floating rows are estimates: they use the latest known floating rate, which the bank may change at any time.",
+      historyTitle: "Floating-rate history",
+      historyHint:
+        "Record it from your bank's notice. The new rate applies from the first whole installment after the effective date; the installment is recalculated from the remaining principal and tenor.",
+      historyEmpty:
+        "No changes recorded yet — the schedule uses the floating rate from the rate periods.",
+      historyLoadFailed: "Could not load the rate history.",
+      historyDateLabel: "Effective date",
+      historyRateLabel: "New rate/year (%)",
+      historyAddButton: "Record change",
+      historyDeleteButton: "Delete change",
+      historyFromPeriodPrefix: "applies from installment #",
+      historySaved: "Rate change recorded",
+      historyDeleted: "Rate change deleted",
+      historySaveFailed: "Could not save the rate change",
+      prepayTitle: "Early repayment simulation",
+      prepaySimulationNote:
+        "Simulation only — nothing is recorded. A full payoff you actually made is recorded with Pay.",
+      prepayModeLabel: "Repayment type",
+      prepayModes: {
+        full: "Pay off in full",
+        reduce_tenor: "Partial — shorter tenor",
+        reduce_installment: "Partial — smaller installment",
+      },
+      prepayAmountLabel: "Principal to prepay (Rp)",
+      prepayPenaltyLabel: "Penalty (%)",
+      prepayPenaltyHint:
+        "Example 1% — commonly 1–3% of the prepaid principal (up to 7%), often lower in the floating period. Check your credit agreement.",
+      prepaySubmit: "Run simulation",
+      prepayResultPenalty: "Penalty",
+      prepayResultCashOut: "Total paid now",
+      prepayResultInstallment: "Installment",
+      prepayResultTenor: "Remaining tenor",
+      prepayResultMonthsSuffix: " mo",
+      prepayResultInterestSaved: "Interest saved",
+      prepayResultNetSaving: "Net saving (after penalty)",
+      prepayEstimateNote:
+        "Estimate: future floating rates are assumed unchanged, and interest accrued since the last installment is not included.",
+      prepayFailed: "Simulation failed",
     },
   },
   masterdata: {

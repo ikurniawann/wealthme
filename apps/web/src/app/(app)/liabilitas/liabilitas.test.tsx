@@ -121,6 +121,13 @@ const SCHEDULE_ROWS: LiabilityScheduleRowDto[] = [
   },
 ];
 let scheduleRows: LiabilityScheduleRowDto[] = SCHEDULE_ROWS;
+let scheduleBands: {
+  fromPeriod: number;
+  toPeriod: number;
+  ratePercent: string;
+  kind: "fixed" | "floating";
+}[] = [];
+let scheduleHasFloating = false;
 let scheduleOutcome: "ok" | "error" = "ok";
 let previewOutcome: "ok" | "exceeds" = "ok";
 
@@ -158,9 +165,15 @@ const mockApiFetch = jest.fn(
         interestMethod: "efektif",
         installmentAmount: null,
         rows: scheduleRows,
-        rateBands: [],
-        hasFloatingPeriod: false,
+        rateBands: scheduleBands,
+        hasFloatingPeriod: scheduleHasFloating,
       });
+    }
+    if (
+      url ===
+      `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/floating-rates`
+    ) {
+      return Promise.resolve([]);
     }
     const previewPrefix = `/family-groups/${FAMILY_GROUP_ID}/liabilities/liab-1/payment-preview?amount=`;
     if (url.startsWith(previewPrefix)) {
@@ -301,6 +314,8 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     postBodies = [];
     createdInstallment = null;
     scheduleRows = SCHEDULE_ROWS;
+    scheduleBands = [];
+    scheduleHasFloating = false;
     scheduleOutcome = "ok";
     previewOutcome = "ok";
 
@@ -865,6 +880,58 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(dialog.queryByRole("table")).not.toBeInTheDocument();
   });
 
+  it("kpr detail: rate column badges floating rows Estimasi and shows history + prepayment panels (revisi K)", async () => {
+    liabilitiesFixture = [
+      baseLiability({
+        name: "KPR BTN",
+        type: "kpr",
+        interestMethod: "anuitas",
+        tenorMonths: 240,
+        installmentAmount: "4182200",
+        currentInstallmentAmount: "4182200",
+      }),
+    ];
+    scheduleRows = [
+      {
+        period: 36,
+        installment: "3390269",
+        interest: "2062537",
+        principal: "1327732",
+        remaining: "448680240",
+      },
+      {
+        period: 37,
+        installment: "4869888",
+        interest: "4112902",
+        principal: "756986",
+        remaining: "447923254",
+      },
+    ];
+    scheduleBands = [
+      { fromPeriod: 36, toPeriod: 36, ratePercent: "5.50", kind: "fixed" },
+      { fromPeriod: 37, toPeriod: 37, ratePercent: "11.00", kind: "floating" },
+    ];
+    scheduleHasFloating = true;
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Detail" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    const table = within(await dialog.findByRole("table"));
+
+    expect(table.getByText("5.50%")).toBeInTheDocument();
+    expect(table.getAllByText("Estimasi")).toHaveLength(1);
+    expect(
+      dialog.getByText(/Baris floating adalah estimasi/),
+    ).toBeInTheDocument();
+    expect(
+      await dialog.findByText("Riwayat bunga floating"),
+    ).toBeInTheDocument();
+    expect(
+      dialog.getByText("Simulasi pelunasan dipercepat"),
+    ).toBeInTheDocument();
+  });
+
   it("prefills Pay with the server's current installment, not the stale fixed-period one (final fix 2)", async () => {
     liabilitiesFixture = [
       baseLiability({
@@ -892,6 +959,28 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("Pay dialog marks an installment inside its 5-day grace window as Telat (revisi K)", async () => {
+    liabilitiesFixture = [baseLiability({ currentInstallmentLate: true })];
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Bayar" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(dialog.getByText("Telat")).toBeInTheDocument();
+    expect(dialog.getByText(/masa tenggang 5 hari/)).toBeInTheDocument();
+  });
+
+  it("Pay dialog shows no Telat notice for an installment that is not late", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Bayar" }));
+    const dialog = within(await screen.findByRole("dialog"));
+
+    expect(dialog.queryByText("Telat")).not.toBeInTheDocument();
   });
 
   it("edit: clearing a saved Tanggal Akad PATCHes startDate null (final fix 6)", async () => {

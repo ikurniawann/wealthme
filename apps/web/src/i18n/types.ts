@@ -217,6 +217,12 @@ type LiabilitasKprPresetId =
   | "syariah_murabahah"
   | "syariah_mmq";
 
+/** Revisi K — `/liabilitas` early-repayment mode ids (mirrors `PrepaymentMode`). */
+type LiabilitasPrepaymentModeId =
+  | "full"
+  | "reduce_tenor"
+  | "reduce_installment";
+
 /**
  * EPIC-018 Task A5 — `/masterdata` system reference-group ids (mirrors the
  * `CrudEntity` `md*` variants). Each group's `title`/`label` translate; the
@@ -1930,6 +1936,8 @@ export type I18nDictionary = {
     detailPayButton: string;
     amortisationScheduleTitle: string;
     amortisationScheduleCountSuffix: string;
+    /** Revisi K — visible cue that the schedule table scrolls horizontally on narrow screens. */
+    amortisationScheduleScrollHint: string;
     amortisationScheduleHeaderIndex: string;
     amortisationScheduleHeaderDate: string;
     amortisationScheduleHeaderPrincipal: string;
@@ -1958,6 +1966,9 @@ export type I18nDictionary = {
     payoffProjectionError: string;
     detailTenorLabel: string;
     tenorMonthsSuffix: string;
+    /** Revisi K — Pay dialog "Telat" notice (every liability type). */
+    payLateBadge: string;
+    payLateNote: string;
     /** Revisi K — KPR rate structure (form); Task 12 adds the detail keys. */
     kpr: {
       planLegend: string;
@@ -1980,6 +1991,38 @@ export type I18nDictionary = {
       removePeriod: string;
       planHint: string;
       planInvalid: string;
+      scheduleRateHeader: string;
+      floatingEstimateBadge: string;
+      floatingEstimateNote: string;
+      historyTitle: string;
+      historyHint: string;
+      historyEmpty: string;
+      historyLoadFailed: string;
+      historyDateLabel: string;
+      historyRateLabel: string;
+      historyAddButton: string;
+      historyDeleteButton: string;
+      historyFromPeriodPrefix: string;
+      historySaved: string;
+      historyDeleted: string;
+      historySaveFailed: string;
+      prepayTitle: string;
+      prepaySimulationNote: string;
+      prepayModeLabel: string;
+      prepayModes: Record<LiabilitasPrepaymentModeId, string>;
+      prepayAmountLabel: string;
+      prepayPenaltyLabel: string;
+      prepayPenaltyHint: string;
+      prepaySubmit: string;
+      prepayResultPenalty: string;
+      prepayResultCashOut: string;
+      prepayResultInstallment: string;
+      prepayResultTenor: string;
+      prepayResultMonthsSuffix: string;
+      prepayResultInterestSaved: string;
+      prepayResultNetSaving: string;
+      prepayEstimateNote: string;
+      prepayFailed: string;
     };
   };
   /**
