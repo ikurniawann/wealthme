@@ -3020,11 +3020,6 @@ export const id = {
     // EPIC-025 N3 prototype structural port — page header (title reuses
     // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
     // the dashed "add account" card.
-    insightOneLabel: "Satu pandangan",
-    insightOneAccountsSuffix: " rekening, ",
-    insightOneOwnersSuffix: " pemilik, 1 saldo keluarga",
-    insightPrivacyLabel: "Privasi",
-    insightPrivacyValue: "Saldo pribadi tetap tersegmentasi",
     filterNoteText:
       "Rekening bank tidak bisa didebit sampai minus, saldo yang sudah minus dicatat sebagai liabilitas.",
     addCardTitle: "Tambah rekening baru",

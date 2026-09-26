@@ -2973,11 +2973,6 @@ export const en = {
     // EPIC-025 N3 prototype structural port — page header (title reuses
     // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
     // the dashed "add account" card.
-    insightOneLabel: "One view",
-    insightOneAccountsSuffix: " accounts, ",
-    insightOneOwnersSuffix: " owners, 1 family balance",
-    insightPrivacyLabel: "Privacy",
-    insightPrivacyValue: "Private balances stay segmented",
     filterNoteText:
       "A bank account can't be debited into the negative, an already-negative balance is recorded as a liability.",
     addCardTitle: "Add a new account",

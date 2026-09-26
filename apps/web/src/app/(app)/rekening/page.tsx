@@ -9,8 +9,6 @@ import {
   Landmark,
   Users,
   User,
-  ScanLine,
-  LockKeyhole,
   List,
   Info,
 } from "lucide-react";
@@ -513,13 +511,6 @@ export default function RekeningPage() {
     (a) => a.ownerUserId === null,
   ).length;
   const ownedCount = scopedAccounts.length - sharedCount;
-  // Prototype structural port — "Satu Pandangan" insight card: distinct
-  // real owners among the scoped accounts (family-shared accounts don't
-  // count as an extra "owner" here, matching the prototype's "3 pemilik"
-  // for accounts owned by 3 distinct people).
-  const distinctOwnerCount = new Set(
-    scopedAccounts.map((a) => a.ownerUserId).filter((id): id is string => !!id),
-  ).size;
 
   const queryClient = useQueryClient();
   const { canManage } = useCanManage("Account");
@@ -751,42 +742,6 @@ export default function RekeningPage() {
           )}
         </div>
       </div>
-
-      {/* Prototype structural port — insight strip. "Alert Pintar" (accounts
-          needing reconciliation) is OMITTED: reconciliation
-          (`/rekonsiliasi`) is an on-demand file-upload match, not a stored
-          per-account status, so there is no real count to show — fabricating
-          one would violate the Honest UI mandate. */}
-      {!isLoading && !isError && scopedAccounts.length > 0 && (
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-primary/20 bg-accent/40 p-3 shadow-sm">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-accent text-accent-foreground">
-              <ScanLine className="size-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
-                {t.rekening.insightOneLabel}
-              </span>
-              <span className="mt-0.5 block truncate text-[13px] font-extrabold">
-                {`${scopedAccounts.length}${t.rekening.insightOneAccountsSuffix}${distinctOwnerCount}${t.rekening.insightOneOwnersSuffix}`}
-              </span>
-            </span>
-          </div>
-          <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-primary/20 bg-accent/40 p-3 shadow-sm">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-accent text-accent-foreground">
-              <LockKeyhole className="size-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
-                {t.rekening.insightPrivacyLabel}
-              </span>
-              <span className="mt-0.5 block truncate text-[13px] font-extrabold">
-                {t.rekening.insightPrivacyValue}
-              </span>
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
           Rekening Bersama / Milik Anggota, all derived from the already-

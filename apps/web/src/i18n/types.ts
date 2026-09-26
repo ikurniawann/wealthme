@@ -2798,11 +2798,6 @@ export type I18nDictionary = {
     deleteDialogBody: string;
     deleteDialogConfirm: string;
     /** EPIC-025 N3 prototype structural port. */
-    insightOneLabel: string;
-    insightOneAccountsSuffix: string;
-    insightOneOwnersSuffix: string;
-    insightPrivacyLabel: string;
-    insightPrivacyValue: string;
     filterNoteText: string;
     addCardTitle: string;
     addCardSubtitle: string;
