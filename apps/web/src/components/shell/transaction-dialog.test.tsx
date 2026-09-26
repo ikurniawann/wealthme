@@ -155,6 +155,15 @@ jest.mock("../../lib/api-client", () => ({
   apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
 }));
 
+jest.mock("../money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../money/fx-test-rates").TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
 // EPIC-027 B2 — jsdom implements no 2D canvas context, so the real
 // `captureVideoFrameBase64` can never succeed here. Only the thin
 // canvas wrapper is stubbed; the downscale/encode loop it wraps keeps its
@@ -453,6 +462,75 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     expect(body.get("file")).toBe(file);
 
     fetchSpy.mockRestore();
+  });
+
+  it("revisi I — IDR submit sends the same body as before (no fxInputs)", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    await user.selectOptions(accountSelect, "acc-1");
+
+    await user.type(
+      screen.getByLabelText(mockDictionary.shell.transactionDialog.amountLabel),
+      "250000",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Simpan",
+      }),
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(([url]) =>
+        String(url).endsWith("/transactions"),
+      );
+      expect(post).toBeDefined();
+      const body = JSON.parse((post as [string, { body: string }])[1].body);
+      expect(body.amount).toBe(250_000);
+      expect(body).not.toHaveProperty("fxInputs");
+    });
+  });
+
+  it("revisi I — a USD amount sends the preview + fxInputs", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    await user.selectOptions(accountSelect, "acc-1");
+
+    await user.selectOptions(
+      screen.getByLabelText(mockDictionary.money.currencyLabel),
+      "USD",
+    );
+    await user.type(
+      screen.getByLabelText(mockDictionary.shell.transactionDialog.amountLabel),
+      "10",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Simpan",
+      }),
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(([url]) =>
+        String(url).endsWith("/transactions"),
+      );
+      expect(post).toBeDefined();
+      expect(
+        JSON.parse((post as [string, { body: string }])[1].body),
+      ).toMatchObject({
+        amount: 179_139,
+        fxInputs: [{ field: "amount", currency: "USD", amount: "10" }],
+      });
+    });
   });
 
   it("surfaces an honest error toast when the attachment upload fails, the transaction itself is still saved", async () => {

@@ -12,7 +12,12 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen } from "@testing-library/react";
+import {
+  render as rtlRender,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // Real Indonesian dictionary, reused as the mocked `useLocale().t` below —
@@ -31,6 +36,35 @@ jest.mock("../../../lib/auth-client", () => ({
     signOut: jest.fn(),
     changePassword: jest.fn(),
   },
+}));
+
+// revisi I — the gold-price MoneyInput's rate preview reads the pinned test
+// rates instead of hitting the network.
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+// revisi I — `goldPriceField = useMoneyField()` now unconditionally reads
+// useCurrencyPreference() for its display-currency fallback. The real hook's
+// own `/fx/rates` sub-query shares this file's single module-level
+// `queryClient` across every test, and an earlier test's unresolved fetch
+// leaves stale, `.rates`-less cache data behind for later tests to trip over
+// — pinned here (IDR, like every other money-aware test file already does)
+// so PengaturanBody's own currency radio picker (which reads
+// `useProfile().currency` directly, untouched) is the only thing under test.
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
 }));
 
 // Mock sonner toast library
@@ -475,3 +509,90 @@ describe("PengaturanBody, Currency Picker Wiring (EPIC-016 Task B2)", () => {
 // Note: The component tests above test the Settings currency picker wiring (RED phase).
 // They should fail because currency preference integration doesn't exist yet.
 // Once implemented, all tests should pass without modifying test assertions.
+
+describe("PengaturanBody, gold price currency picker (revisi I)", () => {
+  const FAMILY_GROUP_ID = "fg-1";
+  const TOKEN = "test-token";
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    localStorage.removeItem("wealthme_settings");
+    mockUseProfile.mockReturnValue({
+      data: { id: "user-1", email: "user@example.com", name: "Test User" },
+      isLoading: false,
+    });
+    const { useLocale } = jest.requireMock<{ useLocale: jest.Mock }>(
+      "../../../hooks/use-locale",
+    );
+    useLocale.mockReturnValue({
+      locale: "id",
+      setLocale: mockSetLocale,
+      toggle: jest.fn(),
+      t: mockAkunDictionary,
+    });
+    const { authClient } = jest.requireMock<{
+      authClient: { useSession: jest.Mock };
+    }>("../../../lib/auth-client");
+    authClient.useSession.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+    mockApiFetch.mockImplementation(
+      (url: string, init?: { method?: string }) => {
+        const method = init?.method ?? "GET";
+        if (url === "/family-groups/mine") {
+          return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+        }
+        if (url.endsWith("/gold-price") && method === "GET") {
+          return Promise.resolve({ pricePerGram: null, updatedAt: null });
+        }
+        if (url.endsWith("/gold-price") && method === "PATCH") {
+          return Promise.resolve({
+            pricePerGram: "1791390",
+            updatedAt: "2026-09-26T00:00:00.000Z",
+          });
+        }
+        return Promise.resolve({ success: true, data: {} });
+      },
+    );
+  });
+
+  it("revisi I — gold price typed in USD per gram PATCHes the preview + fxInputs", async () => {
+    render(<PengaturanBody />);
+
+    const goldPriceField = await screen.findByText(
+      mockAkunDictionary.akun.pengaturan.goldPriceLabel,
+    );
+    await userEvent.selectOptions(
+      within(goldPriceField.closest(".field")!).getByLabelText("Mata uang"),
+      "USD",
+    );
+    await userEvent.type(
+      screen.getByLabelText(mockAkunDictionary.akun.pengaturan.goldPriceLabel),
+      "100",
+    );
+    await userEvent.click(
+      screen.getByRole("button", {
+        name: mockAkunDictionary.akun.pengaturan.goldPriceSaveButton,
+      }),
+    );
+
+    await waitFor(() => {
+      const patch = mockApiFetch.mock.calls.find(
+        ([url, i]) =>
+          String(url).endsWith("/gold-price") &&
+          (i as { method?: string } | undefined)?.method === "PATCH",
+      );
+      expect(patch).toBeDefined();
+      expect(JSON.parse((patch as [string, { body: string }])[1].body)).toEqual(
+        {
+          pricePerGram: 1_791_390,
+          fxInputs: [{ field: "pricePerGram", currency: "USD", amount: "100" }],
+        },
+      );
+    });
+  });
+});

@@ -26,7 +26,7 @@ import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useShell } from "@/components/shell/shell-context";
 import { QuickUnlockPrompt } from "@/components/auth/quick-unlock-prompt";
@@ -65,6 +65,12 @@ import {
 import { toast } from "sonner";
 
 import { CrudModal, withCrudFx, type CrudModalState } from "@/components/crud";
+import {
+  MoneyInput,
+  moneyIdr,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 import { SectionCard, StatusBadge, InfoTip, DateField } from "@/components/wm";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -1200,7 +1206,9 @@ export function PengaturanBody() {
     updateGoldPrice,
     isUpdating: isGoldPriceUpdating,
   } = useGoldPrice();
-  const [goldPriceInput, setGoldPriceInput] = useState("");
+  // Never prefilled, so it opens on the display currency (Decision 12); the
+  // value is still stored as IDR per gram.
+  const goldPriceField = useMoneyField();
   // EPIC-023 F2 (D20, US-DON-6/7) — family religion setting (owner-only
   // write; the API also enforces this — see
   // FamilyGroupsService.updateReligion). Drives which donation calculator
@@ -1288,18 +1296,27 @@ export function PengaturanBody() {
   }
 
   function saveGoldPrice() {
-    const parsed = parseRupiah(goldPriceInput);
+    if (goldPriceField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const parsed = moneyIdr(goldPriceField, parseRupiah);
     if (!parsed || parsed <= 0) {
       toast.error(t.akun.pengaturan.toastGoldPriceInvalid);
       return;
     }
-    updateGoldPrice(parsed, {
-      onSuccess: () => {
-        setGoldPriceInput("");
-        toast.success(t.akun.pengaturan.toastGoldPriceUpdated);
+    updateGoldPrice(
+      withFxInputs({ pricePerGram: parsed }, [
+        ["pricePerGram", goldPriceField],
+      ]),
+      {
+        onSuccess: () => {
+          goldPriceField.reset();
+          toast.success(t.akun.pengaturan.toastGoldPriceUpdated);
+        },
+        onError: () => toast.error(t.akun.pengaturan.toastGoldPriceFailed),
       },
-      onError: () => toast.error(t.akun.pengaturan.toastGoldPriceFailed),
-    });
+    );
   }
 
   function saveAiKey() {
@@ -1385,15 +1402,11 @@ export function PengaturanBody() {
         {isGoldPriceOwner ? (
           <Field label={t.akun.pengaturan.goldPriceLabel}>
             <div className="flex gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                className="input"
+              <MoneyInput
+                field={goldPriceField}
+                id="gold-price"
+                ariaLabel={t.akun.pengaturan.goldPriceLabel}
                 placeholder={t.akun.pengaturan.goldPricePlaceholder}
-                value={goldPriceInput}
-                onChange={(e) =>
-                  setGoldPriceInput(formatAmountInput(e.target.value))
-                }
               />
               <button
                 type="button"
@@ -2682,23 +2695,32 @@ export function ThresholdForm({
 }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
-  const [amount, setAmount] = useState(
-    member.largeTxnThreshold ? formatAmountInput(member.largeTxnThreshold) : "",
-  );
+  // A saved threshold opens on IDR (Decision 9); an unset one follows the
+  // display currency (Decision 12).
+  const amountField = useMoneyField({
+    initialRaw: member.largeTxnThreshold ?? "",
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSave() {
     if (!token) return;
+    if (amountField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
     setIsSaving(true);
     try {
-      const parsed = parseRupiah(amount);
+      const parsed = moneyIdr(amountField, parseRupiah);
       await apiFetch(`/family-groups/${familyGroupId}/members/${member.id}`, {
         token,
         method: "PATCH",
-        body: JSON.stringify({
-          role: member.role,
-          largeTxnThreshold: parsed > 0 ? parsed : null,
-        }),
+        body: JSON.stringify(
+          parsed > 0
+            ? withFxInputs({ role: member.role, largeTxnThreshold: parsed }, [
+                ["largeTxnThreshold", amountField],
+              ])
+            : { role: member.role, largeTxnThreshold: null },
+        ),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.familyGroups.members(familyGroupId),
@@ -2722,13 +2744,10 @@ export function ThresholdForm({
           <label htmlFor="threshold-amount" className="label">
             {t.akun.family.thresholdLabel}
           </label>
-          <input
+          <MoneyInput
+            field={amountField}
             id="threshold-amount"
-            inputMode="numeric"
-            value={amount}
-            onChange={(e) => setAmount(formatAmountInput(e.target.value))}
             placeholder="0"
-            className="input mono"
           />
           <p className="hint">{t.akun.family.thresholdEmptyHint}</p>
         </div>

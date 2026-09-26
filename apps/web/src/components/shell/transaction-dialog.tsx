@@ -51,7 +51,14 @@ import {
 import {
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
+  type FxInput,
 } from "@wealthme/contracts";
+import {
+  MoneyInput,
+  moneyIdr,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 import { useShell } from "./shell-context";
 
 // EPIC-023 Task E3/E4 (D12/D13) — reviewed foundation exception (this file
@@ -98,6 +105,7 @@ type CreateTransactionInput = {
   // EPIC-021 Group B (#23/#27/#28) — real source -> destination transfers.
   toAccountId?: string;
   adminFee?: number;
+  fxInputs?: FxInput[];
 };
 // EPIC-023 Task E3 (D12) — a card purchase never touches an account; it
 // only raises the card's own debt via LiabilitiesService.purchase().
@@ -106,6 +114,7 @@ type PurchaseLiabilityInput = {
   categoryId?: string;
   description?: string;
   occurredAt: string;
+  fxInputs?: FxInput[];
 };
 // EPIC-023 Task D (D3/D9, US-FAM-14) — the API's honest "did NOT create a
 // transaction" response for a row-scoped member's over-threshold expense
@@ -191,7 +200,7 @@ export function TransactionDialog() {
   ];
   const [view, setView] = useState<View>("form");
   const [tab, setTab] = useState(1);
-  const [amount, setAmount] = useState("");
+  const amountField = useMoneyField();
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [adminFee, setAdminFee] = useState("");
@@ -493,7 +502,7 @@ export function TransactionDialog() {
   });
 
   const resetForm = () => {
-    setAmount("");
+    amountField.reset();
     setAccountId("");
     setToAccountId("");
     setAdminFee("");
@@ -656,7 +665,7 @@ export function TransactionDialog() {
     // A receipt is a purchase, so the result lands on the Expense tab —
     // where the category field (and the attachment field) actually exist.
     setTab(1);
-    setAmount(formatAmountInput(String(Math.round(scanResult.amount))));
+    amountField.reset(String(Math.round(scanResult.amount)));
     setDate(isoToDateInputValue(scanResult.occurredAt, date));
     setDescription(scanResult.description);
     // D13 — `categoryId` was matched against the family's REAL categories
@@ -701,7 +710,11 @@ export function TransactionDialog() {
   };
 
   const saveTxn = (addMore?: boolean) => {
-    const amountNum = parseRupiah(amount);
+    if (amountField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const amountNum = moneyIdr(amountField, parseRupiah);
     if (!amountNum || amountNum <= 0) {
       toast.error(t.shell.transactionDialog.invalidAmount);
       return;
@@ -720,12 +733,15 @@ export function TransactionDialog() {
         return;
       }
       purchaseMutation.mutate(
-        {
-          amount: String(amountNum),
-          ...(categoryId ? { categoryId } : {}),
-          ...(description ? { description } : {}),
-          occurredAt: new Date(date).toISOString(),
-        },
+        withFxInputs(
+          {
+            amount: String(amountNum),
+            ...(categoryId ? { categoryId } : {}),
+            ...(description ? { description } : {}),
+            occurredAt: new Date(date).toISOString(),
+          },
+          [["amount", amountField]],
+        ),
         {
           onSuccess: () => {
             toast.success(
@@ -762,16 +778,19 @@ export function TransactionDialog() {
     const adminFeeNum = tabKind === "transfer" ? parseRupiah(adminFee) : 0;
 
     createMutation.mutate(
-      {
-        accountId,
-        ...(categoryId ? { categoryId } : {}),
-        amount: amountNum,
-        type: tabKind,
-        ...(description ? { description } : {}),
-        occurredAt: new Date(date).toISOString(),
-        ...(tabKind === "transfer" ? { toAccountId } : {}),
-        ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
-      },
+      withFxInputs(
+        {
+          accountId,
+          ...(categoryId ? { categoryId } : {}),
+          amount: amountNum,
+          type: tabKind,
+          ...(description ? { description } : {}),
+          occurredAt: new Date(date).toISOString(),
+          ...(tabKind === "transfer" ? { toAccountId } : {}),
+          ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
+        },
+        [["amount", amountField]],
+      ),
       {
         // EPIC-023 Task D (D3/D9, US-FAM-14) — reviewed foundation
         // exception: this dialog is a protected shell file, but the held
@@ -882,13 +901,10 @@ export function TransactionDialog() {
                 label={t.shell.transactionDialog.amountLabel}
                 htmlFor={amountFieldId}
               >
-                <input
+                <MoneyInput
+                  field={amountField}
                   id={amountFieldId}
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
                   placeholder="250.000"
-                  className="input mono"
                 />
               </Field>
 
