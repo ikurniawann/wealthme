@@ -1746,9 +1746,10 @@ export const id = {
     refreshPriceToast: "Memuat ulang harga terbaru…",
     capitalInvestedPrefix: "Modal ditanam",
     livePositionsSuffix: "posisi berharga live",
-    pricingSourceNoticeTitle: "Dua sumber harga.",
+    pricingSourceNoticeTitle: "Saham & kripto delayed ±15 menit.",
     pricingSourceNoticeBody:
       "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko, keduanya delayed ±15 menit, bukan real-time. Emas mengikuti Harga Emas keluarga di Pengaturan. Reksa dana, obligasi, dan lainnya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya; deposito dihitung dari bunganya.",
+    pricingSourceMoreLabel: "Selengkapnya",
     allocationTitle: "Alokasi per Jenis",
     modalDesc: "Kolom menyesuaikan jenis.",
     hintPurchaseDate: "Dipakai untuk menghitung lama kepemilikan.",

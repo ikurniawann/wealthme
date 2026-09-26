@@ -31,6 +31,11 @@ import { DateRangeFilterField } from "@/components/wm/date-range-field";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import {
   Dialog,
   DialogBody,
   DialogContent,
@@ -2058,23 +2063,47 @@ export default function InvestasiPage() {
                       {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
                       {formatReturnPct(summary?.totalReturnPct ?? null)}
                     </StatusBadge>
-                    {/* Gap #3 — formula sub-line, computed from the real
-                        summary DTO (never a static/invented figure). */}
+                    {/* Gap #3 — formula, computed from the real summary DTO
+                        (never a static/invented figure). Polish batch 7b
+                        item 3 — was an always-visible text line; now an
+                        info tooltip beside the badge. */}
                     {summary?.totalReturnRp != null &&
                       summary.totalCostBasis != null && (
-                        <span className="text-[11px] text-muted-foreground">
-                          {t.investasi.returnFormulaLabel
-                            .replace(
-                              "{returnRp}",
-                              formatRupiah(
-                                Math.abs(parseFloat(summary.totalReturnRp)),
-                              ),
-                            )
-                            .replace(
-                              "{costBasis}",
-                              formatRupiah(parseFloat(summary.totalCostBasis)),
-                            )}
-                        </span>
+                        <Tooltip>
+                          <TooltipTrigger
+                            aria-label={t.investasi.returnFormulaLabel
+                              .replace(
+                                "{returnRp}",
+                                formatRupiah(
+                                  Math.abs(parseFloat(summary.totalReturnRp)),
+                                ),
+                              )
+                              .replace(
+                                "{costBasis}",
+                                formatRupiah(
+                                  parseFloat(summary.totalCostBasis),
+                                ),
+                              )}
+                            className="text-muted-foreground"
+                          >
+                            <Info className="size-3.5" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {t.investasi.returnFormulaLabel
+                              .replace(
+                                "{returnRp}",
+                                formatRupiah(
+                                  Math.abs(parseFloat(summary.totalReturnRp)),
+                                ),
+                              )
+                              .replace(
+                                "{costBasis}",
+                                formatRupiah(
+                                  parseFloat(summary.totalCostBasis),
+                                ),
+                              )}
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                   </div>
                 </Card>
@@ -2120,26 +2149,37 @@ export default function InvestasiPage() {
       {/* EPIC-024 #6/#7 pricing-source explainer, extended by the N3 audit
           (gap #9) with a real "Terakhir sinkron" line sourced from
           react-query's own `dataUpdatedAt` for the holdings fetch — never a
-          static/invented timestamp. */}
+          static/invented timestamp. Polish batch 7b item 3 — one line +
+          "Selengkapnya" disclosure instead of the full multi-sentence
+          paragraph always shown. */}
       <div className="flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <span>
-          <strong>{t.investasi.pricingSourceNoticeTitle}</strong>{" "}
-          {t.investasi.pricingSourceNoticeBody}
-          {holdingsUpdatedAt > 0 && (
-            <>
-              {" "}
-              {t.investasi.pricingSourceLastSyncedPrefix}{" "}
-              <span className="mono">
-                {formatLocaleDateTime(
-                  new Date(holdingsUpdatedAt).toISOString(),
-                  locale,
-                )}
-              </span>
-              .
-            </>
-          )}
-        </span>
+        <div className="min-w-0">
+          <span>
+            <strong>{t.investasi.pricingSourceNoticeTitle}</strong>
+            {holdingsUpdatedAt > 0 && (
+              <>
+                {" "}
+                {t.investasi.pricingSourceLastSyncedPrefix}{" "}
+                <span className="mono">
+                  {formatLocaleDateTime(
+                    new Date(holdingsUpdatedAt).toISOString(),
+                    locale,
+                  )}
+                </span>
+                .
+              </>
+            )}
+          </span>
+          <details className="mt-1">
+            <summary className="cursor-pointer list-none text-[12px] font-semibold text-primary hover:underline">
+              {t.investasi.pricingSourceMoreLabel}
+            </summary>
+            <p className="mt-1 text-[11.5px]">
+              {t.investasi.pricingSourceNoticeBody}
+            </p>
+          </details>
+        </div>
       </div>
 
       {/* EPIC-021 #19: filter tabs by type. Gap #2 — moved below the info

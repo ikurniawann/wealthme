@@ -938,3 +938,40 @@ describe("InvestasiPage — allocation donut renders once (Batch 5 item 2)", () 
     );
   });
 });
+
+describe("InvestasiPage — polish batch 7b item 3 (notice disclosure + formula tooltip)", () => {
+  it("shows the pricing-source notice as one line, with the full body collapsed under a disclosure", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+    await screen.findByText("Emas Batangan");
+
+    expect(
+      screen.getByText(idDict.investasi.pricingSourceNoticeTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(idDict.investasi.pricingSourceNoticeBody),
+    ).not.toBeVisible();
+
+    const summaryEl = screen.getByText(idDict.investasi.pricingSourceMoreLabel);
+    expect(summaryEl.closest("details")).not.toHaveAttribute("open");
+    await userEvent.click(summaryEl);
+    expect(summaryEl.closest("details")).toHaveAttribute("open");
+    expect(
+      screen.getByText(idDict.investasi.pricingSourceNoticeBody),
+    ).toBeVisible();
+  });
+
+  it("moves the return formula off the always-visible line and into a tooltip", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+    await screen.findByText("Emas Batangan");
+
+    const expectedFormula = idDict.investasi.returnFormulaLabel
+      .replace("{returnRp}", "Rp 100.000")
+      .replace("{costBasis}", "Rp 1.000.000");
+    expect(screen.queryByText(expectedFormula)).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: expectedFormula }),
+    ).toBeInTheDocument();
+  });
+});

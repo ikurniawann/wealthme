@@ -1688,6 +1688,7 @@ export type I18nDictionary = {
     livePositionsSuffix: string;
     pricingSourceNoticeTitle: string;
     pricingSourceNoticeBody: string;
+    pricingSourceMoreLabel: string;
     allocationTitle: string;
     // EPIC-025 N3 audit (structural port fidelity) — page-lead header,
     // restored "Jumlah"/"Harga / Sumber" table columns, per-row price-source

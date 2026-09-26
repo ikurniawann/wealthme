@@ -1714,9 +1714,10 @@ export const en = {
     refreshPriceToast: "Reloading latest prices…",
     capitalInvestedPrefix: "Capital invested",
     livePositionsSuffix: "positions priced live",
-    pricingSourceNoticeTitle: "Two pricing sources.",
+    pricingSourceNoticeTitle: "Stocks & crypto delayed ±15 min.",
     pricingSourceNoticeBody:
       "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko, both delayed ±15 minutes, not real-time. Gold follows the family Gold Price in Settings. Mutual funds, bonds and other holdings you value manually, always shown with their valuation date; time deposits are computed from their interest.",
+    pricingSourceMoreLabel: "More",
     allocationTitle: "Allocation by Type",
     modalDesc: "The fields adapt to the type.",
     hintPurchaseDate: "Used to calculate how long you have held the position.",
