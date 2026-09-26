@@ -90,12 +90,7 @@ export function FinalIncomePanel({
       ? {
           instrument: editingLine.instrument,
           grossAmount: formatNumber(Number(editingLine.grossAmount)),
-          // `FinalTaxLineDto` (the display/estimate DTO) never carries
-          // `occurredAt` — only the full `TaxFinalIncomeEntryDto` does, and
-          // fetching that separately just to prefill one field on Edit
-          // isn't worth a second query here. The user re-confirms the date
-          // on edit; every other field prefills accurately from the line.
-          occurredAt: "",
+          occurredAt: editingLine.occurredAt ?? "",
           reinvested:
             editingLine.instrument === "dividen" &&
             editingLine.rateSource !== "missing",

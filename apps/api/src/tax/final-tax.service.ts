@@ -84,6 +84,7 @@ function line(
     | "investmentId"
     | "accountId"
     | "entryId"
+    | "occurredAt"
     | "caveat"
   >,
   gross: bigint,
@@ -336,6 +337,7 @@ export class FinalTaxService {
       investmentId: inv.id,
       accountId: null,
       entryId: null,
+      occurredAt: null,
     };
     if (inv.interestRatePct === null) {
       const calc = finalTaxFor({
@@ -395,6 +397,7 @@ export class FinalTaxService {
         investmentId: inv.id,
         accountId: null,
         entryId: null,
+        occurredAt: null,
         caveat: null,
       },
       gross,
@@ -430,6 +433,7 @@ export class FinalTaxService {
           investmentId: inv.id,
           accountId: null,
           entryId: null,
+          occurredAt: null,
           caveat,
         },
         gross,
@@ -462,6 +466,7 @@ export class FinalTaxService {
           investmentId: r.investmentId,
           accountId: r.accountId,
           entryId: r.id,
+          occurredAt: wibDateString(r.occurredAt),
           caveat: null,
         },
         r.grossAmount,

@@ -196,4 +196,28 @@ describe("FinalTaxController / InvestmentTaxController", () => {
       .delete(`/family-groups/${FAMILY_GROUP_ID}/tax/final-income/e1`)
       .expect(204);
   });
+
+  // Task 10 date-prefill bug: the edit dialog used to always submit
+  // `occurredAt: ""` when it couldn't prefill the stored date. Guard the
+  // regression itself — an empty date must never silently overwrite the
+  // stored one — rather than only the now-fixed prefill.
+  it("PATCH with an empty occurredAt is rejected, not silently applied", async () => {
+    prisma.taxFinalIncomeEntry.findFirst.mockResolvedValue({
+      id: "e1",
+      taxYear: 2026,
+      instrument: "sewa",
+      grossAmount: 1_000_000n,
+      occurredAt: new Date("2025-12-31T17:00:00.000Z"),
+      reinvested: false,
+      rateBpsOverride: null,
+      investmentId: null,
+      accountId: null,
+      notes: null,
+    });
+    const res = await request(app.getHttpServer())
+      .patch(`/family-groups/${FAMILY_GROUP_ID}/tax/final-income/e1`)
+      .send({ occurredAt: "" });
+    expect(res.status).toBe(400);
+    expect(prisma.taxFinalIncomeEntry.update).not.toHaveBeenCalled();
+  });
 });

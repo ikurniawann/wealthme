@@ -45,6 +45,7 @@ function line(o: Partial<FinalTaxLineDto> = {}): FinalTaxLineDto {
     accountId: null,
     entryId: null,
     grossAmount: "0",
+    occurredAt: null,
     rateBps: 0,
     tax: "0",
     rateSource: "rule",
@@ -169,4 +170,36 @@ it("automatic lines have no edit/delete; manual lines do (when canManage)", asyn
   render(<FinalIncomePanel taxYear={2026} canManage />);
   await screen.findByText("Sewa tanah/bangunan");
   expect(screen.getAllByRole("button", { name: "Hapus" })).toHaveLength(1);
+});
+
+it("opening Edit prefills the entry's stored date, and saving unchanged keeps it in the PATCH", async () => {
+  mockApiFetch.mockImplementation((url: string, init?: { method?: string }) =>
+    Promise.resolve(
+      init?.method === "PATCH"
+        ? { id: "e9" }
+        : {
+            taxYear: 2026,
+            lines: [
+              line({
+                source: "entry",
+                instrument: "sewa",
+                entryId: "e9",
+                grossAmount: "5000000",
+                occurredAt: "2026-03-10",
+              }),
+            ],
+            totalTax: "0",
+            missingRateCount: 0,
+            skippedForeign: 0,
+          },
+    ),
+  );
+  render(<FinalIncomePanel taxYear={2026} canManage />);
+  await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+  expect(screen.getByLabelText("Tanggal diterima")).toHaveValue("2026-03-10");
+  await userEvent.click(screen.getByRole("button", { name: "Simpan" }));
+  const patch = mockApiFetch.mock.calls.find(([, i]) => i?.method === "PATCH");
+  expect(JSON.parse(patch[1].body)).toMatchObject({
+    occurredAt: "2026-03-10",
+  });
 });

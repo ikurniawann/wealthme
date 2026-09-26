@@ -1977,6 +1977,8 @@ interface FinalTaxLineDto {
     investmentId: string | null;
     accountId: string | null;
     entryId: string | null;
+    /** `YYYY-MM-DD` for a stored `entry` line (editable); null for a computed `holding` line. */
+    occurredAt: string | null;
     grossAmount: string;
     rateBps: number | null;
     tax: string | null;
