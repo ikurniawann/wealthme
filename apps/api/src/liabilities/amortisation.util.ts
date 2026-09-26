@@ -17,6 +17,13 @@
  * then rounded half-up to the nearest rupiah.
  */
 
+import {
+  legacyRatePlan,
+  rateAt,
+  sameRateRegime,
+  type RatePlan,
+} from "./rate-plan.util";
+
 export type InterestMethod = "efektif" | "flat" | "anuitas";
 
 export interface SplitPaymentInput {
@@ -64,7 +71,10 @@ export function parseRateScaledByHundred(rateStr: string): bigint {
 }
 
 /** Round-half-up division for non-negative BigInt operands. */
-function roundHalfUpDivide(numerator: bigint, denominator: bigint): bigint {
+export function roundHalfUpDivide(
+  numerator: bigint,
+  denominator: bigint,
+): bigint {
   const quotient = numerator / denominator;
   const remainder = numerator % denominator;
   return remainder * 2n >= denominator ? quotient + 1n : quotient;
@@ -183,18 +193,16 @@ export interface RatePeriodInput {
   floatingRatePercent: string | null;
 }
 
-function isFloatingPeriod(input: RatePeriodInput): boolean {
-  return (
-    input.fixedRateMonths !== null &&
-    input.floatingRatePercent !== null &&
-    input.period > input.fixedRateMonths
-  );
-}
-
+/** G's lookup, now a thin reader over the legacy two-segment plan. */
 export function rateForPeriod(input: RatePeriodInput): string {
-  return isFloatingPeriod(input) && input.floatingRatePercent !== null
-    ? input.floatingRatePercent
-    : input.baseRatePercent;
+  return rateAt(
+    legacyRatePlan(
+      input.baseRatePercent,
+      input.fixedRateMonths,
+      input.floatingRatePercent,
+    ),
+    input.period,
+  ).ratePercent;
 }
 
 /** Whole installment months between `start` and `now` (UTC), never negative. */
@@ -234,8 +242,15 @@ export interface ScheduleInput {
   remainingMonths: number | null;
   /** Contract period number of the next installment, 1-based. */
   firstPeriod: number;
+  /** Legacy G terms; ignored when `ratePlan` is set. */
   fixedRateMonths: number | null;
   floatingRatePercent: string | null;
+  /** Revisi K rate periods + recorded floating changes. */
+  ratePlan?: RatePlan;
+  /** Re-annuitise at the first row: true forces, false forbids, undefined = only when the rate regime differs from the anchor's. */
+  recomputeAtStart?: boolean;
+  /** Period whose rate regime `installmentAmount` was computed for (1 = the akad; a recorded prepayment moves it). */
+  installmentAnchorPeriod?: number;
   /** Caps the rows built; defaults to MAX_SCHEDULE_ROWS. */
   maxRows?: number;
 }
@@ -246,6 +261,18 @@ export interface ScheduleRow {
   interest: bigint;
   principal: bigint;
   remaining: bigint;
+}
+
+/** The plan a schedule runs on: K's rate periods, else G's legacy pair read as one. */
+export function ratePlanOf(input: ScheduleInput): RatePlan {
+  return (
+    input.ratePlan ??
+    legacyRatePlan(
+      input.annualInterestRatePercent,
+      input.fixedRateMonths,
+      input.floatingRatePercent,
+    )
+  );
 }
 
 export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
@@ -263,26 +290,27 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
   if (input.installmentAmount === null && equalPrincipal === null) return [];
 
   const denominator = rateDenominator(input.rateIsMonthly);
+  const plan = ratePlanOf(input);
   const rows: ScheduleRow[] = [];
   let balance = input.remainingBalance;
   let installment = input.installmentAmount ?? 0n;
-  let floatingRecomputed = false;
+  let previous = rateAt(plan, input.installmentAnchorPeriod ?? 1);
 
   for (let i = 0; i < maxRows && balance > 0n; i += 1) {
-    const ratePeriod: RatePeriodInput = {
-      period: input.firstPeriod + i,
-      baseRatePercent: input.annualInterestRatePercent,
-      fixedRateMonths: input.fixedRateMonths,
-      floatingRatePercent: input.floatingRatePercent,
-    };
-    const ratePercent = rateForPeriod(ratePeriod);
+    const period = input.firstPeriod + i;
+    const rate = rateAt(plan, period);
+    const regimeChanged =
+      i === 0
+        ? (input.recomputeAtStart ?? !sameRateRegime(rate, previous))
+        : !sameRateRegime(rate, previous);
+    previous = rate;
+    const ratePercent = rate.ratePercent;
     if (
       input.method === "anuitas" &&
-      !floatingRecomputed &&
-      isFloatingPeriod(ratePeriod) &&
-      input.remainingMonths !== null
+      input.remainingMonths !== null &&
+      regimeChanged
     ) {
-      // Banks re-amortise the outstanding balance over the remaining tenor once the fixed period ends.
+      // Banks re-annuitise the outstanding balance over the remaining tenor at every rate change.
       installment = computeInstallment({
         method: "anuitas",
         principal: balance,
@@ -290,7 +318,6 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
         tenorMonths: input.remainingMonths - i,
         rateIsMonthly: input.rateIsMonthly,
       });
-      floatingRecomputed = true;
     }
 
     const interestDue = monthlyInterestDue({
@@ -311,7 +338,7 @@ export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
     balance -= principal;
 
     rows.push({
-      period: ratePeriod.period,
+      period,
       installment: payment,
       interest,
       principal,
