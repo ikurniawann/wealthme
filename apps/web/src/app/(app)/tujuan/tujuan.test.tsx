@@ -431,6 +431,28 @@ describe("TujuanPage — goal form source account for auto-debit (Revisi F item 
   }, 30000);
 });
 
+// polish-j batch 6 item 3 — goal.targetDate can arrive as a full
+// ISO-datetime string (not a plain YYYY-MM-DD). Passed straight through as
+// the edit dialog's `deadline` initial value, `DateField`'s
+// `formatFullDate` used to `.split("-")` it, get a NaN day, and render the
+// literal string "Invalid Date" in the "Target Tanggal" field.
+describe("TujuanPage — edit dialog Target Tanggal (polish-j batch 6 item 3)", () => {
+  it("shows a correctly formatted date, not 'Invalid Date', when targetDate is an ISO-datetime string", async () => {
+    mockSession("owner", {
+      goalOverrides: { targetDate: "2026-12-01T00:00:00.000Z" },
+    });
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const dialog = await screen.findByRole("dialog");
+    const deadlineTrigger = within(dialog).getByLabelText("Target Tanggal");
+
+    expect(deadlineTrigger).not.toHaveTextContent("Invalid Date");
+    expect(deadlineTrigger).toHaveTextContent("1 Desember 2026");
+  });
+});
+
 describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", () => {
   it("Finding 1: clearing the auto-debit amount on edit sends autoDebitAmount: null explicitly", async () => {
     // targetDate: null — the "Saran: ... / bulan" helper hint (rendered

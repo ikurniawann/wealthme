@@ -246,6 +246,28 @@ describe("AnggaranPage — owner still creates a new category (regression guard)
     // The create-category form mounts the full EmojiPicker grid in jsdom
     // (~2.5s alone, 10s+ when the whole suite runs in parallel).
   }, 30000);
+
+  // polish-j batch 6 item 2 — "Kategori Privat"'s switch was rendered after
+  // its label (label-left/switch-right), the mirror image of every other
+  // visibility toggle in the app (crud-modal.tsx's shared toggle branch,
+  // Liabilitas's auto-advance switch). Asserts DOM order, not just presence.
+  it("renders the Kategori Privat switch before its label, matching the app's other toggles", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Kategori" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const switchEl = await within(dialog).findByLabelText("Kategori Privat");
+    const label = within(dialog).getByText("Kategori Privat");
+
+    expect(
+      switchEl.compareDocumentPosition(label) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  }, 30000);
 });
 
 describe("AnggaranPage — edit and delete a budget (EPIC-022 C2)", () => {

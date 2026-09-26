@@ -1527,20 +1527,23 @@ export default function AnggaranPage() {
             )}
             {canManageCategory !== false && (
               <div className="field">
-                <div className="row items-center justify-between gap-3">
-                  <div>
+                {/* polish-j batch 6 item 2 — switch first (left), label +
+                    hint after (right), matching crud-modal.tsx's toggle
+                    branch and every other visibility toggle in the app. */}
+                <div className="row mt-3.5 gap-[9px]">
+                  <Switch
+                    checked={isPrivate}
+                    onCheckedChange={setIsPrivate}
+                    aria-label={t.anggaran.fieldPrivateLabel}
+                  />
+                  <span>
                     <span className="label">
                       {t.anggaran.fieldPrivateLabel}
                     </span>
                     <span className="hint block">
                       {t.anggaran.fieldPrivateHint}
                     </span>
-                  </div>
-                  <Switch
-                    checked={isPrivate}
-                    onCheckedChange={setIsPrivate}
-                    aria-label={t.anggaran.fieldPrivateLabel}
-                  />
+                  </span>
                 </div>
               </div>
             )}

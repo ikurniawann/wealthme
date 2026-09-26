@@ -437,7 +437,10 @@ export default function TujuanPage() {
         icon: goal.icon ?? "🛡️",
         target: String(goal.targetAmount),
         terkumpul: String(goal.currentAmount),
-        deadline: goal.targetDate ?? "",
+        // polish-j batch 6 item 3 — targetDate can arrive as a full ISO
+        // timestamp; DateField's formatFullDate expects a plain YYYY-MM-DD
+        // and renders the literal string "Invalid Date" otherwise.
+        deadline: goal.targetDate?.slice(0, 10) ?? "",
         autodebit:
           goal.autoDebitAmount != null ? String(goal.autoDebitAmount) : "",
         autodebitDay:
