@@ -789,16 +789,13 @@ export const en = {
     addDependant: {
       dialogTitle: "Add Child / Operational",
       dialogDesc:
-        "For a member with no email of their own (a child, driver, or assistant). Set a username and an initial password, they must change it at their first login.",
+        "For a member with no email. Password must be changed at first login.",
       nameLabel: "Name",
       namePlaceholder: "Full name",
       usernameLabel: "Username",
       usernamePlaceholder: "e.g. adit_kecil",
-      usernameHint: "3-30 characters, letters/numbers/underscore/dot",
       passwordLabel: "Initial Password",
       passwordPlaceholder: "At least 8 characters",
-      passwordHint:
-        "Hand this password over directly, they must change it at their first login.",
       showPassword: "Show password",
       hidePassword: "Hide password",
       roleLabel: "System role",
@@ -812,6 +809,9 @@ export const en = {
         'The wife becomes Co-Master: full access to every finance surface. Member management and family settings stay with the Master. Relationship locks to "istri". Max 1 wife per family.',
       relationshipLabel: "Relationship (optional)",
       relationshipNoneOption: "Not set",
+      emailLabel: "Email (optional)",
+      emailPlaceholder: "name@gmail.com",
+      emailHint: "A confirmation link is sent to this email.",
       accessRoleLabel: "Access role",
       accessRoleDefaultOption: "Default (follow role)",
       accessRoleEmptyHint:

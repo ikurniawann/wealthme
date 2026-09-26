@@ -791,16 +791,13 @@ export const id = {
     addDependant: {
       dialogTitle: "Tambah Anak / Operasional",
       dialogDesc:
-        "Untuk anggota tanpa email sendiri (anak, supir, asisten). Buatkan username dan password awal, mereka wajib menggantinya saat login pertama.",
+        "Untuk anggota tanpa email. Password wajib diganti saat login pertama.",
       nameLabel: "Nama",
       namePlaceholder: "Nama lengkap",
       usernameLabel: "Username",
       usernamePlaceholder: "cth: adit_kecil",
-      usernameHint: "3-30 karakter, huruf/angka/underscore/titik",
       passwordLabel: "Password Awal",
       passwordPlaceholder: "Minimal 8 karakter",
-      passwordHint:
-        "Beri tahu password ini secara langsung, wajib diganti saat login pertama.",
       showPassword: "Tampilkan password",
       hidePassword: "Sembunyikan password",
       roleLabel: "Peran sistem",
@@ -814,6 +811,9 @@ export const id = {
         'Istri menjadi Co-Master: akses penuh ke semua data keuangan. Kelola anggota dan pengaturan keluarga tetap di Master. Hubungan otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.',
       relationshipLabel: "Hubungan (opsional)",
       relationshipNoneOption: "Tidak diisi",
+      emailLabel: "Email (opsional)",
+      emailPlaceholder: "nama@gmail.com",
+      emailHint: "Link konfirmasi dikirim ke email ini.",
       accessRoleLabel: "Hak akses",
       accessRoleDefaultOption: "Bawaan (ikuti peran)",
       accessRoleEmptyHint:

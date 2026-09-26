@@ -1014,10 +1014,8 @@ export type I18nDictionary = {
       namePlaceholder: string;
       usernameLabel: string;
       usernamePlaceholder: string;
-      usernameHint: string;
       passwordLabel: string;
       passwordPlaceholder: string;
-      passwordHint: string;
       showPassword: string;
       hidePassword: string;
       roleLabel: string;
@@ -1034,6 +1032,11 @@ export type I18nDictionary = {
       istriCoMasterHint: string;
       relationshipLabel: string;
       relationshipNoneOption: string;
+      // polish-j batch 7a item 4 — Email moves under the "Opsi lanjutan"
+      // disclosure alongside Hak akses; its hint is now one line.
+      emailLabel: string;
+      emailPlaceholder: string;
+      emailHint: string;
       accessRoleLabel: string;
       accessRoleDefaultOption: string;
       accessRoleEmptyHint: string;
