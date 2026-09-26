@@ -206,6 +206,22 @@ export function monthsElapsed(start: Date, now: Date): number {
   return Math.max(0, months);
 }
 
+/**
+ * First installment period that accrues wholly at a rate effective on
+ * `effectiveDate`: installment k accrues over [start+(k-1) mo, start+k mo),
+ * so a date on a window start applies to that window, a mid-window date to
+ * the next one (no daily proration).
+ */
+export function effectivePeriodFor(
+  startDate: Date,
+  effectiveDate: Date,
+): number {
+  const elapsed = monthsElapsed(startDate, effectiveDate);
+  return effectiveDate.getUTCDate() === startDate.getUTCDate()
+    ? elapsed + 1
+    : elapsed + 2;
+}
+
 export interface ScheduleInput {
   method: InterestMethod;
   remainingBalance: bigint;
