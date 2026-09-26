@@ -1227,6 +1227,7 @@ export const en = {
     toastPaySuccessNoRenewal: "Premium paid successfully.",
     toastRenewalFailed: "Failed to pay premium. Try again.",
     beneficiariesSectionTitle: "Insurance Beneficiaries",
+    beneficiariesOptionalLabel: "Heirs (optional)",
     beneficiariesLabel: "Beneficiaries",
     beneficiaryNameLabel: "Name",
     beneficiaryNamePlaceholder: "e.g. Siti Arsandi",
@@ -1276,8 +1277,7 @@ export const en = {
       "Premium and renewal date drive the reminders and cash-flow projection.",
     policyPickerPayDesc:
       "Pick the policy whose premium you want to pay; you choose the source account in the next step.",
-    policyPickerBeneficiaryDesc:
-      "Pick a policy first, beneficiaries are stored on that policy, and their shares may not exceed 100% in total.",
+    policyPickerBeneficiaryDesc: "Shares must total 100% at most.",
     deleteDialogTitle: "Delete this record?",
     deleteDialogBody:
       "The policy will be permanently deleted. Premium payments already recorded stay in Transactions.",

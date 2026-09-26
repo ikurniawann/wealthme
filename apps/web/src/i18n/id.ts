@@ -1234,6 +1234,7 @@ export const id = {
     toastPaySuccessNoRenewal: "Premi berhasil dibayar.",
     toastRenewalFailed: "Gagal membayar premi. Coba lagi.",
     beneficiariesSectionTitle: "Ahli Waris Asuransi",
+    beneficiariesOptionalLabel: "Ahli waris (opsional)",
     beneficiariesLabel: "Ahli Waris",
     beneficiaryNameLabel: "Nama",
     beneficiaryNamePlaceholder: "cth: Siti Arsandi",
@@ -1286,8 +1287,7 @@ export const id = {
       "Premi dan jatuh tempo dipakai untuk pengingat dan proyeksi arus kas.",
     policyPickerPayDesc:
       "Pilih polis yang preminya ingin dibayar, lalu tentukan rekening sumbernya di langkah berikutnya.",
-    policyPickerBeneficiaryDesc:
-      "Pilih polis dulu, ahli waris disimpan pada polis tersebut, dan total persentasenya tidak boleh lebih dari 100%.",
+    policyPickerBeneficiaryDesc: "Total bagian maksimal 100%.",
     deleteDialogTitle: "Hapus data ini?",
     deleteDialogBody:
       "Data polis akan dihapus permanen. Riwayat pembayaran premi tetap tersimpan di Transaksi.",

@@ -1206,6 +1206,9 @@ export type I18nDictionary = {
     /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
      * heir editor UX (allocation bar + optional family-member link). */
     beneficiariesSectionTitle: string;
+    /** polish-j batch 7a item 9 — summary label for the "Opsi lanjutan"-
+     * style disclosure collapsing beneficiaries in the add-policy form. */
+    beneficiariesOptionalLabel: string;
     beneficiariesLabel: string;
     beneficiaryNameLabel: string;
     beneficiaryNamePlaceholder: string;
