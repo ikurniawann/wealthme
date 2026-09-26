@@ -5,6 +5,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 import { FrankfurterFxService } from "./frankfurter-fx.service";
 import { FrankfurterClient } from "./frankfurter.client";
+import { FxInputService } from "./fx-input.service";
 import { FxMockService } from "./fx-mock.service";
 import { FxController } from "./fx.controller";
 import { FxPort } from "./fx.port";
@@ -27,7 +28,8 @@ import type { Env } from "../config/env";
             ),
       inject: [ConfigService, PrismaService],
     },
+    FxInputService,
   ],
-  exports: [FxPort],
+  exports: [FxPort, FxInputService],
 })
 export class FxModule {}
