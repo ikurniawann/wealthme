@@ -767,6 +767,9 @@ export class InvestmentsService {
     // returns the cost through a transfer in and books the realised gain as
     // "Hasil Investasi" income so the P&L sees it.
     if (settleAccount) {
+      // A foreign pricePerUnit was already rounded to sen (≤0.005 IDR/unit) before
+      // this point — that per-unit rounding is intentional and consistent with how
+      // avg cost/PnL is also carried at sen precision.
       const gross = BigInt(qty.times(price).toFixed(0));
       const label = `${qty.toString()} ${existing.ticker} @ ${price.toString()}`;
       if (type === "buy") {

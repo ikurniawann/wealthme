@@ -28,11 +28,14 @@ export const FX_FIELD_SPECS = {
   investment: {
     costBasisPerUnit: { kind: "decimal2", max: MAX_DECIMAL2_SEN },
   },
+  // Review fix round 1, item 2 — the IDR path accepts 0 here (no @Min on
+  // SetManualPriceDto.price / CreateInvestmentTransactionDto.pricePerUnit),
+  // so the foreign path must too: non-negative, not strictly positive.
   investmentPrice: {
-    price: { kind: "decimal2", positive: true, max: MAX_DECIMAL2_SEN },
+    price: { kind: "decimal2", max: MAX_DECIMAL2_SEN },
   },
   investmentTrade: {
-    pricePerUnit: { kind: "decimal2", positive: true, max: MAX_DECIMAL2_SEN },
+    pricePerUnit: { kind: "decimal2", max: MAX_DECIMAL2_SEN },
   },
   liability: {
     totalDebt: { kind: "digits" },
@@ -47,7 +50,9 @@ export const FX_FIELD_SPECS = {
   },
   insurancePayment: { amount: { kind: "digits", positive: true } },
   inheritance: { estimatedValue: { kind: "int" } },
-  donation: { amount: { kind: "digits", positive: true } },
+  // CreateDonationDto.amount is `^\d+$` — unsigned, so 0 is valid on the IDR
+  // path; the foreign path matches (review fix round 1, item 2).
+  donation: { amount: { kind: "digits" } },
   splitBill: {
     totalAmount: { kind: "int", positive: true },
     "participants.*.amountOwed": { kind: "int" },

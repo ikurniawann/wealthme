@@ -71,4 +71,57 @@ describe("split bill FX — revisi I", () => {
     ).toThrow(BadRequestException);
     expect(() => assertSplitFxComplete(base)).not.toThrow();
   });
+
+  it("rejects fxInputs whose foreign shares do not sum exactly to the foreign total", () => {
+    // USD 100.00 total but only USD 10.00 + USD 10.00 of shares — a mismatch
+    // the IDR path's sum===total check would reject; the foreign path must
+    // reject it too, in USD minor units, BEFORE conversion.
+    const mismatched = {
+      ...base,
+      participants: [
+        { name: "A", amountOwed: 1 },
+        { name: "B", amountOwed: 1 },
+      ],
+      fxInputs: [
+        { field: "totalAmount", currency: "USD" as const, amount: "100.00" },
+        {
+          field: "participants.0.amountOwed",
+          currency: "USD" as const,
+          amount: "10.00",
+        },
+        {
+          field: "participants.1.amountOwed",
+          currency: "USD" as const,
+          amount: "10.00",
+        },
+      ],
+    };
+    expect(() => assertSplitFxComplete(mismatched)).toThrow(
+      BadRequestException,
+    );
+  });
+
+  it("accepts fxInputs whose foreign shares sum exactly to the foreign total", () => {
+    const exact = {
+      ...base,
+      participants: [
+        { name: "A", amountOwed: 1 },
+        { name: "B", amountOwed: 1 },
+      ],
+      fxInputs: [
+        { field: "totalAmount", currency: "USD" as const, amount: "20.00" },
+        {
+          field: "participants.0.amountOwed",
+          currency: "USD" as const,
+          amount: "10.00",
+        },
+        {
+          field: "participants.1.amountOwed",
+          currency: "USD" as const,
+          amount: "10.00",
+        },
+      ],
+    };
+    expect(() => assertSplitFxComplete(exact)).not.toThrow();
+  });
 });

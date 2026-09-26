@@ -9,6 +9,8 @@ import { AssetsController } from "../assets/assets.controller";
 import { AssetsService } from "../assets/assets.service";
 import { DonationsController } from "../donations/donations.controller";
 import { DonationsService } from "../donations/donations.service";
+import { InheritanceController } from "../inheritance/inheritance.controller";
+import { InheritanceService } from "../inheritance/inheritance.service";
 import { InsurancesController } from "../insurances/insurances.controller";
 import { InsurancesService } from "../insurances/insurances.service";
 import { InvestmentsController } from "../investments/investments.controller";
@@ -33,9 +35,10 @@ const liabilities = {
   update: jest.fn(),
   purchase: jest.fn(),
 };
-const insurances = { pay: jest.fn() };
+const insurances = { pay: jest.fn(), create: jest.fn() };
 const donations = { create: jest.fn() };
 const splitBills = { create: jest.fn() };
+const inheritance = { create: jest.fn() };
 
 describe("fx wiring — holdings & obligations (revisi I)", () => {
   let app: INestApplication;
@@ -48,6 +51,7 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
         InvestmentsController,
         LiabilitiesController,
         InsurancesController,
+        InheritanceController,
         DonationsController,
         SplitBillsController,
       ],
@@ -57,6 +61,7 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
         { provide: InvestmentsService, useValue: investments },
         { provide: LiabilitiesService, useValue: liabilities },
         { provide: InsurancesService, useValue: insurances },
+        { provide: InheritanceService, useValue: inheritance },
         { provide: DonationsService, useValue: donations },
         { provide: SplitBillsService, useValue: splitBills },
       ],
@@ -68,10 +73,15 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
     jest.clearAllMocks();
     for (const m of [
       assets.create,
+      assets.recordValue,
       investments.recordTransaction,
+      investments.create,
+      investments.setManualPrice,
       liabilities.pay,
       liabilities.create,
       insurances.pay,
+      insurances.create,
+      inheritance.create,
       donations.create,
       splitBills.create,
     ]) {
@@ -185,6 +195,159 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
     expect(donations.create.mock.calls[0][1].amount).toBe("1542255");
   });
 
+  // Review fix round 1, item 2 — CreateDonationDto.amount is `^\d+$`
+  // (unsigned), so 0 is a valid IDR amount; the foreign path must accept it
+  // too, not reject it as "not positive".
+  it("donation: EUR 0.00 is accepted like IDR 0", async () => {
+    await http()
+      .post(`/family-groups/${FG}/donations`)
+      .send({
+        type: Object.values(DonationType)[0],
+        recipient: "UNICEF",
+        amount: "1",
+        donatedAt: "2026-09-26",
+        fxInputs: [{ field: "amount", currency: "EUR", amount: "0.00" }],
+      })
+      .expect(201);
+    expect(donations.create.mock.calls[0][1].amount).toBe("0");
+  });
+
+  // Review fix round 1, item 3 — investment CREATE conversion test
+  // (recordTransaction already covers the trade path).
+  it("investment: create converts a SGD cost basis (decimal2)", async () => {
+    await http()
+      .post(`/family-groups/${FG}/investments`)
+      .send({
+        ticker: "BBCA",
+        name: "Bank Central Asia",
+        type: "saham",
+        quantity: "10",
+        costBasisPerUnit: "1",
+        fxInputs: [
+          { field: "costBasisPerUnit", currency: "SGD", amount: "15250.00" },
+        ],
+      })
+      .expect(201);
+    expect(investments.create.mock.calls[0][1].costBasisPerUnit).toBe(
+      "213908607.43",
+    );
+  });
+
+  // Review fix round 1, item 2 — SetManualPriceDto.price has no @Min, so 0
+  // is a valid IDR price (e.g. a written-off holding); the foreign path
+  // must accept it too.
+  it("investment: setManualPrice accepts USD 0.00 like IDR 0", async () => {
+    await http()
+      .post(`/family-groups/${FG}/investments/inv-1/price`)
+      .send({
+        price: "1",
+        fxInputs: [{ field: "price", currency: "USD", amount: "0.00" }],
+      })
+      .expect(201);
+    expect(investments.setManualPrice.mock.calls[0][2].price).toBe("0.00");
+  });
+
+  // Review fix round 1, item 2 — CreateInvestmentTransactionDto.pricePerUnit
+  // is documented ">= 0" (a gift/bonus lot at price 0); the foreign path
+  // must accept it too, not reject it as "not positive".
+  it("investment buy: USD 0.00 price per unit is accepted like IDR 0", async () => {
+    await http()
+      .post(`/family-groups/${FG}/investments/inv-1/transactions`)
+      .send({
+        type: Object.values(InvestmentTxType)[0],
+        quantity: "2",
+        pricePerUnit: "1",
+        fxInputs: [{ field: "pricePerUnit", currency: "USD", amount: "0.00" }],
+      })
+      .expect(201);
+    expect(investments.recordTransaction.mock.calls[0][2].pricePerUnit).toBe(
+      "0.00",
+    );
+  });
+
+  // Review fix round 1, item 3 — liability CREATE conversion test.
+  // FxInputService.run() only overwrites the fxInputs-named fields before
+  // calling the unchanged (sub-plan G) service method, so its interest
+  // method / installment recompute still runs on the converted values —
+  // not re-asserted here since liabilities.service.spec.ts (real service)
+  // already covers that recompute and stays green.
+  it("liability: create converts totalDebt and installmentAmount (SGD)", async () => {
+    await http()
+      .post(`/family-groups/${FG}/liabilities`)
+      .send({
+        name: "KPR Rumah",
+        type: "kpr",
+        totalDebt: "1",
+        remainingBalance: "1",
+        installmentAmount: "1",
+        fxInputs: [
+          { field: "totalDebt", currency: "SGD", amount: "50000.00" },
+          { field: "installmentAmount", currency: "SGD", amount: "1500.00" },
+        ],
+      })
+      .expect(201);
+    expect(liabilities.create.mock.calls[0][1]).toMatchObject({
+      totalDebt: "701339697",
+      installmentAmount: "21040191",
+    });
+  });
+
+  // Review fix round 1, item 3 — insurance CREATE conversion test.
+  it("insurance: create converts premiumAmount and coverageAmount (AUD)", async () => {
+    await http()
+      .post(`/family-groups/${FG}/insurances`)
+      .send({
+        name: "Asuransi Jiwa",
+        type: "jiwa",
+        premiumAmount: "1",
+        coverageAmount: "1",
+        fxInputs: [
+          { field: "premiumAmount", currency: "AUD", amount: "100.00" },
+          { field: "coverageAmount", currency: "AUD", amount: "50000.00" },
+        ],
+      })
+      .expect(201);
+    expect(insurances.create.mock.calls[0][1]).toMatchObject({
+      premiumAmount: "1259385",
+      coverageAmount: "629692355",
+    });
+  });
+
+  // Review fix round 1, item 3 — asset recordValue (history) conversion test.
+  it("asset: recordValue converts a dated valuation (CNY)", async () => {
+    await http()
+      .post(`/family-groups/${FG}/assets/asset-1/history`)
+      .send({
+        value: "1",
+        fxInputs: [{ field: "value", currency: "CNY", amount: "1000.00" }],
+      })
+      .expect(201);
+    expect(assets.recordValue.mock.calls[0][2].value).toBe("2668446");
+    expect(
+      fx.prisma.fxConversion.createMany.mock.calls[0][0].data[0],
+    ).toMatchObject({
+      entity: "Asset",
+      entityId: "asset-1",
+      field: "history.value",
+    });
+  });
+
+  // Review fix round 1, item 3 — inheritance CREATE conversion test.
+  it("inheritance: create converts estimatedValue (EUR)", async () => {
+    await http()
+      .post(`/family-groups/${FG}/inheritance`)
+      .send({
+        name: "Rumah warisan",
+        assetType: "properti",
+        estimatedValue: 1,
+        fxInputs: [
+          { field: "estimatedValue", currency: "EUR", amount: "500.00" },
+        ],
+      })
+      .expect(201);
+    expect(inheritance.create.mock.calls[0][1].estimatedValue).toBe(10213610);
+  });
+
   it("split bill: converts total + shares and settles the residue on participant 0", async () => {
     await http()
       .post(`/family-groups/${FG}/split-bills`)
@@ -236,6 +399,37 @@ describe("fx wiring — holdings & obligations (revisi I)", () => {
           { name: "B", amountOwed: 1 },
         ],
         fxInputs: [{ field: "totalAmount", currency: "USD", amount: "10.00" }],
+      })
+      .expect(400);
+    expect(splitBills.create).not.toHaveBeenCalled();
+  });
+
+  // Review fix round 1, item 1 — mismatched foreign shares must be rejected
+  // BEFORE conversion, not silently absorbed into participant 0's residue.
+  it("split bill: foreign shares that don't sum to the foreign total are rejected before the service runs", async () => {
+    await http()
+      .post(`/family-groups/${FG}/split-bills`)
+      .send({
+        title: "X",
+        payoutAccountId: UUID,
+        totalAmount: 2,
+        participants: [
+          { name: "A", amountOwed: 1 },
+          { name: "B", amountOwed: 1 },
+        ],
+        fxInputs: [
+          { field: "totalAmount", currency: "USD", amount: "100.00" },
+          {
+            field: "participants.0.amountOwed",
+            currency: "USD",
+            amount: "10.00",
+          },
+          {
+            field: "participants.1.amountOwed",
+            currency: "USD",
+            amount: "10.00",
+          },
+        ],
       })
       .expect(400);
     expect(splitBills.create).not.toHaveBeenCalled();
