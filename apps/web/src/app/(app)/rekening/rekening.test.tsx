@@ -351,3 +351,50 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
     expect(JSON.parse(patch![1].body)).not.toHaveProperty("fxInputs");
   });
 });
+
+describe("RekeningPage — indicative USD total is thousands-grouped (batch-2 #7)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it('renders "≈ USD 16,308.70", not the un-grouped "16308.70"', async () => {
+    // 1.000.000 IDR total * 0.0163087 = 16308.7 exactly — chosen so the
+    // grouped/un-grouped forms are unambiguously different strings.
+    mockApiFetch.mockImplementation(
+      (path: string, options?: { method?: string }) => {
+        if (options?.method === "PATCH") return Promise.resolve({});
+        if (path.endsWith("/members")) return Promise.resolve([]);
+        if (path.startsWith("/fx/rates")) {
+          return Promise.resolve({
+            base: "IDR",
+            rates: { USD: 0.0163087 },
+          });
+        }
+        if (path.endsWith("/access/me")) {
+          return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+        }
+        if (path.endsWith("/family-groups/mine")) {
+          return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+        }
+        if (path.endsWith("/reference-items")) return Promise.resolve([]);
+        return Promise.resolve([
+          buildAccount({ id: "acc-1", balance: "1000000" }),
+        ]);
+      },
+    );
+
+    render(<RekeningPage />);
+
+    await screen.findByText(/USD 16,308\.70/);
+    expect(screen.queryByText(/16308\.70/)).not.toBeInTheDocument();
+  });
+});

@@ -100,7 +100,7 @@ export function AllocationCard({
             {breakdown.map((item) => (
               <div className="allocation-row" key={item.label}>
                 <div className="allocation-row__top">
-                  <span className="allocation-row__label">
+                  <span className="allocation-row__label" title={item.label}>
                     <span
                       className="allocation-row__dot"
                       style={{ backgroundColor: item.color }}
@@ -117,7 +117,9 @@ export function AllocationCard({
                 </div>
                 <div className="allocation-row__meta">
                   <span>{item.percent}%</span>
-                  <span>{formatRupiah(item.amount)}</span>
+                  <span title={formatRupiah(item.amount)}>
+                    {formatRupiah(item.amount)}
+                  </span>
                 </div>
                 <span className="allocation-row__track" aria-hidden="true">
                   <span

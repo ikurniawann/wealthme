@@ -1,4 +1,7 @@
-import { checkBudgetAlert } from "./transaction-alerts.util";
+import {
+  checkBudgetAlert,
+  checkCashFlowAlert,
+} from "./transaction-alerts.util";
 
 import type { NotificationSenderPort } from "../notifications/notification-sender.port";
 
@@ -154,5 +157,58 @@ describe("checkBudgetAlert already-alerted guard (EPIC-022 C4)", () => {
 
     expect(prisma.notification.create).toHaveBeenCalled();
     expect(sender.sendEmail).toHaveBeenCalled();
+  });
+});
+
+/**
+ * Batch 2 (#5) — `checkCashFlowAlert`'s `usagePct = (expense * 100n) /
+ * income` is unclamped: a low-income/high-expense month (e.g. Rp10.000
+ * income vs Rp1.450.000 expense) legitimately produces `14500`, which then
+ * flows straight into the notification title/body ("...sudah 14500% dari
+ * total pemasukan..."). The income/expense division itself is correct —
+ * only the DISPLAY needs a sanity cap.
+ */
+function makeCashFlowPrisma(income: bigint, expense: bigint) {
+  return {
+    transaction: {
+      aggregate: jest.fn(({ where }: { where: { type: string } }) =>
+        Promise.resolve({
+          _sum: {
+            amount: where.type === "income" ? income : expense,
+          },
+        }),
+      ),
+    },
+    notification: {
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn().mockResolvedValue({}),
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+}
+
+describe("checkCashFlowAlert usage-percentage cap (batch-2 #5)", () => {
+  it("caps an implausible ratio (low income, high expense) instead of interpolating a raw 14500% into the alert", async () => {
+    const prisma = makeCashFlowPrisma(BigInt(10_000), BigInt(1_450_000));
+
+    await checkCashFlowAlert(prisma, "fg-1");
+
+    expect(prisma.notification.create).toHaveBeenCalled();
+    const { title, body } = prisma.notification.create.mock.calls[0]![0]
+      .data as { title: string; body: string };
+    expect(title).not.toContain("14500%");
+    expect(body).not.toContain("14500%");
+  });
+
+  it("still reports the real, plausible percentage when it isn't implausible", async () => {
+    const prisma = makeCashFlowPrisma(BigInt(1_000_000), BigInt(900_000));
+
+    await checkCashFlowAlert(prisma, "fg-1");
+
+    expect(prisma.notification.create).toHaveBeenCalled();
+    const { body } = prisma.notification.create.mock.calls[0]![0].data as {
+      body: string;
+    };
+    expect(body).toContain("90%");
   });
 });

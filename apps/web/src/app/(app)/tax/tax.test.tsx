@@ -725,3 +725,68 @@ describe("TaxPage — deduction auto-fill from recorded donations", () => {
     await waitFor(() => expect(field).toHaveValue("1.000.000"));
   });
 });
+
+/**
+ * Batch 2 (#6) — the Kalkulator PPh 21 tab rendered two raw debug strings
+ * unconditionally for every user: a `{ grossIncome: ..., ptkp: ..., ... }`
+ * JSON-shaped payload callout and a bracket-total dev note. Neither had a
+ * `NODE_ENV`/dev-flag gate. Both blocks are removed outright (never
+ * intended as user-facing copy).
+ */
+describe("TaxPage — no debug strings in Kalkulator PPh 21 (batch-2 #6)", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === "/calculators/pph21") {
+        return Promise.resolve(
+          buildPph21Result({
+            grossIncome: 10_000_000,
+            pkp: 5_000_000,
+            taxBreakdown: [
+              {
+                bracket: "0 – 60 Juta",
+                taxableAmount: 5_000_000,
+                rate: 0.05,
+                tax: 250_000,
+              },
+            ],
+            totalTax: 250_000,
+          }),
+        );
+      }
+      if (url === "/auth/me") {
+        return Promise.resolve({
+          role: "owner",
+          familyGroupId: FAMILY_GROUP_ID,
+        });
+      }
+      return Promise.resolve([]);
+    });
+  });
+
+  it("never renders the raw payload-shaped debug callout", async () => {
+    render(<TaxPage />);
+
+    await screen.findByText("Kalkulator PPh 21 (Pribadi)");
+    expect(screen.queryByText(/grossIncome:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/perpuluhanPaid:/)).not.toBeInTheDocument();
+  });
+
+  it("never renders the bracket-total dev footnote", async () => {
+    render(<TaxPage />);
+
+    await screen.findByText("Kalkulator PPh 21 (Pribadi)");
+    expect(
+      screen.queryByText(/kolom Pajak selalu sama/i),
+    ).not.toBeInTheDocument();
+  });
+});

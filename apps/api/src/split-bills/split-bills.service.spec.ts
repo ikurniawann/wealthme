@@ -42,6 +42,13 @@ function makePrisma() {
       create: jest.fn(),
       findFirst: jest.fn(),
     },
+    coaAccount: {
+      findFirst: jest.fn(),
+    },
+    category: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   prisma.$transaction.mockImplementation(
@@ -409,6 +416,102 @@ describe("SplitBillsService", () => {
         data: { balance: { increment: PARTICIPANT.amountOwed } },
       });
       expect(prisma.splitBill.update).not.toHaveBeenCalled();
+    });
+
+    it("assigns the system 'Pending Reimbursement' category instead of null when the family's COA has it seeded", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue(BILL);
+      prisma.splitParticipant.findUnique.mockResolvedValue(PARTICIPANT);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.coaAccount.findFirst.mockResolvedValue({
+        id: "coa-40101",
+        familyGroupId: FAMILY_GROUP_ID,
+        code: "40101",
+      });
+      prisma.category.findFirst.mockResolvedValue(null);
+      prisma.category.create.mockResolvedValue({
+        id: "cat-pending-reimbursement",
+        coaAccountId: "coa-40101",
+      });
+      prisma.transaction.create.mockResolvedValue({ id: "txn-1" });
+      prisma.splitParticipant.update.mockResolvedValue({
+        ...PARTICIPANT,
+        status: "paid",
+      });
+      prisma.splitParticipant.count.mockResolvedValue(1);
+
+      await service.confirmParticipant(
+        FAMILY_GROUP_ID,
+        BILL.id,
+        PARTICIPANT.id,
+        {},
+      );
+
+      expect(prisma.coaAccount.findFirst).toHaveBeenCalledWith({
+        where: { familyGroupId: FAMILY_GROUP_ID, code: "40101" },
+      });
+      expect(prisma.transaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          categoryId: "cat-pending-reimbursement",
+        }),
+      });
+    });
+
+    it("reuses an existing 'Pending Reimbursement' category across settlements instead of recreating it", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue(BILL);
+      prisma.splitParticipant.findUnique.mockResolvedValue(PARTICIPANT);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.coaAccount.findFirst.mockResolvedValue({
+        id: "coa-40101",
+        familyGroupId: FAMILY_GROUP_ID,
+        code: "40101",
+      });
+      prisma.category.findFirst.mockResolvedValue({
+        id: "cat-existing",
+        coaAccountId: "coa-40101",
+      });
+      prisma.transaction.create.mockResolvedValue({ id: "txn-1" });
+      prisma.splitParticipant.update.mockResolvedValue({
+        ...PARTICIPANT,
+        status: "paid",
+      });
+      prisma.splitParticipant.count.mockResolvedValue(1);
+
+      await service.confirmParticipant(
+        FAMILY_GROUP_ID,
+        BILL.id,
+        PARTICIPANT.id,
+        {},
+      );
+
+      expect(prisma.category.create).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ categoryId: "cat-existing" }),
+      });
+    });
+
+    it("falls back to a null category when the family group has no matching COA seeded yet", async () => {
+      prisma.splitBill.findUnique.mockResolvedValue(BILL);
+      prisma.splitParticipant.findUnique.mockResolvedValue(PARTICIPANT);
+      prisma.account.findUnique.mockResolvedValue(ACCOUNT);
+      prisma.coaAccount.findFirst.mockResolvedValue(null);
+      prisma.transaction.create.mockResolvedValue({ id: "txn-1" });
+      prisma.splitParticipant.update.mockResolvedValue({
+        ...PARTICIPANT,
+        status: "paid",
+      });
+      prisma.splitParticipant.count.mockResolvedValue(1);
+
+      await service.confirmParticipant(
+        FAMILY_GROUP_ID,
+        BILL.id,
+        PARTICIPANT.id,
+        {},
+      );
+
+      expect(prisma.category.create).not.toHaveBeenCalled();
+      expect(prisma.transaction.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ categoryId: null }),
+      });
     });
 
     it("settles the whole bill once every participant is paid", async () => {

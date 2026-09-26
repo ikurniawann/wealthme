@@ -57,6 +57,20 @@ function parseSignedRupiah(value: string | null | undefined): number {
   return isNegative ? -digits : digits;
 }
 
+// Batch 2 (#7) — the indicative USD total below used a bare `toFixed(2)`
+// ("USD 16308.70"), the only un-grouped currency figure on this page while
+// the Rupiah total right next to it goes through `formatRupiah`'s grouped
+// `toLocaleString`. `lib/format.ts` is a protected foundation file, so this
+// page-local helper follows the same "inline instead of touching lib/*"
+// convention as `parseSignedRupiah` above rather than adding a sibling
+// export there.
+function formatUsd(value: number): string {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 // EPIC-022 F — the API's ConflictException carries a message the user can act
 // on (e.g. a duplicate account name); the generic toast threw it away and
 // left "Coba lagi" as the only guidance. Prefer the server's message and fall
@@ -718,7 +732,7 @@ export default function RekeningPage() {
               : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix} · ${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
             {!isLoading && accounts && fxRates?.rates["USD"] != null && (
               <span className="ml-1 text-muted-foreground/70">
-                {`${t.rekening.approxUsdPrefix}${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
+                {`${t.rekening.approxUsdPrefix}${formatUsd(totalBalance * fxRates.rates["USD"])}`}
               </span>
             )}
           </p>

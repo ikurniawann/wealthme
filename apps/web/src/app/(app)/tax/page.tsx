@@ -638,13 +638,6 @@ export default function TaxPage() {
             </div>
           </div>
         </div>
-        <div className="notice notice--info mt-3.5 rounded-[10px] border border-primary/15 bg-accent/60 p-3 text-[11px] text-muted-foreground">
-          {t.tax.payloadCalloutPrefix}
-          <span className="mono">
-            {`{ grossIncome: "${toClampedDigitString(debouncedGross, MAX_TAX_INPUT)}", ptkp: "${ptkp}", perpuluhanPaid: "${toClampedDigitString(debouncedZakat, MAX_TAX_INPUT)}" }`}
-          </span>
-          {t.tax.payloadCalloutSuffix}
-        </div>
         <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
           <div className="text-[11.5px] text-muted-foreground">
             {t.tax.estimateLabel}
@@ -771,9 +764,6 @@ export default function TaxPage() {
               })}
             </tbody>
           </table>
-        </div>
-        <div className="mt-2.5 text-[11px] text-muted-foreground">
-          {t.tax.bracketFootnote}
         </div>
       </SectionCard>
 
