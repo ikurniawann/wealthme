@@ -354,6 +354,7 @@ model User {
   // carry a null userId and belong to no one) — see Notification.userId.
   notifications            Notification[]
   notificationReads        NotificationRead[]
+  fxConversionsCreated     FxConversion[]     @relation("FxConversionCreatedBy")
 
   @@map("users")
 }
@@ -501,6 +502,7 @@ model FamilyGroup {
   // (see that model's comment for why).
   transactionAttachments  TransactionAttachment[]
   goalContributions       GoalContribution[]
+  fxConversions           FxConversion[]
 
   @@map("family_groups")
 }
@@ -1627,4 +1629,41 @@ model AccessRole {
 enum AccessDataScope {
   all
   own
+}
+
+// Revisi I — cached ECB reference rates (IDR per 1 unit); durable last-known-good for FX fallback.
+model FxRate {
+  id         String   @id @default(uuid())
+  source     String   @db.VarChar(32)
+  currency   String   @db.VarChar(3)
+  rateDate   DateTime @db.Date
+  idrPerUnit Decimal  @db.Decimal(24, 6)
+  fetchedAt  DateTime @default(now())
+
+  @@unique([source, currency, rateDate])
+  @@index([currency, rateDate])
+  @@map("fx_rates")
+}
+
+// Revisi I — append-only audit of a money field typed in a foreign currency and stored as IDR.
+model FxConversion {
+  id               String      @id @default(uuid())
+  familyGroupId    String
+  entity           String      @db.VarChar(48)
+  entityId         String
+  field            String      @db.VarChar(96)
+  originalAmount   Decimal     @db.Decimal(24, 2)
+  originalCurrency String      @db.VarChar(3)
+  idrAmount        Decimal     @db.Decimal(24, 2)
+  idrPerUnit       Decimal     @db.Decimal(24, 6)
+  rateDate         DateTime    @db.Date
+  rateSource       String      @db.VarChar(32)
+  rateStale        Boolean     @default(false)
+  createdByUserId  String?
+  createdAt        DateTime    @default(now())
+  familyGroup      FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  createdBy        User?       @relation("FxConversionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyGroupId, entity, entityId])
+  @@map("fx_conversions")
 }

@@ -74,6 +74,8 @@ const envSchema = z.object({
     ),
   // Market data — optional; set to "true" to use Yahoo Finance instead of mock
   USE_REAL_MARKET_DATA: z.enum(["true", "false"]).optional(),
+  // Revisi I — "mock" keeps the static indicative table (offline dev/tests); default is the live ECB feed.
+  FX_PROVIDER: z.enum(["frankfurter", "mock"]).default("frankfurter"),
   // Email notifications — optional; both must be set to enable real SendGrid sender.
   // Empty string (from .env placeholder) is treated as unset.
   SENDGRID_API_KEY: z
