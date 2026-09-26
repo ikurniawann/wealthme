@@ -61,15 +61,24 @@ export function TerPanel({
   const [dailyWage, setDailyWage] = useState("");
   const [nikValidated, setNikValidated] = useState(false);
 
+  const fixedGrossBase = toClampedDigitString(singleGross, MAX_TAX_INPUT);
   const monthlyGross = editMonths
     ? monthGrosses.map((g) => toClampedDigitString(g, MAX_TAX_INPUT))
-    : MONTHS.map(() => toClampedDigitString(singleGross, MAX_TAX_INPUT));
+    : MONTHS.map(() => fixedGrossBase);
+  // PMK 10/2025 — the DTP salary cap applies to the fixed/regular salary
+  // only, not THR/bonus. The regular field is that fixed salary; a month
+  // edited above it (the only way this panel collects a THR-style bump) is
+  // the non-fixed excess, so the fixed component never exceeds the base.
+  const monthlyFixedGross = monthlyGross.map((g) =>
+    BigInt(g) < BigInt(fixedGrossBase) ? g : fixedGrossBase,
+  );
 
   const req = {
     taxYear,
     maritalStatus,
     dependents,
     monthlyGross,
+    monthlyFixedGross,
     dtp: {
       sector: sector === "none" ? null : sector,
       employment,
