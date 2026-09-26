@@ -1,14 +1,11 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 
-import {
-  computePkp,
-  computeTaxBrackets,
-  sumTaxRounded,
-} from "../common/utils/pph21.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DonationsService } from "../donations/donations.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+import { computeLegacyNetTax } from "../tax-engine/pph-op.engine";
+import { wibDateString } from "../tax-rules/tax-rules.registry";
 
 import type { CreateTaxRecordDto } from "./dto/create-tax-record.dto";
 import type { TaxRecordResponseDto } from "./dto/tax-record-response.dto";
@@ -32,22 +29,15 @@ type TaxRecordRow = {
 /**
  * Compute annual PPh 21 from gross income, PTKP, and zakat deduction.
  * Amounts are IDR (BigInt in storage); safe in Number well past realistic
- * incomes (< 9e15). Delegates to the shared `pph21.util` brackets so this
- * never silently diverges from `CalculatorsService.calculatePph21` — the
- * two engines used to define the same law twice (EPIC-022 E6).
+ * incomes (< 9e15).
  */
 export function computeNetTax(
   grossIncome: bigint,
   ptkp: bigint,
   zakatDeduction: bigint,
+  taxYear: number = Number(wibDateString(new Date()).slice(0, 4)),
 ): bigint {
-  const { pkp } = computePkp(
-    Number(grossIncome),
-    Number(ptkp),
-    Number(zakatDeduction),
-  );
-  const totalTax = sumTaxRounded(computeTaxBrackets(pkp));
-  return BigInt(totalTax);
+  return computeLegacyNetTax(grossIncome, ptkp, zakatDeduction, taxYear);
 }
 
 function toTaxRecordDto(row: TaxRecordRow): TaxRecordResponseDto {
@@ -86,7 +76,12 @@ export class TaxService {
     return {
       ...row,
       zakatDeduction,
-      netTax: computeNetTax(row.grossIncome, row.ptkp, zakatDeduction),
+      netTax: computeNetTax(
+        row.grossIncome,
+        row.ptkp,
+        zakatDeduction,
+        row.taxYear,
+      ),
     };
   }
 
@@ -127,6 +122,7 @@ export class TaxService {
       BigInt(dto.grossIncome),
       BigInt(dto.ptkp),
       zakatDeduction,
+      dto.taxYear,
     );
 
     const row = await this.prisma.taxRecord.upsert({
@@ -185,7 +181,7 @@ export class TaxService {
         ptkp,
         zakatDeduction,
         // Server-authoritative — client-sent netTax is ignored.
-        netTax: computeNetTax(grossIncome, ptkp, zakatDeduction),
+        netTax: computeNetTax(grossIncome, ptkp, zakatDeduction, taxYear),
         sptStatus: dto.sptStatus ?? existing.sptStatus,
         documentUrl:
           dto.documentUrl !== undefined

@@ -1,9 +1,9 @@
 import { Injectable } from "@nestjs/common";
 
 import {
-  PPH21_DEFAULT_PTKP,
   computePkp,
   computeTaxBrackets,
+  pph21DefaultPtkp,
   sumTaxRounded,
 } from "../common/utils/pph21.util";
 
@@ -81,7 +81,7 @@ export class CalculatorsService {
   calculatePph21(dto: Pph21RequestDto): Pph21ResultDto {
     const gross = dto.grossIncome;
     const zakatDeduction = dto.zakatPaid ?? 0;
-    const ptkp = dto.ptkp ?? PPH21_DEFAULT_PTKP;
+    const ptkp = dto.ptkp ?? pph21DefaultPtkp();
 
     const { biayaJabatan, pkp } = computePkp(gross, ptkp, zakatDeduction);
     const taxBreakdown = computeTaxBrackets(pkp);
