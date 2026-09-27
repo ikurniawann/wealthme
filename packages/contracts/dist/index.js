@@ -449,7 +449,12 @@ var TransactionDtoSchema = z7.object({
   accountName: z7.string().nullable(),
   toAccountName: z7.string().nullable(),
   occurredAt: z7.string(),
-  createdAt: z7.string()
+  createdAt: z7.string(),
+  // Edit-rights decision 2026-09-28 ("Pembuat + pemilik rekening") — whether
+  // the CURRENT viewer may PATCH/DELETE this row: its creator, or the owner
+  // of a private account on either leg. Everyone else (incl. Master/
+  // Co-Master) is read-only.
+  canModify: z7.boolean()
 });
 var TransactionSummarySchema = z7.object({
   totalIncome: z7.string(),

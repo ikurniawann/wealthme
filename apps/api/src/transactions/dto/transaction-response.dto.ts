@@ -74,6 +74,13 @@ export class TransactionResponseDto {
 
   @ApiProperty({ type: String, format: "date-time" })
   createdAt!: string;
+
+  @ApiProperty({
+    type: Boolean,
+    description:
+      "Whether the CURRENT viewer may PATCH/DELETE this row — its creator or the owner of a private account on either leg. Everyone else (including Master/Co-Master) is read-only; see transaction-edit-rights.util.ts.",
+  })
+  canModify!: boolean;
 }
 
 // EPIC-023 Task D (D3/D9, US-FAM-14) — the honest "did NOT create a

@@ -394,6 +394,7 @@ declare const TransactionDtoSchema: z.ZodObject<{
     toAccountName: z.ZodNullable<z.ZodString>;
     occurredAt: z.ZodString;
     createdAt: z.ZodString;
+    canModify: z.ZodBoolean;
 }, "strip", z.ZodTypeAny, {
     type: "income" | "expense" | "transfer";
     id: string;
@@ -410,6 +411,7 @@ declare const TransactionDtoSchema: z.ZodObject<{
     insuranceId: string | null;
     accountName: string | null;
     toAccountName: string | null;
+    canModify: boolean;
 }, {
     type: "income" | "expense" | "transfer";
     id: string;
@@ -426,6 +428,7 @@ declare const TransactionDtoSchema: z.ZodObject<{
     insuranceId: string | null;
     accountName: string | null;
     toAccountName: string | null;
+    canModify: boolean;
 }>;
 type TransactionDto = z.infer<typeof TransactionDtoSchema>;
 declare const TransactionSummarySchema: z.ZodObject<{
@@ -477,6 +480,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         toAccountName: z.ZodNullable<z.ZodString>;
         occurredAt: z.ZodString;
         createdAt: z.ZodString;
+        canModify: z.ZodBoolean;
     }, "strip", z.ZodTypeAny, {
         type: "income" | "expense" | "transfer";
         id: string;
@@ -493,6 +497,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         insuranceId: string | null;
         accountName: string | null;
         toAccountName: string | null;
+        canModify: boolean;
     }, {
         type: "income" | "expense" | "transfer";
         id: string;
@@ -509,6 +514,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         insuranceId: string | null;
         accountName: string | null;
         toAccountName: string | null;
+        canModify: boolean;
     }>, "many">;
     meta: z.ZodObject<{
         total: z.ZodNumber;
@@ -571,6 +577,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         insuranceId: string | null;
         accountName: string | null;
         toAccountName: string | null;
+        canModify: boolean;
     }[];
     meta: {
         total: number;
@@ -603,6 +610,7 @@ declare const TransactionListResponseSchema: z.ZodObject<{
         insuranceId: string | null;
         accountName: string | null;
         toAccountName: string | null;
+        canModify: boolean;
     }[];
     meta: {
         total: number;

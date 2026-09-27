@@ -39,6 +39,10 @@ import {
   checkCashFlowAlert,
   notifyTransaction,
 } from "./transaction-alerts.util";
+import {
+  canModifyTransaction,
+  TRANSACTION_EDIT_RIGHTS_DENIED_MESSAGE,
+} from "./transaction-edit-rights.util";
 
 import type { CreateTransactionDto } from "./dto/create-transaction.dto";
 import type { ListTransactionsQueryDto } from "./dto/list-transactions-query.dto";
@@ -100,6 +104,9 @@ export class TransactionsService {
     canSeePrivate = true,
     viewerRole: ScopeSubject = null,
     viewerUserId?: string,
+    // EPIC-036 (edit-rights) — same identity as `ActingMember` elsewhere in
+    // this file, needed to compute `canModify` per row on the response DTO.
+    actingMember?: ActingMember,
   ): Promise<TransactionListResponseDto> {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -124,8 +131,8 @@ export class TransactionsService {
         take: limit,
         include: {
           category: { select: { name: true } },
-          account: { select: { name: true } },
-          toAccount: { select: { name: true } },
+          account: { select: { name: true, ownerUserId: true } },
+          toAccount: { select: { name: true, ownerUserId: true } },
         },
       }),
       this.prisma.transaction.count({ where }),
@@ -140,7 +147,7 @@ export class TransactionsService {
     );
 
     return {
-      data: transactions.map(this.toDto),
+      data: transactions.map((tx) => this.toDto(tx, actingMember)),
       meta: { total, page, limit },
       summary,
     };
@@ -152,6 +159,8 @@ export class TransactionsService {
     canSeePrivate = true,
     viewerRole: ScopeSubject = null,
     viewerUserId?: string,
+    // EPIC-036 (edit-rights) — see findAll's own note.
+    actingMember?: ActingMember,
   ): Promise<TransactionResponseDto> {
     // findFirst (not findUnique) so the relation-based privacy filter can apply:
     // a `member` requesting a transaction tied to a private account/category
@@ -170,12 +179,12 @@ export class TransactionsService {
       },
       include: {
         category: { select: { name: true } },
-        account: { select: { name: true } },
-        toAccount: { select: { name: true } },
+        account: { select: { name: true, ownerUserId: true } },
+        toAccount: { select: { name: true, ownerUserId: true } },
       },
     });
     if (!tx) throw new NotFoundException("Transaction not found");
-    return this.toDto(tx);
+    return this.toDto(tx, actingMember);
   }
 
   async create(
@@ -327,8 +336,8 @@ export class TransactionsService {
         },
         include: {
           category: { select: { name: true } },
-          account: { select: { name: true } },
-          toAccount: { select: { name: true } },
+          account: { select: { name: true, ownerUserId: true } },
+          toAccount: { select: { name: true, ownerUserId: true } },
         },
       });
 
@@ -426,7 +435,7 @@ export class TransactionsService {
       actingMemberThreshold ?? undefined,
     );
 
-    return this.toDto(created);
+    return this.toDto(created, actingMember);
   }
 
   /**
@@ -525,8 +534,20 @@ export class TransactionsService {
     // existence must not leak, so this 404s exactly like "doesn't exist".
     const existing = await this.prisma.transaction.findFirst({
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
+      include: {
+        account: { select: { ownerUserId: true } },
+        toAccount: { select: { ownerUserId: true } },
+      },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
+    // EPIC-036 (edit-rights) — additional to every guard below: only the
+    // creator or the owner of a leg's private account may mutate an
+    // EXISTING row. Checked before assertNotObligationLinked so a locked
+    // (obligation-linked) row a caller also lacks edit rights on reports the
+    // edit-rights denial, not a confusing obligation message.
+    if (!canModifyTransaction(existing, actingMember)) {
+      throw new ForbiddenException(TRANSACTION_EDIT_RIGHTS_DENIED_MESSAGE);
+    }
     await this.assertNotObligationLinked(existing);
 
     if (dto.accountId) {
@@ -701,26 +722,35 @@ export class TransactionsService {
         },
         include: {
           category: { select: { name: true } },
-          account: { select: { name: true } },
-          toAccount: { select: { name: true } },
+          account: { select: { name: true, ownerUserId: true } },
+          toAccount: { select: { name: true, ownerUserId: true } },
         },
       });
     });
 
-    return this.toDto(updated);
+    return this.toDto(updated, actingMember);
   }
 
   async remove(
     familyGroupId: string,
     id: string,
     canSeePrivate = true,
+    // EPIC-036 (edit-rights) — see findAll's own note.
+    actingMember?: ActingMember,
   ): Promise<void> {
     // EPIC-022 A6 follow-up — same 404-not-403, no-existence-leak treatment
     // as `update`/`findOne`.
     const existing = await this.prisma.transaction.findFirst({
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
+      include: {
+        account: { select: { ownerUserId: true } },
+        toAccount: { select: { ownerUserId: true } },
+      },
     });
     if (!existing) throw new NotFoundException("Transaction not found");
+    if (!canModifyTransaction(existing, actingMember)) {
+      throw new ForbiddenException(TRANSACTION_EDIT_RIGHTS_DENIED_MESSAGE);
+    }
     await this.assertNotObligationLinked(existing);
 
     await this.prisma.$transaction(async (prisma) => {
@@ -1150,33 +1180,41 @@ export class TransactionsService {
     });
   }
 
-  private toDto(tx: {
-    id: string;
-    familyGroupId: string;
-    // EPIC-023 E3 (D12) — null for a credit-card purchase (LiabilitiesService
-    // .purchase()), which touches no account. Every transaction created
-    // through THIS service's own create() still requires a non-null
-    // accountId (CreateTransactionDto), unchanged.
-    accountId: string | null;
-    toAccountId?: string | null;
-    categoryId: string | null;
-    // EPIC-023 E1/E3 — surfaced on the response DTO so the web transaction
-    // list can identify a card purchase (liabilityId set, accountId null)
-    // instead of relying on an accountName text heuristic.
-    liabilityId?: string | null;
-    // EPIC-023 E1 / group E retry (MEDIUM 6) — symmetric with liabilityId
-    // above; was accepted on create() and persisted, but never surfaced
-    // back on the response DTO until now.
-    insuranceId?: string | null;
-    amount: bigint;
-    type: TransactionType;
-    description: string | null;
-    occurredAt: Date;
-    createdAt: Date;
-    category?: { name: string } | null;
-    account?: { name: string } | null;
-    toAccount?: { name: string } | null;
-  }): TransactionResponseDto {
+  private toDto(
+    tx: {
+      id: string;
+      familyGroupId: string;
+      // EPIC-023 E3 (D12) — null for a credit-card purchase (LiabilitiesService
+      // .purchase()), which touches no account. Every transaction created
+      // through THIS service's own create() still requires a non-null
+      // accountId (CreateTransactionDto), unchanged.
+      accountId: string | null;
+      toAccountId?: string | null;
+      categoryId: string | null;
+      // EPIC-023 E1/E3 — surfaced on the response DTO so the web transaction
+      // list can identify a card purchase (liabilityId set, accountId null)
+      // instead of relying on an accountName text heuristic.
+      liabilityId?: string | null;
+      // EPIC-023 E1 / group E retry (MEDIUM 6) — symmetric with liabilityId
+      // above; was accepted on create() and persisted, but never surfaced
+      // back on the response DTO until now.
+      insuranceId?: string | null;
+      amount: bigint;
+      type: TransactionType;
+      description: string | null;
+      occurredAt: Date;
+      createdAt: Date;
+      // EPIC-036 (edit-rights) — needed (with account/toAccount's ownerUserId
+      // below) to compute `canModify`. Optional so any caller that genuinely
+      // can't supply it (there are none left) still type-checks as "no
+      // creator" rather than crashing.
+      createdByUserId?: string | null;
+      category?: { name: string } | null;
+      account?: { name: string; ownerUserId?: string | null } | null;
+      toAccount?: { name: string; ownerUserId?: string | null } | null;
+    },
+    viewerMember?: ActingMember,
+  ): TransactionResponseDto {
     return {
       id: tx.id,
       familyGroupId: tx.familyGroupId,
@@ -1197,6 +1235,22 @@ export class TransactionsService {
       toAccountName: tx.toAccount?.name ?? null,
       occurredAt: tx.occurredAt.toISOString(),
       createdAt: tx.createdAt.toISOString(),
+      // EPIC-036 (edit-rights) — "Pembuat + pemilik rekening": same rule
+      // enforced server-side on update()/remove()/attachments, mirrored here
+      // so the web can hide/disable Edit/Hapus instead of round-tripping a
+      // 403.
+      canModify: canModifyTransaction(
+        {
+          createdByUserId: tx.createdByUserId ?? null,
+          account: tx.account
+            ? { ownerUserId: tx.account.ownerUserId ?? null }
+            : null,
+          toAccount: tx.toAccount
+            ? { ownerUserId: tx.toAccount.ownerUserId ?? null }
+            : null,
+        },
+        viewerMember,
+      ),
     };
   }
 }

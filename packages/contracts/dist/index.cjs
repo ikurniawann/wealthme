@@ -554,7 +554,12 @@ var TransactionDtoSchema = import_zod7.z.object({
   accountName: import_zod7.z.string().nullable(),
   toAccountName: import_zod7.z.string().nullable(),
   occurredAt: import_zod7.z.string(),
-  createdAt: import_zod7.z.string()
+  createdAt: import_zod7.z.string(),
+  // Edit-rights decision 2026-09-28 ("Pembuat + pemilik rekening") — whether
+  // the CURRENT viewer may PATCH/DELETE this row: its creator, or the owner
+  // of a private account on either leg. Everyone else (incl. Master/
+  // Co-Master) is read-only.
+  canModify: import_zod7.z.boolean()
 });
 var TransactionSummarySchema = import_zod7.z.object({
   totalIncome: import_zod7.z.string(),

@@ -100,6 +100,7 @@ export class TransactionsController {
       canSeePrivate,
       req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
+      req.tenantContext?.member ?? null,
     );
   }
 
@@ -217,6 +218,7 @@ export class TransactionsController {
       canSeePrivate,
       req.tenantContext?.member ?? null,
       req.tenantContext?.userId,
+      req.tenantContext?.member ?? null,
     );
   }
 
@@ -270,6 +272,11 @@ export class TransactionsController {
   ): Promise<void> {
     // EPIC-022 A6 follow-up — same role resolution as `findOne`/`findAll`.
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.transactionsService.remove(familyGroupId, id, canSeePrivate);
+    return this.transactionsService.remove(
+      familyGroupId,
+      id,
+      canSeePrivate,
+      req.tenantContext?.member ?? null,
+    );
   }
 }
