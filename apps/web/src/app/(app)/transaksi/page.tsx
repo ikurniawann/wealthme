@@ -47,6 +47,7 @@ import {
   withFxInputs,
 } from "@/components/money";
 import { cn } from "@/lib/utils";
+import { PpnHint } from "@/components/tax/ppn-hint";
 
 import {
   SectionCard,
@@ -931,6 +932,9 @@ export function TransactionDetailDialog({
             <p className="pt-2 text-[11.5px] text-muted-foreground">
               {t.transaksi.obligationLockedTooltip}
             </p>
+          )}
+          {tx.type === "expense" && (
+            <PpnHint amount={tx.amount} occurredAt={tx.occurredAt} />
           )}
           {familyGroupId && (
             <AttachmentList

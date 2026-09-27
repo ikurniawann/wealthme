@@ -38,6 +38,7 @@ import {
   withCrudFx,
 } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
+import { AccountTaxNotice } from "@/components/tax/account-tax-notice";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { useMyRole } from "@/hooks/use-my-role";
@@ -957,6 +958,7 @@ export default function RekeningPage() {
         token={token}
         onClose={() => setRequesting(null)}
       />
+      <AccountTaxNotice />
     </div>
   );
 }

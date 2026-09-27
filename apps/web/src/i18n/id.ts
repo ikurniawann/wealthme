@@ -2962,6 +2962,31 @@ export const id = {
         "Lapor lewat Coretax DJP (coretaxdjp.pajak.go.id). NIK berfungsi sebagai NPWP.",
       filedAtPrefix: "Dilaporkan:",
     },
+    invest: {
+      title: "Perkiraan pajak final tahun ini",
+      empty:
+        "Belum ada bunga/kupon atau penjualan yang kena pajak final tahun ini.",
+      exchangeLabel: "Exchange",
+      exchangeOptions: {
+        domestik: "Domestik (terdaftar Bappebti/OJK)",
+        luar_negeri: "Luar negeri",
+      },
+      viewInTax: "Lihat di Pajak",
+    },
+    account: {
+      title: "Pajak bunga tabungan & deposito",
+      body: "Bunga dikenai PPh final {rate} yang dipotong langsung oleh bank. Simpanan dengan pokok ≤ {threshold} tidak dipotong.",
+    },
+    ppn: {
+      summary: "Info PPN",
+      infoOnly: "Hanya informasi — tidak mengubah transaksi.",
+      luxuryToggle: "Barang mewah (PPnBM)",
+      dppLabel: "DPP",
+      ppnLabel: "PPN di dalam harga",
+      effectiveLabel: "Tarif efektif",
+      mechanismNote:
+        "Tarif nominal {nominal}; barang/jasa non-mewah memakai DPP 11/12 sehingga efektif {effective}.",
+    },
   },
   rekening: {
     typeLabels: {

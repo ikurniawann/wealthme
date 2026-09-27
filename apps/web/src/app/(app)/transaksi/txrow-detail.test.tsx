@@ -20,6 +20,7 @@
 import type { ReactElement } from "react";
 import { render as rtlRender, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { TransactionDto } from "@wealthme/contracts";
 
 // `./page` also defines `TransaksiPageInner`, which imports `auth-client`
@@ -57,8 +58,18 @@ if (typeof window !== "undefined" && !window.PointerEvent) {
   window.PointerEvent = PointerEventPolyfill;
 }
 
+// Task 11 (sub-plan L) — TransactionDetailDialog now mounts `PpnHint` for
+// expense rows, which calls `usePpnPreview` (a `useQuery`); the query stays
+// disabled until its `<details>` is opened, but `useQuery` itself still
+// needs a `QueryClientProvider` in the tree even while disabled.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false } },
+});
+
 function render(ui: ReactElement) {
-  return rtlRender(ui);
+  return rtlRender(
+    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+  );
 }
 
 function buildTx(overrides: Partial<TransactionDto> = {}): TransactionDto {

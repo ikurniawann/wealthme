@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/dialog";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { formatManualDate } from "@/components/consolidated-total-card";
+import { InvestmentTaxCard } from "@/components/tax/investment-tax-card";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
@@ -2235,6 +2236,12 @@ export default function InvestasiPage() {
           than repurposing it (no other planned content for it) and widened
           this guard so the donut still renders alone when there's no trend
           series to share the row with. */}
+      {/* Task 11 (sub-plan L) — the year's final-tax estimate on holdings,
+          right before the allocation/portfolio section per the task brief's
+          anchor (exact SectionCard title has since drifted; this is the
+          section that renders `t.investasi.allocationTitle`). */}
+      <InvestmentTaxCard />
+
       {!isLoading &&
         (portfolioTrendSeries.length > 0 || allocationSegments.length > 0) && (
           <SectionCard
