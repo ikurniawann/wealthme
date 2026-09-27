@@ -1293,7 +1293,7 @@ export default function KalkulatorPage() {
           real shipped features — dropping them would be a functional
           regression, out of this presentation wave's scope). */}
       <div
-        className="hide-scrollbar scroll-fade-x flex gap-[7px] overflow-x-auto"
+        className="hide-scrollbar scroll-fade-x flex gap-[7px] overflow-x-auto max-[399px]:flex-wrap max-[399px]:overflow-visible max-[399px]:[mask-image:none] max-[399px]:[-webkit-mask-image:none]"
         role="group"
         aria-label="Pilih kalkulator"
       >

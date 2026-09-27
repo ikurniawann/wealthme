@@ -857,7 +857,7 @@ export function TransactionDialog() {
                 `.segmented__item` with `role="tablist"`/`role="tab"`
                 (shell.js:531-535). */}
               <div
-                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto"
+                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto max-[399px]:flex max-[399px]:flex-wrap max-[399px]:overflow-visible max-[399px]:[mask-image:none] max-[399px]:[-webkit-mask-image:none]"
                 role="tablist"
                 aria-label={t.shell.transactionDialog.typeSwitchLabel}
               >

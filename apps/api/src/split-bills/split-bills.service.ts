@@ -424,7 +424,7 @@ export class SplitBillsService {
           categoryId,
           amount: participant.amountOwed,
           type: "income",
-          description: `Split bill: ${bill.title} — ${participant.name}`,
+          description: `Split bill: ${bill.title} untuk ${participant.name}`,
           occurredAt: paidAt,
         },
       });

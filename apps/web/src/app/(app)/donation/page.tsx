@@ -141,10 +141,20 @@ function safeMaskedNumber(value: string | null | undefined): string | null {
   return UNDECRYPTED_BLOB_RE.test(value) ? null : value;
 }
 
+// Batch 8 item 6 — some accounts' `maskedNumber` is a full, un-masked raw
+// number (a legacy row predating server-side masking, per the audit-fix
+// note above), not the "···9010" shape the API normally returns. Blindly
+// prefixing "···" onto that raw value doubled up the mask glyph AND still
+// leaked every digit. Mask it ourselves whenever it looks like a bare
+// digit run; leave an already-masked value untouched.
+function maskAccountNumber(value: string): string {
+  return /^\d{5,}$/.test(value) ? `···${value.slice(-4)}` : value;
+}
+
 function formatAccountLabel(account: AccountDto | undefined): string | null {
   if (!account) return null;
   const masked = safeMaskedNumber(account.maskedNumber);
-  return masked ? `${account.name} ···${masked}` : account.name;
+  return masked ? `${account.name} ${maskAccountNumber(masked)}` : account.name;
 }
 
 function ZkInput({
@@ -787,11 +797,11 @@ export default function DonationPage() {
                   <div className="text-[11.5px] text-muted-foreground">
                     <span className="break-words">
                       {formatLocaleDate(d.donatedAt, locale)}
-                      {accountLabel && ` · ${accountLabel}`}
+                      {accountLabel && `, ${accountLabel}`}
                     </span>
                     {d.receiptUrl && (
                       <>
-                        {" · "}
+                        {", "}
                         <a
                           href={d.receiptUrl}
                           target="_blank"

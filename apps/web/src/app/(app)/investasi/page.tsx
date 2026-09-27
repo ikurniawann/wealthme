@@ -2202,9 +2202,11 @@ export default function InvestasiPage() {
       </div>
 
       {/* EPIC-021 #19: filter tabs by type. Gap #2 — moved below the info
-          callout (prototype order: stats → callout → pills → table). Gap
-          #4 — "Baru" badge on the deposito pill, matching the prototype. */}
-      <div className="hide-scrollbar flex gap-2 overflow-x-auto">
+          callout (prototype order: stats → callout → pills → table).
+          Polish batch 8 item 5 — the "Baru" badge on the deposito pill
+          was purely decorative (deposito has been a real, non-new type
+          since EPIC-024 C2/C3); dropped per the no-decorative-pill rule. */}
+      <div className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto max-[399px]:flex-wrap max-[399px]:overflow-visible max-[399px]:[mask-image:none] max-[399px]:[-webkit-mask-image:none]">
         {FILTER_TAB_IDS.map((id) => (
           <button
             key={id}
@@ -2219,11 +2221,6 @@ export default function InvestasiPage() {
             {id === "semua"
               ? t.investasi.filterAllLabel
               : t.investasi.typeLabels[id]}
-            {id === "deposito" && (
-              <StatusBadge variant="purple" className="ml-1.5">
-                {t.investasi.filterNewBadge}
-              </StatusBadge>
-            )}
           </button>
         ))}
       </div>

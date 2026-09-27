@@ -221,12 +221,15 @@ function render(ui: ReactElement) {
   return { ...result, queryClient };
 }
 
-describe("TransactionDialog, mobile tab-strip scrolls instead of wrapping (batch-3)", () => {
-  it("the type-switch tablist scrolls horizontally and no longer wraps, each tab stays on one line", async () => {
+describe("TransactionDialog, tab-strip scrolls at tablet/desktop, wraps below 400px (batch-3, revised batch-8 item 1)", () => {
+  it("the type-switch tablist scrolls horizontally by default and wraps only under the 400px breakpoint", async () => {
     render(<TransactionDialog />);
     const tablist = await screen.findByRole("tablist");
-    expect(tablist.className).not.toMatch(/\bflex-wrap\b/);
     expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
+    // Batch 8 item 1 — "Kartu Kredit" clipped at 390px with no usable
+    // affordance; wrap into extra rows below 400px instead of relying on
+    // scroll-fade alone, matching /kalkulator and /investasi.
+    expect(tablist.className).toMatch(/\bmax-\[399px\]:flex-wrap\b/);
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab.className).toMatch(/\bshrink-0\b/);
       expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);

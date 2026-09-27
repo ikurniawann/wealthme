@@ -55,7 +55,7 @@ export function WealthSnapshot({
             </span>
             <span className="snapshot-row__body">
               <span className="snapshot-row__label">
-                {t.beranda.liquidAssets} · {liquidPct}%
+                {t.beranda.liquidAssets} ({liquidPct}%)
               </span>
               <span className="snapshot-row__value mono">
                 {fmt.moneyCompact(liquidTotal)}
@@ -75,7 +75,7 @@ export function WealthSnapshot({
             </span>
             <span className="snapshot-row__body">
               <span className="snapshot-row__label">
-                {t.beranda.nonLiquidAssets} · {nonLiquidPct}%
+                {t.beranda.nonLiquidAssets} ({nonLiquidPct}%)
               </span>
               <span className="snapshot-row__value mono">
                 {fmt.moneyCompact(nonLiquidTotal)}
