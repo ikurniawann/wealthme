@@ -205,13 +205,26 @@ export function rateForPeriod(input: RatePeriodInput): string {
   ).ratePercent;
 }
 
-/** Whole installment months between `start` and `now` (UTC), never negative. */
+/**
+ * Whole installment months between `start` and `now` (UTC), never negative.
+ *
+ * fix-round1 (month-end clamp) — `months` is the number of periods `k` for
+ * which `dueDateForPeriod(start, k)` has already passed by `now`. For a
+ * normal (day 1-28) akad this reduces to the original raw calendar-month
+ * difference minus one if `now` hasn't reached `start`'s day-of-month yet
+ * — unchanged. For a day 29-31 akad, `dueDateForPeriod` may clamp to an
+ * EARLIER day (e.g. 28 Feb for a 31 Jan akad), so comparing against the
+ * raw, unclamped day-of-month here would drift from the due-day math
+ * every other function in this file (and the API's `nextDueDate`) uses.
+ */
 export function monthsElapsed(start: Date, now: Date): number {
-  const months =
+  const rawMonths =
     (now.getUTCFullYear() - start.getUTCFullYear()) * 12 +
-    (now.getUTCMonth() - start.getUTCMonth()) -
-    (now.getUTCDate() < start.getUTCDate() ? 1 : 0);
-  return Math.max(0, months);
+    (now.getUTCMonth() - start.getUTCMonth());
+  if (rawMonths <= 0) return 0;
+  const stillBeforeDue =
+    now.getTime() < dueDateForPeriod(start, rawMonths).getTime();
+  return stillBeforeDue ? rawMonths - 1 : rawMonths;
 }
 
 /**
@@ -256,6 +269,32 @@ export interface DueInstallment {
 }
 
 /**
+ * The calendar due day for installment `period`: `period` months after the
+ * akad's own day-of-month (period 1 = one month after `startDate`). Shared
+ * by `dueInstallment`'s "last due" check, `dueInstallmentEffectiveAt`'s
+ * "previous due day", and the API's `LiabilityDto.nextDueDate` field, so
+ * all three agree on the same due-day math instead of re-deriving it.
+ *
+ * fix-round1 (month-end clamp) — `Date.UTC` silently OVERFLOWS a day that
+ * doesn't exist in the target month (e.g. akad 31 Jan + 1 month = "31
+ * Feb", which JS rolls forward into 2 or 3 March), skipping a whole due
+ * month and putting two dues in the following one. Clamped to the target
+ * month's actual last day instead — an akad on the 29th-31st just falls
+ * due on the target month's last day when it is shorter, exactly like a
+ * bank's own "same date, or month-end if shorter" contract convention.
+ */
+export function dueDateForPeriod(startDate: Date, period: number): Date {
+  const targetYear = startDate.getUTCFullYear();
+  const targetMonthIndex = startDate.getUTCMonth() + period;
+  // Day 0 of the FOLLOWING month is the last day of the target month.
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(targetYear, targetMonthIndex + 1, 0),
+  ).getUTCDate();
+  const day = Math.min(startDate.getUTCDate(), lastDayOfTargetMonth);
+  return new Date(Date.UTC(targetYear, targetMonthIndex, day));
+}
+
+/**
  * The installment being paid today: the latest one already due while it is
  * at most DUE_GRACE_DAYS late, otherwise the next one (installment k falls
  * due k months after the akad), clamped to [1, tenor]. The schedule's first
@@ -269,11 +308,7 @@ export function dueInstallment(
   if (startDate === null) return { period: 1, late: false };
   const today = localCalendarDay(now);
   const elapsed = monthsElapsed(startDate, today);
-  const lastDue = Date.UTC(
-    startDate.getUTCFullYear(),
-    startDate.getUTCMonth() + elapsed,
-    startDate.getUTCDate(),
-  );
+  const lastDue = dueDateForPeriod(startDate, elapsed).getTime();
   const daysLate = Math.round((today.getTime() - lastDue) / DAY_MS);
   const inGrace = elapsed >= 1 && daysLate <= DUE_GRACE_DAYS;
   const period = inGrace ? elapsed : elapsed + 1;
@@ -305,11 +340,7 @@ export function dueInstallmentEffectiveAt(
   if (period <= 1) {
     return new Date(startDate.getTime() - APP_UTC_OFFSET_MS);
   }
-  const previousDueDay = Date.UTC(
-    startDate.getUTCFullYear(),
-    startDate.getUTCMonth() + (period - 1),
-    startDate.getUTCDate(),
-  );
+  const previousDueDay = dueDateForPeriod(startDate, period - 1).getTime();
   return new Date(
     previousDueDay + (DUE_GRACE_DAYS + 1) * DAY_MS - APP_UTC_OFFSET_MS,
   );

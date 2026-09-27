@@ -172,7 +172,7 @@ export default function RegisterPage() {
           </Link>
 
           <h1 className="mt-3.5 text-center text-[16px] font-extrabold">
-            Buat Akun Baru 🚀
+            Buat Akun Baru
           </h1>
           <p className="mt-1 mb-4 text-center text-[11.5px] text-muted-foreground">
             Mulai kelola keuangan Anda hari ini
@@ -361,16 +361,11 @@ export default function RegisterPage() {
             </div>
 
             {/* EPIC-024 item 11 — no auto-created "Akun Utama" anymore;
-                the prototype records this real behavior, so it is ported. */}
+                the prototype records this real behavior. Polish batch 7b
+                item 7 — shortened from a 5-line explanation to one line. */}
             <div className="mt-3.5 flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
               <Info className="mt-0.5 size-4 shrink-0" />
-              <span>
-                <strong>Tidak ada rekening yang dibuat otomatis.</strong>{" "}
-                Setelah mendaftar, kamu menambahkan sendiri rekening pertamamu
-                (bank, e-wallet, atau tunai) — WealthMe tidak lagi membuat
-                &ldquo;Akun Utama&rdquo; berisi{" "}
-                <span className="mono">Rp 0</span> yang harus kamu hapus.
-              </span>
+              <span>Rekening pertama kamu tambahkan setelah daftar.</span>
             </div>
 
             {/* EPIC-025 N3-H2 (J1) — the prototype's consent checkbox is cut:
@@ -397,8 +392,7 @@ export default function RegisterPage() {
         </SectionCard>
 
         <div className="mt-3.5 text-center text-[11.5px] text-muted-foreground">
-          Anggota keluarga tidak mendaftar sendiri — akun mereka dibuat oleh
-          kepala keluarga.
+          Anggota keluarga didaftarkan oleh kepala keluarga.
         </div>
       </div>
     </div>

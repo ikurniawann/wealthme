@@ -63,6 +63,14 @@ export interface CrudField {
   referenceGroup?: ReferenceItemGroup;
   /** Render the field only while this returns true for the current values. */
   visibleWhen?: (values: Record<string, string>) => boolean;
+  /**
+   * E2E round 1, bug 1 — CrudModal blocks Simpan and shows an inline error
+   * when this field is blank/whitespace-only. Only `tujuan.nama` opts in
+   * today; every other entity's own `handleSubmit` (asuransi, warisan,
+   * masterdata, anggaran) already does its own required-name toast, so
+   * flipping this on for them too would double-validate the same field.
+   */
+  required?: boolean;
 }
 
 export interface CrudEntityConfig {
@@ -127,8 +135,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         key: "isPrivate",
         label: "Rekening Privat",
         type: "toggle",
-        helperText:
-          "Hanya terlihat oleh Master & Co-Master. Anggota lain tidak melihat rekening ini maupun transaksinya.",
+        helperText: "Hanya Master & Co-Master.",
       },
       {
         // EPIC-019 Task A — options injected at runtime via CrudModal
@@ -308,12 +315,9 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Nama Tujuan",
         type: "text",
         placeholder: "cth: Dana Liburan",
-      },
-      {
-        key: "icon",
-        label: "Ikon",
-        type: "iconpick",
-        options: ["🛡️", "✈️", "🏠", "🏖️", "🚗", "🎓", "💍", "👶"],
+        // E2E round 1, bug 1 — a blank/whitespace name used to save
+        // silently (201, success toast); CrudModal now blocks Simpan.
+        required: true,
       },
       { key: "target", label: "Target Jumlah", type: "amount" },
       { key: "terkumpul", label: "Sudah Terkumpul", type: "amount" },
@@ -354,6 +358,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         options: [],
         visibleWhen: (v) => parseRupiah(v.autodebit ?? "") > 0,
       },
+      {
+        key: "icon",
+        label: "Ikon",
+        type: "iconpick",
+        options: ["🛡️", "✈️", "🏠", "🏖️", "🚗", "🎓", "💍", "👶"],
+      },
     ],
   },
   // EPIC-024 A2 (D2, item 18) — the "member" entity (email invite-link UI)
@@ -380,12 +390,6 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
     title: "Kategori",
     fields: [
       {
-        key: "icon",
-        label: "Ikon",
-        type: "iconpick",
-        options: ["🍽️", "🚗", "🏥", "🎮", "🛒", "💡", "📱", "🎓", "🏠", "✈️"],
-      },
-      {
         key: "nama",
         label: "Nama Kategori",
         type: "text",
@@ -410,6 +414,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Kategori Privat",
         type: "toggle",
         helperText: "Sembunyikan dari anggota keluarga lain",
+      },
+      {
+        key: "icon",
+        label: "Ikon",
+        type: "iconpick",
+        options: ["🍽️", "🚗", "🏥", "🎮", "🛒", "💡", "📱", "🎓", "🏠", "✈️"],
       },
     ],
   },

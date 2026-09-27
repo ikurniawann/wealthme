@@ -3,7 +3,6 @@
 import { useLocale } from "@/hooks/use-locale";
 import { SectionCard } from "@/components/wm";
 import { formatRupiah } from "@/lib/format";
-import { TaxRuleBadge } from "@/components/tax/tax-rule-badge";
 import { useTaxSummary } from "@/components/tax/use-tax-api";
 
 import type { Locale } from "@/i18n";
@@ -37,14 +36,13 @@ export function AnnualSummary({ taxYear }: { taxYear: number }) {
     );
   }
 
-  const { pphOp, finalTax, umkm, totalEstimatedTax, spt, rules } = summary;
+  const { pphOp, finalTax, umkm, totalEstimatedTax, spt } = summary;
   const balance = pphOp ? Number(pphOp.balance) : 0;
 
   return (
     <SectionCard title={t.tax.summary.title}>
       <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
         {t.tax.summary.totalLabel.replace("{year}", String(taxYear))}
-        <TaxRuleBadge rules={rules} />
       </div>
       <div className="mt-1 text-[30px] font-black tracking-[-1px] text-primary">
         {formatRupiah(Number(totalEstimatedTax))}

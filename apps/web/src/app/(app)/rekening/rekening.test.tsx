@@ -281,7 +281,7 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
     render(<RekeningPage />);
 
     expect(
-      await screen.findByTitle(/hanya terlihat oleh master/i),
+      await screen.findByTitle(/hanya master & co-master/i),
     ).toBeInTheDocument();
   });
 

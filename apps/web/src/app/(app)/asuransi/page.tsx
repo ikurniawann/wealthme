@@ -21,6 +21,7 @@ import { StatusBadge, SectionCard, DateField } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { ConfirmDeleteDialog } from "@/components/crud";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import type { ApiError } from "@/lib/api-client";
@@ -373,6 +374,11 @@ interface BeneficiaryEditorProps {
   // so this note tells the user WHY the picker is unavailable instead of
   // just hiding it.
   membersUnavailable?: boolean;
+  /** polish-j batch 7a item 9 — the add-policy form wraps this in an
+   * "Ahli waris (opsional)" disclosure, whose own summary already names
+   * the section; suppress the inner heading there to avoid saying it
+   * twice. Defaults to shown (standalone edit-policy usage). */
+  showSectionTitle?: boolean;
 }
 
 /** Shared allocation-bar + row editor, mirroring warisan's heir editor UX. */
@@ -381,6 +387,7 @@ function BeneficiaryEditor({
   onChange,
   familyMembers,
   membersUnavailable,
+  showSectionTitle = true,
 }: BeneficiaryEditorProps) {
   const { t } = useLocale();
   const allocated = Math.min(100, totalAllocated(rows));
@@ -398,9 +405,11 @@ function BeneficiaryEditor({
           Persentase (%). The prototype models one beneficiary per dialog; the
           app edits all of a policy's beneficiaries inline, so the block
           repeats per row with its own remove action. */}
-      <div className="section-title mt-[18px] mb-2 text-[14px]">
-        {t.asuransi.beneficiariesSectionTitle}
-      </div>
+      {showSectionTitle && (
+        <div className="section-title mt-[18px] mb-2 text-[14px]">
+          {t.asuransi.beneficiariesSectionTitle}
+        </div>
+      )}
       <div className="space-y-2.5">
         {rows.map((row) => {
           // EPIC-023 F1 (D14) — once linked, name/relationship are
@@ -973,12 +982,22 @@ function InsuranceModal({
             />
           </div>
 
-          <BeneficiaryEditor
-            rows={beneficiaries}
-            onChange={setBeneficiaries}
-            familyMembers={familyMembers}
-            membersUnavailable={membersUnavailable}
-          />
+          {/* polish-j batch 7a item 9 — beneficiaries are optional and were
+              bloating the add form open by default; collapsed behind a
+              disclosure so the required fields above are what's visible
+              first. */}
+          <AdvancedDisclosure
+            label={t.asuransi.beneficiariesOptionalLabel}
+            defaultOpen={beneficiaries.length > 0}
+          >
+            <BeneficiaryEditor
+              rows={beneficiaries}
+              onChange={setBeneficiaries}
+              familyMembers={familyMembers}
+              membersUnavailable={membersUnavailable}
+              showSectionTitle={false}
+            />
+          </AdvancedDisclosure>
         </DialogBody>
 
         <DialogFooter>

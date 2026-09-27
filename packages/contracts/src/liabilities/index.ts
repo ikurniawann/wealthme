@@ -36,6 +36,13 @@ export interface LiabilityDto {
   minimumPayment: string;
   interestRate: string;
   dueDate: string | null;
+  // E2E round 1 bug 2 — the real next-installment due date for
+  // installment-type liabilities (kpr/kendaraan/pinjaman_pribadi with a
+  // Tanggal Akad + tenor), computed by the same due-anchor rule the
+  // amortisation schedule uses (see LiabilitiesService.nextDueDateFor).
+  // `dueDate` is a separate legacy manual field the KPR form never sets —
+  // prefer `nextDueDate ?? dueDate` everywhere "next due" is displayed.
+  nextDueDate: string | null;
   autoAdvanceDueDate: boolean;
   paymentRatio: number;
   // EPIC-023 E2 — true when a payment transaction linked to this liability

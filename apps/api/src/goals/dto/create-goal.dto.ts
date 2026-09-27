@@ -12,6 +12,7 @@ import {
   ValidateIf,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 const MAX_AMOUNT = 999_999_999_999;
@@ -19,6 +20,7 @@ const MAX_AMOUNT = 999_999_999_999;
 export class CreateGoalDto {
   @ApiProperty()
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name!: string;
 

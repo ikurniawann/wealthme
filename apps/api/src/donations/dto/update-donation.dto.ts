@@ -10,6 +10,7 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 export class UpdateDonationDto {
@@ -21,6 +22,7 @@ export class UpdateDonationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(200)
   recipient?: string;
 

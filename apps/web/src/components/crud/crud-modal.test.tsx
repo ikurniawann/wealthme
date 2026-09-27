@@ -268,6 +268,12 @@ describe("CrudModal — date fields use the shared DateField", () => {
     const dialog = await screen.findByRole("dialog", {
       name: /tambah tujuan keuangan/i,
     });
+    // E2E round 1, bug 1 — `nama` is now a required field; a blank name
+    // blocks Simpan before this test's own assertion on `deadline`.
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Dana Liburan"),
+      "Dana Liburan",
+    );
     const trigger = within(dialog).getByLabelText("Target Tanggal");
     expect(trigger.tagName).toBe("BUTTON");
 

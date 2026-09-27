@@ -18,6 +18,7 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 import { RatePeriodDto } from "./rate-period.dto";
@@ -26,6 +27,7 @@ export class UpdateLiabilityDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name?: string;
 

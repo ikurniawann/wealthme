@@ -391,6 +391,8 @@ export type I18nDictionary = {
     emojiNoResults: string;
     emojiLoading: string;
     emojiGroupAriaLabel: string;
+    /** Shared "Opsi lanjutan" disclosure summary (components/crud/advanced-disclosure.tsx). */
+    advancedOptions: string;
     /** Single-date picker (components/wm/date-range-field.tsx `DateField`). */
     datePickerPlaceholder: string;
     datePickerYearLabel: string;
@@ -624,9 +626,10 @@ export type I18nDictionary = {
       // obviously-bad file).
       attachmentInvalidTypeToast: string;
       attachmentTooLargeToast: string;
-      // EPIC-026 Wave 8 — prototype `.dialog__desc` on `#dlg-transaksi`
-      // (assets/shell.js) and its `.dialog__footer` Batal button.
-      dialogDesc: string;
+      // polish-j batch 7a item 6 dropped the dialog's own `.dialog__desc`
+      // ("Catat pemasukan, pengeluaran, transfer, atau belanja kartu
+      // kredit.") — the tab strip itself already says which of those this
+      // is. `.dialog__footer` Batal button is unaffected.
       modeSwitchLabel: string;
       typeSwitchLabel: string;
     };
@@ -1012,10 +1015,8 @@ export type I18nDictionary = {
       namePlaceholder: string;
       usernameLabel: string;
       usernamePlaceholder: string;
-      usernameHint: string;
       passwordLabel: string;
       passwordPlaceholder: string;
-      passwordHint: string;
       showPassword: string;
       hidePassword: string;
       roleLabel: string;
@@ -1032,6 +1033,11 @@ export type I18nDictionary = {
       istriCoMasterHint: string;
       relationshipLabel: string;
       relationshipNoneOption: string;
+      // polish-j batch 7a item 4 — Email moves under the "Opsi lanjutan"
+      // disclosure alongside Hak akses; its hint is now one line.
+      emailLabel: string;
+      emailPlaceholder: string;
+      emailHint: string;
       accessRoleLabel: string;
       accessRoleDefaultOption: string;
       accessRoleEmptyHint: string;
@@ -1204,6 +1210,9 @@ export type I18nDictionary = {
     /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
      * heir editor UX (allocation bar + optional family-member link). */
     beneficiariesSectionTitle: string;
+    /** polish-j batch 7a item 9 — summary label for the "Opsi lanjutan"-
+     * style disclosure collapsing beneficiaries in the add-policy form. */
+    beneficiariesOptionalLabel: string;
     beneficiariesLabel: string;
     beneficiaryNameLabel: string;
     beneficiaryNamePlaceholder: string;
@@ -1443,6 +1452,7 @@ export type I18nDictionary = {
       resultLabel: string;
       resultValueSuffix: string;
       detailTargetReachedPrefix: string;
+      unreachableError: string;
     };
     splitgroup: {
       cardTitle: string;
@@ -1454,6 +1464,7 @@ export type I18nDictionary = {
       resultLabel: string;
       detailTotalWithTaxPrefix: string;
       createSplitBillButton: string;
+      invalidPeopleError: string;
     };
   };
   /**
@@ -1679,6 +1690,7 @@ export type I18nDictionary = {
     livePositionsSuffix: string;
     pricingSourceNoticeTitle: string;
     pricingSourceNoticeBody: string;
+    pricingSourceMoreLabel: string;
     allocationTitle: string;
     // EPIC-025 N3 audit (structural port fidelity) — page-lead header,
     // restored "Jumlah"/"Harga / Sumber" table columns, per-row price-source
@@ -1694,6 +1706,9 @@ export type I18nDictionary = {
     filterNewBadge: string;
     /** Template with `{ticker}` and `{date}` placeholders. */
     rowTickerPurchasedTemplate: string;
+    /** Template with a `{date}` placeholder — non-market types (no real
+     * ticker to show), e.g. deposito/emas/reksa dana/lainnya. */
+    rowPurchasedTemplate: string;
     /** Template with `{rate}` and `{date}` placeholders. */
     rowCouponPurchasedTemplate: string;
     /** Template with `{date}` and `{maturityDate}` placeholders. */
@@ -1711,17 +1726,9 @@ export type I18nDictionary = {
     navPricePrefix: string;
     nominalPrefix: string;
     pricingSourceLastSyncedPrefix: string;
-    // EPIC-026 Wave 8 — prototype #dlg-catat (`.investment-dialog`):
-    // dialog description + the `.investment-form__section` headings and
-    // the `.hint` lines under the identity fields.
+    // polish-j batch 7a item 3 — the per-section headings are gone; this is
+    // now the dialog's only subtitle line.
     modalDesc: string;
-    sectionIdentityTitle: string;
-    sectionIdentityDesc: string;
-    sectionPositionTitle: string;
-    sectionPositionDesc: string;
-    sectionValuationTitle: string;
-    sectionValuationDesc: string;
-    hintName: string;
     hintPurchaseDate: string;
     hintLotConversion: string;
     // EPIC-022 D2 — quantity/cost basis can no longer be silently overwritten
@@ -1988,10 +1995,11 @@ export type I18nDictionary = {
     overdueWarningPrefix: string;
     overdueWarningSuffix: string;
     // EPIC-026 Wave 8 — prototype dialog composition
-    // (docs/prototype/pages/liabilitas.html): `.dialog__desc` lines, the
-    // Detail dialog's amortisation-schedule table headers, the Bayar
-    // dialog's amount presets / source-account hint / split-preview notice.
-    modalDesc: string;
+    // (docs/prototype/pages/liabilitas.html): the Detail dialog's
+    // amortisation-schedule table headers, the Bayar dialog's amount
+    // presets / source-account hint / split-preview notice. polish-j
+    // batch 7a item 8 dropped the add/edit dialog's own `.dialog__desc`
+    // ("Perubahan langsung memengaruhi rasio...").
     detailNextDueLabel: string;
     detailPayButton: string;
     amortisationScheduleTitle: string;
@@ -2454,7 +2462,6 @@ export type I18nDictionary = {
     toastDeleteFailed: string;
     activeGoalsSuffix: string;
     totalAllocatedPrefix: string;
-    trackerDisclaimer: string;
     addGoalButton: string;
     onTrackLabel: string;
     onTrackDesc: string;
@@ -2581,8 +2588,6 @@ export type I18nDictionary = {
     grossInputHint: string;
     ptkpSelectedPrefix: string;
     jabatanHint: string;
-    perpuluhanHint: string;
-    perpuluhanHintLinkLabel: string;
     perpuluhanAutoFilledHint: string;
     resetButton: string;
     toastReset: string;
@@ -2607,6 +2612,7 @@ export type I18nDictionary = {
     // unverified/out-of-range `TaxRuleRefDto` surfaced anywhere on /tax.
     rules: {
       unverifiedBadge: string;
+      unverifiedIntro: string;
       outOfRange: string;
     };
     // Task 9 — the detailed PPh OP calculator (replaces the old flat
@@ -2624,7 +2630,6 @@ export type I18nDictionary = {
       nppnLabel: string;
       nppnHint: string;
       otherNetLabel: string;
-      zakatSavedNote: string;
       netoLabel: string;
       balanceLabel: string;
       overpaidLabel: string;
@@ -2639,6 +2644,12 @@ export type I18nDictionary = {
       subtitle: string;
       monthlyGrossLabel: string;
       editMonthsToggle: string;
+      // Fix round 1 (DTP fixed-gross cap, PMK 10/2025) — an explicit
+      // per-month THR/bonus amount so the DTP salary cap can exclude it
+      // without under-capping a genuine mid-year raise.
+      thrBonusLabel: string;
+      thrBonusHint: string;
+      thrExceedsGrossError: string;
       categoryPrefix: string;
       kiNote: string;
       colMonth: string;
@@ -2685,6 +2696,10 @@ export type I18nDictionary = {
       save: string;
       saved: string;
       saveFailed: string;
+      disclosureLabel: string;
+      loadingLabel: string;
+      loadFailedLabel: string;
+      emptyStateNote: string;
     };
     // Task 10 — final tax on investments/other income (contracts'
     // `FinalTaxEstimateDto`/`TaxFinalIncomeEntryDto`).
@@ -2712,6 +2727,9 @@ export type I18nDictionary = {
       toastSaved: string;
       toastDeleted: string;
       toastFailed: string;
+      loadingLabel: string;
+      loadFailedLabel: string;
+      emptyStateNote: string;
     };
     // Task 10 — the page's single "answer" block: total estimated tax +
     // SPT timing (contracts' `TaxAnnualSummaryDto`).
@@ -2792,11 +2810,6 @@ export type I18nDictionary = {
     deleteDialogBody: string;
     deleteDialogConfirm: string;
     /** EPIC-025 N3 prototype structural port. */
-    insightOneLabel: string;
-    insightOneAccountsSuffix: string;
-    insightOneOwnersSuffix: string;
-    insightPrivacyLabel: string;
-    insightPrivacyValue: string;
     filterNoteText: string;
     addCardTitle: string;
     addCardSubtitle: string;
@@ -2812,11 +2825,6 @@ export type I18nDictionary = {
   donation: {
     typeLabels: Record<DonationTypeId, string>;
     jenisOptionLabels: Record<DonationTypeId, string>;
-    groupIslam: string;
-    /** EPIC-023 F2 (D20, US-DON-6/7) — groups the obligatory Christian
-     * contribution in the "Jenis" dropdown, alongside `groupIslam`. */
-    groupKristen: string;
-    groupUmum: string;
     heroTitle: string;
     transactionsSuffix: string;
     yearRunningPrefix: string;
@@ -2877,11 +2885,6 @@ export type I18nDictionary = {
     fieldTanggalLabel: string;
     fieldAccountLabel: string;
     accountNoneOption: string;
-    accountHint: string;
-    taxDeductibleCheckboxLabel: string;
-    /** EPIC-022 E5 — shown next to the checkbox when the selected donation
-     * type cannot legally be tax deductible (only zakat to an amil can). */
-    taxDeductibleIneligibleNote: string;
     savingLabel: string;
     saveRecordButton: string;
     toastSaved: string;
@@ -2927,11 +2930,13 @@ export type I18nDictionary = {
     religionCalculatorUnconfirmedDesc: string;
     /**
      * EPIC-026 — prototype `dlg-donasi` composition
-     * (`docs/prototype/pages/donation.html`): the dialog's supporting
-     * description line and the two-line label on the tax-deduction switch
-     * row (the prototype uses a `.switch`, not a checkbox).
+     * (`docs/prototype/pages/donation.html`): the tax-deduction switch row
+     * (the prototype uses a `.switch`, not a checkbox). polish-j batch 7a
+     * item 5 — `taxDeductibleSwitchDesc` is now the ONE line covering what
+     * qualifies (zakat/persepuluhan to a registered body) and the legal
+     * reference; the separate account hint, dialog subtitle, and
+     * ineligibility note it used to duplicate are gone.
      */
-    modalDesc: string;
     taxDeductibleSwitchTitle: string;
     taxDeductibleSwitchDesc: string;
   };
@@ -3015,17 +3020,17 @@ export type I18nDictionary = {
     estimatedValueLabel: string;
     linkedToAssetPrefix: string;
     // EPIC-026 Wave 8 — prototype dialog composition
-    // (docs/prototype/pages/warisan.html): the `.dialog__desc`, the linked-
-    // asset picker + its hint, the visibility switch hint, and the two
-    // previously-hardcoded Indonesian strings in the save path.
-    modalDesc: string;
+    // (docs/prototype/pages/warisan.html): the linked-asset picker + its
+    // hint and the two previously-hardcoded Indonesian strings in the save
+    // path. polish-j batch 7a item 10 dropped the dialog's own
+    // `.dialog__desc` and the visibility switch's hint (both stated
+    // consequences already obvious from the field/switch itself).
     fieldSourceLabel: string;
     sourceManualOption: string;
     sourceAssetOption: string;
     fieldAssetLabel: string;
     assetPickerPlaceholder: string;
     assetPickerHint: string;
-    visibleToHeirsHint: string;
     deleteConfirmBody: string;
     toastSharePercentExceeded: string;
     heirTableHeaderName: string;
@@ -4299,6 +4304,8 @@ export type I18nDictionary = {
     addDescription: string;
     editDescription: string;
     addToMasterData: string;
+    /** "{field}" is replaced with the field's label — see CrudField.required. */
+    fieldRequired: string;
   };
   money: {
     currencyLabel: string;

@@ -206,6 +206,31 @@ describe("AddMemberDialog — Hak akses at creation (Revisi H)", () => {
     expect(screen.getByText(L.accessRoleEmptyHint)).toBeInTheDocument();
   });
 
+  it("collapses Email/Hak akses under Opsi lanjutan by default, opens on click, and submits the email once expanded", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    const summary = screen.getByText(mockDictionary.common.advancedOptions);
+    const details = summary.closest("details");
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute("open");
+
+    await user.click(summary);
+    expect(details).toHaveAttribute("open");
+
+    await user.type(screen.getByLabelText(L.emailLabel), "pak.joko@mail.test");
+    await fillRequired(user);
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+
+    await waitFor(() =>
+      expect(callsTo("/members/dependant", "POST")).toHaveLength(1),
+    );
+    const [post] = callsTo("/members/dependant", "POST");
+    expect(JSON.parse(String(post[1].body))).toMatchObject({
+      email: "pak.joko@mail.test",
+    });
+  });
+
   it("labels the three concepts and explains each one", () => {
     renderDialog();
     const c = mockDictionary.akun.memberConcepts;

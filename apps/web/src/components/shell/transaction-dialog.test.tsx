@@ -232,6 +232,88 @@ describe("TransactionDialog, mobile tab-strip scrolls instead of wrapping (batch
       expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
     }
   });
+
+  // polish-j batch 7a item 6 — at 390px the strip must keep batch 3's
+  // scroll-fade affordance AND every tab label must stay fully reachable
+  // by scrolling (none clipped/hidden), so this pins both: the fade
+  // container classes on the scroll element itself, and that each tab
+  // (including "Kartu Kredit", the longest label) is a direct, non-wrapped
+  // child of that same scrollable element.
+  it("keeps the scroll-fade affordance and every tab (incl. Kartu Kredit) reachable inside the scroll container", async () => {
+    render(<TransactionDialog />);
+    const tablist = await screen.findByRole("tablist");
+    expect(tablist.className).toMatch(/\bscroll-fade-x\b/);
+    expect(tablist.className).toMatch(/\bhide-scrollbar\b/);
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(4);
+    for (const tab of tabs) {
+      expect(tab.parentElement).toBe(tablist);
+      expect(tab.className).toMatch(/\bshrink-0\b/);
+      expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
+    }
+    expect(
+      screen.getByRole("tab", { name: /Kartu Kredit/ }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("TransactionDialog, polish-j batch 7a item 6 (subtitle, pairing, Lampiran disclosure)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
+    aiKeyStatus = {
+      configured: false,
+      provider: null,
+      keyHint: null,
+      scanAvailable: false,
+    };
+  });
+
+  it("no longer renders the dialog subtitle", async () => {
+    render(<TransactionDialog />);
+    await screen.findByRole("tablist");
+    expect(
+      screen.queryByText(
+        "Catat pemasukan, pengeluaran, transfer, atau belanja kartu kredit.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("pairs Akun and Kategori as same-shape controls in one row, like Tanggal/Deskripsi", async () => {
+    render(<TransactionDialog />);
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    const categorySelect = screen.getByRole("combobox", { name: "Kategori" });
+    expect(accountSelect.closest(".field-row")).not.toBeNull();
+    expect(accountSelect.closest(".field-row")).toBe(
+      categorySelect.closest(".field-row"),
+    );
+  });
+
+  it("collapses Lampiran under a disclosure that is closed by default and opens on click", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+    await screen.findByRole("tablist");
+
+    const summary = screen.getByText("Lampiran");
+    const details = summary.closest("details");
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute("open");
+
+    await user.click(summary);
+    expect(details).toHaveAttribute("open");
+    expect(
+      within(details as HTMLElement).getByTestId("attachment-file-input"),
+    ).toBeInTheDocument();
+    expect(
+      within(details as HTMLElement).getByText(/Butuh API key AI\./),
+    ).toBeInTheDocument();
+    expect(
+      within(details as HTMLElement).getByRole("link", { name: "Atur" }),
+    ).toBeInTheDocument();
+  });
 });
 
 describe("TransactionDialog, credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {

@@ -5,10 +5,11 @@ import { useState } from "react";
 import { useLocale } from "@/hooks/use-locale";
 import { formatNumber, formatRupiah, parseRupiah } from "@/lib/format";
 import { formatBps } from "@/components/tax/format-bps";
-import { TaxRuleBadge } from "@/components/tax/tax-rule-badge";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useTaxSession, useTerPreview } from "@/components/tax/use-tax-api";
 
 import { MAX_TAX_INPUT, toClampedDigitString } from "./digits";
+import { useReportTaxRules } from "./tax-rules-context";
 
 import type {
   DtpEmployment,
@@ -56,6 +57,13 @@ export function TerPanel({
   const [monthGrosses, setMonthGrosses] = useState<string[]>(() =>
     MONTHS.map(() => formatNumber(Number(defaultMonthlyGross))),
   );
+  // Fix round 1 (DTP fixed-gross cap, PMK 10/2025) — min(gross, baseline)
+  // wrongly under-capped a genuine mid-year raise (9jt -> 12jt shows as
+  // "fixed" 9jt). THR/bonus needs its own input so a raise still caps on
+  // the full amount while a real THR/bonus month is excluded.
+  const [thrBonus, setThrBonus] = useState<string[]>(() =>
+    MONTHS.map(() => ""),
+  );
   const [sector, setSector] = useState<DtpSector | "none">("none");
   const [employment, setEmployment] = useState<DtpEmployment>("permanent");
   const [dailyWage, setDailyWage] = useState("");
@@ -64,12 +72,23 @@ export function TerPanel({
   const monthlyGross = editMonths
     ? monthGrosses.map((g) => toClampedDigitString(g, MAX_TAX_INPUT))
     : MONTHS.map(() => toClampedDigitString(singleGross, MAX_TAX_INPUT));
+  const thrBonusDigits = editMonths
+    ? thrBonus.map((v) => toClampedDigitString(v, MAX_TAX_INPUT))
+    : MONTHS.map(() => "0");
+  const thrExceedsGross = thrBonusDigits.map(
+    (thr, i) => BigInt(thr) > BigInt(monthlyGross[i]),
+  );
+  const hasThrError = thrExceedsGross.some(Boolean);
+  const monthlyFixedGross = monthlyGross.map((g, i) =>
+    String(BigInt(g) - BigInt(thrBonusDigits[i])),
+  );
 
   const req = {
     taxYear,
     maritalStatus,
     dependents,
     monthlyGross,
+    monthlyFixedGross,
     dtp: {
       sector: sector === "none" ? null : sector,
       employment,
@@ -90,8 +109,9 @@ export function TerPanel({
     error,
     isError,
     isFetching,
-  } = useTerPreview(!fgId || isEmpty ? null : req);
+  } = useTerPreview(!fgId || isEmpty || hasThrError ? null : req);
   const notApplicable = isError && isApiError(error) && error.status === 422;
+  useReportTaxRules("ter", result?.rules ?? []);
 
   function renderDtpCell(row: TerMonthDto) {
     if (!row.dtp) return "—";
@@ -116,6 +136,14 @@ export function TerPanel({
         ? ""
         : formatNumber(Math.min(parseRupiah(value), MAX_TAX_INPUT));
     setMonthGrosses((prev) => prev.map((g, i) => (i === idx ? digits : g)));
+  }
+
+  function updateThrBonus(idx: number, value: string) {
+    const digits =
+      value === ""
+        ? ""
+        : formatNumber(Math.min(parseRupiah(value), MAX_TAX_INPUT));
+    setThrBonus((prev) => prev.map((g, i) => (i === idx ? digits : g)));
   }
 
   return (
@@ -168,6 +196,37 @@ export function TerPanel({
             </div>
           ))}
         </div>
+      )}
+
+      {editMonths && (
+        <AdvancedDisclosure label={t.common.advancedOptions}>
+          <div className="text-[12px] text-muted-foreground">
+            {t.tax.ter.thrBonusHint}
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4">
+            {MONTHS.map((m, idx) => (
+              <div className="field" key={m}>
+                <label htmlFor={`ter-thr-${m}`} className="label">
+                  {t.tax.ter.thrBonusLabel} — {m}
+                </label>
+                <input
+                  id={`ter-thr-${m}`}
+                  type="text"
+                  inputMode="numeric"
+                  value={thrBonus[idx]}
+                  onChange={(e) => updateThrBonus(idx, e.target.value)}
+                  aria-invalid={thrExceedsGross[idx]}
+                  className="input"
+                />
+                {thrExceedsGross[idx] && (
+                  <div className="hint text-destructive">
+                    {t.tax.ter.thrExceedsGrossError}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </AdvancedDisclosure>
       )}
 
       <fieldset className="rounded-[12px] border border-border p-3.5">
@@ -264,6 +323,10 @@ export function TerPanel({
         <div className="notice notice--info">{t.tax.ter.noFamilyNote}</div>
       ) : isEmpty ? (
         <div className="notice notice--info">{t.tax.ter.emptyStateNote}</div>
+      ) : hasThrError ? (
+        <div className="notice notice--warning">
+          {t.tax.ter.thrExceedsGrossError}
+        </div>
       ) : notApplicable ? (
         <div className="notice notice--info">{t.tax.ter.notApplicable}</div>
       ) : isFetching && !result ? (
@@ -321,7 +384,6 @@ export function TerPanel({
             {result.isRefund && (
               <div className="hint">{t.tax.ter.refundNote}</div>
             )}
-            <TaxRuleBadge rules={result.rules} />
           </div>
         )
       )}

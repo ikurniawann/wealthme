@@ -118,3 +118,30 @@ describe("Create/UpdateLiabilityDto — revisi K rate periods", () => {
     ).toContain("ratePeriods");
   });
 });
+
+// E2E round 1, bug 1 — sibling audit: `name` must reject "" / whitespace.
+describe("CreateLiabilityDto/UpdateLiabilityDto.name — E2E round 1 bug 1", () => {
+  it("CreateLiabilityDto rejects an empty name", async () => {
+    expect(
+      await invalidProps(CreateLiabilityDto, { ...BASE, name: "" }),
+    ).toContain("name");
+  });
+
+  it("CreateLiabilityDto rejects a whitespace-only name", async () => {
+    expect(
+      await invalidProps(CreateLiabilityDto, { ...BASE, name: "   " }),
+    ).toContain("name");
+  });
+
+  it("UpdateLiabilityDto rejects an explicit empty name", async () => {
+    expect(await invalidProps(UpdateLiabilityDto, { name: "" })).toContain(
+      "name",
+    );
+  });
+
+  it("UpdateLiabilityDto allows omitting name", async () => {
+    expect(await invalidProps(UpdateLiabilityDto, { notes: "x" })).toHaveLength(
+      0,
+    );
+  });
+});

@@ -37,7 +37,11 @@ export function FinalIncomePanel({
   canManage: boolean;
 }) {
   const { t } = useLocale();
-  const { data: result } = useFinalTax(taxYear);
+  const {
+    data: result,
+    isPending: isResultPending,
+    isError: isResultError,
+  } = useFinalTax(taxYear);
   const { create, update, remove } = useFinalIncomeMutations(taxYear);
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingLine, setEditingLine] = useState<FinalTaxLineDto | null>(null);
@@ -111,84 +115,102 @@ export function FinalIncomePanel({
         {t.tax.final.subtitle}
       </div>
 
-      <div className="table-wrap">
-        <table className="table table--num">
-          <thead>
-            <tr>
-              <th></th>
-              <th>{t.tax.final.fieldInstrument}</th>
-              <th>{t.tax.final.fieldGross}</th>
-              <th>{t.tax.ter.colRate}</th>
-              <th>{t.tax.umkm.colTax}</th>
-              <th></th>
-              <th></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {lines.map((line, idx) => (
-              <tr
-                key={line.entryId ?? `${line.source}-${line.instrument}-${idx}`}
-              >
-                <td>
-                  <span
-                    className={`badge ${
-                      line.source === "holding" ? "badge--info" : "badge--gray"
-                    }`}
-                  >
-                    {line.source === "holding"
-                      ? t.tax.final.sourceHolding
-                      : t.tax.final.sourceEntry}
-                  </span>
-                </td>
-                <td>
-                  <div>{t.tax.final.instruments[line.instrument]}</div>
-                  {line.label && (
-                    <div className="text-[11px] text-muted-foreground">
-                      {line.label}
-                    </div>
-                  )}
-                </td>
-                <td className="mono">
-                  {formatRupiah(Number(line.grossAmount))}
-                </td>
-                <td>{formatBps(line.rateBps)}</td>
-                <td className="mono">
-                  {line.tax === null ? (
-                    <>
-                      <span>—</span>
-                      <div className="text-[11px] text-warning">
-                        {t.tax.final.missingRate}
-                      </div>
-                    </>
-                  ) : (
-                    formatRupiah(Number(line.tax))
-                  )}
-                </td>
-                <td>{line.caveat ? t.tax.final.caveats[line.caveat] : "—"}</td>
-                <td>
-                  <TaxRuleBadge rules={[line.rule]} />
-                </td>
-                <td>
-                  {line.source === "entry" && canManage && line.entryId && (
-                    <RowActions
-                      onEdit={() => openEdit(line)}
-                      onDelete={() => setPendingDelete(line)}
-                    />
-                  )}
-                </td>
+      {isResultError ? (
+        <div className="notice notice--warning">
+          {t.tax.final.loadFailedLabel}
+        </div>
+      ) : isResultPending ? (
+        <div className="hint">{t.tax.final.loadingLabel}</div>
+      ) : lines.length === 0 ? (
+        <div className="notice notice--info">{t.tax.final.emptyStateNote}</div>
+      ) : (
+        <div className="table-wrap">
+          <table className="table table--num">
+            <thead>
+              <tr>
+                <th></th>
+                <th>{t.tax.final.fieldInstrument}</th>
+                <th>{t.tax.final.fieldGross}</th>
+                <th>{t.tax.ter.colRate}</th>
+                <th>{t.tax.umkm.colTax}</th>
+                <th></th>
+                <th></th>
+                <th></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {lines.map((line, idx) => (
+                <tr
+                  key={
+                    line.entryId ?? `${line.source}-${line.instrument}-${idx}`
+                  }
+                >
+                  <td>
+                    <span
+                      className={`badge ${
+                        line.source === "holding"
+                          ? "badge--info"
+                          : "badge--gray"
+                      }`}
+                    >
+                      {line.source === "holding"
+                        ? t.tax.final.sourceHolding
+                        : t.tax.final.sourceEntry}
+                    </span>
+                  </td>
+                  <td>
+                    <div>{t.tax.final.instruments[line.instrument]}</div>
+                    {line.label && (
+                      <div className="text-[11px] text-muted-foreground">
+                        {line.label}
+                      </div>
+                    )}
+                  </td>
+                  <td className="mono">
+                    {formatRupiah(Number(line.grossAmount))}
+                  </td>
+                  <td>{formatBps(line.rateBps)}</td>
+                  <td className="mono">
+                    {line.tax === null ? (
+                      <>
+                        <span>—</span>
+                        <div className="text-[11px] text-warning">
+                          {t.tax.final.missingRate}
+                        </div>
+                      </>
+                    ) : (
+                      formatRupiah(Number(line.tax))
+                    )}
+                  </td>
+                  <td>
+                    {line.caveat ? t.tax.final.caveats[line.caveat] : "—"}
+                  </td>
+                  <td>
+                    <TaxRuleBadge rules={[line.rule]} />
+                  </td>
+                  <td>
+                    {line.source === "entry" && canManage && line.entryId && (
+                      <RowActions
+                        onEdit={() => openEdit(line)}
+                        onDelete={() => setPendingDelete(line)}
+                      />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
-      <div className="text-[13px] font-semibold">
-        {t.tax.final.totalPrefix}{" "}
-        <span className="mono text-primary">
-          {formatRupiah(Number(result?.totalTax ?? 0))}
-        </span>
-      </div>
+      {!!result && (
+        <div className="text-[13px] font-semibold">
+          {t.tax.final.totalPrefix}{" "}
+          <span className="mono text-primary">
+            {formatRupiah(Number(result.totalTax))}
+          </span>
+        </div>
+      )}
       {!!result && result.missingRateCount > 0 && (
         <div className="hint">
           {t.tax.final.missingRateNotice.replace(

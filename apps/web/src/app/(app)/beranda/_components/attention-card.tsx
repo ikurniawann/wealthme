@@ -66,10 +66,15 @@ export function AttentionCard({
               <span>
                 <strong>{nearestDueLiability.name}</strong>{" "}
                 {t.beranda.liabilityDueNotice}{" "}
-                {new Date(nearestDueLiability.dueDate!).toLocaleDateString(
-                  t.beranda.dateLocale,
-                  { day: "numeric", month: "short" },
-                )}
+                {new Date(
+                  // E2E round 1 bug 2 — prefer the real `nextDueDate` over
+                  // the legacy manual `dueDate` field.
+                  (nearestDueLiability.nextDueDate ??
+                    nearestDueLiability.dueDate)!,
+                ).toLocaleDateString(t.beranda.dateLocale, {
+                  day: "numeric",
+                  month: "short",
+                })}
                 .
               </span>
             </button>

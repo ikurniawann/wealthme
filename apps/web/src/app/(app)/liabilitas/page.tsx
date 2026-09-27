@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
   Banknote,
+  CheckCircle2,
   Split,
   StickyNote,
   TriangleAlert,
@@ -234,6 +235,23 @@ function formatScheduleDate(date: Date, locale: Locale): string {
   });
 }
 
+// fix-round1 (Minor) — mirrors the API's `dueDateForPeriod` (same
+// month-end clamp: an akad on the 29th-31st falls due on the target
+// month's own last day when it is shorter, instead of drifting via
+// `anchor + index months`, which compounds wrong once `anchor` itself
+// was already clamped to an earlier day than the akad's own day-of-month.
+function scheduleRowDueDate(startDate: Date, period: number): Date {
+  const targetYear = startDate.getFullYear();
+  const targetMonthIndex = startDate.getMonth() + period;
+  const lastDayOfTargetMonth = new Date(
+    targetYear,
+    targetMonthIndex + 1,
+    0,
+  ).getDate();
+  const day = Math.min(startDate.getDate(), lastDayOfTargetMonth);
+  return new Date(targetYear, targetMonthIndex, day);
+}
+
 // Prototype's "Cicilan Bulan Ini" sub-line ("Jatuh tempo terdekat 12
 // Agustus") spells the month out in full, unlike the card badges' short form.
 function formatLocaleDateFullMonth(iso: string, locale: Locale): string {
@@ -272,8 +290,20 @@ function getDtaRiskLabel(
   return { label: t.liabilitas.riskRisky, color: "var(--destructive)" };
 }
 
+// fix-round1 (Important) — `nextDueDate` is UTC midnight (07:00 WIB), so
+// comparing it against the browser's current instant with a plain
+// `floor((due-now)/day) < 0` made a KPR due TODAY show "Terlambat" the
+// moment the clock passed 07:00 WIB, even though the server's own rule
+// (`dueInstallment`) says late only starts the day AFTER the due date
+// (inside a 5-day grace window). `isLate` — the API's own
+// `currentInstallmentLate`, already WIB-calendar-day aware — is
+// authoritative whenever the row has a real `nextDueDate`; `null` falls
+// back to the date-diff heuristic for a row with only the legacy manual
+// `dueDate` (kartu_kredit never has a `nextDueDate`/schedule to derive
+// `currentInstallmentLate` from).
 function getDueDateStatus(
   dueDate: string | null,
+  isLate: boolean | null,
   t: ReturnType<typeof useLocale>["t"],
   locale: Locale,
 ): {
@@ -286,8 +316,8 @@ function getDueDateStatus(
   const diffDays = Math.floor(
     (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
   );
-  if (diffDays < 0)
-    return { text: t.liabilitas.statusOverdue, variant: "danger" };
+  const late = isLate ?? diffDays < 0;
+  if (late) return { text: t.liabilitas.statusOverdue, variant: "danger" };
   const text = `${t.liabilitas.statusDuePrefix}${formatLocaleDate(dueDate, locale)}`;
   if (diffDays <= 7) return { text, variant: "warning" };
   return { text, variant: "success" };
@@ -572,7 +602,6 @@ function LiabilityModal({
         <DialogTitle>
           {editing ? t.liabilitas.modalEditTitle : t.liabilitas.modalTitle}
         </DialogTitle>
-        <DialogDescription>{t.liabilitas.modalDesc}</DialogDescription>
 
         <form onSubmit={handleSubmit}>
           <DialogBody>
@@ -674,57 +703,59 @@ function LiabilityModal({
               </div>
             )}
 
-            <div className="field-row mt-3">
-              {!usesTenor && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-min-payment">
-                    {t.liabilitas.fieldMinPaymentLabel}
-                  </label>
-                  <MoneyInput
-                    field={minPaymentField}
-                    id="liability-min-payment"
-                    placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
-                  />
-                </div>
-              )}
-              {!usesRatePlan && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-interest-rate">
-                    {rateLabel}
-                  </label>
-                  <input
-                    id="liability-interest-rate"
-                    className="input mono"
-                    placeholder={t.liabilitas.fieldInterestRatePlaceholder}
-                    inputMode="decimal"
-                    value={interestRate}
-                    onChange={(e) => setInterestRate(e.target.value)}
-                  />
-                </div>
-              )}
-              {usesTenor && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="liability-tenor">
-                    {t.liabilitas.fieldTenorLabel}
-                  </label>
-                  <input
-                    id="liability-tenor"
-                    className="input mono"
-                    inputMode="numeric"
-                    placeholder="36"
-                    value={tenorMonths}
-                    onChange={(e) =>
-                      setTenorMonths(e.target.value.replace(/\D/g, ""))
-                    }
-                  />
-                  {usesRatePlan && (
-                    <div className="hint">
-                      {t.liabilitas.kpr.tenorRequiredHint}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            {/* polish-j batch 7a item 8 — Min. Bayar is a MoneyInput and
+                Bunga a plain percent input; pairing mismatched control
+                shapes in one field-row read as misaligned, so each gets its
+                own full-width row instead. */}
+            {!usesTenor && (
+              <div className="field mt-3">
+                <label className="label" htmlFor="liability-min-payment">
+                  {t.liabilitas.fieldMinPaymentLabel}
+                </label>
+                <MoneyInput
+                  field={minPaymentField}
+                  id="liability-min-payment"
+                  placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
+                />
+              </div>
+            )}
+            {!usesRatePlan && (
+              <div className="field mt-3">
+                <label className="label" htmlFor="liability-interest-rate">
+                  {rateLabel}
+                </label>
+                <input
+                  id="liability-interest-rate"
+                  className="input mono"
+                  placeholder={t.liabilitas.fieldInterestRatePlaceholder}
+                  inputMode="decimal"
+                  value={interestRate}
+                  onChange={(e) => setInterestRate(e.target.value)}
+                />
+              </div>
+            )}
+            {usesTenor && (
+              <div className="field mt-3">
+                <label className="label" htmlFor="liability-tenor">
+                  {t.liabilitas.fieldTenorLabel}
+                </label>
+                <input
+                  id="liability-tenor"
+                  className="input mono"
+                  inputMode="numeric"
+                  placeholder="36"
+                  value={tenorMonths}
+                  onChange={(e) =>
+                    setTenorMonths(e.target.value.replace(/\D/g, ""))
+                  }
+                />
+                {usesRatePlan && (
+                  <div className="hint">
+                    {t.liabilitas.kpr.tenorRequiredHint}
+                  </div>
+                )}
+              </div>
+            )}
 
             {usesTenor && (
               <div className="field-row mt-3">
@@ -870,16 +901,23 @@ function LiabilityCardActionBar({
         <Trash2 className="size-3.5" /> Hapus
       </button>
       <span className="flex-1" />
-      <button
-        type="button"
-        onClick={onPay}
-        disabled={payDisabled}
-        title={payDisabled ? payDisabledLabel : undefined}
-        className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Banknote className="size-3.5" />{" "}
-        {payDisabled ? payDisabledLabel : "Bayar"}
-      </button>
+      {/* Polish batch 7b item 5 — this used to be a disabled `<button>`
+          showing "Sudah dibayar periode ini" on every already-paid card;
+          a disabled control implies an action that failed or is blocked,
+          not a settled status. It's now a quiet status badge instead. */}
+      {payDisabled ? (
+        <span className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground">
+          <CheckCircle2 className="size-3.5" /> {payDisabledLabel}
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onPay}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Banknote className="size-3.5" /> Bayar
+        </button>
+      )}
     </div>
   );
 }
@@ -903,7 +941,16 @@ function LiabilityCard({
 }: LiabilityCardProps) {
   const { t, locale } = useLocale();
   const isCreditCard = item.type === "kartu_kredit";
-  const status = getDueDateStatus(item.dueDate, t, locale);
+  // E2E round 1 bug 2 — `dueDate` is the legacy manual field the KPR form
+  // never sets; `nextDueDate` (same anchor rule as the amortisation
+  // schedule) is the real "next due" value when present.
+  const nextDue = item.nextDueDate ?? item.dueDate;
+  const status = getDueDateStatus(
+    nextDue,
+    item.nextDueDate ? item.currentInstallmentLate : null,
+    t,
+    locale,
+  );
 
   const totalDebt = item.totalDebt ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item.remainingBalance
@@ -1034,7 +1081,7 @@ function LiabilityCard({
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             <span>
               {t.liabilitas.overdueWarningPrefix}
-              {item.dueDate ? formatLocaleDate(item.dueDate, locale) : ""}
+              {nextDue ? formatLocaleDate(nextDue, locale) : ""}
               {t.liabilitas.overdueWarningSuffix}
             </span>
           </div>
@@ -1091,7 +1138,17 @@ function LiabilityDetailDialog({
   const hasFloatingPeriod = scheduleQuery.data?.hasFloatingPeriod ?? false;
   const firstRow = scheduleRows[0];
   const paysOff = scheduleRows[scheduleRows.length - 1]?.remaining === "0";
-  const anchor = item?.dueDate ? new Date(item.dueDate) : new Date();
+  // E2E round 1 bug 2 — `dueDate` (legacy manual field) never reflects the
+  // real akad-anchored schedule; `nextDueDate` is the row-1 due date the
+  // schedule below is actually built from.
+  const nextDue = item?.nextDueDate ?? item?.dueDate;
+  const anchor = nextDue ? new Date(nextDue) : new Date();
+  // fix-round1 (Minor) — when the liability has a real Tanggal Akad, each
+  // row's date is derived straight from it via `scheduleRowDueDate`
+  // (matches the API's own `dueDateForPeriod`, including the month-end
+  // clamp); `anchor + index months` is kept only as the kartu_kredit
+  // fallback, which has no akad to anchor against at all.
+  const startDate = item?.startDate ? new Date(item.startDate) : null;
 
   return (
     // EPIC-026 Wave 8 — prototype `dlg-lia-detail` (liabilitas.html:312) is a
@@ -1153,9 +1210,7 @@ function LiabilityDetailDialog({
                     {t.liabilitas.detailNextDueLabel}
                   </div>
                   <div className="text-[13px] font-semibold">
-                    {item.dueDate
-                      ? formatLocaleDate(item.dueDate, locale)
-                      : "—"}
+                    {nextDue ? formatLocaleDate(nextDue, locale) : "—"}
                   </div>
                 </div>
                 <div>
@@ -1287,11 +1342,16 @@ function LiabilityDetailDialog({
                                 <td className="mono">{row.period}</td>
                                 <td className="whitespace-nowrap">
                                   {formatScheduleDate(
-                                    new Date(
-                                      anchor.getFullYear(),
-                                      anchor.getMonth() + index,
-                                      anchor.getDate(),
-                                    ),
+                                    startDate
+                                      ? scheduleRowDueDate(
+                                          startDate,
+                                          row.period,
+                                        )
+                                      : new Date(
+                                          anchor.getFullYear(),
+                                          anchor.getMonth() + index,
+                                          anchor.getDate(),
+                                        ),
                                     locale,
                                   )}
                                 </td>
@@ -1504,8 +1564,8 @@ function PayLiabilityDialog({
               {[
                 item.name,
                 item.institution,
-                item.dueDate
-                  ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(item.dueDate, locale)}`
+                (item.nextDueDate ?? item.dueDate)
+                  ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(item.nextDueDate ?? item.dueDate!, locale)}`
                   : null,
               ]
                 .filter(Boolean)
@@ -1846,9 +1906,11 @@ export default function LiabilitasPage() {
     (sum, l) => sum + BigInt(installmentDue(l)),
     BigInt(0),
   );
+  // E2E round 1 bug 2 — prefer the real `nextDueDate` over the legacy
+  // manual `dueDate` field, same as everywhere else on this page.
   const nearestDueDate = (liabilities ?? [])
-    .filter((l) => l.dueDate)
-    .map((l) => l.dueDate as string)
+    .map((l) => l.nextDueDate ?? l.dueDate)
+    .filter((d): d is string => Boolean(d))
     .sort()[0];
 
   const filteredLiabilities = (liabilities ?? []).filter(
@@ -1881,15 +1943,18 @@ export default function LiabilitasPage() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-4">
+      {/* Polish batch 7b item 5 — was `grid-cols-1` (3 full-width stacked
+          cards) on mobile, pushing the liability list well below the fold;
+          2-up at 390, 3-up from `sm` up. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
+        <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-3 sm:p-4">
           <div className="mb-1 text-[11px] text-[#B91C1C]">
             {t.liabilitas.totalLiabilitiesLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-36 rounded bg-red-200" />
           ) : (
-            <div className="mono text-[22px] font-black text-destructive">
+            <div className="mono text-[18px] font-black text-destructive sm:text-[22px]">
               <CountUpRupiah value={Number(totalRemaining)} />
             </div>
           )}
@@ -1899,7 +1964,7 @@ export default function LiabilitasPage() {
               ` · ${(liabilities ?? []).length}${t.liabilitas.remainingActiveCountSuffix}`}
           </div>
         </div>
-        <div className="rounded-[14px] border bg-card p-4">
+        <div className="rounded-[14px] border bg-card p-3 sm:p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.liabilitas.dtaRatioLabel}
           </div>
@@ -1907,7 +1972,7 @@ export default function LiabilitasPage() {
             <div className="animate-pulse h-7 w-20 rounded bg-muted" />
           ) : (
             <div
-              className="text-[22px] font-black"
+              className="text-[18px] font-black sm:text-[22px]"
               style={{ color: dtaRisk.color }}
             >
               {dtaDisplay}
@@ -1920,14 +1985,14 @@ export default function LiabilitasPage() {
             {dtaRisk.label}
           </div>
         </div>
-        <div className="rounded-[14px] border bg-card p-4">
+        <div className="col-span-2 rounded-[14px] border bg-card p-3 sm:col-span-1 sm:p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.liabilitas.monthlyInstallmentLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-32 rounded bg-muted" />
           ) : (
-            <div className="mono text-[22px] font-black">
+            <div className="mono text-[18px] font-black sm:text-[22px]">
               {formatRupiah(Number(totalMinimumPayment))}
             </div>
           )}

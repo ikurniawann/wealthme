@@ -17,6 +17,7 @@ import { runSerializableWithRetry } from "../common/utils/serializable-retry.uti
 import { PrismaService } from "../prisma/prisma.service";
 
 import { UnmappedTickerError } from "./coingecko-market-data.adapter";
+import { deriveInternalCode } from "./internal-code.util";
 import { isAutomatedPriceType, MARKET_DATA_PORT } from "./market-data.port";
 
 import type { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
@@ -25,6 +26,7 @@ import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import type { MarketDataPort } from "./market-data.port";
 import type { TxClient } from "../common/utils/serializable-retry.util";
+import type { InvestmentType } from "@prisma/client";
 import type {
   InvestmentDto,
   InvestmentPriceDto,
@@ -380,11 +382,12 @@ export class InvestmentsService {
     this.assertValidInterestRatePct(dto.interestRatePct);
     this.assertValidQuantity(dto.quantity);
     this.assertValidCostBasis(dto.costBasisPerUnit);
+    const ticker = this.resolveTickerForCreate(dto.type, dto.ticker, dto.name);
 
     const investment = await this.prisma.investment.create({
       data: {
         familyGroupId,
-        ticker: dto.ticker,
+        ticker,
         name: dto.name,
         type: dto.type,
         quantity: new Decimal(dto.quantity),
@@ -471,10 +474,19 @@ export class InvestmentsService {
       this.assertValidCostBasis(dto.costBasisPerUnit);
     }
 
+    const effectiveName = dto.name ?? existing.name;
+    const ticker = this.resolveTickerForUpdate(
+      effectiveType,
+      existing.type,
+      dto.ticker,
+      existing.ticker,
+      effectiveName,
+    );
+
     const updated = await this.prisma.investment.update({
       where: { id, familyGroupId },
       data: {
-        ticker: dto.ticker ?? existing.ticker,
+        ticker,
         name: dto.name ?? existing.name,
         type: dto.type ?? existing.type,
         quantity: dto.quantity ? new Decimal(dto.quantity) : existing.quantity,
@@ -526,6 +538,62 @@ export class InvestmentsService {
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
+  }
+
+  /** E2E round-2 B1 — ticker is required only for the types the price
+   * feed actually looks up (saham → Yahoo, kripto → CoinGecko; see
+   * AUTOMATED_PRICE_TYPES). Every other type (deposito, emas, reksa_dana,
+   * obligasi, lainnya) accepts a missing/blank ticker: Indonesian users
+   * have no ticker for a deposito at BRI or emas Antam fisik. For those,
+   * derive a stable internal code so the NOT NULL `ticker` column is
+   * still satisfied without ever reaching MarketDataPort with it and
+   * without displaying it to the user as a real ticker. */
+  private resolveTickerForCreate(
+    type: CreateInvestmentDto["type"],
+    ticker: string | undefined,
+    name: string,
+  ): string {
+    const trimmed = ticker?.trim() ?? "";
+    if (isAutomatedPriceType(type)) {
+      if (!trimmed) {
+        throw new BadRequestException(
+          "Ticker wajib diisi untuk saham dan kripto (dipakai sinkronisasi harga)",
+        );
+      }
+      return trimmed;
+    }
+    return trimmed || deriveInternalCode(name);
+  }
+
+  /** Review fix (fix-round1) — `update()`'s own counterpart to
+   * `resolveTickerForCreate`: a PATCH that changes `type` to saham/kripto
+   * must still be rejected with the SAME message when there is no REAL
+   * ticker, otherwise the create-time guard is trivially bypassed by
+   * creating as e.g. `deposito` (an internal code, never a real ticker)
+   * then PATCHing `type` to `saham`. The stored ticker only counts as
+   * "real" when the ROW WAS ALREADY an automated type — a fresh
+   * automated-type PATCH must supply its own `ticker` in the same request.
+   * Changing AWAY from an automated type (e.g. saham -> deposito) keeps
+   * whatever ticker is already stored — no reason to force it blank. */
+  private resolveTickerForUpdate(
+    effectiveType: InvestmentType,
+    existingType: InvestmentType,
+    dtoTicker: string | undefined,
+    existingTicker: string,
+    name: string,
+  ): string {
+    if (isAutomatedPriceType(effectiveType)) {
+      const fallback = isAutomatedPriceType(existingType) ? existingTicker : "";
+      const trimmed = (dtoTicker ?? fallback).trim();
+      if (!trimmed) {
+        throw new BadRequestException(
+          "Ticker wajib diisi untuk saham dan kripto (dipakai sinkronisasi harga)",
+        );
+      }
+      return trimmed;
+    }
+    const trimmed = (dtoTicker ?? existingTicker).trim();
+    return trimmed || deriveInternalCode(name);
   }
 
   /** MEDIUM (EPIC-022 D2 retry) — mirrors recordTransaction()'s own guard:

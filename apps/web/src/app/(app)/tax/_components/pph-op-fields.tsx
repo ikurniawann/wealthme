@@ -2,7 +2,6 @@
 
 import { useLocale } from "@/hooks/use-locale";
 import { formatNumber, formatRupiah, parseRupiah } from "@/lib/format";
-import { TaxRuleBadge } from "@/components/tax/tax-rule-badge";
 
 import { MAX_TAX_INPUT } from "./digits";
 
@@ -33,7 +32,6 @@ export function PphOpFields({
   otherNet,
   onOtherNetChange,
   ptkp,
-  nppnRule,
 }: {
   maritalStatus: TaxMaritalStatus;
   onMaritalStatusChange: (v: TaxMaritalStatus) => void;
@@ -50,7 +48,6 @@ export function PphOpFields({
   otherNet: string;
   onOtherNetChange: (v: string) => void;
   ptkp: PphOpResultDto["ptkp"] | undefined;
-  nppnRule: PphOpResultDto["rules"];
 }) {
   const { t } = useLocale();
 
@@ -149,15 +146,9 @@ export function PphOpFields({
         onFreelanceChange,
       )}
       <div className="field">
-        {/* Task 10 carry — the badge used to sit inside the <label>,
-            widening the label's click/read target with disclosure content;
-            it now sits beside the label as its own element. */}
-        <div className="flex items-center gap-1.5">
-          <label htmlFor="tax-nppn-input" className="label">
-            {t.tax.op.nppnLabel}
-          </label>
-          <TaxRuleBadge rules={nppnRule} />
-        </div>
+        <label htmlFor="tax-nppn-input" className="label">
+          {t.tax.op.nppnLabel}
+        </label>
         <input
           id="tax-nppn-input"
           type="text"

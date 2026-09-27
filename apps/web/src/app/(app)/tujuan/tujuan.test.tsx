@@ -189,6 +189,60 @@ describe("TujuanPage — failed saves surface the real message and keep the dial
   }, 10000);
 });
 
+// E2E round 1, bug 1 — a goal with an empty/whitespace name used to save
+// silently (201, success toast). CrudModal now blocks Simpan with an inline
+// error and never calls the API.
+describe("TujuanPage — empty name is rejected before any request (E2E round 1 bug 1)", () => {
+  it("shows an inline error and does not POST when Nama Tujuan is left empty", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Tujuan" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    expect(
+      await within(dialog).findByText("Nama Tujuan wajib diisi."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([path, options]) =>
+          String(path).endsWith("/goals") && options?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+
+  it("shows an inline error and does not POST when Nama Tujuan is whitespace-only", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Tujuan" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Dana Liburan"),
+      "   ",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    expect(
+      await within(dialog).findByText("Nama Tujuan wajib diisi."),
+    ).toBeInTheDocument();
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([path, options]) =>
+          String(path).endsWith("/goals") && options?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+});
+
 describe("TujuanPage — role gating (F3)", () => {
   it("offers the create action to an owner (CASL: manage Goal)", async () => {
     mockSession("owner");
@@ -516,4 +570,48 @@ describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", (
     );
     expect(patch).toBeDefined();
   }, 30000);
+});
+
+describe("TujuanPage — KPI row hidden for a single goal (polish batch 7b item 6)", () => {
+  it("hides the on-track/needs-boost/at-risk/overall KPI row when there's exactly one goal", async () => {
+    mockSession("owner");
+    render(<TujuanPage />);
+
+    await screen.findByText("Dana Liburan");
+    expect(screen.queryByText("Perlu Boost")).not.toBeInTheDocument();
+    expect(screen.queryByText("Progres Keseluruhan")).not.toBeInTheDocument();
+  });
+
+  it("keeps the KPI row when there are two or more goals", async () => {
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+    mockApiFetch.mockImplementation((path: string) => {
+      if (path.endsWith("/access/me")) {
+        return Promise.resolve(
+          resolveEffectiveAccess({ role: "owner" as MemberRoleKey }),
+        );
+      }
+      if (path.endsWith("/family-groups/mine")) {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
+      }
+      if (path.endsWith("/goals")) {
+        return Promise.resolve([
+          buildGoal({}),
+          buildGoal({ id: "goal-2", name: "Rumah Baru" }),
+        ]);
+      }
+      return Promise.resolve([]);
+    });
+    render(<TujuanPage />);
+
+    await screen.findByText("Dana Liburan");
+    await screen.findByText("Rumah Baru");
+    expect(screen.getByText("Perlu Boost")).toBeInTheDocument();
+    expect(screen.getByText("Progres Keseluruhan")).toBeInTheDocument();
+  });
 });

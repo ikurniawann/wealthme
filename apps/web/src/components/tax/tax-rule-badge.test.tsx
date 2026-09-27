@@ -41,9 +41,7 @@ it("labels unverified rules and links their source", () => {
       ]}
     />,
   );
-  expect(
-    screen.getByText("perkiraan — cek aturan terbaru DJP"),
-  ).toBeInTheDocument();
+  expect(screen.getByText("Perkiraan")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: /PMK 50\/2025/ })).toHaveAttribute(
     "href",
     "https://www.pajak.go.id/en/node/117234",
@@ -52,7 +50,5 @@ it("labels unverified rules and links their source", () => {
 
 it("flags an out-of-range (older year) rule even if verified", () => {
   render(<TaxRuleBadge rules={[ref({ outOfRange: true })]} />);
-  expect(
-    screen.getByText("perkiraan — cek aturan terbaru DJP"),
-  ).toBeInTheDocument();
+  expect(screen.getByText("Perkiraan")).toBeInTheDocument();
 });

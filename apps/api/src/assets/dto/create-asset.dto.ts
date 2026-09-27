@@ -10,11 +10,13 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 export class CreateAssetDto {
   @ApiProperty()
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name!: string;
 

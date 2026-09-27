@@ -35,6 +35,26 @@ describe("formatMoneyTyping — revisi I", () => {
     expect(formatMoneyTyping("-20", 2, false)).toBe("20");
     expect(formatMoneyTyping("-", 0, true)).toBe("-");
   });
+
+  // E2E round-2 B1 — a trailing "." + 1-2 digits (USD/saham-price
+  // copy-paste convention) was silently read as a thousands separator,
+  // inflating "9500.50" into 950050. Only decimal-capable fields
+  // (decimals > 0) get this reinterpretation; a lone "." with a 3-digit
+  // tail is still a genuine thousands group.
+  it("reads a trailing '.' + 1-2 digits as the decimal separator on decimal-capable fields", () => {
+    expect(formatMoneyTyping("9500.50", 2)).toBe("9.500,50");
+    expect(formatMoneyTyping("100.5", 2)).toBe("100,5");
+    expect(formatMoneyTyping("-9500.50", 2, true)).toBe("-9.500,50");
+  });
+
+  it("still treats a lone '.' with a 3-digit tail as thousands grouping", () => {
+    expect(formatMoneyTyping("9.500", 2)).toBe("9.500");
+    expect(formatMoneyTyping("1.234", 2)).toBe("1.234");
+  });
+
+  it("never reinterprets '.' as decimal on 0-decimal (IDR integer) fields", () => {
+    expect(formatMoneyTyping("9500.50", 0)).toBe("950.050");
+  });
 });
 
 describe("toCanonicalAmount / canonicalToTyping — revisi I", () => {

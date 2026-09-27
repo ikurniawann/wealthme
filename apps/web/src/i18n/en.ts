@@ -13,6 +13,7 @@ export const en = {
     emojiNoResults: "No icon found. Try another word.",
     emojiLoading: "Loading icons…",
     emojiGroupAriaLabel: "Frequently used icons",
+    advancedOptions: "Advanced options",
     datePickerPlaceholder: "Choose date",
     datePickerYearLabel: "Year",
     datePickerClear: "Clear date",
@@ -282,9 +283,8 @@ export const en = {
         "Receipt data filled into the form, review it, then save.",
       scanHint:
         "Scanning uses the device camera and the family AI provider key. The result fills this form; nothing is recorded until you press Save.",
-      scanUnavailable:
-        "Receipt scanning needs a family AI provider key from a provider that supports images.",
-      scanUnavailableLink: "Set it up in Settings",
+      scanUnavailable: "Needs an AI API key.",
+      scanUnavailableLink: "Set up",
       categoryUnmatched: "No matching family category",
       // Camera failures — each one needs its own fix, so each one gets its
       // own message.
@@ -354,8 +354,6 @@ export const en = {
       attachmentInvalidTypeToast:
         "Unsupported file type, only JPG, PNG, WEBP, or PDF are allowed.",
       attachmentTooLargeToast: "File exceeds 5MB.",
-      dialogDesc:
-        "Record income, an expense, a transfer, or a credit-card purchase.",
       modeSwitchLabel: "Input method",
       typeSwitchLabel: "Transaction type",
     },
@@ -788,16 +786,13 @@ export const en = {
     addDependant: {
       dialogTitle: "Add Child / Operational",
       dialogDesc:
-        "For a member with no email of their own (a child, driver, or assistant). Set a username and an initial password, they must change it at their first login.",
+        "For a member with no email. Password must be changed at first login.",
       nameLabel: "Name",
       namePlaceholder: "Full name",
       usernameLabel: "Username",
       usernamePlaceholder: "e.g. adit_kecil",
-      usernameHint: "3-30 characters, letters/numbers/underscore/dot",
       passwordLabel: "Initial Password",
       passwordPlaceholder: "At least 8 characters",
-      passwordHint:
-        "Hand this password over directly, they must change it at their first login.",
       showPassword: "Show password",
       hidePassword: "Hide password",
       roleLabel: "System role",
@@ -811,6 +806,9 @@ export const en = {
         'The wife becomes Co-Master: full access to every finance surface. Member management and family settings stay with the Master. Relationship locks to "istri". Max 1 wife per family.',
       relationshipLabel: "Relationship (optional)",
       relationshipNoneOption: "Not set",
+      emailLabel: "Email (optional)",
+      emailPlaceholder: "name@gmail.com",
+      emailHint: "A confirmation link is sent to this email.",
       accessRoleLabel: "Access role",
       accessRoleDefaultOption: "Default (follow role)",
       accessRoleEmptyHint:
@@ -1226,6 +1224,7 @@ export const en = {
     toastPaySuccessNoRenewal: "Premium paid successfully.",
     toastRenewalFailed: "Failed to pay premium. Try again.",
     beneficiariesSectionTitle: "Insurance Beneficiaries",
+    beneficiariesOptionalLabel: "Heirs (optional)",
     beneficiariesLabel: "Beneficiaries",
     beneficiaryNameLabel: "Name",
     beneficiaryNamePlaceholder: "e.g. Siti Arsandi",
@@ -1275,8 +1274,7 @@ export const en = {
       "Premium and renewal date drive the reminders and cash-flow projection.",
     policyPickerPayDesc:
       "Pick the policy whose premium you want to pay; you choose the source account in the next step.",
-    policyPickerBeneficiaryDesc:
-      "Pick a policy first, beneficiaries are stored on that policy, and their shares may not exceed 100% in total.",
+    policyPickerBeneficiaryDesc: "Shares must total 100% at most.",
     deleteDialogTitle: "Delete this record?",
     deleteDialogBody:
       "The policy will be permanently deleted. Premium payments already recorded stay in Transactions.",
@@ -1440,6 +1438,8 @@ export const en = {
       resultLabel: "Estimated Time to Reach",
       resultValueSuffix: "Months",
       detailTargetReachedPrefix: "Target reached around:",
+      unreachableError:
+        "This target will never be reached at this monthly deposit — increase the monthly deposit or the annual interest rate.",
     },
     splitgroup: {
       cardTitle: "Split Bill Group Calculator",
@@ -1452,6 +1452,7 @@ export const en = {
       resultLabel: "Amount per Person",
       detailTotalWithTaxPrefix: "Total with tax/tip:",
       createSplitBillButton: "Create Split Bill from This Calculation",
+      invalidPeopleError: "Number of people must be greater than 0.",
     },
   },
   quickinput: {
@@ -1662,6 +1663,7 @@ export const en = {
     livePositionsOnlyPrefix: "only from",
     filterNewBadge: "New",
     rowTickerPurchasedTemplate: "{ticker} · bought {date}",
+    rowPurchasedTemplate: "Bought {date}",
     rowCouponPurchasedTemplate: "Coupon {rate}%/yr · bought {date}",
     rowDepositoTermTemplate: "Started {date} · matures {maturityDate}",
     depositoRateTemplate: "{rate}% interest / yr",
@@ -1716,20 +1718,12 @@ export const en = {
     refreshPriceToast: "Reloading latest prices…",
     capitalInvestedPrefix: "Capital invested",
     livePositionsSuffix: "positions priced live",
-    pricingSourceNoticeTitle: "Two pricing sources.",
+    pricingSourceNoticeTitle: "Stocks & crypto delayed ±15 min.",
     pricingSourceNoticeBody:
       "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko, both delayed ±15 minutes, not real-time. Gold follows the family Gold Price in Settings. Mutual funds, bonds and other holdings you value manually, always shown with their valuation date; time deposits are computed from their interest.",
+    pricingSourceMoreLabel: "More",
     allocationTitle: "Allocation by Type",
-    modalDesc:
-      "Pick the type first, the fields below adapt. Stocks are counted in lots, crypto in coins, time deposits by accrued interest.",
-    sectionIdentityTitle: "Instrument details",
-    sectionIdentityDesc:
-      "Choose the type and identity of the holding you're recording.",
-    sectionPositionTitle: "Quantity & purchase price",
-    sectionPositionDesc: "Enter the opening position and what you paid for it.",
-    sectionValuationTitle: "Valuation",
-    sectionValuationDesc: "Where this position's current value comes from.",
-    hintName: "The full name shown in your holdings list.",
+    modalDesc: "The fields adapt to the type.",
     hintPurchaseDate: "Used to calculate how long you have held the position.",
     hintLotConversion: "1 lot = 100 shares (IDX rule).",
     hintQuantityLocked:
@@ -1860,8 +1854,7 @@ export const en = {
     fieldValueChangeAmountPlaceholder:
       "e.g. -5,000,000 for depreciation, 5,000,000 for appreciation",
     fieldAcquisitionDateLabel: "Acquisition Date (optional)",
-    fieldAcquisitionDateHelper:
-      "The value projection is measured from this date. Falls back to when the asset was added if left blank.",
+    fieldAcquisitionDateHelper: "Blank = since it was added.",
     fieldMasterDataCategoryLabel: "Master Data Category (optional)",
     fieldMasterDataCategoryNone: "No category",
     fieldNotesLabel: "Notes (optional)",
@@ -2025,8 +2018,6 @@ export const en = {
     payoffProjectionSeriesLabel: "Remaining Balance",
     overdueWarningPrefix: "The ",
     overdueWarningSuffix: " installment hasn't been paid.",
-    modalDesc:
-      "Changes feed straight into the debt-to-asset ratio and the payoff projection.",
     detailNextDueLabel: "Next Due Date",
     detailPayButton: "Pay Installment",
     amortisationScheduleTitle: "Amortisation Schedule",
@@ -2599,11 +2590,6 @@ export const en = {
     toastDeleteFailed: "Failed to delete goal. Please try again.",
     activeGoalsSuffix: " Active Goals",
     totalAllocatedPrefix: "Total allocated: ",
-    // EPIC-022 A3 — goals are a manual tracker, not real money: this total
-    // is an earmark the family maintains by hand, never a bank balance or a
-    // real transfer between accounts.
-    trackerDisclaimer:
-      "Contributions from an account reduce that account's balance; without one, progress is only tracked.",
     addGoalButton: "Add Goal",
     onTrackLabel: "On Track",
     onTrackDesc: "goals on track",
@@ -2723,11 +2709,8 @@ export const en = {
       'Typed with thousands separators for readability — dots are stripped automatically before sending ("780.000.000" → "780000000").',
     ptkpSelectedPrefix: "Selected PTKP: ",
     jabatanHint: "5% of gross, capped at Rp 6,000,000/year.",
-    perpuluhanHint:
-      "Only tithes paid to a registered institution qualify as a deduction (PP 60/2010). Pulled automatically from ",
-    perpuluhanHintLinkLabel: "Donations",
     perpuluhanAutoFilledHint:
-      "Auto-filled from recorded zakat & tithe for {year}. Infaq, sedekah & waqf are not tax-deductible (PP 60/2010).",
+      "Automatic from recorded zakat & tithe for {year} (PP 60/2010).",
     resetButton: "Reset",
     toastReset: "Calculation reset",
     colTaxableBase: "Taxable Base",
@@ -2746,7 +2729,8 @@ export const en = {
       "Values are sent as plain numeric strings, thousands separators are display-only.",
     saveDialogConfirmButton: "Save",
     rules: {
-      unverifiedBadge: "estimate — check the latest DJP rules",
+      unverifiedBadge: "Estimate",
+      unverifiedIntro: "Check the latest DJP rules.",
       outOfRange:
         "that year's rules are not modelled; using the oldest available",
     },
@@ -2763,11 +2747,8 @@ export const en = {
       withheldLabel: "PPh 21 already withheld (1721-A1 slip)",
       freelanceLabel: "Freelance turnover (NPPN)",
       nppnLabel: "NPPN percentage (%)",
-      nppnHint:
-        "Use the PER-17/PJ/2015 table for your profession and region. Leave empty if you use the 0.5% UMKM final regime.",
+      nppnHint: "See the PER-17/PJ/2015 table. Leave empty if UMKM 0.5%.",
       otherNetLabel: "Other net income",
-      zakatSavedNote:
-        "When saved, the zakat deduction comes from recorded zakat donations (via BAZNAS/official LAZ).",
       netoLabel: "Net income",
       balanceLabel: "Under/(over) payment",
       overpaidLabel: "Overpaid",
@@ -2780,6 +2761,9 @@ export const en = {
         "Jan–Nov use the effective rate (TER); December recomputes the full year with Pasal 17.",
       monthlyGrossLabel: "Monthly gross salary",
       editMonthsToggle: "Set per month (bonus/THR)",
+      thrBonusLabel: "THR/bonus",
+      thrBonusHint: "Excluded from the DTP fixed-salary cap (PMK 10/2025).",
+      thrExceedsGrossError: "THR/bonus can't exceed that month's gross.",
       categoryPrefix: "TER category: ",
       kiNote: "For K/I, monthly withholding uses the husband's K/n category.",
       colMonth: "Month",
@@ -2854,6 +2838,10 @@ export const en = {
       save: "Save this year's turnover",
       saved: "Turnover saved",
       saveFailed: "Failed to save turnover",
+      disclosureLabel: "Fill in monthly turnover",
+      loadingLabel: "Calculating estimate...",
+      loadFailedLabel: "Couldn't calculate the estimate, try again.",
+      emptyStateNote: "Fill in monthly turnover to see the final-tax estimate.",
     },
     final: {
       title: "Final tax on investments & other income",
@@ -2899,6 +2887,9 @@ export const en = {
       toastSaved: "Saved",
       toastDeleted: "Deleted",
       toastFailed: "Save failed",
+      loadingLabel: "Calculating estimate...",
+      loadFailedLabel: "Couldn't calculate the estimate, try again.",
+      emptyStateNote: "No final income recorded yet.",
     },
     summary: {
       title: "Annual tax summary",
@@ -2930,8 +2921,7 @@ export const en = {
     balanceLabel: "Balance",
     activeBadge: "Active",
     privateBadge: "Private",
-    privateBadgeTooltip:
-      "Only visible to the Master & Co-Master. Other members can't see this account or its transactions.",
+    privateBadgeTooltip: "Master & Co-Master only.",
     optionsAriaLabel: "Account options",
     viewMutationMenuItem: "View Transactions",
     editMenuItem: "Edit",
@@ -2991,11 +2981,6 @@ export const en = {
     // EPIC-025 N3 prototype structural port — page header (title reuses
     // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
     // the dashed "add account" card.
-    insightOneLabel: "One view",
-    insightOneAccountsSuffix: " accounts, ",
-    insightOneOwnersSuffix: " owners, 1 family balance",
-    insightPrivacyLabel: "Privacy",
-    insightPrivacyValue: "Private balances stay segmented",
     filterNoteText:
       "A bank account can't be debited into the negative, an already-negative balance is recorded as a liability.",
     addCardTitle: "Add a new account",
@@ -3022,9 +3007,6 @@ export const en = {
       persepuluhan: "Tithe Offering",
       lainnya: "Other / Social Donation",
     },
-    groupIslam: "Islamic",
-    groupKristen: "Christian",
-    groupUmum: "General",
     heroTitle: "Total Donations & Zakat",
     transactionsSuffix: " transactions",
     yearRunningPrefix: " · year to date ",
@@ -3080,12 +3062,6 @@ export const en = {
     fieldTanggalLabel: "Date",
     fieldAccountLabel: "Pay from Account (optional)",
     accountNoneOption: "Record only, don't deduct balance",
-    accountHint:
-      "Select an account so your net worth decreases when the donation is recorded.",
-    taxDeductibleCheckboxLabel:
-      "Income tax deduction (obligatory religious contribution to an official institution)",
-    taxDeductibleIneligibleNote:
-      "Only Zakat Maal / Zakat Fitrah / Tithe Offering can be tax deductible.",
     savingLabel: "Saving...",
     saveRecordButton: "Save Record",
     toastSaved: "Donation recorded successfully!",
@@ -3118,11 +3094,9 @@ export const en = {
     religionCalculatorUnconfirmedTitle: "Family religion not yet chosen",
     religionCalculatorUnconfirmedDesc:
       "Choose the family religion in Account Settings to enable the matching Zakat or Tithe calculator.",
-    modalDesc:
-      "Recorded as an expense, and deducted from the account balance when a source account is selected.",
     taxDeductibleSwitchTitle: "Income tax deduction",
     taxDeductibleSwitchDesc:
-      "Obligatory religious contribution to an official institution (PP 60/2010).",
+      "Zakat/tithe to a registered institution only (PP 60/2010).",
   },
   warisan: {
     heroTitle: "Total Inheritance Value",
@@ -3186,16 +3160,12 @@ export const en = {
     visibleToAllHeirsCaption: "Visible to all heirs",
     estimatedValueLabel: "Estimated value",
     linkedToAssetPrefix: "linked to Asset",
-    modalDesc:
-      "Link it to an asset you already track, then set how it is split between heirs.",
     fieldSourceLabel: "Data Source",
     sourceManualOption: "Manual Entry",
     sourceAssetOption: "Pick from Assets",
     fieldAssetLabel: "Asset",
     assetPickerPlaceholder: "Pick an asset",
-    assetPickerHint:
-      "The estimated value is filled in from the linked asset; you can still change it.",
-    visibleToHeirsHint: "Heirs can see this asset on their Inheritance page.",
+    assetPickerHint: "Filled in automatically, can be changed.",
     deleteConfirmBody:
       "The inheritance record and its heir allocation will be deleted. The original asset on the Assets page is kept.",
     toastSharePercentExceeded: "Total heir share cannot exceed 100%.",
@@ -4437,6 +4407,7 @@ export const en = {
     addDescription: "New data is immediately available across every app form.",
     editDescription: "Changes take effect immediately across every app form.",
     addToMasterData: "+ Add to Master Data",
+    fieldRequired: "{field} is required.",
   },
   money: {
     currencyLabel: "Currency",
