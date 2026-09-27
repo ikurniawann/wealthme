@@ -257,6 +257,34 @@ describe("LiabilitiesService — KPR flat (Revisi K polish-j)", () => {
     });
   });
 
+  // Review fix round 1 (IMPORTANT) — `assertPrepayable` is gated on
+  // `interestMethod` AND `type === "kpr"`; a flat kendaraan/pinjaman_pribadi
+  // (which previously always 400'd on prepayment) must keep 400ing — this
+  // task only scoped prepayment to flat KPR, not flat loans in general.
+  describe("previewPrepayment — scoped to type kpr", () => {
+    it("400: a flat kendaraan (not a kpr) is still rejected even with a tenor", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...FLAT_KPR,
+        type: "kendaraan",
+      });
+
+      await expect(
+        service.previewPrepayment("fg-1", "lid-1", { mode: "full" }, AT_1),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("400: a flat pinjaman_pribadi (not a kpr) is still rejected even with a tenor", async () => {
+      prisma.liability.findUnique.mockResolvedValue({
+        ...FLAT_KPR,
+        type: "pinjaman_pribadi",
+      });
+
+      await expect(
+        service.previewPrepayment("fg-1", "lid-1", { mode: "full" }, AT_1),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
   describe("previewPrepayment — flat rule", () => {
     it("reduce_installment: recomputes a flat installment on the REMAINING principal over the SAME remaining tenor (2.444.444/180)", async () => {
       prisma.liability.findUnique.mockResolvedValue(FLAT_KPR);

@@ -350,16 +350,22 @@ function parsePrepaymentRequest(query: {
 }
 
 function assertPrepayable(liability: {
+  type: string;
   interestMethod: string;
   tenorMonths: number | null;
 }): void {
   if (
+    // Review fix round 1 — flat KPR (this task's scope) may be prepaid, but
+    // gating on `interestMethod` alone silently turned prepayment on for
+    // ANY flat loan with a tenor, including kendaraan/pinjaman_pribadi,
+    // which previously always 400'd here. Scoped back to `type === "kpr"`.
+    liability.type !== "kpr" ||
     (liability.interestMethod !== "anuitas" &&
       liability.interestMethod !== "flat") ||
     liability.tenorMonths === null
   ) {
     throw new BadRequestException(
-      "Simulasi pelunasan hanya untuk cicilan anuitas atau flat dengan tenor",
+      "Simulasi pelunasan hanya untuk KPR anuitas atau flat dengan tenor",
     );
   }
 }
@@ -1203,11 +1209,21 @@ export class LiabilitiesService {
         "KPR ini memakai periode bunga — kirim ratePeriods, bukan fixedRateMonths/floatingRate",
       );
     }
+    // Review fix round 1 (CRITICAL) — `previousSegments` is the loan's
+    // STORED anuitas periods; falling back to them regardless of the NEW
+    // `interestMethod` re-validated the old anuitas plan against a target
+    // method that forbids one at all (`validateRatePeriods` rejects any
+    // periods when `interestMethod !== "anuitas"`), so switching an
+    // anuitas KPR with stored periods to flat via a PATCH that (correctly)
+    // omits `ratePeriods` always 400'd. The fallback now only applies while
+    // STAYING on anuitas.
+    const stayingAnuitas = interestMethod === "anuitas";
     const previousSegments = ratePlanOf(
       scheduleInputFor({ ...existing, ratePlanRows: existingRows }, now),
     ).segments;
     const nextPeriods =
-      dto.ratePeriods ?? (hasStoredPeriods ? previousSegments : null);
+      dto.ratePeriods ??
+      (stayingAnuitas && hasStoredPeriods ? previousSegments : null);
     const validated =
       nextPeriods === null
         ? null
@@ -1219,8 +1235,16 @@ export class LiabilitiesService {
             periods: nextPeriods,
             hasFloatingHistory: existingRows.floatingRates.length > 0,
           });
-    // Rows are rewritten only when the caller sent periods; otherwise they were just re-checked.
-    const segments = dto.ratePeriods ? validated : null;
+    // Rows are rewritten when the caller sent periods, OR when moving away
+    // from anuitas retires a stale stored plan — an [] segments clears them
+    // (via `replaceRatePeriods` below) instead of leaving a flat/efektif
+    // KPR with a rate plan from its old anuitas terms.
+    const clearingStalePlan = !stayingAnuitas && hasStoredPeriods;
+    const segments = dto.ratePeriods
+      ? validated
+      : clearingStalePlan
+        ? []
+        : null;
     const ratePlanChanged =
       segments !== null && !sameSegments(segments, previousSegments);
     const resolvedInterestRate =
