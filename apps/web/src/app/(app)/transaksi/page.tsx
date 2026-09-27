@@ -457,17 +457,21 @@ export function TxTableRow({
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[13px] font-semibold">{displayName}</span>
             {isObligationLinked && (
-              <StatusBadge variant="warning">
-                <Lock className="size-2.5" />
-                {t.transaksi.lockedBadgeLabel}
-              </StatusBadge>
+              // Batch 8 item 8 — the full lock explanation used to render
+              // as its own line under every locked row, repeating the same
+              // sentence verbatim across 5+ rows. Show it once per row, as
+              // a native tooltip on the lock badge itself.
+              <span title={t.transaksi.obligationLockedTooltip}>
+                <StatusBadge variant="warning">
+                  <Lock className="size-2.5" />
+                  {t.transaksi.lockedBadgeLabel}
+                </StatusBadge>
+              </span>
             )}
           </div>
-          {(isTransferWithDest || isObligationLinked) && (
+          {isTransferWithDest && !isObligationLinked && (
             <div className="text-[11px] text-muted-foreground">
-              {isObligationLinked
-                ? t.transaksi.obligationLockedTooltip
-                : accountCell}
+              {accountCell}
             </div>
           )}
         </td>
