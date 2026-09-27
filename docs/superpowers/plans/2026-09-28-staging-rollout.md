@@ -24,6 +24,26 @@ Status: PLAN, not executed. Every step that touches staging needs a human go-ahe
   - `asset_type_emas`
 - **The compose `migrate` service runs `prisma db seed` after `migrate deploy`.** The seed creates demo@wealthme.id and demo data. It must NOT run against staging.
 
+## Phase 0 findings (2026-09-28, read-only)
+
+- **Host and deploy method:**
+  - `wm@103.30.195.66` (IDCloudHost), 1.9 GiB RAM, 13 GB free disk.
+  - The stack runs from `/home/wm/wealthme`, which is a copied source tree, not a git checkout.
+  - It deploys with `build.sh`, which builds the api, migrate and web images on the box, then runs `migrate` with **no seed** (via a compose override), then starts api and web.
+- **Running version:**
+  - The images are tagged `ghcr.io/andrsrjld/wealthme-web-{api,web}:dev` but were built locally on 2026-09-04.
+  - Risk: a `docker compose pull` on staging would silently replace them with the current DEV images. Never pull on staging. Pin tags to a commit SHA in the rollout.
+- **Database:**
+  - Postgres 17, 21 MB.
+  - 11 users, 8 family groups, 14 transactions, 1 transaction with `createdByUserId` NULL.
+- **Migrations:**
+  - 55 are applied, 0 failed or rolled back, and none are unknown to `development`.
+  - Latest applied: `20260902090000_epic022_d2_investment_transactions`.
+- **Pending: 16 migrations**, `20260924120000_epic030_iam_access_roles` through `20260926180000_revisi_l_tax`.
+  - Data-rewriting ones among them: `epic031_family_login_handle`, `epic033_family_religion_five`, `epic033_default_banks`, `epic032_istri_co_master`, `asset_type_emas`. Verify each in the rehearsal.
+- **Building on the box:** 1.9 GiB RAM builds the web image slowly and risks OOM. Prefer building the images elsewhere (CI or the dev host), then transferring them (`docker save | ssh docker load`) or pulling from GHCR by SHA tag, so staging only runs `migrate` and `up`.
+- **Edit-rights impact:** only 1 legacy transaction has no creator, so the impact is negligible.
+
 ## Guardrails
 
 - No `prisma migrate dev`, `db push`, `migrate reset`, or hand-applied DDL on staging. See the lesson in memory: a hand-applied DDL change causes P3018 on the next deploy.
