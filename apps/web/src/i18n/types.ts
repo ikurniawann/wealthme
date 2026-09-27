@@ -4301,8 +4301,6 @@ export type I18nDictionary = {
    * entity-specific copy, so these two stay deliberately entity-neutral.
    */
   crud: {
-    addDescription: string;
-    editDescription: string;
     addToMasterData: string;
     /** "{field}" is replaced with the field's label — see CrudField.required. */
     fieldRequired: string;

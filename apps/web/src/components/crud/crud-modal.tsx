@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -448,11 +447,6 @@ function CrudForm({
         <DialogTitle>
           {state.mode === "edit" ? "Edit" : "Tambah"} {config.title}
         </DialogTitle>
-        <DialogDescription>
-          {state.mode === "edit"
-            ? t.crud.editDescription
-            : t.crud.addDescription}
-        </DialogDescription>
 
         <DialogBody>
           {rows.map((row, i) =>
