@@ -745,6 +745,8 @@ export type I18nDictionary = {
       deviceFallbackLabel: string;
       thisDeviceBadge: string;
       endSessionLink: string;
+      sessionsShowAll: string;
+      sessionsShowLess: string;
       sessionsLoading: string;
       sessionsEmpty: string;
       sessionsError: string;

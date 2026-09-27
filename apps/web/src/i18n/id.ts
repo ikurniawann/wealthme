@@ -473,6 +473,8 @@ export const id = {
       deviceFallbackLabel: "Perangkat",
       thisDeviceBadge: "Ini perangkatmu",
       endSessionLink: "Akhiri",
+      sessionsShowAll: "Lihat semua ({count})",
+      sessionsShowLess: "Tampilkan lebih sedikit",
       sessionsLoading: "Memuat sesi...",
       sessionsEmpty: "Tidak ada sesi aktif.",
       sessionsError: "Gagal memuat sesi aktif.",

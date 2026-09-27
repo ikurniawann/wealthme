@@ -470,6 +470,8 @@ export const en = {
       deviceFallbackLabel: "Device",
       thisDeviceBadge: "This is your device",
       endSessionLink: "End",
+      sessionsShowAll: "Show all ({count})",
+      sessionsShowLess: "Show less",
       sessionsLoading: "Loading sessions...",
       sessionsEmpty: "No active sessions.",
       sessionsError: "Failed to load active sessions.",

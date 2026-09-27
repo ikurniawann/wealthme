@@ -569,7 +569,10 @@ type AuthSessionRow = {
   updatedAt: string | Date;
 };
 
+const SESSIONS_PREVIEW = 5;
+
 export function KeamananBody() {
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const { t, locale } = useLocale();
   const { data: session } = useSession();
   const currentToken = session?.accessToken;
@@ -647,6 +650,17 @@ export function KeamananBody() {
     },
     enabled: !!currentToken,
   });
+
+  // Current device first, then newest; long histories collapse behind a
+  // "show all" toggle so the page stays short.
+  const sortedSessions = [...(sessions ?? [])].sort((a, b) => {
+    if (a.token === currentToken) return -1;
+    if (b.token === currentToken) return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+  const visibleSessions = showAllSessions
+    ? sortedSessions
+    : sortedSessions.slice(0, SESSIONS_PREVIEW);
 
   const { mutate: endSession } = useMutation({
     mutationFn: async (sessionToken: string) => {
@@ -828,7 +842,7 @@ export function KeamananBody() {
         )}
         {!sessionsLoading &&
           !sessionsError &&
-          sessions?.map((s) => {
+          visibleSessions.map((s) => {
             const isCurrent = s.token === currentToken;
             const label = deviceLabelFromUserAgent(
               s.userAgent,
@@ -839,7 +853,7 @@ export function KeamananBody() {
               { day: "numeric", month: "short", year: "numeric" },
             );
             const sub = `${t.akun.keamanan.sessionActivePrefix}${dateStr}${
-              s.ipAddress ? ` · ${s.ipAddress}` : ""
+              s.ipAddress ? `, ${s.ipAddress}` : ""
             }`;
             return (
               <SetRow
@@ -868,6 +882,22 @@ export function KeamananBody() {
               />
             );
           })}
+        {!sessionsLoading &&
+          !sessionsError &&
+          sortedSessions.length > SESSIONS_PREVIEW && (
+            <button
+              type="button"
+              className="mt-2 text-[12px] font-semibold text-primary"
+              onClick={() => setShowAllSessions((v) => !v)}
+            >
+              {showAllSessions
+                ? t.akun.keamanan.sessionsShowLess
+                : t.akun.keamanan.sessionsShowAll.replace(
+                    "{count}",
+                    String(sortedSessions.length),
+                  )}
+            </button>
+          )}
       </SetSection>
       <SetSection>
         <SectionTitle>{t.deviceUnlock.manageSectionTitle}</SectionTitle>
