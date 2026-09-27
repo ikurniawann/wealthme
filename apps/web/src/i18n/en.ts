@@ -1661,7 +1661,6 @@ export const en = {
     // are always filled from the real summary DTO, never invented.
     returnFormulaLabel: "= gain ÷ capital ({returnRp} ÷ {costBasis})",
     livePositionsOnlyPrefix: "only from",
-    filterNewBadge: "New",
     rowTickerPurchasedTemplate: "{ticker} · bought {date}",
     rowPurchasedTemplate: "Bought {date}",
     rowCouponPurchasedTemplate: "Coupon {rate}%/yr · bought {date}",

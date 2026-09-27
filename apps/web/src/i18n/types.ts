@@ -1707,7 +1707,6 @@ export type I18nDictionary = {
     /** Template with `{returnRp}` and `{costBasis}` placeholders. */
     returnFormulaLabel: string;
     livePositionsOnlyPrefix: string;
-    filterNewBadge: string;
     /** Template with `{ticker}` and `{date}` placeholders. */
     rowTickerPurchasedTemplate: string;
     /** Template with a `{date}` placeholder — non-market types (no real

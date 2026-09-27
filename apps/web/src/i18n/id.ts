@@ -1699,7 +1699,6 @@ export const id = {
     // are always filled from the real summary DTO, never invented.
     returnFormulaLabel: "= untung ÷ modal ({returnRp} ÷ {costBasis})",
     livePositionsOnlyPrefix: "hanya dari",
-    filterNewBadge: "Baru",
     rowTickerPurchasedTemplate: "{ticker} · beli {date}",
     rowPurchasedTemplate: "Beli {date}",
     rowCouponPurchasedTemplate: "Kupon {rate}%/tahun · beli {date}",
