@@ -5,10 +5,12 @@
  */
 import {
   buildSchedule,
+  computeInstallment,
   currentInstallment,
   parseRateScaledByHundred,
   ratePlanOf,
   roundHalfUpDivide,
+  type InterestMethod,
   type ScheduleInput,
   type ScheduleRow,
 } from "./amortisation.util";
@@ -40,16 +42,25 @@ export function prepaymentPenalty(
   );
 }
 
-/** Months a level `installment` needs to clear `balance` at a constant annual rate; null if it never does. */
+/**
+ * Months a level `installment` needs to clear `balance` at a constant annual
+ * rate; null if it never does. `method` defaults to "anuitas" (interest on
+ * the shrinking balance); "flat" instead accrues interest on
+ * `originalPrincipal` every month (falls back to `balance` when omitted —
+ * only correct when the flat loan's original base is unchanged).
+ */
 export function monthsToPayOff(
   balance: bigint,
   annualRatePercent: string,
   installment: bigint,
+  method: InterestMethod = "anuitas",
+  originalPrincipal?: bigint,
 ): number | null {
   const rows = buildSchedule({
-    method: "anuitas",
+    method,
     remainingBalance: balance,
-    originalPrincipal: balance,
+    originalPrincipal:
+      method === "flat" ? (originalPrincipal ?? balance) : balance,
     annualInterestRatePercent: annualRatePercent,
     installmentAmount: installment,
     remainingMonths: null,
@@ -96,12 +107,52 @@ interface AfterState {
   newTenorMonths: number | null;
 }
 
+/**
+ * Revisi K flat-KPR rule (documented in the report, no prior flat-loan
+ * prepayment behaviour existed — `assertPrepayable` rejected every non-
+ * anuitas loan): "reduce_installment" recomputes a fresh flat installment on
+ * the REMAINING principal over the SAME remaining tenor (the prepaid balance
+ * becomes the new base flat interest accrues on); "reduce_tenor"/"full" keep
+ * the ORIGINAL installment (interest still on the untouched original
+ * principal) and shorten the tenor to whatever that installment clears.
+ */
+function flatReduceInstallment(
+  input: PrepaymentInput,
+  base: ScheduleInput,
+  balanceAfter: bigint,
+): AfterState {
+  const remainingMonths = input.schedule.remainingMonths;
+  if (remainingMonths === null) {
+    throw new RangeError("flat prepayment needs a tenor");
+  }
+  const ratePercent = rateAt(
+    ratePlanOf(input.schedule),
+    input.schedule.firstPeriod,
+  ).ratePercent;
+  const newInstallment = computeInstallment({
+    method: "flat",
+    principal: balanceAfter,
+    annualInterestRatePercent: ratePercent,
+    tenorMonths: remainingMonths,
+  });
+  const rows = buildSchedule({
+    ...base,
+    originalPrincipal: balanceAfter,
+    installmentAmount: newInstallment,
+    remainingMonths,
+  });
+  return { rows, newInstallmentAmount: newInstallment, newTenorMonths: null };
+}
+
 function afterState(input: PrepaymentInput, balanceAfter: bigint): AfterState {
   if (balanceAfter === 0n) {
     return { rows: [], newInstallmentAmount: null, newTenorMonths: null };
   }
+  const method = input.schedule.method;
   const base = { ...input.schedule, remainingBalance: balanceAfter };
   if (input.mode === "reduce_installment") {
+    if (method === "flat")
+      return flatReduceInstallment(input, base, balanceAfter);
     const rows = buildSchedule({ ...base, recomputeAtStart: true });
     return {
       rows,
@@ -118,6 +169,8 @@ function afterState(input: PrepaymentInput, balanceAfter: bigint): AfterState {
           rateAt(ratePlanOf(input.schedule), input.schedule.firstPeriod)
             .ratePercent,
           installment,
+          method,
+          method === "flat" ? input.schedule.originalPrincipal : undefined,
         );
   if (installment === null || months === null) {
     throw new RangeError("installment never pays off the balance");

@@ -559,7 +559,6 @@ describe("LiabilitiesService — revisi K", () => {
         "a tenor no longer longer than the bounded periods",
         { tenorMonths: 36 },
       ],
-      ["switching a planned KPR to flat", { interestMethod: "flat" as never }],
     ])("update refuses %s", async (_label, dto) => {
       withPeriods();
       prisma.liability.findUnique.mockResolvedValue(KPR);
@@ -569,6 +568,79 @@ describe("LiabilitiesService — revisi K", () => {
         BadRequestException,
       );
       expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    // Review fix round 1 (CRITICAL) — switching interestMethod away from
+    // anuitas used to always 400 for any KPR with stored periods (the
+    // common case: the web form always writes ratePeriods for every
+    // anuitas KPR) because the fallback re-validated the STALE anuitas
+    // periods against the new method. A PATCH that (correctly) omits
+    // ratePeriods when switching to flat must now succeed and retire the
+    // stale stored plan instead.
+    it("update: switching a planned KPR (stored periods, no floating history) to flat succeeds, computes the flat installment, and clears the stored plan", async () => {
+      withPeriods();
+      prisma.liability.findUnique.mockResolvedValue(KPR);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(KPR);
+      prisma.liability.update.mockImplementation(({ data }: { data: object }) =>
+        Promise.resolve({ ...KPR, ...data }),
+      );
+
+      const dto = await service.update(
+        "fg-1",
+        "lid-1",
+        { interestMethod: "flat" as never },
+        new Date("2026-01-20T00:00:00.000Z"),
+      );
+
+      expect(dto.interestMethod).toBe("flat");
+      expect(dto.ratePeriods).toEqual([]);
+      // 3.50%/thn (KPR's first stored tier) over 240 bln flat.
+      expect(dto.installmentAmount).not.toBeNull();
+      expect(prisma.liabilityRatePeriod.deleteMany).toHaveBeenCalledWith({
+        where: { familyGroupId: "fg-1", liabilityId: "lid-1" },
+      });
+      expect(prisma.liabilityRatePeriod.createMany).toHaveBeenCalledWith({
+        data: [],
+      });
+      expect(prisma.liability.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            interestMethod: "flat",
+            fixedRateMonths: null,
+            floatingRate: null,
+          }),
+        }),
+      );
+    });
+
+    it("update: switching a flat KPR back to anuitas with a sent rate plan succeeds", async () => {
+      const flatKpr = {
+        ...KPR,
+        interestMethod: "flat",
+        kprScheme: null,
+      };
+      prisma.liability.findUnique.mockResolvedValue(flatKpr);
+      prisma.liability.findUniqueOrThrow.mockResolvedValue(flatKpr);
+      prisma.liability.update.mockImplementation(({ data }: { data: object }) =>
+        Promise.resolve({ ...flatKpr, ...data }),
+      );
+
+      const dto = await service.update(
+        "fg-1",
+        "lid-1",
+        {
+          interestMethod: "anuitas" as never,
+          ratePeriods: [
+            { kind: "fixed", months: null, ratePercent: "3.50" },
+          ] as never,
+        },
+        new Date("2026-01-20T00:00:00.000Z"),
+      );
+
+      expect(dto.interestMethod).toBe("anuitas");
+      expect(dto.ratePeriods).toEqual([
+        { kind: "fixed", months: null, ratePercent: "3.50" },
+      ]);
     });
 
     it("orphaned history: a legacy row with recorded floating changes refuses a PATCH that leaves them no floating period", async () => {
@@ -823,10 +895,10 @@ describe("LiabilitiesService — revisi K", () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it("400 for a liability that is not an anuitas loan", async () => {
+    it("400 for a liability that is neither anuitas nor flat", async () => {
       prisma.liability.findUnique.mockResolvedValue({
         ...AT_61,
-        interestMethod: "flat",
+        interestMethod: "efektif",
       });
 
       await expect(
@@ -1440,8 +1512,8 @@ describe("LiabilitiesService — revisi K", () => {
       expect(prisma.account.update).not.toHaveBeenCalled();
     });
 
-    it("400 for a liability that is not an anuitas loan", async () => {
-      arrange({ ...AT_61, interestMethod: "flat" });
+    it("400 for a liability that is neither anuitas nor flat", async () => {
+      arrange({ ...AT_61, interestMethod: "efektif" });
 
       await expect(record({ mode: "full" })).rejects.toThrow(
         BadRequestException,

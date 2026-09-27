@@ -207,6 +207,10 @@ const INTEREST_METHOD_OPTIONS: Partial<
   Record<LiabilityTypeValue, readonly InterestMethod[]>
 > = {
   pinjaman_pribadi: ["flat", "anuitas"],
+  // KPR flat — user decision 2026-09-27: syariah murabahah and some
+  // conventional KPR use one fixed margin/instalment for the whole tenor
+  // instead of anuitas.
+  kpr: ["anuitas", "flat"],
   lainnya: ["efektif", "flat", "anuitas"],
 };
 
@@ -450,7 +454,9 @@ function LiabilityModal({
     type === "kartu_kredit"
       ? t.liabilitas.fieldRateMonthlyLabel
       : type === "kpr"
-        ? t.liabilitas.fieldRateFixedLabel
+        ? interestMethod === "flat"
+          ? t.liabilitas.rateLabels.flat
+          : t.liabilitas.fieldRateFixedLabel
         : t.liabilitas.rateLabels[interestMethod];
 
   const mutation = useMutation({
@@ -578,7 +584,7 @@ function LiabilityModal({
           installmentAmount: usesTenor
             ? moneyDigits(installmentField) || undefined
             : undefined,
-          kprScheme: usesRatePlan ? (kprPlan.scheme ?? undefined) : undefined,
+          kprScheme: type === "kpr" ? (kprPlan.scheme ?? undefined) : undefined,
           ratePeriods,
         },
         [
@@ -732,6 +738,9 @@ function LiabilityModal({
                   value={interestRate}
                   onChange={(e) => setInterestRate(e.target.value)}
                 />
+                {type === "kpr" && interestMethod === "flat" && (
+                  <div className="hint">{t.liabilitas.kpr.flatHint}</div>
+                )}
               </div>
             )}
             {usesTenor && (
@@ -792,7 +801,20 @@ function LiabilityModal({
             )}
 
             {usesRatePlan && (
-              <KprRatePeriodsField value={kprPlan} onChange={setKprPlan} />
+              <KprRatePeriodsField
+                value={kprPlan}
+                onChange={(next) => {
+                  setKprPlan(next);
+                  // Presets: syariah_murabahah is a single fixed margin for
+                  // the whole tenor — switch Metode Bunga to flat so the
+                  // rate-plan/floating UI (which only makes sense for
+                  // anuitas) hides itself; other presets stay anuitas.
+                  if (next.scheme === "syariah_murabahah") {
+                    setInterestMethod("flat");
+                    setInterestRate(next.periods[0]?.ratePercent ?? "");
+                  }
+                }}
+              />
             )}
 
             <div className="field">
@@ -1399,10 +1421,11 @@ function LiabilityDetailDialog({
               </div>
 
               {item.type === "kpr" &&
-                item.interestMethod === "anuitas" &&
+                (item.interestMethod === "anuitas" ||
+                  item.interestMethod === "flat") &&
                 familyGroupId && (
                   <>
-                    {hasFloatingPeriod && (
+                    {hasFloatingPeriod && item.interestMethod === "anuitas" && (
                       <KprFloatingRatesPanel
                         familyGroupId={familyGroupId}
                         liabilityId={item.id}

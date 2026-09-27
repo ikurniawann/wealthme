@@ -786,6 +786,76 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     );
   });
 
+  it("kpr flat: Metode Bunga offers anuitas/flat; the rate-plan UI hides when flat (polish-j)", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
+
+    const methodSelect = dialog.getByLabelText("Metode Bunga");
+    expect(methodSelect).toBeInTheDocument();
+    expect(methodSelect).toHaveValue("anuitas");
+    expect(dialog.getByLabelText("Skema KPR")).toBeInTheDocument();
+
+    await user.selectOptions(methodSelect, "flat");
+
+    expect(methodSelect).toHaveValue("flat");
+    expect(dialog.queryByLabelText("Skema KPR")).not.toBeInTheDocument();
+    expect(dialog.getByLabelText("Bunga Flat/Tahun (%)")).toBeInTheDocument();
+    expect(
+      dialog.getByText("Cicilan tetap sepanjang tenor."),
+    ).toBeInTheDocument();
+  });
+
+  it("kpr flat: the syariah murabahah preset defaults Metode Bunga to flat, user can switch (polish-j)", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    await user.type(dialog.getByLabelText("Nama"), "KPR Muamalat");
+    await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
+    await user.type(
+      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+      "300000000",
+    );
+    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "300000000");
+    await user.type(dialog.getByLabelText("Tenor (bulan)"), "180");
+
+    await user.selectOptions(
+      dialog.getByLabelText("Skema KPR"),
+      "syariah_murabahah",
+    );
+
+    // Selecting murabahah flips Metode Bunga to flat, which hides the
+    // rate-plan panel (and its own "Skema KPR" select) entirely.
+    expect(dialog.getByLabelText("Metode Bunga")).toHaveValue("flat");
+    expect(dialog.queryByLabelText("Skema KPR")).not.toBeInTheDocument();
+    const rateField = dialog.getByLabelText("Bunga Flat/Tahun (%)");
+    expect(rateField).toHaveValue("6.00");
+
+    // User can switch back to anuitas — the rate-plan panel returns.
+    await user.selectOptions(dialog.getByLabelText("Metode Bunga"), "anuitas");
+    expect(dialog.getByLabelText("Skema KPR")).toHaveValue("syariah_murabahah");
+
+    await user.selectOptions(dialog.getByLabelText("Metode Bunga"), "flat");
+    await user.click(
+      dialog.getByRole("button", { name: /simpan liabilitas/i }),
+    );
+
+    await waitFor(() => expect(postBodies).toHaveLength(1));
+    expect(postBodies[0]).toEqual(
+      expect.objectContaining({
+        type: "kpr",
+        interestMethod: "flat",
+        interestRate: "6.00",
+        tenorMonths: 180,
+        kprScheme: "syariah_murabahah",
+      }),
+    );
+    expect(postBodies[0]).not.toHaveProperty("ratePeriods");
+  });
+
   it("kpr: editing a G-era KPR shows its own pair as unlabelled periods and PATCHes ratePeriods (revisi K)", async () => {
     liabilitiesFixture = [
       baseLiability({

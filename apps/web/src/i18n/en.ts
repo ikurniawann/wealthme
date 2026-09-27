@@ -2067,6 +2067,7 @@ export const en = {
     payLateNote:
       "This installment is past its due date — it still counts as the same installment during the 5-day grace window.",
     kpr: {
+      flatHint: "Installment stays fixed for the whole tenor.",
       planLegend: "Mortgage rate structure",
       presetLabel: "Mortgage scheme",
       presetNames: {

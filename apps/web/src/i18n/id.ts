@@ -2109,6 +2109,7 @@ export const id = {
     payLateNote:
       "Cicilan ini sudah lewat jatuh tempo — masih dihitung sebagai cicilan yang sama selama masa tenggang 5 hari.",
     kpr: {
+      flatHint: "Cicilan tetap sepanjang tenor.",
       planLegend: "Struktur bunga KPR",
       presetLabel: "Skema KPR",
       presetNames: {
