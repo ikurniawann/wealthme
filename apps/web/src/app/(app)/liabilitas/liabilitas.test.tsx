@@ -381,6 +381,31 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(dialog.getByText(expectedNextDue)).toBeInTheDocument();
   });
 
+  // fix-round1 (Important) — `nextDueDate` is UTC midnight (07:00 WIB), so
+  // comparing it against the instant "now" made a KPR due TODAY show
+  // "Sudah Jatuh Tempo" the moment the clock passed 07:00 WIB, even though
+  // the server's own `currentInstallmentLate` (WIB-calendar-day aware, and
+  // grace-window aware) says it is not late yet.
+  it("does not show 'Sudah Jatuh Tempo' on the due day itself when the API says currentInstallmentLate is false", async () => {
+    const todayUtcMidnight = new Date();
+    todayUtcMidnight.setUTCHours(0, 0, 0, 0);
+    liabilitiesFixture = [
+      baseLiability({
+        type: "kpr",
+        dueDate: null,
+        nextDueDate: todayUtcMidnight.toISOString(),
+        startDate: "2026-08-27T00:00:00.000Z",
+        tenorMonths: 240,
+        currentInstallmentLate: false,
+      }),
+    ];
+
+    render(<LiabilitasPage />);
+
+    await screen.findByRole("button", { name: "Detail" });
+    expect(screen.queryByText("Sudah Jatuh Tempo")).not.toBeInTheDocument();
+  });
+
   it("PATCHes the edited liability with the current form values", async () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);
@@ -924,6 +949,32 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(
       dialog.getByText("Estimasi lunas dalam ~2 bulan"),
     ).toBeInTheDocument();
+  });
+
+  // fix-round1 (Minor) — each schedule row's date now comes straight from
+  // the akad date (startDate) + row.period (matching the API's own
+  // `dueDateForPeriod`, month-end clamp included), not `anchor + index
+  // months`, which drifted for an akad on the 29th-31st.
+  it("clamps a 31 Jan akad's schedule rows to 28 Feb then 31 Mar, not a drifted 3 Mar (fix-round1)", async () => {
+    liabilitiesFixture = [
+      baseLiability({
+        type: "kpr",
+        startDate: "2026-01-31T00:00:00.000Z",
+        tenorMonths: 240,
+        dueDate: null,
+        nextDueDate: "2026-02-28T00:00:00.000Z",
+      }),
+    ];
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Detail" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    const table = await dialog.findByRole("table");
+    const rows = within(table).getAllByRole("row");
+
+    expect(within(rows[1]!).getByText("28 Feb 2026")).toBeInTheDocument();
+    expect(within(rows[2]!).getByText("31 Mar 2026")).toBeInTheDocument();
   });
 
   it("shows the unavailable note when the server returns no rows", async () => {

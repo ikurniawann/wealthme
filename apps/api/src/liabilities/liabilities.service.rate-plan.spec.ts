@@ -1233,6 +1233,27 @@ describe("LiabilitiesService — revisi K", () => {
       expect(res.prepayment.penaltyAmount).toBe("10000000");
     });
 
+    // fix-round1 (Important) — a FULL prepayment brings remainingBalance
+    // to 0 (the DB actually applies the `decrement`, unlike `arrange()`'s
+    // canned mock above), and that lunas state must null `nextDueDate` —
+    // otherwise `resolveDueAnchorPeriod` still clamps to the settled
+    // tenor period and /liabilitas shows a real due date + red banner
+    // forever after a full prepayment.
+    it("full payoff: nextDueDate is null once remainingBalance is actually 0", async () => {
+      arrange();
+      prisma.liability.update.mockResolvedValue({
+        ...AT_61,
+        remainingBalance: 0n,
+        minimumPayment: 0n,
+        installmentAmount: null,
+        installmentFromPeriod: null,
+      });
+
+      const res = await record({ mode: "full", penaltyPercent: "2.50" });
+
+      expect(res.liability.nextDueDate).toBeNull();
+    });
+
     it("zero penalty books no penalty leg", async () => {
       arrange();
 

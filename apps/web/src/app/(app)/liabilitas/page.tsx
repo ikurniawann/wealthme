@@ -235,6 +235,23 @@ function formatScheduleDate(date: Date, locale: Locale): string {
   });
 }
 
+// fix-round1 (Minor) — mirrors the API's `dueDateForPeriod` (same
+// month-end clamp: an akad on the 29th-31st falls due on the target
+// month's own last day when it is shorter, instead of drifting via
+// `anchor + index months`, which compounds wrong once `anchor` itself
+// was already clamped to an earlier day than the akad's own day-of-month.
+function scheduleRowDueDate(startDate: Date, period: number): Date {
+  const targetYear = startDate.getFullYear();
+  const targetMonthIndex = startDate.getMonth() + period;
+  const lastDayOfTargetMonth = new Date(
+    targetYear,
+    targetMonthIndex + 1,
+    0,
+  ).getDate();
+  const day = Math.min(startDate.getDate(), lastDayOfTargetMonth);
+  return new Date(targetYear, targetMonthIndex, day);
+}
+
 // Prototype's "Cicilan Bulan Ini" sub-line ("Jatuh tempo terdekat 12
 // Agustus") spells the month out in full, unlike the card badges' short form.
 function formatLocaleDateFullMonth(iso: string, locale: Locale): string {
@@ -273,8 +290,20 @@ function getDtaRiskLabel(
   return { label: t.liabilitas.riskRisky, color: "var(--destructive)" };
 }
 
+// fix-round1 (Important) — `nextDueDate` is UTC midnight (07:00 WIB), so
+// comparing it against the browser's current instant with a plain
+// `floor((due-now)/day) < 0` made a KPR due TODAY show "Terlambat" the
+// moment the clock passed 07:00 WIB, even though the server's own rule
+// (`dueInstallment`) says late only starts the day AFTER the due date
+// (inside a 5-day grace window). `isLate` — the API's own
+// `currentInstallmentLate`, already WIB-calendar-day aware — is
+// authoritative whenever the row has a real `nextDueDate`; `null` falls
+// back to the date-diff heuristic for a row with only the legacy manual
+// `dueDate` (kartu_kredit never has a `nextDueDate`/schedule to derive
+// `currentInstallmentLate` from).
 function getDueDateStatus(
   dueDate: string | null,
+  isLate: boolean | null,
   t: ReturnType<typeof useLocale>["t"],
   locale: Locale,
 ): {
@@ -287,8 +316,8 @@ function getDueDateStatus(
   const diffDays = Math.floor(
     (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
   );
-  if (diffDays < 0)
-    return { text: t.liabilitas.statusOverdue, variant: "danger" };
+  const late = isLate ?? diffDays < 0;
+  if (late) return { text: t.liabilitas.statusOverdue, variant: "danger" };
   const text = `${t.liabilitas.statusDuePrefix}${formatLocaleDate(dueDate, locale)}`;
   if (diffDays <= 7) return { text, variant: "warning" };
   return { text, variant: "success" };
@@ -916,7 +945,12 @@ function LiabilityCard({
   // never sets; `nextDueDate` (same anchor rule as the amortisation
   // schedule) is the real "next due" value when present.
   const nextDue = item.nextDueDate ?? item.dueDate;
-  const status = getDueDateStatus(nextDue, t, locale);
+  const status = getDueDateStatus(
+    nextDue,
+    item.nextDueDate ? item.currentInstallmentLate : null,
+    t,
+    locale,
+  );
 
   const totalDebt = item.totalDebt ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item.remainingBalance
@@ -1109,6 +1143,12 @@ function LiabilityDetailDialog({
   // schedule below is actually built from.
   const nextDue = item?.nextDueDate ?? item?.dueDate;
   const anchor = nextDue ? new Date(nextDue) : new Date();
+  // fix-round1 (Minor) — when the liability has a real Tanggal Akad, each
+  // row's date is derived straight from it via `scheduleRowDueDate`
+  // (matches the API's own `dueDateForPeriod`, including the month-end
+  // clamp); `anchor + index months` is kept only as the kartu_kredit
+  // fallback, which has no akad to anchor against at all.
+  const startDate = item?.startDate ? new Date(item.startDate) : null;
 
   return (
     // EPIC-026 Wave 8 — prototype `dlg-lia-detail` (liabilitas.html:312) is a
@@ -1302,11 +1342,16 @@ function LiabilityDetailDialog({
                                 <td className="mono">{row.period}</td>
                                 <td className="whitespace-nowrap">
                                   {formatScheduleDate(
-                                    new Date(
-                                      anchor.getFullYear(),
-                                      anchor.getMonth() + index,
-                                      anchor.getDate(),
-                                    ),
+                                    startDate
+                                      ? scheduleRowDueDate(
+                                          startDate,
+                                          row.period,
+                                        )
+                                      : new Date(
+                                          anchor.getFullYear(),
+                                          anchor.getMonth() + index,
+                                          anchor.getDate(),
+                                        ),
                                     locale,
                                   )}
                                 </td>

@@ -2269,8 +2269,12 @@ describe("LiabilitiesService", () => {
 
     it("after paying the current period, the next due date moves to next month", async () => {
       prisma.liability.findMany.mockResolvedValue([FRESH_KPR]);
-      // A payment already recorded for the current installment.
-      prisma.transaction.findFirst.mockResolvedValueOnce({ id: "txn-1" });
+      // A payment already recorded for the current installment (fix-round1
+      // — findAll batches this via transaction.findMany, not findFirst).
+      // Queued in call order: paidThisPeriodIds first, nextDueDatesFor second.
+      prisma.transaction.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ liabilityId: "lid-1", occurredAt: NOW }]);
 
       const [dto] = await service.findAll("fg-1", NOW);
 
@@ -2285,6 +2289,57 @@ describe("LiabilitiesService", () => {
       const [dto] = await service.findAll("fg-1", NOW);
 
       expect(dto?.nextDueDate).toBeNull();
+    });
+
+    // fix-round1 (Important) — a lunas loan must never show a real next
+    // due date; `resolveDueAnchorPeriod` alone still clamps to the
+    // already-settled tenor period, which used to feed a real date into
+    // getDueDateStatus/isOverdue on /liabilitas forever after payoff.
+    it("is null once remainingBalance is 0 (paid off via the final installment)", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        { ...FRESH_KPR, remainingBalance: BigInt(0) },
+      ]);
+
+      const [dto] = await service.findAll("fg-1", NOW);
+
+      expect(dto?.nextDueDate).toBeNull();
+    });
+
+    it("is null for a negative remainingBalance too (rounding overshoot on the last payment)", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        { ...FRESH_KPR, remainingBalance: BigInt(-1) },
+      ]);
+
+      const [dto] = await service.findAll("fg-1", NOW);
+
+      expect(dto?.nextDueDate).toBeNull();
+    });
+
+    // fix-round1 (Minor) — batched like paidThisPeriodIds: ONE
+    // transaction.findMany for every candidate liability, not one
+    // transaction.findFirst per liability (N+1).
+    it("batches the already-paid check across liabilities into one query, not one per liability", async () => {
+      const ANOTHER_KPR = {
+        ...FRESH_KPR,
+        id: "lid-2",
+        startDate: new Date("2026-07-15T00:00:00.000Z"),
+      };
+      prisma.liability.findMany.mockResolvedValue([FRESH_KPR, ANOTHER_KPR]);
+      prisma.transaction.findMany
+        .mockResolvedValueOnce([]) // paidThisPeriodIds
+        .mockResolvedValueOnce([{ liabilityId: "lid-1", occurredAt: NOW }]); // nextDueDatesFor — only lid-1 has a recorded payment
+
+      const dtos = await service.findAll("fg-1", NOW);
+
+      expect(prisma.transaction.findMany).toHaveBeenCalledTimes(2);
+      expect(prisma.transaction.findFirst).not.toHaveBeenCalled();
+      expect(dtos.find((d) => d.id === "lid-1")?.nextDueDate).toBe(
+        "2026-10-27T00:00:00.000Z",
+      );
+      // lid-2's own akad (15 Jul) is unaffected by lid-1's payment.
+      expect(dtos.find((d) => d.id === "lid-2")?.nextDueDate).toBe(
+        "2026-09-15T00:00:00.000Z",
+      );
     });
   });
 
@@ -2424,6 +2479,44 @@ describe("LiabilitiesService", () => {
         remaining: "0",
       });
       expect(prisma.liability.update).not.toHaveBeenCalled();
+    });
+
+    // fix-round1 (Important) — getSchedule must anchor row #1 on the SAME
+    // period `nextDueDate` uses (resolveDueAnchorPeriod), not the
+    // date-only `dueInstallment` fallback. Before this fix, a payment
+    // recorded inside the current period's grace window left the
+    // schedule's row #1 a whole period BEHIND nextDueDate: same period,
+    // later calendar date on the web, plus one stale extra row.
+    it("akad 27 Aug, paid 20 Sep: row 1 anchors on period 2 (27 Oct), one fewer row, payoff period unchanged", async () => {
+      const KPR = {
+        ...BASE,
+        type: "kpr",
+        interestMethod: "anuitas",
+        totalDebt: BigInt(500_000_000),
+        remainingBalance: BigInt(500_000_000),
+        interestRate: { toString: () => "8.00" },
+        tenorMonths: 240,
+        startDate: new Date("2026-08-27T00:00:00.000Z"),
+        installmentAmount: BigInt(4_182_200),
+        minimumPayment: BigInt(4_182_200),
+      };
+      const NOW = new Date("2026-09-20T00:00:00.000Z");
+      prisma.liability.findUnique.mockResolvedValue(KPR);
+
+      const baseline = await service.getSchedule("fg-1", "lid-1", NOW);
+      expect(baseline.rows[0]?.period).toBe(1);
+      expect(baseline.rows).toHaveLength(240);
+
+      // The current installment (#1) was already paid on 20 Sep, inside
+      // its grace window — resolveDueAnchorPeriod bumps the anchor to #2.
+      prisma.transaction.findFirst.mockResolvedValueOnce({ id: "txn-1" });
+      const afterPayment = await service.getSchedule("fg-1", "lid-1", NOW);
+
+      expect(afterPayment.rows[0]?.period).toBe(2);
+      expect(afterPayment.rows).toHaveLength(239);
+      const lastRow = afterPayment.rows[afterPayment.rows.length - 1];
+      expect(lastRow?.period).toBe(240);
+      expect(lastRow?.remaining).toBe("0");
     });
 
     it("kartu kredit: open-ended schedule from minimumPayment at the monthly rate", async () => {

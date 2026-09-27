@@ -236,6 +236,43 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     expect(screen.getByText(t.obligationsPaidBadge)).toBeInTheDocument();
   });
 
+  // fix-round1 (Minor) — the obligations Pay list mapped the legacy
+  // `dueDate` (never set for a KPR), unlike /liabilitas which already
+  // switched to `nextDueDate`. Round out the same switch here.
+  it("shows the API's nextDueDate for a liability whose legacy dueDate is null", async () => {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url.endsWith("/liabilities")) {
+        return Promise.resolve([
+          {
+            ...DUE_LIABILITY,
+            dueDate: null,
+            nextDueDate: "2026-09-27T00:00:00.000Z",
+          },
+        ]);
+      }
+      if (url.endsWith("/insurances")) {
+        return Promise.resolve([PAID_INSURANCE]);
+      }
+      return Promise.resolve([]);
+    });
+    renderWithClient(
+      <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
+      queryClient,
+    );
+
+    await screen.findByText(DUE_LIABILITY.name);
+    const row = screen
+      .getByText(DUE_LIABILITY.name)
+      .closest("div")!.parentElement!;
+    expect(row.textContent).toContain(
+      new Date("2026-09-27T00:00:00.000Z").toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    );
+  });
+
   it("paying a due liability requires a source account before the button is enabled, then calls the liability pay endpoint with the amount due", async () => {
     const user = userEvent.setup();
     renderWithClient(

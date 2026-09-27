@@ -451,7 +451,10 @@ function toObligations(
         Number(l.currentInstallmentAmount ?? l.minimumPayment),
       ),
       paidThisPeriod: l.paidThisPeriod,
-      dueDate: l.dueDate,
+      // fix-round1 (Minor) — `dueDate` is the legacy manual field the KPR
+      // form never sets; `nextDueDate` (same anchor rule /liabilitas uses)
+      // is the real "next due" value when present.
+      dueDate: l.nextDueDate ?? l.dueDate,
       icon: LIABILITY_ICONS[l.type] ?? "📄",
     }));
   const fromInsurances: Obligation[] = insurances

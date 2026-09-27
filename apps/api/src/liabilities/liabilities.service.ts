@@ -411,8 +411,19 @@ async function resolveDueAnchorPeriod(
     },
     select: { id: true },
   });
+  return anchorPeriodFrom(due, liability.tenorMonths, alreadyPaid !== null);
+}
+
+/** Shared by `resolveDueAnchorPeriod` and `LiabilitiesService`'s batched
+ * `nextDueDatesFor`, so the single-liability and list-of-liabilities paths
+ * resolve the exact same anchor from the exact same two facts. */
+function anchorPeriodFrom(
+  due: number,
+  tenorMonths: number | null,
+  alreadyPaid: boolean,
+): number {
   if (!alreadyPaid) return due;
-  return Math.min(due + 1, liability.tenorMonths ?? due + 1);
+  return Math.min(due + 1, tenorMonths ?? due + 1);
 }
 
 /**
@@ -664,17 +675,17 @@ export class LiabilitiesService {
       familyGroupId,
       liabilities.map((l) => l.id),
     );
-    const nextDueDates = await Promise.all(
-      liabilities.map((l) =>
-        this.nextDueDateFor(this.prisma, familyGroupId, l, now),
-      ),
+    const nextDueDates = await this.nextDueDatesFor(
+      familyGroupId,
+      liabilities,
+      now,
     );
-    return liabilities.map((l, i) =>
+    return liabilities.map((l) =>
       toLiabilityDto(
         { ...l, ratePlanRows: plans.get(l.id) },
         paidSet.has(l.id),
         now,
-        nextDueDates[i],
+        nextDueDates.get(l.id) ?? null,
       ),
     );
   }
@@ -725,6 +736,13 @@ export class LiabilitiesService {
    * SAME due-anchor rule (`resolveDueAnchorPeriod`) the amortisation
    * schedule's first row is built from, so the two never drift apart. Null
    * for a liability with no Tanggal Akad — nothing to anchor a schedule to.
+   *
+   * fix-round1 (Important) — ALSO null once `remainingBalance <= 0` (a
+   * lunas KPR, whether paid off via the final installment or a full
+   * prepayment). `resolveDueAnchorPeriod` clamps to the already-settled
+   * tenor period regardless, so without this a paid-off loan kept
+   * reporting a real due date and showed the red "Terlambat" banner
+   * forever after.
    */
   private async nextDueDateFor(
     client: TxClient,
@@ -733,10 +751,12 @@ export class LiabilitiesService {
       id: string;
       startDate: Date | null;
       tenorMonths: number | null;
+      remainingBalance: bigint;
     },
     now: Date,
   ): Promise<Date | null> {
     if (liability.startDate === null) return null;
+    if (liability.remainingBalance <= BigInt(0)) return null;
     const period = await resolveDueAnchorPeriod(
       client,
       familyGroupId,
@@ -744,6 +764,80 @@ export class LiabilitiesService {
       now,
     );
     return dueDateForPeriod(liability.startDate, period);
+  }
+
+  /**
+   * fix-round1 (Minor) — `findAll`'s batched counterpart to
+   * `nextDueDateFor`: ONE extra `transaction.findMany` for every
+   * candidate liability instead of `nextDueDateFor`'s one
+   * `transaction.findFirst` PER liability (an N+1, unlike the already-
+   * batched `paidThisPeriodIds`). Liabilities with no Tanggal Akad or
+   * already paid off (`remainingBalance <= 0`) are resolved to `null`
+   * without touching the DB at all, exactly like `nextDueDateFor`.
+   */
+  private async nextDueDatesFor(
+    familyGroupId: string,
+    liabilities: {
+      id: string;
+      startDate: Date | null;
+      tenorMonths: number | null;
+      remainingBalance: bigint;
+    }[],
+    now: Date,
+  ): Promise<Map<string, Date | null>> {
+    const results = new Map<string, Date | null>();
+    const candidates: {
+      id: string;
+      startDate: Date;
+      tenorMonths: number | null;
+      due: number;
+      becameDueAt: Date;
+    }[] = [];
+    for (const l of liabilities) {
+      if (l.startDate === null || l.remainingBalance <= BigInt(0)) {
+        results.set(l.id, null);
+        continue;
+      }
+      const due = dueInstallment(l.startDate, now, l.tenorMonths).period;
+      candidates.push({
+        id: l.id,
+        startDate: l.startDate,
+        tenorMonths: l.tenorMonths,
+        due,
+        becameDueAt: dueInstallmentEffectiveAt(l.startDate, due),
+      });
+    }
+    if (candidates.length === 0) return results;
+
+    const earliestBecameDueAt = candidates.reduce(
+      (min, c) => (c.becameDueAt < min ? c.becameDueAt : min),
+      candidates[0]!.becameDueAt,
+    );
+    const paymentRows = await this.prisma.transaction.findMany({
+      where: {
+        familyGroupId,
+        liabilityId: { in: candidates.map((c) => c.id) },
+        occurredAt: { gte: earliestBecameDueAt },
+        accountId: { not: null },
+        liabilityPrepaymentId: null,
+      },
+      select: { liabilityId: true, occurredAt: true },
+    });
+    const paymentDatesByLiability = new Map<string, Date[]>();
+    for (const row of paymentRows) {
+      if (!row.liabilityId) continue;
+      const dates = paymentDatesByLiability.get(row.liabilityId) ?? [];
+      dates.push(row.occurredAt);
+      paymentDatesByLiability.set(row.liabilityId, dates);
+    }
+    for (const c of candidates) {
+      const alreadyPaid = (paymentDatesByLiability.get(c.id) ?? []).some(
+        (occurredAt) => occurredAt.getTime() >= c.becameDueAt.getTime(),
+      );
+      const period = anchorPeriodFrom(c.due, c.tenorMonths, alreadyPaid);
+      results.set(c.id, dueDateForPeriod(c.startDate, period));
+    }
+    return results;
   }
 
   async getSummary(
@@ -770,7 +864,20 @@ export class LiabilitiesService {
     };
   }
 
-  /** Read-only projection from the liability's current state; nothing is persisted. */
+  /**
+   * Read-only projection from the liability's current state; nothing is
+   * persisted.
+   *
+   * fix-round1 (Important) — anchored on `resolveDueAnchorPeriod` (the
+   * SAME "already paid this period" check `nextDueDateFor`,
+   * `previewPrepayment` and `recordPrepayment` use), not on
+   * `scheduleInputFor`'s own date-only `dueInstallment` fallback. Without
+   * this, an installment paid inside its grace window left the schedule's
+   * row #1 anchored a whole period behind `nextDueDate` — the same
+   * period's row rendered under a LATER calendar date on the web (the
+   * schedule table's date column reads `nextDueDate` as its anchor), and
+   * carried one extra row, pushing the projected payoff date a month late.
+   */
   async getSchedule(
     familyGroupId: string,
     id: string,
@@ -784,7 +891,13 @@ export class LiabilitiesService {
     }
 
     const planned = await withRatePlan(this.prisma, familyGroupId, liability);
-    const input = scheduleInputFor(planned, now);
+    const firstPeriod = await resolveDueAnchorPeriod(
+      this.prisma,
+      familyGroupId,
+      liability,
+      now,
+    );
+    const input = scheduleInputFor(planned, now, firstPeriod);
     const rows = buildSchedule(input);
     const plan = ratePlanOf(input);
 
@@ -1662,8 +1775,10 @@ export class LiabilitiesService {
         // A prepayment never counts as "this installment paid" (Revisi K —
         // `liabilityPrepaymentId: null` filter), so the anchor period
         // already resolved above for the schedule is still the next due
-        // installment; no need to re-resolve it.
-        updated.startDate
+        // installment; no need to re-resolve it. fix-round1 — but a FULL
+        // prepayment can bring `remainingBalance` to 0, and that lunas
+        // state must still null the date (see `nextDueDateFor`'s doc).
+        updated.startDate && updated.remainingBalance > BigInt(0)
           ? dueDateForPeriod(updated.startDate, firstPeriod)
           : null,
       ),

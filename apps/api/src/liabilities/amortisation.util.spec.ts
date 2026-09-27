@@ -4,6 +4,8 @@ import {
   currentInstallment,
   defaultInterestMethod,
   dueDateForPeriod,
+  dueInstallment,
+  dueInstallmentEffectiveAt,
   monthsElapsed,
   parseRateScaledByHundred,
   rateForPeriod,
@@ -32,6 +34,117 @@ describe("dueDateForPeriod — E2E round 1 bug 2", () => {
     const startDate = new Date("2026-08-27T00:00:00.000Z");
     expect(dueDateForPeriod(startDate, 0).toISOString()).toBe(
       startDate.toISOString(),
+    );
+  });
+});
+
+// fix-round1 — an akad on the 29th-31st overflows into the WRONG month
+// when `Date.UTC` is left to roll a nonexistent day forward on its own
+// (31 Jan + "1 month" = "31 Feb", which `Date.UTC` turns into 2/3 March,
+// skipping February's due date entirely). Clamped to the target month's
+// own last day instead, like a bank's "same date, or month-end if
+// shorter" contract convention.
+describe("dueDateForPeriod — month-end clamp (fix-round1)", () => {
+  it("31 Jan (non-leap 2026): period 1 clamps to 28 Feb, period 2 is 31 Mar, period 3 clamps to 30 Apr", () => {
+    const startDate = new Date("2026-01-31T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 1).toISOString()).toBe(
+      "2026-02-28T00:00:00.000Z",
+    );
+    expect(dueDateForPeriod(startDate, 2).toISOString()).toBe(
+      "2026-03-31T00:00:00.000Z",
+    );
+    expect(dueDateForPeriod(startDate, 3).toISOString()).toBe(
+      "2026-04-30T00:00:00.000Z",
+    );
+  });
+
+  it("31 Jan (leap 2024): period 1 clamps to 29 Feb, not 28", () => {
+    const startDate = new Date("2024-01-31T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 1).toISOString()).toBe(
+      "2024-02-29T00:00:00.000Z",
+    );
+  });
+
+  it("29 Jan (leap 2024): period 1 lands exactly on 29 Feb, no clamp needed", () => {
+    const startDate = new Date("2024-01-29T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 1).toISOString()).toBe(
+      "2024-02-29T00:00:00.000Z",
+    );
+  });
+
+  it("29 Jan (non-leap 2023): period 1 clamps to 28 Feb", () => {
+    const startDate = new Date("2023-01-29T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 1).toISOString()).toBe(
+      "2023-02-28T00:00:00.000Z",
+    );
+  });
+
+  it("31 Aug: period 1 clamps to 30 Sep (never skips into October)", () => {
+    const startDate = new Date("2026-08-31T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 1).toISOString()).toBe(
+      "2026-09-30T00:00:00.000Z",
+    );
+    expect(dueDateForPeriod(startDate, 2).toISOString()).toBe(
+      "2026-10-31T00:00:00.000Z",
+    );
+  });
+});
+
+describe("monthsElapsed — agrees with the clamped dueDateForPeriod (fix-round1)", () => {
+  it("31 Jan akad: elapsed is 0 the day before the clamped 28 Feb due date", () => {
+    const start = new Date("2026-01-31T00:00:00.000Z");
+    expect(monthsElapsed(start, new Date("2026-02-27T00:00:00.000Z"))).toBe(0);
+  });
+
+  it("31 Jan akad: elapsed becomes 1 exactly on the clamped 28 Feb due date", () => {
+    const start = new Date("2026-01-31T00:00:00.000Z");
+    expect(monthsElapsed(start, new Date("2026-02-28T00:00:00.000Z"))).toBe(1);
+  });
+
+  it("31 Jan akad: elapsed stays 1 through March until the 31 Mar due date", () => {
+    const start = new Date("2026-01-31T00:00:00.000Z");
+    expect(monthsElapsed(start, new Date("2026-03-30T00:00:00.000Z"))).toBe(1);
+    expect(monthsElapsed(start, new Date("2026-03-31T00:00:00.000Z"))).toBe(2);
+  });
+});
+
+describe("dueInstallment — grace window across a clamped month (fix-round1)", () => {
+  it("31 Jan akad, 2 days after the clamped 28 Feb due date: still #1, still in grace", () => {
+    const result = dueInstallment(
+      new Date("2026-01-31T00:00:00.000Z"),
+      new Date("2026-03-02T00:00:00.000Z"),
+      240,
+    );
+    expect(result).toEqual({ period: 1, late: true });
+  });
+
+  it("31 Jan akad, exactly on the clamped 28 Feb due date: #1, not late", () => {
+    const result = dueInstallment(
+      new Date("2026-01-31T00:00:00.000Z"),
+      new Date("2026-02-28T00:00:00.000Z"),
+      240,
+    );
+    expect(result).toEqual({ period: 1, late: false });
+  });
+
+  it("31 Jan akad, 6 days after the clamped 28 Feb due date: grace expired, rolls to #2", () => {
+    const result = dueInstallment(
+      new Date("2026-01-31T00:00:00.000Z"),
+      new Date("2026-03-06T00:00:00.000Z"),
+      240,
+    );
+    expect(result).toEqual({ period: 2, late: false });
+  });
+});
+
+describe("dueInstallmentEffectiveAt — prepay anchor across a clamped month (fix-round1)", () => {
+  it("period 2's effective instant is grace-days after the clamped period-1 due date (28 Feb)", () => {
+    const startDate = new Date("2026-01-31T00:00:00.000Z");
+    // period 1 due 28 Feb (clamped); effective 6 days later at WIB midnight.
+    expect(dueInstallmentEffectiveAt(startDate, 2).toISOString()).toBe(
+      new Date(
+        Date.UTC(2026, 2, 6, -7, 0, 0), // 28 Feb + 6 days - WIB offset
+      ).toISOString(),
     );
   });
 });
