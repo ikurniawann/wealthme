@@ -189,6 +189,60 @@ describe("TujuanPage — failed saves surface the real message and keep the dial
   }, 10000);
 });
 
+// E2E round 1, bug 1 — a goal with an empty/whitespace name used to save
+// silently (201, success toast). CrudModal now blocks Simpan with an inline
+// error and never calls the API.
+describe("TujuanPage — empty name is rejected before any request (E2E round 1 bug 1)", () => {
+  it("shows an inline error and does not POST when Nama Tujuan is left empty", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Tujuan" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    expect(
+      await within(dialog).findByText("Nama Tujuan wajib diisi."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([path, options]) =>
+          String(path).endsWith("/goals") && options?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+
+  it("shows an inline error and does not POST when Nama Tujuan is whitespace-only", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<TujuanPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Tujuan" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Dana Liburan"),
+      "   ",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    expect(
+      await within(dialog).findByText("Nama Tujuan wajib diisi."),
+    ).toBeInTheDocument();
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([path, options]) =>
+          String(path).endsWith("/goals") && options?.method === "POST",
+      ),
+    ).toBe(false);
+  });
+});
+
 describe("TujuanPage — role gating (F3)", () => {
   it("offers the create action to an owner (CASL: manage Goal)", async () => {
     mockSession("owner");

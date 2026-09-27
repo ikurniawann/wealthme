@@ -13,6 +13,29 @@ const BASE = {
   balance: -50000,
 };
 
+// E2E round 1, bug 1 — sibling audit: `name` must reject "" / whitespace.
+describe("CreateAccountDto.name — E2E round 1 bug 1", () => {
+  it("rejects an empty name", async () => {
+    const dto = plainToInstance(CreateAccountDto, {
+      ...BASE,
+      name: "",
+      type: "bank",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "name")).toBe(true);
+  });
+
+  it("rejects a whitespace-only name", async () => {
+    const dto = plainToInstance(CreateAccountDto, {
+      ...BASE,
+      name: "   ",
+      type: "bank",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "name")).toBe(true);
+  });
+});
+
 describe("CreateAccountDto balance validation (#21/#22)", () => {
   it("passes with a negative balance when type is cash", async () => {
     const dto = plainToInstance(CreateAccountDto, { ...BASE, type: "cash" });

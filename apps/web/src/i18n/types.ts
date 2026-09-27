@@ -4299,6 +4299,8 @@ export type I18nDictionary = {
     addDescription: string;
     editDescription: string;
     addToMasterData: string;
+    /** "{field}" is replaced with the field's label — see CrudField.required. */
+    fieldRequired: string;
   };
   money: {
     currencyLabel: string;

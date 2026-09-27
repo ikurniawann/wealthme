@@ -13,6 +13,7 @@ import {
   ValidateIf,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 export class CreateAccountDto {
@@ -20,9 +21,12 @@ export class CreateAccountDto {
   @IsEnum(AccountType)
   type!: AccountType;
 
+  // E2E round 1, bug 1 — `@MinLength(1)` counts characters, so a
+  // whitespace-only name ("   ") passed untrimmed; `@IsTrimmedNotEmpty()`
+  // trims first and rejects the empty result.
   @ApiProperty({ description: "Account display name" })
   @IsString()
-  @MinLength(1)
+  @IsTrimmedNotEmpty()
   @MaxLength(255)
   name!: string;
 

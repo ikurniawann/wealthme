@@ -9,9 +9,12 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
+
 export class CreateCategoryDto {
   @ApiProperty({ type: String, description: "Category name", maxLength: 100 })
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name!: string;
 

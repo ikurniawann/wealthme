@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
@@ -9,6 +8,7 @@ import {
   Min,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { IsUserId } from "../../common/decorators/is-user-id.decorator";
 
 // EPIC-021 Group D (#14) — mirrors CreateHeirDto (Decision #9: warisan and
@@ -16,13 +16,13 @@ import { IsUserId } from "../../common/decorators/is-user-id.decorator";
 export class CreateInsuranceBeneficiaryDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name!: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   relationship!: string;
 

@@ -167,6 +167,8 @@ function CrudForm({
   const [values, setValues] = useState<Record<string, string>>(() =>
     initialFieldValues(config.fields, state.initialValues),
   );
+  // E2E round 1, bug 1 — inline required-field errors (see CrudField.required).
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
   const displayCurrency = useDefaultMoneyCurrency();
   // Decision 9/12: an untouched field is IDR on edit, the display currency on add.
@@ -179,11 +181,33 @@ function CrudForm({
   );
   const { data: fxRates } = useFxSnapshot(hasForeignAmount);
 
-  const setField = (key: string, value: string) =>
+  const setField = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     if (isSaving) return;
+    // E2E round 1, bug 1 — a blank/whitespace `required` field (only
+    // `tujuan.nama` today) blocks Simpan with an inline error instead of
+    // silently POSTing an empty name. Runs before `onSubmit` even for the
+    // no-`onSubmit` demo-toast fallback below, so the demo path can't skip it.
+    const requiredErrors: Record<string, string> = {};
+    for (const f of visibleFields) {
+      if (f.required && !(values[f.key] ?? "").trim()) {
+        requiredErrors[f.key] = t.crud.fieldRequired.replace(
+          "{field}",
+          labelOverrides?.[f.key] ?? f.label,
+        );
+      }
+    }
+    setErrors(requiredErrors);
+    if (Object.keys(requiredErrors).length > 0) return;
     if (!onSubmit) {
       toast.success(
         `${config.title} berhasil ${state.mode === "edit" ? "diperbarui" : "ditambahkan"}!`,
@@ -306,6 +330,7 @@ function CrudForm({
     const label = labelOverrides?.[f.key] ?? f.label;
     const fieldClass = inRow ? "field mt-0" : "field";
     const hint = f.helper?.(values);
+    const error = errors[f.key];
 
     // Prototype `dlg-md-kategori` — the switch is a `.row`, not a boxed
     // card: control first, then a bold label with its muted sub-copy.
@@ -397,7 +422,13 @@ function CrudForm({
       <label key={f.key} className={fieldClass}>
         <span className="label">{label}</span>
         {renderControl(f)}
-        {hint && <span className="hint block">{hint}</span>}
+        {error ? (
+          <span className="t-xs text-destructive block" role="alert">
+            {error}
+          </span>
+        ) : (
+          hint && <span className="hint block">{hint}</span>
+        )}
         {f.referenceGroup && <AddToMasterDataLink group={f.referenceGroup} />}
       </label>
     );

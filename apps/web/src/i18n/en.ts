@@ -4403,6 +4403,7 @@ export const en = {
     addDescription: "New data is immediately available across every app form.",
     editDescription: "Changes take effect immediately across every app form.",
     addToMasterData: "+ Add to Master Data",
+    fieldRequired: "{field} is required.",
   },
   money: {
     currencyLabel: "Currency",

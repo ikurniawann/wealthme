@@ -11,14 +11,20 @@ import {
   Min,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 const MAX_AMOUNT = 999_999_999_999;
 
 export class UpdateGoalDto {
+  // E2E round 1, bug 1 — `name` is optional here (omitted = unchanged), but
+  // when it IS sent it must not be "" / whitespace: `@IsOptional()` only
+  // skips `undefined`/`null`, so an explicit blank string used to reach the
+  // service and rename the goal to nothing.
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name?: string;
 

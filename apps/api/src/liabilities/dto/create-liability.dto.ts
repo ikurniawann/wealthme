@@ -9,7 +9,6 @@ import {
   IsDateString,
   IsEnum,
   IsInt,
-  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
@@ -19,6 +18,7 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 import { RatePeriodDto } from "./rate-period.dto";
@@ -26,7 +26,7 @@ import { RatePeriodDto } from "./rate-period.dto";
 export class CreateLiabilityDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name!: string;
 
