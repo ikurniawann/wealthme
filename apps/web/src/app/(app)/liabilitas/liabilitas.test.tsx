@@ -76,6 +76,7 @@ function baseLiability(overrides: Partial<LiabilityDto> = {}): LiabilityDto {
     minimumPayment: "800000",
     interestRate: "2.25",
     dueDate: "2026-08-20T00:00:00.000Z",
+    nextDueDate: null,
     autoAdvanceDueDate: false,
     paymentRatio: 27,
     paidThisPeriod: false,
@@ -350,6 +351,34 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
       await dialog.findByText(/estimasi kasar berdasarkan sisa saldo/i),
     ).toBeInTheDocument();
     expect(dialog.getByText("Efektif (saldo menurun)")).toBeInTheDocument();
+  });
+
+  // E2E round 1 bug 2 — a KPR's legacy `dueDate` is never set, but the API
+  // now computes the real `nextDueDate`; the Detail dialog's "Jatuh Tempo
+  // Berikutnya" must show it instead of falling back to "—".
+  it("shows the API-computed nextDueDate, not '—', when dueDate is null (bug 2)", async () => {
+    const NEXT_DUE_ISO = "2026-09-27T00:00:00.000Z";
+    liabilitiesFixture = [
+      baseLiability({
+        type: "kpr",
+        dueDate: null,
+        nextDueDate: NEXT_DUE_ISO,
+        startDate: "2026-08-27T00:00:00.000Z",
+        tenorMonths: 240,
+      }),
+    ];
+    const expectedNextDue = new Date(NEXT_DUE_ISO).toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "short",
+    });
+
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+
+    await user.click(await screen.findByRole("button", { name: "Detail" }));
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(dialog.getByText("Jatuh Tempo Berikutnya")).toBeInTheDocument();
+    expect(dialog.getByText(expectedNextDue)).toBeInTheDocument();
   });
 
   it("PATCHes the edited liability with the current form values", async () => {

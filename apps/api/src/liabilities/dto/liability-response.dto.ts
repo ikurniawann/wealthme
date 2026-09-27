@@ -17,6 +17,13 @@ export class LiabilityResponseDto {
   @ApiProperty() minimumPayment!: string;
   @ApiProperty() interestRate!: string;
   @ApiProperty({ nullable: true }) dueDate!: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description:
+      "E2E round 1 bug 2 — real next-installment due date for installment-type liabilities, computed by the same due-anchor rule as the amortisation schedule; null with no Tanggal Akad",
+  })
+  nextDueDate!: string | null;
   @ApiProperty() autoAdvanceDueDate!: boolean;
   @ApiProperty() paymentRatio!: number;
   @ApiProperty({

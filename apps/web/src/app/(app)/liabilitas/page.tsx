@@ -912,7 +912,11 @@ function LiabilityCard({
 }: LiabilityCardProps) {
   const { t, locale } = useLocale();
   const isCreditCard = item.type === "kartu_kredit";
-  const status = getDueDateStatus(item.dueDate, t, locale);
+  // E2E round 1 bug 2 — `dueDate` is the legacy manual field the KPR form
+  // never sets; `nextDueDate` (same anchor rule as the amortisation
+  // schedule) is the real "next due" value when present.
+  const nextDue = item.nextDueDate ?? item.dueDate;
+  const status = getDueDateStatus(nextDue, t, locale);
 
   const totalDebt = item.totalDebt ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item.remainingBalance
@@ -1043,7 +1047,7 @@ function LiabilityCard({
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             <span>
               {t.liabilitas.overdueWarningPrefix}
-              {item.dueDate ? formatLocaleDate(item.dueDate, locale) : ""}
+              {nextDue ? formatLocaleDate(nextDue, locale) : ""}
               {t.liabilitas.overdueWarningSuffix}
             </span>
           </div>
@@ -1100,7 +1104,11 @@ function LiabilityDetailDialog({
   const hasFloatingPeriod = scheduleQuery.data?.hasFloatingPeriod ?? false;
   const firstRow = scheduleRows[0];
   const paysOff = scheduleRows[scheduleRows.length - 1]?.remaining === "0";
-  const anchor = item?.dueDate ? new Date(item.dueDate) : new Date();
+  // E2E round 1 bug 2 — `dueDate` (legacy manual field) never reflects the
+  // real akad-anchored schedule; `nextDueDate` is the row-1 due date the
+  // schedule below is actually built from.
+  const nextDue = item?.nextDueDate ?? item?.dueDate;
+  const anchor = nextDue ? new Date(nextDue) : new Date();
 
   return (
     // EPIC-026 Wave 8 — prototype `dlg-lia-detail` (liabilitas.html:312) is a
@@ -1162,9 +1170,7 @@ function LiabilityDetailDialog({
                     {t.liabilitas.detailNextDueLabel}
                   </div>
                   <div className="text-[13px] font-semibold">
-                    {item.dueDate
-                      ? formatLocaleDate(item.dueDate, locale)
-                      : "—"}
+                    {nextDue ? formatLocaleDate(nextDue, locale) : "—"}
                   </div>
                 </div>
                 <div>
@@ -1513,8 +1519,8 @@ function PayLiabilityDialog({
               {[
                 item.name,
                 item.institution,
-                item.dueDate
-                  ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(item.dueDate, locale)}`
+                (item.nextDueDate ?? item.dueDate)
+                  ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(item.nextDueDate ?? item.dueDate!, locale)}`
                   : null,
               ]
                 .filter(Boolean)
@@ -1855,9 +1861,11 @@ export default function LiabilitasPage() {
     (sum, l) => sum + BigInt(installmentDue(l)),
     BigInt(0),
   );
+  // E2E round 1 bug 2 — prefer the real `nextDueDate` over the legacy
+  // manual `dueDate` field, same as everywhere else on this page.
   const nearestDueDate = (liabilities ?? [])
-    .filter((l) => l.dueDate)
-    .map((l) => l.dueDate as string)
+    .map((l) => l.nextDueDate ?? l.dueDate)
+    .filter((d): d is string => Boolean(d))
     .sort()[0];
 
   const filteredLiabilities = (liabilities ?? []).filter(

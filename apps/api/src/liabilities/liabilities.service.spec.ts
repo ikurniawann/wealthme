@@ -2241,6 +2241,53 @@ describe("LiabilitiesService", () => {
     });
   });
 
+  // E2E round 1 bug 2 — `nextDueDate` reuses `resolveDueAnchorPeriod` (the
+  // SAME anchor the amortisation schedule's row 1 is built from) turned
+  // into a calendar date via `dueDateForPeriod`.
+  describe("LiabilityDto.nextDueDate — E2E round 1 bug 2", () => {
+    const FRESH_KPR = {
+      ...BASE,
+      type: "kpr",
+      interestMethod: "anuitas",
+      totalDebt: BigInt(500_000_000),
+      remainingBalance: BigInt(500_000_000),
+      interestRate: { toString: () => "8.00" },
+      tenorMonths: 240,
+      startDate: new Date("2026-08-27T00:00:00.000Z"),
+      installmentAmount: BigInt(4_182_200),
+      minimumPayment: BigInt(4_182_200),
+    };
+    const NOW = new Date("2026-09-10T00:00:00.000Z");
+
+    it("a fresh KPR (akad 2026-08-27) reports 2026-09-27 as the next due date", async () => {
+      prisma.liability.findMany.mockResolvedValue([FRESH_KPR]);
+
+      const [dto] = await service.findAll("fg-1", NOW);
+
+      expect(dto?.nextDueDate).toBe("2026-09-27T00:00:00.000Z");
+    });
+
+    it("after paying the current period, the next due date moves to next month", async () => {
+      prisma.liability.findMany.mockResolvedValue([FRESH_KPR]);
+      // A payment already recorded for the current installment.
+      prisma.transaction.findFirst.mockResolvedValueOnce({ id: "txn-1" });
+
+      const [dto] = await service.findAll("fg-1", NOW);
+
+      expect(dto?.nextDueDate).toBe("2026-10-27T00:00:00.000Z");
+    });
+
+    it("is null for a liability with no Tanggal Akad", async () => {
+      prisma.liability.findMany.mockResolvedValue([
+        { ...FRESH_KPR, startDate: null, tenorMonths: null },
+      ]);
+
+      const [dto] = await service.findAll("fg-1", NOW);
+
+      expect(dto?.nextDueDate).toBeNull();
+    });
+  });
+
   describe("previewPayment (final fix 3)", () => {
     // Flat kendaraan: 100 jt original, 50 jt left @ 10% -> interest on the ORIGINAL principal.
     const FLAT = {

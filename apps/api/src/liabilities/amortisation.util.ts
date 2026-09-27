@@ -256,6 +256,23 @@ export interface DueInstallment {
 }
 
 /**
+ * The calendar due day for installment `period`: `period` months after the
+ * akad's own day-of-month (period 1 = one month after `startDate`). Shared
+ * by `dueInstallment`'s "last due" check, `dueInstallmentEffectiveAt`'s
+ * "previous due day", and the API's `LiabilityDto.nextDueDate` field, so
+ * all three agree on the same due-day math instead of re-deriving it.
+ */
+export function dueDateForPeriod(startDate: Date, period: number): Date {
+  return new Date(
+    Date.UTC(
+      startDate.getUTCFullYear(),
+      startDate.getUTCMonth() + period,
+      startDate.getUTCDate(),
+    ),
+  );
+}
+
+/**
  * The installment being paid today: the latest one already due while it is
  * at most DUE_GRACE_DAYS late, otherwise the next one (installment k falls
  * due k months after the akad), clamped to [1, tenor]. The schedule's first
@@ -269,11 +286,7 @@ export function dueInstallment(
   if (startDate === null) return { period: 1, late: false };
   const today = localCalendarDay(now);
   const elapsed = monthsElapsed(startDate, today);
-  const lastDue = Date.UTC(
-    startDate.getUTCFullYear(),
-    startDate.getUTCMonth() + elapsed,
-    startDate.getUTCDate(),
-  );
+  const lastDue = dueDateForPeriod(startDate, elapsed).getTime();
   const daysLate = Math.round((today.getTime() - lastDue) / DAY_MS);
   const inGrace = elapsed >= 1 && daysLate <= DUE_GRACE_DAYS;
   const period = inGrace ? elapsed : elapsed + 1;
@@ -305,11 +318,7 @@ export function dueInstallmentEffectiveAt(
   if (period <= 1) {
     return new Date(startDate.getTime() - APP_UTC_OFFSET_MS);
   }
-  const previousDueDay = Date.UTC(
-    startDate.getUTCFullYear(),
-    startDate.getUTCMonth() + (period - 1),
-    startDate.getUTCDate(),
-  );
+  const previousDueDay = dueDateForPeriod(startDate, period - 1).getTime();
   return new Date(
     previousDueDay + (DUE_GRACE_DAYS + 1) * DAY_MS - APP_UTC_OFFSET_MS,
   );

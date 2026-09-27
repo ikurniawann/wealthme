@@ -30,6 +30,7 @@ import {
   computeInstallment,
   currentInstallment,
   defaultInterestMethod,
+  dueDateForPeriod,
   dueInstallment,
   dueInstallmentEffectiveAt,
   dueInstallmentPeriod,
@@ -504,6 +505,7 @@ function toLiabilityDto(
   liability: LiabilityRow,
   paidThisPeriod = false,
   now: Date = new Date(),
+  nextDueDate: Date | null = null,
 ): LiabilityResponseDto {
   const paymentRatio =
     liability.totalDebt > BigInt(0)
@@ -525,6 +527,11 @@ function toLiabilityDto(
     minimumPayment: liability.minimumPayment.toString(),
     interestRate: liability.interestRate.toString(),
     dueDate: liability.dueDate?.toISOString() ?? null,
+    // E2E round 1 bug 2 — the real next-installment due date, computed by
+    // the caller (`LiabilitiesService.nextDueDateFor`) with the same
+    // due-anchor rule the amortisation schedule uses; null for liabilities
+    // with no Tanggal Akad (no amortisation schedule to anchor against).
+    nextDueDate: nextDueDate?.toISOString() ?? null,
     autoAdvanceDueDate: liability.autoAdvanceDueDate,
     paymentRatio,
     // EPIC-023 E2 — whether a payment linked to THIS liability (`liabilityId`
@@ -657,11 +664,17 @@ export class LiabilitiesService {
       familyGroupId,
       liabilities.map((l) => l.id),
     );
-    return liabilities.map((l) =>
+    const nextDueDates = await Promise.all(
+      liabilities.map((l) =>
+        this.nextDueDateFor(this.prisma, familyGroupId, l, now),
+      ),
+    );
+    return liabilities.map((l, i) =>
       toLiabilityDto(
         { ...l, ratePlanRows: plans.get(l.id) },
         paidSet.has(l.id),
         now,
+        nextDueDates[i],
       ),
     );
   }
@@ -705,6 +718,32 @@ export class LiabilitiesService {
       distinct: ["liabilityId"],
     });
     return new Set(rows.map((r) => r.liabilityId!));
+  }
+
+  /**
+   * E2E round 1 bug 2 — the real "Jatuh Tempo Berikutnya" date, reusing the
+   * SAME due-anchor rule (`resolveDueAnchorPeriod`) the amortisation
+   * schedule's first row is built from, so the two never drift apart. Null
+   * for a liability with no Tanggal Akad — nothing to anchor a schedule to.
+   */
+  private async nextDueDateFor(
+    client: TxClient,
+    familyGroupId: string,
+    liability: {
+      id: string;
+      startDate: Date | null;
+      tenorMonths: number | null;
+    },
+    now: Date,
+  ): Promise<Date | null> {
+    if (liability.startDate === null) return null;
+    const period = await resolveDueAnchorPeriod(
+      client,
+      familyGroupId,
+      liability,
+      now,
+    );
+    return dueDateForPeriod(liability.startDate, period);
   }
 
   async getSummary(
@@ -841,7 +880,14 @@ export class LiabilitiesService {
       }),
     );
 
-    return toLiabilityDto(liability);
+    const now = new Date();
+    const nextDueDate = await this.nextDueDateFor(
+      this.prisma,
+      familyGroupId,
+      liability,
+      now,
+    );
+    return toLiabilityDto(liability, false, now, nextDueDate);
   }
 
   private async runCreate(
@@ -955,7 +1001,13 @@ export class LiabilitiesService {
       ),
     );
 
-    return toLiabilityDto(updated, false, now);
+    const nextDueDate = await this.nextDueDateFor(
+      this.prisma,
+      familyGroupId,
+      updated,
+      now,
+    );
+    return toLiabilityDto(updated, false, now, nextDueDate);
   }
 
   /**
@@ -1509,7 +1561,12 @@ export class LiabilitiesService {
     if (replay) {
       assertReplayMatches(replay, dto, request);
       return {
-        liability: toLiabilityDto(planned, false, now),
+        liability: toLiabilityDto(
+          planned,
+          false,
+          now,
+          await this.nextDueDateFor(tx, familyGroupId, planned, now),
+        ),
         prepayment: toPrepaymentDto(replay),
         replayed: true,
       };
@@ -1602,6 +1659,13 @@ export class LiabilitiesService {
         { ...updated, ratePlanRows: planned.ratePlanRows },
         false,
         now,
+        // A prepayment never counts as "this installment paid" (Revisi K —
+        // `liabilityPrepaymentId: null` filter), so the anchor period
+        // already resolved above for the schedule is still the next due
+        // installment; no need to re-resolve it.
+        updated.startDate
+          ? dueDateForPeriod(updated.startDate, firstPeriod)
+          : null,
       ),
       prepayment: toPrepaymentDto(prepayment),
       replayed: false,
@@ -1880,6 +1944,10 @@ export class LiabilitiesService {
         { ...updated, ratePlanRows: planned.ratePlanRows },
         false,
         now,
+        // Reads the transaction rows just inserted above, in the SAME tx —
+        // a just-recorded payment correctly bumps this to next month
+        // (E2E round 1 bug 2 test: "after paying the current period").
+        await this.nextDueDateFor(tx, familyGroupId, updated, now),
       ),
       principalCategoryId,
     };
@@ -2022,6 +2090,9 @@ export class LiabilitiesService {
       actingMemberThreshold ?? undefined,
     );
 
+    // A `kartu_kredit` purchase never has a Tanggal Akad/amortisation
+    // schedule to anchor a `nextDueDate` against (see the type guard
+    // above) — `toLiabilityDto`'s own default already reports null.
     return toLiabilityDto(updated);
   }
 

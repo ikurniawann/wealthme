@@ -951,6 +951,7 @@ interface LiabilityDto {
     minimumPayment: string;
     interestRate: string;
     dueDate: string | null;
+    nextDueDate: string | null;
     autoAdvanceDueDate: boolean;
     paymentRatio: number;
     paidThisPeriod: boolean;

@@ -3,11 +3,38 @@ import {
   computeInstallment,
   currentInstallment,
   defaultInterestMethod,
+  dueDateForPeriod,
   monthsElapsed,
   parseRateScaledByHundred,
   rateForPeriod,
   splitPayment,
 } from "./amortisation.util";
+
+// E2E round 1, bug 2 — the KPR "Jatuh Tempo Berikutnya" date shown on the
+// web relies on this being the SAME due-day math `dueInstallment` and
+// `dueInstallmentEffectiveAt` already use internally (no duplicated logic).
+describe("dueDateForPeriod — E2E round 1 bug 2", () => {
+  it("period 1 is one month after the akad date (2026-08-27 akad -> 2026-09-27)", () => {
+    const startDate = new Date("2026-08-27T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 1).toISOString()).toBe(
+      "2026-09-27T00:00:00.000Z",
+    );
+  });
+
+  it("period 2 is two months after the akad date", () => {
+    const startDate = new Date("2026-08-27T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 2).toISOString()).toBe(
+      "2026-10-27T00:00:00.000Z",
+    );
+  });
+
+  it("period 0 is the akad date itself", () => {
+    const startDate = new Date("2026-08-27T00:00:00.000Z");
+    expect(dueDateForPeriod(startDate, 0).toISOString()).toBe(
+      startDate.toISOString(),
+    );
+  });
+});
 
 /**
  * EPIC-023 Task A2 (RED phase) — pins the principal/interest split against a

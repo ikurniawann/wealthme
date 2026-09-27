@@ -89,6 +89,7 @@ const DUE_LIABILITY: LiabilityDto = {
   minimumPayment: "2083000",
   interestRate: "10.00",
   dueDate: null,
+  nextDueDate: null,
   autoAdvanceDueDate: false,
   paymentRatio: 50,
   paidThisPeriod: false,
