@@ -97,7 +97,7 @@ export function BerandaHero({
 
           {isIndicative && (
             <div className="t-xs mt-1 opacity-70">
-              Perkiraan dalam {currency} · kurs indikatif, bukan kurs pasar
+              Perkiraan dalam {currency}, kurs indikatif, bukan kurs pasar
               real-time
             </div>
           )}
