@@ -1188,6 +1188,7 @@ export type I18nDictionary = {
     fieldCoverageLabel: string;
     fieldRenewalDateLabel: string;
     autoRenewLabel: string;
+    fieldPolicyNumberLabel: string;
     fieldPolicyNumberPlaceholder: string;
     fieldNotesLabel: string;
     fieldNotesPlaceholder: string;

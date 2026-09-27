@@ -938,7 +938,7 @@ function InsuranceModal({
 
           <div className="field">
             <label className="label" htmlFor="ins-policy-number">
-              {t.asuransi.policyNumberLabel}
+              {t.asuransi.fieldPolicyNumberLabel}
             </label>
             <input
               id="ins-policy-number"
