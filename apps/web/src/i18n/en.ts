@@ -1438,6 +1438,8 @@ export const en = {
       resultLabel: "Estimated Time to Reach",
       resultValueSuffix: "Months",
       detailTargetReachedPrefix: "Target reached around:",
+      unreachableError:
+        "This target will never be reached at this monthly deposit — increase the monthly deposit or the annual interest rate.",
     },
     splitgroup: {
       cardTitle: "Split Bill Group Calculator",
@@ -1450,6 +1452,7 @@ export const en = {
       resultLabel: "Amount per Person",
       detailTotalWithTaxPrefix: "Total with tax/tip:",
       createSplitBillButton: "Create Split Bill from This Calculation",
+      invalidPeopleError: "Number of people must be greater than 0.",
     },
   },
   quickinput: {

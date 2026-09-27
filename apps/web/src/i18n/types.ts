@@ -1452,6 +1452,7 @@ export type I18nDictionary = {
       resultLabel: string;
       resultValueSuffix: string;
       detailTargetReachedPrefix: string;
+      unreachableError: string;
     };
     splitgroup: {
       cardTitle: string;
@@ -1463,6 +1464,7 @@ export type I18nDictionary = {
       resultLabel: string;
       detailTotalWithTaxPrefix: string;
       createSplitBillButton: string;
+      invalidPeopleError: string;
     };
   };
   /**

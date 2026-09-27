@@ -1052,7 +1052,7 @@ function TabunganTab() {
   const [bunga, setBunga] = useState("4");
   const [setor, setSetor] = useState("3.000.000");
 
-  const { bln, label } = useMemo(() => {
+  const { bln, label, unreachable } = useMemo(() => {
     const targetAmount = parseRupiah(target);
     const r = Number(bunga) / 100 / 12;
     const s = parseRupiah(setor);
@@ -1062,10 +1062,16 @@ function TabunganTab() {
       saldo = saldo * (1 + r) + s;
       months++;
     }
+    // fix-round1 — a zero (or too-small) monthly deposit with a target
+    // above the current balance never actually reaches it; the loop above
+    // caps at 600 either way, so "still short after 600 months" is the
+    // only reliable signal, not `months === 600` (a real 50-year plan
+    // could legitimately land there).
+    const unreachable = saldo < targetAmount;
     const d = new Date();
     d.setMonth(d.getMonth() + months);
     const targetLabel = `${t.kalkulator.months[d.getMonth()]} ${d.getFullYear()}`;
-    return { bln: months, label: targetLabel };
+    return { bln: months, label: targetLabel, unreachable };
   }, [target, current, bunga, setor, t]);
 
   return (
@@ -1107,22 +1113,31 @@ function TabunganTab() {
                 onChange={(e) => setSetor(formatAmountInput(e.target.value))}
                 className="input"
               />
+              {unreachable && (
+                <p className="mt-1 text-[12px] text-destructive" role="alert">
+                  {t.kalkulator.tabungan.unreachableError}
+                </p>
+              )}
             </Field>
           </div>
         </SectionCard>
       }
       hasil={
         <SectionCard title={t.kalkulator.hasilCardTitle}>
-          <ResultCard
-            label={t.kalkulator.tabungan.resultLabel}
-            value={`±${formatNumber(bln)} ${t.kalkulator.tabungan.resultValueSuffix}`}
-            detail={
-              <>
-                {t.kalkulator.tabungan.detailTargetReachedPrefix}{" "}
-                <strong className="text-primary">{label}</strong>
-              </>
-            }
-          />
+          {unreachable ? (
+            <EmptyHasil note={t.kalkulator.tabungan.unreachableError} />
+          ) : (
+            <ResultCard
+              label={t.kalkulator.tabungan.resultLabel}
+              value={`±${formatNumber(bln)} ${t.kalkulator.tabungan.resultValueSuffix}`}
+              detail={
+                <>
+                  {t.kalkulator.tabungan.detailTargetReachedPrefix}{" "}
+                  <strong className="text-primary">{label}</strong>
+                </>
+              }
+            />
+          )}
         </SectionCard>
       }
     />
@@ -1139,15 +1154,20 @@ function SplitGroupTab() {
   const [tax, setTax] = useState("10");
   const [tip, setTip] = useState("0");
 
+  // fix-round1 — 0/negative was silently clamped to 1 person, hiding a
+  // typo (e.g. an accidental "-5" or a cleared field) behind a plausible
+  // "per orang" figure computed for 1 person instead of the group.
+  const invalidPeopleCount = !(Number(people) > 0);
+
   const { per, grand, count } = useMemo(() => {
     const totalAmount = parseRupiah(total);
-    const p = Math.max(1, Number(people) || 0);
+    const p = invalidPeopleCount ? 1 : Number(people);
     const grandCalc =
       totalAmount +
       (totalAmount * Number(tax)) / 100 +
       (totalAmount * Number(tip)) / 100;
     return { per: Math.round(grandCalc / p), grand: grandCalc, count: p };
-  }, [total, people, tax, tip]);
+  }, [total, people, tax, tip, invalidPeopleCount]);
 
   const breakdownCount = Math.min(count, 10);
 
@@ -1176,6 +1196,11 @@ function SplitGroupTab() {
                 onChange={(e) => setPeople(e.target.value)}
                 className="input"
               />
+              {invalidPeopleCount && (
+                <p className="mt-1 text-[12px] text-destructive" role="alert">
+                  {t.kalkulator.splitgroup.invalidPeopleError}
+                </p>
+              )}
             </Field>
             <Field label={t.kalkulator.splitgroup.fieldTaxService}>
               <input
@@ -1197,6 +1222,7 @@ function SplitGroupTab() {
           <Button
             className="mt-3.5 w-full"
             onClick={() => router.push("/splitbill")}
+            disabled={invalidPeopleCount}
           >
             <Share2 className="size-4" />{" "}
             {t.kalkulator.splitgroup.createSplitBillButton}
@@ -1205,33 +1231,37 @@ function SplitGroupTab() {
       }
       hasil={
         <SectionCard title={t.kalkulator.hasilCardTitle}>
-          <div className="space-y-3.5">
-            <ResultCard
-              label={t.kalkulator.splitgroup.resultLabel}
-              value={formatRupiah(per)}
-              detail={
-                <>
-                  {t.kalkulator.splitgroup.detailTotalWithTaxPrefix}{" "}
-                  <strong className="text-primary">
-                    {formatRupiah(grand)}
-                  </strong>
-                </>
-              }
-            />
-            <div className="space-y-1.5">
-              {GROUP_NAMES.slice(0, breakdownCount).map((name) => (
-                <div
-                  key={name}
-                  className="flex items-center justify-between rounded-md border px-3.5 py-2.5"
-                >
-                  <span className="text-[13px] font-semibold">{name}</span>
-                  <span className="text-[13px] font-bold text-primary">
-                    {formatRupiah(per)}
-                  </span>
-                </div>
-              ))}
+          {invalidPeopleCount ? (
+            <EmptyHasil note={t.kalkulator.splitgroup.invalidPeopleError} />
+          ) : (
+            <div className="space-y-3.5">
+              <ResultCard
+                label={t.kalkulator.splitgroup.resultLabel}
+                value={formatRupiah(per)}
+                detail={
+                  <>
+                    {t.kalkulator.splitgroup.detailTotalWithTaxPrefix}{" "}
+                    <strong className="text-primary">
+                      {formatRupiah(grand)}
+                    </strong>
+                  </>
+                }
+              />
+              <div className="space-y-1.5">
+                {GROUP_NAMES.slice(0, breakdownCount).map((name) => (
+                  <div
+                    key={name}
+                    className="flex items-center justify-between rounded-md border px-3.5 py-2.5"
+                  >
+                    <span className="text-[13px] font-semibold">{name}</span>
+                    <span className="text-[13px] font-bold text-primary">
+                      {formatRupiah(per)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </SectionCard>
       }
     />

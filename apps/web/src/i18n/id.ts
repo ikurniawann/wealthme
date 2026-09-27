@@ -1470,6 +1470,12 @@ export const id = {
       resultLabel: "Estimasi Tercapai",
       resultValueSuffix: "Bulan",
       detailTargetReachedPrefix: "Target tercapai sekitar:",
+      // fix-round1 (kalkulator) — a 0 (or too-small) monthly deposit with a
+      // target above the current balance never reaches it; the loop capped
+      // at 600 used to render the misleading "±600 Bulan" as if that were
+      // a real estimate.
+      unreachableError:
+        "Target tidak akan tercapai dengan setoran bulanan ini — naikkan setoran per bulan atau bunga per tahun.",
     },
     splitgroup: {
       cardTitle: "Kalkulator Split Bill Group",
@@ -1482,6 +1488,9 @@ export const id = {
       resultLabel: "Per Orang Bayar",
       detailTotalWithTaxPrefix: "Total + pajak/tip:",
       createSplitBillButton: "Buat Split Bill dari Hitungan Ini",
+      // fix-round1 (kalkulator) — 0/negative was silently clamped to 1
+      // person, hiding the typo instead of telling the user to fix it.
+      invalidPeopleError: "Jumlah orang harus lebih dari 0.",
     },
   },
   quickinput: {
