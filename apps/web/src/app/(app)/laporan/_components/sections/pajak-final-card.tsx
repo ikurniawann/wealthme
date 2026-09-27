@@ -25,11 +25,13 @@ export function PajakFinalCard() {
   if (isPending) return null;
 
   const lines = result?.lines ?? [];
-  const totals = new Map<TaxFinalInstrument, number>();
+  // Tax amounts are integer-rupiah digit strings; sum as BigInt and convert
+  // only at format time so large totals never pick up float error.
+  const totals = new Map<TaxFinalInstrument, bigint>();
   for (const line of lines) {
     totals.set(
       line.instrument,
-      (totals.get(line.instrument) ?? 0) + Number(line.tax ?? 0),
+      (totals.get(line.instrument) ?? BigInt(0)) + BigInt(line.tax ?? "0"),
     );
   }
 
@@ -49,7 +51,7 @@ export function PajakFinalCard() {
                 <StatementRow
                   key={instrument}
                   label={t.tax.final.instruments[instrument]}
-                  value={formatRupiah(tax)}
+                  value={formatRupiah(Number(tax))}
                 />
               ))}
             </tbody>
