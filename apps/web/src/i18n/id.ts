@@ -821,10 +821,10 @@ export const id = {
         "Akun dibuat, tapi hak akses gagal disimpan. Atur lewat tombol Atur Akses.",
       creating: "Membuat...",
       createButton: "Buat Akun",
-      toastCreated: "Akun berhasil dibuat",
-      toastCreatedDesc:
-        "Beri tahu username dan password awal ini langsung ke anggota terkait.",
       toastCreateFailed: "Gagal membuat akun. Coba lagi.",
+      credentialsTitle: "Akun dibuat",
+      passwordChangeRequiredHint: "Password wajib diganti saat login pertama.",
+      pendingEmailSentPrefix: "Link konfirmasi dikirim ke ",
     },
     memberConcepts: {
       relationship: "Hubungan",
@@ -837,6 +837,19 @@ export const id = {
       accessRoleInfo:
         'Role buatan Master (mis. "Sopir") yang menentukan halaman apa saja yang bisa dibuka. Bila dipilih, menggantikan akses bawaan dari peran sistem.',
       infoLabelPrefix: "Tentang ",
+    },
+    copyCredentials: {
+      toastCopied: "Disalin",
+      toastCopyFailed: "Gagal menyalin",
+      usernameAriaLabel: "Salin username",
+      passwordAriaLabel: "Salin password",
+      copyAllButton: "Salin semua",
+      usernameRowLabel: "Username",
+      passwordRowLabel: "Password",
+      doneButton: "Selesai",
+    },
+    resetPassword: {
+      toastSuccess: "Password baru dibuat",
     },
     crud: {
       accountAdded: "Rekening berhasil ditambahkan!",

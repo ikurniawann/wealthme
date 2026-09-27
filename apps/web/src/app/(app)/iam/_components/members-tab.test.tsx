@@ -161,4 +161,24 @@ describe("IAM MembersTab", () => {
     const row = screen.getByRole("row", { name: /Aisyah/ });
     expect(within(row).getAllByRole("cell")[1]).toHaveTextContent("Anak");
   });
+
+  it("offers a copy button next to each username, and never for members without one", async () => {
+    const user = userEvent.setup();
+    // `userEvent.setup()` installs jsdom's missing Clipboard stub; the spy
+    // has to attach to that stub, not to navigator.clipboard beforehand.
+    const writeText = jest
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+    setup();
+
+    const CC = mockDictionary.akun.copyCredentials;
+    const copyButtons = screen.getAllByRole("button", {
+      name: CC.usernameAriaLabel,
+    });
+    // Elsa + Aisyah have a username; Irfan (Master) does not.
+    expect(copyButtons).toHaveLength(2);
+
+    await user.click(copyButtons[0]);
+    expect(writeText).toHaveBeenLastCalledWith("elsamariska");
+  });
 });

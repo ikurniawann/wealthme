@@ -1050,9 +1050,12 @@ export type I18nDictionary = {
       toastAccessRoleFailed: string;
       creating: string;
       createButton: string;
-      toastCreated: string;
-      toastCreatedDesc: string;
       toastCreateFailed: string;
+      // IAM copy-credentials — the dialog switches to this view on success
+      // instead of a toast, since the password can only ever be copied now.
+      credentialsTitle: string;
+      passwordChangeRequiredHint: string;
+      pendingEmailSentPrefix: string;
     };
     memberConcepts: {
       relationship: string;
@@ -1062,6 +1065,21 @@ export type I18nDictionary = {
       systemRoleInfo: string;
       accessRoleInfo: string;
       infoLabelPrefix: string;
+    };
+    // IAM copy-credentials — shared by members-tab's username copy, the
+    // add-member success view, and the reset-password result view.
+    copyCredentials: {
+      toastCopied: string;
+      toastCopyFailed: string;
+      usernameAriaLabel: string;
+      passwordAriaLabel: string;
+      copyAllButton: string;
+      usernameRowLabel: string;
+      passwordRowLabel: string;
+      doneButton: string;
+    };
+    resetPassword: {
+      toastSuccess: string;
     };
     crud: {
       accountAdded: string;

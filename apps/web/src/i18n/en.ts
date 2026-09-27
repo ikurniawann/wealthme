@@ -819,10 +819,10 @@ export const en = {
         "Account created, but the access role could not be saved. Set it with Atur Akses.",
       creating: "Creating...",
       createButton: "Create Account",
-      toastCreated: "Account created successfully",
-      toastCreatedDesc:
-        "Hand this username and initial password directly to the member.",
       toastCreateFailed: "Failed to create the account. Try again.",
+      credentialsTitle: "Account created",
+      passwordChangeRequiredHint: "Password must be changed at first login.",
+      pendingEmailSentPrefix: "Confirmation link sent to ",
     },
     memberConcepts: {
       relationship: "Relationship",
@@ -835,6 +835,19 @@ export const en = {
       accessRoleInfo:
         'A role the Master created (e.g. "Sopir") that decides which pages they can open. When chosen, it replaces the system role\'s default access.',
       infoLabelPrefix: "About ",
+    },
+    copyCredentials: {
+      toastCopied: "Copied",
+      toastCopyFailed: "Failed to copy",
+      usernameAriaLabel: "Copy username",
+      passwordAriaLabel: "Copy password",
+      copyAllButton: "Copy all",
+      usernameRowLabel: "Username",
+      passwordRowLabel: "Password",
+      doneButton: "Done",
+    },
+    resetPassword: {
+      toastSuccess: "New password created",
     },
     crud: {
       accountAdded: "Account added successfully!",
