@@ -932,7 +932,7 @@ export const en = {
       },
       rekening: {
         title: "Bank & Account",
-        desc: 'Click "Add" to register your first bank account — its balance automatically flows into net worth and its mutations are tracked per account.',
+        desc: 'Click "Add" to register your first bank account, its balance automatically flows into net worth and its mutations are tracked per account.',
       },
       dana: {
         title: "Cash & E-Wallet",

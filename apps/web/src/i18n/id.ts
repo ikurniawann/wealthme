@@ -937,7 +937,7 @@ export const id = {
       },
       rekening: {
         title: "Bank & Account",
-        desc: 'Klik "Tambah" untuk mendaftarkan rekening bank pertamamu — saldonya otomatis masuk ke kekayaan bersih dan mutasinya tercatat per rekening.',
+        desc: 'Klik "Tambah" untuk mendaftarkan rekening bank pertamamu, saldonya otomatis masuk ke kekayaan bersih dan mutasinya tercatat per rekening.',
       },
       dana: {
         title: "Cash & E-Wallet",
