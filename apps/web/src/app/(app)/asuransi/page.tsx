@@ -1525,12 +1525,12 @@ export default function AsuransiPage() {
           </h1>
           <div className="mt-1 text-xs text-muted-foreground">
             {activePolicies} {t.asuransi.activePoliciesSuffix}
-            {" · "}
+            {", "}
             {t.asuransi.totalPremiumPrefix} {totalMonthlyPremium}
             {t.asuransi.periodSuffixLabels.monthly}
             {totalCoverageAktif > BigInt(0) && (
               <>
-                {" · "}
+                {", "}
                 {t.asuransi.totalCoveragePrefix}{" "}
                 {formatRupiah(Number(totalCoverageAktif))}
               </>
