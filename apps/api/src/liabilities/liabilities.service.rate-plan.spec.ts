@@ -823,10 +823,10 @@ describe("LiabilitiesService — revisi K", () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it("400 for a liability that is not an anuitas loan", async () => {
+    it("400 for a liability that is neither anuitas nor flat", async () => {
       prisma.liability.findUnique.mockResolvedValue({
         ...AT_61,
-        interestMethod: "flat",
+        interestMethod: "efektif",
       });
 
       await expect(
@@ -1440,8 +1440,8 @@ describe("LiabilitiesService — revisi K", () => {
       expect(prisma.account.update).not.toHaveBeenCalled();
     });
 
-    it("400 for a liability that is not an anuitas loan", async () => {
-      arrange({ ...AT_61, interestMethod: "flat" });
+    it("400 for a liability that is neither anuitas nor flat", async () => {
+      arrange({ ...AT_61, interestMethod: "efektif" });
 
       await expect(record({ mode: "full" })).rejects.toThrow(
         BadRequestException,

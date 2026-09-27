@@ -354,11 +354,29 @@ function assertPrepayable(liability: {
   tenorMonths: number | null;
 }): void {
   if (
-    liability.interestMethod !== "anuitas" ||
+    (liability.interestMethod !== "anuitas" &&
+      liability.interestMethod !== "flat") ||
     liability.tenorMonths === null
   ) {
     throw new BadRequestException(
-      "Simulasi pelunasan hanya untuk cicilan anuitas dengan tenor",
+      "Simulasi pelunasan hanya untuk cicilan anuitas atau flat dengan tenor",
+    );
+  }
+}
+
+/** KPR flat rule (brief item 3) — one fixed margin for the whole tenor, no rate plan and no floating history. */
+function assertNoRateTermsOnFlatKpr(
+  type: string,
+  interestMethod: InterestMethod,
+  dto: { fixedRateMonths?: number; floatingRate?: string },
+): void {
+  if (
+    type === "kpr" &&
+    interestMethod === "flat" &&
+    (dto.fixedRateMonths !== undefined || dto.floatingRate !== undefined)
+  ) {
+    throw new BadRequestException(
+      "KPR flat memakai satu margin/bunga tetap sepanjang tenor — tidak ada periode fixed/floating",
     );
   }
 }
@@ -951,6 +969,7 @@ export class LiabilitiesService {
     const interestMethod =
       dto.interestMethod ?? defaultInterestMethod(dto.type);
     assertMethodAllowed(dto.type, interestMethod);
+    assertNoRateTermsOnFlatKpr(dto.type, interestMethod, dto);
     const kprScheme = validateKprScheme(dto.type, dto.kprScheme);
     assertNotMixedRateTerms(dto);
     const segments = dto.ratePeriods
@@ -1168,6 +1187,7 @@ export class LiabilitiesService {
     const type = dto.type ?? existing.type;
     const interestMethod = dto.interestMethod ?? existing.interestMethod;
     assertMethodAllowed(type, interestMethod);
+    assertNoRateTermsOnFlatKpr(type, interestMethod, dto);
     const tenorMonths = dto.tenorMonths ?? existing.tenorMonths;
     const kprScheme =
       dto.kprScheme !== undefined
