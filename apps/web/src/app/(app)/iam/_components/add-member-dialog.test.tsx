@@ -147,7 +147,7 @@ describe("AddMemberDialog — Hak akses at creation (Revisi H)", () => {
     );
   });
 
-  it("sends no access call when 'Bawaan (ikuti peran)' is kept", async () => {
+  it("sends no access call when 'Bawaan (ikuti peran)' is kept, and shows the credentials view instead of closing", async () => {
     const user = userEvent.setup();
     const { onOpenChange } = renderDialog();
 
@@ -158,11 +158,13 @@ describe("AddMemberDialog — Hak akses at creation (Revisi H)", () => {
     await fillRequired(user);
     await user.click(screen.getByRole("button", { name: L.createButton }));
 
-    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    await screen.findByText(L.credentialsTitle);
+    expect(screen.getByDisplayValue("joko")).toBeInTheDocument();
     expect(callsTo("/access", "PUT")).toHaveLength(0);
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
-  it("closes and tells the Master to use Atur Akses when the role could not be saved", async () => {
+  it("shows the credentials view and still tells the Master to use Atur Akses when the role could not be saved", async () => {
     routeApi({ accessFails: true });
     const user = userEvent.setup();
     const { onOpenChange } = renderDialog();
@@ -177,8 +179,9 @@ describe("AddMemberDialog — Hak akses at creation (Revisi H)", () => {
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(L.toastAccessRoleFailed),
     );
-    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.getByText(L.credentialsTitle)).toBeInTheDocument();
     expect(callsTo("/members/dependant", "POST")).toHaveLength(1);
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 
   it("disables Hak akses for Istri (Co-Master) and never sends a role for her", async () => {
@@ -242,5 +245,103 @@ describe("AddMemberDialog — Hak akses at creation (Revisi H)", () => {
         screen.getByRole("button", { name: `${c.infoLabelPrefix}${label}` }),
       ).toBeInTheDocument();
     }
+  });
+});
+
+describe("AddMemberDialog — credentials view (IAM copy username/password)", () => {
+  const CC = mockDictionary.akun.copyCredentials;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    routeApi();
+  });
+
+  // `userEvent.setup()` installs its own jsdom Clipboard stub (jsdom itself
+  // has none), replacing anything assigned to navigator.clipboard beforehand
+  // — so the spy has to attach to THAT stub, after setup(), not before.
+  function spyClipboardWriteText() {
+    return jest
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
+  }
+
+  async function createAndReachCredentials(
+    user: ReturnType<typeof userEvent.setup>,
+  ) {
+    renderDialog();
+    await fillRequired(user);
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+    await screen.findByText(L.credentialsTitle);
+  }
+
+  it("shows username + password with copy buttons, and 'Salin semua' copies both", async () => {
+    const user = userEvent.setup();
+    const writeText = spyClipboardWriteText();
+    await createAndReachCredentials(user);
+
+    await user.click(
+      screen.getByRole("button", { name: CC.usernameAriaLabel }),
+    );
+    await waitFor(() => expect(writeText).toHaveBeenLastCalledWith("joko"));
+
+    await user.click(
+      screen.getByRole("button", { name: CC.passwordAriaLabel }),
+    );
+    await waitFor(() =>
+      expect(writeText).toHaveBeenLastCalledWith("rahasia123"),
+    );
+
+    await user.click(screen.getByRole("button", { name: CC.copyAllButton }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenLastCalledWith(
+        "Username: joko\nPassword: rahasia123",
+      ),
+    );
+  });
+
+  it("masks the password by default and reveals it on toggle", async () => {
+    const user = userEvent.setup();
+    await createAndReachCredentials(user);
+
+    const passwordInput = screen.getByDisplayValue("rahasia123");
+    expect(passwordInput).toHaveAttribute("type", "password");
+    await user.click(screen.getByRole("button", { name: L.showPassword }));
+    expect(passwordInput).toHaveAttribute("type", "text");
+  });
+
+  it("shows a short pending-email line when the API confirms one was sent", async () => {
+    mockApiFetch.mockImplementation((path: string) => {
+      if (path.endsWith("/login-handle")) {
+        return Promise.resolve({ handle: "arsandi" });
+      }
+      if (path.endsWith("/members/dependant")) {
+        return Promise.resolve({
+          id: "m-new",
+          username: "joko",
+          pendingEmail: "pak.joko@mail.test",
+        });
+      }
+      return Promise.resolve({});
+    });
+    const user = userEvent.setup();
+    await createAndReachCredentials(user);
+
+    expect(
+      screen.getByText(`${L.pendingEmailSentPrefix}pak.joko@mail.test.`),
+    ).toBeInTheDocument();
+  });
+
+  it("'Selesai' clears the password and returns to the form — no stale credentials", async () => {
+    const user = userEvent.setup();
+    const { onOpenChange } = renderDialog();
+    await fillRequired(user);
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+    await screen.findByText(L.credentialsTitle);
+
+    await user.click(screen.getByRole("button", { name: CC.doneButton }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(screen.queryByText(L.credentialsTitle)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(L.nameLabel)).toBeInTheDocument();
   });
 });

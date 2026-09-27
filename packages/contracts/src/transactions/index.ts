@@ -47,6 +47,11 @@ export const TransactionDtoSchema = z.object({
   toAccountName: z.string().nullable(),
   occurredAt: z.string(),
   createdAt: z.string(),
+  // Edit-rights decision 2026-09-28 ("Pembuat + pemilik rekening") — whether
+  // the CURRENT viewer may PATCH/DELETE this row: its creator, or the owner
+  // of a private account on either leg. Everyone else (incl. Master/
+  // Co-Master) is read-only.
+  canModify: z.boolean(),
 });
 export type TransactionDto = z.infer<typeof TransactionDtoSchema>;
 

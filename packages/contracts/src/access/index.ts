@@ -31,10 +31,12 @@ export const ACCESS_PAGES = [
   "rekonsiliasi",
   "ai",
   "kalkulator",
-  "quickinput",
   "mastercoa",
   "masterdata",
 ] as const;
+// `quickinput` is deliberately NOT in this catalog, same as `iam` above —
+// it is Master/Co-Master only (owner or spouse) and not grantable through a
+// custom role or per-member override. See `isMasterOrCoMaster` below.
 
 export const AccessPageSchema = z.enum(ACCESS_PAGES);
 export type AccessPage = z.infer<typeof AccessPageSchema>;
@@ -120,14 +122,12 @@ export const LEGACY_ACCESS_PRESETS: Record<
       persetujuan: "none",
       rekonsiliasi: "manage",
       transaksi: "manage",
-      quickinput: "manage",
     },
     dataScope: "all",
   },
   dependant: {
     permissions: {
       transaksi: "manage",
-      quickinput: "manage",
       dana: "view",
       rekening: "view",
       warisan: "view",
@@ -137,7 +137,6 @@ export const LEGACY_ACCESS_PRESETS: Record<
   operational: {
     permissions: {
       transaksi: "manage",
-      quickinput: "manage",
       dana: "view",
       rekening: "view",
     },
@@ -154,7 +153,21 @@ export type EffectiveAccess = {
   source: "master" | "custom-role" | "legacy";
   /** Member has at least one per-member override on top of the base. */
   hasOverrides: boolean;
+  /**
+   * The member's real built-in role — kept separate from `permissions`
+   * because pages like `quickinput` (Master & Co-Master only) are gated on
+   * WHO the member is, not on any grantable page permission. Never derived
+   * from `accessRole`/`overrides`.
+   */
+  role: MemberRoleKey;
 };
+
+/** Master (`owner`) or Co-Master (`spouse`) — see `EffectiveAccess.role`. */
+export function isMasterOrCoMaster(
+  role: MemberRoleKey | string | null | undefined,
+): boolean {
+  return role === "owner" || role === "spouse";
+}
 
 const LEVEL_RANK: Record<AccessLevel, number> = { none: 0, view: 1, manage: 2 };
 
@@ -182,6 +195,7 @@ export function resolveEffectiveAccess(input: {
       dataScope: "all",
       source: "master",
       hasOverrides: false,
+      role: "owner",
     };
   }
   const base = input.accessRole ?? LEGACY_ACCESS_PRESETS[input.role];
@@ -197,6 +211,7 @@ export function resolveEffectiveAccess(input: {
     dataScope: base.dataScope,
     source: input.accessRole ? "custom-role" : "legacy",
     hasOverrides: Object.keys(input.overrides ?? {}).length > 0,
+    role: input.role,
   };
 }
 

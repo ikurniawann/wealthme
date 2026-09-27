@@ -821,10 +821,10 @@ export const id = {
         "Akun dibuat, tapi hak akses gagal disimpan. Atur lewat tombol Atur Akses.",
       creating: "Membuat...",
       createButton: "Buat Akun",
-      toastCreated: "Akun berhasil dibuat",
-      toastCreatedDesc:
-        "Beri tahu username dan password awal ini langsung ke anggota terkait.",
       toastCreateFailed: "Gagal membuat akun. Coba lagi.",
+      credentialsTitle: "Akun dibuat",
+      passwordChangeRequiredHint: "Password wajib diganti saat login pertama.",
+      pendingEmailSentPrefix: "Link konfirmasi dikirim ke ",
     },
     memberConcepts: {
       relationship: "Hubungan",
@@ -837,6 +837,19 @@ export const id = {
       accessRoleInfo:
         'Role buatan Master (mis. "Sopir") yang menentukan halaman apa saja yang bisa dibuka. Bila dipilih, menggantikan akses bawaan dari peran sistem.',
       infoLabelPrefix: "Tentang ",
+    },
+    copyCredentials: {
+      toastCopied: "Disalin",
+      toastCopyFailed: "Gagal menyalin",
+      usernameAriaLabel: "Salin username",
+      passwordAriaLabel: "Salin password",
+      copyAllButton: "Salin semua",
+      usernameRowLabel: "Username",
+      passwordRowLabel: "Password",
+      doneButton: "Selesai",
+    },
+    resetPassword: {
+      toastSuccess: "Password baru dibuat",
     },
     crud: {
       accountAdded: "Rekening berhasil ditambahkan!",
@@ -1519,6 +1532,8 @@ export const id = {
     recentEntriesTitle: "Entri Terakhir",
     viewAllLink: "Lihat Semua",
     emptyRecent: "Belum ada transaksi.",
+    notAllowedNotice:
+      "Halaman ini hanya untuk master/co-master keluarga. Kamu tidak memiliki akses.",
   },
   ai: {
     bannerTitle: "WealthMe AI Advisor",
@@ -3437,6 +3452,10 @@ export const id = {
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
       "Transaksi ini terkait pembayaran liabilitas/asuransi, sesuaikan liabilitas/asuransi terkait untuk mengoreksi",
+    // EPIC-036 (edit-rights) — matches the API's ForbiddenException message
+    // verbatim (transaction-edit-rights.util.ts).
+    editRightsLockedTooltip:
+      "Transaksi ini hanya bisa diubah oleh pencatatnya atau pemilik rekening.",
     attachmentsSectionLabel: "Lampiran",
     attachmentsLoadingLabel: "Memuat lampiran…",
     attachmentsLoadFailedLabel: "Gagal memuat lampiran",

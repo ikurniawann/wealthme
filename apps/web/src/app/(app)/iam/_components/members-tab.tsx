@@ -11,6 +11,7 @@ import { InfoTip, StatusBadge } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 
 import { SCOPE_COPY } from "./access-shared";
+import { CopyButton } from "./copy-button";
 import type { AccessRoleResponse } from "@wealthme/contracts";
 
 /** Placeholder mailbox for accounts created without an email (API-side). */
@@ -127,10 +128,6 @@ export function MembersTab({
                 // EPIC-031 — a Master-created member may have a username
                 // login (`nama@kode`), a real email, or both.
                 const hasRealEmail = !m.email.endsWith(SYNTHETIC_EMAIL_SUFFIX);
-                const loginLines = [
-                  m.username ? `Username: ${m.username}` : null,
-                  hasRealEmail ? m.email : null,
-                ].filter((l): l is string => l !== null);
                 return (
                   <tr key={m.id}>
                     <td>
@@ -140,18 +137,20 @@ export function MembersTab({
                           <span className="t-xs t-muted"> (Anda)</span>
                         )}
                       </div>
-                      {loginLines.map((line) => (
-                        <div
-                          key={line}
-                          className={
-                            line.startsWith("Username:")
-                              ? "mono text-[11.5px] text-muted-foreground"
-                              : "text-[11.5px] text-muted-foreground"
-                          }
-                        >
-                          {line}
+                      {m.username && (
+                        <div className="mono flex items-center gap-0.5 text-[11.5px] text-muted-foreground">
+                          <span>{`Username: ${m.username}`}</span>
+                          <CopyButton
+                            value={m.username}
+                            ariaLabel={t.akun.copyCredentials.usernameAriaLabel}
+                          />
                         </div>
-                      ))}
+                      )}
+                      {hasRealEmail && (
+                        <div className="text-[11.5px] text-muted-foreground">
+                          {m.email}
+                        </div>
+                      )}
                       {m.pendingEmail && (
                         <div className="text-[11.5px] text-warning">
                           {m.pendingEmail} · menunggu konfirmasi

@@ -63,15 +63,19 @@ describe("isNavItemVisibleForRole — Anak (dependant)", () => {
   });
 
   it("keeps the surfaces it is actually granted", () => {
-    for (const id of [
-      "transaksi",
-      "dana",
-      "rekening",
-      "notifikasi",
-      "quickinput",
-      "panduan",
-    ])
+    for (const id of ["transaksi", "dana", "rekening", "notifikasi", "panduan"])
       expect(isNavItemVisibleForRole(item(id), "dependant")).toBe(true);
+  });
+
+  // "menu quick input harus di master dan co-master account saja" —
+  // quickinput dropped from both row-scoped allowlists.
+  it("hides quickinput — Master/Co-Master only, not row-scoped-grantable", () => {
+    expect(isNavItemVisibleForRole(item("quickinput"), "dependant")).toBe(
+      false,
+    );
+    expect(isNavItemVisibleForRole(item("quickinput"), "operational")).toBe(
+      false,
+    );
   });
 
   it("still hides owner-only admin surfaces", () => {

@@ -3164,3 +3164,283 @@ describe("TransactionsService — allowance-approval scenario (EPIC-023 Task C r
     expect(result.data.map((t) => t.id)).toContain(created.id);
   });
 });
+
+// EPIC-036 (edit-rights, "Pembuat + pemilik rekening", 2026-09-28) —
+// update()/remove() must additionally 403 when the acting member is neither
+// the transaction's creator nor the owner of a leg's private account, even
+// when the transaction is otherwise fully visible to them (unlike the
+// privacy 404s above, this is a genuine "you can see it, you may not touch
+// it" denial).
+describe("TransactionsService.update/remove edit-rights enforcement (EPIC-036)", () => {
+  const AYAH = "user-ayah";
+  const ISTRI = "user-istri";
+  const ANAK = "user-anak";
+  const MASTER = "user-master";
+
+  async function buildService(prisma: ReturnType<typeof makePrisma>) {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        TransactionsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: AiKeyService, useValue: makeAiKeyService() },
+        { provide: OcrFactory, useValue: makeOcrFactory() },
+        {
+          provide: CATEGORIZATION_PORT,
+          useValue: { suggest: jest.fn().mockResolvedValue(null) },
+        },
+        {
+          provide: NOTIFICATION_SENDER_PORT,
+          useValue: { send: jest.fn(), sendEmail: jest.fn() },
+        },
+      ],
+    }).compile();
+    return module.get<TransactionsService>(TransactionsService);
+  }
+
+  function baseTxRow() {
+    return {
+      id: "tx-1",
+      familyGroupId: FAMILY_GROUP_ID,
+      accountId: ACCOUNT_ID,
+      toAccountId: null as string | null,
+      categoryId: null,
+      amount: 10_000n,
+      type: "expense" as const,
+      description: "Belanja",
+      occurredAt: new Date(),
+      createdAt: new Date(),
+    };
+  }
+
+  it("update() allows the creator", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      createdByUserId: AYAH,
+      account: { ownerUserId: null },
+      toAccount: null,
+    });
+    prisma.transaction.update.mockResolvedValue({
+      ...baseTxRow(),
+      description: "renamed",
+      category: null,
+      account: { name: "" },
+      toAccount: null,
+    });
+    prisma.$transaction.mockImplementation(
+      (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+    );
+    const service = await buildService(prisma);
+
+    const result = await service.update(
+      FAMILY_GROUP_ID,
+      "tx-1",
+      { description: "renamed" },
+      { id: "m1", userId: AYAH, role: Role.member },
+    );
+    expect(result).toBeDefined();
+  });
+
+  it("update() allows a private-account owner even when someone else created it (istri owns, ayah recorded)", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      createdByUserId: AYAH,
+      account: { ownerUserId: ISTRI },
+      toAccount: null,
+    });
+    prisma.transaction.update.mockResolvedValue({
+      ...baseTxRow(),
+      category: null,
+      account: { name: "" },
+      toAccount: null,
+    });
+    prisma.$transaction.mockImplementation(
+      (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+    );
+    const service = await buildService(prisma);
+
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-1",
+        { description: "renamed" },
+        { id: "m2", userId: ISTRI, role: Role.spouse },
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  it("update() allows the owner of only the toAccount leg (transfer destination)", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      type: "transfer",
+      toAccountId: TO_ACCOUNT_ID,
+      createdByUserId: AYAH,
+      account: { ownerUserId: null },
+      toAccount: { ownerUserId: ANAK },
+    });
+    prisma.transaction.update.mockResolvedValue({
+      ...baseTxRow(),
+      category: null,
+      account: { name: "" },
+      toAccount: { name: "" },
+    });
+    prisma.$transaction.mockImplementation(
+      (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+    );
+    const service = await buildService(prisma);
+
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-1",
+        { description: "renamed" },
+        { id: "m3", userId: ANAK, role: Role.dependant },
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  it("update() DENIES Master on someone else's private-account transaction", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      createdByUserId: AYAH,
+      account: { ownerUserId: ISTRI },
+      toAccount: null,
+    });
+    const service = await buildService(prisma);
+
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-1",
+        { description: "renamed" },
+        { id: "m4", userId: MASTER, role: Role.owner },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("update() DENIES anak (not creator, no owned leg)", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      createdByUserId: AYAH,
+      account: { ownerUserId: null },
+      toAccount: null,
+    });
+    const service = await buildService(prisma);
+
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-1",
+        { description: "renamed" },
+        { id: "m5", userId: ANAK, role: Role.dependant },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("update() legacy null-creator, both-legs-shared row: allows Master and Co-Master, denies a plain member", async () => {
+    const legacyRow = () => ({
+      ...baseTxRow(),
+      createdByUserId: null,
+      account: { ownerUserId: null },
+      toAccount: null,
+    });
+
+    for (const member of [
+      { id: "m6", userId: MASTER, role: Role.owner },
+      { id: "m7", userId: "user-costralmaster", role: Role.spouse },
+    ]) {
+      const prisma = makePrisma();
+      prisma.transaction.findFirst.mockResolvedValue(legacyRow());
+      prisma.transaction.update.mockResolvedValue({
+        ...baseTxRow(),
+        category: null,
+        account: { name: "" },
+        toAccount: null,
+      });
+      prisma.$transaction.mockImplementation(
+        (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+      );
+      const service = await buildService(prisma);
+      await expect(
+        service.update(FAMILY_GROUP_ID, "tx-1", { description: "x" }, member),
+      ).resolves.toBeDefined();
+    }
+
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue(legacyRow());
+    const service = await buildService(prisma);
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-1",
+        { description: "x" },
+        { id: "m8", userId: "user-plain", role: Role.member },
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it("remove() allows the creator and denies a non-creator, non-owner", async () => {
+    const row = () => ({
+      ...baseTxRow(),
+      createdByUserId: AYAH,
+      account: { ownerUserId: null },
+      toAccount: null,
+    });
+
+    const okPrisma = makePrisma();
+    okPrisma.transaction.findFirst.mockResolvedValue(row());
+    okPrisma.$transaction.mockImplementation(
+      (cb: (tx: typeof okPrisma) => Promise<unknown>) => cb(okPrisma),
+    );
+    const okService = await buildService(okPrisma);
+    await okService.remove(FAMILY_GROUP_ID, "tx-1", true, {
+      id: "m9",
+      userId: AYAH,
+      role: Role.member,
+    });
+    expect(okPrisma.transaction.delete).toHaveBeenCalledWith({
+      where: { id: "tx-1" },
+    });
+
+    const denyPrisma = makePrisma();
+    denyPrisma.transaction.findFirst.mockResolvedValue(row());
+    const denyService = await buildService(denyPrisma);
+    await expect(
+      denyService.remove(FAMILY_GROUP_ID, "tx-1", true, {
+        id: "m10",
+        userId: ANAK,
+        role: Role.dependant,
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(denyPrisma.transaction.delete).not.toHaveBeenCalled();
+  });
+
+  it("update()/remove() stay unrestricted when no actingMember is passed (internal callers)", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      createdByUserId: AYAH,
+      account: { ownerUserId: ISTRI },
+      toAccount: null,
+    });
+    prisma.transaction.update.mockResolvedValue({
+      ...baseTxRow(),
+      category: null,
+      account: { name: "" },
+      toAccount: null,
+    });
+    prisma.$transaction.mockImplementation(
+      (cb: (tx: typeof prisma) => Promise<unknown>) => cb(prisma),
+    );
+    const service = await buildService(prisma);
+
+    await expect(
+      service.update(FAMILY_GROUP_ID, "tx-1", { description: "x" }),
+    ).resolves.toBeDefined();
+  });
+});

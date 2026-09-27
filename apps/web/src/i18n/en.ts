@@ -819,10 +819,10 @@ export const en = {
         "Account created, but the access role could not be saved. Set it with Atur Akses.",
       creating: "Creating...",
       createButton: "Create Account",
-      toastCreated: "Account created successfully",
-      toastCreatedDesc:
-        "Hand this username and initial password directly to the member.",
       toastCreateFailed: "Failed to create the account. Try again.",
+      credentialsTitle: "Account created",
+      passwordChangeRequiredHint: "Password must be changed at first login.",
+      pendingEmailSentPrefix: "Confirmation link sent to ",
     },
     memberConcepts: {
       relationship: "Relationship",
@@ -835,6 +835,19 @@ export const en = {
       accessRoleInfo:
         'A role the Master created (e.g. "Sopir") that decides which pages they can open. When chosen, it replaces the system role\'s default access.',
       infoLabelPrefix: "About ",
+    },
+    copyCredentials: {
+      toastCopied: "Copied",
+      toastCopyFailed: "Failed to copy",
+      usernameAriaLabel: "Copy username",
+      passwordAriaLabel: "Copy password",
+      copyAllButton: "Copy all",
+      usernameRowLabel: "Username",
+      passwordRowLabel: "Password",
+      doneButton: "Done",
+    },
+    resetPassword: {
+      toastSuccess: "New password created",
     },
     crud: {
       accountAdded: "Account added successfully!",
@@ -1481,6 +1494,8 @@ export const en = {
     recentEntriesTitle: "Recent Entries",
     viewAllLink: "View All",
     emptyRecent: "No transactions yet.",
+    notAllowedNotice:
+      "This page is for the family's owner/co-master only. You don't have access.",
   },
   ai: {
     bannerTitle: "WealthMe AI Advisor",
@@ -3369,6 +3384,12 @@ export const en = {
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
       "This transaction settles a liability/insurance payment, adjust the related liability/insurance to correct it",
+    // EPIC-036 (edit-rights) — English rendering of the same rule; the API's
+    // own ForbiddenException message stays Indonesian (transaction-edit-
+    // rights.util.ts) since it is a fallback for a client that ignores
+    // canModify, not the primary UI copy.
+    editRightsLockedTooltip:
+      "Only the person who recorded this transaction, or the owner of the account, can edit it",
     attachmentsSectionLabel: "Attachments",
     attachmentsLoadingLabel: "Loading attachments…",
     attachmentsLoadFailedLabel: "Failed to load attachments",

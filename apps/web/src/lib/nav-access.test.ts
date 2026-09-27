@@ -18,7 +18,7 @@ describe("EPIC-030 access-driven nav", () => {
     expect(ids).toEqual(items.map((i) => i.id));
   });
 
-  it("a legacy dependant keeps exactly the old allowlist", () => {
+  it("a legacy dependant keeps exactly the old allowlist minus quickinput", () => {
     const ids = visibleIds(resolveEffectiveAccess({ role: "dependant" }));
     expect(ids.sort()).toEqual(
       [
@@ -27,16 +27,52 @@ describe("EPIC-030 access-driven nav", () => {
         "rekening",
         "warisan",
         "notifikasi",
-        "quickinput",
         "panduan",
       ].sort(),
     );
   });
 
-  it("a legacy member keeps the old menu minus owner-only items", () => {
+  it("a legacy member keeps the old menu minus owner-only items and quickinput", () => {
     const ids = visibleIds(resolveEffectiveAccess({ role: "member" }));
-    const expected = items.filter((i) => !i.ownerOnly).map((i) => i.id);
+    const expected = items
+      .filter((i) => !i.ownerOnly && i.id !== "quickinput")
+      .map((i) => i.id);
     expect(ids).toEqual(expected);
+  });
+
+  // "menu quick input harus di master dan co-master account saja" —
+  // Master (owner) and Co-Master (spouse) always see it; every other role
+  // never does, even with a custom-role grant (quickinput is not a
+  // grantable AccessPage at all — see contracts ACCESS_PAGES).
+  it("quickinput is visible for owner and spouse only", () => {
+    expect(visibleIds(resolveEffectiveAccess({ role: "owner" }))).toContain(
+      "quickinput",
+    );
+    expect(visibleIds(resolveEffectiveAccess({ role: "spouse" }))).toContain(
+      "quickinput",
+    );
+    for (const role of [
+      "member",
+      "admin_staff",
+      "dependant",
+      "operational",
+    ] as const) {
+      expect(visibleIds(resolveEffectiveAccess({ role }))).not.toContain(
+        "quickinput",
+      );
+    }
+    expect(
+      isRouteAllowedForAccess(
+        "/quickinput",
+        resolveEffectiveAccess({ role: "spouse" }),
+      ),
+    ).toBe(true);
+    expect(
+      isRouteAllowedForAccess(
+        "/quickinput",
+        resolveEffectiveAccess({ role: "member" }),
+      ),
+    ).toBe(false);
   });
 
   it("a custom role shows only its pages; IAM is never granted", () => {
@@ -79,7 +115,7 @@ describe("EPIC-030 access-driven nav", () => {
     expect(new Set(bar).size).toBe(4);
   });
 
-  it("the add-transaction button needs transaksi or quickinput manage", () => {
+  it("the add-transaction button needs transaksi manage (quickinput never grants it)", () => {
     expect(
       canRecordTransaction(resolveEffectiveAccess({ role: "dependant" })),
     ).toBe(true);

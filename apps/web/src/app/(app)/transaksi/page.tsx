@@ -272,6 +272,15 @@ export function TxRow({
   // coverage it recorded from the ledger. Honest UI: disable Edit/Hapus
   // here instead of leaving a live-looking control the server rejects.
   const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
+  // EPIC-036 (edit-rights, "Pembuat + pemilik rekening") — the API's own
+  // canModify (creator or owner of a leg's private account) gates Edit/Hapus
+  // the same honest way as the obligation lock above, including for
+  // Master/Co-Master. Obligation lock takes precedence in the tooltip when
+  // both apply — it names a concrete other place to go fix it.
+  const isEditLocked = isObligationLinked || tx.canModify === false;
+  const editLockTooltip = isObligationLinked
+    ? t.transaksi.obligationLockedTooltip
+    : t.transaksi.editRightsLockedTooltip;
   // EPIC-021 Group B #23 — a real (two-sided) transfer shows its route;
   // legacy one-sided transfer rows (toAccountName null) render exactly as
   // before via the existing fallback chain.
@@ -348,8 +357,8 @@ export function TxRow({
           onEdit={onEditClick}
           onDelete={onDeleteClick}
           className="ml-1"
-          disabled={isObligationLinked}
-          disabledLabel={t.transaksi.obligationLockedTooltip}
+          disabled={isEditLocked}
+          disabledLabel={editLockTooltip}
         />
       </div>
       <TransactionDetailDialog
@@ -413,6 +422,11 @@ export function TxTableRow({
     : (isIncome ? "+" : "-") + formatRupiah(amount);
   const typeLabels: Record<string, string> = t.transaksi.typeLabels;
   const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
+  // EPIC-036 (edit-rights) — mirrors TxRow's own guard.
+  const isEditLocked = isObligationLinked || tx.canModify === false;
+  const editLockTooltip = isObligationLinked
+    ? t.transaksi.obligationLockedTooltip
+    : t.transaksi.editRightsLockedTooltip;
   const isTransferWithDest = isTransfer && !!tx.toAccountName;
   const typeLabel = typeLabels[tx.type] ?? tx.type;
   const displayName = isTransferWithDest
@@ -456,12 +470,14 @@ export function TxTableRow({
         <td className="px-3 py-3 align-top">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[13px] font-semibold">{displayName}</span>
-            {isObligationLinked && (
+            {isEditLocked && (
               // Batch 8 item 8 — the full lock explanation used to render
               // as its own line under every locked row, repeating the same
               // sentence verbatim across 5+ rows. Show it once per row, as
-              // a native tooltip on the lock badge itself.
-              <span title={t.transaksi.obligationLockedTooltip}>
+              // a native tooltip on the lock badge itself. EPIC-036 — same
+              // badge now also covers the edit-rights lock, not just the
+              // obligation lock.
+              <span title={editLockTooltip}>
                 <StatusBadge variant="warning">
                   <Lock className="size-2.5" />
                   {t.transaksi.lockedBadgeLabel}
@@ -469,7 +485,7 @@ export function TxTableRow({
               </span>
             )}
           </div>
-          {isTransferWithDest && !isObligationLinked && (
+          {isTransferWithDest && !isEditLocked && (
             <div className="text-[11px] text-muted-foreground">
               {accountCell}
             </div>
@@ -505,8 +521,8 @@ export function TxTableRow({
             onEdit={onEditClick}
             onDelete={onDeleteClick}
             className="justify-end"
-            disabled={isObligationLinked}
-            disabledLabel={t.transaksi.obligationLockedTooltip}
+            disabled={isEditLocked}
+            disabledLabel={editLockTooltip}
           />
         </td>
       </tr>
@@ -657,11 +673,15 @@ export function AttachmentList({
   transactionId,
   token,
   open,
+  // EPIC-036 (edit-rights) — optional, defaults to true so any pre-existing
+  // caller that doesn't pass it keeps behaving as before.
+  canModify = true,
 }: {
   familyGroupId: string;
   transactionId: string;
   token: string | undefined;
   open: boolean;
+  canModify?: boolean;
 }) {
   const { t, locale } = useLocale();
   const queryClient = useQueryClient();
@@ -743,13 +763,15 @@ export function AttachmentList({
         <span className="t-sm t-bold">
           {t.transaksi.attachmentsSectionLabel}
         </span>
-        <button
-          type="button"
-          className="card-link"
-          onClick={() => toast("Pilih file struk untuk diunggah")}
-        >
-          + Tambah Lampiran
-        </button>
+        {canModify && (
+          <button
+            type="button"
+            className="card-link"
+            onClick={() => toast("Pilih file struk untuk diunggah")}
+          >
+            + Tambah Lampiran
+          </button>
+        )}
       </div>
 
       {isLoading && (
@@ -762,7 +784,7 @@ export function AttachmentList({
           {t.transaksi.attachmentsLoadFailedLabel}
         </p>
       )}
-      {!isLoading && !isError && attachments.length === 0 && (
+      {!isLoading && !isError && attachments.length === 0 && canModify && (
         <button
           type="button"
           className="empty min-h-[78px] w-full cursor-pointer rounded-[11px] border border-dashed bg-transparent px-[18px] py-2.5"
@@ -775,6 +797,11 @@ export function AttachmentList({
             {t.transaksi.attachmentsEmptyLabel}
           </span>
         </button>
+      )}
+      {!isLoading && !isError && attachments.length === 0 && !canModify && (
+        <p className="text-[12px] text-muted-foreground">
+          {t.transaksi.attachmentsEmptyLabel}
+        </p>
       )}
 
       <div className="row row--wrap gap-2.5">
@@ -810,14 +837,16 @@ export function AttachmentList({
               >
                 {t.transaksi.attachmentViewButton}
               </button>
-              <button
-                type="button"
-                onClick={() => setDeleteTarget(att.id)}
-                aria-label={t.transaksi.attachmentDeleteButton}
-                className="btn btn--ghost btn--icon text-destructive"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
+              {canModify && (
+                <button
+                  type="button"
+                  onClick={() => setDeleteTarget(att.id)}
+                  aria-label={t.transaksi.attachmentDeleteButton}
+                  className="btn btn--ghost btn--icon text-destructive"
+                >
+                  <Trash2 className="size-3.5" />
+                </button>
+              )}
             </div>
           );
         })}
@@ -869,6 +898,11 @@ export function TransactionDetailDialog({
   // C4 (group E retry round 4) — mirrors TxRow's own guard: the detail
   // view's own Edit/Hapus buttons must be honest too.
   const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
+  // EPIC-036 (edit-rights) — same additional lock as TxRow/TxTableRow.
+  const isEditLocked = isObligationLinked || tx.canModify === false;
+  const editLockTooltip = isObligationLinked
+    ? t.transaksi.obligationLockedTooltip
+    : t.transaksi.editRightsLockedTooltip;
 
   return (
     <Dialog
@@ -932,9 +966,9 @@ export function TransactionDetailDialog({
               </tbody>
             </table>
           </div>
-          {isObligationLinked && (
+          {isEditLocked && (
             <p className="pt-2 text-[11.5px] text-muted-foreground">
-              {t.transaksi.obligationLockedTooltip}
+              {editLockTooltip}
             </p>
           )}
           {tx.type === "expense" && (
@@ -946,6 +980,10 @@ export function TransactionDetailDialog({
               transactionId={tx.id}
               token={token}
               open={open}
+              // EPIC-036 — attachments are NOT obligation-locked on the API
+              // (only PATCH/DELETE on the transaction row itself is), so
+              // this uses tx.canModify alone, not the combined isEditLocked.
+              canModify={tx.canModify !== false}
             />
           )}
         </DialogBody>
@@ -955,12 +993,8 @@ export function TransactionDetailDialog({
           <button
             type="button"
             onClick={onEdit}
-            disabled={isObligationLinked}
-            title={
-              isObligationLinked
-                ? t.transaksi.obligationLockedTooltip
-                : undefined
-            }
+            disabled={isEditLocked}
+            title={isEditLocked ? editLockTooltip : undefined}
             className="btn btn--outline"
           >
             <Pencil className="size-3.5" aria-hidden="true" />
@@ -969,12 +1003,8 @@ export function TransactionDetailDialog({
           <button
             type="button"
             onClick={onDelete}
-            disabled={isObligationLinked}
-            title={
-              isObligationLinked
-                ? t.transaksi.obligationLockedTooltip
-                : undefined
-            }
+            disabled={isEditLocked}
+            title={isEditLocked ? editLockTooltip : undefined}
             className="btn btn--destructive"
           >
             <Trash2 className="size-3.5" aria-hidden="true" />

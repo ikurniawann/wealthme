@@ -1050,9 +1050,12 @@ export type I18nDictionary = {
       toastAccessRoleFailed: string;
       creating: string;
       createButton: string;
-      toastCreated: string;
-      toastCreatedDesc: string;
       toastCreateFailed: string;
+      // IAM copy-credentials — the dialog switches to this view on success
+      // instead of a toast, since the password can only ever be copied now.
+      credentialsTitle: string;
+      passwordChangeRequiredHint: string;
+      pendingEmailSentPrefix: string;
     };
     memberConcepts: {
       relationship: string;
@@ -1062,6 +1065,21 @@ export type I18nDictionary = {
       systemRoleInfo: string;
       accessRoleInfo: string;
       infoLabelPrefix: string;
+    };
+    // IAM copy-credentials — shared by members-tab's username copy, the
+    // add-member success view, and the reset-password result view.
+    copyCredentials: {
+      toastCopied: string;
+      toastCopyFailed: string;
+      usernameAriaLabel: string;
+      passwordAriaLabel: string;
+      copyAllButton: string;
+      usernameRowLabel: string;
+      passwordRowLabel: string;
+      doneButton: string;
+    };
+    resetPassword: {
+      toastSuccess: string;
     };
     crud: {
       accountAdded: string;
@@ -1488,6 +1506,8 @@ export type I18nDictionary = {
     recentEntriesTitle: string;
     viewAllLink: string;
     emptyRecent: string;
+    /** Master/Co-Master-only page guard notice — mirrors persetujuan's. */
+    notAllowedNotice: string;
   };
   /** EPIC-018 Task A4 — `/ai` (AI Advisor chat) page copy. */
   ai: {
@@ -3233,6 +3253,13 @@ export type I18nDictionary = {
      * so would desync the debt/coverage it recorded.
      */
     obligationLockedTooltip: string;
+    /**
+     * EPIC-036 (edit-rights, "Pembuat + pemilik rekening") — the viewer may
+     * see this transaction but is neither its creator nor the owner of a
+     * private account on either leg, so Edit/Hapus (and adding/removing an
+     * attachment) are locked, including for Master/Co-Master.
+     */
+    editRightsLockedTooltip: string;
     /**
      * EPIC-024 Task L3 (D15, US-TXN-9) — attachment list rendered inside the
      * read-only transaction detail dialog.

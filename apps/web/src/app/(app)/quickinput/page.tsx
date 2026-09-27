@@ -8,12 +8,16 @@ import { useSession } from "@/lib/auth-compat";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
+import { useMyAccess } from "@/hooks/use-my-access";
 import { apiFetch } from "@/lib/api-client";
 import { parseRupiah, formatRupiah } from "@/lib/format";
 import { buildGoalBody } from "@/lib/goals-utils";
 import { SectionCard, CardLink } from "@/components/wm";
 import { queryKeys } from "@/lib/query-keys";
-import type { TransactionListResponse } from "@wealthme/contracts";
+import {
+  isMasterOrCoMaster,
+  type TransactionListResponse,
+} from "@wealthme/contracts";
 import {
   ArrowUpDown,
   BarChart3,
@@ -329,6 +333,12 @@ export default function QuickInputPage() {
   const token = session?.accessToken;
   const { handleError } = useApiError();
   const [crud, setCrud] = useState<CrudModalState | null>(null);
+  // "menu quick input harus di master dan co-master account saja" — the page
+  // itself is gated (not just the nav item): a non-Master/Co-Master must see
+  // the app's existing no-access notice, not the form, and must trigger no
+  // data fetch. Mirrors `/persetujuan`'s `isOwner`/`roleLoading` pattern.
+  const { access, isLoading: accessLoading } = useMyAccess();
+  const isAllowed = !!access && isMasterOrCoMaster(access.role);
 
   // Prototype structural port (EPIC-025 N3-B4) — the prototype's "Entri
   // Terakhir" card is real, read-only data already exposed by the
@@ -347,7 +357,7 @@ export default function QuickInputPage() {
         `/family-groups/${familyGroupId}/transactions?limit=5`,
         { token },
       ),
-    enabled: Boolean(familyGroupId) && Boolean(token),
+    enabled: Boolean(familyGroupId) && Boolean(token) && isAllowed,
   });
   const recentTransactions = recentResponse?.data;
 
@@ -388,6 +398,22 @@ export default function QuickInputPage() {
       handleError(err);
       throw err;
     }
+  }
+
+  if (accessLoading) {
+    return (
+      <div className="py-10 text-center text-[12.5px] text-muted-foreground">
+        …
+      </div>
+    );
+  }
+
+  if (!isAllowed) {
+    return (
+      <div className="rounded-lg border border-dashed p-6 text-center text-[13px] text-muted-foreground">
+        {t.quickinput.notAllowedNotice}
+      </div>
+    );
   }
 
   return (

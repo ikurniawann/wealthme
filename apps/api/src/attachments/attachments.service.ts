@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -22,6 +23,10 @@ import {
 import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { StoragePort } from "../storage/storage.port";
+import {
+  canModifyTransaction,
+  TRANSACTION_EDIT_RIGHTS_DENIED_MESSAGE,
+} from "../transactions/transaction-edit-rights.util";
 
 import { detectAllowedMime, extensionForMime } from "./file-signature.util";
 
@@ -109,13 +114,53 @@ export class AttachmentsService {
     if (!tx) throw new NotFoundException("Transaction not found");
   }
 
+  /**
+   * EPIC-036 (edit-rights) — adding/removing an attachment mutates the
+   * transaction's own record (its receipt trail), so it is gated by the
+   * SAME "Pembuat + pemilik rekening" rule as PATCH/DELETE on the
+   * transaction itself (see transaction-edit-rights.util.ts). Confirms
+   * visibility first (existence must not leak — same as
+   * `assertTransactionVisible`), then 403s with the shared message if the
+   * caller may see but not modify the row.
+   */
+  private async assertTransactionModifiable(
+    familyGroupId: string,
+    transactionId: string,
+    actingMember: ActingMember,
+  ): Promise<void> {
+    await this.assertTransactionVisible(
+      familyGroupId,
+      transactionId,
+      actingMember,
+    );
+    const tx = await this.prisma.transaction.findFirst({
+      where: { id: transactionId, familyGroupId },
+      select: {
+        createdByUserId: true,
+        account: { select: { ownerUserId: true } },
+        toAccount: { select: { ownerUserId: true } },
+      },
+    });
+    if (!tx) throw new NotFoundException("Transaction not found");
+    if (
+      !canModifyTransaction(
+        tx,
+        actingMember
+          ? { userId: actingMember.userId, role: actingMember.role }
+          : null,
+      )
+    ) {
+      throw new ForbiddenException(TRANSACTION_EDIT_RIGHTS_DENIED_MESSAGE);
+    }
+  }
+
   async create(
     familyGroupId: string,
     transactionId: string,
     file: AttachmentFileInput,
     actingMember: ActingMember,
   ): Promise<TransactionAttachmentResponseDto> {
-    await this.assertTransactionVisible(
+    await this.assertTransactionModifiable(
       familyGroupId,
       transactionId,
       actingMember,
@@ -243,7 +288,7 @@ export class AttachmentsService {
     attachmentId: string,
     actingMember: ActingMember,
   ): Promise<void> {
-    await this.assertTransactionVisible(
+    await this.assertTransactionModifiable(
       familyGroupId,
       transactionId,
       actingMember,

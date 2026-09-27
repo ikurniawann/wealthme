@@ -1,4 +1,8 @@
-import { BadRequestException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Role } from "@prisma/client";
 
 import { AttachmentsService } from "./attachments.service";
@@ -41,11 +45,25 @@ function makeService() {
 
 const OWNER_MEMBER = { userId: "owner-user", role: Role.owner };
 
+// EPIC-036 (edit-rights) — `assertTransactionModifiable` runs a SECOND
+// `transaction.findFirst` (after the visibility check) to read
+// createdByUserId/account.ownerUserId/toAccount.ownerUserId. Since both
+// calls share the one `jest.fn()` mock, tests that exercise a mutating path
+// (create/remove) need a shape that satisfies BOTH queries — this is the
+// "OWNER_MEMBER is also the creator" shape used by every such test below
+// unless a test is specifically about edit-rights denial.
+const MODIFIABLE_TX = {
+  id: TX_ID,
+  createdByUserId: OWNER_MEMBER.userId,
+  account: null,
+  toAccount: null,
+};
+
 describe("AttachmentsService", () => {
   describe("create — MIME/size validation", () => {
     it("REJECTS a file whose content does not match an allowed signature, even with a spoofed size", async () => {
       const { service, prisma } = makeService();
-      prisma.transaction.findFirst.mockResolvedValue({ id: TX_ID });
+      prisma.transaction.findFirst.mockResolvedValue(MODIFIABLE_TX);
 
       await expect(
         service.create(
@@ -59,7 +77,7 @@ describe("AttachmentsService", () => {
 
     it("REJECTS a file over 5MB even when its content is a valid signature", async () => {
       const { service, prisma } = makeService();
-      prisma.transaction.findFirst.mockResolvedValue({ id: TX_ID });
+      prisma.transaction.findFirst.mockResolvedValue(MODIFIABLE_TX);
 
       await expect(
         service.create(
@@ -73,7 +91,7 @@ describe("AttachmentsService", () => {
 
     it("ACCEPTS a real JPEG under the size limit and stores a server-generated key, never the client filename", async () => {
       const { service, prisma, storage } = makeService();
-      prisma.transaction.findFirst.mockResolvedValue({ id: TX_ID });
+      prisma.transaction.findFirst.mockResolvedValue(MODIFIABLE_TX);
       prisma.transactionAttachment.create.mockResolvedValue({
         id: "att-1",
         transactionId: TX_ID,
@@ -126,7 +144,7 @@ describe("AttachmentsService", () => {
       const { service, prisma } = makeService();
       // Transaction lookup succeeds (caller IS a member of family A and the
       // txId happens to exist there)...
-      prisma.transaction.findFirst.mockResolvedValue({ id: TX_ID });
+      prisma.transaction.findFirst.mockResolvedValue(MODIFIABLE_TX);
       // ...but the attachment row itself was created under family B — the
       // tenant-scoped findFirst (id + transactionId + familyGroupId) must
       // find nothing.
@@ -153,7 +171,7 @@ describe("AttachmentsService", () => {
 
     it("REFUSES to delete an attachment outside the caller's family group", async () => {
       const { service, prisma, storage } = makeService();
-      prisma.transaction.findFirst.mockResolvedValue({ id: TX_ID });
+      prisma.transaction.findFirst.mockResolvedValue(MODIFIABLE_TX);
       prisma.transactionAttachment.findFirst.mockResolvedValue(null);
 
       await expect(
@@ -161,6 +179,63 @@ describe("AttachmentsService", () => {
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(prisma.transactionAttachment.delete).not.toHaveBeenCalled();
       expect(storage.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("edit rights (EPIC-036 — Pembuat + pemilik rekening)", () => {
+    const OTHER_MEMBER = { userId: "master-user", role: Role.owner };
+    const NON_MODIFIABLE_TX = {
+      id: TX_ID,
+      createdByUserId: "someone-else",
+      account: { ownerUserId: null },
+      toAccount: null,
+    };
+
+    it("REFUSES to attach a file when the caller neither recorded the transaction nor owns a leg's account (even Master)", async () => {
+      const { service, prisma } = makeService();
+      prisma.transaction.findFirst.mockResolvedValue(NON_MODIFIABLE_TX);
+
+      await expect(
+        service.create(
+          FAMILY_A,
+          TX_ID,
+          { buffer: JPEG_BUFFER, size: JPEG_BUFFER.length },
+          OTHER_MEMBER,
+        ),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it("REFUSES to delete an attachment when the caller neither recorded the transaction nor owns a leg's account", async () => {
+      const { service, prisma, storage } = makeService();
+      prisma.transaction.findFirst.mockResolvedValue(NON_MODIFIABLE_TX);
+
+      await expect(
+        service.remove(FAMILY_A, TX_ID, "att-1", OTHER_MEMBER),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.transactionAttachment.delete).not.toHaveBeenCalled();
+      expect(storage.delete).not.toHaveBeenCalled();
+    });
+
+    it("ALLOWS a private-account owner to delete an attachment even though someone else created the transaction", async () => {
+      const { service, prisma, storage } = makeService();
+      const tx = {
+        id: TX_ID,
+        createdByUserId: "someone-else",
+        account: { ownerUserId: OTHER_MEMBER.userId },
+        toAccount: null,
+      };
+      prisma.transaction.findFirst.mockResolvedValue(tx);
+      prisma.transactionAttachment.findFirst.mockResolvedValue({
+        id: "att-1",
+        path: "some/key.jpg",
+      });
+
+      await service.remove(FAMILY_A, TX_ID, "att-1", OTHER_MEMBER);
+
+      expect(prisma.transactionAttachment.delete).toHaveBeenCalledWith({
+        where: { id: "att-1" },
+      });
+      expect(storage.delete).toHaveBeenCalledWith("some/key.jpg");
     });
   });
 

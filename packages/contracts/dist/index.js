@@ -449,7 +449,12 @@ var TransactionDtoSchema = z7.object({
   accountName: z7.string().nullable(),
   toAccountName: z7.string().nullable(),
   occurredAt: z7.string(),
-  createdAt: z7.string()
+  createdAt: z7.string(),
+  // Edit-rights decision 2026-09-28 ("Pembuat + pemilik rekening") — whether
+  // the CURRENT viewer may PATCH/DELETE this row: its creator, or the owner
+  // of a private account on either leg. Everyone else (incl. Master/
+  // Co-Master) is read-only.
+  canModify: z7.boolean()
 });
 var TransactionSummarySchema = z7.object({
   totalIncome: z7.string(),
@@ -605,7 +610,6 @@ var ACCESS_PAGES = [
   "rekonsiliasi",
   "ai",
   "kalkulator",
-  "quickinput",
   "mastercoa",
   "masterdata"
 ];
@@ -657,15 +661,13 @@ var LEGACY_ACCESS_PRESETS = {
       ...all("view"),
       persetujuan: "none",
       rekonsiliasi: "manage",
-      transaksi: "manage",
-      quickinput: "manage"
+      transaksi: "manage"
     },
     dataScope: "all"
   },
   dependant: {
     permissions: {
       transaksi: "manage",
-      quickinput: "manage",
       dana: "view",
       rekening: "view",
       warisan: "view"
@@ -675,13 +677,15 @@ var LEGACY_ACCESS_PRESETS = {
   operational: {
     permissions: {
       transaksi: "manage",
-      quickinput: "manage",
       dana: "view",
       rekening: "view"
     },
     dataScope: "own"
   }
 };
+function isMasterOrCoMaster(role) {
+  return role === "owner" || role === "spouse";
+}
 var LEVEL_RANK = { none: 0, view: 1, manage: 2 };
 function levelAtLeast(have, need) {
   return LEVEL_RANK[have] >= LEVEL_RANK[need];
@@ -693,7 +697,8 @@ function resolveEffectiveAccess(input) {
       permissions: all("manage"),
       dataScope: "all",
       source: "master",
-      hasOverrides: false
+      hasOverrides: false,
+      role: "owner"
     };
   }
   const base = input.accessRole ?? LEGACY_ACCESS_PRESETS[input.role];
@@ -708,7 +713,8 @@ function resolveEffectiveAccess(input) {
     permissions,
     dataScope: base.dataScope,
     source: input.accessRole ? "custom-role" : "legacy",
-    hasOverrides: Object.keys(input.overrides ?? {}).length > 0
+    hasOverrides: Object.keys(input.overrides ?? {}).length > 0,
+    role: input.role
   };
 }
 function canAccessPage(access, page, need = "view") {
@@ -912,6 +918,7 @@ export {
   formatScaled,
   isFamilyLoginId,
   isFxCurrency,
+  isMasterOrCoMaster,
   levelAtLeast,
   parseMinor,
   parseScaled,
