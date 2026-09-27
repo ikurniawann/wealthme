@@ -32,6 +32,7 @@ import {
   ALWAYS_OPEN_PAGES,
   AccessPageSchema,
   canAccessPage,
+  isMasterOrCoMaster,
   type EffectiveAccess,
 } from "@wealthme/contracts";
 
@@ -174,17 +175,9 @@ const ROW_SCOPED_NAV_ALLOWLIST: Record<
     "rekening",
     "warisan",
     "notifikasi",
-    "quickinput",
     "panduan",
   ],
-  operational: [
-    "transaksi",
-    "dana",
-    "rekening",
-    "notifikasi",
-    "quickinput",
-    "panduan",
-  ],
+  operational: ["transaksi", "dana", "rekening", "notifikasi", "panduan"],
 };
 
 /** `dependant`/`operational` — the two roles CASL scopes to their own rows. */
@@ -420,6 +413,11 @@ function pageAllowed(page: string, access: EffectiveAccess): boolean {
   if (access.isMaster) return true;
   if (ALWAYS_OPEN.includes(page)) return true;
   if (page === "iam") return false;
+  // `quickinput` is not in ACCESS_PAGES (never grantable by a custom role or
+  // override, same as `iam`) — Master/Co-Master only, "menu quick input
+  // harus di master dan co-master account saja" — gated on the member's
+  // real role, not on any permission the Master could hand out.
+  if (page === "quickinput") return isMasterOrCoMaster(access.role);
   const parsed = AccessPageSchema.safeParse(page);
   return parsed.success && canAccessPage(access, parsed.data, "view");
 }
@@ -481,14 +479,16 @@ export function mobileNavForAccess(
   return [...picks.slice(0, 3), byId.get("akun")!];
 }
 
-/** Whether the global "Tambah transaksi" button makes sense for `access`. */
+/**
+ * Whether the global "Tambah transaksi" button makes sense for `access`.
+ * Driven by Transaksi access alone — `quickinput` is Master/Co-Master-only
+ * page visibility (see `pageAllowed`), not a general "may record a
+ * transaction" grant, so it must not add a second way into this button.
+ */
 export function canRecordTransaction(
   access: EffectiveAccess | null | undefined,
 ): boolean {
   if (access === undefined) return true;
   if (access === null) return false;
-  return (
-    canAccessPage(access, "transaksi", "manage") ||
-    canAccessPage(access, "quickinput", "manage")
-  );
+  return canAccessPage(access, "transaksi", "manage");
 }

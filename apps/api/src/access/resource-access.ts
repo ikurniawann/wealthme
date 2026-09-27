@@ -33,7 +33,6 @@ export const RESOURCE_ACCESS = {
       "dana",
       "rekening",
       "transaksi",
-      "quickinput",
       "beranda",
       "anggaran",
       "aset",
@@ -46,13 +45,17 @@ export const RESOURCE_ACCESS = {
     ],
     write: ["dana", "rekening"],
   },
+  // `quickinput` is a Master/Co-Master-only page, not a grantable AccessPage
+  // (see contracts `ACCESS_PAGES`) — it posts through these same endpoints,
+  // so `transaksi` access alone still covers everyone else who needs
+  // /transaksi to work.
   transactions: {
-    read: ["transaksi", "quickinput", "dana", "rekening", "beranda"],
-    write: ["transaksi", "quickinput"],
+    read: ["transaksi", "dana", "rekening", "beranda"],
+    write: ["transaksi"],
   },
   attachments: {
-    read: ["transaksi", "quickinput", "dana", "rekening"],
-    write: ["transaksi", "quickinput"],
+    read: ["transaksi", "dana", "rekening"],
+    write: ["transaksi"],
   },
   categories: { read: "any", write: ["masterdata", "mastercoa"] },
   "reference-items": { read: "any", write: ["masterdata"] },

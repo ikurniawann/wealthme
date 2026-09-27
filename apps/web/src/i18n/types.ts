@@ -1506,6 +1506,8 @@ export type I18nDictionary = {
     recentEntriesTitle: string;
     viewAllLink: string;
     emptyRecent: string;
+    /** Master/Co-Master-only page guard notice — mirrors persetujuan's. */
+    notAllowedNotice: string;
   };
   /** EPIC-018 Task A4 — `/ai` (AI Advisor chat) page copy. */
   ai: {

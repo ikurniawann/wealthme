@@ -59,7 +59,7 @@ describe("resourceAllows", () => {
   it("overrides beat the role", () => {
     const a = resolveEffectiveAccess({
       role: "dependant",
-      overrides: { investasi: "view", transaksi: "none", quickinput: "none" },
+      overrides: { investasi: "view", transaksi: "none" },
     });
     expect(resourceAllows(a, "investments", "GET")).toBe(true);
     expect(resourceAllows(a, "transactions", "POST")).toBe(false);

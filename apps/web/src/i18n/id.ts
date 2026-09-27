@@ -1532,6 +1532,8 @@ export const id = {
     recentEntriesTitle: "Entri Terakhir",
     viewAllLink: "Lihat Semua",
     emptyRecent: "Belum ada transaksi.",
+    notAllowedNotice:
+      "Halaman ini hanya untuk master/co-master keluarga. Kamu tidak memiliki akses.",
   },
   ai: {
     bannerTitle: "WealthMe AI Advisor",

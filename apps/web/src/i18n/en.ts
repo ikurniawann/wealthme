@@ -1494,6 +1494,8 @@ export const en = {
     recentEntriesTitle: "Recent Entries",
     viewAllLink: "View All",
     emptyRecent: "No transactions yet.",
+    notAllowedNotice:
+      "This page is for the family's owner/co-master only. You don't have access.",
   },
   ai: {
     bannerTitle: "WealthMe AI Advisor",
