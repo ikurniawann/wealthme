@@ -1956,7 +1956,7 @@ export const en = {
     autoAdvanceLabel:
       "Automatically advance to the next month after the due date passes",
     fieldNotesLabel: "Notes (optional)",
-    fieldNotesPlaceholder: "e.g. Visa Platinum · due on the 15th",
+    fieldNotesPlaceholder: "e.g. Visa Platinum, due on the 15th",
     saving: "Saving…",
     saveButton: "Save Liability",
     ccCurrentBillLabel: "Current Bill",

@@ -1993,7 +1993,7 @@ export const id = {
     autoAdvanceLabel:
       "Majukan otomatis ke bulan berikutnya setelah lewat jatuh tempo",
     fieldNotesLabel: "Catatan (opsional)",
-    fieldNotesPlaceholder: "cth. Visa Platinum · jatuh tempo tgl 15",
+    fieldNotesPlaceholder: "cth. Visa Platinum, jatuh tempo tgl 15",
     saving: "Menyimpan…",
     saveButton: "Simpan Liabilitas",
     ccCurrentBillLabel: "Tagihan Berjalan",
