@@ -3,6 +3,35 @@ import { validate } from "class-validator";
 
 import { UpdateGoalDto } from "./update-goal.dto";
 
+// E2E round 1, bug 1 — an explicit blank/whitespace name must still be
+// rejected on edit; omitting the field entirely stays a no-op (unchanged).
+describe("UpdateGoalDto.name — E2E round 1 bug 1", () => {
+  it("rejects an explicit empty name", async () => {
+    const dto = plainToInstance(UpdateGoalDto, { name: "" });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "name")).toBe(true);
+  });
+
+  it("rejects a whitespace-only name", async () => {
+    const dto = plainToInstance(UpdateGoalDto, { name: "   " });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "name")).toBe(true);
+  });
+
+  it("omitting name is still valid (unrelated fields can be edited alone)", async () => {
+    const dto = plainToInstance(UpdateGoalDto, { currentAmount: 500_000 });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("accepts a real name and trims surrounding whitespace", async () => {
+    const dto = plainToInstance(UpdateGoalDto, { name: "  Renamed  " });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+    expect(dto.name).toBe("Renamed");
+  });
+});
+
 describe("UpdateGoalDto.currentAmount — EPIC-022 A4/C9", () => {
   it("accepts 0 (a fresh goal's currentAmount, and 'withdraw everything')", async () => {
     const dto = plainToInstance(UpdateGoalDto, { currentAmount: 0 });

@@ -10,6 +10,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class UpdateInvestmentDto {
   @ApiPropertyOptional({ example: "BBCA" })
   @IsOptional()
@@ -74,4 +76,7 @@ export class UpdateInvestmentDto {
   @IsOptional()
   @IsDateString()
   maturityDate?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

@@ -155,6 +155,15 @@ export const GENERIC_COA_CHART: readonly CoaChartEntry[] = [
     direction: "EXPENSE",
     budgetType: "FIXED",
   },
+  // Revisi K — a recorded KPR prepayment's penalty is a real expense with its
+  // own account (never interest 20009, never the 20099 catch-all).
+  {
+    code: "20011",
+    name: "Penalti Pelunasan Pinjaman",
+    groupNum: 2,
+    direction: "EXPENSE",
+    budgetType: "VARIABLE",
+  },
   // Group 3 — Wealth Allocation
   {
     code: "30001",

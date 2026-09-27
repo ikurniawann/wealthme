@@ -23,6 +23,32 @@ jest.mock("../../lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),
 }));
 
+jest.mock("../money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../money/fx-test-rates").TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+const mockPref = jest.fn();
+jest.mock("../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => mockPref(),
+}));
+const IDR_PREF = {
+  currency: "IDR",
+  isIndicative: false,
+  isReady: true,
+  formatMoney: String,
+};
+const USD_PREF = {
+  currency: "USD",
+  isIndicative: true,
+  isReady: true,
+  formatMoney: String,
+};
+
 // jsdom has no PointerEvent — Base UI's Dialog reads pointer-event fields.
 if (typeof window !== "undefined" && !window.PointerEvent) {
   class PointerEventPolyfill extends MouseEvent {
@@ -121,6 +147,7 @@ beforeEach(() => {
     isPending: false,
   });
 });
+beforeEach(() => mockPref.mockReturnValue(IDR_PREF));
 
 describe("CrudModal — selects backed by Master Data (Revisi H)", () => {
   it("lists the family's Master Data e-wallets (not other groups), then the built-in leftovers", async () => {
@@ -241,6 +268,12 @@ describe("CrudModal — date fields use the shared DateField", () => {
     const dialog = await screen.findByRole("dialog", {
       name: /tambah tujuan keuangan/i,
     });
+    // E2E round 1, bug 1 — `nama` is now a required field; a blank name
+    // blocks Simpan before this test's own assertion on `deadline`.
+    await user.type(
+      within(dialog).getByPlaceholderText("cth: Dana Liburan"),
+      "Dana Liburan",
+    );
     const trigger = within(dialog).getByLabelText("Target Tanggal");
     expect(trigger.tagName).toBe("BUTTON");
 
@@ -294,5 +327,79 @@ describe("CrudModal — date fields use the shared DateField", () => {
     expect(within(dialog).getByLabelText("Target Tanggal")).toHaveTextContent(
       "1 Desember 2026",
     );
+  });
+});
+
+describe("CrudModal — revisi I money", () => {
+  beforeEach(() => routeApi({ referenceItems: [] }));
+
+  function renderRekening(
+    state:
+      | { mode: "add" }
+      | { mode: "edit"; initialValues: Record<string, string> },
+    onSubmit = jest.fn().mockResolvedValue(undefined),
+  ) {
+    function Providers({ children }: { children: ReactNode }) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          {children}
+        </QueryClientProvider>
+      );
+    }
+    rtlRender(
+      <CrudModal
+        state={{ entity: "rekening", ...state }}
+        onClose={() => {}}
+        onSubmit={onSubmit}
+      />,
+      { wrapper: Providers },
+    );
+    return { onSubmit };
+  }
+
+  it("revisi I — an amount field offers a currency select and hands the normalized IDR + __fx to onSubmit", async () => {
+    const { onSubmit } = renderRekening({ mode: "add" });
+    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "100");
+    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    const values = onSubmit.mock.calls[0][2];
+    expect(values.saldo).toBe("1.791.390");
+    expect(JSON.parse(values.saldo__fx)).toEqual({
+      currency: "USD",
+      amount: "100",
+    });
+  });
+
+  it("revisi I — a USD-display user's new account opens on USD", async () => {
+    mockPref.mockReturnValue(USD_PREF);
+    const { onSubmit } = renderRekening({ mode: "add" });
+    expect(screen.getByLabelText("Mata uang")).toHaveValue("USD");
+    await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "100");
+    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    expect(JSON.parse(onSubmit.mock.calls[0][2].saldo__fx)).toEqual({
+      currency: "USD",
+      amount: "100",
+    });
+  });
+
+  it("revisi I — a USD-display user's edit form opens on IDR and sends no fxInputs", async () => {
+    mockPref.mockReturnValue(USD_PREF);
+    const { onSubmit } = renderRekening({
+      mode: "edit",
+      initialValues: { nama: "BCA", saldo: "5000000" },
+    });
+    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    expect(onSubmit.mock.calls[0][2]).not.toHaveProperty("saldo__fx");
+    expect(onSubmit.mock.calls[0][2].saldo).toBe("5.000.000");
+  });
+
+  it("revisi I — IDR amounts reach onSubmit exactly as typed (no __fx key)", async () => {
+    const { onSubmit } = renderRekening({ mode: "add" });
+    await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "5000000");
+    await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
+    const values = onSubmit.mock.calls[0][2];
+    expect(values.saldo).toBe("5.000.000");
+    expect(values).not.toHaveProperty("saldo__fx");
   });
 });

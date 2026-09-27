@@ -11,7 +11,6 @@ import {
   ProgressBar,
   StatusBadge,
 } from "@/components/wm";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -22,8 +21,15 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteDialog } from "@/components/crud";
+import {
+  MoneyInput,
+  idrPreview,
+  toCanonicalAmount,
+  useMoneyField,
+  formatMoneyTyping,
+} from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
-import { formatAmountInput, parseRupiah, formatRupiah } from "@/lib/format";
+import { parseRupiah, formatRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -34,13 +40,20 @@ import {
   type CustomAmounts,
 } from "./split-math";
 
-import type {
-  AccountDto,
-  SplitBillDto,
-  CreateSplitBillDto,
-  SplitParticipantDto,
-  UpdatePayoutAccountDto,
+import {
+  formatScaled,
+  parseMinor,
+  type AccountDto,
+  type SplitBillDto,
+  type CreateSplitBillDto as BaseCreateSplitBillDto,
+  type SplitParticipantDto,
+  type UpdatePayoutAccountDto,
+  type FxInput,
 } from "@wealthme/contracts";
+
+/** Task 10b (revisi I, Decision 10) — one currency per bill: totalAmount plus
+ * every participant.N.amountOwed convert in that same currency. */
+type CreateSplitBillDto = BaseCreateSplitBillDto & { fxInputs?: FxInput[] };
 
 const AVATAR_GRADIENTS = [
   "linear-gradient(135deg,#10B981,#06B6D4)",
@@ -95,7 +108,7 @@ export default function SplitBillPage() {
 
   // Create modal state
   const [title, setTitle] = useState("");
-  const [total, setTotal] = useState("");
+  const totalField = useMoneyField();
   const [method, setMethod] = useState<"equal" | "custom">("equal");
   // NOTE: "Andi"/"Budi"/"Citra" are example seed names for the participant
   // rows (freely editable by the user before creating the split), not UI
@@ -113,7 +126,26 @@ export default function SplitBillPage() {
   const [payoutAccountId, setPayoutAccountId] = useState("");
   const [payoutInstructions, setPayoutInstructions] = useState("");
 
-  const totalNum = parseRupiah(total);
+  const billCurrency = totalField.currency;
+  const billDecimals = totalField.decimals;
+  /** Integer units in the bill currency: rupiah for IDR (unchanged parse), minor units otherwise. */
+  const toUnits = (raw: string): number =>
+    billCurrency === "IDR"
+      ? parseRupiah(raw)
+      : Number(parseMinor(toCanonicalAmount(raw) ?? "0", billCurrency));
+  const totalNum = toUnits(totalField.raw);
+  const customUnits = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(customAmounts).map(([k, v]) => [k, String(toUnits(v))]),
+      ) as CustomAmounts,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- toUnits closes over billCurrency, already a dep.
+    [customAmounts, billCurrency],
+  );
+  const unitsLabel = (units: number): string =>
+    billCurrency === "IDR"
+      ? formatRupiah(units)
+      : `${billCurrency} ${formatScaled(BigInt(units), billDecimals).replace(".", ",")}`;
   const participantIds = useMemo(
     () => participants.map((p) => p.localId),
     [participants],
@@ -130,8 +162,8 @@ export default function SplitBillPage() {
   // Live remainder for the custom-split calculator (item #10) — how much of
   // the total is still unallocated across the per-person amount inputs.
   const customRemainder = useMemo(
-    () => computeRemainder(totalNum, participantIds, customAmounts),
-    [totalNum, participantIds, customAmounts],
+    () => computeRemainder(totalNum, participantIds, customUnits),
+    [totalNum, participantIds, customUnits],
   );
 
   function addParticipant() {
@@ -158,17 +190,41 @@ export default function SplitBillPage() {
     );
   }
 
+  /** A units-domain integer back into the bill currency's typed display string. */
+  const unitsToRaw = (units: number): string =>
+    billCurrency === "IDR"
+      ? formatMoneyTyping(String(units), 0)
+      : formatMoneyTyping(
+          formatScaled(BigInt(units), billDecimals).replace(".", ","),
+          billDecimals,
+        );
+
   // "Bagi rata sisa" — fills every participant who hasn't entered an amount
-  // yet with an even share of whatever remains from the total.
+  // yet with an even share of whatever remains from the total. Operates in
+  // the bill currency's minor units, then converts each newly-filled share
+  // back to a typed display string (Decision 10).
   function handleSplitRemainderEvenly() {
-    setCustomAmounts((prev) =>
-      splitRemainderEvenly(totalNum, participantIds, prev),
-    );
+    const filled = splitRemainderEvenly(totalNum, participantIds, customUnits);
+    setCustomAmounts((prev) => {
+      const next = { ...prev };
+      for (const id of participantIds) {
+        if (filled[id] !== customUnits[id]) {
+          // `filled[id]` is id-ID-grouped ("1.234"), not a plain number
+          // string — `Number()` would misread the "." as a decimal point,
+          // shrinking any fill >= 1000 minor units by ~1000x. `parseRupiah`
+          // strips every non-digit, which is exact here since this fill is
+          // always a non-negative integer unit count.
+          const units = parseRupiah(filled[id]);
+          next[id] = units > 0 ? unitsToRaw(units) : (prev[id] ?? "");
+        }
+      }
+      return next;
+    });
   }
 
   function resetCreateForm() {
     setTitle("");
-    setTotal("");
+    totalField.reset();
     setMethod("equal");
     setParticipants([
       makeParticipant("Andi"),
@@ -385,39 +441,63 @@ export default function SplitBillPage() {
     }
     if (
       method === "custom" &&
-      !amountsMatchTotal(totalNum, participantIds, customAmounts)
+      !amountsMatchTotal(totalNum, participantIds, customUnits)
     ) {
-      const diff = computeRemainder(totalNum, participantIds, customAmounts);
+      const diff = computeRemainder(totalNum, participantIds, customUnits);
       const diffLabel =
         diff > 0
-          ? `kurang ${formatRupiah(diff)}`
-          : `lebih ${formatRupiah(Math.abs(diff))}`;
+          ? `kurang ${unitsLabel(diff)}`
+          : `lebih ${unitsLabel(Math.abs(diff))}`;
       toast.warning(
         `Jumlah per orang belum sama dengan total tagihan (${diffLabel}).`,
       );
       return;
     }
+    if (totalField.resolved.isPending) return;
 
-    let participantDtos: CreateSplitBillDto["participants"];
-    if (method === "equal") {
-      participantDtos = participants.map((p, i) => ({
-        name: p.name.trim() || t.splitbill.defaultParticipantName,
-        amountOwed: equalShares[i] ?? 0,
-      }));
-    } else {
-      participantDtos = participants.map((p) => ({
-        name: p.name.trim() || t.splitbill.defaultParticipantName,
-        amountOwed: parseRupiah(customAmounts[p.localId] ?? "0"),
-      }));
-    }
-
-    createMutation.mutate({
+    const unitsPerParticipant: number[] =
+      method === "equal"
+        ? participants.map((_, i) => equalShares[i] ?? 0)
+        : participants.map((p) => toUnits(customAmounts[p.localId] ?? "0"));
+    const canonicalOf = (units: number) =>
+      formatScaled(BigInt(units), billDecimals);
+    const idrOf = (units: number): number =>
+      billCurrency === "IDR"
+        ? units
+        : Number(
+            idrPreview(canonicalOf(units), billCurrency, totalField.rates, 0) ??
+              BigInt(0),
+          );
+    const participantDtos = participants.map((p, i) => ({
+      name: p.name.trim() || t.splitbill.defaultParticipantName,
+      amountOwed: idrOf(unitsPerParticipant[i] ?? 0),
+    }));
+    const base = {
       title: trimmedTitle,
-      totalAmount: totalNum,
+      totalAmount: idrOf(totalNum),
       payoutAccountId,
       payoutInstructions: payoutInstructions.trim() || undefined,
       participants: participantDtos,
-    });
+    };
+    createMutation.mutate(
+      billCurrency === "IDR"
+        ? base
+        : {
+            ...base,
+            fxInputs: [
+              {
+                field: "totalAmount",
+                currency: billCurrency,
+                amount: canonicalOf(totalNum),
+              },
+              ...unitsPerParticipant.map((u, i) => ({
+                field: `participants.${i}.amountOwed`,
+                currency: billCurrency,
+                amount: canonicalOf(u),
+              })),
+            ],
+          },
+    );
   }
 
   // EPIC-023 F3 (D21) — each participant now has their OWN share link (a
@@ -472,28 +552,17 @@ export default function SplitBillPage() {
           are the same derived numbers the old inline cards rendered. */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
         {/* `activeSplits.length` is a neutral fact, not a good/bad trend —
-            SummaryCard's `delta` slot always colors it success/destructive
-            (foundation component, not ours to change), so this one card is
-            built locally with a muted sub-line instead of borrowing that
-            slot for something that isn't a trend. */}
-        <Card className="gap-0 p-4">
-          <div
-            className="mb-2 flex size-[34px] items-center justify-center rounded-md text-[15px]"
-            style={{ background: "var(--accent)", color: "var(--primary)" }}
-          >
-            <span aria-hidden="true">🧾</span>
-          </div>
-          <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
-            {t.splitbill.totalDitalanginLabel}
-          </div>
-          <div className="mb-[3px] text-[15px] font-extrabold">
-            {formatRupiah(totalDitalangin)}
-          </div>
-          <div className="text-[10.5px] font-bold text-muted-foreground">
-            {activeSplits.length}
-            {t.splitbill.activeSplitsSuffix}
-          </div>
-        </Card>
+            SummaryCard's `caption` slot renders it without the `delta`
+            slot's success/danger color, so all three cards share one
+            component (see components/wm/stat.tsx). */}
+        <SummaryCard
+          icon={<span aria-hidden="true">🧾</span>}
+          iconBg="var(--accent)"
+          iconColor="var(--primary)"
+          label={t.splitbill.totalDitalanginLabel}
+          amount={formatRupiah(totalDitalangin)}
+          caption={`${activeSplits.length}${t.splitbill.activeSplitsSuffix}`}
+        />
         <SummaryCard
           icon={<span aria-hidden="true">✅</span>}
           iconBg="var(--success-soft)"
@@ -600,9 +669,21 @@ export default function SplitBillPage() {
                       )}
                       {" · "}
                       {t.splitbill.createdOnPrefix}
+                      {/* Batch 5 item 5 — no explicit `timeZone` means this
+                          resolves the runtime's local zone, which differs
+                          between the Node SSR pass and the browser: a real
+                          hydration-mismatch source. Pinning `timeZone: "UTC"`
+                          matches the fix in `money-format.ts`'s
+                          `formatRateDate` and `asuransi/page.tsx`'s
+                          `formatLocaleDate`. */}
                       {new Date(split.createdAt).toLocaleDateString(
                         locale === "en" ? "en-US" : "id-ID",
-                        { day: "numeric", month: "short", year: "numeric" },
+                        {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                          timeZone: "UTC",
+                        },
                       )}
                     </div>
                   </div>
@@ -679,17 +760,12 @@ export default function SplitBillPage() {
               />
             </label>
 
-            <label className="field">
-              <span className="label">{t.splitbill.fieldTotalLabel}</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={total}
-                onChange={(e) => setTotal(formatAmountInput(e.target.value))}
-                placeholder="0"
-                className="input mono"
-              />
-            </label>
+            <div className="field">
+              <label className="label" htmlFor="splitbill-total">
+                {t.splitbill.fieldTotalLabel}
+              </label>
+              <MoneyInput field={totalField} id="splitbill-total" />
+            </div>
 
             <div className="field">
               <label className="label" htmlFor="splitbill-payout-account">
@@ -776,20 +852,24 @@ export default function SplitBillPage() {
                     <div className="ml-auto flex shrink-0 items-center gap-2">
                       {method === "equal" ? (
                         <span className="mono text-right text-[12.5px] font-semibold whitespace-nowrap text-primary">
-                          {formatRupiah(equalShares[i] ?? 0)}
+                          {unitsLabel(equalShares[i] ?? 0)}
                         </span>
                       ) : (
                         <input
-                          type="text"
-                          inputMode="numeric"
+                          inputMode={billDecimals > 0 ? "decimal" : "numeric"}
                           value={customAmounts[p.localId] ?? ""}
                           onChange={(e) =>
                             setCustomAmounts((prev) => ({
                               ...prev,
-                              [p.localId]: formatAmountInput(e.target.value),
+                              [p.localId]: formatMoneyTyping(
+                                e.target.value,
+                                billDecimals,
+                              ),
                             }))
                           }
-                          placeholder="0"
+                          placeholder={
+                            billCurrency === "IDR" ? "0" : billCurrency
+                          }
                           aria-label={`${t.splitbill.fieldTotalLabel} ${p.name}`}
                           className="input mono w-[104px] shrink-0 text-[12px]"
                         />
@@ -822,7 +902,7 @@ export default function SplitBillPage() {
                   <span>
                     {t.splitbill.perPersonPrefix}
                     <strong className="mono t-primary">
-                      {formatRupiah(perPerson)}
+                      {unitsLabel(perPerson)}
                     </strong>
                   </span>
                 </div>
@@ -851,14 +931,14 @@ export default function SplitBillPage() {
                       <>
                         {t.splitbill.remainderLeftPrefix}
                         <strong className="mono">
-                          {formatRupiah(customRemainder)}
+                          {unitsLabel(customRemainder)}
                         </strong>
                       </>
                     ) : (
                       <>
                         {t.splitbill.remainderOverPrefix}
                         <strong className="mono">
-                          {formatRupiah(Math.abs(customRemainder))}
+                          {unitsLabel(Math.abs(customRemainder))}
                         </strong>
                         {t.splitbill.remainderOverSuffix}
                       </>
@@ -879,7 +959,15 @@ export default function SplitBillPage() {
             </div>
           </DialogBody>
 
-          <DialogFooter>
+          {/* polish-j batch 7a item 12 — `.dialog__footer` only sticks at
+              <=768px (design-system.css's own mobile media query); above
+              that, `.dialog` itself is the scrolling box (`max-height:
+              85dvh; overflow-y: auto`, unchanged), so a local Tailwind
+              class here — not a design-system.css/dialog.tsx edit — pins
+              the footer to that same scrolling box's bottom edge at
+              desktop widths too, mirroring the mobile block's own
+              negative-margin + padding technique. */}
+          <DialogFooter className="min-[769px]:sticky min-[769px]:bottom-0 min-[769px]:-mx-5 min-[769px]:-mb-5 min-[769px]:mt-[18px] min-[769px]:border-t min-[769px]:bg-popover min-[769px]:px-5 min-[769px]:pt-3 min-[769px]:pb-5">
             {/* Same teardown as the Escape/backdrop path above
                 (`onOpenChange` → `resetCreateForm`), so cancelling never
                 leaves a half-filled form behind for the next open. */}
@@ -892,7 +980,12 @@ export default function SplitBillPage() {
             >
               {t.common.cancel}
             </Button>
-            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+            <Button
+              onClick={handleCreate}
+              disabled={
+                createMutation.isPending || totalField.resolved.isPending
+              }
+            >
               <Share2 className="size-4" />
               {createMutation.isPending
                 ? t.splitbill.savingCreateLabel

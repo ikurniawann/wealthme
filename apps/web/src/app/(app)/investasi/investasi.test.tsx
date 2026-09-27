@@ -54,6 +54,26 @@ jest.mock("socket.io-client", () => ({
   }),
 }));
 
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
+import { id as idDict } from "../../../i18n/id";
 import InvestasiPage from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
@@ -228,6 +248,32 @@ describe("InvestasiPage — role gating (F3)", () => {
   });
 });
 
+describe("InvestasiPage — ticker required only for saham/kripto (E2E round-2 B1)", () => {
+  it.each([
+    ["saham", true],
+    ["kripto", true],
+    ["deposito", false],
+    ["emas", false],
+    ["reksa_dana", false],
+    ["obligasi", false],
+    ["lainnya", false],
+  ])("Ticker field visible+required=%s for %s", async (type, visible) => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), type);
+
+    const field = screen.queryByLabelText("Ticker");
+    if (visible) {
+      expect(field).toBeInTheDocument();
+      expect(field).toBeRequired();
+    } else {
+      expect(field).not.toBeInTheDocument();
+    }
+  });
+});
+
 describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 9)", () => {
   it.each([
     ["saham", "Jumlah Saham"],
@@ -267,9 +313,9 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     fireEvent.change(screen.getByLabelText("Nama"), {
       target: { value: "Antam 10 g" },
     });
-    fireEvent.change(screen.getByLabelText("Ticker"), {
-      target: { value: "ANTM" },
-    });
+    // E2E round-2 B1 — emas is not a market-priced type; the Ticker field
+    // is hidden and not required.
+    expect(screen.queryByLabelText("Ticker")).not.toBeInTheDocument();
     const qty = screen.getByLabelText("Berat Emas (gram)");
     fireEvent.change(qty, { target: { value: "1.2345" } });
     fireEvent.change(screen.getByLabelText("Harga Beli per Unit (Rp)"), {
@@ -690,6 +736,268 @@ describe("InvestasiPage — detail dialog layout + history date filter (Revisi D
 
     expect(
       within(second).getByRole("button", { name: "Semua tanggal" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("InvestasiPage — revisi I multi-currency", () => {
+  it("revisi I — Record Investment in USD sends the IDR unit price with sen + fxInputs", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": (_path: string, init?: ApiInit) =>
+        init?.method === "POST" ? { id: "inv-new", type: "saham" } : [HOLDING],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await openAddModal(user);
+    fireEvent.change(screen.getByLabelText("Nama"), {
+      target: { value: "Test USD Holding" },
+    });
+    fireEvent.change(screen.getByLabelText("Ticker"), {
+      target: { value: "TST" },
+    });
+    fireEvent.change(screen.getByLabelText("Jumlah Saham"), {
+      target: { value: "10" },
+    });
+    await userEvent.selectOptions(
+      within(
+        screen
+          .getByLabelText(idDict.investasi.fieldCostBasisLabel)
+          .closest(".field")!,
+      ).getByLabelText("Mata uang"),
+      "USD",
+    );
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
+      "12,34",
+    );
+    fireEvent.submit(
+      screen.getByLabelText("Nama").closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments")).toMatchObject({
+        costBasisPerUnit: "221057.52",
+        fxInputs: [
+          { field: "costBasisPerUnit", currency: "USD", amount: "12.34" },
+        ],
+      }),
+    );
+  });
+
+  it("C1 — IDR cost basis with sen sends the canonical decimal, not the ×100 digit strip", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": (_path: string, init?: ApiInit) =>
+        init?.method === "POST" ? { id: "inv-new", type: "saham" } : [HOLDING],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await openAddModal(user);
+    fireEvent.change(screen.getByLabelText("Nama"), {
+      target: { value: "Test IDR Sen" },
+    });
+    fireEvent.change(screen.getByLabelText("Ticker"), {
+      target: { value: "TST" },
+    });
+    fireEvent.change(screen.getByLabelText("Jumlah Saham"), {
+      target: { value: "10" },
+    });
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
+      "9.500,50",
+    );
+    fireEvent.submit(
+      screen.getByLabelText("Nama").closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments")).toMatchObject({
+        costBasisPerUnit: "9500.50",
+      }),
+    );
+    expect(postBodyTo("/investments")?.fxInputs).toBeUndefined();
+  });
+
+  it("C1 — IDR cost basis without sen sends the plain canonical amount", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": (_path: string, init?: ApiInit) =>
+        init?.method === "POST" ? { id: "inv-new", type: "saham" } : [HOLDING],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await openAddModal(user);
+    fireEvent.change(screen.getByLabelText("Nama"), {
+      target: { value: "Test IDR Whole" },
+    });
+    fireEvent.change(screen.getByLabelText("Ticker"), {
+      target: { value: "TST" },
+    });
+    fireEvent.change(screen.getByLabelText("Jumlah Saham"), {
+      target: { value: "10" },
+    });
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
+      "9.500",
+    );
+    fireEvent.submit(
+      screen.getByLabelText("Nama").closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments")).toMatchObject({
+        costBasisPerUnit: "9500",
+      }),
+    );
+  });
+
+  it("M2 — edit prefill keeps sen instead of rounding to whole rupiah", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        holdingOf({ costBasisPerUnit: "100000.55", type: "reksa_dana" }),
+      ],
+    });
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("Emas Batangan")).closest(
+      "tr",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Edit" }));
+
+    expect(
+      await screen.findByLabelText(idDict.investasi.fieldCostBasisLabel),
+    ).toHaveValue("100.000,55");
+  });
+
+  it("revisi I — buy/sell price in USD sends pricePerUnit with sen + fxInputs", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("Emas Batangan")).closest(
+      "tr",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Lihat Detail" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Beli / Jual" }),
+    );
+
+    fireEvent.change(screen.getByLabelText(/Jumlah/), {
+      target: { value: "1" },
+    });
+    await userEvent.selectOptions(
+      screen.getAllByLabelText("Mata uang").at(-1)!,
+      "USD",
+    );
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.buySellFieldPriceLabel),
+      "99,99",
+    );
+    fireEvent.submit(
+      screen
+        .getByLabelText(idDict.investasi.buySellFieldPriceLabel)
+        .closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments/inv-1/transactions")).toMatchObject({
+        pricePerUnit: "1791210.85",
+        fxInputs: [{ field: "pricePerUnit", currency: "USD", amount: "99.99" }],
+      }),
+    );
+  });
+
+  it("C1 — IDR buy/sell price with sen sends the canonical decimal, not the ×100 digit strip", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("Emas Batangan")).closest(
+      "tr",
+    ) as HTMLElement;
+    await user.click(within(row).getByRole("button", { name: "Lihat Detail" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Beli / Jual" }),
+    );
+
+    fireEvent.change(screen.getByLabelText(/Jumlah/), {
+      target: { value: "1" },
+    });
+    await userEvent.type(
+      screen.getByLabelText(idDict.investasi.buySellFieldPriceLabel),
+      "9.500,50",
+    );
+    fireEvent.submit(
+      screen
+        .getByLabelText(idDict.investasi.buySellFieldPriceLabel)
+        .closest("form") as HTMLFormElement,
+    );
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments/inv-1/transactions")).toMatchObject({
+        pricePerUnit: "9500.50",
+      }),
+    );
+    expect(
+      postBodyTo("/investments/inv-1/transactions")?.fxInputs,
+    ).toBeUndefined();
+  });
+});
+
+describe("InvestasiPage — allocation donut renders once (Batch 5 item 2)", () => {
+  it("renders the allocation-donut section exactly once, not twice", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+
+    // The page previously rendered the same `allocationSegments`-fed
+    // DonutChart twice: once beside the "Nilai Portofolio 6 Bulan" trend
+    // chart, once again on its own further down the page.
+    await screen.findByText("Emas Batangan");
+    expect(screen.getAllByText(idDict.investasi.allocationTitle)).toHaveLength(
+      1,
+    );
+  });
+});
+
+describe("InvestasiPage — polish batch 7b item 3 (notice disclosure + formula tooltip)", () => {
+  it("shows the pricing-source notice as one line, with the full body collapsed under a disclosure", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+    await screen.findByText("Emas Batangan");
+
+    expect(
+      screen.getByText(idDict.investasi.pricingSourceNoticeTitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(idDict.investasi.pricingSourceNoticeBody),
+    ).not.toBeVisible();
+
+    const summaryEl = screen.getByText(idDict.investasi.pricingSourceMoreLabel);
+    expect(summaryEl.closest("details")).not.toHaveAttribute("open");
+    await userEvent.click(summaryEl);
+    expect(summaryEl.closest("details")).toHaveAttribute("open");
+    expect(
+      screen.getByText(idDict.investasi.pricingSourceNoticeBody),
+    ).toBeVisible();
+  });
+
+  it("moves the return formula off the always-visible line and into a tooltip", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+    await screen.findByText("Emas Batangan");
+
+    const expectedFormula = idDict.investasi.returnFormulaLabel
+      .replace("{returnRp}", "Rp 100.000")
+      .replace("{costBasis}", "Rp 1.000.000");
+    expect(screen.queryByText(expectedFormula)).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: expectedFormula }),
     ).toBeInTheDocument();
   });
 });

@@ -137,6 +137,25 @@ jest.mock("../../lib/api-client", () => ({
   apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
 }));
 
+const mockUseFxSnapshot = jest.fn((enabled: boolean) => ({
+  data: enabled
+    ? jest.requireActual("../money/fx-test-rates").TEST_FX_RATES
+    : undefined,
+  isError: false,
+}));
+jest.mock("../money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => mockUseFxSnapshot(enabled),
+}));
+
+jest.mock("../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
 import { GuidedSetup } from "./guided-setup";
 import { isOnboarded } from "./use-onboarded";
 import { getSetupProgress, setSetupProgress } from "./setup-progress";
@@ -527,5 +546,47 @@ describe("GuidedSetup, guided first setup (EPIC-023 H3)", () => {
 
     await user.click(screen.getByRole("button", { name: "Lewati Setup" }));
     await waitFor(() => expect(openerButton).toHaveFocus());
+  });
+
+  /** Task 10b — revisi I multi-currency: the account-balance step gains a
+   * currency picker; budget/transaction stay IDR-default and untouched. */
+  it("revisi I — a USD opening balance posts the preview + fxInputs; budget and transaction stay IDR", async () => {
+    const user = userEvent.setup({ delay: null });
+    render(<GuidedSetup open onClose={jest.fn()} />);
+
+    // Step 1 — account, but pick USD before typing the balance.
+    await screen.findByText("Tambahkan rekening pertamamu");
+    await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
+    await user.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await user.type(screen.getByLabelText("Saldo Saat Ini"), "100");
+    await user.click(
+      screen.getByRole("button", {
+        name: "Tambah Rekening & Lihat Kekayaan Bersih",
+      }),
+    );
+
+    await screen.findByText("Lihat, kekayaan bersihmu langsung muncul");
+    const account = mockApiFetch.mock.calls.find(
+      ([url, opts]) =>
+        String(url).endsWith("/accounts") && opts?.method === "POST",
+    );
+    expect(JSON.parse(String(account![1]!.body))).toMatchObject({
+      balance: 1_791_390,
+      fxInputs: [{ field: "balance", currency: "USD", amount: "100" }],
+    });
+    await user.click(screen.getByRole("button", { name: "Lanjut" }));
+
+    // Step 2 — budget stays IDR (no currency picked): no fxInputs.
+    await screen.findByText("Buat anggaran pertamamu");
+    await user.type(screen.getByLabelText("Nama Kategori"), "Makan & Minum");
+    await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
+    await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
+
+    await screen.findByText("Anggaran siap, 0% terpakai");
+    const budget = mockApiFetch.mock.calls.find(
+      ([url, opts]) =>
+        String(url).endsWith("/budgets") && opts?.method === "POST",
+    );
+    expect(JSON.parse(String(budget![1]!.body))).not.toHaveProperty("fxInputs");
   });
 });

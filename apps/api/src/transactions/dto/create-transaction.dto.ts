@@ -12,6 +12,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class CreateTransactionDto {
   @ApiProperty({ type: String, description: "Account UUID" })
   @IsUUID()
@@ -76,4 +78,7 @@ export class CreateTransactionDto {
   // these fields; only `LiabilitiesService.pay()`/`purchase()` and
   // `InsurancesService.pay()` are allowed to set them, writing directly via
   // Prisma inside their own transaction, never from client input.
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

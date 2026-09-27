@@ -27,8 +27,10 @@ import { memoryStorage } from "multer";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
-
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
 /* eslint-disable @typescript-eslint/consistent-type-imports */
+import { FxInputService } from "../fx/fx-input.service";
+
 import {
   AssetAttachmentsService,
   MAX_ASSET_ATTACHMENT_BYTES,
@@ -53,6 +55,7 @@ export class AssetsController {
   constructor(
     private readonly assetsService: AssetsService,
     private readonly attachments: AssetAttachmentsService,
+    private readonly fxInputs: FxInputService,
   ) {}
 
   @Get()
@@ -73,7 +76,17 @@ export class AssetsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Body() dto: CreateAssetDto,
   ): Promise<AssetResponseDto> {
-    return this.assetsService.create(req.params.familyGroupId, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Asset",
+        dto,
+        spec: FX_FIELD_SPECS.asset,
+      },
+      (converted) =>
+        this.assetsService.create(req.params.familyGroupId, converted),
+    );
   }
 
   @Patch(":id")
@@ -85,7 +98,18 @@ export class AssetsController {
     @Param("id") id: string,
     @Body() dto: UpdateAssetDto,
   ): Promise<AssetResponseDto> {
-    return this.assetsService.update(req.params.familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Asset",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.asset,
+      },
+      (converted) =>
+        this.assetsService.update(req.params.familyGroupId, id, converted),
+    );
   }
 
   @Delete(":id")
@@ -109,11 +133,23 @@ export class AssetsController {
     @Param("id") id: string,
     @Body() dto: RecordAssetValueDto,
   ): Promise<AssetHistoryResponseDto> {
-    return this.assetsService.recordValue(
-      req.params.familyGroupId,
-      id,
-      dto,
-      req.tenantContext?.userId ?? null,
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Asset",
+        entityId: id,
+        fieldPrefix: "history",
+        dto,
+        spec: FX_FIELD_SPECS.assetHistory,
+      },
+      (converted) =>
+        this.assetsService.recordValue(
+          req.params.familyGroupId,
+          id,
+          converted,
+          req.tenantContext?.userId ?? null,
+        ),
     );
   }
 

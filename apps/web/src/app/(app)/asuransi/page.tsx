@@ -21,34 +21,50 @@ import { StatusBadge, SectionCard, DateField } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { ConfirmDeleteDialog } from "@/components/crud";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  MoneyInput,
+  anyMoneyPending,
+  moneyDigits,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 
 import type {
   CreateInsuranceBeneficiaryDto,
   CreateInsuranceDto,
+  FxInput,
   InsuranceDto,
   InsuranceSummaryDto,
   InsuranceType,
   InsuranceStatus,
   MemberRelationship,
   PremiumPeriod,
+  Role,
   UpdateInsuranceDto,
 } from "@wealthme/contracts";
+
+type CreateInsuranceDtoWithFx = CreateInsuranceDto & { fxInputs?: FxInput[] };
 
 // EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
 // the optional "link a beneficiary to a family member" picker. EPIC-023 F1
 // (D14) added `relationship` so selecting a member can live-fill it too —
 // the API's response DTO already carries it (member-response.dto.ts).
+// Revisi K bug 1 — `role` distinguishes the owner (Master), whose
+// `relationship` is always null (not a kinship value), from a member whose
+// relationship is simply unset.
 type FamilyMember = {
   id: string;
   userId: string;
   name: string;
   relationship: MemberRelationship | null;
+  role: Role;
 };
 
 const INSURANCE_TYPE_ICON: Record<string, string> = {
@@ -98,12 +114,18 @@ const STATUS_OPTIONS: InsuranceStatus[] = [
 
 const PERIOD_OPTIONS: PremiumPeriod[] = ["monthly", "quarterly", "yearly"];
 
+// Batch 5 item 5 — `toLocaleDateString` without an explicit `timeZone`
+// resolves the runtime's local zone, which differs between the Node SSR
+// pass and the browser's own zone: a genuine hydration-mismatch source.
+// Pinning `timeZone: "UTC"` matches the fix already established for the
+// same class of bug in `money-format.ts`'s `formatRateDate`.
 function formatLocaleDate(iso: string | null, locale: Locale): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: "UTC",
   });
 }
 
@@ -114,6 +136,19 @@ function renewalBadgeVariant(
   if (days <= 7) return "danger";
   if (days <= 30) return "warning";
   return "success";
+}
+
+// Batch 4 item 1 — a negative `daysUntilRenewal` is a real, legitimate value
+// (daysUntil() in insurances.service.ts), but the badge/banner had no branch
+// for it and rendered e.g. "-16 hari" instead of a real overdue label.
+function daysUntilRenewalLabel(
+  days: number,
+  t: ReturnType<typeof useLocale>["t"]["asuransi"],
+  notDueSuffix: string = t.daysUntilRenewalSuffix,
+): string {
+  return days < 0
+    ? `${t.daysOverduePrefix} ${Math.abs(days)} ${t.daysUntilRenewalSuffix}`
+    : `${days} ${notDueSuffix}`;
 }
 
 function PolicyCardSkeleton() {
@@ -222,7 +257,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
                 </div>
                 {item.daysUntilRenewal !== null && (
                   <StatusBadge variant={renewalVariant} className="text-[10px]">
-                    {item.daysUntilRenewal} {t.asuransi.daysUntilRenewalSuffix}
+                    {daysUntilRenewalLabel(item.daysUntilRenewal, t.asuransi)}
                   </StatusBadge>
                 )}
               </div>
@@ -259,7 +294,16 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
             disabled={item.paidThisPeriod}
             title={
               item.paidThisPeriod
-                ? item.renewalDate && new Date(item.renewalDate) > new Date()
+                ? // Batch 5 item 5 — `new Date() > new Date()` read the
+                  // clock twice during render (non-deterministic, and a
+                  // second hydration-mismatch source alongside the date
+                  // formatting above). The server already computes
+                  // `daysUntilRenewal`; a non-negative value means the
+                  // renewal date is today or still ahead, same as the
+                  // `> new Date()` check it replaces.
+                  item.renewalDate &&
+                  item.daysUntilRenewal !== null &&
+                  item.daysUntilRenewal >= 0
                   ? `${t.asuransi.payNextDueTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
                   : t.asuransi.payAlreadyPaidTooltip
                 : undefined
@@ -330,6 +374,11 @@ interface BeneficiaryEditorProps {
   // so this note tells the user WHY the picker is unavailable instead of
   // just hiding it.
   membersUnavailable?: boolean;
+  /** polish-j batch 7a item 9 — the add-policy form wraps this in an
+   * "Ahli waris (opsional)" disclosure, whose own summary already names
+   * the section; suppress the inner heading there to avoid saying it
+   * twice. Defaults to shown (standalone edit-policy usage). */
+  showSectionTitle?: boolean;
 }
 
 /** Shared allocation-bar + row editor, mirroring warisan's heir editor UX. */
@@ -338,6 +387,7 @@ function BeneficiaryEditor({
   onChange,
   familyMembers,
   membersUnavailable,
+  showSectionTitle = true,
 }: BeneficiaryEditorProps) {
   const { t } = useLocale();
   const allocated = Math.min(100, totalAllocated(rows));
@@ -355,9 +405,11 @@ function BeneficiaryEditor({
           Persentase (%). The prototype models one beneficiary per dialog; the
           app edits all of a policy's beneficiaries inline, so the block
           repeats per row with its own remove action. */}
-      <div className="section-title mt-[18px] mb-2 text-[14px]">
-        {t.asuransi.beneficiariesSectionTitle}
-      </div>
+      {showSectionTitle && (
+        <div className="section-title mt-[18px] mb-2 text-[14px]">
+          {t.asuransi.beneficiariesSectionTitle}
+        </div>
+      )}
       <div className="space-y-2.5">
         {rows.map((row) => {
           // EPIC-023 F1 (D14) — once linked, name/relationship are
@@ -397,12 +449,21 @@ function BeneficiaryEditor({
                     // Live-fill on selection; the API re-resolves from the
                     // CURRENT member record on every subsequent read
                     // regardless of what is stored here (see comment above).
+                    // Revisi K bug 1 — the owner's `relationship` is always
+                    // null (not a kinship value); default it to "Diri
+                    // sendiri" instead of leaving the (now-editable) field
+                    // blank, which used to fail the API's @IsNotEmpty()
+                    // check on save.
                     updateRow(row.id, {
                       memberUserId,
                       ...(picked
                         ? {
                             name: picked.name,
-                            relationship: picked.relationship ?? "",
+                            relationship:
+                              picked.relationship ??
+                              (picked.role === "owner"
+                                ? t.asuransi.beneficiaryRelationshipSelfDefault
+                                : ""),
                           }
                         : {}),
                     });
@@ -457,12 +518,17 @@ function BeneficiaryEditor({
                   <input
                     id={`beneficiary-relationship-${row.id}`}
                     type="text"
+                    // Revisi K bug 1 — only LOCK the field when the linked
+                    // member actually HAS a relationship; a null one (the
+                    // owner, an operational member) leaves it editable with
+                    // the row's own (possibly defaulted) value instead of
+                    // forcing it blank.
                     value={
-                      linkedMember
-                        ? (linkedMember.relationship ?? "")
+                      linkedMember?.relationship
+                        ? linkedMember.relationship
                         : row.relationship
                     }
-                    disabled={!!linkedMember}
+                    disabled={!!linkedMember?.relationship}
                     onChange={(e) =>
                       updateRow(row.id, { relationship: e.target.value })
                     }
@@ -575,17 +641,19 @@ function InsuranceModal({
   const [status, setStatus] = useState<InsuranceStatus>(
     editing?.status ?? "aktif",
   );
-  const [premiumAmount, setPremiumAmount] = useState(
-    editing ? String(Number(BigInt(editing.premiumAmount))) : "",
-  );
+  const premiumField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.premiumAmount).toString() : "",
+    isEdit: !!editing,
+  });
   const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>(
     editing?.premiumPeriod ?? "monthly",
   );
-  const [coverageAmount, setCoverageAmount] = useState(
-    editing?.coverageAmount
-      ? String(Number(BigInt(editing.coverageAmount)))
+  const coverageField = useMoneyField({
+    initialRaw: editing?.coverageAmount
+      ? BigInt(editing.coverageAmount).toString()
       : "",
-  );
+    isEdit: !!editing,
+  });
   const [renewalDate, setRenewalDate] = useState(
     editing?.renewalDate ? editing.renewalDate.slice(0, 10) : "",
   );
@@ -605,7 +673,11 @@ function InsuranceModal({
   );
 
   const mutation = useMutation({
-    mutationFn: (dto: CreateInsuranceDto | UpdateInsuranceDto) =>
+    mutationFn: (
+      dto:
+        | CreateInsuranceDtoWithFx
+        | (UpdateInsuranceDto & { fxInputs?: FxInput[] }),
+    ) =>
       editing
         ? apiFetch<InsuranceDto>(
             `/family-groups/${familyGroupId}/insurances/${editing.id}`,
@@ -653,7 +725,11 @@ function InsuranceModal({
       toast.warning(t.asuransi.validationNameRequired);
       return;
     }
-    const parsedPremium = parseRupiah(premiumAmount);
+    if (anyMoneyPending(premiumField, coverageField)) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const parsedPremium = Number(moneyDigits(premiumField) || "0");
     if (parsedPremium <= 0) {
       toast.warning(t.asuransi.validationPremiumPositive);
       return;
@@ -699,15 +775,15 @@ function InsuranceModal({
       );
     }
 
-    const dto: CreateInsuranceDto = {
+    const dto: CreateInsuranceDtoWithFx = {
       name: trimmedName,
       type,
       status,
       premiumAmount: String(parsedPremium),
       premiumPeriod,
       ...(provider.trim() && { provider: provider.trim() }),
-      ...(coverageAmount && {
-        coverageAmount: String(parseRupiah(coverageAmount)),
+      ...(coverageField.raw && {
+        coverageAmount: moneyDigits(coverageField),
       }),
       ...(renewalDate && { renewalDate, autoRenewDate }),
       ...(policyNumber.trim() && { policyNumber: policyNumber.trim() }),
@@ -715,7 +791,12 @@ function InsuranceModal({
       beneficiaries: beneficiaryDtos,
     };
 
-    mutation.mutate(dto);
+    mutation.mutate(
+      withFxInputs(dto, [
+        ["premiumAmount", premiumField],
+        ["coverageAmount", coverageField.raw ? coverageField : null],
+      ]),
+    );
   }
 
   return (
@@ -803,16 +884,10 @@ function InsuranceModal({
               <label className="label" htmlFor="ins-premium">
                 {t.asuransi.fieldPremiumLabel}
               </label>
-              <input
+              <MoneyInput
+                field={premiumField}
                 id="ins-premium"
-                type="text"
-                inputMode="numeric"
-                value={premiumAmount}
-                onChange={(e) =>
-                  setPremiumAmount(formatAmountInput(e.target.value))
-                }
                 placeholder="0"
-                className="input mono"
               />
             </div>
             <div className="field mt-0">
@@ -841,16 +916,10 @@ function InsuranceModal({
               <label className="label" htmlFor="ins-coverage">
                 {t.asuransi.fieldCoverageLabel}
               </label>
-              <input
+              <MoneyInput
+                field={coverageField}
                 id="ins-coverage"
-                type="text"
-                inputMode="numeric"
-                value={coverageAmount}
-                onChange={(e) =>
-                  setCoverageAmount(formatAmountInput(e.target.value))
-                }
                 placeholder="0"
-                className="input mono"
               />
             </div>
             <div className="field mt-0">
@@ -869,7 +938,7 @@ function InsuranceModal({
 
           <div className="field">
             <label className="label" htmlFor="ins-policy-number">
-              {t.asuransi.policyNumberLabel}
+              {t.asuransi.fieldPolicyNumberLabel}
             </label>
             <input
               id="ins-policy-number"
@@ -913,12 +982,22 @@ function InsuranceModal({
             />
           </div>
 
-          <BeneficiaryEditor
-            rows={beneficiaries}
-            onChange={setBeneficiaries}
-            familyMembers={familyMembers}
-            membersUnavailable={membersUnavailable}
-          />
+          {/* polish-j batch 7a item 9 — beneficiaries are optional and were
+              bloating the add form open by default; collapsed behind a
+              disclosure so the required fields above are what's visible
+              first. */}
+          <AdvancedDisclosure
+            label={t.asuransi.beneficiariesOptionalLabel}
+            defaultOpen={beneficiaries.length > 0}
+          >
+            <BeneficiaryEditor
+              rows={beneficiaries}
+              onChange={setBeneficiaries}
+              familyMembers={familyMembers}
+              membersUnavailable={membersUnavailable}
+              showSectionTitle={false}
+            />
+          </AdvancedDisclosure>
         </DialogBody>
 
         <DialogFooter>
@@ -1446,12 +1525,12 @@ export default function AsuransiPage() {
           </h1>
           <div className="mt-1 text-xs text-muted-foreground">
             {activePolicies} {t.asuransi.activePoliciesSuffix}
-            {" · "}
+            {", "}
             {t.asuransi.totalPremiumPrefix} {totalMonthlyPremium}
             {t.asuransi.periodSuffixLabels.monthly}
             {totalCoverageAktif > BigInt(0) && (
               <>
-                {" · "}
+                {", "}
                 {t.asuransi.totalCoveragePrefix}{" "}
                 {formatRupiah(Number(totalCoverageAktif))}
               </>
@@ -1529,8 +1608,13 @@ export default function AsuransiPage() {
             <strong>{nearestRenewal.name}</strong>{" "}
             {t.asuransi.renewalWarningSuffix}{" "}
             {formatLocaleDate(nearestRenewal.renewalDate, locale)} ·{" "}
-            {nearestRenewal.daysUntilRenewal}{" "}
-            {t.asuransi.renewalWarningDaysLeftSuffix}.
+            {daysUntilRenewalLabel(
+              // filtered by `daysUntilRenewal !== null` above.
+              nearestRenewal.daysUntilRenewal!,
+              t.asuransi,
+              t.asuransi.renewalWarningDaysLeftSuffix,
+            )}
+            .
           </span>
         </div>
       )}

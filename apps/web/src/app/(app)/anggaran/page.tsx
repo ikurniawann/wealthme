@@ -16,12 +16,13 @@ import { toast } from "sonner";
 import {
   SectionCard,
   CardLink,
-  EmojiPicker,
   HeroCard,
   AnimatedProgress,
   Rise,
   StatusBadge,
 } from "@/components/wm";
+import { IconPickerField } from "@/components/crud/icon-picker-field";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import {
   Dialog,
   DialogBody,
@@ -35,9 +36,15 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyIdr,
+  withFxInputs,
+} from "@/components/money";
 
 import type {
   BudgetDto,
@@ -49,6 +56,7 @@ import type {
   LiabilityType,
   InsuranceDto,
   InsuranceType,
+  FxInput,
 } from "@wealthme/contracts";
 import type { Locale } from "@/i18n";
 
@@ -439,9 +447,14 @@ function toObligations(
       // byte-identical to the amount the pay mutation POSTS
       // (`String(Math.trunc(obligation.amountDue))`) instead of the two
       // computing the truncation independently and drifting apart.
-      amountDue: Math.trunc(Number(l.minimumPayment)),
+      amountDue: Math.trunc(
+        Number(l.currentInstallmentAmount ?? l.minimumPayment),
+      ),
       paidThisPeriod: l.paidThisPeriod,
-      dueDate: l.dueDate,
+      // fix-round1 (Minor) — `dueDate` is the legacy manual field the KPR
+      // form never sets; `nextDueDate` (same anchor rule /liabilitas uses)
+      // is the real "next due" value when present.
+      dueDate: l.nextDueDate ?? l.dueDate,
       icon: LIABILITY_ICONS[l.type] ?? "📄",
     }));
   const fromInsurances: Obligation[] = insurances
@@ -805,12 +818,12 @@ export default function AnggaranPage() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(ICON_OPTIONS[0] ?? "🎓");
-  const [amount, setAmount] = useState("");
+  const amountField = useMoneyField();
   const [period, setPeriod] = useState<BudgetPeriod>("monthly");
   // EPIC-022 C2 — the API already exposed PATCH/DELETE for a budget;
   // `editing`/`deletingBudget` drive the two dialogs that finally reach them.
   const [editing, setEditing] = useState<BudgetDto | null>(null);
-  const [editAmount, setEditAmount] = useState("");
+  const editField = useMoneyField({ isEdit: true });
   const [editPeriod, setEditPeriod] = useState<BudgetPeriod>("monthly");
   const [deletingBudget, setDeletingBudget] = useState<BudgetDto | null>(null);
   // A budget has no fields of its own beyond amount + period: the icon, the
@@ -908,6 +921,7 @@ export default function AnggaranPage() {
       coaAccountId: string;
       isPrivate: boolean;
       existingCategoryId: string;
+      fxInputs?: FxInput[];
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
 
@@ -963,6 +977,7 @@ export default function AnggaranPage() {
         categoryId,
         period: payload.period,
         limitAmount: payload.limitAmount,
+        ...(payload.fxInputs ? { fxInputs: payload.fxInputs } : {}),
       };
       return apiFetch<BudgetDto>(`/family-groups/${familyGroupId}/budgets`, {
         method: "POST",
@@ -997,11 +1012,13 @@ export default function AnggaranPage() {
       id: string;
       limitAmount: number;
       period: BudgetPeriod;
+      fxInputs?: FxInput[];
     }) => {
       if (!familyGroupId) throw new Error("familyGroupId missing");
       const dto: UpdateBudgetDto = {
         limitAmount: payload.limitAmount,
         period: payload.period,
+        ...(payload.fxInputs ? { fxInputs: payload.fxInputs } : {}),
       };
       return apiFetch<BudgetDto>(
         `/family-groups/${familyGroupId}/budgets/${payload.id}`,
@@ -1025,22 +1042,28 @@ export default function AnggaranPage() {
 
   function openEdit(budget: BudgetDto) {
     setEditing(budget);
-    setEditAmount(formatAmountInput(String(budget.limitAmount)));
+    editField.reset(String(budget.limitAmount));
     setEditPeriod(budget.period);
   }
 
   function handleSaveEdit() {
     if (!editing) return;
-    const limitAmount = parseRupiah(editAmount);
+    if (editField.resolved.isPending) return;
+    const limitAmount = moneyIdr(editField, parseRupiah);
     if (limitAmount <= 0) {
       toast.warning(t.anggaran.toastAmountInvalid);
       return;
     }
-    updateMutation.mutate({
-      id: editing.id,
-      limitAmount,
-      period: editPeriod,
-    });
+    updateMutation.mutate(
+      withFxInputs(
+        {
+          id: editing.id,
+          limitAmount,
+          period: editPeriod,
+        },
+        [["limitAmount", editField]],
+      ),
+    );
   }
 
   async function handleDeleteBudget() {
@@ -1065,7 +1088,7 @@ export default function AnggaranPage() {
   function resetForm() {
     setName("");
     setIcon(ICON_OPTIONS[0] ?? "🎓");
-    setAmount("");
+    amountField.reset();
     setPeriod("monthly");
     setKind("expense");
     setCoaAccountId("");
@@ -1085,7 +1108,7 @@ export default function AnggaranPage() {
       toast.warning(t.anggaran.toastNameRequired);
       return;
     }
-    const limitAmount = parseRupiah(amount);
+    const limitAmount = moneyIdr(amountField, parseRupiah);
     if (limitAmount <= 0) {
       toast.warning(t.anggaran.toastAmountInvalid);
       return;
@@ -1094,16 +1117,22 @@ export default function AnggaranPage() {
       toast.error(t.anggaran.toastNoFamilyGroup);
       return;
     }
-    createMutation.mutate({
-      name: name.trim(),
-      icon,
-      limitAmount,
-      period,
-      kind,
-      coaAccountId,
-      isPrivate,
-      existingCategoryId,
-    });
+    if (amountField.resolved.isPending) return;
+    createMutation.mutate(
+      withFxInputs(
+        {
+          name: name.trim(),
+          icon,
+          limitAmount,
+          period,
+          kind,
+          coaAccountId,
+          isPrivate,
+          existingCategoryId,
+        },
+        [["limitAmount", amountField]],
+      ),
+    );
   }
 
   const totalLimit = budgets?.reduce((s, b) => s + b.limitAmount, 0) ?? 0;
@@ -1388,6 +1417,10 @@ export default function AnggaranPage() {
           <DialogTitle>{t.anggaran.modalAddTitle}</DialogTitle>
           <DialogDescription>{t.anggaran.modalAddDesc}</DialogDescription>
           <DialogBody>
+            {/* polish-j batch 7a item 2 — Budget (this dialog's actual
+                point) now leads; Tipe/COA/Privat/Ikon collapse under "Opsi
+                lanjutan" for the owner flow, since a default (expense, auto
+                COA, not private) already covers most budgets. */}
             {/* F3 fix — a member can "manage Budget" but only "read
                 Category": the create-a-category fields below would 403 on
                 submit, so a member instead picks an existing category of
@@ -1407,72 +1440,6 @@ export default function AnggaranPage() {
                 />
               </div>
             )}
-            {/* The fixed 8-emoji grid that used to live here is gone: a
-                category whose icon is a boat or a violin was simply not
-                expressible. Same component the master-data category dialog
-                uses, so the two no longer disagree about what an icon is. */}
-            {canManageCategory !== false && (
-              <EmojiPicker
-                label={t.anggaran.iconLabel}
-                value={icon}
-                onChange={setIcon}
-                searchPlaceholder={t.common.emojiSearchPlaceholder}
-                noResultsLabel={t.common.emojiNoResults}
-                loadingLabel={t.common.emojiLoading}
-                ariaLabel={t.anggaran.iconGroupAriaLabel}
-              />
-            )}
-            {/* The category half of the form. These were previously decided
-                for the user — always `expense`, always the server's default
-                COA account, never private — even though the budget's whole
-                identity comes from the category it creates. */}
-            <div
-              className={
-                canManageCategory !== false ? "field field-row" : "field"
-              }
-            >
-              <div className="field mt-0">
-                <label className="label" htmlFor="budget-kind">
-                  {t.anggaran.fieldKindLabel}
-                </label>
-                <select
-                  id="budget-kind"
-                  value={kind}
-                  onChange={(e) => {
-                    setKind(e.target.value as "income" | "expense");
-                    // The previously chosen account/category may not be
-                    // offered for the new kind; fall back rather than
-                    // silently submitting a value no longer in the list.
-                    setCoaAccountId("");
-                    setExistingCategoryId("");
-                  }}
-                  className="select"
-                >
-                  <option value="expense">{t.common.expense}</option>
-                  <option value="income">{t.common.income}</option>
-                </select>
-              </div>
-              {canManageCategory !== false && (
-                <div className="field mt-0">
-                  <label className="label" htmlFor="budget-coa">
-                    {t.anggaran.fieldCoaLabel}
-                  </label>
-                  <select
-                    id="budget-coa"
-                    value={coaAccountId}
-                    onChange={(e) => setCoaAccountId(e.target.value)}
-                    className="select"
-                  >
-                    <option value="">{t.anggaran.coaAutoOptionLabel}</option>
-                    {selectableCoaAccounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.code} · {a.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
             {canManageCategory === false && (
               <div className="field">
                 <label className="label" htmlFor="budget-existing-category">
@@ -1500,41 +1467,14 @@ export default function AnggaranPage() {
                 )}
               </div>
             )}
-            {canManageCategory !== false && (
-              <div className="field">
-                <div className="row items-center justify-between gap-3">
-                  <div>
-                    <span className="label">
-                      {t.anggaran.fieldPrivateLabel}
-                    </span>
-                    <span className="hint block">
-                      {t.anggaran.fieldPrivateHint}
-                    </span>
-                  </div>
-                  <Switch
-                    checked={isPrivate}
-                    onCheckedChange={setIsPrivate}
-                    aria-label={t.anggaran.fieldPrivateLabel}
-                  />
-                </div>
-              </div>
-            )}
             {/* EPIC-026 Wave 4 — prototype puts amount + periode side by
                 side in a `field-row` (anggaran.html:410). */}
-            <div className="field field-row">
+            <div className="field field-row mt-3">
               <div className="field mt-0">
                 <label className="label" htmlFor="budget-amount">
                   {t.anggaran.fieldAmountLabel}
                 </label>
-                <input
-                  id="budget-amount"
-                  type="text"
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-                  placeholder="0"
-                  className="input mono"
-                />
+                <MoneyInput field={amountField} id="budget-amount" />
               </div>
               <div className="field mt-0">
                 <label className="label" htmlFor="budget-period">
@@ -1558,6 +1498,91 @@ export default function AnggaranPage() {
                 </select>
               </div>
             </div>
+            {canManageCategory !== false && (
+              <AdvancedDisclosure label={t.common.advancedOptions}>
+                {/* The category half of the form. These were previously
+                    decided for the user — always `expense`, always the
+                    server's default COA account, never private — even
+                    though the budget's whole identity comes from the
+                    category it creates. */}
+                <div className="field field-row mt-0">
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="budget-kind">
+                      {t.anggaran.fieldKindLabel}
+                    </label>
+                    <select
+                      id="budget-kind"
+                      value={kind}
+                      onChange={(e) => {
+                        setKind(e.target.value as "income" | "expense");
+                        // The previously chosen account/category may not be
+                        // offered for the new kind; fall back rather than
+                        // silently submitting a value no longer in the list.
+                        setCoaAccountId("");
+                        setExistingCategoryId("");
+                      }}
+                      className="select"
+                    >
+                      <option value="expense">{t.common.expense}</option>
+                      <option value="income">{t.common.income}</option>
+                    </select>
+                  </div>
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="budget-coa">
+                      {t.anggaran.fieldCoaLabel}
+                    </label>
+                    <select
+                      id="budget-coa"
+                      value={coaAccountId}
+                      onChange={(e) => setCoaAccountId(e.target.value)}
+                      className="select"
+                    >
+                      <option value="">{t.anggaran.coaAutoOptionLabel}</option>
+                      {selectableCoaAccounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.code} · {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="field mt-0">
+                  {/* polish-j batch 6 item 2 — switch first (left), label +
+                      hint after (right), matching crud-modal.tsx's toggle
+                      branch and every other visibility toggle in the app. */}
+                  <div className="row mt-0 gap-[9px]">
+                    <Switch
+                      checked={isPrivate}
+                      onCheckedChange={setIsPrivate}
+                      aria-label={t.anggaran.fieldPrivateLabel}
+                    />
+                    <span>
+                      <span className="label">
+                        {t.anggaran.fieldPrivateLabel}
+                      </span>
+                      <span className="hint block">
+                        {t.anggaran.fieldPrivateHint}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                {/* The fixed 8-emoji grid that used to live here is gone: a
+                    category whose icon is a boat or a violin was simply not
+                    expressible. Same component the master-data category
+                    dialog uses, so the two no longer disagree about what an
+                    icon is; batch 7a item 1 collapses it behind a 40px
+                    trigger button instead of an always-open grid. */}
+                <IconPickerField
+                  label={t.anggaran.iconLabel}
+                  value={icon}
+                  onChange={setIcon}
+                  searchPlaceholder={t.common.emojiSearchPlaceholder}
+                  noResultsLabel={t.common.emojiNoResults}
+                  loadingLabel={t.common.emojiLoading}
+                  ariaLabel={t.anggaran.iconGroupAriaLabel}
+                />
+              </AdvancedDisclosure>
+            )}
           </DialogBody>
           {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
               Simpan side by side (anggaran.html:444), not a single
@@ -1566,7 +1591,12 @@ export default function AnggaranPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t.common.cancel}
             </Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending}>
+            <Button
+              onClick={handleSave}
+              disabled={
+                createMutation.isPending || amountField.resolved.isPending
+              }
+            >
               <Save className="size-[14px]" />
               {createMutation.isPending
                 ? t.anggaran.savingLabel
@@ -1604,17 +1634,7 @@ export default function AnggaranPage() {
                   <label className="label" htmlFor="budget-edit-amount">
                     {t.anggaran.fieldAmountLabel}
                   </label>
-                  <input
-                    id="budget-edit-amount"
-                    type="text"
-                    inputMode="numeric"
-                    value={editAmount}
-                    onChange={(e) =>
-                      setEditAmount(formatAmountInput(e.target.value))
-                    }
-                    placeholder="0"
-                    className="input mono"
-                  />
+                  <MoneyInput field={editField} id="budget-edit-amount" />
                 </div>
                 <div className="field mt-0">
                   <label className="label" htmlFor="budget-edit-period">
@@ -1648,7 +1668,9 @@ export default function AnggaranPage() {
             </Button>
             <Button
               onClick={handleSaveEdit}
-              disabled={updateMutation.isPending}
+              disabled={
+                updateMutation.isPending || editField.resolved.isPending
+              }
             >
               <Save className="size-[14px]" />
               {updateMutation.isPending

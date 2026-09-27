@@ -4,7 +4,6 @@ import { Type } from "class-transformer";
 import {
   IsEnum,
   IsInt,
-  IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
@@ -12,18 +11,21 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 import { CreateHeirDto } from "./create-heir.dto";
 
 export class CreateInheritanceAssetDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(200)
   name!: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   assetType!: string;
 
@@ -61,4 +63,7 @@ export class CreateInheritanceAssetDto {
   @ValidateNested({ each: true })
   @Type(() => CreateHeirDto)
   heirs?: CreateHeirDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

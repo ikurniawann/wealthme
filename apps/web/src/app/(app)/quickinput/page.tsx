@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import {
   CrudModal,
+  withCrudFx,
   type CrudEntity,
   type CrudModalState,
 } from "@/components/crud";
@@ -207,25 +208,33 @@ function buildRequest(
       return {
         path: "accounts",
         queryKey: "accounts",
-        body: {
-          type: "bank",
-          name: v.nama || `${v.bank ?? "Bank"} ${v.jenis ?? ""}`.trim(),
-          institution: v.bank,
-          maskedNumber: v.norek || undefined,
-          balance: parseRupiah(v.saldo ?? "0"),
-        },
+        body: withCrudFx(
+          {
+            type: "bank",
+            name: v.nama || `${v.bank ?? "Bank"} ${v.jenis ?? ""}`.trim(),
+            institution: v.bank,
+            maskedNumber: v.norek || undefined,
+            balance: parseRupiah(v.saldo ?? "0"),
+          },
+          v,
+          { saldo: "balance" },
+        ),
       };
     case "ewallet":
       return {
         path: "accounts",
         queryKey: "accounts",
-        body: {
-          type: "ewallet",
-          name: v.nama,
-          institution: v.nama,
-          maskedNumber: v.phone || undefined,
-          balance: parseRupiah(v.saldo ?? "0"),
-        },
+        body: withCrudFx(
+          {
+            type: "ewallet",
+            name: v.nama,
+            institution: v.nama,
+            maskedNumber: v.phone || undefined,
+            balance: parseRupiah(v.saldo ?? "0"),
+          },
+          v,
+          { saldo: "balance" },
+        ),
       };
     // "investasi" intentionally has no case here — EPIC-024 C4 routes that
     // quick-input card straight to `/investasi`'s real, type-aware form
@@ -235,45 +244,76 @@ function buildRequest(
       return {
         path: "assets",
         queryKey: "assets",
-        body: {
-          name: v.nama,
-          type: ASSET_TYPE[v.kategori ?? ""] ?? "lainnya",
-          currentValue: String(parseRupiah(v.nilai ?? "0")),
-          notes: v.dokumen || undefined,
-        },
+        body: withCrudFx(
+          {
+            name: v.nama,
+            type: ASSET_TYPE[v.kategori ?? ""] ?? "lainnya",
+            currentValue: String(parseRupiah(v.nilai ?? "0")),
+            notes: v.dokumen || undefined,
+          },
+          v,
+          { nilai: "currentValue" },
+        ),
       };
     case "liabilitas": {
       const total = String(parseRupiah(v.total ?? "0"));
       return {
         path: "liabilities",
         queryKey: "liabilities",
-        body: {
-          name: v.nama,
-          type: LIABILITY_TYPE[v.jenis ?? ""] ?? "lainnya",
-          totalDebt: total,
-          remainingBalance: total,
-          minimumPayment: v.cicilan
-            ? String(parseRupiah(v.cicilan))
-            : undefined,
-        },
+        body: withCrudFx(
+          {
+            name: v.nama,
+            type: LIABILITY_TYPE[v.jenis ?? ""] ?? "lainnya",
+            totalDebt: total,
+            remainingBalance: total,
+            minimumPayment: v.cicilan
+              ? String(parseRupiah(v.cicilan))
+              : undefined,
+          },
+          v,
+          {
+            total: ["totalDebt", "remainingBalance"],
+            cicilan: "minimumPayment",
+          },
+        ),
       };
     }
     case "asuransi":
       return {
         path: "insurances",
         queryKey: "insurances",
-        body: {
-          name: v.nama,
-          type: INSURANCE_TYPE[v.jenis ?? ""] ?? "lainnya",
-          premiumAmount: String(parseRupiah(v.premi ?? "0")),
-          coverageAmount: v.pertanggungan
-            ? String(parseRupiah(v.pertanggungan))
-            : undefined,
-          renewalDate: v.jatuhtempo || undefined,
-        },
+        body: withCrudFx(
+          {
+            name: v.nama,
+            type: INSURANCE_TYPE[v.jenis ?? ""] ?? "lainnya",
+            premiumAmount: String(parseRupiah(v.premi ?? "0")),
+            coverageAmount: v.pertanggungan
+              ? String(parseRupiah(v.pertanggungan))
+              : undefined,
+            renewalDate: v.jatuhtempo || undefined,
+          },
+          v,
+          { premi: "premiumAmount", pertanggungan: "coverageAmount" },
+        ),
       };
     case "tujuan":
-      return { path: "goals", queryKey: "goals", body: buildGoalBody(v) };
+      // Fix pre-existing double encoding — `buildGoalBody` already returns
+      // a JSON string, and the single `handleSubmit` JSON.stringify below
+      // re-encodes it; parse back to an object so every branch here returns
+      // one, and wrap it so a foreign amount also gets `fxInputs`.
+      return {
+        path: "goals",
+        queryKey: "goals",
+        body: withCrudFx(
+          JSON.parse(buildGoalBody(v)) as Record<string, unknown>,
+          v,
+          {
+            target: "targetAmount",
+            terkumpul: "currentAmount",
+            autodebit: "autoDebitAmount",
+          },
+        ),
+      };
     default:
       return null;
   }

@@ -13,6 +13,7 @@ export const id = {
     emojiNoResults: "Ikon tidak ditemukan. Coba kata lain.",
     emojiLoading: "Memuat daftar ikon…",
     emojiGroupAriaLabel: "Ikon yang sering dipakai",
+    advancedOptions: "Opsi lanjutan",
     datePickerPlaceholder: "Pilih tanggal",
     datePickerYearLabel: "Tahun",
     datePickerClear: "Hapus tanggal",
@@ -153,7 +154,7 @@ export const id = {
       rekonsiliasi: "Rekonsiliasi Bank",
       ai: "AI Advisor",
       kalkulator: "Kalkulator",
-      quickinput: "Quick Input",
+      quickinput: "Input Cepat",
       mastercoa: "Master COA",
       masterdata: "Setup Master Data",
       iam: "IAM Roles",
@@ -202,7 +203,7 @@ export const id = {
       donation: "Donasi",
       tax: "Tax Center",
       persetujuan: "Persetujuan",
-      quickinput: "Quick Input",
+      quickinput: "Input Cepat",
       mastercoa: "Master COA",
       masterdata: "Setup Master Data",
       iam: "IAM Roles",
@@ -286,9 +287,8 @@ export const id = {
         "Data struk dimasukkan ke formulir, periksa lalu simpan.",
       scanHint:
         "Scan struk memakai kamera perangkat dan API key AI keluarga. Hasilnya mengisi formulir; transaksi baru tersimpan setelah kamu menekan Simpan.",
-      scanUnavailable:
-        "Scan struk butuh API key AI keluarga dari penyedia yang mendukung gambar.",
-      scanUnavailableLink: "Atur di Pengaturan",
+      scanUnavailable: "Butuh API key AI.",
+      scanUnavailableLink: "Atur",
       categoryUnmatched: "Tidak cocok dengan kategori keluarga",
       // Camera failures — each one needs its own fix, so each one gets its
       // own message (a denied permission must not look like a broken app).
@@ -357,8 +357,6 @@ export const id = {
       attachmentInvalidTypeToast:
         "Tipe file tidak didukung, hanya JPG, PNG, WEBP, atau PDF.",
       attachmentTooLargeToast: "Ukuran file melebihi 5MB.",
-      dialogDesc:
-        "Catat pemasukan, pengeluaran, transfer, atau belanja kartu kredit.",
       modeSwitchLabel: "Cara input",
       typeSwitchLabel: "Jenis transaksi",
     },
@@ -378,6 +376,20 @@ export const id = {
       noResultsFor: "Tidak ada hasil untuk",
       typeToSearchHint: "Ketik minimal 2 karakter untuk mencari",
     },
+  },
+  aksesSaya: {
+    eyebrowMaster: "Akun Master",
+    eyebrowDependant: "Akun Anak / Staff",
+    familyReportsUnlocked: "Terbuka",
+    familyReportsLocked: "Dikunci",
+    familyReportsUnlockedDescription:
+      "Laporan keluarga bisa dilihat karena akun ini Master atau Co-Master.",
+    familyReportsLockedDescription:
+      "Laporan keluarga hanya untuk Master dan Co-Master. Transaksimu sendiri tetap bisa dilihat di halaman Transaksi.",
+    familyReportsRowStatusUnlocked: "Diizinkan",
+    familyReportsRowNoteUnlocked:
+      "Master dan Co-Master bisa melihat laporan keluarga.",
+    familyReportsRowNoteLocked: "Hanya Master dan Co-Master.",
   },
   akun: {
     heroMemberSince: "Member sejak Januari 2024",
@@ -461,6 +473,8 @@ export const id = {
       deviceFallbackLabel: "Perangkat",
       thisDeviceBadge: "Ini perangkatmu",
       endSessionLink: "Akhiri",
+      sessionsShowAll: "Lihat semua ({count})",
+      sessionsShowLess: "Tampilkan lebih sedikit",
       sessionsLoading: "Memuat sesi...",
       sessionsEmpty: "Tidak ada sesi aktif.",
       sessionsError: "Gagal memuat sesi aktif.",
@@ -776,16 +790,13 @@ export const id = {
     addDependant: {
       dialogTitle: "Tambah Anak / Operasional",
       dialogDesc:
-        "Untuk anggota tanpa email sendiri (anak, supir, asisten). Buatkan username dan password awal, mereka wajib menggantinya saat login pertama.",
+        "Untuk anggota tanpa email. Password wajib diganti saat login pertama.",
       nameLabel: "Nama",
       namePlaceholder: "Nama lengkap",
       usernameLabel: "Username",
       usernamePlaceholder: "cth: adit_kecil",
-      usernameHint: "3-30 karakter, huruf/angka/underscore/titik",
       passwordLabel: "Password Awal",
       passwordPlaceholder: "Minimal 8 karakter",
-      passwordHint:
-        "Beri tahu password ini secara langsung, wajib diganti saat login pertama.",
       showPassword: "Tampilkan password",
       hidePassword: "Sembunyikan password",
       roleLabel: "Peran sistem",
@@ -799,6 +810,9 @@ export const id = {
         'Istri menjadi Co-Master: akses penuh ke semua data keuangan. Kelola anggota dan pengaturan keluarga tetap di Master. Hubungan otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.',
       relationshipLabel: "Hubungan (opsional)",
       relationshipNoneOption: "Tidak diisi",
+      emailLabel: "Email (opsional)",
+      emailPlaceholder: "nama@gmail.com",
+      emailHint: "Link konfirmasi dikirim ke email ini.",
       accessRoleLabel: "Hak akses",
       accessRoleDefaultOption: "Bawaan (ikuti peran)",
       accessRoleEmptyHint:
@@ -925,7 +939,7 @@ export const id = {
       },
       rekening: {
         title: "Bank & Account",
-        desc: 'Klik "Tambah" untuk mendaftarkan rekening bank pertamamu — saldonya otomatis masuk ke kekayaan bersih dan mutasinya tercatat per rekening.',
+        desc: 'Klik "Tambah" untuk mendaftarkan rekening bank pertamamu, saldonya otomatis masuk ke kekayaan bersih dan mutasinya tercatat per rekening.',
       },
       dana: {
         title: "Cash & E-Wallet",
@@ -944,7 +958,7 @@ export const id = {
         desc: "Gunakan filter tanggal/kategori untuk menelusuri riwayat, atau ketuk satu baris untuk mengubah maupun menghapusnya.",
       },
       quickinput: {
-        title: "Quick Input",
+        title: "Input Cepat",
         desc: "Tekan tombol ini untuk memilih jenis data (transaksi, rekening, aset, dll), lalu langsung isi formulirnya tanpa pindah halaman.",
       },
       search: {
@@ -1175,6 +1189,7 @@ export const id = {
     premiumLabel: "Premi",
     renewalLabel: "Jatuh Tempo",
     daysUntilRenewalSuffix: "hari",
+    daysOverduePrefix: "terlambat",
     policyNumberLabel: "No. Polis",
     toastAdded: "Asuransi berhasil ditambahkan",
     toastAddFailed: "Gagal menyimpan asuransi",
@@ -1187,20 +1202,21 @@ export const id = {
     modalTitle: "Tambah Asuransi",
     modalEditTitle: "Edit Asuransi",
     modalCloseAriaLabel: "Tutup modal",
-    fieldNameLabel: "Nama Asuransi *",
+    fieldNameLabel: "Nama Asuransi",
     fieldNamePlaceholder: "cth: Asuransi Jiwa Keluarga",
-    fieldProviderLabel: "Perusahaan",
+    fieldProviderLabel: "Perusahaan (opsional)",
     fieldProviderPlaceholder: "cth: Prudential, AXA, Allianz",
-    fieldTypeLabel: "Jenis *",
+    fieldTypeLabel: "Jenis",
     fieldStatusLabel: "Status",
-    fieldPremiumLabel: "Premi (Rp) *",
+    fieldPremiumLabel: "Premi (Rp)",
     fieldPeriodLabel: "Periode Premi",
-    fieldCoverageLabel: "Uang Pertanggungan (Rp)",
-    fieldRenewalDateLabel: "Tanggal Jatuh Tempo",
+    fieldCoverageLabel: "Uang Pertanggungan (Rp, opsional)",
+    fieldRenewalDateLabel: "Tanggal Jatuh Tempo (opsional)",
     autoRenewLabel:
       "Perpanjang otomatis setiap periode premi setelah lewat jatuh tempo",
+    fieldPolicyNumberLabel: "No. Polis (opsional)",
     fieldPolicyNumberPlaceholder: "cth: POL-12345678",
-    fieldNotesLabel: "Catatan",
+    fieldNotesLabel: "Catatan (opsional)",
     fieldNotesPlaceholder: "Catatan tambahan...",
     saving: "Menyimpan...",
     saveButton: "Simpan Asuransi",
@@ -1218,11 +1234,13 @@ export const id = {
     toastPaySuccessNoRenewal: "Premi berhasil dibayar.",
     toastRenewalFailed: "Gagal membayar premi. Coba lagi.",
     beneficiariesSectionTitle: "Ahli Waris Asuransi",
+    beneficiariesOptionalLabel: "Ahli waris (opsional)",
     beneficiariesLabel: "Ahli Waris",
     beneficiaryNameLabel: "Nama",
     beneficiaryNamePlaceholder: "cth: Siti Arsandi",
     beneficiaryRelationshipLabel: "Hubungan",
     beneficiaryRelationshipPlaceholder: "cth: Anak, Pasangan",
+    beneficiaryRelationshipSelfDefault: "Diri sendiri",
     beneficiarySharePercentLabel: "Persentase (%)",
     beneficiaryMemberLabel: "Hubungkan ke Anggota Keluarga",
     beneficiaryMemberNoneOption: "Tidak terhubung",
@@ -1269,8 +1287,7 @@ export const id = {
       "Premi dan jatuh tempo dipakai untuk pengingat dan proyeksi arus kas.",
     policyPickerPayDesc:
       "Pilih polis yang preminya ingin dibayar, lalu tentukan rekening sumbernya di langkah berikutnya.",
-    policyPickerBeneficiaryDesc:
-      "Pilih polis dulu, ahli waris disimpan pada polis tersebut, dan total persentasenya tidak boleh lebih dari 100%.",
+    policyPickerBeneficiaryDesc: "Total bagian maksimal 100%.",
     deleteDialogTitle: "Hapus data ini?",
     deleteDialogBody:
       "Data polis akan dihapus permanen. Riwayat pembayaran premi tetap tersimpan di Transaksi.",
@@ -1456,6 +1473,12 @@ export const id = {
       resultLabel: "Estimasi Tercapai",
       resultValueSuffix: "Bulan",
       detailTargetReachedPrefix: "Target tercapai sekitar:",
+      // fix-round1 (kalkulator) — a 0 (or too-small) monthly deposit with a
+      // target above the current balance never reaches it; the loop capped
+      // at 600 used to render the misleading "±600 Bulan" as if that were
+      // a real estimate.
+      unreachableError:
+        "Target tidak akan tercapai dengan setoran bulanan ini — naikkan setoran per bulan atau bunga per tahun.",
     },
     splitgroup: {
       cardTitle: "Kalkulator Split Bill Group",
@@ -1468,10 +1491,13 @@ export const id = {
       resultLabel: "Per Orang Bayar",
       detailTotalWithTaxPrefix: "Total + pajak/tip:",
       createSplitBillButton: "Buat Split Bill dari Hitungan Ini",
+      // fix-round1 (kalkulator) — 0/negative was silently clamped to 1
+      // person, hiding the typo instead of telling the user to fix it.
+      invalidPeopleError: "Jumlah orang harus lebih dari 0.",
     },
   },
   quickinput: {
-    pageTitle: "Quick Input",
+    pageTitle: "Input Cepat",
     pageSubtitle:
       "Pilih jenis data yang ingin kamu input, langsung isi via popup",
     cards: {
@@ -1676,8 +1702,8 @@ export const id = {
     // are always filled from the real summary DTO, never invented.
     returnFormulaLabel: "= untung ÷ modal ({returnRp} ÷ {costBasis})",
     livePositionsOnlyPrefix: "hanya dari",
-    filterNewBadge: "Baru",
     rowTickerPurchasedTemplate: "{ticker} · beli {date}",
+    rowPurchasedTemplate: "Beli {date}",
     rowCouponPurchasedTemplate: "Kupon {rate}%/tahun · beli {date}",
     rowDepositoTermTemplate: "Mulai {date} · jatuh tempo {maturityDate}",
     depositoRateTemplate: "Bunga {rate}% / tahun",
@@ -1732,20 +1758,12 @@ export const id = {
     refreshPriceToast: "Memuat ulang harga terbaru…",
     capitalInvestedPrefix: "Modal ditanam",
     livePositionsSuffix: "posisi berharga live",
-    pricingSourceNoticeTitle: "Dua sumber harga.",
+    pricingSourceNoticeTitle: "Saham & kripto delayed ±15 menit.",
     pricingSourceNoticeBody:
       "Saham IDX diambil dari Yahoo Finance (kode .JK) dan kripto dari CoinGecko, keduanya delayed ±15 menit, bukan real-time. Emas mengikuti Harga Emas keluarga di Pengaturan. Reksa dana, obligasi, dan lainnya kamu isi manual dan selalu ditampilkan bersama tanggal penilaiannya; deposito dihitung dari bunganya.",
+    pricingSourceMoreLabel: "Selengkapnya",
     allocationTitle: "Alokasi per Jenis",
-    modalDesc:
-      "Isi jenis dulu, kolom di bawah menyesuaikan. Saham dihitung per lot, kripto per koin, deposito per bunga berjalan.",
-    sectionIdentityTitle: "Informasi instrumen",
-    sectionIdentityDesc:
-      "Pilih jenis dan identitas investasi yang akan dicatat.",
-    sectionPositionTitle: "Jumlah & harga beli",
-    sectionPositionDesc: "Masukkan posisi awal beserta harga belinya.",
-    sectionValuationTitle: "Penilaian",
-    sectionValuationDesc: "Dari mana nilai terkini posisi ini berasal.",
-    hintName: "Nama lengkap yang akan tampil di daftar kepemilikan.",
+    modalDesc: "Kolom menyesuaikan jenis.",
     hintPurchaseDate: "Dipakai untuk menghitung lama kepemilikan.",
     hintLotConversion: "1 lot = 100 lembar (aturan IDX).",
     hintQuantityLocked:
@@ -1875,8 +1893,7 @@ export const id = {
     fieldValueChangeAmountPlaceholder:
       "cth. -5.000.000 untuk penyusutan, 5.000.000 untuk apresiasi",
     fieldAcquisitionDateLabel: "Tanggal Perolehan (opsional)",
-    fieldAcquisitionDateHelper:
-      "Proyeksi nilai dihitung mulai dari tanggal ini. Jika dikosongkan, dihitung sejak aset ditambahkan.",
+    fieldAcquisitionDateHelper: "Kosong = sejak ditambahkan.",
     fieldMasterDataCategoryLabel: "Kategori Master Data (opsional)",
     fieldMasterDataCategoryNone: "Tidak ada kategori",
     fieldNotesLabel: "Catatan (opsional)",
@@ -1934,9 +1951,9 @@ export const id = {
     toastDocumentDeleted: "Dokumen dihapus.",
     deleteDocumentAria: "Hapus dokumen",
     openDocumentAria: "Buka dokumen",
-    totalAssetsSubtitlePrefix: "Kas & bank + investasi + aset fisik · per ",
+    totalAssetsSubtitlePrefix: "Kas & bank + investasi + aset fisik, per ",
     statFromLastMonthSuffix: "dari bulan lalu",
-    statFisikNote: "Nilai tercatat · proyeksi terpisah",
+    statFisikNote: "Nilai tercatat, proyeksi terpisah",
     ownerSharedLabel: "Bersama",
     ownerUnknownLabel: "Tidak diketahui",
   },
@@ -1978,7 +1995,7 @@ export const id = {
     autoAdvanceLabel:
       "Majukan otomatis ke bulan berikutnya setelah lewat jatuh tempo",
     fieldNotesLabel: "Catatan (opsional)",
-    fieldNotesPlaceholder: "cth. Visa Platinum · jatuh tempo tgl 15",
+    fieldNotesPlaceholder: "cth. Visa Platinum, jatuh tempo tgl 15",
     saving: "Menyimpan…",
     saveButton: "Simpan Liabilitas",
     ccCurrentBillLabel: "Tagihan Berjalan",
@@ -2019,7 +2036,7 @@ export const id = {
     amortisationNoPayoffNote:
       "Pembayaran minimum saat ini tidak menutup bunga bulanan, sisa utang tidak akan berkurang.",
     amortisationUnavailableNote:
-      "Atur min. bayar untuk melihat estimasi amortisasi.",
+      "Atur min. bayar atau tenor untuk melihat jadwal amortisasi.",
     amortisationDisclaimer:
       "Estimasi kasar berdasarkan sisa saldo, bunga, dan min. bayar saat ini, bukan jadwal resmi.",
     payDialogTitle: "Bayar Liabilitas",
@@ -2045,12 +2062,11 @@ export const id = {
     // missed due date.
     overdueWarningPrefix: "Cicilan ",
     overdueWarningSuffix: " belum dibayar.",
-    modalDesc:
-      "Perubahan langsung memengaruhi rasio utang terhadap aset dan proyeksi pelunasan.",
     detailNextDueLabel: "Jatuh Tempo Berikutnya",
     detailPayButton: "Bayar Cicilan",
     amortisationScheduleTitle: "Jadwal Amortisasi",
     amortisationScheduleCountSuffix: " angsuran berikutnya",
+    amortisationScheduleScrollHint: "Geser untuk melihat kolom lainnya →",
     amortisationScheduleHeaderIndex: "Ke-",
     amortisationScheduleHeaderDate: "Tanggal",
     amortisationScheduleHeaderPrincipal: "Pokok",
@@ -2061,6 +2077,128 @@ export const id = {
     paySourceAccountHint:
       "Saldo rekening akan didebet dan tercatat otomatis di Transaksi.",
     payRemainingAfterLabel: "Sisa pokok setelah bayar",
+    interestMethodLabels: {
+      efektif: "Efektif (saldo menurun)",
+      flat: "Flat",
+      anuitas: "Anuitas",
+    },
+    rateLabels: {
+      efektif: "Bunga Efektif/Tahun (%)",
+      flat: "Bunga Flat/Tahun (%)",
+      anuitas: "Bunga Anuitas/Tahun (%)",
+    },
+    fieldRateMonthlyLabel: "Bunga/Bulan (%)",
+    fieldRateFixedLabel: "Bunga Fixed/Tahun (%)",
+    fieldInterestMethodLabel: "Metode Bunga",
+    fieldTenorLabel: "Tenor (bulan)",
+    fieldStartDateLabel: "Tanggal Akad",
+    fieldInstallmentLabel: "Angsuran/Bulan (Rp)",
+    fieldInstallmentHint:
+      "Kosongkan agar dihitung otomatis dari pokok, bunga, dan tenor.",
+    toastInstallmentPrefix: "Angsuran/bulan: ",
+    amortisationScheduleHeaderInstallment: "Angsuran",
+    amortisationScheduleLoading: "Memuat jadwal…",
+    amortisationScheduleError: "Jadwal amortisasi gagal dimuat.",
+    payPreviewLoading: "Menghitung pokok dan bunga…",
+    payPreviewError: "Rincian pokok dan bunga gagal dihitung.",
+    payoffProjectionError:
+      "Proyeksi gagal dimuat karena jadwal cicilan tidak tersedia.",
+    detailTenorLabel: "Tenor",
+    tenorMonthsSuffix: " bulan",
+    payLateBadge: "Telat",
+    payLateNote:
+      "Cicilan ini sudah lewat jatuh tempo — masih dihitung sebagai cicilan yang sama selama masa tenggang 5 hari.",
+    kpr: {
+      planLegend: "Struktur bunga KPR",
+      presetLabel: "Skema KPR",
+      presetNames: {
+        manual: "Manual — isi sendiri",
+        flpp_tapak: "FLPP rumah tapak — 5% tetap",
+        flpp_rusun: "FLPP rumah susun — 6% tetap",
+        konvensional: "Konvensional — fixed lalu floating",
+        berjenjang: "Fixed berjenjang lalu floating",
+        syariah_murabahah: "Syariah murabahah — margin tetap",
+        syariah_mmq: "Syariah MMQ/ijarah — tetap lalu ditinjau ulang",
+      },
+      officialRateNote:
+        "Tarif resmi FLPP 2026 (Kementerian PKP): 5% rumah tapak, 6% rumah susun, tetap sepanjang tenor hingga 40 tahun.",
+      exampleRateNote:
+        'Bunga bertanda "Contoh" diambil dari data publik 2026, bukan penawaran bank Anda. Cocokkan dengan surat penawaran (SP3K) sebelum menyimpan.',
+      mmqResetNote:
+        "Belum ada acuan publik untuk tarif setelah ditinjau ulang; contoh memakai bunga floating konvensional.",
+      exampleBadge: "Contoh",
+      officialBadge: "Resmi",
+      periodLabel: "Periode",
+      periodKindLabel: "Tipe bunga",
+      kindFixed: "Fixed",
+      kindFloating: "Floating",
+      periodMonthsLabel: "Lama (bulan)",
+      periodToMaturity: "Sampai akhir tenor",
+      periodRateLabel: "Bunga/tahun (%)",
+      periodMarginLabel: "Margin/tahun (%)",
+      addPeriod: "Tambah periode",
+      removePeriod: "Hapus periode",
+      planHint:
+        "Cicilan dihitung ulang (anuitas) dari sisa pokok dan sisa tenor setiap kali bunga berganti.",
+      planInvalid:
+        "Lengkapi setiap periode: lama minimal 1 bulan (kecuali periode terakhir) dan bunga 0–30%.",
+      tenorRequiredHint:
+        "Tenor wajib diisi untuk KPR dengan periode bunga — dipakai untuk menghitung cicilan anuitas.",
+      scheduleRateHeader: "Bunga",
+      floatingEstimateBadge: "Estimasi",
+      floatingEstimateNote:
+        "Baris floating adalah estimasi: dihitung dengan bunga floating terakhir yang diketahui, yang bisa diubah bank kapan saja.",
+      historyTitle: "Riwayat bunga floating",
+      historyHint:
+        "Catat dari pemberitahuan bank. Bunga baru berlaku mulai cicilan penuh pertama sejak tanggal efektif; cicilan dihitung ulang dari sisa pokok dan sisa tenor.",
+      historyEmpty:
+        "Belum ada perubahan tercatat — jadwal memakai bunga floating dari periode bunga.",
+      historyLoadFailed: "Riwayat bunga gagal dimuat.",
+      historyDateLabel: "Tanggal efektif",
+      historyRateLabel: "Bunga baru/tahun (%)",
+      historyAddButton: "Catat perubahan",
+      historyDeleteButton: "Hapus perubahan",
+      historyFromPeriodPrefix: "berlaku dari cicilan ke-",
+      historySaved: "Perubahan bunga dicatat",
+      historyDeleted: "Perubahan bunga dihapus",
+      historySaveFailed: "Gagal menyimpan perubahan bunga",
+      prepayTitle: "Simulasi pelunasan dipercepat",
+      prepaySimulationNote:
+        "Angka di bawah hanya simulasi — belum ada yang dicatat sampai Anda menekan Catat pelunasan dan mengonfirmasi.",
+      prepayModeLabel: "Jenis pelunasan",
+      prepayModes: {
+        full: "Lunas penuh",
+        reduce_tenor: "Sebagian — tenor lebih pendek",
+        reduce_installment: "Sebagian — cicilan lebih kecil",
+      },
+      prepayAmountLabel: "Pokok yang dilunasi (Rp)",
+      prepayPenaltyLabel: "Penalti (%)",
+      prepayPenaltyHint:
+        "Contoh 1% — umumnya 1–3% dari pokok yang dilunasi (bisa sampai 7%), sering lebih ringan di masa floating. Cek perjanjian kredit Anda.",
+      prepaySubmit: "Hitung simulasi",
+      prepayResultPenalty: "Penalti",
+      prepayResultCashOut: "Total dibayar sekarang",
+      prepayResultInstallment: "Cicilan",
+      prepayResultTenor: "Sisa tenor",
+      prepayResultMonthsSuffix: " bln",
+      prepayResultInterestSaved: "Bunga yang dihemat",
+      prepayResultNetSaving: "Hemat bersih (setelah penalti)",
+      prepayEstimateNote:
+        "Estimasi: bunga floating ke depan diasumsikan tetap, dan bunga berjalan sejak cicilan terakhir tidak dihitung.",
+      prepayReduceTenorNextTierNote:
+        "Cicilan tetap naik saat periode bunga berikutnya berlaku.",
+      prepayFailed: "Simulasi gagal",
+      recordAccountLabel: "Rekening sumber",
+      recordAccountPlaceholder: "Pilih rekening",
+      recordButton: "Catat pelunasan",
+      recordConfirmPrefix: "Rekening akan didebit ",
+      recordConfirmBreakdown:
+        " (pokok + penalti). Sisa pokok, cicilan atau tenor, jadwal, dan anggaran ikut diperbarui.",
+      recordConfirmButton: "Ya, catat",
+      recordCancelButton: "Batal",
+      recordSaved: "Pelunasan dipercepat dicatat",
+      recordFailed: "Gagal mencatat pelunasan",
+    },
   },
   masterdata: {
     pageTitle: "Setup Master Data",
@@ -2504,11 +2642,6 @@ export const id = {
     toastDeleteFailed: "Gagal menghapus tujuan. Coba lagi.",
     activeGoalsSuffix: " Tujuan Aktif",
     totalAllocatedPrefix: "Total dialokasikan: ",
-    // EPIC-022 A3 — goals are a manual tracker, not real money: this total
-    // is an earmark the family maintains by hand, never a bank balance or a
-    // real transfer between accounts.
-    trackerDisclaimer:
-      "Setoran dari rekening mengurangi saldo rekening itu; tanpa rekening, progres hanya dicatat.",
     addGoalButton: "Tambah Tujuan",
     onTrackLabel: "On Track",
     onTrackDesc: "tujuan berjalan baik",
@@ -2565,22 +2698,8 @@ export const id = {
       sudah_lapor: "Sudah Lapor",
       terlambat: "Terlambat",
     },
-    ptkpLabels: {
-      tk0: "TK/0 (Lajang)",
-      k0: "K/0 (Kawin)",
-      k1: "K/1 (Kawin, 1 anak)",
-      k2: "K/2 (Kawin, 2 anak)",
-      k3: "K/3 (Kawin, 3 anak)",
-    },
-    bracketLabels: {
-      b0: "0 - 60 jt",
-      b1: "60 - 250 jt",
-      b2: "250 - 500 jt",
-      b3: "500 jt - 5 M",
-      b4: "> 5 M",
-    },
     heroLabelPrefix: "Estimasi Pajak Terutang ",
-    heroSubtitle: "PPh 21 · Status: WP Orang Pribadi",
+    heroSubtitle: "PPh 21, Status: WP Orang Pribadi",
     prevYearStatusLabelPrefix: "Status SPT Tahunan ",
     markReportedButton: "Tandai Sudah Lapor",
     noDataLabel: "Belum ada data",
@@ -2603,7 +2722,7 @@ export const id = {
     calculatingLabel: "Menghitung...",
     calcErrorLabel: "Gagal menghitung. Coba lagi.",
     pkpPrefix: "PKP: ",
-    effectiveRatePrefix: " · Efektif ",
+    effectiveRatePrefix: ", Efektif ",
     savingLabel: "Menyimpan...",
     saveToTaxRecordButton: "Simpan ke Catatan Pajak",
     progressiveBreakdownTitle: "Rincian Tarif Progresif (UU HPP)",
@@ -2613,7 +2732,7 @@ export const id = {
     historyTitle: "Riwayat Catatan Pajak",
     taxYearPrefix: "Pajak ",
     grossPrefix: "Bruto: ",
-    zakatPrefix: " · Zakat: ",
+    zakatPrefix: ", Zakat: ",
     markReportedShortButton: "Tandai Lapor",
     documentsTitle: "Dokumen Pajak",
     uploadButton: "+ Upload",
@@ -2645,18 +2764,11 @@ export const id = {
       'Diketik dengan titik ribuan agar mudah dibaca — titik dihapus otomatis sebelum dikirim ("780.000.000" → "780000000").',
     ptkpSelectedPrefix: "PTKP terpilih: ",
     jabatanHint: "5% dari bruto, maksimal Rp 6.000.000/tahun.",
-    perpuluhanHint:
-      "Hanya persembahan perpuluhan ke lembaga resmi yang boleh menjadi pengurang (PP 60/2010). Ambil otomatis dari ",
-    perpuluhanHintLinkLabel: "Donasi",
     perpuluhanAutoFilledHint:
-      "Terisi otomatis dari total zakat & persepuluhan tercatat tahun {year}. Infaq, sedekah & wakaf tidak termasuk pengurang pajak (PP 60/2010).",
-    payloadCalloutPrefix: "Yang dikirim ke server: ",
-    payloadCalloutSuffix: "- angka murni tanpa titik.",
+      "Otomatis dari zakat & persepuluhan tercatat {year} (PP 60/2010).",
     resetButton: "Reset",
     toastReset: "Perhitungan direset",
     colTaxableBase: "Dasar Kena Tarif",
-    bracketFootnote:
-      "Jumlah kolom Pajak selalu sama dengan headline di atas, lapisan 30% (500 jt - 5 M) ikut ditampilkan.",
     perpuluhanDeductionTitle: "Perpuluhan Pengurang Pajak",
     perpuluhanDeductionDesc: "dari donasi tercatat",
     emptyDocumentsTitle: "Belum ada dokumen",
@@ -2671,6 +2783,212 @@ export const id = {
     saveDialogNote:
       "Nilai dikirim sebagai string angka murni, titik ribuan hanya untuk tampilan.",
     saveDialogConfirmButton: "Simpan",
+    rules: {
+      unverifiedBadge: "Perkiraan",
+      unverifiedIntro: "Cek aturan terbaru DJP.",
+      outOfRange:
+        "aturan tahun itu tidak dimodelkan; memakai aturan tertua yang tersedia",
+    },
+    op: {
+      statusLabel: "Status PTKP",
+      maritalLabels: {
+        TK: "TK (tidak kawin)",
+        K: "K (kawin)",
+        KI: "K/I (penghasilan istri digabung)",
+      },
+      dependentsLabel: "Tanggungan (0–3)",
+      ptkpDerivedPrefix: "PTKP dihitung server: ",
+      pensionLabel: "Iuran pensiun/JHT/JP porsi Anda (setahun)",
+      withheldLabel:
+        "PPh 21 sudah dipotong pemberi kerja (bukti potong 1721-A1)",
+      freelanceLabel: "Omzet pekerjaan bebas (NPPN)",
+      nppnLabel: "Persentase NPPN (%)",
+      nppnHint: "Lihat tabel PER-17/PJ/2015. Kosongkan bila UMKM 0,5%.",
+      otherNetLabel: "Penghasilan neto lain",
+      netoLabel: "Penghasilan neto",
+      balanceLabel: "Kurang/(lebih) bayar",
+      overpaidLabel: "Lebih bayar",
+      noTaxRow: "PKP Rp0 — tidak ada PPh terutang",
+      previewNeedsFamily: "Buat atau gabung grup keluarga untuk menghitung.",
+    },
+    ter: {
+      title: "PPh 21 bulanan (TER) & koreksi Desember",
+      subtitle:
+        "Jan–Nov dipotong dengan tarif efektif (TER); Desember dihitung ulang dengan tarif Pasal 17 setahun.",
+      monthlyGrossLabel: "Gaji bruto per bulan",
+      editMonthsToggle: "Atur per bulan (bonus/THR)",
+      thrBonusLabel: "THR/bonus",
+      thrBonusHint: "Dikecualikan dari batas gaji tetap DTP (PMK 10/2025).",
+      thrExceedsGrossError: "THR/bonus tidak boleh lebih dari bruto bulan itu.",
+      categoryPrefix: "Kategori TER: ",
+      kiNote: "Untuk K/I, pemotongan bulanan memakai kategori K/n suami.",
+      colMonth: "Bulan",
+      colGross: "Bruto",
+      colRate: "Tarif",
+      colWithheld: "Dipotong",
+      colDtp: "DTP",
+      decemberLabel: "Desember (koreksi)",
+      refundNote:
+        "Lebih potong — dikembalikan pemberi kerja pada gaji Desember.",
+      notApplicable: "TER berlaku mulai tahun pajak 2024.",
+      dtpTitle: "Insentif PPh 21 DTP",
+      dtpSectorLabel: "Sektor usaha pemberi kerja",
+      dtpSectors: {
+        none: "Bukan sektor penerima",
+        alas_kaki: "Alas kaki",
+        tekstil_pakaian: "Tekstil & pakaian jadi",
+        furnitur: "Furnitur",
+        kulit: "Kulit & barang dari kulit",
+        pariwisata: "Pariwisata",
+      },
+      dtpEmploymentLabel: "Status pegawai",
+      dtpEmployment: { permanent: "Tetap", non_permanent: "Tidak tetap" },
+      dtpDailyWageLabel: "Upah harian rata-rata",
+      dtpNikLabel: "NIK/NPWP sudah tervalidasi di Coretax",
+      dtpReasons: {
+        no_program: "Tidak ada program DTP",
+        sector_not_covered: "Sektor tidak termasuk",
+        gross_above_cap: "Bruto di atas Rp10 jt/bulan",
+        daily_wage_above_cap: "Upah harian di atas batas",
+        nik_not_validated: "NIK belum tervalidasi",
+      },
+      dtpEligible: "Ditanggung pemerintah — dibayar tunai bersama gaji",
+      dtpTotalPrefix: "Total DTP setahun: ",
+      emptyStateNote: "Isi gaji bruto per bulan untuk melihat potongan TER",
+      loadingLabel: "Menghitung potongan TER…",
+      noFamilyNote:
+        "Belum bergabung keluarga — potongan TER memerlukan grup keluarga aktif.",
+    },
+    umkm: {
+      title: "PPh final UMKM 0,5%",
+      subtitle:
+        "Untuk usaha orang pribadi. Omzet sampai Rp500 jt setahun tidak dikenai pajak; batas peredaran Rp4,8 M.",
+      monthLabels: [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "Mei",
+        "Jun",
+        "Jul",
+        "Agu",
+        "Sep",
+        "Okt",
+        "Nov",
+        "Des",
+      ],
+      firstYearLabel: "Tahun pertama terdaftar memakai PPh final (opsional)",
+      pre2018Note:
+        "Terdaftar sebelum 2018? Batas waktu 7 tahun dihitung mulai 2018 (PP 55/2022 Pasal 59 ayat 2).",
+      noTimeLimitNote:
+        "Sejak PP 20/2026 (22 Apr 2026), wajib pajak orang pribadi dapat memakai tarif 0,5% tanpa batas waktu.",
+      ineligible: "Lewat batas 7 tahun — gunakan tarif Pasal 17",
+      exceedsCeiling:
+        "Omzet melewati Rp4,8 M: tahun depan wajib memakai tarif umum (Pasal 17) dengan pembukuan.",
+      colOmzet: "Omzet",
+      colCumulative: "Kumulatif",
+      colTaxable: "Kena pajak",
+      colTax: "PPh final",
+      totalPrefix: "Total PPh final UMKM:",
+      save: "Simpan omzet tahun ini",
+      saved: "Omzet disimpan",
+      saveFailed: "Gagal menyimpan omzet",
+      disclosureLabel: "Isi omzet bulanan",
+      loadingLabel: "Menghitung estimasi...",
+      loadFailedLabel: "Gagal menghitung estimasi, coba lagi.",
+      emptyStateNote: "Isi omzet bulanan untuk melihat estimasi PPh final.",
+    },
+    final: {
+      title: "Pajak final investasi & penghasilan lain",
+      subtitle:
+        "Otomatis dari portofolio (deposito, obligasi, penjualan saham/kripto/reksa dana/emas) ditambah catatan manual. Pajak final umumnya sudah dipotong pihak pembayar.",
+      instruments: {
+        bunga_deposito: "Bunga deposito",
+        bunga_tabungan: "Bunga tabungan",
+        dividen: "Dividen",
+        saham_idx: "Penjualan saham BEI",
+        kupon_sbn: "Kupon SBN/obligasi",
+        reksa_dana: "Reksa dana",
+        p2p: "Bunga P2P lending",
+        kripto_domestik: "Kripto (exchange domestik)",
+        kripto_luar: "Kripto (exchange luar negeri)",
+        emas: "Emas batangan",
+        sewa: "Sewa tanah/bangunan",
+      },
+      sourceHolding: "Otomatis",
+      sourceEntry: "Manual",
+      caveats: {
+        assumed_domestic: "Diasumsikan exchange domestik — ubah di Investasi",
+        assumed_sbn: "Diasumsikan SBN",
+        no_purchase_date: "Tanggal beli belum diisi — dihitung dari 1 Januari",
+        no_interest_rate: "Bunga belum diisi di Investasi",
+      },
+      belowThreshold: "Pokok ≤ Rp7,5 jt — dikecualikan",
+      missingRate: "Tarif belum terverifikasi — isi sendiri",
+      missingRateNotice: "{n} baris belum punya tarif.",
+      skippedForeign:
+        "{n} aset dalam mata uang asing tidak dihitung (pajak Indonesia memakai kurs pajak KMK).",
+      addEntry: "Tambah penghasilan",
+      editEntry: "Ubah",
+      deleteEntry: "Hapus",
+      fieldInstrument: "Jenis",
+      fieldGross: "Jumlah bruto",
+      fieldDate: "Tanggal diterima",
+      fieldReinvested: "Diinvestasikan kembali di Indonesia ≤ 3 tahun",
+      fieldRateOverride: "Tarif sendiri (%) — opsional",
+      fieldNotes: "Catatan",
+      totalPrefix: "Total perkiraan pajak final:",
+      toastSaved: "Tersimpan",
+      toastDeleted: "Dihapus",
+      toastFailed: "Gagal menyimpan",
+      loadingLabel: "Menghitung estimasi...",
+      loadFailedLabel: "Gagal menghitung estimasi, coba lagi.",
+      emptyStateNote: "Belum ada penghasilan final tercatat.",
+    },
+    summary: {
+      title: "Ringkasan pajak tahunan",
+      totalLabel: "Perkiraan total pajak tahun {year}",
+      pphOpLabel: "PPh orang pribadi",
+      finalLabel: "Pajak final",
+      umkmLabel: "PPh final UMKM",
+      noRecord:
+        "Belum ada catatan PPh — hitung dan simpan di kalkulator di atas.",
+      balanceDue: "Kurang bayar",
+      balanceOver: "Lebih bayar",
+      deadlineLabel: "Batas lapor SPT Tahunan",
+      daysLeft: "{n} hari lagi",
+      daysLate: "lewat {n} hari",
+      graceNote:
+        "Sanksi administrasi dihapus bila lapor/bayar s.d. {date} (pengumuman DJP terkait Coretax) — batas formal tetap {deadline}.",
+      coretaxNote:
+        "Lapor lewat Coretax DJP (coretaxdjp.pajak.go.id). NIK berfungsi sebagai NPWP.",
+      filedAtPrefix: "Dilaporkan:",
+    },
+    invest: {
+      title: "Perkiraan pajak final tahun ini",
+      empty:
+        "Belum ada bunga/kupon atau penjualan yang kena pajak final tahun ini.",
+      exchangeLabel: "Exchange",
+      exchangeOptions: {
+        domestik: "Domestik (terdaftar Bappebti/OJK)",
+        luar_negeri: "Luar negeri",
+      },
+      viewInTax: "Lihat di Pajak",
+    },
+    account: {
+      title: "Pajak bunga tabungan & deposito",
+      body: "Bunga dikenai PPh final {rate} yang dipotong langsung oleh bank. Simpanan dengan pokok ≤ {threshold} tidak dipotong.",
+    },
+    ppn: {
+      summary: "Info PPN",
+      infoOnly: "Hanya informasi — tidak mengubah transaksi.",
+      luxuryToggle: "Barang mewah (PPnBM)",
+      dppLabel: "DPP",
+      ppnLabel: "PPN di dalam harga",
+      effectiveLabel: "Tarif efektif",
+      mechanismNote:
+        "Tarif nominal {nominal}; barang/jasa non-mewah memakai DPP 11/12 sehingga efektif {effective}.",
+    },
   },
   rekening: {
     typeLabels: {
@@ -2683,8 +3001,7 @@ export const id = {
     balanceLabel: "Saldo",
     activeBadge: "Aktif",
     privateBadge: "Privat",
-    privateBadgeTooltip:
-      "Hanya terlihat oleh Master & Co-Master. Anggota lain tidak melihat rekening ini maupun transaksinya.",
+    privateBadgeTooltip: "Hanya Master & Co-Master.",
     optionsAriaLabel: "Opsi rekening",
     viewMutationMenuItem: "Lihat Mutasi",
     editMenuItem: "Edit",
@@ -2744,11 +3061,6 @@ export const id = {
     // EPIC-025 N3 prototype structural port — page header (title reuses
     // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
     // the dashed "add account" card.
-    insightOneLabel: "Satu pandangan",
-    insightOneAccountsSuffix: " rekening, ",
-    insightOneOwnersSuffix: " pemilik, 1 saldo keluarga",
-    insightPrivacyLabel: "Privasi",
-    insightPrivacyValue: "Saldo pribadi tetap tersegmentasi",
     filterNoteText:
       "Rekening bank tidak bisa didebit sampai minus, saldo yang sudah minus dicatat sebagai liabilitas.",
     addCardTitle: "Tambah rekening baru",
@@ -2775,9 +3087,6 @@ export const id = {
       persepuluhan: "Persembahan Persepuluhan",
       lainnya: "Lainnya / Donasi Sosial",
     },
-    groupIslam: "Islam",
-    groupKristen: "Kristen",
-    groupUmum: "Umum",
     heroTitle: "Total Donasi & Zakat",
     transactionsSuffix: " transaksi",
     yearRunningPrefix: " · tahun berjalan ",
@@ -2833,12 +3142,6 @@ export const id = {
     fieldTanggalLabel: "Tanggal",
     fieldAccountLabel: "Bayar dari Rekening (opsional)",
     accountNoneOption: "Hanya catat, jangan potong saldo",
-    accountHint:
-      "Pilih rekening agar total kekayaan bersih ikut berkurang saat donasi dicatat.",
-    taxDeductibleCheckboxLabel:
-      "Pengurang pajak penghasilan (kontribusi keagamaan wajib ke lembaga resmi)",
-    taxDeductibleIneligibleNote:
-      "Hanya Zakat Maal / Zakat Fitrah / Persembahan Persepuluhan yang dapat menjadi pengurang pajak.",
     savingLabel: "Menyimpan...",
     saveRecordButton: "Simpan Catatan",
     toastSaved: "Donasi berhasil dicatat!",
@@ -2871,11 +3174,9 @@ export const id = {
     religionCalculatorUnconfirmedTitle: "Agama keluarga belum dipilih",
     religionCalculatorUnconfirmedDesc:
       "Pilih agama keluarga di Pengaturan Akun untuk mengaktifkan kalkulator Zakat atau Persepuluhan yang sesuai.",
-    modalDesc:
-      "Tercatat sebagai pengeluaran dan memotong saldo rekening jika sumber dana dipilih.",
     taxDeductibleSwitchTitle: "Pengurang pajak penghasilan",
     taxDeductibleSwitchDesc:
-      "Kontribusi keagamaan wajib ke lembaga resmi (PP 60/2010).",
+      "Hanya zakat/persepuluhan ke lembaga resmi (PP 60/2010).",
   },
   warisan: {
     heroTitle: "Total Nilai Warisan",
@@ -2924,6 +3225,7 @@ export const id = {
     heirNamePlaceholder: "cth: Siti Arsandi",
     removeHeirAriaLabel: "Hapus ahli waris",
     heirRelationshipPlaceholder: "cth: Anak, Pasangan",
+    heirRelationshipSelfDefault: "Diri sendiri",
     heirSharePercentPlaceholder: "Persentase (%)",
     heirMemberAriaLabel: "Hubungkan ke Anggota Keluarga",
     heirMemberNoneOption: "Tidak terhubung",
@@ -2939,17 +3241,12 @@ export const id = {
     visibleToAllHeirsCaption: "Terlihat oleh seluruh ahli waris",
     estimatedValueLabel: "Nilai estimasi",
     linkedToAssetPrefix: "terhubung ke Aset",
-    modalDesc:
-      "Hubungkan ke aset yang sudah tercatat, lalu tentukan pembagian ahli waris.",
     fieldSourceLabel: "Sumber Data",
     sourceManualOption: "Input Manual",
     sourceAssetOption: "Pilih dari Aset",
     fieldAssetLabel: "Aset",
     assetPickerPlaceholder: "Pilih aset",
-    assetPickerHint:
-      "Nilai estimasi terisi otomatis dari aset terhubung, tetap bisa kamu ubah.",
-    visibleToHeirsHint:
-      "Ahli waris dapat melihat aset ini di halaman Warisan mereka.",
+    assetPickerHint: "Terisi otomatis, bisa diubah.",
     deleteConfirmBody:
       "Catatan warisan beserta pembagian ahli warisnya akan dihapus. Aset aslinya di halaman Aset tidak ikut terhapus.",
     toastSharePercentExceeded:
@@ -4204,8 +4501,23 @@ export const id = {
     },
   },
   crud: {
-    addDescription: "Data baru langsung tersedia di seluruh formulir aplikasi.",
-    editDescription: "Perubahan langsung berlaku di seluruh formulir aplikasi.",
     addToMasterData: "+ Tambah ke Master Data",
+    fieldRequired: "{field} wajib diisi.",
+  },
+  money: {
+    currencyLabel: "Mata uang",
+    convertedIdr: "≈ {amount}",
+    convertedDisplay: "≈ {amount} (mata uang tampilan)",
+    rateLine: "1 {code} = Rp {rate} · ECB {date}",
+    rateStale:
+      "Kurs terakhir tersedia {date}: 1 {code} = Rp {rate}. Penyedia kurs sedang tidak bisa dihubungi.",
+    rateIndicative: "Kurs indikatif, bukan kurs pasar: 1 {code} = Rp {rate}",
+    rateLoading: "Memuat kurs…",
+    rateUnavailable: "Kurs tidak tersedia. Pilih IDR atau coba lagi.",
+    serverNote: "Nilai rupiah final dihitung server saat disimpan.",
+    rateNotReady: "Tunggu kurs selesai dimuat sebelum menyimpan.",
+    storedAsIdr: "Disimpan sebagai IDR, ditampilkan dalam {display}.",
+    fxIndicativeRefused:
+      "Kurs tidak tersedia saat ini — coba lagi atau gunakan IDR",
   },
 } satisfies I18nDictionary;

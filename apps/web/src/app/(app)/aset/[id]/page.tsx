@@ -11,7 +11,13 @@ import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, formatAmountInput, parseRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
+import {
+  MoneyInput,
+  moneyDigits,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -374,7 +380,7 @@ function AddHistoryDialog({
   const { t, locale } = useLocale();
   const fieldId = useId();
   const [mode, setMode] = useState<"value" | "percent">("value");
-  const [value, setValue] = useState("");
+  const valueField = useMoneyField();
   const [percent, setPercent] = useState("");
   const [recordedAt, setRecordedAt] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -390,7 +396,9 @@ function AddHistoryDialog({
           token,
           body: JSON.stringify({
             ...(mode === "value"
-              ? { value: String(parseRupiah(value)) }
+              ? withFxInputs({ value: moneyDigits(valueField) }, [
+                  ["value", valueField],
+                ])
               : { changePercent: percent.replace(",", ".").trim() }),
             recordedAt: new Date(recordedAt).toISOString(),
             note: note.trim() || undefined,
@@ -407,7 +415,8 @@ function AddHistoryDialog({
 
   const canSave =
     mode === "value"
-      ? parseRupiah(value) > 0
+      ? Number(moneyDigits(valueField) || "0") > 0 &&
+        !valueField.resolved.isPending
       : /^-?\d+([.,]\d{1,2})?$/.test(percent.trim());
 
   return (
@@ -451,14 +460,7 @@ function AddHistoryDialog({
               <label className="label" htmlFor={`${fieldId}-value`}>
                 {t.aset.historyValueLabel}
               </label>
-              <input
-                id={`${fieldId}-value`}
-                className="input mono"
-                inputMode="numeric"
-                placeholder="0"
-                value={value}
-                onChange={(e) => setValue(formatAmountInput(e.target.value))}
-              />
+              <MoneyInput field={valueField} id={`${fieldId}-value`} />
             </div>
           ) : (
             <div className="field">

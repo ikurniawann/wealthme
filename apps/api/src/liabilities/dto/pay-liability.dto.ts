@@ -1,6 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsString, IsUUID, Matches } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class PayLiabilityDto {
   @ApiProperty({
     description: "Account the payment is debited from (same family group)",
@@ -14,4 +16,7 @@ export class PayLiabilityDto {
   @IsString()
   @Matches(/^\d+$/, { message: "amount must be a numeric string" })
   amount!: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

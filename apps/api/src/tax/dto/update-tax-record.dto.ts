@@ -2,13 +2,17 @@ import { ApiPropertyOptional } from "@nestjs/swagger";
 import { SptStatus } from "@prisma/client";
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Matches,
   Max,
   Min,
+  ValidateIf,
 } from "class-validator";
+
+import { MARITAL, TAX_DIGITS } from "./tax-preview.dto";
 
 export class UpdateTaxRecordDto {
   @ApiPropertyOptional()
@@ -50,4 +54,48 @@ export class UpdateTaxRecordDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ enum: MARITAL })
+  @IsOptional()
+  @IsIn(MARITAL)
+  maritalStatus?: "TK" | "K" | "KI";
+
+  @ApiPropertyOptional()
+  @ValidateIf(
+    (o: UpdateTaxRecordDto) =>
+      o.maritalStatus != null || o.dependents !== undefined,
+  )
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  dependents?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(TAX_DIGITS, {
+    message: "pensionContribution must be a numeric string",
+  })
+  pensionContribution?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(TAX_DIGITS, { message: "freelanceGross must be a numeric string" })
+  freelanceGross?: string;
+
+  @ApiPropertyOptional({ description: "NPPN % in basis points (5000 = 50%)" })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10_000)
+  nppnRateBps?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(TAX_DIGITS, { message: "otherNetIncome must be a numeric string" })
+  otherNetIncome?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(TAX_DIGITS, { message: "withheldPph21 must be a numeric string" })
+  withheldPph21?: string;
 }

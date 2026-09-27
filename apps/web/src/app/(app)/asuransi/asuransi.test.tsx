@@ -8,7 +8,7 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import { render as rtlRender, screen } from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -33,6 +33,26 @@ jest.mock("sonner", () => ({
   }),
 }));
 
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
+import { id as idDict } from "../../../i18n/id";
 import AsuransiPage from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
@@ -44,8 +64,19 @@ const MEMBER_LIST = [
     userId: "user-5",
     name: "Budi Santoso",
     relationship: "anak",
+    role: "member",
   },
 ];
+
+// Revisi K bug 1 — the family owner (Master) has no kinship `relationship`
+// (it's null, same as an operational member like "sopir").
+const OWNER_MEMBER = {
+  id: "member-owner",
+  userId: "user-owner",
+  name: "Master Keluarga",
+  relationship: null,
+  role: "owner",
+};
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -125,6 +156,48 @@ describe("AsuransiPage — beneficiary picker (EPIC-023 F1)", () => {
     expect(nameInput).toBeDisabled();
     expect(relationshipInput).toHaveValue("anak");
     expect(relationshipInput).toBeDisabled();
+  });
+
+  // Revisi K bug 1 — root cause: the relationship input was disabled AND
+  // empty whenever the linked member had no `relationship` (owner,
+  // operational members) — the field could never be filled, so the save
+  // always failed the API's `CreateInsuranceBeneficiaryDto.relationship`
+  // @IsNotEmpty() check.
+  it("selecting the owner (null relationship) defaults relationship to 'self' and keeps it editable", async () => {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+        return Promise.resolve({
+          activePolicies: 0,
+          totalMonthlyPremium: "0",
+          currency: "IDR",
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve([OWNER_MEMBER]);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+    render(<AsuransiPage />);
+    const user = await openBeneficiaryEditor();
+
+    const memberSelect = await screen.findByRole("combobox", {
+      name: /hubungkan ke anggota keluarga/i,
+    });
+    await user.selectOptions(memberSelect, "user-owner");
+
+    const relationshipInput = screen.getByPlaceholderText(/anak, pasangan/i);
+    expect(relationshipInput).toHaveValue(
+      idDict.asuransi.beneficiaryRelationshipSelfDefault,
+    );
+    expect(relationshipInput).not.toBeDisabled();
+
+    // The user may still edit it — the value is a default, not a lock.
+    await user.clear(relationshipInput);
+    await user.type(relationshipInput, "Kepala keluarga");
+    expect(relationshipInput).toHaveValue("Kepala keluarga");
   });
 
   it("shows an honest note instead of a silently empty picker when the members list 403s", async () => {
@@ -238,6 +311,74 @@ describe("AsuransiPage — beneficiary allocation validation (EPIC-022 D6)", () 
       expect.objectContaining({ method: "POST" }),
     );
   });
+
+  it("revisi I — AUD premium posts the preview + fxInputs; coverage in IDR stays plain", async () => {
+    mockApiFetch.mockImplementation(
+      (url: string, options?: { method?: string }) => {
+        if (
+          url === `/family-groups/${FAMILY_GROUP_ID}/insurances` &&
+          options?.method === "POST"
+        ) {
+          return Promise.resolve({ id: "ins-1" });
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+          return Promise.resolve([]);
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+          return Promise.resolve({
+            activePolicies: 0,
+            totalMonthlyPremium: "0",
+            currency: "IDR",
+          });
+        }
+        if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+          return Promise.resolve(MEMBER_LIST);
+        }
+        return Promise.reject(new Error(`unexpected url: ${url}`));
+      },
+    );
+    render(<AsuransiPage />);
+    const user = await openBeneficiaryEditor();
+
+    await user.type(screen.getByLabelText(/nama asuransi/i), "Asuransi Jiwa");
+    await userEvent.selectOptions(
+      screen.getAllByLabelText("Mata uang")[0]!,
+      "AUD",
+    );
+    await userEvent.clear(
+      screen.getByLabelText(idDict.asuransi.fieldPremiumLabel),
+    );
+    await userEvent.type(
+      screen.getByLabelText(idDict.asuransi.fieldPremiumLabel),
+      "1200",
+    );
+    await userEvent.type(
+      screen.getByLabelText(idDict.asuransi.fieldCoverageLabel),
+      "100000000",
+    );
+
+    await user.click(screen.getByRole("button", { name: /simpan asuransi/i }));
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(
+        ([url, options]) =>
+          url === `/family-groups/${FAMILY_GROUP_ID}/insurances` &&
+          (options as { method?: string } | undefined)?.method === "POST",
+      );
+      expect(post).toBeDefined();
+    });
+    const post = mockApiFetch.mock.calls.find(
+      ([url, options]) =>
+        url === `/family-groups/${FAMILY_GROUP_ID}/insurances` &&
+        (options as { method?: string } | undefined)?.method === "POST",
+    ) as [string, { body: string }];
+    const body = JSON.parse(post[1].body) as Record<string, unknown>;
+    expect(body).toMatchObject({
+      premiumAmount: "15112617",
+      coverageAmount: "100000000",
+      fxInputs: [{ field: "premiumAmount", currency: "AUD", amount: "1200" }],
+    });
+  });
 });
 
 // Task 5 — a policy paid ahead of its period (paidThisPeriod true, but the
@@ -318,5 +459,141 @@ describe("AsuransiPage — paid-ahead premium tooltip", () => {
       "title",
       expect.stringMatching(/jatuh tempo berikutnya/i),
     );
+  });
+
+  it("batch 5 item 5 — the renewal date in the tooltip is pinned to UTC, not shifted by the viewer's local zone", async () => {
+    // 23:30 UTC on Sep 1 is already Sep 2 in this suite's pinned Jakarta
+    // zone (UTC+7, see jest.config.ts). Without `timeZone: "UTC"` on
+    // `formatLocaleDate`'s `toLocaleDateString` call, this renders the
+    // wrong calendar day locally and a different one again during a
+    // UTC-zoned SSR pass — the hydration mismatch this fix removes.
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([
+          {
+            id: "ins-1",
+            familyGroupId: FAMILY_GROUP_ID,
+            name: "Asuransi Jiwa",
+            provider: "Prudential",
+            type: "jiwa",
+            status: "aktif",
+            coverageAmount: "100000000",
+            premiumAmount: "100000",
+            premiumPeriod: "monthly",
+            renewalDate: "2026-09-01T23:30:00.000Z",
+            autoRenewDate: false,
+            policyNumber: "POL-1",
+            daysUntilRenewal: 30,
+            notes: null,
+            currency: "IDR",
+            beneficiaries: [],
+            paidThisPeriod: true,
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:00:00.000Z",
+          },
+        ]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+        return Promise.resolve({
+          activePolicies: 1,
+          totalMonthlyPremium: "100000",
+          currency: "IDR",
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+
+    render(<AsuransiPage />);
+
+    await screen.findByText("POL-1");
+    const payButtons = screen.getAllByRole("button", { name: /bayar premi/i });
+    const pay = payButtons.find(
+      (btn) => (btn as HTMLButtonElement).disabled,
+    ) as HTMLElement;
+    expect(pay).toHaveAttribute(
+      "title",
+      expect.stringContaining("1 September 2026"),
+    );
+    expect(pay).not.toHaveAttribute(
+      "title",
+      expect.stringContaining("2 September 2026"),
+    );
+  });
+});
+
+// Batch 4 item 1 — daysUntilRenewal is a real, legitimate negative number
+// for an overdue policy (daysUntil() in insurances.service.ts); the badge
+// had no branch for it and rendered "-16 hari" instead of "terlambat 16 hari".
+describe("AsuransiPage — overdue renewal wording (batch 4)", () => {
+  function policyWithDaysUntilRenewal(daysUntilRenewal: number) {
+    return {
+      id: "ins-overdue",
+      familyGroupId: FAMILY_GROUP_ID,
+      name: "Asuransi Kendaraan",
+      provider: "Astra",
+      type: "kendaraan",
+      status: "aktif",
+      coverageAmount: "50000000",
+      premiumAmount: "50000",
+      premiumPeriod: "monthly",
+      renewalDate: new Date().toISOString(),
+      autoRenewDate: false,
+      policyNumber: "POL-2",
+      daysUntilRenewal,
+      notes: null,
+      currency: "IDR",
+      beneficiaries: [],
+      paidThisPeriod: false,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+  }
+
+  function mockInsurances(daysUntilRenewal: number) {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([policyWithDaysUntilRenewal(daysUntilRenewal)]);
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/insurances/summary`) {
+        return Promise.resolve({
+          activePolicies: 1,
+          totalMonthlyPremium: "50000",
+          currency: "IDR",
+        });
+      }
+      if (url === `/family-groups/${FAMILY_GROUP_ID}/members`) {
+        return Promise.resolve(MEMBER_LIST);
+      }
+      return Promise.reject(new Error(`unexpected url: ${url}`));
+    });
+  }
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+  });
+
+  it("renders 'terlambat N hari' for a policy overdue by 16 days", async () => {
+    mockInsurances(-16);
+    render(<AsuransiPage />);
+
+    expect(await screen.findByText("terlambat 16 hari")).toBeInTheDocument();
+  });
+
+  it("still renders 'N hari' (not-yet-due) for a non-negative day count", async () => {
+    mockInsurances(5);
+    render(<AsuransiPage />);
+
+    expect(await screen.findByText("5 hari")).toBeInTheDocument();
   });
 });

@@ -145,7 +145,7 @@ export default function LoginPage() {
 
         <SectionCard>
           <h1 className="text-center text-[16px] font-extrabold">
-            Selamat Datang Kembali 👋
+            Selamat Datang Kembali
           </h1>
           <p className="mt-1 mb-4 text-center text-[11.5px] text-muted-foreground">
             Masuk ke Personal Wealth OS kamu

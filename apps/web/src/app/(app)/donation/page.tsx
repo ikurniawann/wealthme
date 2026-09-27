@@ -25,7 +25,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -46,6 +45,12 @@ import { useLocale } from "@/hooks/use-locale";
 import { mergeReferenceOptions } from "@/hooks/reference-options";
 import { useReferenceItems } from "@/hooks/use-reference-items";
 import { AddToMasterDataLink } from "@/components/crud";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyIdr,
+  withFxInputs,
+} from "@/components/money";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
@@ -136,10 +141,20 @@ function safeMaskedNumber(value: string | null | undefined): string | null {
   return UNDECRYPTED_BLOB_RE.test(value) ? null : value;
 }
 
+// Batch 8 item 6 — some accounts' `maskedNumber` is a full, un-masked raw
+// number (a legacy row predating server-side masking, per the audit-fix
+// note above), not the "···9010" shape the API normally returns. Blindly
+// prefixing "···" onto that raw value doubled up the mask glyph AND still
+// leaked every digit. Mask it ourselves whenever it looks like a bare
+// digit run; leave an already-masked value untouched.
+function maskAccountNumber(value: string): string {
+  return /^\d{5,}$/.test(value) ? `···${value.slice(-4)}` : value;
+}
+
 function formatAccountLabel(account: AccountDto | undefined): string | null {
   if (!account) return null;
   const masked = safeMaskedNumber(account.maskedNumber);
-  return masked ? `${account.name} ···${masked}` : account.name;
+  return masked ? `${account.name} ${maskAccountNumber(masked)}` : account.name;
 }
 
 function ZkInput({
@@ -306,7 +321,7 @@ export default function DonationPage() {
   // Donation modal state
   const [open, setOpen] = useState(false);
   const [jenis, setJenis] = useState<DonationType>("zakat_maal");
-  const [jumlah, setJumlah] = useState("");
+  const jumlahField = useMoneyField();
   const [lembaga, setLembaga] = useState(LEMBAGA_OPTIONS[0]);
   const { items: lembagaItems } = useReferenceItems("lembaga");
   const lembagaOptions = mergeReferenceOptions(
@@ -395,16 +410,16 @@ export default function DonationPage() {
     }
     if (prefill === "zakat") {
       setJenis("zakat_maal");
-      setJumlah(formatAmountInput(String(zakat)));
+      jumlahField.reset(String(zakat));
       setLembaga("BAZNAS");
       setIsTaxDeductible(true);
     } else if (prefill === "perpuluhan") {
       setJenis("persepuluhan");
-      setJumlah(formatAmountInput(String(tithe)));
+      jumlahField.reset(String(tithe));
       setLembaga("Gereja / Paroki");
       setIsTaxDeductible(true);
     } else {
-      setJumlah("");
+      jumlahField.reset();
       setIsTaxDeductible(false);
     }
     setAccountId("");
@@ -412,20 +427,26 @@ export default function DonationPage() {
   }
 
   function handleSave(): void {
-    const amountNum = parseRupiah(jumlah);
+    const amountNum = moneyIdr(jumlahField, parseRupiah);
     if (!amountNum || amountNum <= 0) {
       toast.error(t.donation.toastInvalidAmount);
       return;
     }
-    createMutation.mutate({
-      type: jenis,
-      recipient: lembaga,
-      amount: String(amountNum),
-      donatedAt: new Date(tanggal).toISOString(),
-      // E5 — never send a deductible flag the API would reject for this type.
-      isTaxDeductible: isTaxDeductible && isDeductibleEligible,
-      accountId: accountId || undefined,
-    });
+    if (jumlahField.resolved.isPending) return;
+    createMutation.mutate(
+      withFxInputs(
+        {
+          type: jenis,
+          recipient: lembaga,
+          amount: String(amountNum),
+          donatedAt: new Date(tanggal).toISOString(),
+          // E5 — never send a deductible flag the API would reject for this type.
+          isTaxDeductible: isTaxDeductible && isDeductibleEligible,
+          accountId: accountId || undefined,
+        },
+        [["amount", jumlahField]],
+      ),
+    );
   }
 
   // Compute category totals from API data
@@ -463,7 +484,18 @@ export default function DonationPage() {
           {t.donation.yearRunningPrefix}
           {currentYear}
         </div>
-        <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
+        {/* Task 10 carry (sub-plan L, /tax review) — `.hero > *`
+            (design-system.css, protected) forces `position: relative` on
+            every direct child, winning the specificity tie against
+            Tailwind's `.absolute` by source order and putting this glyph
+            back in normal flow, clipped by `.hero`'s `overflow: hidden`
+            instead of intentionally peeking past the corner. The inline
+            style wins over both classes without touching the protected
+            sheet. */}
+        <div
+          className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]"
+          style={{ position: "absolute" }}
+        >
           🤲
         </div>
       </HeroCard>
@@ -765,11 +797,11 @@ export default function DonationPage() {
                   <div className="text-[11.5px] text-muted-foreground">
                     <span className="break-words">
                       {formatLocaleDate(d.donatedAt, locale)}
-                      {accountLabel && ` · ${accountLabel}`}
+                      {accountLabel && `, ${accountLabel}`}
                     </span>
                     {d.receiptUrl && (
                       <>
-                        {" · "}
+                        {", "}
                         <a
                           href={d.receiptUrl}
                           target="_blank"
@@ -849,7 +881,6 @@ export default function DonationPage() {
             Batal / Simpan Catatan `.dialog__footer`. */}
         <DialogContent>
           <DialogTitle>{t.donation.modalTitle}</DialogTitle>
-          <DialogDescription>{t.donation.modalDesc}</DialogDescription>
 
           <DialogBody>
             <div className="field">
@@ -872,12 +903,7 @@ export default function DonationPage() {
               >
                 {allowedJenisOptions.map((o) => (
                   <option key={o.value} value={o.value}>
-                    {o.group === "islam"
-                      ? t.donation.groupIslam
-                      : o.group === "kristen"
-                        ? t.donation.groupKristen
-                        : t.donation.groupUmum}{" "}
-                    · {t.donation.jenisOptionLabels[o.value]}
+                    {t.donation.jenisOptionLabels[o.value]}
                   </option>
                 ))}
               </select>
@@ -904,15 +930,7 @@ export default function DonationPage() {
               <label className="label" htmlFor="dn-jumlah">
                 {t.donation.fieldJumlahLabel}
               </label>
-              <input
-                id="dn-jumlah"
-                type="text"
-                inputMode="numeric"
-                value={jumlah}
-                onChange={(e) => setJumlah(formatAmountInput(e.target.value))}
-                placeholder="0"
-                className="input mono"
-              />
+              <MoneyInput field={jumlahField} id="dn-jumlah" />
             </div>
 
             <div className="field">
@@ -945,9 +963,12 @@ export default function DonationPage() {
                   </option>
                 ))}
               </select>
-              <div className="hint">{t.donation.accountHint}</div>
             </div>
 
+            {/* polish-j batch 7a item 5 — the account hint, the switch
+                description, and the ineligibility note used to be 3
+                separate lines saying overlapping things; one line now
+                covers both what qualifies and why the toggle is disabled. */}
             <div className="row row--between mt-3.5 items-start gap-3">
               <div className="pr-3">
                 <div className="t-sm t-bold" id="dn-deductible-label">
@@ -965,14 +986,18 @@ export default function DonationPage() {
                 onCheckedChange={(checked) => setIsTaxDeductible(checked)}
               />
             </div>
-            <div className="hint">{t.donation.taxDeductibleIneligibleNote}</div>
           </DialogBody>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               {t.common.cancel}
             </Button>
-            <Button onClick={handleSave} disabled={createMutation.isPending}>
+            <Button
+              onClick={handleSave}
+              disabled={
+                createMutation.isPending || jumlahField.resolved.isPending
+              }
+            >
               <HandHeart className="size-4" />{" "}
               {createMutation.isPending
                 ? t.donation.savingLabel

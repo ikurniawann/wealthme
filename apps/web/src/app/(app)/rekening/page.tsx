@@ -9,9 +9,8 @@ import {
   Landmark,
   Users,
   User,
-  ScanLine,
-  LockKeyhole,
   List,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
@@ -21,14 +20,25 @@ import { StatusBadge, SummaryCard } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
+import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { CrudModal, ConfirmDeleteDialog, RowActions } from "@/components/crud";
+import {
+  CrudModal,
+  ConfirmDeleteDialog,
+  RowActions,
+  withCrudFx,
+} from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
+import { AccountTaxNotice } from "@/components/tax/account-tax-notice";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { useMyRole } from "@/hooks/use-my-role";
@@ -50,6 +60,20 @@ function parseSignedRupiah(value: string | null | undefined): number {
   const isNegative = value.trim().startsWith("-");
   const digits = parseInt(value.replace(/\D/g, ""), 10) || 0;
   return isNegative ? -digits : digits;
+}
+
+// Batch 2 (#7) — the indicative USD total below used a bare `toFixed(2)`
+// ("USD 16308.70"), the only un-grouped currency figure on this page while
+// the Rupiah total right next to it goes through `formatRupiah`'s grouped
+// `toLocaleString`. `lib/format.ts` is a protected foundation file, so this
+// page-local helper follows the same "inline instead of touching lib/*"
+// convention as `parseSignedRupiah` above rather than adding a sibling
+// export there.
+function formatUsd(value: number): string {
+  return value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 // EPIC-022 F — the API's ConflictException carries a message the user can act
@@ -488,13 +512,6 @@ export default function RekeningPage() {
     (a) => a.ownerUserId === null,
   ).length;
   const ownedCount = scopedAccounts.length - sharedCount;
-  // Prototype structural port — "Satu Pandangan" insight card: distinct
-  // real owners among the scoped accounts (family-shared accounts don't
-  // count as an extra "owner" here, matching the prototype's "3 pemilik"
-  // for accounts owned by 3 distinct people).
-  const distinctOwnerCount = new Set(
-    scopedAccounts.map((a) => a.ownerUserId).filter((id): id is string => !!id),
-  ).size;
 
   const queryClient = useQueryClient();
   const { canManage } = useCanManage("Account");
@@ -594,7 +611,11 @@ export default function RekeningPage() {
           {
             token,
             method: "PATCH",
-            body: JSON.stringify({ name: values.nama, balance, type: "cash" }),
+            body: JSON.stringify(
+              withCrudFx({ name: values.nama, balance, type: "cash" }, values, {
+                saldo: "balance",
+              }),
+            ),
           },
         );
         toast.success(t.rekening.toastUpdated);
@@ -620,17 +641,23 @@ export default function RekeningPage() {
           {
             token,
             method: "PATCH",
-            body: JSON.stringify({
-              name: values.nama,
-              // F6 — "Nama Bank"/"Nomor Rekening" used to be dropped here
-              // entirely: an edit to either field was accepted by the form
-              // and silently discarded on save.
-              institution: values.bank || undefined,
-              maskedNumber: values.norek || undefined,
-              balance,
-              isPrivate,
-              ownerUserId,
-            }),
+            body: JSON.stringify(
+              withCrudFx(
+                {
+                  name: values.nama,
+                  // F6 — "Nama Bank"/"Nomor Rekening" used to be dropped
+                  // here entirely: an edit to either field was accepted by
+                  // the form and silently discarded on save.
+                  institution: values.bank || undefined,
+                  maskedNumber: values.norek || undefined,
+                  balance,
+                  isPrivate,
+                  ownerUserId,
+                },
+                values,
+                { saldo: "balance" },
+              ),
+            ),
           },
         );
         toast.success(t.rekening.toastUpdated);
@@ -638,15 +665,21 @@ export default function RekeningPage() {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
-          body: JSON.stringify({
-            type: "bank",
-            name: values.nama || `${values.bank} ${values.jenis}`,
-            institution: values.bank,
-            maskedNumber: values.norek || undefined,
-            balance,
-            isPrivate,
-            ...(ownerUserId ? { ownerUserId } : {}),
-          }),
+          body: JSON.stringify(
+            withCrudFx(
+              {
+                type: "bank",
+                name: values.nama || `${values.bank} ${values.jenis}`,
+                institution: values.bank,
+                maskedNumber: values.norek || undefined,
+                balance,
+                isPrivate,
+                ...(ownerUserId ? { ownerUserId } : {}),
+              },
+              values,
+              { saldo: "balance" },
+            ),
+          ),
         });
         toast.success(t.rekening.toastAdded);
       }
@@ -694,10 +727,10 @@ export default function RekeningPage() {
           <p className="mt-1 text-[12.5px] text-muted-foreground">
             {isLoading
               ? t.rekening.loadingLabel
-              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix} · ${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
+              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}, ${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
             {!isLoading && accounts && fxRates?.rates["USD"] != null && (
               <span className="ml-1 text-muted-foreground/70">
-                {`${t.rekening.approxUsdPrefix}${(totalBalance * fxRates.rates["USD"]).toFixed(2)}`}
+                {`${t.rekening.approxUsdPrefix}${formatUsd(totalBalance * fxRates.rates["USD"])}`}
               </span>
             )}
           </p>
@@ -710,42 +743,6 @@ export default function RekeningPage() {
           )}
         </div>
       </div>
-
-      {/* Prototype structural port — insight strip. "Alert Pintar" (accounts
-          needing reconciliation) is OMITTED: reconciliation
-          (`/rekonsiliasi`) is an on-demand file-upload match, not a stored
-          per-account status, so there is no real count to show — fabricating
-          one would violate the Honest UI mandate. */}
-      {!isLoading && !isError && scopedAccounts.length > 0 && (
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-primary/20 bg-accent/40 p-3 shadow-sm">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-accent text-accent-foreground">
-              <ScanLine className="size-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
-                {t.rekening.insightOneLabel}
-              </span>
-              <span className="mt-0.5 block truncate text-[13px] font-extrabold">
-                {`${scopedAccounts.length}${t.rekening.insightOneAccountsSuffix}${distinctOwnerCount}${t.rekening.insightOneOwnersSuffix}`}
-              </span>
-            </span>
-          </div>
-          <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-primary/20 bg-accent/40 p-3 shadow-sm">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-primary/25 bg-accent text-accent-foreground">
-              <LockKeyhole className="size-4" />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[11px] font-extrabold tracking-wide text-muted-foreground uppercase">
-                {t.rekening.insightPrivacyLabel}
-              </span>
-              <span className="mt-0.5 block truncate text-[13px] font-extrabold">
-                {t.rekening.insightPrivacyValue}
-              </span>
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
           Rekening Bersama / Milik Anggota, all derived from the already-
@@ -848,9 +845,18 @@ export default function RekeningPage() {
               <Users className="size-3" /> {t.rekening.filterSharedLabel}
             </button>
           </div>
-          <span className="hidden shrink-0 text-[11.5px] text-muted-foreground md:inline">
-            {t.rekening.filterNoteText}
-          </span>
+          {/* polish-j batch 7a item 11 — the negative-balance rule used to
+              sit as always-visible text; it's context, not something every
+              visitor needs to read, so it's now an info tooltip. */}
+          <Tooltip>
+            <TooltipTrigger
+              aria-label={t.rekening.filterNoteText}
+              className="hidden shrink-0 text-muted-foreground md:inline-flex"
+            >
+              <Info className="size-3.5" />
+            </TooltipTrigger>
+            <TooltipContent>{t.rekening.filterNoteText}</TooltipContent>
+          </Tooltip>
         </div>
       )}
 
@@ -952,6 +958,7 @@ export default function RekeningPage() {
         token={token}
         onClose={() => setRequesting(null)}
       />
+      <AccountTaxNotice />
     </div>
   );
 }

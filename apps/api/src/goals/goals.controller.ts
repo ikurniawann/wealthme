@@ -20,6 +20,9 @@ import { type Request as ExpressRequest } from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { CreateGoalContributionDto } from "./dto/create-goal-contribution.dto";
@@ -38,7 +41,10 @@ import type {
 @PageAccess("goals")
 @Controller("family-groups/:familyGroupId/goals")
 export class GoalsController {
-  constructor(private readonly goalsService: GoalsService) {}
+  constructor(
+    private readonly goalsService: GoalsService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get()
   @CheckAbility((ab) => ab.can("read", "Goal"))
@@ -58,7 +64,17 @@ export class GoalsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Body() dto: CreateGoalDto,
   ): Promise<GoalDto> {
-    return this.goalsService.create(req.params.familyGroupId, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Goal",
+        dto,
+        spec: FX_FIELD_SPECS.goal,
+      },
+      (converted) =>
+        this.goalsService.create(req.params.familyGroupId, converted),
+    );
   }
 
   @Patch(":id")
@@ -70,7 +86,18 @@ export class GoalsController {
     @Param("id") id: string,
     @Body() dto: UpdateGoalDto,
   ): Promise<GoalDto> {
-    return this.goalsService.update(req.params.familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Goal",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.goal,
+      },
+      (converted) =>
+        this.goalsService.update(req.params.familyGroupId, id, converted),
+    );
   }
 
   @Get(":id/contributions")
@@ -98,7 +125,21 @@ export class GoalsController {
     @Param("id") id: string,
     @Body() dto: CreateGoalContributionDto,
   ): Promise<GoalContributionResult> {
-    return this.goalsService.contribute(req.params.familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId: req.params.familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "GoalContribution",
+        locate: (r) => ({
+          entity: "GoalContribution",
+          entityId: r.contribution.id,
+        }),
+        dto,
+        spec: FX_FIELD_SPECS.goalContribution,
+      },
+      (converted) =>
+        this.goalsService.contribute(req.params.familyGroupId, id, converted),
+    );
   }
 
   @Delete(":id")

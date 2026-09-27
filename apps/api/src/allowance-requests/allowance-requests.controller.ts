@@ -21,6 +21,9 @@ import { canAccessPage } from "@wealthme/contracts";
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AllowanceRequestsService } from "./allowance-requests.service";
@@ -56,6 +59,7 @@ function requireMember(req: Request) {
 export class AllowanceRequestsController {
   constructor(
     private readonly allowanceRequestsService: AllowanceRequestsService,
+    private readonly fxInputs: FxInputService,
   ) {}
 
   @Post()
@@ -71,10 +75,20 @@ export class AllowanceRequestsController {
     @Req() req: Request,
   ): Promise<AllowanceRequestResponseDto> {
     const member = requireMember(req);
-    return this.allowanceRequestsService.create(
-      familyGroupId,
-      member.userId,
-      dto,
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: member.userId,
+        entity: "AllowanceRequest",
+        dto,
+        spec: FX_FIELD_SPECS.allowanceRequest,
+      },
+      (converted) =>
+        this.allowanceRequestsService.create(
+          familyGroupId,
+          member.userId,
+          converted,
+        ),
     );
   }
 

@@ -1,10 +1,29 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsIn, IsNumber, IsOptional, Max, Min } from "class-validator";
 
-/** Legal PTKP (non-taxable income threshold) values per UU HPP, TK/0 through K/3. */
-export const PTKP_VALUES = [
-  54_000_000, 58_500_000, 63_000_000, 67_500_000, 72_000_000,
-] as const;
+import { ptkpFor } from "../../tax-engine/ptkp";
+import { wibDateString } from "../../tax-rules/tax-rules.registry";
+
+const MARITAL_STATUSES = ["TK", "K", "KI"] as const;
+const DEPENDENT_COUNTS = [0, 1, 2, 3] as const;
+
+/**
+ * Legal PTKP (non-taxable income threshold) values per UU HPP, one per
+ * marital-status × dependents combination. Review fix round 1 (Important
+ * #2) — this used to be a hardcoded 5-value TK/0..K/3 list, so this
+ * `@Public()` endpoint rejected every K/I (istri penghasilan digabung)
+ * household outright and would silently drift from the registry on any
+ * future PTKP change. Built from `ptkpFor` (Task 2's engine) so it can
+ * only ever agree with the registry.
+ */
+export const PTKP_VALUES: readonly number[] = MARITAL_STATUSES.flatMap(
+  (maritalStatus) =>
+    DEPENDENT_COUNTS.map((dependents) =>
+      Number(
+        ptkpFor({ maritalStatus, dependents }, wibDateString(new Date())).ptkp,
+      ),
+    ),
+);
 
 // EPIC-024 Group E (E1) — this endpoint is `@Public()` (no auth guard), and
 // its `grossIncome`/`zakatPaid` ultimately get persisted as-is into
@@ -34,7 +53,7 @@ export class Pph21RequestDto {
 
   @ApiPropertyOptional({
     description:
-      "PTKP (non-taxable income threshold) for the taxpayer's marital/dependents status (IDR): one of TK/0 54.000.000, K/0 58.500.000, K/1 63.000.000, K/2 67.500.000, K/3 72.000.000. Defaults to TK/0 when omitted.",
+      "PTKP (non-taxable income threshold) for the taxpayer's marital/dependents status (IDR): TK/K/K-I × 0-3 dependents, e.g. TK/0 54.000.000 through K-I/3 126.000.000. Defaults to TK/0 when omitted.",
     enum: PTKP_VALUES,
   })
   @IsOptional()

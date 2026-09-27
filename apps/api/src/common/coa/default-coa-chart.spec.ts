@@ -88,4 +88,14 @@ describe("defaultCoaCodeForCategory", () => {
       defaultCoaCodeForCategory("expense", "Sesuatu yang tidak dikenal"),
     );
   });
+
+  it("has a group-2 prepayment-penalty EXPENSE account at code 20011, distinct from interest and the catch-all (revisi K)", () => {
+    expect(GENERIC_COA_CHART.find((c) => c.code === "20011")).toEqual({
+      code: "20011",
+      name: "Penalti Pelunasan Pinjaman",
+      groupNum: 2,
+      direction: "EXPENSE",
+      budgetType: "VARIABLE",
+    });
+  });
 });

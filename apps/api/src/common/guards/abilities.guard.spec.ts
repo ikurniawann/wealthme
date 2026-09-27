@@ -285,7 +285,7 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
   });
 
   describe("SplitBillsController (CRITICAL six-reviewer finding — previously had NO @CheckAbility at all)", () => {
-    const controller = new SplitBillsController({} as never);
+    const controller = new SplitBillsController({} as never, {} as never);
 
     function ctxFor(
       handler: keyof SplitBillsController,
@@ -345,7 +345,7 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
   });
 
   describe("TransactionsController.create (CRITICAL six-reviewer finding — 'manage' does NOT imply 'create')", () => {
-    const controller = new TransactionsController({} as never);
+    const controller = new TransactionsController({} as never, {} as never);
 
     function ctxFor(m: { id: string; userId: string; role: Role } | null) {
       return buildRealContext(TransactionsController, controller, "create", m);
@@ -369,7 +369,11 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
   // through and `spouse`/`member`/`dependant`/`operational` are all
   // refused — closing the exact seam the postmortem flagged.
   describe("FamilyGroupsController.createDependantMember (FIX 3/FIX 4 — owner-only, matches D2's Member-management carve-out)", () => {
-    const controller = new FamilyGroupsController({} as never);
+    const controller = new FamilyGroupsController(
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     const owner = {
       id: "member-owner",
       userId: "user-owner",
@@ -420,14 +424,19 @@ describe("AbilitiesGuard against REAL controllers (closes the fixture-only seam)
   });
 
   // EPIC-023 F2 (D20) — these are NEW routes, added explicitly decorated
-  // (unlike the pre-existing getGoldPrice/updateGoldPrice on this same
-  // controller, which carry no `@CheckAbility` at all and only pass today
-  // because AbilitiesGuard fails OPEN). This proves the REAL guard enforces
+  // (unlike the pre-existing getGoldPrice on this same controller, which
+  // still carries no `@CheckAbility` and only passes today because
+  // AbilitiesGuard fails OPEN — updateGoldPrice gained one in revisi I).
+  // This proves the REAL guard enforces
   // "read FamilyGroup"/"manage FamilyGroup" on the REAL controller methods,
   // not just that the DTO/service layer behaves — the exact seam a
   // dropped or never-added `@CheckAbility` would otherwise slip through.
   describe("FamilyGroupsController.getReligion / updateReligion (F2)", () => {
-    const controller = new FamilyGroupsController({} as never);
+    const controller = new FamilyGroupsController(
+      {} as never,
+      {} as never,
+      {} as never,
+    );
     const owner = {
       id: "member-owner",
       userId: "user-owner",

@@ -45,6 +45,26 @@ jest.mock("sonner", () => ({
   }),
 }));
 
+const mockUseFxSnapshot = jest.fn((enabled: boolean) => ({
+  data: enabled
+    ? jest.requireActual("../../../components/money/fx-test-rates")
+        .TEST_FX_RATES
+    : undefined,
+  isError: false,
+}));
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => mockUseFxSnapshot(enabled),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
 import AnggaranPage from "./page";
 
 const FAMILY_GROUP_ID = "fg-1";
@@ -145,6 +165,13 @@ function mockSession(
 beforeEach(() => {
   jest.resetAllMocks();
   queryClient.clear();
+  mockUseFxSnapshot.mockImplementation((enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }));
 });
 
 describe("AnggaranPage — member picks an existing category, never creates one (F3)", () => {
@@ -218,6 +245,28 @@ describe("AnggaranPage — owner still creates a new category (regression guard)
     expect(within(dialog).queryByLabelText("Kategori")).not.toBeInTheDocument();
     // The create-category form mounts the full EmojiPicker grid in jsdom
     // (~2.5s alone, 10s+ when the whole suite runs in parallel).
+  }, 30000);
+
+  // polish-j batch 6 item 2 — "Kategori Privat"'s switch was rendered after
+  // its label (label-left/switch-right), the mirror image of every other
+  // visibility toggle in the app (crud-modal.tsx's shared toggle branch,
+  // Liabilitas's auto-advance switch). Asserts DOM order, not just presence.
+  it("renders the Kategori Privat switch before its label, matching the app's other toggles", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Kategori" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    const switchEl = await within(dialog).findByLabelText("Kategori Privat");
+    const label = within(dialog).getByText("Kategori Privat");
+
+    expect(
+      switchEl.compareDocumentPosition(label) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   }, 30000);
 });
 
@@ -344,5 +393,121 @@ describe("AnggaranPage — budgets carry no auto-debit (Revisi F item 4)", () =>
     expect(
       within(dialog).queryByLabelText(/Auto-debet/i),
     ).not.toBeInTheDocument();
+  }, 10000);
+});
+
+describe("AnggaranPage — revisi I multi-currency", () => {
+  it("revisi I — budget limit in SGD posts the preview + fxInputs", async () => {
+    mockSession("member");
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Kategori" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(
+      within(dialog).getByLabelText("Kategori"),
+      EXISTING_CATEGORY.id,
+    );
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "SGD");
+    await user.type(
+      within(dialog).getByLabelText("Budget per Bulan (Rp)"),
+      "1500,25",
+    );
+    await user.click(
+      within(dialog).getByRole("button", { name: "Simpan Kategori" }),
+    );
+
+    await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
+
+    const post = mockApiFetch.mock.calls.find(
+      ([url, i]) =>
+        String(url).endsWith("/budgets") &&
+        (i as RequestInit | undefined)?.method === "POST",
+    );
+    expect(JSON.parse((post?.[1] as RequestInit).body as string)).toMatchObject(
+      {
+        limitAmount: 21_043_698,
+        fxInputs: [
+          { field: "limitAmount", currency: "SGD", amount: "1500.25" },
+        ],
+      },
+    );
+  }, 10000);
+
+  it("Fix round 3 — create Simpan stays disabled while /fx/rates is pending for SGD, and no POST fires", async () => {
+    // /fx/rates never resolves: MoneyField.resolved.isPending stays true for
+    // as long as a foreign currency + amount is present.
+    mockUseFxSnapshot.mockImplementation(() => ({
+      data: undefined,
+      isError: false,
+    }));
+    mockSession("member");
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Tambah Kategori" }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await user.selectOptions(
+      within(dialog).getByLabelText("Kategori"),
+      EXISTING_CATEGORY.id,
+    );
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "SGD");
+    await user.type(
+      within(dialog).getByLabelText("Budget per Bulan (Rp)"),
+      "1500",
+    );
+
+    const saveButton = within(dialog).getByRole("button", {
+      name: "Simpan Kategori",
+    });
+    await waitFor(() => expect(saveButton).toBeDisabled());
+    await user.click(saveButton);
+
+    const budgetPosts = mockApiFetch.mock.calls.filter(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path.endsWith("/budgets") &&
+        (options as RequestInit | undefined)?.method === "POST",
+    );
+    expect(budgetPosts).toHaveLength(0);
+  }, 10000);
+
+  it("Fix round 3 — edit Simpan Perubahan stays disabled while /fx/rates is pending for SGD, and no PATCH fires", async () => {
+    mockUseFxSnapshot.mockImplementation(() => ({
+      data: undefined,
+      isError: false,
+    }));
+    mockSession("owner", { withExistingBudget: true });
+    const user = userEvent.setup();
+    render(<AnggaranPage />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Edit anggaran ${EXISTING_CATEGORY.name}`,
+      }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Edit Anggaran" });
+    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "SGD");
+    const amountInput = within(dialog).getByLabelText("Budget per Bulan (Rp)");
+    await user.clear(amountInput);
+    await user.type(amountInput, "1500");
+
+    const saveButton = within(dialog).getByRole("button", {
+      name: "Simpan Perubahan",
+    });
+    await waitFor(() => expect(saveButton).toBeDisabled());
+    await user.click(saveButton);
+
+    const patchCalls = mockApiFetch.mock.calls.filter(
+      ([path, options]) =>
+        typeof path === "string" &&
+        path.endsWith(`/budgets/${EXISTING_BUDGET.id}`) &&
+        (options as RequestInit | undefined)?.method === "PATCH",
+    );
+    expect(patchCalls).toHaveLength(0);
   }, 10000);
 });

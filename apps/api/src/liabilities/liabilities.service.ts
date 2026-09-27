@@ -6,7 +6,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { type Role } from "@prisma/client";
+import { type Prisma, type Role } from "@prisma/client";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
@@ -25,15 +25,68 @@ import {
   notifyTransaction,
 } from "../transactions/transaction-alerts.util";
 
-import { splitPayment } from "./amortisation.util";
+import {
+  buildSchedule,
+  computeInstallment,
+  currentInstallment,
+  defaultInterestMethod,
+  dueDateForPeriod,
+  dueInstallment,
+  dueInstallmentEffectiveAt,
+  dueInstallmentPeriod,
+  parseRateScaledByHundred,
+  ratePlanOf,
+  splitPayment,
+  type InterestMethod,
+  type SplitPaymentResult,
+  type ScheduleInput,
+  type ScheduleRow,
+} from "./amortisation.util";
+import {
+  DEFAULT_PREPAYMENT_PENALTY_PERCENT,
+  MAX_PREPAYMENT_PENALTY_PERCENT,
+  simulatePrepayment,
+  type PrepaymentInput,
+  type PrepaymentMode,
+  type PrepaymentResult,
+} from "./prepayment.util";
+import {
+  EMPTY_RATE_PLAN_ROWS,
+  loadRatePlanRows,
+  ratePlanFromRows,
+  replaceRatePeriods,
+  type RatePlanClient,
+  type RatePlanRows,
+} from "./rate-plan.rows";
+import {
+  hasFloatingSegment,
+  rateAt,
+  sameRateRegime,
+  type RatePlan,
+  type RateSegment,
+  type ResolvedRate,
+} from "./rate-plan.util";
+import {
+  sameSegments,
+  validateKprScheme,
+  validateRatePeriods,
+  type KprSchemeValue,
+} from "./rate-plan.validation";
 
 import type { CreateLiabilityDto } from "./dto/create-liability.dto";
 import type {
+  LiabilityPaymentPreviewResponseDto,
+  LiabilityPrepaymentPreviewResponseDto,
+  LiabilityPrepaymentRecordResponseDto,
+  LiabilityPrepaymentResponseDto,
+  LiabilityRateBandDto,
   LiabilityResponseDto,
+  LiabilityScheduleResponseDto,
   LiabilitySummaryResponseDto,
 } from "./dto/liability-response.dto";
 import type { PayLiabilityDto } from "./dto/pay-liability.dto";
 import type { PurchaseLiabilityDto } from "./dto/purchase-liability.dto";
+import type { RecordPrepaymentDto } from "./dto/record-prepayment.dto";
 import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
 
 // EPIC-023 A1/A2 — the loan-interest EXPENSE account each chart provisions:
@@ -46,6 +99,12 @@ import type { UpdateLiabilityDto } from "./dto/update-liability.dto";
 // treatment `principalCategoryId` gets below (group E retry, HIGH 4).
 const LOAN_INTEREST_COA_CODES = ["20009", "21304"];
 
+// Revisi K — a recorded prepayment's legs (decision 5): the principal on its
+// own family TRANSFER category (never the liability's budget-line category),
+// the penalty on the dedicated 20011 expense account.
+const PREPAYMENT_CATEGORY_NAME = "Pelunasan Dipercepat Pinjaman";
+const PREPAYMENT_PENALTY_COA_CODE = "20011";
+
 // EPIC-023 group E retry (HIGH 3) — mirrors TransactionsService's own
 // ActingMember shape (not imported directly, to avoid a service-to-service
 // coupling for one type): the acting member's identity, used to stamp
@@ -55,7 +114,7 @@ export type ActingMember = { id: string; userId: string; role: Role } | null;
 
 type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
 
-type LiabilityRow = {
+export type LiabilityRow = {
   id: string;
   familyGroupId: string;
   name: string;
@@ -69,14 +128,395 @@ type LiabilityRow = {
   autoAdvanceDueDate: boolean;
   notes: string | null;
   currency: string;
+  interestMethod: InterestMethod;
+  tenorMonths: number | null;
+  startDate: Date | null;
+  installmentAmount: bigint | null;
+  fixedRateMonths: number | null;
+  floatingRate: { toString(): string } | null;
+  kprScheme?: KprSchemeValue | null;
+  ratePlanRows?: RatePlanRows;
+  installmentFromPeriod?: number | null;
   principalCategoryId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
 
+type InstallmentTerms = Pick<
+  LiabilityRow,
+  | "type"
+  | "interestMethod"
+  | "remainingBalance"
+  | "totalDebt"
+  | "interestRate"
+  | "installmentAmount"
+  | "minimumPayment"
+  | "tenorMonths"
+  | "startDate"
+  | "fixedRateMonths"
+  | "floatingRate"
+  | "ratePlanRows"
+  | "installmentFromPeriod"
+>;
+
+/** Schedule inputs from the liability's current state, starting at `firstPeriod` (default: the installment due on or after `now`). */
+function scheduleInputFor(
+  liability: InstallmentTerms,
+  now: Date,
+  firstPeriod?: number,
+): ScheduleInput {
+  const tenor = liability.tenorMonths;
+  const first =
+    firstPeriod ?? dueInstallment(liability.startDate, now, tenor).period;
+  return {
+    method: liability.interestMethod,
+    remainingBalance: liability.remainingBalance,
+    originalPrincipal: liability.totalDebt,
+    annualInterestRatePercent: liability.interestRate.toString(),
+    rateIsMonthly: liability.type === "kartu_kredit",
+    installmentAmount:
+      liability.installmentAmount ??
+      (liability.minimumPayment > BigInt(0) ? liability.minimumPayment : null),
+    remainingMonths: tenor === null ? null : Math.max(1, tenor - first + 1),
+    firstPeriod: first,
+    fixedRateMonths: liability.fixedRateMonths,
+    floatingRatePercent: liability.floatingRate?.toString() ?? null,
+    ratePlan: liability.ratePlanRows
+      ? ratePlanFromRows(liability.ratePlanRows, liability)
+      : undefined,
+    installmentAnchorPeriod: liability.installmentFromPeriod ?? undefined,
+  };
+}
+
+// Derived per read/write instead of stored, so crossing into the floating period needs no cron.
+function currentInstallmentFor(
+  liability: InstallmentTerms,
+  now: Date,
+  firstPeriod?: number,
+): bigint | null {
+  return currentInstallment(scheduleInputFor(liability, now, firstPeriod));
+}
+
+/** Budget line limit: the installment due; a liability with no minimumPayment has no line. */
+function budgetContribution(
+  liability: InstallmentTerms,
+  now: Date,
+  firstPeriod?: number,
+): bigint {
+  if (liability.minimumPayment <= BigInt(0)) return BigInt(0);
+  return (
+    currentInstallmentFor(liability, now, firstPeriod) ??
+    liability.minimumPayment
+  );
+}
+
+/** Annual rate the next installment (the schedule's first row) accrues at. */
+function currentRateFor(liability: InstallmentTerms, now: Date): string {
+  const input = scheduleInputFor(liability, now);
+  return rateAt(ratePlanOf(input), input.firstPeriod).ratePercent;
+}
+
+/** Consecutive schedule rows under one rate regime, for the web's rate column. */
+function rateBandsFor(
+  plan: RatePlan,
+  rows: ScheduleRow[],
+): LiabilityRateBandDto[] {
+  const bands: LiabilityRateBandDto[] = [];
+  let previous: ResolvedRate | null = null;
+  for (const row of rows) {
+    const rate = rateAt(plan, row.period);
+    const last = bands.at(-1);
+    if (last && previous && sameRateRegime(previous, rate)) {
+      last.toPeriod = row.period;
+    } else {
+      bands.push({
+        fromPeriod: row.period,
+        toPeriod: row.period,
+        ratePercent: rate.ratePercent,
+        kind: rate.kind,
+      });
+    }
+    previous = rate;
+  }
+  return bands;
+}
+
+async function withRatePlan<T extends { id: string }>(
+  client: RatePlanClient,
+  familyGroupId: string,
+  row: T,
+): Promise<T & { ratePlanRows: RatePlanRows }> {
+  const rows = await loadRatePlanRows(client, familyGroupId, [row.id]);
+  return { ...row, ratePlanRows: rows.get(row.id) ?? EMPTY_RATE_PLAN_ROWS };
+}
+
+/** A prepaid loan's installment after a term correction: what is left, re-annuitised from the installment now due (shared engine, same anchor as C1). */
+async function reanchoredInstallment(
+  client: TxClient,
+  familyGroupId: string,
+  terms: InstallmentTerms & { id: string },
+  now: Date,
+): Promise<{
+  installmentAmount: bigint | null;
+  installmentFromPeriod: number;
+}> {
+  const firstPeriod = await resolveDueAnchorPeriod(
+    client,
+    familyGroupId,
+    terms,
+    now,
+  );
+  const input = scheduleInputFor(terms, now, firstPeriod);
+  const [row] = buildSchedule({
+    ...input,
+    installmentAmount: BigInt(0),
+    recomputeAtStart: true,
+    maxRows: 1,
+  });
+  return {
+    installmentAmount: row?.installment ?? null,
+    installmentFromPeriod: input.firstPeriod,
+  };
+}
+
+function assertNotMixedRateTerms(dto: {
+  ratePeriods?: unknown;
+  fixedRateMonths?: number;
+  floatingRate?: string;
+}): void {
+  if (
+    dto.ratePeriods !== undefined &&
+    (dto.fixedRateMonths !== undefined || dto.floatingRate !== undefined)
+  ) {
+    throw new BadRequestException(
+      "Kirim ratePeriods atau fixedRateMonths/floatingRate, bukan keduanya",
+    );
+  }
+}
+
+function simulateOrReject(input: PrepaymentInput): PrepaymentResult {
+  try {
+    return simulatePrepayment(input);
+  } catch (err) {
+    if (err instanceof RangeError) {
+      throw new BadRequestException(
+        "Jumlah pelunasan harus lebih dari 0 dan tidak melebihi sisa pokok",
+      );
+    }
+    throw err;
+  }
+}
+
+interface PrepaymentRequest {
+  mode: PrepaymentMode;
+  amount: bigint;
+  penaltyPercent: string;
+}
+
+/** The same rules for preview and record. */
+function parsePrepaymentRequest(query: {
+  mode: PrepaymentMode;
+  amount?: string;
+  penaltyPercent?: string;
+}): PrepaymentRequest {
+  const penaltyPercent =
+    query.penaltyPercent ?? DEFAULT_PREPAYMENT_PENALTY_PERCENT;
+  if (
+    parseRateScaledByHundred(penaltyPercent) >
+    parseRateScaledByHundred(MAX_PREPAYMENT_PENALTY_PERCENT)
+  ) {
+    throw new BadRequestException(
+      `penaltyPercent must be between 0 and ${MAX_PREPAYMENT_PENALTY_PERCENT}`,
+    );
+  }
+  if (query.mode === "full" && query.amount !== undefined) {
+    throw new BadRequestException(
+      "amount is not used for a full payoff — the whole remaining balance is prepaid",
+    );
+  }
+  if (query.mode !== "full" && query.amount === undefined) {
+    throw new BadRequestException(
+      "amount is required for a partial prepayment",
+    );
+  }
+  return {
+    mode: query.mode,
+    amount:
+      query.amount === undefined
+        ? BigInt(0)
+        : guardBigInt("amount", query.amount),
+    penaltyPercent,
+  };
+}
+
+function assertPrepayable(liability: {
+  interestMethod: string;
+  tenorMonths: number | null;
+}): void {
+  if (
+    liability.interestMethod !== "anuitas" ||
+    liability.tenorMonths === null
+  ) {
+    throw new BadRequestException(
+      "Simulasi pelunasan hanya untuk cicilan anuitas dengan tenor",
+    );
+  }
+}
+
+/**
+ * Review fix 1 / C1 — `dueInstallment` alone picks the installment CURRENTLY
+ * due by date, including the whole 5-day grace window; it does not know
+ * whether THAT installment was already paid. A prepayment (or a term
+ * correction re-annuitising a prepaid loan) simulated/recorded/computed
+ * right after paying must anchor to the NEXT period (mirrors `runPayment`'s
+ * own `settled + 1`), or it re-derives numbers off an installment whose
+ * principal has already left `remainingBalance`.
+ *
+ * C1 fix: "already paid" means a non-prepayment payment leg on or after the
+ * WIB instant `due` itself BECAME the due installment
+ * (`dueInstallmentEffectiveAt`) — never "any payment this calendar month".
+ * The calendar month is the wrong window in both directions: a payment made
+ * for the PREVIOUS installment, on its own due day, falls in the same
+ * calendar month as `due` and would wrongly bump it; a payment made for
+ * `due` itself, near a month boundary, can fall in a DIFFERENT calendar
+ * month from the prepayment and would wrongly be missed.
+ *
+ * Shared by `previewPrepayment`, `recordPrepayment` and `reanchoredInstallment`
+ * so none of them drift from one another.
+ */
+async function resolveDueAnchorPeriod(
+  client: TxClient,
+  familyGroupId: string,
+  liability: {
+    id: string;
+    startDate: Date | null;
+    tenorMonths: number | null;
+  },
+  now: Date,
+): Promise<number> {
+  const due = dueInstallment(
+    liability.startDate,
+    now,
+    liability.tenorMonths,
+  ).period;
+  if (liability.startDate === null) return due;
+  const becameDueAt = dueInstallmentEffectiveAt(liability.startDate, due);
+  const alreadyPaid = await client.transaction.findFirst({
+    where: {
+      familyGroupId,
+      liabilityId: liability.id,
+      occurredAt: { gte: becameDueAt },
+      accountId: { not: null },
+      liabilityPrepaymentId: null,
+    },
+    select: { id: true },
+  });
+  return anchorPeriodFrom(due, liability.tenorMonths, alreadyPaid !== null);
+}
+
+/** Shared by `resolveDueAnchorPeriod` and `LiabilitiesService`'s batched
+ * `nextDueDatesFor`, so the single-liability and list-of-liabilities paths
+ * resolve the exact same anchor from the exact same two facts. */
+function anchorPeriodFrom(
+  due: number,
+  tenorMonths: number | null,
+  alreadyPaid: boolean,
+): number {
+  if (!alreadyPaid) return due;
+  return Math.min(due + 1, tenorMonths ?? due + 1);
+}
+
+/**
+ * Review fix 3 — the SAME idempotencyKey is only a legitimate replay when it
+ * repeats the SAME request; a different mode/account/amount/penalty under
+ * the same key is a client bug (a reused UUID), not a resend, and must never
+ * silently return the first record.
+ */
+function assertReplayMatches(
+  replay: {
+    mode: PrepaymentMode;
+    principalAmount: bigint;
+    penaltyPercent: { toString(): string };
+    sourceAccountId: string;
+  },
+  dto: { sourceAccountId: string; mode: PrepaymentMode },
+  request: PrepaymentRequest,
+): void {
+  const mismatched =
+    replay.mode !== dto.mode ||
+    replay.sourceAccountId !== dto.sourceAccountId ||
+    replay.penaltyPercent.toString() !== request.penaltyPercent ||
+    (dto.mode !== "full" && replay.principalAmount !== request.amount);
+  if (mismatched) {
+    throw new ConflictException(
+      "idempotencyKey ini sudah dipakai untuk permintaan pelunasan yang berbeda",
+    );
+  }
+}
+
+/** Liability columns a recorded prepayment rewrites (decision 5). */
+function prepaidTerms(
+  result: PrepaymentResult,
+  fromPeriod: number,
+): {
+  minimumPayment: bigint;
+  installmentAmount?: bigint | null;
+  installmentFromPeriod?: number | null;
+  tenorMonths?: number;
+} {
+  // Review fix 4 — a full payoff must null the stale installment/anchor, or
+  // the response (and the next read) still shows an installment on a debt
+  // that is actually zero.
+  if (result.mode === "full" || result.newInstallmentAmount === null) {
+    return {
+      minimumPayment: BigInt(0),
+      installmentAmount: null,
+      installmentFromPeriod: null,
+    };
+  }
+  return {
+    installmentAmount: result.newInstallmentAmount,
+    minimumPayment: result.newInstallmentAmount,
+    installmentFromPeriod: fromPeriod,
+    ...(result.newTenorMonths === null
+      ? {}
+      : { tenorMonths: result.newTenorMonths }),
+  };
+}
+
+function toPrepaymentDto(row: {
+  id: string;
+  mode: PrepaymentMode;
+  principalAmount: bigint;
+  penaltyPercent: { toString(): string };
+  penaltyAmount: bigint;
+  effectivePeriod: number;
+  installmentBefore: bigint | null;
+  installmentAfter: bigint | null;
+  tenorMonthsBefore: number;
+  tenorMonthsAfter: number;
+  occurredAt: Date;
+}): LiabilityPrepaymentResponseDto {
+  return {
+    id: row.id,
+    mode: row.mode,
+    principalAmount: row.principalAmount.toString(),
+    penaltyPercent: row.penaltyPercent.toString(),
+    penaltyAmount: row.penaltyAmount.toString(),
+    effectivePeriod: row.effectivePeriod,
+    installmentBefore: row.installmentBefore?.toString() ?? null,
+    installmentAfter: row.installmentAfter?.toString() ?? null,
+    tenorMonthsBefore: row.tenorMonthsBefore,
+    tenorMonthsAfter: row.tenorMonthsAfter,
+    occurredAt: row.occurredAt.toISOString(),
+  };
+}
+
 function toLiabilityDto(
   liability: LiabilityRow,
   paidThisPeriod = false,
+  now: Date = new Date(),
+  nextDueDate: Date | null = null,
 ): LiabilityResponseDto {
   const paymentRatio =
     liability.totalDebt > BigInt(0)
@@ -98,6 +538,11 @@ function toLiabilityDto(
     minimumPayment: liability.minimumPayment.toString(),
     interestRate: liability.interestRate.toString(),
     dueDate: liability.dueDate?.toISOString() ?? null,
+    // E2E round 1 bug 2 — the real next-installment due date, computed by
+    // the caller (`LiabilitiesService.nextDueDateFor`) with the same
+    // due-anchor rule the amortisation schedule uses; null for liabilities
+    // with no Tanggal Akad (no amortisation schedule to anchor against).
+    nextDueDate: nextDueDate?.toISOString() ?? null,
     autoAdvanceDueDate: liability.autoAdvanceDueDate,
     paymentRatio,
     // EPIC-023 E2 — whether a payment linked to THIS liability (`liabilityId`
@@ -107,6 +552,26 @@ function toLiabilityDto(
     paidThisPeriod,
     notes: liability.notes,
     currency: liability.currency,
+    interestMethod: liability.interestMethod,
+    tenorMonths: liability.tenorMonths,
+    startDate: liability.startDate?.toISOString() ?? null,
+    installmentAmount: liability.installmentAmount?.toString() ?? null,
+    currentInstallmentAmount:
+      currentInstallmentFor(liability, now)?.toString() ?? null,
+    fixedRateMonths: liability.fixedRateMonths,
+    floatingRate: liability.floatingRate?.toString() ?? null,
+    kprScheme: liability.kprScheme ?? null,
+    ratePeriods: (liability.ratePlanRows?.ratePeriods ?? []).map((row) => ({
+      kind: row.kind,
+      months: row.months,
+      ratePercent: row.ratePercent.toString(),
+    })),
+    currentRatePercent: currentRateFor(liability, now),
+    currentInstallmentLate: dueInstallment(
+      liability.startDate,
+      now,
+      liability.tenorMonths,
+    ).late,
     createdAt: liability.createdAt.toISOString(),
     updatedAt: liability.updatedAt.toISOString(),
   };
@@ -121,6 +586,66 @@ function guardBigInt(field: string, value: string): bigint {
   return BigInt(value);
 }
 
+function assertMethodAllowed(type: string, method: InterestMethod): void {
+  if (type === "kartu_kredit" && method !== "efektif") {
+    throw new BadRequestException(
+      "Kartu kredit hanya mendukung metode bunga efektif",
+    );
+  }
+}
+
+function resolveInstallment(terms: {
+  method: InterestMethod;
+  totalDebt: bigint;
+  interestRate: string;
+  tenorMonths: number | null;
+  override: bigint | undefined;
+}): bigint | null {
+  if (terms.method === "efektif") return null;
+  if (terms.override !== undefined) return terms.override;
+  if (terms.tenorMonths === null) return null;
+  return computeInstallment({
+    method: terms.method,
+    principal: terms.totalDebt,
+    annualInterestRatePercent: terms.interestRate,
+    tenorMonths: terms.tenorMonths,
+  });
+}
+
+/** The split pay() books for `paymentAmount` at `now`; refuses more than balance + interest due. */
+function splitLiabilityPayment(
+  liability: InstallmentTerms,
+  paymentAmount: bigint,
+  now: Date,
+): SplitPaymentResult {
+  const split = splitPayment({
+    paymentAmount,
+    remainingBalance: liability.remainingBalance,
+    annualInterestRatePercent: rateAt(
+      ratePlanOf(scheduleInputFor(liability, now)),
+      dueInstallmentPeriod(liability.startDate, now, liability.tenorMonths),
+    ).ratePercent,
+    rateIsMonthly: liability.type === "kartu_kredit",
+    method: liability.interestMethod,
+    originalPrincipal: liability.totalDebt,
+  });
+  const maxPayable = liability.remainingBalance + split.interest;
+  if (paymentAmount > maxPayable) {
+    throw new BadRequestException(
+      `Payment amount exceeds the remaining balance plus interest due (max ${maxPayable.toString()})`,
+    );
+  }
+  return split;
+}
+
+function guardPaymentAmount(amount: string): bigint {
+  const paymentAmount = guardBigInt("amount", amount);
+  if (paymentAmount <= BigInt(0)) {
+    throw new BadRequestException("amount must be greater than zero");
+  }
+  return paymentAmount;
+}
+
 @Injectable()
 export class LiabilitiesService {
   private readonly logger = new Logger(LiabilitiesService.name);
@@ -131,7 +656,10 @@ export class LiabilitiesService {
     private readonly notificationSender: NotificationSenderPort,
   ) {}
 
-  async findAll(familyGroupId: string): Promise<LiabilityResponseDto[]> {
+  async findAll(
+    familyGroupId: string,
+    now: Date = new Date(),
+  ): Promise<LiabilityResponseDto[]> {
     const liabilities = await this.prisma.liability.findMany({
       where: { familyGroupId },
       orderBy: { createdAt: "asc" },
@@ -142,7 +670,24 @@ export class LiabilitiesService {
       liabilities.map((l) => l.id),
     );
 
-    return liabilities.map((l) => toLiabilityDto(l, paidSet.has(l.id)));
+    const plans = await loadRatePlanRows(
+      this.prisma,
+      familyGroupId,
+      liabilities.map((l) => l.id),
+    );
+    const nextDueDates = await this.nextDueDatesFor(
+      familyGroupId,
+      liabilities,
+      now,
+    );
+    return liabilities.map((l) =>
+      toLiabilityDto(
+        { ...l, ratePlanRows: plans.get(l.id) },
+        paidSet.has(l.id),
+        now,
+        nextDueDates.get(l.id) ?? null,
+      ),
+    );
   }
 
   /**
@@ -177,11 +722,122 @@ export class LiabilitiesService {
         // Filtering on `accountId: { not: null }` therefore excludes every
         // purchase while keeping every real payment leg.
         accountId: { not: null },
+        // Revisi K — a recorded prepayment is never "this period's installment".
+        liabilityPrepaymentId: null,
       },
       select: { liabilityId: true },
       distinct: ["liabilityId"],
     });
     return new Set(rows.map((r) => r.liabilityId!));
+  }
+
+  /**
+   * E2E round 1 bug 2 — the real "Jatuh Tempo Berikutnya" date, reusing the
+   * SAME due-anchor rule (`resolveDueAnchorPeriod`) the amortisation
+   * schedule's first row is built from, so the two never drift apart. Null
+   * for a liability with no Tanggal Akad — nothing to anchor a schedule to.
+   *
+   * fix-round1 (Important) — ALSO null once `remainingBalance <= 0` (a
+   * lunas KPR, whether paid off via the final installment or a full
+   * prepayment). `resolveDueAnchorPeriod` clamps to the already-settled
+   * tenor period regardless, so without this a paid-off loan kept
+   * reporting a real due date and showed the red "Terlambat" banner
+   * forever after.
+   */
+  private async nextDueDateFor(
+    client: TxClient,
+    familyGroupId: string,
+    liability: {
+      id: string;
+      startDate: Date | null;
+      tenorMonths: number | null;
+      remainingBalance: bigint;
+    },
+    now: Date,
+  ): Promise<Date | null> {
+    if (liability.startDate === null) return null;
+    if (liability.remainingBalance <= BigInt(0)) return null;
+    const period = await resolveDueAnchorPeriod(
+      client,
+      familyGroupId,
+      liability,
+      now,
+    );
+    return dueDateForPeriod(liability.startDate, period);
+  }
+
+  /**
+   * fix-round1 (Minor) — `findAll`'s batched counterpart to
+   * `nextDueDateFor`: ONE extra `transaction.findMany` for every
+   * candidate liability instead of `nextDueDateFor`'s one
+   * `transaction.findFirst` PER liability (an N+1, unlike the already-
+   * batched `paidThisPeriodIds`). Liabilities with no Tanggal Akad or
+   * already paid off (`remainingBalance <= 0`) are resolved to `null`
+   * without touching the DB at all, exactly like `nextDueDateFor`.
+   */
+  private async nextDueDatesFor(
+    familyGroupId: string,
+    liabilities: {
+      id: string;
+      startDate: Date | null;
+      tenorMonths: number | null;
+      remainingBalance: bigint;
+    }[],
+    now: Date,
+  ): Promise<Map<string, Date | null>> {
+    const results = new Map<string, Date | null>();
+    const candidates: {
+      id: string;
+      startDate: Date;
+      tenorMonths: number | null;
+      due: number;
+      becameDueAt: Date;
+    }[] = [];
+    for (const l of liabilities) {
+      if (l.startDate === null || l.remainingBalance <= BigInt(0)) {
+        results.set(l.id, null);
+        continue;
+      }
+      const due = dueInstallment(l.startDate, now, l.tenorMonths).period;
+      candidates.push({
+        id: l.id,
+        startDate: l.startDate,
+        tenorMonths: l.tenorMonths,
+        due,
+        becameDueAt: dueInstallmentEffectiveAt(l.startDate, due),
+      });
+    }
+    if (candidates.length === 0) return results;
+
+    const earliestBecameDueAt = candidates.reduce(
+      (min, c) => (c.becameDueAt < min ? c.becameDueAt : min),
+      candidates[0]!.becameDueAt,
+    );
+    const paymentRows = await this.prisma.transaction.findMany({
+      where: {
+        familyGroupId,
+        liabilityId: { in: candidates.map((c) => c.id) },
+        occurredAt: { gte: earliestBecameDueAt },
+        accountId: { not: null },
+        liabilityPrepaymentId: null,
+      },
+      select: { liabilityId: true, occurredAt: true },
+    });
+    const paymentDatesByLiability = new Map<string, Date[]>();
+    for (const row of paymentRows) {
+      if (!row.liabilityId) continue;
+      const dates = paymentDatesByLiability.get(row.liabilityId) ?? [];
+      dates.push(row.occurredAt);
+      paymentDatesByLiability.set(row.liabilityId, dates);
+    }
+    for (const c of candidates) {
+      const alreadyPaid = (paymentDatesByLiability.get(c.id) ?? []).some(
+        (occurredAt) => occurredAt.getTime() >= c.becameDueAt.getTime(),
+      );
+      const period = anchorPeriodFrom(c.due, c.tenorMonths, alreadyPaid);
+      results.set(c.id, dueDateForPeriod(c.startDate, period));
+    }
+    return results;
   }
 
   async getSummary(
@@ -205,6 +861,59 @@ export class LiabilitiesService {
       totalRemainingBalance: totalRemainingBalance.toString(),
       totalDebt: totalDebt.toString(),
       currency: "IDR",
+    };
+  }
+
+  /**
+   * Read-only projection from the liability's current state; nothing is
+   * persisted.
+   *
+   * fix-round1 (Important) — anchored on `resolveDueAnchorPeriod` (the
+   * SAME "already paid this period" check `nextDueDateFor`,
+   * `previewPrepayment` and `recordPrepayment` use), not on
+   * `scheduleInputFor`'s own date-only `dueInstallment` fallback. Without
+   * this, an installment paid inside its grace window left the schedule's
+   * row #1 anchored a whole period behind `nextDueDate` — the same
+   * period's row rendered under a LATER calendar date on the web (the
+   * schedule table's date column reads `nextDueDate` as its anchor), and
+   * carried one extra row, pushing the projected payoff date a month late.
+   */
+  async getSchedule(
+    familyGroupId: string,
+    id: string,
+    now: Date = new Date(),
+  ): Promise<LiabilityScheduleResponseDto> {
+    const liability = await this.prisma.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+
+    const planned = await withRatePlan(this.prisma, familyGroupId, liability);
+    const firstPeriod = await resolveDueAnchorPeriod(
+      this.prisma,
+      familyGroupId,
+      liability,
+      now,
+    );
+    const input = scheduleInputFor(planned, now, firstPeriod);
+    const rows = buildSchedule(input);
+    const plan = ratePlanOf(input);
+
+    return {
+      liabilityId: liability.id,
+      interestMethod: liability.interestMethod,
+      installmentAmount: liability.installmentAmount?.toString() ?? null,
+      rows: rows.map((row) => ({
+        period: row.period,
+        installment: row.installment.toString(),
+        interest: row.interest.toString(),
+        principal: row.principal.toString(),
+        remaining: row.remaining.toString(),
+      })),
+      rateBands: rateBandsFor(plan, rows),
+      hasFloatingPeriod: hasFloatingSegment(plan),
     };
   }
 
@@ -239,19 +948,59 @@ export class LiabilitiesService {
       "remainingBalance",
       dto.remainingBalance,
     );
-    const minimumPayment = dto.minimumPayment
-      ? guardBigInt("minimumPayment", dto.minimumPayment)
-      : BigInt(0);
+    const interestMethod =
+      dto.interestMethod ?? defaultInterestMethod(dto.type);
+    assertMethodAllowed(dto.type, interestMethod);
+    const kprScheme = validateKprScheme(dto.type, dto.kprScheme);
+    assertNotMixedRateTerms(dto);
+    const segments = dto.ratePeriods
+      ? validateRatePeriods({
+          type: dto.type,
+          interestMethod,
+          tenorMonths: dto.tenorMonths ?? null,
+          kprScheme,
+          periods: dto.ratePeriods,
+          hasFloatingHistory: false,
+        })
+      : null;
+    const interestRate = segments?.[0]?.ratePercent ?? dto.interestRate ?? "0";
+    const installmentAmount = resolveInstallment({
+      method: interestMethod,
+      totalDebt,
+      interestRate,
+      tenorMonths: dto.tenorMonths ?? null,
+      override: dto.installmentAmount
+        ? guardBigInt("installmentAmount", dto.installmentAmount)
+        : undefined,
+    });
+    // A fixed installment IS the monthly obligation: it drives the budget line and the Pay preset.
+    const minimumPayment =
+      installmentAmount ??
+      (dto.minimumPayment
+        ? guardBigInt("minimumPayment", dto.minimumPayment)
+        : BigInt(0));
 
     const liability = await runSerializableWithRetry(this.prisma, (tx) =>
       this.runCreate(tx, familyGroupId, dto, {
         totalDebt,
         remainingBalance,
         minimumPayment,
+        installmentAmount,
+        interestMethod,
+        interestRate,
+        kprScheme,
+        segments,
       }),
     );
 
-    return toLiabilityDto(liability);
+    const now = new Date();
+    const nextDueDate = await this.nextDueDateFor(
+      this.prisma,
+      familyGroupId,
+      liability,
+      now,
+    );
+    return toLiabilityDto(liability, false, now, nextDueDate);
   }
 
   private async runCreate(
@@ -262,41 +1011,64 @@ export class LiabilitiesService {
       totalDebt: bigint;
       remainingBalance: bigint;
       minimumPayment: bigint;
+      installmentAmount: bigint | null;
+      interestMethod: InterestMethod;
+      interestRate: string;
+      kprScheme: KprSchemeValue | null;
+      segments: RateSegment[] | null;
     },
   ): Promise<LiabilityRow> {
-    const created = await tx.liability.create({
-      data: {
-        familyGroupId,
-        name: dto.name,
-        institution: dto.institution ?? null,
-        type: dto.type,
-        totalDebt: amounts.totalDebt,
-        remainingBalance: amounts.remainingBalance,
-        minimumPayment: amounts.minimumPayment,
-        interestRate: dto.interestRate ?? "0",
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
-        autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
-        notes: dto.notes ?? null,
-        currency: dto.currency ?? "IDR",
-      },
-    });
+    const data = {
+      familyGroupId,
+      name: dto.name,
+      institution: dto.institution ?? null,
+      type: dto.type,
+      totalDebt: amounts.totalDebt,
+      remainingBalance: amounts.remainingBalance,
+      minimumPayment: amounts.minimumPayment,
+      interestRate: amounts.interestRate,
+      dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+      autoAdvanceDueDate: dto.autoAdvanceDueDate ?? false,
+      notes: dto.notes ?? null,
+      currency: dto.currency ?? "IDR",
+      interestMethod: amounts.interestMethod,
+      tenorMonths: dto.tenorMonths ?? null,
+      startDate: dto.startDate ? new Date(dto.startDate) : null,
+      installmentAmount: amounts.installmentAmount,
+      fixedRateMonths: amounts.segments ? null : (dto.fixedRateMonths ?? null),
+      floatingRate: amounts.segments ? null : (dto.floatingRate ?? null),
+      kprScheme: amounts.kprScheme,
+    };
+    const created = await tx.liability.create({ data });
+
+    const ratePlanRows = amounts.segments
+      ? await replaceRatePeriods(
+          tx,
+          familyGroupId,
+          created.id,
+          amounts.segments,
+          [],
+        )
+      : EMPTY_RATE_PLAN_ROWS;
+    const planned = { ...created, ratePlanRows };
 
     if (amounts.minimumPayment > BigInt(0)) {
       await this.syncPrincipalBudgetLine(
         tx,
         familyGroupId,
-        created,
-        amounts.minimumPayment,
+        planned,
+        budgetContribution({ ...data, ratePlanRows }, new Date()),
       );
     }
 
-    return created;
+    return planned;
   }
 
   async update(
     familyGroupId: string,
     id: string,
     dto: UpdateLiabilityDto,
+    now: Date = new Date(),
   ): Promise<LiabilityResponseDto> {
     const existing = await this.prisma.liability.findUnique({
       where: { id, familyGroupId },
@@ -322,16 +1094,33 @@ export class LiabilitiesService {
     const minimumPayment = dto.minimumPayment
       ? guardBigInt("minimumPayment", dto.minimumPayment)
       : undefined;
+    const installmentAmount = dto.installmentAmount
+      ? guardBigInt("installmentAmount", dto.installmentAmount)
+      : undefined;
 
     const updated = await runSerializableWithRetry(this.prisma, (tx) =>
-      this.runUpdate(tx, familyGroupId, id, dto, {
-        totalDebt,
-        remainingBalance,
-        minimumPayment,
-      }),
+      this.runUpdate(
+        tx,
+        familyGroupId,
+        id,
+        dto,
+        {
+          totalDebt,
+          remainingBalance,
+          minimumPayment,
+          installmentAmount,
+        },
+        now,
+      ),
     );
 
-    return toLiabilityDto(updated);
+    const nextDueDate = await this.nextDueDateFor(
+      this.prisma,
+      familyGroupId,
+      updated,
+      now,
+    );
+    return toLiabilityDto(updated, false, now, nextDueDate);
   }
 
   /**
@@ -360,53 +1149,210 @@ export class LiabilitiesService {
       totalDebt: bigint | undefined;
       remainingBalance: bigint | undefined;
       minimumPayment: bigint | undefined;
+      installmentAmount: bigint | undefined;
     },
+    now: Date,
   ): Promise<LiabilityRow> {
     // Re-read fresh inside the (possibly retried) transaction — a retry
     // must never reuse a `principalCategoryId` read before the conflict.
     const existing = await tx.liability.findUniqueOrThrow({
       where: { id, familyGroupId },
     });
+    const existingRows =
+      (await loadRatePlanRows(tx, familyGroupId, [id])).get(id) ??
+      EMPTY_RATE_PLAN_ROWS;
 
     const totalDebt = amounts.totalDebt ?? existing.totalDebt;
     const remainingBalance =
       amounts.remainingBalance ?? existing.remainingBalance;
-    const minimumPayment = amounts.minimumPayment ?? existing.minimumPayment;
+    const type = dto.type ?? existing.type;
+    const interestMethod = dto.interestMethod ?? existing.interestMethod;
+    assertMethodAllowed(type, interestMethod);
+    const tenorMonths = dto.tenorMonths ?? existing.tenorMonths;
+    const kprScheme =
+      dto.kprScheme !== undefined
+        ? validateKprScheme(type, dto.kprScheme)
+        : (existing.kprScheme ?? null);
+    assertNotMixedRateTerms(dto);
+    const hasStoredPeriods = existingRows.ratePeriods.length > 0;
+    if (
+      hasStoredPeriods &&
+      (dto.fixedRateMonths !== undefined || dto.floatingRate !== undefined)
+    ) {
+      throw new BadRequestException(
+        "KPR ini memakai periode bunga — kirim ratePeriods, bukan fixedRateMonths/floatingRate",
+      );
+    }
+    const previousSegments = ratePlanOf(
+      scheduleInputFor({ ...existing, ratePlanRows: existingRows }, now),
+    ).segments;
+    const nextPeriods =
+      dto.ratePeriods ?? (hasStoredPeriods ? previousSegments : null);
+    const validated =
+      nextPeriods === null
+        ? null
+        : validateRatePeriods({
+            type,
+            interestMethod,
+            tenorMonths,
+            kprScheme,
+            periods: nextPeriods,
+            hasFloatingHistory: existingRows.floatingRates.length > 0,
+          });
+    // Rows are rewritten only when the caller sent periods; otherwise they were just re-checked.
+    const segments = dto.ratePeriods ? validated : null;
+    const ratePlanChanged =
+      segments !== null && !sameSegments(segments, previousSegments);
+    const resolvedInterestRate =
+      segments?.[0]?.ratePercent ??
+      dto.interestRate ??
+      existing.interestRate.toString();
+    // Fix round 1 (Important #2) — the web edit form re-sends every term
+    // field on every save, so checking DTO field PRESENCE (as before)
+    // treated a no-op PATCH as "terms changed" and silently dropped a
+    // user-overridden installment. Compare resolved VALUES against
+    // `existing` instead; an explicit `installmentAmount` still wins below
+    // regardless of whether any other term actually changed.
+    const termsChanged =
+      type !== existing.type ||
+      interestMethod !== existing.interestMethod ||
+      tenorMonths !== existing.tenorMonths ||
+      parseRateScaledByHundred(resolvedInterestRate) !==
+        parseRateScaledByHundred(existing.interestRate.toString()) ||
+      totalDebt !== existing.totalDebt ||
+      ratePlanChanged;
+    // The loan as it will be after this PATCH (Task 9 re-anchors a prepaid installment from it).
+    const nextTerms = {
+      ...existing,
+      type,
+      interestMethod,
+      tenorMonths,
+      totalDebt,
+      remainingBalance,
+      interestRate: resolvedInterestRate,
+      fixedRateMonths: segments
+        ? null
+        : (dto.fixedRateMonths ?? existing.fixedRateMonths),
+      floatingRate: segments
+        ? null
+        : (dto.floatingRate ?? existing.floatingRate),
+      ratePlanRows: segments
+        ? {
+            ratePeriods: segments.map((segment, sequence) => ({
+              liabilityId: id,
+              sequence,
+              ...segment,
+            })),
+            floatingRates: existingRows.floatingRates,
+          }
+        : existingRows,
+    };
+    // Recorded floating changes need a floating period on an anuitas loan to apply to.
+    if (
+      existingRows.floatingRates.length > 0 &&
+      (interestMethod !== "anuitas" ||
+        !hasFloatingSegment(ratePlanOf(scheduleInputFor(nextTerms, now))))
+    ) {
+      throw new BadRequestException(
+        "Hapus riwayat bunga floating sebelum menghapus periode floating",
+      );
+    }
+    // Revisi K — after a recorded prepayment the contract installment (totalDebt over the tenor) no longer applies.
+    const reanchor =
+      termsChanged &&
+      amounts.installmentAmount === undefined &&
+      (existing.installmentFromPeriod ?? null) !== null;
+    if (reanchor && (interestMethod !== "anuitas" || tenorMonths === null)) {
+      throw new BadRequestException(
+        "Pinjaman ini punya pelunasan dipercepat tercatat — hanya cicilan anuitas dengan tenor yang bisa dihitung ulang",
+      );
+    }
+    const reanchored = reanchor
+      ? await reanchoredInstallment(tx, familyGroupId, nextTerms, now)
+      : null;
+    const installmentAmount =
+      amounts.installmentAmount !== undefined
+        ? amounts.installmentAmount
+        : reanchored
+          ? reanchored.installmentAmount
+          : termsChanged
+            ? resolveInstallment({
+                method: interestMethod,
+                totalDebt,
+                interestRate: resolvedInterestRate,
+                tenorMonths,
+                override: undefined,
+              })
+            : existing.installmentAmount;
+    const minimumPayment =
+      installmentAmount ?? amounts.minimumPayment ?? existing.minimumPayment;
 
+    const data = {
+      name: dto.name ?? existing.name,
+      institution:
+        dto.institution !== undefined
+          ? (dto.institution ?? null)
+          : existing.institution,
+      type,
+      totalDebt,
+      remainingBalance,
+      minimumPayment,
+      interestRate:
+        segments?.[0]?.ratePercent ?? dto.interestRate ?? existing.interestRate,
+      dueDate:
+        dto.dueDate !== undefined
+          ? dto.dueDate
+            ? new Date(dto.dueDate)
+            : null
+          : existing.dueDate,
+      autoAdvanceDueDate: dto.autoAdvanceDueDate ?? existing.autoAdvanceDueDate,
+      notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+      currency: dto.currency ?? existing.currency,
+      interestMethod,
+      tenorMonths,
+      startDate:
+        dto.startDate !== undefined
+          ? dto.startDate
+            ? new Date(dto.startDate)
+            : null
+          : existing.startDate,
+      installmentAmount,
+      installmentFromPeriod: reanchored
+        ? reanchored.installmentFromPeriod
+        : termsChanged
+          ? null
+          : (existing.installmentFromPeriod ?? null),
+      fixedRateMonths: segments
+        ? null
+        : (dto.fixedRateMonths ?? existing.fixedRateMonths),
+      floatingRate: segments
+        ? null
+        : (dto.floatingRate ?? existing.floatingRate),
+      kprScheme,
+    };
     const updated = await tx.liability.update({
       where: { id, familyGroupId },
-      data: {
-        name: dto.name ?? existing.name,
-        institution:
-          dto.institution !== undefined
-            ? (dto.institution ?? null)
-            : existing.institution,
-        type: dto.type ?? existing.type,
-        totalDebt,
-        remainingBalance,
-        minimumPayment,
-        interestRate: dto.interestRate ?? existing.interestRate,
-        dueDate:
-          dto.dueDate !== undefined
-            ? dto.dueDate
-              ? new Date(dto.dueDate)
-              : null
-            : existing.dueDate,
-        autoAdvanceDueDate:
-          dto.autoAdvanceDueDate ?? existing.autoAdvanceDueDate,
-        notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-        currency: dto.currency ?? existing.currency,
-      },
+      data,
     });
+
+    const ratePlanRows = segments
+      ? await replaceRatePeriods(
+          tx,
+          familyGroupId,
+          id,
+          segments,
+          existingRows.floatingRates,
+        )
+      : existingRows;
 
     await this.syncPrincipalBudgetLine(
       tx,
       familyGroupId,
       { ...updated, principalCategoryId: existing.principalCategoryId },
-      minimumPayment,
+      budgetContribution({ ...existing, ...data, ratePlanRows }, now),
     );
 
-    return updated;
+    return { ...updated, ratePlanRows };
   }
 
   /**
@@ -459,6 +1405,22 @@ export class LiabilitiesService {
         budgetType: "FIXED",
       },
     });
+  }
+
+  /** Revisi K — re-derives this liability's budget line after its rate plan changed the current installment. */
+  async resyncBudgetLine(
+    tx: TxClient,
+    familyGroupId: string,
+    liability: LiabilityRow,
+    now: Date,
+  ): Promise<void> {
+    if (liability.minimumPayment <= BigInt(0)) return;
+    await this.syncPrincipalBudgetLine(
+      tx,
+      familyGroupId,
+      liability,
+      budgetContribution(liability, now),
+    );
   }
 
   /**
@@ -522,6 +1484,8 @@ export class LiabilitiesService {
         // that liability's own period, even though nothing has been paid
         // yet. See `paidThisPeriodIds`'s doc comment for the full reasoning.
         accountId: { not: null },
+        // Revisi K — a recorded prepayment is never "this period's installment".
+        liabilityPrepaymentId: null,
       },
       select: { id: true },
     });
@@ -562,15 +1526,13 @@ export class LiabilitiesService {
     familyGroupId: string,
     id: string,
     dto: PayLiabilityDto,
+    now: Date = new Date(),
   ): Promise<LiabilityResponseDto> {
-    const paymentAmount = guardBigInt("amount", dto.amount);
-    if (paymentAmount <= BigInt(0)) {
-      throw new BadRequestException("amount must be greater than zero");
-    }
+    const paymentAmount = guardPaymentAmount(dto.amount);
 
     const { liability, principalCategoryId } = await runSerializableWithRetry(
       this.prisma,
-      (tx) => this.runPayment(tx, familyGroupId, id, dto, paymentAmount),
+      (tx) => this.runPayment(tx, familyGroupId, id, dto, paymentAmount, now),
     );
 
     // H5 (group E retry round 4) — `purchase()` already fired this same
@@ -591,12 +1553,334 @@ export class LiabilitiesService {
     return liability;
   }
 
+  /** Read-only: the split `pay()` would book for `amount` right now. */
+  async previewPayment(
+    familyGroupId: string,
+    id: string,
+    amount: string,
+    now: Date = new Date(),
+  ): Promise<LiabilityPaymentPreviewResponseDto> {
+    const paymentAmount = guardPaymentAmount(amount);
+    const liability = await this.prisma.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+    const planned = await withRatePlan(this.prisma, familyGroupId, liability);
+    const { interest, principal } = splitLiabilityPayment(
+      planned,
+      paymentAmount,
+      now,
+    );
+    return {
+      liabilityId: liability.id,
+      amount: paymentAmount.toString(),
+      interest: interest.toString(),
+      principal: principal.toString(),
+      remainingAfter: (planned.remainingBalance - principal).toString(),
+    };
+  }
+
+  /** Revisi K — early-repayment simulation on the current state; nothing is recorded. */
+  async previewPrepayment(
+    familyGroupId: string,
+    id: string,
+    query: { mode: PrepaymentMode; amount?: string; penaltyPercent?: string },
+    now: Date = new Date(),
+  ): Promise<LiabilityPrepaymentPreviewResponseDto> {
+    const liability = await this.prisma.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+    assertPrepayable(liability);
+    const request = parsePrepaymentRequest(query);
+
+    const planned = await withRatePlan(this.prisma, familyGroupId, liability);
+    const firstPeriod = await resolveDueAnchorPeriod(
+      this.prisma,
+      familyGroupId,
+      liability,
+      now,
+    );
+    const schedule = scheduleInputFor(planned, now, firstPeriod);
+    const result = simulateOrReject({ schedule, ...request });
+    return {
+      liabilityId: liability.id,
+      mode: result.mode,
+      prepaidPrincipal: result.prepaidPrincipal.toString(),
+      penaltyPercent: request.penaltyPercent,
+      penalty: result.penalty.toString(),
+      cashOutNow: result.cashOutNow.toString(),
+      installmentBefore: result.installmentBefore?.toString() ?? null,
+      installmentAfter: result.installmentAfter?.toString() ?? null,
+      remainingMonthsBefore: result.remainingMonthsBefore,
+      remainingMonthsAfter: result.remainingMonthsAfter,
+      totalInterestBefore: result.totalInterestBefore.toString(),
+      totalInterestAfter: result.totalInterestAfter.toString(),
+      interestSaved: result.interestSaved.toString(),
+      netSaving: result.netSaving.toString(),
+      assumesCurrentFloatingRate:
+        rateAt(ratePlanOf(schedule), liability.tenorMonths ?? 1).kind ===
+        "floating",
+    };
+  }
+
+  /**
+   * Revisi K — records an early repayment (decision 5): debit, principal +
+   * penalty legs, persisted installment/tenor from the prepayment's period,
+   * budget re-sync, all in one Serializable transaction. Replay-safe per
+   * idempotencyKey; deliberately NOT subject to the monthly installment guard.
+   */
+  async recordPrepayment(
+    familyGroupId: string,
+    id: string,
+    dto: Omit<RecordPrepaymentDto, "fxInputs">,
+    userId: string | null,
+    now: Date = new Date(),
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const request = parsePrepaymentRequest(dto);
+    return runSerializableWithRetry(this.prisma, (tx) =>
+      this.runPrepayment(tx, familyGroupId, id, dto, request, userId, now),
+    );
+  }
+
+  private async runPrepayment(
+    tx: TxClient,
+    familyGroupId: string,
+    id: string,
+    dto: Omit<RecordPrepaymentDto, "fxInputs">,
+    request: PrepaymentRequest,
+    userId: string | null,
+    now: Date,
+  ): Promise<LiabilityPrepaymentRecordResponseDto> {
+    const liability = await tx.liability.findUnique({
+      where: { id, familyGroupId },
+    });
+    if (!liability) {
+      throw new NotFoundException("Liability not found");
+    }
+    const planned = await withRatePlan(tx, familyGroupId, liability);
+
+    const replay = await tx.liabilityPrepayment.findFirst({
+      where: {
+        familyGroupId,
+        liabilityId: id,
+        idempotencyKey: dto.idempotencyKey,
+      },
+    });
+    if (replay) {
+      assertReplayMatches(replay, dto, request);
+      return {
+        liability: toLiabilityDto(
+          planned,
+          false,
+          now,
+          await this.nextDueDateFor(tx, familyGroupId, planned, now),
+        ),
+        prepayment: toPrepaymentDto(replay),
+        replayed: true,
+      };
+    }
+
+    assertPrepayable(liability);
+    const sourceAccount = await tx.account.findUnique({
+      where: { id: dto.sourceAccountId, familyGroupId },
+    });
+    if (!sourceAccount) {
+      throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
+    }
+
+    const firstPeriod = await resolveDueAnchorPeriod(
+      tx,
+      familyGroupId,
+      liability,
+      now,
+    );
+    const schedule = scheduleInputFor(planned, now, firstPeriod);
+    const result = simulateOrReject({ schedule, ...request });
+    await assertBankNotOverdrawn(
+      tx,
+      familyGroupId,
+      sourceAccount.id,
+      result.cashOutNow,
+    );
+    await tx.account.update({
+      where: { id: sourceAccount.id, familyGroupId },
+      data: { balance: { decrement: result.cashOutNow } },
+    });
+
+    const tenorBefore = liability.tenorMonths ?? 0;
+    const prepayment = await tx.liabilityPrepayment.create({
+      data: {
+        familyGroupId,
+        liabilityId: id,
+        idempotencyKey: dto.idempotencyKey,
+        mode: result.mode,
+        principalAmount: result.prepaidPrincipal,
+        penaltyPercent: request.penaltyPercent,
+        penaltyAmount: result.penalty,
+        sourceAccountId: sourceAccount.id,
+        effectivePeriod: schedule.firstPeriod,
+        installmentBefore: result.installmentBefore,
+        installmentAfter: result.newInstallmentAmount,
+        tenorMonthsBefore: tenorBefore,
+        tenorMonthsAfter: result.newTenorMonths ?? tenorBefore,
+        createdByUserId: userId,
+        occurredAt: now,
+      },
+    });
+
+    const terms = prepaidTerms(result, schedule.firstPeriod);
+    const updated = await tx.liability.update({
+      where: { id, familyGroupId },
+      data: {
+        remainingBalance: { decrement: result.prepaidPrincipal },
+        ...terms,
+      },
+    });
+
+    await this.bookPrepaymentLegs(
+      tx,
+      familyGroupId,
+      liability,
+      sourceAccount.id,
+      prepayment.id,
+      result,
+      now,
+    );
+
+    await this.syncPrincipalBudgetLine(
+      tx,
+      familyGroupId,
+      { ...planned, ...terms },
+      budgetContribution(
+        {
+          ...planned,
+          ...terms,
+          remainingBalance:
+            liability.remainingBalance - result.prepaidPrincipal,
+        },
+        now,
+      ),
+    );
+
+    return {
+      liability: toLiabilityDto(
+        { ...updated, ratePlanRows: planned.ratePlanRows },
+        false,
+        now,
+        // A prepayment never counts as "this installment paid" (Revisi K —
+        // `liabilityPrepaymentId: null` filter), so the anchor period
+        // already resolved above for the schedule is still the next due
+        // installment; no need to re-resolve it. fix-round1 — but a FULL
+        // prepayment can bring `remainingBalance` to 0, and that lunas
+        // state must still null the date (see `nextDueDateFor`'s doc).
+        updated.startDate && updated.remainingBalance > BigInt(0)
+          ? dueDateForPeriod(updated.startDate, firstPeriod)
+          : null,
+      ),
+      prepayment: toPrepaymentDto(prepayment),
+      replayed: false,
+    };
+  }
+
+  private async bookPrepaymentLegs(
+    tx: TxClient,
+    familyGroupId: string,
+    liability: { id: string; name: string },
+    accountId: string,
+    prepaymentId: string,
+    result: PrepaymentResult,
+    occurredAt: Date,
+  ): Promise<void> {
+    const principalCategoryId = await this.resolveSystemCategoryId(
+      tx,
+      familyGroupId,
+      { groupNum: 5, direction: "TRANSFER" },
+      PREPAYMENT_CATEGORY_NAME,
+    );
+    await tx.transaction.create({
+      data: {
+        familyGroupId,
+        accountId,
+        categoryId: principalCategoryId,
+        amount: result.prepaidPrincipal,
+        type: "transfer",
+        liabilityId: liability.id,
+        liabilityPrepaymentId: prepaymentId,
+        description: `Pelunasan dipercepat ${liability.name}`,
+        occurredAt,
+      },
+    });
+    if (result.penalty <= BigInt(0)) return;
+    const penaltyCategoryId = await this.resolveSystemCategoryId(
+      tx,
+      familyGroupId,
+      { code: PREPAYMENT_PENALTY_COA_CODE },
+    );
+    await tx.transaction.create({
+      data: {
+        familyGroupId,
+        accountId,
+        categoryId: penaltyCategoryId,
+        amount: result.penalty,
+        type: "expense",
+        liabilityId: liability.id,
+        liabilityPrepaymentId: prepaymentId,
+        description: `Penalti pelunasan ${liability.name}`,
+        occurredAt,
+      },
+    });
+  }
+
+  /** Finds or creates the family's category for a system COA; `name` defaults to the COA's own name. */
+  private async resolveSystemCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+    coaWhere: Prisma.CoaAccountWhereInput,
+    name?: string,
+  ): Promise<string> {
+    const coaAccount = await tx.coaAccount.findFirst({
+      where: { familyGroupId, ...coaWhere },
+      orderBy: { code: "asc" },
+    });
+    if (!coaAccount) {
+      throw new BadRequestException(
+        "Akun COA untuk pelunasan dipercepat belum tersedia di keluarga ini",
+      );
+    }
+    const categoryName = name ?? coaAccount.name;
+    const existing = await tx.category.findFirst({
+      where: { familyGroupId, name: categoryName, kind: "expense" },
+      select: { id: true, coaAccountId: true },
+    });
+    if (existing) {
+      if (existing.coaAccountId === coaAccount.id) return existing.id;
+      throw new ConflictException(
+        `Kategori "${categoryName}" sudah dipakai untuk akun COA lain — ganti nama kategori itu dulu`,
+      );
+    }
+    const created = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: categoryName,
+        kind: "expense",
+        coaAccountId: coaAccount.id,
+      },
+    });
+    return created.id;
+  }
+
   private async runPayment(
     tx: TxClient,
     familyGroupId: string,
     id: string,
     dto: PayLiabilityDto,
     paymentAmount: bigint,
+    now: Date,
   ): Promise<{
     liability: LiabilityResponseDto;
     principalCategoryId: string | null;
@@ -607,6 +1891,7 @@ export class LiabilitiesService {
     if (!liability) {
       throw new NotFoundException("Liability not found");
     }
+    const planned = await withRatePlan(tx, familyGroupId, liability);
 
     // CRITICAL 1 (group E retry round 3) — the previous "already paid" guard
     // was a disabled BUTTON ONLY on the web page; neither this method nor
@@ -645,19 +1930,11 @@ export class LiabilitiesService {
       throw new NotFoundException(`Account ${dto.sourceAccountId} not found`);
     }
 
-    const { interest, principal } = splitPayment({
+    const { interest, principal } = splitLiabilityPayment(
+      planned,
       paymentAmount,
-      remainingBalance: liability.remainingBalance,
-      annualInterestRatePercent: liability.interestRate.toString(),
-      rateIsMonthly: liability.type === "kartu_kredit",
-    });
-
-    const maxPayable = liability.remainingBalance + interest;
-    if (paymentAmount > maxPayable) {
-      throw new BadRequestException(
-        `Payment amount exceeds the remaining balance plus interest due (max ${maxPayable.toString()})`,
-      );
-    }
+      now,
+    );
 
     // EPIC-021 #22 — this is a fresh, user-initiated debit of the SOURCE
     // account, exactly the class of debit the bank-overdraft floor guards
@@ -684,7 +1961,7 @@ export class LiabilitiesService {
       data: { remainingBalance: { decrement: principal } },
     });
 
-    const occurredAt = new Date();
+    const occurredAt = now;
 
     // CRITICAL 3 (group E retry round 3) — `syncPrincipalBudgetLine` used to
     // only ever be called from `create()`/`update()`. `pay()` self-healed
@@ -701,12 +1978,29 @@ export class LiabilitiesService {
       familyGroupId,
       liability,
     );
+    // The installment just settled is no longer outstanding: the line tracks the next one.
+    const settled = dueInstallment(
+      liability.startDate,
+      now,
+      liability.tenorMonths,
+    ).period;
+    const nextPeriod =
+      liability.startDate === null
+        ? undefined
+        : Math.min(settled + 1, liability.tenorMonths ?? settled + 1);
     if (liability.minimumPayment > BigInt(0)) {
       await this.syncPrincipalBudgetLine(
         tx,
         familyGroupId,
         { ...liability, principalCategoryId },
-        liability.minimumPayment,
+        budgetContribution(
+          {
+            ...planned,
+            remainingBalance: liability.remainingBalance - principal,
+          },
+          now,
+          nextPeriod,
+        ),
       );
     }
 
@@ -760,7 +2054,18 @@ export class LiabilitiesService {
       });
     }
 
-    return { liability: toLiabilityDto(updated), principalCategoryId };
+    return {
+      liability: toLiabilityDto(
+        { ...updated, ratePlanRows: planned.ratePlanRows },
+        false,
+        now,
+        // Reads the transaction rows just inserted above, in the SAME tx —
+        // a just-recorded payment correctly bumps this to next month
+        // (E2E round 1 bug 2 test: "after paying the current period").
+        await this.nextDueDateFor(tx, familyGroupId, updated, now),
+      ),
+      principalCategoryId,
+    };
   }
 
   /**
@@ -900,6 +2205,9 @@ export class LiabilitiesService {
       actingMemberThreshold ?? undefined,
     );
 
+    // A `kartu_kredit` purchase never has a Tanggal Akad/amortisation
+    // schedule to anchor a `nextDueDate` against (see the type guard
+    // above) — `toLiabilityDto`'s own default already reports null.
     return toLiabilityDto(updated);
   }
 

@@ -15,6 +15,7 @@ import { ForbiddenException } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { Role } from "@prisma/client";
 
+import { fxTesting } from "../../test/fx-testing";
 import { CaslAbilityFactory } from "../casl/casl-ability.factory";
 import { AbilitiesGuard } from "../common/guards/abilities.guard";
 
@@ -72,7 +73,7 @@ describe("InsurancesController (real AbilitiesGuard + CaslAbilityFactory)", () =
 
   beforeEach(() => {
     guard = new AbilitiesGuard(new Reflector(), new CaslAbilityFactory());
-    controller = new InsurancesController({} as never);
+    controller = new InsurancesController({} as never, fxTesting().service);
   });
 
   it("PERMISSION — owner/member can read AND pay a premium (manage Insurance)", () => {

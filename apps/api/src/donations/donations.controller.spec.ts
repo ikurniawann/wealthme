@@ -4,6 +4,8 @@ import { ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
 
+import { fxTesting } from "../../test/fx-testing";
+
 import { DonationsController } from "./donations.controller";
 import { DonationsService } from "./donations.service";
 
@@ -21,7 +23,10 @@ describe("DonationsController — GET deductible-total", () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [DonationsController],
-      providers: [{ provide: DonationsService, useValue: service }],
+      providers: [
+        { provide: DonationsService, useValue: service },
+        ...fxTesting().providers,
+      ],
     }).compile();
     app = moduleRef.createNestApplication();
     app.useGlobalPipes(

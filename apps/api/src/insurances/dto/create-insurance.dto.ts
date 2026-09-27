@@ -5,7 +5,6 @@ import {
   IsBoolean,
   IsDateString,
   IsEnum,
-  IsNotEmpty,
   IsOptional,
   IsString,
   Matches,
@@ -13,12 +12,15 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
 
 export class CreateInsuranceDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(150)
   name!: string;
 
@@ -89,4 +91,7 @@ export class CreateInsuranceDto {
   @ValidateNested({ each: true })
   @Type(() => CreateInsuranceBeneficiaryDto)
   beneficiaries?: CreateInsuranceBeneficiaryDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

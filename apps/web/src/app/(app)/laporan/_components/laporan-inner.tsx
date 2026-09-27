@@ -15,7 +15,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
-import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { useApiError } from "@/hooks/use-api-error";
 import { REPORT_TABS } from "@/lib/nav";
 import {
@@ -27,7 +26,19 @@ import {
   type ReportRangePreset,
   wibDateOf,
 } from "@/lib/laporan-period";
-import type { InvestmentDto, InvestmentType } from "@wealthme/contracts";
+import {
+  canonicalToTyping,
+  moneyIdrDecimal,
+  toCanonicalAmount,
+  useControlledMoneyField,
+  withFxInputs,
+} from "@/components/money";
+import { InfoTip } from "@/components/wm";
+import type {
+  FxCurrencyCode,
+  InvestmentDto,
+  InvestmentType,
+} from "@wealthme/contracts";
 import { useExportJob, ExportSection } from "./export-section";
 import { useLaporanReportQueries } from "./use-laporan-report-queries";
 import { InvestmentDialogs } from "./investment-dialogs";
@@ -273,6 +284,19 @@ export function LaporanInner() {
     costBasisPerUnit: "",
   });
   const [invSubmitting, setInvSubmitting] = useState(false);
+  // null = follow the display currency until touched (add); edit opens on IDR (Decision 9/12).
+  const [invCostCurrency, setInvCostCurrency] = useState<FxCurrencyCode | null>(
+    null,
+  );
+  const invCostField = useControlledMoneyField({
+    raw: invForm.costBasisPerUnit,
+    currency: invCostCurrency,
+    idrScale: 2,
+    onChange: ({ raw, currency }) => {
+      setInvForm((f) => ({ ...f, costBasisPerUnit: raw }));
+      setInvCostCurrency(currency);
+    },
+  });
 
   function openAdd() {
     setInvForm({
@@ -282,6 +306,7 @@ export function LaporanInner() {
       quantity: "",
       costBasisPerUnit: "",
     });
+    setInvCostCurrency(null);
     setShowAddInv(true);
   }
   function openEdit(inv: InvestmentDto) {
@@ -290,15 +315,18 @@ export function LaporanInner() {
       name: inv.name,
       type: inv.type,
       quantity: inv.quantity,
-      costBasisPerUnit: formatAmountInput(
-        String(Math.round(Number(inv.costBasisPerUnit))),
-      ),
+      costBasisPerUnit: canonicalToTyping(inv.costBasisPerUnit, 2),
     });
+    setInvCostCurrency("IDR");
     setEditingInv(inv);
   }
 
   async function handleInvSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (invCostField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
     setInvSubmitting(true);
     const isEdit = editingInv !== null;
     const url = isEdit
@@ -308,10 +336,18 @@ export function LaporanInner() {
       await apiFetch(url, {
         method: isEdit ? "PATCH" : "POST",
         token,
-        body: JSON.stringify({
-          ...invForm,
-          costBasisPerUnit: String(parseRupiah(invForm.costBasisPerUnit)),
-        }),
+        body: JSON.stringify(
+          withFxInputs(
+            {
+              ...invForm,
+              costBasisPerUnit: moneyIdrDecimal(
+                invCostField,
+                () => toCanonicalAmount(invForm.costBasisPerUnit) ?? "0",
+              ),
+            },
+            [["costBasisPerUnit", invCostField]],
+          ),
+        ),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.investments.all(familyGroupId),
@@ -632,17 +668,22 @@ export function LaporanInner() {
 
           {/* Cash-basis disclosure callout (gap 3) — active period rendered
             from the real `periodLabel` derivation above, not a static
-            string. */}
-          {/* Prototype `.notice.notice--info` with the lucide info icon and the
-              active period in `.mono` — was a bespoke Tailwind callout. */}
-          <div className="notice notice--info" style={{ marginTop: 14 }}>
+            string. Polish batch 8 item 10 — the full explanation ran 4
+            lines at 390px; keep one line (title + active period) and move
+            the "why" into the InfoTip popover instead. */}
+          <div
+            className="notice notice--info items-center"
+            style={{ marginTop: 14 }}
+          >
             <Info className="size-4 shrink-0" />
-            <span>
+            <span className="flex-1">
               <strong>{t.laporan.cashBasisNotice.title}</strong>{" "}
-              {t.laporan.cashBasisNotice.body}{" "}
               {t.laporan.cashBasisNotice.activePeriodPrefix}{" "}
               <span className="mono">{periodLabel}</span>.
             </span>
+            <InfoTip label={t.laporan.cashBasisNotice.title}>
+              {t.laporan.cashBasisNotice.body}
+            </InfoTip>
           </div>
         </div>
       </section>
@@ -722,6 +763,7 @@ export function LaporanInner() {
         editingInv={editingInv}
         deletingInv={deletingInv}
         invForm={invForm}
+        costBasisField={invCostField}
         invSubmitting={invSubmitting}
         setShowAddInv={setShowAddInv}
         setEditingInv={setEditingInv}

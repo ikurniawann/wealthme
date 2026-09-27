@@ -39,8 +39,15 @@ import {
 } from "@/components/ui/dialog";
 import { Card } from "@/components/ui/card";
 import { useShell } from "@/components/shell/shell-context";
-import { formatAmountInput, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyIdr,
+  withFxInputs,
+} from "@/components/money";
 import { cn } from "@/lib/utils";
+import { PpnHint } from "@/components/tax/ppn-hint";
 
 import {
   SectionCard,
@@ -380,7 +387,7 @@ export function TxRow({
  * data is only fetched, lazily, once the detail dialog for a single
  * transaction is opened), so both are omitted here rather than faked.
  */
-function TxTableRow({
+export function TxTableRow({
   tx,
   onDeleteClick,
   onEditClick,
@@ -450,17 +457,21 @@ function TxTableRow({
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-[13px] font-semibold">{displayName}</span>
             {isObligationLinked && (
-              <StatusBadge variant="warning">
-                <Lock className="size-2.5" />
-                {t.transaksi.lockedBadgeLabel}
-              </StatusBadge>
+              // Batch 8 item 8 — the full lock explanation used to render
+              // as its own line under every locked row, repeating the same
+              // sentence verbatim across 5+ rows. Show it once per row, as
+              // a native tooltip on the lock badge itself.
+              <span title={t.transaksi.obligationLockedTooltip}>
+                <StatusBadge variant="warning">
+                  <Lock className="size-2.5" />
+                  {t.transaksi.lockedBadgeLabel}
+                </StatusBadge>
+              </span>
             )}
           </div>
-          {(isTransferWithDest || isObligationLinked) && (
+          {isTransferWithDest && !isObligationLinked && (
             <div className="text-[11px] text-muted-foreground">
-              {isObligationLinked
-                ? t.transaksi.obligationLockedTooltip
-                : accountCell}
+              {accountCell}
             </div>
           )}
         </td>
@@ -479,7 +490,7 @@ function TxTableRow({
         </td>
         <td
           className={cn(
-            "px-3 py-3 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-bold",
+            "px-3 py-3 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-bold whitespace-nowrap",
             isTransfer
               ? "text-muted-foreground"
               : isIncome
@@ -926,6 +937,9 @@ export function TransactionDetailDialog({
               {t.transaksi.obligationLockedTooltip}
             </p>
           )}
+          {tx.type === "expense" && (
+            <PpnHint amount={tx.amount} occurredAt={tx.occurredAt} />
+          )}
           {familyGroupId && (
             <AttachmentList
               familyGroupId={familyGroupId}
@@ -987,9 +1001,10 @@ export function EditTransactionDialog({
 }) {
   const { t, locale } = useLocale();
   // State is initialised from props; parent passes key={tx.id} to reset on change
-  const [amount, setAmount] = useState(
-    tx ? formatAmountInput(String(Math.round(parseFloat(tx.amount)))) : "",
-  );
+  const amountField = useMoneyField({
+    initialRaw: tx ? String(Math.round(parseFloat(tx.amount))) : "",
+    isEdit: true,
+  });
   const [description, setDescription] = useState(tx?.description ?? "");
   const [date, setDate] = useState(tx?.occurredAt.slice(0, 10) ?? "");
 
@@ -1010,16 +1025,21 @@ export function EditTransactionDialog({
   if (!tx) return null;
 
   const handleSave = () => {
-    const amountNum = parseRupiah(amount);
+    const amountNum = moneyIdr(amountField, parseRupiah);
     if (!amountNum || amountNum <= 0) {
       toast.error(t.transaksi.toastInvalidAmount);
       return;
     }
-    updateMutation.mutate({
-      amount: amountNum,
-      ...(description ? { description } : { description: null }),
-      occurredAt: new Date(date).toISOString(),
-    });
+    updateMutation.mutate(
+      withFxInputs(
+        {
+          amount: amountNum,
+          ...(description ? { description } : { description: null }),
+          occurredAt: new Date(date).toISOString(),
+        },
+        [["amount", amountField]],
+      ),
+    );
   };
 
   return (
@@ -1044,13 +1064,7 @@ export function EditTransactionDialog({
               2-up partner, so it stays a full-width `.field`. */}
           <label className="field">
             <span className="label">{t.transaksi.fieldAmountLabel}</span>
-            <input
-              className="input mono"
-              value={amount}
-              onChange={(e) => setAmount(formatAmountInput(e.target.value))}
-              inputMode="numeric"
-              placeholder="0"
-            />
+            <MoneyInput field={amountField} id="tx-edit-amount" />
           </label>
           <label className="field">
             <span className="label">{t.transaksi.fieldDescLabel}</span>
@@ -1085,7 +1099,9 @@ export function EditTransactionDialog({
           <button
             type="button"
             onClick={handleSave}
-            disabled={updateMutation.isPending}
+            disabled={
+              updateMutation.isPending || amountField.resolved.isPending
+            }
             className="btn btn--primary"
           >
             {updateMutation.isPending
@@ -1493,7 +1509,7 @@ function TransaksiPageInner() {
           <div
             role="group"
             aria-label={t.transaksi.filterCardTitle}
-            className="hide-scrollbar flex gap-2 overflow-x-auto"
+            className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
           >
             {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered
                 `bg-card` idle, primary fill selected (app.css:2308,

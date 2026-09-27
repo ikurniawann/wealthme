@@ -8,16 +8,29 @@ import * as React from "react";
 import { ProgressBar } from "@/components/wm";
 import { formatRupiah } from "@/lib/format";
 
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+// Polish batch 8 item 3 — this used to read `window.matchMedia` directly
+// during render (`prefersReducedMotion()` called inline, and inlined again
+// as a `useState` initializer below). `typeof window !== "undefined"` is
+// false during SSR but true on the very first CLIENT render too (hydration
+// still runs before any effect), so whenever the visitor's OS/browser has
+// "reduce motion" on, the server always computed `reduced = false` while
+// that first client render computed `true` — a real content/text mismatch
+// (0 vs. the final value) on every count-up/progress-fill mount, i.e.
+// exactly the class of bug the "1 Issue" hydration badge was reporting.
+// Fixed by always rendering the SSR-safe default first and only reading
+// the media query after mount, inside an effect.
+function useReducedMotionPreference(): boolean {
+  const [reduced, setReduced] = React.useState(false);
+  React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads window on mount, not derivable from render.
+    setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }, []);
+  return reduced;
 }
 
 /** Easing sebuah angka dari 0 → target saat mount / saat target berubah. */
 export function useCountUp(target: number, durationMs = 1200): number {
-  const reduced = prefersReducedMotion();
+  const reduced = useReducedMotionPreference();
   const [value, setValue] = React.useState(0);
 
   React.useEffect(() => {
@@ -65,12 +78,17 @@ export function AnimatedProgress({
   color?: string;
   height?: number;
 }) {
-  const [v, setV] = React.useState(prefersReducedMotion() ? value : 0);
+  const reduced = useReducedMotionPreference();
+  const [v, setV] = React.useState(0);
   React.useEffect(() => {
-    if (prefersReducedMotion()) return;
+    if (reduced) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- jump to final value once the media query resolves post-mount.
+      setV(value);
+      return;
+    }
     const id = window.setTimeout(() => setV(value), 120);
     return () => window.clearTimeout(id);
-  }, [value]);
+  }, [value, reduced]);
   return <ProgressBar value={v} color={color} height={height} />;
 }
 

@@ -1,6 +1,15 @@
 import { Injectable } from "@nestjs/common";
+import {
+  divRoundHalfUp,
+  formatScaled,
+  FX_RATE_SCALE,
+  parseScaled,
+  type FxCurrencyCode,
+} from "@wealthme/contracts";
 
 import { FxPort } from "./fx.port";
+
+import type { FxSnapshot } from "./fx-snapshot";
 
 @Injectable()
 export class FxMockService extends FxPort {
@@ -34,5 +43,29 @@ export class FxMockService extends FxPort {
         rate / baseRate,
       ]),
     );
+  }
+
+  async getSnapshot(): Promise<FxSnapshot> {
+    const one = 10n ** BigInt(FX_RATE_SCALE);
+    const idrPerUnit = Object.fromEntries(
+      Object.entries(this.rates).map(([code, rate]) => [
+        code,
+        formatScaled(
+          divRoundHalfUp(
+            one * one,
+            parseScaled(rate.toFixed(FX_RATE_SCALE), FX_RATE_SCALE),
+          ),
+          FX_RATE_SCALE,
+        ),
+      ]),
+    ) as Record<FxCurrencyCode, string>;
+    const now = new Date();
+    return {
+      source: "indicative",
+      rateDate: now.toISOString().slice(0, 10),
+      fetchedAt: now.toISOString(),
+      stale: true,
+      idrPerUnit,
+    };
   }
 }

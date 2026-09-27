@@ -155,6 +155,15 @@ jest.mock("../../lib/api-client", () => ({
   apiFetch: (...args: Parameters<typeof mockApiFetch>) => mockApiFetch(...args),
 }));
 
+jest.mock("../money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../money/fx-test-rates").TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
 // EPIC-027 B2 — jsdom implements no 2D canvas context, so the real
 // `captureVideoFrameBase64` can never succeed here. Only the thin
 // canvas wrapper is stubbed; the downscale/encode loop it wraps keeps its
@@ -211,6 +220,104 @@ function render(ui: ReactElement) {
   );
   return { ...result, queryClient };
 }
+
+describe("TransactionDialog, tab-strip scrolls at tablet/desktop, wraps below 400px (batch-3, revised batch-8 item 1)", () => {
+  it("the type-switch tablist scrolls horizontally by default and wraps only under the 400px breakpoint", async () => {
+    render(<TransactionDialog />);
+    const tablist = await screen.findByRole("tablist");
+    expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
+    // Batch 8 item 1 — "Kartu Kredit" clipped at 390px with no usable
+    // affordance; wrap into extra rows below 400px instead of relying on
+    // scroll-fade alone, matching /kalkulator and /investasi.
+    expect(tablist.className).toMatch(/\bmax-\[399px\]:grid-cols-2\b/);
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab.className).toMatch(/\bshrink-0\b/);
+      expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
+    }
+  });
+
+  // polish-j batch 7a item 6 — at 390px the strip must keep batch 3's
+  // scroll-fade affordance AND every tab label must stay fully reachable
+  // by scrolling (none clipped/hidden), so this pins both: the fade
+  // container classes on the scroll element itself, and that each tab
+  // (including "Kartu Kredit", the longest label) is a direct, non-wrapped
+  // child of that same scrollable element.
+  it("keeps the scroll-fade affordance and every tab (incl. Kartu Kredit) reachable inside the scroll container", async () => {
+    render(<TransactionDialog />);
+    const tablist = await screen.findByRole("tablist");
+    expect(tablist.className).toMatch(/\bscroll-fade-x\b/);
+    expect(tablist.className).toMatch(/\bhide-scrollbar\b/);
+
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(4);
+    for (const tab of tabs) {
+      expect(tab.parentElement).toBe(tablist);
+      expect(tab.className).toMatch(/\bshrink-0\b/);
+      expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
+    }
+    expect(
+      screen.getByRole("tab", { name: /Kartu Kredit/ }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("TransactionDialog, polish-j batch 7a item 6 (subtitle, pairing, Lampiran disclosure)", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
+    aiKeyStatus = {
+      configured: false,
+      provider: null,
+      keyHint: null,
+      scanAvailable: false,
+    };
+  });
+
+  it("no longer renders the dialog subtitle", async () => {
+    render(<TransactionDialog />);
+    await screen.findByRole("tablist");
+    expect(
+      screen.queryByText(
+        "Catat pemasukan, pengeluaran, transfer, atau belanja kartu kredit.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it("pairs Akun and Kategori as same-shape controls in one row, like Tanggal/Deskripsi", async () => {
+    render(<TransactionDialog />);
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    const categorySelect = screen.getByRole("combobox", { name: "Kategori" });
+    expect(accountSelect.closest(".field-row")).not.toBeNull();
+    expect(accountSelect.closest(".field-row")).toBe(
+      categorySelect.closest(".field-row"),
+    );
+  });
+
+  it("collapses Lampiran under a disclosure that is closed by default and opens on click", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+    await screen.findByRole("tablist");
+
+    const summary = screen.getByText("Lampiran");
+    const details = summary.closest("details");
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute("open");
+
+    await user.click(summary);
+    expect(details).toHaveAttribute("open");
+    expect(
+      within(details as HTMLElement).getByTestId("attachment-file-input"),
+    ).toBeInTheDocument();
+    expect(
+      within(details as HTMLElement).getByText(/Butuh API key AI\./),
+    ).toBeInTheDocument();
+    expect(
+      within(details as HTMLElement).getByRole("link", { name: "Atur" }),
+    ).toBeInTheDocument();
+  });
+});
 
 describe("TransactionDialog, credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {
   beforeEach(() => {
@@ -453,6 +560,75 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     expect(body.get("file")).toBe(file);
 
     fetchSpy.mockRestore();
+  });
+
+  it("revisi I — IDR submit sends the same body as before (no fxInputs)", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    await user.selectOptions(accountSelect, "acc-1");
+
+    await user.type(
+      screen.getByLabelText(mockDictionary.shell.transactionDialog.amountLabel),
+      "250000",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Simpan",
+      }),
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(([url]) =>
+        String(url).endsWith("/transactions"),
+      );
+      expect(post).toBeDefined();
+      const body = JSON.parse((post as [string, { body: string }])[1].body);
+      expect(body.amount).toBe(250_000);
+      expect(body).not.toHaveProperty("fxInputs");
+    });
+  });
+
+  it("revisi I — a USD amount sends the preview + fxInputs", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
+    const accountSelect = await screen.findByRole("combobox", {
+      name: "Akun",
+    });
+    await user.selectOptions(accountSelect, "acc-1");
+
+    await user.selectOptions(
+      screen.getByLabelText(mockDictionary.money.currencyLabel),
+      "USD",
+    );
+    await user.type(
+      screen.getByLabelText(mockDictionary.shell.transactionDialog.amountLabel),
+      "10",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: "Simpan",
+      }),
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(([url]) =>
+        String(url).endsWith("/transactions"),
+      );
+      expect(post).toBeDefined();
+      expect(
+        JSON.parse((post as [string, { body: string }])[1].body),
+      ).toMatchObject({
+        amount: 179_139,
+        fxInputs: [{ field: "amount", currency: "USD", amount: "10" }],
+      });
+    });
   });
 
   it("surfaces an honest error toast when the attachment upload fails, the transaction itself is still saved", async () => {

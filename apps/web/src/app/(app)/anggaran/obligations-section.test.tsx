@@ -89,11 +89,23 @@ const DUE_LIABILITY: LiabilityDto = {
   minimumPayment: "2083000",
   interestRate: "10.00",
   dueDate: null,
+  nextDueDate: null,
   autoAdvanceDueDate: false,
   paymentRatio: 50,
   paidThisPeriod: false,
   notes: null,
   currency: "IDR",
+  interestMethod: "efektif",
+  tenorMonths: null,
+  startDate: null,
+  installmentAmount: null,
+  currentInstallmentAmount: "2083000",
+  fixedRateMonths: null,
+  floatingRate: null,
+  kprScheme: null,
+  ratePeriods: [],
+  currentRatePercent: "2.25",
+  currentInstallmentLate: false,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
@@ -224,6 +236,43 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     expect(screen.getByText(t.obligationsPaidBadge)).toBeInTheDocument();
   });
 
+  // fix-round1 (Minor) — the obligations Pay list mapped the legacy
+  // `dueDate` (never set for a KPR), unlike /liabilitas which already
+  // switched to `nextDueDate`. Round out the same switch here.
+  it("shows the API's nextDueDate for a liability whose legacy dueDate is null", async () => {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url.endsWith("/liabilities")) {
+        return Promise.resolve([
+          {
+            ...DUE_LIABILITY,
+            dueDate: null,
+            nextDueDate: "2026-09-27T00:00:00.000Z",
+          },
+        ]);
+      }
+      if (url.endsWith("/insurances")) {
+        return Promise.resolve([PAID_INSURANCE]);
+      }
+      return Promise.resolve([]);
+    });
+    renderWithClient(
+      <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
+      queryClient,
+    );
+
+    await screen.findByText(DUE_LIABILITY.name);
+    const row = screen
+      .getByText(DUE_LIABILITY.name)
+      .closest("div")!.parentElement!;
+    expect(row.textContent).toContain(
+      new Date("2026-09-27T00:00:00.000Z").toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    );
+  });
+
   it("paying a due liability requires a source account before the button is enabled, then calls the liability pay endpoint with the amount due", async () => {
     const user = userEvent.setup();
     renderWithClient(
@@ -272,6 +321,7 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
       id: "liab-frac-1",
       name: "Cicilan Motor",
       minimumPayment: "2083000.75",
+      currentInstallmentAmount: null,
     };
     mockApiFetch.mockImplementation((path: unknown, init?: unknown) => {
       const method = (init as { method?: string } | undefined)?.method;
@@ -333,6 +383,35 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
         }),
       ),
     );
+  });
+
+  it("a KPR past its fixed period is due its re-amortised current installment, not the stale minimumPayment (revisi G final fix 2)", async () => {
+    const KPR: LiabilityDto = {
+      ...DUE_LIABILITY,
+      id: "liab-kpr",
+      name: "KPR BTN",
+      type: "kpr",
+      minimumPayment: "3299779",
+      currentInstallmentAmount: "4744030",
+    };
+    mockApiFetch.mockImplementation((path: unknown) => {
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/liabilities`) {
+        return Promise.resolve([KPR]);
+      }
+      if (path === `/family-groups/${FAMILY_GROUP_ID}/insurances`) {
+        return Promise.resolve([]);
+      }
+      return Promise.resolve([]);
+    });
+
+    renderWithClient(
+      <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
+      queryClient,
+    );
+
+    await screen.findByText(KPR.name);
+    expect(screen.getByText("Rp 4.744.030")).toBeInTheDocument();
+    expect(screen.queryByText("Rp 3.299.779")).not.toBeInTheDocument();
   });
 
   it("LOW 8 — paying a due insurance calls the insurance pay endpoint with just the source account (amount defaults server-side to premiumAmount)", async () => {

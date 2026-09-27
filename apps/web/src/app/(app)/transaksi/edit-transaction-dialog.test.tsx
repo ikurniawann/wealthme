@@ -86,3 +86,85 @@ it("edits the date through the shared calendar and PATCHes that day", async () =
     );
   });
 });
+
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => ({
+    data: enabled
+      ? jest.requireActual("../../../components/money/fx-test-rates")
+          .TEST_FX_RATES
+      : undefined,
+    isError: false,
+  }),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
+describe("EditTransactionDialog — revisi I multi-currency", () => {
+  it("revisi I — editing without touching the amount sends no fxInputs; a JPY amount does", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditTransactionDialog
+        tx={TX}
+        token="t"
+        familyGroupId="fg-1"
+        onClose={jest.fn()}
+        onSaved={jest.fn()}
+      />,
+    );
+
+    // First: verify no fxInputs on unchanged save
+    await screen.findByLabelText("Tanggal");
+    await user.click(await screen.findByRole("button", { name: "Simpan" }));
+
+    await waitFor(() => {
+      const patch = mockApiFetch.mock.calls.find(
+        ([, opts]) =>
+          (opts as { method?: string } | undefined)?.method === "PATCH",
+      );
+      expect(JSON.parse(String(patch?.[1]?.body))).not.toHaveProperty(
+        "fxInputs",
+      );
+    });
+  });
+
+  it("revisi I — JPY amount sends preview + fxInputs", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditTransactionDialog
+        tx={TX}
+        token="t"
+        familyGroupId="fg-1"
+        onClose={jest.fn()}
+        onSaved={jest.fn()}
+      />,
+    );
+
+    await userEvent.selectOptions(
+      await screen.findByLabelText("Mata uang"),
+      "JPY",
+    );
+    const amountInput = screen.getByDisplayValue("50.000") as HTMLInputElement;
+    await userEvent.clear(amountInput);
+    await userEvent.type(amountInput, "1500");
+
+    await user.click(await screen.findByRole("button", { name: "Simpan" }));
+
+    await waitFor(() => {
+      const patch = mockApiFetch.mock.calls.find(
+        ([, opts]) =>
+          (opts as { method?: string } | undefined)?.method === "PATCH",
+      );
+      expect(JSON.parse(String(patch?.[1]?.body))).toMatchObject({
+        amount: 170_511,
+        fxInputs: [{ field: "amount", currency: "JPY", amount: "1500" }],
+      });
+    });
+  });
+});

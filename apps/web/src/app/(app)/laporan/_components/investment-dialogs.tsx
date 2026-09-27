@@ -8,7 +8,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
-import { formatAmountInput } from "@/lib/format";
+import { MoneyInput } from "@/components/money";
+import type { MoneyField } from "@/components/money";
 import type { InvestmentDto, InvestmentType } from "@wealthme/contracts";
 
 type InvestmentFormState = {
@@ -32,6 +33,7 @@ export function InvestmentDialogs({
   editingInv,
   deletingInv,
   invForm,
+  costBasisField,
   invSubmitting,
   setShowAddInv,
   setEditingInv,
@@ -44,6 +46,7 @@ export function InvestmentDialogs({
   editingInv: InvestmentDto | null;
   deletingInv: InvestmentDto | null;
   invForm: InvestmentFormState;
+  costBasisField: MoneyField;
   invSubmitting: boolean;
   setShowAddInv: Dispatch<SetStateAction<boolean>>;
   setEditingInv: Dispatch<SetStateAction<InvestmentDto | null>>;
@@ -132,33 +135,36 @@ export function InvestmentDialogs({
                 ))}
               </select>
             </div>
-            {(["quantity", "costBasisPerUnit"] as const).map((field) => (
-              <div key={field} className="space-y-1">
-                <label className="text-[12px] text-muted-foreground">
-                  {field === "quantity"
-                    ? t.investasi.fieldQuantityLabel
-                    : t.investasi.fieldCostBasisLabel}
-                </label>
-                <input
-                  type={field === "quantity" ? "number" : "text"}
-                  inputMode={field === "quantity" ? "decimal" : "numeric"}
-                  required
-                  min="0"
-                  step="any"
-                  value={invForm[field]}
-                  onChange={(e) =>
-                    setInvForm((f) => ({
-                      ...f,
-                      [field]:
-                        field === "quantity"
-                          ? e.target.value
-                          : formatAmountInput(e.target.value),
-                    }))
-                  }
-                  className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            ))}
+            <div className="space-y-1">
+              <label className="text-[12px] text-muted-foreground">
+                {t.investasi.fieldQuantityLabel}
+              </label>
+              <input
+                type="number"
+                inputMode="decimal"
+                required
+                min="0"
+                step="any"
+                value={invForm.quantity}
+                onChange={(e) =>
+                  setInvForm((f) => ({ ...f, quantity: e.target.value }))
+                }
+                className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="space-y-1">
+              <label
+                className="text-[12px] text-muted-foreground"
+                htmlFor="laporan-cost-basis"
+              >
+                {t.investasi.fieldCostBasisLabel}
+              </label>
+              <MoneyInput
+                field={costBasisField}
+                id="laporan-cost-basis"
+                required
+              />
+            </div>
             <DialogFooter>
               <Button type="submit" disabled={invSubmitting} className="w-full">
                 {invSubmitting ? t.investasi.saving : t.investasi.saveButton}

@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Req,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -22,6 +23,9 @@ import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import { Public } from "../common/decorators/public.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfirmParticipantDto } from "./dto/confirm-participant.dto";
@@ -36,12 +40,18 @@ import {
 import { UpdatePayoutAccountDto } from "./dto/update-payout-account.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SplitBillsService } from "./split-bills.service";
+import { assertSplitFxComplete, settleSplitRounding } from "./split-fx.util";
+
+import type { Request } from "express";
 
 @ApiTags("split-bills")
 @PageAccess("split-bills")
 @Controller()
 export class SplitBillsController {
-  constructor(private readonly splitBillsService: SplitBillsService) {}
+  constructor(
+    private readonly splitBillsService: SplitBillsService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   // EPIC-023 Task C retry (CRITICAL six-reviewer finding) — this whole
   // controller carried no `@CheckAbility`, so `AbilitiesGuard` waved every
@@ -71,8 +81,20 @@ export class SplitBillsController {
   create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateSplitBillDto,
+    @Req() req: Request,
   ): Promise<SplitBillResponseDto> {
-    return this.splitBillsService.create(familyGroupId, dto);
+    assertSplitFxComplete(dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "SplitBill",
+        dto,
+        spec: FX_FIELD_SPECS.splitBill,
+        transform: settleSplitRounding,
+      },
+      (converted) => this.splitBillsService.create(familyGroupId, converted),
+    );
   }
 
   @Get("family-groups/:familyGroupId/split-bills/:id")

@@ -4,12 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Send, FileText, ShieldCheck } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useDebounce } from "@/hooks/use-debounce";
@@ -28,39 +23,38 @@ import { HeroCard, SectionCard, CardLink, StatusBadge } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatNumber } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
+import { formatBps } from "@/components/tax/format-bps";
+import { TaxRuleBadge } from "@/components/tax/tax-rule-badge";
+import { usePphOpPreview } from "@/components/tax/use-tax-api";
+
+import { extractApiErrorMessage } from "./_components/api-error";
+import { MAX_TAX_INPUT, toClampedDigitString } from "./_components/digits";
+import { AnnualSummary } from "./_components/annual-summary";
+import { FinalIncomePanel } from "./_components/final-income-panel";
+import { PphOpFields } from "./_components/pph-op-fields";
+import {
+  TaxRulesProvider,
+  useAllTaxRules,
+  useReportTaxRules,
+} from "./_components/tax-rules-context";
+import { TerPanel } from "./_components/ter-panel";
+import { UmkmPanel } from "./_components/umkm-panel";
 
 import type {
   CreateTaxRecordDto,
-  Pph21ResultDto,
+  PphOpPreviewRequestDto,
   Role,
+  TaxMaritalStatus,
   TaxRecordDto,
   SptStatus,
   UpdateTaxRecordDto,
 } from "@wealthme/contracts";
 
-type TaxPtkpId = "tk0" | "k0" | "k1" | "k2" | "k3";
-type TaxBracketId = "b0" | "b1" | "b2" | "b3" | "b4";
-
-const PTKP_OPTIONS: { value: number; id: TaxPtkpId }[] = [
-  { value: 54000000, id: "tk0" },
-  { value: 58500000, id: "k0" },
-  { value: 63000000, id: "k1" },
-  { value: 67500000, id: "k2" },
-  { value: 72000000, id: "k3" },
-];
-
-// Display rows for the progressive breakdown table. `idx` indexes into the
-// BE's taxBreakdown array (UU HPP progressive brackets, in order) — the
-// actual rates/thresholds live server-side in calculators.service.ts.
-// EPIC-022 E4 — this table used to skip idx 3 (30%, 500jt–5M), so the
-// displayed rows never summed to the headline tax above Rp 500jt.
-const BRACKET_ROWS: { id: TaxBracketId; rate: string; idx: number }[] = [
-  { id: "b0", rate: "5%", idx: 0 },
-  { id: "b1", rate: "15%", idx: 1 },
-  { id: "b2", rate: "25%", idx: 2 },
-  { id: "b3", rate: "30%", idx: 3 },
-  { id: "b4", rate: "35%", idx: 4 },
-];
+// `page.tsx` re-exports these so existing imports/tests keep working; the
+// implementation moved to `_components/digits.ts` (Task 9, sub-plan L) so
+// `pph-op-fields.tsx`/`ter-panel.tsx` can import them without importing the
+// whole page module.
+export { MAX_TAX_INPUT, toClampedDigitString } from "./_components/digits";
 
 const SPT_STATUS_CLASS: Record<SptStatus, string> = {
   belum_lapor: "text-warning",
@@ -81,30 +75,6 @@ const SPT_STATUS_BADGE_VARIANT: Record<
 
 const CURRENT_YEAR = new Date().getFullYear();
 const TAX_YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
-
-// EPIC-024 Group E (E1) — TaxRecord persists grossIncome/ptkp/netTax as
-// Postgres BigInt (schema.prisma), and the API's Pph21RequestDto /
-// CreateTaxRecordDto both cap accepted amounts at 999_999_999_999_999 (see
-// pph21.dto.ts MAX_TAX_AMOUNT). Clamping client-side at the same ceiling
-// keeps a mis-paste of a huge number from ever reaching the API only to
-// bounce off a 400 the user can't make sense of. Field-agnostic name — the
-// same ceiling clamps grossIncome AND zakatPaid (the API's Pph21RequestDto
-// enforces the identical @Max on both).
-export const MAX_TAX_INPUT = 999_999_999_999_999;
-
-// Extract the digit string a Rupiah-formatted input actually represents,
-// without ever round-tripping through a JS `number`. `String(aFloat)` uses
-// exponential notation once the value hits 1e21 (e.g. "1e+21"), which fails
-// the API's `/^\d+$/`-style numeric-string validation outright — building
-// the payload from the raw digits sidesteps that class of bug entirely,
-// on top of the MAX_TAX_INPUT clamp above.
-export function toClampedDigitString(value: string, max: number): string {
-  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-  if (digits === "") return "0";
-  if (digits.length > String(max).length) return String(max);
-  const asNumber = Number(digits);
-  return asNumber > max ? String(max) : digits;
-}
 
 // EPIC-023 Task I (I1) — the roles the API grants `manage TaxRecord` to; see
 // `apps/api/src/casl/casl-ability.factory.ts`. `admin_staff` gets `read` only
@@ -128,28 +98,15 @@ type MeResponse = {
   memberships?: { id: string; familyGroupId: string; role: Role }[];
 };
 
-// The API's ForbiddenException/BadRequestException carries a message worth
-// showing; the blind generic toast threw it away and left the next bug report
-// with nothing to go on (which is exactly how I1 arrived). NestJS's
-// ValidationPipe has no custom exceptionFactory (main.ts), so several failed
-// class-validator constraints come back as `message: string[]`, and the API
-// client's ApiError can also carry an empty string — only trust a non-empty
-// string or a non-empty array, and join the array readably.
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  if (!err || typeof err !== "object" || !("message" in err)) return fallback;
-  const { message } = err;
-  if (Array.isArray(message)) {
-    const joined = message
-      .filter((m): m is string => typeof m === "string" && m.trim() !== "")
-      .join(", ");
-    return joined !== "" ? joined : fallback;
-  }
-  return typeof message === "string" && message.trim() !== ""
-    ? message
-    : fallback;
+export default function TaxPage() {
+  return (
+    <TaxRulesProvider>
+      <TaxPageContent />
+    </TaxRulesProvider>
+  );
 }
 
-export default function TaxPage() {
+function TaxPageContent() {
   const { t } = useLocale();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
@@ -197,12 +154,18 @@ export default function TaxPage() {
           ? t.tax.noWriteAccessNote
           : null;
 
-  // PPh 21 calculator inputs are local; the tax math itself is computed by
-  // the shared BE calculator (/calculators/pph21) so this stays in sync
-  // with the kalkulator page instead of duplicating the PTKP/bracket
-  // formulas + rounding rules client-side.
+  // The detailed PPh OP calculator's inputs are local; the tax math itself
+  // (PTKP derivation, brackets, NPPN, rounding) is computed by the shared
+  // BE engine (POST .../tax/pph-op/preview) — the web never recomputes a
+  // tax number (Task 9, sub-plan L).
   const [gross, setGross] = useState("");
-  const [ptkp, setPtkp] = useState(54000000);
+  const [maritalStatus, setMaritalStatus] = useState<TaxMaritalStatus>("TK");
+  const [dependents, setDependents] = useState(0);
+  const [pension, setPension] = useState("");
+  const [withheld, setWithheld] = useState("");
+  const [freelance, setFreelance] = useState("");
+  const [nppnPct, setNppnPct] = useState("");
+  const [otherNet, setOtherNet] = useState("");
   const [zakat, setZakat] = useState("");
   const [zakatTouched, setZakatTouched] = useState(false);
   // Prototype structural port follow-up — the calculator math itself is
@@ -219,41 +182,64 @@ export default function TaxPage() {
 
   const debouncedGross = useDebounce(gross, 300);
   const debouncedZakat = useDebounce(zakat, 300);
+  const debouncedPension = useDebounce(pension, 300);
+  const debouncedWithheld = useDebounce(withheld, 300);
+  const debouncedFreelance = useDebounce(freelance, 300);
+  const debouncedNppnPct = useDebounce(nppnPct, 300);
+  const debouncedOtherNet = useDebounce(otherNet, 300);
 
-  const pph21Input = {
-    grossIncome: parseRupiah(debouncedGross),
-    zakatPaid: parseRupiah(debouncedZakat),
-    ptkp,
+  const pphOpRequest: PphOpPreviewRequestDto = {
+    taxYear,
+    maritalStatus,
+    dependents,
+    employmentGross: toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
+    pensionContribution: toClampedDigitString(debouncedPension, MAX_TAX_INPUT),
+    zakat: toClampedDigitString(debouncedZakat, MAX_TAX_INPUT),
+    withheldPph21: toClampedDigitString(debouncedWithheld, MAX_TAX_INPUT),
+    otherNetIncome: toClampedDigitString(debouncedOtherNet, MAX_TAX_INPUT),
+    // A `nppnRateBps: 0` makes the server answer 400, so the panel shows
+    // `t.tax.calcErrorLabel` until the user types a valid NPPN % — the
+    // honest state, rather than silently sending freelance income with no
+    // deemed-profit rate.
+    ...(toClampedDigitString(debouncedFreelance, MAX_TAX_INPUT) !== "0"
+      ? {
+          freelanceGross: toClampedDigitString(
+            debouncedFreelance,
+            MAX_TAX_INPUT,
+          ),
+          nppnRateBps:
+            Math.round(Number(debouncedNppnPct.replace(",", ".")) * 100) || 0,
+        }
+      : {}),
   };
-
   const {
-    data: pph21Result,
+    data: pphOp,
     isFetching: isPph21Fetching,
     isError: isPph21Error,
-  } = useQuery<Pph21ResultDto>({
-    queryKey: ["calculators", "pph21", pph21Input],
-    queryFn: () =>
-      apiFetch<Pph21ResultDto>("/calculators/pph21", {
-        method: "POST",
-        token,
-        body: JSON.stringify(pph21Input),
-      }),
-    enabled: !!token,
-    placeholderData: keepPreviousData,
-  });
+  } = usePphOpPreview(fgId ? pphOpRequest : null);
+  useReportTaxRules("pph-op", pphOp?.rules ?? []);
+  // Polish batch 7b (item 1) — the one aggregate "Perkiraan" badge for the
+  // whole page (was repeated per section: pph-op field, TER table, UMKM
+  // table). Every live calculator reports its flagged rules into this
+  // context; this reads the union, deduped by `key|effectiveFrom`.
+  const allTaxRules = useAllTaxRules();
 
   // Whether the visible calculator numbers are a trustworthy, fully-computed
   // answer (vs. still loading / errored) — gates both what we render and
   // whether Save is allowed, so we never persist a value the server hasn't
   // actually echoed back to us.
-  const hasPph21Result = !!pph21Result;
-  const jabatan = pph21Result?.biayaJabatan ?? 0;
-  const pkp = pph21Result?.pkp ?? 0;
-  const tax = Math.round(pph21Result?.totalTax ?? 0);
-  const taxBreakdown = pph21Result?.taxBreakdown ?? [];
-  const effRate = pph21Result
-    ? (pph21Result.effectiveRate * 100).toFixed(1).replace(".", ",") + "%"
-    : "0%";
+  const hasPph21Result = !!pphOp;
+  const jabatan = Number(pphOp?.biayaJabatan ?? 0);
+  const pkp = Number(pphOp?.pkp ?? 0);
+  const tax = Number(pphOp?.tax ?? 0);
+  const employmentGrossNum = Number(pphOpRequest.employmentGross);
+  const freelanceGrossNum = Number(pphOpRequest.freelanceGross ?? "0");
+  const effRate =
+    pphOp && employmentGrossNum + freelanceGrossNum > 0
+      ? ((tax / (employmentGrossNum + freelanceGrossNum)) * 100)
+          .toFixed(1)
+          .replace(".", ",") + "%"
+      : "0%";
   const canSaveTaxRecord =
     hasPph21Result &&
     !isPph21Fetching &&
@@ -337,32 +323,29 @@ export default function TaxPage() {
   });
 
   function handleSaveTaxRecord(): void {
-    // Build the payload entirely from the server-echoed pph21Result (never
-    // from the raw `gross`/`ptkp`/`zakat` input state), so a save that lands
-    // mid-debounce/mid-refetch can never pair a NEW gross income with an OLD
-    // netTax — canSaveTaxRecord already keeps the button disabled while the
-    // two could disagree.
-    //
-    // EPIC-024 Group E (E1) — grossIncome used to be built with
-    // `String(pph21Result.grossIncome)`. That's `String(aFloat)`, which for
-    // a value at/above 1e21 serializes as scientific notation ("1e+21") and
-    // fails the API's numeric-string regex with an opaque 400. `debouncedGross`
-    // is the exact input `pph21Input.grossIncome` (and therefore this
-    // `pph21Result`) was computed from — canSaveTaxRecord/isPph21Fetching
-    // already guarantee the two are in sync — so extracting its digits
-    // directly with `toClampedDigitString` never round-trips through a
-    // `number` at all, and clamps to the same MAX_TAX_INPUT ceiling the
-    // API now enforces. `ptkp` (one of the 5 fixed PTKP_OPTIONS values) and
-    // `netTax` (bounded below the already-clamped gross income) stay well
-    // under the range where `String()` on a number risks exponential
-    // notation, so a plain `String()` is safe for those two.
-    if (!pph21Result || !canSaveTaxRecord) return;
+    // Build the payload entirely from the server-echoed pphOp result and the
+    // exact request it was computed from (never a fresher, still-debouncing
+    // input value), so a save that lands mid-debounce/mid-refetch can never
+    // pair a NEW input with an OLD tax — canSaveTaxRecord already keeps the
+    // button disabled while the two could disagree. `netTax` is the
+    // server-echoed `pphOp.tax`, never recomputed client-side.
+    if (!pphOp || !canSaveTaxRecord) return;
     upsertMutation.mutate(
       {
         taxYear,
-        grossIncome: toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
-        ptkp: String(pph21Result.ptkp),
-        netTax: String(Math.round(pph21Result.totalTax)),
+        grossIncome: pphOpRequest.employmentGross,
+        maritalStatus,
+        dependents,
+        pensionContribution: pphOpRequest.pensionContribution,
+        withheldPph21: pphOpRequest.withheldPph21,
+        otherNetIncome: pphOpRequest.otherNetIncome,
+        ...(pphOpRequest.freelanceGross
+          ? {
+              freelanceGross: pphOpRequest.freelanceGross,
+              nppnRateBps: pphOpRequest.nppnRateBps,
+            }
+          : {}),
+        netTax: pphOp.tax,
       },
       { onSettled: () => setShowSaveDialog(false) },
     );
@@ -372,7 +355,13 @@ export default function TaxPage() {
     setGross("");
     setZakat("");
     setZakatTouched(false);
-    setPtkp(54000000);
+    setMaritalStatus("TK");
+    setDependents(0);
+    setPension("");
+    setWithheld("");
+    setFreelance("");
+    setNppnPct("");
+    setOtherNet("");
     setTaxYear(CURRENT_YEAR);
     toast(t.tax.toastReset);
   }
@@ -434,10 +423,30 @@ export default function TaxPage() {
           )}
         </div>
         <div className="mt-1.5 text-xs opacity-85">{t.tax.heroSubtitle}</div>
-        <div className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]">
+        {/* Task 10 carry (Task 9 review) — `.hero > *` (design-system.css,
+            protected) forces `position: relative` on every direct child,
+            which won the specificity tie against Tailwind's `.absolute` by
+            source order and put this decorative glyph back in normal flow
+            (clipped by `.hero`'s `overflow: hidden` instead of intentionally
+            peeking past the corner). The inline style wins over both classes
+            without touching the protected sheet. */}
+        <div
+          className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]"
+          style={{ position: "absolute" }}
+        >
           🧾
         </div>
       </HeroCard>
+
+      {/* Polish batch 7b (item 1) — ONE "Perkiraan" badge at page top instead
+          of repeating "perkiraan — cek aturan terbaru DJP" per calculator
+          section; per-rule detail (legal basis, source link, note) still
+          lives in this badge's own popover. */}
+      {allTaxRules.length > 0 && (
+        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <TaxRuleBadge rules={allTaxRules} />
+        </div>
+      )}
 
       {/* Status SPT */}
       <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
@@ -508,6 +517,10 @@ export default function TaxPage() {
         </Card>
       </div>
 
+      {/* Ringkasan pajak tahunan — the page's one "answer" block (Task 10,
+          sub-plan L), directly after the SPT-status trio. */}
+      <AnnualSummary taxYear={taxYear} />
+
       {/* Kalkulator PPh 21 */}
       <SectionCard
         title={t.tax.calculatorTitle}
@@ -568,27 +581,35 @@ export default function TaxPage() {
               className="input"
             />
           </div>
-          <div>
-            <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
-              {t.tax.fieldStatusLabel}
-            </label>
-            <select
-              value={ptkp}
-              onChange={(e) => setPtkp(Number(e.target.value))}
-              className="select"
-            >
-              {PTKP_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {t.tax.ptkpLabels[o.id]}
-                </option>
-              ))}
-            </select>
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {t.tax.ptkpSelectedPrefix}
-              <span className="mono">{formatRupiah(ptkp)}</span>
-            </div>
-          </div>
-          <div>
+        </div>
+
+        <div className="mt-3.5">
+          <PphOpFields
+            maritalStatus={maritalStatus}
+            onMaritalStatusChange={setMaritalStatus}
+            dependents={dependents}
+            onDependentsChange={setDependents}
+            pension={pension}
+            onPensionChange={setPension}
+            withheld={withheld}
+            onWithheldChange={setWithheld}
+            freelance={freelance}
+            onFreelanceChange={setFreelance}
+            nppnPct={nppnPct}
+            onNppnPctChange={setNppnPct}
+            otherNet={otherNet}
+            onOtherNetChange={setOtherNet}
+            ptkp={pphOp?.ptkp}
+          />
+        </div>
+
+        <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-2">
+          {/* Task 10 carry (Task 9 review) — this read-only computed row
+              used to sit alone in a half-width cell, leaving an empty
+              column beside it at 1440. Every 2-col row here is either a
+              genuine pair or spans the full width; a single field never
+              gets a lone half row. */}
+          <div className="md:col-span-2">
             <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
               {t.tax.fieldJabatanLabel}
             </label>
@@ -624,13 +645,6 @@ export default function TaxPage() {
               className="input"
             />
             <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {t.tax.perpuluhanHint}
-              <Link href="/donation" className="text-primary hover:underline">
-                {t.tax.perpuluhanHintLinkLabel}
-              </Link>
-              .
-            </div>
-            <div className="mt-1 text-[11px] text-muted-foreground">
               {t.tax.perpuluhanAutoFilledHint.replace(
                 "{year}",
                 String(taxYear),
@@ -638,18 +652,15 @@ export default function TaxPage() {
             </div>
           </div>
         </div>
-        <div className="notice notice--info mt-3.5 rounded-[10px] border border-primary/15 bg-accent/60 p-3 text-[11px] text-muted-foreground">
-          {t.tax.payloadCalloutPrefix}
-          <span className="mono">
-            {`{ grossIncome: "${toClampedDigitString(debouncedGross, MAX_TAX_INPUT)}", ptkp: "${ptkp}", perpuluhanPaid: "${toClampedDigitString(debouncedZakat, MAX_TAX_INPUT)}" }`}
-          </span>
-          {t.tax.payloadCalloutSuffix}
-        </div>
         <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
-          <div className="text-[11.5px] text-muted-foreground">
+          <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-muted-foreground">
             {t.tax.estimateLabel}
           </div>
-          {isPph21Error ? (
+          {!fgId ? (
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {t.tax.op.previewNeedsFamily}
+            </div>
+          ) : isPph21Error ? (
             <div className="mt-1 text-[13px] font-semibold text-destructive">
               {t.tax.calcErrorLabel}
             </div>
@@ -667,6 +678,23 @@ export default function TaxPage() {
                 <strong className="text-primary">{formatRupiah(pkp)}</strong>
                 {t.tax.effectiveRatePrefix}
                 <strong>{effRate}</strong>
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {t.tax.op.netoLabel}
+                {": "}
+                <strong>{formatRupiah(Number(pphOp.neto))}</strong>
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {t.tax.op.balanceLabel}
+                {": "}
+                {Number(pphOp.balance) < 0 ? (
+                  <strong className="text-success">
+                    {t.tax.op.overpaidLabel} (
+                    {formatRupiah(Math.abs(Number(pphOp.balance)))})
+                  </strong>
+                ) : (
+                  <strong>{formatRupiah(Number(pphOp.balance))}</strong>
+                )}
               </div>
             </>
           )}
@@ -729,52 +757,63 @@ export default function TaxPage() {
               </tr>
             </thead>
             <tbody>
-              {BRACKET_ROWS.map((row) => {
-                const layerAmt = taxBreakdown[row.idx]?.tax ?? 0;
-                const taxableBase = taxBreakdown[row.idx]?.taxableAmount ?? 0;
-                const muted = layerAmt <= 0;
-                return (
-                  <tr key={row.id} className="border-b last:border-b-0">
-                    <td
-                      className={
-                        "py-2 " + (muted ? "text-muted-foreground" : "")
-                      }
-                    >
-                      {t.tax.bracketLabels[row.id]}
+              {(pphOp?.brackets.length ?? 0) === 0 ? (
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="py-2 text-center text-muted-foreground"
+                  >
+                    {t.tax.op.noTaxRow}
+                  </td>
+                </tr>
+              ) : (
+                pphOp!.brackets.map((b, idx) => (
+                  <tr
+                    key={`${b.from}-${idx}`}
+                    className="border-b last:border-b-0"
+                  >
+                    <td className="py-2">{b.label}</td>
+                    <td className="py-2 text-center">{formatBps(b.rateBps)}</td>
+                    <td className="mono py-2 text-right">
+                      {formatRupiah(Number(b.taxable))}
                     </td>
-                    <td
-                      className={
-                        "py-2 text-center " +
-                        (muted ? "text-muted-foreground" : "")
-                      }
-                    >
-                      {row.rate}
-                    </td>
-                    <td
-                      className={
-                        "mono py-2 text-right " +
-                        (muted ? "text-muted-foreground" : "")
-                      }
-                    >
-                      {formatRupiah(Math.round(taxableBase))}
-                    </td>
-                    <td
-                      className={
-                        "mono py-2 text-right " +
-                        (muted ? "text-muted-foreground" : "")
-                      }
-                    >
-                      {formatRupiah(Math.round(layerAmt))}
+                    <td className="mono py-2 text-right">
+                      {formatRupiah(Number(b.tax))}
                     </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
-        <div className="mt-2.5 text-[11px] text-muted-foreground">
-          {t.tax.bracketFootnote}
+      </SectionCard>
+
+      {/* TER bulanan & koreksi Desember + DTP */}
+      <SectionCard title={t.tax.ter.title}>
+        <div className="mb-3.5 text-xs text-muted-foreground">
+          {t.tax.ter.subtitle}
         </div>
+        <TerPanel
+          taxYear={taxYear}
+          maritalStatus={maritalStatus}
+          dependents={dependents}
+          defaultMonthlyGross={(
+            BigInt(toClampedDigitString(debouncedGross, MAX_TAX_INPUT)) /
+            BigInt(12)
+          ).toString()}
+        />
+      </SectionCard>
+
+      {/* Pajak final investasi & penghasilan lain */}
+      <section id="pajak-final">
+        <SectionCard title={t.tax.final.title}>
+          <FinalIncomePanel taxYear={taxYear} canManage={canManageTaxRecords} />
+        </SectionCard>
+      </section>
+
+      {/* PPh final UMKM 0,5% */}
+      <SectionCard title={t.tax.umkm.title}>
+        <UmkmPanel taxYear={taxYear} canManage={canManageTaxRecords} />
       </SectionCard>
 
       {/* Riwayat Pajak */}
@@ -884,7 +923,7 @@ export default function TaxPage() {
       {/* EPIC-026 Wave 2 — prototype structural port: review the exact
           numbers before Save actually persists (prototype's "Simpan ke
           Catatan Pajak" dialog). Every value here is the same
-          server-echoed `pph21Result` `handleSaveTaxRecord` itself sends —
+          server-echoed `pphOp` `handleSaveTaxRecord` itself sends —
           never the raw, still-debouncing input state. */}
       <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
         {/* EPIC-026 Wave 8 — composition ported 1:1 from the prototype's
@@ -900,23 +939,21 @@ export default function TaxPage() {
             {taxYear}
           </DialogDescription>
           <DialogBody>
-            {pph21Result && (
+            {pphOp && (
               <div className="table-wrap">
                 <table className="table table--num min-w-0">
                   <tbody>
                     <tr>
                       <td>{t.tax.saveDialogGrossRow}</td>
                       <td className="mono">
-                        {formatRupiah(
-                          Number(
-                            toClampedDigitString(debouncedGross, MAX_TAX_INPUT),
-                          ),
-                        )}
+                        {formatRupiah(Number(pphOpRequest.employmentGross))}
                       </td>
                     </tr>
                     <tr>
                       <td>{t.tax.saveDialogPtkpRow}</td>
-                      <td className="mono">{formatRupiah(pph21Result.ptkp)}</td>
+                      <td className="mono">
+                        {formatRupiah(Number(pphOp.ptkp))}
+                      </td>
                     </tr>
                     <tr>
                       <td>{t.tax.saveDialogPerpuluhanRow}</td>
@@ -933,7 +970,7 @@ export default function TaxPage() {
                         <strong>{t.tax.saveDialogTaxRow}</strong>
                       </td>
                       <td className="mono t-bold text-primary">
-                        {formatRupiah(Math.round(pph21Result.totalTax))}
+                        {formatRupiah(Number(pphOp.tax))}
                       </td>
                     </tr>
                   </tbody>

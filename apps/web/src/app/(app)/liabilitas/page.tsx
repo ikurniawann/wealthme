@@ -9,6 +9,7 @@ import {
   Pencil,
   Trash2,
   Banknote,
+  CheckCircle2,
   Split,
   StickyNote,
   TriangleAlert,
@@ -17,6 +18,7 @@ import {
 import { useSession } from "@/lib/auth-compat";
 import {
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
   type QueryClient,
@@ -26,8 +28,16 @@ import { toast } from "sonner";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  MoneyInput,
+  anyMoneyPending,
+  moneyDigits,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
+import type { MoneyField } from "@/components/money";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -51,8 +61,29 @@ import {
 } from "@/components/wm";
 import { TrendChart } from "@/components/charts/apex-presets";
 
+import {
+  extractApiErrorMessage,
+  extractPreviewErrorMessage,
+} from "./api-error";
+import {
+  draftFromLiability,
+  draftFromPreset,
+  toRatePeriodsBody,
+  type KprPlanDraft,
+} from "./kpr-presets";
+import { KprRatePeriodsField } from "./kpr-rate-periods-field";
+import { KprFloatingRatesPanel } from "./kpr-floating-rates-panel";
+import { KprPrepaymentSimulator } from "./kpr-prepayment-simulator";
+import { ScheduleRateCell } from "./schedule-rate-cell";
+
 import type {
+  FxInput,
+  InterestMethod,
+  KprScheme,
   LiabilityDto,
+  LiabilityPaymentPreviewDto,
+  LiabilityRatePeriodDto,
+  LiabilityScheduleDto,
   LiabilityType,
   NetWorthDto,
 } from "@wealthme/contracts";
@@ -62,22 +93,6 @@ import type {
 // EPIC-023 E2 — mirrors `asuransi/page.tsx`'s local `AccountDto` shape; only
 // the fields the source-account picker needs.
 type AccountDto = { id: string; name: string; institution: string | null };
-
-// Mirrors the local `extractApiErrorMessage` helper already used on
-// /rekening, /dana, /tax, /mastercoa, /akun, /masterdata — the server's real
-// message (e.g. `remove()`'s ConflictException naming the blocking budget,
-// or `pay()`'s BadRequestException naming the max payable amount) must reach
-// the user instead of a generic fallback (silent-failure-hunter routing).
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  // silent-failure-hunter (review round 2) — a browser network TypeError
-  // ("Failed to fetch") also satisfies `"message" in err`; only trust the
-  // message when the object also carries the ApiError shape's `status`
-  // field, otherwise a raw network/abort error would leak to the user
-  // verbatim instead of the localized fallback.
-  return err && typeof err === "object" && "status" in err && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 // Review round 2 (HIGH) — every liability mutation (create/edit/delete/pay)
 // changes remainingBalance, which feeds net worth and the dashboard summary
@@ -112,126 +127,51 @@ function invalidateLiabilityRelatedQueries(
   });
 }
 
-/**
- * Client-side amortisation PREVIEW only — mirrors the shape of the backend's
- * `splitPayment` (apps/api/src/liabilities/amortisation.util.ts) using plain
- * numbers (not BigInt) since this never posts a transaction itself; the real
- * split for an actual payment is always computed server-side in `pay()`.
- */
-function computeAmortisationPreview(
-  remainingBalance: number,
-  monthlyPaymentAmount: number,
-  annualRatePercent: number,
-  rateIsMonthly = false,
-): {
-  monthlyInterest: number;
-  monthlyPrincipal: number;
-  months: number | null;
-} {
-  // EPIC-033 p20 — cards quote "Bunga/Bulan", so no /12 for them.
-  const monthlyRate = rateIsMonthly
-    ? annualRatePercent / 100
-    : annualRatePercent / 100 / 12;
-  const monthlyInterest = Math.min(
-    Math.round(remainingBalance * monthlyRate),
-    monthlyPaymentAmount,
-  );
-  const monthlyPrincipal = Math.max(
-    0,
-    Math.min(monthlyPaymentAmount - monthlyInterest, remainingBalance),
-  );
-  const months =
-    monthlyPrincipal > 0
-      ? Math.ceil(remainingBalance / monthlyPrincipal)
-      : null;
-  return { monthlyInterest, monthlyPrincipal, months };
-}
-
-// EPIC-026 Wave 5 — the prototype's Detail dialog shows a "Jadwal
-// Amortisasi (6 angsuran berikutnya)" table. Pure client-side roll-forward
-// of the SAME preview math as `computeAmortisationPreview`, month by month,
-// labeled with the same estimate disclaimer already shown in the dialog —
-// no official schedule is persisted server-side, so this never pretends to
-// be one. Unlike the prototype's absolute installment numbers (95, 96, …
-// — unknowable without a persisted schedule), rows are numbered 1..N
-// relative to today.
-interface AmortisationScheduleRow {
-  index: number;
-  date: Date;
-  principal: number;
-  interest: number;
-  remaining: number;
-}
-
-function computeAmortisationSchedule(
-  remainingBalance: number,
-  monthlyPaymentAmount: number,
-  annualRatePercent: number,
-  firstDueDate: Date,
-  count = 6,
-  rateIsMonthly = false,
-): AmortisationScheduleRow[] {
-  const rows: AmortisationScheduleRow[] = [];
-  let balance = remainingBalance;
-  for (let i = 0; i < count && balance > 0; i += 1) {
-    const { monthlyInterest, monthlyPrincipal } = computeAmortisationPreview(
-      balance,
-      monthlyPaymentAmount,
-      annualRatePercent,
-      rateIsMonthly,
-    );
-    balance = Math.max(0, balance - monthlyPrincipal);
-    rows.push({
-      index: i + 1,
-      date: new Date(
-        firstDueDate.getFullYear(),
-        firstDueDate.getMonth() + i,
-        firstDueDate.getDate(),
+// Prefix of queryKeys.liabilities.all, so every liability mutation refreshes it.
+function scheduleQueryOptions(
+  familyGroupId: string,
+  liabilityId: string,
+  token: string | undefined,
+) {
+  return {
+    queryKey: ["liabilities", familyGroupId, "schedule", liabilityId],
+    queryFn: ({ signal }: { signal: AbortSignal }) =>
+      apiFetch<LiabilityScheduleDto>(
+        `/family-groups/${familyGroupId}/liabilities/${liabilityId}/schedule`,
+        { token, signal },
       ),
-      principal: monthlyPrincipal,
-      interest: monthlyInterest,
-      remaining: balance,
-    });
-    // Payment doesn't cover the interest — the balance never decreases;
-    // one row says everything, repeating it 6× would only imply progress.
-    if (monthlyPrincipal <= 0) break;
-  }
-  return rows;
+  };
 }
 
+const PROJECTION_MONTHS = 6;
+
 /**
- * EPIC-025 N3-F4 (J3 — payoff projection, FOLD): pure client-side 6-month
- * roll-forward of the SAME amortisation preview math as
- * `computeAmortisationPreview` above, summed across every liability with a
- * positive minimumPayment. A liability with no minimumPayment set has no
- * knowable payoff schedule, so its balance is carried flat rather than
- * guessed — never fabricated.
+ * Month-by-month total remaining balance, read off each liability's server
+ * schedule (`remaining` after installment m). A liability without a schedule
+ * is carried flat rather than guessed.
  */
-function projectRemainingBalance(liabilities: LiabilityDto[]): number[] {
-  const months = 6;
-  const balances = liabilities.map((l) =>
-    l.remainingBalance ? Number(BigInt(l.remainingBalance)) : 0,
+function projectRemainingBalance(
+  liabilities: LiabilityDto[],
+  schedules: ReadonlyMap<string, LiabilityScheduleDto>,
+): number[] {
+  return Array.from({ length: PROJECTION_MONTHS }, (_, month) =>
+    liabilities.reduce((sum, l) => {
+      const rows = schedules.get(l.id)?.rows ?? [];
+      const row = rows[Math.min(month, rows.length - 1)];
+      return sum + Number(row ? row.remaining : l.remainingBalance);
+    }, 0),
   );
-  const totals: number[] = [];
-  for (let m = 0; m < months; m += 1) {
-    for (let i = 0; i < liabilities.length; i += 1) {
-      const l = liabilities[i];
-      if (!l) continue;
-      const minimumPayment = l.minimumPayment
-        ? Number(BigInt(l.minimumPayment))
-        : 0;
-      if (minimumPayment <= 0 || (balances[i] ?? 0) <= 0) continue;
-      const { monthlyPrincipal } = computeAmortisationPreview(
-        balances[i] ?? 0,
-        minimumPayment,
-        parseFloat(l.interestRate) || 0,
-        l.type === "kartu_kredit",
-      );
-      balances[i] = Math.max(0, (balances[i] ?? 0) - monthlyPrincipal);
-    }
-    totals.push(balances.reduce((sum, b) => sum + b, 0));
-  }
-  return totals;
+}
+
+const PREVIEW_DEBOUNCE_MS = 300;
+
+function useDebouncedValue<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -254,7 +194,30 @@ const LIABILITY_TYPES = [
 ] as const;
 type LiabilityTypeValue = LiabilityType;
 
+const DEFAULT_INTEREST_METHOD: Record<LiabilityTypeValue, InterestMethod> = {
+  kartu_kredit: "efektif",
+  pinjaman_pribadi: "flat",
+  kpr: "anuitas",
+  kendaraan: "flat",
+  lainnya: "efektif",
+};
+
+// Types without an entry have exactly one method, so no selector is shown.
+const INTEREST_METHOD_OPTIONS: Partial<
+  Record<LiabilityTypeValue, readonly InterestMethod[]>
+> = {
+  pinjaman_pribadi: ["flat", "anuitas"],
+  lainnya: ["efektif", "flat", "anuitas"],
+};
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Server-derived installment due now (a KPR past its fixed period is re-amortised).
+function installmentDue(liability: LiabilityDto): number {
+  return Number(
+    BigInt(liability.currentInstallmentAmount ?? liability.minimumPayment),
+  );
+}
 
 function formatLocaleDate(iso: string, locale: Locale): string {
   return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
@@ -270,6 +233,23 @@ function formatScheduleDate(date: Date, locale: Locale): string {
     month: "short",
     year: "numeric",
   });
+}
+
+// fix-round1 (Minor) — mirrors the API's `dueDateForPeriod` (same
+// month-end clamp: an akad on the 29th-31st falls due on the target
+// month's own last day when it is shorter, instead of drifting via
+// `anchor + index months`, which compounds wrong once `anchor` itself
+// was already clamped to an earlier day than the akad's own day-of-month.
+function scheduleRowDueDate(startDate: Date, period: number): Date {
+  const targetYear = startDate.getFullYear();
+  const targetMonthIndex = startDate.getMonth() + period;
+  const lastDayOfTargetMonth = new Date(
+    targetYear,
+    targetMonthIndex + 1,
+    0,
+  ).getDate();
+  const day = Math.min(startDate.getDate(), lastDayOfTargetMonth);
+  return new Date(targetYear, targetMonthIndex, day);
 }
 
 // Prototype's "Cicilan Bulan Ini" sub-line ("Jatuh tempo terdekat 12
@@ -310,8 +290,20 @@ function getDtaRiskLabel(
   return { label: t.liabilitas.riskRisky, color: "var(--destructive)" };
 }
 
+// fix-round1 (Important) — `nextDueDate` is UTC midnight (07:00 WIB), so
+// comparing it against the browser's current instant with a plain
+// `floor((due-now)/day) < 0` made a KPR due TODAY show "Terlambat" the
+// moment the clock passed 07:00 WIB, even though the server's own rule
+// (`dueInstallment`) says late only starts the day AFTER the due date
+// (inside a 5-day grace window). `isLate` — the API's own
+// `currentInstallmentLate`, already WIB-calendar-day aware — is
+// authoritative whenever the row has a real `nextDueDate`; `null` falls
+// back to the date-diff heuristic for a row with only the legacy manual
+// `dueDate` (kartu_kredit never has a `nextDueDate`/schedule to derive
+// `currentInstallmentLate` from).
 function getDueDateStatus(
   dueDate: string | null,
+  isLate: boolean | null,
   t: ReturnType<typeof useLocale>["t"],
   locale: Locale,
 ): {
@@ -324,8 +316,8 @@ function getDueDateStatus(
   const diffDays = Math.floor(
     (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
   );
-  if (diffDays < 0)
-    return { text: t.liabilitas.statusOverdue, variant: "danger" };
+  const late = isLate ?? diffDays < 0;
+  if (late) return { text: t.liabilitas.statusOverdue, variant: "danger" };
   const text = `${t.liabilitas.statusDuePrefix}${formatLocaleDate(dueDate, locale)}`;
   if (diffDays <= 7) return { text, variant: "warning" };
   return { text, variant: "success" };
@@ -386,6 +378,13 @@ interface LiabilityBody {
   dueDate?: string;
   autoAdvanceDueDate?: boolean;
   notes?: string;
+  interestMethod: InterestMethod;
+  tenorMonths?: number;
+  startDate?: string | null;
+  installmentAmount?: string;
+  kprScheme?: KprScheme;
+  ratePeriods?: LiabilityRatePeriodDto[];
+  fxInputs?: FxInput[];
 }
 
 function LiabilityModal({
@@ -403,23 +402,22 @@ function LiabilityModal({
   const [type, setType] = useState<LiabilityTypeValue>(
     editing?.type ?? "kartu_kredit",
   );
-  const [totalDebt, setTotalDebt] = useState(
-    editing ? Number(BigInt(editing.totalDebt)).toLocaleString("id-ID") : "",
-  );
-  const [remainingBalance, setRemainingBalance] = useState(
-    editing
-      ? Number(BigInt(editing.remainingBalance)).toLocaleString("id-ID")
-      : "",
-  );
+  const totalDebtField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.totalDebt).toString() : "",
+    isEdit: !!editing,
+  });
+  const remainingField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.remainingBalance).toString() : "",
+    isEdit: !!editing,
+  });
   // Review round 2 (MEDIUM) — always prefill from the saved value, including
   // an explicit 0 (e.g. an interest-free family loan). The old `> 0` guard
   // blanked the field for a saved 0, making it indistinguishable from
   // "never set" and impossible to re-save as an explicit 0 below.
-  const [minimumPayment, setMinimumPayment] = useState(
-    editing
-      ? Number(BigInt(editing.minimumPayment)).toLocaleString("id-ID")
-      : "",
-  );
+  const minPaymentField = useMoneyField({
+    initialRaw: editing ? BigInt(editing.minimumPayment).toString() : "",
+    isEdit: !!editing,
+  });
   const [interestRate, setInterestRate] = useState(
     editing && parseFloat(editing.interestRate) > 0 ? editing.interestRate : "",
   );
@@ -430,6 +428,30 @@ function LiabilityModal({
     editing?.autoAdvanceDueDate ?? false,
   );
   const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [interestMethod, setInterestMethod] = useState<InterestMethod>(
+    editing?.interestMethod ?? DEFAULT_INTEREST_METHOD.kartu_kredit,
+  );
+  const [tenorMonths, setTenorMonths] = useState(
+    editing?.tenorMonths ? String(editing.tenorMonths) : "",
+  );
+  const [startDate, setStartDate] = useState(
+    editing?.startDate ? editing.startDate.slice(0, 10) : "",
+  );
+  // Empty = let the server compute it; a PATCH without it recomputes from the terms.
+  const installmentField = useMoneyField({ initialRaw: "", isEdit: !!editing });
+  const [kprPlan, setKprPlan] = useState<KprPlanDraft>(() =>
+    editing ? draftFromLiability(editing) : draftFromPreset("manual"),
+  );
+
+  const methodOptions = INTEREST_METHOD_OPTIONS[type];
+  const usesTenor = interestMethod !== "efektif";
+  const usesRatePlan = type === "kpr" && interestMethod === "anuitas";
+  const rateLabel =
+    type === "kartu_kredit"
+      ? t.liabilitas.fieldRateMonthlyLabel
+      : type === "kpr"
+        ? t.liabilitas.fieldRateFixedLabel
+        : t.liabilitas.rateLabels[interestMethod];
 
   const mutation = useMutation({
     mutationFn: (body: LiabilityBody) => {
@@ -446,10 +468,15 @@ function LiabilityModal({
             { method: "POST", token, body: JSON.stringify(body) },
           );
     },
-    onSuccess: () => {
+    onSuccess: (saved: LiabilityDto) => {
       invalidateLiabilityRelatedQueries(queryClient, familyGroupId);
+      const base = editing
+        ? t.liabilitas.toastUpdated
+        : t.liabilitas.toastAdded;
       toast.success(
-        editing ? t.liabilitas.toastUpdated : t.liabilitas.toastAdded,
+        saved.installmentAmount
+          ? `${base} · ${t.liabilitas.toastInstallmentPrefix}${formatRupiah(Number(saved.installmentAmount))}`
+          : base,
       );
       onClose();
     },
@@ -486,26 +513,82 @@ function LiabilityModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const totalDigits = toDigits(totalDebt);
-    const remainDigits = toDigits(remainingBalance);
+    if (
+      anyMoneyPending(
+        totalDebtField,
+        remainingField,
+        minPaymentField,
+        installmentField,
+      )
+    ) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const totalDigits = moneyDigits(totalDebtField);
+    const remainDigits = moneyDigits(remainingField);
     if (!name.trim() || !totalDigits || !remainDigits) return;
-    mutation.mutate({
-      name: name.trim(),
-      institution: institution.trim() || undefined,
-      type,
-      totalDebt: totalDigits,
-      remainingBalance: remainDigits,
-      // Review round 2 (MEDIUM) — `toDigits(...) || undefined` used to
-      // coalesce an explicit "0" the same as "field cleared/never touched",
-      // silently omitting the field from the request and leaving the old
-      // (possibly non-zero) minimumPayment on the server untouched. Send
-      // "0" explicitly instead so a cleared field always persists as 0.
-      minimumPayment: toDigits(minimumPayment) || "0",
-      interestRate: toDecimalString(interestRate),
-      dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
-      autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
-      notes: notes.trim() || undefined,
-    });
+    const tenorDigits = toDigits(tenorMonths);
+    // M5 — the form always sends ratePeriods when usesRatePlan, and the
+    // server 400s any such PATCH (even a rename) without a tenor
+    // (`validateRatePeriods`: "Isi tenor sebelum periode bunga"). Block the
+    // save client-side instead of surfacing that as an opaque toast.
+    if (usesRatePlan && !tenorDigits) {
+      toast.error(t.liabilitas.kpr.tenorRequiredHint);
+      return;
+    }
+    const ratePeriods = usesRatePlan
+      ? toRatePeriodsBody(kprPlan.periods)
+      : undefined;
+    if (ratePeriods === null) {
+      toast.error(t.liabilitas.kpr.planInvalid);
+      return;
+    }
+    mutation.mutate(
+      withFxInputs(
+        {
+          name: name.trim(),
+          institution: institution.trim() || undefined,
+          type,
+          totalDebt: totalDigits,
+          remainingBalance: remainDigits,
+          // Review round 2 (MEDIUM) — `toDigits(...) || undefined` used to
+          // coalesce an explicit "0" the same as "field cleared/never touched",
+          // silently omitting the field from the request and leaving the old
+          // (possibly non-zero) minimumPayment on the server untouched. Send
+          // "0" explicitly instead so a cleared field always persists as 0.
+          minimumPayment: usesTenor
+            ? undefined
+            : moneyDigits(minPaymentField) || "0",
+          interestRate: usesRatePlan
+            ? ratePeriods?.[0]?.ratePercent
+            : toDecimalString(interestRate),
+          dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
+          autoAdvanceDueDate: dueDate ? autoAdvanceDueDate : undefined,
+          notes: notes.trim() || undefined,
+          interestMethod,
+          tenorMonths:
+            usesTenor && tenorDigits ? Number(tenorDigits) : undefined,
+          startDate: !usesTenor
+            ? undefined
+            : startDate
+              ? new Date(startDate).toISOString()
+              : editing?.startDate
+                ? null
+                : undefined,
+          installmentAmount: usesTenor
+            ? moneyDigits(installmentField) || undefined
+            : undefined,
+          kprScheme: usesRatePlan ? (kprPlan.scheme ?? undefined) : undefined,
+          ratePeriods,
+        },
+        [
+          ["totalDebt", totalDebtField],
+          ["remainingBalance", remainingField],
+          ["minimumPayment", usesTenor ? null : minPaymentField],
+          ["installmentAmount", usesTenor ? installmentField : null],
+        ],
+      ),
+    );
   }
 
   return (
@@ -519,7 +602,6 @@ function LiabilityModal({
         <DialogTitle>
           {editing ? t.liabilitas.modalEditTitle : t.liabilitas.modalTitle}
         </DialogTitle>
-        <DialogDescription>{t.liabilitas.modalDesc}</DialogDescription>
 
         <form onSubmit={handleSubmit}>
           <DialogBody>
@@ -562,7 +644,11 @@ function LiabilityModal({
                 id="liability-type"
                 className="select"
                 value={type}
-                onChange={(e) => setType(e.target.value as LiabilityTypeValue)}
+                onChange={(e) => {
+                  const next = e.target.value as LiabilityTypeValue;
+                  setType(next);
+                  setInterestMethod(DEFAULT_INTEREST_METHOD[next]);
+                }}
               >
                 {LIABILITY_TYPES.map((liabilityType) => (
                   <option key={liabilityType} value={liabilityType}>
@@ -577,51 +663,66 @@ function LiabilityModal({
                 <label className="label" htmlFor="liability-total-debt">
                   {t.liabilitas.fieldTotalDebtLabel}
                 </label>
-                <input
+                <MoneyInput
+                  field={totalDebtField}
                   id="liability-total-debt"
-                  className="input mono"
                   placeholder={t.liabilitas.fieldTotalDebtPlaceholder}
-                  inputMode="numeric"
-                  value={totalDebt}
-                  onChange={(e) => setTotalDebt(formatNum(e.target.value))}
-                  required
                 />
               </div>
               <div className="field mt-0">
                 <label className="label" htmlFor="liability-remaining">
                   {t.liabilitas.fieldRemainingLabel}
                 </label>
-                <input
+                <MoneyInput
+                  field={remainingField}
                   id="liability-remaining"
-                  className="input mono"
                   placeholder={t.liabilitas.fieldRemainingPlaceholder}
-                  inputMode="numeric"
-                  value={remainingBalance}
-                  onChange={(e) =>
-                    setRemainingBalance(formatNum(e.target.value))
-                  }
-                  required
                 />
               </div>
             </div>
 
-            <div className="field-row mt-3">
-              <div className="field mt-0">
+            {methodOptions && (
+              <div className="field">
+                <label className="label" htmlFor="liability-interest-method">
+                  {t.liabilitas.fieldInterestMethodLabel}
+                </label>
+                <select
+                  id="liability-interest-method"
+                  className="select"
+                  value={interestMethod}
+                  onChange={(e) =>
+                    setInterestMethod(e.target.value as InterestMethod)
+                  }
+                >
+                  {methodOptions.map((method) => (
+                    <option key={method} value={method}>
+                      {t.liabilitas.interestMethodLabels[method]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* polish-j batch 7a item 8 — Min. Bayar is a MoneyInput and
+                Bunga a plain percent input; pairing mismatched control
+                shapes in one field-row read as misaligned, so each gets its
+                own full-width row instead. */}
+            {!usesTenor && (
+              <div className="field mt-3">
                 <label className="label" htmlFor="liability-min-payment">
                   {t.liabilitas.fieldMinPaymentLabel}
                 </label>
-                <input
+                <MoneyInput
+                  field={minPaymentField}
                   id="liability-min-payment"
-                  className="input mono"
                   placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
-                  inputMode="numeric"
-                  value={minimumPayment}
-                  onChange={(e) => setMinimumPayment(formatNum(e.target.value))}
                 />
               </div>
-              <div className="field mt-0">
+            )}
+            {!usesRatePlan && (
+              <div className="field mt-3">
                 <label className="label" htmlFor="liability-interest-rate">
-                  {t.liabilitas.fieldInterestRateLabel}
+                  {rateLabel}
                 </label>
                 <input
                   id="liability-interest-rate"
@@ -632,7 +733,67 @@ function LiabilityModal({
                   onChange={(e) => setInterestRate(e.target.value)}
                 />
               </div>
-            </div>
+            )}
+            {usesTenor && (
+              <div className="field mt-3">
+                <label className="label" htmlFor="liability-tenor">
+                  {t.liabilitas.fieldTenorLabel}
+                </label>
+                <input
+                  id="liability-tenor"
+                  className="input mono"
+                  inputMode="numeric"
+                  placeholder="36"
+                  value={tenorMonths}
+                  onChange={(e) =>
+                    setTenorMonths(e.target.value.replace(/\D/g, ""))
+                  }
+                />
+                {usesRatePlan && (
+                  <div className="hint">
+                    {t.liabilitas.kpr.tenorRequiredHint}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {usesTenor && (
+              <div className="field-row mt-3">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-start-date">
+                    {t.liabilitas.fieldStartDateLabel}
+                  </label>
+                  <DateField
+                    id="liability-start-date"
+                    value={startDate}
+                    locale={locale}
+                    label={t.liabilitas.fieldStartDateLabel}
+                    onChange={setStartDate}
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-installment">
+                    {t.liabilitas.fieldInstallmentLabel}
+                  </label>
+                  <MoneyInput
+                    field={installmentField}
+                    id="liability-installment"
+                    placeholder={
+                      editing?.installmentAmount
+                        ? formatNum(editing.installmentAmount)
+                        : ""
+                    }
+                  />
+                  <div className="hint" id="liability-installment-hint">
+                    {t.liabilitas.fieldInstallmentHint}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {usesRatePlan && (
+              <KprRatePeriodsField value={kprPlan} onChange={setKprPlan} />
+            )}
 
             <div className="field">
               <label className="label" htmlFor="liability-due-date">
@@ -740,16 +901,23 @@ function LiabilityCardActionBar({
         <Trash2 className="size-3.5" /> Hapus
       </button>
       <span className="flex-1" />
-      <button
-        type="button"
-        onClick={onPay}
-        disabled={payDisabled}
-        title={payDisabled ? payDisabledLabel : undefined}
-        className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Banknote className="size-3.5" />{" "}
-        {payDisabled ? payDisabledLabel : "Bayar"}
-      </button>
+      {/* Polish batch 7b item 5 — this used to be a disabled `<button>`
+          showing "Sudah dibayar periode ini" on every already-paid card;
+          a disabled control implies an action that failed or is blocked,
+          not a settled status. It's now a quiet status badge instead. */}
+      {payDisabled ? (
+        <span className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground">
+          <CheckCircle2 className="size-3.5" /> {payDisabledLabel}
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={onPay}
+          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          <Banknote className="size-3.5" /> Bayar
+        </button>
+      )}
     </div>
   );
 }
@@ -773,15 +941,22 @@ function LiabilityCard({
 }: LiabilityCardProps) {
   const { t, locale } = useLocale();
   const isCreditCard = item.type === "kartu_kredit";
-  const status = getDueDateStatus(item.dueDate, t, locale);
+  // E2E round 1 bug 2 — `dueDate` is the legacy manual field the KPR form
+  // never sets; `nextDueDate` (same anchor rule as the amortisation
+  // schedule) is the real "next due" value when present.
+  const nextDue = item.nextDueDate ?? item.dueDate;
+  const status = getDueDateStatus(
+    nextDue,
+    item.nextDueDate ? item.currentInstallmentLate : null,
+    t,
+    locale,
+  );
 
   const totalDebt = item.totalDebt ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item.remainingBalance
     ? Number(BigInt(item.remainingBalance))
     : 0;
-  const minimumPayment = item.minimumPayment
-    ? Number(BigInt(item.minimumPayment))
-    : 0;
+  const minimumPayment = installmentDue(item);
 
   const progressValue = isCreditCard
     ? 100 - item.paymentRatio
@@ -906,7 +1081,7 @@ function LiabilityCard({
             <TriangleAlert className="mt-0.5 size-4 shrink-0" />
             <span>
               {t.liabilitas.overdueWarningPrefix}
-              {item.dueDate ? formatLocaleDate(item.dueDate, locale) : ""}
+              {nextDue ? formatLocaleDate(nextDue, locale) : ""}
               {t.liabilitas.overdueWarningSuffix}
             </span>
           </div>
@@ -927,45 +1102,53 @@ function LiabilityCard({
 
 // ── Detail Dialog ─────────────────────────────────────────────────────────
 // EPIC-024 group G (G1) — read-only Detail dialog: full field info + a
-// client-side amortisation summary (US-LIAB-6). Honestly labeled as an
-// estimate (`amortisationDisclaimer`) — no schedule is persisted server-side.
+// server-projected amortisation schedule (US-LIAB-6). Labeled as an estimate
+// (`amortisationDisclaimer`): projected from current state, nothing persisted.
 
 function LiabilityDetailDialog({
   item,
+  familyGroupId,
+  token,
   onClose,
   onPay,
 }: {
   item: LiabilityDto | null;
+  familyGroupId: string | undefined;
+  token: string | undefined;
   onClose: () => void;
   /** Prototype `dlg-lia-detail` footer's "Bayar Cicilan" (liabilitas.html:412)
    *  — closes Detail and hands off to the existing real pay flow. */
   onPay: (item: LiabilityDto) => void;
 }) {
   const { t, locale } = useLocale();
+  const queryClient = useQueryClient();
   const typeLabel = item
     ? (t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type)
     : "";
   const totalDebt = item ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item ? Number(BigInt(item.remainingBalance)) : 0;
-  const minimumPayment = item ? Number(BigInt(item.minimumPayment)) : 0;
+  const minimumPayment = item ? installmentDue(item) : 0;
   const interestRatePercent = item ? parseFloat(item.interestRate) || 0 : 0;
-  const preview = computeAmortisationPreview(
-    remaining,
-    minimumPayment,
-    interestRatePercent,
-    item?.type === "kartu_kredit",
-  );
-  // EPIC-026 Wave 5 — 6-installment schedule (see
-  // `computeAmortisationSchedule` above). Anchored on the next due date
-  // when set, today otherwise.
-  const schedule = item
-    ? computeAmortisationSchedule(
-        remaining,
-        minimumPayment,
-        interestRatePercent,
-        item.dueDate ? new Date(item.dueDate) : new Date(),
-      )
-    : [];
+  const scheduleQuery = useQuery<LiabilityScheduleDto>({
+    ...scheduleQueryOptions(familyGroupId ?? "", item?.id ?? "", token),
+    enabled: Boolean(item && familyGroupId && token),
+  });
+  const scheduleRows = scheduleQuery.data?.rows ?? [];
+  const rateBands = scheduleQuery.data?.rateBands ?? [];
+  const hasFloatingPeriod = scheduleQuery.data?.hasFloatingPeriod ?? false;
+  const firstRow = scheduleRows[0];
+  const paysOff = scheduleRows[scheduleRows.length - 1]?.remaining === "0";
+  // E2E round 1 bug 2 — `dueDate` (legacy manual field) never reflects the
+  // real akad-anchored schedule; `nextDueDate` is the row-1 due date the
+  // schedule below is actually built from.
+  const nextDue = item?.nextDueDate ?? item?.dueDate;
+  const anchor = nextDue ? new Date(nextDue) : new Date();
+  // fix-round1 (Minor) — when the liability has a real Tanggal Akad, each
+  // row's date is derived straight from it via `scheduleRowDueDate`
+  // (matches the API's own `dueDateForPeriod`, including the month-end
+  // clamp); `anchor + index months` is kept only as the kartu_kredit
+  // fallback, which has no akad to anchor against at all.
+  const startDate = item?.startDate ? new Date(item.startDate) : null;
 
   return (
     // EPIC-026 Wave 8 — prototype `dlg-lia-detail` (liabilitas.html:312) is a
@@ -982,11 +1165,7 @@ function LiabilityDetailDialog({
             </DialogDescription>
 
             <DialogBody className="space-y-3.5 text-[13px]">
-              {/* Prototype's `grid grid--4` headline figures. The prototype's
-                  "akad"/"tenor" meta and its "Sisa Tenor" / "Rekening
-                  Autodebet" cells are OMITTED: `LiabilityDto` carries no
-                  origination date, tenor, or autodebit account, and inventing
-                  them would be a fabricated record (Honest UI). */}
+              {/* Prototype's `grid grid--4` headline figures. */}
               <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-3.5 md:grid-cols-4">
                 <div>
                   <div className="t-xs t-muted">
@@ -1025,17 +1204,13 @@ function LiabilityDetailDialog({
                 </div>
               </div>
 
-              {/* Prototype's second `grid grid--3` row — only the two cells
-                  the API can actually answer. */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 <div>
                   <div className="t-xs t-muted mb-[3px]">
                     {t.liabilitas.detailNextDueLabel}
                   </div>
                   <div className="text-[13px] font-semibold">
-                    {item.dueDate
-                      ? formatLocaleDate(item.dueDate, locale)
-                      : "—"}
+                    {nextDue ? formatLocaleDate(nextDue, locale) : "—"}
                   </div>
                 </div>
                 <div>
@@ -1050,13 +1225,39 @@ function LiabilityDetailDialog({
                       : t.liabilitas.detailNotPaidThisPeriodLabel}
                   </StatusBadge>
                 </div>
+                <div>
+                  <div className="t-xs t-muted mb-[3px]">
+                    {t.liabilitas.fieldInterestMethodLabel}
+                  </div>
+                  <div className="text-[13px] font-semibold">
+                    {t.liabilitas.interestMethodLabels[item.interestMethod]}
+                  </div>
+                </div>
+                <div>
+                  <div className="t-xs t-muted mb-[3px]">
+                    {t.liabilitas.detailTenorLabel}
+                  </div>
+                  <div className="text-[13px] font-semibold">
+                    {item.tenorMonths
+                      ? `${item.tenorMonths}${t.liabilitas.tenorMonthsSuffix}`
+                      : "—"}
+                  </div>
+                </div>
               </div>
 
               <div className="rounded-lg border p-3.5">
                 <div className="mb-2 text-[12.5px] font-bold">
                   {t.liabilitas.amortisationTitle}
                 </div>
-                {minimumPayment > 0 ? (
+                {scheduleQuery.isError ? (
+                  <div className="text-[12px] text-destructive">
+                    {t.liabilitas.amortisationScheduleError}
+                  </div>
+                ) : scheduleQuery.isLoading ? (
+                  <div className="text-[12px] text-muted-foreground">
+                    {t.liabilitas.amortisationScheduleLoading}
+                  </div>
+                ) : firstRow ? (
                   <>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -1064,7 +1265,7 @@ function LiabilityDetailDialog({
                           {t.liabilitas.amortisationMonthlyPrincipalLabel}
                         </div>
                         <div className="mono text-[13.5px] font-bold">
-                          {formatRupiah(preview.monthlyPrincipal)}
+                          {formatRupiah(Number(firstRow.principal))}
                         </div>
                       </div>
                       <div>
@@ -1075,14 +1276,14 @@ function LiabilityDetailDialog({
                           className="mono text-[13.5px] font-bold"
                           style={{ color: "var(--danger)" }}
                         >
-                          {formatRupiah(preview.monthlyInterest)}
+                          {formatRupiah(Number(firstRow.interest))}
                         </div>
                       </div>
                     </div>
-                    {preview.months !== null ? (
+                    {paysOff ? (
                       <div className="mt-2.5 text-[12.5px] font-semibold text-success">
                         {t.liabilitas.amortisationEstimatedPayoffPrefix}
-                        {preview.months}
+                        {scheduleRows.length}
                         {t.liabilitas.amortisationEstimatedPayoffSuffix}
                       </div>
                     ) : (
@@ -1090,66 +1291,105 @@ function LiabilityDetailDialog({
                         {t.liabilitas.amortisationNoPayoffNote}
                       </div>
                     )}
-                    {preview.monthlyPrincipal > 0 && schedule.length > 0 && (
-                      <div className="mt-3">
-                        <div className="section-title mb-2 text-[13px]">
+                    <div className="mt-3">
+                      <div className="section-title mb-2 flex items-baseline justify-between gap-2 text-[13px]">
+                        <span>
                           {t.liabilitas.amortisationScheduleTitle} (
-                          {schedule.length}
+                          {scheduleRows.length}
                           {t.liabilitas.amortisationScheduleCountSuffix})
-                        </div>
-                        <div className="table-wrap">
-                          <table className="table table--num">
-                            <thead>
-                              <tr>
-                                <th>
-                                  {t.liabilitas.amortisationScheduleHeaderIndex}
-                                </th>
-                                <th>
-                                  {t.liabilitas.amortisationScheduleHeaderDate}
-                                </th>
-                                <th>
-                                  {
-                                    t.liabilitas
-                                      .amortisationScheduleHeaderPrincipal
-                                  }
-                                </th>
-                                <th>
-                                  {
-                                    t.liabilitas
-                                      .amortisationScheduleHeaderInterest
-                                  }
-                                </th>
-                                <th>
-                                  {t.liabilitas.loanRemainingPrincipalLabel}
-                                </th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {schedule.map((row) => (
-                                <tr key={row.index}>
-                                  <td className="mono">{row.index}</td>
-                                  <td className="whitespace-nowrap">
-                                    {formatScheduleDate(row.date, locale)}
-                                  </td>
-                                  <td className="mono whitespace-nowrap">
-                                    {formatRupiah(row.principal)}
-                                  </td>
-                                  <td className="mono whitespace-nowrap">
-                                    {formatRupiah(row.interest)}
-                                  </td>
-                                  <td className="mono whitespace-nowrap">
-                                    {formatRupiah(row.remaining)}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                        </span>
+                        <span className="t-xs t-muted font-normal whitespace-nowrap">
+                          {t.liabilitas.amortisationScheduleScrollHint}
+                        </span>
                       </div>
-                    )}
+                      <div className="table-wrap max-h-80 overflow-y-auto overflow-x-auto">
+                        <table className="table table--num">
+                          <thead>
+                            <tr>
+                              <th>
+                                {t.liabilitas.amortisationScheduleHeaderIndex}
+                              </th>
+                              <th>
+                                {t.liabilitas.amortisationScheduleHeaderDate}
+                              </th>
+                              <th>{t.liabilitas.kpr.scheduleRateHeader}</th>
+                              <th className="text-right">
+                                {
+                                  t.liabilitas
+                                    .amortisationScheduleHeaderInstallment
+                                }
+                              </th>
+                              <th className="text-right">
+                                {
+                                  t.liabilitas
+                                    .amortisationScheduleHeaderPrincipal
+                                }
+                              </th>
+                              <th className="text-right">
+                                {
+                                  t.liabilitas
+                                    .amortisationScheduleHeaderInterest
+                                }
+                              </th>
+                              <th>
+                                {t.liabilitas.loanRemainingPrincipalLabel}
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {scheduleRows.map((row, index) => (
+                              <tr key={row.period}>
+                                <td className="mono">{row.period}</td>
+                                <td className="whitespace-nowrap">
+                                  {formatScheduleDate(
+                                    startDate
+                                      ? scheduleRowDueDate(
+                                          startDate,
+                                          row.period,
+                                        )
+                                      : new Date(
+                                          anchor.getFullYear(),
+                                          anchor.getMonth() + index,
+                                          anchor.getDate(),
+                                        ),
+                                    locale,
+                                  )}
+                                </td>
+                                <td className="mono whitespace-nowrap">
+                                  <ScheduleRateCell
+                                    bands={rateBands}
+                                    period={row.period}
+                                    estimateLabel={
+                                      t.liabilitas.kpr.floatingEstimateBadge
+                                    }
+                                  />
+                                </td>
+                                <td className="mono text-right whitespace-nowrap">
+                                  {formatRupiah(Number(row.installment))}
+                                </td>
+                                <td className="mono text-right whitespace-nowrap">
+                                  {formatRupiah(Number(row.principal))}
+                                </td>
+                                <td className="mono text-right whitespace-nowrap">
+                                  {formatRupiah(Number(row.interest))}
+                                </td>
+                                <td className="mono whitespace-nowrap">
+                                  {formatRupiah(Number(row.remaining))}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                     <div className="hint">
                       {t.liabilitas.amortisationDisclaimer}
                     </div>
+                    {hasFloatingPeriod && (
+                      <div className="notice notice--warning mt-2">
+                        {t.liabilitas.kpr.floatingEstimateNote}
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="text-[12px] text-muted-foreground">
@@ -1157,6 +1397,37 @@ function LiabilityDetailDialog({
                   </div>
                 )}
               </div>
+
+              {item.type === "kpr" &&
+                item.interestMethod === "anuitas" &&
+                familyGroupId && (
+                  <>
+                    {hasFloatingPeriod && (
+                      <KprFloatingRatesPanel
+                        familyGroupId={familyGroupId}
+                        liabilityId={item.id}
+                        token={token}
+                        onChanged={() =>
+                          invalidateLiabilityRelatedQueries(
+                            queryClient,
+                            familyGroupId,
+                          )
+                        }
+                      />
+                    )}
+                    <KprPrepaymentSimulator
+                      familyGroupId={familyGroupId}
+                      liabilityId={item.id}
+                      token={token}
+                      onRecorded={() =>
+                        invalidateLiabilityRelatedQueries(
+                          queryClient,
+                          familyGroupId,
+                        )
+                      }
+                    />
+                  </>
+                )}
 
               {/* Prototype's `.notice` note row (liabilitas.html:405). */}
               {item.notes && (
@@ -1196,15 +1467,16 @@ function LiabilityDetailDialog({
 // ── Pay Dialog ─────────────────────────────────────────────────────────────
 // EPIC-024 group G (G1) — records a REAL payment via
 // `POST .../liabilities/:id/pay`: debits the chosen source account, and the
-// server splits principal/interest (`splitPayment`). This dialog's
-// principal/interest numbers are only a client-side PREVIEW of that split —
-// the authoritative split always happens server-side.
+// server splits principal/interest (`splitPayment`). The preview below comes
+// from `GET .../:id/payment-preview`, the same split `pay()` books; the web
+// does no interest math of its own.
 
 function PayLiabilityDialog({
   item,
+  familyGroupId,
+  token,
   accounts,
-  amount,
-  onAmountChange,
+  payField,
   sourceAccountId,
   onSourceAccountChange,
   isPending,
@@ -1212,9 +1484,10 @@ function PayLiabilityDialog({
   onConfirm,
 }: {
   item: LiabilityDto | null;
+  familyGroupId: string | undefined;
+  token: string | undefined;
   accounts: AccountDto[];
-  amount: string;
-  onAmountChange: (v: string) => void;
+  payField: MoneyField;
   sourceAccountId: string;
   onSourceAccountChange: (id: string) => void;
   isPending: boolean;
@@ -1222,17 +1495,38 @@ function PayLiabilityDialog({
   onConfirm: () => void;
 }) {
   const { t, locale } = useLocale();
-  const parsedAmount = parseRupiah(amount);
+  const parsedAmount = Number(moneyDigits(payField) || "0");
   const remainingBalance = item ? Number(BigInt(item.remainingBalance)) : 0;
-  const minimumPayment = item ? Number(BigInt(item.minimumPayment)) : 0;
-  const preview = item
-    ? computeAmortisationPreview(
-        remainingBalance,
-        parsedAmount,
-        parseFloat(item.interestRate) || 0,
-        item.type === "kartu_kredit",
-      )
-    : { monthlyInterest: 0, monthlyPrincipal: 0, months: null };
+  const minimumPayment = item ? installmentDue(item) : 0;
+  const previewAmount = useDebouncedValue(parsedAmount, PREVIEW_DEBOUNCE_MS);
+  const previewQuery = useQuery<LiabilityPaymentPreviewDto>({
+    queryKey: [
+      "liabilities",
+      familyGroupId ?? "",
+      "payment-preview",
+      item?.id ?? "",
+      previewAmount,
+    ],
+    enabled: Boolean(
+      item &&
+      familyGroupId &&
+      token &&
+      previewAmount > 0 &&
+      !payField.resolved.isPending,
+    ),
+    retry: false,
+    queryFn: ({ signal }) => {
+      if (!item || !familyGroupId) throw new Error("liability not selected");
+      return apiFetch<LiabilityPaymentPreviewDto>(
+        `/family-groups/${familyGroupId}/liabilities/${item.id}/payment-preview?amount=${previewAmount}`,
+        { token, signal },
+      );
+    },
+  });
+  const preview =
+    previewAmount === parsedAmount && !previewQuery.isFetching
+      ? previewQuery.data
+      : undefined;
 
   // Prototype's `.segmented` amount presets (liabilitas.html:524). The
   // prototype offers "Cicilan penuh / Minimum / Pelunasan sebagian"; the API
@@ -1270,8 +1564,8 @@ function PayLiabilityDialog({
               {[
                 item.name,
                 item.institution,
-                item.dueDate
-                  ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(item.dueDate, locale)}`
+                (item.nextDueDate ?? item.dueDate)
+                  ? `${t.liabilitas.statusDuePrefix}${formatLocaleDate(item.nextDueDate ?? item.dueDate!, locale)}`
                   : null,
               ]
                 .filter(Boolean)
@@ -1279,6 +1573,14 @@ function PayLiabilityDialog({
             </DialogDescription>
 
             <DialogBody>
+              {item.currentInstallmentLate && (
+                <div className="notice notice--warning" role="status">
+                  <span className="badge badge--danger">
+                    {t.liabilitas.payLateBadge}
+                  </span>{" "}
+                  {t.liabilitas.payLateNote}
+                </div>
+              )}
               <div className="field">
                 <span className="label" id="pay-liability-preset-label">
                   {t.liabilitas.payPresetLabel}
@@ -1294,9 +1596,7 @@ function PayLiabilityDialog({
                       type="button"
                       role="tab"
                       aria-selected={parsedAmount === preset.value}
-                      onClick={() =>
-                        onAmountChange(preset.value.toLocaleString("id-ID"))
-                      }
+                      onClick={() => payField.reset(String(preset.value))}
                       className="segmented__item flex-1"
                     >
                       {preset.label}
@@ -1309,16 +1609,10 @@ function PayLiabilityDialog({
                 <label className="label" htmlFor="pay-liability-amount">
                   {t.liabilitas.payAmountLabel}
                 </label>
-                <input
+                <MoneyInput
+                  field={payField}
                   id="pay-liability-amount"
-                  type="text"
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) =>
-                    onAmountChange(formatAmountInput(e.target.value))
-                  }
                   placeholder="0"
-                  className="input mono"
                 />
               </div>
 
@@ -1355,40 +1649,64 @@ function PayLiabilityDialog({
                   user's choice (Honest UI). */}
 
               {/* Prototype's `notice notice--info` split preview
-                  (liabilitas.html:566) — a client-side PREVIEW; the
-                  authoritative split is computed server-side by `pay()`. */}
-              {parsedAmount > 0 && (
-                <div className="notice notice--info mt-3.5">
-                  <Split className="size-4 shrink-0" aria-hidden="true" />
-                  <span>
-                    <strong>
-                      {t.liabilitas.payPrincipalPreviewLabel}{" "}
-                      <span className="mono">
-                        {formatRupiah(preview.monthlyPrincipal)}
-                      </span>
-                    </strong>{" "}
-                    ·{" "}
-                    <strong>
-                      {t.liabilitas.payInterestPreviewLabel}{" "}
-                      <span className="mono">
-                        {formatRupiah(preview.monthlyInterest)}
-                      </span>
-                    </strong>
-                    <br />
-                    <span className="t-xs">
-                      {t.liabilitas.payRemainingAfterLabel}:{" "}
-                      <span className="mono">
-                        {formatRupiah(
-                          Math.max(
-                            0,
-                            remainingBalance - preview.monthlyPrincipal,
-                          ),
-                        )}
+                  (liabilitas.html:566), computed server-side by the same
+                  split `pay()` books. */}
+              {parsedAmount > 0 &&
+                (previewQuery.isError && previewAmount === parsedAmount ? (
+                  <div className="notice notice--danger mt-3.5" role="alert">
+                    <TriangleAlert
+                      className="size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      {extractPreviewErrorMessage(
+                        previewQuery.error,
+                        t.liabilitas.payPreviewError,
+                      )}
+                    </span>
+                  </div>
+                ) : preview ? (
+                  <div className="notice notice--info mt-3.5">
+                    <Split className="size-4 shrink-0" aria-hidden="true" />
+                    <span>
+                      <strong>
+                        {t.liabilitas.payPrincipalPreviewLabel}{" "}
+                        <span className="mono">
+                          {formatRupiah(Number(preview.principal))}
+                        </span>
+                      </strong>{" "}
+                      ·{" "}
+                      <strong>
+                        {t.liabilitas.payInterestPreviewLabel}{" "}
+                        <span className="mono">
+                          {formatRupiah(Number(preview.interest))}
+                        </span>
+                      </strong>
+                      <br />
+                      <span className="t-xs">
+                        {t.liabilitas.payRemainingAfterLabel}:{" "}
+                        <span className="mono">
+                          {formatRupiah(Number(preview.remainingAfter))}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </div>
-              )}
+                  </div>
+                ) : (
+                  <div
+                    className="notice notice--info mt-3.5"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Split className="size-4 shrink-0" aria-hidden="true" />
+                    <span className="flex-1">
+                      <span className="sr-only">
+                        {t.liabilitas.payPreviewLoading}
+                      </span>
+                      <Bone className="h-3.5 w-3/4" />
+                      <Bone className="mt-2 h-3 w-1/2" />
+                    </span>
+                  </div>
+                ))}
             </DialogBody>
           </>
         )}
@@ -1398,7 +1716,12 @@ function PayLiabilityDialog({
           </Button>
           <Button
             type="button"
-            disabled={isPending || !sourceAccountId || parsedAmount <= 0}
+            disabled={
+              isPending ||
+              !sourceAccountId ||
+              parsedAmount <= 0 ||
+              payField.resolved.isPending
+            }
             onClick={onConfirm}
           >
             {isPending
@@ -1421,7 +1744,7 @@ export default function LiabilitasPage() {
   const [deleteTarget, setDeleteTarget] = useState<LiabilityDto | null>(null);
   const [payTarget, setPayTarget] = useState<LiabilityDto | null>(null);
   const [paySourceAccountId, setPaySourceAccountId] = useState("");
-  const [payAmount, setPayAmount] = useState("");
+  const payField = useMoneyField();
   // EPIC-025 N3-F4 — type filter tabs, matching the /aset and /investasi
   // filter-tab pattern (role="group"+aria-pressed, never a fake tablist).
   const [activeTypeFilter, setActiveTypeFilter] = useState<
@@ -1505,10 +1828,15 @@ export default function LiabilitasPage() {
         {
           token,
           method: "POST",
-          body: JSON.stringify({
-            sourceAccountId: params.sourceAccountId,
-            amount: params.amount,
-          }),
+          body: JSON.stringify(
+            withFxInputs(
+              {
+                sourceAccountId: params.sourceAccountId,
+                amount: params.amount,
+              },
+              [["amount", payField]],
+            ),
+          ),
         },
       ),
     onSuccess: () => {
@@ -1518,7 +1846,7 @@ export default function LiabilitasPage() {
       invalidateLiabilityRelatedQueries(queryClient, familyGroupId ?? "");
       setPayTarget(null);
       setPaySourceAccountId("");
-      setPayAmount("");
+      payField.reset();
       toast.success(t.liabilitas.toastPaid);
     },
     // silent-failure-hunter routing — `pay()` can 400 (amount exceeds max
@@ -1562,11 +1890,8 @@ export default function LiabilitasPage() {
   // the liability's own minimum payment.
   function openPayDialog(liability: LiabilityDto) {
     setPayTarget(liability);
-    setPayAmount(
-      Number(BigInt(liability.minimumPayment)) > 0
-        ? Number(BigInt(liability.minimumPayment)).toLocaleString("id-ID")
-        : "",
-    );
+    const due = installmentDue(liability);
+    payField.reset(due > 0 ? String(due) : undefined);
   }
 
   const totalRemaining = (liabilities ?? []).reduce(
@@ -1578,36 +1903,58 @@ export default function LiabilitasPage() {
   // EPIC-025 N3-F4 — "Cicilan Bulan Ini" 3rd stat + type filter tabs, both
   // derived from the same already-fetched `liabilities` list.
   const totalMinimumPayment = (liabilities ?? []).reduce(
-    (sum, l) => sum + (l.minimumPayment ? BigInt(l.minimumPayment) : BigInt(0)),
+    (sum, l) => sum + BigInt(installmentDue(l)),
     BigInt(0),
   );
+  // E2E round 1 bug 2 — prefer the real `nextDueDate` over the legacy
+  // manual `dueDate` field, same as everywhere else on this page.
   const nearestDueDate = (liabilities ?? [])
-    .filter((l) => l.dueDate)
-    .map((l) => l.dueDate as string)
+    .map((l) => l.nextDueDate ?? l.dueDate)
+    .filter((d): d is string => Boolean(d))
     .sort()[0];
 
   const filteredLiabilities = (liabilities ?? []).filter(
     (l) => activeTypeFilter === "semua" || l.type === activeTypeFilter,
   );
 
-  // Payoff projection (FOLD per J3 — pure client-side amortization, no
-  // fetch). The prototype's chart is CUT-equivalent honesty-wise only in
-  // the sense that it's an estimate — labeled as such via the same
-  // disclaimer copy the Detail dialog already uses.
+  // Payoff projection read off each scheduled liability's server schedule
+  // (same query the Detail dialog uses, so the cache is shared).
+  const scheduledLiabilities = (liabilities ?? []).filter(
+    (l) => installmentDue(l) > 0,
+  );
+  const projectionSchedules = useQueries({
+    queries: scheduledLiabilities.map((l) => ({
+      ...scheduleQueryOptions(familyGroupId ?? "", l.id, token),
+      enabled: Boolean(familyGroupId && token),
+    })),
+    combine: (results) => ({
+      isPending: results.some((r) => r.isPending),
+      isError: results.some((r) => r.isError),
+      byId: new Map(
+        results.flatMap((r) => (r.data ? [[r.data.liabilityId, r.data]] : [])),
+      ) as ReadonlyMap<string, LiabilityScheduleDto>,
+    }),
+  });
   const payoffProjectionMonths = nextSixMonthLabels(locale);
-  const payoffProjectionSeries = projectRemainingBalance(liabilities ?? []);
+  const payoffProjectionSeries = projectRemainingBalance(
+    liabilities ?? [],
+    projectionSchedules.byId,
+  );
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-4">
+      {/* Polish batch 7b item 5 — was `grid-cols-1` (3 full-width stacked
+          cards) on mobile, pushing the liability list well below the fold;
+          2-up at 390, 3-up from `sm` up. */}
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
+        <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-3 sm:p-4">
           <div className="mb-1 text-[11px] text-[#B91C1C]">
             {t.liabilitas.totalLiabilitiesLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-36 rounded bg-red-200" />
           ) : (
-            <div className="mono text-[22px] font-black text-destructive">
+            <div className="mono text-[18px] font-black text-destructive sm:text-[22px]">
               <CountUpRupiah value={Number(totalRemaining)} />
             </div>
           )}
@@ -1617,7 +1964,7 @@ export default function LiabilitasPage() {
               ` · ${(liabilities ?? []).length}${t.liabilitas.remainingActiveCountSuffix}`}
           </div>
         </div>
-        <div className="rounded-[14px] border bg-card p-4">
+        <div className="rounded-[14px] border bg-card p-3 sm:p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.liabilitas.dtaRatioLabel}
           </div>
@@ -1625,7 +1972,7 @@ export default function LiabilitasPage() {
             <div className="animate-pulse h-7 w-20 rounded bg-muted" />
           ) : (
             <div
-              className="text-[22px] font-black"
+              className="text-[18px] font-black sm:text-[22px]"
               style={{ color: dtaRisk.color }}
             >
               {dtaDisplay}
@@ -1638,14 +1985,14 @@ export default function LiabilitasPage() {
             {dtaRisk.label}
           </div>
         </div>
-        <div className="rounded-[14px] border bg-card p-4">
+        <div className="col-span-2 rounded-[14px] border bg-card p-3 sm:col-span-1 sm:p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.liabilitas.monthlyInstallmentLabel}
           </div>
           {isLoading ? (
             <div className="animate-pulse h-7 w-32 rounded bg-muted" />
           ) : (
-            <div className="mono text-[22px] font-black">
+            <div className="mono text-[18px] font-black sm:text-[22px]">
               {formatRupiah(Number(totalMinimumPayment))}
             </div>
           )}
@@ -1661,7 +2008,7 @@ export default function LiabilitasPage() {
         <div
           role="group"
           aria-label={t.liabilitas.fieldTypeLabel}
-          className="hide-scrollbar flex gap-2 overflow-x-auto"
+          className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
         >
           <button
             type="button"
@@ -1733,13 +2080,21 @@ export default function LiabilitasPage() {
         ))
       )}
 
-      {/* Payoff projection (FOLD per J3 — pure client-side amortization
-          roll-forward, no fetch) */}
-      {!isLoading &&
-        (liabilities ?? []).some(
-          (l) => l.minimumPayment && Number(BigInt(l.minimumPayment)) > 0,
-        ) && (
-          <SectionCard title={t.liabilitas.payoffProjectionTitle}>
+      {!isLoading && scheduledLiabilities.length > 0 && (
+        <SectionCard title={t.liabilitas.payoffProjectionTitle}>
+          {projectionSchedules.isError ? (
+            <p className="notice notice--danger" role="alert">
+              <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+              <span>{t.liabilitas.payoffProjectionError}</span>
+            </p>
+          ) : projectionSchedules.isPending ? (
+            <div role="status" aria-live="polite">
+              <span className="sr-only">
+                {t.liabilitas.amortisationScheduleLoading}
+              </span>
+              <Bone className="h-[220px] w-full" />
+            </div>
+          ) : (
             <TrendChart
               categories={payoffProjectionMonths}
               series={[
@@ -1750,11 +2105,12 @@ export default function LiabilitasPage() {
               ]}
               ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${formatRupiah(Number(totalRemaining))} → ${formatRupiah(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
             />
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {t.liabilitas.amortisationDisclaimer}
-            </p>
-          </SectionCard>
-        )}
+          )}
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {t.liabilitas.amortisationDisclaimer}
+          </p>
+        </SectionCard>
+      )}
 
       {showAddModal && familyGroupId && (
         <LiabilityModal
@@ -1774,6 +2130,8 @@ export default function LiabilitasPage() {
 
       <LiabilityDetailDialog
         item={detailItem}
+        familyGroupId={familyGroupId ?? undefined}
+        token={token}
         onClose={() => setDetailItem(null)}
         onPay={(liability) => {
           setDetailItem(null);
@@ -1792,23 +2150,28 @@ export default function LiabilitasPage() {
 
       <PayLiabilityDialog
         item={payTarget}
+        familyGroupId={familyGroupId ?? undefined}
+        token={token}
         accounts={accounts}
-        amount={payAmount}
-        onAmountChange={setPayAmount}
+        payField={payField}
         sourceAccountId={paySourceAccountId}
         onSourceAccountChange={setPaySourceAccountId}
         isPending={payMutation.isPending}
         onClose={() => {
           setPayTarget(null);
           setPaySourceAccountId("");
-          setPayAmount("");
+          payField.reset();
         }}
         onConfirm={() => {
-          const amountDigits = parseRupiah(payAmount).toString();
+          if (anyMoneyPending(payField)) {
+            toast.error(t.money.rateNotReady);
+            return;
+          }
+          const amountDigits = moneyDigits(payField);
           if (
             !payTarget ||
             !paySourceAccountId ||
-            parseRupiah(payAmount) <= 0
+            Number(amountDigits || "0") <= 0
           ) {
             toast.warning(t.liabilitas.validationPayAmountPositive);
             return;

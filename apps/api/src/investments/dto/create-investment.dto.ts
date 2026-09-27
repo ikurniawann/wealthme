@@ -9,17 +9,29 @@ import {
   IsString,
   Matches,
   MaxLength,
+  ValidateIf,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class CreateInvestmentDto {
-  @ApiProperty({ example: "BBCA" })
+  // E2E round-2 B1 — only saham/kripto ever reach MarketDataPort (see
+  // AUTOMATED_PRICE_TYPES); every other type has no real ticker (a
+  // deposito at a bank, emas fisik, ...). Format is checked whenever a
+  // value IS given; whether ticker is REQUIRED for this dto.type is
+  // enforced in InvestmentsService.create, which needs `type`'s value —
+  // not expressible cleanly with per-property class-validator decorators.
+  @ApiPropertyOptional({
+    example: "BBCA",
+    description: "Wajib untuk saham dan kripto (dipakai sinkronisasi harga).",
+  })
+  @ValidateIf((o: CreateInvestmentDto) => Boolean(o.ticker))
   @IsString()
-  @IsNotEmpty()
   @MaxLength(20)
   @Matches(/^[A-Z0-9._-]{1,20}$/i, {
     message: "ticker must be alphanumeric (A-Z, 0-9, ., _, -)",
   })
-  ticker!: string;
+  ticker?: string;
 
   @ApiProperty({ example: "Bank Central Asia" })
   @IsString()
@@ -79,4 +91,7 @@ export class CreateInvestmentDto {
   @IsOptional()
   @IsDateString()
   maturityDate?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

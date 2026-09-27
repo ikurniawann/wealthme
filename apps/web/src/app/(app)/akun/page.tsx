@@ -26,7 +26,7 @@ import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
+import { formatRupiah, parseRupiah } from "@/lib/format";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useShell } from "@/components/shell/shell-context";
 import { QuickUnlockPrompt } from "@/components/auth/quick-unlock-prompt";
@@ -64,7 +64,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { CrudModal, type CrudModalState } from "@/components/crud";
+import { CrudModal, withCrudFx, type CrudModalState } from "@/components/crud";
+import {
+  MoneyInput,
+  moneyIdr,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 import { SectionCard, StatusBadge, InfoTip, DateField } from "@/components/wm";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -563,7 +569,10 @@ type AuthSessionRow = {
   updatedAt: string | Date;
 };
 
+const SESSIONS_PREVIEW = 5;
+
 export function KeamananBody() {
+  const [showAllSessions, setShowAllSessions] = useState(false);
   const { t, locale } = useLocale();
   const { data: session } = useSession();
   const currentToken = session?.accessToken;
@@ -641,6 +650,17 @@ export function KeamananBody() {
     },
     enabled: !!currentToken,
   });
+
+  // Current device first, then newest; long histories collapse behind a
+  // "show all" toggle so the page stays short.
+  const sortedSessions = [...(sessions ?? [])].sort((a, b) => {
+    if (a.token === currentToken) return -1;
+    if (b.token === currentToken) return 1;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+  const visibleSessions = showAllSessions
+    ? sortedSessions
+    : sortedSessions.slice(0, SESSIONS_PREVIEW);
 
   const { mutate: endSession } = useMutation({
     mutationFn: async (sessionToken: string) => {
@@ -822,7 +842,7 @@ export function KeamananBody() {
         )}
         {!sessionsLoading &&
           !sessionsError &&
-          sessions?.map((s) => {
+          visibleSessions.map((s) => {
             const isCurrent = s.token === currentToken;
             const label = deviceLabelFromUserAgent(
               s.userAgent,
@@ -833,7 +853,7 @@ export function KeamananBody() {
               { day: "numeric", month: "short", year: "numeric" },
             );
             const sub = `${t.akun.keamanan.sessionActivePrefix}${dateStr}${
-              s.ipAddress ? ` · ${s.ipAddress}` : ""
+              s.ipAddress ? `, ${s.ipAddress}` : ""
             }`;
             return (
               <SetRow
@@ -862,6 +882,22 @@ export function KeamananBody() {
               />
             );
           })}
+        {!sessionsLoading &&
+          !sessionsError &&
+          sortedSessions.length > SESSIONS_PREVIEW && (
+            <button
+              type="button"
+              className="mt-2 text-[12px] font-semibold text-primary"
+              onClick={() => setShowAllSessions((v) => !v)}
+            >
+              {showAllSessions
+                ? t.akun.keamanan.sessionsShowLess
+                : t.akun.keamanan.sessionsShowAll.replace(
+                    "{count}",
+                    String(sortedSessions.length),
+                  )}
+            </button>
+          )}
       </SetSection>
       <SetSection>
         <SectionTitle>{t.deviceUnlock.manageSectionTitle}</SectionTitle>
@@ -1200,7 +1236,9 @@ export function PengaturanBody() {
     updateGoldPrice,
     isUpdating: isGoldPriceUpdating,
   } = useGoldPrice();
-  const [goldPriceInput, setGoldPriceInput] = useState("");
+  // Never prefilled, so it opens on the display currency (Decision 12); the
+  // value is still stored as IDR per gram.
+  const goldPriceField = useMoneyField();
   // EPIC-023 F2 (D20, US-DON-6/7) — family religion setting (owner-only
   // write; the API also enforces this — see
   // FamilyGroupsService.updateReligion). Drives which donation calculator
@@ -1288,18 +1326,27 @@ export function PengaturanBody() {
   }
 
   function saveGoldPrice() {
-    const parsed = parseRupiah(goldPriceInput);
+    if (goldPriceField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const parsed = moneyIdr(goldPriceField, parseRupiah);
     if (!parsed || parsed <= 0) {
       toast.error(t.akun.pengaturan.toastGoldPriceInvalid);
       return;
     }
-    updateGoldPrice(parsed, {
-      onSuccess: () => {
-        setGoldPriceInput("");
-        toast.success(t.akun.pengaturan.toastGoldPriceUpdated);
+    updateGoldPrice(
+      withFxInputs({ pricePerGram: parsed }, [
+        ["pricePerGram", goldPriceField],
+      ]),
+      {
+        onSuccess: () => {
+          goldPriceField.reset();
+          toast.success(t.akun.pengaturan.toastGoldPriceUpdated);
+        },
+        onError: () => toast.error(t.akun.pengaturan.toastGoldPriceFailed),
       },
-      onError: () => toast.error(t.akun.pengaturan.toastGoldPriceFailed),
-    });
+    );
   }
 
   function saveAiKey() {
@@ -1385,15 +1432,11 @@ export function PengaturanBody() {
         {isGoldPriceOwner ? (
           <Field label={t.akun.pengaturan.goldPriceLabel}>
             <div className="flex gap-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                className="input"
+              <MoneyInput
+                field={goldPriceField}
+                id="gold-price"
+                ariaLabel={t.akun.pengaturan.goldPriceLabel}
                 placeholder={t.akun.pengaturan.goldPricePlaceholder}
-                value={goldPriceInput}
-                onChange={(e) =>
-                  setGoldPriceInput(formatAmountInput(e.target.value))
-                }
               />
               <button
                 type="button"
@@ -2682,23 +2725,32 @@ export function ThresholdForm({
 }) {
   const { t } = useLocale();
   const queryClient = useQueryClient();
-  const [amount, setAmount] = useState(
-    member.largeTxnThreshold ? formatAmountInput(member.largeTxnThreshold) : "",
-  );
+  // A saved threshold opens on IDR (Decision 9); an unset one follows the
+  // display currency (Decision 12).
+  const amountField = useMoneyField({
+    initialRaw: member.largeTxnThreshold ?? "",
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleSave() {
     if (!token) return;
+    if (amountField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
     setIsSaving(true);
     try {
-      const parsed = parseRupiah(amount);
+      const parsed = moneyIdr(amountField, parseRupiah);
       await apiFetch(`/family-groups/${familyGroupId}/members/${member.id}`, {
         token,
         method: "PATCH",
-        body: JSON.stringify({
-          role: member.role,
-          largeTxnThreshold: parsed > 0 ? parsed : null,
-        }),
+        body: JSON.stringify(
+          parsed > 0
+            ? withFxInputs({ role: member.role, largeTxnThreshold: parsed }, [
+                ["largeTxnThreshold", amountField],
+              ])
+            : { role: member.role, largeTxnThreshold: null },
+        ),
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.familyGroups.members(familyGroupId),
@@ -2722,13 +2774,10 @@ export function ThresholdForm({
           <label htmlFor="threshold-amount" className="label">
             {t.akun.family.thresholdLabel}
           </label>
-          <input
+          <MoneyInput
+            field={amountField}
             id="threshold-amount"
-            inputMode="numeric"
-            value={amount}
-            onChange={(e) => setAmount(formatAmountInput(e.target.value))}
             placeholder="0"
-            className="input mono"
           />
           <p className="hint">{t.akun.family.thresholdEmptyHint}</p>
         </div>
@@ -3110,19 +3159,25 @@ export default function AkunPage() {
         await apiFetch(`/family-groups/${familyGroupId}/accounts`, {
           token,
           method: "POST",
-          body: JSON.stringify({
-            type: entity === "rekening" ? "bank" : "ewallet",
-            name:
-              values.nama ||
-              (entity === "rekening"
-                ? `${values.bank ?? "Bank"} ${values.jenis ?? ""}`.trim()
-                : "E-Wallet"),
-            institution: entity === "rekening" ? values.bank : values.nama,
-            maskedNumber: values.norek || values.phone || undefined,
-            balance: parseRupiah(values.saldo ?? "0"),
-            isPrivate,
-            ...(ownerUserId ? { ownerUserId } : {}),
-          }),
+          body: JSON.stringify(
+            withCrudFx(
+              {
+                type: entity === "rekening" ? "bank" : "ewallet",
+                name:
+                  values.nama ||
+                  (entity === "rekening"
+                    ? `${values.bank ?? "Bank"} ${values.jenis ?? ""}`.trim()
+                    : "E-Wallet"),
+                institution: entity === "rekening" ? values.bank : values.nama,
+                maskedNumber: values.norek || values.phone || undefined,
+                balance: parseRupiah(values.saldo ?? "0"),
+                isPrivate,
+                ...(ownerUserId ? { ownerUserId } : {}),
+              },
+              values,
+              { saldo: "balance" },
+            ),
+          ),
         });
         await queryClient.invalidateQueries({
           queryKey: queryKeys.accounts.all(familyGroupId),

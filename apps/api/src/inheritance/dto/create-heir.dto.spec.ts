@@ -27,15 +27,27 @@ describe("CreateHeirDto", () => {
     expect(errors).toHaveLength(0);
   });
 
-  // EPIC-023 F1 (D14) — `memberUserId` previously had no shape validation
-  // at all; garbage reached the tenant-scope lookup instead of being
-  // rejected at the boundary. Fails against pre-F1 code.
-  it("rejects a non-uuid memberUserId", async () => {
+  // Bugfix (2026-09-26) — Better Auth generates non-UUID ids (e.g.
+  // "Yyyw1LCqJDZhOJ00qNCfjxfHhH2P7uCs") for every self-registered account;
+  // only Prisma-seeded rows get @default(uuid()). @IsUUID() rejected every
+  // real owner-as-heir link with 400. Fails against pre-fix code.
+  it("accepts a Better Auth style non-uuid memberUserId", async () => {
+    const dto = plainToInstance(CreateHeirDto, {
+      name: "Ayah",
+      relationship: "Ayah",
+      sharePercent: 50,
+      memberUserId: "Yyyw1LCqJDZhOJ00qNCfjxfHhH2P7uCs",
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("rejects a memberUserId with invalid characters", async () => {
     const dto = plainToInstance(CreateHeirDto, {
       name: "Anak 1",
       relationship: "Anak",
       sharePercent: 50,
-      memberUserId: "not-a-uuid",
+      memberUserId: "not a valid id!",
     });
     const errors = await validate(dto);
     expect(errors.length).toBeGreaterThan(0);

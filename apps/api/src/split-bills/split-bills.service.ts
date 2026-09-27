@@ -134,6 +134,15 @@ const PARTICIPANT_INCLUDE = {
   participants: { orderBy: { createdAt: "asc" as const } },
 };
 
+// Batch 2 (#2) — settlement transactions used to hardcode `categoryId: null`,
+// showing a bare "—" in Transaksi's KATEGORI column for every split-bill
+// payment. "Pending Reimbursement" (COA 40101, groupNum 4/Receivable) is the
+// seeded system category for exactly this: money coming back in for a
+// receivable, matching the `resolveSystemCategoryId` pattern already used by
+// liabilities.service.ts for prepayments.
+const SETTLEMENT_CATEGORY_NAME = "Pending Reimbursement";
+const SETTLEMENT_COA_CODE = "40101";
+
 @Injectable()
 export class SplitBillsService {
   constructor(
@@ -403,15 +412,19 @@ export class SplitBillsService {
       }
 
       const paidAt = dto.paidAt ? new Date(dto.paidAt) : new Date();
+      const categoryId = await this.resolveSettlementCategoryId(
+        tx,
+        familyGroupId,
+      );
 
       const transaction = await tx.transaction.create({
         data: {
           familyGroupId,
           accountId: account.id,
-          categoryId: null,
+          categoryId,
           amount: participant.amountOwed,
           type: "income",
-          description: `Split bill: ${bill.title} — ${participant.name}`,
+          description: `Split bill: ${bill.title} untuk ${participant.name}`,
           occurredAt: paidAt,
         },
       });
@@ -530,6 +543,41 @@ export class SplitBillsService {
         "Split bill ini sudah punya peserta yang lunas (transaksi nyata sudah tercatat) dan tidak bisa dihapus. Gunakan 'Cabut Link' untuk menghentikan tagihan ini.",
       );
     }
+  }
+
+  /**
+   * Finds (or creates) this family's "Pending Reimbursement" category, tied
+   * to the seeded COA 40101 (groupNum 4/Receivable). Returns `null` — never
+   * throws — when that COA isn't seeded for this family group yet, so an
+   * older/incomplete family group still settles participants exactly as
+   * before rather than failing confirmation over missing setup.
+   */
+  private async resolveSettlementCategoryId(
+    tx: TxClient,
+    familyGroupId: string,
+  ): Promise<string | null> {
+    const coaAccount = await tx.coaAccount.findFirst({
+      where: { familyGroupId, code: SETTLEMENT_COA_CODE },
+    });
+    if (!coaAccount) return null;
+
+    const existing = await tx.category.findFirst({
+      where: { familyGroupId, name: SETTLEMENT_CATEGORY_NAME, kind: "income" },
+      select: { id: true, coaAccountId: true },
+    });
+    if (existing) {
+      return existing.coaAccountId === coaAccount.id ? existing.id : null;
+    }
+
+    const created = await tx.category.create({
+      data: {
+        familyGroupId,
+        name: SETTLEMENT_CATEGORY_NAME,
+        kind: "income",
+        coaAccountId: coaAccount.id,
+      },
+    });
+    return created.id;
   }
 
   /**

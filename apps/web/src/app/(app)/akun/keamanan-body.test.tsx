@@ -173,6 +173,47 @@ describe("KeamananBody — Sesi Aktif + PIN honesty (EPIC-016 Task K)", () => {
     expect(screen.getByText("Akhiri")).toBeInTheDocument();
   });
 
+  it("shows the current device plus the 4 newest sessions and hides the rest behind 'Lihat semua'", async () => {
+    // Arrange: current session + 7 older sessions
+    const others = Array.from({ length: 7 }, (_, i) => ({
+      id: `session-${i}`,
+      token: `token-${i}`,
+      userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15)",
+      ipAddress: "36.4.5.6",
+      createdAt: `2025-06-0${i + 1}T00:00:00.000Z`,
+      updatedAt: `2025-06-0${i + 1}T00:00:00.000Z`,
+    }));
+    mockListSessions.mockResolvedValue({
+      data: [
+        ...others,
+        {
+          id: "session-current",
+          token: CURRENT_TOKEN,
+          userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)",
+          ipAddress: "36.1.2.3",
+          createdAt: "2025-05-01T00:00:00.000Z",
+          updatedAt: "2025-05-01T00:00:00.000Z",
+        },
+      ],
+      error: null,
+    });
+
+    // Act
+    render(<KeamananBody />);
+    await screen.findByText("iPhone");
+
+    // Assert: current device listed despite being oldest; 4 others visible
+    expect(screen.getByText("Ini perangkatmu")).toBeInTheDocument();
+    expect(screen.getAllByText("Akhiri")).toHaveLength(4);
+    await userEvent.click(
+      screen.getByRole("button", { name: "Lihat semua (8)" }),
+    );
+    expect(screen.getAllByText("Akhiri")).toHaveLength(7);
+    expect(
+      screen.getByRole("button", { name: "Tampilkan lebih sedikit" }),
+    ).toBeInTheDocument();
+  });
+
   it("calls authClient.revokeSession with the target session's token when Akhiri is clicked", async () => {
     // Arrange
     const user = userEvent.setup();

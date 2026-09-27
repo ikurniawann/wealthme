@@ -13,7 +13,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -24,6 +23,12 @@ import {
   ProgressBar,
 } from "@/components/wm";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
+import {
+  MoneyInput,
+  useMoneyField,
+  moneyDigits,
+  withFxInputs,
+} from "@/components/money";
 // EPIC-025 N3-E3 — J3 FOLD: beneficiary-allocation donut, derived from the
 // already-fetched inheritance-assets list — no new backend endpoint.
 import { DonutChart } from "@/components/charts/apex-presets";
@@ -31,7 +36,7 @@ import type { DonutSegment } from "@/components/charts/donut";
 import { useLocale } from "@/hooks/use-locale";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah } from "@/lib/format";
+import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
@@ -41,6 +46,7 @@ import type {
   InheritanceAssetDto,
   InheritanceVisibility,
   MemberRelationship,
+  Role,
   UpdateInheritanceAssetDto,
 } from "@wealthme/contracts";
 
@@ -99,11 +105,15 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 // the optional "link a heir to a family member" picker. EPIC-023 F1 (D14)
 // added `relationship` so selecting a member can live-fill it too — the
 // API's response DTO already carries it (member-response.dto.ts).
+// Revisi K bug 1 — `role` distinguishes the owner (Master), whose
+// `relationship` is always null (not a kinship value), from a member whose
+// relationship is simply unset.
 type FamilyMember = {
   id: string;
   userId: string;
   name: string;
   relationship: MemberRelationship | null;
+  role: Role;
 };
 
 // EPIC-021 Group D (#12) — one heir row bound to text inputs; parsed into a
@@ -236,7 +246,7 @@ function AssetCard({
             key={h.id}
             variant={HEIR_CHIP_VARIANTS[i % HEIR_CHIP_VARIANTS.length]}
           >
-            {h.name} · {h.relationship} · {h.sharePercent}%
+            {h.name} ({h.relationship}, {h.sharePercent}%)
           </StatusBadge>
         ))}
         <div className="flex-1" />
@@ -338,165 +348,184 @@ function HeirEditor({
       <div className="section-title mt-[18px] mb-2 text-[14px]">
         {t.warisan.heirsSectionTitle}
       </div>
-      <div className="table-wrap">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>{t.warisan.heirTableHeaderName}</th>
-              <th>
-                {t.warisan.heirTableHeaderRelationship}{" "}
-                <span className="t-danger">*</span>
-              </th>
-              <th>{t.warisan.heirTableHeaderShare}</th>
-              <th className="text-right">{t.warisan.heirTableHeaderAction}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.length === 0 && (
+      {/* polish-j batch 7a item 10 — an empty heir list used to still
+          render the full header row above a single "Belum ada" cell; a
+          compact one-line empty state reads better than a table shell
+          with nothing in it. */}
+      {rows.length === 0 ? (
+        <p className="hint">{t.warisan.heirTableEmpty}</p>
+      ) : (
+        <div className="table-wrap">
+          <table className="table">
+            <thead>
               <tr>
-                <td colSpan={4} className="text-muted-foreground">
-                  {t.warisan.heirTableEmpty}
-                </td>
+                <th>{t.warisan.heirTableHeaderName}</th>
+                <th>{t.warisan.heirTableHeaderRelationship}</th>
+                <th>{t.warisan.heirTableHeaderShare}</th>
+                <th className="text-right">
+                  {t.warisan.heirTableHeaderAction}
+                </th>
               </tr>
-            )}
-            {rows.map((row) => {
-              // EPIC-023 F1 (D14) — once linked, name/relationship are
-              // resolved from the member's CURRENT record (not the row's own
-              // free-text fields) so the editor never shows a value that
-              // would be overwritten the moment the API re-resolves it on
-              // the next read (see inheritance.service.ts's `MemberLookup`).
-              const linkedMember = row.memberUserId
-                ? familyMembers.find((m) => m.userId === row.memberUserId)
-                : undefined;
-              // Review fix (attempt 2, HIGH) — associate the blank-
-              // relationship guard's error with this specific row's input,
-              // not just a toast.
-              const isRelationshipInvalid =
-                !linkedMember && invalidRelationshipHeirIds?.has(row.id);
-              const relationshipErrorId = `heir-relationship-error-${row.id}`;
-              return (
-                <tr key={row.id}>
-                  <td>
-                    {familyMembers.length > 0 ? (
-                      <select
-                        value={row.memberUserId}
-                        onChange={(e) => {
-                          const memberUserId = e.target.value;
-                          const picked = familyMembers.find(
-                            (m) => m.userId === memberUserId,
-                          );
-                          // Live-fill on selection; the API re-resolves from
-                          // the CURRENT member record on every subsequent
-                          // read regardless of what is stored here (see the
-                          // comment above).
-                          updateRow(row.id, {
-                            memberUserId,
-                            ...(picked
-                              ? {
-                                  name: picked.name,
-                                  relationship: picked.relationship ?? "",
-                                }
-                              : {}),
-                          });
-                        }}
-                        className="select"
-                        aria-label={t.warisan.heirMemberAriaLabel}
-                      >
-                        <option value="">
-                          {t.warisan.heirMemberNoneOption}
-                        </option>
-                        {familyMembers.map((m) => (
-                          <option key={m.userId} value={m.userId}>
-                            {m.name}
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                // EPIC-023 F1 (D14) — once linked, name/relationship are
+                // resolved from the member's CURRENT record (not the row's own
+                // free-text fields) so the editor never shows a value that
+                // would be overwritten the moment the API re-resolves it on
+                // the next read (see inheritance.service.ts's `MemberLookup`).
+                const linkedMember = row.memberUserId
+                  ? familyMembers.find((m) => m.userId === row.memberUserId)
+                  : undefined;
+                // Review fix (attempt 2, HIGH) — associate the blank-
+                // relationship guard's error with this specific row's input,
+                // not just a toast. Revisi K bug 1 — only a linked member WITH
+                // a relationship is locked/guaranteed non-blank; one with a
+                // null relationship (owner, operational) is still editable and
+                // can still be invalid.
+                const isRelationshipInvalid =
+                  !linkedMember?.relationship &&
+                  invalidRelationshipHeirIds?.has(row.id);
+                const relationshipErrorId = `heir-relationship-error-${row.id}`;
+                return (
+                  <tr key={row.id}>
+                    <td>
+                      {familyMembers.length > 0 ? (
+                        <select
+                          value={row.memberUserId}
+                          onChange={(e) => {
+                            const memberUserId = e.target.value;
+                            const picked = familyMembers.find(
+                              (m) => m.userId === memberUserId,
+                            );
+                            // Live-fill on selection; the API re-resolves from
+                            // the CURRENT member record on every subsequent
+                            // read regardless of what is stored here (see the
+                            // comment above). Revisi K bug 1 — the owner's
+                            // `relationship` is always null (not a kinship
+                            // value); default it to "Diri sendiri" instead of
+                            // leaving the (now-editable) field blank, which
+                            // used to fail the API's @IsNotEmpty() check.
+                            updateRow(row.id, {
+                              memberUserId,
+                              ...(picked
+                                ? {
+                                    name: picked.name,
+                                    relationship:
+                                      picked.relationship ??
+                                      (picked.role === "owner"
+                                        ? t.warisan.heirRelationshipSelfDefault
+                                        : ""),
+                                  }
+                                : {}),
+                            });
+                          }}
+                          className="select"
+                          aria-label={t.warisan.heirMemberAriaLabel}
+                        >
+                          <option value="">
+                            {t.warisan.heirMemberNoneOption}
                           </option>
-                        ))}
-                      </select>
-                    ) : (
-                      membersUnavailable && (
-                        <p className="hint">
-                          {t.warisan.heirMemberPickerUnavailable}
-                        </p>
-                      )
-                    )}
-                    <input
-                      type="text"
-                      value={linkedMember ? linkedMember.name : row.name}
-                      disabled={!!linkedMember}
-                      onChange={(e) =>
-                        updateRow(row.id, { name: e.target.value })
-                      }
-                      placeholder={t.warisan.heirNamePlaceholder}
-                      aria-label={t.warisan.heirTableHeaderName}
-                      className="input mt-1.5 disabled:cursor-not-allowed disabled:opacity-60"
-                    />
-                  </td>
-                  <td>
-                    <input
-                      type="text"
-                      value={
-                        linkedMember
-                          ? (linkedMember.relationship ?? "")
-                          : row.relationship
-                      }
-                      disabled={!!linkedMember}
-                      onChange={(e) =>
-                        updateRow(row.id, { relationship: e.target.value })
-                      }
-                      placeholder={t.warisan.heirRelationshipPlaceholder}
-                      aria-label={t.warisan.heirTableHeaderRelationship}
-                      aria-required
-                      aria-invalid={isRelationshipInvalid ? true : undefined}
-                      aria-describedby={
-                        isRelationshipInvalid ? relationshipErrorId : undefined
-                      }
-                      className={`input disabled:cursor-not-allowed disabled:opacity-60 ${
-                        isRelationshipInvalid
-                          ? "border-destructive focus:border-destructive"
-                          : ""
-                      }`}
-                    />
-                    {isRelationshipInvalid && (
-                      <span id={relationshipErrorId} className="error-text">
-                        {t.warisan.toastHeirRelationshipRequired}
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step="0.01"
-                      value={row.sharePercent}
-                      onChange={(e) =>
-                        updateRow(row.id, { sharePercent: e.target.value })
-                      }
-                      placeholder={t.warisan.heirSharePercentPlaceholder}
-                      aria-label={t.warisan.heirTableHeaderShare}
-                      className="input mono"
-                    />
-                  </td>
-                  <td className="text-right">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={`${t.warisan.removeHeirAriaLabel} ${
-                        linkedMember ? linkedMember.name : row.name
-                      }`.trim()}
-                      onClick={() =>
-                        onChange(rows.filter((r) => r.id !== row.id))
-                      }
-                    >
-                      <X className="size-[15px]" />
-                    </Button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+                          {familyMembers.map((m) => (
+                            <option key={m.userId} value={m.userId}>
+                              {m.name}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        membersUnavailable && (
+                          <p className="hint">
+                            {t.warisan.heirMemberPickerUnavailable}
+                          </p>
+                        )
+                      )}
+                      <input
+                        type="text"
+                        value={linkedMember ? linkedMember.name : row.name}
+                        disabled={!!linkedMember}
+                        onChange={(e) =>
+                          updateRow(row.id, { name: e.target.value })
+                        }
+                        placeholder={t.warisan.heirNamePlaceholder}
+                        aria-label={t.warisan.heirTableHeaderName}
+                        className="input mt-1.5 disabled:cursor-not-allowed disabled:opacity-60"
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        // Revisi K bug 1 — only LOCK the field when the linked
+                        // member actually HAS a relationship; a null one (the
+                        // owner, an operational member) leaves it editable
+                        // with the row's own (possibly defaulted) value
+                        // instead of forcing it blank.
+                        value={
+                          linkedMember?.relationship
+                            ? linkedMember.relationship
+                            : row.relationship
+                        }
+                        disabled={!!linkedMember?.relationship}
+                        onChange={(e) =>
+                          updateRow(row.id, { relationship: e.target.value })
+                        }
+                        placeholder={t.warisan.heirRelationshipPlaceholder}
+                        aria-label={t.warisan.heirTableHeaderRelationship}
+                        aria-required
+                        aria-invalid={isRelationshipInvalid ? true : undefined}
+                        aria-describedby={
+                          isRelationshipInvalid
+                            ? relationshipErrorId
+                            : undefined
+                        }
+                        className={`input disabled:cursor-not-allowed disabled:opacity-60 ${
+                          isRelationshipInvalid
+                            ? "border-destructive focus:border-destructive"
+                            : ""
+                        }`}
+                      />
+                      {isRelationshipInvalid && (
+                        <span id={relationshipErrorId} className="error-text">
+                          {t.warisan.toastHeirRelationshipRequired}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        step="0.01"
+                        value={row.sharePercent}
+                        onChange={(e) =>
+                          updateRow(row.id, { sharePercent: e.target.value })
+                        }
+                        placeholder={t.warisan.heirSharePercentPlaceholder}
+                        aria-label={t.warisan.heirTableHeaderShare}
+                        className="input mono"
+                      />
+                    </td>
+                    <td className="text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`${t.warisan.removeHeirAriaLabel} ${
+                          linkedMember ? linkedMember.name : row.name
+                        }`.trim()}
+                        onClick={() =>
+                          onChange(rows.filter((r) => r.id !== row.id))
+                        }
+                      >
+                        <X className="size-[15px]" />
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <Button
         type="button"
@@ -543,7 +572,7 @@ export default function WarisanPage() {
   );
   const [assetType, setAssetType] = useState(ASSET_TYPE_OPTIONS[0]);
   const [name, setName] = useState("");
-  const [valueInput, setValueInput] = useState("");
+  const valueField = useMoneyField();
   const [notes, setNotes] = useState("");
   const [visible, setVisible] = useState(true);
   // EPIC-021 Group D (#11) — "Pilih dari Aset" mode: pick an existing Asset
@@ -682,7 +711,7 @@ export default function WarisanPage() {
   function resetForm() {
     setAssetType(ASSET_TYPE_OPTIONS[0] ?? "");
     setName("");
-    setValueInput("");
+    valueField.reset();
     setNotes("");
     setVisible(true);
     setPickMode("asset");
@@ -695,7 +724,7 @@ export default function WarisanPage() {
     setEditing(item);
     setAssetType(item.assetType);
     setName(item.name);
-    setValueInput(Number(BigInt(item.estimatedValue)).toLocaleString("id-ID"));
+    valueField.reset(BigInt(item.estimatedValue).toString());
     setNotes(item.notes ?? "");
     setVisible(visibilityToBoolean(item.visibility));
     setPickMode(item.assetId ? "asset" : "manual");
@@ -720,9 +749,7 @@ export default function WarisanPage() {
     const picked = pickableAssets.find((a) => a.id === assetId);
     if (picked) {
       setName(picked.name);
-      setValueInput(
-        Number(BigInt(picked.currentValue)).toLocaleString("id-ID"),
-      );
+      valueField.reset(BigInt(picked.currentValue).toString());
     }
   }
 
@@ -731,7 +758,7 @@ export default function WarisanPage() {
       toast.error(t.warisan.toastSessionNotReady);
       return;
     }
-    const raw = valueInput.replace(/\D/g, "");
+    const raw = moneyDigits(valueField);
     const estimatedValue = parseInt(raw, 10);
     if (!name.trim()) {
       toast.error(t.warisan.toastNameRequired);
@@ -769,6 +796,7 @@ export default function WarisanPage() {
       toast.error(t.warisan.toastSharePercentExceeded);
       return;
     }
+    if (valueField.resolved.isPending) return;
 
     const baseFields = {
       name: name.trim(),
@@ -791,7 +819,10 @@ export default function WarisanPage() {
         ...baseFields,
         ...(assetIdChanged ? { assetId: nextAssetId } : {}),
       };
-      updateMutation.mutate({ id: editing.id, dto });
+      updateMutation.mutate({
+        id: editing.id,
+        dto: withFxInputs(dto, [["estimatedValue", valueField]]),
+      });
     } else {
       const dto: CreateInheritanceAssetDto = {
         ...baseFields,
@@ -799,7 +830,9 @@ export default function WarisanPage() {
           ? { assetId: selectedAssetId }
           : {}),
       };
-      createMutation.mutate(dto);
+      createMutation.mutate(
+        withFxInputs(dto, [["estimatedValue", valueField]]),
+      );
     }
   }
 
@@ -1074,9 +1107,6 @@ export default function WarisanPage() {
           <DialogTitle>
             {editing ? t.warisan.modalTitleEdit : t.warisan.addAssetButton}
           </DialogTitle>
-          {/* EPIC-026 Wave 8 — prototype `.dialog__desc` (warisan.html:222). */}
-          <DialogDescription>{t.warisan.modalDesc}</DialogDescription>
-
           <DialogBody>
             {/* EPIC-021 Group D (#11) — pick an existing Asset instead of
                 manual re-entry; manual entry stays available. The prototype
@@ -1130,17 +1160,7 @@ export default function WarisanPage() {
                 <label className="label" htmlFor="warisan-value">
                   {t.warisan.fieldValueLabel}
                 </label>
-                <input
-                  id="warisan-value"
-                  type="text"
-                  inputMode="numeric"
-                  value={valueInput}
-                  onChange={(e) =>
-                    setValueInput(formatAmountInput(e.target.value))
-                  }
-                  placeholder="0"
-                  className="input mono"
-                />
+                <MoneyInput field={valueField} id="warisan-value" />
               </div>
               <div className="field mt-0">
                 <label className="label" htmlFor="warisan-category">
@@ -1177,20 +1197,22 @@ export default function WarisanPage() {
                 already shipped, and labeled honestly as unavailable rather
                 than pretending to upload. */}
 
-            {/* Prototype's visibility row: label + switch on one line, hint
-                underneath (warisan.html:254). */}
+            {/* polish-j batch 6 item 2 — switch first (left), label + hint
+                after (right), matching crud-modal.tsx's toggle branch and
+                Anggaran's/Liabilitas's visibility-style toggles. Was
+                label-left/switch-right (warisan.html:254's own layout),
+                the one deliberate deviation for this batch. */}
             <div className="field">
-              <div className="row row--between">
-                <span className="label m-0" id="warisan-visibility-label">
-                  {t.warisan.visibleToHeirsLabel}
-                </span>
+              <div className="row mt-3.5 gap-[9px]">
                 <Switch
                   checked={visible}
                   onCheckedChange={setVisible}
                   aria-labelledby="warisan-visibility-label"
                 />
+                <span className="label m-0" id="warisan-visibility-label">
+                  {t.warisan.visibleToHeirsLabel}
+                </span>
               </div>
-              <span className="hint">{t.warisan.visibleToHeirsHint}</span>
             </div>
 
             {/* EPIC-021 Group D (#12) — heirs are optional; add/edit by
@@ -1231,7 +1253,11 @@ export default function WarisanPage() {
             <Button
               type="button"
               onClick={handleSave}
-              disabled={createMutation.isPending || updateMutation.isPending}
+              disabled={
+                createMutation.isPending ||
+                updateMutation.isPending ||
+                valueField.resolved.isPending
+              }
             >
               <Save className="size-4" />
               {createMutation.isPending || updateMutation.isPending

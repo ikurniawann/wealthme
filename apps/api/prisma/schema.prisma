@@ -120,6 +120,31 @@ enum LiabilityType {
   lainnya
 }
 
+enum InterestMethod {
+  efektif
+  flat
+  anuitas
+}
+
+enum KprScheme {
+  konvensional
+  berjenjang
+  flpp
+  syariah_murabahah
+  syariah_mmq
+}
+
+enum RatePeriodKind {
+  fixed
+  floating
+}
+
+enum PrepaymentMode {
+  full
+  reduce_tenor
+  reduce_installment
+}
+
 enum InsuranceType {
   jiwa
   kesehatan
@@ -202,6 +227,36 @@ enum SptStatus {
   belum_lapor
   sudah_lapor
   terlambat
+}
+
+enum TaxMaritalStatus {
+  TK
+  K
+  KI
+}
+
+enum TaxCalcMode {
+  legacy
+  detailed
+}
+
+enum TaxFinalInstrument {
+  bunga_deposito
+  bunga_tabungan
+  dividen
+  saham_idx
+  kupon_sbn
+  reksa_dana
+  p2p
+  kripto_domestik
+  kripto_luar
+  emas
+  sewa
+}
+
+enum CryptoExchangeKind {
+  domestik
+  luar_negeri
 }
 
 enum ReconStatus {
@@ -348,6 +403,7 @@ model User {
   // carry a null userId and belong to no one) — see Notification.userId.
   notifications            Notification[]
   notificationReads        NotificationRead[]
+  fxConversionsCreated     FxConversion[]     @relation("FxConversionCreatedBy")
 
   @@map("users")
 }
@@ -453,6 +509,8 @@ model FamilyGroup {
   inheritanceAssets       InheritanceAsset[]
   donations               Donation[]
   taxRecords              TaxRecord[]
+  taxFinalIncomeEntries   TaxFinalIncomeEntry[]
+  taxUmkmYears            TaxUmkmYear[]
   bankSyncs               BankSync[]
   netWorthSnapshots       NetWorthSnapshot[]
   coaAccounts             CoaAccount[]
@@ -495,6 +553,7 @@ model FamilyGroup {
   // (see that model's comment for why).
   transactionAttachments  TransactionAttachment[]
   goalContributions       GoalContribution[]
+  fxConversions           FxConversion[]
 
   @@map("family_groups")
 }
@@ -633,6 +692,7 @@ model Account {
   allowanceRequestsAsSource AllowanceRequest[] @relation("AllowanceRequestSource")
   goalsAsSource             Goal[]
   goalContributions         GoalContribution[]
+  taxFinalIncomeEntries     TaxFinalIncomeEntry[]
 
   @@unique([familyGroupId, name])
   @@index([familyGroupId])
@@ -704,15 +764,15 @@ model ReferenceItem {
 }
 
 model Transaction {
-  id               String                  @id @default(uuid())
-  familyGroupId    String
+  id                    String                  @id @default(uuid())
+  familyGroupId         String
   // EPIC-023 E3 (D12, US-LIAB-5) — nullable so a credit-card purchase can
   // touch NO bank/cash account at all: it debits nothing here and instead
   // raises `Liability.remainingBalance`/`totalDebt` via `liabilityId` below
   // (see LiabilitiesService.purchase()). Every other transaction (income/
   // expense/transfer created through TransactionsService.create()) keeps a
   // required, non-null accountId — unchanged.
-  accountId        String?
+  accountId             String?
   // Nullable destination account (EPIC-021 Group B / EPIC-019 Decision #1 —
   // single row + nullable toAccountId, NOT paired debit/credit legs). Only
   // meaningful when type = transfer; null on income/expense and on legacy
@@ -721,13 +781,13 @@ model Transaction {
   // transfer destination cannot be deleted out from under its own history —
   // the source-side `account` FK below stays Cascade (unchanged, pre-existing
   // behavior) since that side already governs the row's lifecycle.
-  toAccountId      String?
-  categoryId       String?
-  amount           BigInt
-  type             TransactionType
-  description      String?
-  occurredAt       DateTime
-  createdAt        DateTime                @default(now())
+  toAccountId           String?
+  categoryId            String?
+  amount                BigInt
+  type                  TransactionType
+  description           String?
+  occurredAt            DateTime
+  createdAt             DateTime                @default(now())
   // EPIC-023 Task C — who recorded this row, so a row-scoped role (dependant/
   // operational) can see "transactions they own or that they recorded" even
   // on a family-shared account. Nullable, NOT backfilled: every pre-existing
@@ -735,7 +795,7 @@ model Transaction {
   // none of the pre-existing household ledger. onDelete: SetNull — a member
   // leaving the family (or the app) must never cascade-delete transaction
   // history; the row just loses its "recorded by" attribution.
-  createdByUserId  String?
+  createdByUserId       String?
   // EPIC-023 E1 — links a payment transaction back to the obligation it
   // settles (D10, US-LIAB-4, US-INS-4): one ledger, one truth, instead of a
   // description string being the only trace of which liability/insurance a
@@ -744,19 +804,23 @@ model Transaction {
   // onDelete: SetNull so deleting the Liability/Insurance never cascades
   // into deleting transaction history, mirroring `category`/`createdBy`
   // above.
-  liabilityId      String?
-  insuranceId      String?
-  familyGroup      FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  account          Account?                @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
-  toAccount        Account?                @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
-  category         Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  createdBy        User?                   @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
-  liability        Liability?              @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
-  insurance        Insurance?              @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
+  liabilityId           String?
+  insuranceId           String?
+  // Revisi K — links a prepayment's principal/penalty transaction rows back
+  // to the ledger entry that recorded it (never counts as the month's installment).
+  liabilityPrepaymentId String?
+  familyGroup           FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  account               Account?                @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  toAccount             Account?                @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
+  category              Category?               @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy             User?                   @relation("TransactionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  liability             Liability?              @relation(fields: [liabilityId], references: [id], onDelete: SetNull)
+  insurance             Insurance?              @relation(fields: [insuranceId], references: [id], onDelete: SetNull)
+  liabilityPrepayment   LiabilityPrepayment?    @relation(fields: [liabilityPrepaymentId], references: [id], onDelete: SetNull)
   // EPIC-024 Task L (L2, D15, US-TXN-9) — receipts/photos attached to this
   // transaction, stored on server disk behind StoragePort.
-  attachments      TransactionAttachment[]
-  goalContribution GoalContribution?
+  attachments           TransactionAttachment[]
+  goalContribution      GoalContribution?
 
   @@index([familyGroupId, occurredAt])
   @@index([accountId])
@@ -765,6 +829,7 @@ model Transaction {
   @@index([createdByUserId])
   @@index([liabilityId])
   @@index([insuranceId])
+  @@index([liabilityPrepaymentId])
   @@map("transactions")
 }
 
@@ -1129,6 +1194,7 @@ model Investment {
   // purchasedAt as "not yet dated" rather than guessing a date.
   purchasedAt      DateTime?
   maturityDate     DateTime?
+  cryptoExchange   CryptoExchangeKind?
   createdAt        DateTime                @default(now())
   updatedAt        DateTime                @updatedAt
   familyGroup      FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -1137,6 +1203,7 @@ model Investment {
   // generic "edit" that used to silently overwrite quantity/costBasisPerUnit
   // with no trace of what changed or any realized P/L.
   transactions     InvestmentTransaction[]
+  taxFinalIncomeEntries TaxFinalIncomeEntry[]
 
   @@index([familyGroupId])
   @@map("investments")
@@ -1211,19 +1278,33 @@ model AuditLog {
 }
 
 model Liability {
-  id                  String        @id @default(uuid())
-  familyGroupId       String
-  name                String
-  institution         String?
-  type                LiabilityType
-  totalDebt           BigInt
-  remainingBalance    BigInt
-  minimumPayment      BigInt        @default(0)
-  interestRate        Decimal       @default(0) @db.Decimal(5, 2)
-  dueDate             DateTime?
-  autoAdvanceDueDate  Boolean       @default(false)
-  notes               String?
-  currency            String        @default("IDR")
+  id                    String                  @id @default(uuid())
+  familyGroupId         String
+  name                  String
+  institution           String?
+  type                  LiabilityType
+  totalDebt             BigInt
+  remainingBalance      BigInt
+  minimumPayment        BigInt                  @default(0)
+  interestRate          Decimal                 @default(0) @db.Decimal(5, 2)
+  dueDate               DateTime?
+  autoAdvanceDueDate    Boolean                 @default(false)
+  notes                 String?
+  currency              String                  @default("IDR")
+  // Revisi G (catalog 12) — per-product interest engine; legacy rows stay efektif.
+  interestMethod        InterestMethod          @default(efektif)
+  tenorMonths           Int?
+  startDate             DateTime?
+  installmentAmount     BigInt?
+  fixedRateMonths       Int?
+  floatingRate          Decimal?                @db.Decimal(5, 2)
+  // Revisi K — scheme label; tiered periods and recorded floating changes live in child tables.
+  kprScheme             KprScheme?
+  ratePeriods           LiabilityRatePeriod[]
+  floatingRates         LiabilityFloatingRate[]
+  // Revisi K — period the stored installment was computed for; a recorded prepayment moves it (null = the akad).
+  installmentFromPeriod Int?
+  prepayments           LiabilityPrepayment[]
   // EPIC-023 group E retry (HIGH 4) — this liability's OWN principal
   // Category, self-healed (created) the first time it needs a budget line
   // or a payment. Every liability gets its own category (instead of every
@@ -1233,22 +1314,82 @@ model Liability {
   // category yet. onDelete: SetNull — a Category deleted through the
   // Categories API (unusual, but not blocked by this FK) must not cascade
   // into deleting the Liability itself.
-  principalCategoryId String?
-  principalCategory   Category?     @relation("LiabilityPrincipalCategory", fields: [principalCategoryId], references: [id], onDelete: SetNull)
-  createdAt           DateTime      @default(now())
-  updatedAt           DateTime      @updatedAt
-  familyGroup         FamilyGroup   @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  principalCategoryId   String?
+  principalCategory     Category?               @relation("LiabilityPrincipalCategory", fields: [principalCategoryId], references: [id], onDelete: SetNull)
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  familyGroup           FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   // EPIC-023 E1 — the payment transactions posted against this liability
   // (see Transaction.liabilityId above).
-  transactions        Transaction[]
+  transactions          Transaction[]
   // EPIC-023 E2 — the FIXED budget line auto-created for this liability
   // (see Budget.liabilityId above). Restrict-guarded: deleting a liability
   // while a budget line still references it is refused in the app layer.
-  budgets             Budget[]
+  budgets               Budget[]
 
   @@index([familyGroupId])
   @@index([principalCategoryId])
   @@map("liabilities")
+}
+
+// Revisi K — ordered KPR rate periods; only the last (months null) runs to maturity.
+model LiabilityRatePeriod {
+  id            String         @id @default(uuid())
+  familyGroupId String
+  liabilityId   String
+  sequence      Int
+  kind          RatePeriodKind
+  months        Int?
+  ratePercent   Decimal        @db.Decimal(5, 2)
+  liability     Liability      @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([liabilityId, sequence])
+  @@index([familyGroupId])
+  @@map("liability_rate_periods")
+}
+
+// Revisi K — floating-rate changes the user recorded from bank notices.
+model LiabilityFloatingRate {
+  id              String    @id @default(uuid())
+  familyGroupId   String
+  liabilityId     String
+  effectiveDate   DateTime  @db.Date
+  ratePercent     Decimal   @db.Decimal(5, 2)
+  note            String?   @db.VarChar(200)
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  liability       Liability @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+
+  @@unique([liabilityId, effectiveDate])
+  @@index([familyGroupId])
+  @@map("liability_floating_rates")
+}
+
+// Revisi K — a recorded early repayment (pelunasan dipercepat). Replay-safe per idempotencyKey.
+model LiabilityPrepayment {
+  id                String         @id @default(uuid())
+  familyGroupId     String
+  liabilityId       String
+  idempotencyKey    String
+  mode              PrepaymentMode
+  principalAmount   BigInt
+  penaltyPercent    Decimal        @db.Decimal(5, 2)
+  penaltyAmount     BigInt
+  sourceAccountId   String
+  effectivePeriod   Int
+  installmentBefore BigInt?
+  installmentAfter  BigInt?
+  tenorMonthsBefore Int
+  tenorMonthsAfter  Int
+  createdByUserId   String?
+  occurredAt        DateTime
+  createdAt         DateTime       @default(now())
+  liability         Liability      @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+  transactions      Transaction[]
+
+  @@unique([liabilityId, idempotencyKey])
+  @@index([familyGroupId])
+  @@map("liability_prepayments")
 }
 
 model Insurance {
@@ -1449,6 +1590,16 @@ model TaxRecord {
   sptStatus      SptStatus   @default(belum_lapor)
   documentUrl    String?
   notes          String?
+  // Revisi L — legacy rows keep today's (gross, ptkp, zakat) formula; detailed rows use the full PPh OP engine.
+  calcMode            TaxCalcMode       @default(legacy)
+  maritalStatus       TaxMaritalStatus?
+  dependents          Int?
+  pensionContribution BigInt?
+  freelanceGross      BigInt?
+  nppnRateBps         Int?
+  otherNetIncome      BigInt?
+  withheldPph21       BigInt?
+  sptFiledAt          DateTime?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   familyGroup    FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
@@ -1456,6 +1607,44 @@ model TaxRecord {
   @@unique([familyGroupId, taxYear])
   @@index([familyGroupId])
   @@map("tax_records")
+}
+
+model TaxFinalIncomeEntry {
+  id              String             @id @default(uuid())
+  familyGroupId   String
+  taxYear         Int
+  instrument      TaxFinalInstrument
+  grossAmount     BigInt
+  occurredAt      DateTime
+  reinvested      Boolean            @default(false)
+  rateBpsOverride Int?
+  investmentId    String?
+  accountId       String?
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  familyGroup     FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  investment      Investment?        @relation(fields: [investmentId], references: [id], onDelete: SetNull)
+  account         Account?           @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  @@index([familyGroupId, taxYear])
+  @@index([investmentId])
+  @@index([accountId])
+  @@map("tax_final_income_entries")
+}
+
+model TaxUmkmYear {
+  id                  String      @id @default(uuid())
+  familyGroupId       String
+  taxYear             Int
+  omzetByMonth        BigInt[]
+  firstRegisteredYear Int?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  familyGroup         FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([familyGroupId, taxYear])
+  @@map("tax_umkm_years")
 }
 
 model BankSync {
@@ -1614,4 +1803,41 @@ model AccessRole {
 enum AccessDataScope {
   all
   own
+}
+
+// Revisi I — cached ECB reference rates (IDR per 1 unit); durable last-known-good for FX fallback.
+model FxRate {
+  id         String   @id @default(uuid())
+  source     String   @db.VarChar(32)
+  currency   String   @db.VarChar(3)
+  rateDate   DateTime @db.Date
+  idrPerUnit Decimal  @db.Decimal(24, 6)
+  fetchedAt  DateTime @default(now())
+
+  @@unique([source, currency, rateDate])
+  @@index([currency, rateDate])
+  @@map("fx_rates")
+}
+
+// Revisi I — append-only audit of a money field typed in a foreign currency and stored as IDR.
+model FxConversion {
+  id               String      @id @default(uuid())
+  familyGroupId    String
+  entity           String      @db.VarChar(48)
+  entityId         String
+  field            String      @db.VarChar(96)
+  originalAmount   Decimal     @db.Decimal(24, 2)
+  originalCurrency String      @db.VarChar(3)
+  idrAmount        Decimal     @db.Decimal(24, 2)
+  idrPerUnit       Decimal     @db.Decimal(24, 6)
+  rateDate         DateTime    @db.Date
+  rateSource       String      @db.VarChar(32)
+  rateStale        Boolean     @default(false)
+  createdByUserId  String?
+  createdAt        DateTime    @default(now())
+  familyGroup      FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  createdBy        User?       @relation("FxConversionCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([familyGroupId, entity, entityId])
+  @@map("fx_conversions")
 }

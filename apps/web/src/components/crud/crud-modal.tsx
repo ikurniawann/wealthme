@@ -7,7 +7,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -16,9 +15,18 @@ import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { mergeReferenceOptions } from "@/hooks/reference-options";
 import { useReferenceItems } from "@/hooks/use-reference-items";
-import { DateField, EmojiPicker } from "@/components/wm";
+import { DateField } from "@/components/wm";
+import { IconPickerField } from "./icon-picker-field";
+import {
+  MoneyInput,
+  useControlledMoneyField,
+  useDefaultMoneyCurrency,
+  useFxSnapshot,
+} from "@/components/money";
+import type { FxCurrencyCode } from "@wealthme/contracts";
 import { CRUD_CONFIG, type CrudEntity, type CrudField } from "./crud-config";
 import { AddToMasterDataLink } from "./add-to-master-data-link";
+import { currencyKey, normalizeCrudMoney } from "./crud-money";
 
 export type CrudMode = "add" | "edit";
 
@@ -158,13 +166,47 @@ function CrudForm({
   const [values, setValues] = useState<Record<string, string>>(() =>
     initialFieldValues(config.fields, state.initialValues),
   );
+  // E2E round 1, bug 1 — inline required-field errors (see CrudField.required).
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const displayCurrency = useDefaultMoneyCurrency();
+  // Decision 9/12: an untouched field is IDR on edit, the display currency on add.
+  const fallbackCurrency: FxCurrencyCode =
+    state.mode === "edit" ? "IDR" : displayCurrency;
+  const hasForeignAmount = config.fields.some(
+    (f) =>
+      f.type === "amount" &&
+      (values[currencyKey(f.key)] ?? fallbackCurrency) !== "IDR",
+  );
+  const { data: fxRates } = useFxSnapshot(hasForeignAmount);
 
-  const setField = (key: string, value: string) =>
+  const setField = (key: string, value: string) => {
     setValues((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
 
   const handleSave = async () => {
     if (isSaving) return;
+    // E2E round 1, bug 1 — a blank/whitespace `required` field (only
+    // `tujuan.nama` today) blocks Simpan with an inline error instead of
+    // silently POSTing an empty name. Runs before `onSubmit` even for the
+    // no-`onSubmit` demo-toast fallback below, so the demo path can't skip it.
+    const requiredErrors: Record<string, string> = {};
+    for (const f of visibleFields) {
+      if (f.required && !(values[f.key] ?? "").trim()) {
+        requiredErrors[f.key] = t.crud.fieldRequired.replace(
+          "{field}",
+          labelOverrides?.[f.key] ?? f.label,
+        );
+      }
+    }
+    setErrors(requiredErrors);
+    if (Object.keys(requiredErrors).length > 0) return;
     if (!onSubmit) {
       toast.success(
         `${config.title} berhasil ${state.mode === "edit" ? "diperbarui" : "ditambahkan"}!`,
@@ -174,7 +216,17 @@ function CrudForm({
     }
     setIsSaving(true);
     try {
-      await onSubmit(state.entity, state.mode, values);
+      const normalized = normalizeCrudMoney(
+        config.fields,
+        values,
+        fxRates,
+        fallbackCurrency,
+      );
+      if (normalized.pending) {
+        toast.error(t.money.rateNotReady);
+        return;
+      }
+      await onSubmit(state.entity, state.mode, normalized.values);
       onClose();
     } catch {
       // EPIC-022 F2 — a rejected `onSubmit` is exactly what keeps this
@@ -240,16 +292,22 @@ function CrudForm({
       );
     }
     if (f.type === "amount") {
-      // Prototype money inputs are `.input.mono` holding a dot-grouped
-      // value (see `dlg-split`'s "Jumlah Pokok") — no "Rp" adornment.
       return (
-        <input
-          className="input mono"
-          inputMode={f.allowNegative ? "text" : "numeric"}
-          placeholder="0"
-          value={values[f.key] ?? ""}
-          onChange={(e) =>
-            setField(f.key, formatThousands(e.target.value, f.allowNegative))
+        <CrudAmountControl
+          id={`crud-${state.entity}-${f.key}`}
+          field={f}
+          raw={values[f.key] ?? ""}
+          currency={
+            (values[currencyKey(f.key)] as FxCurrencyCode | undefined) ??
+            (state.mode === "edit" ? "IDR" : null)
+          }
+          ariaLabel={labelOverrides?.[f.key] ?? f.label}
+          onChange={(next) =>
+            setValues((prev) => ({
+              ...prev,
+              [f.key]: next.raw,
+              [currencyKey(f.key)]: next.currency,
+            }))
           }
         />
       );
@@ -271,6 +329,7 @@ function CrudForm({
     const label = labelOverrides?.[f.key] ?? f.label;
     const fieldClass = inRow ? "field mt-0" : "field";
     const hint = f.helper?.(values);
+    const error = errors[f.key];
 
     // Prototype `dlg-md-kategori` — the switch is a `.row`, not a boxed
     // card: control first, then a bold label with its muted sub-copy.
@@ -326,7 +385,7 @@ function CrudForm({
     if (f.type === "iconpick") {
       return (
         <div key={f.key} className={fieldClass}>
-          <EmojiPicker
+          <IconPickerField
             label={label}
             value={values[f.key] ?? ""}
             onChange={(emoji) => setField(f.key, emoji)}
@@ -340,11 +399,35 @@ function CrudForm({
       );
     }
 
+    // The amount control's first labelable descendant is the currency
+    // `<select>`, so a wrapping `<label>` (like every other field type)
+    // would associate the label with that select instead of the amount
+    // input — the same reason the DateField branch above uses an explicit
+    // htmlFor pairing rather than a wrapping label.
+    if (f.type === "amount") {
+      const fieldId = `crud-${state.entity}-${f.key}`;
+      return (
+        <div key={f.key} className={fieldClass}>
+          <label className="label" htmlFor={fieldId}>
+            {label}
+          </label>
+          {renderControl(f)}
+          {hint && <span className="hint block">{hint}</span>}
+        </div>
+      );
+    }
+
     return (
       <label key={f.key} className={fieldClass}>
         <span className="label">{label}</span>
         {renderControl(f)}
-        {hint && <span className="hint block">{hint}</span>}
+        {error ? (
+          <span className="t-xs text-destructive block" role="alert">
+            {error}
+          </span>
+        ) : (
+          hint && <span className="hint block">{hint}</span>
+        )}
         {f.referenceGroup && <AddToMasterDataLink group={f.referenceGroup} />}
       </label>
     );
@@ -364,11 +447,6 @@ function CrudForm({
         <DialogTitle>
           {state.mode === "edit" ? "Edit" : "Tambah"} {config.title}
         </DialogTitle>
-        <DialogDescription>
-          {state.mode === "edit"
-            ? t.crud.editDescription
-            : t.crud.addDescription}
-        </DialogDescription>
 
         <DialogBody>
           {rows.map((row, i) =>
@@ -400,4 +478,28 @@ function CrudForm({
       </DialogContent>
     </Dialog>
   );
+}
+
+function CrudAmountControl({
+  id,
+  field,
+  raw,
+  currency,
+  ariaLabel,
+  onChange,
+}: {
+  id: string;
+  field: CrudField;
+  raw: string;
+  currency: FxCurrencyCode | null;
+  ariaLabel: string;
+  onChange: (next: { raw: string; currency: FxCurrencyCode }) => void;
+}) {
+  const money = useControlledMoneyField({
+    raw,
+    currency,
+    onChange,
+    allowNegative: field.allowNegative,
+  });
+  return <MoneyInput field={money} id={id} ariaLabel={ariaLabel} />;
 }

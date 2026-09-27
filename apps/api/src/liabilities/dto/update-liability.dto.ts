@@ -1,19 +1,33 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { LiabilityType } from "@prisma/client";
+import { InterestMethod, KprScheme, LiabilityType } from "@prisma/client";
+import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
+  ArrayMinSize,
+  IsArray,
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsInt,
   IsOptional,
   IsString,
   Matches,
+  Max,
   MaxLength,
+  Min,
+  ValidateNested,
 } from "class-validator";
+
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
+import { RatePeriodDto } from "./rate-period.dto";
 
 export class UpdateLiabilityDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name?: string;
 
@@ -75,4 +89,70 @@ export class UpdateLiabilityDto {
   @IsString()
   @MaxLength(3)
   currency?: string;
+
+  @ApiPropertyOptional({ enum: InterestMethod })
+  @IsOptional()
+  @IsEnum(InterestMethod)
+  interestMethod?: InterestMethod;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 600 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  tenorMonths?: number;
+
+  @ApiPropertyOptional({
+    nullable: true,
+    type: String,
+    description: "null clears the Tanggal Akad",
+  })
+  @IsOptional()
+  @IsDateString()
+  startDate?: string | null;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+$/, { message: "installmentAmount must be a numeric string" })
+  installmentAmount?: string;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 600 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(600)
+  fixedRateMonths?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d+(\.\d{1,2})?$/, {
+    message: "floatingRate must be a decimal string",
+  })
+  floatingRate?: string;
+
+  @ApiPropertyOptional({
+    enum: KprScheme,
+    description: "KPR scheme label (kpr only)",
+  })
+  @IsOptional()
+  @IsEnum(KprScheme)
+  kprScheme?: KprScheme;
+
+  @ApiPropertyOptional({
+    type: [RatePeriodDto],
+    description:
+      "Revisi K — ordered rate periods (kpr + anuitas); supersedes fixedRateMonths/floatingRate",
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => RatePeriodDto)
+  ratePeriods?: RatePeriodDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

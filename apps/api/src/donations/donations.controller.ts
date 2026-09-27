@@ -10,6 +10,7 @@ import {
   Patch,
   Post,
   Query,
+  Req,
 } from "@nestjs/common";
 import {
   ApiBearerAuth,
@@ -23,6 +24,9 @@ import {
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { DonationsService } from "./donations.service";
@@ -32,12 +36,17 @@ import { DonationResponseDto } from "./dto/donation-response.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateDonationDto } from "./dto/update-donation.dto";
 
+import type { Request } from "express";
+
 @ApiTags("donations")
 @ApiBearerAuth()
 @PageAccess("donations")
 @Controller("family-groups/:familyGroupId/donations")
 export class DonationsController {
-  constructor(private readonly donationsService: DonationsService) {}
+  constructor(
+    private readonly donationsService: DonationsService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get()
   @CheckAbility((ab: AppAbility) => ab.can("read", "Donation"))
@@ -93,8 +102,18 @@ export class DonationsController {
   create(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: CreateDonationDto,
+    @Req() req: Request,
   ): Promise<DonationResponseDto> {
-    return this.donationsService.create(familyGroupId, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Donation",
+        dto,
+        spec: FX_FIELD_SPECS.donation,
+      },
+      (converted) => this.donationsService.create(familyGroupId, converted),
+    );
   }
 
   @Get(":id")
@@ -122,8 +141,19 @@ export class DonationsController {
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: UpdateDonationDto,
+    @Req() req: Request,
   ): Promise<DonationResponseDto> {
-    return this.donationsService.update(familyGroupId, id, dto);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Donation",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.donation,
+      },
+      (converted) => this.donationsService.update(familyGroupId, id, converted),
+    );
   }
 
   @Delete(":id")

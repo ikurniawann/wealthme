@@ -13,6 +13,7 @@ export const en = {
     emojiNoResults: "No icon found. Try another word.",
     emojiLoading: "Loading icons…",
     emojiGroupAriaLabel: "Frequently used icons",
+    advancedOptions: "Advanced options",
     datePickerPlaceholder: "Choose date",
     datePickerYearLabel: "Year",
     datePickerClear: "Clear date",
@@ -282,9 +283,8 @@ export const en = {
         "Receipt data filled into the form, review it, then save.",
       scanHint:
         "Scanning uses the device camera and the family AI provider key. The result fills this form; nothing is recorded until you press Save.",
-      scanUnavailable:
-        "Receipt scanning needs a family AI provider key from a provider that supports images.",
-      scanUnavailableLink: "Set it up in Settings",
+      scanUnavailable: "Needs an AI API key.",
+      scanUnavailableLink: "Set up",
       categoryUnmatched: "No matching family category",
       // Camera failures — each one needs its own fix, so each one gets its
       // own message.
@@ -354,8 +354,6 @@ export const en = {
       attachmentInvalidTypeToast:
         "Unsupported file type, only JPG, PNG, WEBP, or PDF are allowed.",
       attachmentTooLargeToast: "File exceeds 5MB.",
-      dialogDesc:
-        "Record income, an expense, a transfer, or a credit-card purchase.",
       modeSwitchLabel: "Input method",
       typeSwitchLabel: "Transaction type",
     },
@@ -375,6 +373,20 @@ export const en = {
       noResultsFor: "No results for",
       typeToSearchHint: "Type at least 2 characters to search",
     },
+  },
+  aksesSaya: {
+    eyebrowMaster: "Master Account",
+    eyebrowDependant: "Child / Staff Account",
+    familyReportsUnlocked: "Unlocked",
+    familyReportsLocked: "Locked",
+    familyReportsUnlockedDescription:
+      "Family reports are visible because this account is Master or Co-Master.",
+    familyReportsLockedDescription:
+      "Family reports are Master and Co-Master only. Your own transactions are still visible on the Transactions page.",
+    familyReportsRowStatusUnlocked: "Allowed",
+    familyReportsRowNoteUnlocked:
+      "Master and Co-Master can view family reports.",
+    familyReportsRowNoteLocked: "Master and Co-Master only.",
   },
   akun: {
     heroMemberSince: "Member since January 2024",
@@ -458,6 +470,8 @@ export const en = {
       deviceFallbackLabel: "Device",
       thisDeviceBadge: "This is your device",
       endSessionLink: "End",
+      sessionsShowAll: "Show all ({count})",
+      sessionsShowLess: "Show less",
       sessionsLoading: "Loading sessions...",
       sessionsEmpty: "No active sessions.",
       sessionsError: "Failed to load active sessions.",
@@ -774,16 +788,13 @@ export const en = {
     addDependant: {
       dialogTitle: "Add Child / Operational",
       dialogDesc:
-        "For a member with no email of their own (a child, driver, or assistant). Set a username and an initial password, they must change it at their first login.",
+        "For a member with no email. Password must be changed at first login.",
       nameLabel: "Name",
       namePlaceholder: "Full name",
       usernameLabel: "Username",
       usernamePlaceholder: "e.g. adit_kecil",
-      usernameHint: "3-30 characters, letters/numbers/underscore/dot",
       passwordLabel: "Initial Password",
       passwordPlaceholder: "At least 8 characters",
-      passwordHint:
-        "Hand this password over directly, they must change it at their first login.",
       showPassword: "Show password",
       hidePassword: "Hide password",
       roleLabel: "System role",
@@ -797,6 +808,9 @@ export const en = {
         'The wife becomes Co-Master: full access to every finance surface. Member management and family settings stay with the Master. Relationship locks to "istri". Max 1 wife per family.',
       relationshipLabel: "Relationship (optional)",
       relationshipNoneOption: "Not set",
+      emailLabel: "Email (optional)",
+      emailPlaceholder: "name@gmail.com",
+      emailHint: "A confirmation link is sent to this email.",
       accessRoleLabel: "Access role",
       accessRoleDefaultOption: "Default (follow role)",
       accessRoleEmptyHint:
@@ -920,7 +934,7 @@ export const en = {
       },
       rekening: {
         title: "Bank & Account",
-        desc: 'Click "Add" to register your first bank account — its balance automatically flows into net worth and its mutations are tracked per account.',
+        desc: 'Click "Add" to register your first bank account, its balance automatically flows into net worth and its mutations are tracked per account.',
       },
       dana: {
         title: "Cash & E-Wallet",
@@ -1168,6 +1182,7 @@ export const en = {
     premiumLabel: "Premium",
     renewalLabel: "Due Date",
     daysUntilRenewalSuffix: "days",
+    daysOverduePrefix: "overdue by",
     policyNumberLabel: "Policy No.",
     toastAdded: "Insurance added successfully",
     toastAddFailed: "Failed to save insurance",
@@ -1180,20 +1195,21 @@ export const en = {
     modalTitle: "Add Insurance",
     modalEditTitle: "Edit Insurance",
     modalCloseAriaLabel: "Close modal",
-    fieldNameLabel: "Insurance Name *",
+    fieldNameLabel: "Insurance Name",
     fieldNamePlaceholder: "e.g. Family Life Insurance",
-    fieldProviderLabel: "Provider",
+    fieldProviderLabel: "Provider (optional)",
     fieldProviderPlaceholder: "e.g. Prudential, AXA, Allianz",
-    fieldTypeLabel: "Type *",
+    fieldTypeLabel: "Type",
     fieldStatusLabel: "Status",
-    fieldPremiumLabel: "Premium (Rp) *",
+    fieldPremiumLabel: "Premium (Rp)",
     fieldPeriodLabel: "Premium Period",
-    fieldCoverageLabel: "Coverage Amount (Rp)",
-    fieldRenewalDateLabel: "Due Date",
+    fieldCoverageLabel: "Coverage Amount (Rp, optional)",
+    fieldRenewalDateLabel: "Due Date (optional)",
     autoRenewLabel:
       "Automatically renew every premium period after the due date passes",
+    fieldPolicyNumberLabel: "Policy No. (optional)",
     fieldPolicyNumberPlaceholder: "e.g. POL-12345678",
-    fieldNotesLabel: "Notes",
+    fieldNotesLabel: "Notes (optional)",
     fieldNotesPlaceholder: "Additional notes...",
     saving: "Saving...",
     saveButton: "Save Insurance",
@@ -1211,11 +1227,13 @@ export const en = {
     toastPaySuccessNoRenewal: "Premium paid successfully.",
     toastRenewalFailed: "Failed to pay premium. Try again.",
     beneficiariesSectionTitle: "Insurance Beneficiaries",
+    beneficiariesOptionalLabel: "Heirs (optional)",
     beneficiariesLabel: "Beneficiaries",
     beneficiaryNameLabel: "Name",
     beneficiaryNamePlaceholder: "e.g. Siti Arsandi",
     beneficiaryRelationshipLabel: "Relationship",
     beneficiaryRelationshipPlaceholder: "e.g. Child, Spouse",
+    beneficiaryRelationshipSelfDefault: "Self",
     beneficiarySharePercentLabel: "Share (%)",
     beneficiaryMemberLabel: "Link to Family Member",
     beneficiaryMemberNoneOption: "Not linked",
@@ -1259,8 +1277,7 @@ export const en = {
       "Premium and renewal date drive the reminders and cash-flow projection.",
     policyPickerPayDesc:
       "Pick the policy whose premium you want to pay; you choose the source account in the next step.",
-    policyPickerBeneficiaryDesc:
-      "Pick a policy first, beneficiaries are stored on that policy, and their shares may not exceed 100% in total.",
+    policyPickerBeneficiaryDesc: "Shares must total 100% at most.",
     deleteDialogTitle: "Delete this record?",
     deleteDialogBody:
       "The policy will be permanently deleted. Premium payments already recorded stay in Transactions.",
@@ -1424,6 +1441,8 @@ export const en = {
       resultLabel: "Estimated Time to Reach",
       resultValueSuffix: "Months",
       detailTargetReachedPrefix: "Target reached around:",
+      unreachableError:
+        "This target will never be reached at this monthly deposit — increase the monthly deposit or the annual interest rate.",
     },
     splitgroup: {
       cardTitle: "Split Bill Group Calculator",
@@ -1436,6 +1455,7 @@ export const en = {
       resultLabel: "Amount per Person",
       detailTotalWithTaxPrefix: "Total with tax/tip:",
       createSplitBillButton: "Create Split Bill from This Calculation",
+      invalidPeopleError: "Number of people must be greater than 0.",
     },
   },
   quickinput: {
@@ -1644,8 +1664,8 @@ export const en = {
     // are always filled from the real summary DTO, never invented.
     returnFormulaLabel: "= gain ÷ capital ({returnRp} ÷ {costBasis})",
     livePositionsOnlyPrefix: "only from",
-    filterNewBadge: "New",
     rowTickerPurchasedTemplate: "{ticker} · bought {date}",
+    rowPurchasedTemplate: "Bought {date}",
     rowCouponPurchasedTemplate: "Coupon {rate}%/yr · bought {date}",
     rowDepositoTermTemplate: "Started {date} · matures {maturityDate}",
     depositoRateTemplate: "{rate}% interest / yr",
@@ -1700,20 +1720,12 @@ export const en = {
     refreshPriceToast: "Reloading latest prices…",
     capitalInvestedPrefix: "Capital invested",
     livePositionsSuffix: "positions priced live",
-    pricingSourceNoticeTitle: "Two pricing sources.",
+    pricingSourceNoticeTitle: "Stocks & crypto delayed ±15 min.",
     pricingSourceNoticeBody:
       "IDX stocks come from Yahoo Finance (.JK code) and crypto from CoinGecko, both delayed ±15 minutes, not real-time. Gold follows the family Gold Price in Settings. Mutual funds, bonds and other holdings you value manually, always shown with their valuation date; time deposits are computed from their interest.",
+    pricingSourceMoreLabel: "More",
     allocationTitle: "Allocation by Type",
-    modalDesc:
-      "Pick the type first, the fields below adapt. Stocks are counted in lots, crypto in coins, time deposits by accrued interest.",
-    sectionIdentityTitle: "Instrument details",
-    sectionIdentityDesc:
-      "Choose the type and identity of the holding you're recording.",
-    sectionPositionTitle: "Quantity & purchase price",
-    sectionPositionDesc: "Enter the opening position and what you paid for it.",
-    sectionValuationTitle: "Valuation",
-    sectionValuationDesc: "Where this position's current value comes from.",
-    hintName: "The full name shown in your holdings list.",
+    modalDesc: "The fields adapt to the type.",
     hintPurchaseDate: "Used to calculate how long you have held the position.",
     hintLotConversion: "1 lot = 100 shares (IDX rule).",
     hintQuantityLocked:
@@ -1844,8 +1856,7 @@ export const en = {
     fieldValueChangeAmountPlaceholder:
       "e.g. -5,000,000 for depreciation, 5,000,000 for appreciation",
     fieldAcquisitionDateLabel: "Acquisition Date (optional)",
-    fieldAcquisitionDateHelper:
-      "The value projection is measured from this date. Falls back to when the asset was added if left blank.",
+    fieldAcquisitionDateHelper: "Blank = since it was added.",
     fieldMasterDataCategoryLabel: "Master Data Category (optional)",
     fieldMasterDataCategoryNone: "No category",
     fieldNotesLabel: "Notes (optional)",
@@ -1903,9 +1914,9 @@ export const en = {
     deleteDocumentAria: "Delete document",
     openDocumentAria: "Open document",
     totalAssetsSubtitlePrefix:
-      "Cash & bank + investments + physical assets · as of ",
+      "Cash & bank + investments + physical assets, as of ",
     statFromLastMonthSuffix: "vs last month",
-    statFisikNote: "Recorded value · projection tracked separately",
+    statFisikNote: "Recorded value, projection tracked separately",
     ownerSharedLabel: "Shared",
     ownerUnknownLabel: "Unknown",
   },
@@ -1947,7 +1958,7 @@ export const en = {
     autoAdvanceLabel:
       "Automatically advance to the next month after the due date passes",
     fieldNotesLabel: "Notes (optional)",
-    fieldNotesPlaceholder: "e.g. Visa Platinum · due on the 15th",
+    fieldNotesPlaceholder: "e.g. Visa Platinum, due on the 15th",
     saving: "Saving…",
     saveButton: "Save Liability",
     ccCurrentBillLabel: "Current Bill",
@@ -1987,7 +1998,7 @@ export const en = {
     amortisationNoPayoffNote:
       "The current minimum payment does not cover monthly interest, the remaining balance will not decrease.",
     amortisationUnavailableNote:
-      "Set a minimum payment to see the amortisation estimate.",
+      "Set a minimum payment or a tenor to see the amortisation schedule.",
     amortisationDisclaimer:
       "A rough estimate based on the current balance, interest rate, and minimum payment, not an official schedule.",
     payDialogTitle: "Pay Liability",
@@ -2009,12 +2020,11 @@ export const en = {
     payoffProjectionSeriesLabel: "Remaining Balance",
     overdueWarningPrefix: "The ",
     overdueWarningSuffix: " installment hasn't been paid.",
-    modalDesc:
-      "Changes feed straight into the debt-to-asset ratio and the payoff projection.",
     detailNextDueLabel: "Next Due Date",
     detailPayButton: "Pay Installment",
     amortisationScheduleTitle: "Amortisation Schedule",
     amortisationScheduleCountSuffix: " upcoming installments",
+    amortisationScheduleScrollHint: "Scroll for more columns →",
     amortisationScheduleHeaderIndex: "No.",
     amortisationScheduleHeaderDate: "Date",
     amortisationScheduleHeaderPrincipal: "Principal",
@@ -2025,6 +2035,128 @@ export const en = {
     paySourceAccountHint:
       "The account balance is debited and recorded automatically in Transactions.",
     payRemainingAfterLabel: "Remaining principal after payment",
+    interestMethodLabels: {
+      efektif: "Effective (declining balance)",
+      flat: "Flat",
+      anuitas: "Annuity",
+    },
+    rateLabels: {
+      efektif: "Effective Rate/Year (%)",
+      flat: "Flat Rate/Year (%)",
+      anuitas: "Annuity Rate/Year (%)",
+    },
+    fieldRateMonthlyLabel: "Interest/Month (%)",
+    fieldRateFixedLabel: "Fixed Rate/Year (%)",
+    fieldInterestMethodLabel: "Interest Method",
+    fieldTenorLabel: "Tenor (months)",
+    fieldStartDateLabel: "Start Date",
+    fieldInstallmentLabel: "Installment/Month (Rp)",
+    fieldInstallmentHint:
+      "Leave empty to compute it from principal, rate, and tenor.",
+    toastInstallmentPrefix: "Monthly installment: ",
+    amortisationScheduleHeaderInstallment: "Installment",
+    amortisationScheduleLoading: "Loading schedule…",
+    amortisationScheduleError: "Could not load the amortisation schedule.",
+    payPreviewLoading: "Calculating principal and interest…",
+    payPreviewError: "Could not calculate the principal and interest split.",
+    payoffProjectionError:
+      "Could not load the projection: the installment schedule is unavailable.",
+    detailTenorLabel: "Tenor",
+    tenorMonthsSuffix: " months",
+    payLateBadge: "Late",
+    payLateNote:
+      "This installment is past its due date — it still counts as the same installment during the 5-day grace window.",
+    kpr: {
+      planLegend: "Mortgage rate structure",
+      presetLabel: "Mortgage scheme",
+      presetNames: {
+        manual: "Manual — enter your own",
+        flpp_tapak: "FLPP landed house — 5% fixed",
+        flpp_rusun: "FLPP apartment — 6% fixed",
+        konvensional: "Conventional — fixed then floating",
+        berjenjang: "Tiered fixed then floating",
+        syariah_murabahah: "Sharia murabahah — fixed margin",
+        syariah_mmq: "Sharia MMQ/ijarah — fixed then reset",
+      },
+      officialRateNote:
+        "Official 2026 FLPP rates (Ministry of Housing): 5% landed house, 6% apartment, fixed for the whole tenor, up to 40 years.",
+      exampleRateNote:
+        'Rates marked "Example" come from public 2026 data, not your bank\'s offer. Check them against your offer letter (SP3K) before saving.',
+      mmqResetNote:
+        "There is no public reference for the post-reset rate; the example uses a conventional floating rate.",
+      exampleBadge: "Example",
+      officialBadge: "Official",
+      periodLabel: "Period",
+      periodKindLabel: "Rate type",
+      kindFixed: "Fixed",
+      kindFloating: "Floating",
+      periodMonthsLabel: "Length (months)",
+      periodToMaturity: "Until maturity",
+      periodRateLabel: "Rate/year (%)",
+      periodMarginLabel: "Margin/year (%)",
+      addPeriod: "Add period",
+      removePeriod: "Remove period",
+      planHint:
+        "The installment is re-annuitised from the remaining principal and tenor every time the rate changes.",
+      planInvalid:
+        "Complete every period: at least 1 month (except the last) and a rate of 0–30%.",
+      tenorRequiredHint:
+        "Tenor is required for a KPR with rate periods — it's used to compute the annuity installment.",
+      scheduleRateHeader: "Rate",
+      floatingEstimateBadge: "Estimate",
+      floatingEstimateNote:
+        "Floating rows are estimates: they use the latest known floating rate, which the bank may change at any time.",
+      historyTitle: "Floating-rate history",
+      historyHint:
+        "Record it from your bank's notice. The new rate applies from the first whole installment after the effective date; the installment is recalculated from the remaining principal and tenor.",
+      historyEmpty:
+        "No changes recorded yet — the schedule uses the floating rate from the rate periods.",
+      historyLoadFailed: "Could not load the rate history.",
+      historyDateLabel: "Effective date",
+      historyRateLabel: "New rate/year (%)",
+      historyAddButton: "Record change",
+      historyDeleteButton: "Delete change",
+      historyFromPeriodPrefix: "applies from installment #",
+      historySaved: "Rate change recorded",
+      historyDeleted: "Rate change deleted",
+      historySaveFailed: "Could not save the rate change",
+      prepayTitle: "Early repayment simulation",
+      prepaySimulationNote:
+        "The figures below are a simulation — nothing is recorded until you press Record prepayment and confirm.",
+      prepayModeLabel: "Repayment type",
+      prepayModes: {
+        full: "Pay off in full",
+        reduce_tenor: "Partial — shorter tenor",
+        reduce_installment: "Partial — smaller installment",
+      },
+      prepayAmountLabel: "Principal to prepay (Rp)",
+      prepayPenaltyLabel: "Penalty (%)",
+      prepayPenaltyHint:
+        "Example 1% — commonly 1–3% of the prepaid principal (up to 7%), often lower in the floating period. Check your credit agreement.",
+      prepaySubmit: "Run simulation",
+      prepayResultPenalty: "Penalty",
+      prepayResultCashOut: "Total paid now",
+      prepayResultInstallment: "Installment",
+      prepayResultTenor: "Remaining tenor",
+      prepayResultMonthsSuffix: " mo",
+      prepayResultInterestSaved: "Interest saved",
+      prepayResultNetSaving: "Net saving (after penalty)",
+      prepayEstimateNote:
+        "Estimate: future floating rates are assumed unchanged, and interest accrued since the last installment is not included.",
+      prepayReduceTenorNextTierNote:
+        "The installment still rises once the next rate period applies.",
+      prepayFailed: "Simulation failed",
+      recordAccountLabel: "Source account",
+      recordAccountPlaceholder: "Choose an account",
+      recordButton: "Record prepayment",
+      recordConfirmPrefix: "The account will be debited ",
+      recordConfirmBreakdown:
+        " (principal + penalty). The remaining principal, installment or tenor, schedule and budget follow.",
+      recordConfirmButton: "Yes, record it",
+      recordCancelButton: "Cancel",
+      recordSaved: "Prepayment recorded",
+      recordFailed: "Could not record the prepayment",
+    },
   },
   masterdata: {
     pageTitle: "Master Data Setup",
@@ -2460,11 +2592,6 @@ export const en = {
     toastDeleteFailed: "Failed to delete goal. Please try again.",
     activeGoalsSuffix: " Active Goals",
     totalAllocatedPrefix: "Total allocated: ",
-    // EPIC-022 A3 — goals are a manual tracker, not real money: this total
-    // is an earmark the family maintains by hand, never a bank balance or a
-    // real transfer between accounts.
-    trackerDisclaimer:
-      "Contributions from an account reduce that account's balance; without one, progress is only tracked.",
     addGoalButton: "Add Goal",
     onTrackLabel: "On Track",
     onTrackDesc: "goals on track",
@@ -2521,22 +2648,8 @@ export const en = {
       sudah_lapor: "Filed",
       terlambat: "Late",
     },
-    ptkpLabels: {
-      tk0: "Single (TK/0)",
-      k0: "Married, no dependents (K/0)",
-      k1: "Married, 1 child (K/1)",
-      k2: "Married, 2 children (K/2)",
-      k3: "Married, 3 children (K/3)",
-    },
-    bracketLabels: {
-      b0: "0 - 60 million",
-      b1: "60 - 250 million",
-      b2: "250 - 500 million",
-      b3: "500 million - 5 billion",
-      b4: "> 5 billion",
-    },
     heroLabelPrefix: "Estimated Tax Due ",
-    heroSubtitle: "PPh 21 · Status: Individual Taxpayer",
+    heroSubtitle: "PPh 21, Status: Individual Taxpayer",
     prevYearStatusLabelPrefix: "Annual SPT Status ",
     markReportedButton: "Mark as Filed",
     noDataLabel: "No data yet",
@@ -2557,7 +2670,7 @@ export const en = {
     calculatingLabel: "Calculating...",
     calcErrorLabel: "Failed to calculate. Try again.",
     pkpPrefix: "Taxable Income: ",
-    effectiveRatePrefix: " · Effective Rate ",
+    effectiveRatePrefix: ", Effective Rate ",
     savingLabel: "Saving...",
     saveToTaxRecordButton: "Save to Tax Records",
     progressiveBreakdownTitle: "Progressive Rate Breakdown (UU HPP)",
@@ -2567,7 +2680,7 @@ export const en = {
     historyTitle: "Tax Record History",
     taxYearPrefix: "Tax ",
     grossPrefix: "Gross: ",
-    zakatPrefix: " · Zakat: ",
+    zakatPrefix: ", Zakat: ",
     markReportedShortButton: "Mark Filed",
     documentsTitle: "Tax Documents",
     uploadButton: "+ Upload",
@@ -2598,18 +2711,11 @@ export const en = {
       'Typed with thousands separators for readability — dots are stripped automatically before sending ("780.000.000" → "780000000").',
     ptkpSelectedPrefix: "Selected PTKP: ",
     jabatanHint: "5% of gross, capped at Rp 6,000,000/year.",
-    perpuluhanHint:
-      "Only tithes paid to a registered institution qualify as a deduction (PP 60/2010). Pulled automatically from ",
-    perpuluhanHintLinkLabel: "Donations",
     perpuluhanAutoFilledHint:
-      "Auto-filled from recorded zakat & tithe for {year}. Infaq, sedekah & waqf are not tax-deductible (PP 60/2010).",
-    payloadCalloutPrefix: "Sent to the server: ",
-    payloadCalloutSuffix: "- plain digits, no separators.",
+      "Automatic from recorded zakat & tithe for {year} (PP 60/2010).",
     resetButton: "Reset",
     toastReset: "Calculation reset",
     colTaxableBase: "Taxable Base",
-    bracketFootnote:
-      "The Tax column always sums to the headline above, the 30% bracket (500M–5B) is included.",
     perpuluhanDeductionTitle: "Tithe Tax Deduction",
     perpuluhanDeductionDesc: "from recorded donations",
     emptyDocumentsTitle: "No documents yet",
@@ -2624,6 +2730,211 @@ export const en = {
     saveDialogNote:
       "Values are sent as plain numeric strings, thousands separators are display-only.",
     saveDialogConfirmButton: "Save",
+    rules: {
+      unverifiedBadge: "Estimate",
+      unverifiedIntro: "Check the latest DJP rules.",
+      outOfRange:
+        "that year's rules are not modelled; using the oldest available",
+    },
+    op: {
+      statusLabel: "PTKP status",
+      maritalLabels: {
+        TK: "TK (single)",
+        K: "K (married)",
+        KI: "K/I (wife's income combined)",
+      },
+      dependentsLabel: "Dependents (0–3)",
+      ptkpDerivedPrefix: "PTKP computed by server: ",
+      pensionLabel: "Your pension/JHT/JP contribution (annual)",
+      withheldLabel: "PPh 21 already withheld (1721-A1 slip)",
+      freelanceLabel: "Freelance turnover (NPPN)",
+      nppnLabel: "NPPN percentage (%)",
+      nppnHint: "See the PER-17/PJ/2015 table. Leave empty if UMKM 0.5%.",
+      otherNetLabel: "Other net income",
+      netoLabel: "Net income",
+      balanceLabel: "Under/(over) payment",
+      overpaidLabel: "Overpaid",
+      noTaxRow: "PKP Rp0 — no tax due",
+      previewNeedsFamily: "Create or join a family group to calculate.",
+    },
+    ter: {
+      title: "Monthly PPh 21 (TER) & December true-up",
+      subtitle:
+        "Jan–Nov use the effective rate (TER); December recomputes the full year with Pasal 17.",
+      monthlyGrossLabel: "Monthly gross salary",
+      editMonthsToggle: "Set per month (bonus/THR)",
+      thrBonusLabel: "THR/bonus",
+      thrBonusHint: "Excluded from the DTP fixed-salary cap (PMK 10/2025).",
+      thrExceedsGrossError: "THR/bonus can't exceed that month's gross.",
+      categoryPrefix: "TER category: ",
+      kiNote: "For K/I, monthly withholding uses the husband's K/n category.",
+      colMonth: "Month",
+      colGross: "Gross",
+      colRate: "Rate",
+      colWithheld: "Withheld",
+      colDtp: "DTP",
+      decemberLabel: "December (true-up)",
+      refundNote:
+        "Over-withheld — refunded by the employer in December payroll.",
+      notApplicable: "TER applies from tax year 2024.",
+      dtpTitle: "PPh 21 DTP incentive",
+      dtpSectorLabel: "Employer's sector",
+      dtpSectors: {
+        none: "Not a covered sector",
+        alas_kaki: "Footwear",
+        tekstil_pakaian: "Textile & apparel",
+        furnitur: "Furniture",
+        kulit: "Leather goods",
+        pariwisata: "Tourism",
+      },
+      dtpEmploymentLabel: "Employment",
+      dtpEmployment: { permanent: "Permanent", non_permanent: "Non-permanent" },
+      dtpDailyWageLabel: "Average daily wage",
+      dtpNikLabel: "NIK/NPWP validated in Coretax",
+      dtpReasons: {
+        no_program: "No DTP program",
+        sector_not_covered: "Sector not covered",
+        gross_above_cap: "Gross above Rp10m/month",
+        daily_wage_above_cap: "Daily wage above the cap",
+        nik_not_validated: "NIK not validated",
+      },
+      dtpEligible: "Government-borne — paid in cash with wages",
+      dtpTotalPrefix: "Annual DTP total: ",
+      emptyStateNote:
+        "Enter your monthly gross salary to see the TER withholding",
+      loadingLabel: "Calculating TER withholding…",
+      noFamilyNote:
+        "Not part of a family yet — TER withholding needs an active family group.",
+    },
+    umkm: {
+      title: "UMKM 0.5% final tax",
+      subtitle:
+        "For individual businesses. Turnover up to Rp500m a year is not taxed; turnover ceiling Rp4.8bn.",
+      monthLabels: [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ],
+      firstYearLabel: "First year registered for the final regime (optional)",
+      pre2018Note:
+        "Registered before 2018? The 7-year time limit is counted starting from 2018 (PP 55/2022 Article 59(2)).",
+      noTimeLimitNote:
+        "Since PP 20/2026 (22 Apr 2026), individuals may use the 0.5% rate with no time limit.",
+      ineligible: "Past the 7-year limit — use Pasal 17 rates",
+      exceedsCeiling:
+        "Turnover exceeds Rp4.8bn: next year you must use the general Pasal 17 regime with bookkeeping.",
+      colOmzet: "Turnover",
+      colCumulative: "Cumulative",
+      colTaxable: "Taxable",
+      colTax: "Final tax",
+      totalPrefix: "Total UMKM final tax:",
+      save: "Save this year's turnover",
+      saved: "Turnover saved",
+      saveFailed: "Failed to save turnover",
+      disclosureLabel: "Fill in monthly turnover",
+      loadingLabel: "Calculating estimate...",
+      loadFailedLabel: "Couldn't calculate the estimate, try again.",
+      emptyStateNote: "Fill in monthly turnover to see the final-tax estimate.",
+    },
+    final: {
+      title: "Final tax on investments & other income",
+      subtitle:
+        "Automatic from your portfolio (deposits, bonds, share/crypto/fund/gold sales) plus manual entries. Final tax is usually withheld by the payer.",
+      instruments: {
+        bunga_deposito: "Deposit interest",
+        bunga_tabungan: "Savings interest",
+        dividen: "Dividends",
+        saham_idx: "IDX share sales",
+        kupon_sbn: "SBN/bond coupon",
+        reksa_dana: "Mutual funds",
+        p2p: "P2P lending interest",
+        kripto_domestik: "Crypto (domestic exchange)",
+        kripto_luar: "Crypto (foreign exchange)",
+        emas: "Gold bullion",
+        sewa: "Land/building rent",
+      },
+      sourceHolding: "Automatic",
+      sourceEntry: "Manual",
+      caveats: {
+        assumed_domestic:
+          "Assumed domestic exchange — change it in Investments",
+        assumed_sbn: "Assumed to be SBN",
+        no_purchase_date: "No purchase date — counted from 1 January",
+        no_interest_rate: "Interest rate not set in Investments",
+      },
+      belowThreshold: "Principal ≤ Rp7.5m — exempt",
+      missingRate: "Rate not verified — enter your own",
+      missingRateNotice: "{n} line(s) have no rate yet.",
+      skippedForeign:
+        "{n} foreign-currency holding(s) not estimated (Indonesian tax uses the KMK tax rate).",
+      addEntry: "Add income",
+      editEntry: "Edit",
+      deleteEntry: "Delete",
+      fieldInstrument: "Type",
+      fieldGross: "Gross amount",
+      fieldDate: "Date received",
+      fieldReinvested: "Reinvested in Indonesia within 3 years",
+      fieldRateOverride: "Own rate (%) — optional",
+      fieldNotes: "Notes",
+      totalPrefix: "Estimated final tax total:",
+      toastSaved: "Saved",
+      toastDeleted: "Deleted",
+      toastFailed: "Save failed",
+      loadingLabel: "Calculating estimate...",
+      loadFailedLabel: "Couldn't calculate the estimate, try again.",
+      emptyStateNote: "No final income recorded yet.",
+    },
+    summary: {
+      title: "Annual tax summary",
+      totalLabel: "Estimated total tax for {year}",
+      pphOpLabel: "Personal income tax",
+      finalLabel: "Final tax",
+      umkmLabel: "UMKM final tax",
+      noRecord: "No income-tax record yet — calculate and save it above.",
+      balanceDue: "Underpaid",
+      balanceOver: "Overpaid",
+      deadlineLabel: "Annual SPT deadline",
+      daysLeft: "{n} days left",
+      daysLate: "{n} days past",
+      graceNote:
+        "Administrative penalties waived if filed/paid by {date} (DJP announcement on Coretax) — the formal deadline stays {deadline}.",
+      coretaxNote:
+        "File through DJP Coretax (coretaxdjp.pajak.go.id). Your NIK serves as your NPWP.",
+      filedAtPrefix: "Filed:",
+    },
+    invest: {
+      title: "This year's estimated final tax",
+      empty: "No interest, coupons or taxable sales this year yet.",
+      exchangeLabel: "Exchange",
+      exchangeOptions: {
+        domestik: "Domestic (registered)",
+        luar_negeri: "Foreign",
+      },
+      viewInTax: "View in Tax",
+    },
+    account: {
+      title: "Tax on savings & deposit interest",
+      body: "Interest bears a {rate} final tax withheld by the bank. Balances with principal ≤ {threshold} are exempt.",
+    },
+    ppn: {
+      summary: "VAT info",
+      infoOnly: "Information only — the transaction is not changed.",
+      luxuryToggle: "Luxury goods (PPnBM)",
+      dppLabel: "Tax base (DPP)",
+      ppnLabel: "VAT inside the price",
+      effectiveLabel: "Effective rate",
+      mechanismNote:
+        "Nominal rate {nominal}; non-luxury goods use a DPP of 11/12, so the effective rate is {effective}.",
+    },
   },
   rekening: {
     typeLabels: {
@@ -2636,8 +2947,7 @@ export const en = {
     balanceLabel: "Balance",
     activeBadge: "Active",
     privateBadge: "Private",
-    privateBadgeTooltip:
-      "Only visible to the Master & Co-Master. Other members can't see this account or its transactions.",
+    privateBadgeTooltip: "Master & Co-Master only.",
     optionsAriaLabel: "Account options",
     viewMutationMenuItem: "View Transactions",
     editMenuItem: "Edit",
@@ -2697,11 +3007,6 @@ export const en = {
     // EPIC-025 N3 prototype structural port — page header (title reuses
     // `t.shell.pageTitles.rekening`), insight strip, ownership filter tabs, and
     // the dashed "add account" card.
-    insightOneLabel: "One view",
-    insightOneAccountsSuffix: " accounts, ",
-    insightOneOwnersSuffix: " owners, 1 family balance",
-    insightPrivacyLabel: "Privacy",
-    insightPrivacyValue: "Private balances stay segmented",
     filterNoteText:
       "A bank account can't be debited into the negative, an already-negative balance is recorded as a liability.",
     addCardTitle: "Add a new account",
@@ -2728,9 +3033,6 @@ export const en = {
       persepuluhan: "Tithe Offering",
       lainnya: "Other / Social Donation",
     },
-    groupIslam: "Islamic",
-    groupKristen: "Christian",
-    groupUmum: "General",
     heroTitle: "Total Donations & Zakat",
     transactionsSuffix: " transactions",
     yearRunningPrefix: " · year to date ",
@@ -2786,12 +3088,6 @@ export const en = {
     fieldTanggalLabel: "Date",
     fieldAccountLabel: "Pay from Account (optional)",
     accountNoneOption: "Record only, don't deduct balance",
-    accountHint:
-      "Select an account so your net worth decreases when the donation is recorded.",
-    taxDeductibleCheckboxLabel:
-      "Income tax deduction (obligatory religious contribution to an official institution)",
-    taxDeductibleIneligibleNote:
-      "Only Zakat Maal / Zakat Fitrah / Tithe Offering can be tax deductible.",
     savingLabel: "Saving...",
     saveRecordButton: "Save Record",
     toastSaved: "Donation recorded successfully!",
@@ -2824,11 +3120,9 @@ export const en = {
     religionCalculatorUnconfirmedTitle: "Family religion not yet chosen",
     religionCalculatorUnconfirmedDesc:
       "Choose the family religion in Account Settings to enable the matching Zakat or Tithe calculator.",
-    modalDesc:
-      "Recorded as an expense, and deducted from the account balance when a source account is selected.",
     taxDeductibleSwitchTitle: "Income tax deduction",
     taxDeductibleSwitchDesc:
-      "Obligatory religious contribution to an official institution (PP 60/2010).",
+      "Zakat/tithe to a registered institution only (PP 60/2010).",
   },
   warisan: {
     heroTitle: "Total Inheritance Value",
@@ -2876,6 +3170,7 @@ export const en = {
     heirNamePlaceholder: "e.g. Siti Arsandi",
     removeHeirAriaLabel: "Remove heir",
     heirRelationshipPlaceholder: "e.g. Child, Spouse",
+    heirRelationshipSelfDefault: "Self",
     heirSharePercentPlaceholder: "Percentage (%)",
     heirMemberAriaLabel: "Link to Family Member",
     heirMemberNoneOption: "Not linked",
@@ -2891,16 +3186,12 @@ export const en = {
     visibleToAllHeirsCaption: "Visible to all heirs",
     estimatedValueLabel: "Estimated value",
     linkedToAssetPrefix: "linked to Asset",
-    modalDesc:
-      "Link it to an asset you already track, then set how it is split between heirs.",
     fieldSourceLabel: "Data Source",
     sourceManualOption: "Manual Entry",
     sourceAssetOption: "Pick from Assets",
     fieldAssetLabel: "Asset",
     assetPickerPlaceholder: "Pick an asset",
-    assetPickerHint:
-      "The estimated value is filled in from the linked asset; you can still change it.",
-    visibleToHeirsHint: "Heirs can see this asset on their Inheritance page.",
+    assetPickerHint: "Filled in automatically, can be changed.",
     deleteConfirmBody:
       "The inheritance record and its heir allocation will be deleted. The original asset on the Assets page is kept.",
     toastSharePercentExceeded: "Total heir share cannot exceed 100%.",
@@ -4139,8 +4430,24 @@ export const en = {
     },
   },
   crud: {
-    addDescription: "New data is immediately available across every app form.",
-    editDescription: "Changes take effect immediately across every app form.",
     addToMasterData: "+ Add to Master Data",
+    fieldRequired: "{field} is required.",
+  },
+  money: {
+    currencyLabel: "Currency",
+    convertedIdr: "≈ {amount}",
+    convertedDisplay: "≈ {amount} (display currency)",
+    rateLine: "1 {code} = Rp {rate} · ECB {date}",
+    rateStale:
+      "Last available rate {date}: 1 {code} = Rp {rate}. The rate provider is currently unreachable.",
+    rateIndicative: "Indicative rate, not a market rate: 1 {code} = Rp {rate}",
+    rateLoading: "Loading rate…",
+    rateUnavailable: "Rate unavailable. Choose IDR or try again.",
+    serverNote:
+      "The final rupiah value is computed by the server when you save.",
+    rateNotReady: "Wait for the exchange rate to load before saving.",
+    storedAsIdr: "Stored as IDR, shown in {display}.",
+    fxIndicativeRefused:
+      "Exchange rate is unavailable right now — try again or use IDR",
   },
 } satisfies I18nDictionary;

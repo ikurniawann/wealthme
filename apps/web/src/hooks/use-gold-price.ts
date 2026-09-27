@@ -9,6 +9,7 @@
 // when no price has been set yet.
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { FxInput } from "@wealthme/contracts";
 
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -58,11 +59,15 @@ export function useGoldPrice() {
     familyGroups?.find((g) => g.id === familyGroupId)?.myRole === "owner";
 
   const { mutate: updateGoldPrice, isPending: isUpdating } = useMutation({
-    mutationFn: (pricePerGram: number) =>
+    mutationFn: (
+      input: number | { pricePerGram: number; fxInputs?: FxInput[] },
+    ) =>
       apiFetch<GoldPriceDto>(`/family-groups/${familyGroupId}/gold-price`, {
         method: "PATCH",
         token,
-        body: JSON.stringify({ pricePerGram }),
+        body: JSON.stringify(
+          typeof input === "number" ? { pricePerGram: input } : input,
+        ),
       }),
     onSuccess: (updated) => {
       queryClient.setQueryData(goldPriceQueryKey, updated);

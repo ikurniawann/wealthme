@@ -8,6 +8,8 @@ import {
   MaxLength,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 // EPIC-023 Task E3 (D12, US-LIAB-5) — a credit-card purchase. Unlike
 // PayLiabilityDto (which debits a bank/cash account), this NEVER touches an
 // Account: it only raises the card's own debt (Liability.remainingBalance/
@@ -44,4 +46,7 @@ export class PurchaseLiabilityDto {
   @IsDateString()
   @IsOptional()
   occurredAt?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

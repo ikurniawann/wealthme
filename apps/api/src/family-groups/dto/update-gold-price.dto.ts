@@ -1,6 +1,8 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsInt, Min } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 // EPIC-021 Group F (#6) — a single owner-editable gold price per gram (IDR,
 // smallest currency unit, no decimals — mirrors CreateAccountDto.balance).
 // No live gold price feed exists or may be fabricated (Open Design
@@ -12,4 +14,7 @@ export class UpdateGoldPriceDto {
   @IsInt()
   @Min(1)
   pricePerGram!: number;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { InfoTip } from "@/components/wm";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -217,42 +218,10 @@ export function AddMemberDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          {/* Prototype order: Hubungan → Nama → Username → Password Awal →
-              Peran. The prototype autofills Peran from Hubungan; this app
-              runs the lockstep the other way (Peran "Istri (Co-Master)"
-              forces relationship "istri", which the API independently
-              re-enforces), so the Co-Master notice below stays attached to
-              the control that actually triggers it. */}
-          <div className="field">
-            <div className="flex items-center gap-1">
-              <label className="label" htmlFor={`${fieldId}-relationship`}>
-                {t.akun.addDependant.relationshipLabel}
-              </label>
-              <InfoTip
-                label={`${concepts.infoLabelPrefix}${concepts.relationship}`}
-              >
-                {concepts.relationshipInfo}
-              </InfoTip>
-            </div>
-            <select
-              id={`${fieldId}-relationship`}
-              className="select"
-              value={relationship}
-              disabled={isIstriCoMaster}
-              onChange={(e) =>
-                setRelationship(e.target.value as MemberRelationship | "")
-              }
-            >
-              <option value="">
-                {t.akun.addDependant.relationshipNoneOption}
-              </option>
-              {MemberRelationshipSchema.options.map((r) => (
-                <option key={r} value={r}>
-                  {r.charAt(0).toUpperCase() + r.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* polish-j batch 7a item 4 — Nama leads (was Hubungan); Hubungan
+              moved down next to Peran instead of being the first field.
+              Email and Hak akses (both genuinely optional / rarely
+              touched) collapse under "Opsi lanjutan" below. */}
           <div className="field">
             <label className="label" htmlFor={`${fieldId}-name`}>
               {t.akun.addDependant.nameLabel}
@@ -278,35 +247,11 @@ export function AddMemberDialog({
                 type="text"
                 autoCapitalize="none"
                 autoCorrect="off"
-                aria-describedby={`${fieldId}-username-hint`}
               />
               <span className="mono grid shrink-0 place-items-center rounded-r-[9px] border border-l-0 bg-secondary px-2.5 text-[12.5px] text-muted-foreground">
                 @{handle ?? "…"}
               </span>
             </div>
-            <p className="hint" id={`${fieldId}-username-hint`}>
-              Cukup unik di keluarga ini. Anggota login dengan{" "}
-              <span className="mono">nama@{handle ?? "kodekeluarga"}</span>.
-            </p>
-          </div>
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-email`}>
-              Email (opsional)
-            </label>
-            <input
-              id={`${fieldId}-email`}
-              ref={emailRef}
-              className="input"
-              placeholder="nama@gmail.com"
-              type="email"
-              autoComplete="off"
-              aria-describedby={`${fieldId}-email-hint`}
-            />
-            <p className="hint" id={`${fieldId}-email-hint`}>
-              Kami kirim link konfirmasi ke email ini. Setelah dikonfirmasi
-              pemiliknya, anggota bisa login dengan email juga dan memakai Lupa
-              Password.
-            </p>
           </div>
           <div className="field">
             <label className="label" htmlFor={`${fieldId}-password`}>
@@ -343,7 +288,6 @@ export function AddMemberDialog({
                 )}
               </button>
             </div>
-            <p className="hint">{t.akun.addDependant.passwordHint}</p>
           </div>
           <div className="field">
             <div className="flex items-center gap-1">
@@ -368,7 +312,7 @@ export function AddMemberDialog({
                   | "spouse";
                 setRole(next);
                 // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
-                // relationship picker above to "istri" (the API rejects any
+                // relationship picker below to "istri" (the API rejects any
                 // other pairing with role owner); switching away clears it
                 // back to editable.
                 setRelationship(next === "spouse" ? "istri" : "");
@@ -397,40 +341,90 @@ export function AddMemberDialog({
           )}
           <div className="field">
             <div className="flex items-center gap-1">
-              <label className="label" htmlFor={`${fieldId}-access-role`}>
-                {t.akun.addDependant.accessRoleLabel}
+              <label className="label" htmlFor={`${fieldId}-relationship`}>
+                {t.akun.addDependant.relationshipLabel}
               </label>
               <InfoTip
-                label={`${concepts.infoLabelPrefix}${concepts.accessRole}`}
+                label={`${concepts.infoLabelPrefix}${concepts.relationship}`}
               >
-                {concepts.accessRoleInfo}
+                {concepts.relationshipInfo}
               </InfoTip>
             </div>
             <select
-              id={`${fieldId}-access-role`}
+              id={`${fieldId}-relationship`}
               className="select"
-              value={accessRoleId}
+              value={relationship}
               disabled={isIstriCoMaster}
-              onChange={(e) => setAccessRoleId(e.target.value)}
-              aria-describedby={
-                roles.length === 0 ? `${fieldId}-access-role-hint` : undefined
+              onChange={(e) =>
+                setRelationship(e.target.value as MemberRelationship | "")
               }
             >
               <option value="">
-                {t.akun.addDependant.accessRoleDefaultOption}
+                {t.akun.addDependant.relationshipNoneOption}
               </option>
-              {roles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
+              {MemberRelationshipSchema.options.map((r) => (
+                <option key={r} value={r}>
+                  {r.charAt(0).toUpperCase() + r.slice(1)}
                 </option>
               ))}
             </select>
-            {roles.length === 0 && (
-              <p className="hint" id={`${fieldId}-access-role-hint`}>
-                {t.akun.addDependant.accessRoleEmptyHint}
-              </p>
-            )}
           </div>
+
+          <AdvancedDisclosure label={t.common.advancedOptions}>
+            <div className="field mt-0">
+              <label className="label" htmlFor={`${fieldId}-email`}>
+                {t.akun.addDependant.emailLabel}
+              </label>
+              <input
+                id={`${fieldId}-email`}
+                ref={emailRef}
+                className="input"
+                placeholder={t.akun.addDependant.emailPlaceholder}
+                type="email"
+                autoComplete="off"
+                aria-describedby={`${fieldId}-email-hint`}
+              />
+              <p className="hint" id={`${fieldId}-email-hint`}>
+                {t.akun.addDependant.emailHint}
+              </p>
+            </div>
+            <div className="field mt-0">
+              <div className="flex items-center gap-1">
+                <label className="label" htmlFor={`${fieldId}-access-role`}>
+                  {t.akun.addDependant.accessRoleLabel}
+                </label>
+                <InfoTip
+                  label={`${concepts.infoLabelPrefix}${concepts.accessRole}`}
+                >
+                  {concepts.accessRoleInfo}
+                </InfoTip>
+              </div>
+              <select
+                id={`${fieldId}-access-role`}
+                className="select"
+                value={accessRoleId}
+                disabled={isIstriCoMaster}
+                onChange={(e) => setAccessRoleId(e.target.value)}
+                aria-describedby={
+                  roles.length === 0 ? `${fieldId}-access-role-hint` : undefined
+                }
+              >
+                <option value="">
+                  {t.akun.addDependant.accessRoleDefaultOption}
+                </option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+              {roles.length === 0 && (
+                <p className="hint" id={`${fieldId}-access-role-hint`}>
+                  {t.akun.addDependant.accessRoleEmptyHint}
+                </p>
+              )}
+            </div>
+          </AdvancedDisclosure>
           {/* Honest UI — the prototype's "Rekening yang ditugaskan
               (opsional)" select is omitted: POST
               /family-groups/:id/members/dependant accepts only

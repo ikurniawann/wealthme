@@ -1,17 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { CalendarClock, Droplets, Landmark } from "lucide-react";
-import type { LiabilityDto } from "@wealthme/contracts";
+import { Droplets, Landmark } from "lucide-react";
 import { CardLink, SectionCard, StatusBadge } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import type { MoneyFormatters } from "./use-beranda-data";
 
 /**
  * EPIC-025 N3-G1 / EPIC-026 Wave 8 — prototype's `.card.bento-snapshot`
- * ("Komposisi Kekayaan"): two `.snapshot-row`s plus the `.notice--warning`
- * due-date link. The liquid/non-liquid split is derived from the already
- * fetched `summary.accountSummary` — no new endpoint.
+ * ("Komposisi Kekayaan"): two `.snapshot-row`s. The liquid/non-liquid split
+ * is derived from the already fetched `summary.accountSummary` — no new
+ * endpoint. Polish batch 7b item 4 — the due-date notice link used to be
+ * shown here AND in "Perlu Perhatian" (attention-card.tsx); it now lives
+ * only there, since that's the card whose job is surfacing what needs
+ * attention.
  */
 export function WealthSnapshot({
   isLoading,
@@ -19,7 +21,6 @@ export function WealthSnapshot({
   nonLiquidTotal,
   liquidPct,
   nonLiquidPct,
-  nearestDueLiability,
   fmt,
 }: {
   isLoading: boolean;
@@ -27,7 +28,6 @@ export function WealthSnapshot({
   nonLiquidTotal: number;
   liquidPct: number;
   nonLiquidPct: number;
-  nearestDueLiability: LiabilityDto | undefined;
   fmt: MoneyFormatters;
 }) {
   const router = useRouter();
@@ -55,7 +55,7 @@ export function WealthSnapshot({
             </span>
             <span className="snapshot-row__body">
               <span className="snapshot-row__label">
-                {t.beranda.liquidAssets} · {liquidPct}%
+                {t.beranda.liquidAssets} ({liquidPct}%)
               </span>
               <span className="snapshot-row__value mono">
                 {fmt.moneyCompact(liquidTotal)}
@@ -75,7 +75,7 @@ export function WealthSnapshot({
             </span>
             <span className="snapshot-row__body">
               <span className="snapshot-row__label">
-                {t.beranda.nonLiquidAssets} · {nonLiquidPct}%
+                {t.beranda.nonLiquidAssets} ({nonLiquidPct}%)
               </span>
               <span className="snapshot-row__value mono">
                 {fmt.moneyCompact(nonLiquidTotal)}
@@ -85,28 +85,6 @@ export function WealthSnapshot({
               {t.beranda.nonLiquidBadgeLabel}
             </StatusBadge>
           </div>
-
-          {/* EPIC-025 N3 fidelity follow-up — the prototype's due-date notice
-              link under the composition rows, reusing the same
-              `nearestDueLiability` the "Perlu Perhatian" card also derives. */}
-          {nearestDueLiability && (
-            <button
-              type="button"
-              onClick={() => router.push("/liabilitas")}
-              className="notice notice--warning w-full cursor-pointer items-center text-left"
-            >
-              <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
-              <span>
-                <strong>{nearestDueLiability.name}</strong>{" "}
-                {t.beranda.liabilityDueNotice}{" "}
-                {new Date(nearestDueLiability.dueDate!).toLocaleDateString(
-                  t.beranda.dateLocale,
-                  { day: "numeric", month: "short" },
-                )}
-                .
-              </span>
-            </button>
-          )}
         </>
       )}
     </SectionCard>

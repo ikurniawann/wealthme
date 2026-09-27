@@ -20,6 +20,9 @@ import {
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { BudgetsService } from "./budgets.service";
@@ -36,7 +39,10 @@ import type { Request } from "express";
 @PageAccess("budgets")
 @Controller("family-groups/:familyGroupId/budgets")
 export class BudgetsController {
-  constructor(private readonly budgets: BudgetsService) {}
+  constructor(
+    private readonly budgets: BudgetsService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get()
   @CheckAbility((ability) => ability.can("read", "Budget"))
@@ -63,7 +69,17 @@ export class BudgetsController {
     // EPIC-022 A6 follow-up — a member must not be able to budget a
     // category they cannot see (same role resolution as `findAll`).
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.budgets.create(familyGroupId, dto, canSeePrivate);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Budget",
+        dto,
+        spec: FX_FIELD_SPECS.budget,
+      },
+      (converted) =>
+        this.budgets.create(familyGroupId, converted, canSeePrivate),
+    );
   }
 
   @Patch(":id")
@@ -79,7 +95,18 @@ export class BudgetsController {
     // EPIC-022 A6 follow-up — a member must not be able to PATCH a budget
     // tied to a private category (same role resolution as `findAll`).
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.budgets.update(familyGroupId, id, dto, canSeePrivate);
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Budget",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.budget,
+      },
+      (converted) =>
+        this.budgets.update(familyGroupId, id, converted, canSeePrivate),
+    );
   }
 
   @Delete(":id")

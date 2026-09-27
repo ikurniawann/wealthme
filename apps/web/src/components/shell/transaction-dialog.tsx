@@ -17,7 +17,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -27,6 +26,7 @@ import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { DateField } from "@/components/wm";
+import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useAiKeyStatus } from "@/hooks/use-ai-key";
 import {
   isCameraSupported,
@@ -51,7 +51,14 @@ import {
 import {
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
+  type FxInput,
 } from "@wealthme/contracts";
+import {
+  MoneyInput,
+  moneyIdr,
+  useMoneyField,
+  withFxInputs,
+} from "@/components/money";
 import { useShell } from "./shell-context";
 
 // EPIC-023 Task E3/E4 (D12/D13) — reviewed foundation exception (this file
@@ -98,6 +105,7 @@ type CreateTransactionInput = {
   // EPIC-021 Group B (#23/#27/#28) — real source -> destination transfers.
   toAccountId?: string;
   adminFee?: number;
+  fxInputs?: FxInput[];
 };
 // EPIC-023 Task E3 (D12) — a card purchase never touches an account; it
 // only raises the card's own debt via LiabilitiesService.purchase().
@@ -106,6 +114,7 @@ type PurchaseLiabilityInput = {
   categoryId?: string;
   description?: string;
   occurredAt: string;
+  fxInputs?: FxInput[];
 };
 // EPIC-023 Task D (D3/D9, US-FAM-14) — the API's honest "did NOT create a
 // transaction" response for a row-scoped member's over-threshold expense
@@ -191,7 +200,7 @@ export function TransactionDialog() {
   ];
   const [view, setView] = useState<View>("form");
   const [tab, setTab] = useState(1);
-  const [amount, setAmount] = useState("");
+  const amountField = useMoneyField();
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [adminFee, setAdminFee] = useState("");
@@ -493,7 +502,7 @@ export function TransactionDialog() {
   });
 
   const resetForm = () => {
-    setAmount("");
+    amountField.reset();
     setAccountId("");
     setToAccountId("");
     setAdminFee("");
@@ -656,7 +665,7 @@ export function TransactionDialog() {
     // A receipt is a purchase, so the result lands on the Expense tab —
     // where the category field (and the attachment field) actually exist.
     setTab(1);
-    setAmount(formatAmountInput(String(Math.round(scanResult.amount))));
+    amountField.reset(String(Math.round(scanResult.amount)));
     setDate(isoToDateInputValue(scanResult.occurredAt, date));
     setDescription(scanResult.description);
     // D13 — `categoryId` was matched against the family's REAL categories
@@ -701,7 +710,11 @@ export function TransactionDialog() {
   };
 
   const saveTxn = (addMore?: boolean) => {
-    const amountNum = parseRupiah(amount);
+    if (amountField.resolved.isPending) {
+      toast.error(t.money.rateNotReady);
+      return;
+    }
+    const amountNum = moneyIdr(amountField, parseRupiah);
     if (!amountNum || amountNum <= 0) {
       toast.error(t.shell.transactionDialog.invalidAmount);
       return;
@@ -720,12 +733,15 @@ export function TransactionDialog() {
         return;
       }
       purchaseMutation.mutate(
-        {
-          amount: String(amountNum),
-          ...(categoryId ? { categoryId } : {}),
-          ...(description ? { description } : {}),
-          occurredAt: new Date(date).toISOString(),
-        },
+        withFxInputs(
+          {
+            amount: String(amountNum),
+            ...(categoryId ? { categoryId } : {}),
+            ...(description ? { description } : {}),
+            occurredAt: new Date(date).toISOString(),
+          },
+          [["amount", amountField]],
+        ),
         {
           onSuccess: () => {
             toast.success(
@@ -762,16 +778,19 @@ export function TransactionDialog() {
     const adminFeeNum = tabKind === "transfer" ? parseRupiah(adminFee) : 0;
 
     createMutation.mutate(
-      {
-        accountId,
-        ...(categoryId ? { categoryId } : {}),
-        amount: amountNum,
-        type: tabKind,
-        ...(description ? { description } : {}),
-        occurredAt: new Date(date).toISOString(),
-        ...(tabKind === "transfer" ? { toAccountId } : {}),
-        ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
-      },
+      withFxInputs(
+        {
+          accountId,
+          ...(categoryId ? { categoryId } : {}),
+          amount: amountNum,
+          type: tabKind,
+          ...(description ? { description } : {}),
+          occurredAt: new Date(date).toISOString(),
+          ...(tabKind === "transfer" ? { toAccountId } : {}),
+          ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
+        },
+        [["amount", amountField]],
+      ),
       {
         // EPIC-023 Task D (D3/D9, US-FAM-14) — reviewed foundation
         // exception: this dialog is a protected shell file, but the held
@@ -830,11 +849,6 @@ export function TransactionDialog() {
         {view === "form" && (
           <>
             <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
-            {/* EPIC-026 Wave 8 — prototype `.dialog__desc` on #dlg-transaksi
-                (docs/prototype/assets/shell.js). */}
-            <DialogDescription>
-              {t.shell.transactionDialog.dialogDesc}
-            </DialogDescription>
 
             {/* Prototype field order (shell.js:536-570): type switch → Jumlah
                 → Akun → Kategori → [Tanggal | Deskripsi] → Lampiran. */}
@@ -843,7 +857,7 @@ export function TransactionDialog() {
                 `.segmented__item` with `role="tablist"`/`role="tab"`
                 (shell.js:531-535). */}
               <div
-                className="segmented mb-[14px] max-w-full flex-wrap"
+                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto max-[399px]:grid max-[399px]:grid-cols-2 max-[399px]:overflow-visible max-[399px]:[mask-image:none] max-[399px]:[-webkit-mask-image:none]"
                 role="tablist"
                 aria-label={t.shell.transactionDialog.typeSwitchLabel}
               >
@@ -853,7 +867,7 @@ export function TransactionDialog() {
                     type="button"
                     role="tab"
                     aria-selected={tab === i}
-                    className="segmented__item"
+                    className="segmented__item shrink-0 whitespace-nowrap"
                     onClick={() => {
                       setTab(i);
                       // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,
@@ -882,13 +896,10 @@ export function TransactionDialog() {
                 label={t.shell.transactionDialog.amountLabel}
                 htmlFor={amountFieldId}
               >
-                <input
+                <MoneyInput
+                  field={amountField}
                   id={amountFieldId}
-                  inputMode="numeric"
-                  value={amount}
-                  onChange={(e) => setAmount(formatAmountInput(e.target.value))}
                   placeholder="250.000"
-                  className="input mono"
                 />
               </Field>
 
@@ -997,30 +1008,55 @@ export function TransactionDialog() {
                   </Field>
                 </>
               ) : (
-                <Field
-                  label={t.shell.transactionDialog.accountLabel}
-                  htmlFor={accountFieldId}
-                >
-                  <select
-                    id={accountFieldId}
-                    className="select"
-                    value={accountId}
-                    onChange={(e) => setAccountId(e.target.value)}
+                // polish-j batch 7a item 6 — Akun and Kategori are both
+                // <select>s, so they now pair 2-up like Tanggal/Deskripsi
+                // below, instead of each stacking full-width.
+                <div className="field-row">
+                  <Field
+                    label={t.shell.transactionDialog.accountLabel}
+                    htmlFor={accountFieldId}
+                    className="!mt-0"
                   >
-                    <option value="">
-                      {t.shell.transactionDialog.accountPlaceholder}
-                    </option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                        {a.institution ? ` — ${a.institution}` : ""}
+                    <select
+                      id={accountFieldId}
+                      className="select"
+                      value={accountId}
+                      onChange={(e) => setAccountId(e.target.value)}
+                    >
+                      <option value="">
+                        {t.shell.transactionDialog.accountPlaceholder}
                       </option>
-                    ))}
-                  </select>
-                  <span className="hint">
-                    Master &amp; co-master melihat seluruh rekening keluarga.
-                  </span>
-                </Field>
+                      {accounts.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                          {a.institution ? ` — ${a.institution}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                  <Field
+                    label={t.shell.transactionDialog.categoryLabel}
+                    htmlFor={categoryFieldId}
+                    className="!mt-0"
+                  >
+                    <select
+                      id={categoryFieldId}
+                      className="select"
+                      value={categoryId}
+                      onChange={(e) => setCategoryId(e.target.value)}
+                    >
+                      <option value="">
+                        {t.shell.transactionDialog.categoryPlaceholder}
+                      </option>
+                      {relevantCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.icon ? `${c.icon} ` : ""}
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               )}
 
               {/* EPIC-023 Task E4 (D13) — reviewed foundation exception (see
@@ -1030,8 +1066,10 @@ export function TransactionDialog() {
                 (CategoryKind is only "income" | "expense" — schema.prisma),
                 so this select was previously ALWAYS empty on that tab; the
                 category belongs on the tab where the money is actually
-                spent. */}
-              {tabKind !== "transfer" && (
+                spent. The card tab's own Kartu Kredit select isn't the same
+                "Akun" concept, so its Kategori field stays standalone
+                rather than pairing into a field-row. */}
+              {tabKind === "card" && (
                 <Field
                   label={t.shell.transactionDialog.categoryLabel}
                   htmlFor={categoryFieldId}
@@ -1103,71 +1141,75 @@ export function TransactionDialog() {
                 transactionId to attach the file to (see the mutation's own
                 doc comment above). */}
               {tabKind !== "card" && (
-                <div className="field">
-                  <span className="label">
-                    {t.shell.transactionDialog.attachmentLabel}{" "}
-                    <span className="t-muted font-medium">
-                      {t.shell.transactionDialog.optionalSuffix}
-                    </span>
-                  </span>
-                  <div className="row row--wrap gap-2">
-                    <label
-                      htmlFor={attachmentFieldId}
-                      className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
-                    >
-                      <Paperclip
-                        className="size-4 shrink-0"
-                        aria-hidden="true"
-                      />
-                      <span className="min-w-0 leading-tight">
-                        {attachmentFile
-                          ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
-                          : "Unggah foto struk atau PDF, maks 5 MB"}
-                      </span>
-                    </label>
-                    {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
+                // polish-j batch 7a item 6 — Lampiran + the AI-scan control
+                // (and its setup notice) collapse under their own
+                // disclosure instead of always occupying dialog space.
+                <AdvancedDisclosure
+                  label={t.shell.transactionDialog.attachmentLabel}
+                >
+                  <div className="field mt-0">
+                    <div className="row row--wrap gap-2">
+                      <label
+                        htmlFor={attachmentFieldId}
+                        className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
+                      >
+                        <Paperclip
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span className="min-w-0 leading-tight">
+                          {attachmentFile
+                            ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
+                            : "Unggah foto struk atau PDF, maks 5 MB"}
+                        </span>
+                      </label>
+                      {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
                         key from a vision-capable provider). Disabled with
                         the reason and a link to Pengaturan rather than
                         offered and then failing: a control either does what
                         it implies or says plainly that it can't. */}
-                    <button
-                      type="button"
-                      ref={scanTriggerRef}
-                      onClick={startScan}
-                      disabled={!scanAvailable}
-                      aria-describedby={scanHintId}
-                      className={cn(
-                        "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
-                        scanAvailable
-                          ? "cursor-pointer"
-                          : "cursor-not-allowed opacity-60",
+                      <button
+                        type="button"
+                        ref={scanTriggerRef}
+                        onClick={startScan}
+                        disabled={!scanAvailable}
+                        aria-describedby={scanHintId}
+                        className={cn(
+                          "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
+                          scanAvailable
+                            ? "cursor-pointer"
+                            : "cursor-not-allowed opacity-60",
+                        )}
+                      >
+                        <Camera
+                          className="size-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span>{t.shell.transactionDialog.scanReceipt}</span>
+                      </button>
+                      <input
+                        id={attachmentFieldId}
+                        data-testid="attachment-file-input"
+                        type="file"
+                        accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+                        onChange={handleAttachmentChange}
+                        className="sr-only"
+                      />
+                    </div>
+                    <span className="hint" id={scanHintId}>
+                      {scanAvailable ? (
+                        t.shell.transactionDialog.scanHint
+                      ) : (
+                        <>
+                          {t.shell.transactionDialog.scanUnavailable}{" "}
+                          <Link href="/akun" className="font-bold text-primary">
+                            {t.shell.transactionDialog.scanUnavailableLink}
+                          </Link>
+                        </>
                       )}
-                    >
-                      <Camera className="size-4 shrink-0" aria-hidden="true" />
-                      <span>{t.shell.transactionDialog.scanReceipt}</span>
-                    </button>
-                    <input
-                      id={attachmentFieldId}
-                      data-testid="attachment-file-input"
-                      type="file"
-                      accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
-                      onChange={handleAttachmentChange}
-                      className="sr-only"
-                    />
+                    </span>
                   </div>
-                  <span className="hint" id={scanHintId}>
-                    {scanAvailable ? (
-                      t.shell.transactionDialog.scanHint
-                    ) : (
-                      <>
-                        {t.shell.transactionDialog.scanUnavailable}{" "}
-                        <Link href="/akun" className="font-bold text-primary">
-                          {t.shell.transactionDialog.scanUnavailableLink}
-                        </Link>
-                      </>
-                    )}
-                  </span>
-                </div>
+                </AdvancedDisclosure>
               )}
             </DialogBody>
 

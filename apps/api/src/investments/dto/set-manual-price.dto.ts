@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { IsISO8601, IsNumberString, IsOptional } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 /**
  * EPIC-023 G1 (D15) — manual price entry for the manual-only instrument
  * types (reksa_dana, obligasi, emas, lainnya). `asOf` defaults to "now" when
@@ -19,4 +21,7 @@ export class SetManualPriceDto {
   @IsOptional()
   @IsISO8601()
   asOf?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

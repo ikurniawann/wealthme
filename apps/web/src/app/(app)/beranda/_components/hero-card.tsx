@@ -7,6 +7,7 @@ import { SparklineChart } from "@/components/charts/apex-presets";
 import { CountUpRupiah, HeroCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { useGoldPrice } from "@/hooks/use-gold-price";
+import { cn } from "@/lib/utils";
 import { formatGoldGrams } from "@/components/consolidated-total-card";
 import type { MoneyFormatters } from "./use-beranda-data";
 
@@ -56,9 +57,23 @@ export function BerandaHero({
       : t.beranda.totalWealth;
 
   const isUp = (currentMonth?.net ?? 0) >= 0;
+  // Batch 2 (#3) — the hero's base treatment must track `netWorth`'s own
+  // sign, not `currentMonth.net` (that's the separate "did I improve this
+  // month" trend pill below, left as-is). `globals.css`/`design-system.css`
+  // are protected, so this is an arbitrary Tailwind bg utility built from
+  // the existing `--warning` token rather than a new `gradient-warning`
+  // global class.
+  const isNetWorthNegative = netWorth < 0;
 
   return (
-    <HeroCard className="gradient-wealth bento-hero">
+    <HeroCard
+      className={cn(
+        "bento-hero",
+        isNetWorthNegative
+          ? "bg-[linear-gradient(135deg,var(--warning)_0%,color-mix(in_oklab,var(--warning)_70%,black)_55%,var(--warning)_100%)]"
+          : "gradient-wealth",
+      )}
+    >
       <div className="bento-hero__top">
         <div className="min-w-0">
           <div className="hero__label" id="beranda-net-worth-label">
@@ -82,7 +97,7 @@ export function BerandaHero({
 
           {isIndicative && (
             <div className="t-xs mt-1 opacity-70">
-              Perkiraan dalam {currency} · kurs indikatif, bukan kurs pasar
+              Perkiraan dalam {currency}, kurs indikatif, bukan kurs pasar
               real-time
             </div>
           )}

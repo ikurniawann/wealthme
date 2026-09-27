@@ -16,14 +16,18 @@
  */
 import "reflect-metadata";
 
-import { ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, ValidationPipe } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
+import { Test } from "@nestjs/testing";
 import { Role } from "@prisma/client";
+import request from "supertest";
 
+import { fxTesting } from "../../test/fx-testing";
 import { CaslAbilityFactory } from "../casl/casl-ability.factory";
 import { AbilitiesGuard } from "../common/guards/abilities.guard";
 
 import { LiabilitiesController } from "./liabilities.controller";
+import { LiabilitiesService } from "./liabilities.service";
 
 import type { ExecutionContext } from "@nestjs/common";
 
@@ -74,18 +78,25 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
     role: Role.operational,
   };
 
-  const readRoutes = ["findAll", "getSummary"] as const;
+  const readRoutes = [
+    "findAll",
+    "getSummary",
+    "getSchedule",
+    "previewPayment",
+    "previewPrepayment",
+  ] as const;
   const manageRoutes = [
     "create",
     "update",
     "pay",
+    "recordPrepayment",
     "purchase",
     "remove",
   ] as const;
 
   beforeEach(() => {
     guard = new AbilitiesGuard(new Reflector(), new CaslAbilityFactory());
-    controller = new LiabilitiesController({} as never);
+    controller = new LiabilitiesController({} as never, fxTesting().service);
   });
 
   it("PERMISSION — owner/member/spouse can read AND pay/purchase (manage Liability)", () => {
@@ -129,4 +140,225 @@ describe("LiabilitiesController (real AbilitiesGuard + CaslAbilityFactory)", () 
       guard.canActivate(buildContext(controller, "purchase", null)),
     ).toThrow(ForbiddenException);
   });
+});
+
+describe("LiabilitiesController — GET :id/schedule over HTTP", () => {
+  it("routes to getSchedule with the family group and liability ids", async () => {
+    const service = {
+      getSchedule: jest.fn().mockResolvedValue({
+        liabilityId: "lid-1",
+        interestMethod: "flat",
+        installmentAmount: "6555556",
+        rows: [],
+      }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    await app.init();
+
+    const res = await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/schedule")
+      .expect(200);
+
+    expect(service.getSchedule).toHaveBeenCalledWith("fg-1", "lid-1");
+    expect(res.body.installmentAmount).toBe("6555556");
+    await app.close();
+  });
+});
+
+describe("LiabilitiesController — GET :id/payment-preview over HTTP", () => {
+  async function bootstrap() {
+    const service = {
+      previewPayment: jest.fn().mockResolvedValue({
+        liabilityId: "lid-1",
+        amount: "2500000",
+        interest: "833333",
+        principal: "1666667",
+        remainingAfter: "48333333",
+      }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    await app.init();
+    return { app, service };
+  }
+
+  it("routes to previewPayment with the family group, liability id and amount", async () => {
+    const { app, service } = await bootstrap();
+
+    const res = await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/payment-preview")
+      .query({ amount: "2500000" })
+      .expect(200);
+
+    expect(service.previewPayment).toHaveBeenCalledWith(
+      "fg-1",
+      "lid-1",
+      "2500000",
+    );
+    expect(res.body.interest).toBe("833333");
+    await app.close();
+  });
+
+  it("rejects a non-numeric amount before reaching the service (the query DTO is a value import)", async () => {
+    const { app, service } = await bootstrap();
+
+    await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/payment-preview")
+      .query({ amount: "12abc" })
+      .expect(400);
+
+    expect(service.previewPayment).not.toHaveBeenCalled();
+    await app.close();
+  });
+});
+
+describe("LiabilitiesController — GET :id/prepayment-preview over HTTP", () => {
+  async function bootstrap() {
+    const service = {
+      previewPrepayment: jest.fn().mockResolvedValue({
+        liabilityId: "lid-1",
+        mode: "reduce_tenor",
+      }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    await app.init();
+    return { app, service };
+  }
+
+  it("routes mode, amount and penalty to previewPrepayment", async () => {
+    const { app, service } = await bootstrap();
+
+    await request(app.getHttpServer())
+      .get("/family-groups/fg-1/liabilities/lid-1/prepayment-preview")
+      .query({
+        mode: "reduce_tenor",
+        amount: "100000000",
+        penaltyPercent: "1.00",
+      })
+      .expect(200);
+
+    expect(service.previewPrepayment).toHaveBeenCalledWith("fg-1", "lid-1", {
+      mode: "reduce_tenor",
+      amount: "100000000",
+      penaltyPercent: "1.00",
+    });
+    await app.close();
+  });
+
+  it.each([
+    [{ mode: "sebagian" }],
+    [{ mode: "reduce_tenor", amount: "1e8" }],
+    [{ mode: "full", penaltyPercent: "1,5" }],
+  ])(
+    "rejects %j before the service (the query DTO is a value import)",
+    async (query) => {
+      const { app, service } = await bootstrap();
+
+      await request(app.getHttpServer())
+        .get("/family-groups/fg-1/liabilities/lid-1/prepayment-preview")
+        .query(query)
+        .expect(400);
+
+      expect(service.previewPrepayment).not.toHaveBeenCalled();
+      await app.close();
+    },
+  );
+});
+
+describe("LiabilitiesController — POST :id/prepay over HTTP", () => {
+  const UUID = "5f0c1f7e-7c1a-4b8e-9d7a-2f1c3b4a5d6e";
+
+  async function bootstrap() {
+    const service = {
+      recordPrepayment: jest.fn().mockResolvedValue({ replayed: false }),
+    };
+    const moduleRef = await Test.createTestingModule({
+      controllers: [LiabilitiesController],
+      providers: [
+        { provide: LiabilitiesService, useValue: service },
+        ...fxTesting().providers,
+      ],
+    }).compile();
+    const app = moduleRef.createNestApplication();
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
+    await app.init();
+    return { app, service };
+  }
+
+  it("routes a valid body to recordPrepayment with the acting user", async () => {
+    const { app, service } = await bootstrap();
+    const body = {
+      sourceAccountId: UUID,
+      mode: "reduce_tenor",
+      amount: "100000000",
+      idempotencyKey: UUID,
+    };
+
+    await request(app.getHttpServer())
+      .post("/family-groups/fg-1/liabilities/lid-1/prepay")
+      .send(body)
+      .expect(200);
+
+    expect(service.recordPrepayment).toHaveBeenCalledWith(
+      "fg-1",
+      "lid-1",
+      body,
+      null,
+    );
+    await app.close();
+  });
+
+  it.each([
+    [{ sourceAccountId: UUID, mode: "reduce_tenor", amount: "1" }],
+    [
+      {
+        sourceAccountId: UUID,
+        mode: "sebagian",
+        amount: "1",
+        idempotencyKey: UUID,
+      },
+    ],
+    [{ sourceAccountId: "acc-1", mode: "full", idempotencyKey: UUID }],
+  ])(
+    "rejects %j before the service (the DTO is a value import)",
+    async (body) => {
+      const { app, service } = await bootstrap();
+
+      await request(app.getHttpServer())
+        .post("/family-groups/fg-1/liabilities/lid-1/prepay")
+        .send(body)
+        .expect(400);
+
+      expect(service.recordPrepayment).not.toHaveBeenCalled();
+      await app.close();
+    },
+  );
 });

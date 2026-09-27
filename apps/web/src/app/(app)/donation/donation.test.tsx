@@ -75,6 +75,26 @@ jest.mock("../../../lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),
 }));
 
+const mockUseFxSnapshot = jest.fn((enabled: boolean) => ({
+  data: enabled
+    ? jest.requireActual("../../../components/money/fx-test-rates")
+        .TEST_FX_RATES
+    : undefined,
+  isError: false,
+}));
+jest.mock("../../../components/money/use-fx-snapshot", () => ({
+  useFxSnapshot: (enabled: boolean) => mockUseFxSnapshot(enabled),
+}));
+
+jest.mock("../../../hooks/use-currency-preference", () => ({
+  useCurrencyPreference: () => ({
+    currency: "IDR",
+    isIndicative: false,
+    isReady: true,
+    formatMoney: String,
+  }),
+}));
+
 if (typeof window !== "undefined" && !window.PointerEvent) {
   class PointerEventPolyfill extends MouseEvent {
     pointerId?: number;
@@ -423,5 +443,161 @@ describe("DonationPage — Lembaga options come from Master Data (Revisi H)", ()
     expect(
       within(select).getAllByRole("option", { name: /pura/i }),
     ).toHaveLength(1);
+  });
+});
+
+/** Task 10b — revisi I multi-currency: `amount` gains a currency picker via
+ * `MoneyInput`/`useMoneyField`. */
+describe("DonationPage — revisi I multi-currency", () => {
+  function mockApiFetchDefault(onPost?: () => void) {
+    mockApiFetch.mockImplementation(
+      (url: string, init?: { method?: string; body?: string }) => {
+        if (url.endsWith("/donations") && init?.method === "POST") {
+          onPost?.();
+          return Promise.resolve({ id: "don-1" });
+        }
+        if (url.endsWith("/access/me")) {
+          return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
+        }
+        if (url.endsWith("/family-groups/mine")) {
+          return Promise.resolve([{ id: "fg-1", myRole: "owner" }]);
+        }
+        if (url.includes("/calculators/zakat")) {
+          return Promise.resolve({
+            zakatable: 0,
+            nisab: 100_000_000,
+            zakat: 0,
+            meetsNisab: false,
+            isObligated: false,
+            nisabSource: "indicative",
+          });
+        }
+        return Promise.resolve([]);
+      },
+    );
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseFamilyReligion.mockReturnValue({
+      religion: "islam",
+      isOwner: true,
+      isLoading: false,
+      isError: false,
+      updateReligion: mockUpdateReligion,
+      isUpdating: false,
+    });
+  });
+
+  it("revisi I — donation amount in EUR posts the preview + fxInputs", async () => {
+    mockApiFetchDefault();
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: mockDictionary.donation.recordDonationButton,
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText("Mata uang"), "EUR");
+    await user.type(
+      screen.getByLabelText(mockDictionary.donation.fieldJumlahLabel),
+      "75,50",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: mockDictionary.donation.saveRecordButton,
+      }),
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(
+        ([url, i]) =>
+          String(url).endsWith("/donations") &&
+          (i as { method?: string } | undefined)?.method === "POST",
+      );
+      expect(post).toBeDefined();
+    });
+    const post = mockApiFetch.mock.calls.find(
+      ([url, i]) =>
+        String(url).endsWith("/donations") &&
+        (i as { method?: string } | undefined)?.method === "POST",
+    );
+    expect(JSON.parse(String(post![1].body))).toMatchObject({
+      amount: "1542255",
+      fxInputs: [{ field: "amount", currency: "EUR", amount: "75.50" }],
+    });
+  });
+
+  it("revisi I — an IDR donation amount posts no fxInputs key", async () => {
+    mockApiFetchDefault();
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: mockDictionary.donation.recordDonationButton,
+      }),
+    );
+    await user.type(
+      screen.getByLabelText(mockDictionary.donation.fieldJumlahLabel),
+      "250000",
+    );
+    await user.click(
+      screen.getByRole("button", {
+        name: mockDictionary.donation.saveRecordButton,
+      }),
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(
+        ([url, i]) =>
+          String(url).endsWith("/donations") &&
+          (i as { method?: string } | undefined)?.method === "POST",
+      );
+      expect(post).toBeDefined();
+    });
+    const post = mockApiFetch.mock.calls.find(
+      ([url, i]) =>
+        String(url).endsWith("/donations") &&
+        (i as { method?: string } | undefined)?.method === "POST",
+    );
+    const posted = JSON.parse(String(post![1].body));
+    expect(posted).not.toHaveProperty("fxInputs");
+    expect(posted.amount).toBe("250000");
+  });
+
+  it("revisi I — Simpan Catatan stays disabled and no POST fires while /fx/rates is pending for USD", async () => {
+    mockUseFxSnapshot.mockImplementation(() => ({
+      data: undefined,
+      isError: false,
+    }));
+    mockApiFetchDefault();
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: mockDictionary.donation.recordDonationButton,
+      }),
+    );
+    await user.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await user.type(
+      screen.getByLabelText(mockDictionary.donation.fieldJumlahLabel),
+      "10",
+    );
+
+    const saveButton = screen.getByRole("button", {
+      name: mockDictionary.donation.saveRecordButton,
+    });
+    await waitFor(() => expect(saveButton).toBeDisabled());
+    await user.click(saveButton);
+    expect(
+      mockApiFetch.mock.calls.some(
+        ([url, i]) =>
+          String(url).endsWith("/donations") &&
+          (i as { method?: string } | undefined)?.method === "POST",
+      ),
+    ).toBe(false);
   });
 });

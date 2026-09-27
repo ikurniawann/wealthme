@@ -364,7 +364,7 @@ export default function NotifikasiPage() {
         <div
           role="group"
           aria-label={t.notifikasi.title}
-          className="hide-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-[12px] bg-secondary p-[3px]"
+          className="hide-scrollbar scroll-fade-x flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-[12px] bg-secondary p-[3px]"
         >
           {FILTERS.map((item) => (
             <button

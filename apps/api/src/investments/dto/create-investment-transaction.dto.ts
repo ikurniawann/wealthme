@@ -8,6 +8,8 @@ import {
   IsUUID,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 /**
  * EPIC-022 D2 — record a buy or sell against an existing holding instead of
  * silently overwriting quantity/costBasisPerUnit via the generic edit form.
@@ -43,4 +45,7 @@ export class CreateInvestmentTransactionDto {
   @IsOptional()
   @IsUUID()
   accountId?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

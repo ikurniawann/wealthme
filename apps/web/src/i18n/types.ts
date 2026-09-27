@@ -204,6 +204,25 @@ type LiabilitasTypeId =
   | "kendaraan"
   | "lainnya";
 
+/** Revisi G — `/liabilitas` interest method ids (mirrors Prisma `InterestMethod`). */
+type LiabilitasInterestMethodId = "efektif" | "flat" | "anuitas";
+
+/** Revisi K — `/liabilitas` KPR scheme preset ids. */
+type LiabilitasKprPresetId =
+  | "manual"
+  | "flpp_tapak"
+  | "flpp_rusun"
+  | "konvensional"
+  | "berjenjang"
+  | "syariah_murabahah"
+  | "syariah_mmq";
+
+/** Revisi K — `/liabilitas` early-repayment mode ids (mirrors `PrepaymentMode`). */
+type LiabilitasPrepaymentModeId =
+  | "full"
+  | "reduce_tenor"
+  | "reduce_installment";
+
 /**
  * EPIC-018 Task A5 — `/masterdata` system reference-group ids (mirrors the
  * `CrudEntity` `md*` variants). Each group's `title`/`label` translate; the
@@ -232,16 +251,53 @@ type DanaEntityId = "cash" | "ewallet";
 /** EPIC-018 Task A6 — `/tax` SPT-status ids (mirrors `SptStatus`). */
 type TaxSptStatusId = "belum_lapor" | "sudah_lapor" | "terlambat";
 
-/** EPIC-018 Task A6 — `/tax` PPh21 PTKP status-option ids (local to the
- * calculator; the numeric threshold `value` stays fixed, only the label
- * translates). */
-type TaxPtkpId = "tk0" | "k0" | "k1" | "k2" | "k3";
+/** Task 9 (sub-plan L) — `/tax` PTKP status ids for the detailed PPh OP
+ * calculator's marital-status select (mirrors `TaxMaritalStatus`). */
+type TaxMaritalStatusId = "TK" | "K" | "KI";
 
-/** EPIC-018 Task A6 — `/tax` progressive-bracket row ids (local display
- * rows for the breakdown table; `idx` maps into the fixed bracket math).
- * EPIC-022 E4 added `b3` (30%, 500jt–5M) — the table previously skipped it,
- * so displayed rows never summed to the headline tax above Rp 500jt. */
-type TaxBracketId = "b0" | "b1" | "b2" | "b3" | "b4";
+/** Task 9 (sub-plan L) — DTP incentive sector/employment/reason ids
+ * (mirror the contracts' `DtpSector` and `DtpReason` unions; `none` is a
+ * local addition for "not a covered sector" in the select). */
+type TaxDtpSectorId =
+  | "none"
+  | "alas_kaki"
+  | "tekstil_pakaian"
+  | "furnitur"
+  | "kulit"
+  | "pariwisata";
+type TaxDtpReasonId =
+  | "no_program"
+  | "sector_not_covered"
+  | "gross_above_cap"
+  | "daily_wage_above_cap"
+  | "nik_not_validated";
+
+/** Task 10 (sub-plan L) — final-tax instrument ids (mirrors contracts'
+ * `TaxFinalInstrument`). */
+type TaxFinalInstrumentId =
+  | "bunga_deposito"
+  | "bunga_tabungan"
+  | "dividen"
+  | "saham_idx"
+  | "kupon_sbn"
+  | "reksa_dana"
+  | "p2p"
+  | "kripto_domestik"
+  | "kripto_luar"
+  | "emas"
+  | "sewa";
+
+/** Task 10 — machine-readable final-tax line caveats (mirrors contracts'
+ * `FinalTaxLineDto["caveat"]`, excluding `null`). */
+type TaxFinalCaveatId =
+  | "assumed_domestic"
+  | "assumed_sbn"
+  | "no_purchase_date"
+  | "no_interest_rate";
+
+/** Task 11 (sub-plan L) — crypto exchange ids for the per-line exchange
+ * select on the investment tax card (mirrors contracts' `CryptoExchangeKind`). */
+type TaxCryptoExchangeId = "domestik" | "luar_negeri";
 
 /** EPIC-018 Task A6 — `/rekening` account-type ids (local wording distinct
  * from `aset.accountTypeLabels` — same keys as `Account.type`, different
@@ -339,6 +395,8 @@ export type I18nDictionary = {
     emojiNoResults: string;
     emojiLoading: string;
     emojiGroupAriaLabel: string;
+    /** Shared "Opsi lanjutan" disclosure summary (components/crud/advanced-disclosure.tsx). */
+    advancedOptions: string;
     /** Single-date picker (components/wm/date-range-field.tsx `DateField`). */
     datePickerPlaceholder: string;
     datePickerYearLabel: string;
@@ -572,9 +630,10 @@ export type I18nDictionary = {
       // obviously-bad file).
       attachmentInvalidTypeToast: string;
       attachmentTooLargeToast: string;
-      // EPIC-026 Wave 8 — prototype `.dialog__desc` on `#dlg-transaksi`
-      // (assets/shell.js) and its `.dialog__footer` Batal button.
-      dialogDesc: string;
+      // polish-j batch 7a item 6 dropped the dialog's own `.dialog__desc`
+      // ("Catat pemasukan, pengeluaran, transfer, atau belanja kartu
+      // kredit.") — the tab strip itself already says which of those this
+      // is. `.dialog__footer` Batal button is unaffected.
       modeSwitchLabel: string;
       typeSwitchLabel: string;
     };
@@ -594,6 +653,26 @@ export type I18nDictionary = {
       noResultsFor: string;
       typeToSearchHint: string;
     };
+  };
+  /**
+   * Batch 4 item 3 — `/akses-saya` (row-scoped member landing page) copy
+   * that must vary by viewer role. Only the strings that actually differ
+   * per role are here; the rest of the page's copy predates i18n and is
+   * out of this batch's scope.
+   */
+  aksesSaya: {
+    eyebrowMaster: string;
+    eyebrowDependant: string;
+    familyReportsUnlocked: string;
+    familyReportsLocked: string;
+    familyReportsUnlockedDescription: string;
+    familyReportsLockedDescription: string;
+    /** Batch 5 (controller-added) — "Aktivitas yang Diizinkan" table's own
+     * "Melihat laporan keluarga" row status/note, derived from role like
+     * the permission card above it instead of hardcoded to always-locked. */
+    familyReportsRowStatusUnlocked: string;
+    familyReportsRowNoteUnlocked: string;
+    familyReportsRowNoteLocked: string;
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
   akun: {
@@ -666,6 +745,8 @@ export type I18nDictionary = {
       deviceFallbackLabel: string;
       thisDeviceBadge: string;
       endSessionLink: string;
+      sessionsShowAll: string;
+      sessionsShowLess: string;
       sessionsLoading: string;
       sessionsEmpty: string;
       sessionsError: string;
@@ -940,10 +1021,8 @@ export type I18nDictionary = {
       namePlaceholder: string;
       usernameLabel: string;
       usernamePlaceholder: string;
-      usernameHint: string;
       passwordLabel: string;
       passwordPlaceholder: string;
-      passwordHint: string;
       showPassword: string;
       hidePassword: string;
       roleLabel: string;
@@ -960,6 +1039,11 @@ export type I18nDictionary = {
       istriCoMasterHint: string;
       relationshipLabel: string;
       relationshipNoneOption: string;
+      // polish-j batch 7a item 4 — Email moves under the "Opsi lanjutan"
+      // disclosure alongside Hak akses; its hint is now one line.
+      emailLabel: string;
+      emailPlaceholder: string;
+      emailHint: string;
       accessRoleLabel: string;
       accessRoleDefaultOption: string;
       accessRoleEmptyHint: string;
@@ -1080,6 +1164,9 @@ export type I18nDictionary = {
     premiumLabel: string;
     renewalLabel: string;
     daysUntilRenewalSuffix: string;
+    // Batch 4 item 1 — overdue (negative daysUntilRenewal) prefix, paired
+    // with daysUntilRenewalSuffix: "{daysOverduePrefix} {abs(days)} {daysUntilRenewalSuffix}".
+    daysOverduePrefix: string;
     policyNumberLabel: string;
     toastAdded: string;
     toastAddFailed: string;
@@ -1103,6 +1190,7 @@ export type I18nDictionary = {
     fieldCoverageLabel: string;
     fieldRenewalDateLabel: string;
     autoRenewLabel: string;
+    fieldPolicyNumberLabel: string;
     fieldPolicyNumberPlaceholder: string;
     fieldNotesLabel: string;
     fieldNotesPlaceholder: string;
@@ -1129,11 +1217,18 @@ export type I18nDictionary = {
     /** EPIC-021 Group D (#14) — policy beneficiaries, mirroring warisan's
      * heir editor UX (allocation bar + optional family-member link). */
     beneficiariesSectionTitle: string;
+    /** polish-j batch 7a item 9 — summary label for the "Opsi lanjutan"-
+     * style disclosure collapsing beneficiaries in the add-policy form. */
+    beneficiariesOptionalLabel: string;
     beneficiariesLabel: string;
     beneficiaryNameLabel: string;
     beneficiaryNamePlaceholder: string;
     beneficiaryRelationshipLabel: string;
     beneficiaryRelationshipPlaceholder: string;
+    /** Revisi K bug 1 — default relationship text filled in when the picked
+     * member is the family owner (Master), whose `Member.relationship` is
+     * null (it's not a kinship value). */
+    beneficiaryRelationshipSelfDefault: string;
     beneficiarySharePercentLabel: string;
     beneficiaryMemberLabel: string;
     beneficiaryMemberNoneOption: string;
@@ -1364,6 +1459,7 @@ export type I18nDictionary = {
       resultLabel: string;
       resultValueSuffix: string;
       detailTargetReachedPrefix: string;
+      unreachableError: string;
     };
     splitgroup: {
       cardTitle: string;
@@ -1375,6 +1471,7 @@ export type I18nDictionary = {
       resultLabel: string;
       detailTotalWithTaxPrefix: string;
       createSplitBillButton: string;
+      invalidPeopleError: string;
     };
   };
   /**
@@ -1600,6 +1697,7 @@ export type I18nDictionary = {
     livePositionsSuffix: string;
     pricingSourceNoticeTitle: string;
     pricingSourceNoticeBody: string;
+    pricingSourceMoreLabel: string;
     allocationTitle: string;
     // EPIC-025 N3 audit (structural port fidelity) — page-lead header,
     // restored "Jumlah"/"Harga / Sumber" table columns, per-row price-source
@@ -1612,9 +1710,11 @@ export type I18nDictionary = {
     /** Template with `{returnRp}` and `{costBasis}` placeholders. */
     returnFormulaLabel: string;
     livePositionsOnlyPrefix: string;
-    filterNewBadge: string;
     /** Template with `{ticker}` and `{date}` placeholders. */
     rowTickerPurchasedTemplate: string;
+    /** Template with a `{date}` placeholder — non-market types (no real
+     * ticker to show), e.g. deposito/emas/reksa dana/lainnya. */
+    rowPurchasedTemplate: string;
     /** Template with `{rate}` and `{date}` placeholders. */
     rowCouponPurchasedTemplate: string;
     /** Template with `{date}` and `{maturityDate}` placeholders. */
@@ -1632,17 +1732,9 @@ export type I18nDictionary = {
     navPricePrefix: string;
     nominalPrefix: string;
     pricingSourceLastSyncedPrefix: string;
-    // EPIC-026 Wave 8 — prototype #dlg-catat (`.investment-dialog`):
-    // dialog description + the `.investment-form__section` headings and
-    // the `.hint` lines under the identity fields.
+    // polish-j batch 7a item 3 — the per-section headings are gone; this is
+    // now the dialog's only subtitle line.
     modalDesc: string;
-    sectionIdentityTitle: string;
-    sectionIdentityDesc: string;
-    sectionPositionTitle: string;
-    sectionPositionDesc: string;
-    sectionValuationTitle: string;
-    sectionValuationDesc: string;
-    hintName: string;
     hintPurchaseDate: string;
     hintLotConversion: string;
     // EPIC-022 D2 — quantity/cost basis can no longer be silently overwritten
@@ -1909,14 +2001,17 @@ export type I18nDictionary = {
     overdueWarningPrefix: string;
     overdueWarningSuffix: string;
     // EPIC-026 Wave 8 — prototype dialog composition
-    // (docs/prototype/pages/liabilitas.html): `.dialog__desc` lines, the
-    // Detail dialog's amortisation-schedule table headers, the Bayar
-    // dialog's amount presets / source-account hint / split-preview notice.
-    modalDesc: string;
+    // (docs/prototype/pages/liabilitas.html): the Detail dialog's
+    // amortisation-schedule table headers, the Bayar dialog's amount
+    // presets / source-account hint / split-preview notice. polish-j
+    // batch 7a item 8 dropped the add/edit dialog's own `.dialog__desc`
+    // ("Perubahan langsung memengaruhi rasio...").
     detailNextDueLabel: string;
     detailPayButton: string;
     amortisationScheduleTitle: string;
     amortisationScheduleCountSuffix: string;
+    /** Revisi K — visible cue that the schedule table scrolls horizontally on narrow screens. */
+    amortisationScheduleScrollHint: string;
     amortisationScheduleHeaderIndex: string;
     amortisationScheduleHeaderDate: string;
     amortisationScheduleHeaderPrincipal: string;
@@ -1926,6 +2021,94 @@ export type I18nDictionary = {
     payPresetPayoff: string;
     paySourceAccountHint: string;
     payRemainingAfterLabel: string;
+    // Revisi G — per-product interest terms in the add/edit form.
+    interestMethodLabels: Record<LiabilitasInterestMethodId, string>;
+    rateLabels: Record<LiabilitasInterestMethodId, string>;
+    fieldRateMonthlyLabel: string;
+    fieldRateFixedLabel: string;
+    fieldInterestMethodLabel: string;
+    fieldTenorLabel: string;
+    fieldStartDateLabel: string;
+    fieldInstallmentLabel: string;
+    fieldInstallmentHint: string;
+    toastInstallmentPrefix: string;
+    amortisationScheduleHeaderInstallment: string;
+    amortisationScheduleLoading: string;
+    amortisationScheduleError: string;
+    payPreviewLoading: string;
+    payPreviewError: string;
+    payoffProjectionError: string;
+    detailTenorLabel: string;
+    tenorMonthsSuffix: string;
+    /** Revisi K — Pay dialog "Telat" notice (every liability type). */
+    payLateBadge: string;
+    payLateNote: string;
+    /** Revisi K — KPR rate structure (form); Task 12 adds the detail keys. */
+    kpr: {
+      planLegend: string;
+      presetLabel: string;
+      presetNames: Record<LiabilitasKprPresetId, string>;
+      officialRateNote: string;
+      exampleRateNote: string;
+      mmqResetNote: string;
+      exampleBadge: string;
+      officialBadge: string;
+      periodLabel: string;
+      periodKindLabel: string;
+      kindFixed: string;
+      kindFloating: string;
+      periodMonthsLabel: string;
+      periodToMaturity: string;
+      periodRateLabel: string;
+      periodMarginLabel: string;
+      addPeriod: string;
+      removePeriod: string;
+      planHint: string;
+      planInvalid: string;
+      tenorRequiredHint: string;
+      scheduleRateHeader: string;
+      floatingEstimateBadge: string;
+      floatingEstimateNote: string;
+      historyTitle: string;
+      historyHint: string;
+      historyEmpty: string;
+      historyLoadFailed: string;
+      historyDateLabel: string;
+      historyRateLabel: string;
+      historyAddButton: string;
+      historyDeleteButton: string;
+      historyFromPeriodPrefix: string;
+      historySaved: string;
+      historyDeleted: string;
+      historySaveFailed: string;
+      prepayTitle: string;
+      prepaySimulationNote: string;
+      prepayModeLabel: string;
+      prepayModes: Record<LiabilitasPrepaymentModeId, string>;
+      prepayAmountLabel: string;
+      prepayPenaltyLabel: string;
+      prepayPenaltyHint: string;
+      prepaySubmit: string;
+      prepayResultPenalty: string;
+      prepayResultCashOut: string;
+      prepayResultInstallment: string;
+      prepayResultTenor: string;
+      prepayResultMonthsSuffix: string;
+      prepayResultInterestSaved: string;
+      prepayResultNetSaving: string;
+      prepayEstimateNote: string;
+      prepayReduceTenorNextTierNote: string;
+      prepayFailed: string;
+      recordAccountLabel: string;
+      recordAccountPlaceholder: string;
+      recordButton: string;
+      recordConfirmPrefix: string;
+      recordConfirmBreakdown: string;
+      recordConfirmButton: string;
+      recordCancelButton: string;
+      recordSaved: string;
+      recordFailed: string;
+    };
   };
   /**
    * EPIC-018 Task A5 — `/masterdata` page copy. Every group `title`/`label`
@@ -2285,7 +2468,6 @@ export type I18nDictionary = {
     toastDeleteFailed: string;
     activeGoalsSuffix: string;
     totalAllocatedPrefix: string;
-    trackerDisclaimer: string;
     addGoalButton: string;
     onTrackLabel: string;
     onTrackDesc: string;
@@ -2341,8 +2523,6 @@ export type I18nDictionary = {
    */
   tax: {
     sptStatusLabels: Record<TaxSptStatusId, string>;
-    ptkpLabels: Record<TaxPtkpId, string>;
-    bracketLabels: Record<TaxBracketId, string>;
     heroLabelPrefix: string;
     heroSubtitle: string;
     prevYearStatusLabelPrefix: string;
@@ -2414,15 +2594,10 @@ export type I18nDictionary = {
     grossInputHint: string;
     ptkpSelectedPrefix: string;
     jabatanHint: string;
-    perpuluhanHint: string;
-    perpuluhanHintLinkLabel: string;
     perpuluhanAutoFilledHint: string;
-    payloadCalloutPrefix: string;
-    payloadCalloutSuffix: string;
     resetButton: string;
     toastReset: string;
     colTaxableBase: string;
-    bracketFootnote: string;
     perpuluhanDeductionTitle: string;
     perpuluhanDeductionDesc: string;
     emptyDocumentsTitle: string;
@@ -2439,6 +2614,172 @@ export type I18nDictionary = {
     saveDialogTaxRow: string;
     saveDialogNote: string;
     saveDialogConfirmButton: string;
+    // Task 9 (sub-plan L) — shared `<TaxRuleBadge>` copy for any
+    // unverified/out-of-range `TaxRuleRefDto` surfaced anywhere on /tax.
+    rules: {
+      unverifiedBadge: string;
+      unverifiedIntro: string;
+      outOfRange: string;
+    };
+    // Task 9 — the detailed PPh OP calculator (replaces the old flat
+    // PTKP/gross-only form): marital status + dependents drive the
+    // server-computed PTKP, plus pension/withheld/freelance NPPN/other-net
+    // inputs the legacy calculator never had.
+    op: {
+      statusLabel: string;
+      maritalLabels: Record<TaxMaritalStatusId, string>;
+      dependentsLabel: string;
+      ptkpDerivedPrefix: string;
+      pensionLabel: string;
+      withheldLabel: string;
+      freelanceLabel: string;
+      nppnLabel: string;
+      nppnHint: string;
+      otherNetLabel: string;
+      netoLabel: string;
+      balanceLabel: string;
+      overpaidLabel: string;
+      noTaxRow: string;
+      previewNeedsFamily: string;
+    };
+    // Task 9 — monthly PPh 21 TER (tarif efektif rata-rata) withholding +
+    // the December Pasal 17 true-up, plus the PPh 21 DTP (ditanggung
+    // pemerintah) incentive fieldset.
+    ter: {
+      title: string;
+      subtitle: string;
+      monthlyGrossLabel: string;
+      editMonthsToggle: string;
+      // Fix round 1 (DTP fixed-gross cap, PMK 10/2025) — an explicit
+      // per-month THR/bonus amount so the DTP salary cap can exclude it
+      // without under-capping a genuine mid-year raise.
+      thrBonusLabel: string;
+      thrBonusHint: string;
+      thrExceedsGrossError: string;
+      categoryPrefix: string;
+      kiNote: string;
+      colMonth: string;
+      colGross: string;
+      colRate: string;
+      colWithheld: string;
+      colDtp: string;
+      decemberLabel: string;
+      refundNote: string;
+      notApplicable: string;
+      dtpTitle: string;
+      dtpSectorLabel: string;
+      dtpSectors: Record<TaxDtpSectorId, string>;
+      dtpEmploymentLabel: string;
+      dtpEmployment: { permanent: string; non_permanent: string };
+      dtpDailyWageLabel: string;
+      dtpNikLabel: string;
+      dtpReasons: Record<TaxDtpReasonId, string>;
+      dtpEligible: string;
+      dtpTotalPrefix: string;
+      // Task 10 carry (Task 9 review) — the panel used to render 12 rows
+      // of "Rp 0" before any gross was entered, with no loading state and
+      // no explanation when the caller has no family group.
+      emptyStateNote: string;
+      loadingLabel: string;
+      noFamilyNote: string;
+    };
+    // Task 10 (sub-plan L) — the UMKM 0.5% final-tax monthly-omzet
+    // calculator (contracts' `UmkmResultDto`/`UmkmPreviewRequestDto`).
+    umkm: {
+      title: string;
+      subtitle: string;
+      monthLabels: string[];
+      firstYearLabel: string;
+      pre2018Note: string;
+      noTimeLimitNote: string;
+      ineligible: string;
+      exceedsCeiling: string;
+      colOmzet: string;
+      colCumulative: string;
+      colTaxable: string;
+      colTax: string;
+      totalPrefix: string;
+      save: string;
+      saved: string;
+      saveFailed: string;
+      disclosureLabel: string;
+      loadingLabel: string;
+      loadFailedLabel: string;
+      emptyStateNote: string;
+    };
+    // Task 10 — final tax on investments/other income (contracts'
+    // `FinalTaxEstimateDto`/`TaxFinalIncomeEntryDto`).
+    final: {
+      title: string;
+      subtitle: string;
+      instruments: Record<TaxFinalInstrumentId, string>;
+      sourceHolding: string;
+      sourceEntry: string;
+      caveats: Record<TaxFinalCaveatId, string>;
+      belowThreshold: string;
+      missingRate: string;
+      missingRateNotice: string;
+      skippedForeign: string;
+      addEntry: string;
+      editEntry: string;
+      deleteEntry: string;
+      fieldInstrument: string;
+      fieldGross: string;
+      fieldDate: string;
+      fieldReinvested: string;
+      fieldRateOverride: string;
+      fieldNotes: string;
+      totalPrefix: string;
+      toastSaved: string;
+      toastDeleted: string;
+      toastFailed: string;
+      loadingLabel: string;
+      loadFailedLabel: string;
+      emptyStateNote: string;
+    };
+    // Task 10 — the page's single "answer" block: total estimated tax +
+    // SPT timing (contracts' `TaxAnnualSummaryDto`).
+    summary: {
+      title: string;
+      totalLabel: string;
+      pphOpLabel: string;
+      finalLabel: string;
+      umkmLabel: string;
+      noRecord: string;
+      balanceDue: string;
+      balanceOver: string;
+      deadlineLabel: string;
+      daysLeft: string;
+      daysLate: string;
+      graceNote: string;
+      coretaxNote: string;
+      filedAtPrefix: string;
+    };
+    // Task 11 — /investasi's final-tax card (contracts'
+    // `FinalTaxEstimateDto` via `useInvestmentTaxEstimate`).
+    invest: {
+      title: string;
+      empty: string;
+      exchangeLabel: string;
+      exchangeOptions: Record<TaxCryptoExchangeId, string>;
+      viewInTax: string;
+    };
+    // Task 11 — /rekening's compact savings/deposit interest-tax notice.
+    account: {
+      title: string;
+      body: string;
+    };
+    // Task 11 — /transaksi's collapsed "Info PPN" hint (contracts'
+    // `PpnPreviewResultDto`).
+    ppn: {
+      summary: string;
+      infoOnly: string;
+      luxuryToggle: string;
+      dppLabel: string;
+      ppnLabel: string;
+      effectiveLabel: string;
+      mechanismNote: string;
+    };
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
@@ -2500,11 +2841,6 @@ export type I18nDictionary = {
     deleteDialogBody: string;
     deleteDialogConfirm: string;
     /** EPIC-025 N3 prototype structural port. */
-    insightOneLabel: string;
-    insightOneAccountsSuffix: string;
-    insightOneOwnersSuffix: string;
-    insightPrivacyLabel: string;
-    insightPrivacyValue: string;
     filterNoteText: string;
     addCardTitle: string;
     addCardSubtitle: string;
@@ -2520,11 +2856,6 @@ export type I18nDictionary = {
   donation: {
     typeLabels: Record<DonationTypeId, string>;
     jenisOptionLabels: Record<DonationTypeId, string>;
-    groupIslam: string;
-    /** EPIC-023 F2 (D20, US-DON-6/7) — groups the obligatory Christian
-     * contribution in the "Jenis" dropdown, alongside `groupIslam`. */
-    groupKristen: string;
-    groupUmum: string;
     heroTitle: string;
     transactionsSuffix: string;
     yearRunningPrefix: string;
@@ -2585,11 +2916,6 @@ export type I18nDictionary = {
     fieldTanggalLabel: string;
     fieldAccountLabel: string;
     accountNoneOption: string;
-    accountHint: string;
-    taxDeductibleCheckboxLabel: string;
-    /** EPIC-022 E5 — shown next to the checkbox when the selected donation
-     * type cannot legally be tax deductible (only zakat to an amil can). */
-    taxDeductibleIneligibleNote: string;
     savingLabel: string;
     saveRecordButton: string;
     toastSaved: string;
@@ -2635,11 +2961,13 @@ export type I18nDictionary = {
     religionCalculatorUnconfirmedDesc: string;
     /**
      * EPIC-026 — prototype `dlg-donasi` composition
-     * (`docs/prototype/pages/donation.html`): the dialog's supporting
-     * description line and the two-line label on the tax-deduction switch
-     * row (the prototype uses a `.switch`, not a checkbox).
+     * (`docs/prototype/pages/donation.html`): the tax-deduction switch row
+     * (the prototype uses a `.switch`, not a checkbox). polish-j batch 7a
+     * item 5 — `taxDeductibleSwitchDesc` is now the ONE line covering what
+     * qualifies (zakat/persepuluhan to a registered body) and the legal
+     * reference; the separate account hint, dialog subtitle, and
+     * ineligibility note it used to duplicate are gone.
      */
-    modalDesc: string;
     taxDeductibleSwitchTitle: string;
     taxDeductibleSwitchDesc: string;
   };
@@ -2696,6 +3024,10 @@ export type I18nDictionary = {
     heirNamePlaceholder: string;
     removeHeirAriaLabel: string;
     heirRelationshipPlaceholder: string;
+    /** Revisi K bug 1 — default relationship text filled in when the picked
+     * member is the family owner (Master), whose `Member.relationship` is
+     * null (it's not a kinship value). */
+    heirRelationshipSelfDefault: string;
     heirSharePercentPlaceholder: string;
     heirMemberAriaLabel: string;
     heirMemberNoneOption: string;
@@ -2719,17 +3051,17 @@ export type I18nDictionary = {
     estimatedValueLabel: string;
     linkedToAssetPrefix: string;
     // EPIC-026 Wave 8 — prototype dialog composition
-    // (docs/prototype/pages/warisan.html): the `.dialog__desc`, the linked-
-    // asset picker + its hint, the visibility switch hint, and the two
-    // previously-hardcoded Indonesian strings in the save path.
-    modalDesc: string;
+    // (docs/prototype/pages/warisan.html): the linked-asset picker + its
+    // hint and the two previously-hardcoded Indonesian strings in the save
+    // path. polish-j batch 7a item 10 dropped the dialog's own
+    // `.dialog__desc` and the visibility switch's hint (both stated
+    // consequences already obvious from the field/switch itself).
     fieldSourceLabel: string;
     sourceManualOption: string;
     sourceAssetOption: string;
     fieldAssetLabel: string;
     assetPickerPlaceholder: string;
     assetPickerHint: string;
-    visibleToHeirsHint: string;
     deleteConfirmBody: string;
     toastSharePercentExceeded: string;
     heirTableHeaderName: string;
@@ -4000,8 +4332,22 @@ export type I18nDictionary = {
    * entity-specific copy, so these two stay deliberately entity-neutral.
    */
   crud: {
-    addDescription: string;
-    editDescription: string;
     addToMasterData: string;
+    /** "{field}" is replaced with the field's label — see CrudField.required. */
+    fieldRequired: string;
+  };
+  money: {
+    currencyLabel: string;
+    convertedIdr: string;
+    convertedDisplay: string;
+    rateLine: string;
+    rateStale: string;
+    rateIndicative: string;
+    rateLoading: string;
+    rateUnavailable: string;
+    serverNote: string;
+    rateNotReady: string;
+    storedAsIdr: string;
+    fxIndicativeRefused: string;
   };
 };

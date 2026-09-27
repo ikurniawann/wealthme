@@ -9,6 +9,8 @@
  */
 import { Role } from "@prisma/client";
 
+import { fxTesting } from "../../test/fx-testing";
+
 import { AllowanceRequestsController } from "./allowance-requests.controller";
 
 import type { Request } from "express";
@@ -34,7 +36,10 @@ describe("AllowanceRequestsController.findAll", () => {
 
   beforeEach(() => {
     service = { findAll: jest.fn().mockResolvedValue([]) };
-    controller = new AllowanceRequestsController(service as never);
+    controller = new AllowanceRequestsController(
+      service as never,
+      fxTesting().service,
+    );
   });
 
   it("PERMISSION — passes canSeeAll=true for owner", async () => {

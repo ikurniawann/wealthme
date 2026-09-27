@@ -1,25 +1,26 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import {
-  IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
-  IsUUID,
   Max,
   MaxLength,
   Min,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
+import { IsUserId } from "../../common/decorators/is-user-id.decorator";
+
 export class CreateHeirDto {
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   name!: string;
 
   @ApiProperty()
   @IsString()
-  @IsNotEmpty()
+  @IsTrimmedNotEmpty()
   @MaxLength(100)
   relationship!: string;
 
@@ -30,12 +31,12 @@ export class CreateHeirDto {
   sharePercent!: number;
 
   // Decision #9 — optional link to a family-group member (User.id) alongside
-  // the free-text name/relationship above. EPIC-023 F1 (D14) — `User.id` is
-  // always a uuid (`@default(uuid())`); validating the shape here rejects
-  // garbage before it ever reaches the tenant-scope lookup in
-  // InheritanceService.
+  // the free-text name/relationship above. Bugfix (2026-09-26) — NOT
+  // `@IsUUID()`: Better Auth ids aren't UUIDs (see
+  // accounts/dto/create-account.dto.ts). `IsUserId()` still rejects garbage
+  // before it ever reaches the tenant-scope lookup in InheritanceService.
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUUID()
+  @IsUserId()
   memberUserId?: string;
 }

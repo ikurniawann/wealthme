@@ -22,7 +22,21 @@ describe("Pph21RequestDto validation", () => {
     expect(errors).toHaveLength(0);
   });
 
-  it("rejects a ptkp value outside the 5 legal UU HPP thresholds", async () => {
+  // Review fix round 1 (Important #2) — PTKP_VALUES used to be a hardcoded
+  // 5-value list (TK/0..K/3), so every K/I (istri penghasilan digabung)
+  // household — whose PTKP starts at 112.500.000 — was rejected by this
+  // public endpoint. PTKP_VALUES is now derived from the registry via
+  // ptkpFor for every marital-status × dependents combination.
+  it("accepts the K/I/2 PTKP value (112.500.000 + 2×4.500.000 = 121.500.000)", async () => {
+    const dto = plainToInstance(Pph21RequestDto, {
+      grossIncome: 200_000_000,
+      ptkp: 121_500_000,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("rejects a ptkp value outside the legal UU HPP thresholds", async () => {
     const dto = plainToInstance(Pph21RequestDto, {
       grossIncome: 100_000_000,
       ptkp: 999_000_000,

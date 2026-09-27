@@ -73,3 +73,62 @@ describe("CreateTaxRecordDto numeric-string boundary", () => {
     expect(errors[0]?.constraints).toHaveProperty("matches");
   });
 });
+
+// Carry-over (Task 5 → Task 8): ptkp is required unless maritalStatus is
+// present — reject when both are absent instead of silently defaulting.
+describe("CreateTaxRecordDto — ptkp required unless maritalStatus is present", () => {
+  it("rejects when both ptkp and maritalStatus are absent", async () => {
+    const dto = plainToInstance(CreateTaxRecordDto, {
+      taxYear: 2026,
+      grossIncome: "100000000",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "ptkp")).toBe(true);
+  });
+
+  it("accepts when ptkp is given and maritalStatus is absent", async () => {
+    const dto = plainToInstance(CreateTaxRecordDto, {
+      taxYear: 2026,
+      grossIncome: "100000000",
+      ptkp: "54000000",
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  it("accepts when maritalStatus is given and ptkp is absent", async () => {
+    const dto = plainToInstance(CreateTaxRecordDto, {
+      taxYear: 2026,
+      grossIncome: "100000000",
+      maritalStatus: "TK",
+      dependents: 0,
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+
+  // Opus review fix round 1 (Important #1) — explicit `maritalStatus: null` must
+  // NOT count as "maritalStatus is set": it must still require ptkp, and must
+  // not require/validate dependents either.
+  it("rejects when maritalStatus is explicitly null and ptkp is absent", async () => {
+    const dto = plainToInstance(CreateTaxRecordDto, {
+      taxYear: 2026,
+      grossIncome: "100000000",
+      maritalStatus: null,
+      dependents: 0,
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "ptkp")).toBe(true);
+  });
+
+  it("accepts when maritalStatus is explicitly null and ptkp is given", async () => {
+    const dto = plainToInstance(CreateTaxRecordDto, {
+      taxYear: 2026,
+      grossIncome: "100000000",
+      maritalStatus: null,
+      ptkp: "54000000",
+    });
+    const errors = await validate(dto);
+    expect(errors).toHaveLength(0);
+  });
+});

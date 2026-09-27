@@ -263,10 +263,14 @@ export function useBerandaData(period: BerandaPeriod) {
     (r) => r.status === "pending",
   ).length;
 
+  // E2E round 1 bug 2 — prefer the real `nextDueDate` over the legacy
+  // manual `dueDate` field the KPR form never sets.
   const nearestDueLiability = (liabilities ?? [])
-    .filter((l) => l.dueDate)
+    .filter((l) => l.nextDueDate ?? l.dueDate)
     .sort((a, b) =>
-      (a.dueDate as string).localeCompare(b.dueDate as string),
+      (a.nextDueDate ?? a.dueDate ?? "").localeCompare(
+        b.nextDueDate ?? b.dueDate ?? "",
+      ),
     )[0];
 
   return {

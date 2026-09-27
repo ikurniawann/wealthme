@@ -16,6 +16,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 export type ApiError = {
   status: number;
   message: string;
+  // Revisi K bug 2 — a machine-readable code (e.g. "FX_RATE_UNAVAILABLE")
+  // for callers that need to branch on a SPECIFIC error, not just the HTTP
+  // status (several distinct failures can share one status, like 503).
+  code?: string;
 };
 
 /** Guards against N concurrent 401s (a dashboard fires many queries at once)
@@ -57,7 +61,10 @@ export async function apiFetch<T>(
   });
 
   if (!res.ok) {
-    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: string;
+      code?: string;
+    };
     if (res.status === 401) {
       // Fire-and-forget: the throw below still propagates so the caller's own
       // error handling runs, while the redirect proceeds in parallel.
@@ -66,6 +73,7 @@ export async function apiFetch<T>(
     throw {
       status: res.status,
       message: body.message ?? res.statusText,
+      code: body.code,
     } satisfies ApiError;
   }
 

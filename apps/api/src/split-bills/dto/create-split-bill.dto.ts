@@ -9,16 +9,20 @@ import {
   IsUUID,
   MaxLength,
   Min,
-  MinLength,
   ValidateNested,
 } from "class-validator";
+
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
 import { CreateParticipantDto } from "./create-participant.dto";
 
 export class CreateSplitBillDto {
+  // `@MinLength(1)` alone counts characters, so a whitespace-only title
+  // ("   ") passed untrimmed (E2E round 1, bug 1).
   @ApiProperty()
   @IsString()
-  @MinLength(1)
+  @IsTrimmedNotEmpty()
   @MaxLength(200)
   title!: string;
 
@@ -59,4 +63,7 @@ export class CreateSplitBillDto {
   @ArrayMinSize(2)
   @Type(() => CreateParticipantDto)
   participants!: CreateParticipantDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

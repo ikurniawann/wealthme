@@ -440,6 +440,40 @@ describe("InheritanceService", () => {
       expect(prisma.member.findMany).not.toHaveBeenCalled();
     });
 
+    // Revisi K — the owner (Master) can have a null `Member.relationship`
+    // (it's purely descriptive kinship, not required). A linked heir must
+    // still show the relationship typed at creation time (e.g. "Diri
+    // sendiri"), not fall through to null/empty just because the member's
+    // current record has none.
+    it("findOne() falls back to the stored relationship when the linked member's CURRENT relationship is null (e.g. the owner)", async () => {
+      prisma.inheritanceAsset.findUnique.mockResolvedValue({
+        ...BASE_ROW,
+        heirs: [
+          {
+            id: "heir-1",
+            inheritanceAssetId: ASSET_ID,
+            name: "Budi (Master)",
+            relationship: "Diri sendiri",
+            sharePercent: { toString: () => "100.00" },
+            memberUserId: "user-owner",
+            createdAt: new Date("2024-01-01T00:00:00.000Z"),
+          },
+        ],
+      });
+      prisma.member.findMany.mockResolvedValue([
+        {
+          userId: "user-owner",
+          relationship: null,
+          user: { name: "Budi (Master)" },
+        },
+      ]);
+
+      const result = await service.findOne(FAMILY_GROUP_ID, ASSET_ID);
+
+      expect(result.heirs[0]!.name).toBe("Budi (Master)");
+      expect(result.heirs[0]!.relationship).toBe("Diri sendiri");
+    });
+
     // EPIC-023 Group F fix round (MEDIUM 8) — a heir whose linked member
     // was removed from the family must not keep reading as a live link:
     // `memberUserId` is nulled out, and the last-known copy is shown.

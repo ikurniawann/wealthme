@@ -74,7 +74,6 @@ function BerandaPage() {
           nonLiquidTotal={data.nonLiquidTotal}
           liquidPct={data.liquidPct}
           nonLiquidPct={data.nonLiquidPct}
-          nearestDueLiability={data.nearestDueLiability}
           fmt={fmt}
         />
 

@@ -16,6 +16,17 @@ import { useShell } from "./shell-context";
  * responsive utility is needed here. The mobile header moved into the single
  * `.topbar` (see topbar.tsx).
  */
+
+/**
+ * Batch 5 item 1 — same fix and rationale as `sidebar-sections.tsx`'s
+ * `isNavItemActive` (kept as a local duplicate, not a shared import, to keep
+ * each protected file's diff self-contained): a strict `pathname === href`
+ * match never fires on a dynamic sub-route, so first-segment matching,
+ * consistent with `nav.ts`'s route-matching helpers.
+ */
+export function isMobileNavItemActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 export function MobileNav() {
   const pathname = usePathname();
   const { setTxnOpen } = useShell();
@@ -43,7 +54,7 @@ export function MobileNav() {
       <nav className="mobile-nav" aria-label={t.shell.mobileNavTitle}>
         {mobileNavForAccess(access).map((item) => {
           const Icon = item.icon;
-          const active = pathname === item.href;
+          const active = isMobileNavItemActive(pathname, item.href);
           return (
             <Link
               key={item.id}

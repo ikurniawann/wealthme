@@ -152,6 +152,31 @@
     height: 0;
   }
 
+  /* Right-edge scroll cue for hide-scrollbar rows (batch-3): CSS mask fades
+     the row's own content instead of an overlay, so it needs no background
+     color match. Scoped to the mobile breakpoint where these rows are
+     narrow enough to clip; desktop rows have room and stay unmasked. */
+  @media (max-width: 768px) {
+    .scroll-fade-x {
+      mask-image: linear-gradient(
+        to right,
+        black calc(100% - 24px),
+        transparent
+      );
+      -webkit-mask-image: linear-gradient(
+        to right,
+        black calc(100% - 24px),
+        transparent
+      );
+    }
+  }
+  @media (max-width: 768px) and (prefers-reduced-transparency: reduce) {
+    .scroll-fade-x {
+      mask-image: none;
+      -webkit-mask-image: none;
+    }
+  }
+
   /* ─────────────────────────── App shell ─────────────────────────── */
 
   .app {
@@ -564,6 +589,17 @@
   }
   .btn--primary:hover:not(:disabled) {
     background: var(--primary-strong);
+  }
+  /* A distinct fixed muted-teal fill, not opacity-derived from --primary, so
+     an enabled CTA and a disabled one read as different colors at a glance
+     instead of the enabled teal just looking washed out. #3f6b64 keeps
+     --primary-foreground (#fff) at ~6:1 contrast, above WCAG AA's 4.5:1.
+     Inlined here rather than a new --primary-disabled token in globals.css,
+     which this batch doesn't touch. */
+  .btn--primary:disabled {
+    opacity: 1;
+    background: #3f6b64;
+    box-shadow: none;
   }
 
   .btn--outline {
@@ -1856,6 +1892,12 @@
     font-weight: 700;
   }
 
+  /* A neutral fact (a count), not a success/danger trend — SummaryCard's
+     `caption` slot (components/wm/stat.tsx). */
+  .stat__delta--neutral {
+    color: var(--muted-foreground);
+  }
+
   .hero {
     position: relative;
     overflow: hidden;
@@ -2527,7 +2569,13 @@
     cursor: pointer;
   }
 
-  .segmented__item[aria-selected="true"] {
+  /* [aria-selected] drives every other `.segmented__item` (role="tab" +
+     aria-selected, verified across iam/investasi/liabilitas/splitbill/etc.);
+     [aria-checked] is added alongside it, not in place of it, for the one
+     `role="radio"` consumer (kpr-prepayment-simulator.tsx) where
+     aria-selected is the wrong ARIA attribute for that role. */
+  .segmented__item[aria-selected="true"],
+  .segmented__item[aria-checked="true"] {
     background: var(--card);
     color: var(--foreground);
     box-shadow: var(--shadow-card);
@@ -3559,11 +3607,18 @@
       height: calc(var(--topbar-h) + env(safe-area-inset-top));
       padding: env(safe-area-inset-top) 10px 0;
       align-items: center;
-      gap: 8px;
+      /* 8px -> 6px: the six fixed-width icon slots plus padding leave the
+         title (the only shrinkable child besides the zero-width spacer)
+         under 100px at 390px; a 2px trim across 7 gaps returns ~14px to the
+         title without a visually detectable change to icon rhythm. */
+      gap: 6px;
     }
 
     .topbar__title {
       max-width: 42vw;
+      /* One step down from the 13px desktop size (app.css base rule above)
+         so longer titles like "Tujuan Keuangan" fit before the ellipsis. */
+      font-size: 10px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;

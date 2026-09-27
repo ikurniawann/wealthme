@@ -17,9 +17,22 @@
  * then rounded half-up to the nearest rupiah.
  */
 
+import {
+  legacyRatePlan,
+  rateAt,
+  sameRateRegime,
+  type RatePlan,
+} from "./rate-plan.util";
+
+export type InterestMethod = "efektif" | "flat" | "anuitas";
+
 export interface SplitPaymentInput {
   /** EPIC-033 p20 — true for kartu_kredit: the rate is already per month. */
   rateIsMonthly?: boolean;
+  /** Defaults to "efektif"; "anuitas" splits like "efektif", only its installment is fixed. */
+  method?: InterestMethod;
+  /** Required for "flat": interest accrues on the original principal every month. */
+  originalPrincipal?: bigint;
   paymentAmount: bigint;
   remainingBalance: bigint;
   annualInterestRatePercent: string;
@@ -28,6 +41,14 @@ export interface SplitPaymentInput {
 export interface SplitPaymentResult {
   interest: bigint;
   principal: bigint;
+}
+
+export interface InstallmentInput {
+  method: InterestMethod;
+  principal: bigint;
+  annualInterestRatePercent: string;
+  tenorMonths: number;
+  rateIsMonthly?: boolean;
 }
 
 // (percent scale 100) * (fixed-point scale 100) * (12 months/year)
@@ -41,7 +62,7 @@ const PER_MONTH_RATE_DENOMINATOR = 10_000n;
  * `Decimal(5,2)`) into an integer scaled by 100 — e.g. "12.00" -> 1200n,
  * "7.5" -> 750n, "0" -> 0n. Never touches floating point.
  */
-function parseRateScaledByHundred(rateStr: string): bigint {
+export function parseRateScaledByHundred(rateStr: string): bigint {
   const trimmed = rateStr.trim();
   const [intPartRaw, fracPartRaw = ""] = trimmed.split(".");
   const intPart = intPartRaw === "" ? "0" : intPartRaw;
@@ -50,26 +71,56 @@ function parseRateScaledByHundred(rateStr: string): bigint {
 }
 
 /** Round-half-up division for non-negative BigInt operands. */
-function roundHalfUpDivide(numerator: bigint, denominator: bigint): bigint {
+export function roundHalfUpDivide(
+  numerator: bigint,
+  denominator: bigint,
+): bigint {
   const quotient = numerator / denominator;
   const remainder = numerator % denominator;
   return remainder * 2n >= denominator ? quotient + 1n : quotient;
 }
 
+function rateDenominator(rateIsMonthly: boolean | undefined): bigint {
+  return rateIsMonthly ? PER_MONTH_RATE_DENOMINATOR : MONTHLY_RATE_DENOMINATOR;
+}
+
+function monthlyInterestDue(input: {
+  method: InterestMethod;
+  originalPrincipal: bigint | undefined;
+  balance: bigint;
+  rateScaled: bigint;
+  denominator: bigint;
+}): bigint {
+  if (input.balance <= 0n) return 0n;
+  if (input.method === "flat") {
+    if (input.originalPrincipal === undefined) {
+      throw new Error("flat interest needs originalPrincipal");
+    }
+    return roundHalfUpDivide(
+      input.originalPrincipal * input.rateScaled,
+      input.denominator,
+    );
+  }
+  return roundHalfUpDivide(input.balance * input.rateScaled, input.denominator);
+}
+
 /**
  * Splits a liability payment into its interest and principal components.
  *
- * - `interest = round-half-up(remainingBalance * monthlyRate)`, capped at
- *   `paymentAmount` so principal never goes negative.
+ * - `interest = round-half-up(base * monthlyRate)` where `base` is the
+ *   original principal for "flat" and the remaining balance otherwise,
+ *   capped at `paymentAmount` so principal never goes negative.
  * - `principal = paymentAmount - interest`, capped at `remainingBalance` so
  *   the balance never goes negative.
  */
 export function splitPayment(input: SplitPaymentInput): SplitPaymentResult {
-  const rateScaled = parseRateScaledByHundred(input.annualInterestRatePercent);
-  const interestDue = roundHalfUpDivide(
-    input.remainingBalance * rateScaled,
-    input.rateIsMonthly ? PER_MONTH_RATE_DENOMINATOR : MONTHLY_RATE_DENOMINATOR,
-  );
+  const interestDue = monthlyInterestDue({
+    method: input.method ?? "efektif",
+    originalPrincipal: input.originalPrincipal,
+    balance: input.remainingBalance,
+    rateScaled: parseRateScaledByHundred(input.annualInterestRatePercent),
+    denominator: rateDenominator(input.rateIsMonthly),
+  });
 
   const interest =
     interestDue > input.paymentAmount ? input.paymentAmount : interestDue;
@@ -81,4 +132,343 @@ export function splitPayment(input: SplitPaymentInput): SplitPaymentResult {
       : principalRaw;
 
   return { interest, principal };
+}
+
+/**
+ * Monthly installment for a new loan of `principal` over `tenorMonths`.
+ * flat: (P + P·r·n) / n. anuitas: P·r·(1+r)^n / ((1+r)^n − 1).
+ * efektif: the FIRST month of an equal-principal loan, P/n + P·r.
+ */
+export function computeInstallment(input: InstallmentInput): bigint {
+  if (!Number.isInteger(input.tenorMonths) || input.tenorMonths < 1) {
+    throw new RangeError("tenorMonths must be a positive integer");
+  }
+  const principal = input.principal;
+  if (principal <= 0n) return 0n;
+  const n = BigInt(input.tenorMonths);
+  const rate = parseRateScaledByHundred(input.annualInterestRatePercent);
+  const denominator = rateDenominator(input.rateIsMonthly);
+
+  switch (input.method) {
+    case "flat":
+      return roundHalfUpDivide(
+        principal * denominator + principal * rate * n,
+        denominator * n,
+      );
+    case "anuitas": {
+      if (rate === 0n) return roundHalfUpDivide(principal, n);
+      // With r = rate/denominator the annuity formula becomes an exact integer ratio.
+      const growth = (denominator + rate) ** n;
+      return roundHalfUpDivide(
+        principal * rate * growth,
+        denominator * (growth - denominator ** n),
+      );
+    }
+    case "efektif":
+      return (
+        roundHalfUpDivide(principal, n) +
+        roundHalfUpDivide(principal * rate, denominator)
+      );
+  }
+}
+
+export function defaultInterestMethod(liabilityType: string): InterestMethod {
+  switch (liabilityType) {
+    case "kpr":
+      return "anuitas";
+    case "kendaraan":
+    case "pinjaman_pribadi":
+      return "flat";
+    default:
+      return "efektif";
+  }
+}
+
+export const MAX_SCHEDULE_ROWS = 600;
+
+export interface RatePeriodInput {
+  period: number;
+  baseRatePercent: string;
+  fixedRateMonths: number | null;
+  floatingRatePercent: string | null;
+}
+
+/** G's lookup, now a thin reader over the legacy two-segment plan. */
+export function rateForPeriod(input: RatePeriodInput): string {
+  return rateAt(
+    legacyRatePlan(
+      input.baseRatePercent,
+      input.fixedRateMonths,
+      input.floatingRatePercent,
+    ),
+    input.period,
+  ).ratePercent;
+}
+
+/**
+ * Whole installment months between `start` and `now` (UTC), never negative.
+ *
+ * fix-round1 (month-end clamp) — `months` is the number of periods `k` for
+ * which `dueDateForPeriod(start, k)` has already passed by `now`. For a
+ * normal (day 1-28) akad this reduces to the original raw calendar-month
+ * difference minus one if `now` hasn't reached `start`'s day-of-month yet
+ * — unchanged. For a day 29-31 akad, `dueDateForPeriod` may clamp to an
+ * EARLIER day (e.g. 28 Feb for a 31 Jan akad), so comparing against the
+ * raw, unclamped day-of-month here would drift from the due-day math
+ * every other function in this file (and the API's `nextDueDate`) uses.
+ */
+export function monthsElapsed(start: Date, now: Date): number {
+  const rawMonths =
+    (now.getUTCFullYear() - start.getUTCFullYear()) * 12 +
+    (now.getUTCMonth() - start.getUTCMonth());
+  if (rawMonths <= 0) return 0;
+  const stillBeforeDue =
+    now.getTime() < dueDateForPeriod(start, rawMonths).getTime();
+  return stillBeforeDue ? rawMonths - 1 : rawMonths;
+}
+
+/**
+ * First installment period that accrues wholly at a rate effective on
+ * `effectiveDate`: installment k accrues over [start+(k-1) mo, start+k mo),
+ * so a date on a window start applies to that window, a mid-window date to
+ * the next one (no daily proration).
+ */
+export function effectivePeriodFor(
+  startDate: Date,
+  effectiveDate: Date,
+): number {
+  const elapsed = monthsElapsed(startDate, effectiveDate);
+  return effectiveDate.getUTCDate() === startDate.getUTCDate()
+    ? elapsed + 1
+    : elapsed + 2;
+}
+
+/** Days after its due day an installment still counts as the one being paid (user decision, revisi K). */
+export const DUE_GRACE_DAYS = 5;
+// Asia/Jakarta (WIB, UTC+7, no DST): the app's calendar; there is no per-family timezone setting.
+const APP_UTC_OFFSET_MS = 7 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** `now`'s WIB calendar day as a UTC-midnight Date (akad dates are stored as UTC midnight of their calendar day). */
+export function localCalendarDay(now: Date): Date {
+  const shifted = new Date(now.getTime() + APP_UTC_OFFSET_MS);
+  return new Date(
+    Date.UTC(
+      shifted.getUTCFullYear(),
+      shifted.getUTCMonth(),
+      shifted.getUTCDate(),
+    ),
+  );
+}
+
+export interface DueInstallment {
+  /** The installment the Pay preset shows and pay() settles. */
+  period: number;
+  /** Past its due day (inside the grace window, or past maturity). */
+  late: boolean;
+}
+
+/**
+ * The calendar due day for installment `period`: `period` months after the
+ * akad's own day-of-month (period 1 = one month after `startDate`). Shared
+ * by `dueInstallment`'s "last due" check, `dueInstallmentEffectiveAt`'s
+ * "previous due day", and the API's `LiabilityDto.nextDueDate` field, so
+ * all three agree on the same due-day math instead of re-deriving it.
+ *
+ * fix-round1 (month-end clamp) — `Date.UTC` silently OVERFLOWS a day that
+ * doesn't exist in the target month (e.g. akad 31 Jan + 1 month = "31
+ * Feb", which JS rolls forward into 2 or 3 March), skipping a whole due
+ * month and putting two dues in the following one. Clamped to the target
+ * month's actual last day instead — an akad on the 29th-31st just falls
+ * due on the target month's last day when it is shorter, exactly like a
+ * bank's own "same date, or month-end if shorter" contract convention.
+ */
+export function dueDateForPeriod(startDate: Date, period: number): Date {
+  const targetYear = startDate.getUTCFullYear();
+  const targetMonthIndex = startDate.getUTCMonth() + period;
+  // Day 0 of the FOLLOWING month is the last day of the target month.
+  const lastDayOfTargetMonth = new Date(
+    Date.UTC(targetYear, targetMonthIndex + 1, 0),
+  ).getUTCDate();
+  const day = Math.min(startDate.getUTCDate(), lastDayOfTargetMonth);
+  return new Date(Date.UTC(targetYear, targetMonthIndex, day));
+}
+
+/**
+ * The installment being paid today: the latest one already due while it is
+ * at most DUE_GRACE_DAYS late, otherwise the next one (installment k falls
+ * due k months after the akad), clamped to [1, tenor]. The schedule's first
+ * row, the Pay preset, pay()/preview and the budget line all use it.
+ */
+export function dueInstallment(
+  startDate: Date | null,
+  now: Date,
+  tenorMonths: number | null,
+): DueInstallment {
+  if (startDate === null) return { period: 1, late: false };
+  const today = localCalendarDay(now);
+  const elapsed = monthsElapsed(startDate, today);
+  const lastDue = dueDateForPeriod(startDate, elapsed).getTime();
+  const daysLate = Math.round((today.getTime() - lastDue) / DAY_MS);
+  const inGrace = elapsed >= 1 && daysLate <= DUE_GRACE_DAYS;
+  const period = inGrace ? elapsed : elapsed + 1;
+  if (tenorMonths !== null && period > tenorMonths) {
+    return { period: tenorMonths, late: true };
+  }
+  return { period, late: inGrace && daysLate > 0 };
+}
+
+export function dueInstallmentPeriod(
+  startDate: Date | null,
+  now: Date,
+  tenorMonths: number | null,
+): number {
+  return dueInstallment(startDate, now, tenorMonths).period;
+}
+
+/**
+ * The WIB instant `period` BECOMES the due installment (review fix C1): day
+ * D(period-1)+6 — the same day+6 flip `dueInstallment` uses — or the akad's
+ * own WIB midnight for #1. Shared by every "was THIS installment already
+ * paid" check, so none of them mistake a payment for a different period, or
+ * a different calendar month's window, for evidence about `period`.
+ */
+export function dueInstallmentEffectiveAt(
+  startDate: Date,
+  period: number,
+): Date {
+  if (period <= 1) {
+    return new Date(startDate.getTime() - APP_UTC_OFFSET_MS);
+  }
+  const previousDueDay = dueDateForPeriod(startDate, period - 1).getTime();
+  return new Date(
+    previousDueDay + (DUE_GRACE_DAYS + 1) * DAY_MS - APP_UTC_OFFSET_MS,
+  );
+}
+
+export interface ScheduleInput {
+  method: InterestMethod;
+  remainingBalance: bigint;
+  originalPrincipal: bigint;
+  annualInterestRatePercent: string;
+  rateIsMonthly?: boolean;
+  /** Fixed monthly payment (flat/anuitas installment or efektif minimumPayment); null = none. */
+  installmentAmount: bigint | null;
+  /** Installments left on the contract; null = open-ended (e.g. a credit card). */
+  remainingMonths: number | null;
+  /** Contract period number of the next installment, 1-based. */
+  firstPeriod: number;
+  /** Legacy G terms; ignored when `ratePlan` is set. */
+  fixedRateMonths: number | null;
+  floatingRatePercent: string | null;
+  /** Revisi K rate periods + recorded floating changes. */
+  ratePlan?: RatePlan;
+  /** Re-annuitise at the first row: true forces, false forbids, undefined = only when the rate regime differs from the anchor's. */
+  recomputeAtStart?: boolean;
+  /** Period whose rate regime `installmentAmount` was computed for (1 = the akad; a recorded prepayment moves it). */
+  installmentAnchorPeriod?: number;
+  /** Caps the rows built; defaults to MAX_SCHEDULE_ROWS. */
+  maxRows?: number;
+}
+
+export interface ScheduleRow {
+  period: number;
+  installment: bigint;
+  interest: bigint;
+  principal: bigint;
+  remaining: bigint;
+}
+
+/** The plan a schedule runs on: K's rate periods, else G's legacy pair read as one. */
+export function ratePlanOf(input: ScheduleInput): RatePlan {
+  return (
+    input.ratePlan ??
+    legacyRatePlan(
+      input.annualInterestRatePercent,
+      input.fixedRateMonths,
+      input.floatingRatePercent,
+    )
+  );
+}
+
+export function buildSchedule(input: ScheduleInput): ScheduleRow[] {
+  const maxRows = Math.min(
+    MAX_SCHEDULE_ROWS,
+    input.maxRows ?? MAX_SCHEDULE_ROWS,
+    input.remainingMonths ?? MAX_SCHEDULE_ROWS,
+  );
+  const equalPrincipal =
+    input.method === "efektif" &&
+    input.installmentAmount === null &&
+    input.remainingMonths !== null
+      ? roundHalfUpDivide(input.remainingBalance, BigInt(input.remainingMonths))
+      : null;
+  if (input.installmentAmount === null && equalPrincipal === null) return [];
+
+  const denominator = rateDenominator(input.rateIsMonthly);
+  const plan = ratePlanOf(input);
+  const rows: ScheduleRow[] = [];
+  let balance = input.remainingBalance;
+  let installment = input.installmentAmount ?? 0n;
+  let previous = rateAt(plan, input.installmentAnchorPeriod ?? 1);
+
+  for (let i = 0; i < maxRows && balance > 0n; i += 1) {
+    const period = input.firstPeriod + i;
+    const rate = rateAt(plan, period);
+    const regimeChanged =
+      i === 0
+        ? (input.recomputeAtStart ?? !sameRateRegime(rate, previous))
+        : !sameRateRegime(rate, previous);
+    previous = rate;
+    const ratePercent = rate.ratePercent;
+    if (
+      input.method === "anuitas" &&
+      input.remainingMonths !== null &&
+      regimeChanged
+    ) {
+      // Banks re-annuitise the outstanding balance over the remaining tenor at every rate change.
+      installment = computeInstallment({
+        method: "anuitas",
+        principal: balance,
+        annualInterestRatePercent: ratePercent,
+        tenorMonths: input.remainingMonths - i,
+        rateIsMonthly: input.rateIsMonthly,
+      });
+    }
+
+    const interestDue = monthlyInterestDue({
+      method: input.method,
+      originalPrincipal: input.originalPrincipal,
+      balance,
+      rateScaled: parseRateScaledByHundred(ratePercent),
+      denominator,
+    });
+    const payoff = balance + interestDue;
+    const isLastPeriod =
+      input.remainingMonths !== null && i === input.remainingMonths - 1;
+    const scheduled =
+      equalPrincipal !== null ? equalPrincipal + interestDue : installment;
+    const payment = isLastPeriod || scheduled > payoff ? payoff : scheduled;
+    const interest = interestDue > payment ? payment : interestDue;
+    const principal = payment - interest;
+    balance -= principal;
+
+    rows.push({
+      period,
+      installment: payment,
+      interest,
+      principal,
+      remaining: balance,
+    });
+    if (principal === 0n) break;
+  }
+  return rows;
+}
+
+/**
+ * The installment due at `firstPeriod` — the schedule's first row, so a KPR
+ * past its fixed period gets the same floating re-amortisation as the schedule.
+ */
+export function currentInstallment(input: ScheduleInput): bigint | null {
+  return buildSchedule({ ...input, maxRows: 1 })[0]?.installment ?? null;
 }

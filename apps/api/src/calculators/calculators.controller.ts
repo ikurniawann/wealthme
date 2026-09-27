@@ -1,7 +1,27 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+} from "@nestjs/common";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
 
 import { Public } from "../common/decorators/public.decorator";
+import {
+  mapEngineError,
+  toPpnResultDto,
+  toRuleRefDtos,
+} from "../tax/tax-dto-mappers";
+import { ppnPreview } from "../tax-engine/ppn.engine";
+import {
+  TAX_RULES,
+  ruleAt,
+  wibDateString,
+} from "../tax-rules/tax-rules.registry";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CalculatorsService } from "./calculators.service";
@@ -22,7 +42,15 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { Pph21RequestDto, Pph21ResultDto } from "./dto/pph21.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PpnPreviewDto, TaxRulesQueryDto } from "./dto/ppn.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ZakatRequestDto, ZakatResultDto } from "./dto/zakat.dto";
+
+import type { TaxRuleKey } from "../tax-rules/tax-rule.types";
+import type {
+  PpnPreviewResultDto,
+  TaxRuleDetailDto,
+} from "@wealthme/contracts";
 
 @ApiTags("calculators")
 @Public()
@@ -82,5 +110,44 @@ export class CalculatorsController {
     @Body() dto: RetirementCalcRequestDto,
   ): RetirementCalcResultDto {
     return this.calculatorsService.calculateRetirement(dto);
+  }
+
+  @Get("tax-rules")
+  @ApiOperation({
+    summary: "Tax rules in force on a date (static law, no family data)",
+  })
+  taxRules(@Query() q: TaxRulesQueryDto): TaxRuleDetailDto[] {
+    const known = [...new Set<string>(TAX_RULES.map((e) => e.key))];
+    const keys = q.keys ? q.keys.split(",").filter(Boolean) : known;
+    if (keys.some((k) => !known.includes(k)))
+      throw new BadRequestException("unknown tax rule key");
+    const date = q.date ?? wibDateString(new Date());
+    return (keys as TaxRuleKey[]).map((k) => {
+      const r = ruleAt(k, date);
+      const value: unknown = JSON.parse(
+        JSON.stringify(r.value, (_key, v: unknown) =>
+          typeof v === "bigint" ? v.toString() : v,
+        ),
+      );
+      return { ...toRuleRefDtos([r.ref])[0]!, value };
+    });
+  }
+
+  @Post("ppn")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: "PPN information for a price (information only)" })
+  ppn(@Body() dto: PpnPreviewDto): PpnPreviewResultDto {
+    try {
+      return toPpnResultDto(
+        ppnPreview({
+          date: dto.date,
+          amount: BigInt(dto.amount),
+          luxury: dto.luxury,
+          priceIncludesPpn: dto.priceIncludesPpn,
+        }),
+      );
+    } catch (e) {
+      return mapEngineError(e);
+    }
   }
 }

@@ -23,6 +23,9 @@ import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
+import { accountBalanceSpec } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AccountsService, type AccountActor } from "./accounts.service";
@@ -47,7 +50,10 @@ function actorOf(req: Request): AccountActor | undefined {
 @PageAccess("accounts")
 @Controller("family-groups/:familyGroupId/accounts")
 export class AccountsController {
-  constructor(private readonly accountsService: AccountsService) {}
+  constructor(
+    private readonly accountsService: AccountsService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get()
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
@@ -79,7 +85,17 @@ export class AccountsController {
     @Body() dto: CreateAccountDto,
     @Req() req: Request,
   ): Promise<AccountResponseDto> {
-    return this.accountsService.create(familyGroupId, dto, actorOf(req));
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Account",
+        dto,
+        spec: accountBalanceSpec(dto.type),
+      },
+      (converted) =>
+        this.accountsService.create(familyGroupId, converted, actorOf(req)),
+    );
   }
 
   @Get(":id")
@@ -111,13 +127,43 @@ export class AccountsController {
   @ApiOperation({ summary: "Update an account" })
   @ApiResponse({ status: 200, type: AccountResponseDto })
   @ApiResponse({ status: 404, description: "Account not found" })
-  update(
+  async update(
     @Param("familyGroupId") familyGroupId: string,
     @Param("id") id: string,
     @Body() dto: UpdateAccountDto,
     @Req() req: Request,
   ): Promise<AccountResponseDto> {
-    return this.accountsService.update(familyGroupId, id, dto, actorOf(req));
+    // UpdateAccountDto is a PartialType, so `type` is optional and client-controlled. The negative
+    // allowance must come from the STORED account. Only look it up when a conversion is requested.
+    const storedType = dto.fxInputs?.length
+      ? (
+          await this.accountsService.findOne(
+            familyGroupId,
+            id,
+            canSeePrivateItems(req.tenantContext?.member?.role),
+            req.tenantContext?.member ?? null,
+            req.tenantContext?.userId,
+          )
+        ).type
+      : undefined;
+    // Both the STORED type and the type this request would leave the account as must be
+    // "cash" — `AccountsService.update` applies `dto.type` with no balance re-check, so a
+    // client sending `type: "bank"` alongside a negative foreign preview must not slip
+    // through just because the account was cash before this PATCH.
+    const effectiveType = dto.type ?? storedType;
+    const allowsNegative = storedType === "cash" && effectiveType === "cash";
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Account",
+        entityId: id,
+        dto,
+        spec: accountBalanceSpec(allowsNegative ? "cash" : undefined),
+      },
+      (converted) =>
+        this.accountsService.update(familyGroupId, id, converted, actorOf(req)),
+    );
   }
 
   @Delete(":id")

@@ -7,6 +7,8 @@ import {
   Matches,
 } from "class-validator";
 
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 export class CreateGoalContributionDto {
   @ApiProperty({
     description: "Whole rupiah as a digit string, 1..999999999999",
@@ -32,4 +34,7 @@ export class CreateGoalContributionDto {
   @IsOptional()
   @IsDateString()
   occurredAt?: string;
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

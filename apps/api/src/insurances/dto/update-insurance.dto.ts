@@ -12,12 +12,16 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
+import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
 
 export class UpdateInsuranceDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @IsTrimmedNotEmpty()
   @MaxLength(150)
   name?: string;
 
@@ -87,4 +91,7 @@ export class UpdateInsuranceDto {
   @ValidateNested({ each: true })
   @Type(() => CreateInsuranceBeneficiaryDto)
   beneficiaries?: CreateInsuranceBeneficiaryDto[];
+
+  @FxInputsProperty()
+  fxInputs?: FxInputDto[];
 }

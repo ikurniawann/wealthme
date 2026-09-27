@@ -26,6 +26,9 @@ import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
+import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { FxInputService } from "../fx/fx-input.service";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateTransactionDto } from "./dto/create-transaction.dto";
@@ -55,7 +58,10 @@ import type { Request, Response } from "express";
 export class TransactionsController {
   private readonly logger = new Logger(TransactionsController.name);
 
-  constructor(private readonly transactionsService: TransactionsService) {}
+  constructor(
+    private readonly transactionsService: TransactionsService,
+    private readonly fxInputs: FxInputService,
+  ) {}
 
   @Get("summary")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Transaction"))
@@ -163,10 +169,24 @@ export class TransactionsController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<TransactionResponseDto | HeldExpenseResponseDto> {
-    const result = await this.transactionsService.create(
-      familyGroupId,
-      dto,
-      req.tenantContext?.member,
+    const result = await this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Transaction",
+        locate: (r: TransactionResponseDto | HeldExpenseResponseDto) =>
+          "held" in r
+            ? { entity: "AllowanceRequest", entityId: r.allowanceRequestId }
+            : { entity: "Transaction", entityId: r.id },
+        dto,
+        spec: FX_FIELD_SPECS.transaction,
+      },
+      (converted) =>
+        this.transactionsService.create(
+          familyGroupId,
+          converted,
+          req.tenantContext?.member,
+        ),
     );
     // EPIC-023 Task D (D3/D9) — 202 Accepted, not 201 Created: nothing that
     // looks like the requested Transaction was created, only an
@@ -215,12 +235,23 @@ export class TransactionsController {
   ): Promise<TransactionResponseDto> {
     // EPIC-022 A6 follow-up — same role resolution as `findOne`/`findAll`.
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.transactionsService.update(
-      familyGroupId,
-      id,
-      dto,
-      req.tenantContext?.member,
-      canSeePrivate,
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Transaction",
+        entityId: id,
+        dto,
+        spec: FX_FIELD_SPECS.transaction,
+      },
+      (converted) =>
+        this.transactionsService.update(
+          familyGroupId,
+          id,
+          converted,
+          req.tenantContext?.member,
+          canSeePrivate,
+        ),
     );
   }
 

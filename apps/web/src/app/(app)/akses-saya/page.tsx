@@ -31,6 +31,16 @@ import { useMyRole } from "@/hooks/use-my-role";
 
 type AccountRow = { id: string; name: string };
 
+// Batch 4 item 3 — the permissions table's own stated rule is "Hanya
+// Master dan Co-Master" for family reports; derive both the permission
+// card and the hero eyebrow from the same rule instead of hardcoding one
+// role's copy for every viewer.
+const UNLOCKED_ROLES = new Set(["owner", "spouse"]);
+
+function isFamilyReportsUnlocked(role: string | null | undefined): boolean {
+  return Boolean(role && UNLOCKED_ROLES.has(role));
+}
+
 const toneClass = {
   success: "bg-emerald-500/12 text-emerald-600",
   danger: "bg-red-500/12 text-red-600",
@@ -65,6 +75,10 @@ export default function MyAccessPage() {
     myRole && myRole in t.common.roleLabels
       ? t.common.roleLabels[myRole as keyof typeof t.common.roleLabels]
       : null;
+  const familyReportsUnlocked = isFamilyReportsUnlocked(myRole);
+  const eyebrowLabel = familyReportsUnlocked
+    ? t.aksesSaya.eyebrowMaster
+    : t.aksesSaya.eyebrowDependant;
 
   const permissions = [
     {
@@ -93,12 +107,17 @@ export default function MyAccessPage() {
     },
     {
       title: "Laporan Keluarga",
-      // Was "Ringkasan pribadi" — untrue. /reports/summary is 403 here.
-      value: "Dikunci",
-      description:
-        "Laporan keluarga hanya untuk Master dan Co-Master. Transaksimu sendiri tetap bisa dilihat di halaman Transaksi.",
+      // Was hardcoded "Dikunci" for every viewer regardless of role — a
+      // self-viewing Master saw a permission table that contradicted its
+      // own "Hanya Master dan Co-Master" rule right below it.
+      value: familyReportsUnlocked
+        ? t.aksesSaya.familyReportsUnlocked
+        : t.aksesSaya.familyReportsLocked,
+      description: familyReportsUnlocked
+        ? t.aksesSaya.familyReportsUnlockedDescription
+        : t.aksesSaya.familyReportsLockedDescription,
       icon: Eye,
-      tone: "danger" as const,
+      tone: familyReportsUnlocked ? ("success" as const) : ("danger" as const),
     },
   ];
 
@@ -107,7 +126,7 @@ export default function MyAccessPage() {
       <section className="hero gradient-profile">
         <div className="row row--between row--wrap">
           <div>
-            <div className="hero__label">Akun Anak / Staff</div>
+            <div className="hero__label">{eyebrowLabel}</div>
             <h1 className="hero__value">Akses Saya</h1>
             <p className="text-white/80">
               Lihat data apa saja yang bisa kamu akses di WealthMe keluarga.
@@ -185,9 +204,25 @@ export default function MyAccessPage() {
                 <tr>
                   <td className="font-semibold">Melihat laporan keluarga</td>
                   <td>
-                    <StatusBadge variant="danger">Dikunci</StatusBadge>
+                    {/* Controller-added batch 5 item — this row hardcoded
+                        "Dikunci" for every viewer regardless of role, the
+                        same self-contradiction the permission card above
+                        already had before batch 4 item 3. Derive from
+                        `familyReportsUnlocked` (same `useMyRole` rule) like
+                        that card does. */}
+                    <StatusBadge
+                      variant={familyReportsUnlocked ? "success" : "danger"}
+                    >
+                      {familyReportsUnlocked
+                        ? t.aksesSaya.familyReportsRowStatusUnlocked
+                        : t.aksesSaya.familyReportsLocked}
+                    </StatusBadge>
                   </td>
-                  <td>Hanya Master dan Co-Master.</td>
+                  <td>
+                    {familyReportsUnlocked
+                      ? t.aksesSaya.familyReportsRowNoteUnlocked
+                      : t.aksesSaya.familyReportsRowNoteLocked}
+                  </td>
                 </tr>
                 <tr>
                   <td className="font-semibold">Mengubah role anggota</td>

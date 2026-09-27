@@ -2,13 +2,17 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { SptStatus } from "@prisma/client";
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Matches,
   Max,
   Min,
+  ValidateIf,
 } from "class-validator";
+
+import { MARITAL } from "./tax-preview.dto";
 
 // EPIC-024 Group E (E1) — `grossIncome`/`ptkp`/`netTax` land in a Postgres
 // `BigInt` column (schema.prisma TaxRecord), whose signed range tops out
@@ -37,10 +41,14 @@ export class CreateTaxRecordDto {
   })
   grossIncome!: string;
 
-  @ApiProperty({ description: "PTKP amount as numeric string" })
+  @ApiPropertyOptional({
+    description:
+      "PTKP amount as numeric string; required unless maritalStatus is set",
+  })
+  @ValidateIf((o: CreateTaxRecordDto) => o.maritalStatus == null)
   @IsString()
   @Matches(NUMERIC_STRING_PATTERN, { message: NUMERIC_STRING_MESSAGE("ptkp") })
-  ptkp!: string;
+  ptkp?: string;
 
   @ApiPropertyOptional({ description: "Net tax as numeric string" })
   @IsOptional()
@@ -64,4 +72,54 @@ export class CreateTaxRecordDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  @ApiPropertyOptional({ enum: MARITAL })
+  @IsOptional()
+  @IsIn(MARITAL)
+  maritalStatus?: "TK" | "K" | "KI";
+
+  @ApiPropertyOptional()
+  @ValidateIf((o: CreateTaxRecordDto) => o.maritalStatus != null)
+  @IsInt()
+  @Min(0)
+  @Max(3)
+  dependents?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(NUMERIC_STRING_PATTERN, {
+    message: NUMERIC_STRING_MESSAGE("pensionContribution"),
+  })
+  pensionContribution?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(NUMERIC_STRING_PATTERN, {
+    message: NUMERIC_STRING_MESSAGE("freelanceGross"),
+  })
+  freelanceGross?: string;
+
+  @ApiPropertyOptional({ description: "NPPN % in basis points (5000 = 50%)" })
+  @ValidateIf(
+    (o: CreateTaxRecordDto) =>
+      o.freelanceGross !== undefined && !/^0+$/.test(o.freelanceGross),
+  )
+  @IsInt()
+  @Min(1)
+  @Max(10_000)
+  nppnRateBps?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(NUMERIC_STRING_PATTERN, {
+    message: NUMERIC_STRING_MESSAGE("otherNetIncome"),
+  })
+  otherNetIncome?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Matches(NUMERIC_STRING_PATTERN, {
+    message: NUMERIC_STRING_MESSAGE("withheldPph21"),
+  })
+  withheldPph21?: string;
 }

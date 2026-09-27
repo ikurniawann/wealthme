@@ -199,6 +199,16 @@ export async function checkCashFlowAlert(
     const usagePct = Number((expense * BigInt(100)) / income);
     if (usagePct < 80) return;
 
+    // Batch 2 (#5) — the income/expense ratio above is correct as-is (a
+    // very low income against a normal expense legitimately produces
+    // e.g. 14500); only the STRING needs a sanity cap so the notification
+    // never reads as a data bug ("...sudah 14500% dari total pemasukan...").
+    const MAX_DISPLAY_USAGE_PCT = 999;
+    const displayUsagePct =
+      usagePct > MAX_DISPLAY_USAGE_PCT
+        ? `${MAX_DISPLAY_USAGE_PCT}+`
+        : `${usagePct}`;
+
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const existing = await prisma.notification.findFirst({
       where: { familyGroupId, icon: "⚠️", createdAt: { gte: today } },
@@ -208,11 +218,11 @@ export async function checkCashFlowAlert(
     const title =
       usagePct >= 100
         ? "Pengeluaran Melebihi Pemasukan!"
-        : `Pengeluaran Bulan Ini Sudah ${usagePct}%`;
+        : `Pengeluaran Bulan Ini Sudah ${displayUsagePct}%`;
     const body =
       usagePct >= 100
-        ? `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Kurangi pengeluaran segera.`
-        : `Pengeluaran bulan ini sudah ${usagePct}% dari total pemasukan. Pantau pengeluaranmu.`;
+        ? `Pengeluaran bulan ini sudah ${displayUsagePct}% dari total pemasukan. Kurangi pengeluaran segera.`
+        : `Pengeluaran bulan ini sudah ${displayUsagePct}% dari total pemasukan. Pantau pengeluaranmu.`;
 
     await prisma.notification.create({
       data: { familyGroupId, title, body, icon: "⚠️" },
