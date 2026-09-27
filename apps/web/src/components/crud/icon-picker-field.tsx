@@ -2,15 +2,24 @@
 
 import { useState } from "react";
 import { EmojiPicker } from "@/components/wm";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 /**
  * polish-j batch 7a item 1 — the inline `EmojiPicker` (quick-pick row +
  * search + a ~168px scrolling grid) pushed the first real field below the
  * fold on every dialog that opens with an icon chooser. This wraps the same
- * unmodified `EmojiPicker` in a bottom sheet behind a single 40px trigger
+ * unmodified `EmojiPicker` in a nested dialog behind a single 40px trigger
  * button showing the current icon, so the dialog opens on the field that
  * actually matters (name/target/amount) instead of a grid.
+ *
+ * A nested Dialog (not a Sheet): the Sheet sat at z-50, underneath the
+ * z-[60] CRUD dialog and its backdrop, so the picker opened dimmed and
+ * unclickable behind the form.
  */
 export function IconPickerField({
   label,
@@ -43,15 +52,10 @@ export function IconPickerField({
         {value || "🏷️"}
       </button>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          side="bottom"
-          className="max-h-[80vh] overflow-y-auto p-0 sm:max-w-none"
-        >
-          <div className="border-b px-4 py-3">
-            <SheetTitle className="text-[15px] font-bold">{label}</SheetTitle>
-          </div>
-          <div className="p-4">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogTitle>{label}</DialogTitle>
+          <DialogBody>
             <EmojiPicker
               value={value}
               onChange={(emoji) => {
@@ -63,9 +67,9 @@ export function IconPickerField({
               loadingLabel={loadingLabel}
               ariaLabel={ariaLabel}
             />
-          </div>
-        </SheetContent>
-      </Sheet>
+          </DialogBody>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
