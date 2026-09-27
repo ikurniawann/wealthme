@@ -2045,6 +2045,8 @@ export type I18nDictionary = {
     payLateNote: string;
     /** Revisi K — KPR rate structure (form); Task 12 adds the detail keys. */
     kpr: {
+      /** KPR flat — user decision 2026-09-27: hint under the rate field when Metode Bunga is flat (max 1 line). */
+      flatHint: string;
       planLegend: string;
       presetLabel: string;
       presetNames: Record<LiabilitasKprPresetId, string>;

@@ -85,6 +85,10 @@ export const KPR_PRESETS: readonly KprPreset[] = [
       { kind: "floating", months: "", ratePercent: "11.00" },
     ],
   },
+  // KPR flat — user decision 2026-09-27: murabahah's margin is fixed for the
+  // whole tenor with an equal installment (no re-annuitising balance), so
+  // selecting this preset switches Metode Bunga to flat (page.tsx); the
+  // single period here is still kept as the draft's margin/rate value.
   {
     id: "syariah_murabahah",
     scheme: "syariah_murabahah",
