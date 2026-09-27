@@ -33,6 +33,7 @@ import {
   useControlledMoneyField,
   withFxInputs,
 } from "@/components/money";
+import { InfoTip } from "@/components/wm";
 import type {
   FxCurrencyCode,
   InvestmentDto,
@@ -667,17 +668,22 @@ export function LaporanInner() {
 
           {/* Cash-basis disclosure callout (gap 3) — active period rendered
             from the real `periodLabel` derivation above, not a static
-            string. */}
-          {/* Prototype `.notice.notice--info` with the lucide info icon and the
-              active period in `.mono` — was a bespoke Tailwind callout. */}
-          <div className="notice notice--info" style={{ marginTop: 14 }}>
+            string. Polish batch 8 item 10 — the full explanation ran 4
+            lines at 390px; keep one line (title + active period) and move
+            the "why" into the InfoTip popover instead. */}
+          <div
+            className="notice notice--info items-center"
+            style={{ marginTop: 14 }}
+          >
             <Info className="size-4 shrink-0" />
-            <span>
+            <span className="flex-1">
               <strong>{t.laporan.cashBasisNotice.title}</strong>{" "}
-              {t.laporan.cashBasisNotice.body}{" "}
               {t.laporan.cashBasisNotice.activePeriodPrefix}{" "}
               <span className="mono">{periodLabel}</span>.
             </span>
+            <InfoTip label={t.laporan.cashBasisNotice.title}>
+              {t.laporan.cashBasisNotice.body}
+            </InfoTip>
           </div>
         </div>
       </section>
