@@ -1704,6 +1704,9 @@ export type I18nDictionary = {
     filterNewBadge: string;
     /** Template with `{ticker}` and `{date}` placeholders. */
     rowTickerPurchasedTemplate: string;
+    /** Template with a `{date}` placeholder — non-market types (no real
+     * ticker to show), e.g. deposito/emas/reksa dana/lainnya. */
+    rowPurchasedTemplate: string;
     /** Template with `{rate}` and `{date}` placeholders. */
     rowCouponPurchasedTemplate: string;
     /** Template with `{date}` and `{maturityDate}` placeholders. */

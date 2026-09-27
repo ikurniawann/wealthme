@@ -248,6 +248,32 @@ describe("InvestasiPage — role gating (F3)", () => {
   });
 });
 
+describe("InvestasiPage — ticker required only for saham/kripto (E2E round-2 B1)", () => {
+  it.each([
+    ["saham", true],
+    ["kripto", true],
+    ["deposito", false],
+    ["emas", false],
+    ["reksa_dana", false],
+    ["obligasi", false],
+    ["lainnya", false],
+  ])("Ticker field visible+required=%s for %s", async (type, visible) => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), type);
+
+    const field = screen.queryByLabelText("Ticker");
+    if (visible) {
+      expect(field).toBeInTheDocument();
+      expect(field).toBeRequired();
+    } else {
+      expect(field).not.toBeInTheDocument();
+    }
+  });
+});
+
 describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 9)", () => {
   it.each([
     ["saham", "Jumlah Saham"],
@@ -287,9 +313,9 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     fireEvent.change(screen.getByLabelText("Nama"), {
       target: { value: "Antam 10 g" },
     });
-    fireEvent.change(screen.getByLabelText("Ticker"), {
-      target: { value: "ANTM" },
-    });
+    // E2E round-2 B1 — emas is not a market-priced type; the Ticker field
+    // is hidden and not required.
+    expect(screen.queryByLabelText("Ticker")).not.toBeInTheDocument();
     const qty = screen.getByLabelText("Berat Emas (gram)");
     fireEvent.change(qty, { target: { value: "1.2345" } });
     fireEvent.change(screen.getByLabelText("Harga Beli per Unit (Rp)"), {

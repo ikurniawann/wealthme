@@ -288,12 +288,19 @@ function formatInstrumentSubline(
       .replace("{rate}", h.interestRatePct)
       .replace("{date}", purchasedDate);
   }
-  if (purchasedDate) {
+  // E2E round-2 B1 — the ticker column may hold a derived internal code
+  // for non-market types (no real ticker exists for a deposito, emas
+  // fisik, ...); never display that as if it were a real ticker.
+  const isAutomated = AUTOMATED_PRICE_TYPES.includes(h.type as InvestmentType);
+  if (isAutomated && purchasedDate) {
     return t.investasi.rowTickerPurchasedTemplate
       .replace("{ticker}", h.ticker)
       .replace("{date}", purchasedDate);
   }
-  return h.ticker;
+  if (purchasedDate) {
+    return t.investasi.rowPurchasedTemplate.replace("{date}", purchasedDate);
+  }
+  return isAutomated ? h.ticker : "";
 }
 
 // EPIC-025 N3 audit — restores the prototype's "Jumlah" column. Every unit
@@ -564,6 +571,9 @@ function AddInvestmentModal({
   // route (UnmappedTickerError) accepts a manual price on edit even though
   // its instrument type is normally automated-only.
   const isAutomatedUnmapped = editing?.automatedPriceUnmapped ?? false;
+  // E2E round-2 B1 — ticker is only required for the types the price
+  // feed actually looks up; see AUTOMATED_PRICE_TYPES.
+  const requiresTicker = AUTOMATED_PRICE_TYPES.includes(form.type);
   const isDeposito = form.type === "deposito";
   const isFamilyGoldPriced = FAMILY_PRICED_TYPES.includes(form.type);
   const isManual =
@@ -855,20 +865,28 @@ function AddInvestmentModal({
                   className="input"
                 />
               </div>
-              <div className="field">
-                <label className="label" htmlFor="ticker">
-                  {t.investasi.fieldTickerLabel}
-                </label>
-                <input
-                  id="ticker"
-                  name="ticker"
-                  required
-                  value={form.ticker}
-                  onChange={handleChange}
-                  placeholder={t.investasi.fieldTickerPlaceholder}
-                  className="input mono"
-                />
-              </div>
+              {/* E2E round-2 B1 — ticker is only meaningful (and only
+                  required) for the types the price feed actually looks
+                  up (saham/kripto, see AUTOMATED_PRICE_TYPES). Indonesian
+                  users have no ticker for a deposito at BRI or emas Antam
+                  fisik, so the field is hidden rather than forced for
+                  every other type; the API derives an internal code. */}
+              {requiresTicker && (
+                <div className="field">
+                  <label className="label" htmlFor="ticker">
+                    {t.investasi.fieldTickerLabel}
+                  </label>
+                  <input
+                    id="ticker"
+                    name="ticker"
+                    required
+                    value={form.ticker}
+                    onChange={handleChange}
+                    placeholder={t.investasi.fieldTickerPlaceholder}
+                    className="input mono"
+                  />
+                </div>
+              )}
             </div>
 
             {/* batch 7a item 3 — the Lot/Lembar switch used to float at the
@@ -2367,7 +2385,18 @@ export default function InvestasiPage() {
                             className="flex size-8 items-center justify-center rounded-full text-[10px] font-extrabold text-white"
                             style={{ background: logoBg }}
                           >
-                            {toLogoText(h.ticker)}
+                            {/* E2E round-2 B1 — a non-market holding's
+                                ticker may be a derived internal code, not
+                                a real one; the avatar reads from the name
+                                instead so nothing looks like a fabricated
+                                ticker. */}
+                            {toLogoText(
+                              AUTOMATED_PRICE_TYPES.includes(
+                                h.type as InvestmentType,
+                              )
+                                ? h.ticker
+                                : h.name,
+                            )}
                           </div>
                           <div>
                             <div className="flex items-center gap-1.5 font-semibold">

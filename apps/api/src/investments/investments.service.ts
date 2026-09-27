@@ -17,6 +17,7 @@ import { runSerializableWithRetry } from "../common/utils/serializable-retry.uti
 import { PrismaService } from "../prisma/prisma.service";
 
 import { UnmappedTickerError } from "./coingecko-market-data.adapter";
+import { deriveInternalCode } from "./internal-code.util";
 import { isAutomatedPriceType, MARKET_DATA_PORT } from "./market-data.port";
 
 import type { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
@@ -380,11 +381,12 @@ export class InvestmentsService {
     this.assertValidInterestRatePct(dto.interestRatePct);
     this.assertValidQuantity(dto.quantity);
     this.assertValidCostBasis(dto.costBasisPerUnit);
+    const ticker = this.resolveTickerForCreate(dto.type, dto.ticker, dto.name);
 
     const investment = await this.prisma.investment.create({
       data: {
         familyGroupId,
-        ticker: dto.ticker,
+        ticker,
         name: dto.name,
         type: dto.type,
         quantity: new Decimal(dto.quantity),
@@ -526,6 +528,31 @@ export class InvestmentsService {
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
+  }
+
+  /** E2E round-2 B1 — ticker is required only for the types the price
+   * feed actually looks up (saham → Yahoo, kripto → CoinGecko; see
+   * AUTOMATED_PRICE_TYPES). Every other type (deposito, emas, reksa_dana,
+   * obligasi, lainnya) accepts a missing/blank ticker: Indonesian users
+   * have no ticker for a deposito at BRI or emas Antam fisik. For those,
+   * derive a stable internal code so the NOT NULL `ticker` column is
+   * still satisfied without ever reaching MarketDataPort with it and
+   * without displaying it to the user as a real ticker. */
+  private resolveTickerForCreate(
+    type: CreateInvestmentDto["type"],
+    ticker: string | undefined,
+    name: string,
+  ): string {
+    const trimmed = ticker?.trim() ?? "";
+    if (isAutomatedPriceType(type)) {
+      if (!trimmed) {
+        throw new BadRequestException(
+          "Ticker wajib diisi untuk saham dan kripto (dipakai sinkronisasi harga)",
+        );
+      }
+      return trimmed;
+    }
+    return trimmed || deriveInternalCode(name);
   }
 
   /** MEDIUM (EPIC-022 D2 retry) — mirrors recordTransaction()'s own guard:

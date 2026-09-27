@@ -1660,6 +1660,7 @@ export const en = {
     livePositionsOnlyPrefix: "only from",
     filterNewBadge: "New",
     rowTickerPurchasedTemplate: "{ticker} · bought {date}",
+    rowPurchasedTemplate: "Bought {date}",
     rowCouponPurchasedTemplate: "Coupon {rate}%/yr · bought {date}",
     rowDepositoTermTemplate: "Started {date} · matures {maturityDate}",
     depositoRateTemplate: "{rate}% interest / yr",

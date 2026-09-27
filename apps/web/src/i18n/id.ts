@@ -1692,6 +1692,7 @@ export const id = {
     livePositionsOnlyPrefix: "hanya dari",
     filterNewBadge: "Baru",
     rowTickerPurchasedTemplate: "{ticker} · beli {date}",
+    rowPurchasedTemplate: "Beli {date}",
     rowCouponPurchasedTemplate: "Kupon {rate}%/tahun · beli {date}",
     rowDepositoTermTemplate: "Mulai {date} · jatuh tempo {maturityDate}",
     depositoRateTemplate: "Bunga {rate}% / tahun",
