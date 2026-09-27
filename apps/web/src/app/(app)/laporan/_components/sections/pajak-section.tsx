@@ -3,6 +3,7 @@ import { formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import type { Pph21ResultDto } from "@wealthme/contracts";
 import { StatementRow, StatTile } from "../atoms";
+import { PajakFinalCard } from "./pajak-final-card";
 
 /* ───────────────────────── Section: Pajak ───────────────────────── */
 
@@ -147,6 +148,8 @@ export function PajakSection({
           .
         </div>
       </div>
+
+      <PajakFinalCard />
     </div>
   );
 }

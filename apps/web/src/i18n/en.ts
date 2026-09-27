@@ -2909,6 +2909,30 @@ export const en = {
         "File through DJP Coretax (coretaxdjp.pajak.go.id). Your NIK serves as your NPWP.",
       filedAtPrefix: "Filed:",
     },
+    invest: {
+      title: "This year's estimated final tax",
+      empty: "No interest, coupons or taxable sales this year yet.",
+      exchangeLabel: "Exchange",
+      exchangeOptions: {
+        domestik: "Domestic (registered)",
+        luar_negeri: "Foreign",
+      },
+      viewInTax: "View in Tax",
+    },
+    account: {
+      title: "Tax on savings & deposit interest",
+      body: "Interest bears a {rate} final tax withheld by the bank. Balances with principal ≤ {threshold} are exempt.",
+    },
+    ppn: {
+      summary: "VAT info",
+      infoOnly: "Information only — the transaction is not changed.",
+      luxuryToggle: "Luxury goods (PPnBM)",
+      dppLabel: "Tax base (DPP)",
+      ppnLabel: "VAT inside the price",
+      effectiveLabel: "Effective rate",
+      mechanismNote:
+        "Nominal rate {nominal}; non-luxury goods use a DPP of 11/12, so the effective rate is {effective}.",
+    },
   },
   rekening: {
     typeLabels: {

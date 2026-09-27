@@ -295,6 +295,10 @@ type TaxFinalCaveatId =
   | "no_purchase_date"
   | "no_interest_rate";
 
+/** Task 11 (sub-plan L) — crypto exchange ids for the per-line exchange
+ * select on the investment tax card (mirrors contracts' `CryptoExchangeKind`). */
+type TaxCryptoExchangeId = "domestik" | "luar_negeri";
+
 /** EPIC-018 Task A6 — `/rekening` account-type ids (local wording distinct
  * from `aset.accountTypeLabels` — same keys as `Account.type`, different
  * copy for this page's context). */
@@ -2748,6 +2752,31 @@ export type I18nDictionary = {
       graceNote: string;
       coretaxNote: string;
       filedAtPrefix: string;
+    };
+    // Task 11 — /investasi's final-tax card (contracts'
+    // `FinalTaxEstimateDto` via `useInvestmentTaxEstimate`).
+    invest: {
+      title: string;
+      empty: string;
+      exchangeLabel: string;
+      exchangeOptions: Record<TaxCryptoExchangeId, string>;
+      viewInTax: string;
+    };
+    // Task 11 — /rekening's compact savings/deposit interest-tax notice.
+    account: {
+      title: string;
+      body: string;
+    };
+    // Task 11 — /transaksi's collapsed "Info PPN" hint (contracts'
+    // `PpnPreviewResultDto`).
+    ppn: {
+      summary: string;
+      infoOnly: string;
+      luxuryToggle: string;
+      dppLabel: string;
+      ppnLabel: string;
+      effectiveLabel: string;
+      mechanismNote: string;
     };
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
