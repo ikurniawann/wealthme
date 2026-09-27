@@ -4,6 +4,7 @@ import {
   render as rtlRender,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -137,9 +138,29 @@ it("excludes an explicit December THR/bonus from the DTP fixed-gross cap (PMK 10
     withheldJanNov: "0",
     december: "0",
     isRefund: false,
-    dtpTotal: "0",
+    // fix-round1 (Minor) — a non-zero total plus a December row with
+    // dtp.eligible:true, so the UI assertion below (not just the
+    // request payload) has something real to check.
+    dtpTotal: "5300000",
     rules: [],
-    months: [],
+    months: [
+      ...Array.from({ length: 11 }, (_, i) => ({
+        month: i + 1,
+        gross: "8000000",
+        category: "A" as const,
+        rateBps: 200,
+        withholding: "160000",
+        dtp: { eligible: false, reasons: [], amount: "0" },
+      })),
+      {
+        month: 12,
+        gross: "16000000",
+        category: "A" as const,
+        rateBps: 200,
+        withholding: "320000",
+        dtp: { eligible: true, reasons: [], amount: "1200000" },
+      },
+    ],
   });
   render(
     <TerPanel
@@ -163,6 +184,16 @@ it("excludes an explicit December THR/bonus from the DTP fixed-gross cap (PMK 10
   expect(body.monthlyFixedGross).toHaveLength(12);
   expect(body.monthlyFixedGross[11]).toBe("8000000");
   expect(body.monthlyFixedGross[0]).toBe("8000000");
+
+  // fix-round1 (Minor) — the DTP cell for the THR month must actually
+  // render as "eligible" in the UI, not just be true in the payload.
+  const decemberRow = (await screen.findByText("Rp 1.200.000")).closest("tr");
+  expect(decemberRow).not.toBeNull();
+  expect(
+    within(decemberRow as HTMLElement).getByText(
+      "Ditanggung pemerintah — dibayar tunai bersama gaji",
+    ),
+  ).toBeInTheDocument();
 });
 
 it("caps a genuine mid-year raise on the full new gross when no THR/bonus is entered", async () => {
