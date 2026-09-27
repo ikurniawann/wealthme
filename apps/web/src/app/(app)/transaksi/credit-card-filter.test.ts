@@ -41,6 +41,7 @@ function buildTx(overrides: Partial<TransactionDto> = {}): TransactionDto {
     toAccountName: null,
     liabilityId: null,
     insuranceId: null,
+    canModify: true,
     ...overrides,
   };
 }

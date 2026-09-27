@@ -3254,6 +3254,13 @@ export type I18nDictionary = {
      */
     obligationLockedTooltip: string;
     /**
+     * EPIC-036 (edit-rights, "Pembuat + pemilik rekening") — the viewer may
+     * see this transaction but is neither its creator nor the owner of a
+     * private account on either leg, so Edit/Hapus (and adding/removing an
+     * attachment) are locked, including for Master/Co-Master.
+     */
+    editRightsLockedTooltip: string;
+    /**
      * EPIC-024 Task L3 (D15, US-TXN-9) — attachment list rendered inside the
      * read-only transaction detail dialog.
      */

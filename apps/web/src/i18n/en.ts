@@ -3384,6 +3384,12 @@ export const en = {
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
       "This transaction settles a liability/insurance payment, adjust the related liability/insurance to correct it",
+    // EPIC-036 (edit-rights) — English rendering of the same rule; the API's
+    // own ForbiddenException message stays Indonesian (transaction-edit-
+    // rights.util.ts) since it is a fallback for a client that ignores
+    // canModify, not the primary UI copy.
+    editRightsLockedTooltip:
+      "Only the person who recorded this transaction, or the owner of the account, can edit it",
     attachmentsSectionLabel: "Attachments",
     attachmentsLoadingLabel: "Loading attachments…",
     attachmentsLoadFailedLabel: "Failed to load attachments",

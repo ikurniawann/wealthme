@@ -3452,6 +3452,10 @@ export const id = {
     // doing so would desync the debt/coverage it recorded.
     obligationLockedTooltip:
       "Transaksi ini terkait pembayaran liabilitas/asuransi, sesuaikan liabilitas/asuransi terkait untuk mengoreksi",
+    // EPIC-036 (edit-rights) — matches the API's ForbiddenException message
+    // verbatim (transaction-edit-rights.util.ts).
+    editRightsLockedTooltip:
+      "Transaksi ini hanya bisa diubah oleh pencatatnya atau pemilik rekening.",
     attachmentsSectionLabel: "Lampiran",
     attachmentsLoadingLabel: "Memuat lampiran…",
     attachmentsLoadFailedLabel: "Gagal memuat lampiran",

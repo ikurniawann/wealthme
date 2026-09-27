@@ -36,6 +36,7 @@ function buildTx(overrides: Partial<TransactionDto> = {}): TransactionDto {
     toAccountName: null,
     liabilityId: null,
     insuranceId: null,
+    canModify: true,
     ...overrides,
   };
 }
@@ -57,5 +58,51 @@ describe("TxTableRow — JUMLAH column (batch-2 #1)", () => {
 
     const amountCell = screen.getByText("-Rp 145.000.000");
     expect(amountCell).toHaveClass("whitespace-nowrap");
+  });
+});
+
+// EPIC-036 (edit-rights, "Pembuat + pemilik rekening") — a row the viewer
+// can see but is neither its creator nor an owned-leg's account owner must
+// show the same honest lock the obligation-linked guard already uses,
+// including for Master/Co-Master.
+describe("TxTableRow — edit-rights lock (EPIC-036)", () => {
+  it("disables Edit/Hapus and shows the locked badge when canModify is false", () => {
+    const tx = buildTx({ canModify: false });
+    render(
+      <table>
+        <tbody>
+          <TxTableRow
+            tx={tx}
+            onEditClick={jest.fn()}
+            onDeleteClick={jest.fn()}
+          />
+        </tbody>
+      </table>,
+    );
+
+    expect(screen.getByText("Terkunci")).toBeInTheDocument();
+    const lockedButtons = screen.getAllByRole("button", {
+      name: "Transaksi ini hanya bisa diubah oleh pencatatnya atau pemilik rekening.",
+    });
+    expect(lockedButtons).toHaveLength(2);
+    for (const button of lockedButtons) expect(button).toBeDisabled();
+  });
+
+  it("leaves Edit/Hapus enabled and shows no lock badge when canModify is true", () => {
+    const tx = buildTx({ canModify: true });
+    render(
+      <table>
+        <tbody>
+          <TxTableRow
+            tx={tx}
+            onEditClick={jest.fn()}
+            onDeleteClick={jest.fn()}
+          />
+        </tbody>
+      </table>,
+    );
+
+    expect(screen.queryByText("Terkunci")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit" })).not.toBeDisabled();
   });
 });

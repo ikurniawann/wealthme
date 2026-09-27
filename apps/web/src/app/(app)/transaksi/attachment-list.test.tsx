@@ -252,4 +252,28 @@ describe("AttachmentList (EPIC-024 Task L3, US-TXN-9)", () => {
     });
     expect(mockToastSuccess).toHaveBeenCalledWith("Lampiran dihapus");
   });
+
+  // EPIC-036 (edit-rights) — a viewer who can see the transaction but is
+  // neither its creator nor the owner of a leg's account must not get a
+  // live-looking "Hapus"/"+ Tambah Lampiran" control the API would 403 on.
+  it("canModify=false hides 'Hapus' and '+ Tambah Lampiran', keeps 'Lihat'", async () => {
+    render(
+      <AttachmentList
+        familyGroupId={FAMILY_GROUP_ID}
+        transactionId={TX_ID}
+        token={TOKEN}
+        open
+        canModify={false}
+      />,
+    );
+
+    await screen.findByText("Foto");
+    expect(
+      screen.queryByRole("button", { name: "Hapus" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "+ Tambah Lampiran" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Lihat" })).toBeInTheDocument();
+  });
 });

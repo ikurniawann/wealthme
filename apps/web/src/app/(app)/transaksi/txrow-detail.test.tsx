@@ -89,6 +89,7 @@ function buildTx(overrides: Partial<TransactionDto> = {}): TransactionDto {
     toAccountName: null,
     liabilityId: null,
     insuranceId: null,
+    canModify: true,
     ...overrides,
   };
 }
@@ -325,6 +326,34 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
 
     expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Hapus" })).toBeEnabled();
+  });
+
+  // EPIC-036 (edit-rights, "Pembuat + pemilik rekening") — a viewer who can
+  // see the transaction but is neither its creator nor the owner of a leg's
+  // private account must get the same honest disabled state, both on the
+  // row's own RowActions and on the detail dialog's Edit/Hapus footer.
+  it("disables RowActions AND the detail dialog's Edit/Hapus when canModify is false", async () => {
+    const user = userEvent.setup();
+    const tx = buildTx({ canModify: false });
+    render(
+      <TxRow tx={tx} onEditClick={onEditClick} onDeleteClick={onDeleteClick} />,
+    );
+
+    const rowButtons = screen.getAllByRole("button", {
+      name: "Transaksi ini hanya bisa diubah oleh pencatatnya atau pemilik rekening.",
+    });
+    expect(rowButtons).toHaveLength(2);
+    for (const button of rowButtons) expect(button).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: /Detail transaksi/i }));
+    const dialog = within(screen.getByRole("dialog"));
+    expect(
+      dialog.getByText(
+        "Transaksi ini hanya bisa diubah oleh pencatatnya atau pemilik rekening.",
+      ),
+    ).toBeInTheDocument();
+    expect(dialog.getByRole("button", { name: "Edit" })).toBeDisabled();
+    expect(dialog.getByRole("button", { name: "Hapus" })).toBeDisabled();
   });
 
   it("renders the exact 'Tanggal & Waktu' text for a fixed occurredAt timestamp", async () => {
