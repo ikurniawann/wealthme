@@ -246,7 +246,7 @@ function AssetCard({
             key={h.id}
             variant={HEIR_CHIP_VARIANTS[i % HEIR_CHIP_VARIANTS.length]}
           >
-            {h.name} · {h.relationship} · {h.sharePercent}%
+            {h.name} ({h.relationship}, {h.sharePercent}%)
           </StatusBadge>
         ))}
         <div className="flex-1" />
