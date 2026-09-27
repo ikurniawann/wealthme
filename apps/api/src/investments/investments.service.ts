@@ -26,6 +26,7 @@ import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import type { MarketDataPort } from "./market-data.port";
 import type { TxClient } from "../common/utils/serializable-retry.util";
+import type { InvestmentType } from "@prisma/client";
 import type {
   InvestmentDto,
   InvestmentPriceDto,
@@ -473,10 +474,19 @@ export class InvestmentsService {
       this.assertValidCostBasis(dto.costBasisPerUnit);
     }
 
+    const effectiveName = dto.name ?? existing.name;
+    const ticker = this.resolveTickerForUpdate(
+      effectiveType,
+      existing.type,
+      dto.ticker,
+      existing.ticker,
+      effectiveName,
+    );
+
     const updated = await this.prisma.investment.update({
       where: { id, familyGroupId },
       data: {
-        ticker: dto.ticker ?? existing.ticker,
+        ticker,
         name: dto.name ?? existing.name,
         type: dto.type ?? existing.type,
         quantity: dto.quantity ? new Decimal(dto.quantity) : existing.quantity,
@@ -552,6 +562,37 @@ export class InvestmentsService {
       }
       return trimmed;
     }
+    return trimmed || deriveInternalCode(name);
+  }
+
+  /** Review fix (fix-round1) — `update()`'s own counterpart to
+   * `resolveTickerForCreate`: a PATCH that changes `type` to saham/kripto
+   * must still be rejected with the SAME message when there is no REAL
+   * ticker, otherwise the create-time guard is trivially bypassed by
+   * creating as e.g. `deposito` (an internal code, never a real ticker)
+   * then PATCHing `type` to `saham`. The stored ticker only counts as
+   * "real" when the ROW WAS ALREADY an automated type — a fresh
+   * automated-type PATCH must supply its own `ticker` in the same request.
+   * Changing AWAY from an automated type (e.g. saham -> deposito) keeps
+   * whatever ticker is already stored — no reason to force it blank. */
+  private resolveTickerForUpdate(
+    effectiveType: InvestmentType,
+    existingType: InvestmentType,
+    dtoTicker: string | undefined,
+    existingTicker: string,
+    name: string,
+  ): string {
+    if (isAutomatedPriceType(effectiveType)) {
+      const fallback = isAutomatedPriceType(existingType) ? existingTicker : "";
+      const trimmed = (dtoTicker ?? fallback).trim();
+      if (!trimmed) {
+        throw new BadRequestException(
+          "Ticker wajib diisi untuk saham dan kripto (dipakai sinkronisasi harga)",
+        );
+      }
+      return trimmed;
+    }
+    const trimmed = (dtoTicker ?? existingTicker).trim();
     return trimmed || deriveInternalCode(name);
   }
 

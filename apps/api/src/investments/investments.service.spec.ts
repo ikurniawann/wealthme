@@ -407,6 +407,102 @@ describe("InvestmentsService P&L", () => {
     });
   });
 
+  // fix-round1 — the create() ticker-requirement guard is trivially
+  // bypassed by creating as a non-market type then PATCHing `type` to
+  // saham/kripto unless update() re-checks the SAME rule.
+  describe("update() — ticker requirement per type (fix-round1)", () => {
+    const depositoNoTicker = {
+      id: "inv-1",
+      familyGroupId: "fg-1",
+      ticker: "DEPOSITOBRI",
+      name: "Deposito BRI 12 bulan",
+      type: "deposito",
+      quantity: new Decimal("1"),
+      costBasisPerUnit: new Decimal("10000000"),
+      currency: "IDR",
+      notes: null,
+      interestRatePct: new Decimal("5.5"),
+      purchasedAt: null,
+      maturityDate: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it("rejects a PATCH that changes type to saham without a real ticker, in Indonesian", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(depositoNoTicker);
+
+      await expect(
+        service.update("fg-1", "inv-1", { type: "saham" }),
+      ).rejects.toThrow(/Ticker wajib diisi/);
+      expect(mockPrisma.investment.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a PATCH that changes type to kripto without a real ticker", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(depositoNoTicker);
+
+      await expect(
+        service.update("fg-1", "inv-1", { type: "kripto" }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.investment.update).not.toHaveBeenCalled();
+    });
+
+    it("accepts a PATCH to saham when the ticker is provided in the same request", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue(depositoNoTicker);
+      mockPrisma.investment.update.mockResolvedValue({
+        ...depositoNoTicker,
+        ticker: "BBCA",
+        type: "saham",
+      });
+
+      const result = await service.update("fg-1", "inv-1", {
+        type: "saham",
+        ticker: "BBCA",
+      });
+
+      expect(result.ticker).toBe("BBCA");
+      expect(mockPrisma.investment.update).toHaveBeenCalled();
+    });
+
+    it("changing saham -> deposito keeps the existing ticker unchanged", async () => {
+      const saham = {
+        ...depositoNoTicker,
+        ticker: "BBCA",
+        type: "saham",
+      };
+      mockPrisma.investment.findUnique.mockResolvedValue(saham);
+      mockPrisma.investment.update.mockResolvedValue({
+        ...saham,
+        type: "deposito",
+      });
+
+      const result = await service.update("fg-1", "inv-1", {
+        type: "deposito",
+      });
+
+      expect(result.ticker).toBe("BBCA");
+      expect(mockPrisma.investment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ ticker: "BBCA" }),
+        }),
+      );
+    });
+
+    it("a saham already stored with a ticker is untouched by an unrelated PATCH", async () => {
+      const saham = { ...depositoNoTicker, ticker: "BBCA", type: "saham" };
+      mockPrisma.investment.findUnique.mockResolvedValue(saham);
+      mockPrisma.investment.update.mockResolvedValue(saham);
+
+      await expect(
+        service.update("fg-1", "inv-1", { notes: "cek" }),
+      ).resolves.toBeDefined();
+      expect(mockPrisma.investment.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ ticker: "BBCA" }),
+        }),
+      );
+    });
+  });
+
   describe("findAll() — projectedAnnualYield + latest price provenance", () => {
     it("computes projectedAnnualYield as currentValue × interestRatePct / 100", async () => {
       const today = new Date();
