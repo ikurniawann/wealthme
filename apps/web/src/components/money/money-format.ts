@@ -7,18 +7,36 @@ import {
 
 import { formatRupiah } from "@/lib/format";
 
+// E2E round-2 B1 — a decimal-capable field (decimals > 0) sometimes gets
+// USD/copy-paste input like "9500.50" instead of the id-ID "9500,50". A
+// lone "." followed by exactly 1-2 trailing digits can never be a genuine
+// thousands group (those are always 3 digits), so on decimal-capable
+// fields only, reinterpret it as the decimal separator before the normal
+// "." = thousands parsing runs. 0-decimal (IDR integer) fields are never
+// touched — "." always means thousands there.
+function normalizeDotDecimal(raw: string, decimals: number): string {
+  if (decimals <= 0 || raw.includes(",")) return raw;
+  const lastDot = raw.lastIndexOf(".");
+  if (lastDot === -1 || raw.indexOf(".") !== lastDot) return raw;
+  const tail = raw.slice(lastDot + 1);
+  const head = raw.slice(0, lastDot);
+  if (!/^\d{1,2}$/.test(tail) || !/\d/.test(head)) return raw;
+  return `${head},${tail}`;
+}
+
 /** Live id-ID formatting while typing: "." thousands, "," decimals (at most `decimals`). */
 export function formatMoneyTyping(
   raw: string,
   decimals: number,
   allowNegative = false,
 ): string {
-  const negative = allowNegative && raw.trim().startsWith("-");
-  const commaAt = raw.indexOf(",");
+  const normalized = normalizeDotDecimal(raw, decimals);
+  const negative = allowNegative && normalized.trim().startsWith("-");
+  const commaAt = normalized.indexOf(",");
   const hasComma = decimals > 0 && commaAt !== -1;
-  const intSource = hasComma ? raw.slice(0, commaAt) : raw;
+  const intSource = hasComma ? normalized.slice(0, commaAt) : normalized;
   const frac = hasComma
-    ? raw
+    ? normalized
         .slice(commaAt + 1)
         .replace(/\D/g, "")
         .slice(0, decimals)
