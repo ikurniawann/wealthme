@@ -727,7 +727,7 @@ export default function RekeningPage() {
           <p className="mt-1 text-[12.5px] text-muted-foreground">
             {isLoading
               ? t.rekening.loadingLabel
-              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix} · ${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
+              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}, ${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
             {!isLoading && accounts && fxRates?.rates["USD"] != null && (
               <span className="ml-1 text-muted-foreground/70">
                 {`${t.rekening.approxUsdPrefix}${formatUsd(totalBalance * fxRates.rates["USD"])}`}

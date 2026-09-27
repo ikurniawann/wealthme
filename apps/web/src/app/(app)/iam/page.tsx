@@ -260,7 +260,7 @@ export default function IamRolesPage() {
           </button>
         </div>
         <p className="t-xs t-muted">
-          Master selalu punya akses penuh · {restrictedCount} anggota diatur
+          Master selalu punya akses penuh, {restrictedCount} anggota diatur
           aksesnya
         </p>
       </div>

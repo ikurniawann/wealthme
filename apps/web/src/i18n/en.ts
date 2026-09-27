@@ -1912,9 +1912,9 @@ export const en = {
     deleteDocumentAria: "Delete document",
     openDocumentAria: "Open document",
     totalAssetsSubtitlePrefix:
-      "Cash & bank + investments + physical assets · as of ",
+      "Cash & bank + investments + physical assets, as of ",
     statFromLastMonthSuffix: "vs last month",
-    statFisikNote: "Recorded value · projection tracked separately",
+    statFisikNote: "Recorded value, projection tracked separately",
     ownerSharedLabel: "Shared",
     ownerUnknownLabel: "Unknown",
   },
