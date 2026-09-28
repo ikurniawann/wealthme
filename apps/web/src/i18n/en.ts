@@ -368,7 +368,6 @@ export const en = {
     localeSwitcher: {
       ariaLabel: "Switch language — current: %s",
     },
-    back: "Back",
     searchDialog: {
       ariaLabel: "Search transactions, accounts, menu",
       placeholder: "Search transactions, accounts, menu...",

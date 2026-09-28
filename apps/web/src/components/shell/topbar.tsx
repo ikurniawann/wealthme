@@ -71,8 +71,8 @@ export function Topbar() {
         <button
           type="button"
           onClick={goBack}
-          aria-label={t.shell.back}
-          title={t.shell.back}
+          aria-label={t.common.back}
+          title={t.common.back}
           className="btn btn--ghost btn--icon btn--sm"
         >
           <ArrowLeft className="size-[17px]" aria-hidden="true" />

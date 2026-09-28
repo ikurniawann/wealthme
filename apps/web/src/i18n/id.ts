@@ -371,7 +371,6 @@ export const id = {
     localeSwitcher: {
       ariaLabel: "Ganti bahasa — saat ini: %s",
     },
-    back: "Kembali",
     searchDialog: {
       ariaLabel: "Cari transaksi, bank & account, menu",
       placeholder: "Cari transaksi, bank & account, menu...",
