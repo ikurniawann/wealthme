@@ -645,6 +645,12 @@ export type I18nDictionary = {
       ariaLabel: string;
       title: string;
     };
+    // A3 (revisi-2) — ID/EN toggle in the topbar, next to the dark-mode
+    // toggle. `ariaLabel` is a template: "%s" is replaced with the current
+    // locale's code (ID/EN).
+    localeSwitcher: {
+      ariaLabel: string;
+    };
     searchDialog: {
       ariaLabel: string;
       placeholder: string;

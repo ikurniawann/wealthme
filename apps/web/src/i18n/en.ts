@@ -365,6 +365,9 @@ export const en = {
       ariaLabel: "Choose color theme",
       title: "Color Theme",
     },
+    localeSwitcher: {
+      ariaLabel: "Switch language — current: %s",
+    },
     searchDialog: {
       ariaLabel: "Search transactions, accounts, menu",
       placeholder: "Search transactions, accounts, menu...",

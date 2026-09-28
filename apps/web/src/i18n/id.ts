@@ -368,6 +368,9 @@ export const id = {
       ariaLabel: "Pilih tema warna",
       title: "Tema Warna",
     },
+    localeSwitcher: {
+      ariaLabel: "Ganti bahasa — saat ini: %s",
+    },
     searchDialog: {
       ariaLabel: "Cari transaksi, bank & account, menu",
       placeholder: "Cari transaksi, bank & account, menu...",

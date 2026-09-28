@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useSession } from "@/lib/auth-compat";
-import { LocaleSwitcher } from "@/components/locale-switcher";
 import { useLocale } from "@/hooks/use-locale";
 import { BerandaHero } from "./_components/hero-card";
 import { WealthSnapshot } from "./_components/wealth-snapshot";
@@ -50,11 +49,8 @@ function BerandaPage() {
 
   return (
     <div className="stack gap-3.5">
-      <div className="row row--between gap-2">
-        <div className="section-title">
-          {t.greeting[greetingKey]}, {firstName}
-        </div>
-        <LocaleSwitcher />
+      <div className="section-title">
+        {t.greeting[greetingKey]}, {firstName}
       </div>
 
       <section className="bento-dashboard" aria-label={t.beranda.title}>

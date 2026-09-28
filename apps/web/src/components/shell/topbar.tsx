@@ -12,6 +12,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
 import type { I18nDictionary } from "@/i18n/types";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { NavSheet } from "./nav-sheet";
 import { ThemePicker } from "./theme-picker";
 import { ThemeToggle } from "./theme-toggle";
@@ -85,6 +86,7 @@ export function Topbar() {
           <span>{t.shell.addTransaction}</span>
         </button>
       )}
+      <LocaleSwitcher />
       <ThemeToggle />
       <Link
         href="/notifikasi"
