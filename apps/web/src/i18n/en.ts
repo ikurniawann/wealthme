@@ -1736,6 +1736,13 @@ export const en = {
     automatedUnmappedBadge: "Manual Price",
     automatedUnmappedNote:
       "No automated price feed supports this ticker yet, enter the price manually.",
+    priceSimulatedLabel: "Price not available yet, update manually",
+    priceSimulatedNote:
+      "The price provider has no quote for this ticker yet — value is computed from the buy price; update the price manually once you know the market price.",
+    tickerNotFoundWarning:
+      "Ticker not found by the automated price provider. Value is computed from the buy price until you enter a manual price.",
+    tickerNoLivePriceWarning:
+      "No market price yet for this ticker. Value is computed from the buy price until you enter a manual price.",
     fieldManualPriceLabel: "Current Price (Rp, optional)",
     fieldManualPricePlaceholder: "e.g. 15250",
     fieldManualPriceDateLabel: "As Of Date",

@@ -1774,6 +1774,13 @@ export const id = {
     automatedUnmappedBadge: "Harga Manual",
     automatedUnmappedNote:
       "Ticker ini belum didukung feed harga otomatis, masukkan harga secara manual.",
+    priceSimulatedLabel: "Harga belum tersedia, perbarui manual",
+    priceSimulatedNote:
+      "Penyedia harga belum punya kuotasi untuk ticker ini — nilai dihitung dari harga beli, perbarui harga secara manual jika sudah tahu harga pasarnya.",
+    tickerNotFoundWarning:
+      "Ticker tidak ditemukan di penyedia harga otomatis. Nilai dihitung dari harga beli sampai kamu masukkan harga manual.",
+    tickerNoLivePriceWarning:
+      "Belum ada harga pasar untuk ticker ini. Nilai dihitung dari harga beli sampai kamu masukkan harga manual.",
     fieldManualPriceLabel: "Harga Saat Ini (Rp, opsional)",
     fieldManualPricePlaceholder: "contoh: 15250",
     fieldManualPriceDateLabel: "Per Tanggal",

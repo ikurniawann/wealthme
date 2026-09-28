@@ -99,6 +99,7 @@ const HOLDING: InvestmentDto = {
   latestPriceDelayed: null,
   priceRefreshFailed: false,
   automatedPriceUnmapped: false,
+  automatedPriceSimulated: false,
   interestRatePct: null,
   projectedAnnualYield: null,
   purchasedAt: null,
@@ -244,6 +245,76 @@ describe("InvestasiPage — role gating (F3)", () => {
     ).toBeInTheDocument();
     expect(
       within(row as HTMLElement).getByRole("button", { name: "Hapus" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("InvestasiPage — B6: never shows a simulated price as live", () => {
+  it("shows the honest unavailable label instead of a Live badge for a mock-sourced price", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        holdingOf({
+          id: "inv-qq",
+          ticker: "QQ",
+          name: "QQ Corp",
+          type: "saham",
+          quantity: "200",
+          costBasisPerUnit: "3400",
+          currentPrice: null,
+          currentValue: "680000",
+          latestPriceSource: "mock",
+          automatedPriceSimulated: true,
+        }),
+      ],
+    });
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("QQ Corp")).closest("tr");
+    expect(row).not.toBeNull();
+    expect(
+      within(row as HTMLElement).getByText(
+        idDict.investasi.priceSimulatedLabel,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(row as HTMLElement).queryByText(idDict.investasi.priceLiveBadge),
+    ).not.toBeInTheDocument();
+    // Current value falls back to cost basis (3400 * 200 = Rp 680.000),
+    // never a fabricated mock-price-driven figure (e.g. the reported
+    // Rp 680.240 from a Rp 3.092 simulated price).
+    expect(
+      within(row as HTMLElement).getAllByText("Rp 680.000").length,
+    ).toBeGreaterThan(0);
+    expect(
+      within(row as HTMLElement).queryByText(/680\.240/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("still shows the Live badge for a real automated price (automatedPriceSimulated:false)", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments": [
+        holdingOf({
+          id: "inv-btc",
+          ticker: "BTC",
+          name: "Bitcoin",
+          type: "kripto",
+          quantity: "0.01",
+          costBasisPerUnit: "900000000",
+          currentPrice: "950000000",
+          currentValue: "9500000",
+          latestPriceSource: "coingecko",
+          automatedPriceSimulated: false,
+        }),
+      ],
+    });
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("Bitcoin")).closest("tr");
+    expect(row).not.toBeNull();
+    expect(
+      within(row as HTMLElement).getByText(idDict.investasi.priceLiveBadge),
     ).toBeInTheDocument();
   });
 });

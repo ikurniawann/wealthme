@@ -420,6 +420,18 @@ function formatPriceSourceCell(
     );
   }
 
+  // Batch B6 — a dev/demo simulated ("mock") price must never render like a
+  // live quote. No "Live" badge, no fabricated Rupiah figure — just the
+  // honest "price not available" label; the current VALUE shown elsewhere
+  // on the row already fell back to cost basis (never the fake price).
+  if (h.automatedPriceSimulated) {
+    return (
+      <span className="text-muted-foreground">
+        {t.investasi.priceSimulatedLabel}
+      </span>
+    );
+  }
+
   if (h.currentPrice === null) {
     return (
       <span className="text-muted-foreground">
@@ -790,6 +802,28 @@ function AddInvestmentModal({
         toast.success(
           editing ? t.investasi.toastUpdated : t.investasi.toastAdded,
         );
+        // Batch B6 — "warn at input when a saham/kripto ticker is not
+        // found": the create/update response itself never carries a fresh
+        // automated-price status (findAll() is what triggers the actual
+        // quote fetch), so re-read the just-saved holding from the
+        // already-invalidated list and warn if it turned out to have no
+        // real market price. Best-effort only — never blocks the save.
+        if (AUTOMATED_PRICE_TYPES.includes(form.type)) {
+          try {
+            const freshList = await apiFetch<InvestmentDto[]>(
+              `/family-groups/${familyGroupId}/investments`,
+              { token },
+            );
+            const fresh = freshList.find((x) => x.id === saved.id);
+            if (fresh?.automatedPriceUnmapped) {
+              toast.warning(t.investasi.tickerNotFoundWarning);
+            } else if (fresh?.automatedPriceSimulated) {
+              toast.warning(t.investasi.tickerNoLivePriceWarning);
+            }
+          } catch {
+            // Non-critical: the holding itself already saved successfully.
+          }
+        }
       }
       onClose();
     } finally {
@@ -1848,13 +1882,15 @@ export default function InvestasiPage() {
                   </div>
                   <div className="rounded-[10px] bg-accent p-3 text-[12px] text-accent-foreground">
                     {detailHolding.currentPrice === null
-                      ? detailHolding.automatedPriceUnmapped
-                        ? t.investasi.automatedUnmappedNote
-                        : isManualPriceType(
-                              detailHolding.type as InvestmentType,
-                            )
-                          ? t.investasi.detailNoManualPrice
-                          : t.investasi.detailPriceUnavailable
+                      ? detailHolding.automatedPriceSimulated
+                        ? t.investasi.priceSimulatedNote
+                        : detailHolding.automatedPriceUnmapped
+                          ? t.investasi.automatedUnmappedNote
+                          : isManualPriceType(
+                                detailHolding.type as InvestmentType,
+                              )
+                            ? t.investasi.detailNoManualPrice
+                            : t.investasi.detailPriceUnavailable
                       : detailHolding.latestPriceSource === "manual"
                         ? `${t.investasi.detailManualLabelPrefix}${formatManualDate(
                             detailHolding.latestPriceAsOf ??
@@ -2518,11 +2554,15 @@ export default function InvestasiPage() {
                                 every manual price states its entry date. */}
                             {h.currentPrice === null ? (
                               <div className="col-span-2 text-muted-foreground">
-                                {h.automatedPriceUnmapped
-                                  ? t.investasi.automatedUnmappedNote
-                                  : isManualPriceType(h.type as InvestmentType)
-                                    ? t.investasi.detailNoManualPrice
-                                    : t.investasi.detailPriceUnavailable}
+                                {h.automatedPriceSimulated
+                                  ? t.investasi.priceSimulatedNote
+                                  : h.automatedPriceUnmapped
+                                    ? t.investasi.automatedUnmappedNote
+                                    : isManualPriceType(
+                                          h.type as InvestmentType,
+                                        )
+                                      ? t.investasi.detailNoManualPrice
+                                      : t.investasi.detailPriceUnavailable}
                               </div>
                             ) : h.latestPriceSource === "manual" ? (
                               <div className="col-span-2">

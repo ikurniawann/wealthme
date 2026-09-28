@@ -73,6 +73,7 @@ const HOLDING: InvestmentDto = {
   latestPriceDelayed: null,
   priceRefreshFailed: false,
   automatedPriceUnmapped: false,
+  automatedPriceSimulated: false,
   interestRatePct: null,
   projectedAnnualYield: null,
   purchasedAt: null,

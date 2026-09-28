@@ -1723,6 +1723,16 @@ export type I18nDictionary = {
     // failure. Badge shown next to the holding name/ticker in the table.
     automatedUnmappedBadge: string;
     automatedUnmappedNote: string;
+    // Batch B6 (client revision round 2) — a "mock"-sourced automated price
+    // (dev/demo simulated feed) must never look like a live quote. Shown in
+    // place of the price cell/badge, no "Live" styling.
+    priceSimulatedLabel: string;
+    priceSimulatedNote: string;
+    // B6 — shown right after saving a saham/kripto holding whose ticker
+    // turned out to have no real automated price (warns at input, not just
+    // silently on the next page load).
+    tickerNotFoundWarning: string;
+    tickerNoLivePriceWarning: string;
     fieldManualPriceLabel: string;
     fieldManualPricePlaceholder: string;
     fieldManualPriceDateLabel: string;
