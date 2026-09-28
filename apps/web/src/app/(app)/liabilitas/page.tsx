@@ -28,7 +28,7 @@ import { toast } from "sonner";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 import {
   MoneyInput,
@@ -397,6 +397,7 @@ function LiabilityModal({
   onClose,
 }: LiabilityModalProps) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -481,7 +482,7 @@ function LiabilityModal({
         : t.liabilitas.toastAdded;
       toast.success(
         saved.installmentAmount
-          ? `${base} · ${t.liabilitas.toastInstallmentPrefix}${formatRupiah(Number(saved.installmentAmount))}`
+          ? `${base} · ${t.liabilitas.toastInstallmentPrefix}${money.format(Number(saved.installmentAmount))}`
           : base,
       );
       onClose();
@@ -962,6 +963,7 @@ function LiabilityCard({
   onDelete,
 }: LiabilityCardProps) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const isCreditCard = item.type === "kartu_kredit";
   // E2E round 1 bug 2 — `dueDate` is the legacy manual field the KPR form
   // never sets; `nextDueDate` (same anchor rule as the amortisation
@@ -1040,7 +1042,7 @@ function LiabilityCard({
                 className="text-[13.5px] font-bold"
                 style={{ color: "var(--danger)" }}
               >
-                {formatRupiah(remaining)}
+                {money.format(remaining)}
               </div>
             </div>
             <div>
@@ -1050,7 +1052,7 @@ function LiabilityCard({
                   : t.liabilitas.loanTotalLabel}
               </div>
               <div className="text-[13.5px] font-bold">
-                {formatRupiah(totalDebt)}
+                {money.format(totalDebt)}
               </div>
             </div>
             {minimumPayment > 0 && (
@@ -1061,7 +1063,7 @@ function LiabilityCard({
                     : t.liabilitas.loanInstallmentLabel}
                 </div>
                 <div className="text-[13.5px] font-bold">
-                  {formatRupiah(minimumPayment)}
+                  {money.format(minimumPayment)}
                 </div>
               </div>
             )}
@@ -1143,6 +1145,7 @@ function LiabilityDetailDialog({
   onPay: (item: LiabilityDto) => void;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const queryClient = useQueryClient();
   const typeLabel = item
     ? (t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type)
@@ -1197,7 +1200,7 @@ function LiabilityDetailDialog({
                     className="mono text-[14px] font-bold"
                     style={{ color: "var(--danger)" }}
                   >
-                    {formatRupiah(remaining)}
+                    {money.format(remaining)}
                   </div>
                 </div>
                 <div>
@@ -1205,7 +1208,7 @@ function LiabilityDetailDialog({
                     {t.liabilitas.loanTotalLabel}
                   </div>
                   <div className="mono text-[14px] font-bold">
-                    {formatRupiah(totalDebt)}
+                    {money.format(totalDebt)}
                   </div>
                 </div>
                 <div>
@@ -1213,7 +1216,7 @@ function LiabilityDetailDialog({
                     {t.liabilitas.loanInstallmentLabel}
                   </div>
                   <div className="mono text-[14px] font-bold">
-                    {minimumPayment > 0 ? formatRupiah(minimumPayment) : "—"}
+                    {minimumPayment > 0 ? money.format(minimumPayment) : "—"}
                   </div>
                 </div>
                 <div>
@@ -1287,7 +1290,7 @@ function LiabilityDetailDialog({
                           {t.liabilitas.amortisationMonthlyPrincipalLabel}
                         </div>
                         <div className="mono text-[13.5px] font-bold">
-                          {formatRupiah(Number(firstRow.principal))}
+                          {money.format(Number(firstRow.principal))}
                         </div>
                       </div>
                       <div>
@@ -1298,7 +1301,7 @@ function LiabilityDetailDialog({
                           className="mono text-[13.5px] font-bold"
                           style={{ color: "var(--danger)" }}
                         >
-                          {formatRupiah(Number(firstRow.interest))}
+                          {money.format(Number(firstRow.interest))}
                         </div>
                       </div>
                     </div>
@@ -1387,16 +1390,16 @@ function LiabilityDetailDialog({
                                   />
                                 </td>
                                 <td className="mono text-right whitespace-nowrap">
-                                  {formatRupiah(Number(row.installment))}
+                                  {money.format(Number(row.installment))}
                                 </td>
                                 <td className="mono text-right whitespace-nowrap">
-                                  {formatRupiah(Number(row.principal))}
+                                  {money.format(Number(row.principal))}
                                 </td>
                                 <td className="mono text-right whitespace-nowrap">
-                                  {formatRupiah(Number(row.interest))}
+                                  {money.format(Number(row.interest))}
                                 </td>
                                 <td className="mono whitespace-nowrap">
-                                  {formatRupiah(Number(row.remaining))}
+                                  {money.format(Number(row.remaining))}
                                 </td>
                               </tr>
                             ))}
@@ -1518,6 +1521,7 @@ function PayLiabilityDialog({
   onConfirm: () => void;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const parsedAmount = Number(moneyDigits(payField) || "0");
   const remainingBalance = item ? Number(BigInt(item.remainingBalance)) : 0;
   const minimumPayment = item ? installmentDue(item) : 0;
@@ -1695,21 +1699,21 @@ function PayLiabilityDialog({
                       <strong>
                         {t.liabilitas.payPrincipalPreviewLabel}{" "}
                         <span className="mono">
-                          {formatRupiah(Number(preview.principal))}
+                          {money.format(Number(preview.principal))}
                         </span>
                       </strong>{" "}
                       ·{" "}
                       <strong>
                         {t.liabilitas.payInterestPreviewLabel}{" "}
                         <span className="mono">
-                          {formatRupiah(Number(preview.interest))}
+                          {money.format(Number(preview.interest))}
                         </span>
                       </strong>
                       <br />
                       <span className="t-xs">
                         {t.liabilitas.payRemainingAfterLabel}:{" "}
                         <span className="mono">
-                          {formatRupiah(Number(preview.remainingAfter))}
+                          {money.format(Number(preview.remainingAfter))}
                         </span>
                       </span>
                     </span>
@@ -1761,6 +1765,7 @@ function PayLiabilityDialog({
 
 export default function LiabilitasPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<LiabilityDto | null>(null);
   const [detailItem, setDetailItem] = useState<LiabilityDto | null>(null);
@@ -2016,7 +2021,7 @@ export default function LiabilitasPage() {
             <div className="animate-pulse h-7 w-32 rounded bg-muted" />
           ) : (
             <div className="mono text-[18px] font-black sm:text-[22px]">
-              {formatRupiah(Number(totalMinimumPayment))}
+              {money.format(Number(totalMinimumPayment))}
             </div>
           )}
           <div className="text-[11px] text-muted-foreground">
@@ -2126,7 +2131,7 @@ export default function LiabilitasPage() {
                   data: payoffProjectionSeries,
                 },
               ]}
-              ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${formatRupiah(Number(totalRemaining))} → ${formatRupiah(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
+              ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${money.format(Number(totalRemaining))} → ${money.format(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
             />
           )}
           <p className="mt-2 text-[11px] text-muted-foreground">

@@ -36,7 +36,7 @@ import type { DonutSegment } from "@/components/charts/donut";
 import { useLocale } from "@/hooks/use-locale";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
@@ -185,6 +185,7 @@ function AssetCard({
   onVisibilityToggle,
 }: AssetCardProps) {
   const { t } = useLocale();
+  const money = useMoney();
   const icon = ASSET_TYPE_ICON[item.assetType] ?? "📋";
   const iconBg = ASSET_TYPE_BG[item.assetType] ?? "#F3F4F6";
   const allocated = item.heirs.reduce(
@@ -232,7 +233,7 @@ function AssetCard({
           {/* EPIC-026 Wave 4 — prototype value is `t-lg t-black mono`
               (16px mono, warisan.html:49). */}
           <div className="mono text-[16px] font-black">
-            {formatRupiah(Number(BigInt(item.estimatedValue)))}
+            {money.format(Number(BigInt(item.estimatedValue)))}
           </div>
           <div className="text-[11px] text-muted-foreground">
             {t.warisan.estimatedValueLabel}
@@ -559,6 +560,7 @@ function HeirEditor({
 
 export default function WarisanPage() {
   const { t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId ?? undefined;
@@ -929,7 +931,7 @@ export default function WarisanPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="mono mt-1 text-[30px] font-extrabold tracking-[-0.03em]">
-              {formatRupiah(Number(totalValue))}
+              {money.format(Number(totalValue))}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <StatusBadge
@@ -1020,7 +1022,7 @@ export default function WarisanPage() {
                   centerLabel={t.warisan.heroTitle}
                   ariaLabel={`${t.warisan.heirAllocationChartTitle}: ${heirAllocationSegments
                     .map(
-                      (s) => `${s.label} ${formatRupiah(Math.round(s.value))}`,
+                      (s) => `${s.label} ${money.format(Math.round(s.value))}`,
                     )
                     .join(", ")}`}
                 />
@@ -1047,7 +1049,7 @@ export default function WarisanPage() {
                         )}
                       </div>
                       <span className="mono shrink-0 text-[12px] font-bold">
-                        {formatRupiah(Math.round(row.value))}
+                        {money.format(Math.round(row.value))}
                       </span>
                     </div>
                   ))}
@@ -1062,7 +1064,7 @@ export default function WarisanPage() {
                         </div>
                       </div>
                       <span className="mono shrink-0 text-[12px] font-bold text-warning">
-                        {formatRupiah(Math.round(unallocatedTotal))}
+                        {money.format(Math.round(unallocatedTotal))}
                       </span>
                     </div>
                   )}
@@ -1129,7 +1131,7 @@ export default function WarisanPage() {
                   <option value="">{t.warisan.assetPickerPlaceholder}</option>
                   {pickableAssets.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.name} ({formatRupiah(Number(BigInt(a.currentValue)))})
+                      {a.name} ({money.format(Number(BigInt(a.currentValue)))})
                     </option>
                   ))}
                 </select>

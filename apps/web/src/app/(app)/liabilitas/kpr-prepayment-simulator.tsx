@@ -18,8 +18,8 @@ import {
 } from "@/components/money";
 import type { MoneyField, ResolvedMoney } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import { extractApiErrorMessage } from "./api-error";
@@ -42,8 +42,12 @@ type RecordPrepaymentWithFx = RecordLiabilityPrepaymentDto & {
   fxInputs?: FxInput[];
 };
 
-function rupiah(value: string | null): string {
-  return value === null ? "—" : formatRupiah(Number(value));
+// Batch C2 — bound to the caller's display-currency `format`; each component
+// below defines a local `const rupiah = makeRupiah(money.format)` shadowing
+// this factory's name, so existing call sites (`rupiah(x)`) convert as-is.
+function makeRupiah(format: (value: number) => string) {
+  return (value: string | null): string =>
+    value === null ? "—" : format(Number(value));
 }
 
 function toSearch(request: PrepaymentRequest): string {
@@ -79,6 +83,8 @@ export function KprPrepaymentSimulator({
   makeIdempotencyKey?: () => string;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
+  const rupiah = makeRupiah(money.format);
   const k = t.liabilitas.kpr;
   const [mode, setMode] = useState<PrepaymentMode>("reduce_tenor");
   const [amountState, setAmountState] = useState<{
