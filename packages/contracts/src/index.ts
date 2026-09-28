@@ -34,3 +34,4 @@ export * from "./attachments/index.js";
 export * from "./access/index.js";
 export * from "./family-login/index.js";
 export * from "./fx/index.js";
+export * from "./taxonomy/index.js";

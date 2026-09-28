@@ -24,6 +24,7 @@ __export(index_exports, {
   ACCESS_PAGES: () => ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS: () => ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES: () => ALWAYS_OPEN_PAGES,
+  ASSET_CLASS_KEYS: () => ASSET_CLASS_KEYS,
   ATTACHMENT_ACCEPTED_MIME_TYPES: () => ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES: () => ATTACHMENT_MAX_FILE_BYTES,
   AccessDataScopeSchema: () => AccessDataScopeSchema,
@@ -83,6 +84,8 @@ __export(index_exports, {
   TransactionSummarySchema: () => TransactionSummarySchema,
   TransactionTypeSchema: () => TransactionTypeSchema,
   UpdateAccountInputSchema: () => UpdateAccountInputSchema,
+  accountTypeToAssetClass: () => accountTypeToAssetClass,
+  assetTypeToAssetClass: () => assetTypeToAssetClass,
   buildFamilyLoginId: () => buildFamilyLoginId,
   buildReferenceItemSeed: () => buildReferenceItemSeed,
   canAccessPage: () => canAccessPage,
@@ -92,6 +95,7 @@ __export(index_exports, {
   deriveIdrPerUnit: () => deriveIdrPerUnit,
   divRoundHalfUp: () => divRoundHalfUp,
   formatScaled: () => formatScaled,
+  investmentTypeToAssetClass: () => investmentTypeToAssetClass,
   isFamilyLoginId: () => isFamilyLoginId,
   isFxCurrency: () => isFxCurrency,
   isMasterOrCoMaster: () => isMasterOrCoMaster,
@@ -99,7 +103,8 @@ __export(index_exports, {
   parseMinor: () => parseMinor,
   parseScaled: () => parseScaled,
   resolveEffectiveAccess: () => resolveEffectiveAccess,
-  slugifyHandleBase: () => slugifyHandleBase
+  slugifyHandleBase: () => slugifyHandleBase,
+  warisanAssetTypeToAssetClass: () => warisanAssetTypeToAssetClass
 });
 module.exports = __toCommonJS(index_exports);
 
@@ -948,12 +953,103 @@ var FxRatesResponseSchema = import_zod13.z.object({
   stale: import_zod13.z.boolean(),
   idrPerUnit: import_zod13.z.record(import_zod13.z.string())
 });
+
+// src/taxonomy/asset-class.ts
+var ASSET_CLASS_KEYS = [
+  "properti",
+  "kendaraan",
+  "kas_tabungan",
+  "deposito",
+  "saham",
+  "reksa_dana",
+  "obligasi",
+  "emas",
+  "kripto",
+  "lainnya"
+];
+function assetTypeToAssetClass(type) {
+  switch (type) {
+    case "properti":
+      return "properti";
+    case "kendaraan":
+      return "kendaraan";
+    case "emas":
+      return "emas";
+    case "elektronik":
+    case "perhiasan":
+    case "lainnya":
+    default:
+      return "lainnya";
+  }
+}
+function investmentTypeToAssetClass(type) {
+  switch (type) {
+    case "saham":
+      return "saham";
+    case "reksa_dana":
+      return "reksa_dana";
+    case "obligasi":
+      return "obligasi";
+    case "emas":
+      return "emas";
+    case "kripto":
+      return "kripto";
+    case "deposito":
+      return "deposito";
+    case "lainnya":
+    default:
+      return "lainnya";
+  }
+}
+function accountTypeToAssetClass(type) {
+  switch (type) {
+    case "property":
+      return "properti";
+    case "bank":
+    case "ewallet":
+    case "cash":
+    case "investment":
+    default:
+      return "kas_tabungan";
+  }
+}
+function warisanAssetTypeToAssetClass(assetType) {
+  const normalized = assetType.trim().toLowerCase();
+  switch (normalized) {
+    case "aset / properti":
+    case "properti":
+      return "properti";
+    case "cash / tunai":
+    case "kas & tabungan":
+      return "kas_tabungan";
+    case "surat berharga":
+    case "obligasi/sbn":
+    case "obligasi":
+      return "obligasi";
+    case "saham":
+      return "saham";
+    case "reksa dana":
+      return "reksa_dana";
+    case "kripto":
+      return "kripto";
+    case "deposito":
+      return "deposito";
+    case "kendaraan":
+      return "kendaraan";
+    case "emas":
+      return "emas";
+    case "lainnya":
+    default:
+      return "lainnya";
+  }
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   ACCESS_LEVELS,
   ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES,
+  ASSET_CLASS_KEYS,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
   AccessDataScopeSchema,
@@ -1013,6 +1109,8 @@ var FxRatesResponseSchema = import_zod13.z.object({
   TransactionSummarySchema,
   TransactionTypeSchema,
   UpdateAccountInputSchema,
+  accountTypeToAssetClass,
+  assetTypeToAssetClass,
   buildFamilyLoginId,
   buildReferenceItemSeed,
   canAccessPage,
@@ -1022,6 +1120,7 @@ var FxRatesResponseSchema = import_zod13.z.object({
   deriveIdrPerUnit,
   divRoundHalfUp,
   formatScaled,
+  investmentTypeToAssetClass,
   isFamilyLoginId,
   isFxCurrency,
   isMasterOrCoMaster,
@@ -1029,5 +1128,6 @@ var FxRatesResponseSchema = import_zod13.z.object({
   parseMinor,
   parseScaled,
   resolveEffectiveAccess,
-  slugifyHandleBase
+  slugifyHandleBase,
+  warisanAssetTypeToAssetClass
 });

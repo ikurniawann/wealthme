@@ -42,7 +42,10 @@ import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 
-import { DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT } from "@wealthme/contracts";
+import {
+  assetTypeToAssetClass,
+  DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
+} from "@wealthme/contracts";
 import {
   MoneyInput,
   anyMoneyPending,
@@ -807,13 +810,15 @@ function AssetGroupCard({
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {assets.map((asset, i) => {
+          // B7 (client revision round 2) — the type-derived fallback now
+          // reads from the shared asset-class taxonomy (same wording as
+          // /investasi and /warisan) instead of this page's own
+          // assetTypeLabels; a category picked from master data (above) or
+          // notes still win, so this only affects an asset with neither.
           const subtitle = asset.notes
             ? asset.notes
             : (asset.categoryId && categoryNameById[asset.categoryId]) ||
-              (t.aset.assetTypeLabels[
-                asset.type as keyof typeof t.aset.assetTypeLabels
-              ] ??
-                asset.type);
+              t.common.assetClassLabels[assetTypeToAssetClass(asset.type)];
           return (
             <AssetRow
               key={asset.id}

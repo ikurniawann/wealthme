@@ -39,6 +39,8 @@ import { apiFetch } from "@/lib/api-client";
 import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 
+import { warisanAssetTypeToAssetClass } from "@wealthme/contracts";
+import type { AssetClassKey } from "@wealthme/contracts";
 import type {
   AssetDto,
   CreateHeirDto,
@@ -54,31 +56,48 @@ import type {
 // asset record (free-text category), not a translated enum — kept in
 // Indonesian in both locales so switching language never changes what gets
 // stored, matching the value-locked crud-config select option convention.
+//
+// B7 (client revision round 2) — these six options now spell out the exact
+// wording of the shared asset-class taxonomy (@wealthme/contracts,
+// `t.common.assetClassLabels`), so a NEW warisan entry already matches
+// /aset and /investasi verbatim ("Obligasi/SBN" replaces the old "Surat
+// Berharga", "Kas & Tabungan" replaces "Cash / Tunai", etc.). Existing
+// records keep whatever free text they were saved with — no migration —
+// and are normalized for DISPLAY only via `warisanAssetTypeToAssetClass`
+// below (see AssetCard).
 const ASSET_TYPE_OPTIONS = [
-  "Aset / Properti",
-  "Cash / Tunai",
-  "Surat Berharga",
+  "Properti",
+  "Kas & Tabungan",
+  "Obligasi/SBN",
   "Saham",
   "Emas",
   "Lainnya",
 ];
 
-const ASSET_TYPE_ICON: Record<string, string> = {
-  "Aset / Properti": "🏠",
-  "Cash / Tunai": "💵",
-  "Surat Berharga": "📜",
-  Saham: "📈",
-  Emas: "🪙",
-  Lainnya: "📋",
+const ASSET_CLASS_ICON: Record<AssetClassKey, string> = {
+  properti: "🏠",
+  kendaraan: "🚗",
+  kas_tabungan: "💵",
+  deposito: "🏦",
+  saham: "📈",
+  reksa_dana: "📊",
+  obligasi: "📜",
+  emas: "🪙",
+  kripto: "🪙",
+  lainnya: "📋",
 };
 
-const ASSET_TYPE_BG: Record<string, string> = {
-  "Aset / Properti": "#FEF9C3",
-  "Cash / Tunai": "#DCFCE7",
-  "Surat Berharga": "#DBEAFE",
-  Saham: "#EDE9FE",
-  Emas: "#FEF3C7",
-  Lainnya: "#F3F4F6",
+const ASSET_CLASS_BG: Record<AssetClassKey, string> = {
+  properti: "#FEF9C3",
+  kendaraan: "#E0E7FF",
+  kas_tabungan: "#DCFCE7",
+  deposito: "#CFFAFE",
+  saham: "#EDE9FE",
+  reksa_dana: "#FCE7F3",
+  obligasi: "#DBEAFE",
+  emas: "#FEF3C7",
+  kripto: "#FFE4E6",
+  lainnya: "#F3F4F6",
 };
 
 // EPIC-024 Group H (item 15) — mirrors /rekening, /akun, /dana's helper: the
@@ -186,8 +205,13 @@ function AssetCard({
 }: AssetCardProps) {
   const { t } = useLocale();
   const money = useMoney();
-  const icon = ASSET_TYPE_ICON[item.assetType] ?? "📋";
-  const iconBg = ASSET_TYPE_BG[item.assetType] ?? "#F3F4F6";
+  // B7 — normalize the free-text `assetType` into the shared taxonomy for
+  // display ONLY (never rewrites the stored record), so old and new entries
+  // alike show the same icon/color/label class.
+  const assetClass = warisanAssetTypeToAssetClass(item.assetType);
+  const icon = ASSET_CLASS_ICON[assetClass];
+  const iconBg = ASSET_CLASS_BG[assetClass];
+  const categoryLabel = t.common.assetClassLabels[assetClass];
   const allocated = item.heirs.reduce(
     (sum, h) => sum + Number(h.sharePercent),
     0,
@@ -221,7 +245,7 @@ function AssetCard({
         <div className="min-w-[170px] flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[13.5px] font-bold">{item.name}</span>
-            <StatusBadge variant="gray">{item.assetType}</StatusBadge>
+            <StatusBadge variant="gray">{categoryLabel}</StatusBadge>
           </div>
           {metaLine && (
             <div className="mt-0.5 text-[11px] text-muted-foreground">

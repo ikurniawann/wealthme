@@ -5,7 +5,7 @@ import type {
   PageTitleId,
   ReportTabId,
 } from "@/lib/nav";
-import type { Role } from "@wealthme/contracts";
+import type { AssetClassKey, Role } from "@wealthme/contracts";
 
 /**
  * EPIC-018 Task A2 — `/akun` sub-page ids. Kept local to the dictionary
@@ -395,6 +395,12 @@ export type I18nDictionary = {
     emojiNoResults: string;
     emojiLoading: string;
     emojiGroupAriaLabel: string;
+    /** B7 (client revision round 2) — the ONE shared asset-class taxonomy
+     * label set, used everywhere a /aset, /investasi or /warisan category
+     * badge renders (see @wealthme/contracts `AssetClassKey` + its mappers).
+     * The underlying stored type/category value never changes — only this
+     * display label. */
+    assetClassLabels: Record<AssetClassKey, string>;
     /** Shared "Opsi lanjutan" disclosure summary (components/crud/advanced-disclosure.tsx). */
     advancedOptions: string;
     /** Single-date picker (components/wm/date-range-field.tsx `DateField`). */

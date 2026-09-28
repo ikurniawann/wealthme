@@ -80,6 +80,7 @@ import {
 } from "@/components/money";
 
 import type { Locale } from "@/i18n";
+import { investmentTypeToAssetClass } from "@wealthme/contracts";
 import type {
   AccountDto,
   FxCurrencyCode,
@@ -210,6 +211,17 @@ function toDateInputValue(iso: string | null | undefined): string {
 
 function toLogoText(ticker: string): string {
   return ticker.slice(0, 4).toUpperCase();
+}
+
+// B7 (client revision round 2) — the "Type" badge/allocation-donut label
+// now reads from the ONE shared asset-class taxonomy (@wealthme/contracts)
+// instead of this page's own `typeLabels` dict, so its wording matches
+// /aset and /warisan exactly (e.g. "Obligasi/SBN" everywhere, not
+// "Obligasi" here and "Surat Berharga" on /warisan). Every InvestmentType
+// maps to its own distinct class — no specificity is lost, only the wording
+// is unified.
+function investmentClassLabel(t: Dict, type: string): string {
+  return t.common.assetClassLabels[investmentTypeToAssetClass(type)];
 }
 
 // Batch C2 — returns a decimal-Rupiah formatter bound to the caller's
@@ -1699,7 +1711,7 @@ export default function InvestasiPage() {
   // `holdings` list already fetched above, no new endpoint.
   const allocationByType = new Map<string, number>();
   for (const h of holdings ?? []) {
-    const label = t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
+    const label = investmentClassLabel(t, h.type);
     allocationByType.set(
       label,
       (allocationByType.get(label) ?? 0) + parseFloat(h.currentValue ?? "0"),
@@ -1712,7 +1724,7 @@ export default function InvestasiPage() {
         ...acc,
         {
           type: h.type,
-          label: t.investasi.typeLabels[h.type as InvestmentType] ?? h.type,
+          label: investmentClassLabel(t, h.type),
         },
       ];
     }, [])
@@ -2418,8 +2430,7 @@ export default function InvestasiPage() {
 
               {filteredHoldings.map((h, i) => {
                 const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
-                const label =
-                  t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
+                const label = investmentClassLabel(t, h.type);
                 const logoBg = TYPE_LOGO_BG[h.type] ?? "#6B7280";
                 const totalCost =
                   parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
