@@ -35,6 +35,7 @@ import { FamilyGroupsModule } from "./family-groups/family-groups.module";
 import { FxModule } from "./fx/fx.module";
 import { GdprModule } from "./gdpr/gdpr.module";
 import { GoalsModule } from "./goals/goals.module";
+import { GoldPriceModule } from "./gold-price/gold-price.module";
 import { HealthModule } from "./health/health.module";
 import { InheritanceModule } from "./inheritance/inheritance.module";
 import { InsurancesModule } from "./insurances/insurances.module";
@@ -119,6 +120,7 @@ import type { IncomingMessage } from "node:http";
     StorageModule,
     TaxModule,
     FxModule,
+    GoldPriceModule,
     GdprModule,
     ReconciliationModule,
     OpenBankingModule,
