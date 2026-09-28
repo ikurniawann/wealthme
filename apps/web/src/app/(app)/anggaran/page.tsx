@@ -36,7 +36,8 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
-import { formatRupiah, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -111,13 +112,15 @@ function budgetPctLabel(dto: BudgetDto): string {
 function budgetAmountsLabel(
   dto: BudgetDto,
   t: ReturnType<typeof useLocale>["t"],
+  money: ReturnType<typeof useMoney>,
 ): string {
-  return `${formatRupiah(dto.spentAmount)}${t.anggaran.amountsMidDari}${formatRupiah(dto.limitAmount)}`;
+  return `${money.format(dto.spentAmount)}${t.anggaran.amountsMidDari}${money.format(dto.limitAmount)}`;
 }
 
 const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "🙏"];
 
 function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
+  const money = useMoney();
   const maxSpent = Math.max(...budgets.map((budget) => budget.spentAmount), 1);
 
   return (
@@ -141,11 +144,11 @@ function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
                   {budget.categoryName}
                 </div>
                 <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                  {usagePct}% dari {formatRupiah(budget.limitAmount)}
+                  {usagePct}% dari {money.format(budget.limitAmount)}
                 </div>
               </div>
               <div className="mono shrink-0 text-right text-[12.5px] font-semibold text-foreground">
-                {formatRupiah(budget.spentAmount)}
+                {money.format(budget.spentAmount)}
               </div>
             </div>
             <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-secondary">
@@ -183,6 +186,7 @@ function BudgetTypeSummary({
   nearLimitCount: number;
   t: ReturnType<typeof useLocale>["t"];
 }) {
+  const money = useMoney();
   const totalPct =
     totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
   const totalColor =
@@ -214,8 +218,8 @@ function BudgetTypeSummary({
         </div>
         <AnimatedProgress value={Math.min(totalPct, 100)} color={totalColor} />
         <div className="mt-2 flex items-center justify-between gap-3 text-[11.5px] text-muted-foreground">
-          <span>{formatRupiah(totalSpent)} dipakai</span>
-          <span>{formatRupiah(totalLimit)} rencana</span>
+          <span>{money.format(totalSpent)} dipakai</span>
+          <span>{money.format(totalLimit)} rencana</span>
         </div>
       </div>
 
@@ -223,7 +227,7 @@ function BudgetTypeSummary({
         <div className="rounded-[10px] border bg-card p-2.5">
           <div className="text-[11px] text-muted-foreground">Sisa budget</div>
           <div className="mono mt-1 text-[13px] font-semibold">
-            {formatRupiah(totalRemaining)}
+            {money.format(totalRemaining)}
           </div>
         </div>
         <div className="rounded-[10px] border bg-card p-2.5">
@@ -283,6 +287,7 @@ function BudgetItem({
   onDelete: () => void;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const color = budgetBarColor(dto);
   const icon = dto.categoryIcon ?? "📦";
   return (
@@ -309,7 +314,7 @@ function BudgetItem({
               )}
             </div>
             <div className="text-[11.5px] text-muted-foreground">
-              {budgetAmountsLabel(dto, t)}
+              {budgetAmountsLabel(dto, t, money)}
             </div>
           </div>
           <div className="text-[13px] font-bold" style={{ color }}>
@@ -353,8 +358,8 @@ function BudgetItem({
           }
         >
           {dto.isOverBudget
-            ? `${t.anggaran.categoryFooterOverBudgetPrefix}${formatRupiah(dto.spentAmount - dto.limitAmount)}`
-            : `${t.anggaran.categoryFooterRemainingPrefix}${formatRupiah(dto.remainingAmount)}`}
+            ? `${t.anggaran.categoryFooterOverBudgetPrefix}${money.format(dto.spentAmount - dto.limitAmount)}`
+            : `${t.anggaran.categoryFooterRemainingPrefix}${money.format(dto.remainingAmount)}`}
         </div>
       </div>
     </Rise>
@@ -443,7 +448,7 @@ function toObligations(
       id: l.id,
       name: l.name,
       // EPIC-023 Task E retry (MEDIUM 7) — truncate once, here, so the
-      // amount the row DISPLAYS (`formatRupiah(obligation.amountDue)`) is
+      // amount the row DISPLAYS (`money.format(obligation.amountDue)`) is
       // byte-identical to the amount the pay mutation POSTS
       // (`String(Math.trunc(obligation.amountDue))`) instead of the two
       // computing the truncation independently and drifting apart.
@@ -501,6 +506,7 @@ function PayObligationDialog({
   onConfirm: () => void;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   return (
     <Dialog
       open={obligation !== null}
@@ -522,7 +528,7 @@ function PayObligationDialog({
               <div className="flex-1">
                 <div className="t-xs t-muted">{obligation.name}</div>
                 <div className="t-xl t-black mono">
-                  {formatRupiah(obligation.amountDue)}
+                  {money.format(obligation.amountDue)}
                 </div>
                 {/* EPIC-026 Wave 4 — prototype's pay-dialog notice carries the
                     due date under the amount (`dlg-pay`, anggaran.html:463);
@@ -583,6 +589,7 @@ function ObligationRow({
   onPay: () => void;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const dueDateLabel = obligation.dueDate
     ? formatLocaleDate(obligation.dueDate, locale, "short")
     : null;
@@ -607,7 +614,7 @@ function ObligationRow({
             )}
           </div>
           <div className="mono text-[11.5px] text-muted-foreground">
-            {formatRupiah(obligation.amountDue)}
+            {money.format(obligation.amountDue)}
             {dueDateLabel && (
               <>
                 {t.anggaran.obligationsDueDatePrefix}
@@ -652,6 +659,7 @@ export function ObligationsSection({
   token: string | undefined;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const queryClient = useQueryClient();
   const [target, setTarget] = useState<Obligation | null>(null);
   const [sourceAccountId, setSourceAccountId] = useState("");
@@ -775,7 +783,7 @@ export function ObligationsSection({
           {t.anggaran.obligationsSummaryMidPrefix}
           {obligations.length}
           {t.anggaran.obligationsSummaryMidSuffix}
-          {formatRupiah(unpaidTotal)}
+          {money.format(unpaidTotal)}
         </span>
       }
       bodyClassName="-mt-1 divide-y"
@@ -810,6 +818,7 @@ export function ObligationsSection({
 
 export default function AnggaranPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId;
@@ -1178,7 +1187,7 @@ export default function AnggaranPage() {
           </h1>
           <div className="mt-1 text-[12.5px] text-muted-foreground">
             {t.anggaran.totalBudgetPrefix}
-            <span className="mono">{formatRupiah(totalLimit)}</span>
+            <span className="mono">{money.format(totalLimit)}</span>
             {budgets && budgets.length > 0 && (
               <> · {budgets.length} kategori aktif</>
             )}
@@ -1208,7 +1217,7 @@ export default function AnggaranPage() {
               {t.anggaran.remainingBudgetLabel}
             </div>
             <div className="mono text-[26px] font-black">
-              {formatRupiah(totalRemaining)}
+              {money.format(totalRemaining)}
             </div>
             <div className="mt-2.5 flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">
@@ -1232,11 +1241,11 @@ export default function AnggaranPage() {
             <div className="mono mt-1.5 flex items-center justify-between text-[11px] opacity-90">
               <span>
                 {t.anggaran.heroTerpakaiPrefix}
-                {formatRupiah(totalSpent)}
+                {money.format(totalSpent)}
               </span>
               <span>
                 {t.anggaran.heroRencanaPrefix}
-                {formatRupiah(totalLimit)}
+                {money.format(totalLimit)}
               </span>
             </div>
           </HeroCard>
@@ -1255,7 +1264,7 @@ export default function AnggaranPage() {
                   {t.anggaran.totalSpentLabel}
                 </div>
                 <div className="mono text-[15px] font-extrabold text-destructive">
-                  {formatRupiah(totalSpent)}
+                  {money.format(totalSpent)}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {usagePct}
@@ -1278,7 +1287,7 @@ export default function AnggaranPage() {
                 <div className="text-[11px] text-muted-foreground">
                   {t.anggaran.statAvgSafePrefix}
                   <span className="mono">
-                    {formatRupiah(
+                    {money.format(
                       daysLeft > 0
                         ? Math.round(totalRemaining / daysLeft)
                         : totalRemaining,

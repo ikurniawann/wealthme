@@ -22,7 +22,7 @@ import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 import { parseGoalFormValues } from "@/lib/goals-utils";
 import {
@@ -188,6 +188,7 @@ function GoalCard({
   token,
 }: GoalCardProps) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const [showHistory, setShowHistory] = useState(false);
   const { label, variant, color, stripColor, iconBg } = statusToBadge(
     goal.status,
@@ -253,23 +254,23 @@ function GoalCard({
 
         <div className="mt-2.5 flex items-center justify-between text-[11.5px] text-muted-foreground">
           <span>
-            {formatRupiah(goal.currentAmount)}
+            {money.format(goal.currentAmount)}
             {t.tujuan.collectedSuffix}
           </span>
           <span>
             {t.tujuan.targetPrefix}
-            {formatRupiah(goal.targetAmount)}
+            {money.format(goal.targetAmount)}
           </span>
         </div>
         <div className="mt-3 flex items-center justify-between border-t pt-3 text-[12px] font-semibold">
           <span>
             {t.tujuan.remainingPrefix}
-            {formatRupiah(goal.remainingAmount)}
+            {money.format(goal.remainingAmount)}
           </span>
           {goal.autoDebitAmount != null ? (
             <span className="text-muted-foreground">
               {t.tujuan.autoDebitPrefix}
-              {formatRupiah(goal.autoDebitAmount)}
+              {money.format(goal.autoDebitAmount)}
               {t.tujuan.autoDebitSuffix}
               {goal.autoDebitDay != null
                 ? ` · ${t.tujuan.autoDebitDayPrefix}${goal.autoDebitDay}`
@@ -293,7 +294,7 @@ function GoalCard({
             <span>
               {t.tujuan.noticeSavingsPrefix}
               <strong className="font-[family-name:var(--font-mono)]">
-                {formatRupiah(monthlyNeeded)}
+                {money.format(monthlyNeeded)}
               </strong>
               {hasAutoDebit
                 ? `${t.tujuan.noticeSavingsPerMonthMiddle}${monthsUntilTarget(goal.targetDate as string)}${t.tujuan.noticeSavingsMonthsSuffix}`
@@ -355,6 +356,7 @@ function GoalCard({
 
 export default function TujuanPage() {
   const { t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId;
@@ -671,18 +673,18 @@ export default function TujuanPage() {
               </div>
               <div className="mt-2 flex justify-between text-[10.5px] text-muted-foreground">
                 <span>
-                  {formatRupiah(totalAllocated)}
+                  {money.format(totalAllocated)}
                   {t.tujuan.collectedSuffix}
                 </span>
                 <span>
                   {t.tujuan.targetPrefix}
-                  {formatRupiah(totalTarget)}
+                  {money.format(totalTarget)}
                 </span>
               </div>
               <div className="mt-2 border-t pt-2 text-[10.5px] text-muted-foreground">
                 {t.tujuan.overallMonthlyPrefix}
                 <strong className="font-[family-name:var(--font-mono)] text-foreground">
-                  {formatRupiah(totalMonthlyNeeded)}
+                  {money.format(totalMonthlyNeeded)}
                 </strong>
                 {t.tujuan.overallMonthlySuffix}
               </div>
