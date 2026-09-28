@@ -577,7 +577,11 @@ export default function TujuanPage() {
           </h1>
           <div className="text-xs text-muted-foreground">
             {t.tujuan.totalAllocatedPrefix}
-            {isLoading ? "…" : <CountUpRupiah value={totalAllocated} />}
+            {isLoading ? (
+              "…"
+            ) : (
+              <CountUpRupiah value={totalAllocated} format={money.format} />
+            )}
           </div>
         </div>
         {canManage && (

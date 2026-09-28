@@ -1447,7 +1447,7 @@ export default function AsetPage() {
             <div className="animate-pulse h-7 w-40 rounded bg-muted" />
           ) : (
             <div className="wm-money mono text-[24px] font-black text-primary-strong transition-[filter] duration-150">
-              <CountUpRupiah value={grandTotal} />
+              <CountUpRupiah value={grandTotal} format={money.format} />
             </div>
           )}
           <div className="mt-[2px] text-[11px] text-muted-foreground">
@@ -1559,6 +1559,7 @@ export default function AsetPage() {
                 ]}
                 height={250}
                 ariaLabel={`${t.aset.assetTrendTitle}: ${money.format(assetTrendValues[0] ?? 0)} → ${money.format(assetTrendValues[assetTrendValues.length - 1] ?? 0)}`}
+                money={money}
               />
             </div>
           )}
@@ -1577,6 +1578,7 @@ export default function AsetPage() {
                 segments={allocationSegments}
                 centerLabel={t.aset.totalAssetsLabel}
                 ariaLabel={`${t.aset.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${money.format(s.value)}`).join(", ")}`}
+                money={money}
               />
             </div>
           )}

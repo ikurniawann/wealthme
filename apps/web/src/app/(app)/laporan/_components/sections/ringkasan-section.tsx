@@ -242,7 +242,11 @@ export function RingkasanSection({
           iconBg="var(--accent)"
           iconColor="var(--accent-foreground)"
           label={t.laporan.ringkasan.statNetCashflowLabel}
-          value={detailReport ? formatSignedRupiah(headlineNet) : "Rp ·"}
+          value={
+            detailReport
+              ? formatSignedRupiah(headlineNet, money.format)
+              : "Rp ·"
+          }
           valueClass={
             detailReport && headlineNet >= 0
               ? "text-success"
@@ -308,6 +312,7 @@ export function RingkasanSection({
                 expense={chartExpense}
                 height={260}
                 ariaLabel={cashflowChartAriaLabel}
+                money={money}
               />
             ) : (
               <div className="flex h-[260px] items-center justify-center text-[12px] text-muted-foreground">
@@ -330,6 +335,7 @@ export function RingkasanSection({
                   centerLabel={t.common.total}
                   height={190}
                   ariaLabel={expenseDonutAriaLabel}
+                  money={money}
                 />
                 <div className="space-y-2">
                   {expenseDonut.map((seg) => (
@@ -436,6 +442,7 @@ export function RingkasanSection({
                 centerLabel={t.common.total}
                 height={190}
                 ariaLabel={wealthAllocAriaLabel}
+                money={money}
               />
               <div className="space-y-2">
                 {wealthAlloc.map((seg) => (

@@ -23,7 +23,7 @@ export function CashflowSection({
   // EPIC-022 B2 — a negative net figure must render with a real minus sign;
   // the previous inline `fmt()` silently turned every negative into a bare
   // positive number via `Math.abs()`, distinguished only by colour.
-  const fmt = formatSignedRupiah;
+  const fmt = (amount: number) => formatSignedRupiah(amount, money.format);
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>

@@ -164,9 +164,10 @@ describe("buildHBarOptions", () => {
 
   it("reserves label width so long category names do not overlap bars", () => {
     const { options } = buildHBarOptions(["Tabungan & Investasi"], [500]);
-    const yaxis = options.yaxis && !Array.isArray(options.yaxis)
-      ? options.yaxis
-      : undefined;
+    const yaxis =
+      options.yaxis && !Array.isArray(options.yaxis)
+        ? options.yaxis
+        : undefined;
     expect(yaxis?.labels).toMatchObject({ minWidth: 130, maxWidth: 150 });
   });
 
@@ -177,18 +178,25 @@ describe("buildHBarOptions", () => {
   });
 
   it("can show the numeric x-axis for expanded charts", () => {
-    const { options } = buildHBarOptions(["Belanja"], [500], undefined, undefined, {
-      showXAxisLabels: true,
-    });
+    const { options } = buildHBarOptions(
+      ["Belanja"],
+      [500],
+      undefined,
+      undefined,
+      {
+        showXAxisLabels: true,
+      },
+    );
     expect(options.xaxis?.labels?.show).toBe(true);
     expect(options.grid?.xaxis?.lines?.show).toBe(true);
   });
 
   it("truncates long category labels before they reach the bars", () => {
     const { options } = buildHBarOptions(["Tabungan & Investasi"], [500]);
-    const yaxis = options.yaxis && !Array.isArray(options.yaxis)
-      ? options.yaxis
-      : undefined;
+    const yaxis =
+      options.yaxis && !Array.isArray(options.yaxis)
+        ? options.yaxis
+        : undefined;
     const formatter = yaxis?.labels?.formatter as unknown as
       | ((value: string) => string)
       | undefined;
@@ -196,6 +204,68 @@ describe("buildHBarOptions", () => {
     expect(formatter?.("Tabungan & Investasi Jangka Panjang")).toBe(
       "Tabungan & Investas...",
     );
+  });
+});
+
+describe("C5: money formatter override (e.g. useMoney().format/formatCompact)", () => {
+  const usdFormat = (idr: number) => `≈ $${(idr / 15000).toFixed(2)}`;
+  const usdCompact = (idr: number) => `≈$${Math.round(idr / 15000)}`;
+
+  it("buildCashflowOptions uses the given formatter for tooltip/axis, not plain IDR", () => {
+    const { options } = buildCashflowOptions(["Jan"], [150000], [50000], {
+      format: usdFormat,
+      formatCompact: usdCompact,
+    });
+    const tooltipFmt = (
+      options.tooltip?.y as { formatter?: (v: number) => string } | undefined
+    )?.formatter as (v: number) => string;
+    const axisFmt =
+      options.yaxis && !Array.isArray(options.yaxis)
+        ? (options.yaxis.labels?.formatter as (v: number) => string)
+        : undefined;
+    expect(tooltipFmt(150000)).toBe("≈ $10.00");
+    expect(axisFmt?.(150000)).toBe("≈$10");
+  });
+
+  it("buildTrendOptions defaults to plain IDR when no formatter is given", () => {
+    const { options } = buildTrendOptions(
+      ["W1"],
+      [{ name: "s", data: [1500000] }],
+    );
+    const tooltipFmt = (
+      options.tooltip?.y as { formatter?: (v: number) => string } | undefined
+    )?.formatter as (v: number) => string;
+    expect(tooltipFmt(1500000)).toContain("Rp");
+  });
+
+  it("buildDonutOptions uses the given formatter for the center total", () => {
+    const segments: DonutSegment[] = [
+      { label: "A", value: 150000, color: "#111" },
+    ];
+    const { options } = buildDonutOptions(segments, "Total", 232, {
+      format: usdFormat,
+      formatCompact: usdCompact,
+    });
+    const totalFmt = options.plotOptions?.pie?.donut?.labels?.total
+      ?.formatter as unknown as
+      | ((w: { globals: { seriesTotals: number[] } }) => string)
+      | undefined;
+    expect(totalFmt?.({ globals: { seriesTotals: [150000] } })).toBe("≈$10");
+  });
+
+  it("buildHBarOptions uses the given formatter for the x-axis and tooltip", () => {
+    const { options } = buildHBarOptions(
+      ["Cat A"],
+      [150000],
+      undefined,
+      undefined,
+      {},
+      { format: usdFormat, formatCompact: usdCompact },
+    );
+    const tooltipFmt = (
+      options.tooltip?.y as { formatter?: (v: number) => string } | undefined
+    )?.formatter as (v: number) => string;
+    expect(tooltipFmt(150000)).toBe("≈ $10.00");
   });
 });
 

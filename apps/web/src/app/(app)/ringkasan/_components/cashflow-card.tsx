@@ -28,6 +28,7 @@ export function CashflowCard({ data }: { data: RingkasanData }) {
     cashflowIncome,
     cashflowExpense,
     cashflowAriaLabel,
+    money: moneyCompactFmt,
   } = data;
 
   return (
@@ -52,6 +53,7 @@ export function CashflowCard({ data }: { data: RingkasanData }) {
               expense={cashflowExpense}
               height={CASHFLOW_HEIGHT}
               ariaLabel={cashflowAriaLabel}
+              money={{ format: moneyFull, formatCompact: moneyCompactFmt }}
             />
           </div>
         )}

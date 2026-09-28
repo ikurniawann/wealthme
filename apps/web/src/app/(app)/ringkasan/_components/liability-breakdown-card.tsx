@@ -23,6 +23,8 @@ export function LiabilityBreakdownCard({ data }: { data: RingkasanData }) {
     liabilityCategories,
     liabilityData,
     liabilityAriaLabel,
+    money,
+    moneyFull,
   } = data;
 
   return (
@@ -43,6 +45,7 @@ export function LiabilityBreakdownCard({ data }: { data: RingkasanData }) {
               categories={liabilityCategories}
               data={liabilityData}
               ariaLabel={liabilityAriaLabel}
+              money={{ format: moneyFull, formatCompact: money }}
             />
           </div>
         )}

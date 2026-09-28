@@ -55,15 +55,20 @@ export function CountUpRupiah({
   value,
   durationMs = 1200,
   className,
+  format = formatRupiah,
 }: {
   value: number;
   durationMs?: number;
   className?: string;
+  /** Formatter for the counted value — C5. Defaults to plain IDR so every
+   * existing caller keeps its current behaviour; pages that display a
+   * converted currency pass `useMoney().format`. */
+  format?: (idr: number) => string;
 }) {
   const v = useCountUp(value, durationMs);
   return (
     <span className={className} style={{ fontVariantNumeric: "tabular-nums" }}>
-      {formatRupiah(Math.round(v))}
+      {format(Math.round(v))}
     </span>
   );
 }

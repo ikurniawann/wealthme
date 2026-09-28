@@ -755,6 +755,7 @@ function InvestasiTab() {
               ]}
               height={220}
               ariaLabel={`${t.kalkulator.investasi.projectionChartTitle}: ${money.format(projectionValues[0] ?? 0)} → ${money.format(fv)}`}
+              money={money}
             />
             <div className="space-y-1.5">
               <Row

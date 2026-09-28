@@ -2063,6 +2063,7 @@ export default function InvestasiPage() {
                     {summary?.totalCurrentValue != null ? (
                       <CountUpRupiah
                         value={parseFloat(summary.totalCurrentValue)}
+                        format={money.format}
                       />
                     ) : (
                       "—"
@@ -2286,6 +2287,7 @@ export default function InvestasiPage() {
                     ]}
                     height={230}
                     ariaLabel="Tren nilai portofolio 6 bulan"
+                    money={money}
                   />
                 </div>
               )}
@@ -2304,6 +2306,7 @@ export default function InvestasiPage() {
                           `${s.label} ${formatDecimalRupiah(String(s.value))}`,
                       )
                       .join(", ")}`}
+                    money={money}
                   />
                 </div>
               )}

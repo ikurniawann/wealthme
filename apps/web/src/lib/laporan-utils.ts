@@ -32,10 +32,11 @@ export function categoryBreakdownToDonut(
  * the minus and leaving color as the only (easy to miss) signal that a
  * cashflow figure was negative.
  */
-export function formatSignedRupiah(amount: number): string {
-  return amount >= 0
-    ? `+${formatRupiah(amount)}`
-    : `-${formatRupiah(Math.abs(amount))}`;
+export function formatSignedRupiah(
+  amount: number,
+  format: (idr: number) => string = formatRupiah,
+): string {
+  return amount >= 0 ? `+${format(amount)}` : `-${format(Math.abs(amount))}`;
 }
 
 export function txTypeToBadgeVariant(

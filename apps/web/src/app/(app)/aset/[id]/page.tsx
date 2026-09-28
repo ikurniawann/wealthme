@@ -224,6 +224,7 @@ export default function AssetDetailPage() {
                 ]}
                 height={260}
                 ariaLabel={`${t.aset.detailChartTitle}: ${asset?.name ?? ""}`}
+                money={money}
               />
             )}
           </SectionCard>

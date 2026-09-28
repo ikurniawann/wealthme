@@ -65,6 +65,7 @@ export function KasSection({
               expense={chartExpense}
               height={260}
               ariaLabel={cashflowChartAriaLabel}
+              money={money}
             />
           </div>
         )}

@@ -92,6 +92,7 @@ export function AllocationCard({
               centerLabel={t.beranda.donutCenterLabel}
               height={188}
               ariaLabel={donutAriaLabel}
+              money={money}
             />
           </div>
           <div

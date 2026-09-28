@@ -1025,6 +1025,7 @@ export default function WarisanPage() {
                       (s) => `${s.label} ${money.format(Math.round(s.value))}`,
                     )
                     .join(", ")}`}
+                  money={money}
                 />
                 <div className="mt-1.5 space-y-0.5">
                   {heirBeneficiaryRows.map((row) => (

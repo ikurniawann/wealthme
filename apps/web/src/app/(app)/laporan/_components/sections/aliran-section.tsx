@@ -2,6 +2,7 @@ import { SectionCard } from "@/components/wm";
 import { HBarChart } from "@/components/charts/apex-presets";
 import { formatJuta, sankeyToFlowBars } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
+import { useMoney } from "@/hooks/use-money";
 import type { SankeyDto } from "@wealthme/contracts";
 
 /* ───────────────────────── Section: Aliran Dana ───────────────────────── */
@@ -16,6 +17,7 @@ export function AliranSection({
   periodLabel: string;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const incomeBars = sankeyData ? sankeyToFlowBars(sankeyData, "income") : [];
   const expenseBars = sankeyData ? sankeyToFlowBars(sankeyData, "expense") : [];
@@ -43,6 +45,7 @@ export function AliranSection({
                   ariaLabel={`${t.laporan.aliran.incomeSourceLabel}: ${incomeBars
                     .map((b) => `${b.label} ${formatJuta(b.amount)}`)
                     .join(", ")}`}
+                  money={money}
                 />
               </div>
             )}
@@ -58,6 +61,7 @@ export function AliranSection({
                   ariaLabel={`${t.laporan.aliran.expenseAllocLabel}: ${expenseBars
                     .map((b) => `${b.label} ${formatJuta(b.amount)}`)
                     .join(", ")}`}
+                  money={money}
                 />
               </div>
             )}

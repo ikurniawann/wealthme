@@ -77,6 +77,7 @@ export function TahunanSection({
             ariaLabel={`${t.laporan.tahunan.trendTitle}: ${points
               .map((p) => `${p.label} ${money.format(p.income)}`)
               .join(", ")}`}
+            money={money}
           />
         </SectionCard>
       )}

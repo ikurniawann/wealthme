@@ -1983,7 +1983,10 @@ export default function LiabilitasPage() {
             <div className="animate-pulse h-7 w-36 rounded bg-red-200" />
           ) : (
             <div className="mono text-[18px] font-black text-destructive sm:text-[22px]">
-              <CountUpRupiah value={Number(totalRemaining)} />
+              <CountUpRupiah
+                value={Number(totalRemaining)}
+                format={money.format}
+              />
             </div>
           )}
           <div className="text-[11px] text-[#B91C1C]">
@@ -2132,6 +2135,7 @@ export default function LiabilitasPage() {
                 },
               ]}
               ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${money.format(Number(totalRemaining))} → ${money.format(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
+              money={money}
             />
           )}
           <p className="mt-2 text-[11px] text-muted-foreground">

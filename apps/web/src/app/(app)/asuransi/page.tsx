@@ -1585,6 +1585,7 @@ export default function AsuransiPage() {
                 ]}
                 height={245}
                 ariaLabel={`Premi 6 bulan terakhir: ${premiumTrendMonths.map((month, index) => `${month} ${money.format(premiumTrendData[index] ?? 0)}`).join(", ")}`}
+                money={money}
               />
             </SectionCard>
           )}
@@ -1596,6 +1597,7 @@ export default function AsuransiPage() {
                 centerLabel={t.asuransi.coverageLabel}
                 height={245}
                 ariaLabel={`${t.asuransi.coverageAllocationTitle}: ${coverageSegments.map((s) => `${s.label} ${money.format(s.value)}`).join(", ")}`}
+                money={money}
               />
             </SectionCard>
           )}

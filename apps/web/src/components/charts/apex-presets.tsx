@@ -11,6 +11,7 @@ import {
   buildRadialOptions,
   buildSparklineOptions,
   buildTrendOptions,
+  type ChartMoneyFormatter,
   type TrendSeries,
 } from "@/components/charts/apex-options";
 
@@ -45,6 +46,8 @@ type CashflowChartProps = {
   expense: number[];
   height?: number;
   ariaLabel?: string;
+  /** Money formatter pair (e.g. `useMoney()`) — defaults to plain IDR. */
+  money?: ChartMoneyFormatter;
 };
 
 /** Grouped income/expense bar chart. Ports `cashflow()`. */
@@ -54,12 +57,13 @@ export function CashflowChart({
   expense,
   height = 260,
   ariaLabel,
+  money,
 }: CashflowChartProps) {
   const rebuildToken = useThemeRebuildToken();
   const { options, series } = useMemo(
-    () => buildCashflowOptions(months, income, expense),
+    () => buildCashflowOptions(months, income, expense, money),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [months, income, expense, rebuildToken],
+    [months, income, expense, money, rebuildToken],
   );
   return (
     <ChartErrorBoundary label="Grafik arus kas">
@@ -81,6 +85,8 @@ type TrendChartProps = {
   series: TrendSeries[];
   height?: number;
   ariaLabel?: string;
+  /** Money formatter pair (e.g. `useMoney()`) — defaults to plain IDR. */
+  money?: ChartMoneyFormatter;
 };
 
 /** Gradient-filled area trend chart. Ports `trend()`. */
@@ -89,12 +95,13 @@ export function TrendChart({
   series,
   height = 250,
   ariaLabel,
+  money,
 }: TrendChartProps) {
   const rebuildToken = useThemeRebuildToken();
   const built = useMemo(
-    () => buildTrendOptions(categories, series, height),
+    () => buildTrendOptions(categories, series, height, money),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [categories, series, height, rebuildToken],
+    [categories, series, height, money, rebuildToken],
   );
   return (
     <ChartErrorBoundary label="Grafik tren">
@@ -117,6 +124,8 @@ type DonutChartProps = {
   centerLabel?: string;
   height?: number;
   ariaLabel?: string;
+  /** Money formatter pair (e.g. `useMoney()`) — defaults to plain IDR. */
+  money?: ChartMoneyFormatter;
 };
 
 /** Donut chart with a centered total. Accepts the existing `DonutSegment[]` shape. Ports `donut()`. */
@@ -125,12 +134,13 @@ export function DonutChart({
   centerLabel = "Total",
   height = 232,
   ariaLabel,
+  money,
 }: DonutChartProps) {
   const rebuildToken = useThemeRebuildToken();
   const { options, series } = useMemo(
-    () => buildDonutOptions(segments, centerLabel, height),
+    () => buildDonutOptions(segments, centerLabel, height, money),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [segments, centerLabel, height, rebuildToken],
+    [segments, centerLabel, height, money, rebuildToken],
   );
   return (
     <ChartErrorBoundary label="Grafik donat">
@@ -191,6 +201,8 @@ type HBarChartProps = {
   height?: number;
   showXAxisLabels?: boolean;
   ariaLabel?: string;
+  /** Money formatter pair (e.g. `useMoney()`) — defaults to plain IDR. */
+  money?: ChartMoneyFormatter;
 };
 
 /** Horizontal bar chart for category breakdowns. Ports `hbar()`. */
@@ -202,17 +214,31 @@ export function HBarChart({
   height,
   showXAxisLabels,
   ariaLabel,
+  money,
 }: HBarChartProps) {
   const rebuildToken = useThemeRebuildToken();
   const chartHeight = height ?? Math.max(190, categories.length * 38 + 34);
   const built = useMemo(
     () =>
-      buildHBarOptions(categories, data, color, height, {
-        showXAxisLabels,
-        colors,
-      }),
+      buildHBarOptions(
+        categories,
+        data,
+        color,
+        height,
+        { showXAxisLabels, colors },
+        money,
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [categories, data, color, colors, height, showXAxisLabels, rebuildToken],
+    [
+      categories,
+      data,
+      color,
+      colors,
+      height,
+      showXAxisLabels,
+      money,
+      rebuildToken,
+    ],
   );
   return (
     <ChartErrorBoundary label="Grafik batang">

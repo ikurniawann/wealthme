@@ -104,6 +104,7 @@ export function AslSection({
               ]
                 .map((g) => `${g.category} ${money.format(g.amount)}`)
                 .join(", ")}`}
+              money={money}
             />
           </SectionCard>
         )}

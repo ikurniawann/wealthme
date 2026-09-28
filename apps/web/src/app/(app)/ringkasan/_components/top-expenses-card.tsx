@@ -22,6 +22,8 @@ export function TopExpensesCard({ data }: { data: RingkasanData }) {
     topExpenseCategories,
     topExpenseData,
     topExpenseAriaLabel,
+    money,
+    moneyFull,
   } = data;
 
   return (
@@ -51,6 +53,7 @@ export function TopExpensesCard({ data }: { data: RingkasanData }) {
               color="var(--destructive)"
               showXAxisLabels={false}
               ariaLabel={topExpenseAriaLabel}
+              money={{ format: moneyFull, formatCompact: money }}
             />
           </div>
         )}

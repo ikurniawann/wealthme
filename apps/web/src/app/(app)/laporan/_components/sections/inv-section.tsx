@@ -145,6 +145,7 @@ export function InvSection({
                 ariaLabel={`${t.laporan.investasi.portfolioByTypeTitle}: ${typeRows
                   .map((row) => `${row.label} ${row.pct}%`)
                   .join(", ")}`}
+                money={money}
               />
             </div>
             <div className="flex min-w-0 flex-col gap-2.5">

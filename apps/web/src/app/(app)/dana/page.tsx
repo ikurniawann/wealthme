@@ -616,6 +616,7 @@ export default function DanaPage() {
                 ariaLabel={`${t.dana.compositionTitle}: ${compositionSegments
                   .map((s) => `${s.label} ${money.format(s.value)}`)
                   .join(", ")}`}
+                money={money}
               />
             </SectionCard>
           )}

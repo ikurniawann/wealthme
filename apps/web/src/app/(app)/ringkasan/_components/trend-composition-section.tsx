@@ -41,6 +41,8 @@ export function TrendCompositionSection({
     donutSegments,
     donutAriaLabel,
     dateLocale,
+    money,
+    moneyFull,
   } = data;
 
   return (
@@ -84,6 +86,7 @@ export function TrendCompositionSection({
                   series={netWorthTrendSeries}
                   height={TREND_HEIGHT}
                   ariaLabel={netWorthTrendAriaLabel}
+                  money={{ format: moneyFull, formatCompact: money }}
                 />
               </div>
               <div className="row row--between" style={{ marginTop: 2 }}>
@@ -134,6 +137,7 @@ export function TrendCompositionSection({
                   centerLabel={t.ringkasan.totalAssetsLabel}
                   height={DONUT_HEIGHT}
                   ariaLabel={donutAriaLabel}
+                  money={{ format: moneyFull, formatCompact: money }}
                 />
               </div>
               <div className="stack" style={{ marginTop: 8 }}>
