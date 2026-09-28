@@ -1653,6 +1653,8 @@ export const id = {
     },
   },
   investasi: {
+    goldPricePerGramTooHigh:
+      "Harga emas diisi per gram, bukan per kg. Contoh: 2.597.000.",
     typeLabels: {
       saham: "Saham",
       reksa_dana: "Reksa Dana",

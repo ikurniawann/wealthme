@@ -1615,6 +1615,8 @@ export const en = {
     },
   },
   investasi: {
+    goldPricePerGramTooHigh:
+      "Enter the gold price per gram, not per kg. Example: 2,597,000.",
     typeLabels: {
       saham: "Stocks",
       reksa_dana: "Mutual Fund",

@@ -1626,6 +1626,7 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
+    goldPricePerGramTooHigh: string;
     typeLabels: Record<InvestasiTypeId, string>;
     errorLoad: string;
     toastUpdated: string;

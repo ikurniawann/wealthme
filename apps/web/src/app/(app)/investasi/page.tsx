@@ -1257,6 +1257,9 @@ function AddInvestmentModal({
  * portion. Every submission POSTs to `.../investments/:id/transactions`,
  * which is also the real history this dialog used to have none of.
  */
+/** Far above any real per-gram gold price, well below a per-kg one. */
+const GOLD_MAX_PRICE_PER_GRAM_IDR = 100_000_000;
+
 function BuySellModal({
   open,
   onClose,
@@ -1332,6 +1335,20 @@ function BuySellModal({
     );
     if (decimalsError) {
       toast.error(decimalsError);
+      return;
+    }
+    // Gold is priced per gram here while quantity is in kg; a per-kg Antam
+    // price typed into this field would silently inflate the value 1000x.
+    if (
+      isGold &&
+      Number(
+        moneyIdrDecimal(
+          priceField,
+          () => toCanonicalAmount(priceField.raw) ?? "0",
+        ),
+      ) > GOLD_MAX_PRICE_PER_GRAM_IDR
+    ) {
+      toast.error(t.investasi.goldPricePerGramTooHigh);
       return;
     }
     const canonicalQuantity = isSaham
