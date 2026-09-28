@@ -78,17 +78,21 @@ export function Topbar() {
           <ArrowLeft className="size-[17px]" aria-hidden="true" />
         </button>
       )}
-      <div className="topbar__title">{title}</div>
+      <div className="topbar__title min-w-0 truncate whitespace-nowrap">
+        {title}
+      </div>
       <div className="topbar__spacer" />
       <button
         type="button"
         onClick={() => setSearchOpen(true)}
         aria-label={t.shell.search}
-        className="topbar__search"
+        className="topbar__search min-w-0"
       >
         <Search className="size-[15px] shrink-0" aria-hidden="true" />
-        <span>{t.shell.searchPlaceholder}</span>
-        <span className="kbd">⌘K</span>
+        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left">
+          {t.shell.searchPlaceholder}
+        </span>
+        <span className="kbd shrink-0 max-lg:hidden">⌘K</span>
       </button>
       {canRecordTransaction(access) && (
         <button
