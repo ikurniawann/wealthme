@@ -6,12 +6,14 @@ export type CurrencyTarget = { code: string; rate: number };
 type CurrencyConfig = { symbol: string; decimals: number; locale: string };
 
 // EPIC-016 Task B2 — display-currency config. Rates that produce these
-// targets come from the mock FxPort (apps/api/src/fx), so any non-IDR
-// output is always indicative, never a live market rate.
+// targets come from FxPort (apps/api/src/fx) — FrankfurterFxService (a live
+// feed, cached) by default, FxMockService only under FX_PROVIDER=mock — so
+// any non-IDR output stays labeled indicative (see useCurrencyPreference /
+// useMoney), never presented as an authoritative real-time rate.
 // EPIC-021 Group F (#1) — AUD/CNY added alongside the pre-existing
 // currencies (reviewed foundation change: this file is otherwise
-// protected). Rates still come from the mock FxPort, so both stay
-// indicative, never a live market rate.
+// protected). Batch C (revisi-2) comment update is the same kind of
+// reviewed foundation change.
 const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
   IDR: { symbol: "Rp", decimals: 0, locale: "id-ID" },
   USD: { symbol: "$", decimals: 2, locale: "en-US" },
