@@ -1238,6 +1238,7 @@ export function PengaturanBody() {
     isOwner: isGoldPriceOwner,
     updateGoldPrice,
     isUpdating: isGoldPriceUpdating,
+    isAntamPrice: isGoldPriceFromAntam,
   } = useGoldPrice();
   // Never prefilled, so it opens on the display currency (Decision 12); the
   // value is still stored as IDR per gram.
@@ -1426,8 +1427,14 @@ export function PengaturanBody() {
             {money.format(goldPricePerGram)}
             {goldPriceUpdatedAt && (
               <span className="ml-1.5 text-[11.5px] font-normal text-muted-foreground">
-                ({t.akun.pengaturan.goldPriceManualLabelPrefix}
-                {formatManualDate(goldPriceUpdatedAt, locale)})
+                (
+                {isGoldPriceFromAntam
+                  ? t.consolidatedTotal.antamLabelTemplate.replace(
+                      "{date}",
+                      formatManualDate(goldPriceUpdatedAt, locale),
+                    )
+                  : `${t.akun.pengaturan.goldPriceManualLabelPrefix}${formatManualDate(goldPriceUpdatedAt, locale)}`}
+                )
               </span>
             )}
           </div>

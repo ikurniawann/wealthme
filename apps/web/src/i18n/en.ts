@@ -2513,6 +2513,7 @@ export const en = {
     goldPromptText: "Set a gold price to see the gold equivalent.",
     goldPromptLinkLabel: "Set gold price",
     manualLabelPrefix: "Manually entered, as of ",
+    antamLabelTemplate: "Antam 1 kg price, source emasantam.id, updated {date}",
     indicativeFxNote:
       "The USD value is an approximation using an indicative rate, not a real-time market rate.",
     loadingLabel: "Loading...",

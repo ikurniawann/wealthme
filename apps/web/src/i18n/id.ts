@@ -2564,6 +2564,8 @@ export const id = {
     goldPromptText: "Atur harga emas untuk melihat setara emas.",
     goldPromptLinkLabel: "Atur harga emas",
     manualLabelPrefix: "Diinput manual, per ",
+    antamLabelTemplate:
+      "Harga Antam 1 kg, sumber emasantam.id, diperbarui {date}",
     indicativeFxNote:
       "Nilai USD adalah perkiraan menggunakan kurs indikatif, bukan kurs pasar real-time.",
     loadingLabel: "Memuat...",

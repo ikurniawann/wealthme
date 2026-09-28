@@ -2407,6 +2407,11 @@ export type I18nDictionary = {
     goldPromptText: string;
     goldPromptLinkLabel: string;
     manualLabelPrefix: string;
+    // B9 (client revision round 2) — "Harga Antam 1 kg, sumber
+    // emasantam.id, diperbarui {date}" one-liner shown instead of
+    // manualLabelPrefix when the live Antam feed (not the manual entry) is
+    // the active gold-price source.
+    antamLabelTemplate: string;
     indicativeFxNote: string;
     loadingLabel: string;
   };

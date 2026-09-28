@@ -52,6 +52,7 @@ export function ConsolidatedTotalCard({
     hasPrice,
     toGoldGrams,
     isLoading: isGoldLoading,
+    isAntamPrice,
   } = useGoldPrice();
 
   // Same query key as `useCurrencyPreference` — shares its cache entry
@@ -118,8 +119,12 @@ export function ConsolidatedTotalCard({
         <div>{t.consolidatedTotal.indicativeFxNote}</div>
         {hasPrice && updatedAt && (
           <div>
-            {t.consolidatedTotal.manualLabelPrefix}
-            {formatManualDate(updatedAt, locale)}
+            {isAntamPrice
+              ? t.consolidatedTotal.antamLabelTemplate.replace(
+                  "{date}",
+                  formatManualDate(updatedAt, locale),
+                )
+              : `${t.consolidatedTotal.manualLabelPrefix}${formatManualDate(updatedAt, locale)}`}
           </div>
         )}
       </div>
