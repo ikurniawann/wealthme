@@ -62,6 +62,19 @@ export function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * A4 (revisi-2) — "click the logo to go Home, no separate Home button": the
+ * logo in `SidebarBrand` now links to `/beranda`, so the desktop sidebar and
+ * the mobile nav sheet (both render `SidebarSections`) drop their own
+ * `beranda` item to avoid the duplicate. The mobile bottom-nav's Beranda tab
+ * is a separate component (`mobile-bars.tsx`) and is untouched.
+ */
+export function excludeBrandDuplicate<T extends { id: string }>(
+  items: readonly T[],
+): T[] {
+  return items.filter((item) => item.id !== "beranda");
+}
+
 export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const closedRaw = useSyncExternalStore(
@@ -109,8 +122,8 @@ export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
       aria-label={t.shell.navMenuTitle}
     >
       {NAV_SECTIONS.map((section, si) => {
-        const visibleItems = section.items.filter((item) =>
-          isNavItemVisibleForAccess(item, access),
+        const visibleItems = excludeBrandDuplicate(section.items).filter(
+          (item) => isNavItemVisibleForAccess(item, access),
         );
         if (visibleItems.length === 0) return null;
         const key = section.headerKey;

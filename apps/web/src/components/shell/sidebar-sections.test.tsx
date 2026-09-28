@@ -19,7 +19,7 @@ jest.mock("../../lib/auth-client", () => ({
   },
 }));
 
-import { isNavItemActive } from "./sidebar-sections";
+import { excludeBrandDuplicate, isNavItemActive } from "./sidebar-sections";
 
 describe("isNavItemActive", () => {
   test("marks the list page active on an exact match", () => {
@@ -42,5 +42,20 @@ describe("isNavItemActive", () => {
 
   test("does not mark the item active for an unrelated route", () => {
     expect(isNavItemActive("/beranda", "/aset")).toBe(false);
+  });
+});
+
+describe("excludeBrandDuplicate", () => {
+  test("drops the beranda item since the logo now links home", () => {
+    const items = [{ id: "beranda" }, { id: "ringkasan" }, { id: "transaksi" }];
+    expect(excludeBrandDuplicate(items).map((i) => i.id)).toEqual([
+      "ringkasan",
+      "transaksi",
+    ]);
+  });
+
+  test("is a no-op when there is no beranda item", () => {
+    const items = [{ id: "anggaran" }, { id: "tujuan" }];
+    expect(excludeBrandDuplicate(items)).toEqual(items);
   });
 });
