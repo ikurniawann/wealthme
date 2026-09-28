@@ -30,6 +30,7 @@ import {
 } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
 import { parseRupiah, formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -83,6 +84,7 @@ function computePct(split: SplitBillDto): number {
 
 export default function SplitBillPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId as string | undefined;
@@ -560,7 +562,7 @@ export default function SplitBillPage() {
           iconBg="var(--accent)"
           iconColor="var(--primary)"
           label={t.splitbill.totalDitalanginLabel}
-          amount={formatRupiah(totalDitalangin)}
+          amount={money.format(totalDitalangin)}
           caption={`${activeSplits.length}${t.splitbill.activeSplitsSuffix}`}
         />
         <SummaryCard
@@ -568,7 +570,7 @@ export default function SplitBillPage() {
           iconBg="var(--success-soft)"
           iconColor="var(--success)"
           label={t.splitbill.sudahDibayarLabel}
-          amount={formatRupiah(totalTerkumpul)}
+          amount={money.format(totalTerkumpul)}
           delta={`${
             totalDitalangin > 0
               ? Math.round((totalTerkumpul / totalDitalangin) * 100)
@@ -581,7 +583,7 @@ export default function SplitBillPage() {
           iconBg="var(--warning-soft)"
           iconColor="var(--warning)"
           label={t.splitbill.belumDibayarLabel}
-          amount={formatRupiah(totalBelum)}
+          amount={money.format(totalBelum)}
           delta={`${belumBayarCount}${t.splitbill.peopleUnpaidSuffix}`}
         />
       </div>
@@ -658,7 +660,7 @@ export default function SplitBillPage() {
                       {" · "}
                       {split.participants.length > 0 && (
                         <span className="mono">
-                          {formatRupiah(
+                          {money.format(
                             Math.round(
                               Number(BigInt(split.totalAmount)) /
                                 split.participants.length,
@@ -689,7 +691,7 @@ export default function SplitBillPage() {
                   </div>
                   <div className="text-right">
                     <div className="text-[15px] font-extrabold">
-                      {formatRupiah(Number(BigInt(split.totalAmount)))}
+                      {money.format(Number(BigInt(split.totalAmount)))}
                     </div>
                     <div className="text-[11px] text-muted-foreground">
                       <span className="font-bold" style={{ color: barColor }}>
@@ -704,7 +706,7 @@ export default function SplitBillPage() {
                 <ProgressBar value={pct} color={barColor} className="mb-2" />
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[12px] text-muted-foreground">
-                    {formatRupiah(computePaidAmount(split))}
+                    {money.format(computePaidAmount(split))}
                     {t.splitbill.collectedSuffix}
                   </span>
                   <button
@@ -1016,7 +1018,7 @@ export default function SplitBillPage() {
               <DialogTitle>{selectedSplit.title}</DialogTitle>
               <DialogDescription>
                 <span className="mono">
-                  {formatRupiah(Number(BigInt(selectedSplit.totalAmount)))}
+                  {money.format(Number(BigInt(selectedSplit.totalAmount)))}
                 </span>
                 {" · "}
                 {selectedSplit.participants.length}
@@ -1025,7 +1027,7 @@ export default function SplitBillPage() {
                   <>
                     {" · "}
                     <span className="mono">
-                      {formatRupiah(
+                      {money.format(
                         Math.round(
                           Number(BigInt(selectedSplit.totalAmount)) /
                             selectedSplit.participants.length,
@@ -1092,7 +1094,7 @@ export default function SplitBillPage() {
                           {p.name}
                         </div>
                         <div className="text-[11px] text-muted-foreground">
-                          {formatRupiah(Number(BigInt(p.amountOwed)))}
+                          {money.format(Number(BigInt(p.amountOwed)))}
                         </div>
                       </div>
                       <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2">

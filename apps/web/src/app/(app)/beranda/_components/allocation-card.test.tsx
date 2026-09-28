@@ -19,6 +19,27 @@ jest.mock("../../../../components/charts/apex-presets", () => ({
   DonutChart: () => <div data-testid="donut-stub" />,
 }));
 
+// useMoney() otherwise pulls in useProfile -> useSession -> the real
+// better-auth ESM client, which jest can't transform in this test file.
+// IDR-passthrough stub matches this suite's pre-Batch-C behavior (no
+// display-currency preference set).
+jest.mock("../../../../hooks/use-money", () => {
+  const {
+    formatRupiah,
+    formatRupiahCompact,
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+  } = require("../../../../lib/format");
+  return {
+    useMoney: () => ({
+      currency: "IDR",
+      isIndicative: false,
+      isReady: true,
+      format: formatRupiah,
+      formatCompact: formatRupiahCompact,
+    }),
+  };
+});
+
 import { render, screen } from "@testing-library/react";
 
 import { AllocationCard } from "./allocation-card";

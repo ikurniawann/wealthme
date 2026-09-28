@@ -10,7 +10,7 @@ import { DonutChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { CardLink, SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
-import { formatRupiah, formatRupiahCompact } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import type { AllocationItem } from "./use-beranda-data";
 
 /**
@@ -34,6 +34,7 @@ export function AllocationCard({
 }) {
   const router = useRouter();
   const { t } = useLocale();
+  const money = useMoney();
   const rebuildToken = useThemeRebuildToken();
 
   const segments: DonutSegment[] = useMemo(() => {
@@ -122,15 +123,15 @@ export function AllocationCard({
                   </span>
                   <span
                     className="allocation-row__value"
-                    title={formatRupiah(item.amount)}
+                    title={money.format(item.amount)}
                   >
-                    {formatRupiahCompact(item.amount)}
+                    {money.formatCompact(item.amount)}
                   </span>
                 </div>
                 <div className="allocation-row__meta">
                   <span>{item.percent}%</span>
-                  <span title={formatRupiah(item.amount)}>
-                    {formatRupiah(item.amount)}
+                  <span title={money.format(item.amount)}>
+                    {money.format(item.amount)}
                   </span>
                 </div>
                 <span className="allocation-row__track" aria-hidden="true">
