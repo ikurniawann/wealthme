@@ -843,11 +843,102 @@ var FxRatesResponseSchema = z13.object({
   stale: z13.boolean(),
   idrPerUnit: z13.record(z13.string())
 });
+
+// src/taxonomy/asset-class.ts
+var ASSET_CLASS_KEYS = [
+  "properti",
+  "kendaraan",
+  "kas_tabungan",
+  "deposito",
+  "saham",
+  "reksa_dana",
+  "obligasi",
+  "emas",
+  "kripto",
+  "lainnya"
+];
+function assetTypeToAssetClass(type) {
+  switch (type) {
+    case "properti":
+      return "properti";
+    case "kendaraan":
+      return "kendaraan";
+    case "emas":
+      return "emas";
+    case "elektronik":
+    case "perhiasan":
+    case "lainnya":
+    default:
+      return "lainnya";
+  }
+}
+function investmentTypeToAssetClass(type) {
+  switch (type) {
+    case "saham":
+      return "saham";
+    case "reksa_dana":
+      return "reksa_dana";
+    case "obligasi":
+      return "obligasi";
+    case "emas":
+      return "emas";
+    case "kripto":
+      return "kripto";
+    case "deposito":
+      return "deposito";
+    case "lainnya":
+    default:
+      return "lainnya";
+  }
+}
+function accountTypeToAssetClass(type) {
+  switch (type) {
+    case "property":
+      return "properti";
+    case "bank":
+    case "ewallet":
+    case "cash":
+    case "investment":
+    default:
+      return "kas_tabungan";
+  }
+}
+function warisanAssetTypeToAssetClass(assetType) {
+  const normalized = assetType.trim().toLowerCase();
+  switch (normalized) {
+    case "aset / properti":
+    case "properti":
+      return "properti";
+    case "cash / tunai":
+    case "kas & tabungan":
+      return "kas_tabungan";
+    case "surat berharga":
+    case "obligasi/sbn":
+    case "obligasi":
+      return "obligasi";
+    case "saham":
+      return "saham";
+    case "reksa dana":
+      return "reksa_dana";
+    case "kripto":
+      return "kripto";
+    case "deposito":
+      return "deposito";
+    case "kendaraan":
+      return "kendaraan";
+    case "emas":
+      return "emas";
+    case "lainnya":
+    default:
+      return "lainnya";
+  }
+}
 export {
   ACCESS_LEVELS,
   ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES,
+  ASSET_CLASS_KEYS,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
   AccessDataScopeSchema,
@@ -907,6 +998,8 @@ export {
   TransactionSummarySchema,
   TransactionTypeSchema,
   UpdateAccountInputSchema,
+  accountTypeToAssetClass,
+  assetTypeToAssetClass,
   buildFamilyLoginId,
   buildReferenceItemSeed,
   canAccessPage,
@@ -916,6 +1009,7 @@ export {
   deriveIdrPerUnit,
   divRoundHalfUp,
   formatScaled,
+  investmentTypeToAssetClass,
   isFamilyLoginId,
   isFxCurrency,
   isMasterOrCoMaster,
@@ -923,5 +1017,6 @@ export {
   parseMinor,
   parseScaled,
   resolveEffectiveAccess,
-  slugifyHandleBase
+  slugifyHandleBase,
+  warisanAssetTypeToAssetClass
 };

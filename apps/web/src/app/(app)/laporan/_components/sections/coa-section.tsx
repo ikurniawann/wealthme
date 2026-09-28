@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { CoaMatrixDto } from "@wealthme/contracts";
@@ -47,6 +47,7 @@ export function CoaSection({
   isLoading?: boolean;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const currentYear = new Date().getFullYear();
   const [activeCell, setActiveCell] = useState<{
     month: number;
@@ -187,7 +188,7 @@ export function CoaSection({
             <div style={{ textAlign: "right" }}>
               <div className="t-xs t-muted">{t.laporan.coa.totalYearLabel}</div>
               <div className="stat__value mono t-primary">
-                {formatRupiah(displayMatrix.total)}
+                {money.format(displayMatrix.total)}
               </div>
               <div className="t-xs t-muted">
                 {txCount} {t.laporan.coa.txCountSuffix}
@@ -277,7 +278,7 @@ export function CoaSection({
                   {tx.description ?? t.laporan.coa.dialogNoDesc}
                 </div>
                 <div className="mono shrink-0 text-[13px] font-semibold">
-                  {formatRupiah(tx.amount)}
+                  {money.format(tx.amount)}
                 </div>
               </div>
             ))}

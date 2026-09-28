@@ -13,6 +13,18 @@ export const en = {
     emojiNoResults: "No icon found. Try another word.",
     emojiLoading: "Loading icons…",
     emojiGroupAriaLabel: "Frequently used icons",
+    assetClassLabels: {
+      properti: "Real Estate",
+      kendaraan: "Vehicle",
+      kas_tabungan: "Cash & Savings",
+      deposito: "Term Deposit",
+      saham: "Stocks",
+      reksa_dana: "Mutual Fund",
+      obligasi: "Bonds",
+      emas: "Gold",
+      kripto: "Crypto",
+      lainnya: "Other",
+    },
     advancedOptions: "Advanced options",
     datePickerPlaceholder: "Choose date",
     datePickerYearLabel: "Year",
@@ -61,6 +73,11 @@ export const en = {
       // Mirrors the ID pair above (prototype wording: Anak / Staff Operasional).
       dependant: "Child",
       operational: "Operational Staff",
+    },
+    apiError: {
+      sessionExpired: "Your session has expired, please log in again",
+      accessDenied: "You don't have access",
+      generic: "Something went wrong, please try again",
     },
   },
   beranda: {
@@ -364,6 +381,9 @@ export const en = {
     themePicker: {
       ariaLabel: "Choose color theme",
       title: "Color Theme",
+    },
+    localeSwitcher: {
+      ariaLabel: "Switch language — current: %s",
     },
     searchDialog: {
       ariaLabel: "Search transactions, accounts, menu",
@@ -1586,8 +1606,17 @@ export const en = {
     apiKeyLabel: "API Key",
     encryptionNote: "The key is stored encrypted on the server.",
     notManagedHint: "Managed by this family's owner or spouse.",
+    floatingLauncher: {
+      openAriaLabel: "Open AI Advisor",
+      closeAriaLabel: "Close AI Advisor",
+      panelTitle: "AI Advisor",
+      openFullPageLink: "Open full page",
+      notConfiguredBody: "AI Advisor isn't set up for this family yet.",
+    },
   },
   investasi: {
+    goldPricePerGramTooHigh:
+      "Enter the gold price per gram, not per kg. Example: 2,597,000.",
     typeLabels: {
       saham: "Stocks",
       reksa_dana: "Mutual Fund",
@@ -1691,6 +1720,7 @@ export const en = {
     unitCoinSuffix: "coin",
     unitFundUnit: "unit",
     unitGram: "gram",
+    unitKg: "kg",
     navPricePrefix: "NAV ",
     nominalPrefix: "Nominal ",
     pricingSourceLastSyncedPrefix: "Last synced",
@@ -1721,6 +1751,13 @@ export const en = {
     automatedUnmappedBadge: "Manual Price",
     automatedUnmappedNote:
       "No automated price feed supports this ticker yet, enter the price manually.",
+    priceSimulatedLabel: "Price not available yet, update manually",
+    priceSimulatedNote:
+      "The price provider has no quote for this ticker yet — value is computed from the buy price; update the price manually once you know the market price.",
+    tickerNotFoundWarning:
+      "Ticker not found by the automated price provider. Value is computed from the buy price until you enter a manual price.",
+    tickerNoLivePriceWarning:
+      "No market price yet for this ticker. Value is computed from the buy price until you enter a manual price.",
     fieldManualPriceLabel: "Current Price (Rp, optional)",
     fieldManualPricePlaceholder: "e.g. 15250",
     fieldManualPriceDateLabel: "As Of Date",
@@ -1775,7 +1812,7 @@ export const en = {
       saham: "Number of Shares",
       reksa_dana: "Fund Units",
       obligasi: "Units",
-      emas: "Gold Weight (grams)",
+      emas: "Gold Weight (kg)",
       kripto: "Coin Amount",
       lainnya: "Units",
       deposito: "Nominal",
@@ -1784,7 +1821,7 @@ export const en = {
       saham: "e.g. 10",
       reksa_dana: "e.g. 1250.5678",
       obligasi: "e.g. 10",
-      emas: "e.g. 10.5",
+      emas: "e.g. 0.025",
       kripto: "e.g. 0.015",
       lainnya: "e.g. 10",
       deposito: "",
@@ -1795,6 +1832,9 @@ export const en = {
       "The {unit} quantity must be a whole number.",
     buySellPricePerLembarHint:
       "Price stays per share (lembar), even when the quantity is entered in lots.",
+    buySellPricePerGramHint:
+      "Price stays per gram, even when the quantity is entered in kg.",
+    hintGoldKgEquivalentTemplate: "= {grams} g",
     familyGoldPriceNote:
       "Gold follows the family Gold Price in Settings; no per-holding price entry needed.",
     familyGoldPriceHintTemplate:
@@ -2479,6 +2519,7 @@ export const en = {
     goldPromptText: "Set a gold price to see the gold equivalent.",
     goldPromptLinkLabel: "Set gold price",
     manualLabelPrefix: "Manually entered, as of ",
+    antamLabelTemplate: "Antam 1 kg price, source emasantam.id, updated {date}",
     indicativeFxNote:
       "The USD value is an approximation using an indicative rate, not a real-time market rate.",
     loadingLabel: "Loading...",

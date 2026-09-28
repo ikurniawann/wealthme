@@ -1,6 +1,5 @@
 "use client";
 
-import { Eye } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   THEME_PRESETS,
@@ -37,13 +36,18 @@ function applyPreset(id: string): void {
 }
 
 /**
- * Color-preset picker. Triggered by the topbar "eye" icon. The dropdown lists
- * each preset with a color swatch; selecting one writes the `data-theme` attr
- * (handled by applyPreset) so the whole theme/mood follows the chosen color.
+ * Color-preset picker. A3 (revisi-2) — the trigger is no longer a generic
+ * "eye" icon; it shows a swatch of the currently selected color directly, so
+ * the button itself communicates state. The dropdown lists each preset with
+ * its own swatch; selecting one writes the `data-theme` attr (handled by
+ * applyPreset) so the whole theme/mood follows the chosen color.
  */
 export function ThemePicker() {
   const { t } = useLocale();
   const [preset, setPreset] = useState<string>(DEFAULT_THEME_PRESET);
+  const activeSwatch =
+    THEME_PRESETS.find((p) => p.id === preset)?.swatch ??
+    THEME_PRESETS[0].swatch;
 
   useEffect(() => {
     try {
@@ -69,7 +73,11 @@ export function ThemePicker() {
         title={t.shell.themePicker.title}
         render={<button type="button" className={TRIGGER_CLASS} />}
       >
-        <Eye className="size-[15px]" aria-hidden="true" />
+        <span
+          className="size-3.5 rounded-full ring-1 ring-black/10"
+          style={{ background: activeSwatch }}
+          aria-hidden="true"
+        />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="min-w-[160px]">

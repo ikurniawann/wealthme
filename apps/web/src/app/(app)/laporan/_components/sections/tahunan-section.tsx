@@ -1,6 +1,6 @@
 import { SectionCard } from "@/components/wm";
 import { TrendChart } from "@/components/charts/apex-presets";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
 import { StatTile } from "../atoms";
@@ -15,6 +15,7 @@ export function TahunanSection({
   isLoading?: boolean;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const points = yearly?.points ?? [];
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
@@ -27,17 +28,17 @@ export function TahunanSection({
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <StatTile
             label={`${t.laporan.totalIncomeLabel} ${latest.label}`}
-            value={formatRupiah(latest.income)}
+            value={money.format(latest.income)}
             valueClass="text-success"
           />
           <StatTile
             label={t.laporan.totalExpenseLabel}
-            value={formatRupiah(latest.expense)}
+            value={money.format(latest.expense)}
             valueClass="text-destructive"
           />
           <StatTile
             label={t.laporan.tahunan.netYearLabel}
-            value={(latest.net >= 0 ? "+" : "") + formatRupiah(latest.net)}
+            value={(latest.net >= 0 ? "+" : "") + money.format(latest.net)}
             valueClass={latest.net >= 0 ? "text-success" : "text-destructive"}
           />
           <StatTile
@@ -74,8 +75,9 @@ export function TahunanSection({
             ]}
             height={260}
             ariaLabel={`${t.laporan.tahunan.trendTitle}: ${points
-              .map((p) => `${p.label} ${formatRupiah(p.income)}`)
+              .map((p) => `${p.label} ${money.format(p.income)}`)
               .join(", ")}`}
+            money={money}
           />
         </SectionCard>
       )}

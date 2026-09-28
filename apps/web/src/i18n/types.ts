@@ -5,7 +5,7 @@ import type {
   PageTitleId,
   ReportTabId,
 } from "@/lib/nav";
-import type { Role } from "@wealthme/contracts";
+import type { AssetClassKey, Role } from "@wealthme/contracts";
 
 /**
  * EPIC-018 Task A2 — `/akun` sub-page ids. Kept local to the dictionary
@@ -395,6 +395,12 @@ export type I18nDictionary = {
     emojiNoResults: string;
     emojiLoading: string;
     emojiGroupAriaLabel: string;
+    /** B7 (client revision round 2) — the ONE shared asset-class taxonomy
+     * label set, used everywhere a /aset, /investasi or /warisan category
+     * badge renders (see @wealthme/contracts `AssetClassKey` + its mappers).
+     * The underlying stored type/category value never changes — only this
+     * display label. */
+    assetClassLabels: Record<AssetClassKey, string>;
     /** Shared "Opsi lanjutan" disclosure summary (components/crud/advanced-disclosure.tsx). */
     advancedOptions: string;
     /** Single-date picker (components/wm/date-range-field.tsx `DateField`). */
@@ -437,6 +443,13 @@ export type I18nDictionary = {
     sparkLabels: [string, string, string, string, string];
     /** EPIC-023 Task C retry — see `MemberRoleId` above. */
     roleLabels: Record<MemberRoleId, string>;
+    // A2 (revisi-2) — `useApiError`'s generic fallbacks. Never a status
+    // code, request id, or raw server string — see the hook's own comment.
+    apiError: {
+      sessionExpired: string;
+      accessDenied: string;
+      generic: string;
+    };
   };
   beranda: {
     title: string;
@@ -644,6 +657,12 @@ export type I18nDictionary = {
     themePicker: {
       ariaLabel: string;
       title: string;
+    };
+    // A3 (revisi-2) — ID/EN toggle in the topbar, next to the dark-mode
+    // toggle. `ariaLabel` is a template: "%s" is replaced with the current
+    // locale's code (ID/EN).
+    localeSwitcher: {
+      ariaLabel: string;
     };
     searchDialog: {
       ariaLabel: string;
@@ -1594,9 +1613,20 @@ export type I18nDictionary = {
     apiKeyLabel: string;
     encryptionNote: string;
     notManagedHint: string;
+    // A1 (revisi-2) — floating launcher mounted in the app shell
+    // (`FloatingAiLauncher`), bottom-right, so the conversation survives a
+    // route change.
+    floatingLauncher: {
+      openAriaLabel: string;
+      closeAriaLabel: string;
+      panelTitle: string;
+      openFullPageLink: string;
+      notConfiguredBody: string;
+    };
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
+    goldPricePerGramTooHigh: string;
     typeLabels: Record<InvestasiTypeId, string>;
     errorLoad: string;
     toastUpdated: string;
@@ -1700,6 +1730,16 @@ export type I18nDictionary = {
     // failure. Badge shown next to the holding name/ticker in the table.
     automatedUnmappedBadge: string;
     automatedUnmappedNote: string;
+    // Batch B6 (client revision round 2) — a "mock"-sourced automated price
+    // (dev/demo simulated feed) must never look like a live quote. Shown in
+    // place of the price cell/badge, no "Live" styling.
+    priceSimulatedLabel: string;
+    priceSimulatedNote: string;
+    // B6 — shown right after saving a saham/kripto holding whose ticker
+    // turned out to have no real automated price (warns at input, not just
+    // silently on the next page load).
+    tickerNotFoundWarning: string;
+    tickerNoLivePriceWarning: string;
     fieldManualPriceLabel: string;
     fieldManualPricePlaceholder: string;
     fieldManualPriceDateLabel: string;
@@ -1749,6 +1789,8 @@ export type I18nDictionary = {
     unitCoinSuffix: string;
     unitFundUnit: string;
     unitGram: string;
+    /** B9 follow-up — gold holdings display/entry in kg (user's "Per kilogram" choice). */
+    unitKg: string;
     navPricePrefix: string;
     nominalPrefix: string;
     pricingSourceLastSyncedPrefix: string;
@@ -1794,6 +1836,10 @@ export type I18nDictionary = {
     /** Template with a `{unit}` placeholder. */
     quantityWholeNumberErrorTemplate: string;
     buySellPricePerLembarHint: string;
+    /** B9 follow-up — Beli/Jual quantity is in kg but the price stays per gram. */
+    buySellPricePerGramHint: string;
+    /** B9 follow-up — Template with a `{grams}` placeholder, gram equivalent under the kg input. */
+    hintGoldKgEquivalentTemplate: string;
     familyGoldPriceNote: string;
     /** Template with `{price}` and `{date}` placeholders. */
     familyGoldPriceHintTemplate: string;
@@ -2368,6 +2414,11 @@ export type I18nDictionary = {
     goldPromptText: string;
     goldPromptLinkLabel: string;
     manualLabelPrefix: string;
+    // B9 (client revision round 2) — "Harga Antam 1 kg, sumber
+    // emasantam.id, diperbarui {date}" one-liner shown instead of
+    // manualLabelPrefix when the live Antam feed (not the manual entry) is
+    // the active gold-price source.
+    antamLabelTemplate: string;
     indicativeFxNote: string;
     loadingLabel: string;
   };

@@ -1,5 +1,5 @@
 import { DateField, SectionCard } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { DetailReportDto } from "@wealthme/contracts";
 import { formatLocaleDateLong, formatLocaleTime } from "../date-helpers";
@@ -30,6 +30,7 @@ export function HarianSection({
   onDateChange: (d: string) => void;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const net =
     (dailyReport?.totalIncome ?? 0) - (dailyReport?.totalExpense ?? 0);
@@ -52,18 +53,18 @@ export function HarianSection({
       <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
         <StatTile
           label={t.laporan.harian.incomeTodayLabel}
-          value={dailyReport ? formatRupiah(dailyReport.totalIncome) : "Rp ·"}
+          value={dailyReport ? money.format(dailyReport.totalIncome) : "Rp ·"}
           valueClass="text-success"
         />
         <StatTile
           label={t.laporan.harian.expenseTodayLabel}
-          value={dailyReport ? formatRupiah(dailyReport.totalExpense) : "Rp ·"}
+          value={dailyReport ? money.format(dailyReport.totalExpense) : "Rp ·"}
           valueClass="text-destructive"
         />
         <StatTile
           label={t.laporan.harian.netDailyLabel}
           value={
-            dailyReport ? `${net >= 0 ? "+" : ""}${formatRupiah(net)}` : "Rp ·"
+            dailyReport ? `${net >= 0 ? "+" : ""}${money.format(net)}` : "Rp ·"
           }
           valueClass={net >= 0 ? "text-success" : "text-destructive"}
         />
@@ -102,7 +103,7 @@ export function HarianSection({
                     }
                   >
                     {isTransfer ? "" : isIncome ? "+" : "-"}
-                    {formatRupiah(tx.amount)}
+                    {money.format(tx.amount)}
                   </div>
                 }
                 last={i === dailyReport.transactions.length - 1}

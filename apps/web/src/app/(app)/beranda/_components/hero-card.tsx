@@ -91,7 +91,7 @@ export function BerandaHero({
             ) : isIndicative ? (
               <>≈ {formatMoney(netWorth)}</>
             ) : (
-              <CountUpRupiah value={netWorth} />
+              <CountUpRupiah value={netWorth} format={money} />
             )}
           </h1>
 

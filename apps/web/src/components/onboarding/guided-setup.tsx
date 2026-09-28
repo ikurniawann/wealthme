@@ -9,7 +9,8 @@ import type { AccountDto, BudgetDto, BudgetPeriod } from "@wealthme/contracts";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
@@ -118,6 +119,7 @@ export function GuidedSetup({
   onClose: () => void;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
@@ -572,7 +574,7 @@ export function GuidedSetup({
           >
             <div className="text-muted-foreground">
               {tr.account.consequenceBefore}
-              {formatRupiah(accountConsequence.before)}
+              {money.format(accountConsequence.before)}
             </div>
             {/* EPIC-023 Task H fix round (HIGH 5) — `text-success` on
                 `bg-success-soft/60` computed to ~2.3:1, under the 4.5:1 AA
@@ -583,7 +585,7 @@ export function GuidedSetup({
                 new colour. */}
             <div className="mt-1 text-[17px] font-extrabold text-emerald-700 dark:text-emerald-300">
               {tr.account.consequenceAfter}
-              {formatRupiah(accountConsequence.after)}
+              {money.format(accountConsequence.after)}
             </div>
           </div>
           <button
@@ -782,7 +784,7 @@ export function GuidedSetup({
           >
             <div className="font-bold">
               {tr.transaction.consequenceNetWorthPrefix}
-              {formatRupiah(txConsequence.netWorthAfter)}
+              {money.format(txConsequence.netWorthAfter)}
             </div>
             <div className="font-bold">
               {tr.transaction.consequenceBudgetPrefix}

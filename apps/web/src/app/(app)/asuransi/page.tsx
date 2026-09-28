@@ -26,7 +26,7 @@ import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 import {
   MoneyInput,
@@ -183,6 +183,7 @@ interface PolicyCardProps {
 
 function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const icon = INSURANCE_TYPE_ICON[item.type] ?? "📋";
   const iconBg = INSURANCE_TYPE_BG[item.type] ?? "#F3F4F6";
   const typeLabel = t.asuransi.typeLabels[item.type] ?? item.type;
@@ -231,7 +232,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
                 {t.asuransi.coverageLabel}
               </div>
               <div className="text-[13.5px] font-bold">
-                {formatRupiah(Number(BigInt(item.coverageAmount)))}
+                {money.format(Number(BigInt(item.coverageAmount)))}
               </div>
             </div>
           )}
@@ -240,7 +241,7 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
               {t.asuransi.premiumLabel}
             </div>
             <div className="text-[13.5px] font-bold">
-              {formatRupiah(Number(BigInt(item.premiumAmount)))}
+              {money.format(Number(BigInt(item.premiumAmount)))}
               <span className="font-normal text-muted-foreground">
                 {periodLabel}
               </span>
@@ -1048,6 +1049,7 @@ function PayInsuranceDialog({
   onConfirm: () => void;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const periodLabel = item
     ? (t.asuransi.periodSuffixLabels[item.premiumPeriod] ?? "")
     : "";
@@ -1078,7 +1080,7 @@ function PayInsuranceDialog({
               <div className="rounded-lg bg-muted p-3.5">
                 <div className="t-xs t-muted">{t.asuransi.premiumLabel}</div>
                 <div className="mono text-[18px] font-black">
-                  {formatRupiah(Number(BigInt(item.premiumAmount)))}
+                  {money.format(Number(BigInt(item.premiumAmount)))}
                   <span className="ml-1 text-[12px] font-normal text-muted-foreground">
                     {periodLabel}
                   </span>
@@ -1218,6 +1220,7 @@ function PolicyPickerDialog({
 
 export default function AsuransiPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId as string | undefined;
@@ -1414,7 +1417,7 @@ export default function AsuransiPage() {
 
   const activePolicies = summary?.activePolicies ?? 0;
   const totalMonthlyPremium = summary?.totalMonthlyPremium
-    ? formatRupiah(Number(BigInt(summary.totalMonthlyPremium)))
+    ? money.format(Number(BigInt(summary.totalMonthlyPremium)))
     : "Rp 0";
   const monthlyPremiumNumber = summary?.totalMonthlyPremium
     ? Number(BigInt(summary.totalMonthlyPremium))
@@ -1532,7 +1535,7 @@ export default function AsuransiPage() {
               <>
                 {", "}
                 {t.asuransi.totalCoveragePrefix}{" "}
-                {formatRupiah(Number(totalCoverageAktif))}
+                {money.format(Number(totalCoverageAktif))}
               </>
             )}
           </div>
@@ -1581,7 +1584,8 @@ export default function AsuransiPage() {
                   },
                 ]}
                 height={245}
-                ariaLabel={`Premi 6 bulan terakhir: ${premiumTrendMonths.map((month, index) => `${month} ${formatRupiah(premiumTrendData[index] ?? 0)}`).join(", ")}`}
+                ariaLabel={`Premi 6 bulan terakhir: ${premiumTrendMonths.map((month, index) => `${month} ${money.format(premiumTrendData[index] ?? 0)}`).join(", ")}`}
+                money={money}
               />
             </SectionCard>
           )}
@@ -1592,7 +1596,8 @@ export default function AsuransiPage() {
                 segments={coverageSegments}
                 centerLabel={t.asuransi.coverageLabel}
                 height={245}
-                ariaLabel={`${t.asuransi.coverageAllocationTitle}: ${coverageSegments.map((s) => `${s.label} ${formatRupiah(s.value)}`).join(", ")}`}
+                ariaLabel={`${t.asuransi.coverageAllocationTitle}: ${coverageSegments.map((s) => `${s.label} ${money.format(s.value)}`).join(", ")}`}
+                money={money}
               />
             </SectionCard>
           )}
@@ -1762,7 +1767,7 @@ export default function AsuransiPage() {
                         </td>
                         <td className="mono py-2.5 pr-3">
                           {estimatedBenefit !== null
-                            ? formatRupiah(Number(estimatedBenefit))
+                            ? money.format(Number(estimatedBenefit))
                             : "—"}
                         </td>
                         <td className="py-2.5">

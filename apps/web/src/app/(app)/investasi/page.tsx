@@ -51,14 +51,17 @@ import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { useGoldPrice } from "@/hooks/use-gold-price";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   canonicalizeSahamQuantity,
   convertQuantityDisplay,
   divideBy100,
+  gramsToKg,
+  kgToGrams,
+  multiplyBy1000,
 } from "./quantity-conversion";
 import {
   formatQuantity,
@@ -80,6 +83,7 @@ import {
 } from "@/components/money";
 
 import type { Locale } from "@/i18n";
+import { investmentTypeToAssetClass } from "@wealthme/contracts";
 import type {
   AccountDto,
   FxCurrencyCode,
@@ -212,9 +216,30 @@ function toLogoText(ticker: string): string {
   return ticker.slice(0, 4).toUpperCase();
 }
 
-function formatDecimalRupiah(value: string | null): string {
-  if (!value) return "—";
-  return formatRupiah(parseFloat(value));
+// B7 (client revision round 2) — the "Type" badge/allocation-donut label
+// now reads from the ONE shared asset-class taxonomy (@wealthme/contracts)
+// instead of this page's own `typeLabels` dict, so its wording matches
+// /aset and /warisan exactly (e.g. "Obligasi/SBN" everywhere, not
+// "Obligasi" here and "Surat Berharga" on /warisan). Every InvestmentType
+// maps to its own distinct class — no specificity is lost, only the wording
+// is unified.
+function investmentClassLabel(t: Dict, type: string): string {
+  return t.common.assetClassLabels[investmentTypeToAssetClass(type)];
+}
+
+// Batch C2 — returns a decimal-Rupiah formatter bound to the caller's
+// display-currency `format` (money.format from useMoney()), so every
+// component below defines its own `const formatDecimalRupiah =
+// makeFormatDecimalRupiah(money.format)` shadowing this factory's name —
+// every existing call site (`formatDecimalRupiah(x)`) then converts without
+// having to touch each one individually.
+function makeFormatDecimalRupiah(
+  format: (value: number) => string,
+): (value: string | null) => string {
+  return (value) => {
+    if (!value) return "—";
+    return format(parseFloat(value));
+  };
 }
 
 function formatReturnPct(pct: number | null): string {
@@ -241,6 +266,7 @@ function unitLabels(t: Dict): UnitLabels {
     lembar: t.investasi.unitLembar,
     unit: t.investasi.unitFundUnit,
     gram: t.investasi.unitGram,
+    kg: t.investasi.unitKg,
     coin: t.investasi.unitCoinSuffix,
   };
 }
@@ -308,7 +334,11 @@ function formatInstrumentSubline(
 // shown is derived from the real stored `quantity`/`costBasisPerUnit`
 // (never invented). Saham shows both lot and lembar via the SAME exact
 // decimal math (`divideBy100`) as the add/edit form's Lot/Lembar toggle.
-function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
+function formatQuantityCell(
+  h: InvestmentDto,
+  t: Dict,
+  format: (value: number) => string,
+): ReactNode {
   const labels = unitLabels(t);
   if (h.type === "saham") {
     return (
@@ -330,6 +360,22 @@ function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
       </div>
     );
   }
+  // B9 follow-up (client revision round 2) — gold is stored in grams
+  // (unchanged) but the user chose "Per kilogram": show kg as the primary
+  // line, same stacked pattern as saham's Lot/Lembar above, with the exact
+  // (float-free) stored grams as the muted secondary line.
+  if (h.type === "emas") {
+    return (
+      <>
+        <div>
+          {formatQuantity(gramsToKg(h.quantity), h.type)} {labels.kg}
+        </div>
+        <div className="text-muted-foreground">
+          {formatQuantity(h.quantity, h.type)} {labels.gram}
+        </div>
+      </>
+    );
+  }
   if (h.type === "obligasi" || h.type === "deposito") {
     // Prototype shows the total nominal here, which equals this row's own
     // "Modal" column value (quantity × costBasisPerUnit) — not a separate,
@@ -338,7 +384,7 @@ function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
     return (
       <div>
         {t.investasi.nominalPrefix}
-        {formatRupiah(nominal)}
+        {format(nominal)}
       </div>
     );
   }
@@ -360,7 +406,9 @@ function formatPriceSourceCell(
   h: InvestmentDto,
   t: Dict,
   locale: Locale,
+  format: (value: number) => string,
 ): ReactNode {
+  const formatDecimalRupiah = makeFormatDecimalRupiah(format);
   const priceSourceLabelKey =
     PRICE_SOURCE_LABEL_KEYS[
       h.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
@@ -401,6 +449,18 @@ function formatPriceSourceCell(
           </StatusBadge>
         </div>
       </>
+    );
+  }
+
+  // Batch B6 — a dev/demo simulated ("mock") price must never render like a
+  // live quote. No "Live" badge, no fabricated Rupiah figure — just the
+  // honest "price not available" label; the current VALUE shown elsewhere
+  // on the row already fell back to cost basis (never the fake price).
+  if (h.automatedPriceSimulated) {
+    return (
+      <span className="text-muted-foreground">
+        {t.investasi.priceSimulatedLabel}
+      </span>
     );
   }
 
@@ -531,6 +591,7 @@ function AddInvestmentModal({
   editing?: InvestmentDto | null;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const goldPrice = useGoldPrice();
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
@@ -543,7 +604,14 @@ function AddInvestmentModal({
           type: editing.type as InvestmentType,
           // Stored quantity is ALWAYS canonical lembar — display it as
           // lembar with zero conversion (idempotency by construction).
-          quantity: editing.quantity,
+          // B9 follow-up — emas is the one exception: stored in grams, but
+          // this field is disabled in edit mode anyway (isEditingLots), so
+          // showing it converted to kg here is display-only and never
+          // re-submitted (see handleSubmit's `!isEditingLots` guard below).
+          quantity:
+            editing.type === "emas"
+              ? gramsToKg(editing.quantity)
+              : editing.quantity,
           quantityUnit: "lembar",
           costBasisPerUnit: canonicalToTyping(editing.costBasisPerUnit, 2),
           interestRatePct: editing.interestRatePct ?? "",
@@ -668,6 +736,11 @@ function AddInvestmentModal({
           form.quantity || "0",
           form.quantityUnit,
         );
+      } else if (form.type === "emas") {
+        // B9 follow-up — the field always displays/accepts kg; canonicalize
+        // to grams (the stored unit) ONLY here, exact BigInt-scaled ×1000,
+        // same idempotency guarantee as saham's lot->lembar above.
+        canonicalQuantity = kgToGrams(form.quantity || "0");
       } else if (isDeposito) {
         // Deposito nominal is the total (costBasisPerUnit); quantity is
         // fixed at 1, never user-entered.
@@ -773,6 +846,28 @@ function AddInvestmentModal({
         toast.success(
           editing ? t.investasi.toastUpdated : t.investasi.toastAdded,
         );
+        // Batch B6 — "warn at input when a saham/kripto ticker is not
+        // found": the create/update response itself never carries a fresh
+        // automated-price status (findAll() is what triggers the actual
+        // quote fetch), so re-read the just-saved holding from the
+        // already-invalidated list and warn if it turned out to have no
+        // real market price. Best-effort only — never blocks the save.
+        if (AUTOMATED_PRICE_TYPES.includes(form.type)) {
+          try {
+            const freshList = await apiFetch<InvestmentDto[]>(
+              `/family-groups/${familyGroupId}/investments`,
+              { token },
+            );
+            const fresh = freshList.find((x) => x.id === saved.id);
+            if (fresh?.automatedPriceUnmapped) {
+              toast.warning(t.investasi.tickerNotFoundWarning);
+            } else if (fresh?.automatedPriceSimulated) {
+              toast.warning(t.investasi.tickerNoLivePriceWarning);
+            }
+          } catch {
+            // Non-critical: the holding itself already saved successfully.
+          }
+        }
       }
       onClose();
     } finally {
@@ -960,6 +1055,16 @@ function AddInvestmentModal({
                   {form.type === "saham" && !isEditingLots && (
                     <div className="hint">{t.investasi.hintLotConversion}</div>
                   )}
+                  {form.type === "emas" &&
+                    !isEditingLots &&
+                    form.quantity.trim() !== "" && (
+                      <div className="hint">
+                        {t.investasi.hintGoldKgEquivalentTemplate.replace(
+                          "{grams}",
+                          formatQuantity(kgToGrams(form.quantity), "emas"),
+                        )}
+                      </div>
+                    )}
                   {isEditingLots && (
                     <div className="hint">{t.investasi.hintQuantityLocked}</div>
                   )}
@@ -1052,7 +1157,7 @@ function AddInvestmentModal({
                         ? t.investasi.familyGoldPriceHintTemplate
                             .replace(
                               "{price}",
-                              formatRupiah(goldPrice.pricePerGram),
+                              money.format(goldPrice.pricePerGram),
                             )
                             .replace(
                               "{date}",
@@ -1152,6 +1257,9 @@ function AddInvestmentModal({
  * portion. Every submission POSTs to `.../investments/:id/transactions`,
  * which is also the real history this dialog used to have none of.
  */
+/** Far above any real per-gram gold price, well below a per-kg one. */
+const GOLD_MAX_PRICE_PER_GRAM_IDR = 100_000_000;
+
 function BuySellModal({
   open,
   onClose,
@@ -1166,11 +1274,19 @@ function BuySellModal({
   holding: InvestmentDto | null;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
+  const formatDecimalRupiah = makeFormatDecimalRupiah(money.format);
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
   const [txType, setTxType] = useState<InvestmentTxType>("buy");
   const [quantity, setQuantity] = useState("");
   const isSaham = holding?.type === "saham";
+  // B9 follow-up — a gold holding's quantity can ONLY change through a
+  // Beli/Jual transaction (AddInvestmentModal locks it — isEditingLots), so
+  // this is the real entry point for the user's "Per kilogram" choice: the
+  // field displays/accepts kg; the price stays per gram (hint below), same
+  // "quantity unit toggles, price unit doesn't" idiom as saham's lot/lembar.
+  const isGold = holding?.type === "emas";
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("lot");
   const effectiveUnit: QuantityUnit = isSaham ? quantityUnit : "lembar";
   const unitLabel = holding
@@ -1221,9 +1337,25 @@ function BuySellModal({
       toast.error(decimalsError);
       return;
     }
+    // Gold is priced per gram here while quantity is in kg; a per-kg Antam
+    // price typed into this field would silently inflate the value 1000x.
+    if (
+      isGold &&
+      Number(
+        moneyIdrDecimal(
+          priceField,
+          () => toCanonicalAmount(priceField.raw) ?? "0",
+        ),
+      ) > GOLD_MAX_PRICE_PER_GRAM_IDR
+    ) {
+      toast.error(t.investasi.goldPricePerGramTooHigh);
+      return;
+    }
     const canonicalQuantity = isSaham
       ? canonicalizeSahamQuantity(quantity, quantityUnit)
-      : quantity;
+      : isGold
+        ? kgToGrams(quantity || "0")
+        : quantity;
     setSubmitting(true);
     try {
       const created = await apiFetch<InvestmentTransactionDto>(
@@ -1367,6 +1499,11 @@ function BuySellModal({
                   {t.investasi.buySellPricePerLembarHint}
                 </div>
               )}
+              {isGold && (
+                <div className="hint">
+                  {t.investasi.buySellPricePerGramHint}
+                </div>
+              )}
             </div>
             <div className="field">
               <label className="label" htmlFor="tx-account">
@@ -1467,6 +1604,8 @@ function SparklinePreview() {
 
 export default function InvestasiPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
+  const formatDecimalRupiah = makeFormatDecimalRupiah(money.format);
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
@@ -1644,7 +1783,7 @@ export default function InvestasiPage() {
   // `holdings` list already fetched above, no new endpoint.
   const allocationByType = new Map<string, number>();
   for (const h of holdings ?? []) {
-    const label = t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
+    const label = investmentClassLabel(t, h.type);
     allocationByType.set(
       label,
       (allocationByType.get(label) ?? 0) + parseFloat(h.currentValue ?? "0"),
@@ -1657,7 +1796,7 @@ export default function InvestasiPage() {
         ...acc,
         {
           type: h.type,
-          label: t.investasi.typeLabels[h.type as InvestmentType] ?? h.type,
+          label: investmentClassLabel(t, h.type),
         },
       ];
     }, [])
@@ -1827,13 +1966,15 @@ export default function InvestasiPage() {
                   </div>
                   <div className="rounded-[10px] bg-accent p-3 text-[12px] text-accent-foreground">
                     {detailHolding.currentPrice === null
-                      ? detailHolding.automatedPriceUnmapped
-                        ? t.investasi.automatedUnmappedNote
-                        : isManualPriceType(
-                              detailHolding.type as InvestmentType,
-                            )
-                          ? t.investasi.detailNoManualPrice
-                          : t.investasi.detailPriceUnavailable
+                      ? detailHolding.automatedPriceSimulated
+                        ? t.investasi.priceSimulatedNote
+                        : detailHolding.automatedPriceUnmapped
+                          ? t.investasi.automatedUnmappedNote
+                          : isManualPriceType(
+                                detailHolding.type as InvestmentType,
+                              )
+                            ? t.investasi.detailNoManualPrice
+                            : t.investasi.detailPriceUnavailable
                       : detailHolding.latestPriceSource === "manual"
                         ? `${t.investasi.detailManualLabelPrefix}${formatManualDate(
                             detailHolding.latestPriceAsOf ??
@@ -1949,8 +2090,16 @@ export default function InvestasiPage() {
                                   : t.investasi.historySellLabel}
                               </StatusBadge>
                               <span className="mono">
+                                {/* B9 follow-up — a gold transaction is
+                                    stored in grams @ price-per-gram
+                                    (unchanged); displayed here as kg @
+                                    price-per-kg (×1000, exact) so the shown
+                                    quantity always matches the holding's
+                                    kg unit. */}
                                 {formatQuantity(
-                                  tx.quantity,
+                                  detailHolding.type === "emas"
+                                    ? gramsToKg(tx.quantity)
+                                    : tx.quantity,
                                   detailHolding.type,
                                 )}{" "}
                                 {quantityUnitLabel(
@@ -1958,7 +2107,12 @@ export default function InvestasiPage() {
                                   "lembar",
                                   unitLabels(t),
                                 ).toLowerCase()}{" "}
-                                @ {formatDecimalRupiah(tx.pricePerUnit)}
+                                @{" "}
+                                {formatDecimalRupiah(
+                                  detailHolding.type === "emas"
+                                    ? multiplyBy1000(tx.pricePerUnit)
+                                    : tx.pricePerUnit,
+                                )}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground">
@@ -2042,6 +2196,7 @@ export default function InvestasiPage() {
                     {summary?.totalCurrentValue != null ? (
                       <CountUpRupiah
                         value={parseFloat(summary.totalCurrentValue)}
+                        format={money.format}
                       />
                     ) : (
                       "—"
@@ -2093,13 +2248,13 @@ export default function InvestasiPage() {
                             aria-label={t.investasi.returnFormulaLabel
                               .replace(
                                 "{returnRp}",
-                                formatRupiah(
+                                money.format(
                                   Math.abs(parseFloat(summary.totalReturnRp)),
                                 ),
                               )
                               .replace(
                                 "{costBasis}",
-                                formatRupiah(
+                                money.format(
                                   parseFloat(summary.totalCostBasis),
                                 ),
                               )}
@@ -2111,13 +2266,13 @@ export default function InvestasiPage() {
                             {t.investasi.returnFormulaLabel
                               .replace(
                                 "{returnRp}",
-                                formatRupiah(
+                                money.format(
                                   Math.abs(parseFloat(summary.totalReturnRp)),
                                 ),
                               )
                               .replace(
                                 "{costBasis}",
-                                formatRupiah(
+                                money.format(
                                   parseFloat(summary.totalCostBasis),
                                 ),
                               )}
@@ -2265,6 +2420,7 @@ export default function InvestasiPage() {
                     ]}
                     height={230}
                     ariaLabel="Tren nilai portofolio 6 bulan"
+                    money={money}
                   />
                 </div>
               )}
@@ -2283,6 +2439,7 @@ export default function InvestasiPage() {
                           `${s.label} ${formatDecimalRupiah(String(s.value))}`,
                       )
                       .join(", ")}`}
+                    money={money}
                   />
                 </div>
               )}
@@ -2358,8 +2515,7 @@ export default function InvestasiPage() {
 
               {filteredHoldings.map((h, i) => {
                 const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
-                const label =
-                  t.investasi.typeLabels[h.type as InvestmentType] ?? h.type;
+                const label = investmentClassLabel(t, h.type);
                 const logoBg = TYPE_LOGO_BG[h.type] ?? "#6B7280";
                 const totalCost =
                   parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
@@ -2436,15 +2592,15 @@ export default function InvestasiPage() {
                       </td>
                       {/* Gap #5 — restored "Jumlah" column. */}
                       <td className="mono py-3 pr-3 text-[11.5px] whitespace-nowrap">
-                        {formatQuantityCell(h, t)}
+                        {formatQuantityCell(h, t, money.format)}
                       </td>
                       {/* Gap #6 — restored "Harga / Sumber" column with
                           per-row price-source badges. */}
                       <td className="py-3 pr-3 text-[11.5px] whitespace-nowrap">
-                        {formatPriceSourceCell(h, t, locale)}
+                        {formatPriceSourceCell(h, t, locale, money.format)}
                       </td>
                       <td className="mono py-3 pr-3 whitespace-nowrap">
-                        {formatRupiah(totalCost)}
+                        {money.format(totalCost)}
                       </td>
                       <td className="mono py-3 pr-3 font-extrabold whitespace-nowrap">
                         {formatDecimalRupiah(h.currentValue)}
@@ -2494,11 +2650,15 @@ export default function InvestasiPage() {
                                 every manual price states its entry date. */}
                             {h.currentPrice === null ? (
                               <div className="col-span-2 text-muted-foreground">
-                                {h.automatedPriceUnmapped
-                                  ? t.investasi.automatedUnmappedNote
-                                  : isManualPriceType(h.type as InvestmentType)
-                                    ? t.investasi.detailNoManualPrice
-                                    : t.investasi.detailPriceUnavailable}
+                                {h.automatedPriceSimulated
+                                  ? t.investasi.priceSimulatedNote
+                                  : h.automatedPriceUnmapped
+                                    ? t.investasi.automatedUnmappedNote
+                                    : isManualPriceType(
+                                          h.type as InvestmentType,
+                                        )
+                                      ? t.investasi.detailNoManualPrice
+                                      : t.investasi.detailPriceUnavailable}
                               </div>
                             ) : h.latestPriceSource === "manual" ? (
                               <div className="col-span-2">

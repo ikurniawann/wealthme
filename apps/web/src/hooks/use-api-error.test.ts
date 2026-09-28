@@ -21,7 +21,7 @@ jest.mock("../components/money", () => ({
   ).extractApiErrorMessage,
 }));
 
-import { useApiError } from "./use-api-error";
+import { friendlyServerMessage, useApiError } from "./use-api-error";
 
 // Revisi K bug 2 — every HTTP 503 used to be mapped to the FX refusal
 // message ("Kurs tidak tersedia"). Only a 503 carrying
@@ -44,15 +44,28 @@ describe("useApiError — revisi K bug 2", () => {
     );
   });
 
-  it("does NOT show the FX refusal toast for an unrelated 503", () => {
+  // A2 (revisi-2) — an unrecognised error no longer shows the raw server
+  // `.message` (which can be a Prisma/class-validator/English technical
+  // string); it falls back to localized generic copy instead.
+  it("does NOT show the FX refusal toast for an unrelated 503, and never the raw message", () => {
     const { result } = renderHook(() => useApiError());
     result.current.handleError({
       status: 503,
       message: "Service temporarily unavailable",
     });
-    expect(toast.error).toHaveBeenCalledWith("Service temporarily unavailable");
+    expect(toast.error).toHaveBeenCalledWith(
+      "Terjadi kesalahan, silakan coba lagi",
+    );
     expect(toast.error).not.toHaveBeenCalledWith(
       expect.stringContaining("Kurs tidak tersedia"),
+    );
+  });
+
+  it("never shows a raw non-ApiError message (plain JS/network error)", () => {
+    const { result } = renderHook(() => useApiError());
+    result.current.handleError(new Error("TypeError: fetch failed"));
+    expect(toast.error).toHaveBeenCalledWith(
+      "Terjadi kesalahan, silakan coba lagi",
     );
   });
 
@@ -62,5 +75,34 @@ describe("useApiError — revisi K bug 2", () => {
     expect(toast.error).toHaveBeenCalledWith(
       "Sesi habis, silakan login kembali",
     );
+  });
+});
+
+describe("friendlyServerMessage", () => {
+  it("keeps plain Indonesian business copy from a 4xx", () => {
+    expect(
+      friendlyServerMessage({
+        status: 400,
+        message: 'Saldo rekening bank "BCA" tidak mencukupi untuk Rp 500.000',
+      }),
+    ).toBe('Saldo rekening bank "BCA" tidak mencukupi untuk Rp 500.000');
+  });
+
+  it("drops technical or validator text and every 5xx", () => {
+    expect(
+      friendlyServerMessage({ status: 400, message: "name must be a string" }),
+    ).toBeNull();
+    expect(
+      friendlyServerMessage({ status: 400, message: "HTTP 504 Gateway" }),
+    ).toBeNull();
+    expect(
+      friendlyServerMessage({
+        status: 409,
+        message: "PrismaClientKnownRequestError",
+      }),
+    ).toBeNull();
+    expect(
+      friendlyServerMessage({ status: 500, message: "Saldo tidak cukup" }),
+    ).toBeNull();
   });
 });

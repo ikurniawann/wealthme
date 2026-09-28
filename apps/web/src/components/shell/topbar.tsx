@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, LogOut, Plus, Search } from "lucide-react";
+import { ArrowLeft, Bell, LogOut, Plus, Search } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery } from "@tanstack/react-query";
 import { canRecordTransaction, isPageTitleId } from "@/lib/nav";
@@ -12,6 +12,8 @@ import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
 import type { I18nDictionary } from "@/i18n/types";
+import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useAppBack } from "@/hooks/use-app-back";
 import { NavSheet } from "./nav-sheet";
 import { ThemePicker } from "./theme-picker";
 import { ThemeToggle } from "./theme-toggle";
@@ -34,9 +36,12 @@ export function Topbar() {
   const { access } = useMyAccess();
   const { t } = useLocale();
   const title = usePageTitle(t);
+  const pathname = usePathname();
   const { setSearchOpen, setTxnOpen } = useShell();
   const { logout } = useAuth();
   const router = useRouter();
+  const { goBack } = useAppBack();
+  const showBackButton = pathname !== "/beranda";
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
@@ -62,6 +67,17 @@ export function Topbar() {
   return (
     <header className="topbar">
       <NavSheet />
+      {showBackButton && (
+        <button
+          type="button"
+          onClick={goBack}
+          aria-label={t.common.back}
+          title={t.common.back}
+          className="btn btn--ghost btn--icon btn--sm"
+        >
+          <ArrowLeft className="size-[17px]" aria-hidden="true" />
+        </button>
+      )}
       <div className="topbar__title">{title}</div>
       <div className="topbar__spacer" />
       <button
@@ -85,6 +101,7 @@ export function Topbar() {
           <span>{t.shell.addTransaction}</span>
         </button>
       )}
+      <LocaleSwitcher />
       <ThemeToggle />
       <Link
         href="/notifikasi"

@@ -235,10 +235,21 @@ export class InvestmentsService {
         const familyGoldAsOf = familyGoldPrice
           ? inv.familyGroup.goldPriceUpdatedAt
           : null;
+        // Batch B6 — MockMarketDataAdapter (dev/demo, no USE_REAL_MARKET_DATA)
+        // fabricates a deterministic-but-fake price for ANY ticker, including
+        // ones that don't exist. Client report: "QQ" showed a real-looking
+        // "Live" current value driven entirely by this simulated number. A
+        // real holding must never be valued off a source we know is fake —
+        // treat a "mock"-sourced price exactly like "no automated price
+        // found": current value falls back to cost basis, and `currentPrice`
+        // stays null so the UI's existing "price unavailable" honesty path
+        // renders instead of a fabricated figure with a "Live" badge.
+        const isSimulatedPrice =
+          !isDeposito && !familyGoldPrice && latestPrice?.source === "mock";
         let currentPrice = isDeposito
           ? null
           : (familyGoldPrice ??
-            latestPrice?.price ??
+            (isSimulatedPrice ? null : latestPrice?.price) ??
             (inv.type === "emas" ? costBasis : null));
 
         let currentValue: Decimal | null = null;
@@ -258,6 +269,8 @@ export class InvestmentsService {
             : currentValue.dividedBy(quantity);
         } else if (currentPrice) {
           currentValue = currentPrice.times(quantity);
+        } else if (isSimulatedPrice) {
+          currentValue = costBasis.times(quantity);
         }
 
         if (currentValue) {
@@ -321,6 +334,7 @@ export class InvestmentsService {
               : (latestPrice?.delayed ?? null),
           priceRefreshFailed,
           automatedPriceUnmapped,
+          automatedPriceSimulated: isSimulatedPrice,
           interestRatePct: inv.interestRatePct?.toString() ?? null,
           projectedAnnualYield: projectedAnnualYield
             ? decimalToString(projectedAnnualYield)
@@ -424,6 +438,7 @@ export class InvestmentsService {
       latestPriceDelayed: null,
       priceRefreshFailed: false,
       automatedPriceUnmapped: false,
+      automatedPriceSimulated: false,
       interestRatePct: investment.interestRatePct?.toString() ?? null,
       projectedAnnualYield: null,
       purchasedAt: investment.purchasedAt?.toISOString() ?? null,
@@ -530,6 +545,7 @@ export class InvestmentsService {
       latestPriceDelayed: null,
       priceRefreshFailed: false,
       automatedPriceUnmapped: false,
+      automatedPriceSimulated: false,
       interestRatePct: updated.interestRatePct?.toString() ?? null,
       projectedAnnualYield: null,
       purchasedAt: updated.purchasedAt?.toISOString() ?? null,

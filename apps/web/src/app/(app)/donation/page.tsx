@@ -53,7 +53,8 @@ import {
 } from "@/components/money";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah, parseRupiah, formatAmountInput } from "@/lib/format";
+import { parseRupiah, formatAmountInput } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 
 import type {
@@ -192,6 +193,7 @@ function formatLocaleDate(iso: string, locale: Locale): string {
 
 export default function DonationPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
@@ -286,13 +288,13 @@ export default function DonationPage() {
   const nisab = zakatResult?.nisab ?? 0;
   const zakat = zakatResult?.zakat ?? 0;
   const nisabMessage = !meetsNisab
-    ? `${t.donation.nisabNotReachedPrefix}${formatRupiah(nisab)}${t.donation.nisabNotReachedSuffix}`
+    ? `${t.donation.nisabNotReachedPrefix}${money.format(nisab)}${t.donation.nisabNotReachedSuffix}`
     : isObligated
-      ? `${t.donation.nisabReachedObligatedPrefix}${formatRupiah(nisab)}${t.donation.nisabReachedObligatedSuffix}`
-      : `${t.donation.nisabReachedEstimatePrefix}${formatRupiah(nisab)}${t.donation.nisabReachedEstimateSuffix}`;
+      ? `${t.donation.nisabReachedObligatedPrefix}${money.format(nisab)}${t.donation.nisabReachedObligatedSuffix}`
+      : `${t.donation.nisabReachedEstimatePrefix}${money.format(nisab)}${t.donation.nisabReachedEstimateSuffix}`;
   const nisabSourceNote =
     zakatResult?.nisabSource === "family"
-      ? `${t.donation.nisabFamilyPricePrefix}${formatRupiah(familyGoldPrice ?? 0)}${t.donation.nisabFamilyPriceSuffix}${
+      ? `${t.donation.nisabFamilyPricePrefix}${money.format(familyGoldPrice ?? 0)}${t.donation.nisabFamilyPriceSuffix}${
           familyGoldPriceUpdatedAt
             ? ` ${t.consolidatedTotal.manualLabelPrefix}${formatManualDate(familyGoldPriceUpdatedAt, locale)}`
             : ""
@@ -476,7 +478,7 @@ export default function DonationPage() {
           <HandHeart className="size-3.5" /> {t.donation.heroTitle}
         </div>
         <div className="text-[30px] font-black tracking-[-1px]">
-          {formatRupiah(totalAmount)}
+          {money.format(totalAmount)}
         </div>
         <div className="mt-1.5 text-xs opacity-85">
           {donations.length}
@@ -641,7 +643,7 @@ export default function DonationPage() {
             ) : (
               <>
                 <div className="mt-1 text-[24px] font-black text-primary">
-                  {formatRupiah(zakat)}
+                  {money.format(zakat)}
                 </div>
                 <div className="mt-1.5 text-xs text-muted-foreground">
                   {nisabMessage}
@@ -710,7 +712,7 @@ export default function DonationPage() {
               {t.donation.perpuluhanResultLabel}
             </div>
             <div className="mt-1 text-[24px] font-black text-primary">
-              {formatRupiah(tithe)}
+              {money.format(tithe)}
             </div>
           </div>
           <Button
@@ -816,7 +818,7 @@ export default function DonationPage() {
                 </div>
                 <div className="flex items-center gap-2 text-right">
                   <span className="text-[13.5px] font-bold">
-                    {formatRupiah(Number(d.amount))}
+                    {money.format(Number(d.amount))}
                   </span>
                   <StatusBadge
                     variant={d.isTaxDeductible ? "success" : "gray"}
@@ -844,7 +846,7 @@ export default function DonationPage() {
             iconBg="var(--success-soft)"
             iconColor="var(--success)"
             label={`${t.donation.statDeductibleLabelPrefix}${currentYear}`}
-            amount={formatRupiah(deductibleAmount)}
+            amount={money.format(deductibleAmount)}
             delta={`${deductibleThisYear.length}${t.donation.statDeductibleDeltaMid}${donationsThisYear.length}${t.donation.statDeductibleDeltaSuffix}`}
           />
           <SummaryCard
@@ -852,7 +854,7 @@ export default function DonationPage() {
             iconBg="var(--accent)"
             iconColor="var(--accent-foreground)"
             label={t.donation.statVoluntaryLabel}
-            amount={formatRupiah(voluntaryAmount)}
+            amount={money.format(voluntaryAmount)}
             delta={t.donation.statVoluntaryDelta}
           />
           <SummaryCard

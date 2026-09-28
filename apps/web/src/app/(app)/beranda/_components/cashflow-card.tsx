@@ -32,7 +32,7 @@ export function CashflowCard({
   fmt: MoneyFormatters;
 }) {
   const { t } = useLocale();
-  const { money } = fmt;
+  const { money, moneyCompact } = fmt;
 
   // EPIC-025 N3-G1 — chart-parity aria label, read from the same series.
   const cashflowAriaLabel = cashflow
@@ -97,6 +97,7 @@ export function CashflowCard({
             expense={cashflow.expense}
             height={260}
             ariaLabel={cashflowAriaLabel}
+            money={{ format: money, formatCompact: moneyCompact }}
           />
         </div>
       ) : (

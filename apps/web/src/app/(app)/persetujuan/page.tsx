@@ -59,7 +59,7 @@ import { canAccessPage } from "@wealthme/contracts";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import {
   SectionCard,
   StatusBadge,
@@ -135,6 +135,7 @@ type Tab = "pending" | "riwayat";
 
 export default function PersetujuanPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId ?? null;
@@ -238,7 +239,7 @@ export default function PersetujuanPage() {
           iconColor="var(--warning)"
           label={t.persetujuan.statPendingLabel}
           amount={pendingCount}
-          delta={`${t.persetujuan.statPendingTotalPrefix}${formatRupiah(pendingTotal)}`}
+          delta={`${t.persetujuan.statPendingTotalPrefix}${money.format(pendingTotal)}`}
         />
         <SummaryCard
           icon={<CircleCheck className="size-[17px]" aria-hidden="true" />}
@@ -246,7 +247,7 @@ export default function PersetujuanPage() {
           iconColor="var(--success)"
           label={t.persetujuan.statApprovedLabel}
           amount={approvedThisMonth.length}
-          delta={`${formatRupiah(approvedThisMonthTotal)}${t.persetujuan.statApprovedSuffix}`}
+          delta={`${money.format(approvedThisMonthTotal)}${t.persetujuan.statApprovedSuffix}`}
           deltaUp
         />
         <SummaryCard
@@ -255,7 +256,7 @@ export default function PersetujuanPage() {
           iconColor="var(--destructive)"
           label={t.persetujuan.statRejectedLabel}
           amount={rejectedThisMonth.length}
-          delta={`${formatRupiah(rejectedThisMonthTotal)}${t.persetujuan.statRejectedSuffix}`}
+          delta={`${money.format(rejectedThisMonthTotal)}${t.persetujuan.statRejectedSuffix}`}
         />
       </div>
 
@@ -353,7 +354,7 @@ export default function PersetujuanPage() {
                           : "—"}
                       </td>
                       <td className="mono py-2.5 text-right font-bold">
-                        {formatRupiah(Number(r.amount))}
+                        {money.format(Number(r.amount))}
                       </td>
                     </tr>
                   ))}
@@ -381,6 +382,7 @@ export function AllowanceRequestsPanel({
   token: string | undefined;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const queryClient = useQueryClient();
   const [approving, setApproving] = useState<AllowanceRequestDto | null>(null);
 
@@ -514,7 +516,7 @@ export function AllowanceRequestsPanel({
               </div>
               <div className="text-right">
                 <div className="mono text-[20px] font-extrabold">
-                  {formatRupiah(Number(r.amount))}
+                  {money.format(Number(r.amount))}
                 </div>
                 <div className="text-[11px] text-muted-foreground">
                   {isHeld
@@ -609,6 +611,7 @@ function ApproveRequestDialog({
   onApproved: () => Promise<void>;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
 
   const { data: accounts } = useQuery<AccountDto[]>({
     queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
@@ -638,7 +641,7 @@ function ApproveRequestDialog({
             <DialogDescription>
               {request.requesterName} ·{" "}
               <span className="mono font-bold">
-                {formatRupiah(Number(request.amount))}
+                {money.format(Number(request.amount))}
               </span>{" "}
               → {request.targetAccountName}
               {request.fromAccountName && (
@@ -687,6 +690,7 @@ function ApproveRequestForm({
   onApproved: () => Promise<void>;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   // EPIC-033 R5 — pre-filled with the source the member asked for.
   const [fromAccountId, setFromAccountId] = useState(
     request.fromAccountId ?? "",
@@ -750,7 +754,7 @@ function ApproveRequestForm({
             <option value="">—</option>
             {eligibleAccounts.map((a) => (
               <option key={a.id} value={a.id}>
-                {a.name} ({formatRupiah(Number(a.balance))})
+                {a.name} ({money.format(Number(a.balance))})
               </option>
             ))}
           </select>

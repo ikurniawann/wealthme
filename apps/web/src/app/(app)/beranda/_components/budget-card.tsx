@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import type { BudgetDto } from "@wealthme/contracts";
 import { CardLink, SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
-import { formatRupiah, formatRupiahCompact } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 
 /**
  * EPIC-026 Wave 8 — prototype's `.card.budget-overview` inside `.bento-side`
@@ -25,10 +25,16 @@ function budgetBarModifier(dto: BudgetDto): string {
   return "";
 }
 
-/** "6,2 / 8 jt" style compact spent/limit pair (prototype's `.mono` figure). */
-function formatBudgetRow(spent: number, limit: number): string {
-  const strip = (s: string) => s.replace("Rp ", "");
-  return `${strip(formatRupiahCompact(spent))} / ${strip(formatRupiahCompact(limit))}`;
+/** "6,2 / 8 jt" style compact spent/limit pair (prototype's `.mono` figure).
+ * Strips whatever currency symbol/prefix `formatCompact` renders (Rp, $, ≈ $,
+ * …) so this works for any display currency, not just IDR. */
+function formatBudgetRow(
+  spent: number,
+  limit: number,
+  formatCompact: (idr: number) => string,
+): string {
+  const strip = (s: string) => s.replace(/^[^\d-]+/, "");
+  return `${strip(formatCompact(spent))} / ${strip(formatCompact(limit))}`;
 }
 
 export function BudgetCard({
@@ -40,6 +46,7 @@ export function BudgetCard({
 }) {
   const router = useRouter();
   const { t } = useLocale();
+  const money = useMoney();
   const monthLabel = t.laporan.months[new Date().getMonth()];
   const rows = budgets.slice(0, 4);
 
@@ -72,7 +79,7 @@ export function BudgetCard({
             <div className="row row--between">
               <span className="t-sm t-bold">{b.categoryName}</span>
               <span className="t-xs t-muted mono">
-                {formatBudgetRow(b.spentAmount, b.limitAmount)}
+                {formatBudgetRow(b.spentAmount, b.limitAmount, money.formatCompact)}
               </span>
             </div>
             <div className="progress mt-1.5">
@@ -84,7 +91,7 @@ export function BudgetCard({
             {b.isOverBudget && (
               <div className="t-xs t-danger mt-1.5">
                 {t.beranda.budgetOverBudgetPrefix}
-                {formatRupiah(b.spentAmount - b.limitAmount)}
+                {money.format(b.spentAmount - b.limitAmount)}
               </div>
             )}
           </div>

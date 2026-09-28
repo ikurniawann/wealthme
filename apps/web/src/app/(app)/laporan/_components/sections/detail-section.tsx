@@ -1,5 +1,5 @@
 import { SectionCard, StatusBadge } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { txTypeToBadgeVariant } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { DetailReportDto } from "@wealthme/contracts";
@@ -15,6 +15,7 @@ export function DetailSection({
   isLoading?: boolean;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const txs = detailReport?.transactions ?? [];
 
@@ -75,7 +76,7 @@ export function DetailSection({
                         }
                       >
                         {isTransfer ? "" : isIncome ? "+" : "-"}
-                        {formatRupiah(tx.amount)}
+                        {money.format(tx.amount)}
                       </td>
                     </tr>
                   );

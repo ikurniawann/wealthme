@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { useLocale } from "@/hooks/use-locale";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 
 import type { GoalContributionDto } from "@wealthme/contracts";
@@ -21,6 +21,7 @@ export function ContributionHistory({
   token,
 }: ContributionHistoryProps) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data, isLoading, isError } = useQuery<GoalContributionDto[]>({
     queryKey: [...queryKeys.goals.all(familyGroupId), goalId, "contributions"],
     enabled: Boolean(token) && Boolean(familyGroupId),
@@ -72,7 +73,7 @@ export function ContributionHistory({
             {c.accountName ? ` · ${c.accountName}` : ""}
           </span>
           <span className="mono shrink-0 font-semibold">
-            {formatRupiah(Number(c.amount))}
+            {money.format(Number(c.amount))}
           </span>
         </li>
       ))}

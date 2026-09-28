@@ -1819,6 +1819,23 @@ model FxRate {
   @@map("fx_rates")
 }
 
+// B9 (client revision round 2, polish-j) — cached Antam gold bar price PER
+// KG (IDR), scraped server-side from emasantam.id's "harga emas antam
+// harian" page (logammulia.com is behind Cloudflare and refuses every
+// server request — see the B9 source-update note). One row per source,
+// upserted on refresh — mirrors FxRate's durable last-known-good pattern,
+// singular here because there is only ever one "current" Antam kg price to
+// cache, not a currency-keyed series.
+model GoldMarketPrice {
+  id            String   @id @default(uuid())
+  source        String   @db.VarChar(32)
+  pricePerKgIdr BigInt
+  fetchedAt     DateTime @default(now())
+
+  @@unique([source])
+  @@map("gold_market_prices")
+}
+
 // Revisi I — append-only audit of a money field typed in a foreign currency and stored as IDR.
 model FxConversion {
   id               String      @id @default(uuid())

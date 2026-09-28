@@ -1,11 +1,13 @@
 "use client";
 
 // EPIC-016 Task B2 — the user's display currency preference, resolved from
-// their real profile (GET /auth/profile) and the mock FX rates service
-// (GET /fx/rates?base=IDR, public — no auth token needed). `isIndicative`
-// flags every non-IDR amount as an approximation: the underlying FxPort is a
-// mock service, never a live market feed, so it must never be presented as
-// an authoritative conversion.
+// their real profile (GET /auth/profile) and the FX rates service
+// (GET /fx/rates?base=IDR, public — no auth token needed). Batch C
+// (revisi-2, 2026-09-28): /fx/rates is now backed by FrankfurterFxService (a
+// live feed, cached like fx_rates) by default — FxMockService only runs
+// under FX_PROVIDER=mock. `isIndicative` still flags every non-IDR amount as
+// an approximation, since the cached feed can be stale, so it must never be
+// presented as an authoritative real-time conversion.
 
 import { useQuery } from "@tanstack/react-query";
 

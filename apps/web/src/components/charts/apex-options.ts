@@ -24,12 +24,28 @@ export type ChartBuild = {
   series: ApexOptions["series"];
 };
 
+/**
+ * Money-formatter pair every money-axis/tooltip builder below accepts —
+ * C5 (client revision round 2). Defaults to plain IDR `formatRupiah`/
+ * `formatRupiahCompact` so every existing call site keeps its current
+ * behaviour; pages under `(app)` that display converted amounts pass
+ * `useMoney().format`/`formatCompact` instead so a chart never mixes
+ * currencies with the rest of the screen.
+ */
+export type ChartMoneyFormatter = {
+  format?: (v: number) => string;
+  formatCompact?: (v: number) => string;
+};
+
 /** CashflowChart — grouped income/expense bars. Ports `cashflow()`. */
 export function buildCashflowOptions(
   months: string[],
   income: number[],
   expense: number[],
+  money?: ChartMoneyFormatter,
 ): ChartBuild {
+  const format = money?.format ?? formatRupiah;
+  const formatCompact = money?.formatCompact ?? formatRupiahCompact;
   const options = mergeChartOptions(baseChartOptions(), {
     chart: { type: "bar", height: 260, stacked: false },
     colors: [cssVar("--chart-2"), cssVar("--destructive")],
@@ -41,8 +57,8 @@ export function buildCashflowOptions(
       },
     },
     xaxis: { categories: months },
-    yaxis: { labels: { formatter: (v: number) => formatRupiahCompact(v) } },
-    tooltip: { y: { formatter: (v: number) => formatRupiah(v) } },
+    yaxis: { labels: { formatter: (v: number) => formatCompact(v) } },
+    tooltip: { y: { formatter: (v: number) => format(v) } },
   });
   return {
     options,
@@ -60,11 +76,14 @@ export function buildTrendOptions(
   categories: string[],
   series: TrendSeries[],
   height = 250,
+  money?: ChartMoneyFormatter,
 ): ChartBuild {
+  const format = money?.format ?? formatRupiah;
+  const formatCompact = money?.formatCompact ?? formatRupiahCompact;
   const options = mergeChartOptions(baseChartOptions(), {
     chart: { type: "area", height },
     xaxis: { categories },
-    yaxis: { labels: { formatter: (v: number) => formatRupiahCompact(v) } },
+    yaxis: { labels: { formatter: (v: number) => formatCompact(v) } },
     fill: {
       type: "gradient",
       gradient: {
@@ -74,7 +93,7 @@ export function buildTrendOptions(
         stops: [0, 95],
       },
     },
-    tooltip: { y: { formatter: (v: number) => formatRupiah(v) } },
+    tooltip: { y: { formatter: (v: number) => format(v) } },
   });
   return { options, series };
 }
@@ -84,7 +103,10 @@ export function buildDonutOptions(
   segments: DonutSegment[],
   centerLabel = "Total",
   height = 232,
+  money?: ChartMoneyFormatter,
 ): ChartBuild {
+  const format = money?.format ?? formatRupiah;
+  const formatCompact = money?.formatCompact ?? formatRupiahCompact;
   const labels = segments.map((s) => s.label);
   const series = segments.map((s) => s.value);
   const colors = segments.map((s) => s.color);
@@ -108,7 +130,7 @@ export function buildDonutOptions(
               fontSize: "18px",
               fontWeight: 650,
               color: cssVar("--foreground"),
-              formatter: (v: string) => formatRupiahCompact(Number(v)),
+              formatter: (v: string) => formatCompact(Number(v)),
             },
             total: {
               show: true,
@@ -117,7 +139,7 @@ export function buildDonutOptions(
               fontWeight: 500,
               color: cssVar("--muted-foreground"),
               formatter: (w: { globals: { seriesTotals: number[] } }) =>
-                formatRupiahCompact(
+                formatCompact(
                   w.globals.seriesTotals.reduce((a, b) => a + b, 0),
                 ),
             },
@@ -125,7 +147,7 @@ export function buildDonutOptions(
         },
       },
     },
-    tooltip: { y: { formatter: (v: number) => formatRupiah(v) } },
+    tooltip: { y: { formatter: (v: number) => format(v) } },
   });
   return { options, series };
 }
@@ -164,7 +186,10 @@ export function buildHBarOptions(
   color?: string,
   chartHeight?: number,
   config: HBarOptionsConfig = {},
+  money?: ChartMoneyFormatter,
 ): ChartBuild {
+  const format = money?.format ?? formatRupiah;
+  const formatCompact = money?.formatCompact ?? formatRupiahCompact;
   const height = chartHeight ?? Math.max(190, categories.length * 38 + 34);
   const showXAxisLabels = config.showXAxisLabels ?? false;
   // `colors` (one per category) takes priority over the single `color` —
@@ -203,7 +228,7 @@ export function buildHBarOptions(
       labels: {
         show: showXAxisLabels,
         style: { fontSize: "11.5px", fontWeight: 500 },
-        formatter: (v: number) => formatRupiahCompact(Number(v)),
+        formatter: (v: number) => formatCompact(Number(v)),
       },
     },
     yaxis: {
@@ -223,7 +248,7 @@ export function buildHBarOptions(
       yaxis: { lines: { show: false } },
       padding: { left: 0, right: 10, top: 0, bottom: showXAxisLabels ? 6 : -6 },
     },
-    tooltip: { y: { formatter: (v: number) => formatRupiah(v) } },
+    tooltip: { y: { formatter: (v: number) => format(v) } },
   });
   return { options, series: [{ name: "Jumlah", data }] };
 }

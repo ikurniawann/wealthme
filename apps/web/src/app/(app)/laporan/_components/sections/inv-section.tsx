@@ -1,6 +1,6 @@
 import { SectionCard } from "@/components/wm";
 import { DonutChart } from "@/components/charts/apex-presets";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { investmentCurrentValue } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type {
@@ -39,6 +39,7 @@ export function InvSection({
   onDelete?: (inv: InvestmentDto) => void;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
   const byType = new Map<InvestmentType, number>();
@@ -87,7 +88,7 @@ export function InvSection({
             {t.laporan.investasi.totalPortfolioLabel}
           </div>
           <div className="text-[22px] font-black text-primary">
-            {invSummary ? formatRupiah(totalValue) : "Rp ·"}
+            {invSummary ? money.format(totalValue) : "Rp ·"}
           </div>
           {invSummary && totalValue > 0 && (
             <div
@@ -99,7 +100,7 @@ export function InvSection({
               {totalReturnRp >= 0 ? "▲" : "▼"}{" "}
               {Math.abs(totalReturnPct).toFixed(2)}% ·{" "}
               {totalReturnRp >= 0 ? "+" : "-"}
-              {formatRupiah(Math.abs(totalReturnRp))}
+              {money.format(Math.abs(totalReturnRp))}
             </div>
           )}
         </div>
@@ -144,6 +145,7 @@ export function InvSection({
                 ariaLabel={`${t.laporan.investasi.portfolioByTypeTitle}: ${typeRows
                   .map((row) => `${row.label} ${row.pct}%`)
                   .join(", ")}`}
+                money={money}
               />
             </div>
             <div className="flex min-w-0 flex-col gap-2.5">
@@ -153,7 +155,7 @@ export function InvSection({
                   label={row.label}
                   right={
                     <span className="font-bold" style={{ color: row.color }}>
-                      {formatRupiah(row.value)} · {row.pct}%
+                      {money.format(row.value)} · {row.pct}%
                     </span>
                   }
                   value={
@@ -224,7 +226,7 @@ export function InvSection({
                         {typeLabel ?? inv.type}
                       </td>
                       <td className="mono py-2.5">
-                        {val > 0 ? formatRupiah(val) : "—"}
+                        {val > 0 ? money.format(val) : "—"}
                       </td>
                       <td
                         className={

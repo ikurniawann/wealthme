@@ -18,7 +18,8 @@ import { DonutChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import {
   CrudModal,
   RowActions,
@@ -162,6 +163,7 @@ function WalletRow({
   onRequest?: () => void;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const isEwallet = EWALLET_TYPES.has(item.type);
   const icon = isEwallet ? "💳" : "👛";
   const iconBg = resolveWalletBg(item);
@@ -184,7 +186,7 @@ function WalletRow({
         <div
           className={`text-[15px] font-extrabold ${parseFloat(item.balance) < 0 ? "text-destructive" : ""}`}
         >
-          {formatRupiah(parseFloat(item.balance))}
+          {money.format(parseFloat(item.balance))}
         </div>
       </div>
       {onRequest && (
@@ -219,12 +221,13 @@ function MutationRow({
   danaAccountIds: ReadonlySet<string>;
   locale: Locale;
 }) {
+  const money = useMoney();
   const isIncome = tx.type === "income";
   const isTransfer = tx.type === "transfer";
   const amount = parseFloat(tx.amount);
   const amountStr = isTransfer
-    ? formatRupiah(amount)
-    : (isIncome ? "+" : "-") + formatRupiah(amount);
+    ? money.format(amount)
+    : (isIncome ? "+" : "-") + money.format(amount);
   const amountClass = isTransfer
     ? ""
     : isIncome
@@ -262,6 +265,7 @@ function MutationRow({
 
 export default function DanaPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -550,7 +554,7 @@ export default function DanaPage() {
             ? t.dana.loadingLabel
             : isError
               ? "—"
-              : formatRupiah(totalBalance)}
+              : money.format(totalBalance)}
         </div>
         {!isLoading && !isError && (
           <div className="mt-1.5 text-xs text-[#86EFAC]">
@@ -586,7 +590,7 @@ export default function DanaPage() {
               icon="👛"
               iconBg="var(--accent)"
               label={t.dana.cashStatLabel}
-              amount={formatRupiah(
+              amount={money.format(
                 cashItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
               )}
               delta={`${cashItems.length}${t.dana.cashCountSuffix}`}
@@ -597,7 +601,7 @@ export default function DanaPage() {
               iconBg="var(--success-soft)"
               iconColor="var(--success)"
               label={t.dana.ewalletStatLabel}
-              amount={formatRupiah(
+              amount={money.format(
                 ewalletItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
               )}
               delta={`${ewalletItems.length}${t.dana.ewalletCountSuffix}`}
@@ -610,8 +614,9 @@ export default function DanaPage() {
                 segments={compositionSegments}
                 centerLabel={t.dana.compositionTotalLabel}
                 ariaLabel={`${t.dana.compositionTitle}: ${compositionSegments
-                  .map((s) => `${s.label} ${formatRupiah(s.value)}`)
+                  .map((s) => `${s.label} ${money.format(s.value)}`)
                   .join(", ")}`}
+                money={money}
               />
             </SectionCard>
           )}

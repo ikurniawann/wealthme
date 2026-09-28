@@ -13,6 +13,18 @@ export const id = {
     emojiNoResults: "Ikon tidak ditemukan. Coba kata lain.",
     emojiLoading: "Memuat daftar ikon…",
     emojiGroupAriaLabel: "Ikon yang sering dipakai",
+    assetClassLabels: {
+      properti: "Properti",
+      kendaraan: "Kendaraan",
+      kas_tabungan: "Kas & Tabungan",
+      deposito: "Deposito",
+      saham: "Saham",
+      reksa_dana: "Reksa Dana",
+      obligasi: "Obligasi/SBN",
+      emas: "Emas",
+      kripto: "Kripto",
+      lainnya: "Lainnya",
+    },
     advancedOptions: "Opsi lanjutan",
     datePickerPlaceholder: "Pilih tanggal",
     datePickerYearLabel: "Tahun",
@@ -64,6 +76,11 @@ export const id = {
       // members table beside them showed a different name for the same role.
       dependant: "Anak",
       operational: "Staff Operasional",
+    },
+    apiError: {
+      sessionExpired: "Sesi habis, silakan login kembali",
+      accessDenied: "Tidak memiliki akses",
+      generic: "Terjadi kesalahan, silakan coba lagi",
     },
   },
   beranda: {
@@ -367,6 +384,9 @@ export const id = {
     themePicker: {
       ariaLabel: "Pilih tema warna",
       title: "Tema Warna",
+    },
+    localeSwitcher: {
+      ariaLabel: "Ganti bahasa — saat ini: %s",
     },
     searchDialog: {
       ariaLabel: "Cari transaksi, bank & account, menu",
@@ -1624,8 +1644,17 @@ export const id = {
     apiKeyLabel: "API Key",
     encryptionNote: "Key disimpan terenkripsi di server.",
     notManagedHint: "Diatur oleh owner atau pasangan keluarga ini.",
+    floatingLauncher: {
+      openAriaLabel: "Buka AI Advisor",
+      closeAriaLabel: "Tutup AI Advisor",
+      panelTitle: "AI Advisor",
+      openFullPageLink: "Buka halaman penuh",
+      notConfiguredBody: "AI Advisor belum diatur untuk keluarga ini.",
+    },
   },
   investasi: {
+    goldPricePerGramTooHigh:
+      "Harga emas diisi per gram, bukan per kg. Contoh: 2.597.000.",
     typeLabels: {
       saham: "Saham",
       reksa_dana: "Reksa Dana",
@@ -1729,6 +1758,7 @@ export const id = {
     unitCoinSuffix: "koin",
     unitFundUnit: "unit",
     unitGram: "gram",
+    unitKg: "kg",
     navPricePrefix: "NAB ",
     nominalPrefix: "Nominal ",
     pricingSourceLastSyncedPrefix: "Terakhir sinkron",
@@ -1759,6 +1789,13 @@ export const id = {
     automatedUnmappedBadge: "Harga Manual",
     automatedUnmappedNote:
       "Ticker ini belum didukung feed harga otomatis, masukkan harga secara manual.",
+    priceSimulatedLabel: "Harga belum tersedia, perbarui manual",
+    priceSimulatedNote:
+      "Penyedia harga belum punya kuotasi untuk ticker ini — nilai dihitung dari harga beli, perbarui harga secara manual jika sudah tahu harga pasarnya.",
+    tickerNotFoundWarning:
+      "Ticker tidak ditemukan di penyedia harga otomatis. Nilai dihitung dari harga beli sampai kamu masukkan harga manual.",
+    tickerNoLivePriceWarning:
+      "Belum ada harga pasar untuk ticker ini. Nilai dihitung dari harga beli sampai kamu masukkan harga manual.",
     fieldManualPriceLabel: "Harga Saat Ini (Rp, opsional)",
     fieldManualPricePlaceholder: "contoh: 15250",
     fieldManualPriceDateLabel: "Per Tanggal",
@@ -1813,7 +1850,7 @@ export const id = {
       saham: "Jumlah Saham",
       reksa_dana: "Jumlah Unit Penyertaan",
       obligasi: "Jumlah Unit",
-      emas: "Berat Emas (gram)",
+      emas: "Berat Emas (kg)",
       kripto: "Jumlah Koin",
       lainnya: "Jumlah Unit",
       deposito: "Nominal",
@@ -1822,7 +1859,7 @@ export const id = {
       saham: "contoh: 10",
       reksa_dana: "contoh: 1250.5678",
       obligasi: "contoh: 10",
-      emas: "contoh: 10.5",
+      emas: "contoh: 0.025",
       kripto: "contoh: 0.015",
       lainnya: "contoh: 10",
       deposito: "",
@@ -1832,6 +1869,9 @@ export const id = {
     quantityWholeNumberErrorTemplate: "Jumlah {unit} harus bilangan bulat.",
     buySellPricePerLembarHint:
       "Harga tetap per lembar, walau jumlah diisi dalam lot.",
+    buySellPricePerGramHint:
+      "Harga tetap per gram, walau jumlah diisi dalam kg.",
+    hintGoldKgEquivalentTemplate: "= {grams} gram",
     familyGoldPriceNote:
       "Harga emas mengikuti Harga Emas keluarga di Pengaturan, tidak perlu diinput per posisi.",
     familyGoldPriceHintTemplate:
@@ -2530,6 +2570,8 @@ export const id = {
     goldPromptText: "Atur harga emas untuk melihat setara emas.",
     goldPromptLinkLabel: "Atur harga emas",
     manualLabelPrefix: "Diinput manual, per ",
+    antamLabelTemplate:
+      "Harga Antam 1 kg, sumber emasantam.id, diperbarui {date}",
     indicativeFxNote:
       "Nilai USD adalah perkiraan menggunakan kurs indikatif, bukan kurs pasar real-time.",
     loadingLabel: "Memuat...",

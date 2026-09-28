@@ -214,6 +214,12 @@ describe("formatSignedRupiah", () => {
     // identical — only the sign differs.
     expect(positive.slice(1)).toBe(negative.slice(1));
   });
+
+  it("C5: routes through a custom formatter (e.g. useMoney().format) instead of always IDR", () => {
+    const usdFormat = (idr: number) => `≈ $${(idr / 15000).toFixed(2)}`;
+    expect(formatSignedRupiah(1_500_000, usdFormat)).toBe("+≈ $100.00");
+    expect(formatSignedRupiah(-1_500_000, usdFormat)).toBe("-≈ $100.00");
+  });
 });
 
 describe("categoryBreakdownToDonut", () => {

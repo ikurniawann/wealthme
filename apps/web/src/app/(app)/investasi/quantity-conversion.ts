@@ -13,6 +13,9 @@
 
 export type QuantityUnit = "lot" | "lembar";
 
+/** Display units for a gram-stored quantity (B9 follow-up — gold in kg). */
+export type GoldQuantityUnit = "gram" | "kg";
+
 interface ParsedDecimal {
   negative: boolean;
   /** All significant digits (integer part + fractional part) with no separator. */
@@ -79,6 +82,37 @@ export function divideBy100(value: string): string {
   const parsed = parseDecimal(value);
   if (!parsed) return value;
   return formatDecimal(shiftByPowerOfTen(parsed, -2));
+}
+
+// B9 follow-up (client revision round 2) — gold HOLDINGS are stored in
+// grams (unchanged, matches every InvestmentDto/transaction on the API) but
+// the user explicitly chose "Per kilogram" display/entry. Same exact
+// BigInt-scaled decimal-string math as multiplyBy100/divideBy100 above —
+// ×1000/÷1000 only ever shifts the decimal point, never a float
+// intermediate, so a gram value round-trips through kg with zero drift.
+
+/** Multiply a decimal string by exactly 1000 (kg -> grams), with no float drift. */
+export function multiplyBy1000(value: string): string {
+  const parsed = parseDecimal(value);
+  if (!parsed) return value;
+  return formatDecimal(shiftByPowerOfTen(parsed, 3));
+}
+
+/** Divide a decimal string by exactly 1000 (grams -> kg), with no float drift. */
+export function divideBy1000(value: string): string {
+  const parsed = parseDecimal(value);
+  if (!parsed) return value;
+  return formatDecimal(shiftByPowerOfTen(parsed, -3));
+}
+
+/** A stored gram quantity, displayed in kg (never touches the canonical value). */
+export function gramsToKg(value: string): string {
+  return divideBy1000(value);
+}
+
+/** A kg quantity as typed/displayed, canonicalized to grams for storage. */
+export function kgToGrams(value: string): string {
+  return multiplyBy1000(value);
 }
 
 /**

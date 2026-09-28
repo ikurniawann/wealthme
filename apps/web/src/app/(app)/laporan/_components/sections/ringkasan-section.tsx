@@ -6,7 +6,7 @@ import type { DonutSegment } from "@/components/charts/donut";
 // is the SAME underlying data the old components rendered (traced inline
 // at each call site) — only the rendering library changed.
 import { CashflowChart, DonutChart } from "@/components/charts/apex-presets";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type {
   BalanceSheetDto,
@@ -58,6 +58,7 @@ export function RingkasanSection({
   periodLabel?: string;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const activeChartSummary = chartSummary ?? summary;
   const chartMonths = activeChartSummary?.points.map((p) => p.label) ?? [];
   // EPIC-025 N3-G2 — raw Rupiah series (not the old BarChart's /1_000_000
@@ -68,7 +69,7 @@ export function RingkasanSection({
   const chartExpense = activeChartSummary?.points.map((p) => p.expense) ?? [];
   const cashflowChartAriaLabel =
     activeChartSummary && chartMonths.length > 0
-      ? `${t.laporan.ringkasan.cashflowCardTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${formatRupiah(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${formatRupiah(chartExpense[chartExpense.length - 1] ?? 0)}`
+      ? `${t.laporan.ringkasan.cashflowCardTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${money.format(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${money.format(chartExpense[chartExpense.length - 1] ?? 0)}`
       : t.laporan.ringkasan.cashflowCardTitle;
 
   // EPIC-025 N3-J1 (gap 5) — headline stat deltas, computed ONLY from data
@@ -213,7 +214,7 @@ export function RingkasanSection({
           iconBg="var(--success-soft)"
           iconColor="var(--success)"
           label={t.laporan.totalIncomeLabel}
-          value={detailReport ? formatRupiah(headlineIncome) : "Rp ·"}
+          value={detailReport ? money.format(headlineIncome) : "Rp ·"}
           valueClass="text-success"
           delta={incomeDeltaLabel}
           deltaClass={
@@ -227,7 +228,7 @@ export function RingkasanSection({
           iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
           iconColor="var(--destructive)"
           label={t.laporan.totalExpenseLabel}
-          value={detailReport ? formatRupiah(headlineExpense) : "Rp ·"}
+          value={detailReport ? money.format(headlineExpense) : "Rp ·"}
           valueClass="text-destructive"
           delta={expenseDeltaLabel}
           deltaClass={
@@ -241,7 +242,11 @@ export function RingkasanSection({
           iconBg="var(--accent)"
           iconColor="var(--accent-foreground)"
           label={t.laporan.ringkasan.statNetCashflowLabel}
-          value={detailReport ? formatSignedRupiah(headlineNet) : "Rp ·"}
+          value={
+            detailReport
+              ? formatSignedRupiah(headlineNet, money.format)
+              : "Rp ·"
+          }
           valueClass={
             detailReport && headlineNet >= 0
               ? "text-success"
@@ -307,6 +312,7 @@ export function RingkasanSection({
                 expense={chartExpense}
                 height={260}
                 ariaLabel={cashflowChartAriaLabel}
+                money={money}
               />
             ) : (
               <div className="flex h-[260px] items-center justify-center text-[12px] text-muted-foreground">
@@ -329,6 +335,7 @@ export function RingkasanSection({
                   centerLabel={t.common.total}
                   height={190}
                   ariaLabel={expenseDonutAriaLabel}
+                  money={money}
                 />
                 <div className="space-y-2">
                   {expenseDonut.map((seg) => (
@@ -407,7 +414,7 @@ export function RingkasanSection({
                       {item.percentage}%
                     </td>
                     <td className="mono py-2.5 text-right font-bold">
-                      {formatRupiah(item.amount)}
+                      {money.format(item.amount)}
                     </td>
                   </tr>
                 ))}
@@ -435,6 +442,7 @@ export function RingkasanSection({
                 centerLabel={t.common.total}
                 height={190}
                 ariaLabel={wealthAllocAriaLabel}
+                money={money}
               />
               <div className="space-y-2">
                 {wealthAlloc.map((seg) => (
@@ -475,7 +483,7 @@ export function RingkasanSection({
             </div>
             <div className="text-[20px] font-black">
               {invSummary
-                ? formatRupiah(parseFloat(invSummary.totalCurrentValue))
+                ? money.format(parseFloat(invSummary.totalCurrentValue))
                 : "Rp ·"}
             </div>
             {invSummary && (
@@ -489,7 +497,7 @@ export function RingkasanSection({
                   }
                 >
                   {parseFloat(invSummary.totalReturnRp) >= 0 ? "+" : ""}
-                  {formatRupiah(parseFloat(invSummary.totalReturnRp))} ▲{" "}
+                  {money.format(parseFloat(invSummary.totalReturnRp))} ▲{" "}
                   {invSummary.totalReturnPct.toFixed(1)}%
                 </div>
                 <div
@@ -502,7 +510,7 @@ export function RingkasanSection({
                 >
                   {t.laporan.ringkasan.todayReturnPrefix}{" "}
                   {parseFloat(invSummary.todayReturnRp) >= 0 ? "+" : ""}
-                  {formatRupiah(parseFloat(invSummary.todayReturnRp))} (
+                  {money.format(parseFloat(invSummary.todayReturnRp))} (
                   {invSummary.todayReturnPct.toFixed(2)}%)
                 </div>
               </>

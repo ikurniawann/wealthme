@@ -2,17 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
-import { useAiConversations } from "@/hooks/use-ai-conversations";
+import { useAiChat } from "@/components/providers/ai-chat-provider";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 
-import { MarkdownMessage } from "./markdown-message";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { MarkdownMessage } from "@/components/ai/markdown-message";
 
 /** Restructure (prototype parity) — minimal shape read from the real
  * `/dashboard/summary` endpoint (mirrors `DashboardSummaryDto` from
@@ -22,56 +19,6 @@ type DashboardSummaryLite = {
   netWorth: number;
   currentMonth: { income: number; expense: number };
 };
-
-type Msg = {
-  id: number;
-  role: "user" | "assistant";
-  text: string;
-  // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round 2) — kept as
-  // its own field (never concatenated into `text`) so the truncation notice
-  // can render as a visually distinct element instead of collapsing into
-  // the answer's own prose — see the render below.
-  truncated?: boolean;
-};
-
-/**
- * EPIC-023 Task G retry (MEDIUM five-reviewer finding) — maps the backend's
- * distinguishable SSE `code` to its own message instead of one generic
- * "something went wrong" for auth failure, rate limit, timeout, and a
- * corrupted stored key alike.
- */
-function errorMessageForCode(
-  code: string | undefined,
-  t: ReturnType<typeof useLocale>["t"],
-  // Only meaningful for AI_RATE_LIMITED; the server sends them alongside the
-  // code so the message can say WHICH quota ran out.
-  rateLimit?: { scope?: string; retryAfterSeconds?: number },
-): string {
-  switch (code) {
-    case "AI_NOT_CONFIGURED":
-      return t.ai.notConfiguredMidChat;
-    case "AI_KEY_CORRUPTED":
-      return t.ai.errorKeyCorrupted;
-    case "AI_AUTH_FAILED":
-      return t.ai.errorAuthFailed;
-    case "AI_RATE_LIMITED":
-      // A per-day cap is the case the old single message got badly wrong: it
-      // said "try again in a moment" about something that does not reset for
-      // hours, so every suggestion chip produced the same useless notice.
-      if (rateLimit?.scope === "daily") return t.ai.errorRateLimitedDaily;
-      if (rateLimit?.retryAfterSeconds) {
-        return t.ai.errorRateLimitedRetryIn.replace(
-          "{seconds}",
-          String(rateLimit.retryAfterSeconds),
-        );
-      }
-      return t.ai.errorRateLimited;
-    case "AI_TIMEOUT":
-      return t.ai.errorTimeout;
-    default:
-      return t.ai.errorGeneric;
-  }
-}
 
 /**
  * EPIC-023 G3 (D16) — a family with no AI provider key configured sees this
@@ -148,6 +95,7 @@ function DataReadRow({
 
 export default function AiPage() {
   const { t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken ?? "";
@@ -182,244 +130,26 @@ export default function AiPage() {
     return () => ctrl.abort();
   }, [familyGroupId, token]);
 
+  // A1 (revisi-2) — the transcript, streaming state, and saved-session
+  // handlers all now live in `AiChatProvider` (mounted in `AppShell`), so
+  // they survive a route change and are the SAME state the floating
+  // launcher reads/writes. This page just renders them.
   const {
     conversations,
-    isLoading: isHistoryLoading,
-    isError: isHistoryError,
-    deleteConversation,
-    fetchConversation,
-    refresh: refreshConversations,
-  } = useAiConversations();
-
-  const [messages, setMessages] = React.useState<Msg[]>([
-    {
-      id: 0,
-      role: "assistant",
-      text: t.ai.initialMessage,
-    },
-  ]);
-  const [input, setInput] = React.useState("");
-  const [isStreaming, setIsStreaming] = React.useState(false);
-  // Which saved session the transcript on screen belongs to. `null` means
-  // "not filed yet" — either a fresh page load or right after "Mulai Baru";
-  // the server creates the session on the first successful turn and returns
-  // its id on the `done` frame, which is what sets this.
-  const [conversationId, setConversationId] = React.useState<string | null>(
-    null,
-  );
-  const idRef = React.useRef(1);
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const abortRef = React.useRef<AbortController | null>(null);
-
-  React.useEffect(() => {
-    const el = scrollRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [messages]);
-
-  React.useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-    };
-  }, []);
-
-  async function send(userText: string) {
-    const trimmed = userText.trim();
-    if (!trimmed || isStreaming) return;
-
-    const nextId = idRef.current;
-    const aiMsgId = nextId + 1;
-    idRef.current = nextId + 2;
-
-    const history = messages.map((m) => ({ role: m.role, content: m.text }));
-
-    setMessages((prev) => [
-      ...prev,
-      { id: nextId, role: "user", text: trimmed },
-      { id: aiMsgId, role: "assistant", text: "" },
-    ]);
-    setIsStreaming(true);
-
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    try {
-      const res = await fetch(
-        `${API_BASE}/family-groups/${familyGroupId}/ai-advisor/chat`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            messages: [...history, { role: "user", content: trimmed }],
-            // Omitted on the first turn — the server then creates the
-            // session and names it after this question.
-            ...(conversationId ? { conversationId } : {}),
-          }),
-          signal: ctrl.signal,
-        },
-      );
-
-      if (!res.ok || !res.body) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === aiMsgId ? { ...m, text: t.ai.errorGeneric } : m,
-          ),
-        );
-        return;
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const parsed = JSON.parse(line.slice(6)) as {
-              token?: string;
-              done?: boolean;
-              truncated?: boolean;
-              conversationId?: string;
-              error?: string;
-              code?: string;
-              scope?: string;
-              retryAfterSeconds?: number;
-            };
-            if (parsed.token) {
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === aiMsgId ? { ...m, text: m.text + parsed.token } : m,
-                ),
-              );
-            }
-            if (parsed.error) {
-              // EPIC-023 G3 (D16) / Task G retry (MEDIUM finding) — every
-              // failure kind gets its own message instead of one generic
-              // toast for auth failure, rate limit, and timeout alike.
-              const text = errorMessageForCode(parsed.code, t, {
-                scope: parsed.scope,
-                retryAfterSeconds: parsed.retryAfterSeconds,
-              });
-              setMessages((prev) =>
-                prev.map((m) => (m.id === aiMsgId ? { ...m, text } : m)),
-              );
-              break;
-            }
-            if (parsed.done) {
-              // EPIC-023 Task G retry (CRITICAL five-reviewer finding) — a
-              // response cut off by the provider's token cap must say so
-              // explicitly, never look like a complete answer.
-              //
-              // EPIC-023 Task G retry (MEDIUM five-reviewer finding, round
-              // 2) — the notice is kept on its OWN field, not appended to
-              // `text`: appending made it collapse into one run-on sentence
-              // with the model's own prose (the bubble has no
-              // `whitespace-pre-wrap`), reading as though the model wrote
-              // the caveat itself. Rendered as a separate element below the
-              // bubble — see the message list render below.
-              if (parsed.truncated) {
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === aiMsgId ? { ...m, truncated: true } : m,
-                  ),
-                );
-              }
-              // The exchange was filed. Absent on a turn the server could
-              // not store — the answer above is still valid, this one just
-              // won't appear in history, and the next turn starts a session.
-              if (parsed.conversationId) {
-                setConversationId(parsed.conversationId);
-                refreshConversations();
-              }
-              break;
-            }
-          } catch {
-            // ignore malformed SSE lines
-          }
-        }
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === aiMsgId ? { ...m, text: t.ai.errorConnection } : m,
-        ),
-      );
-    } finally {
-      setIsStreaming(false);
-      abortRef.current = null;
-    }
-  }
-
-  function handleSubmit() {
-    if (!input.trim()) return;
-    send(input);
-    setInput("");
-  }
-
-  /** "Mulai Baru": aborts any in-flight stream and resets the transcript to
-   * the greeting the page mounts with.
-   *
-   * This used to be the whole story — the chat endpoint was stateless and
-   * the conversation lived only in React state, so pressing this button (or
-   * reloading the tab) destroyed it. Now every completed exchange is already
-   * filed server-side, so the reset leaves the old session sitting in the
-   * history panel: clearing `conversationId` starts a NEW session on the
-   * next turn rather than deleting the previous one. */
-  function handleNewConversation() {
-    abortRef.current?.abort();
-    setIsStreaming(false);
-    idRef.current = 1;
-    setConversationId(null);
-    setMessages([{ id: 0, role: "assistant", text: t.ai.initialMessage }]);
-  }
-
-  /** Reopens a saved session: the greeting stays as the first bubble (it is
-   * page copy, not a stored turn), followed by the transcript as filed. */
-  async function handleOpenConversation(id: string) {
-    if (isStreaming) return;
-    try {
-      const detail = await fetchConversation(id);
-      abortRef.current?.abort();
-      setMessages([
-        { id: 0, role: "assistant", text: t.ai.initialMessage },
-        ...detail.messages.map((m, index) => ({
-          id: index + 1,
-          role: m.role,
-          text: m.content,
-          truncated: m.truncated || undefined,
-        })),
-      ]);
-      // Continue numbering past the loaded turns so a follow-up in this
-      // session cannot collide with a restored message's React key.
-      idRef.current = detail.messages.length + 1;
-      setConversationId(detail.id);
-    } catch {
-      toast.error(t.ai.historyLoadFailed);
-    }
-  }
-
-  async function handleDeleteConversation(id: string) {
-    if (!window.confirm(t.ai.historyDeleteConfirm)) return;
-    try {
-      await deleteConversation(id);
-      // Deleting the session currently on screen detaches the transcript
-      // rather than clearing it: the answers on screen are still the user's
-      // to read, they just no longer belong to a stored session.
-      if (id === conversationId) setConversationId(null);
-      toast.success(t.ai.historyDeleted);
-    } catch {
-      toast.error(t.ai.historyDeleteFailed);
-    }
-  }
+    isHistoryLoading,
+    isHistoryError,
+    messages,
+    input,
+    setInput,
+    isStreaming,
+    conversationId,
+    scrollRef,
+    send,
+    handleSubmit,
+    handleNewConversation,
+    handleOpenConversation,
+    handleDeleteConversation,
+  } = useAiChat();
 
   const providerLabel = aiProvider
     ? t.ai.providerLabels[aiProvider as AiProvider]
@@ -755,7 +485,7 @@ export default function AiPage() {
                 </span>
                 <span className="font-bold">
                   {dashboardSummary
-                    ? formatRupiah(dashboardSummary.netWorth)
+                    ? money.format(dashboardSummary.netWorth)
                     : "—"}
                 </span>
               </div>
@@ -765,7 +495,7 @@ export default function AiPage() {
                 </span>
                 <span className="font-bold text-success">
                   {dashboardSummary
-                    ? formatRupiah(dashboardSummary.currentMonth.income)
+                    ? money.format(dashboardSummary.currentMonth.income)
                     : "—"}
                 </span>
               </div>
@@ -775,7 +505,7 @@ export default function AiPage() {
                 </span>
                 <span className="font-bold text-destructive">
                   {dashboardSummary
-                    ? formatRupiah(dashboardSummary.currentMonth.expense)
+                    ? money.format(dashboardSummary.currentMonth.expense)
                     : "—"}
                 </span>
               </div>
