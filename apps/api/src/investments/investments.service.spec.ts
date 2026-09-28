@@ -147,7 +147,11 @@ describe("InvestmentsService P&L", () => {
               id: "p-1",
               investmentId: "inv-1",
               price: new Decimal("10000"),
-              source: "mock",
+              // B6 — a REAL feed source here, deliberately not "mock": this
+              // test asserts the aggregation formula, not the B6 "never
+              // trust a simulated price" fallback (see its own describe
+              // block below).
+              source: "yahoo-finance",
               recordedAt: priceRecordedAt,
             },
           ],
@@ -169,7 +173,7 @@ describe("InvestmentsService P&L", () => {
               id: "p-2",
               investmentId: "inv-2",
               price: new Decimal("3800"),
-              source: "mock",
+              source: "yahoo-finance",
               recordedAt: priceRecordedAt,
             },
           ],
@@ -958,6 +962,91 @@ describe("InvestmentsService P&L", () => {
       await service.findAll("fg-1");
 
       expect(mockMarketData.getPrice).not.toHaveBeenCalled();
+    });
+  });
+
+  // Batch B6 (client revision round 2) — MockMarketDataAdapter fabricates a
+  // deterministic-but-fake price for ANY ticker (dev/demo, no
+  // USE_REAL_MARKET_DATA). A real holding must never be valued off that:
+  // never trust a "mock"-sourced price as if it were live.
+  describe("findAll() — B6: never trusts a simulated (mock) price for a real holding", () => {
+    it("falls back to cost basis and nulls currentPrice when the latest price is mock-sourced", async () => {
+      const recordedAt = new Date(Date.now() + 1000); // "fresh today" so no refetch is attempted
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-qq",
+          familyGroupId: "fg-1",
+          ticker: "QQ",
+          name: "QQ Corp",
+          type: "saham",
+          quantity: new Decimal("200"),
+          costBasisPerUnit: new Decimal("3400"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [
+            {
+              id: "p-mock",
+              investmentId: "inv-qq",
+              price: new Decimal("3092"),
+              source: "mock",
+              asOf: recordedAt,
+              delayed: false,
+              recordedAt,
+            },
+          ],
+        },
+      ]);
+
+      const [result] = await service.findAll("fg-1");
+
+      // Never the fabricated Rp 3.092 × 200 = Rp 618.400 — cost basis instead.
+      expect(result?.currentPrice).toBeNull();
+      expect(result?.currentValue).toBe("680000"); // 3400 * 200, the real cost basis
+      expect(result?.automatedPriceSimulated).toBe(true);
+      expect(result?.automatedPriceUnmapped).toBe(false);
+    });
+
+    it("still shows a real automated price (coingecko/yahoo) with automatedPriceSimulated:false", async () => {
+      mockMarketData.getPrice.mockResolvedValue({
+        price: 950_000_000,
+        source: "coingecko",
+        asOf: new Date(),
+        delayed: false,
+      });
+      mockPrisma.investment.findMany.mockResolvedValue([
+        {
+          id: "inv-btc",
+          familyGroupId: "fg-1",
+          ticker: "BTC",
+          name: "Bitcoin",
+          type: "kripto",
+          quantity: new Decimal("0.01"),
+          costBasisPerUnit: new Decimal("900000000"),
+          currency: "IDR",
+          notes: null,
+          interestRatePct: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          prices: [],
+        },
+      ]);
+      mockPrisma.investmentPrice.create.mockResolvedValue({
+        id: "p-btc",
+        investmentId: "inv-btc",
+        price: new Decimal("950000000"),
+        source: "coingecko",
+        asOf: new Date(),
+        delayed: false,
+        recordedAt: new Date(),
+      });
+
+      const [result] = await service.findAll("fg-1");
+
+      expect(result?.automatedPriceSimulated).toBe(false);
+      expect(result?.currentPrice).toBe("950000000");
     });
   });
 

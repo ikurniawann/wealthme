@@ -48,6 +48,13 @@ export interface InvestmentDto {
   // refresh-failed warning, and the edit form accepts a manual price for
   // it even though the instrument type is normally automated-only.
   automatedPriceUnmapped: boolean;
+  // Batch B6 (client revision round 2) — true only when the latest
+  // automated-feed price row is a dev/demo simulated quote ("mock" source,
+  // MockMarketDataAdapter), never a real market price. A real holding must
+  // never be valued off a fabricated number: when true, `currentPrice` is
+  // null and `currentValue` falls back to cost basis × quantity, and the UI
+  // shows "harga belum tersedia, perbarui manual" instead of a "Live" badge.
+  automatedPriceSimulated: boolean;
   // Annual interest rate (%) for interest-bearing instruments (obligasi,
   // deposito). Null when not applicable/not set.
   interestRatePct: string | null;

@@ -901,6 +901,7 @@ interface InvestmentDto {
     latestPriceDelayed: boolean | null;
     priceRefreshFailed: boolean;
     automatedPriceUnmapped: boolean;
+    automatedPriceSimulated: boolean;
     interestRatePct: string | null;
     projectedAnnualYield: string | null;
     purchasedAt: string | null;
