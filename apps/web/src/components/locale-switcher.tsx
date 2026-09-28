@@ -17,31 +17,40 @@ export function LocaleSwitcher({
 }) {
   const { locale, toggle, t } = useLocale();
 
-  return (
+  const segment = (value: "id" | "en") => (
     <button
       type="button"
-      onClick={toggle}
+      role="radio"
+      aria-checked={locale === value}
+      onClick={() => {
+        if (locale !== value) toggle();
+      }}
+      className={cn(
+        "flex h-full items-center justify-center rounded-[5px] px-2 text-[11px] font-bold tracking-wide transition-colors",
+        locale === value
+          ? "bg-card text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-primary",
+      )}
+    >
+      {value.toUpperCase()}
+    </button>
+  );
+
+  return (
+    <div
+      role="radiogroup"
       aria-label={t.shell.localeSwitcher.ariaLabel.replace(
         "%s",
         locale.toUpperCase(),
       )}
       className={cn(
-        "flex items-center justify-center gap-1 rounded-md text-xs font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-primary",
-        size === "default"
-          ? "size-9 bg-secondary"
-          : "gap-1 rounded px-2 py-0.5",
+        "flex items-center gap-0.5 rounded-md bg-secondary p-0.5",
+        size === "default" ? "h-9" : "h-7",
         className,
       )}
     >
-      <span aria-hidden="true" style={{ opacity: locale === "id" ? 1 : 0.4 }}>
-        ID
-      </span>
-      <span aria-hidden="true" className="opacity-30">
-        /
-      </span>
-      <span aria-hidden="true" style={{ opacity: locale === "en" ? 1 : 0.4 }}>
-        EN
-      </span>
-    </button>
+      {segment("id")}
+      {segment("en")}
+    </div>
   );
 }
