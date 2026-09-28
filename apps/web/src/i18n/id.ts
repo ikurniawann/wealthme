@@ -65,6 +65,11 @@ export const id = {
       dependant: "Anak",
       operational: "Staff Operasional",
     },
+    apiError: {
+      sessionExpired: "Sesi habis, silakan login kembali",
+      accessDenied: "Tidak memiliki akses",
+      generic: "Terjadi kesalahan, silakan coba lagi",
+    },
   },
   beranda: {
     title: "Beranda",

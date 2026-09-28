@@ -1445,17 +1445,21 @@ export default function RekonsiliasiPage() {
       goto(2);
     },
     onError: (err: unknown) => {
-      // EPIC-023 Task G retry (MEDIUM finding) — a known error code renders
-      // its own localized message; an unrecognised one falls back to the
-      // API's raw message rather than a blank toast.
+      // A2 (revisi-2) — a known error code renders its own localized
+      // message; an unrecognised one used to fall back to the API's raw
+      // message, which can be a technical last-resort string like
+      // "HTTP 504" (postStatementJson/postStatementMultipart's fallback
+      // when the response isn't from the API at all, e.g. an nginx error
+      // page). The raw error still goes to the console for debugging; the
+      // user only ever sees localized copy.
       const code =
         err instanceof ReconciliationUploadError ? err.code : undefined;
-      const msg =
+      if (err instanceof Error)
+        console.error("[rekonsiliasi] upload failed:", err);
+      toast.error(
         uploadErrorMessageForCode(code, t) ??
-        (err instanceof Error
-          ? err.message
-          : t.rekonsiliasi.toastUploadFailedDefault);
-      toast.error(msg);
+          t.rekonsiliasi.toastUploadFailedDefault,
+      );
     },
   });
 
@@ -1656,13 +1660,15 @@ export default function RekonsiliasiPage() {
         setPdfPreview(preview);
       } catch (err) {
         const code = err instanceof StatementReadError ? err.code : undefined;
-        // Every branch must end in visible text. A blank string here is what
-        // made this failure invisible once already, so an empty message falls
-        // through to the generic one rather than being rendered as nothing.
-        const raw = err instanceof Error ? err.message.trim() : "";
+        // A2 (revisi-2) — every branch must still end in visible text (a
+        // blank message once made this failure invisible), but the raw
+        // fallback text (`readStatementResponse`'s last-resort `HTTP 504`
+        // for a non-API response) is not fit to show a user, so it only
+        // reaches the console now.
+        if (err instanceof Error)
+          console.error("[rekonsiliasi] statement read failed:", err);
         toast.error(
-          statementErrorMessageForCode(code, t) ||
-            raw ||
+          statementErrorMessageForCode(code, t) ??
             t.rekonsiliasi.toastUploadFailedDefault,
         );
       } finally {
@@ -1713,11 +1719,13 @@ export default function RekonsiliasiPage() {
       goto(2);
     } catch (err) {
       const code = err instanceof StatementReadError ? err.code : undefined;
+      // A2 (revisi-2) — same reasoning as the preview catch above: never
+      // surface the raw `HTTP 504`-style last-resort message to the user.
+      if (err instanceof Error)
+        console.error("[rekonsiliasi] statement confirm failed:", err);
       toast.error(
         statementErrorMessageForCode(code, t) ??
-          (err instanceof Error
-            ? err.message
-            : t.rekonsiliasi.toastUploadFailedDefault),
+          t.rekonsiliasi.toastUploadFailedDefault,
       );
     } finally {
       setPdfConfirming(false);

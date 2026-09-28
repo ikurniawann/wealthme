@@ -946,8 +946,10 @@ describe("/rekonsiliasi — a statement PDF (EPIC-029 E9/E10)", () => {
     const [message] = toastError.mock.calls.at(-1) as [unknown];
     expect(typeof message).toBe("string");
     expect((message as string).trim()).not.toBe("");
-    // And it names the status, so a gateway timeout is distinguishable from
-    // a refusal the API actually authored.
-    expect(message).toContain("504");
+    // A2 (revisi-2) — a raw HTTP status is technical junk, not something a
+    // user should see; the toast now always renders the localized generic
+    // failure copy instead of naming the status.
+    expect(message).not.toContain("504");
+    expect(message).not.toMatch(/HTTP \d{3}/);
   });
 });

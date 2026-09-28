@@ -62,6 +62,11 @@ export const en = {
       dependant: "Child",
       operational: "Operational Staff",
     },
+    apiError: {
+      sessionExpired: "Your session has expired, please log in again",
+      accessDenied: "You don't have access",
+      generic: "Something went wrong, please try again",
+    },
   },
   beranda: {
     title: "Home",

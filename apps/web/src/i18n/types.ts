@@ -437,6 +437,13 @@ export type I18nDictionary = {
     sparkLabels: [string, string, string, string, string];
     /** EPIC-023 Task C retry — see `MemberRoleId` above. */
     roleLabels: Record<MemberRoleId, string>;
+    // A2 (revisi-2) — `useApiError`'s generic fallbacks. Never a status
+    // code, request id, or raw server string — see the hook's own comment.
+    apiError: {
+      sessionExpired: string;
+      accessDenied: string;
+      generic: string;
+    };
   };
   beranda: {
     title: string;
