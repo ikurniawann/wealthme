@@ -78,7 +78,7 @@ export function Topbar() {
           <ArrowLeft className="size-[17px]" aria-hidden="true" />
         </button>
       )}
-      <div className="topbar__title min-w-0 truncate whitespace-nowrap">
+      <div className="topbar__title min-w-0 shrink truncate whitespace-nowrap">
         {title}
       </div>
       <div className="topbar__spacer" />
@@ -86,10 +86,10 @@ export function Topbar() {
         type="button"
         onClick={() => setSearchOpen(true)}
         aria-label={t.shell.search}
-        className="topbar__search min-w-0"
+        className="topbar__search min-w-0 max-lg:!w-auto max-lg:!min-w-0 max-lg:flex-none"
       >
         <Search className="size-[15px] shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left">
+        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left max-lg:!hidden">
           {t.shell.searchPlaceholder}
         </span>
         <span className="kbd shrink-0 max-lg:hidden">⌘K</span>
@@ -102,7 +102,7 @@ export function Topbar() {
           aria-label={t.shell.addTransaction}
         >
           <Plus className="size-[15px] shrink-0" aria-hidden="true" />
-          <span>{t.shell.addTransaction}</span>
+          <span className="max-lg:!hidden">{t.shell.addTransaction}</span>
         </button>
       )}
       <LocaleSwitcher />
