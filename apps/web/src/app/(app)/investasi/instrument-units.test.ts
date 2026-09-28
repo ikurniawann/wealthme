@@ -12,6 +12,7 @@ const LABELS = {
   lembar: "Lembar",
   unit: "unit",
   gram: "gram",
+  kg: "kg",
   coin: "koin",
 };
 
@@ -20,7 +21,10 @@ describe("UNIT_BY_TYPE (Revisi D item 9)", () => {
     ["saham", "shares", 0],
     ["reksa_dana", "unit", 4],
     ["obligasi", "unit", null],
-    ["emas", "gram", 3],
+    // B9 follow-up — emas stays stored in grams; the decimals ceiling is
+    // now expressed against the kg DISPLAY unit (6 dp of kg = 3 dp of grams,
+    // the original ceiling — no precision lost or gained).
+    ["emas", "gram", 6],
     ["kripto", "coin", 8],
     ["lainnya", "unit", null],
     ["deposito", "nominal", null],
@@ -38,7 +42,8 @@ describe("maxQuantityDecimals / quantityStep", () => {
   });
 
   it("other types follow their own decimals; unrestricted types use any", () => {
-    expect(quantityStep("emas", "lembar")).toBe("0.001");
+    // B9 follow-up — 6 dp of kg (see UNIT_BY_TYPE comment above).
+    expect(quantityStep("emas", "lembar")).toBe("0.000001");
     expect(quantityStep("reksa_dana", "lembar")).toBe("0.0001");
     expect(quantityStep("kripto", "lembar")).toBe("0.00000001");
     expect(quantityStep("lainnya", "lembar")).toBe("any");
@@ -67,7 +72,11 @@ describe("quantityUnitLabel", () => {
   it.each([
     ["saham", "lot", "Lot"],
     ["saham", "lembar", "Lembar"],
-    ["emas", "lembar", "gram"],
+    // B9 follow-up — emas's primary single-label spots (Beli/Jual, the
+    // decimals-error message, buy/sell history) now read "kg", the user's
+    // explicit "Per kilogram" choice; "gram" only ever shows as the muted
+    // secondary line next to it (see formatQuantityCell in page.tsx).
+    ["emas", "lembar", "kg"],
     ["kripto", "lembar", "koin"],
     ["reksa_dana", "lembar", "unit"],
     ["lainnya", "lembar", "unit"],
@@ -77,8 +86,14 @@ describe("quantityUnitLabel", () => {
 });
 
 describe("formatQuantity", () => {
-  it("keeps grams to 3 dp with id-ID separators", () => {
+  it("formats a plain decimal string to id-ID separators (unit-agnostic)", () => {
     expect(formatQuantity("10.5", "emas")).toBe("10,5");
+  });
+  it("does not round a gold value with up to 6 decimal places (B9 follow-up)", () => {
+    // 0.0105 kg == 10.5 g at 3dp gram precision, expressed in kg needs 4dp.
+    expect(formatQuantity("0.0105", "emas")).toBe("0,0105");
+    // Full mg-precision ceiling: 6dp of kg.
+    expect(formatQuantity("0.000001", "emas")).toBe("0,000001");
   });
   it("keeps reksa dana units to 4 dp", () => {
     expect(formatQuantity("1250.56789", "reksa_dana")).toBe("1.250,5679");

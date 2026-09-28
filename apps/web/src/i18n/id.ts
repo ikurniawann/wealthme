@@ -1756,6 +1756,7 @@ export const id = {
     unitCoinSuffix: "koin",
     unitFundUnit: "unit",
     unitGram: "gram",
+    unitKg: "kg",
     navPricePrefix: "NAB ",
     nominalPrefix: "Nominal ",
     pricingSourceLastSyncedPrefix: "Terakhir sinkron",
@@ -1847,7 +1848,7 @@ export const id = {
       saham: "Jumlah Saham",
       reksa_dana: "Jumlah Unit Penyertaan",
       obligasi: "Jumlah Unit",
-      emas: "Berat Emas (gram)",
+      emas: "Berat Emas (kg)",
       kripto: "Jumlah Koin",
       lainnya: "Jumlah Unit",
       deposito: "Nominal",
@@ -1856,7 +1857,7 @@ export const id = {
       saham: "contoh: 10",
       reksa_dana: "contoh: 1250.5678",
       obligasi: "contoh: 10",
-      emas: "contoh: 10.5",
+      emas: "contoh: 0.025",
       kripto: "contoh: 0.015",
       lainnya: "contoh: 10",
       deposito: "",
@@ -1866,6 +1867,9 @@ export const id = {
     quantityWholeNumberErrorTemplate: "Jumlah {unit} harus bilangan bulat.",
     buySellPricePerLembarHint:
       "Harga tetap per lembar, walau jumlah diisi dalam lot.",
+    buySellPricePerGramHint:
+      "Harga tetap per gram, walau jumlah diisi dalam kg.",
+    hintGoldKgEquivalentTemplate: "= {grams} gram",
     familyGoldPriceNote:
       "Harga emas mengikuti Harga Emas keluarga di Pengaturan, tidak perlu diinput per posisi.",
     familyGoldPriceHintTemplate:

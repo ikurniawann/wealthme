@@ -350,7 +350,10 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     ["saham", "Jumlah Saham"],
     ["reksa_dana", "Jumlah Unit Penyertaan"],
     ["obligasi", "Jumlah Unit"],
-    ["emas", "Berat Emas (gram)"],
+    // B9 follow-up (client revision round 2) — the user's explicit "Per
+    // kilogram" choice: gold holdings are entered/displayed in kg, stored
+    // in grams unchanged.
+    ["emas", "Berat Emas (kg)"],
     ["kripto", "Jumlah Koin"],
     ["lainnya", "Jumlah Unit"],
   ])("labels the %s quantity field %s", async (type, label) => {
@@ -363,19 +366,32 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     expect(screen.getByLabelText(label)).toHaveAttribute("name", "quantity");
   });
 
-  it("uses a gram step and an emas placeholder", async () => {
+  it("uses a kg step and an emas placeholder (B9 follow-up)", async () => {
     mockSession("owner");
     const user = userEvent.setup();
     render(<InvestasiPage />);
 
     await user.selectOptions(await openAddModal(user), "emas");
 
-    const qty = screen.getByLabelText("Berat Emas (gram)");
-    expect(qty).toHaveAttribute("step", "0.001");
-    expect(qty).toHaveAttribute("placeholder", "contoh: 10.5");
+    const qty = screen.getByLabelText("Berat Emas (kg)");
+    expect(qty).toHaveAttribute("step", "0.000001");
+    expect(qty).toHaveAttribute("placeholder", "contoh: 0.025");
   });
 
-  it("rejects more than 3 decimals of gram without saving", async () => {
+  it("shows the gram equivalent under the kg input as it's typed (B9 follow-up)", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), "emas");
+
+    const qty = screen.getByLabelText("Berat Emas (kg)");
+    fireEvent.change(qty, { target: { value: "0.025" } });
+
+    expect(await screen.findByText("= 25 gram")).toBeInTheDocument();
+  });
+
+  it("rejects more than 6 decimals of kg without saving", async () => {
     mockSession("owner");
     const user = userEvent.setup();
     render(<InvestasiPage />);
@@ -387,8 +403,8 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     // E2E round-2 B1 — emas is not a market-priced type; the Ticker field
     // is hidden and not required.
     expect(screen.queryByLabelText("Ticker")).not.toBeInTheDocument();
-    const qty = screen.getByLabelText("Berat Emas (gram)");
-    fireEvent.change(qty, { target: { value: "1.2345" } });
+    const qty = screen.getByLabelText("Berat Emas (kg)");
+    fireEvent.change(qty, { target: { value: "1.23456789" } });
     fireEvent.change(screen.getByLabelText("Harga Beli per Unit (Rp)"), {
       target: { value: "1500000" },
     });
@@ -396,13 +412,36 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
-        "Jumlah gram maksimal 3 angka di belakang koma.",
+        "Jumlah kg maksimal 6 angka di belakang koma.",
       ),
     );
     expect(postBodyTo("/investments")).toBeUndefined();
   });
 
-  it("shows an emas holding's grams without rounding", async () => {
+  it("stores 0.025 kg entered as exactly 25 g, canonical, on the add payload (B9 follow-up)", async () => {
+    mockSession("owner");
+    const user = userEvent.setup();
+    render(<InvestasiPage />);
+
+    await user.selectOptions(await openAddModal(user), "emas");
+    fireEvent.change(screen.getByLabelText("Nama"), {
+      target: { value: "Antam 25 g" },
+    });
+    const qty = screen.getByLabelText("Berat Emas (kg)");
+    fireEvent.change(qty, { target: { value: "0.025" } });
+    fireEvent.change(screen.getByLabelText("Harga Beli per Unit (Rp)"), {
+      target: { value: "1500000" },
+    });
+    fireEvent.submit(qty.closest("form") as HTMLFormElement);
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments")).toEqual(
+        expect.objectContaining({ quantity: "25" }),
+      ),
+    );
+  });
+
+  it("shows an emas holding converted to kg, with grams as the muted line (B9 follow-up)", async () => {
     mockSession("owner");
     routeApi({
       "/investments": [
@@ -416,10 +455,13 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     });
     render(<InvestasiPage />);
 
+    // 10.5 g == 0.0105 kg exactly — the value math the report asks to
+    // check: kg display × price/kg must equal grams × (price/kg ÷ 1000).
+    expect(await screen.findByText("0,0105 kg")).toBeInTheDocument();
     expect(await screen.findByText("10,5 gram")).toBeInTheDocument();
   });
 
-  it("shows buy/sell history quantities in the instrument's unit", async () => {
+  it("shows buy/sell history quantities in kg, price scaled to per-kg (B9 follow-up)", async () => {
     mockSession("owner");
     routeApi({
       "/investments": [
@@ -450,7 +492,8 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
       await screen.findByRole("button", { name: "Lihat Detail" }),
     );
 
-    expect(await screen.findByText(/2,5 gram @/)).toBeInTheDocument();
+    // 2.5 g @ Rp1.400.000/g === 0.0025 kg @ Rp1.400.000.000/kg, exact.
+    expect(await screen.findByText(/0,0025 kg @/)).toBeInTheDocument();
   });
 });
 
@@ -594,15 +637,41 @@ describe("InvestasiPage — Beli/Jual Lot⇄Lembar toggle (Revisi D item 8)", ()
     ).toBeInTheDocument();
   });
 
-  it("has no Lot/Lembar toggle for emas and labels the quantity in grams", async () => {
+  it("has no Lot/Lembar toggle for emas and labels the Beli/Jual quantity in kg (B9 follow-up)", async () => {
     const user = userEvent.setup();
     setup();
     await openTrade(user, "Logam Mulia");
 
     expect(screen.queryByRole("tab", { name: "Lot" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Jumlah (gram)")).toHaveAttribute(
+    expect(screen.getByLabelText("Jumlah (kg)")).toHaveAttribute(
       "step",
-      "0.001",
+      "0.000001",
+    );
+  });
+
+  it("explains that the price stays per gram for a gold Beli/Jual trade (B9 follow-up)", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Logam Mulia");
+
+    expect(
+      screen.getByText("Harga tetap per gram, walau jumlah diisi dalam kg."),
+    ).toBeInTheDocument();
+  });
+
+  it("canonicalizes 0.025 kg entered on a gold Beli/Jual trade to exactly 25 g (B9 follow-up)", async () => {
+    const user = userEvent.setup();
+    setup();
+    await openTrade(user, "Logam Mulia");
+
+    const qty = screen.getByLabelText("Jumlah (kg)");
+    fireEvent.change(qty, { target: { value: "0.025" } });
+    submitTrade(qty);
+
+    await waitFor(() =>
+      expect(postBodyTo("/investments/inv-emas/transactions")).toEqual(
+        expect.objectContaining({ quantity: "25" }),
+      ),
     );
   });
 });

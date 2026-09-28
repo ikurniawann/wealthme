@@ -59,6 +59,9 @@ import {
   canonicalizeSahamQuantity,
   convertQuantityDisplay,
   divideBy100,
+  gramsToKg,
+  kgToGrams,
+  multiplyBy1000,
 } from "./quantity-conversion";
 import {
   formatQuantity,
@@ -263,6 +266,7 @@ function unitLabels(t: Dict): UnitLabels {
     lembar: t.investasi.unitLembar,
     unit: t.investasi.unitFundUnit,
     gram: t.investasi.unitGram,
+    kg: t.investasi.unitKg,
     coin: t.investasi.unitCoinSuffix,
   };
 }
@@ -354,6 +358,22 @@ function formatQuantityCell(
       <div>
         {formatQuantity(h.quantity, h.type)} {h.ticker}
       </div>
+    );
+  }
+  // B9 follow-up (client revision round 2) — gold is stored in grams
+  // (unchanged) but the user chose "Per kilogram": show kg as the primary
+  // line, same stacked pattern as saham's Lot/Lembar above, with the exact
+  // (float-free) stored grams as the muted secondary line.
+  if (h.type === "emas") {
+    return (
+      <>
+        <div>
+          {formatQuantity(gramsToKg(h.quantity), h.type)} {labels.kg}
+        </div>
+        <div className="text-muted-foreground">
+          {formatQuantity(h.quantity, h.type)} {labels.gram}
+        </div>
+      </>
     );
   }
   if (h.type === "obligasi" || h.type === "deposito") {
@@ -584,7 +604,14 @@ function AddInvestmentModal({
           type: editing.type as InvestmentType,
           // Stored quantity is ALWAYS canonical lembar — display it as
           // lembar with zero conversion (idempotency by construction).
-          quantity: editing.quantity,
+          // B9 follow-up — emas is the one exception: stored in grams, but
+          // this field is disabled in edit mode anyway (isEditingLots), so
+          // showing it converted to kg here is display-only and never
+          // re-submitted (see handleSubmit's `!isEditingLots` guard below).
+          quantity:
+            editing.type === "emas"
+              ? gramsToKg(editing.quantity)
+              : editing.quantity,
           quantityUnit: "lembar",
           costBasisPerUnit: canonicalToTyping(editing.costBasisPerUnit, 2),
           interestRatePct: editing.interestRatePct ?? "",
@@ -709,6 +736,11 @@ function AddInvestmentModal({
           form.quantity || "0",
           form.quantityUnit,
         );
+      } else if (form.type === "emas") {
+        // B9 follow-up — the field always displays/accepts kg; canonicalize
+        // to grams (the stored unit) ONLY here, exact BigInt-scaled ×1000,
+        // same idempotency guarantee as saham's lot->lembar above.
+        canonicalQuantity = kgToGrams(form.quantity || "0");
       } else if (isDeposito) {
         // Deposito nominal is the total (costBasisPerUnit); quantity is
         // fixed at 1, never user-entered.
@@ -1023,6 +1055,16 @@ function AddInvestmentModal({
                   {form.type === "saham" && !isEditingLots && (
                     <div className="hint">{t.investasi.hintLotConversion}</div>
                   )}
+                  {form.type === "emas" &&
+                    !isEditingLots &&
+                    form.quantity.trim() !== "" && (
+                      <div className="hint">
+                        {t.investasi.hintGoldKgEquivalentTemplate.replace(
+                          "{grams}",
+                          formatQuantity(kgToGrams(form.quantity), "emas"),
+                        )}
+                      </div>
+                    )}
                   {isEditingLots && (
                     <div className="hint">{t.investasi.hintQuantityLocked}</div>
                   )}
@@ -1236,6 +1278,12 @@ function BuySellModal({
   const [txType, setTxType] = useState<InvestmentTxType>("buy");
   const [quantity, setQuantity] = useState("");
   const isSaham = holding?.type === "saham";
+  // B9 follow-up — a gold holding's quantity can ONLY change through a
+  // Beli/Jual transaction (AddInvestmentModal locks it — isEditingLots), so
+  // this is the real entry point for the user's "Per kilogram" choice: the
+  // field displays/accepts kg; the price stays per gram (hint below), same
+  // "quantity unit toggles, price unit doesn't" idiom as saham's lot/lembar.
+  const isGold = holding?.type === "emas";
   const [quantityUnit, setQuantityUnit] = useState<QuantityUnit>("lot");
   const effectiveUnit: QuantityUnit = isSaham ? quantityUnit : "lembar";
   const unitLabel = holding
@@ -1288,7 +1336,9 @@ function BuySellModal({
     }
     const canonicalQuantity = isSaham
       ? canonicalizeSahamQuantity(quantity, quantityUnit)
-      : quantity;
+      : isGold
+        ? kgToGrams(quantity || "0")
+        : quantity;
     setSubmitting(true);
     try {
       const created = await apiFetch<InvestmentTransactionDto>(
@@ -1430,6 +1480,11 @@ function BuySellModal({
               {isSaham && (
                 <div className="hint">
                   {t.investasi.buySellPricePerLembarHint}
+                </div>
+              )}
+              {isGold && (
+                <div className="hint">
+                  {t.investasi.buySellPricePerGramHint}
                 </div>
               )}
             </div>
@@ -2018,8 +2073,16 @@ export default function InvestasiPage() {
                                   : t.investasi.historySellLabel}
                               </StatusBadge>
                               <span className="mono">
+                                {/* B9 follow-up — a gold transaction is
+                                    stored in grams @ price-per-gram
+                                    (unchanged); displayed here as kg @
+                                    price-per-kg (×1000, exact) so the shown
+                                    quantity always matches the holding's
+                                    kg unit. */}
                                 {formatQuantity(
-                                  tx.quantity,
+                                  detailHolding.type === "emas"
+                                    ? gramsToKg(tx.quantity)
+                                    : tx.quantity,
                                   detailHolding.type,
                                 )}{" "}
                                 {quantityUnitLabel(
@@ -2027,7 +2090,12 @@ export default function InvestasiPage() {
                                   "lembar",
                                   unitLabels(t),
                                 ).toLowerCase()}{" "}
-                                @ {formatDecimalRupiah(tx.pricePerUnit)}
+                                @{" "}
+                                {formatDecimalRupiah(
+                                  detailHolding.type === "emas"
+                                    ? multiplyBy1000(tx.pricePerUnit)
+                                    : tx.pricePerUnit,
+                                )}
                               </span>
                             </div>
                             <div className="flex items-center gap-2 text-muted-foreground">

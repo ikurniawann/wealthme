@@ -1788,6 +1788,8 @@ export type I18nDictionary = {
     unitCoinSuffix: string;
     unitFundUnit: string;
     unitGram: string;
+    /** B9 follow-up — gold holdings display/entry in kg (user's "Per kilogram" choice). */
+    unitKg: string;
     navPricePrefix: string;
     nominalPrefix: string;
     pricingSourceLastSyncedPrefix: string;
@@ -1833,6 +1835,10 @@ export type I18nDictionary = {
     /** Template with a `{unit}` placeholder. */
     quantityWholeNumberErrorTemplate: string;
     buySellPricePerLembarHint: string;
+    /** B9 follow-up — Beli/Jual quantity is in kg but the price stays per gram. */
+    buySellPricePerGramHint: string;
+    /** B9 follow-up — Template with a `{grams}` placeholder, gram equivalent under the kg input. */
+    hintGoldKgEquivalentTemplate: string;
     familyGoldPriceNote: string;
     /** Template with `{price}` and `{date}` placeholders. */
     familyGoldPriceHintTemplate: string;

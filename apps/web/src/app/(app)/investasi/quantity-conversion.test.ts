@@ -10,6 +10,8 @@ import {
   canonicalizeSahamQuantity,
   convertQuantityDisplay,
   divideBy100,
+  gramsToKg,
+  kgToGrams,
   multiplyBy100,
 } from "./quantity-conversion";
 
@@ -34,6 +36,68 @@ describe("multiplyBy100 / divideBy100", () => {
   it("passes through a non-numeric value unchanged", () => {
     expect(multiplyBy100("")).toBe("");
     expect(divideBy100("abc")).toBe("abc");
+  });
+});
+
+// B9 follow-up (client revision round 2) — gold holdings are stored in
+// grams (unchanged) but the user explicitly chose "Per kilogram"
+// display/entry. Same exact BigInt-scaled math as multiplyBy100/divideBy100
+// above (÷1000/×1000 only ever shifts the decimal point), so it must be
+// just as drift-free and idempotent.
+describe("gramsToKg / kgToGrams (B9 follow-up)", () => {
+  it("25 g displays as exactly 0.025 kg", () => {
+    expect(gramsToKg("25")).toBe("0.025");
+  });
+
+  it("entering 0.025 kg stores exactly 25 g", () => {
+    expect(kgToGrams("0.025")).toBe("25");
+  });
+
+  it("an edit round-trip (g -> kg -> g) is idempotent", () => {
+    const asKg = gramsToKg("25");
+    expect(asKg).toBe("0.025");
+    const backToGrams = kgToGrams(asKg);
+    expect(backToGrams).toBe("25");
+  });
+
+  it("a kg round-trip (kg -> g -> kg) is idempotent for an odd value", () => {
+    const asGrams = kgToGrams("0.0105");
+    expect(asGrams).toBe("10.5");
+    const backToKg = gramsToKg(asGrams);
+    expect(backToKg).toBe("0.0105");
+  });
+
+  it("does not produce a floating-point artifact (0.025 * 1000 !== 25 in raw JS float math)", () => {
+    const result = kgToGrams(gramsToKg("25"));
+    expect(result).toBe("25");
+    expect(result).not.toContain("000000000000");
+  });
+
+  it("passes through a non-numeric value unchanged", () => {
+    expect(gramsToKg("")).toBe("");
+    expect(kgToGrams("abc")).toBe("abc");
+  });
+});
+
+// B9 follow-up — the report's exactness requirement: "current value = kg ×
+// price per kg" must equal "grams × (price per kg / 1000)" to the rupiah.
+// The web UI never recomputes this itself (the API's Decimal-based
+// grams × price-per-gram stays the system of record, unchanged by this
+// follow-up) — this test proves the kg/gram conversion this UI DOES do
+// can't introduce a mismatch, for a real Antam-shaped price.
+describe("gold value math stays consistent between kg and gram (B9 follow-up)", () => {
+  it("25 g at a real Antam per-kg price equals 0.025 kg at that same price, exact to the rupiah", () => {
+    const pricePerKgIdr = "2537600000"; // 2026-09-28 Antam 1kg bar (see revisi-2-report.md B9).
+    const quantityGrams = "25";
+    const quantityKg = gramsToKg(quantityGrams); // "0.025"
+    expect(quantityKg).toBe("0.025");
+
+    const pricePerGramIdr = Number(pricePerKgIdr) / 1000; // the API's actual per-gram price
+    const valueViaGrams = Number(quantityGrams) * pricePerGramIdr;
+    const valueViaKg = Number(quantityKg) * Number(pricePerKgIdr);
+
+    expect(valueViaKg).toBe(valueViaGrams);
+    expect(valueViaKg).toBe(63440000);
   });
 });
 

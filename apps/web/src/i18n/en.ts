@@ -1718,6 +1718,7 @@ export const en = {
     unitCoinSuffix: "coin",
     unitFundUnit: "unit",
     unitGram: "gram",
+    unitKg: "kg",
     navPricePrefix: "NAV ",
     nominalPrefix: "Nominal ",
     pricingSourceLastSyncedPrefix: "Last synced",
@@ -1809,7 +1810,7 @@ export const en = {
       saham: "Number of Shares",
       reksa_dana: "Fund Units",
       obligasi: "Units",
-      emas: "Gold Weight (grams)",
+      emas: "Gold Weight (kg)",
       kripto: "Coin Amount",
       lainnya: "Units",
       deposito: "Nominal",
@@ -1818,7 +1819,7 @@ export const en = {
       saham: "e.g. 10",
       reksa_dana: "e.g. 1250.5678",
       obligasi: "e.g. 10",
-      emas: "e.g. 10.5",
+      emas: "e.g. 0.025",
       kripto: "e.g. 0.015",
       lainnya: "e.g. 10",
       deposito: "",
@@ -1829,6 +1830,9 @@ export const en = {
       "The {unit} quantity must be a whole number.",
     buySellPricePerLembarHint:
       "Price stays per share (lembar), even when the quantity is entered in lots.",
+    buySellPricePerGramHint:
+      "Price stays per gram, even when the quantity is entered in kg.",
+    hintGoldKgEquivalentTemplate: "= {grams} g",
     familyGoldPriceNote:
       "Gold follows the family Gold Price in Settings; no per-holding price entry needed.",
     familyGoldPriceHintTemplate:
