@@ -1,5 +1,5 @@
 import { MoneyStat, SectionCard, StatusBadge } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { NetWorthDto, ReportSummaryDto } from "@wealthme/contracts";
 import type { FamilyMember } from "../types";
@@ -37,6 +37,7 @@ export function FamilySection({
   isLoading?: boolean;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const memberList = members ?? [];
 
@@ -75,24 +76,24 @@ export function FamilySection({
             label={t.laporan.family.totalNetWorthLabel}
             value={
               netWorth
-                ? formatRupiah(parseFloat(netWorth.netWorth) || 0)
+                ? money.format(parseFloat(netWorth.netWorth) || 0)
                 : "Rp ·"
             }
             valueClass="text-primary"
           />
           <MoneyStat
             label={t.laporan.totalIncomeLabel}
-            value={summary ? formatRupiah(summary.totalIncome) : "Rp ·"}
+            value={summary ? money.format(summary.totalIncome) : "Rp ·"}
             valueClass="text-success"
           />
           <MoneyStat
             label={t.laporan.totalExpenseLabel}
-            value={summary ? formatRupiah(summary.totalExpense) : "Rp ·"}
+            value={summary ? money.format(summary.totalExpense) : "Rp ·"}
             valueClass="text-destructive"
           />
           <MoneyStat
             label={t.laporan.surplusLabel}
-            value={summary ? formatRupiah(summary.netSavings) : "Rp ·"}
+            value={summary ? money.format(summary.netSavings) : "Rp ·"}
             valueClass="text-success"
           />
         </div>
@@ -119,7 +120,7 @@ export function FamilySection({
                   }
                 >
                   {row.neg ? "-" : ""}
-                  {formatRupiah(parseFloat(row.value) || 0)}
+                  {money.format(parseFloat(row.value) || 0)}
                 </span>
               </div>
             ))}

@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { SectionCard } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { computeBalanceSheetIdentity, formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type {
@@ -34,6 +34,7 @@ export function BalanceSection({
   isBridgeLoading?: boolean;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const hasData = balanceSheet ? balanceSheet.dataAvailable !== false : true;
   // EPIC-023 Task B retry (CRITICAL 2) — distinct from the generic "no
@@ -240,7 +241,7 @@ export function BalanceSection({
             </div>
             <div className="text-[12px] text-muted-foreground">
               {t.laporan.balance.imbalancedDescPrefix}{" "}
-              {formatRupiah(Math.abs(diff))}.
+              {money.format(Math.abs(diff))}.
             </div>
           </div>
         </div>

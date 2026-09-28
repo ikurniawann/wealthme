@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { BankReportDto } from "@wealthme/contracts";
@@ -23,6 +23,7 @@ export function BankSection({
   isLoading?: boolean;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const banks = bankReport?.banks ?? [];
   const maxIncome = Math.max(...banks.map((b) => b.income), 1);
@@ -46,7 +47,7 @@ export function BankSection({
               cat={b.institution ?? "—"}
               right={
                 <div className="text-[13px] font-bold">
-                  {formatRupiah(b.balance)}
+                  {money.format(b.balance)}
                 </div>
               }
               last={i === banks.length - 1}

@@ -1,5 +1,5 @@
 import { SectionCard } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { formatSignedRupiah } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { CashflowStatementDto } from "@wealthme/contracts";
@@ -17,6 +17,7 @@ export function CashflowSection({
   periodLabel: string;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const bulan = periodLabel;
   // EPIC-022 B2 — a negative net figure must render with a real minus sign;
@@ -47,7 +48,7 @@ export function CashflowSection({
               label={t.laporan.cashflow.totalOutflowLabel}
               value={
                 cashflow
-                  ? `-${formatRupiah(cashflow.operatingOutflows)}`
+                  ? `-${money.format(cashflow.operatingOutflows)}`
                   : "Rp ·"
               }
               indent
@@ -113,12 +114,12 @@ export function CashflowSection({
             <tbody>
               <StatementRow
                 label={t.laporan.cashflow.openingBalanceLabel}
-                value={formatRupiah(cashflow.openingBalance)}
+                value={money.format(cashflow.openingBalance)}
                 valueColor="var(--muted-foreground)"
               />
               <StatementRow
                 label={t.laporan.cashflow.closingBalanceLabel}
-                value={formatRupiah(cashflow.closingBalance)}
+                value={money.format(cashflow.closingBalance)}
                 valueColor="var(--muted-foreground)"
               />
             </tbody>

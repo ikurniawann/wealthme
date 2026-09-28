@@ -1,6 +1,6 @@
 import { SectionCard } from "@/components/wm";
 import { CashflowChart } from "@/components/charts/apex-presets";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
 
@@ -14,6 +14,7 @@ export function BulananSection({
   isLoading?: boolean;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const chartMonths = summary?.points.map((p) => p.label) ?? [];
   // EPIC-025 N3-G2 — raw Rupiah series, same reasoning as `RingkasanSection`
   // above (the old /1_000_000 was a pixel-scale factor, not a data change).
@@ -21,7 +22,7 @@ export function BulananSection({
   const chartExpense = summary?.points.map((p) => p.expense) ?? [];
   const cashflowChartAriaLabel =
     summary && chartMonths.length > 0
-      ? `${t.laporan.bulanan.trendTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${formatRupiah(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${formatRupiah(chartExpense[chartExpense.length - 1] ?? 0)}`
+      ? `${t.laporan.bulanan.trendTitle} ${chartMonths[chartMonths.length - 1]}: ${t.common.income} ${money.format(chartIncome[chartIncome.length - 1] ?? 0)}, ${t.common.expense} ${money.format(chartExpense[chartExpense.length - 1] ?? 0)}`
       : t.laporan.bulanan.trendTitle;
 
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
@@ -71,10 +72,10 @@ export function BulananSection({
                   <tr key={p.label} className="border-b last:border-0">
                     <td className="py-2.5 font-semibold">{p.label}</td>
                     <td className="mono py-2.5 text-success">
-                      {formatRupiah(p.income)}
+                      {money.format(p.income)}
                     </td>
                     <td className="mono py-2.5 text-destructive">
-                      {formatRupiah(p.expense)}
+                      {money.format(p.expense)}
                     </td>
                     <td
                       className={
@@ -83,7 +84,7 @@ export function BulananSection({
                       }
                     >
                       {p.net >= 0 ? "+" : ""}
-                      {formatRupiah(p.net)}
+                      {money.format(p.net)}
                     </td>
                   </tr>
                 ))

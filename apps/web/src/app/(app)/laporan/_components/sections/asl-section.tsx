@@ -1,7 +1,7 @@
 import { SectionCard } from "@/components/wm";
 import { cssVar, useThemeRebuildToken } from "@/components/charts/apex-base";
 import { HBarChart } from "@/components/charts/apex-presets";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { BalanceSheetDto } from "@wealthme/contracts";
@@ -16,6 +16,7 @@ export function AslSection({
   isLoading?: boolean;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   // Forces a re-render (and a fresh `cssVar()` read below) on a theme flip —
   // same idiom `AllocationCard`/the chart presets use; --success/--destructive
   // are re-read live rather than baked in once at first render.
@@ -36,7 +37,7 @@ export function AslSection({
             {t.laporan.totalAssetsLabel}
           </div>
           <div className="text-[22px] font-black text-success">
-            {balanceSheet ? formatRupiah(balanceSheet.totalAssets) : "Rp ·"}
+            {balanceSheet ? money.format(balanceSheet.totalAssets) : "Rp ·"}
           </div>
         </div>
         <div className="rounded-[12px] border bg-card p-4">
@@ -45,7 +46,7 @@ export function AslSection({
           </div>
           <div className="text-[22px] font-black text-destructive">
             {balanceSheet
-              ? `-${formatRupiah(balanceSheet.totalLiabilities)}`
+              ? `-${money.format(balanceSheet.totalLiabilities)}`
               : "Rp ·"}
           </div>
         </div>
@@ -101,7 +102,7 @@ export function AslSection({
                 ...balanceSheet.assets,
                 ...balanceSheet.liabilities,
               ]
-                .map((g) => `${g.category} ${formatRupiah(g.amount)}`)
+                .map((g) => `${g.category} ${money.format(g.amount)}`)
                 .join(", ")}`}
             />
           </SectionCard>

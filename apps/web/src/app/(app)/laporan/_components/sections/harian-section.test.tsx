@@ -1,6 +1,17 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+// Batch C — HarianSection now reads useMoney() (DisplayCurrencyProvider's
+// hook), which pulls in useCurrencyPreference -> useProfile -> useSession
+// from lib/auth-compat -> lib/auth-client (better-auth's ESM client). Mock
+// it the same way laporan-balance.test.tsx already does so Jest never has
+// to transform that ESM module.
+jest.mock("../../../../../lib/auth-client", () => ({
+  authClient: {
+    useSession: jest.fn(() => ({ data: null, isPending: false })),
+  },
+}));
+
 import { setLocale } from "../../../../../hooks/use-locale";
 import { HarianSection } from "./harian-section";
 
