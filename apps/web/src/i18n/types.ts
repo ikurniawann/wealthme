@@ -1607,6 +1607,16 @@ export type I18nDictionary = {
     apiKeyLabel: string;
     encryptionNote: string;
     notManagedHint: string;
+    // A1 (revisi-2) — floating launcher mounted in the app shell
+    // (`FloatingAiLauncher`), bottom-right, so the conversation survives a
+    // route change.
+    floatingLauncher: {
+      openAriaLabel: string;
+      closeAriaLabel: string;
+      panelTitle: string;
+      openFullPageLink: string;
+      notConfiguredBody: string;
+    };
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {

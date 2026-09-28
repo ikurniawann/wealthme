@@ -5,12 +5,14 @@ import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useLocale } from "@/hooks/use-locale";
+import { AiChatProvider } from "@/components/providers/ai-chat-provider";
 import { ShellProvider } from "./shell-context";
 import { SidebarNav } from "./sidebar";
 import { Topbar } from "./topbar";
 import { MobileNav } from "./mobile-bars";
 import { SearchDialog } from "./search-dialog";
 import { TransactionDialog } from "./transaction-dialog";
+import { FloatingAiLauncher } from "./floating-ai-launcher";
 import { Walkthrough } from "@/components/onboarding/walkthrough";
 import {
   SIDEBAR_WIDTH_COLLAPSED,
@@ -63,26 +65,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <ShellProvider>
-      <div className="app" style={shellVars}>
-        <Suspense fallback={null}>
-          <SidebarNav collapsed={collapsed} onToggleCollapse={toggle} />
-        </Suspense>
-
-        <div className="main">
+      {/* A1 (revisi-2) — wraps `children` too (not just the launcher below):
+          the /ai page and the floating launcher must read/write the SAME
+          conversation, so the provider has to sit above both. */}
+      <AiChatProvider>
+        <div className="app" style={shellVars}>
           <Suspense fallback={null}>
-            <Topbar />
+            <SidebarNav collapsed={collapsed} onToggleCollapse={toggle} />
           </Suspense>
-          <main className="page" id="main-content">
-            {children}
-          </main>
+
+          <div className="main">
+            <Suspense fallback={null}>
+              <Topbar />
+            </Suspense>
+            <main className="page" id="main-content">
+              {children}
+            </main>
+          </div>
+
+          <MobileNav />
         </div>
 
-        <MobileNav />
-      </div>
-
-      <SearchDialog />
-      <TransactionDialog />
-      <Walkthrough />
+        <SearchDialog />
+        <TransactionDialog />
+        <Walkthrough />
+        <FloatingAiLauncher />
+      </AiChatProvider>
     </ShellProvider>
   );
 }

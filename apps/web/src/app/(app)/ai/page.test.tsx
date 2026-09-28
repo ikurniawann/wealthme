@@ -41,8 +41,20 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { id as idDict } from "../../../i18n/id";
+import { AiChatProvider } from "../../../components/providers/ai-chat-provider";
 
 import AiPage from "./page";
+
+// A1 (revisi-2) — the page's transcript/streaming state moved out into
+// `AiChatProvider` (shared with the floating launcher), so every render
+// needs the provider as an ancestor now.
+function renderAiPage() {
+  return render(
+    <AiChatProvider>
+      <AiPage />
+    </AiChatProvider>,
+  );
+}
 
 // `useLocale` defaults to "id" (Indonesian) when nothing is stored — assert
 // against the real dictionary text rather than hardcoding a locale-specific
@@ -147,7 +159,7 @@ describe("AiPage — truncation notice rendering", () => {
         ]),
       ) as unknown as typeof fetch;
 
-    render(<AiPage />);
+    renderAiPage();
 
     const input = screen.getByPlaceholderText(/./); // the chat input field
     await user.type(input, "Halo");
@@ -175,7 +187,7 @@ describe("AiPage — truncation notice rendering", () => {
         ]),
       ) as unknown as typeof fetch;
 
-    render(<AiPage />);
+    renderAiPage();
 
     const input = screen.getByPlaceholderText(/./);
     await user.type(input, "Halo");
@@ -230,7 +242,7 @@ describe("AiPage — markdown rendering of assistant answers", () => {
         ]),
       ) as unknown as typeof fetch;
 
-    render(<AiPage />);
+    renderAiPage();
     await user.type(screen.getByPlaceholderText(/./), "Halo");
     await user.click(screen.getByRole("button", { name: "Kirim" }));
   }
@@ -309,7 +321,7 @@ describe("AiPage — saved session history", () => {
       }),
     );
 
-    render(<AiPage />);
+    renderAiPage();
 
     expect(screen.getByText("Arus kas bulan ini")).toBeInTheDocument();
     expect(
@@ -319,7 +331,7 @@ describe("AiPage — saved session history", () => {
 
   it("shows an empty state rather than an empty box before the first session exists", () => {
     mockUseAiConversations.mockReturnValue(makeConversationsHook());
-    render(<AiPage />);
+    renderAiPage();
     expect(screen.getByText(idDict.ai.historyEmpty)).toBeInTheDocument();
   });
 
@@ -338,7 +350,7 @@ describe("AiPage — saved session history", () => {
       );
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    render(<AiPage />);
+    renderAiPage();
     await user.type(screen.getByPlaceholderText(/./), "Halo");
     await user.click(screen.getByRole("button", { name: "Kirim" }));
     await screen.findByText("Jawaban");
@@ -389,7 +401,7 @@ describe("AiPage — saved session history", () => {
       );
     global.fetch = fetchMock as unknown as typeof fetch;
 
-    render(<AiPage />);
+    renderAiPage();
     await user.type(screen.getByPlaceholderText(/./), "Halo");
     await user.click(screen.getByRole("button", { name: "Kirim" }));
     await screen.findByText("Jawaban");
@@ -456,7 +468,7 @@ describe("AiPage — saved session history", () => {
     );
 
     const user = userEvent.setup();
-    render(<AiPage />);
+    renderAiPage();
     // Both the row button and its delete button mention the title, so target
     // the row through its own title text rather than an ambiguous role query.
     const row = screen.getByText("Sesi lama").closest("button");

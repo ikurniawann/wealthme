@@ -1632,6 +1632,13 @@ export const id = {
     apiKeyLabel: "API Key",
     encryptionNote: "Key disimpan terenkripsi di server.",
     notManagedHint: "Diatur oleh owner atau pasangan keluarga ini.",
+    floatingLauncher: {
+      openAriaLabel: "Buka AI Advisor",
+      closeAriaLabel: "Tutup AI Advisor",
+      panelTitle: "AI Advisor",
+      openFullPageLink: "Buka halaman penuh",
+      notConfiguredBody: "AI Advisor belum diatur untuk keluarga ini.",
+    },
   },
   investasi: {
     typeLabels: {

@@ -1594,6 +1594,13 @@ export const en = {
     apiKeyLabel: "API Key",
     encryptionNote: "The key is stored encrypted on the server.",
     notManagedHint: "Managed by this family's owner or spouse.",
+    floatingLauncher: {
+      openAriaLabel: "Open AI Advisor",
+      closeAriaLabel: "Close AI Advisor",
+      panelTitle: "AI Advisor",
+      openFullPageLink: "Open full page",
+      notConfiguredBody: "AI Advisor isn't set up for this family yet.",
+    },
   },
   investasi: {
     typeLabels: {
