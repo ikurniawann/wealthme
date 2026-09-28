@@ -651,6 +651,8 @@ export type I18nDictionary = {
     localeSwitcher: {
       ariaLabel: string;
     };
+    // A8 (revisi-2) — topbar back button, left of the page title.
+    back: string;
     searchDialog: {
       ariaLabel: string;
       placeholder: string;
