@@ -11,7 +11,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import {
   MoneyInput,
   moneyDigits,
@@ -47,6 +47,7 @@ import {
  */
 export default function AssetDetailPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const params = useParams<{ id: string }>();
   const assetId = params.id;
   const { data: session } = useSession();
@@ -167,7 +168,7 @@ export default function AssetDetailPage() {
           </Link>
           <h1 className="section-title mt-1 truncate">{asset?.name ?? "…"}</h1>
           <div className="wm-money text-[22px] font-extrabold">
-            {asset ? formatRupiah(Number(BigInt(asset.currentValue))) : ""}
+            {asset ? money.format(Number(BigInt(asset.currentValue))) : ""}
           </div>
         </div>
         {canManage && asset && (
@@ -195,7 +196,7 @@ export default function AssetDetailPage() {
                     {dateFmt.format(new Date(h.recordedAt))}
                   </span>
                   <span className="mono font-semibold">
-                    {formatRupiah(Number(BigInt(h.value)))}
+                    {money.format(Number(BigInt(h.value)))}
                   </span>
                 </li>
               ))}
@@ -322,7 +323,7 @@ export default function AssetDetailPage() {
                     >
                       <div className="min-w-0">
                         <div className="font-semibold">
-                          {formatRupiah(Number(BigInt(h.value)))}
+                          {money.format(Number(BigInt(h.value)))}
                           {pct !== null && (
                             <span
                               className={`mono ml-2 text-[11.5px] ${pct >= 0 ? "text-success" : "text-destructive"}`}

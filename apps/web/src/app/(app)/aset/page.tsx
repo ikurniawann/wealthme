@@ -26,7 +26,7 @@ import { toast } from "sonner";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { uploadAssetDocument } from "@/lib/asset-attachments";
 import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
@@ -207,6 +207,7 @@ function AddAssetModal({
   editing,
 }: AddAssetModalProps) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const queryClient = useQueryClient();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -532,7 +533,7 @@ function AddAssetModal({
                 <span>
                   Proyeksi 5 tahun:{" "}
                   <strong className="wm-money mono">
-                    {formatRupiah(projectedIn5Years)}
+                    {money.format(projectedIn5Years)}
                   </strong>{" "}
                   dihitung dari nilai tercatat, mode perubahan, dan tanggal
                   perolehan.
@@ -613,6 +614,7 @@ function AssetRow({
   onDelete,
 }: AssetRowProps) {
   const { t } = useLocale();
+  const money = useMoney();
   const queryClient = useQueryClient();
 
   const cfg = ASSET_TYPE_ICON[asset.type] ?? {
@@ -638,7 +640,7 @@ function AssetRow({
   // drift — percent rate or fixed Rp/year amount — never invented.
   const rateBadgeText =
     asset.valueChangeMode === "fixed"
-      ? `${Number(asset.valueChangeAmount ?? "0") >= 0 ? "+" : ""}${formatRupiah(Number(asset.valueChangeAmount ?? "0"))} ${t.aset.perYearSuffix}`
+      ? `${Number(asset.valueChangeAmount ?? "0") >= 0 ? "+" : ""}${money.format(Number(asset.valueChangeAmount ?? "0"))} ${t.aset.perYearSuffix}`
       : `${Number(asset.valueChangeRatePct ?? "0") >= 0 ? "+" : ""}${asset.valueChangeRatePct}% ${t.aset.perYearSuffix}`;
 
   const adoptMutation = useMutation({
@@ -707,7 +709,7 @@ function AssetRow({
               {t.aset.recordedValueLabel}
             </div>
             <div className="wm-money text-[14px] font-black">
-              {formatRupiah(Number(recordedValue))}
+              {money.format(Number(recordedValue))}
             </div>
           </div>
           {hasProjectionDrift && (
@@ -718,7 +720,7 @@ function AssetRow({
               <div
                 className={`wm-money text-[14px] font-black ${isAppreciating ? "text-success" : "text-destructive"}`}
               >
-                {formatRupiah(Number(estimatedValue))}
+                {money.format(Number(estimatedValue))}
               </div>
             </div>
           )}
@@ -776,6 +778,7 @@ function AssetGroupCard({
   onDeleteAsset,
 }: AssetGroupCardProps) {
   const { t } = useLocale();
+  const money = useMoney();
   // EPIC-023 D19/US-ASSET-4: currentValue (recorded) is authoritative for
   // net worth — this total must always agree with what the rest of the app
   // (dashboard, balance sheet) calls net worth, which also sums
@@ -799,7 +802,7 @@ function AssetGroupCard({
           </span>
         </div>
         <div className="wm-money text-[14px] font-extrabold">
-          {formatRupiah(Number(groupTotal))}
+          {money.format(Number(groupTotal))}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -851,6 +854,7 @@ function AccountsGroupCard({
   headerChip,
 }: AccountsGroupCardProps) {
   const { t } = useLocale();
+  const money = useMoney();
   const groupTotal = accounts.reduce(
     (sum, a) => sum + BigInt(a.balance ?? "0"),
     BigInt(0),
@@ -864,7 +868,7 @@ function AccountsGroupCard({
           <span className="text-[13.5px] font-bold">{title}</span>
         </div>
         <div className="wm-money text-[14px] font-extrabold">
-          {formatRupiah(Number(groupTotal))}
+          {money.format(Number(groupTotal))}
         </div>
       </div>
       <div>
@@ -914,7 +918,7 @@ function AccountsGroupCard({
                 </div>
                 <div className="text-right shrink-0">
                   <div className="wm-money text-[14px] font-extrabold">
-                    {formatRupiah(Number(BigInt(account.balance ?? "0")))}
+                    {money.format(Number(BigInt(account.balance ?? "0")))}
                   </div>
                 </div>
               </div>
@@ -935,6 +939,7 @@ function AccountsGroupCard({
 
 function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
   const { t } = useLocale();
+  const money = useMoney();
   // currentValue is a computed Decimal (quantity × price) serialized as a
   // string that can contain a fractional part — BigInt() throws on that
   // ("invalid BigInt syntax"), so unlike Account.balance/Asset.currentValue
@@ -958,7 +963,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
           </span>
         </div>
         <div className="wm-money text-[14px] font-extrabold">
-          {formatRupiah(Number(groupTotal))}
+          {money.format(Number(groupTotal))}
         </div>
       </div>
       <div>
@@ -990,7 +995,7 @@ function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
                 </div>
                 <div className="text-right shrink-0">
                   <div className="wm-money text-[14px] font-extrabold">
-                    {formatRupiah(parseFloat(inv.currentValue ?? "0"))}
+                    {money.format(parseFloat(inv.currentValue ?? "0"))}
                   </div>
                 </div>
               </div>
@@ -1068,6 +1073,7 @@ function AssetStatCard({
   deltaDirection,
   note,
 }: AssetStatCardProps) {
+  const money = useMoney();
   return (
     <div className="rounded-[14px] border bg-card p-4">
       <div
@@ -1078,7 +1084,7 @@ function AssetStatCard({
       </div>
       <div className="mb-0.5 text-[11px] text-muted-foreground">{label}</div>
       <div className="wm-money mono mb-[3px] text-[15px] font-extrabold">
-        {formatRupiah(value)}
+        {money.format(value)}
       </div>
       {deltaText ? (
         <div
@@ -1101,6 +1107,7 @@ function AssetStatCard({
 
 export default function AsetPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1551,7 +1558,7 @@ export default function AsetPage() {
                   },
                 ]}
                 height={250}
-                ariaLabel={`${t.aset.assetTrendTitle}: ${formatRupiah(assetTrendValues[0] ?? 0)} → ${formatRupiah(assetTrendValues[assetTrendValues.length - 1] ?? 0)}`}
+                ariaLabel={`${t.aset.assetTrendTitle}: ${money.format(assetTrendValues[0] ?? 0)} → ${money.format(assetTrendValues[assetTrendValues.length - 1] ?? 0)}`}
               />
             </div>
           )}
@@ -1569,7 +1576,7 @@ export default function AsetPage() {
               <DonutChart
                 segments={allocationSegments}
                 centerLabel={t.aset.totalAssetsLabel}
-                ariaLabel={`${t.aset.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${formatRupiah(s.value)}`).join(", ")}`}
+                ariaLabel={`${t.aset.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${money.format(s.value)}`).join(", ")}`}
               />
             </div>
           )}

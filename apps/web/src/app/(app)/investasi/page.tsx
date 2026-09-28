@@ -51,9 +51,9 @@ import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { useGoldPrice } from "@/hooks/use-gold-price";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
   canonicalizeSahamQuantity,
@@ -212,9 +212,19 @@ function toLogoText(ticker: string): string {
   return ticker.slice(0, 4).toUpperCase();
 }
 
-function formatDecimalRupiah(value: string | null): string {
-  if (!value) return "—";
-  return formatRupiah(parseFloat(value));
+// Batch C2 — returns a decimal-Rupiah formatter bound to the caller's
+// display-currency `format` (money.format from useMoney()), so every
+// component below defines its own `const formatDecimalRupiah =
+// makeFormatDecimalRupiah(money.format)` shadowing this factory's name —
+// every existing call site (`formatDecimalRupiah(x)`) then converts without
+// having to touch each one individually.
+function makeFormatDecimalRupiah(
+  format: (value: number) => string,
+): (value: string | null) => string {
+  return (value) => {
+    if (!value) return "—";
+    return format(parseFloat(value));
+  };
 }
 
 function formatReturnPct(pct: number | null): string {
@@ -308,7 +318,11 @@ function formatInstrumentSubline(
 // shown is derived from the real stored `quantity`/`costBasisPerUnit`
 // (never invented). Saham shows both lot and lembar via the SAME exact
 // decimal math (`divideBy100`) as the add/edit form's Lot/Lembar toggle.
-function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
+function formatQuantityCell(
+  h: InvestmentDto,
+  t: Dict,
+  format: (value: number) => string,
+): ReactNode {
   const labels = unitLabels(t);
   if (h.type === "saham") {
     return (
@@ -338,7 +352,7 @@ function formatQuantityCell(h: InvestmentDto, t: Dict): ReactNode {
     return (
       <div>
         {t.investasi.nominalPrefix}
-        {formatRupiah(nominal)}
+        {format(nominal)}
       </div>
     );
   }
@@ -360,7 +374,9 @@ function formatPriceSourceCell(
   h: InvestmentDto,
   t: Dict,
   locale: Locale,
+  format: (value: number) => string,
 ): ReactNode {
+  const formatDecimalRupiah = makeFormatDecimalRupiah(format);
   const priceSourceLabelKey =
     PRICE_SOURCE_LABEL_KEYS[
       h.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
@@ -531,6 +547,7 @@ function AddInvestmentModal({
   editing?: InvestmentDto | null;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const goldPrice = useGoldPrice();
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
@@ -1052,7 +1069,7 @@ function AddInvestmentModal({
                         ? t.investasi.familyGoldPriceHintTemplate
                             .replace(
                               "{price}",
-                              formatRupiah(goldPrice.pricePerGram),
+                              money.format(goldPrice.pricePerGram),
                             )
                             .replace(
                               "{date}",
@@ -1166,6 +1183,8 @@ function BuySellModal({
   holding: InvestmentDto | null;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
+  const formatDecimalRupiah = makeFormatDecimalRupiah(money.format);
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
   const [txType, setTxType] = useState<InvestmentTxType>("buy");
@@ -1467,6 +1486,8 @@ function SparklinePreview() {
 
 export default function InvestasiPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
+  const formatDecimalRupiah = makeFormatDecimalRupiah(money.format);
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { handleError } = useApiError();
@@ -2093,13 +2114,13 @@ export default function InvestasiPage() {
                             aria-label={t.investasi.returnFormulaLabel
                               .replace(
                                 "{returnRp}",
-                                formatRupiah(
+                                money.format(
                                   Math.abs(parseFloat(summary.totalReturnRp)),
                                 ),
                               )
                               .replace(
                                 "{costBasis}",
-                                formatRupiah(
+                                money.format(
                                   parseFloat(summary.totalCostBasis),
                                 ),
                               )}
@@ -2111,13 +2132,13 @@ export default function InvestasiPage() {
                             {t.investasi.returnFormulaLabel
                               .replace(
                                 "{returnRp}",
-                                formatRupiah(
+                                money.format(
                                   Math.abs(parseFloat(summary.totalReturnRp)),
                                 ),
                               )
                               .replace(
                                 "{costBasis}",
-                                formatRupiah(
+                                money.format(
                                   parseFloat(summary.totalCostBasis),
                                 ),
                               )}
@@ -2436,15 +2457,15 @@ export default function InvestasiPage() {
                       </td>
                       {/* Gap #5 — restored "Jumlah" column. */}
                       <td className="mono py-3 pr-3 text-[11.5px] whitespace-nowrap">
-                        {formatQuantityCell(h, t)}
+                        {formatQuantityCell(h, t, money.format)}
                       </td>
                       {/* Gap #6 — restored "Harga / Sumber" column with
                           per-row price-source badges. */}
                       <td className="py-3 pr-3 text-[11.5px] whitespace-nowrap">
-                        {formatPriceSourceCell(h, t, locale)}
+                        {formatPriceSourceCell(h, t, locale, money.format)}
                       </td>
                       <td className="mono py-3 pr-3 whitespace-nowrap">
-                        {formatRupiah(totalCost)}
+                        {money.format(totalCost)}
                       </td>
                       <td className="mono py-3 pr-3 font-extrabold whitespace-nowrap">
                         {formatDecimalRupiah(h.currentValue)}
