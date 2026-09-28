@@ -85,5 +85,8 @@ describe("useMoney", () => {
 
     await waitFor(() => expect(result.current.currency).toBe("USD"));
     expect(result.current.isReady).toBe(false);
+    // The honest IDR figure, never an IDR-scale number under "$".
+    expect(result.current.format(10_000_000)).toBe("Rp 10.000.000");
+    expect(result.current.format(10_000_000)).not.toContain("$");
   });
 });

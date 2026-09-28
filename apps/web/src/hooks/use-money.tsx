@@ -38,10 +38,15 @@ export function DisplayCurrencyProvider({
     useCurrencyPreference();
 
   const value = useMemo<MoneyContextValue>(() => {
+    // Until a non-IDR rate has actually loaded (or when it failed), show the
+    // honest IDR figure under its own symbol. `formatMoney` falls back to a
+    // 1:1 rate in that window, which would print an IDR-scale number under a
+    // foreign symbol.
+    const converts = isIndicative && isReady;
     const format = (idr: number): string =>
-      isIndicative ? `≈ ${formatMoney(idr)}` : formatRupiah(idr);
+      converts ? `≈ ${formatMoney(idr)}` : formatRupiah(idr);
     const formatCompact = (idr: number): string =>
-      isIndicative ? `≈ ${formatMoney(idr)}` : formatRupiahCompact(idr);
+      converts ? `≈ ${formatMoney(idr)}` : formatRupiahCompact(idr);
     return { currency, isIndicative, isReady, format, formatCompact };
   }, [currency, formatMoney, isIndicative, isReady]);
 
