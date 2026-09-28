@@ -10,7 +10,8 @@ import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { apiFetch } from "@/lib/api-client";
-import { parseRupiah, formatRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { buildGoalBody } from "@/lib/goals-utils";
 import { SectionCard, CardLink } from "@/components/wm";
 import { queryKeys } from "@/lib/query-keys";
@@ -328,6 +329,7 @@ export default function QuickInputPage() {
   const queryClient = useQueryClient();
   const { setTxnOpen } = useShell();
   const { t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
@@ -486,7 +488,7 @@ export default function QuickInputPage() {
                 className={`text-[13.5px] font-bold ${tx.type === "expense" ? "text-destructive" : "text-success"}`}
               >
                 {tx.type === "expense" ? "−" : "+"}
-                {formatRupiah(parseFloat(tx.amount))}
+                {money.format(parseFloat(tx.amount))}
               </div>
             </div>
           ))}

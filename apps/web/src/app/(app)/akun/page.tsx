@@ -26,7 +26,8 @@ import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useShell } from "@/components/shell/shell-context";
 import { QuickUnlockPrompt } from "@/components/auth/quick-unlock-prompt";
@@ -1023,6 +1024,7 @@ function KoneksiBody({
   onAddEwallet: () => void;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId ?? undefined;
@@ -1077,7 +1079,7 @@ function KoneksiBody({
             sub={accountSub(a)}
             right={
               <span className="shrink-0 text-[12px] font-bold text-foreground">
-                {formatRupiah(parseFloat(a.balance))}
+                {money.format(parseFloat(a.balance))}
               </span>
             }
           />
@@ -1112,7 +1114,7 @@ function KoneksiBody({
             sub={accountSub(a)}
             right={
               <span className="shrink-0 text-[12px] font-bold text-foreground">
-                {formatRupiah(parseFloat(a.balance))}
+                {money.format(parseFloat(a.balance))}
               </span>
             }
           />
@@ -1218,6 +1220,7 @@ export function PengaturanBody() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
@@ -1420,7 +1423,7 @@ export function PengaturanBody() {
         </div>
         {goldPricePerGram !== null && (
           <div className="mb-2.5 text-[13px] font-semibold text-foreground">
-            {formatRupiah(goldPricePerGram)}
+            {money.format(goldPricePerGram)}
             {goldPriceUpdatedAt && (
               <span className="ml-1.5 text-[11.5px] font-normal text-muted-foreground">
                 ({t.akun.pengaturan.goldPriceManualLabelPrefix}

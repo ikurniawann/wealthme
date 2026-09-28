@@ -22,6 +22,7 @@ import { TrendChart } from "@/components/charts/apex-presets";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { useLocale } from "@/hooks/use-locale";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { cn } from "@/lib/utils";
 import {
@@ -191,6 +192,7 @@ function EmptyHasil({ note }: { note: string }) {
 // carve-out exists for.
 function ZakatTab({ token }: { token: string | undefined }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const [cash, setCash] = useState("50.000.000");
   const [investments, setInvestments] = useState("30.000.000");
   const [gold, setGold] = useState("0");
@@ -332,7 +334,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
             <div className="space-y-3">
               <Headline
                 label={resultLabel ?? ""}
-                value={formatRupiah(result.zakat)}
+                value={money.format(result.zakat)}
               />
               <div className="space-y-1.5">
                 <Row
@@ -340,20 +342,20 @@ function ZakatTab({ token }: { token: string | undefined }) {
                     ":",
                     "",
                   )}
-                  value={formatRupiah(result.zakatable)}
+                  value={money.format(result.zakatable)}
                 />
                 <Row
                   label={t.kalkulator.zakat.detailNisabPrefix.replace(
                     /[·:]/g,
                     "",
                   )}
-                  value={formatRupiah(result.nisab)}
+                  value={money.format(result.nisab)}
                 />
               </div>
               {!result.meetsNisab && (
                 <p className="text-center text-[12px] text-muted-foreground">
                   {t.kalkulator.zakat.belowNisabPrefix}
-                  {formatRupiah(result.nisab)}
+                  {money.format(result.nisab)}
                   {t.kalkulator.zakat.belowNisabSuffix}
                 </p>
               )}
@@ -364,7 +366,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
               )}
               <p className="text-center text-[11px] text-muted-foreground/80">
                 {result.nisabSource === "family"
-                  ? `${t.kalkulator.zakat.nisabSourceFamilyPrefix}${formatRupiah(familyGoldPrice ?? 0)}${t.kalkulator.zakat.nisabSourceFamilyMidfix}${t.consolidatedTotal.manualLabelPrefix}${
+                  ? `${t.kalkulator.zakat.nisabSourceFamilyPrefix}${money.format(familyGoldPrice ?? 0)}${t.kalkulator.zakat.nisabSourceFamilyMidfix}${t.consolidatedTotal.manualLabelPrefix}${
                       familyGoldPriceUpdatedAt
                         ? formatManualDate(familyGoldPriceUpdatedAt, locale)
                         : ""
@@ -623,6 +625,7 @@ function Pph21BracketDialog({
 
 function InvestasiTab() {
   const { t } = useLocale();
+  const money = useMoney();
   const [modal, setModal] = useState("50.000.000");
   const [monthly, setMonthly] = useState("2.000.000");
   const [years, setYears] = useState("10");
@@ -727,14 +730,14 @@ function InvestasiTab() {
           <div className="space-y-3.5">
             <Headline
               label={t.kalkulator.investasi.resultLabel}
-              value={formatRupiah(fv)}
+              value={money.format(fv)}
               note={
                 <span className="text-success">
                   {t.kalkulator.investasi.detailProfitPrefix.replace(
                     /[·:]/g,
                     "",
                   )}{" "}
-                  {formatRupiah(profit)}
+                  {money.format(profit)}
                 </span>
               }
             />
@@ -751,16 +754,16 @@ function InvestasiTab() {
                 },
               ]}
               height={220}
-              ariaLabel={`${t.kalkulator.investasi.projectionChartTitle}: ${formatRupiah(projectionValues[0] ?? 0)} → ${formatRupiah(fv)}`}
+              ariaLabel={`${t.kalkulator.investasi.projectionChartTitle}: ${money.format(projectionValues[0] ?? 0)} → ${money.format(fv)}`}
             />
             <div className="space-y-1.5">
               <Row
                 label={t.kalkulator.investasi.rowTotalDepositLabel}
-                value={formatRupiah(totalModal)}
+                value={money.format(totalModal)}
               />
               <Row
                 label={t.kalkulator.investasi.rowGrowthLabel}
-                value={`+${formatRupiah(profit)}`}
+                value={`+${money.format(profit)}`}
                 valueClassName="text-success"
               />
             </div>
@@ -779,6 +782,7 @@ function InvestasiTab() {
 // (pokok = harga − dp), just entered the way a real mortgage is quoted.
 function KreditTab() {
   const { t } = useLocale();
+  const money = useMoney();
   const [harga, setHarga] = useState("1.500.000.000");
   const [dp, setDp] = useState("300.000.000");
   const [bunga, setBunga] = useState("9.5");
@@ -860,21 +864,21 @@ function KreditTab() {
           <div className="space-y-3.5">
             <Headline
               label={t.kalkulator.kredit.resultLabel}
-              value={formatRupiah(cicilan)}
+              value={money.format(cicilan)}
             />
             <div className="space-y-1.5">
               <Row
                 label={t.kalkulator.kredit.rowPrincipalLabel}
-                value={formatRupiah(pokok)}
+                value={money.format(pokok)}
               />
               <Row
                 label={t.kalkulator.kredit.rowTotalInterestLabel}
-                value={formatRupiah(totalInterest)}
+                value={money.format(totalInterest)}
                 valueClassName="text-destructive"
               />
               <Row
                 label={t.kalkulator.kredit.rowTotalPaymentLabel}
-                value={formatRupiah(total)}
+                value={money.format(total)}
               />
               <Row
                 label={t.kalkulator.kredit.rowInstallmentCountLabel}
@@ -886,7 +890,7 @@ function KreditTab() {
               <span>
                 {t.kalkulator.kredit.ruleWarningNote}{" "}
                 {t.kalkulator.kredit.minIncomeNotePrefix}
-                <strong>{formatRupiah(cicilan / 0.3)}</strong>
+                <strong>{money.format(cicilan / 0.3)}</strong>
                 {t.kalkulator.kredit.minIncomeNoteSuffix}
               </span>
             </div>
@@ -901,6 +905,7 @@ function KreditTab() {
 
 function PensiunTab({ token }: { token: string | undefined }) {
   const { t } = useLocale();
+  const money = useMoney();
   const [now, setNow] = useState("30");
   const [retire, setRetire] = useState("55");
   const [monthly, setMonthly] = useState("10.000.000");
@@ -1011,21 +1016,21 @@ function PensiunTab({ token }: { token: string | undefined }) {
             <div className="space-y-3.5">
               <Headline
                 label={t.kalkulator.pensiun.resultLabel}
-                value={formatRupiah(result.projectedValue)}
+                value={money.format(result.projectedValue)}
               />
               <div className="space-y-1.5">
                 <Row
                   label={t.kalkulator.pensiun.rowMonthlyContributionLabel}
-                  value={formatRupiah(result.monthlyContribution)}
+                  value={money.format(result.monthlyContribution)}
                   valueClassName="text-primary"
                 />
                 <Row
                   label={t.kalkulator.pensiun.rowTotalContributionsLabel}
-                  value={formatRupiah(result.totalContributions)}
+                  value={money.format(result.totalContributions)}
                 />
                 <Row
                   label={t.kalkulator.pensiun.rowProjectedValueLabel}
-                  value={formatRupiah(result.projectedValue)}
+                  value={money.format(result.projectedValue)}
                 />
               </div>
               {/* E3 (LOW) — the target is 20× current annual expenses (a ~5%
@@ -1148,6 +1153,7 @@ function TabunganTab() {
 
 function SplitGroupTab() {
   const { t } = useLocale();
+  const money = useMoney();
   const router = useRouter();
   const [total, setTotal] = useState("1.250.000");
   const [people, setPeople] = useState("5");
@@ -1237,12 +1243,12 @@ function SplitGroupTab() {
             <div className="space-y-3.5">
               <ResultCard
                 label={t.kalkulator.splitgroup.resultLabel}
-                value={formatRupiah(per)}
+                value={money.format(per)}
                 detail={
                   <>
                     {t.kalkulator.splitgroup.detailTotalWithTaxPrefix}{" "}
                     <strong className="text-primary">
-                      {formatRupiah(grand)}
+                      {money.format(grand)}
                     </strong>
                   </>
                 }
@@ -1255,7 +1261,7 @@ function SplitGroupTab() {
                   >
                     <span className="text-[13px] font-semibold">{name}</span>
                     <span className="text-[13px] font-bold text-primary">
-                      {formatRupiah(per)}
+                      {money.format(per)}
                     </span>
                   </div>
                 ))}

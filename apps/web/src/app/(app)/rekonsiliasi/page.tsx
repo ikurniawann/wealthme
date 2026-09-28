@@ -67,7 +67,8 @@ import {
   statementPdfErrorMessage,
 } from "@/hooks/statement-pdf";
 import { apiFetch } from "@/lib/api-client";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import { formatAmountInput, parseRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 
 /* ─────────────────────────── Types ─────────────────────────── */
@@ -1287,6 +1288,7 @@ function uploadErrorMessageForCode(
 
 export default function RekonsiliasiPage() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const familyGroupId = session?.familyGroupId ?? undefined;
@@ -2269,16 +2271,16 @@ export default function RekonsiliasiPage() {
                       </span>
                       <span>
                         {t.rekonsiliasi.pdfPreviewExpectedLabel}:{" "}
-                        {formatRupiah(Number(check.expected))}
+                        {money.format(Number(check.expected))}
                       </span>
                       <span>
                         {t.rekonsiliasi.pdfPreviewActualLabel}:{" "}
-                        {formatRupiah(Number(check.actual))}
+                        {money.format(Number(check.actual))}
                       </span>
                       {!check.matched && (
                         <span className="font-bold">
                           {t.rekonsiliasi.pdfPreviewDifferenceLabel}:{" "}
-                          {formatRupiah(Number(check.difference))}
+                          {money.format(Number(check.difference))}
                         </span>
                       )}
                     </div>
@@ -2314,7 +2316,7 @@ export default function RekonsiliasiPage() {
                                 amount < 0 ? "text-destructive" : "text-success"
                               }`}
                             >
-                              {formatRupiah(amount)}
+                              {money.format(amount)}
                             </td>
                           </tr>
                         );
@@ -2725,7 +2727,7 @@ export default function RekonsiliasiPage() {
                       {matchedCount}
                     </div>
                     <div className="mt-0.5 text-[11px] font-semibold text-success">
-                      {formatRupiah(matchedAmountSum)} tercocokkan
+                      {money.format(matchedAmountSum)} tercocokkan
                     </div>
                   </div>
                   <div className="rounded-[14px] border bg-card p-4">

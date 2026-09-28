@@ -7,7 +7,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
 import { useAiChat } from "@/components/providers/ai-chat-provider";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 
 import { MarkdownMessage } from "@/components/ai/markdown-message";
 
@@ -95,6 +95,7 @@ function DataReadRow({
 
 export default function AiPage() {
   const { t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken ?? "";
@@ -484,7 +485,7 @@ export default function AiPage() {
                 </span>
                 <span className="font-bold">
                   {dashboardSummary
-                    ? formatRupiah(dashboardSummary.netWorth)
+                    ? money.format(dashboardSummary.netWorth)
                     : "—"}
                 </span>
               </div>
@@ -494,7 +495,7 @@ export default function AiPage() {
                 </span>
                 <span className="font-bold text-success">
                   {dashboardSummary
-                    ? formatRupiah(dashboardSummary.currentMonth.income)
+                    ? money.format(dashboardSummary.currentMonth.income)
                     : "—"}
                 </span>
               </div>
@@ -504,7 +505,7 @@ export default function AiPage() {
                 </span>
                 <span className="font-bold text-destructive">
                   {dashboardSummary
-                    ? formatRupiah(dashboardSummary.currentMonth.expense)
+                    ? money.format(dashboardSummary.currentMonth.expense)
                     : "—"}
                 </span>
               </div>
