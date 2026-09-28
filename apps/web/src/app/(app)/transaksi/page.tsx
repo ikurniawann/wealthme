@@ -65,7 +65,7 @@ import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import type {
   TransactionAttachmentDto,
   TransactionDto,
@@ -257,6 +257,7 @@ export function TxRow({
   token?: string;
 }) {
   const { t } = useLocale();
+  const money = useMoney();
   const [detailOpen, setDetailOpen] = useState(false);
   const isIncome = tx.type === "income";
   // A transfer moves money between the family's own accounts — neither a
@@ -267,8 +268,8 @@ export function TxRow({
   const isTransfer = tx.type === "transfer";
   const amount = parseFloat(tx.amount);
   const amountStr = isTransfer
-    ? formatRupiah(amount)
-    : (isIncome ? "+" : "-") + formatRupiah(amount);
+    ? money.format(amount)
+    : (isIncome ? "+" : "-") + money.format(amount);
   const txIcon = TX_ICON[tx.type] ?? TX_ICON.expense;
   const typeLabels: Record<string, string> = t.transaksi.typeLabels;
   // EPIC-023 group E retry round 4 (C4) — the API now REFUSES to edit or
@@ -415,6 +416,7 @@ export function TxTableRow({
   token?: string;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const [detailOpen, setDetailOpen] = useState(false);
   const isIncome = tx.type === "income";
   const isTransfer = tx.type === "transfer";
@@ -423,8 +425,8 @@ export function TxTableRow({
   // gain nor a loss — so (unlike income/expense) it renders with no sign and
   // a neutral color, matching the prototype's "Rp 1.000.000" transfer row.
   const amountStr = isTransfer
-    ? formatRupiah(amount)
-    : (isIncome ? "+" : "-") + formatRupiah(amount);
+    ? money.format(amount)
+    : (isIncome ? "+" : "-") + money.format(amount);
   const typeLabels: Record<string, string> = t.transaksi.typeLabels;
   const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
   // EPIC-036 (edit-rights) — mirrors TxRow's own guard.
@@ -896,9 +898,10 @@ export function TransactionDetailDialog({
   token?: string;
 }) {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const isIncome = tx.type === "income";
   const amount = parseFloat(tx.amount);
-  const amountStr = (isIncome ? "+" : "-") + formatRupiah(amount);
+  const amountStr = (isIncome ? "+" : "-") + money.format(amount);
   const typeLabel = t.transaksi.typeLabels[tx.type] ?? tx.type;
   // C4 (group E retry round 4) — mirrors TxRow's own guard: the detail
   // view's own Edit/Hapus buttons must be honest too.
@@ -1160,6 +1163,7 @@ export default function TransaksiPage() {
 
 function TransaksiPageInner() {
   const { t, locale } = useLocale();
+  const money = useMoney();
   const [filter, setFilter] = useState<FilterValue>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -1605,7 +1609,7 @@ function TransaksiPageInner() {
           iconBg="var(--success-soft)"
           iconColor="var(--success)"
           label={t.transaksi.totalIncomeLabel}
-          amount={isLoading ? "…" : formatRupiah(totalIncome)}
+          amount={isLoading ? "…" : money.format(totalIncome)}
           amountClassName="text-success"
           subtext={incomeSubtext}
         />
@@ -1614,7 +1618,7 @@ function TransaksiPageInner() {
           iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
           iconColor="var(--destructive)"
           label={t.transaksi.totalExpenseLabel}
-          amount={isLoading ? "…" : formatRupiah(totalExpense)}
+          amount={isLoading ? "…" : money.format(totalExpense)}
           amountClassName="text-destructive"
           subtext={expenseSubtext}
         />
@@ -1623,7 +1627,7 @@ function TransaksiPageInner() {
           iconBg="var(--accent)"
           iconColor="var(--accent-foreground)"
           label={t.transaksi.differenceLabel}
-          amount={isLoading ? "…" : formatRupiah(netBalance)}
+          amount={isLoading ? "…" : money.format(netBalance)}
           amountClassName={
             netBalance >= 0 ? "text-success" : "text-destructive"
           }

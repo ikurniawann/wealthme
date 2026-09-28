@@ -45,7 +45,8 @@ import { useMyRole } from "@/hooks/use-my-role";
 import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatRupiah, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 
 import type { AccountDto } from "@wealthme/contracts";
 
@@ -116,7 +117,6 @@ type AccountCard = {
   name: string;
   number: string;
   balanceLabel: string;
-  balance: string;
   rawBalance: number;
   type: string;
   // EPIC-022 A2 — the original `AccountDto.type` ("bank" | "ewallet" | "cash"
@@ -222,7 +222,6 @@ function toCardData(
     name: account.name,
     number: safeMaskedNumber(account.maskedNumber) ?? "—",
     balanceLabel: t.rekening.balanceLabel,
-    balance: formatRupiah(rawBalance),
     rawBalance,
     type: account.institution
       ? `${typeLabel} · ${account.institution}`
@@ -262,6 +261,7 @@ function AccountCardItem({
 }: AccountCardItemProps) {
   const router = useRouter();
   const { t } = useLocale();
+  const money = useMoney();
   return (
     <Card
       className={`gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md ${
@@ -347,7 +347,9 @@ function AccountCardItem({
         <div className="text-[11px] text-muted-foreground">
           {account.balanceLabel}
         </div>
-        <div className="text-[22px] font-black">{account.balance}</div>
+        <div className="text-[22px] font-black">
+          {money.format(account.rawBalance)}
+        </div>
         <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
           <span>{account.type}</span>
           {/* EPIC-019 Task A — per-member ownership badge. Family-shared
@@ -420,6 +422,7 @@ function AccountCardItem({
 
 export default function RekeningPage() {
   const { t } = useLocale();
+  const money = useMoney();
   const { data: session } = useSession();
 
   useEffect(() => {
@@ -727,7 +730,7 @@ export default function RekeningPage() {
           <p className="mt-1 text-[12.5px] text-muted-foreground">
             {isLoading
               ? t.rekening.loadingLabel
-              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}, ${t.rekening.totalPrefix}${formatRupiah(totalBalance)}`}
+              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}, ${t.rekening.totalPrefix}${money.format(totalBalance)}`}
             {!isLoading && accounts && fxRates?.rates["USD"] != null && (
               <span className="ml-1 text-muted-foreground/70">
                 {`${t.rekening.approxUsdPrefix}${formatUsd(totalBalance * fxRates.rates["USD"])}`}
@@ -759,7 +762,7 @@ export default function RekeningPage() {
             iconBg="var(--accent)"
             iconColor="var(--accent-foreground)"
             label={t.rekening.statBankBalanceLabel}
-            amount={formatRupiah(totalBalance)}
+            amount={money.format(totalBalance)}
           />
           <SummaryCard
             icon={<Users className="size-4" />}
@@ -768,7 +771,7 @@ export default function RekeningPage() {
             label={t.rekening.statSharedLabel}
             amount={
               <>
-                {formatRupiah(sharedBalance)}
+                {money.format(sharedBalance)}
                 <span className="mt-[3px] block text-[10.5px] font-medium text-muted-foreground">
                   {`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}
                 </span>
@@ -782,7 +785,7 @@ export default function RekeningPage() {
             label={t.rekening.statOwnedLabel}
             amount={
               <>
-                {formatRupiah(ownedBalance)}
+                {money.format(ownedBalance)}
                 <span className="mt-[3px] block text-[10.5px] font-medium text-muted-foreground">
                   {`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}
                 </span>
