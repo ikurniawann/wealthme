@@ -75,7 +75,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .seg{display:flex;background:var(--card-2);border-radius:10px;padding:3px;gap:2px}
 .seg button{border:0;background:transparent;border-radius:8px;padding:5px 10px;font-size:12px;color:var(--muted);min-height:30px;white-space:nowrap}
-.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+.seg button[aria-pressed="true"],.seg button[aria-checked="true"]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
 .ghost-btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;font-size:12px;font-weight:500;min-height:34px}
 .span-7{grid-column:span 7}.span-5{grid-column:span 5}.span-4{grid-column:span 4}.span-3{grid-column:span 3}.span-8{grid-column:span 8}.span-9{grid-column:span 9}
 
@@ -223,6 +223,56 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
   .grow{transform-origin:bottom;animation:grow .5s cubic-bezier(.16,1,.3,1) both}
   @keyframes grow{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
 }
+
+/* add-transaction dialog */
+dialog.sheet{border:0;padding:0;border-radius:22px;background:var(--card);color:var(--ink);width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 48px);box-shadow:0 30px 80px -20px rgba(20,30,5,.35)}
+dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
+.sheet form{display:flex;flex-direction:column;max-height:calc(100dvh - 48px)}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px}
+.sheet-head h2{margin:0;font-size:17px;letter-spacing:-.02em}
+.x{width:36px;height:36px;border-radius:11px;border:0;background:var(--card-2);display:grid;place-items:center}
+.sheet-body{padding:4px 20px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.seg.full{width:100%}.seg.full button{flex:1;min-height:38px;font-size:13px}
+.amount{display:flex;align-items:baseline;gap:6px;border-bottom:2px solid var(--line);padding:4px 0 8px}
+.amount:focus-within{border-color:var(--lime)}
+.amount span{font-size:20px;color:var(--muted);font-weight:500}
+.amount input{border:0;outline:0;background:transparent;font:600 38px/1.1 var(--font);letter-spacing:-.035em;color:var(--ink);width:100%;font-variant-numeric:tabular-nums}
+.amount input::placeholder{color:var(--ghost)}
+.flabel{font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
+.acc-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;scroll-snap-type:x proximity}
+.acc-row::-webkit-scrollbar{display:none}
+.acc{flex:none;scroll-snap-align:start;width:132px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:64px}
+.acc small{color:var(--muted);font-size:11px}.acc b{font-size:13px}.acc .num{font-size:12px;color:var(--muted)}
+.acc[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1.5px solid var(--line);background:var(--card);border-radius:99px;padding:0 13px;min-height:38px;font-size:13px}
+.chip i{width:9px;height:9px;border-radius:3px}
+.chip[aria-checked="true"]{border-color:var(--ink);background:var(--card-2);font-weight:600}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field input,.field textarea{border:1.5px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font:inherit;padding:10px 12px;min-height:44px}
+.field input:focus,.field textarea:focus{outline:0;border-color:var(--lime)}
+.members{display:flex;gap:6px}
+.member{border:0;background:none;padding:0;border-radius:12px}
+.member .avatar{width:40px;height:40px;border-radius:12px;font-size:12.5px;border:2px solid transparent}
+.member[aria-checked="true"] .avatar{border-color:var(--lime)}
+.budget-hint{display:flex;align-items:center;gap:10px;background:var(--card-2);border-radius:12px;padding:10px 12px;font-size:12.5px}
+.budget-hint .mini{flex:1;height:6px;border-radius:3px;background:var(--ghost);overflow:hidden}
+.budget-hint .mini i{display:block;height:100%;background:var(--lime);transition:width .2s}
+.budget-hint.over .mini i{background:var(--bad)}.budget-hint.over b{color:var(--bad)}
+.err{color:var(--bad);font-size:12px;min-height:16px}
+.sheet-foot{display:flex;gap:10px;padding:14px 20px 18px;border-top:1px solid var(--line)}
+.sheet-foot .btn-ghost{flex:1;min-height:46px;border-radius:13px;border:1px solid var(--line);background:var(--card);font-weight:600}
+.sheet-foot .btn-primary{flex:2;justify-content:center;height:46px}
+.scan{display:inline-flex;align-items:center;gap:6px;border:1px dashed var(--line);background:none;border-radius:12px;min-height:44px;padding:0 14px;font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--card);padding:12px 16px;border-radius:14px;font-size:13px;box-shadow:0 10px 30px -10px rgba(0,0,0,.4);z-index:5}
+@media (max-width:720px){
+  dialog.sheet{width:100vw;max-width:100vw;margin:auto 0 0;border-radius:22px 22px 0 0;max-height:92dvh}
+  .sheet form{max-height:92dvh}
+  .sheet-foot{padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+  .two{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:no-preference){dialog.sheet[open]{animation:rise .22s cubic-bezier(.16,1,.3,1)}@keyframes rise{from{transform:translateY(16px);opacity:.6}to{transform:none;opacity:1}}}
 </style>
 
 <div class="app">
@@ -385,6 +435,45 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
   </main>
 </div>
 
+
+<dialog class="sheet" id="txDialog" aria-labelledby="txTitle">
+  <form method="dialog" id="txForm" novalidate>
+    <div class="sheet-head"><h2 id="txTitle">Tambah transaksi</h2><button type="button" class="x" id="txClose" aria-label="Tutup"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="sheet-body">
+      <div class="seg full" role="radiogroup" aria-label="Jenis transaksi" id="txType">
+        <button type="button" role="radio" aria-checked="true" data-type="out">Pengeluaran</button>
+        <button type="button" role="radio" aria-checked="false" data-type="in">Pemasukan</button>
+        <button type="button" role="radio" aria-checked="false" data-type="tf">Transfer</button>
+      </div>
+      <div>
+        <label class="flabel" for="txAmount">Nominal</label>
+        <div class="amount"><span>Rp</span><input id="txAmount" inputmode="numeric" autocomplete="off" placeholder="0" aria-describedby="txErr"></div>
+        <div class="err" id="txErr" role="alert"></div>
+      </div>
+      <div>
+        <div class="flabel"><span id="accLbl">Dari rekening</span></div>
+        <div class="acc-row" role="radiogroup" aria-labelledby="accLbl" id="accFrom"></div>
+      </div>
+      <div id="toWrap" hidden>
+        <div class="flabel"><span id="accToLbl">Ke rekening</span></div>
+        <div class="acc-row" role="radiogroup" aria-labelledby="accToLbl" id="accTo"></div>
+      </div>
+      <div id="catWrap">
+        <div class="flabel"><span id="catLbl">Kategori</span></div>
+        <div class="chips" role="radiogroup" aria-labelledby="catLbl" id="cats2"></div>
+      </div>
+      <div class="two">
+        <div class="field"><label class="flabel" for="txDate" style="margin:0">Tanggal</label><input type="date" id="txDate"></div>
+        <div class="field"><span class="flabel" style="margin:0" id="memLbl">Oleh</span><div class="members" role="radiogroup" aria-labelledby="memLbl" id="members"></div></div>
+      </div>
+      <div class="field"><label class="flabel" for="txNote" style="margin:0">Catatan (opsional)</label><input id="txNote" placeholder="Mis. belanja mingguan di Superindo" maxlength="120"></div>
+      <div class="budget-hint" id="budgetHint"><span>Sisa batas bulanan</span><span class="mini"><i id="budgetBar" style="width:24%"></i></span><b class="num" id="budgetLeft">Rp 5.250.000</b></div>
+      <button type="button" class="scan"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg>Scan struk</button>
+    </div>
+    <div class="sheet-foot"><button type="button" class="btn-ghost" id="txCancel">Batal</button><button type="submit" class="btn-primary" id="txSave">Simpan</button></div>
+  </form>
+</dialog>
+<div class="toast" id="toast" role="status" hidden></div>
 <script>
 (function(){
   var css = getComputedStyle(document.documentElement);
@@ -459,6 +548,51 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
   track.addEventListener("keydown",function(e){if(e.key==="ArrowRight"){e.preventDefault();go(1);}if(e.key==="ArrowLeft"){e.preventDefault();go(-1);}});
   track.addEventListener("scroll",function(){window.requestAnimationFrame(sync);},{passive:true});
   sync();
+
+  // Add-transaction dialog
+  var dlg=document.getElementById("txDialog"), form=document.getElementById("txForm"), amt=document.getElementById("txAmount"), err=document.getElementById("txErr");
+  var ACC=[["BCA","Tabungan bersama",84320500],["Mandiri","Kartu kredit",null],["BRI","Pribadi Vallencya",12480000],["GoPay","E-wallet Hima",845200],["Tunai","Dompet rumah",1250000]];
+  var CAT_OUT=[["Rumah & KPR","--lime"],["Makan & Minum","--yellow"],["Transportasi","--orange"],["Pendidikan","--lime-soft"],["Kesehatan","--good"],["Zakat & Donasi","--muted"],["Lainnya","--ghost"]];
+  var CAT_IN=[["Gaji","--lime"],["Bonus","--yellow"],["Hasil investasi","--good"],["Lainnya","--ghost"]];
+  var MEM=[["CR","Kamu","var(--lime-soft)",""],["VI","Vallencya","#F6E7C9","#5A3D07"],["HM","Hima","#DCE9F7","#123B63"],["AR","Arka","#EBDDF3","#472062"],["SP","Sopir","var(--card-2)",""]];
+  var LIMIT_LEFT=5250000, LIMIT=22000000, type="out";
+  function radio(group,btn){[].forEach.call(group.children,function(b){b.setAttribute("aria-checked",b===btn?"true":"false");b.tabIndex=b===btn?0:-1;});}
+  function radioKeys(group){group.addEventListener("keydown",function(e){var items=[].slice.call(group.children),i=items.indexOf(document.activeElement);if(i<0)return;
+    var n=e.key==="ArrowRight"||e.key==="ArrowDown"?1:e.key==="ArrowLeft"||e.key==="ArrowUp"?-1:0;if(!n)return;e.preventDefault();var t=items[(i+n+items.length)%items.length];t.focus();t.click();});}
+  function accButtons(el,skip){el.innerHTML="";ACC.forEach(function(a,i){if(skip!=null&&i===skip)return;var b=document.createElement("button");b.type="button";b.className="acc";b.setAttribute("role","radio");b.dataset.i=i;
+    b.innerHTML="<small>"+a[1]+"</small><b>"+a[0]+"</b><span class='num'>"+(a[2]==null?"Tagihan berjalan":rp(a[2]))+"</span>";b.addEventListener("click",function(){radio(el,b);if(el.id==="accFrom"&&type==="tf")accButtons(document.getElementById("accTo"),i);});el.appendChild(b);});
+    radio(el,el.children[0]);}
+  function catChips(){var el=document.getElementById("cats2");el.innerHTML="";(type==="in"?CAT_IN:CAT_OUT).forEach(function(c){var b=document.createElement("button");b.type="button";b.className="chip";b.setAttribute("role","radio");
+    b.innerHTML="<i style='background:"+v(c[1])+"'></i>"+c[0];b.addEventListener("click",function(){radio(el,b);});el.appendChild(b);});radio(el,el.children[0]);}
+  (function(){var el=document.getElementById("members");MEM.forEach(function(m){var b=document.createElement("button");b.type="button";b.className="member";b.setAttribute("role","radio");b.setAttribute("aria-label",m[1]);b.title=m[1];
+    b.innerHTML="<span class='avatar' style='background:"+m[2]+(m[3]?";color:"+m[3]:"")+"'>"+m[0]+"</span>";b.addEventListener("click",function(){radio(el,b);});el.appendChild(b);});radio(el,el.children[0]);radioKeys(el);})();
+  ["txType","accFrom","accTo","cats2"].forEach(function(id){radioKeys(document.getElementById(id));});
+  function digits(){return parseInt(amt.value.replace(/\D/g,"")||"0",10);}
+  function budget(){var hint=document.getElementById("budgetHint");hint.hidden=type!=="out";var left=LIMIT_LEFT-(type==="out"?digits():0);
+    document.getElementById("budgetLeft").textContent=(left<0?"Lewat ":"")+rp(Math.abs(left));hint.classList.toggle("over",left<0);
+    document.getElementById("budgetBar").style.width=Math.max(0,Math.min(100,left/LIMIT*100))+"%";}
+  amt.addEventListener("input",function(){var d=digits();amt.value=d?d.toLocaleString("id-ID"):"";err.textContent="";budget();});
+  function setType(t){type=t;radio(document.getElementById("txType"),document.querySelector("[data-type='"+t+"']"));
+    document.getElementById("toWrap").hidden=t!=="tf";document.getElementById("catWrap").hidden=t==="tf";
+    document.getElementById("accLbl").textContent=t==="in"?"Masuk ke rekening":"Dari rekening";
+    accButtons(document.getElementById("accFrom"));if(t==="tf")accButtons(document.getElementById("accTo"),0);catChips();budget();}
+  document.getElementById("txType").addEventListener("click",function(e){var b=e.target.closest("[data-type]");if(b)setType(b.dataset.type);});
+  function open(){form.reset();err.textContent="";document.getElementById("txDate").value=new Date(Date.now()+7*3600e3).toISOString().slice(0,10);setType("out");dlg.showModal();amt.focus();}
+  document.querySelector(".top .btn-primary").addEventListener("click",open);
+  document.querySelector(".actions .act").addEventListener("click",open);
+  document.getElementById("txClose").addEventListener("click",function(){dlg.close();});
+  document.getElementById("txCancel").addEventListener("click",function(){dlg.close();});
+  dlg.addEventListener("click",function(e){if(e.target===dlg)dlg.close();});
+  form.addEventListener("submit",function(e){e.preventDefault();var d=digits();
+    if(!d){err.textContent="Isi nominalnya dulu.";amt.focus();return;}
+    var from=ACC[+document.querySelector("#accFrom [aria-checked='true']").dataset.i];
+    var cat=type==="tf"?"Transfer ke "+ACC[+document.querySelector("#accTo [aria-checked='true']").dataset.i][0]:document.querySelector("#cats2 [aria-checked='true']").textContent;
+    var note=document.getElementById("txNote").value.trim();
+    var li=document.createElement("li");var sign=type==="in"?"+":type==="out"?"−":"";
+    li.innerHTML="<span class='ic' style='background:var(--lime-soft)'>"+(type==="tf"?"TF":cat.slice(0,2).toUpperCase())+"</span><div><b></b><small>Hari ini · "+from[0]+"</small></div><div class='amt num "+(type==="in"?"in":"out")+"'>"+sign+rp(d).replace("Rp ","")+"</div>";
+    li.querySelector("b").textContent=note||cat;var ul=document.querySelector(".tx");ul.insertBefore(li,ul.firstChild);if(ul.children.length>4)ul.removeChild(ul.lastElementChild);
+    if(type==="out"){LIMIT_LEFT-=d;}
+    dlg.close();var t=document.getElementById("toast");t.textContent="Transaksi "+rp(d)+" tersimpan (data contoh)";t.hidden=false;clearTimeout(t._h);t._h=setTimeout(function(){t.hidden=true;},2600);});
 
   // Spending composition
   var cats=[["Rumah & KPR",33,"--lime"],["Makan & Minum",18,"--yellow"],["Transportasi",11,"--orange"],["Pendidikan",14,"--lime-soft"],["Kesehatan",8,"--good"],["Lainnya",16,"--ghost"]];
