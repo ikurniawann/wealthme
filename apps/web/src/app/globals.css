@@ -452,11 +452,13 @@
   }
 }
 
+/* Hardening batch G6 — foundation minimal edit (brief-sanctioned): both were
+   over the 150-250ms motion budget (0.5s / 0.8s). */
 @utility animate-rise {
-  animation: wm-rise 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation: wm-rise 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both;
 }
 @utility animate-pop {
-  animation: wm-pop 0.8s ease both;
+  animation: wm-pop 0.22s ease both;
 }
 
 @media (prefers-reduced-motion: reduce) {

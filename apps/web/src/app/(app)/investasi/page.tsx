@@ -2525,7 +2525,7 @@ export default function InvestasiPage() {
                   </tr>
                 )}
 
-              {filteredHoldings.map((h, i) => {
+              {filteredHoldings.map((h) => {
                 const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
                 const label = investmentClassLabel(t, h.type);
                 const logoBg = TYPE_LOGO_BG[h.type] ?? "#6B7280";
@@ -2547,10 +2547,10 @@ export default function InvestasiPage() {
 
                 return (
                   <Fragment key={h.id}>
-                    <tr
-                      className="animate-rise border-b last:border-0"
-                      style={{ animationDelay: `${i * 70}ms` }}
-                    >
+                    {/* Hardening batch G6 — a 70ms/row stagger meant 20
+                        rows kept settling for ~1.9s after mount; no
+                        per-row stagger on data tables. */}
+                    <tr className="border-b last:border-0">
                       <td className="py-3 pr-3">
                         <div className="flex items-center gap-2.5">
                           <div

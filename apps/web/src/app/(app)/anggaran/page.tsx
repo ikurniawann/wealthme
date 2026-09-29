@@ -155,7 +155,7 @@ function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
             <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-secondary">
               {barWidth > 0 && (
                 <div
-                  className="h-full rounded-full transition-[width] duration-700"
+                  className="h-full rounded-full transition-[width] duration-200"
                   style={{
                     width: `${Math.min(100, barWidth)}%`,
                     background: color,
@@ -1228,7 +1228,7 @@ export default function AnggaranPage() {
             </div>
             <div className="mt-3.5 h-[7px] overflow-hidden rounded-full bg-white/25">
               <div
-                className="h-full rounded-full bg-white transition-[width] duration-700"
+                className="h-full rounded-full bg-white transition-[width] duration-200"
                 style={{ width: `${Math.min(100, usagePct)}%` }}
               />
             </div>
