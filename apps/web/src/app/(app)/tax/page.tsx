@@ -905,7 +905,12 @@ function TaxPageContent() {
                   {t.tax.sptStatusLabels[r.sptStatus as SptStatus]}
                 </StatusBadge>
                 {r.sptStatus === "belum_lapor" && (
+                  // Hardening batch G3 (P1) — this used to be a 10px text
+                  // link with no padding, well under the 44px touch target.
+                  // A real `.btn--sm` (44px on coarse pointers per the
+                  // foundation fix above) with 12px+ text.
                   <button
+                    type="button"
                     onClick={() => handleUpdateSptStatus(r.id, "sudah_lapor")}
                     disabled={!canManageTaxRecords}
                     aria-describedby={
@@ -916,11 +921,7 @@ function TaxPageContent() {
                         ? (accessNote ?? undefined)
                         : undefined
                     }
-                    className={`mt-0.5 text-[10px] text-primary ${
-                      canManageTaxRecords
-                        ? "cursor-pointer hover:underline"
-                        : "cursor-not-allowed opacity-50"
-                    }`}
+                    className="btn btn--outline btn--sm mt-1.5 h-auto py-1 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {t.tax.markReportedShortButton}
                   </button>

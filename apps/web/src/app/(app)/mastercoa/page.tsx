@@ -667,16 +667,20 @@ export default function MasterCoaPage() {
                           {canManage === true && (
                             <div className="flex items-center justify-end gap-1.5">
                               <button
+                                type="button"
                                 onClick={() => openEdit(a)}
-                                className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-accent transition-colors"
+                                className="rounded p-1 text-muted-foreground hover:text-primary hover:bg-accent transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
                                 title={t.mastercoa.editTitle}
+                                aria-label={t.mastercoa.editTitle}
                               >
                                 <Pencil className="size-3.5" />
                               </button>
                               <button
+                                type="button"
                                 onClick={() => setDeleteId(a.id)}
-                                className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                className="rounded p-1 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11"
                                 title={t.common.delete}
+                                aria-label={t.common.delete}
                               >
                                 <Trash2 className="size-3.5" />
                               </button>

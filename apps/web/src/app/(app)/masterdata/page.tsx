@@ -432,7 +432,7 @@ export default function MasterDataPage() {
                         type="button"
                         aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
                         onClick={() => openEditCategory(cat)}
-                        className="inline-flex size-4 items-center justify-center rounded-full text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="inline-flex size-4 items-center justify-center rounded-full text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [@media(pointer:coarse)]:size-11"
                       >
                         ✏️
                       </button>
@@ -440,7 +440,7 @@ export default function MasterDataPage() {
                         type="button"
                         aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
                         onClick={() => setPendingCatDelete(cat)}
-                        className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
+                        className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white [@media(pointer:coarse)]:size-11"
                       >
                         ×
                       </button>
@@ -501,7 +501,7 @@ export default function MasterDataPage() {
                           type="button"
                           aria-label={`${t.masterdata.deleteAriaPrefix}${item.label}`}
                           onClick={() => setPendingDelete(item)}
-                          className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white"
+                          className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white [@media(pointer:coarse)]:size-11"
                         >
                           ×
                         </button>
