@@ -664,6 +664,8 @@ export const id = {
         "Yakin ingin menghapus akun? Semua data akan dihapus permanen dan tidak bisa dikembalikan.",
       toastDeleteSuccess: "Akun berhasil dihapus",
       toastDeleteFailed: "Gagal menghapus akun. Coba lagi.",
+      toastPrefsSaved: "Pengaturan privasi tersimpan",
+      toastPrefsFailed: "Gagal menyimpan pengaturan privasi. Coba lagi.",
     },
     bantuan: {
       faqSectionTitle: "FAQ",

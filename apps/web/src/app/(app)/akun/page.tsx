@@ -1216,6 +1216,72 @@ function localeLabelToValue(label: string): "id" | "en" {
   );
 }
 
+// Hardening batch G1 (P0 honesty) — shared instant-toggle + PATCH
+// /auth/profile mutation for the privacyPrefs map, used by both
+// PengaturanBody's "data" toggles (hideBalance/showDecimal/weeklySummary)
+// and PrivasiBody's toggles. Same overrides-map + optimistic-rollback shape
+// as KeamananBody's toggleAuthPref above (notificationPrefs), just against
+// the privacyPrefs column instead.
+// Mirrors DEFAULT_PRIVACY_PREFS (apps/api/src/auth/privacy-prefs.ts) so the
+// switches don't flash their "off" fallback before the profile query
+// resolves — only hideBalance/hideFromFamily started life unchecked.
+const PRIVACY_PREF_DEFAULTS: Record<string, boolean> = {
+  hideBalance: false,
+  showDecimal: true,
+  weeklySummary: true,
+  hideFromFamily: false,
+  screenshotProtect: true,
+  sendAnalytics: true,
+  aiPersonalization: true,
+};
+
+function usePrivacyPrefToggle() {
+  const { t } = useLocale();
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+
+  const isOn = (key: string): boolean =>
+    overrides[key] ??
+    profile?.privacyPrefs?.[key] ??
+    PRIVACY_PREF_DEFAULTS[key] ??
+    false;
+
+  const { mutate: savePrivacyPref } = useMutation({
+    mutationFn: (payload: Record<string, boolean>) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: session?.accessToken,
+        body: JSON.stringify({ privacyPrefs: payload }),
+      }),
+  });
+
+  function toggle(key: string) {
+    return (value: boolean) => {
+      const previous = isOn(key);
+      setOverrides((o) => ({ ...o, [key]: value }));
+      savePrivacyPref(
+        { ...(profile?.privacyPrefs ?? {}), [key]: value },
+        {
+          onSuccess: () => {
+            void queryClient.invalidateQueries({
+              queryKey: ["auth", "profile", session?.accessToken],
+            });
+            toast.success(t.akun.privasi.toastPrefsSaved);
+          },
+          onError: () => {
+            setOverrides((o) => ({ ...o, [key]: previous }));
+            toast.error(t.akun.privasi.toastPrefsFailed);
+          },
+        },
+      );
+    };
+  }
+
+  return { isOn, toggle };
+}
+
 export function PengaturanBody() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const { theme, setTheme } = useTheme();
@@ -1224,6 +1290,8 @@ export function PengaturanBody() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
+  const { isOn: isPrivacyOn, toggle: togglePrivacyPref } =
+    usePrivacyPrefToggle();
   // Absent for pre-migration users (and while the query is still loading) —
   // the server itself defaults new/untouched rows to "IDR", so this mirrors
   // that default rather than inventing a different one client-side.
@@ -1722,16 +1790,20 @@ export function PengaturanBody() {
             {
               label: t.akun.pengaturan.hideBalanceLabel,
               sub: t.akun.pengaturan.hideBalanceSub,
+              checked: isPrivacyOn("hideBalance"),
+              onCheckedChange: togglePrivacyPref("hideBalance"),
             },
             {
               label: t.akun.pengaturan.showDecimalLabel,
               sub: t.akun.pengaturan.showDecimalSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("showDecimal"),
+              onCheckedChange: togglePrivacyPref("showDecimal"),
             },
             {
               label: t.akun.pengaturan.weeklySummaryLabel,
               sub: t.akun.pengaturan.weeklySummarySub,
-              defaultChecked: true,
+              checked: isPrivacyOn("weeklySummary"),
+              onCheckedChange: togglePrivacyPref("weeklySummary"),
             },
           ]}
         />
@@ -1886,11 +1958,13 @@ export function NotifSettingBody() {
   );
 }
 
-function PrivasiBody() {
+export function PrivasiBody() {
   const { t } = useLocale();
   const router = useRouter();
   const { data: session } = useSession();
   const token = session?.accessToken;
+  const { isOn: isPrivacyOn, toggle: togglePrivacyPref } =
+    usePrivacyPrefToggle();
 
   // Ekspor Data Saya — real GET /users/me/gdpr/export, downloaded as a JSON
   // file (EPIC-016 Task D).
@@ -1945,11 +2019,14 @@ function PrivasiBody() {
             {
               label: t.akun.privasi.hideFromFamilyLabel,
               sub: t.akun.privasi.hideFromFamilySub,
+              checked: isPrivacyOn("hideFromFamily"),
+              onCheckedChange: togglePrivacyPref("hideFromFamily"),
             },
             {
               label: t.akun.privasi.privacyScreenshotLabel,
               sub: t.akun.privasi.privacyScreenshotSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("screenshotProtect"),
+              onCheckedChange: togglePrivacyPref("screenshotProtect"),
             },
           ]}
         />
@@ -1961,12 +2038,14 @@ function PrivasiBody() {
             {
               label: t.akun.privasi.sendAnalyticsLabel,
               sub: t.akun.privasi.sendAnalyticsSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("sendAnalytics"),
+              onCheckedChange: togglePrivacyPref("sendAnalytics"),
             },
             {
               label: t.akun.privasi.aiPersonalizationLabel,
               sub: t.akun.privasi.aiPersonalizationSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("aiPersonalization"),
+              onCheckedChange: togglePrivacyPref("aiPersonalization"),
             },
           ]}
         />

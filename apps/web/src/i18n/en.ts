@@ -663,6 +663,8 @@ export const en = {
         "Are you sure you want to delete your account? All data will be permanently deleted and cannot be recovered.",
       toastDeleteSuccess: "Account deleted successfully",
       toastDeleteFailed: "Failed to delete account. Try again.",
+      toastPrefsSaved: "Privacy settings saved",
+      toastPrefsFailed: "Failed to save privacy settings. Try again.",
     },
     bantuan: {
       faqSectionTitle: "FAQ",

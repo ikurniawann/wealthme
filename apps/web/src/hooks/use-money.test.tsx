@@ -89,4 +89,32 @@ describe("useMoney", () => {
     expect(result.current.format(10_000_000)).toBe("Rp 10.000.000");
     expect(result.current.format(10_000_000)).not.toContain("$");
   });
+
+  it("masks amounts app-wide when hideBalance is on, keeping the prefix", async () => {
+    mockApiFetch.mockResolvedValue({
+      currency: "IDR",
+      privacyPrefs: { hideBalance: true },
+    });
+
+    const { result } = renderHook(() => useMoney(), { wrapper });
+
+    // isReady is already true on mount for the IDR default (it doesn't gate
+    // on privacyPrefs); wait for the profile fetch itself to resolve.
+    await waitFor(() => expect(result.current.hideBalance).toBe(true));
+    expect(result.current.format(1_000_000)).toBe("Rp ••••••");
+    expect(result.current.formatCompact(1_000_000)).toBe("Rp ••••••");
+  });
+
+  it("adds decimals to the plain IDR format when showDecimal is on", async () => {
+    mockApiFetch.mockResolvedValue({
+      currency: "IDR",
+      privacyPrefs: { showDecimal: true },
+    });
+
+    const { result } = renderHook(() => useMoney(), { wrapper });
+
+    await waitFor(() =>
+      expect(result.current.format(1_000_000)).toBe("Rp 1.000.000,00"),
+    );
+  });
 });

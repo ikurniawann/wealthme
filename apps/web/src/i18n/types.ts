@@ -933,6 +933,8 @@ export type I18nDictionary = {
       deleteAccountConfirm: string;
       toastDeleteSuccess: string;
       toastDeleteFailed: string;
+      toastPrefsSaved: string;
+      toastPrefsFailed: string;
     };
     bantuan: {
       faqSectionTitle: string;
