@@ -379,38 +379,188 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
 }
 </style>
 <style>
-.ph{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:4px 0 2px}
-.ph h1{margin:0;font-size:30px;letter-spacing:-.035em}
-.ph .acts{display:flex;gap:8px;flex-wrap:wrap}
-.btn-o{display:inline-flex;align-items:center;gap:7px;height:44px;padding:0 14px;border-radius:13px;border:1px solid var(--line);background:var(--card);font-weight:600;font-size:13px}
-.groups{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
-.groups::-webkit-scrollbar{display:none}
-.groups button{flex:none;border:0;border-radius:12px;padding:0 16px;height:44px;background:var(--card);color:var(--muted);font-weight:600;font-size:13.5px;box-shadow:var(--shadow)}
-.groups button[aria-selected="true"]{background:var(--ink);color:var(--card)}
-.subs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px}
-.subs::-webkit-scrollbar{display:none}
-.subs button{flex:none;border:1px solid var(--line);background:transparent;border-radius:99px;padding:0 14px;height:38px;font-size:13px;color:var(--muted)}
-.subs button[aria-selected="true"]{background:var(--lime);border-color:var(--lime);color:var(--lime-ink);font-weight:600}
-.rgrid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
-.w12{grid-column:span 12}.w8{grid-column:span 8}.w6{grid-column:span 6}.w4{grid-column:span 4}.w3{grid-column:span 3}
-.kv{font-size:24px;font-weight:600;letter-spacing:-.03em;margin-top:6px;white-space:nowrap}
-.kv small{font-size:12px;font-weight:500;margin-left:6px}
-.tbl{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
-.tbl th{text-align:left;color:var(--muted);font-weight:500;font-size:12px;padding:10px 8px;border-bottom:1px solid var(--line)}
-.tbl td{padding:11px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-.tbl tr:last-child td{border-bottom:0}
-.tbl .r{text-align:right}.tbl tfoot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:0}
-.twrap{overflow-x:auto;margin-top:10px}
-.hb{display:flex;flex-direction:column;gap:12px;margin-top:14px}
-.hb .row{display:grid;grid-template-columns:minmax(90px,150px) 1fr auto;gap:12px;align-items:center;font-size:13px}
-.hb .tr{height:12px;border-radius:6px;background:var(--ghost);overflow:hidden}
-.hb .tr i{display:block;height:100%;border-radius:6px}
-.bars{margin-top:12px;height:220px;position:relative}
-.bars svg{width:100%;height:100%}
-.up{color:var(--good)}.dn{color:var(--bad)}
-@media (max-width:1180px){.w8,.w6,.w4{grid-column:span 12}.w3{grid-column:span 6}}
-@media (max-width:720px){.w3{grid-column:span 6}.ph h1{font-size:26px}.kv{font-size:19px}.ph .acts .btn-o span{display:none}.kv small{display:block;margin:4px 0 0}}
+:root{--cover:#15170F;--cover-2:#1F2219;--on-cover:#EEF0E8;--on-cover-2:#A3AA95;--cover-line:rgba(238,240,232,.10)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--cover:#0A0B07;--cover-2:#15180F;--cover-line:rgba(238,240,232,.08)}}
+:root[data-theme="dark"]{--cover:#0A0B07;--cover-2:#15180F;--cover-line:rgba(238,240,232,.08)}
+
+.lap{display:grid;grid-template-columns:268px minmax(0,1fr);gap:16px;align-items:start}
+
+/* report index */
+.idx{background:var(--card);border-radius:22px;box-shadow:var(--shadow);padding:18px 12px 12px;position:sticky;top:16px;max-height:calc(100vh - 32px);overflow-y:auto;scrollbar-width:thin}
+.idx-h{display:flex;align-items:baseline;justify-content:space-between;padding:0 8px 12px}
+.idx-h h2{margin:0;font-size:22px;letter-spacing:-.035em;font-weight:600}
+.idx-h span{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.find{display:flex;align-items:center;gap:8px;background:var(--card-2);border-radius:12px;padding:0 12px;height:40px;margin:0 4px 10px;color:var(--muted)}
+.find input{border:0;background:transparent;outline:0;font:inherit;font-size:13px;color:var(--ink);width:100%}
+.find input::placeholder{color:var(--muted)}
+.grp{margin-top:6px}
+.grp h3{margin:0;padding:10px 10px 4px;font-size:12px;font-weight:600;color:var(--muted);letter-spacing:0}
+.rep{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;text-align:left;padding:6px 8px;border-radius:12px;min-height:44px;font-size:13.5px;color:var(--ink);transition:background .18s}
+.rep i{width:30px;height:30px;border-radius:9px;background:var(--card-2);display:grid;place-items:center;flex:none;color:var(--muted);transition:background .18s,color .18s}
+.rep i svg{width:16px;height:16px}
+.rep:hover{background:var(--card-2)}
+.rep:hover i{background:var(--card)}
+.rep[aria-current="true"]{background:var(--lime-soft);font-weight:600}
+.rep[aria-current="true"] i{background:var(--lime);color:var(--lime-ink)}
+.idx-empty{padding:12px 10px;color:var(--muted);font-size:13px}
+
+/* stage */
+.stage{display:flex;flex-direction:column;gap:16px;min-width:0}
+.cover{background:var(--cover);color:var(--on-cover);border-radius:24px;padding:24px 26px 20px;position:relative;overflow:hidden;box-shadow:0 18px 40px -24px rgba(20,30,5,.55)}
+.cover::before{content:"";position:absolute;inset:auto -80px -160px auto;width:420px;height:420px;border-radius:50%;background:radial-gradient(closest-side,rgba(169,216,76,.16),transparent);pointer-events:none}
+.c-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;position:relative}
+.crumb{font-size:12.5px;color:var(--on-cover-2);display:flex;align-items:center;gap:6px}
+.crumb b{color:var(--on-cover);font-weight:600}
+.c-acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.pseg{display:flex;background:var(--cover-2);border-radius:12px;padding:3px;gap:2px}
+.pseg button{border:0;background:transparent;color:var(--on-cover-2);border-radius:9px;padding:0 12px;min-height:38px;font-size:12.5px;white-space:nowrap}
+.pseg button[aria-pressed="true"]{background:var(--on-cover);color:var(--cover);font-weight:600}
+.cbtn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--cover-line);background:transparent;color:var(--on-cover);border-radius:12px;padding:0 13px;min-height:44px;font-size:13px;font-weight:600}
+.cbtn:hover{background:var(--cover-2)}
+.cbtn.lit{background:var(--lime);border-color:var(--lime);color:var(--lime-ink)}
+.cbtn.lit:hover{filter:brightness(1.05)}
+.cbtn:active,.pseg button:active,.rep:active{transform:translateY(1px)}
+.headline{margin:26px 0 0;font-size:clamp(26px,1.2rem + 1.6vw,44px);line-height:1.08;letter-spacing:-.04em;font-weight:600;max-width:22ch;text-wrap:balance;position:relative}
+.headline em{font-style:normal;color:var(--lime)}
+.c-note{margin:10px 0 0;color:var(--on-cover-2);font-size:13px;position:relative}
+.c-viz{position:relative;margin-top:22px;height:260px}
+.c-viz.auto{height:auto}
+.c-viz.tall{height:320px}
+.c-viz svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.c-viz svg text{fill:var(--on-cover-2)}
+.c-leg{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:16px;padding-top:16px;border-top:1px solid var(--cover-line);position:relative}
+.c-leg span{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;color:var(--on-cover-2)}
+.c-leg i{width:10px;height:10px;border-radius:3px}
+.c-leg b{color:var(--on-cover);font-weight:600;font-variant-numeric:tabular-nums}
+.stage-in{animation:rise .5s cubic-bezier(.16,1,.3,1) both}
+@keyframes rise{from{opacity:.001;transform:translateY(10px);filter:blur(4px)}to{opacity:1;transform:none;filter:none}}
+@media (prefers-reduced-motion:reduce){.stage-in{animation:none}}
+
+/* cover visuals built in HTML */
+.hrows{display:flex;flex-direction:column;gap:12px}
+.hrow{display:grid;grid-template-columns:minmax(80px,140px) minmax(0,1fr) auto;gap:14px;align-items:center;font-size:13px}
+.hrow .t{height:14px;border-radius:7px;background:var(--cover-2);overflow:hidden}
+.hrow .t i{display:block;height:100%;border-radius:7px;background:repeating-linear-gradient(45deg,var(--c,var(--lime)) 0 6px,color-mix(in srgb,var(--c,var(--lime)) 72%,#fff) 6px 8px);transform-origin:left;animation:grow-x .7s cubic-bezier(.16,1,.3,1) both}
+.hrow b{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap}
+@keyframes grow-x{from{transform:scaleX(0)}}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.cal .dw{font-family:var(--mono);font-size:11px;color:var(--on-cover-2);text-align:center;padding-bottom:2px}
+.cal .d{aspect-ratio:1.9;border-radius:10px;background:var(--cover-2);display:flex;flex-direction:column;justify-content:space-between;padding:6px 8px;font-size:11px;color:var(--on-cover-2);min-width:0}
+.cal .d b{font-size:12px;font-weight:600;color:inherit;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal .d.l1{background:rgba(169,216,76,.22);color:var(--on-cover)}
+.cal .d.l2{background:rgba(169,216,76,.45);color:var(--on-cover)}
+.cal .d.l3{background:var(--lime);color:var(--lime-ink)}
+.cal .d.pk{outline:2px solid var(--orange);outline-offset:-2px}
+.cal .d.x{background:transparent}
+.strip{display:flex;height:56px;border-radius:14px;overflow:hidden;gap:3px}
+.strip i{display:flex;align-items:flex-end;padding:8px 10px;font-style:normal;font-size:12px;font-weight:600;min-width:0;white-space:nowrap;overflow:hidden;transform-origin:left;animation:grow-x .8s cubic-bezier(.16,1,.3,1) both}
+.dgauge{position:relative;padding-top:34px}
+.dgauge .gbar{width:100%;height:22px;border-radius:11px;background:linear-gradient(90deg,rgba(169,216,76,.55) 0 35%,rgba(242,162,71,.5) 35% 50%,rgba(194,70,43,.55) 50%)}
+.dgauge .needle{position:absolute;top:0;display:flex;flex-direction:column;align-items:center;transform:translateX(-50%)}
+.dgauge .needle span{background:var(--on-cover);color:var(--cover);font-weight:700;font-size:12px;border-radius:99px;padding:3px 10px}
+.dgauge .needle i{width:2px;height:34px;background:var(--on-cover)}
+.dgauge .ticks{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--on-cover-2);margin-top:8px}
+.bal{display:grid;grid-template-columns:1fr 1fr;gap:14px;height:100%}
+.bal .col{display:flex;flex-direction:column;gap:3px}
+.bal .col>b{font-size:12px;color:var(--on-cover-2);font-weight:500;margin-bottom:6px}
+.bal .seg-b{border-radius:10px;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:8px 12px;font-size:12px;font-weight:600;min-height:30px}
+
+/* report body */
+.rbody{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.rbody>.card{grid-column:span 12}
+.rbody>.s7{grid-column:span 7}.rbody>.s5{grid-column:span 5}.rbody>.s6{grid-column:span 6}.rbody>.s8{grid-column:span 8}.rbody>.s4{grid-column:span 4}
+.card h2{font-size:16px}
+.led{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px}
+.led th{text-align:left;font-weight:500;color:var(--muted);font-size:12px;padding:0 10px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.led td{padding:12px 10px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+.led tbody tr{transition:background .15s}
+.led tbody tr:hover{background:var(--card-2)}
+.led .r{text-align:right;font-size:13.5px;font-variant-numeric:tabular-nums}
+.led tfoot td{font-weight:700;border-bottom:0;border-top:1.5px solid var(--ink);padding-top:14px}
+.led tfoot .r{font-weight:600}
+.led .grp-row td{color:var(--muted);font-size:12px;font-weight:600;background:transparent;padding-top:18px}
+.led .ind td:first-child{padding-left:26px}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.tw{overflow-x:auto;margin:0 -10px;padding:0 10px}
+.mini{display:inline-block;vertical-align:middle;width:84px;height:8px;border-radius:4px;background:var(--ghost);overflow:hidden;margin-right:8px}
+.mini i{display:block;height:100%;background:var(--lime);border-radius:4px}
+.list{display:flex;flex-direction:column;margin-top:10px}
+.list>div{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.list>div:last-child{border-bottom:0}
+.dot{width:10px;height:10px;border-radius:3px}
+.list small{color:var(--muted);font-size:12px;display:block}
+.list .r{font-size:13.5px;font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
+.chg{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;border-radius:99px;padding:2px 8px}
+.chg.up{background:var(--lime-soft);color:var(--good)}.chg.dn{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.lstrip{display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px;margin-top:14px}
+.goal{margin-top:14px}
+.goal .gb{height:14px;border-radius:7px;background:var(--ghost);overflow:hidden}
+.goal .gb i{display:block;height:100%;background:repeating-linear-gradient(45deg,var(--lime) 0 6px,color-mix(in srgb,var(--lime) 70%,#fff) 6px 8px);border-radius:7px}
+.goal p{display:flex;justify-content:space-between;margin:10px 0 0;font-size:13px;color:var(--muted)}
+.goal p b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.filt{display:flex;gap:6px;flex-wrap:wrap}
+.filt button{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:0 14px;min-height:36px;font-size:12.5px;color:var(--muted)}
+.filt button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--card);font-weight:600}
+.day{font-size:12px;color:var(--muted);font-weight:600;padding:16px 0 4px}
+.tx{display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.tx .ic{width:36px;height:36px;border-radius:11px;background:var(--card-2);display:grid;place-items:center;color:var(--muted)}
+.tx .ic.in{background:var(--lime-soft);color:var(--good)}
+.tx b{font-weight:500;font-size:13.5px;display:block}
+.tx small{color:var(--muted);font-size:12px}
+.tx .r{font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums}
+.est{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:12px}
+details.coa summary{list-style:none;cursor:pointer}
+details.coa summary::-webkit-details-marker{display:none}
+.coa-row{display:grid;grid-template-columns:22px 70px 1fr auto;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.coa-row .code{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.coa-row .r{font-size:13.5px;text-align:right}
+.coa-row svg{transition:transform .2s;color:var(--muted)}
+details.coa[open]>summary svg{transform:rotate(90deg)}
+details.coa .kid{padding-left:32px}
+details.coa .kid .coa-row{grid-template-columns:70px 1fr auto;color:var(--muted)}
+
+/* mobile picker */
+.lhead{display:none}
+.picker{display:none;align-items:center;gap:10px;width:100%;border:0;background:var(--card);border-radius:16px;padding:10px 14px;min-height:56px;box-shadow:var(--shadow);text-align:left}
+.picker i{width:34px;height:34px;border-radius:10px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center}
+.picker small{display:block;color:var(--muted);font-size:11.5px}
+.picker b{font-size:14.5px}
+.picker .chev{margin-left:auto;color:var(--muted)}
+dialog.pick{border:0;padding:0;background:var(--card);color:var(--ink);border-radius:24px 24px 0 0;width:100%;max-width:100%;max-height:82vh;margin:auto 0 0;inset:auto 0 0 0;position:fixed}
+dialog.pick::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) saturate(.8)}
+dialog.pick .ph2{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 6px}
+dialog.pick .ph2 h2{margin:0;font-size:18px;letter-spacing:-.02em}
+dialog.pick .ph2 button{width:44px;height:44px;border:0;border-radius:12px;background:var(--card-2)}
+dialog.pick .lst{overflow-y:auto;max-height:calc(82vh - 70px);padding:0 10px 24px}
+@media (prefers-reduced-motion:no-preference){dialog.pick[open]{animation:sheet .35s cubic-bezier(.16,1,.3,1)}@keyframes sheet{from{transform:translateY(40px);opacity:.4}}}
+
+@media (max-width:1180px){.lap{grid-template-columns:236px minmax(0,1fr)}.rbody>.s7,.rbody>.s5,.rbody>.s6,.rbody>.s8,.rbody>.s4{grid-column:span 12}}
+@media (max-width:900px){.lap{grid-template-columns:minmax(0,1fr)}.idx{display:none}.picker{display:flex}}
+@media (max-width:720px){
+  .cover{padding:18px 16px 16px;border-radius:20px}
+  .c-top{gap:8px}.c-acts{margin-left:0;width:100%}
+  .pseg{width:100%;overflow-x:auto;scrollbar-width:none}.pseg button{flex:1}
+  .cbtn{flex:1;justify-content:center}
+  .headline{margin-top:18px}
+  .c-viz{height:210px}.c-viz.tall{height:340px}
+  .hrow{grid-template-columns:minmax(64px,92px) minmax(0,1fr) auto;gap:10px;font-size:12.5px}
+  .cal{gap:4px}.cal .d{aspect-ratio:1;padding:4px 5px;border-radius:8px}.cal .d b{display:none}
+  .strip{height:44px}.strip i{font-size:0;padding:0}
+  .led{font-size:13px}.led td,.led th{padding-left:8px;padding-right:8px}
+  .main{padding-bottom:96px}
+  .lhead{display:flex;flex-direction:column;justify-content:center;min-height:44px;margin:0 2px}.lhead b{font-size:24px;letter-spacing:-.035em;line-height:1.1}.lhead small{color:var(--muted);font-size:12px}
+}
+@media print{
+  body{background:#fff;padding:0}
+  .side,.top,.idx,.picker,.mnav,.c-acts,.chip-demo{display:none!important}
+  .lap,.app{display:block}
+  .cover{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-shadow:none}
+  .card{box-shadow:none;border:1px solid #ddd;break-inside:avoid}
+}
+@media (prefers-reduced-motion:no-preference){.c-viz .gb{transform-box:fill-box;transform-origin:bottom;animation:gy .65s cubic-bezier(.16,1,.3,1) both}@keyframes gy{from{transform:scaleY(0)}}.c-viz .gl{stroke-dasharray:3000;stroke-dashoffset:3000;animation:dash 1.2s cubic-bezier(.16,1,.3,1) forwards}@keyframes dash{to{stroke-dashoffset:0}}.c-viz .ga{animation:fade .8s ease-out both}@keyframes fade{from{opacity:0}}}
+@media (prefers-reduced-motion:reduce){.hrow .t i,.strip i{animation:none}}
 </style>
+
 <div class="app">
   <aside class="side" aria-label="Navigasi utama">
     <div class="brand">
@@ -424,7 +574,7 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
       <div class="sub">
         <a href="#">Riwayat <span class="badge num">19</span></a>
         <a href="#">Rekonsiliasi</a>
-        <a href="#" aria-current="page">Laporan</a>
+        <a href="laporan.html" aria-current="page">Laporan</a>
       </div>
       <a href="#" title="Arus Kas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg><span class="lbl-t">Arus Kas</span></a>
       <a href="#" title="Anggaran"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h12v16l-6-3-6 3z"/></svg><span class="lbl-t">Anggaran</span></a>
@@ -454,15 +604,22 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
       <div class="me"><span class="avatar" style="background:var(--lime-soft);color:var(--ink)">CR</span><div><b>Christian Rizaldi</b><small>Master · Keluarga Rizaldi</small></div></div>
       <button class="btn-primary" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Tambah transaksi</span></button>
     </header>
-    <div class="ph"><h1>Laporan</h1><div class="acts">
-      <select class="sel" id="period" aria-label="Periode"><option>September 2026</option><option>Agustus 2026</option><option>Q3 2026</option><option>Tahun 2026</option></select>
-      <button class="btn-o" type="button" aria-label="Unduh PDF"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11m-4-4l4 4 4-4M5 20h14"/></svg><span>PDF</span></button>
-      <button class="btn-o" type="button" aria-label="Unduh CSV"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11m-4-4l4 4 4-4M5 20h14"/></svg><span>CSV</span></button>
-    </div></div>
-    <div class="groups" role="tablist" aria-label="Kelompok laporan" id="groups"></div>
-    <div class="subs" role="tablist" aria-label="Laporan" id="subs"></div>
-    <section class="rgrid" id="report" aria-live="polite"></section>
+    <div class="lhead"><b>Laporan</b><small>17 laporan keluarga</small></div>
+    <button class="picker" type="button" id="pickBtn" aria-haspopup="dialog"><i><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg></i><span><small id="pickGrp">Ringkasan</small><b id="pickName">Ringkasan</b></span><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    <div class="lap">
+      <nav class="idx" aria-label="Daftar laporan">
+        <div class="idx-h"><h2>Laporan</h2><span>17</span></div>
+        <label class="find"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg><input id="findRep" type="search" placeholder="Cari laporan" aria-label="Cari laporan"></label>
+        <div id="idxList"></div>
+      </nav>
+      <div class="stage" id="stage" aria-live="polite"></div>
+    </div>
   </main>
+<dialog class="pick" id="pickDlg" aria-labelledby="pickTitle">
+  <div class="ph2"><h2 id="pickTitle">Pilih laporan</h2><button type="button" id="pickClose" aria-label="Tutup"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+  <div class="lst" id="pickList"></div>
+</dialog>
+
 </div>
 <nav class="mnav" aria-label="Navigasi utama">
   <a href="./" title="Beranda"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="8" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="15" width="7" height="6" rx="2"/></svg><span class="lbl-t">Beranda</span></a>
@@ -473,70 +630,253 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
 </nav>
 <script>
 (function(){
-var css=getComputedStyle(document.documentElement);function v(n){return css.getPropertyValue(n).trim();}
-var NS="http://www.w3.org/2000/svg";function el(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
-function jt(n){return (n<0?"−":"")+"Rp "+Math.abs(n).toLocaleString("id-ID",{maximumFractionDigits:1})+" jt";}
-var MONTHS=["Apr","Mei","Jun","Jul","Agu","Sep"];
-var G=[["summary","Ringkasan",[["rsum","Ringkasan"],["rharian","Harian"],["rbulanan","Bulanan"],["rtahunan","Tahunan"],["rfamily","Group Family"]]],
- ["cashflow","Arus Kas",[["rbank","Bank"],["rdetail","Detail"],["raliran","Aliran Dana"],["rpnl","PNL"],["rcashflow","Cashflow"],["rkas","Arus Kas"]]],
- ["wealth","Kekayaan",[["rinv","Investasi"],["rperf","Performa"]]],
- ["liabilities","Kewajiban",[["rbalance","Balance Sheet"],["rasl","Aset & Liabilitas"]]],
- ["taxOther","Pajak & Lainnya",[["rpajak","Pajak"],["rcoa","Ringkasan COA"]]]];
-// widgets
-function card(w,title,cap,body){return '<article class="card '+w+'"><div class="head"><div><h2>'+title+'</h2>'+(cap?'<div class="cap">'+cap+'</div>':'')+'</div></div>'+body+'</article>';}
-function kpi(label,val,delta){return card("w3",label,"",'<div class="kv num">'+val+(delta?'<small class="'+(delta[0]==="+"?"up":"dn")+'">'+delta+'</small>':'')+'</div>');}
-function table(head,rows,foot,rightFrom){rightFrom=rightFrom||1;function tr(r,tag){return "<tr>"+r.map(function(c,i){return "<"+tag+(i>=rightFrom?' class="r"':'')+">"+c+"</"+tag+">";}).join("")+"</tr>";}
- return '<div class="twrap"><table class="tbl"><thead>'+tr(head,"th")+'</thead><tbody>'+rows.map(function(r){return tr(r,"td");}).join("")+'</tbody>'+(foot?'<tfoot>'+tr(foot,"td")+'</tfoot>':'')+'</table></div>';}
-function hbars(items,color){var max=Math.max.apply(null,items.map(function(i){return Math.abs(i[1]);}));return '<div class="hb">'+items.map(function(i){return '<div class="row"><span>'+i[0]+'</span><span class="tr"><i style="width:'+(Math.abs(i[1])/max*100)+'%;background:'+(i[2]||color||v("--lime"))+'"></i></span><span class="num">'+(i[3]||jt(i[1]))+'</span></div>';}).join("")+'</div>';}
-var chartQueue=[];function bars(id,labels,series){chartQueue.push([id,labels,series]);return '<div class="bars" id="'+id+'"></div>';}
-function drawBars(id,labels,series){var box=document.getElementById(id);if(!box)return;var W=box.clientWidth||600,H=box.clientHeight||220,L=34,B=24,T=8;
- var all=[];series.forEach(function(s){all=all.concat(s.d);});var max=Math.max(1,Math.max.apply(null,all)),min=Math.min(0,Math.min.apply(null,all));
- var y=function(x){return T+(max-x)/(max-min)*(H-T-B);};var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img"});
- [min,(max+min)/2,max].forEach(function(t){svg.appendChild(el("line",{x1:L,x2:W,y1:y(t),y2:y(t),stroke:v("--line"),"stroke-dasharray":"3 4"}));var tx=el("text",{x:L-6,y:y(t)+3,"text-anchor":"end"});tx.textContent=Math.round(t);svg.appendChild(tx);});
- var band=(W-L)/labels.length,n=series.length,bw=Math.min(28,band*.7/n);
- labels.forEach(function(lab,i){series.forEach(function(s,j){var val=s.d[i],x=L+band*i+band/2-(bw*n)/2+j*bw;svg.appendChild(el("rect",{x:x+1,y:Math.min(y(val),y(0)),width:bw-2,height:Math.max(2,Math.abs(y(val)-y(0))),rx:5,fill:v(s.c)}));});
-  var t=el("text",{x:L+band*i+band/2,y:H-6,"text-anchor":"middle"});t.textContent=lab;svg.appendChild(t);});
- box.innerHTML="";box.appendChild(svg);}
-var legend=function(items){return '<div class="legend" style="margin-top:8px">'+items.map(function(i){return '<span><i style="background:'+v(i[1])+'"></i>'+i[0]+'</span>';}).join("")+'</div>';};
-var IN=[31.2,33.4,34.1,36.8,36.6,38.5],OUT=[15.1,17.2,14.8,16.9,14.9,16.75];
-var R={
- rsum:function(){return kpi("Pemasukan","Rp 38,5 jt","+5,1%")+kpi("Pengeluaran","Rp 16,75 jt","+12,4%")+kpi("Ditabung","Rp 21,75 jt","+8,7%")+kpi("Kekayaan bersih","Rp 1,26 M","+2,3%")+
-  card("w8","Tren 6 bulan","Juta rupiah",legend([["Pemasukan","--lime"],["Pengeluaran","--orange"]])+bars("b1",MONTHS,[{d:IN,c:"--lime"},{d:OUT,c:"--orange"}]))+
-  card("w4","Pengeluaran terbesar","",hbars([["Rumah & KPR",5.5],["Makan",3],["Pendidikan",2.3],["Transport",1.8],["Kesehatan",1.3]]));},
- rharian:function(){var d=[],l=[];for(var i=1;i<=30;i++){l.push(i%5===0?String(i):"");d.push(Math.round((Math.sin(i)*0.6+0.8)*10)/10);}
-  return kpi("Rata-rata harian","Rp 558 rb")+kpi("Hari tertinggi","Rp 2,5 jt")+kpi("Transaksi","86")+kpi("Hari tanpa belanja","4")+
-  card("w12","Pengeluaran per hari","September, juta rupiah",bars("b2",l,[{d:d,c:"--lime"}]));},
- rbulanan:function(){return card("w12","Perbandingan bulanan","",table(["Bulan","Pemasukan","Pengeluaran","Ditabung","Rasio"],MONTHS.map(function(m,i){return [m+" 2026",jt(IN[i]),jt(OUT[i]),jt(IN[i]-OUT[i]),Math.round((IN[i]-OUT[i])/IN[i]*100)+"%"];}),["Total",jt(210.6),jt(95.65),jt(114.95),"55%"]));},
- rtahunan:function(){var l=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep"],a=[28,29.5,30.1].concat(IN),b=[14,16.2,15.3].concat(OUT);
-  return kpi("Pemasukan 2026","Rp 298,1 jt")+kpi("Pengeluaran 2026","Rp 141,2 jt")+kpi("Ditabung 2026","Rp 156,9 jt")+kpi("Rasio tabungan","53%")+
-  card("w12","Januari sampai September","Juta rupiah",legend([["Pemasukan","--lime"],["Pengeluaran","--orange"]])+bars("b3",l,[{d:a,c:"--lime"},{d:b,c:"--orange"}]));},
- rfamily:function(){return card("w6","Pengeluaran per anggota","September",hbars([["Christian",8.2],["Vallencya",5.1],["Hima",1.6],["Arka",1.1],["Sopir",0.75]]))+
-  card("w6","Pemasukan per anggota","September",hbars([["Christian",32.5],["Vallencya",6]]))+
-  card("w12","Rincian","",table(["Anggota","Peran","Pemasukan","Pengeluaran","Transaksi"],[["Christian","Master",jt(32.5),jt(8.2),"41"],["Vallencya","Co-Master",jt(6),jt(5.1),"27"],["Hima","Anak","−",jt(1.6),"9"],["Arka","Anak","−",jt(1.1),"6"],["Sopir","Staf","−",jt(0.75),"3"]],null,2));},
- rbank:function(){return card("w12","Saldo per rekening","",table(["Rekening","Jenis","Saldo awal","Masuk","Keluar","Saldo akhir"],[["BCA bersama","Tabungan",jt(71.2),jt(32.5),jt(19.38),jt(84.32)],["BRI Vallencya","Tabungan",jt(9.1),jt(6),jt(2.62),jt(12.48)],["Mandiri","Kartu kredit",jt(-2.4),jt(1.2),jt(3.41),jt(-4.61)],["GoPay Hima","E-wallet",jt(0.5),jt(1.5),jt(1.15),jt(0.85)],["Tunai","Kas",jt(1.5),jt(1),jt(1.25),jt(1.25)]],["Total",'',jt(79.9),jt(42.2),jt(27.81),jt(94.29)],2));},
- rdetail:function(){return card("w12","Semua transaksi","September, 86 transaksi",table(["Tanggal","Keterangan","Kategori","Rekening","Nominal"],[["25 Sep","Gaji September","Gaji","BCA",'<span class="up">+32.500.000</span>'],["24 Sep","Cicilan KPR ke-26","Rumah & KPR","BCA","−4.500.000"],["22 Sep","Beli BBCA 2 lot","Investasi","BCA","−1.900.000"],["21 Sep","Uang saku Hima","Keluarga","BCA","−500.000"],["20 Sep","Zakat maal","Zakat & Donasi","BCA","−2.500.000"],["19 Sep","Belanja bulanan","Makan","Mandiri","−1.800.000"],["18 Sep","Dividen BBRI","Investasi","BCA",'<span class="up">+640.000</span>']],null,4));},
- raliran:function(){return card("w6","Dana masuk dari","",hbars([["Gaji",32.5],["Usaha Vallencya",6],["Dividen",0.64]],v("--lime")))+card("w6","Dana keluar ke","",hbars([["Rumah & KPR",5.5,v("--orange")],["Makan",3,v("--orange")],["Investasi",1.9,v("--orange")],["Zakat & Donasi",2.5,v("--orange")],["Lainnya",3.85,v("--orange")]]));},
- rpnl:function(){return card("w12","Laba rugi","September",table(["Pos","Nominal"],[["<b>Pendapatan</b>",""],["Gaji dan usaha",jt(38.5)],["Hasil investasi",jt(0.64)],["<b>Beban</b>",""],["Rumah & KPR",jt(-5.5)],["Kebutuhan rumah tangga",jt(-6.35)],["Pendidikan & kesehatan",jt(-3.6)],["Zakat & donasi",jt(-2.5)]],["Surplus",jt(21.19)]));},
- rcashflow:function(){return kpi("Operasional","Rp 23,1 jt","+6,0%")+kpi("Investasi","−Rp 1,9 jt")+kpi("Pendanaan","−Rp 4,5 jt")+kpi("Perubahan kas","Rp 16,7 jt")+
-  card("w12","Cashflow 6 bulan","Juta rupiah",legend([["Operasional","--lime"],["Investasi","--yellow"],["Pendanaan","--orange"]])+bars("b4",MONTHS,[{d:[16.1,16.2,19.3,19.9,21.7,23.1],c:"--lime"},{d:[-2,-1.5,-3,-1,-2.2,-1.9],c:"--yellow"},{d:[-4.5,-4.5,-4.5,-4.5,-4.5,-4.5],c:"--orange"}]));},
- rkas:function(){return card("w12","Kas dan setara kas","",table(["Akun kas","Awal","Masuk","Keluar","Akhir"],[["Tunai rumah",jt(1.5),jt(1),jt(1.25),jt(1.25)],["GoPay Hima",jt(0.5),jt(1.5),jt(1.15),jt(0.85)]],["Total",jt(2),jt(2.5),jt(2.4),jt(2.1)]));},
- rinv:function(){return kpi("Nilai portofolio","Rp 186,4 jt","+3,2%")+kpi("Modal","Rp 171,0 jt")+kpi("Untung/rugi","Rp 15,4 jt","+9,0%")+kpi("Dividen 2026","Rp 2,1 jt")+
-  card("w6","Alokasi","",hbars([["Saham",82.4],["Reksa dana",41.2],["Emas",38.8],["Deposito",20],["Kripto",4]]))+
-  card("w6","Kepemilikan","",table(["Aset","Nilai","Hasil"],[["BBCA",jt(47.5),'<span class="up">+12,4%</span>'],["BBRI",jt(34.9),'<span class="up">+6,1%</span>'],["RD Pasar Uang",jt(41.2),'<span class="up">+3,9%</span>'],["Emas Antam 15 g",jt(38.8),'<span class="up">+14,8%</span>'],["Deposito BCA",jt(20),'<span class="up">+4,5%</span>']]));},
- rperf:function(){return card("w12","Nilai portofolio 6 bulan","Juta rupiah",bars("b5",MONTHS,[{d:[160.2,163.9,169.4,172.8,180.6,186.4],c:"--lime"}]));},
- rbalance:function(){return card("w6","Aset","",table(["Pos","Nilai"],[["Kas & bank",jt(98.9)],["Investasi",jt(186.4)],["Properti",jt(850)],["Kendaraan",jt(210)]],["Total aset",jt(1345.3)]))+
-  card("w6","Liabilitas & ekuitas","",table(["Pos","Nilai"],[["KPR",jt(80.1)],["Kartu kredit",jt(4.6)],["Pinjaman lain",jt(3.8)],["Kekayaan bersih",jt(1256.8)]],["Total",jt(1345.3)]));},
- rasl:function(){return kpi("Total aset","Rp 1,35 M")+kpi("Total liabilitas","Rp 88,5 jt")+kpi("Rasio utang","6,6%")+kpi("Kekayaan bersih","Rp 1,26 M","+2,3%")+
-  card("w6","Komposisi aset","",hbars([["Properti",850],["Kendaraan",210],["Investasi",186.4],["Kas & bank",98.9]]))+card("w6","Komposisi liabilitas","",hbars([["KPR",80.1,v("--orange")],["Kartu kredit",4.6,v("--orange")],["Pinjaman lain",3.8,v("--orange")]]));},
- rpajak:function(){return kpi("PPh terutang 2026","Rp 18,2 jt")+kpi("Sudah dipotong","Rp 16,9 jt")+kpi("Kurang bayar","Rp 1,3 jt")+kpi("Zakat & persepuluhan","Rp 3,5 jt")+
-  card("w12","Rincian pajak","Perkiraan, tahun pajak 2026",table(["Pos","Nominal"],[["Penghasilan bruto",jt(298.1)],["Pengurang zakat & persepuluhan",jt(-3.5)],["PTKP K/2",jt(-67.5)],["Penghasilan kena pajak",jt(227.1)],["PPh 21 dipotong pemberi kerja",jt(-16.9)]],["Kurang bayar",jt(1.3)]));},
- rcoa:function(){return card("w12","Saldo per akun COA","September",table(["Kode","Akun","Debit","Kredit","Saldo"],[["1-100","Kas & bank",jt(42.2),jt(27.81),jt(94.29)],["1-200","Investasi",jt(1.9),"−",jt(186.4)],["2-100","Utang KPR","−",jt(4.5),jt(80.1)],["4-100","Pendapatan","−",jt(39.14),jt(39.14)],["5-100","Beban",jt(17.95),"−",jt(17.95)]],null,2));}
-};
-var gi=0,ri=0,gEl=document.getElementById("groups"),sEl=document.getElementById("subs"),out=document.getElementById("report");
-function tabs(elm,items,sel,on){elm.innerHTML="";items.forEach(function(it,i){var b=document.createElement("button");b.type="button";b.setAttribute("role","tab");b.setAttribute("aria-selected",i===sel?"true":"false");b.textContent=it;b.addEventListener("click",function(){on(i);});elm.appendChild(b);});}
-function render(){tabs(gEl,G.map(function(g){return g[1];}),gi,function(i){gi=i;ri=0;render();});
- tabs(sEl,G[gi][2].map(function(r){return r[1];}),ri,function(i){ri=i;render();});
- var id=G[gi][2][ri][0];chartQueue=[];out.innerHTML=R[id]();chartQueue.forEach(function(c){drawBars.apply(null,c);});}
-render();var rz;window.addEventListener("resize",function(){clearTimeout(rz);rz=setTimeout(render,150);});
+var css=getComputedStyle(document.documentElement);function V(n){return css.getPropertyValue(n).trim();}
+var NS="http://www.w3.org/2000/svg",pid=0;
+function mk(t,a,txt){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e;}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+/* money: values are in juta rupiah */
+function F(x){var a=Math.abs(x),s=x<0?"−":"";
+  if(a>=1000)return s+"Rp "+(a/1000).toLocaleString("id-ID",{maximumFractionDigits:2})+" M";
+  if(a>=1)return s+"Rp "+a.toLocaleString("id-ID",{maximumFractionDigits:2})+" jt";
+  return s+"Rp "+Math.round(a*1000).toLocaleString("id-ID")+" rb";}
+function N(x){return Math.round(x*1e6).toLocaleString("id-ID");}
+var PER=[["sep","Sep 2026",1],["agu","Agu 2026",.97],["q3","Q3 2026",2.93],["y","2026",8.6]],per=0;
+function K(){return PER[per][2];}
+function M(x){return F(x*K());}
+
+/* icons */
+var IC={sum:'<path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/>',day:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',mon:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M8 14h3M13 14h3M8 17h3"/>',yr:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',fam:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 20c0-2.2 1-4 3-4s3 1.8 3 4"/>',bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',det:'<path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/>',flow:'<path d="M3 7h6c4 0 4 10 8 10h4M3 17h6c1.5 0 2.5-1.4 3.3-3M21 7h-4c-1.5 0-2.5 1.4-3.3 3"/>',pnl:'<path d="M5 4h14v16H5zM9 9h6M9 13h6M9 17h3"/>',cf:'<path d="M4 17l5-5 4 3 7-8M15 7h5v5"/>',kas:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M16 12h2M3 10h18"/>',inv:'<path d="M12 3a9 9 0 109 9h-9z"/><path d="M15 3.5A9 9 0 0120.5 9H15z"/>',perf:'<path d="M3 17l6-6 4 4 8-8M3 21h18"/>',bal:'<path d="M12 4v16M5 8h14M5 8l-3 6a3 3 0 006 0zM19 8l-3 6a3 3 0 006 0z"/>',asl:'<path d="M12 21a9 9 0 110-18 9 9 0 010 18zM12 7v5l3 2"/>',tax:'<path d="M6 3h9l4 4v14H6zM9 12l6-4M9.5 8.5h.01M14.5 12.5h.01"/>',coa:'<path d="M4 5h6v6H4zM14 13h6v6h-6zM7 11v5h7M17 13V8h-7"/>'};
+function ico(k){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+IC[k]+'</svg>';}
+
+/* ---------- cover charts (SVG on dark) ---------- */
+function frame(box){var W=Math.max(260,box.clientWidth),H=Math.max(160,box.clientHeight);var svg=mk("svg",{viewBox:"0 0 "+W+" "+H,role:"img"});box.innerHTML="";box.appendChild(svg);return {svg:svg,W:W,H:H,c:W<480};}
+function hatch(svg,cols){var d=mk("defs",{}),ids={};cols.forEach(function(c){var id="h"+(++pid);var p=mk("pattern",{id:id,width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"});p.appendChild(mk("rect",{width:8,height:8,fill:c}));p.appendChild(mk("rect",{width:2,height:8,fill:"rgba(255,255,255,.26)"}));d.appendChild(p);ids[c]="url(#"+id+")";});svg.appendChild(d);return ids;}
+function nice(v){if(v<=0)return 1;var p=Math.pow(10,Math.floor(Math.log10(v))),n=v/p;return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p;}
+function grid(f,y,top,bot,L,R,fmt){if(f.c)return;[bot,(top+bot)/2,top].forEach(function(t){f.svg.appendChild(mk("line",{x1:L,x2:f.W-R,y1:y(t),y2:y(t),style:"stroke:"+V("--cover-line"),"stroke-dasharray":t===0?"0":"3 5"}));f.svg.appendChild(mk("text",{x:L-8,y:y(t)+3.5,"text-anchor":"end"},fmt?fmt(t):Math.round(t)));});}
+function pill(f,cx,y,txt){var w=Math.max(58,txt.length*6.6+18),x=Math.max(0,Math.min(f.W-w,cx-w/2)),g=mk("g",{class:"pill"});g.appendChild(mk("rect",{x:x,y:y-26,width:w,height:22,rx:11,style:"fill:"+V("--on-cover")}));g.appendChild(mk("text",{x:x+w/2,y:y-11,"text-anchor":"middle",style:"fill:"+V("--cover")+";font-family:var(--font);font-size:11px;font-weight:600"},txt));f.svg.appendChild(g);}
+function bars(box,o){var f=frame(box),L=f.c?2:40,R=4,T=36,B=24,ghost="rgba(238,240,232,.16)";
+  var cols=o.series.map(function(s){return s.c;}).concat([ghost]),H=hatch(f.svg,cols);
+  var all=[];o.series.forEach(function(s){all=all.concat(s.d);});var top=nice(Math.max.apply(null,all)),bot=0;
+  var y=function(v){return T+(top-v)/(top-bot)*(f.H-T-B);};grid(f,y,top,bot,L,R,o.axis);
+  var n=o.labels.length,band=(f.W-L-R)/n,ns=o.series.length,bw=Math.min(o.wide?72:34,band*.72/ns),gap=ns>1?4:0;
+  o.labels.forEach(function(lab,i){var on=o.hi==null||i===o.hi,x0=L+band*i+band/2-(bw*ns+gap*(ns-1))/2;
+    o.series.forEach(function(s,j){var v=s.d[i],x=x0+j*(bw+gap);var r=mk("rect",{class:"gb",x:x,y:y(v),width:bw,height:Math.max(3,y(0)-y(v)),rx:Math.min(8,bw/3),fill:on?H[s.c]:H[ghost],style:"animation-delay:"+(i*35)+"ms"});
+      r.appendChild(mk("title",{},lab+": "+(s.n||"")+" "+(o.fmt?o.fmt(v):v)));f.svg.appendChild(r);});
+    if(lab!=="")f.svg.appendChild(mk("text",{x:L+band*i+band/2,y:f.H-6,"text-anchor":"middle",style:on&&o.hi!=null?"fill:"+V("--on-cover")+";font-weight:500":""},lab));});
+  if(o.hi!=null&&o.fmt){var v=Math.max.apply(null,o.series.map(function(s){return s.d[o.hi];}));pill(f,L+band*o.hi+band/2,y(v)-4,o.fmt(o.series[0].d[o.hi]));}}
+function area(box,o){var f=frame(box),L=f.c?2:44,R=f.c?2:12,T=36,B=24;var H=hatch(f.svg,[V("--lime")]);
+  var all=o.a.concat(o.b||[]),top=nice(Math.max.apply(null,all)*1.05),bot=o.floor||0;
+  var y=function(v){return T+(top-v)/(top-bot)*(f.H-T-B);},n=o.labels.length,x=function(i){return L+(f.W-L-R)*(n===1?.5:i/(n-1));};
+  grid(f,y,top,bot,L,R,o.axis);
+  var p=o.a.map(function(v,i){return (i?"L":"M")+x(i)+" "+y(v);}).join(" ");
+  f.svg.appendChild(mk("path",{d:p+" L"+x(n-1)+" "+y(bot)+" L"+x(0)+" "+y(bot)+"Z",fill:H[V("--lime")],opacity:.45,class:"ga"}));
+  if(o.b)f.svg.appendChild(mk("path",{d:o.b.map(function(v,i){return (i?"L":"M")+x(i)+" "+y(v);}).join(" "),fill:"none",style:"stroke:"+V("--on-cover-2"),"stroke-width":1.5,"stroke-dasharray":"5 5"}));
+  f.svg.appendChild(mk("path",{d:p,fill:"none",style:"stroke:"+V("--lime"),"stroke-width":2.5,"stroke-linejoin":"round",class:"gl"}));
+  o.labels.forEach(function(l,i){f.svg.appendChild(mk("text",{x:x(i),y:f.H-6,"text-anchor":i===0&&f.c?"start":i===n-1&&f.c?"end":"middle"},l));
+    var c=mk("circle",{cx:x(i),cy:y(o.a[i]),r:i===n-1?5:3,style:"fill:"+(i===n-1?V("--lime"):V("--cover"))+";stroke:"+V("--lime"),"stroke-width":2});c.appendChild(mk("title",{},l+": "+o.fmt(o.a[i])));f.svg.appendChild(c);});
+  pill(f,x(n-1),y(o.a[n-1])-6,o.fmt(o.a[n-1]));}
+function waterfall(box,o){var f=frame(box),L=f.c?2:44,R=4,T=34,B=24;var lime=V("--lime"),org=V("--orange"),H=hatch(f.svg,[lime,org]);
+  var run=0,pts=o.steps.map(function(s){var a,b;if(s[2]==="t"){a=0;b=s[1];run=s[1];}else{a=run;b=run+s[1];run=b;}return {l:s[0],a:a,b:b,v:s[1],t:s[2],s:s[3]};});
+  var top=nice(Math.max.apply(null,pts.map(function(p){return Math.max(p.a,p.b);}))),bot=0,y=function(v){return T+(top-v)/(top-bot)*(f.H-T-B);};grid(f,y,top,bot,L,R,o.axis);
+  var n=pts.length,band=(f.W-L-R)/n,bw=Math.min(58,band*.62);
+  pts.forEach(function(p,i){var x=L+band*i+band/2-bw/2,y1=y(Math.max(p.a,p.b)),h=Math.max(3,Math.abs(y(p.a)-y(p.b)));
+    var fill=p.t==="t"?V("--on-cover"):p.v>=0?H[lime]:H[org];var r=mk("rect",{class:"gb",x:x,y:y1,width:bw,height:h,rx:7,style:(p.t==="t"?"fill:"+fill+";":"")+"animation-delay:"+(i*60)+"ms"});if(p.t!=="t")r.setAttribute("fill",fill);r.appendChild(mk("title",{},p.l+": "+F(p.v)));f.svg.appendChild(r);
+    if(i<n-1){var nb=p.t==="t"?p.b:p.b;f.svg.appendChild(mk("line",{x1:x+bw,x2:x+band,y1:y(nb),y2:y(nb),style:"stroke:"+V("--on-cover-2"),"stroke-dasharray":"2 3"}));}
+    var tv=(p.t==="t"?"":p.v>=0?"+":"")+(f.c?Math.round(p.v).toLocaleString("id-ID"):F(p.v).replace("Rp ",""));
+    f.svg.appendChild(mk("text",{x:x+bw/2,y:y1-8,"text-anchor":"middle",style:"fill:"+V("--on-cover")+";font-weight:500"},tv));
+    f.svg.appendChild(mk("text",{x:x+bw/2,y:f.H-6,"text-anchor":"middle",style:f.c?"font-size:9.5px":""},f.c?(p.s||p.l):p.l));});}
+function sankey(box,o){var f=frame(box),lw=f.c?92:150,T=8,B=8,gap=f.c?12:14,nw=10;var src=o.src,dst=o.dst,tot=src.reduce(function(s,a){return s+a[1];},0);
+  var avail=f.H-T-B,sc=function(n){return (avail-gap*(n-1))/tot;},ss=sc(src.length),ds=sc(dst.length),s=Math.min(ss,ds);
+  function place(list,xx){var yy=T+(avail-(tot*s+gap*(list.length-1)))/2;return list.map(function(a){var h=a[1]*s,r={l:a[0],v:a[1],c:a[2],s:a[3],x:xx,y:yy,h:h,off:0};yy+=h+gap;return r;});}
+  var L=place(src,lw),R=place(dst,f.W-lw-nw),x1=lw+nw,x2=f.W-lw-nw,mid=(x1+x2)/2;
+  L.forEach(function(a){R.forEach(function(b){var w=a.v*(b.v/tot)*s;if(w<.4)return;var ya=a.y+a.off,yb=b.y+b.off;a.off+=w;b.off+=w;
+    var p=mk("path",{d:"M"+x1+" "+ya+"C"+mid+" "+ya+" "+mid+" "+yb+" "+x2+" "+yb+"L"+x2+" "+(yb+w)+"C"+mid+" "+(yb+w)+" "+mid+" "+(ya+w)+" "+x1+" "+(ya+w)+"Z",style:"fill:"+b.c+";opacity:.34",class:"ga"});p.appendChild(mk("title",{},a.l+" → "+b.l+": "+F(a.v*b.v/tot)));f.svg.appendChild(p);});});
+  function node(n,left){f.svg.appendChild(mk("rect",{x:n.x,y:n.y,width:nw,height:Math.max(2,n.h),rx:3,style:"fill:"+n.c}));
+    var tx=left?n.x-10:n.x+nw+10,an=left?"end":"start",cy=n.y+n.h/2;
+    var lab=f.c&&n.s?n.s:n.l,val=F(n.v*K()).replace("Rp ",""),two=n.h>=28;
+    var t=mk("text",{x:tx,y:two?cy-2:cy+4,"text-anchor":an,style:"fill:"+V("--on-cover")+";font-family:var(--font);font-size:"+(f.c?11:12.5)+"px"},lab);f.svg.appendChild(t);
+    if(two)f.svg.appendChild(mk("text",{x:tx,y:cy+13,"text-anchor":an},val));else if(!f.c){var ts=mk("tspan",{dx:6,style:"fill:"+V("--on-cover-2")+";font-family:var(--mono);font-size:10.5px"},val);t.appendChild(ts);}}
+  L.forEach(function(n){node(n,true);});R.forEach(function(n){node(n,false);});}
+
+/* ---------- html builders ---------- */
+function hrows(items,fmt){var mx=Math.max.apply(null,items.map(function(i){return i[1];}));return '<div class="hrows">'+items.map(function(it,k){return '<div class="hrow"><span>'+esc(it[0])+'</span><span class="t"><i style="width:'+(it[1]/mx*100).toFixed(1)+'%;--c:'+(it[2]||"var(--lime)")+';animation-delay:'+(k*50)+'ms"></i></span><b>'+fmt(it[1])+'</b></div>';}).join("")+'</div>';}
+function led(head,rows,foot,from){from=from==null?1:from;function tr(r,tag){return "<tr>"+r.map(function(c,i){return "<"+tag+(i>=from?' class="r"':'')+">"+c+"</"+tag+">";}).join("")+"</tr>";}
+  return '<div class="tw"><table class="led"><thead>'+tr(head,"th")+'</thead><tbody>'+rows.map(function(r){return r.sub?'<tr class="grp-row"><td colspan="'+head.length+'">'+r.sub+'</td></tr>':'<tr'+(r.ind?' class="ind"':'')+'>'+(r.cells||r).map(function(c,i){return "<td"+(i>=from?' class="r"':'')+">"+c+"</td>";}).join("")+'</tr>';}).join("")+'</tbody>'+(foot?'<tfoot>'+tr(foot,"td")+'</tfoot>':'')+'</table></div>';}
+function list(items){return '<div class="list">'+items.map(function(i){return '<div><span class="dot" style="background:'+i[2]+'"></span><span>'+i[0]+(i[3]?'<small>'+i[3]+'</small>':'')+'</span><span class="r">'+i[1]+'</span></div>';}).join("")+'</div>';}
+function lstrip(items){var t=items.reduce(function(s,i){return s+i[1];},0);return '<div class="lstrip">'+items.map(function(i){return '<i style="flex:'+i[1]+';background:'+i[2]+'" title="'+esc(i[0])+'"></i>';}).join("")+'</div>';}
+function chg(p){return '<span class="chg '+(p>=0?"up":"dn")+'">'+(p>=0?"▲ ":"▼ ")+Math.abs(p).toLocaleString("id-ID")+'%</span>';}
+function card(cls,title,body,cap){return '<section class="card '+cls+'"><div class="head"><div><h2>'+title+'</h2>'+(cap?'<div class="cap">'+cap+'</div>':'')+'</div></div>'+body+'</section>';}
+function sgn(x){return x<0?'<span class="neg">'+F(x)+'</span>':F(x);}
+
+/* ---------- data ---------- */
+var MO=["Apr","Mei","Jun","Jul","Agu","Sep"],IN=[31.2,33.4,34.1,36.8,36.6,38.5],OUT=[15.1,17.2,14.8,16.9,14.9,16.75];
+var SPEND=[["Rumah & KPR",5.5,"var(--lime)"],["Makan",3,"var(--yellow)"],["Zakat & Donasi",2.5,"var(--orange)"],["Pendidikan",2.3,"#8FB7E0"],["Transport",1.8,"#C8A2DE"],["Kesehatan",1.3,"#E6A6A0"],["Lainnya",0.35,"var(--ghost)"]];
+var DAYS=[320,280,410,250,520,0,300,360,390,240,460,610,0,230,330,290,380,350,1800,2500,330,420,0,4500,260,350,0,300,240,330];
+var ACC=[["BCA bersama","Tabungan",71.2,32.5,19.38],["BRI Vallencya","Tabungan",9.1,6,2.62],["Mandiri","Kartu kredit",-2.4,1.2,3.41],["GoPay Hima","E-wallet",.5,1.5,1.15],["Tunai rumah","Kas",1.5,1,1.25]];
+var TX=[["25 Sep","Gaji September","Gaji · BCA",32.5,"in"],["24 Sep","Cicilan KPR ke-26","Rumah & KPR · BCA",-4.5],["22 Sep","Beli BBCA 2 lot","Investasi · BCA",-1.9],["21 Sep","Uang saku Hima","Keluarga · BCA",-.5],["20 Sep","Zakat maal","Zakat & Donasi · BCA",-2.5],["19 Sep","Belanja bulanan","Makan · Mandiri",-1.8],["18 Sep","Dividen BBRI","Investasi · BCA",.64,"in"],["18 Sep","Bensin","Transport · Tunai",-.35]];
+var MEMB=[["Christian","Master",32.5,8.2,41,"var(--lime-soft)","CR"],["Vallencya","Co-Master",6,5.1,27,"#F6E7C9","VA"],["Hima","Anak",0,1.6,9,"#DCE9F7","HM"],["Arka","Anak",0,1.1,6,"#EBDDF3","AR"],["Sopir","Staf",0,.75,3,"var(--card-2)","SP"]];
+var HOLD=[["BBCA","Saham",47.5,42.26],["BBRI","Saham",34.9,32.9],["RD Pasar Uang","Reksa dana",41.2,39.65],["Emas Antam 0,015 kg","Emas",38.8,33.8],["Deposito BCA","Deposito",20,19.14],["BTC","Kripto",4,3.25]];
+
+function spendCard(){var t=16.75;return card("s7","Ke mana uangnya",lstrip(SPEND)+list(SPEND.map(function(s){return [s[0],M(s[1])+' <span style="color:var(--muted)">'+Math.round(s[1]/t*100)+'%</span>',s[2]];})));}
+
+var G=[["Ringkasan",[
+ {id:"rsum",n:"Ringkasan",ic:"sum",per:"r",
+  h:function(){return 'Kamu menabung <em>'+M(21.75)+'</em> bulan ini, 56% dari pemasukan.';},
+  viz:function(b){bars(b,{labels:MO,series:[{d:IN,c:V("--lime"),n:"Pemasukan"},{d:OUT,c:V("--orange"),n:"Pengeluaran"}],hi:5,fmt:function(v){return F(v*K());}});},
+  leg:function(){return [["Pemasukan","var(--lime)",M(38.5)],["Pengeluaran","var(--orange)",M(16.75)],["Kekayaan bersih","var(--on-cover)",F(1256.8)]];},
+  body:function(){return spendCard()+card("s5","Dibanding bulan lalu",list([["Pemasukan",chg(5.1),"var(--lime)",M(38.5)],["Pengeluaran",chg(12.4).replace("up","dn"),"var(--orange)",M(16.75)],["Ditabung",chg(8.7),"var(--good)",M(21.75)],["Kekayaan bersih",chg(2.3),"var(--ink)",F(1256.8)]]));},
+  csv:function(){return [["Pos","Nilai"],["Pemasukan",N(38.5*K())],["Pengeluaran",N(16.75*K())],["Ditabung",N(21.75*K())]].concat(SPEND.map(function(s){return ["Pengeluaran: "+s[0],N(s[1]*K())];}));}},
+ {id:"rharian",n:"Harian",ic:"day",per:"m",
+  h:function(){return 'Rata-rata <em>'+M(.5583)+'</em> keluar per hari. Paling besar tanggal 24.';},
+  note:"Tanggal 24: cicilan KPR ke-26.",auto:true,
+  viz:function(b){var mx=Math.max.apply(null,DAYS),h='<div class="cal">'+["Sen","Sel","Rab","Kam","Jum","Sab","Min"].map(function(d){return '<span class="dw">'+d+'</span>';}).join("")+'<span class="d x"></span>';
+    DAYS.forEach(function(v,i){var lv=v===0?"":v<400?" l1":v<1000?" l2":" l3";h+='<span class="d'+lv+(v===mx?" pk":"")+'" title="'+(i+1)+' Sep: '+(v?F(v/1000*K()):"tanpa belanja")+'"><span>'+(i+1)+'</span><b>'+(v?F(v/1000*K()).replace("Rp ",""):"–")+'</b></span>';});b.innerHTML=h+'</div>';},
+  leg:function(){return [["Tanpa belanja","var(--cover-2)","4 hari"],["< Rp 400 rb","rgba(169,216,76,.22)",""],["< Rp 1 jt","rgba(169,216,76,.45)",""],["≥ Rp 1 jt","var(--lime)",""]];},
+  body:function(){var top=DAYS.map(function(v,i){return [i+1,v];}).sort(function(a,b){return b[1]-a[1];}).slice(0,5);var why={24:"Cicilan KPR",20:"Zakat maal",19:"Belanja bulanan",12:"Makan keluarga",5:"Kebutuhan rumah"};
+    return card("s7","Hari paling besar",list(top.map(function(t){return [t[0]+" Sep",M(t[1]/1000),"var(--orange)",why[t[0]]||""];})))+card("s5","Pola mingguan",'<div class="hrows" style="margin-top:14px">'+[["Sen",1.4],["Sel",1.02],["Rab",5.53],["Kam",4.41],["Jum",1.99],["Sab",1.36],["Min",1.04]].map(function(d){return '<div class="hrow" style="grid-template-columns:40px 1fr auto"><span>'+d[0]+'</span><span class="t" style="background:var(--ghost)"><i style="width:'+(d[1]/5.53*100)+'%"></i></span><b class="num">'+M(d[1])+'</b></div>';}).join("")+'</div>');},
+  csv:function(){return [["Tanggal","Pengeluaran"]].concat(DAYS.map(function(v,i){return [(i+1)+" Sep 2026",N(v/1000*K())];}));}},
+ {id:"rbulanan",n:"Bulanan",ic:"mon",per:"r",
+  h:function(){return 'September jadi bulan dengan tabungan <em>terbesar</em> dalam 6 bulan.';},
+  viz:function(b){bars(b,{labels:MO,series:[{d:IN.map(function(v,i){return +(v-OUT[i]).toFixed(2);}),c:V("--lime"),n:"Ditabung"}],hi:5,wide:true,fmt:function(v){return F(v*K());}});},
+  leg:function(){return [["Ditabung, 6 bulan","var(--lime)",M(114.95)],["Rata-rata per bulan","var(--on-cover)",M(19.16)]];},
+  body:function(){return card("","Perbandingan per bulan",led(["Bulan","Pemasukan","Pengeluaran","Ditabung","Rasio tabungan"],MO.map(function(m,i){var s=IN[i]-OUT[i],r=Math.round(s/IN[i]*100);return [m+" 2026",M(IN[i]),M(OUT[i]),M(s),'<span class="mini"><i style="width:'+r+'%"></i></span>'+r+'%'];}),["Total",M(210.6),M(95.65),M(114.95),"55%"]));},
+  csv:function(){return [["Bulan","Pemasukan","Pengeluaran","Ditabung"]].concat(MO.map(function(m,i){return [m+" 2026",N(IN[i]*K()),N(OUT[i]*K()),N((IN[i]-OUT[i])*K())];}));}},
+ {id:"rtahunan",n:"Tahunan",ic:"yr",per:"y",
+  h:function(){return 'Sampai September, kamu sudah menabung <em>'+F(156.9)+'</em>.';},
+  viz:function(b){area(b,{labels:["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep"],a:[14,27.3,42.1,58.2,74.4,93.7,113.6,135.3,156.9],fmt:F,axis:function(t){return Math.round(t)+" jt";}});},
+  leg:function(){return [["Pemasukan 2026","var(--lime)",F(298.1)],["Pengeluaran 2026","var(--orange)",F(141.2)],["Rasio tabungan","var(--on-cover)","53%"]];},
+  body:function(){return card("s7","Per kuartal",led(["Kuartal","Pemasukan","Pengeluaran","Ditabung"],[["Q1",F(87.6),F(45.5),F(42.1)],["Q2",F(104.3),F(47.1),F(51.6)],["Q3",F(111.9),F(48.55),F(63.2)]],["Total",F(298.1),F(141.2),F(156.9)]))+
+    card("s5","Target tabungan 2026",'<div class="goal"><div class="gb"><i style="width:78%"></i></div><p><span>Terkumpul</span><b>'+F(156.9)+'</b></p><p><span>Target</span><b>'+F(200)+'</b></p><p><span>Kurang</span><b>'+F(43.1)+'</b></p></div>',"78% tercapai, 3 bulan lagi");},
+  csv:function(){return [["Kuartal","Pemasukan","Pengeluaran","Ditabung"],["Q1",N(87.6),N(45.5),N(42.1)],["Q2",N(104.3),N(47.1),N(51.6)],["Q3",N(111.9),N(48.55),N(63.2)]];}},
+ {id:"rfamily",n:"Group Family",ic:"fam",per:"r",auto:true,
+  h:function(){return 'Christian mencatat <em>49%</em> dari pengeluaran keluarga bulan ini.';},
+  viz:function(b){b.innerHTML=hrows(MEMB.map(function(m){return [m[0],m[3]*K(),"var(--orange)"];}),F);},
+  leg:function(){return [["Pengeluaran keluarga","var(--orange)",M(16.75)],["Anggota aktif","var(--on-cover)","5 orang"]];},
+  body:function(){return card("","Rincian per anggota",led(["Anggota","Peran","Pemasukan","Pengeluaran","Transaksi"],MEMB.map(function(m){return ['<span class="avatar" style="display:inline-grid;width:28px;height:28px;font-size:11px;margin-right:10px;vertical-align:middle;background:'+m[5]+'">'+m[6]+'</span>'+m[0],'<span style="color:var(--muted)">'+m[1]+'</span>',m[2]?M(m[2]):"–",M(m[3]),m[4]];}),["Total","",M(38.5),M(16.75),"86"],2));},
+  csv:function(){return [["Anggota","Peran","Pemasukan","Pengeluaran","Transaksi"]].concat(MEMB.map(function(m){return [m[0],m[1],N(m[2]*K()),N(m[3]*K()),m[4]];}));}}
+]],["Arus Kas",[
+ {id:"rbank",n:"Bank",ic:"bank",per:"m",
+  h:function(){return 'Saldo semua rekening naik <em>'+M(14.39)+'</em> bulan ini.';},
+  viz:function(b){bars(b,{labels:ACC.map(function(a){return a[0].split(" ")[0];}),series:[{d:ACC.map(function(a){return a[3];}),c:V("--lime"),n:"Masuk"},{d:ACC.map(function(a){return a[4];}),c:V("--orange"),n:"Keluar"}],hi:0,fmt:function(v){return F(v*K());}});},
+  leg:function(){return [["Masuk","var(--lime)",M(42.2)],["Keluar","var(--orange)",M(27.81)],["Saldo akhir","var(--on-cover)",F(94.29)]];},
+  body:function(){return card("","Saldo per rekening",led(["Rekening","Jenis","Saldo awal","Masuk","Keluar","Saldo akhir"],ACC.map(function(a){return ["<b>"+a[0]+"</b>",'<span style="color:var(--muted)">'+a[1]+'</span>',sgn(a[2]),'<span class="pos">+'+M(a[3]).replace("Rp ","")+'</span>',"−"+M(a[4]).replace("Rp ",""),sgn(a[2]+a[3]-a[4])];}),["Total","",F(79.9),M(42.2),M(27.81),F(94.29)],2));},
+  csv:function(){return [["Rekening","Jenis","Saldo awal","Masuk","Keluar","Saldo akhir"]].concat(ACC.map(function(a){return [a[0],a[1],N(a[2]),N(a[3]*K()),N(a[4]*K()),N(a[2]+a[3]-a[4])];}));}},
+ {id:"rdetail",n:"Detail",ic:"det",per:"m",
+  h:function(){return '<em>86 transaksi</em> tercatat bulan ini, 12 di antaranya pemasukan.';},
+  viz:function(b){bars(b,{labels:["Mg 1","Mg 2","Mg 3","Mg 4"],series:[{d:[19,22,27,18],c:V("--lime"),n:"Transaksi"}],hi:2,wide:true,fmt:function(v){return v+" transaksi";}});},
+  leg:function(){return [["Pemasukan","var(--lime)","12"],["Pengeluaran","var(--orange)","71"],["Transfer","var(--on-cover)","3"]];},
+  body:function(){return card("","Semua transaksi",'<div class="filt" role="group" aria-label="Filter" id="txf" style="margin-top:14px"><button type="button" aria-pressed="true" data-f="all">Semua</button><button type="button" aria-pressed="false" data-f="in">Masuk</button><button type="button" aria-pressed="false" data-f="out">Keluar</button></div><div id="txl"></div>');},
+  after:function(){var f="all";function draw(){var h="",last="";TX.forEach(function(t){if(f==="in"&&!t[4]||f==="out"&&t[4])return;if(t[0]!==last){h+='<div class="day">'+t[0]+' 2026</div>';last=t[0];}
+      h+='<div class="tx"><span class="ic'+(t[4]?" in":"")+'"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="'+(t[4]?"M12 19V5M6 11l6-6 6 6":"M12 5v14M6 13l6 6 6-6")+'"/></svg></span><span><b>'+t[1]+'</b><small>'+t[2]+'</small></span><span class="r '+(t[4]?"pos":"")+'">'+(t[3]>0?"+":"−")+N(Math.abs(t[3])*K())+'</span></div>';});
+      document.getElementById("txl").innerHTML=h;}
+    document.getElementById("txf").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;f=b.dataset.f;[].forEach.call(this.children,function(x){x.setAttribute("aria-pressed",x===b?"true":"false");});draw();});draw();},
+  csv:function(){return [["Tanggal","Keterangan","Kategori","Nominal"]].concat(TX.map(function(t){return [t[0]+" 2026",t[1],t[2],(t[3]<0?"-":"")+N(Math.abs(t[3])*K())];}));}},
+ {id:"raliran",n:"Aliran Dana",ic:"flow",per:"r",tall:true,
+  h:function(){return 'Dari '+M(39.14)+' yang masuk, <em>'+M(19.29)+'</em> tetap tinggal.';},
+  viz:function(b){sankey(b,{src:[["Gaji",32.5,V("--lime")],["Usaha Vallencya",6,V("--yellow"),"Usaha"],["Dividen",.64,"#8FB7E0"]],dst:[["Ditabung",19.29,V("--lime")],["Kebutuhan rumah",6.35,V("--yellow"),"Rumah tangga"],["Rumah & KPR",5.5,V("--orange"),"KPR"],["Pendidikan & kesehatan",3.6,"#8FB7E0","Pend. & kes."],["Zakat & donasi",2.5,"#C8A2DE","Zakat"],["Investasi",1.9,"#E6A6A0"]]});},
+  leg:function(){return [["Masuk","var(--lime)",M(39.14)],["Keluar","var(--orange)",M(19.85)],["Tinggal","var(--on-cover)","49%"]];},
+  body:function(){return card("s6","Sumber dana",list([["Gaji",M(32.5),"var(--lime)","83%"],["Usaha Vallencya",M(6),"var(--yellow)","15%"],["Dividen",M(.64),"#8FB7E0","2%"]]))+card("s6","Tujuan dana",list([["Kebutuhan rumah",M(6.35),"var(--yellow)"],["Rumah & KPR",M(5.5),"var(--orange)"],["Pendidikan & kesehatan",M(3.6),"#8FB7E0"],["Zakat & donasi",M(2.5),"#C8A2DE"],["Investasi",M(1.9),"#E6A6A0"]]));},
+  csv:function(){return [["Arah","Pos","Nominal"],["Masuk","Gaji",N(32.5*K())],["Masuk","Usaha Vallencya",N(6*K())],["Masuk","Dividen",N(.64*K())],["Keluar","Kebutuhan rumah",N(6.35*K())],["Keluar","Rumah & KPR",N(5.5*K())],["Keluar","Pendidikan & kesehatan",N(3.6*K())],["Keluar","Zakat & donasi",N(2.5*K())],["Keluar","Investasi",N(1.9*K())]];}},
+ {id:"rpnl",n:"PNL",ic:"pnl",per:"r",
+  h:function(){return 'Surplus <em>'+M(21.19)+'</em>. Beban terbesar masih kebutuhan rumah.';},
+  viz:function(b){waterfall(b,{steps:[["Gaji & usaha",38.5*K(),"t","Gaji"],["Investasi",.64*K(),null,"Invest."],["Rumah & KPR",-5.5*K(),null,"KPR"],["Rumah tangga",-6.35*K(),null,"RT"],["Pend. & kes.",-3.6*K(),null,"Pend."],["Zakat",-2.5*K()],["Surplus",21.19*K(),"t"]],axis:function(t){return Math.round(t)+" jt";}});},
+  leg:function(){return [["Pendapatan","var(--lime)",M(39.14)],["Beban","var(--orange)",M(17.95)],["Surplus","var(--on-cover)",M(21.19)]];},
+  body:function(){return card("","Laba rugi",led(["Pos","Nominal"],[{sub:"Pendapatan"},{ind:1,cells:["Gaji dan usaha",M(38.5)]},{ind:1,cells:["Hasil investasi",M(.64)]},{sub:"Beban"},{ind:1,cells:["Kebutuhan rumah tangga",sgn(-6.35*K())]},{ind:1,cells:["Rumah & KPR",sgn(-5.5*K())]},{ind:1,cells:["Pendidikan & kesehatan",sgn(-3.6*K())]},{ind:1,cells:["Zakat & donasi",sgn(-2.5*K())]}],["Surplus",M(21.19)]));},
+  csv:function(){return [["Pos","Nominal"],["Gaji dan usaha",N(38.5*K())],["Hasil investasi",N(.64*K())],["Kebutuhan rumah tangga","-"+N(6.35*K())],["Rumah & KPR","-"+N(5.5*K())],["Pendidikan & kesehatan","-"+N(3.6*K())],["Zakat & donasi","-"+N(2.5*K())],["Surplus",N(21.19*K())]];}},
+ {id:"rcashflow",n:"Cashflow",ic:"cf",per:"r",
+  h:function(){return 'Kas bersih bertambah <em>'+M(16.7)+'</em>. Operasional masih jadi mesinnya.';},
+  viz:function(b){waterfall(b,{steps:[["Kas awal",79.9,"t","Awal"],["Operasional",23.1*K(),null,"Operasi"],["Investasi",-1.9*K(),null,"Invest."],["Pendanaan",-4.5*K(),null,"Dana"],["Kas akhir",79.9+16.7*K(),"t","Akhir"]],axis:function(t){return Math.round(t)+" jt";}});},
+  leg:function(){return [["Operasional","var(--lime)",M(23.1)],["Investasi","var(--orange)",sgn(-1.9*K())],["Pendanaan","var(--orange)",sgn(-4.5*K())]];},
+  body:function(){var o=[16.1,16.2,19.3,19.9,21.7,23.1],i=[-2,-1.5,-3,-1,-2.2,-1.9];return card("","Cashflow 6 bulan",led(["Bulan","Operasional","Investasi","Pendanaan","Bersih"],MO.map(function(m,k){return [m+" 2026",F(o[k]),sgn(i[k]),sgn(-4.5),F(o[k]+i[k]-4.5)];})));},
+  csv:function(){return [["Aktivitas","Nominal"],["Operasional",N(23.1*K())],["Investasi","-"+N(1.9*K())],["Pendanaan","-"+N(4.5*K())]];}},
+ {id:"rkas",n:"Arus Kas",ic:"kas",per:"m",
+  h:function(){return 'Uang tunai dan e-wallet tinggal <em>'+F(2.1)+'</em>.';},
+  viz:function(b){area(b,{labels:["1 Sep","8 Sep","15 Sep","22 Sep","30 Sep"],a:[2,1.62,2.35,1.48,2.1],fmt:F,axis:function(t){return t.toLocaleString("id-ID",{maximumFractionDigits:1})+" jt";}});},
+  leg:function(){return [["Masuk","var(--lime)",M(2.5)],["Keluar","var(--orange)",M(2.4)],["Saldo akhir","var(--on-cover)",F(2.1)]];},
+  body:function(){return card("","Kas dan setara kas",led(["Akun kas","Saldo awal","Masuk","Keluar","Saldo akhir"],[["<b>Tunai rumah</b>",F(1.5),M(1),M(1.25),F(1.25)],["<b>GoPay Hima</b>",F(.5),M(1.5),M(1.15),F(.85)]],["Total",F(2),M(2.5),M(2.4),F(2.1)]));},
+  csv:function(){return [["Akun kas","Saldo awal","Masuk","Keluar","Saldo akhir"],["Tunai rumah",N(1.5),N(1*K()),N(1.25*K()),N(1.25)],["GoPay Hima",N(.5),N(1.5*K()),N(1.15*K()),N(.85)]];}}
+]],["Kekayaan",[
+ {id:"rinv",n:"Investasi",ic:"inv",per:"s",auto:true,
+  h:function(){return 'Portofolio <em>'+F(186.4)+'</em>, untung '+F(15.4)+' dari modal.';},
+  viz:function(b){var A=[["Saham",82.4,"var(--lime)"],["Reksa dana",41.2,"var(--yellow)"],["Emas",38.8,"#E9C77B"],["Deposito",20,"#8FB7E0"],["Kripto",4,"#C8A2DE"]];
+    b.innerHTML='<div class="strip">'+A.map(function(a,i){return '<i style="flex:'+a[1]+';background:'+a[2]+';color:var(--lime-ink);animation-delay:'+(i*60)+'ms" title="'+a[0]+'">'+Math.round(a[1]/186.4*100)+'%</i>';}).join("")+'</div><div class="c-leg" style="border:0;padding-top:4px">'+A.map(function(a){return '<span><i style="background:'+a[2]+'"></i>'+a[0]+' <b>'+F(a[1])+'</b></span>';}).join("")+'</div>';},
+  leg:function(){return [["Modal","var(--on-cover-2)",F(171)],["Untung","var(--lime)","+"+F(15.4).replace("Rp ","Rp ")],["Dividen 2026","var(--yellow)",F(2.1)]];},
+  body:function(){return card("","Kepemilikan",led(["Aset","Jenis","Modal","Nilai kini","Hasil"],HOLD.map(function(h){var p=((h[2]-h[3])/h[3]*100);return ["<b>"+h[0]+"</b>",'<span style="color:var(--muted)">'+h[1]+'</span>',F(h[3]),F(h[2]),chg(+p.toFixed(1))];}),["Total","",F(171),F(186.4),chg(9)],2)+'<div class="est">Harga emas dari emasantam.id, per kg. Harga lain dari feed pasar terakhir.</div>');},
+  csv:function(){return [["Aset","Jenis","Modal","Nilai kini"]].concat(HOLD.map(function(h){return [h[0],h[1],N(h[3]),N(h[2])];}));}},
+ {id:"rperf",n:"Performa",ic:"perf",per:"s",
+  h:function(){return 'Nilai portofolio naik <em>16,4%</em> dalam 6 bulan.';},
+  viz:function(b){area(b,{labels:MO,a:[160.2,163.9,169.4,172.8,180.6,186.4],b:[155,158,162,164.5,168,171],floor:140,fmt:F,axis:function(t){return Math.round(t)+" jt";}});},
+  leg:function(){return [["Nilai portofolio","var(--lime)",F(186.4)],["Modal disetor","var(--on-cover-2)",F(171)]];},
+  body:function(){var v=[160.2,163.9,169.4,172.8,180.6,186.4];return card("","Hasil per bulan",led(["Bulan","Nilai akhir","Perubahan","Hasil"],MO.map(function(m,i){var d=i?v[i]-v[i-1]:0,p=i?d/v[i-1]*100:0;return [m+" 2026",F(v[i]),i?(d>=0?"+":"")+F(d).replace("Rp ",""):"–",i?chg(+p.toFixed(1)):"–"];})));},
+  csv:function(){return [["Bulan","Nilai"],["Apr",N(160.2)],["Mei",N(163.9)],["Jun",N(169.4)],["Jul",N(172.8)],["Agu",N(180.6)],["Sep",N(186.4)]];}}
+]],["Kewajiban",[
+ {id:"rbalance",n:"Balance Sheet",ic:"bal",per:"s",auto:true,
+  h:function(){return 'Aset '+F(1345.3)+', <em>93%</em> di antaranya milik keluarga sendiri.';},
+  viz:function(b){function seg(l,v,c,ink){return '<div class="seg-b" style="flex:'+v+';background:'+c+';color:'+(ink||"var(--lime-ink)")+'"><span>'+l+'</span><span class="num">'+F(v).replace("Rp ","")+'</span></div>';}
+    b.innerHTML='<div class="bal" style="height:280px"><div class="col"><b>Aset</b>'+seg("Properti",850,"var(--lime)")+seg("Kendaraan",210,"#C4E07F")+seg("Investasi",186.4,"var(--yellow)")+seg("Kas & bank",98.9,"#E9C77B")+'</div><div class="col"><b>Liabilitas & kekayaan bersih</b>'+seg("Kekayaan bersih",1256.8,"var(--on-cover)","var(--cover)")+seg("Liabilitas",88.5,"var(--orange)")+'</div></div>';},
+  leg:function(){return [["Total aset","var(--lime)",F(1345.3)],["Liabilitas","var(--orange)",F(88.5)],["Kekayaan bersih","var(--on-cover)",F(1256.8)]];},
+  body:function(){return card("s6","Aset",led(["Pos","Nilai"],[["Kas & bank",F(98.9)],["Investasi",F(186.4)],["Properti",F(850)],["Kendaraan",F(210)]],["Total aset",F(1345.3)]))+card("s6","Liabilitas & kekayaan bersih",led(["Pos","Nilai"],[["KPR",F(80.1)],["Kartu kredit",F(4.6)],["Pinjaman lain",F(3.8)],["Kekayaan bersih",F(1256.8)]],["Total",F(1345.3)]));},
+  csv:function(){return [["Pos","Nilai"],["Kas & bank",N(98.9)],["Investasi",N(186.4)],["Properti",N(850)],["Kendaraan",N(210)],["KPR",N(80.1)],["Kartu kredit",N(4.6)],["Pinjaman lain",N(3.8)],["Kekayaan bersih",N(1256.8)]];}},
+ {id:"rasl",n:"Aset & Liabilitas",ic:"asl",per:"s",auto:true,
+  h:function(){return 'Rasio utangmu <em>6,6%</em>, jauh di bawah batas aman 35%.';},
+  viz:function(b){var p=6.6/70*100;b.innerHTML='<div class="dgauge"><div class="needle" style="left:'+p+'%"><span>6,6%</span><i></i></div><div class="gbar"></div><div style="position:relative;height:18px;margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--on-cover-2)">'+[[0,"0%"],[35,"35% aman"],[50,"50%"],[70,"70%"]].map(function(t,i,a){return '<span style="position:absolute;left:'+(t[0]/70*100)+'%;transform:translateX('+(i===0?"0":i===a.length-1?"-100%":"-50%")+')">'+t[1]+'</span>';}).join("")+'</div></div>';},
+  leg:function(){return [["Aman","rgba(169,216,76,.55)","< 35%"],["Waspada","rgba(242,162,71,.5)","35–50%"],["Bahaya","rgba(194,70,43,.55)","> 50%"]];},
+  body:function(){var A=[["Properti",850,"var(--lime)"],["Kendaraan",210,"#C4E07F"],["Investasi",186.4,"var(--yellow)"],["Kas & bank",98.9,"#E9C77B"]],L=[["KPR",80.1,"var(--orange)"],["Kartu kredit",4.6,"#E6A6A0"],["Pinjaman lain",3.8,"#C8A2DE"]];
+    return card("s6","Komposisi aset",lstrip(A)+list(A.map(function(a){return [a[0],F(a[1]),a[2]];})),F(1345.3))+card("s6","Komposisi liabilitas",lstrip(L)+list(L.map(function(a){return [a[0],F(a[1]),a[2]];})),F(88.5));},
+  csv:function(){return [["Jenis","Pos","Nilai"],["Aset","Properti",N(850)],["Aset","Kendaraan",N(210)],["Aset","Investasi",N(186.4)],["Aset","Kas & bank",N(98.9)],["Liabilitas","KPR",N(80.1)],["Liabilitas","Kartu kredit",N(4.6)],["Liabilitas","Pinjaman lain",N(3.8)]];}}
+]],["Pajak & Lainnya",[
+ {id:"rpajak",n:"Pajak",ic:"tax",per:"y",
+  h:function(){return 'Perkiraan kurang bayar PPh <em>'+F(1.3)+'</em> untuk 2026.';},
+  note:"Perkiraan. Angka final mengikuti SPT tahunan.",
+  viz:function(b){waterfall(b,{steps:[["Bruto",298.1,"t"],["Zakat",-3.5],["PTKP K/2",-67.5],["PKP",227.1,"t"]],axis:function(t){return Math.round(t)+" jt";}});},
+  leg:function(){return [["PPh terutang","var(--on-cover)",F(18.2)],["Sudah dipotong","var(--lime)",F(16.9)],["Kurang bayar","var(--orange)",F(1.3)]];},
+  body:function(){return card("s7","Hitungan PPh",led(["Pos","Nominal"],[["Penghasilan bruto",F(298.1)],["Pengurang zakat",sgn(-3.5)],["PTKP K/2",sgn(-67.5)],["Penghasilan kena pajak",F(227.1)],{sub:"Pajak"},{ind:1,cells:["PPh terutang",F(18.2)]},{ind:1,cells:["Dipotong pemberi kerja (PPh 21)",sgn(-16.9)]}],["Kurang bayar",F(1.3)]),"Perkiraan, tahun pajak 2026")+
+    card("s5","Batas waktu",list([["SPT Tahunan OP","31 Mar 2027","var(--orange)","Lapor dan setor kurang bayar"],["Bukti potong 1721-A1","Jan 2027","var(--lime)","Dari pemberi kerja"]]));},
+  csv:function(){return [["Pos","Nominal"],["Penghasilan bruto",N(298.1)],["Pengurang zakat","-"+N(3.5)],["PTKP K/2","-"+N(67.5)],["PKP",N(227.1)],["PPh terutang",N(18.2)],["Dipotong","-"+N(16.9)],["Kurang bayar",N(1.3)]];}},
+ {id:"rcoa",n:"Ringkasan COA",ic:"coa",per:"r",auto:true,
+  h:function(){return '<em>5 akun induk</em> aktif, debit dan kredit seimbang.';},
+  viz:function(b){b.innerHTML=hrows([["1 Aset lancar",94.29,"var(--lime)"],["1 Investasi",186.4,"var(--yellow)"],["2 Utang",88.5,"var(--orange)"],["4 Pendapatan",39.14*K(),"#8FB7E0"],["5 Beban",17.95*K(),"#E6A6A0"]],F);},
+  leg:function(){return [["Debit","var(--lime)",M(62.05)],["Kredit","var(--orange)",M(62.05)],["Selisih","var(--on-cover)","Rp 0"]];},
+  body:function(){var T=[["1-100","Kas & bank",F(94.29),[["1-101","BCA bersama",F(84.32)],["1-102","BRI Vallencya",F(12.48)],["1-103","Tunai & e-wallet",F(2.1)]]],["1-200","Investasi",F(186.4),[["1-201","Saham",F(82.4)],["1-202","Reksa dana",F(41.2)],["1-203","Emas",F(38.8)],["1-204","Deposito & kripto",F(24)]]],["2-100","Utang",F(88.5),[["2-101","KPR",F(80.1)],["2-102","Kartu kredit",F(4.6)],["2-103","Pinjaman lain",F(3.8)]]],["4-100","Pendapatan",M(39.14),[["4-101","Gaji & usaha",M(38.5)],["4-102","Hasil investasi",M(.64)]]],["5-100","Beban",M(17.95),[["5-101","Rumah tangga",M(6.35)],["5-102","Rumah & KPR",M(5.5)],["5-103","Pendidikan & kesehatan",M(3.6)],["5-104","Zakat & donasi",M(2.5)]]]];
+    var chev='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>';
+    return card("","Saldo per akun",'<div style="margin-top:8px">'+T.map(function(t,i){return '<details class="coa"'+(i===0?" open":"")+'><summary class="coa-row">'+chev+'<span class="code">'+t[0]+'</span><b>'+t[1]+'</b><span class="r">'+t[2]+'</span></summary><div class="kid">'+t[3].map(function(k){return '<div class="coa-row"><span class="code">'+k[0]+'</span><span>'+k[1]+'</span><span class="r">'+k[2]+'</span></div>';}).join("")+'</div></details>';}).join("")+'</div>');},
+  csv:function(){return [["Kode","Akun","Saldo"],["1-100","Kas & bank",N(94.29)],["1-200","Investasi",N(186.4)],["2-100","Utang",N(88.5)],["4-100","Pendapatan",N(39.14*K())],["5-100","Beban",N(17.95*K())]];}}
+]]];
+
+/* ---------- index + stage ---------- */
+var ALL=[],cur;G.forEach(function(g){g[1].forEach(function(r){r.g=g[0];ALL.push(r);});});
+function idxHTML(q){q=(q||"").toLowerCase();var h="";G.forEach(function(g){var rs=g[1].filter(function(r){return !q||(r.n+" "+g[0]).toLowerCase().indexOf(q)>=0;});if(!rs.length)return;
+  h+='<div class="grp"><h3>'+g[0]+'</h3>'+rs.map(function(r){return '<button type="button" class="rep" data-id="'+r.id+'"'+(cur&&cur.id===r.id?' aria-current="true"':'')+'><i>'+ico(r.ic)+'</i>'+r.n+'</button>';}).join("")+'</div>';});
+  return h||'<div class="idx-empty">Tidak ada laporan dengan nama itu.</div>';}
+var idx=document.getElementById("idxList"),plist=document.getElementById("pickList"),stage=document.getElementById("stage"),dlg=document.getElementById("pickDlg");
+function drawIdx(){idx.innerHTML=idxHTML(document.getElementById("findRep").value);plist.innerHTML=idxHTML("");}
+function perLabel(r){return r.per==="s"?"Per 30 Sep 2026":r.per==="y"?"Tahun 2026":PER[per][1];}
+function segHTML(r){if(r.per==="s"||r.per==="y")return "";var opts=r.per==="m"?PER.slice(0,2):PER;if(r.per==="m"&&per>1)per=0;
+  return '<div class="pseg" role="group" aria-label="Periode">'+opts.map(function(p,i){return '<button type="button" data-p="'+i+'" aria-pressed="'+(i===per)+'">'+p[1]+'</button>';}).join("")+'</div>';}
+var dl='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 4v11m-4-4l4 4 4-4M5 20h14"/></svg>';
+function show(id,focus){cur=ALL.filter(function(r){return r.id===id;})[0]||ALL[0];
+  var r=cur,leg=r.leg();
+  stage.innerHTML='<section class="cover stage-in" aria-labelledby="rh"><div class="c-top"><div class="crumb">'+r.g+' <span aria-hidden="true">/</span> <b>'+r.n+'</b> <span aria-hidden="true">·</span> '+perLabel(r)+'</div><div class="c-acts">'+segHTML(r)+'<button class="cbtn" type="button" id="csvBtn">'+dl+'CSV</button><button class="cbtn lit" type="button" id="pdfBtn">'+dl+'Cetak PDF</button></div></div>'+
+    '<h1 class="headline" id="rh" tabindex="-1">'+r.h()+'</h1>'+(r.note?'<p class="c-note">'+r.note+'</p>':'')+
+    '<div class="c-viz'+(r.auto?" auto":"")+(r.tall?" tall":"")+'" id="viz"></div><div class="c-leg">'+leg.map(function(l){return '<span><i style="background:'+l[1]+'"></i>'+l[0]+(l[2]?' <b>'+l[2]+'</b>':'')+'</span>';}).join("")+'</div></section>'+
+    '<div class="rbody stage-in" style="animation-delay:80ms">'+r.body()+'</div>';
+  r.viz(document.getElementById("viz"));if(r.after)r.after();
+  document.getElementById("pickGrp").textContent=r.g;document.getElementById("pickName").textContent=r.n;
+  drawIdx();try{history.replaceState(null,"","#"+r.id);}catch(e){}
+  if(focus)document.getElementById("rh").focus({preventScroll:true});}
+stage.addEventListener("click",function(e){var p=e.target.closest("[data-p]");if(p){per=+p.dataset.p;show(cur.id);return;}
+  if(e.target.closest("#pdfBtn")){window.print();return;}
+  if(e.target.closest("#csvBtn")){var rows=cur.csv(),txt="﻿"+rows.map(function(r){return r.map(function(c){c=String(c);return /[",;\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(";");}).join("\n");
+    var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"text/csv;charset=utf-8"}));a.download="wealthme-"+cur.id+"-"+(cur.per==="s"?"per-30-sep-2026":cur.per==="y"?"2026":PER[per][0]+"-2026")+".csv";document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},500);}});
+function pick(e){var b=e.target.closest(".rep");if(!b)return;show(b.dataset.id,true);if(dlg.open)dlg.close();if(window.innerWidth<=900)window.scrollTo({top:0,behavior:"smooth"});}
+idx.addEventListener("click",pick);plist.addEventListener("click",pick);
+document.getElementById("findRep").addEventListener("input",drawIdx);
+document.getElementById("pickBtn").addEventListener("click",function(){dlg.showModal();var a=plist.querySelector('[aria-current="true"]');if(a)a.focus();});
+document.getElementById("pickClose").addEventListener("click",function(){dlg.close();});
+dlg.addEventListener("click",function(e){if(e.target===dlg)dlg.close();});
+var w0=stage.clientWidth,rz;new ResizeObserver(function(){clearTimeout(rz);rz=setTimeout(function(){if(Math.abs(stage.clientWidth-w0)>2){w0=stage.clientWidth;var v=document.getElementById("viz");if(v&&!cur.auto)cur.viz(v);}},120);}).observe(stage);
+window.addEventListener("hashchange",function(){var h=location.hash.slice(1);if(h&&(!cur||h!==cur.id))show(h);});
+show((location.hash||"").slice(1)||"rsum");
 })();
 </script>
