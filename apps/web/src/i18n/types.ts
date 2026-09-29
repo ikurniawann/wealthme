@@ -467,6 +467,9 @@ export type I18nDictionary = {
     noTransactions: string;
     noGoals: string;
     addGoalCta: string;
+    goalRemainingPrefix: string;
+    goalRemainingSuffix: string;
+    goalAchieved: string;
     aiInsightTitle: string;
     aiInsightBody: string;
     aiInsightCta: string;

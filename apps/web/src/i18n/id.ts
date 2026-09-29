@@ -96,6 +96,11 @@ export const id = {
     noTransactions: "Belum ada transaksi",
     noGoals: "Belum ada tujuan keuangan",
     addGoalCta: "Tambah Tujuan",
+    // Hardening batch G5 (Goal-gradient) — "how far to done" verbal framing
+    // next to the existing %/Rp progress bar.
+    goalRemainingPrefix: "Rp ",
+    goalRemainingSuffix: " lagi",
+    goalAchieved: "Tercapai",
     aiInsightTitle: "Tingkatkan kesehatan keuanganmu!",
     aiInsightBody:
       "Isi profil risiko untuk mendapatkan rekomendasi investasi yang sesuai tujuanmu.",

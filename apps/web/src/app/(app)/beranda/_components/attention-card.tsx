@@ -26,9 +26,20 @@ export function AttentionCard({
 }) {
   const router = useRouter();
   const { t } = useLocale();
+  const hasNotices = pendingApprovalsCount > 0 || !!nearestDueLiability;
 
   return (
-    <SectionCard title={t.beranda.needsAttentionTitle} bodyClassName="stack">
+    <SectionCard
+      title={t.beranda.needsAttentionTitle}
+      bodyClassName="stack"
+      // Hardening batch G5 (Von Restorff) — this is the one time-sensitive
+      // card among ~9 otherwise visually-identical bento cards; give it a
+      // warning accent when it actually has something to flag, so it
+      // doesn't read the same as a plain white card like Budget's.
+      className={
+        hasNotices ? "border-warning/50 bg-warning-soft/40" : undefined
+      }
+    >
       {isLoading ? (
         Array.from({ length: 2 }).map((_, i) => (
           <div

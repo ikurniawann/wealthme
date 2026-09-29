@@ -93,6 +93,9 @@ export const en = {
     noTransactions: "No transactions yet",
     noGoals: "No financial goals yet",
     addGoalCta: "Add Goal",
+    goalRemainingPrefix: "Rp ",
+    goalRemainingSuffix: " to go",
+    goalAchieved: "Achieved",
     aiInsightTitle: "Improve your financial health!",
     aiInsightBody:
       "Fill in your risk profile to get investment recommendations tailored to your goals.",
