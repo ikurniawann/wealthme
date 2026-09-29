@@ -29,7 +29,72 @@ type MoneyContextValue = {
   // need to react to it directly (rare; most just call format/formatCompact)
   // don't have to re-read the profile themselves.
   hideBalance: boolean;
+  formatExact: (idr: string | bigint) => string;
 };
+
+const CURRENCY_LOCALES: Record<string, string> = {
+  IDR: "id-ID",
+  USD: "en-US",
+  SGD: "en-SG",
+  EUR: "en-US",
+  JPY: "ja-JP",
+  AUD: "en-AU",
+  CNY: "zh-CN",
+};
+
+function rateFraction(rate: number): [bigint, bigint] {
+  const [mantissa, exponentText] = rate.toString().toLowerCase().split("e");
+  const exponent = Number(exponentText ?? 0);
+  const [whole = "0", fraction = ""] = (mantissa ?? "0").split(".");
+  const digits = BigInt(`${whole}${fraction}`);
+  const scale = fraction.length - exponent;
+  return scale >= 0
+    ? [digits, BigInt(10) ** BigInt(scale)]
+    : [digits * BigInt(10) ** BigInt(-scale), BigInt(1)];
+}
+
+function formatExactCurrency(
+  amount: bigint,
+  currency: string,
+  rate: number,
+): string {
+  const locale = CURRENCY_LOCALES[currency] ?? "id-ID";
+  if (currency === "IDR" && rate === 1) {
+    return `Rp ${new Intl.NumberFormat(locale).format(amount)}`;
+  }
+  const decimals = currency === "IDR" || currency === "JPY" ? 0 : 2;
+  const [rateNumerator, rateDenominator] = rateFraction(rate);
+  const scale = BigInt(10) ** BigInt(decimals);
+  const absolute = amount < BigInt(0) ? -amount : amount;
+  const scaledNumerator = absolute * rateNumerator * scale;
+  const rounded =
+    (scaledNumerator * BigInt(2) + rateDenominator) /
+    (BigInt(2) * rateDenominator);
+  const whole = rounded / scale;
+  const fraction = rounded % scale;
+
+  const parts = new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).formatToParts(amount < BigInt(0) ? BigInt(-1) : BigInt(1));
+  const wholeText = new Intl.NumberFormat(locale).format(whole);
+  const fractionText = new Intl.NumberFormat(locale, {
+    minimumIntegerDigits: decimals || 1,
+    useGrouping: false,
+  })
+    .format(fraction)
+    .slice(-decimals);
+
+  return parts
+    .map((part) => {
+      if (part.type === "integer") return wholeText;
+      if (part.type === "fraction") return fractionText;
+      return part.value;
+    })
+    .join("");
+}
 
 const MoneyContext = createContext<MoneyContextValue | null>(null);
 
@@ -55,7 +120,7 @@ export function DisplayCurrencyProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { currency, formatMoney, isIndicative, isReady, privacyPrefs } =
+  const { currency, rate, formatMoney, isIndicative, isReady, privacyPrefs } =
     useCurrencyPreference();
   // Conservative fallback while the profile hasn't resolved yet (or in a
   // test harness that mocks useCurrencyPreference() directly, predating this
@@ -84,6 +149,17 @@ export function DisplayCurrencyProvider({
         : formatRupiahCompact(idr);
       return hideBalance ? maskAmount(base) : base;
     };
+    const formatExact = (idr: string | bigint): string => {
+      if (!isReady) return "…";
+      const amount = typeof idr === "bigint" ? idr : BigInt(idr);
+      const result = formatExactCurrency(amount, currency, rate);
+      const withDecimalsApplied =
+        showDecimal && !isIndicative ? withDecimals(result) : result;
+      const indicated = isIndicative
+        ? `≈ ${withDecimalsApplied}`
+        : withDecimalsApplied;
+      return hideBalance ? maskAmount(indicated) : indicated;
+    };
     return {
       currency,
       isIndicative,
@@ -91,8 +167,17 @@ export function DisplayCurrencyProvider({
       format,
       formatCompact,
       hideBalance,
+      formatExact,
     };
-  }, [currency, formatMoney, isIndicative, isReady, hideBalance, showDecimal]);
+  }, [
+    currency,
+    formatMoney,
+    isIndicative,
+    isReady,
+    rate,
+    hideBalance,
+    showDecimal,
+  ]);
 
   return (
     <MoneyContext.Provider value={value}>{children}</MoneyContext.Provider>
@@ -116,5 +201,6 @@ export function useMoney(): MoneyContextValue {
     format: formatRupiah,
     formatCompact: formatRupiahCompact,
     hideBalance: false,
+    formatExact: (idr) => formatExactCurrency(BigInt(idr), "IDR", 1),
   };
 }

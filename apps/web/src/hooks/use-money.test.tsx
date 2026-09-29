@@ -47,6 +47,9 @@ describe("useMoney", () => {
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.isIndicative).toBe(false);
     expect(result.current.format(1_000_000)).toBe("Rp 1.000.000");
+    expect(result.current.formatExact("9007199254740993")).toBe(
+      "Rp 9.007.199.254.740.993",
+    );
     // Never fetches /fx/rates for an IDR-preference user.
     expect(mockApiFetch).toHaveBeenCalledTimes(1);
     expect(mockApiFetch).toHaveBeenCalledWith("/auth/profile", {
@@ -70,6 +73,7 @@ describe("useMoney", () => {
     // it's an indicative conversion.
     expect(result.current.format(1_000_000)).toBe("≈ $ 61.50");
     expect(result.current.formatCompact(1_000_000)).toBe("≈ $ 61.50");
+    expect(result.current.formatExact("1000000")).toBe("≈ $61.50");
   });
 
   it("stays not-ready while the FX rate is still in flight, never a 1:1 fallback", async () => {
@@ -103,6 +107,7 @@ describe("useMoney", () => {
     await waitFor(() => expect(result.current.hideBalance).toBe(true));
     expect(result.current.format(1_000_000)).toBe("Rp ••••••");
     expect(result.current.formatCompact(1_000_000)).toBe("Rp ••••••");
+    expect(result.current.formatExact("1000000")).toBe("Rp ••••••");
   });
 
   it("adds decimals to the plain IDR format when showDecimal is on", async () => {
@@ -116,5 +121,6 @@ describe("useMoney", () => {
     await waitFor(() =>
       expect(result.current.format(1_000_000)).toBe("Rp 1.000.000,00"),
     );
+    expect(result.current.formatExact("1000000")).toBe("Rp 1.000.000,00");
   });
 });

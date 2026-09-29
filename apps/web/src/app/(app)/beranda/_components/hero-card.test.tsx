@@ -14,7 +14,25 @@ jest.mock("../../../../hooks/use-gold-price", () => ({
   useGoldPrice: () => ({ hasPrice: false, toGoldGrams: () => null }),
 }));
 
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { NetWorthHistoryPointDto } from "@wealthme/contracts";
+
+jest.mock("../../../../hooks/use-money", () => {
+  const { formatRupiah, formatRupiahCompact } =
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require("../../../../lib/format");
+  return {
+    useMoney: () => ({
+      currency: "IDR",
+      isIndicative: false,
+      isReady: true,
+      format: formatRupiah,
+      formatCompact: formatRupiahCompact,
+      formatExact: (idr: string | bigint) =>
+        `Rp ${BigInt(idr).toLocaleString("id-ID")}`,
+    }),
+  };
+});
 
 import { BerandaHero } from "./hero-card";
 import type { MoneyFormatters } from "./use-beranda-data";
@@ -28,7 +46,11 @@ const fmt: MoneyFormatters = {
   formatMoney: (v) => `Rp ${v}`,
 };
 
-function renderHero(netWorth: number, net = 393250) {
+function renderHero(
+  netWorth: number,
+  net = 393250,
+  historyPoints: NetWorthHistoryPointDto[] = [],
+) {
   return render(
     <BerandaHero
       isLoading={false}
@@ -41,7 +63,10 @@ function renderHero(netWorth: number, net = 393250) {
         net,
         savingsRate: 12,
       }}
-      sparklinePoints={[1, 2, 3]}
+      historyPoints={historyPoints}
+      isHistoryLoading={false}
+      period="6M"
+      onPeriodChange={jest.fn()}
       fmt={fmt}
     />,
   );
@@ -73,5 +98,56 @@ describe("BerandaHero — net-worth-sign warning treatment (batch-2 #3)", () => 
     expect(
       container.querySelector(".badge svg.lucide-trending-up"),
     ).toBeInTheDocument();
+  });
+});
+
+describe("BerandaHero — real net-worth history chart", () => {
+  it("starts with the latest persisted value and supports keyboard scrubbing", () => {
+    renderHero(1_250_000, 393250, [
+      {
+        capturedAt: "2026-09-01T00:00:00.000Z",
+        netWorth: "1000000",
+        totalCash: "1000000",
+        totalInvestments: "0",
+        totalAssets: "1000000",
+        totalLiabilities: "0",
+      },
+      {
+        capturedAt: "2026-09-29T00:00:00.000Z",
+        netWorth: "1250000",
+        totalCash: "1250000",
+        totalInvestments: "0",
+        totalAssets: "1250000",
+        totalLiabilities: "0",
+      },
+    ]);
+
+    const chart = screen.getByRole("group", { name: /riwayat kekayaan/i });
+    expect(chart).toHaveTextContent("Rp 1.250.000");
+    expect(chart).toHaveTextContent("29 Sep 2026");
+
+    fireEvent.keyDown(chart, { key: "ArrowLeft" });
+    expect(chart).toHaveTextContent("Rp 1.000.000");
+    expect(chart).toHaveTextContent("1 Sep 2026");
+  });
+
+  it("does not invent a chart when fewer than two persisted snapshots exist", () => {
+    renderHero(1_250_000, 393250, [
+      {
+        capturedAt: "2026-09-29T00:00:00.000Z",
+        netWorth: "1250000",
+        totalCash: "1250000",
+        totalInvestments: "0",
+        totalAssets: "1250000",
+        totalLiabilities: "0",
+      },
+    ]);
+
+    expect(
+      screen.getByText(/riwayat kekayaan belum tersedia/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /riwayat kekayaan/i }),
+    ).not.toBeInTheDocument();
   });
 });

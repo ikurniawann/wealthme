@@ -4,29 +4,19 @@ import type { DashboardSummaryDto } from "@wealthme/contracts";
 import { CashflowChart } from "@/components/charts/apex-presets";
 import { MoneyStat, SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
-import {
-  PERIODS,
-  type BerandaPeriod,
-  type MoneyFormatters,
-} from "./use-beranda-data";
+import type { MoneyFormatters } from "./use-beranda-data";
 
 /**
  * EPIC-026 Wave 8 — prototype's `.card.bento-chart` ("Arus Kas 6 Bulan") with
- * its `.segmented` 6 Bln / 12 Bln control in `.card__action`. The toggle drives
- * the range-parametrized net-worth-history query (see `use-beranda-data.ts`);
- * `summary.cashflow` itself is a fixed 6-month backend rollup.
+ * `summary.cashflow` is a fixed six-month backend rollup.
  */
 export function CashflowCard({
   isLoading,
-  period,
-  onPeriodChange,
   cashflow,
   currentMonth,
   fmt,
 }: {
   isLoading: boolean;
-  period: BerandaPeriod;
-  onPeriodChange: (next: BerandaPeriod) => void;
   cashflow: DashboardSummaryDto["cashflow"] | undefined;
   currentMonth: DashboardSummaryDto["currentMonth"] | undefined;
   fmt: MoneyFormatters;
@@ -40,34 +30,7 @@ export function CashflowCard({
     : t.common.cashFlow;
 
   return (
-    <SectionCard
-      className="bento-chart"
-      title={
-        period === "12M" ? t.beranda.cashflowTitle12 : t.beranda.cashflowTitle6
-      }
-      action={
-        /* EPIC-026 Wave 3 — the prototype's `.segmented` control, carried
-           verbatim (role=tablist/tab + aria-selected). */
-        <div
-          className="segmented"
-          role="tablist"
-          aria-label={t.beranda.periodToggleAriaLabel}
-        >
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              type="button"
-              role="tab"
-              className="segmented__item"
-              aria-selected={period === p}
-              onClick={() => onPeriodChange(p)}
-            >
-              {p === "12M" ? t.beranda.periodToggle12 : t.beranda.periodToggle6}
-            </button>
-          ))}
-        </div>
-      }
-    >
+    <SectionCard className="bento-chart" title={t.beranda.cashflowTitle6}>
       <div className="row row--wrap mb-2.5 gap-4">
         <MoneyStat
           label={t.common.income}

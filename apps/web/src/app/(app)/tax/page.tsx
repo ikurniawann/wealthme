@@ -580,220 +580,231 @@ function TaxPageContent() {
           sub-plan L), directly after the SPT-status trio. */}
       <AnnualSummary taxYear={taxYear} />
 
+      <div className="flex justify-end">
+        <a
+          href="#pph21-calculator"
+          className="inline-flex min-h-11 items-center font-semibold text-primary hover:underline"
+        >
+          {t.tax.jumpToCalculator}
+        </a>
+      </div>
+
       {/* Kalkulator PPh 21 */}
-      <SectionCard
-        title={t.tax.calculatorTitle}
-        action={
-          <Link
-            href="/kalkulator"
-            className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
-          >
-            {t.tax.calculatorOtherLink}
-          </Link>
-        }
-      >
-        <div className="mb-3.5 text-xs text-muted-foreground">
-          {t.tax.calculatorSubtitle}
-        </div>
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          <div>
-            <label
-              htmlFor="tax-year-select"
-              className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+      <div id="pph21-calculator" className="scroll-mt-4">
+        <SectionCard
+          title={t.tax.calculatorTitle}
+          action={
+            <Link
+              href="/kalkulator"
+              className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
             >
-              {t.tax.fieldTaxYearLabel}
-            </label>
-            <select
-              id="tax-year-select"
-              value={taxYear}
-              onChange={(e) => setTaxYear(Number(e.target.value))}
-              className="select"
-            >
-              {TAX_YEAR_OPTIONS.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+              {t.tax.calculatorOtherLink}
+            </Link>
+          }
+        >
+          <div className="mb-3.5 text-xs text-muted-foreground">
+            {t.tax.calculatorSubtitle}
           </div>
-          <div>
-            <label
-              htmlFor="tax-gross-input"
-              className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
-            >
-              {t.tax.fieldGrossLabel}
-            </label>
-            <input
-              id="tax-gross-input"
-              type="text"
-              inputMode="numeric"
-              value={gross}
-              onChange={(e) =>
-                setGross(
-                  e.target.value === ""
-                    ? ""
-                    : formatNumber(
-                        Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
-                      ),
-                )
-              }
-              className="input"
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            <div>
+              <label
+                htmlFor="tax-year-select"
+                className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+              >
+                {t.tax.fieldTaxYearLabel}
+              </label>
+              <select
+                id="tax-year-select"
+                value={taxYear}
+                onChange={(e) => setTaxYear(Number(e.target.value))}
+                className="select"
+              >
+                {TAX_YEAR_OPTIONS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label
+                htmlFor="tax-gross-input"
+                className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+              >
+                {t.tax.fieldGrossLabel}
+              </label>
+              <input
+                id="tax-gross-input"
+                type="text"
+                inputMode="numeric"
+                value={gross}
+                onChange={(e) =>
+                  setGross(
+                    e.target.value === ""
+                      ? ""
+                      : formatNumber(
+                          Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
+                        ),
+                  )
+                }
+                className="input"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3.5">
+            <PphOpFields
+              maritalStatus={maritalStatus}
+              onMaritalStatusChange={setMaritalStatus}
+              dependents={dependents}
+              onDependentsChange={setDependents}
+              pension={pension}
+              onPensionChange={setPension}
+              withheld={withheld}
+              onWithheldChange={setWithheld}
+              freelance={freelance}
+              onFreelanceChange={setFreelance}
+              nppnPct={nppnPct}
+              onNppnPctChange={setNppnPct}
+              otherNet={otherNet}
+              onOtherNetChange={setOtherNet}
+              ptkp={pphOp?.ptkp}
             />
           </div>
-        </div>
 
-        <div className="mt-3.5">
-          <PphOpFields
-            maritalStatus={maritalStatus}
-            onMaritalStatusChange={setMaritalStatus}
-            dependents={dependents}
-            onDependentsChange={setDependents}
-            pension={pension}
-            onPensionChange={setPension}
-            withheld={withheld}
-            onWithheldChange={setWithheld}
-            freelance={freelance}
-            onFreelanceChange={setFreelance}
-            nppnPct={nppnPct}
-            onNppnPctChange={setNppnPct}
-            otherNet={otherNet}
-            onOtherNetChange={setOtherNet}
-            ptkp={pphOp?.ptkp}
-          />
-        </div>
-
-        <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          {/* Task 10 carry (Task 9 review) — this read-only computed row
+          <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            {/* Task 10 carry (Task 9 review) — this read-only computed row
               used to sit alone in a half-width cell, leaving an empty
               column beside it at 1440. Every 2-col row here is either a
               genuine pair or spans the full width; a single field never
               gets a lone half row. */}
-          <div className="md:col-span-2">
-            <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
-              {t.tax.fieldJabatanLabel}
-            </label>
-            <input
-              type="text"
-              value={formatNumber(jabatan)}
-              disabled
-              className="input opacity-70"
-            />
-          </div>
-          <div className="md:col-span-2">
-            <label
-              htmlFor="tax-perpuluhan"
-              className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
-            >
-              {t.tax.fieldPerpuluhanLabel}
-            </label>
-            <input
-              id="tax-perpuluhan"
-              type="text"
-              inputMode="numeric"
-              value={zakat}
-              onChange={(e) => {
-                setZakatTouched(true);
-                setZakat(
-                  e.target.value === ""
-                    ? ""
-                    : formatNumber(
-                        Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
-                      ),
-                );
-              }}
-              className="input"
-            />
-            <div className="mt-1.5 text-[11px] text-muted-foreground">
-              {t.tax.perpuluhanAutoFilledHint.replace(
-                "{year}",
-                String(taxYear),
-              )}
+            <div className="md:col-span-2">
+              <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
+                {t.tax.fieldJabatanLabel}
+              </label>
+              <input
+                type="text"
+                value={formatNumber(jabatan)}
+                disabled
+                className="input opacity-70"
+              />
             </div>
-          </div>
-        </div>
-        <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
-          <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-muted-foreground">
-            {t.tax.estimateLabel}
-          </div>
-          {!fgId ? (
-            <div className="mt-1 text-[13px] text-muted-foreground">
-              {t.tax.op.previewNeedsFamily}
-            </div>
-          ) : isPph21Error ? (
-            <div className="mt-1 text-[13px] font-semibold text-destructive">
-              {t.tax.calcErrorLabel}
-            </div>
-          ) : !hasPph21Result ? (
-            <div className="mt-1 text-[13px] text-muted-foreground">
-              {t.tax.calculatingLabel}
-            </div>
-          ) : (
-            <>
-              <div className="mt-1 text-[24px] font-black text-primary">
-                {formatRupiah(tax)}
-              </div>
-              <div className="mt-1.5 text-xs text-muted-foreground">
-                {t.tax.pkpPrefix}
-                <strong className="text-primary">{formatRupiah(pkp)}</strong>
-                {t.tax.effectiveRatePrefix}
-                <strong>{effRate}</strong>
-              </div>
-              <div className="mt-1.5 text-xs text-muted-foreground">
-                {t.tax.op.netoLabel}
-                {": "}
-                <strong>{formatRupiah(Number(pphOp.neto))}</strong>
-              </div>
-              <div className="mt-1.5 text-xs text-muted-foreground">
-                {t.tax.op.balanceLabel}
-                {": "}
-                {Number(pphOp.balance) < 0 ? (
-                  <strong className="text-success">
-                    {t.tax.op.overpaidLabel} (
-                    {formatRupiah(Math.abs(Number(pphOp.balance)))})
-                  </strong>
-                ) : (
-                  <strong>{formatRupiah(Number(pphOp.balance))}</strong>
+            <div className="md:col-span-2">
+              <label
+                htmlFor="tax-perpuluhan"
+                className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+              >
+                {t.tax.fieldPerpuluhanLabel}
+              </label>
+              <input
+                id="tax-perpuluhan"
+                type="text"
+                inputMode="numeric"
+                value={zakat}
+                onChange={(e) => {
+                  setZakatTouched(true);
+                  setZakat(
+                    e.target.value === ""
+                      ? ""
+                      : formatNumber(
+                          Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
+                        ),
+                  );
+                }}
+                className="input"
+              />
+              <div className="mt-1.5 text-[11px] text-muted-foreground">
+                {t.tax.perpuluhanAutoFilledHint.replace(
+                  "{year}",
+                  String(taxYear),
                 )}
               </div>
-            </>
-          )}
-        </div>
-        <div className="mt-3.5 flex flex-wrap gap-2.5">
-          {/* EPIC-026 Wave 2 — prototype (tax.html) renders Simpan as
+            </div>
+          </div>
+          <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-muted-foreground">
+              {t.tax.estimateLabel}
+            </div>
+            {!fgId ? (
+              <div className="mt-1 text-[13px] text-muted-foreground">
+                {t.tax.op.previewNeedsFamily}
+              </div>
+            ) : isPph21Error ? (
+              <div className="mt-1 text-[13px] font-semibold text-destructive">
+                {t.tax.calcErrorLabel}
+              </div>
+            ) : !hasPph21Result ? (
+              <div className="mt-1 text-[13px] text-muted-foreground">
+                {t.tax.calculatingLabel}
+              </div>
+            ) : (
+              <>
+                <div className="mt-1 text-[24px] font-black text-primary">
+                  {formatRupiah(tax)}
+                </div>
+                <div className="mt-1.5 text-xs text-muted-foreground">
+                  {t.tax.pkpPrefix}
+                  <strong className="text-primary">{formatRupiah(pkp)}</strong>
+                  {t.tax.effectiveRatePrefix}
+                  <strong>{effRate}</strong>
+                </div>
+                <div className="mt-1.5 text-xs text-muted-foreground">
+                  {t.tax.op.netoLabel}
+                  {": "}
+                  <strong>{formatRupiah(Number(pphOp.neto))}</strong>
+                </div>
+                <div className="mt-1.5 text-xs text-muted-foreground">
+                  {t.tax.op.balanceLabel}
+                  {": "}
+                  {Number(pphOp.balance) < 0 ? (
+                    <strong className="text-success">
+                      {t.tax.op.overpaidLabel} (
+                      {formatRupiah(Math.abs(Number(pphOp.balance)))})
+                    </strong>
+                  ) : (
+                    <strong>{formatRupiah(Number(pphOp.balance))}</strong>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="mt-3.5 flex flex-wrap gap-2.5">
+            {/* EPIC-026 Wave 2 — prototype (tax.html) renders Simpan as
               btn--primary; Reset stays outline. */}
-          <Button
-            onClick={() => setShowSaveDialog(true)}
-            disabled={!canSaveTaxRecord || upsertMutation.isPending}
-            aria-describedby={
-              !canManageTaxRecords ? "tax-access-note" : undefined
-            }
-            className="h-auto px-4 py-2.5"
-          >
-            {upsertMutation.isPending
-              ? t.tax.savingLabel
-              : t.tax.saveToTaxRecordButton}
-          </Button>
-          <Button
-            onClick={handleResetCalculator}
-            className="h-auto px-4 py-2.5"
-            variant="outline"
-          >
-            {t.tax.resetButton}
-          </Button>
-        </div>
-        {/* EPIC-023 Task I (I1) — say why Save (and the SPT status buttons
+            <Button
+              onClick={() => setShowSaveDialog(true)}
+              disabled={!canSaveTaxRecord || upsertMutation.isPending}
+              aria-describedby={
+                !canManageTaxRecords ? "tax-access-note" : undefined
+              }
+              className="h-auto px-4 py-2.5"
+            >
+              {upsertMutation.isPending
+                ? t.tax.savingLabel
+                : t.tax.saveToTaxRecordButton}
+            </Button>
+            <Button
+              onClick={handleResetCalculator}
+              className="h-auto px-4 py-2.5"
+              variant="outline"
+            >
+              {t.tax.resetButton}
+            </Button>
+          </div>
+          {/* EPIC-023 Task I (I1) — say why Save (and the SPT status buttons
             above, which share this same explanation via aria-describedby)
             are unavailable, instead of letting the user press them and
             receive a bare failure toast. */}
-        {accessNote && (
-          <div
-            id="tax-access-note"
-            className="mt-2 text-[11.5px] text-muted-foreground"
-          >
-            {accessNote}
-          </div>
-        )}
-      </SectionCard>
+          {accessNote && (
+            <div
+              id="tax-access-note"
+              className="mt-2 text-[11.5px] text-muted-foreground"
+            >
+              {accessNote}
+            </div>
+          )}
+        </SectionCard>
+      </div>
 
       {/* Breakdown Tarif Progresif */}
       <SectionCard title={t.tax.progressiveBreakdownTitle}>

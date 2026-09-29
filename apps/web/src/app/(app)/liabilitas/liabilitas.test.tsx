@@ -613,6 +613,24 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     expect(dialog.queryByLabelText("Metode Bunga")).not.toBeInTheDocument();
   });
 
+  it("groups liability fields and only shows the KPR scheme for KPR", async () => {
+    const user = userEvent.setup();
+    render(<LiabilitasPage />);
+    const dialog = await openAddDialog(user);
+
+    const identity = dialog.getByRole("group", { name: "Identitas" });
+    const amount = dialog.getByRole("group", { name: "Nominal" });
+    dialog.getByRole("group", { name: "Bunga & Tenor" });
+    expect(identity).toContainElement(dialog.getByLabelText("Nama"));
+    expect(amount).toContainElement(
+      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+    );
+    expect(dialog.queryByLabelText("Skema KPR")).not.toBeInTheDocument();
+
+    await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
+    expect(dialog.getByLabelText("Skema KPR")).toBeInTheDocument();
+  });
+
   it("kendaraan: flat rate + tenor + start date, no min. bayar; POSTs flat terms and toasts the computed installment", async () => {
     createdInstallment = "6555556";
     const user = userEvent.setup();

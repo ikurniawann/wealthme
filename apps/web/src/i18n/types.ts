@@ -381,6 +381,16 @@ type LaporanExportTypeId =
 
 export type I18nDictionary = {
   locale: "id" | "en";
+  legal: {
+    privacyTitle: string;
+    termsTitle: string;
+    licenseTitle: string;
+    contentNotice: string;
+    backToLogin: string;
+    privacyLink: string;
+    termsLink: string;
+    licenseLink: string;
+  };
   greeting: {
     morning: string;
     afternoon: string;
@@ -456,6 +466,19 @@ export type I18nDictionary = {
     };
   };
   beranda: {
+    setupChecklist: {
+      title: string;
+      nextStep: string;
+      dismissAriaLabel: string;
+      progressLabelTemplate: string;
+      steps: {
+        account: string;
+        budget: string;
+        transaction: string;
+        family: string;
+        goal: string;
+      };
+    };
     title: string;
     totalWealth: string;
     thisMonth: string;
@@ -503,6 +526,8 @@ export type I18nDictionary = {
     viewSummaryLink: string;
     donutCenterLabel: string;
     allocationDetailLink: string;
+    historyChartAriaLabel: string;
+    historyEmpty: string;
   };
   /**
    * Shell-owned copy: sidebar/topbar/mobile nav chrome, the global
@@ -703,6 +728,13 @@ export type I18nDictionary = {
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
   akun: {
+    tabs: {
+      profil: string;
+      keamanan: string;
+      preferensi: string;
+      bantuan: string;
+      ariaLabel: string;
+    };
     heroMemberSince: string;
     loadProfileError: string;
     familyGroupCardTitle: string;
@@ -1993,6 +2025,11 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
+    fieldGroups: {
+      identity: string;
+      amount: string;
+      interestTenor: string;
+    };
     typeLabels: Record<LiabilitasTypeId, string>;
     riskVerySafe: string;
     riskSafe: string;
@@ -2626,6 +2663,7 @@ export type I18nDictionary = {
     zakatDeductionDesc: string;
     calculatorTitle: string;
     calculatorOtherLink: string;
+    jumpToCalculator: string;
     calculatorSubtitle: string;
     fieldGrossLabel: string;
     fieldStatusLabel: string;
@@ -3286,6 +3324,7 @@ export type I18nDictionary = {
     /** Carries `{shown}` and `{total}` placeholders. */
     listTruncatedNote: string;
     differenceLabel: string;
+    summaryGroupLabel: string;
     sortByLabel: string;
     sortAriaLabel: string;
     errorLoad: string;
@@ -3351,6 +3390,7 @@ export type I18nDictionary = {
      * and `.auto-grid--metrics` stat cards.
      */
     filterCardTitle: string;
+    mobileFilterToggleTemplate: string;
     listSectionTitle: string;
     listSectionHint: string;
     transactionsCountSuffix: string;
@@ -3936,6 +3976,14 @@ export type I18nDictionary = {
     // EPIC-025 N3-J1 — pill tab strip with scroll arrows.
     tabStrip: {
       ariaLabel: string;
+      groupAriaLabel: string;
+      groups: {
+        summary: string;
+        cashflow: string;
+        wealth: string;
+        liabilities: string;
+        taxOther: string;
+      };
       scrollLeftAriaLabel: string;
       scrollRightAriaLabel: string;
     };

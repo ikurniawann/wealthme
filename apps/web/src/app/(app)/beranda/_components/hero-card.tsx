@@ -2,23 +2,27 @@
 
 import { useRouter } from "next/navigation";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import type { DashboardSummaryDto } from "@wealthme/contracts";
-import { SparklineChart } from "@/components/charts/apex-presets";
+import type {
+  DashboardSummaryDto,
+  NetWorthHistoryPointDto,
+} from "@wealthme/contracts";
 import { CountUpRupiah, HeroCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { cn } from "@/lib/utils";
 import { formatGoldGrams } from "@/components/consolidated-total-card";
-import type { MoneyFormatters } from "./use-beranda-data";
+import type { BerandaPeriod, MoneyFormatters } from "./use-beranda-data";
+import { NetWorthTrend } from "./net-worth-trend";
+
+const PERIODS: BerandaPeriod[] = ["6M", "12M"];
 
 /**
  * EPIC-026 Wave 8 — `docs/prototype/pages/beranda.html`'s
  * `.hero.gradient-wealth.bento-hero`: `.bento-hero__top` (label + `.hero__value`
  * + a `.badge` / `.t-xs` delta row) above a three-cell `.bento-hero__footer`.
  *
- * The prototype's hero has no sparkline; this one keeps it because the series
- * is real persisted net-worth history driven by the Arus Kas range toggle —
- * dropping it would orphan a live query, not remove decoration.
+ * The chart reads persisted net-worth snapshots from the range-selected API
+ * query and lets the user inspect each snapshot without fabricated points.
  */
 export function BerandaHero({
   isLoading,
@@ -26,7 +30,10 @@ export function BerandaHero({
   assetsTotal,
   totalLiabilities,
   currentMonth,
-  sparklinePoints,
+  historyPoints,
+  isHistoryLoading,
+  period,
+  onPeriodChange,
   fmt,
 }: {
   isLoading: boolean;
@@ -34,7 +41,10 @@ export function BerandaHero({
   assetsTotal: number;
   totalLiabilities: number;
   currentMonth: DashboardSummaryDto["currentMonth"] | undefined;
-  sparklinePoints: number[];
+  historyPoints: NetWorthHistoryPointDto[];
+  isHistoryLoading: boolean;
+  period: BerandaPeriod;
+  onPeriodChange: (next: BerandaPeriod) => void;
   fmt: MoneyFormatters;
 }) {
   const router = useRouter();
@@ -46,15 +56,6 @@ export function BerandaHero({
 
   const { money, moneyCompact, currency, isIndicative, isReady, formatMoney } =
     fmt;
-
-  // EPIC-025 N3-G1 — chart-parity aria label: every value below is read from
-  // the same series the chart renders, never a separately-computed number.
-  const sparklineAriaLabel =
-    sparklinePoints.length >= 2
-      ? `${t.beranda.totalWealth}: ${money(sparklinePoints[0]!)} → ${money(
-          sparklinePoints[sparklinePoints.length - 1]!,
-        )}`
-      : t.beranda.totalWealth;
 
   const isUp = (currentMonth?.net ?? 0) >= 0;
   // Batch 2 (#3) — the hero's base treatment must track `netWorth`'s own
@@ -145,20 +146,27 @@ export function BerandaHero({
         </div>
       </div>
 
-      {/* EPIC-025 N3-G1 — Sparkline → SparklineChart (Apex); same series as
-          before the swap, bled to the hero's padding edges. */}
-      <div className="-mx-5 mt-3">
-        <SparklineChart
-          data={sparklinePoints}
-          color="#ffffff"
-          ariaLabel={sparklineAriaLabel}
-        />
-        <div className="mt-1 flex justify-between px-5 text-[10px] opacity-60">
-          {t.common.sparkLabels.map((l) => (
-            <span key={l}>{l}</span>
+      <div className="mb-2 flex justify-end">
+        <div
+          className="segmented"
+          role="tablist"
+          aria-label={t.beranda.periodToggleAriaLabel}
+        >
+          {PERIODS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              role="tab"
+              className="segmented__item"
+              aria-selected={period === p}
+              onClick={() => onPeriodChange(p)}
+            >
+              {p === "12M" ? t.beranda.periodToggle12 : t.beranda.periodToggle6}
+            </button>
           ))}
         </div>
       </div>
+      <NetWorthTrend points={historyPoints} isLoading={isHistoryLoading} />
 
       <div className="bento-hero__footer">
         <div className="bento-hero__metric">

@@ -20,7 +20,6 @@ import {
   ImagePlus,
   Lock,
   Pencil,
-  Scale,
   Sparkles,
   Tag,
   Trash2,
@@ -37,7 +36,6 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
 import { useShell } from "@/components/shell/shell-context";
 import { parseRupiah } from "@/lib/format";
 import {
@@ -71,6 +69,8 @@ import type {
   TransactionDto,
   TransactionListResponse,
 } from "@wealthme/contracts";
+import { getActiveTransactionFilterCount } from "./filter-count";
+import { TransactionSummary } from "./transaction-summary";
 
 // EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
 // `app/(app)/dana/page.tsx`'s own copy: never touch lib/api-client.ts.
@@ -549,67 +549,6 @@ export function TxTableRow({
         }}
       />
     </>
-  );
-}
-
-/** `.stat` card (icon + label + amount + optional muted subtext line) —
- * matches `@/components/wm`'s `SummaryCard` visuals exactly, but adds a
- * neutral (non success/destructive-forced) subtext slot that
- * `SummaryCard` (a protected foundation component) doesn't expose, needed
- * for the income/expense cards' "N transaksi · <bulan>" line. Inlined per
- * WM_CONVENTIONS.md's "if not, inline the Tailwind translation in the page
- * file" rule rather than editing the shared primitive. */
-function StatCard({
-  icon,
-  iconBg,
-  iconColor,
-  label,
-  amount,
-  amountClassName,
-  subtext,
-  subtextClassName,
-}: {
-  icon: ReactNode;
-  iconBg: string;
-  iconColor?: string;
-  label: ReactNode;
-  amount: ReactNode;
-  // EPIC-026 Wave 4 — prototype's stat values are `mono t-success`/
-  // `t-danger` colored (transaksi.html:139/152/162), not plain foreground.
-  amountClassName?: string;
-  subtext?: ReactNode;
-  subtextClassName?: string;
-}) {
-  return (
-    <Card className="gap-0 p-4">
-      <div
-        className="mb-2 flex size-[34px] items-center justify-center rounded-md text-[15px]"
-        style={{ background: iconBg, color: iconColor }}
-      >
-        {icon}
-      </div>
-      <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
-        {label}
-      </div>
-      <div
-        className={cn(
-          "mono mb-[3px] text-[15px] font-extrabold",
-          amountClassName,
-        )}
-      >
-        {amount}
-      </div>
-      {subtext && (
-        <div
-          className={cn(
-            "text-[10.5px] font-bold",
-            subtextClassName ?? "text-muted-foreground",
-          )}
-        >
-          {subtext}
-        </div>
-      )}
-    </Card>
   );
 }
 
@@ -1166,6 +1105,7 @@ function TransaksiPageInner() {
   const money = useMoney();
   const [filter, setFilter] = useState<FilterValue>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<TransactionDto | null>(null);
   // EPIC-025 restructure — real filter-card controls wired to the API's own
@@ -1183,6 +1123,13 @@ function TransaksiPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const accountId = searchParams.get("accountId");
+  const activeFilterCount = getActiveTransactionFilterCount({
+    hasDateRange: Boolean(dateFrom || dateTo),
+    hasAccount: Boolean(accountId),
+    hasCategory: Boolean(categoryFilter),
+    hasType: filter !== "all",
+    hasSort: sortOrder !== "newest",
+  });
 
   useEffect(() => {
     if ((session as { error?: string } | null)?.error === "RefreshTokenError") {
@@ -1326,7 +1273,9 @@ function TransaksiPageInner() {
     setCategoryFilter("");
     setDateFrom("");
     setDateTo("");
+    setSortOrder("newest");
     setPage(1);
+    if (accountId) router.replace("/transaksi", { scroll: false });
   };
 
   // EPIC-023 Task E retry (HIGH 4) — only fetched when the "Kartu Kredit"
@@ -1470,177 +1419,187 @@ function TransaksiPageInner() {
           Akun/Kategori below are real controls wired to the API's own
           `from`/`to`/`categoryId`/`accountId` query params — see the
           `data` query above. */}
-      <SectionCard
-        title={
-          <span className="inline-flex items-center gap-1.5">
-            <Filter className="size-3.5" />
-            {t.transaksi.filterCardTitle}
-          </span>
-        }
-        action={
-          <div className="flex items-center gap-2.5">
-            {!isLoading && (
-              <StatusBadge variant="gray">
-                {sorted.length}
-                {t.transaksi.transactionsCountSuffix}
-              </StatusBadge>
-            )}
-            <CardLink onClick={handleResetFilters}>
-              {t.transaksi.resetFilterButton}
-            </CardLink>
-          </div>
-        }
-      >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <DateRangeFilterField
-            from={dateFrom}
-            to={dateTo}
-            locale={locale}
-            label={t.transaksi.dateRangeLabel}
-            cancelLabel={locale === "en" ? "Cancel" : "Batal"}
-            applyLabel={locale === "en" ? "Apply" : "Terapkan"}
-            onApply={(nextFrom, nextTo) => {
-              setDateFrom(nextFrom);
-              setDateTo(nextTo);
-              setPage(1);
-            }}
-          />
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              {t.transaksi.accountFilterFieldLabel}
-            </span>
-            <select
-              value={accountId ?? ""}
-              onChange={handleAccountFilterChange}
-              className="select"
-            >
-              <option value="">{t.transaksi.allAccountsOption}</option>
-              {filterAccounts?.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-              {t.transaksi.categoryFilterFieldLabel}
-            </span>
-            <select
-              value={categoryFilter}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value);
-                setPage(1);
-              }}
-              className="select"
-            >
-              <option value="">{t.transaksi.allCategoriesOption}</option>
-              {filterCategories?.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
-          <div
-            role="group"
-            aria-label={t.transaksi.filterCardTitle}
-            className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
+      <div>
+        <button
+          type="button"
+          aria-controls="transaction-filters"
+          aria-expanded={mobileFiltersOpen}
+          onClick={() => setMobileFiltersOpen((open) => !open)}
+          className="mb-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border bg-card px-4 text-sm font-semibold text-foreground md:hidden"
+        >
+          <Filter className="size-4" aria-hidden="true" />
+          {t.transaksi.mobileFilterToggleTemplate.replace(
+            "{count}",
+            String(activeFilterCount),
+          )}
+        </button>
+        <div
+          id="transaction-filters"
+          className={mobileFiltersOpen ? "block" : "hidden md:block"}
+        >
+          <SectionCard
+            title={
+              <span className="inline-flex items-center gap-1.5">
+                <Filter className="size-3.5" />
+                {t.transaksi.filterCardTitle}
+              </span>
+            }
+            action={
+              <div className="flex items-center gap-2.5">
+                {!isLoading && (
+                  <StatusBadge variant="gray">
+                    {sorted.length}
+                    {t.transaksi.transactionsCountSuffix}
+                  </StatusBadge>
+                )}
+                <CardLink
+                  onClick={handleResetFilters}
+                  className="min-h-11 px-2"
+                >
+                  {t.transaksi.resetFilterButton}
+                </CardLink>
+              </div>
+            }
           >
-            {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered
-                `bg-card` idle, primary fill selected (app.css:2308,
-                2492). */}
-            {FILTER_VALUES.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => {
-                  setFilter(value);
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <DateRangeFilterField
+                from={dateFrom}
+                to={dateTo}
+                locale={locale}
+                label={t.transaksi.dateRangeLabel}
+                cancelLabel={locale === "en" ? "Cancel" : "Batal"}
+                applyLabel={locale === "en" ? "Apply" : "Terapkan"}
+                onApply={(nextFrom, nextTo) => {
+                  setDateFrom(nextFrom);
+                  setDateTo(nextTo);
                   setPage(1);
                 }}
-                aria-pressed={filter === value}
-                className={
-                  "whitespace-nowrap rounded-full border px-[13px] py-[7px] text-[12.5px] font-semibold transition-colors " +
-                  (filter === value
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-muted-foreground hover:bg-secondary/70")
-                }
+              />
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  {t.transaksi.accountFilterFieldLabel}
+                </span>
+                <select
+                  value={accountId ?? ""}
+                  onChange={handleAccountFilterChange}
+                  className="select"
+                >
+                  <option value="">{t.transaksi.allAccountsOption}</option>
+                  {filterAccounts?.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  {t.transaksi.categoryFilterFieldLabel}
+                </span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => {
+                    setCategoryFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="select"
+                >
+                  <option value="">{t.transaksi.allCategoriesOption}</option>
+                  {filterCategories?.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
+              <div
+                role="group"
+                aria-label={t.transaksi.filterCardTitle}
+                className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
               >
-                {t.transaksi.filterLabels[value]}
-              </button>
-            ))}
-          </div>
+                {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered
+                `bg-card` idle, primary fill selected (app.css:2308,
+                2492). */}
+                {FILTER_VALUES.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => {
+                      setFilter(value);
+                      setPage(1);
+                    }}
+                    aria-pressed={filter === value}
+                    className={
+                      "min-h-11 whitespace-nowrap rounded-full border px-[13px] py-[7px] text-[12.5px] font-semibold transition-colors " +
+                      (filter === value
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-muted-foreground hover:bg-secondary/70")
+                    }
+                  >
+                    {t.transaksi.filterLabels[value]}
+                  </button>
+                ))}
+              </div>
 
-          {/* Sort control mirrors the prototype: a small label followed by the
+              {/* Sort control mirrors the prototype: a small label followed by the
               normal design-system select, with no custom text offset. */}
-          <label className="row transaction-filter-sort gap-[7px]">
-            <span className="t-xs t-muted whitespace-nowrap">
-              {t.transaksi.sortByLabel}
-            </span>
-            <select
-              value={sortOrder}
-              onChange={(e) => {
-                setSortOrder(e.target.value as SortOrder);
-                setPage(1);
-              }}
-              className="select !w-auto min-w-[118px] py-1.5"
-              aria-label={t.transaksi.sortAriaLabel}
-            >
-              {SORT_VALUES.map((value) => (
-                <option key={value} value={value}>
-                  {t.transaksi.sortLabels[value]}
-                </option>
-              ))}
-            </select>
-          </label>
+              <label className="row transaction-filter-sort gap-[7px]">
+                <span className="t-xs t-muted whitespace-nowrap">
+                  {t.transaksi.sortByLabel}
+                </span>
+                <select
+                  value={sortOrder}
+                  onChange={(e) => {
+                    setSortOrder(e.target.value as SortOrder);
+                    setPage(1);
+                  }}
+                  className="select !w-auto min-h-11 min-w-[118px] py-1.5"
+                  aria-label={t.transaksi.sortAriaLabel}
+                >
+                  {SORT_VALUES.map((value) => (
+                    <option key={value} value={value}>
+                      {t.transaksi.sortLabels[value]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </SectionCard>
         </div>
-      </SectionCard>
-
-      {/* Summary stat cards — prototype's `.auto-grid--metrics` of
-          `.card.stat`. Subtext lines are derived from the already-fetched
-          list/summary, not invented copy — the month label only appears
-          when a real date-range filter is active (`summary.period.from`). */}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <StatCard
-          icon={<ArrowDownLeft className="size-[17px]" />}
-          iconBg="var(--success-soft)"
-          iconColor="var(--success)"
-          label={t.transaksi.totalIncomeLabel}
-          amount={isLoading ? "…" : money.format(totalIncome)}
-          amountClassName="text-success"
-          subtext={incomeSubtext}
-        />
-        <StatCard
-          icon={<CreditCard className="size-[17px]" />}
-          iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
-          iconColor="var(--destructive)"
-          label={t.transaksi.totalExpenseLabel}
-          amount={isLoading ? "…" : money.format(totalExpense)}
-          amountClassName="text-destructive"
-          subtext={expenseSubtext}
-        />
-        <StatCard
-          icon={<Scale className="size-[17px]" />}
-          iconBg="var(--accent)"
-          iconColor="var(--accent-foreground)"
-          label={t.transaksi.differenceLabel}
-          amount={isLoading ? "…" : money.format(netBalance)}
-          amountClassName={
-            netBalance >= 0 ? "text-success" : "text-destructive"
-          }
-          subtext={
-            isLoading
-              ? undefined
-              : `${netBalance >= 0 ? t.transaksi.surplusLabel : t.transaksi.deficitLabel} ${Math.abs(netPct)}${t.transaksi.ofIncomeSuffix}`
-          }
-          subtextClassName={
-            netBalance >= 0 ? "text-success" : "text-destructive"
-          }
-        />
       </div>
+
+      {/* One compact surface keeps the three real server totals together on phones. */}
+      <TransactionSummary
+        ariaLabel={t.transaksi.summaryGroupLabel}
+        items={[
+          {
+            label: t.transaksi.totalIncomeLabel,
+            value: isLoading ? "…" : money.format(totalIncome),
+            valueClassName: "text-success",
+            detail: incomeSubtext,
+          },
+          {
+            label: t.transaksi.totalExpenseLabel,
+            value: isLoading ? "…" : money.format(totalExpense),
+            valueClassName: "text-destructive",
+            detail: expenseSubtext,
+          },
+          {
+            label: t.transaksi.differenceLabel,
+            value: isLoading ? "…" : money.format(netBalance),
+            valueClassName:
+              netBalance >= 0 ? "text-success" : "text-destructive",
+            detail: isLoading
+              ? undefined
+              : `${netBalance >= 0 ? t.transaksi.surplusLabel : t.transaksi.deficitLabel} ${Math.abs(netPct)}${t.transaksi.ofIncomeSuffix}`,
+            detailClassName:
+              netBalance >= 0 ? "text-success" : "text-destructive",
+          },
+        ]}
+      />
 
       {/* Error state */}
       {isError && (

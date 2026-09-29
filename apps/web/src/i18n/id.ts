@@ -2,6 +2,16 @@ import type { I18nDictionary } from "./types";
 
 export const id = {
   locale: "id" as const,
+  legal: {
+    privacyTitle: "Kebijakan Privasi",
+    termsTitle: "Syarat & Ketentuan",
+    licenseTitle: "Lisensi Open Source",
+    contentNotice: "Dokumen ini belum tersedia.",
+    backToLogin: "Kembali ke masuk",
+    privacyLink: "Privasi",
+    termsLink: "Syarat",
+    licenseLink: "Lisensi",
+  },
   greeting: {
     morning: "Selamat pagi",
     afternoon: "Selamat siang",
@@ -85,6 +95,19 @@ export const id = {
     },
   },
   beranda: {
+    setupChecklist: {
+      title: "Kelengkapan",
+      nextStep: "Lanjutkan",
+      dismissAriaLabel: "Tutup checklist yang sudah selesai",
+      progressLabelTemplate: "{completed} dari 5 langkah selesai",
+      steps: {
+        account: "Rekening pertama",
+        budget: "Anggaran",
+        transaction: "Transaksi",
+        family: "Anggota keluarga",
+        goal: "Tujuan keuangan",
+      },
+    },
     title: "Beranda",
     totalWealth: "Total Kekayaan Bersih",
     thisMonth: "Bulan ini",
@@ -134,6 +157,8 @@ export const id = {
     viewSummaryLink: "Lihat ringkasan",
     donutCenterLabel: "Kekayaan",
     allocationDetailLink: "Detail",
+    historyChartAriaLabel: "Riwayat kekayaan",
+    historyEmpty: "Riwayat kekayaan belum tersedia.",
   },
   shell: {
     loading: "Memuat WealthMe…",
@@ -421,6 +446,13 @@ export const id = {
     familyReportsRowNoteLocked: "Hanya Master dan Co-Master.",
   },
   akun: {
+    tabs: {
+      profil: "Profil",
+      keamanan: "Keamanan",
+      preferensi: "Preferensi",
+      bantuan: "Bantuan",
+      ariaLabel: "Bagian akun",
+    },
     heroMemberSince: "Member sejak Januari 2024",
     loadProfileError: "Gagal memuat profil. Silakan refresh halaman.",
     familyGroupCardTitle: "Group Family",
@@ -2036,6 +2068,11 @@ export const id = {
     ownerUnknownLabel: "Tidak diketahui",
   },
   liabilitas: {
+    fieldGroups: {
+      identity: "Identitas",
+      amount: "Nominal",
+      interestTenor: "Bunga & Tenor",
+    },
     typeLabels: {
       kartu_kredit: "Kartu Kredit",
       pinjaman_pribadi: "Pinjaman Pribadi",
@@ -2791,6 +2828,7 @@ export const id = {
     zakatDeductionDesc: "dari donasi tercatat",
     calculatorTitle: "Kalkulator PPh 21 (Pribadi)",
     calculatorOtherLink: "Kalkulator Lain",
+    jumpToCalculator: "Buka kalkulator PPh 21",
     calculatorSubtitle:
       "Hitung estimasi pajak penghasilan berdasarkan tarif progresif UU HPP",
     fieldGrossLabel: "Penghasilan Bruto/Tahun (Rp)",
@@ -3479,6 +3517,7 @@ export const id = {
     listTruncatedNote:
       "Menampilkan {shown} dari {total} transaksi. Persempit dengan filter tanggal untuk melihat sisanya.",
     differenceLabel: "Selisih",
+    summaryGroupLabel: "Ringkasan transaksi",
     sortByLabel: "Urutkan:",
     sortAriaLabel: "Urutan transaksi",
     errorLoad: "Gagal memuat transaksi. Silakan refresh halaman.",
@@ -3531,6 +3570,7 @@ export const id = {
     attachmentDeletedToast: "Lampiran dihapus",
     attachmentDeleteFailedToast: "Gagal menghapus lampiran",
     filterCardTitle: "Filter",
+    mobileFilterToggleTemplate: "Filter ({count})",
     listSectionTitle: "Daftar Transaksi",
     listSectionHint:
       "Klik baris untuk detail; opsi lanjutan muncul saat hover/focus",
@@ -4122,6 +4162,14 @@ export const id = {
     },
     tabStrip: {
       ariaLabel: "Navigasi laporan",
+      groupAriaLabel: "Kelompok laporan",
+      groups: {
+        summary: "Ringkasan",
+        cashflow: "Arus Kas",
+        wealth: "Kekayaan",
+        liabilities: "Kewajiban",
+        taxOther: "Pajak & Lainnya",
+      },
       scrollLeftAriaLabel: "Geser tab ke kiri",
       scrollRightAriaLabel: "Geser tab ke kanan",
     },

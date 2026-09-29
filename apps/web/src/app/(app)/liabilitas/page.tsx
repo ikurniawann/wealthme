@@ -612,256 +612,272 @@ function LiabilityModal({
 
         <form onSubmit={handleSubmit}>
           <DialogBody>
-            {/* Prototype pairs Nama + Institusi 2-up (liabilitas.html:432). */}
-            <div className="field-row">
-              <div className="field mt-0">
-                <label className="label" htmlFor="liability-name">
-                  {t.liabilitas.fieldNameLabel}
-                </label>
-                <input
-                  id="liability-name"
-                  className="input"
-                  placeholder={t.liabilitas.fieldNamePlaceholder}
-                  maxLength={100}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
+            <fieldset className="space-y-3 rounded-lg border p-3">
+              <legend className="px-1 text-[13px] font-semibold">
+                {t.liabilitas.fieldGroups.identity}
+              </legend>
+              {/* Prototype pairs Nama + Institusi 2-up (liabilitas.html:432). */}
+              <div className="field-row">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-name">
+                    {t.liabilitas.fieldNameLabel}
+                  </label>
+                  <input
+                    id="liability-name"
+                    className="input"
+                    placeholder={t.liabilitas.fieldNamePlaceholder}
+                    maxLength={100}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="liability-institution">
+                    {t.liabilitas.fieldInstitutionLabel}
+                  </label>
+                  <input
+                    id="liability-institution"
+                    className="input"
+                    placeholder={t.liabilitas.fieldInstitutionPlaceholder}
+                    maxLength={100}
+                    value={institution}
+                    onChange={(e) => setInstitution(e.target.value)}
+                  />
+                </div>
               </div>
-              <div className="field mt-0">
-                <label className="label" htmlFor="liability-institution">
-                  {t.liabilitas.fieldInstitutionLabel}
-                </label>
-                <input
-                  id="liability-institution"
-                  className="input"
-                  placeholder={t.liabilitas.fieldInstitutionPlaceholder}
-                  maxLength={100}
-                  value={institution}
-                  onChange={(e) => setInstitution(e.target.value)}
-                />
-              </div>
-            </div>
 
-            <div className="field">
-              <label className="label" htmlFor="liability-type">
-                {t.liabilitas.fieldTypeLabel}
-              </label>
-              <select
-                id="liability-type"
-                className="select"
-                value={type}
-                onChange={(e) => {
-                  const next = e.target.value as LiabilityTypeValue;
-                  setType(next);
-                  setInterestMethod(DEFAULT_INTEREST_METHOD[next]);
-                }}
-              >
-                {LIABILITY_TYPES.map((liabilityType) => (
-                  <option key={liabilityType} value={liabilityType}>
-                    {t.liabilitas.typeLabels[liabilityType]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="field-row mt-3">
-              <div className="field mt-0">
-                <label className="label" htmlFor="liability-total-debt">
-                  {t.liabilitas.fieldTotalDebtLabel}
-                </label>
-                <MoneyInput
-                  field={totalDebtField}
-                  id="liability-total-debt"
-                  placeholder={t.liabilitas.fieldTotalDebtPlaceholder}
-                />
-              </div>
-              <div className="field mt-0">
-                <label className="label" htmlFor="liability-remaining">
-                  {t.liabilitas.fieldRemainingLabel}
-                </label>
-                <MoneyInput
-                  field={remainingField}
-                  id="liability-remaining"
-                  placeholder={t.liabilitas.fieldRemainingPlaceholder}
-                />
-              </div>
-            </div>
-
-            {methodOptions && (
               <div className="field">
-                <label className="label" htmlFor="liability-interest-method">
-                  {t.liabilitas.fieldInterestMethodLabel}
+                <label className="label" htmlFor="liability-type">
+                  {t.liabilitas.fieldTypeLabel}
                 </label>
                 <select
-                  id="liability-interest-method"
+                  id="liability-type"
                   className="select"
-                  value={interestMethod}
-                  onChange={(e) =>
-                    setInterestMethod(e.target.value as InterestMethod)
-                  }
+                  value={type}
+                  onChange={(e) => {
+                    const next = e.target.value as LiabilityTypeValue;
+                    setType(next);
+                    setInterestMethod(DEFAULT_INTEREST_METHOD[next]);
+                  }}
                 >
-                  {methodOptions.map((method) => (
-                    <option key={method} value={method}>
-                      {t.liabilitas.interestMethodLabels[method]}
+                  {LIABILITY_TYPES.map((liabilityType) => (
+                    <option key={liabilityType} value={liabilityType}>
+                      {t.liabilitas.typeLabels[liabilityType]}
                     </option>
                   ))}
                 </select>
               </div>
-            )}
 
-            {/* polish-j batch 7a item 8 — Min. Bayar is a MoneyInput and
-                Bunga a plain percent input; pairing mismatched control
-                shapes in one field-row read as misaligned, so each gets its
-                own full-width row instead. */}
-            {!usesTenor && (
-              <div className="field mt-3">
-                <label className="label" htmlFor="liability-min-payment">
-                  {t.liabilitas.fieldMinPaymentLabel}
-                </label>
-                <MoneyInput
-                  field={minPaymentField}
-                  id="liability-min-payment"
-                  placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
-                />
-              </div>
-            )}
-            {!usesRatePlan && (
-              <div className="field mt-3">
-                <label className="label" htmlFor="liability-interest-rate">
-                  {rateLabel}
+              <div className="field">
+                <label className="label" htmlFor="liability-notes">
+                  {t.liabilitas.fieldNotesLabel}
                 </label>
                 <input
-                  id="liability-interest-rate"
-                  className="input mono"
-                  placeholder={t.liabilitas.fieldInterestRatePlaceholder}
-                  inputMode="decimal"
-                  value={interestRate}
-                  onChange={(e) => setInterestRate(e.target.value)}
+                  id="liability-notes"
+                  className="input"
+                  placeholder={t.liabilitas.fieldNotesPlaceholder}
+                  maxLength={500}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
                 />
-                {type === "kpr" && interestMethod === "flat" && (
-                  <div className="hint">{t.liabilitas.kpr.flatHint}</div>
-                )}
               </div>
-            )}
-            {usesTenor && (
-              <div className="field mt-3">
-                <label className="label" htmlFor="liability-tenor">
-                  {t.liabilitas.fieldTenorLabel}
-                </label>
-                <input
-                  id="liability-tenor"
-                  className="input mono"
-                  inputMode="numeric"
-                  placeholder="36"
-                  value={tenorMonths}
-                  onChange={(e) =>
-                    setTenorMonths(e.target.value.replace(/\D/g, ""))
-                  }
-                />
-                {usesRatePlan && (
-                  <div className="hint">
-                    {t.liabilitas.kpr.tenorRequiredHint}
-                  </div>
-                )}
-              </div>
-            )}
+            </fieldset>
 
-            {usesTenor && (
+            <fieldset className="mt-3 space-y-3 rounded-lg border p-3">
+              <legend className="px-1 text-[13px] font-semibold">
+                {t.liabilitas.fieldGroups.amount}
+              </legend>
               <div className="field-row mt-3">
                 <div className="field mt-0">
-                  <label className="label" htmlFor="liability-start-date">
-                    {t.liabilitas.fieldStartDateLabel}
+                  <label className="label" htmlFor="liability-total-debt">
+                    {t.liabilitas.fieldTotalDebtLabel}
                   </label>
-                  <DateField
-                    id="liability-start-date"
-                    value={startDate}
-                    locale={locale}
-                    label={t.liabilitas.fieldStartDateLabel}
-                    onChange={setStartDate}
+                  <MoneyInput
+                    field={totalDebtField}
+                    id="liability-total-debt"
+                    placeholder={t.liabilitas.fieldTotalDebtPlaceholder}
                   />
                 </div>
                 <div className="field mt-0">
-                  <label className="label" htmlFor="liability-installment">
-                    {t.liabilitas.fieldInstallmentLabel}
+                  <label className="label" htmlFor="liability-remaining">
+                    {t.liabilitas.fieldRemainingLabel}
                   </label>
                   <MoneyInput
-                    field={installmentField}
-                    id="liability-installment"
-                    placeholder={
-                      editing?.installmentAmount
-                        ? formatNum(editing.installmentAmount)
-                        : ""
-                    }
+                    field={remainingField}
+                    id="liability-remaining"
+                    placeholder={t.liabilitas.fieldRemainingPlaceholder}
                   />
-                  <div className="hint" id="liability-installment-hint">
-                    {t.liabilitas.fieldInstallmentHint}
-                  </div>
                 </div>
               </div>
-            )}
 
-            {usesRatePlan && (
-              <KprRatePeriodsField
-                value={kprPlan}
-                onChange={(next) => {
-                  setKprPlan(next);
-                  // Presets: syariah_murabahah is a single fixed margin for
-                  // the whole tenor — switch Metode Bunga to flat so the
-                  // rate-plan/floating UI (which only makes sense for
-                  // anuitas) hides itself; other presets stay anuitas.
-                  if (next.scheme === "syariah_murabahah") {
-                    setInterestMethod("flat");
-                    setInterestRate(next.periods[0]?.ratePercent ?? "");
-                  }
-                }}
-              />
-            )}
+              {!usesTenor && (
+                <div className="field">
+                  <label className="label" htmlFor="liability-min-payment">
+                    {t.liabilitas.fieldMinPaymentLabel}
+                  </label>
+                  <MoneyInput
+                    field={minPaymentField}
+                    id="liability-min-payment"
+                    placeholder={t.liabilitas.fieldMinPaymentPlaceholder}
+                  />
+                </div>
+              )}
+            </fieldset>
 
-            <div className="field">
-              <label className="label" htmlFor="liability-due-date">
-                {t.liabilitas.fieldDueDateLabel}
-              </label>
-              <DateField
-                id="liability-due-date"
-                value={dueDate}
-                locale={locale}
-                label={t.liabilitas.fieldDueDateLabel}
-                onChange={setDueDate}
-              />
-            </div>
+            <fieldset className="mt-3 space-y-3 rounded-lg border p-3">
+              <legend className="px-1 text-[13px] font-semibold">
+                {t.liabilitas.fieldGroups.interestTenor}
+              </legend>
 
-            {/* Prototype's `.row` + `.switch` auto-advance toggle
+              {methodOptions && (
+                <div className="field">
+                  <label className="label" htmlFor="liability-interest-method">
+                    {t.liabilitas.fieldInterestMethodLabel}
+                  </label>
+                  <select
+                    id="liability-interest-method"
+                    className="select"
+                    value={interestMethod}
+                    onChange={(e) =>
+                      setInterestMethod(e.target.value as InterestMethod)
+                    }
+                  >
+                    {methodOptions.map((method) => (
+                      <option key={method} value={method}>
+                        {t.liabilitas.interestMethodLabels[method]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {!usesRatePlan && (
+                <div className="field mt-3">
+                  <label className="label" htmlFor="liability-interest-rate">
+                    {rateLabel}
+                  </label>
+                  <input
+                    id="liability-interest-rate"
+                    className="input mono"
+                    placeholder={t.liabilitas.fieldInterestRatePlaceholder}
+                    inputMode="decimal"
+                    value={interestRate}
+                    onChange={(e) => setInterestRate(e.target.value)}
+                  />
+                  {type === "kpr" && interestMethod === "flat" && (
+                    <div className="hint">{t.liabilitas.kpr.flatHint}</div>
+                  )}
+                </div>
+              )}
+              {usesTenor && (
+                <div className="field mt-3">
+                  <label className="label" htmlFor="liability-tenor">
+                    {t.liabilitas.fieldTenorLabel}
+                  </label>
+                  <input
+                    id="liability-tenor"
+                    className="input mono"
+                    inputMode="numeric"
+                    placeholder="36"
+                    value={tenorMonths}
+                    onChange={(e) =>
+                      setTenorMonths(e.target.value.replace(/\D/g, ""))
+                    }
+                  />
+                  {usesRatePlan && (
+                    <div className="hint">
+                      {t.liabilitas.kpr.tenorRequiredHint}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {usesTenor && (
+                <div className="field-row mt-3">
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="liability-start-date">
+                      {t.liabilitas.fieldStartDateLabel}
+                    </label>
+                    <DateField
+                      id="liability-start-date"
+                      value={startDate}
+                      locale={locale}
+                      label={t.liabilitas.fieldStartDateLabel}
+                      onChange={setStartDate}
+                    />
+                  </div>
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="liability-installment">
+                      {t.liabilitas.fieldInstallmentLabel}
+                    </label>
+                    <MoneyInput
+                      field={installmentField}
+                      id="liability-installment"
+                      placeholder={
+                        editing?.installmentAmount
+                          ? formatNum(editing.installmentAmount)
+                          : ""
+                      }
+                    />
+                    <div className="hint" id="liability-installment-hint">
+                      {t.liabilitas.fieldInstallmentHint}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {usesRatePlan && (
+                <KprRatePeriodsField
+                  value={kprPlan}
+                  onChange={(next) => {
+                    setKprPlan(next);
+                    // Presets: syariah_murabahah is a single fixed margin for
+                    // the whole tenor — switch Metode Bunga to flat so the
+                    // rate-plan/floating UI (which only makes sense for
+                    // anuitas) hides itself; other presets stay anuitas.
+                    if (next.scheme === "syariah_murabahah") {
+                      setInterestMethod("flat");
+                      setInterestRate(next.periods[0]?.ratePercent ?? "");
+                    }
+                  }}
+                />
+              )}
+
+              <div className="field">
+                <label className="label" htmlFor="liability-due-date">
+                  {t.liabilitas.fieldDueDateLabel}
+                </label>
+                <DateField
+                  id="liability-due-date"
+                  value={dueDate}
+                  locale={locale}
+                  label={t.liabilitas.fieldDueDateLabel}
+                  onChange={setDueDate}
+                />
+              </div>
+
+              {/* Prototype's `.row` + `.switch` auto-advance toggle
                 (liabilitas.html:479). Still gated on a due date being set —
                 `autoAdvanceDueDate` is only sent when `dueDate` is, so
                 showing the switch without one would be a control that does
                 nothing (Honest UI). */}
-            {dueDate && (
-              <div className="row mt-3">
-                <Switch
-                  checked={autoAdvanceDueDate}
-                  onCheckedChange={setAutoAdvanceDueDate}
-                  aria-labelledby="liability-auto-advance-label"
-                />
-                <span className="text-[13px]" id="liability-auto-advance-label">
-                  {t.liabilitas.autoAdvanceLabel}
-                </span>
-              </div>
-            )}
-
-            <div className="field">
-              <label className="label" htmlFor="liability-notes">
-                {t.liabilitas.fieldNotesLabel}
-              </label>
-              <input
-                id="liability-notes"
-                className="input"
-                placeholder={t.liabilitas.fieldNotesPlaceholder}
-                maxLength={500}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
+              {dueDate && (
+                <div className="row mt-3">
+                  <Switch
+                    checked={autoAdvanceDueDate}
+                    onCheckedChange={setAutoAdvanceDueDate}
+                    aria-labelledby="liability-auto-advance-label"
+                  />
+                  <span
+                    className="text-[13px]"
+                    id="liability-auto-advance-label"
+                  >
+                    {t.liabilitas.autoAdvanceLabel}
+                  </span>
+                </div>
+              )}
+            </fieldset>
           </DialogBody>
 
           <DialogFooter>

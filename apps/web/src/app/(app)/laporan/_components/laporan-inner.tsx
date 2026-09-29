@@ -64,6 +64,7 @@ import { AslSection } from "./sections/asl-section";
 import { PerfSection } from "./sections/perf-section";
 import { PajakSection } from "./sections/pajak-section";
 import { CoaSection } from "./sections/coa-section";
+import { REPORT_GROUPS, getReportGroupForTab } from "./report-groups";
 
 /* ───────────────────────── Page shell ───────────────────────── */
 
@@ -414,13 +415,20 @@ export function LaporanInner() {
     const amount = Math.max(280, Math.round(el.clientWidth * 0.72));
     el.scrollBy({ left: direction * amount, behavior: "smooth" });
   }
-  const tabIndex = REPORT_TABS.findIndex((item) => item.id === tab);
+  const activeGroup = getReportGroupForTab(tab);
+  const visibleReportTabs = REPORT_TABS.filter((item) =>
+    activeGroup.tabs.includes(item.id),
+  );
+  const groupTabIndex = visibleReportTabs.findIndex((item) => item.id === tab);
   function handleTabKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
     if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
     e.preventDefault();
     const delta = e.key === "ArrowRight" ? 1 : -1;
     const next =
-      REPORT_TABS[(tabIndex + delta + REPORT_TABS.length) % REPORT_TABS.length];
+      visibleReportTabs[
+        (groupTabIndex + delta + visibleReportTabs.length) %
+          visibleReportTabs.length
+      ];
     go(next.id);
     document.getElementById(`laporan-tab-${next.id}`)?.focus();
   }
@@ -696,62 +704,85 @@ export function LaporanInner() {
         </div>
       </section>
 
-      {/* Pill tab strip with scroll arrows (gap 4) — a single mounted panel
-          per active tab (SPA pattern), so `role="tabpanel"` targets the one
-          rendered panel rather than the prototype's N hidden siblings. */}
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => scrollReportTabs(-1)}
-          aria-label={t.laporan.tabStrip.scrollLeftAriaLabel}
-          className="shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" />
-        </button>
+      {/* Report categories keep all 17 destinations discoverable without
+          placing every report in one horizontal strip. */}
+      <div className="space-y-2">
         <div
-          ref={tabsScrollRef}
-          role="tablist"
-          aria-label={t.laporan.tabStrip.ariaLabel}
-          className="hide-scrollbar flex flex-1 gap-1.5 overflow-x-auto scroll-smooth"
+          role="group"
+          aria-label={t.laporan.tabStrip.groupAriaLabel}
+          className="grid grid-cols-2 gap-1.5 sm:grid-cols-5"
         >
-          {REPORT_TABS.map((tabItem) => {
-            const active = tabItem.id === tab;
+          {REPORT_GROUPS.map((group) => {
+            const active = activeGroup.id === group.id;
             return (
               <button
-                key={tabItem.id}
-                id={`laporan-tab-${tabItem.id}`}
-                role="tab"
-                aria-selected={active}
-                aria-controls="laporan-panel"
-                tabIndex={active ? 0 : -1}
-                onClick={() => go(tabItem.id)}
-                onKeyDown={handleTabKeyDown}
+                key={group.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => go(group.tabs[0])}
                 className={
-                  "shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap transition-colors " +
+                  "min-h-11 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors " +
                   (active
                     ? "bg-primary text-primary-foreground"
                     : "bg-secondary text-muted-foreground hover:bg-accent")
                 }
               >
-                {t.shell.reportTabs[tabItem.id]}
+                {t.laporan.tabStrip.groups[group.id]}
               </button>
             );
           })}
         </div>
-        <button
-          type="button"
-          onClick={() => scrollReportTabs(1)}
-          aria-label={t.laporan.tabStrip.scrollRightAriaLabel}
-          className="shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ChevronRight className="size-4" />
-        </button>
-        {/* UI/UX audit fix (docs/uiux-beda) — 17 tabs scroll behind a small
-            chevron with no hint how many are off-screen; a plain numeric
-            position needs no i18n string. */}
-        <span className="mono shrink-0 text-[11px] text-muted-foreground">
-          {tabIndex + 1}/{REPORT_TABS.length}
-        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => scrollReportTabs(-1)}
+            aria-label={t.laporan.tabStrip.scrollLeftAriaLabel}
+            className="size-11 shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" />
+          </button>
+          <div
+            ref={tabsScrollRef}
+            role="tablist"
+            aria-label={t.laporan.tabStrip.ariaLabel}
+            className="hide-scrollbar flex flex-1 gap-1.5 overflow-x-auto scroll-smooth"
+          >
+            {visibleReportTabs.map((tabItem) => {
+              const active = tabItem.id === tab;
+              return (
+                <button
+                  key={tabItem.id}
+                  id={`laporan-tab-${tabItem.id}`}
+                  role="tab"
+                  aria-selected={active}
+                  aria-controls="laporan-panel"
+                  tabIndex={active ? 0 : -1}
+                  onClick={() => go(tabItem.id)}
+                  onKeyDown={handleTabKeyDown}
+                  className={
+                    "min-h-11 shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap transition-colors " +
+                    (active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground hover:bg-accent")
+                  }
+                >
+                  {t.shell.reportTabs[tabItem.id]}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => scrollReportTabs(1)}
+            aria-label={t.laporan.tabStrip.scrollRightAriaLabel}
+            className="size-11 shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronRight className="size-4" />
+          </button>
+          <span className="mono shrink-0 text-[11px] text-muted-foreground">
+            {groupTabIndex + 1}/{visibleReportTabs.length}
+          </span>
+        </div>
       </div>
 
       {/* Export (detailed card — report type, status, download) */}

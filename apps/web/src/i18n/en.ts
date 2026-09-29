@@ -2,6 +2,16 @@ import type { I18nDictionary } from "./types";
 
 export const en = {
   locale: "en" as const,
+  legal: {
+    privacyTitle: "Privacy Policy",
+    termsTitle: "Terms & Conditions",
+    licenseTitle: "Open Source Licenses",
+    contentNotice: "This document is not available yet.",
+    backToLogin: "Back to sign in",
+    privacyLink: "Privacy",
+    termsLink: "Terms",
+    licenseLink: "Licenses",
+  },
   greeting: {
     morning: "Good morning",
     afternoon: "Good afternoon",
@@ -82,6 +92,19 @@ export const en = {
     },
   },
   beranda: {
+    setupChecklist: {
+      title: "Setup progress",
+      nextStep: "Continue",
+      dismissAriaLabel: "Close completed checklist",
+      progressLabelTemplate: "{completed} of 5 steps complete",
+      steps: {
+        account: "First account",
+        budget: "Budget",
+        transaction: "Transaction",
+        family: "Family member",
+        goal: "Financial goal",
+      },
+    },
     title: "Home",
     totalWealth: "Total Net Worth",
     thisMonth: "This month",
@@ -127,6 +150,8 @@ export const en = {
     viewSummaryLink: "View summary",
     donutCenterLabel: "Wealth",
     allocationDetailLink: "Details",
+    historyChartAriaLabel: "Net-worth history",
+    historyEmpty: "Net-worth history is not available yet.",
   },
   shell: {
     loading: "Loading WealthMe…",
@@ -414,6 +439,13 @@ export const en = {
     familyReportsRowNoteLocked: "Master and Co-Master only.",
   },
   akun: {
+    tabs: {
+      profil: "Profile",
+      keamanan: "Security",
+      preferensi: "Preferences",
+      bantuan: "Help",
+      ariaLabel: "Account sections",
+    },
     heroMemberSince: "Member since January 2024",
     loadProfileError: "Failed to load profile. Please refresh the page.",
     familyGroupCardTitle: "Family Group",
@@ -1995,6 +2027,11 @@ export const en = {
     ownerUnknownLabel: "Unknown",
   },
   liabilitas: {
+    fieldGroups: {
+      identity: "Identity",
+      amount: "Amount",
+      interestTenor: "Interest & Term",
+    },
     typeLabels: {
       kartu_kredit: "Credit Card",
       pinjaman_pribadi: "Personal Loan",
@@ -2736,6 +2773,7 @@ export const en = {
     zakatDeductionDesc: "from recorded donations",
     calculatorTitle: "PPh 21 Calculator (Individual)",
     calculatorOtherLink: "Other Calculators",
+    jumpToCalculator: "Go to PPh 21 calculator",
     calculatorSubtitle:
       "Calculate estimated income tax based on the progressive UU HPP rates",
     fieldGrossLabel: "Gross Annual Income (Rp)",
@@ -3407,6 +3445,7 @@ export const en = {
     listTruncatedNote:
       "Showing {shown} of {total} transactions. Narrow the date filter to see the rest.",
     differenceLabel: "Difference",
+    summaryGroupLabel: "Transaction summary",
     sortByLabel: "Sort:",
     sortAriaLabel: "Transaction order",
     errorLoad: "Failed to load transactions. Please refresh the page.",
@@ -3460,6 +3499,7 @@ export const en = {
     attachmentDeletedToast: "Attachment deleted",
     attachmentDeleteFailedToast: "Failed to delete the attachment",
     filterCardTitle: "Filter",
+    mobileFilterToggleTemplate: "Filter ({count})",
     listSectionTitle: "Transaction List",
     listSectionHint:
       "Click a row for details; more actions appear on hover/focus",
@@ -4051,6 +4091,14 @@ export const en = {
     },
     tabStrip: {
       ariaLabel: "Report navigation",
+      groupAriaLabel: "Report groups",
+      groups: {
+        summary: "Summary",
+        cashflow: "Cash Flow",
+        wealth: "Wealth",
+        liabilities: "Liabilities",
+        taxOther: "Tax & More",
+      },
       scrollLeftAriaLabel: "Scroll tabs left",
       scrollRightAriaLabel: "Scroll tabs right",
     },

@@ -12,6 +12,7 @@ import { RecentActivity } from "./_components/recent-activity";
 import { BudgetCard } from "./_components/budget-card";
 import { AttentionCard } from "./_components/attention-card";
 import { GoalsCard } from "./_components/goals-card";
+import { SetupChecklistCard } from "./_components/setup-checklist-card";
 import {
   useBerandaData,
   useMoneyFormatters,
@@ -32,6 +33,7 @@ function BerandaPage() {
   const { data: session } = useSession();
   const { t } = useLocale();
   const [period, setPeriod] = useState<BerandaPeriod>("6M");
+  const [dismissedSetup, setDismissedSetup] = useState(false);
 
   const fmt = useMoneyFormatters();
   const data = useBerandaData(period);
@@ -53,14 +55,28 @@ function BerandaPage() {
         {t.greeting[greetingKey]}, {firstName}
       </div>
 
-      <section className="bento-dashboard" aria-label={t.beranda.title}>
+      {data.isSetupChecklistReady &&
+        !(data.setupChecklist.complete && dismissedSetup) && (
+          <SetupChecklistCard
+            {...data.setupChecklist}
+            onDismiss={() => setDismissedSetup(true)}
+          />
+        )}
+
+      <section
+        className="bento-dashboard bento-dashboard--ordered"
+        aria-label={t.beranda.title}
+      >
         <BerandaHero
           isLoading={data.isLoading}
           netWorth={data.netWorth}
           assetsTotal={data.assetsTotal}
           totalLiabilities={data.totalLiabilities}
           currentMonth={data.currentMonth}
-          sparklinePoints={data.sparklinePoints}
+          historyPoints={data.historyPoints}
+          isHistoryLoading={data.isHistoryLoading}
+          period={period}
+          onPeriodChange={setPeriod}
           fmt={fmt}
         />
 
@@ -84,8 +100,6 @@ function BerandaPage() {
 
         <CashflowCard
           isLoading={data.isLoading}
-          period={period}
-          onPeriodChange={setPeriod}
           cashflow={data.cashflow}
           currentMonth={data.currentMonth}
           fmt={fmt}
