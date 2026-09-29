@@ -2043,6 +2043,11 @@ export const id = {
     ownerUnknownLabel: "Tidak diketahui",
   },
   liabilitas: {
+    fieldGroups: {
+      identity: "Identitas",
+      amount: "Nominal",
+      interestTenor: "Bunga & Tenor",
+    },
     typeLabels: {
       kartu_kredit: "Kartu Kredit",
       pinjaman_pribadi: "Pinjaman Pribadi",

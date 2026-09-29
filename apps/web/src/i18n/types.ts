@@ -2005,6 +2005,11 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
+    fieldGroups: {
+      identity: string;
+      amount: string;
+      interestTenor: string;
+    };
     typeLabels: Record<LiabilitasTypeId, string>;
     riskVerySafe: string;
     riskSafe: string;

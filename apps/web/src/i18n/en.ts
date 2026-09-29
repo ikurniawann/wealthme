@@ -2006,6 +2006,11 @@ export const en = {
     ownerUnknownLabel: "Unknown",
   },
   liabilitas: {
+    fieldGroups: {
+      identity: "Identity",
+      amount: "Amount",
+      interestTenor: "Interest & Term",
+    },
     typeLabels: {
       kartu_kredit: "Credit Card",
       pinjaman_pribadi: "Personal Loan",
