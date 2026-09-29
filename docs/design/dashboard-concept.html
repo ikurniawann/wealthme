@@ -264,6 +264,17 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
 .flabel{font-size:12px;color:var(--muted);margin-bottom:8px;display:flex;justify-content:space-between}
 .acc-row{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px;scroll-snap-type:x proximity}
 .acc-row::-webkit-scrollbar{display:none}
+.hscroll{position:relative}
+.hscroll .acc-row,.hscroll .cards{cursor:grab}
+.hscroll.dragging .acc-row,.hscroll.dragging .cards{cursor:grabbing;scroll-snap-type:none;user-select:none}
+.hs-btn{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;box-shadow:0 4px 12px -4px rgba(0,0,0,.2);z-index:2}
+.hs-btn.l{left:-6px}.hs-btn.r{right:-6px}
+.hs-btn[hidden]{display:none}
+.hscroll::before,.hscroll::after{content:"";position:absolute;top:0;bottom:0;width:28px;pointer-events:none;z-index:1;opacity:0;transition:opacity .15s}
+.hscroll::before{left:0;background:linear-gradient(90deg,var(--card),transparent)}
+.hscroll::after{right:0;background:linear-gradient(270deg,var(--card),transparent)}
+.hscroll.more-l::before,.hscroll.more-r::after{opacity:1}
+@media (pointer:coarse){.hs-btn{display:none}}
 .acc{flex:none;scroll-snap-align:start;width:132px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:64px}
 .acc small{color:var(--muted);font-size:11px}.acc b{font-size:13px}.acc .num{font-size:12px;color:var(--muted)}
 .acc[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
@@ -622,7 +633,7 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
     document.getElementById("accLbl").textContent=t==="in"?"Masuk ke rekening":"Dari rekening";
     accButtons(document.getElementById("accFrom"));if(t==="tf")accButtons(document.getElementById("accTo"),0);catChips();budget();}
   document.getElementById("txType").addEventListener("click",function(e){var b=e.target.closest("[data-type]");if(b)setType(b.dataset.type);});
-  function open(){form.reset();err.textContent="";document.getElementById("txDate").value=new Date(Date.now()+7*3600e3).toISOString().slice(0,10);setType("out");dlg.showModal();amt.focus();}
+  function open(){form.reset();err.textContent="";document.getElementById("txDate").value=new Date(Date.now()+7*3600e3).toISOString().slice(0,10);setType("out");dlg.showModal();amt.focus();requestAnimationFrame(function(){updFrom&&updFrom();updTo&&updTo();});}
   document.querySelector(".top .btn-primary").addEventListener("click",open);
   document.querySelector(".actions .act").addEventListener("click",open);
   document.getElementById("txClose").addEventListener("click",function(){dlg.close();});
@@ -640,6 +651,33 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
     li.querySelector("b").textContent=note||cat;var ul=document.querySelector(".tx");ul.insertBefore(li,ul.firstChild);if(ul.children.length>7)ul.removeChild(ul.lastElementChild);
     if(type==="out"){LIMIT_LEFT-=d;}
     dlg.close();var t=document.getElementById("toast");t.textContent="Transaksi "+rp(d)+" tersimpan (data contoh)";t.hidden=false;clearTimeout(t._h);t._h=setTimeout(function(){t.hidden=true;},2600);});
+
+  // Horizontal scrollers: arrows, wheel, drag, edge fades
+  function hscroll(track){
+    var wrap=document.createElement("div");wrap.className="hscroll";track.parentNode.insertBefore(wrap,track);wrap.appendChild(track);
+    var l=document.createElement("button"),r=document.createElement("button");
+    l.type=r.type="button";l.className="hs-btn l";r.className="hs-btn r";l.setAttribute("aria-label","Geser ke kiri");r.setAttribute("aria-label","Geser ke kanan");
+    l.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>';
+    r.innerHTML='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>';
+    wrap.appendChild(l);wrap.appendChild(r);
+    function step(){var c=track.children[0];return c?c.getBoundingClientRect().width+8:160;}
+    function upd(){var max=track.scrollWidth-track.clientWidth-2;var ml=track.scrollLeft>2,mr=track.scrollLeft<max;
+      l.hidden=!ml;r.hidden=!mr;wrap.classList.toggle("more-l",ml);wrap.classList.toggle("more-r",mr);}
+    l.addEventListener("click",function(){track.scrollBy({left:-step(),behavior:"smooth"});});
+    r.addEventListener("click",function(){track.scrollBy({left:step(),behavior:"smooth"});});
+    track.addEventListener("scroll",function(){requestAnimationFrame(upd);},{passive:true});
+    track.addEventListener("wheel",function(e){if(Math.abs(e.deltaY)>Math.abs(e.deltaX)&&track.scrollWidth>track.clientWidth){var before=track.scrollLeft;track.scrollLeft+=e.deltaY;if(track.scrollLeft!==before)e.preventDefault();}},{passive:false});
+    var down=false,sx=0,sl=0,moved=0;
+    track.addEventListener("pointerdown",function(e){if(e.pointerType!=="mouse")return;down=true;moved=0;sx=e.clientX;sl=track.scrollLeft;});
+    window.addEventListener("pointermove",function(e){if(!down)return;var dx=e.clientX-sx;moved=Math.max(moved,Math.abs(dx));if(moved>4){wrap.classList.add("dragging");track.scrollLeft=sl-dx;}});
+    window.addEventListener("pointerup",function(){if(!down)return;down=false;setTimeout(function(){wrap.classList.remove("dragging");},0);});
+    track.addEventListener("click",function(e){if(moved>4){e.stopPropagation();e.preventDefault();moved=0;}},true);
+    new ResizeObserver(upd).observe(track);upd();
+    return upd;
+  }
+  var updFrom=hscroll(document.getElementById("accFrom")), updTo=hscroll(document.getElementById("accTo"));
+  hscroll(document.getElementById("cards"));
+  dlg.addEventListener("click",function(){setTimeout(function(){updFrom();updTo();},0);});
 
   // Spending composition
   var cats=[["Rumah & KPR",33,"--lime"],["Makan & Minum",18,"--yellow"],["Transportasi",11,"--orange"],["Pendidikan",14,"--lime-soft"],["Kesehatan",8,"--good"],["Lainnya",16,"--ghost"]];
