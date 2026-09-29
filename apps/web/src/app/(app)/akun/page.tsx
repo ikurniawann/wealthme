@@ -801,12 +801,6 @@ export function KeamananBody() {
         <ToggleBox
           rows={[
             {
-              label: t.akun.keamanan.biometricLabel,
-              sub: t.akun.keamanan.biometricSub,
-              defaultChecked: false,
-              disabled: true,
-            },
-            {
               label: t.akun.keamanan.bigTxnLabel,
               sub: t.akun.keamanan.bigTxnSub,
               checked: isAuthOn("bigTxnConfirm"),
@@ -2159,18 +2153,11 @@ function HubungiBody() {
     <>
       <SetSection>
         <SectionTitle>{t.akun.hubungi.contactSectionTitle}</SectionTitle>
-        <SetRow
-          icon={<MessageCircle className="size-4 text-success" />}
-          iconBg="#DCFCE7"
-          name={t.akun.hubungi.liveChatName}
-          sub={t.akun.hubungi.liveChatSub}
-          right={
-            <StatusBadge variant="gray">
-              {t.akun.hubungi.liveChatBadge}
-            </StatusBadge>
-          }
-          onClick={() => toast(t.akun.hubungi.toastLiveChat)}
-        />
+        {/* Hardening batch G2 — the "Live Chat" row used to show an
+            always-"Online" StatusBadge and toast "belum tersedia" on click,
+            actively misleading users. No real chat backend exists (only the
+            unrelated AI advisor); removed rather than faked — the WhatsApp
+            row below already covers real-time chat honestly. */}
         <a
           href={`mailto:${SUPPORT_EMAIL}`}
           className="block border-b last:border-b-0"

@@ -756,8 +756,6 @@ export type I18nDictionary = {
       pinRowName: string;
       pinRowSub: string;
       authSectionTitle: string;
-      biometricLabel: string;
-      biometricSub: string;
       bigTxnLabel: string;
       bigTxnSub: string;
       newLoginLabel: string;
@@ -956,16 +954,12 @@ export type I18nDictionary = {
     };
     hubungi: {
       contactSectionTitle: string;
-      liveChatName: string;
-      liveChatSub: string;
-      liveChatBadge: string;
       emailName: string;
       emailSub: string;
       phoneName: string;
       phoneSub: string;
       whatsappName: string;
       whatsappSub: string;
-      toastLiveChat: string;
       feedbackTitle: string;
       feedbackPlaceholder: string;
       feedbackButton: string;
@@ -3067,8 +3061,6 @@ export type I18nDictionary = {
     emptyState: string;
     insightTitle: string;
     insightDesc: string;
-    uploadComingSoonButton: string;
-    toastUploadUnavailable: string;
     modalTitleEdit: string;
     fieldCategoryLabel: string;
     fieldNameLabel: string;
@@ -3076,8 +3068,6 @@ export type I18nDictionary = {
     fieldValueLabel: string;
     fieldNotesLabel: string;
     fieldNotesPlaceholder: string;
-    fieldDocumentLabel: string;
-    documentUploadHint: string;
     fieldAccessLabel: string;
     visibleToHeirsLabel: string;
     visibleToHeirsOnDesc: string;
