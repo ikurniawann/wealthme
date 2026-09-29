@@ -1175,68 +1175,97 @@
   };
 
   /* ---------- navigation ---------- */
+  /* Concept-style nav: a short list of hubs; the active hub unfolds its pages as a sub list. */
   WM.NAV = [
-    {
-      items: [
-        ["beranda", "index.html", "Beranda", "grid"],
-        ["ringkasan", "ringkasan.html", "Ringkasan", "pie"],
-        ["transaksi", "transaksi.html", "Transaksi", "swap"],
-        ["notifikasi", "notifikasi.html", "Notifikasi", "bell"],
+    ["beranda", "index.html", "Beranda", "grid", []],
+    [
+      "rekening",
+      "rekening.html",
+      "Rekening",
+      "landmark",
+      [
+        ["rekening", "rekening.html", "Bank & kartu"],
+        ["dana", "dana.html", "Cash & e-wallet"],
       ],
-    },
-    {
-      h: "Perencanaan",
-      items: [
-        ["anggaran", "anggaran.html", "Anggaran", "clipboard"],
-        ["laporan", "laporan.html", "Laporan", "chart"],
-        ["tujuan", "tujuan.html", "Tujuan Keuangan", "target"],
+    ],
+    [
+      "transaksi",
+      "transaksi.html",
+      "Transaksi",
+      "swap",
+      [
+        ["transaksi", "transaksi.html", "Riwayat"],
+        ["rekonsiliasi", "rekonsiliasi.html", "Rekonsiliasi"],
+        ["quickinput", "quickinput.html", "Input cepat"],
+        ["splitbill", "splitbill.html", "Split bill"],
       ],
-    },
-    {
-      h: "Kekayaan",
-      items: [
-        ["dana", "dana.html", "Cash & E-Wallet", "wallet"],
-        ["rekening", "rekening.html", "Bank & Account", "landmark"],
-        ["investasi", "investasi.html", "Investasi", "bars"],
-        ["aset", "aset.html", "Aset", "briefcase"],
-        ["liabilitas", "liabilitas.html", "Liabilitas", "receipt"],
-        ["asuransi", "asuransi.html", "Asuransi", "shield"],
+    ],
+    [
+      "ringkasan",
+      "ringkasan.html",
+      "Arus Kas",
+      "wallet",
+      [
+        ["ringkasan", "ringkasan.html", "Ringkasan"],
+        ["laporan", "laporan.html", "Laporan"],
       ],
-    },
-    {
-      h: "Kewajiban",
-      items: [
-        ["warisan", "warisan.html", "Warisan", "scroll"],
-        ["donation", "donation.html", "Donasi", "heart"],
-        ["tax", "tax.html", "Tax Center", "file"],
-        ["persetujuan", "persetujuan.html", "Persetujuan", "checkc"],
+    ],
+    [
+      "anggaran",
+      "anggaran.html",
+      "Anggaran",
+      "clipboard",
+      [
+        ["anggaran", "anggaran.html", "Anggaran"],
+        ["tujuan", "tujuan.html", "Tujuan"],
       ],
-    },
-    {
-      h: "Alat",
-      items: [
-        ["splitbill", "splitbill.html", "Split Bill", "split"],
-        ["rekonsiliasi", "rekonsiliasi.html", "Rekonsiliasi Bank", "compare"],
-        ["ai", "ai.html", "AI Advisor", "bot"],
-        ["kalkulator", "kalkulator.html", "Kalkulator", "calc"],
-        ["quickinput", "quickinput.html", "Input Cepat", "zap"],
+    ],
+    [
+      "investasi",
+      "investasi.html",
+      "Kekayaan",
+      "trend",
+      [
+        ["investasi", "investasi.html", "Investasi"],
+        ["aset", "aset.html", "Aset"],
+        ["liabilitas", "liabilitas.html", "Liabilitas"],
+        ["asuransi", "asuransi.html", "Asuransi"],
       ],
-    },
-    {
-      h: "Pengaturan",
-      items: [
-        ["mastercoa", "mastercoa.html", "Master COA", "book"],
-        ["masterdata", "masterdata.html", "Setup Master Data", "db"],
-        ["iam", "iam.html", "IAM Roles", "key"],
-        ["panduan", "panduan.html", "Panduan Fitur", "help"],
+    ],
+    [
+      "tax",
+      "tax.html",
+      "Pajak & Zakat",
+      "shield",
+      [
+        ["tax", "tax.html", "Pajak"],
+        ["donation", "donation.html", "Donasi & zakat"],
+        ["warisan", "warisan.html", "Warisan"],
       ],
-    },
+    ],
+    ["persetujuan", "persetujuan.html", "Persetujuan", "checkc", []],
+  ];
+  WM.NAV2 = [
+    ["ai", "ai.html", "AI Advisor", "sparkle", []],
+    ["kalkulator", "kalkulator.html", "Kalkulator", "calc", []],
+    [
+      "masterdata",
+      "masterdata.html",
+      "Pengaturan",
+      "gear",
+      [
+        ["masterdata", "masterdata.html", "Master data"],
+        ["mastercoa", "mastercoa.html", "Master COA"],
+        ["iam", "iam.html", "IAM & akses"],
+      ],
+    ],
+    ["panduan", "panduan.html", "Panduan", "book", []],
   ];
   var RESTRICTED = [
-    ["akses-saya", "akses-saya.html", "Akses Saya", "usercheck"],
-    ["transaksi", "transaksi.html", "Transaksi", "swap"],
-    ["notifikasi", "notifikasi.html", "Notifikasi", "bell"],
-    ["panduan", "panduan.html", "Panduan Fitur", "help"],
+    ["akses-saya", "akses-saya.html", "Akses Saya", "usercheck", []],
+    ["transaksi", "transaksi.html", "Transaksi", "swap", []],
+    ["notifikasi", "notifikasi.html", "Notifikasi", "bell", []],
+    ["panduan", "panduan.html", "Panduan", "book", []],
   ];
   WM.allowedPage = function (id) {
     var r = WM.me().role;
@@ -1249,91 +1278,113 @@
     if (id === "iam") return r === "master";
     return true;
   };
-  function navModel() {
-    var r = WM.me().role;
-    if (r === "child" || r === "staff") return [{ items: RESTRICTED }];
-    return WM.NAV.map(function (s) {
-      return {
-        h: s.h,
-        items: s.items.filter(function (i) {
-          return WM.allowedPage(i[0]);
-        }),
-      };
+  function allItems() {
+    var o = [];
+    WM.NAV.concat(WM.NAV2, RESTRICTED, [
+      ["notifikasi", "notifikasi.html", "Notifikasi", "bell", []],
+    ]).forEach(function (i) {
+      o.push(i);
+      i[4].forEach(function (s) {
+        o.push([s[0], s[1], s[2], i[3], []]);
+      });
     });
+    return o;
   }
   WM.pageTitle = function (id) {
     var t = null;
-    WM.NAV.concat([
-      { items: RESTRICTED },
-      { items: [["akun", "akun.html", "Akun", "user"]] },
-    ]).forEach(function (s) {
-      s.items.forEach(function (i) {
-        if (i[0] === id) t = i[2];
+    allItems()
+      .concat([["akun", "akun.html", "Akun", "user", []]])
+      .forEach(function (i) {
+        if (i[0] === id && !t) t = i[2];
       });
-    });
     return t;
   };
-
+  function navModel() {
+    var r = WM.me().role;
+    if (r === "child" || r === "staff") return [RESTRICTED, []];
+    var f = function (list) {
+      return list
+        .map(function (i) {
+          return [
+            i[0],
+            i[1],
+            i[2],
+            i[3],
+            i[4].filter(function (s) {
+              return WM.allowedPage(s[0]);
+            }),
+          ];
+        })
+        .filter(function (i) {
+          return WM.allowedPage(i[0]);
+        });
+    };
+    return [f(WM.NAV), f(WM.NAV2)];
+  }
   function navHTML(active, forSheet) {
-    var collapsed = ls("navc") || {},
-      pend = WM.store.get("requests").filter(function (r) {
+    var pend = WM.store.get("requests").filter(function (r) {
         return r.status === "pending";
       }).length,
-      unread = WM.store.get("notifications").filter(function (n) {
-        return !n.read;
-      }).length;
-    return navModel()
-      .map(function (s, si) {
-        var open =
-          forSheet ||
-          !collapsed[s.h] ||
-          s.items.some(function (i) {
-            return i[0] === active;
-          });
-        return (
-          (s.h
-            ? '<button type="button" class="nsec" data-sec="' +
-              esc(s.h) +
-              '" aria-expanded="' +
-              open +
-              '"><span>' +
-              s.h +
+      txc = WM.monthTx().length;
+    function grp(list) {
+      return (
+        '<nav class="nav">' +
+        list
+          .map(function (i) {
+            var inGrp =
+              i[0] === active ||
+              i[4].some(function (s) {
+                return s[0] === active;
+              });
+            var b = i[0] === "persetujuan" && pend ? pend : 0;
+            var h =
+              '<a href="' +
+              i[1] +
+              '" title="' +
+              i[2] +
+              '"' +
+              (inGrp && !i[4].length
+                ? ' aria-current="page"'
+                : inGrp
+                  ? ' class="open"'
+                  : "") +
+              ">" +
+              WM.icon(i[3]) +
+              '<span class="lbl">' +
+              i[2] +
               "</span>" +
-              WM.icon("chevd", 14, 2.2) +
-              "</button>"
-            : "") +
-          '<nav class="nav" aria-label="' +
-          (s.h || "Utama") +
-          '">' +
-          s.items
-            .map(function (i) {
-              var b =
-                i[0] === "persetujuan" && pend
-                  ? pend
-                  : i[0] === "notifikasi" && unread
-                    ? unread
-                    : 0;
-              return (
-                '<a href="' +
-                i[1] +
-                '" title="' +
-                i[2] +
-                '"' +
-                (i[0] === active ? ' aria-current="page"' : "") +
-                ">" +
-                WM.icon(i[3]) +
-                '<span class="lbl">' +
-                i[2] +
-                "</span>" +
-                (b ? '<span class="badge">' + b + "</span>" : "") +
-                "</a>"
-              );
-            })
-            .join("") +
-          "</nav>"
-        );
-      })
-      .join("");
+              (b ? '<span class="badge">' + b + "</span>" : "") +
+              "</a>";
+            if (i[4].length && (inGrp || forSheet))
+              h +=
+                '<div class="sub">' +
+                i[4]
+                  .map(function (s) {
+                    return (
+                      '<a href="' +
+                      s[1] +
+                      '"' +
+                      (s[0] === active ? ' aria-current="page"' : "") +
+                      ">" +
+                      s[2] +
+                      (s[0] === "transaksi"
+                        ? ' <span class="badge num">' + txc + "</span>"
+                        : "") +
+                      "</a>"
+                    );
+                  })
+                  .join("") +
+                "</div>";
+            return h;
+          })
+          .join("") +
+        "</nav>"
+      );
+    }
+    var m = navModel();
+    return (
+      grp(m[0]) + (m[1].length ? '<div class="sep"></div>' + grp(m[1]) : "")
+    );
   }
 
   WM.shell = function (opts) {
@@ -1458,7 +1509,7 @@
       "beforeend",
       mnav +
         (WM.isOwner() && page !== "ai"
-          ? '<a class="fai no-print" href="ai.html"><i>' +
+          ? '<a class="fai no-print" href="ai.html" aria-label="Tanya AI" title="Tanya AI"><i>' +
             WM.icon("sparkle", 18) +
             "</i>Tanya AI</a>"
           : "") +
@@ -1502,15 +1553,6 @@
     var q = function (id) {
       return document.getElementById(id);
     };
-    document.querySelectorAll(".nsec").forEach(function (b) {
-      b.addEventListener("click", function () {
-        var c = ls("navc") || {},
-          o = b.getAttribute("aria-expanded") === "true";
-        b.setAttribute("aria-expanded", !o);
-        c[b.dataset.sec] = o;
-        ls("navc", c);
-      });
-    });
     q("wmTheme").addEventListener("click", function () {
       var d = !isDark();
       ls("theme", d ? "dark" : "light");
@@ -1731,12 +1773,17 @@
 
   /* ---------- command palette ---------- */
   function palette() {
-    var pages = [];
-    navModel().forEach(function (s) {
-      s.items.forEach(function (i) {
-        pages.push(i);
+    var pages = allItems()
+      .filter(function (i) {
+        return WM.allowedPage(i[0]);
+      })
+      .filter(function (i, k, arr) {
+        return (
+          arr.findIndex(function (x) {
+            return x[1] === i[1];
+          }) === k
+        );
       });
-    });
     pages.push(["akun", "akun.html", "Profil & akun", "user"]);
     var d = document.createElement("dialog");
     d.className = "sheet";
@@ -1880,7 +1927,10 @@
   /* WM.modal({title, sub, body (html or node), size:"sm"|"lg", submit:"Simpan", cancel:"Batal", danger, onSubmit(form,data,dialog)->string error|false to keep open, onOpen(dialog), noFoot}) */
   WM.modal = function (o) {
     var d = document.createElement("dialog");
-    d.className = "sheet" + (o.size ? " " + o.size : "");
+    d.className =
+      "sheet" +
+      (o.size ? " " + o.size : "") +
+      (!o.center && o.size !== "sm" && window.innerWidth > 900 ? " side" : "");
     d.setAttribute("aria-labelledby", "mt" + ++mid);
     d.innerHTML =
       '<form method="dialog" novalidate><div class="sheet-head"><div><h2 id="mt' +
@@ -1951,6 +2001,7 @@
       WM.modal({
         title: o.title,
         size: "sm",
+        center: true,
         body:
           '<p style="margin:0;color:var(--muted)">' + (o.text || "") + "</p>",
         submit: o.confirm || "Ya, lanjutkan",
@@ -2463,6 +2514,7 @@
           "Scan struk</button>");
     WM.modal({
       title: edit ? "Ubah transaksi" : "Catat transaksi",
+      center: true,
       body: html,
       submit: edit ? "Simpan perubahan" : "Simpan",
       noAutofocus: true,
@@ -2760,24 +2812,12 @@
         };
         foot.querySelector("[data-del]").onclick = function () {
           d.close();
-          WM.confirm({
-            title: "Hapus transaksi ini?",
-            text:
-              esc(t.note || c.name) +
-              " " +
-              WM.rp(t.amount) +
-              " akan dihapus dan saldo rekening dikembalikan.",
-            confirm: "Hapus",
-            danger: true,
-          }).then(function (ok) {
-            if (!ok) return;
-            var old = WM.removeTx(id);
-            WM.toast("Transaksi dihapus", {
-              undo: function () {
-                WM.restoreTx(old);
-                WM.toast("Transaksi dikembalikan");
-              },
-            });
+          var old = WM.removeTx(id);
+          WM.toast("Transaksi dihapus, saldo dikembalikan", {
+            undo: function () {
+              WM.restoreTx(old);
+              WM.toast("Transaksi dikembalikan");
+            },
           });
         };
       },
