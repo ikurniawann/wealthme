@@ -14,6 +14,22 @@ if (typeof window !== "undefined" && !window.ResizeObserver) {
   };
 }
 
+// jsdom's AbortSignal doesn't implement the static `.timeout()` helper
+// (lib/api-client.ts's default request timeout — hardening audit, errors).
+if (typeof AbortSignal !== "undefined" && !AbortSignal.timeout) {
+  AbortSignal.timeout = (ms: number): AbortSignal => {
+    const ctrl = new AbortController();
+    setTimeout(
+      () =>
+        ctrl.abort(
+          new DOMException("The operation timed out.", "TimeoutError"),
+        ),
+      ms,
+    );
+    return ctrl.signal;
+  };
+}
+
 if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = function matchMedia(query: string): MediaQueryList {
     return {

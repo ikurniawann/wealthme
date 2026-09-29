@@ -81,6 +81,7 @@ export const id = {
       sessionExpired: "Sesi habis, silakan login kembali",
       accessDenied: "Tidak memiliki akses",
       generic: "Terjadi kesalahan, silakan coba lagi",
+      timeout: "Waktu habis, coba lagi",
     },
   },
   beranda: {
@@ -4581,5 +4582,18 @@ export const id = {
     storedAsIdr: "Disimpan sebagai IDR, ditampilkan dalam {display}.",
     fxIndicativeRefused:
       "Kurs tidak tersedia saat ini — coba lagi atau gunakan IDR",
+  },
+  errors: {
+    boundaryTitle: "Terjadi kesalahan",
+    boundaryBody:
+      "Halaman ini gagal dimuat. Coba lagi, atau kembali ke beranda.",
+    retryButton: "Coba lagi",
+    homeButton: "Ke Beranda",
+    notFoundTitle: "Halaman tidak ditemukan",
+    notFoundBody: "Halaman yang kamu cari tidak ada atau sudah dipindahkan.",
+    notFoundButton: "Ke Beranda",
+    globalErrorTitle: "Terjadi kesalahan",
+    globalErrorBody:
+      "Aplikasi mengalami masalah. Muat ulang halaman untuk melanjutkan.",
   },
 } satisfies I18nDictionary;

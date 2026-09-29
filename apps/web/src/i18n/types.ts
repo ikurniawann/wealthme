@@ -449,6 +449,10 @@ export type I18nDictionary = {
       sessionExpired: string;
       accessDenied: string;
       generic: string;
+      // Hardening audit (errors) — apiFetch's dedicated timeout message,
+      // distinct from `generic` so a hung request reads differently from a
+      // generic failure.
+      timeout: string;
     };
   };
   beranda: {
@@ -4429,5 +4433,23 @@ export type I18nDictionary = {
     rateNotReady: string;
     storedAsIdr: string;
     fxIndicativeRefused: string;
+  };
+  /**
+   * Hardening audit (errors, HIGH) — copy for `app/error.tsx`,
+   * `(app)/error.tsx`, `app/global-error.tsx` and `app/not-found.tsx`. None
+   * of these existed before, so an uncaught render/query throw showed
+   * Next.js's default blank/dev-overlay screen instead of friendly copy with
+   * a retry.
+   */
+  errors: {
+    boundaryTitle: string;
+    boundaryBody: string;
+    retryButton: string;
+    homeButton: string;
+    notFoundTitle: string;
+    notFoundBody: string;
+    notFoundButton: string;
+    globalErrorTitle: string;
+    globalErrorBody: string;
   };
 };

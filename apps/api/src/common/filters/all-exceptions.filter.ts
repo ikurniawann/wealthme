@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Logger,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 
 import type { Request, Response } from "express";
 
@@ -93,14 +94,65 @@ function asPayloadTooLarge(exception: unknown): HttpException | undefined {
   );
 }
 
+/**
+ * Hardening audit (errors, MEDIUM) — the filter never inspected a raw
+ * `PrismaClientKnownRequestError` itself; mapping P2002/P2025/P2003 to a
+ * friendly 4xx was opt-in per service, so any service WITHOUT its own
+ * mapping (donations, goals, investments, split-bills, transactions, assets,
+ * inheritance, …) sent an unhandled constraint violation to the generic 500
+ * "Internal server error" branch below instead of an actionable status.
+ *
+ * Only engages for a genuine, still-unwrapped `PrismaClientKnownRequestError`
+ * — a service that already caught and rethrew its own `HttpException` (the
+ * `accounts`/`budgets`/… precedent) is left alone, so a per-service mapping
+ * always takes precedence over this fallback.
+ */
+function asPrismaKnownError(exception: unknown): HttpException | undefined {
+  if (!(exception instanceof Prisma.PrismaClientKnownRequestError)) {
+    return undefined;
+  }
+  switch (exception.code) {
+    case "P2002":
+      return new HttpException(
+        { statusCode: HttpStatus.CONFLICT, message: "Data sudah ada" },
+        HttpStatus.CONFLICT,
+      );
+    case "P2025":
+      return new HttpException(
+        {
+          statusCode: HttpStatus.NOT_FOUND,
+          message: "Data tidak ditemukan",
+        },
+        HttpStatus.NOT_FOUND,
+      );
+    case "P2003":
+      return new HttpException(
+        {
+          statusCode: HttpStatus.CONFLICT,
+          message: "Data masih dipakai/terkait",
+        },
+        HttpStatus.CONFLICT,
+      );
+    default:
+      return undefined;
+  }
+}
+
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
   catch(rawException: unknown, host: ArgumentsHost): void {
     // A body-parser overflow arrives as a bare Error; everything below treats
-    // it as the 413 HttpException it should have been all along.
-    const exception = asPayloadTooLarge(rawException) ?? rawException;
+    // it as the 413 HttpException it should have been all along. An
+    // unmapped Prisma constraint violation is normalized the same way, but
+    // only after a per-service mapping had its chance to run (it would
+    // already have rethrown its own HttpException by the time this filter
+    // sees it, so `rawException` would no longer be the raw Prisma error).
+    const exception =
+      asPayloadTooLarge(rawException) ??
+      asPrismaKnownError(rawException) ??
+      rawException;
 
     const ctx = host.switchToHttp();
     const request = ctx.getRequest<Request>();

@@ -78,6 +78,7 @@ export const en = {
       sessionExpired: "Your session has expired, please log in again",
       accessDenied: "You don't have access",
       generic: "Something went wrong, please try again",
+      timeout: "Timed out, try again",
     },
   },
   beranda: {
@@ -4512,5 +4513,17 @@ export const en = {
     storedAsIdr: "Stored as IDR, shown in {display}.",
     fxIndicativeRefused:
       "Exchange rate is unavailable right now — try again or use IDR",
+  },
+  errors: {
+    boundaryTitle: "Something went wrong",
+    boundaryBody:
+      "This page failed to load. Try again, or go back to the dashboard.",
+    retryButton: "Try again",
+    homeButton: "Go to dashboard",
+    notFoundTitle: "Page not found",
+    notFoundBody: "The page you're looking for doesn't exist or was moved.",
+    notFoundButton: "Go to dashboard",
+    globalErrorTitle: "Something went wrong",
+    globalErrorBody: "The app ran into a problem. Reload the page to continue.",
   },
 } satisfies I18nDictionary;

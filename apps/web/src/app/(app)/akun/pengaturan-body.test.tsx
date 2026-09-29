@@ -388,6 +388,30 @@ describe("PengaturanBody, Currency Picker Wiring (EPIC-016 Task B2)", () => {
   });
 
   describe("Currency Picker", () => {
+    // Hardening audit (errors, LOW) — currency radios had no isPending
+    // guard, unlike the gold-price/AI-key saves in the same file. A fast
+    // double-click could fire two concurrent PATCH /auth/profile calls that
+    // could resolve out of order.
+    it("ignores a second click while the first currency PATCH is still in flight", async () => {
+      const user = userEvent.setup();
+      let resolvePatch: (() => void) | undefined;
+      mockApiFetch.mockReset();
+      mockApiFetch.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolvePatch = () => resolve({ success: true, data: {} });
+          }),
+      );
+      render(<PengaturanBody />);
+
+      const usdOption = screen.getByText(/Dollar Amerika/);
+      await user.click(usdOption);
+      await user.click(usdOption);
+
+      expect(mockApiFetch).toHaveBeenCalledTimes(1);
+      resolvePatch?.();
+    });
+
     it("should call updateProfile mutation when selecting a different currency", async () => {
       // Arrange
       const user = userEvent.setup();

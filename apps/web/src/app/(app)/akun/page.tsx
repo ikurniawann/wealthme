@@ -1306,7 +1306,7 @@ export function PengaturanBody() {
   // Currency applies immediately on selection (same UX as theme/language),
   // by writing straight to the real profile — never to the orphaned
   // localStorage blob below, which only still covers dateFormat.
-  const { mutate: updateCurrency } = useMutation({
+  const { mutate: updateCurrency, isPending: isCurrencyPending } = useMutation({
     mutationFn: (code: string) =>
       apiFetch("/auth/profile", {
         method: "PATCH",
@@ -1382,6 +1382,7 @@ export function PengaturanBody() {
           className="mb-3.5"
           role="radiogroup"
           aria-label={t.akun.pengaturan.currencySectionTitle}
+          aria-disabled={isCurrencyPending}
         >
           <div className="mb-2.5 text-[12px] text-muted-foreground">
             {t.akun.pengaturan.currencyHint}
@@ -1395,10 +1396,20 @@ export function PengaturanBody() {
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                onClick={() => updateCurrency(c.code)}
-                className={`mb-2 flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
-                  selected ? "border-primary bg-accent" : ""
-                }`}
+                disabled={isCurrencyPending}
+                onClick={() => {
+                  // Hardening audit (errors, LOW) — unlike the gold-price/AI-key
+                  // saves in this file, this had no isPending guard: a fast
+                  // double-click could fire two concurrent PATCH /auth/profile
+                  // calls that could resolve out of order.
+                  if (isCurrencyPending) return;
+                  updateCurrency(c.code);
+                }}
+                className={`mb-2 flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
+                  isCurrencyPending
+                    ? "cursor-not-allowed opacity-60"
+                    : "cursor-pointer"
+                } ${selected ? "border-primary bg-accent" : ""}`}
               >
                 <div className="text-[22px]">{c.flag}</div>
                 <div className="flex-1">
