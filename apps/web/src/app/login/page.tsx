@@ -33,12 +33,12 @@ import { LegalLinks } from "@/components/auth/legal-links";
 type UsernameSignInResponse = { token: string };
 
 const INPUT_CLASS =
-  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20";
+  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20 pointer-coarse:min-h-11";
 const LABEL_CLASS = "mb-[5px] block text-[12.5px] font-semibold";
 const BTN_PRIMARY_BLOCK =
-  "flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11";
 const BTN_OUTLINE_BLOCK =
-  "flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50";
+  "flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11";
 
 function AuthBrand() {
   return (
@@ -177,7 +177,7 @@ export default function LoginPage() {
                 setMode("email");
                 setError("");
               }}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              className={`flex-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors pointer-coarse:min-h-11 ${
                 mode === "email"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground"
@@ -193,7 +193,7 @@ export default function LoginPage() {
                 setMode("username");
                 setError("");
               }}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              className={`flex-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors pointer-coarse:min-h-11 ${
                 mode === "username"
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground"
@@ -283,7 +283,7 @@ export default function LoginPage() {
                   }
                   aria-pressed={show}
                   onClick={() => setShow((s) => !s)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary pointer-coarse:size-11"
                 >
                   {show ? (
                     <EyeOff className="size-3.5" />

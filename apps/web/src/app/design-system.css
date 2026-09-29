@@ -4621,4 +4621,38 @@
       transform: none;
     }
   }
+
+  /* Touch controls need a comfortable hit area without changing desktop density. */
+  @media (pointer: coarse) {
+    .input,
+    .select,
+    .textarea,
+    .btn,
+    .segmented__item,
+    .date-range__trigger,
+    .recon-mapping-grid .select,
+    .donation-tithe-grid .input,
+    .tax-calculator-grid .input,
+    .tax-calculator-grid .select,
+    .calc-panel .card__body > .grid .input,
+    .calc-panel .card__body > .grid .select {
+      min-height: 44px;
+    }
+
+    .btn--icon,
+    .btn--icon.btn--sm,
+    .btn--ghost.btn--icon {
+      min-width: 44px;
+      min-height: 44px;
+    }
+
+    .topbar__menu-btn,
+    .topbar__search {
+      flex-basis: 44px;
+      width: 44px;
+      min-width: 44px;
+      height: 44px;
+      min-height: 44px;
+    }
+  }
 }
