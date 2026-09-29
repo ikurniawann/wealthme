@@ -1041,6 +1041,9 @@ export type I18nDictionary = {
       usernamePlaceholder: string;
       passwordLabel: string;
       passwordPlaceholder: string;
+      nameRequiredError: string;
+      usernameRequiredError: string;
+      passwordRequiredError: string;
       showPassword: string;
       hidePassword: string;
       roleLabel: string;

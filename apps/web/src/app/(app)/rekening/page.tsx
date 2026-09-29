@@ -10,20 +10,14 @@ import {
   Users,
   User,
   List,
-  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { StatusBadge, SummaryCard } from "@/components/wm";
+import { StatusBadge, SummaryCard, InfoTip } from "@/components/wm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipTrigger,
-  TooltipContent,
-} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -849,16 +843,14 @@ export default function RekeningPage() {
           </div>
           {/* polish-j batch 7a item 11 — the negative-balance rule used to
               sit as always-visible text; it's context, not something every
-              visitor needs to read, so it's now an info tooltip. */}
-          <Tooltip>
-            <TooltipTrigger
-              aria-label={t.rekening.filterNoteText}
-              className="hidden shrink-0 text-muted-foreground md:inline-flex"
-            >
-              <Info className="size-3.5" />
-            </TooltipTrigger>
-            <TooltipContent>{t.rekening.filterNoteText}</TooltipContent>
-          </Tooltip>
+              visitor needs to read, so it's an info affordance.
+              Hardening batch G3 (P1) — a hover-only Tooltip hidden below
+              `md:` meant phone users (the older-user persona this note is
+              for) could never read it. InfoTip is a tap-opening popover, so
+              it's shown at every width now. */}
+          <InfoTip label={t.rekening.filterNoteText}>
+            {t.rekening.filterNoteText}
+          </InfoTip>
         </div>
       )}
 

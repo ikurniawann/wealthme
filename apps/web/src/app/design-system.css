@@ -640,6 +640,27 @@
     width: 30px;
   }
 
+  /* Hardening batch G3 (P1, design-system.css override per constraints.md
+     — "user allows overriding the design system where it blocks a better
+     result") — every `.btn` variant falls short of the 44px WCAG 2.2 AA
+     touch-target minimum on phones (`.btn` 36px, `.btn--sm`/icon-sm 30px).
+     Scoped to coarse pointers only (real touchscreens) so the mouse/trackpad
+     desktop sizing above is untouched. */
+  @media (pointer: coarse) {
+    .btn {
+      min-height: 44px;
+    }
+    .btn--sm {
+      min-height: 44px;
+    }
+    .btn--icon {
+      min-width: 44px;
+    }
+    .btn--icon.btn--sm {
+      min-width: 44px;
+    }
+  }
+
   .btn--block {
     width: 100%;
   }

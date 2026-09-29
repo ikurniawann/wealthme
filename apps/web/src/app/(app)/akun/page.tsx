@@ -234,6 +234,12 @@ function SetSection({ children }: { children: React.ReactNode }) {
   return <div className="mb-6 last:mb-0">{children}</div>;
 }
 
+// Hardening batch G3 (P1, WCAG 2.1.1/4.1.2) — this used to always render a
+// `<div onClick>` for ~15 settings rows (change password, PIN, sessions,
+// export, delete account, tour, about), unreachable by keyboard or a screen
+// reader. It now renders a real `<button>` whenever `onClick` is set
+// (mirroring MenuRow below) and falls back to a plain, non-interactive
+// `<div>` only when there's genuinely nothing to activate.
 function SetRow({
   icon,
   iconBg,
@@ -249,13 +255,8 @@ function SetRow({
   right?: React.ReactNode;
   onClick?: () => void;
 }) {
-  return (
-    <div
-      className={`flex items-center gap-3 border-b py-3 last:border-b-0 ${
-        onClick ? "cursor-pointer" : ""
-      }`}
-      onClick={onClick}
-    >
+  const content = (
+    <>
       <div
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
         style={{ background: iconBg }}
@@ -269,6 +270,24 @@ function SetRow({
         )}
       </div>
       {right}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-3 border-b py-3 text-left last:border-b-0"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 border-b py-3 last:border-b-0">
+      {content}
     </div>
   );
 }
@@ -1057,12 +1076,13 @@ function KoneksiBody({
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
           <SectionTitle>{t.akun.koneksi.bankSectionTitle}</SectionTitle>
-          <span
+          <button
+            type="button"
             className="cursor-pointer text-[12px] font-bold text-primary"
             onClick={onAddRekening}
           >
             {t.akun.koneksi.addButton}
-          </span>
+          </button>
         </div>
         {bankAccounts.map((a) => (
           <SetRow
@@ -1092,12 +1112,13 @@ function KoneksiBody({
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
           <SectionTitle>{t.akun.koneksi.ewalletSectionTitle}</SectionTitle>
-          <span
+          <button
+            type="button"
             className="cursor-pointer text-[12px] font-bold text-primary"
             onClick={onAddEwallet}
           >
             {t.akun.koneksi.addButton}
-          </span>
+          </button>
         </div>
         {ewalletAccounts.map((a) => (
           <SetRow

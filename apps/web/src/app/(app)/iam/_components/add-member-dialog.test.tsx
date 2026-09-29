@@ -248,6 +248,72 @@ describe("AddMemberDialog — Hak akses at creation (Revisi H)", () => {
   });
 });
 
+/**
+ * Hardening batch G3 (P1) — "Buat Akun" used to return silently when a
+ * required field was empty: no inline error, no aria-invalid, no toast.
+ */
+describe("AddMemberDialog — inline validation errors on empty required fields", () => {
+  beforeEach(() => {
+    jest.resetAllMocks();
+    routeApi();
+  });
+
+  it("shows all three inline errors and marks the fields aria-invalid when submitted empty", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+
+    expect(await screen.findByText(L.nameRequiredError)).toBeInTheDocument();
+    expect(screen.getByText(L.usernameRequiredError)).toBeInTheDocument();
+    expect(screen.getByText(L.passwordRequiredError)).toBeInTheDocument();
+
+    expect(screen.getByLabelText(L.nameLabel)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByLabelText(L.usernameLabel)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByLabelText(L.passwordLabel)).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+
+    // No request should fire for an invalid submission.
+    expect(callsTo("/members/dependant", "POST")).toHaveLength(0);
+  });
+
+  it("clears a field's error as soon as the user types into it", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+    expect(await screen.findByText(L.nameRequiredError)).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(L.nameLabel), "Pak Joko");
+
+    expect(screen.queryByText(L.nameRequiredError)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(L.nameLabel)).toHaveAttribute(
+      "aria-invalid",
+      "false",
+    );
+  });
+
+  it("submits normally once every required field is filled", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    await fillRequired(user);
+    await user.click(screen.getByRole("button", { name: L.createButton }));
+
+    await waitFor(() =>
+      expect(callsTo("/members/dependant", "POST")).toHaveLength(1),
+    );
+  });
+});
+
 describe("AddMemberDialog — credentials view (IAM copy username/password)", () => {
   const CC = mockDictionary.akun.copyCredentials;
 
