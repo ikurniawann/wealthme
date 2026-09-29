@@ -17,12 +17,11 @@ import {
 } from "../common/utils/privacy.util";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ExportJobRequestDto } from "./dto/export-job-request.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ExportsService } from "./exports.service";
 
-import type {
-  ExportJobRequestDto,
-  ExportJobStatusDto,
-} from "@wealthme/contracts";
+import type { ExportJobStatusDto } from "@wealthme/contracts";
 import type { Request } from "express";
 
 @ApiTags("exports")

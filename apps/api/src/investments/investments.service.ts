@@ -631,6 +631,16 @@ export class InvestmentsService {
     }
   }
 
+  /** Hardening audit (validation, HIGH) — a manual price must be strictly
+   * positive: `@IsNumberString()` on the DTO accepts a leading "-", and a
+   * zero/negative quote would corrupt the holding's valuation. */
+  private assertValidManualPrice(value: string): void {
+    const p = new Decimal(value);
+    if (!p.greaterThan(0)) {
+      throw new BadRequestException("price must be greater than 0");
+    }
+  }
+
   /** 0..100 inclusive; class-validator only checks the string format. */
   private assertValidInterestRatePct(value?: string): void {
     if (value == null) return;
@@ -687,6 +697,10 @@ export class InvestmentsService {
     id: string,
     dto: SetManualPriceDto,
   ): Promise<InvestmentPriceDto> {
+    // Hardening audit (validation, HIGH) — `@IsNumberString()` accepts
+    // "-15250"; this used to be persisted unchecked via `new Decimal(...)`,
+    // corrupting the holding's valuation.
+    this.assertValidManualPrice(dto.price);
     const existing = await this.prisma.investment.findUnique({
       where: { id, familyGroupId },
     });

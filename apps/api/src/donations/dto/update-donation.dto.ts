@@ -6,12 +6,16 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsUrl,
   Matches,
   MaxLength,
 } from "class-validator";
 
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
+// Hardening audit (validation, MEDIUM) — mirrors create-donation.dto.ts.
+const DONATION_AMOUNT_DIGITS = /^\d{1,15}$/;
 
 export class UpdateDonationDto {
   @ApiPropertyOptional({ enum: DonationType })
@@ -29,7 +33,9 @@ export class UpdateDonationDto {
   @ApiPropertyOptional({ description: "Amount as numeric string" })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "amount must be a numeric string" })
+  @Matches(DONATION_AMOUNT_DIGITS, {
+    message: "amount must be a numeric string of at most 15 digits",
+  })
   amount?: string;
 
   @ApiPropertyOptional()
@@ -48,14 +54,19 @@ export class UpdateDonationDto {
   @IsBoolean()
   isTaxDeductible?: boolean;
 
+  // Hardening audit (validation, HIGH) — mirrors create-donation.dto.ts:
+  // rendered as `<a href>` to every family member, so a non-http(s) scheme
+  // would have been stored XSS.
   @ApiPropertyOptional()
   @IsOptional()
-  @IsString()
+  @IsUrl({ protocols: ["http", "https"], require_protocol: true })
+  @MaxLength(2048)
   receiptUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   notes?: string;
 
   @FxInputsProperty()

@@ -1233,6 +1233,26 @@ describe("InvestmentsService P&L", () => {
       ).rejects.toThrow();
       expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
     });
+
+    // Hardening audit (validation, HIGH) — a negative price used to be
+    // accepted and persisted unchecked, corrupting the holding's valuation.
+    it("rejects a negative price before touching the database", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue({ id: "inv-1" });
+
+      await expect(
+        service.setManualPrice("fg-1", "inv-1", { price: "-15250" }),
+      ).rejects.toThrow("price must be greater than 0");
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+    });
+
+    it("rejects a zero price", async () => {
+      mockPrisma.investment.findUnique.mockResolvedValue({ id: "inv-1" });
+
+      await expect(
+        service.setManualPrice("fg-1", "inv-1", { price: "0" }),
+      ).rejects.toThrow("price must be greater than 0");
+      expect(mockPrisma.investmentPrice.create).not.toHaveBeenCalled();
+    });
   });
 
   // ──────────────────────────────────────────────────────────────

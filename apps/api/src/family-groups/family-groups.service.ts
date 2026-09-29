@@ -618,6 +618,7 @@ export class FamilyGroupsService {
   async acceptInvitation(
     token: string,
     userId: string,
+    callerEmail: string,
   ): Promise<MemberResponseDto> {
     const invitation = await this.prisma.invitation.findUnique({
       where: { token },
@@ -629,6 +630,15 @@ export class FamilyGroupsService {
     }
     if (invitation.usedAt) {
       throw new BadRequestException("Invitation has already been used");
+    }
+    // Hardening audit (validation, HIGH) — a forwarded link used to let
+    // ANY signed-in holder of the token join with the invited role. The
+    // token proves possession of the link, not that the caller is the
+    // invited person, so it must be bound to the invited email too.
+    if (invitation.email.toLowerCase() !== callerEmail.toLowerCase()) {
+      throw new ForbiddenException(
+        "This invitation was sent to a different email address",
+      );
     }
 
     const existing = await this.prisma.member.findUnique({
@@ -645,8 +655,23 @@ export class FamilyGroupsService {
       );
     }
 
-    const [member] = await this.prisma.$transaction([
-      this.prisma.member.create({
+    // Hardening audit (validation, HIGH) — the read-then-write above (check
+    // usedAt, then unconditionally `update({ where: { token } })`) races:
+    // two concurrent accepts could both pass the `usedAt` check and both
+    // create a Member row before either write lands. Redeeming the token is
+    // now a conditional `updateMany` (`usedAt: null` in the WHERE clause) in
+    // the SAME transaction as the member create, so only the first caller to
+    // land the claim gets a count of 1; a loser rolls the whole transaction
+    // back instead of creating a duplicate/orphaned member.
+    const member = await this.prisma.$transaction(async (tx) => {
+      const claim = await tx.invitation.updateMany({
+        where: { token, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (claim.count === 0) {
+        throw new BadRequestException("Invitation has already been used");
+      }
+      return tx.member.create({
         data: {
           userId,
           familyGroupId: invitation.familyGroupId,
@@ -655,12 +680,8 @@ export class FamilyGroupsService {
           relationship: invitation.relationship,
         },
         include: { user: { select: MEMBER_USER_SELECT } },
-      }),
-      this.prisma.invitation.update({
-        where: { token },
-        data: { usedAt: new Date() },
-      }),
-    ]);
+      });
+    });
 
     return {
       id: member.id,

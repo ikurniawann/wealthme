@@ -479,6 +479,10 @@ export class FamilyGroupsController {
     @Request() req: AuthRequest,
     @Param("token") token: string,
   ): Promise<MemberResponseDto> {
-    return this.familyGroupsService.acceptInvitation(token, req.user.sub);
+    return this.familyGroupsService.acceptInvitation(
+      token,
+      req.user.sub,
+      req.user.email,
+    );
   }
 }
