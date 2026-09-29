@@ -142,6 +142,15 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
 .gauge .center b{font-size:26px;letter-spacing:-.03em;display:block}
 .gauge .center small{color:var(--muted);font-size:11.5px}
 .note{color:var(--muted);font-size:12px;margin:10px 0 0}
+.col{display:flex;flex-direction:column}
+.push{margin-top:auto}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.stats div{background:var(--card-2);border-radius:12px;padding:10px 12px}
+.stats small{display:block;color:var(--muted);font-size:11.5px}
+.stats b{font-size:15px;letter-spacing:-.02em}
+.cat li .r{color:var(--ink);font-size:12.5px}
+.cat li .p{margin-left:0;min-width:34px;text-align:right}
+.cat li .grow1{margin-left:auto;display:flex;gap:10px;align-items:baseline}
 
 /* goals */
 .goal{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
@@ -314,34 +323,37 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
       </article>
 
       <!-- Spending analysis -->
-      <article class="card span-3">
+      <article class="card span-3 col">
         <div class="head"><div><h2>Analisis pengeluaran</h2><div class="cap">Bulan ini</div></div></div>
         <p class="mid num">Rp 16.750.000</p>
         <div class="seg-bar" id="segbar" role="img" aria-label="Komposisi pengeluaran per kategori"></div>
         <ul class="cat" id="cats"></ul>
+        <div class="stats push"><div><small>vs Agustus</small><b class="num" style="color:var(--bad)">+Rp 1,85 jt</b></div><div><small>Terbesar naik</small><b>Makan & Minum</b></div></div>
       </article>
 
       <!-- Financial health -->
-      <article class="card span-3">
+      <article class="card span-3 col">
         <div class="head"><div><h2>Kesehatan finansial</h2><div class="cap">Rasio tabungan</div></div><span class="ghost-btn" style="border:0;background:var(--card-2)">30 hari</span></div>
         <p class="mid num" style="font-size:24px">Rp 21.750.000</p>
         <div class="delta up">↑ 8,7% <em>dari bulan lalu</em></div>
         <div class="gauge" id="gauge"><div class="center"><b class="num">56%</b><small>pemasukan ditabung</small></div></div>
-        <p class="note">Target sehat 20% ke atas. Kamu di atasnya.</p>
+        <div class="stats"><div><small>Dana darurat</small><b class="num">3,2× </b><small>pengeluaran bulanan</small></div><div><small>Rasio utang</small><b class="num">18%</b><small>dari aset</small></div></div>
+        <p class="note push" style="padding-top:12px">Target rasio tabungan 20% ke atas. Kamu di atasnya.</p>
       </article>
 
       <!-- Goals -->
-      <article class="card span-3">
+      <article class="card span-3 col">
         <div class="head"><div><h2>Tujuan</h2></div><button class="ghost-btn" type="button">+ Tujuan</button></div>
         <div class="group-label">Tahun ini</div>
         <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/></svg></span><div><div class="t">Dana darurat <span class="num">30 / 60 jt</span></div><div class="track"><i class="fill-lime" style="width:50%"></i></div><small>Rp 30 jt lagi, 5 bulan</small></div></div>
         <div class="group-label">Jangka panjang</div>
         <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9H3z"/></svg></span><div><div class="t">DP rumah <span class="num">120 / 300 jt</span></div><div class="track"><i style="width:40%;background:var(--orange)"></i></div><small>Rp 180 jt lagi, 3 tahun</small></div></div>
         <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l4-12h8l4 12M7 14h10"/></svg></span><div><div class="t">Liburan Salatiga <span class="num">2 / 10 jt</span></div><div class="track"><i style="width:20%;background:var(--orange)"></i></div><small>Rp 8 jt lagi, Desember</small></div></div>
+        <div class="stats push" style="grid-template-columns:1fr"><div><small>Total terkumpul</small><b class="num">Rp 152 jt</b> <small style="display:inline">dari Rp 370 jt</small></div></div>
       </article>
 
       <!-- History -->
-      <article class="card span-3">
+      <article class="card span-3 col">
         <div class="head"><div><h2>Riwayat transaksi</h2></div><div class="seg" role="group" aria-label="Periode riwayat"><button type="button" aria-pressed="true">7h</button><button type="button" aria-pressed="false">30h</button></div></div>
         <ul class="tx">
           <li><span class="ic" style="background:var(--lime-soft)">G</span><div><b>Gaji September</b><small>25 Sep · BCA</small></div><div class="amt num in">+32,5 jt</div></li>
@@ -349,7 +361,7 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
           <li><span class="ic" style="background:#E3ECF7;color:#133C66">IN</span><div><b>Beli BBCA</b><small>22 Sep · 2 lot</small></div><div class="amt num out">−1,9 jt</div></li>
           <li><span class="ic" style="background:#F1E4F7;color:#4A1E66">MD</span><div><b>Minta dana</b><small>21 Sep · Hima</small></div><div class="amt num status-pending">500 rb<small class="cap">Menunggu</small></div></li>
         </ul>
-        <a href="#" class="see-all">Lihat semua riwayat <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+        <a href="#" class="see-all push">Lihat semua riwayat <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
       </article>
     </section>
   </main>
@@ -421,12 +433,12 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
   cats.forEach(function(c){
     var i=document.createElement("i");i.style.flex=c[1];i.style.background=v(c[2]);
     if(c[2]==="--lime")i.className="fill-lime";sb.appendChild(i);
-    var li=document.createElement("li");li.innerHTML="<i style='background:"+v(c[2])+"'></i>"+c[0]+"<span class='p num'>"+c[1]+"%</span>";ul.appendChild(li);
+    var li=document.createElement("li");li.innerHTML="<i style='background:"+v(c[2])+"'></i>"+c[0]+"<span class='grow1'><span class='r num'>"+(Math.round(16.75*c[1]/10)/10).toLocaleString("id-ID")+" jt</span><span class='p num'>"+c[1]+"%</span></span>";ul.appendChild(li);
   });
 
   // Savings-rate gauge: semicircle split into ticks
   var gW=220,gH=124,cx=110,cy=112,r1=74,r2=100,n=28,pct=.56;
-  var gs=el("svg",{viewBox:"0 0 "+gW+" "+gH,width:"100%",style:"max-width:240px",role:"img","aria-label":"56 persen pemasukan ditabung"});
+  var gs=el("svg",{viewBox:"0 0 "+gW+" "+gH,width:"100%",style:"max-width:280px",role:"img","aria-label":"56 persen pemasukan ditabung"});
   for(var k=0;k<n;k++){
     var a=Math.PI+(Math.PI*(k+.5)/n), on=(k+.5)/n<=pct;
     var da=Math.PI/n*.36;
