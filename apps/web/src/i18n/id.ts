@@ -1658,6 +1658,21 @@ export const id = {
       openFullPageLink: "Buka halaman penuh",
       notConfiguredBody: "AI Advisor belum diatur untuk keluarga ini.",
     },
+    chatCard: {
+      title: "Chat Baru",
+      subtitle: "Tanya soal keuanganmu",
+      promptText: "Tekan kirim untuk mulai obrolan baru",
+      placeholder: "Tanya apa saja…",
+      prompts: [
+        "Berapa pengeluaran makan bulan ini?",
+        "Apakah aku sudah wajib bayar zakat maal?",
+        "Kapan KPR-ku lunas kalau aku tambah bayar 1 juta per bulan?",
+        "Ringkas kondisi keuangan keluarga bulan ini",
+      ],
+      resetAriaLabel: "Mulai obrolan baru",
+      attachAriaLabel: "Lampirkan file",
+      sendAriaLabel: "Kirim pesan",
+    },
   },
   investasi: {
     goldPricePerGramTooHigh:

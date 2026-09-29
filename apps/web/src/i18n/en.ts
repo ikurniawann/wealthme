@@ -1616,6 +1616,21 @@ export const en = {
       openFullPageLink: "Open full page",
       notConfiguredBody: "AI Advisor isn't set up for this family yet.",
     },
+    chatCard: {
+      title: "New Chat",
+      subtitle: "Ask about your finances",
+      promptText: "Press send to start a new conversation",
+      placeholder: "Ask anything…",
+      prompts: [
+        "How much did I spend on food this month?",
+        "Do I already owe zakat maal?",
+        "When will my mortgage be paid off if I add Rp 1,000,000/month?",
+        "Summarize the family's finances this month",
+      ],
+      resetAriaLabel: "Start a new conversation",
+      attachAriaLabel: "Attach a file",
+      sendAriaLabel: "Send message",
+    },
   },
   investasi: {
     goldPricePerGramTooHigh:

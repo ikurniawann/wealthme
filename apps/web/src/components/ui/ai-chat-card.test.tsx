@@ -11,16 +11,8 @@ import userEvent from "@testing-library/user-event";
 
 import { AIChatCard } from "./ai-chat-card";
 
-// jsdom has no IntersectionObserver — motion/react's useInView needs one.
-beforeAll(() => {
-  class IntersectionObserverMock {
-    observe = jest.fn();
-    unobserve = jest.fn();
-    disconnect = jest.fn();
-  }
-  // @ts-expect-error — jsdom stub
-  window.IntersectionObserver = IntersectionObserverMock;
-});
+// IntersectionObserver (motion/react's useInView) is polyfilled globally in
+// jest.setup.ts.
 
 describe("AIChatCard", () => {
   it("does not render the attach (+) button when onAttach is not provided", () => {

@@ -1629,6 +1629,17 @@ export type I18nDictionary = {
       openFullPageLink: string;
       notConfiguredBody: string;
     };
+    // G8 (hardening batch) — AIChatCard empty/start state copy.
+    chatCard: {
+      title: string;
+      subtitle: string;
+      promptText: string;
+      placeholder: string;
+      prompts: string[];
+      resetAriaLabel: string;
+      attachAriaLabel: string;
+      sendAriaLabel: string;
+    };
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
