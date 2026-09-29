@@ -1,0 +1,115 @@
+<title>Input Cepat · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.qi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media (min-width:560px){.qi-grid{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:980px){.qi-grid{grid-template-columns:repeat(4,1fr)}}
+@media (min-width:1280px){.qi-grid{grid-template-columns:repeat(5,1fr)}}
+.qi-card{cursor:pointer;border-radius:14px;border:1px solid var(--line);background:var(--card);padding:18px;text-align:center;transition:transform .15s,border-color .15s,box-shadow .15s}
+.qi-card:hover{transform:translateY(-3px);border-color:var(--lime);box-shadow:0 8px 24px -12px rgba(20,30,5,.25)}
+.qi-ic{margin:0 auto 12px;width:48px;height:48px;border-radius:14px;display:grid;place-items:center}
+.qi-name{font-size:13.5px;font-weight:700}
+.qi-desc{margin-top:3px;font-size:11px;line-height:1.4;color:var(--muted)}
+.qi-recent-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.qi-recent-row:last-child{border-bottom:0}
+.qi-recent-title{font-weight:600}
+.qi-recent-sub{font-size:11.5px;color:var(--muted)}
+</style>
+<main data-page="quickinput">
+  <div class="ph"><div><h1>Input Cepat</h1><p>Jalan pintas mencatat rekening, aset, liabilitas, sampai transaksi tanpa buka banyak halaman.</p></div></div>
+
+  <div class="qi-grid" id="qiCards"></div>
+
+  <section class="grid" style="margin-top:16px" id="recentSection" hidden>
+    <div class="card s12">
+      <div class="head"><h2>Entri Terakhir</h2><button class="link" type="button" id="qiViewAll">Lihat semua</button></div>
+      <div id="qiRecent" style="margin-top:8px"></div>
+    </div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"quickinput",title:"Input Cepat"});
+(function(){ if(!WM.allowed) return;
+
+var CARDS=[
+ {id:"transaksi",name:"Transaksi",desc:"Catat pemasukan, pengeluaran, atau transfer",icon:"swap",bg:"#EEF2FF",fg:"var(--ink)",action:"txn"},
+ {id:"investasi",name:"Investasi",desc:"Saham, reksa dana, emas, kripto, deposito",icon:"bars",bg:"#DCFCE7",fg:"var(--good)",action:"nav",href:"investasi.html"},
+ {id:"rekening",name:"Rekening",desc:"Tambah rekening bank baru",icon:"landmark",bg:"#DBEAFE",fg:"#1D4ED8",action:"crud",entity:"rekening"},
+ {id:"ewallet",name:"E-Wallet",desc:"Tambah dompet digital",icon:"wallet",bg:"#DCFCE7",fg:"var(--good)",action:"crud",entity:"ewallet"},
+ {id:"aset",name:"Aset",desc:"Properti, kendaraan, dan barang berharga",icon:"briefcase",bg:"#FEF9C3",fg:"#A16207",action:"crud",entity:"aset"},
+ {id:"liabilitas",name:"Liabilitas",desc:"Kartu kredit, KTA, KPR, cicilan lain",icon:"receipt",bg:"#FEE2E2",fg:"var(--bad)",action:"crud",entity:"liabilitas"},
+ {id:"asuransi",name:"Asuransi",desc:"Polis jiwa, kesehatan, kendaraan",icon:"shield",bg:"#EDE9FE",fg:"#6D28D9",action:"crud",entity:"asuransi"},
+ {id:"tujuan",name:"Tujuan Keuangan",desc:"Target dana darurat, liburan, pendidikan",icon:"target",bg:"#CFFAFE",fg:"#0E7490",action:"crud",entity:"tujuan"},
+ {id:"anggaran",name:"Anggaran",desc:"Atur batas belanja per kategori",icon:"clipboard",bg:"#EEF2FF",fg:"var(--ink)",action:"nav",href:"anggaran.html"},
+ {id:"warisan",name:"Warisan",desc:"Rencana warisan keluarga",icon:"scroll",bg:"#EDE9FE",fg:"#6D28D9",action:"nav",href:"warisan.html"},
+ {id:"donasi",name:"Donasi",desc:"Zakat, persepuluhan, sedekah",icon:"heart",bg:"#DCFCE7",fg:"var(--good)",action:"nav",href:"donation.html"},
+ {id:"splitbill",name:"Split Bill",desc:"Bagi tagihan bersama teman/keluarga",icon:"split",bg:"#FEF3C7",fg:"#D97706",action:"nav",href:"splitbill.html"}];
+
+var ASSET_TYPE={"Properti":"properti","Kendaraan":"kendaraan","Elektronik":"elektronik","Perhiasan":"perhiasan","Emas":"emas","Lainnya":"lainnya"};
+var LIABILITY_TYPE={"Kartu Kredit":"kartu","KTA":"pinjaman","KPR":"kpr","Cicilan Kendaraan":"kendaraan","Pinjaman Lain":"pinjaman"};
+var INSURANCE_TYPE={"Jiwa":"jiwa","Kesehatan":"kesehatan","Kendaraan":"kendaraan","Properti":"properti","Pendidikan":"pendidikan"};
+
+document.getElementById("qiCards").innerHTML=CARDS.map(function(c){return '<button type="button" class="qi-card" data-card="'+c.id+'"><span class="qi-ic" style="background:'+c.bg+';color:'+c.fg+'">'+WM.icon(c.icon,21)+'</span><div class="qi-name">'+c.name+'</div><div class="qi-desc">'+c.desc+'</div></button>';}).join("");
+
+document.getElementById("qiCards").addEventListener("click",function(e){
+  var b=e.target.closest("[data-card]");if(!b)return;var c=CARDS.filter(function(x){return x.id===b.dataset.card;})[0];if(!c)return;
+  if(c.action==="txn")WM.openTx();
+  else if(c.action==="nav")location.href=c.href;
+  else if(c.action==="crud")openCrud(c.entity);
+});
+
+function openCrud(entity){
+  var forms={
+   rekening:function(){return WM.field({name:"bank",label:"Nama Bank",type:"select",required:true,options:["BCA","Mandiri","BRI","BNI","CIMB","OCBC","Bank Lainnya"]})+
+     WM.field({name:"nama",label:"Nama Rekening",required:true,placeholder:"cth: BCA Tahapan"})+
+     '<div class="two">'+WM.field({name:"norek",label:"Nomor Rekening",optional:true,placeholder:"cth: 1234567890"})+WM.field({name:"saldo",label:"Saldo Saat Ini",type:"money",required:true})+'</div>';},
+   ewallet:function(){return WM.field({name:"nama",label:"E-Wallet",type:"select",required:true,options:["GoPay","OVO","DANA","LinkAja","ShopeePay"]})+
+     '<div class="two">'+WM.field({name:"phone",label:"Nomor Terdaftar",optional:true,placeholder:"08xxxxxxxxxx"})+WM.field({name:"saldo",label:"Saldo Saat Ini",type:"money",required:true})+'</div>';},
+   aset:function(){return WM.field({name:"nama",label:"Nama Aset",required:true,placeholder:"cth: Apartemen Kelapa Gading"})+
+     WM.field({name:"kategori",label:"Kategori",type:"select",required:true,options:["Properti","Kendaraan","Elektronik","Perhiasan","Emas","Lainnya"]})+
+     '<div class="two">'+WM.field({name:"nilai",label:"Nilai Estimasi",type:"money",required:true})+WM.field({name:"dokumen",label:"No. Dokumen",optional:true,placeholder:"cth: SHM No. 1234"})+'</div>';},
+   liabilitas:function(){return WM.field({name:"nama",label:"Nama Liabilitas",required:true,placeholder:"cth: KPR BCA"})+
+     WM.field({name:"jenis",label:"Jenis",type:"select",required:true,options:["Kartu Kredit","KTA","KPR","Cicilan Kendaraan","Pinjaman Lain"]})+
+     '<div class="two">'+WM.field({name:"total",label:"Total Utang",type:"money",required:true})+WM.field({name:"cicilan",label:"Cicilan / Bulan",type:"money",optional:true})+'</div>';},
+   asuransi:function(){return WM.field({name:"nama",label:"Nama Polis",required:true,placeholder:"cth: Prudential PRUPrime"})+
+     WM.field({name:"jenis",label:"Jenis",type:"select",required:true,options:["Jiwa","Kesehatan","Kendaraan","Properti","Pendidikan"]})+
+     '<div class="two">'+WM.field({name:"premi",label:"Premi / Bulan",type:"money",required:true})+WM.field({name:"pertanggungan",label:"Uang Pertanggungan",type:"money",optional:true})+'</div>'+
+     WM.field({name:"jatuhtempo",label:"Jatuh Tempo",type:"date",optional:true});},
+   tujuan:function(){return WM.field({name:"nama",label:"Nama Tujuan",required:true,placeholder:"cth: Dana darurat"})+
+     '<div class="two">'+WM.field({name:"target",label:"Target Jumlah",type:"money",required:true})+WM.field({name:"terkumpul",label:"Sudah Terkumpul",type:"money",optional:true})+'</div>'+
+     WM.field({name:"autodebit",label:"Auto-debit / Bulan",type:"money",optional:true});}
+  };
+  var TITLES={rekening:"Rekening Bank",ewallet:"E-Wallet",aset:"Aset",liabilitas:"Liabilitas",asuransi:"Asuransi",tujuan:"Tujuan Keuangan"};
+  var COLLECTIONS={rekening:"accounts",ewallet:"accounts",aset:"assets",liabilitas:"liabilities",asuransi:"insurances",tujuan:"goals"};
+  WM.modal({title:"Tambah "+TITLES[entity],body:forms[entity](),submit:"Simpan",
+   onSubmit:function(f,v){
+     var key=COLLECTIONS[entity],rec;
+     if(entity==="rekening")rec={bank:v.bank,name:v.nama||v.bank,type:"bank",vis:"shared",owner:"m1",balance:v.saldo,no:v.norek||""};
+     else if(entity==="ewallet")rec={bank:v.nama,name:v.nama,type:"ewallet",vis:"shared",owner:"m1",balance:v.saldo,no:v.phone||""};
+     else if(entity==="aset")rec={name:v.nama,kind:ASSET_TYPE[v.kategori]||"lainnya",value:v.nilai,cost:v.nilai,since:WM.today,owner:"m1",note:v.dokumen||""};
+     else if(entity==="liabilitas")rec={name:v.nama,kind:LIABILITY_TYPE[v.jenis]||"pinjaman",principal:v.total,outstanding:v.total,rate:0,scheme:"anuitas",tenor:0,paid:0,installment:v.cicilan||0,dueDay:1,acc:"a1"};
+     else if(entity==="asuransi")rec={name:v.nama,kind:INSURANCE_TYPE[v.jenis]||"lainnya",insured:"Keluarga",premium:v.premi,period:"bulanan",cover:v.pertanggungan||0,due:v.jatuhtempo||WM.today,status:"aktif"};
+     else if(entity==="tujuan")rec={name:v.nama,icon:"target",target:v.target,saved:v.terkumpul||0,due:"",acc:"a1",color:"var(--lime)",autodebit:v.autodebit||0};
+     WM.store.add(key,rec);
+     WM.toast(TITLES[entity]+" tersimpan");
+   }});
+}
+
+/* Entri Terakhir — mirror /transaksi's real list, read-only, latest 5 */
+function drawRecent(){
+  var tx=WM.store.get("tx").slice(0,5);
+  var sec=document.getElementById("recentSection");
+  if(!tx.length){sec.hidden=false;document.getElementById("qiRecent").innerHTML='<p class="muted" style="padding:12px 0;margin:0">Belum ada transaksi tercatat.</p>';return;}
+  sec.hidden=false;
+  document.getElementById("qiRecent").innerHTML=tx.map(function(t){var c=WM.cat(t.cat),a=WM.account(t.acc),sign=t.type==="in";
+    return '<div class="qi-recent-row"><span class="ic '+(sign?"lime":"")+'">'+WM.icon(t.type==="tf"?"swap":c.icon,17)+'</span>'+
+     '<span style="flex:1;min-width:0"><span class="qi-recent-title" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+WM.esc(t.note||c.name)+'</span><span class="qi-recent-sub">'+WM.esc(a?a.bank:"–")+'</span></span>'+
+     '<span class="num" style="font-weight:700;color:'+(sign?"var(--good)":"var(--bad)")+'">'+(t.type==="tf"?WM.rp(t.amount):WM.rp(sign?t.amount:-t.amount,true))+'</span></div>';}).join("");
+}
+document.getElementById("qiViewAll").addEventListener("click",function(){location.href="transaksi.html";});
+drawRecent();WM.onChange(["tx","accounts"],drawRecent);
+})();
+</script>

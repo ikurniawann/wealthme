@@ -1,0 +1,674 @@
+<title>Liabilitas · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.kpi-row{display:flex;flex-wrap:wrap;gap:22px 34px;margin-top:14px}
+.kpi-row .stat b{font-size:22px}
+.riskbar{height:8px;border-radius:4px;background:var(--cover-line);overflow:hidden;margin-top:10px;display:flex}
+.riskbar i{display:block;height:100%}
+.type-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
+.type-tabs::-webkit-scrollbar{display:none}
+.type-tabs button{flex:none;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:0 15px;min-height:40px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.type-tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--card)}
+.lia-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.lia-card{background:var(--card);border-radius:var(--radius);padding:16px 17px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px;min-width:0;transition:transform .18s,box-shadow .18s}
+.lia-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px -14px rgba(20,30,5,.28)}
+.lia-top{display:flex;align-items:center;gap:11px}
+.lia-top .meta{min-width:0}
+.lia-top .meta b{display:block;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lia-top .meta small{color:var(--muted);font-size:11.5px}
+.lia-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 14px}
+.lia-stats div small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
+.lia-stats div b{font-size:13.5px;font-weight:700}
+.lia-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:12px}
+.lia-actions .ghost{border:0;background:none;border-radius:10px;padding:7px 9px;font-size:12px;font-weight:600;color:var(--ink);display:inline-flex;align-items:center;gap:5px;min-height:36px}
+.lia-actions .ghost:hover{background:var(--card-2)}
+.lia-actions .ghost.bad{color:var(--bad)}
+.lia-actions .ghost.bad:hover{background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.lia-actions .pay{margin-left:auto;background:var(--lime);color:var(--lime-ink);border:0;border-radius:10px;padding:0 14px;min-height:38px;font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
+.lia-actions .paid{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.period-card{border:1.5px solid var(--line);border-radius:14px;padding:11px}
+.period-head{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:8px}
+.period-head .b{font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px}
+.period-head .b.official{background:var(--lime-soft);color:var(--good)}
+.period-head .b.example{background:color-mix(in srgb,var(--orange) 18%,transparent);color:color-mix(in srgb,var(--orange) 60%,var(--ink))}
+.fh-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.fh-row:last-child{border-bottom:0}
+.stat-mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--card-2);border-radius:12px;padding:12px}
+.stat-mini div small{display:block;color:var(--muted);font-size:11px}
+.stat-mini div b{font-size:13.5px;font-weight:700}
+.sched-hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
+.rate-note{font-size:11.5px}
+@media (max-width:900px){.lia-grid{grid-template-columns:1fr}}
+</style>
+<main data-page="liabilitas">
+  <div class="ph">
+    <div><h1>Liabilitas</h1><p>Pantau KPR, kartu kredit, dan pinjaman keluarga — sisa pokok, jadwal cicilan, dan simulasi pelunasan dipercepat.</p></div>
+    <div class="acts"><button class="btn primary" type="button" id="addLia">Tambah liabilitas</button></div>
+  </div>
+
+  <section class="cover s12" style="border-radius:24px">
+    <div class="stat"><small>Total sisa liabilitas</small></div>
+    <p class="headline" style="margin-top:4px">Sisa liabilitas keluarga <em id="hdTotal">Rp 0</em></p>
+    <div class="kpi-row">
+      <div class="stat"><small>KPR &amp; pinjaman</small><b id="kpiLoan" class="num">Rp 0</b></div>
+      <div class="stat"><small>Kartu kredit</small><b id="kpiCard" class="num">Rp 0</b></div>
+      <div class="stat"><small>Cicilan bulan ini</small><b id="kpiMonthly" class="num">Rp 0</b></div>
+      <div class="stat" style="min-width:170px"><small>Rasio utang terhadap aset</small><b id="kpiDta" class="num">0%</b>
+        <div class="riskbar" id="riskbar"><i></i></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="s12"><div class="type-tabs" role="group" aria-label="Filter jenis liabilitas" id="typeTabs"></div></div>
+    <div class="s12"><div class="lia-grid" id="liaGrid"></div></div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"liabilitas",title:"Liabilitas"});
+(function(){ if(!WM.allowed) return;
+
+/* ============ money / amortisation math (mirrors apps/api liabilities/amortisation.util.ts, round-half-up, BigInt-exact) ============ */
+var MONTHLY_DENOM=120000n, PERMONTH_DENOM=10000n, PCT_DENOM=10000n;
+function scaledRate(s){s=String(s==null?"0":s).trim().replace(",",".");if(s==="")s="0";var parts=s.split(".");var ip=parts[0]||"0",fp=(parts[1]||"").padEnd(2,"0").slice(0,2);var neg=ip.indexOf("-")===0;if(neg)ip=ip.slice(1);var v=BigInt((ip||"0")+fp);return neg?-v:v;}
+function halfUp(num,den){var q=num/den,r=num%den;return (r*2n>=den)?q+1n:q;}
+function denomFor(monthly){return monthly?PERMONTH_DENOM:MONTHLY_DENOM;}
+function bi(n){return BigInt(Math.round(n||0));}
+function computeInstallment(method,principal,ratePercent,tenorMonths,rateIsMonthly){
+  var P=bi(principal);if(P<=0n)return 0;
+  var n=BigInt(Math.max(1,Math.round(tenorMonths))),rate=scaledRate(ratePercent),denom=denomFor(rateIsMonthly);
+  if(method==="flat")return Number(halfUp(P*denom+P*rate*n,denom*n));
+  if(method==="anuitas"){if(rate===0n)return Number(halfUp(P,n));var growth=(denom+rate)**n;return Number(halfUp(P*rate*growth,denom*(growth-denom**n)));}
+  return Number(halfUp(P,n)+halfUp(P*rate,denom));
+}
+function monthlyInterestDue(method,balance,originalPrincipal,ratePercent,rateIsMonthly){
+  if(balance<=0)return 0;var rate=scaledRate(ratePercent),denom=denomFor(rateIsMonthly);
+  if(method==="flat")return Number(halfUp(bi(originalPrincipal)*rate,denom));
+  return Number(halfUp(bi(balance)*rate,denom));
+}
+function splitPayment(method,paymentAmount,remainingBalance,originalPrincipal,ratePercent,rateIsMonthly){
+  var due=monthlyInterestDue(method,remainingBalance,originalPrincipal,ratePercent,rateIsMonthly);
+  var interest=Math.min(due,paymentAmount);var principal=Math.min(paymentAmount-interest,remainingBalance);
+  return {interest:interest,principal:Math.max(0,principal)};
+}
+/* rate plan: {segments:[{kind,months,ratePercent}], floatingChanges:[{effectivePeriod,ratePercent}]} */
+function segIndexAt(segs,period){var s=1;for(var i=0;i<segs.length;i++){var seg=segs[i];if(seg.months==null||period<s+seg.months)return i;s+=seg.months;}return segs.length-1;}
+function rateAt(plan,period){var idx=segIndexAt(plan.segments,period),seg=plan.segments[idx];
+  if(seg.kind==="fixed")return {ratePercent:seg.ratePercent,kind:"fixed",segmentIndex:idx,changeIndex:-1};
+  var ci=-1;(plan.floatingChanges||[]).forEach(function(ch,i){if(ch.effectivePeriod<=period)ci=i;});
+  return {ratePercent:ci>=0?plan.floatingChanges[ci].ratePercent:seg.ratePercent,kind:"floating",segmentIndex:idx,changeIndex:ci};}
+function sameRegime(a,b){return a.segmentIndex===b.segmentIndex&&a.changeIndex===b.changeIndex;}
+function buildSchedule(input){
+  var maxRows=Math.min(600,input.maxRows||600,input.remainingMonths==null?600:input.remainingMonths);
+  var equalPrincipal=null;
+  if(input.method==="efektif"&&input.installmentAmount==null&&input.remainingMonths!=null)equalPrincipal=Number(halfUp(bi(input.remainingBalance),BigInt(input.remainingMonths)));
+  if(input.installmentAmount==null&&equalPrincipal==null)return [];
+  var rows=[],balance=input.remainingBalance,installment=input.installmentAmount||0,previous=rateAt(input.plan,input.installmentAnchorPeriod||1);
+  for(var i=0;i<maxRows&&balance>0;i++){
+    var period=input.firstPeriod+i,rate=rateAt(input.plan,period);
+    var regimeChanged=i===0?(input.recomputeAtStart!=null?input.recomputeAtStart:!sameRegime(rate,previous)):!sameRegime(rate,previous);
+    previous=rate;
+    if(input.method==="anuitas"&&input.remainingMonths!=null&&regimeChanged)installment=computeInstallment("anuitas",balance,rate.ratePercent,input.remainingMonths-i,input.rateIsMonthly);
+    var interestDue=monthlyInterestDue(input.method,balance,input.originalPrincipal,rate.ratePercent,input.rateIsMonthly);
+    var payoff=balance+interestDue,isLast=input.remainingMonths!=null&&i===input.remainingMonths-1;
+    var scheduled=equalPrincipal!=null?equalPrincipal+interestDue:installment;
+    var payment=(isLast||scheduled>payoff)?payoff:scheduled;
+    var interest=Math.min(interestDue,payment),principal=payment-interest;
+    balance-=principal;
+    rows.push({period:period,installment:payment,interest:interest,principal:principal,remaining:balance,rateKind:rate.kind,ratePercent:rate.ratePercent});
+    if(principal===0)break;
+  }
+  return rows;
+}
+function currentInstallment(input){var r=buildSchedule(Object.assign({},input,{maxRows:1}));return r[0]?r[0].installment:null;}
+function monthsToPayOff(balance,ratePercent,installment,method,originalPrincipal){
+  var rows=buildSchedule({method:method,remainingBalance:balance,originalPrincipal:method==="flat"?(originalPrincipal||balance):balance,rateIsMonthly:false,installmentAmount:installment,remainingMonths:null,firstPeriod:1,plan:{segments:[{kind:"fixed",months:null,ratePercent:ratePercent}],floatingChanges:[]}});
+  var last=rows[rows.length-1];return (last&&last.remaining===0)?rows.length:null;
+}
+function prepaymentPenalty(prepaid,penaltyPercent){return Number(halfUp(bi(prepaid)*scaledRate(penaltyPercent),PCT_DENOM));}
+
+/* ---- calendar / due-date helpers (mirrors dueDateForPeriod / dueInstallment) ---- */
+var DUE_GRACE_DAYS=5,DAY_MS=864e5;
+function d0(iso){return new Date(iso+"T00:00:00");}
+function dueDateForPeriod(startISO,period){var s=d0(startISO),ty=s.getFullYear(),tm=s.getMonth()+period;var last=new Date(ty,tm+1,0).getDate();var day=Math.min(s.getDate(),last);return new Date(ty,tm,day);}
+function monthsElapsed(startISO,nowISO){var s=d0(startISO),n=d0(nowISO);var raw=(n.getFullYear()-s.getFullYear())*12+(n.getMonth()-s.getMonth());if(raw<=0)return 0;var before=n.getTime()<dueDateForPeriod(startISO,raw).getTime();return before?raw-1:raw;}
+function effectivePeriodFor(startISO,effISO){var elapsed=monthsElapsed(startISO,effISO);var s=d0(startISO),e=d0(effISO);return e.getDate()===s.getDate()?elapsed+1:elapsed+2;}
+function dueInstallment(startISO,nowISO,tenorMonths){
+  if(!startISO)return {period:1,late:false};
+  var elapsed=monthsElapsed(startISO,nowISO),lastDue=dueDateForPeriod(startISO,elapsed).getTime(),now=d0(nowISO).getTime();
+  var daysLate=Math.round((now-lastDue)/DAY_MS),inGrace=elapsed>=1&&daysLate<=DUE_GRACE_DAYS,period=inGrace?elapsed:elapsed+1;
+  if(tenorMonths!=null&&period>tenorMonths)return {period:tenorMonths,late:true};
+  return {period:period,late:inGrace&&daysLate>0};
+}
+function addMonthsClamped(iso,n){var d=d0(iso),ty=d.getFullYear(),tm=d.getMonth()+n;var last=new Date(ty,tm+1,0).getDate();var day=Math.min(d.getDate(),last);var r=new Date(ty,tm,day);return r.getFullYear()+"-"+String(r.getMonth()+1).padStart(2,"0")+"-"+String(r.getDate()).padStart(2,"0");}
+
+/* ============ KPR presets (mirrors kpr-presets.ts) ============ */
+var KPR_PRESETS=[
+ {id:"manual",scheme:null,source:"user",label:"Manual",periods:[{kind:"fixed",months:"",ratePercent:""}]},
+ {id:"flpp_tapak",scheme:"flpp",source:"official",label:"FLPP rumah tapak",periods:[{kind:"fixed",months:"",ratePercent:"5.00"}]},
+ {id:"flpp_rusun",scheme:"flpp",source:"official",label:"FLPP rumah susun",periods:[{kind:"fixed",months:"",ratePercent:"6.00"}]},
+ {id:"konvensional",scheme:"konvensional",source:"example",label:"Konvensional (contoh)",periods:[{kind:"fixed",months:"36",ratePercent:"2.75"},{kind:"floating",months:"",ratePercent:"11.00"}]},
+ {id:"berjenjang",scheme:"berjenjang",source:"example",label:"Berjenjang (contoh)",periods:[{kind:"fixed",months:"24",ratePercent:"3.50"},{kind:"fixed",months:"12",ratePercent:"5.50"},{kind:"floating",months:"",ratePercent:"11.00"}]},
+ {id:"syariah_murabahah",scheme:"syariah_murabahah",source:"example",label:"Syariah murabahah (contoh)",periods:[{kind:"fixed",months:"",ratePercent:"6.00"}]},
+ {id:"syariah_mmq",scheme:"syariah_mmq",source:"example",label:"Syariah MMQ (contoh)",periods:[{kind:"fixed",months:"12",ratePercent:"3.30"},{kind:"floating",months:"",ratePercent:"11.00"}]}
+];
+function presetById(id){for(var i=0;i<KPR_PRESETS.length;i++)if(KPR_PRESETS[i].id===id)return KPR_PRESETS[i];return KPR_PRESETS[0];}
+var MAX_RATE_PERIODS=10,DEFAULT_PENALTY="1.00",MAX_PENALTY=10;
+
+/* ============ domain helpers ============ */
+var TYPES=["kpr","kartu_kredit","pinjaman_pribadi","kendaraan","lainnya"];
+var TYPE_LABEL={kpr:"KPR",kartu_kredit:"Kartu Kredit",pinjaman_pribadi:"Pinjaman Pribadi",kendaraan:"Kendaraan",lainnya:"Lainnya"};
+var TYPE_ICON={kpr:"landmark",kartu_kredit:"card",pinjaman_pribadi:"wallet",kendaraan:"car",lainnya:"receipt"};
+var DEFAULT_METHOD={kartu_kredit:"efektif",pinjaman_pribadi:"flat",kpr:"anuitas",kendaraan:"flat",lainnya:"efektif"};
+var METHOD_OPTIONS={pinjaman_pribadi:["flat","anuitas"],kpr:["anuitas","flat"],lainnya:["efektif","flat","anuitas"]};
+var METHOD_LABEL={efektif:"Efektif (saldo menurun)",flat:"Flat",anuitas:"Anuitas"};
+var RATE_LABEL={efektif:"Bunga Efektif/Tahun (%)",flat:"Bunga Flat/Tahun (%)",anuitas:"Bunga/Tahun (%)"};
+
+function ratePlanFor(li){
+  if(li.ratePeriods&&li.ratePeriods.length)return {segments:li.ratePeriods.map(function(p){return {kind:p.kind,months:p.months,ratePercent:p.ratePercent};}),
+    floatingChanges:(li.floatingRates||[]).map(function(f){return {id:f.id,effectivePeriod:effectivePeriodFor(li.startDate,f.effectiveDate),ratePercent:f.ratePercent,effectiveDate:f.effectiveDate};}).sort(function(a,b){return a.effectivePeriod-b.effectivePeriod;})};
+  return {segments:[{kind:"fixed",months:null,ratePercent:li.interestRate||"0"}],floatingChanges:[]};
+}
+function hasFloatingSegment(li){var p=ratePlanFor(li);return p.segments.some(function(s){return s.kind==="floating";});}
+function dueFor(li){return dueInstallment(li.startDate||null,WM.today,li.tenorMonths||null);}
+function scheduleFor(li,opts){
+  opts=opts||{};var due=dueFor(li),plan=ratePlanFor(li);
+  var remBal=opts.balance!=null?opts.balance:li.remainingBalance;
+  var remMonths=li.tenorMonths?Math.max(1,li.tenorMonths-(due.period-1)):null;
+  var rateIsMonthly=li.type==="kartu_kredit";
+  var installmentAmount;
+  if(!li.tenorMonths)installmentAmount=li.minimumPayment||0;
+  else if(li.interestMethod==="flat")installmentAmount=computeInstallment("flat",li.totalDebt,rateAt(plan,due.period).ratePercent,li.tenorMonths,rateIsMonthly);
+  else installmentAmount=null; /* anuitas: let buildSchedule re-annuitise over remaining balance/tenor */
+  return buildSchedule({method:li.interestMethod,remainingBalance:remBal,originalPrincipal:li.totalDebt,rateIsMonthly:rateIsMonthly,
+    installmentAmount:installmentAmount,remainingMonths:remMonths,firstPeriod:due.period,plan:plan,
+    recomputeAtStart:li.tenorMonths?true:false,installmentAnchorPeriod:due.period,maxRows:opts.maxRows});
+}
+function installmentDue(li){var r=scheduleFor(li,{maxRows:1});return r[0]?r[0].installment:(li.installmentAmount||li.minimumPayment||0);}
+function paidThisPeriod(li){
+  var due=dueFor(li);
+  if(li.tenorMonths)return (li.lastPaidPeriod||0)>=due.period;
+  return li.paidMonth===WM.today.slice(0,7);
+}
+function nextDueISO(li){
+  if(li.tenorMonths&&li.startDate)return dueDateForPeriod(li.startDate,dueFor(li).period).toISOString().slice(0,10);
+  return li.dueDate||null;
+}
+function dueStatus(li){
+  var nd=nextDueISO(li);
+  if(!nd)return {text:"Berjalan",variant:"good"};
+  var late=li.tenorMonths?dueFor(li).late:(nd<WM.today);
+  if(late&&!paidThisPeriod(li))return {text:"Sudah jatuh tempo",variant:"bad"};
+  var diff=Math.round((d0(nd)-d0(WM.today))/DAY_MS);
+  var text="Jatuh tempo "+WM.date(nd);
+  if(diff<=7)return {text:text,variant:"warn"};
+  return {text:text,variant:"good"};
+}
+function catFor(li){return li.type==="kpr"||li.type==="kendaraan"?"c-rumah":"c-lain-out";}
+
+/* ---- migrate old flat seed shape -> full shape (idempotent) ---- */
+function migrate(){
+  var list=WM.store.get("liabilities")||[];
+  var changed=false;
+  list=list.map(function(l){
+    if(l.v2)return l;
+    changed=true;
+    var typeMap={kpr:"kpr",kartu:"kartu_kredit",pinjaman:"pinjaman_pribadi"};
+    var type=typeMap[l.kind]||"lainnya";
+    var method=type==="kpr"?"anuitas":type==="kartu_kredit"?"efektif":"flat";
+    var startDate=type!=="kartu_kredit"?addMonthsClamped(WM.today,-(l.paid||0)):null;
+    return {
+      v2:true,id:l.id,name:l.name,institution:l.acc?WM.account(l.acc)&&WM.account(l.acc).bank:"",type:type,
+      notes:"",totalDebt:l.principal,remainingBalance:l.outstanding,
+      minimumPayment:type==="kartu_kredit"?(l.installment||0):0,
+      interestRate:String(l.rate!=null?l.rate:0),interestMethod:method,
+      tenorMonths:type!=="kartu_kredit"?(l.tenor||36):null,startDate:startDate,
+      installmentAmount:null,dueDate:type==="kartu_kredit"?WM.today.slice(0,8)+String(l.dueDay||25).padStart(2,"0"):null,
+      autoAdvanceDueDate:false,kprScheme:type==="kpr"?"manual":null,ratePeriods:[],floatingRates:[],
+      lastPaidPeriod:0,paidMonth:null,acc:l.acc||null
+    };
+  });
+  if(changed)WM.store.set("liabilities",list);
+  return list;
+}
+migrate();
+WM.store.ensure("liabilities",[]);
+
+/* ============ page state ============ */
+var typeFilter="semua";
+
+function fmtSchemeRatePlan(li){
+  var m=li.interestMethod;
+  if(li.type==="kpr")return m==="flat"?"Flat":"Anuitas";
+  return METHOD_LABEL[m]||m;
+}
+
+function assetsTotal(){
+  var acc=WM.store.get("accounts")||[],inv=WM.store.get("investments")||[],ast=WM.store.get("assets")||[];
+  var a=acc.reduce(function(s,x){return s+Math.max(0,x.balance);},0);
+  var i=inv.reduce(function(s,x){return s+x.value;},0);
+  var s2=ast.reduce(function(s,x){return s+x.value;},0);
+  return a+i+s2;
+}
+function dtaRisk(dta){
+  if(dta<30)return {label:"Sangat aman",cls:"good",color:"var(--good)"};
+  if(dta<50)return {label:"Aman",cls:"good",color:"var(--good)"};
+  if(dta<70)return {label:"Perlu hati-hati",cls:"warn",color:"var(--orange)"};
+  return {label:"Berisiko",cls:"bad",color:"var(--bad)"};
+}
+
+function drawKpis(){
+  var list=WM.store.get("liabilities")||[];
+  var total=list.reduce(function(s,l){return s+l.remainingBalance;},0);
+  var loan=list.filter(function(l){return l.type!=="kartu_kredit";}).reduce(function(s,l){return s+l.remainingBalance;},0);
+  var card=list.filter(function(l){return l.type==="kartu_kredit";}).reduce(function(s,l){return s+l.remainingBalance;},0);
+  var monthly=list.reduce(function(s,l){return s+installmentDue(l);},0);
+  var assets=assetsTotal();
+  var dta=assets>0?Math.round(total/assets*1000)/10:0;
+  var risk=dtaRisk(dta);
+  document.getElementById("hdTotal").textContent=WM.short(total);
+  document.getElementById("kpiLoan").textContent=WM.rp(loan);
+  document.getElementById("kpiCard").textContent=WM.rp(card);
+  document.getElementById("kpiMonthly").textContent=WM.rp(monthly);
+  document.getElementById("kpiDta").innerHTML=WM.pct(dta)+' <span style="font-size:11px;font-weight:600;color:'+risk.color+'">'+risk.label+'</span>';
+  document.getElementById("riskbar").innerHTML='<i style="width:'+Math.min(100,dta)+'%;background:'+risk.color+'"></i>';
+}
+
+function drawTabs(){
+  var list=WM.store.get("liabilities")||[];
+  var counts={};TYPES.forEach(function(t){counts[t]=0;});list.forEach(function(l){counts[l.type]=(counts[l.type]||0)+1;});
+  var tabs=[["semua","Semua",list.length]].concat(TYPES.map(function(t){return [t,TYPE_LABEL[t],counts[t]||0];}));
+  document.getElementById("typeTabs").innerHTML=tabs.map(function(t){return '<button type="button" role="button" aria-pressed="'+(typeFilter===t[0])+'" data-t="'+t[0]+'">'+t[1]+(t[2]?' · '+t[2]:'')+'</button>';}).join("");
+  document.querySelectorAll("#typeTabs button").forEach(function(b){b.addEventListener("click",function(){typeFilter=b.dataset.t;draw();});});
+}
+
+function liaCard(li){
+  var status=dueStatus(li);
+  var isCC=li.type==="kartu_kredit";
+  var remaining=li.remainingBalance,total=li.totalDebt,inst=installmentDue(li);
+  var progress=isCC?Math.round(100-Math.min(100,remaining/Math.max(1,total)*100)):Math.round(Math.min(100,(total-remaining)/Math.max(1,total)*100));
+  var progColor=progress>=80?"var(--bad)":progress>=50?"var(--orange)":"var(--good)";
+  var progLabel=isCC?"Pemakaian limit":"Progres pelunasan";
+  var paid=paidThisPeriod(li);
+  var late=status.variant==="bad"&&!paid;
+  return '<div class="lia-card" data-id="'+li.id+'">'+
+    '<div class="lia-top"><span class="ic'+(late?"":"")+'" style="width:40px;height:40px;border-radius:12px">'+WM.icon(TYPE_ICON[li.type],19)+'</span>'+
+    '<div class="meta"><b>'+WM.esc(li.name)+'</b><small>'+WM.esc(li.institution?li.institution+" · "+TYPE_LABEL[li.type]:TYPE_LABEL[li.type])+'</small></div>'+
+    '<span class="pill '+status.variant+'" style="margin-left:auto">'+status.text+'</span></div>'+
+    '<div class="lia-stats">'+
+      '<div><small>'+(isCC?"Tagihan berjalan":"Sisa pokok")+'</small><b class="num" style="color:var(--bad)">'+WM.rp(remaining)+'</b></div>'+
+      '<div><small>'+(isCC?"Limit":"Total utang")+'</small><b class="num">'+WM.rp(total)+'</b></div>'+
+      (inst>0?'<div><small>'+(isCC?"Min. bayar":"Cicilan/bulan")+'</small><b class="num">'+WM.rp(inst)+'</b></div>':'')+
+      (parseFloat(li.interestRate)>0?'<div><small>'+(isCC?"Bunga/bulan":"Bunga/tahun")+'</small><b class="num" style="color:var(--bad)">'+li.interestRate+'%</b></div>':'')+
+    '</div>'+
+    '<div><div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11.5px"><b>'+progLabel+'</b><b class="num" style="color:'+progColor+'">'+progress+'%</b></div><div class="track"><i style="width:'+progress+'%;background:'+progColor+'"></i></div></div>'+
+    (late?'<div class="note bad">'+WM.icon("alert",15)+'<span>Terlambat sejak '+WM.date(nextDueISO(li))+'. Bayar segera biar catatannya bersih.</span></div>':'')+
+    '<div class="lia-actions">'+
+      '<button type="button" class="ghost" data-act="detail">'+WM.icon("file",15)+'Detail</button>'+
+      '<button type="button" class="ghost" data-act="edit">'+WM.icon("edit",15)+'Edit</button>'+
+      '<button type="button" class="ghost bad" data-act="del">'+WM.icon("trash",15)+'Hapus</button>'+
+      (paid?'<span class="paid">'+WM.icon("checkc",15)+'Sudah dibayar</span>':'<button type="button" class="pay" data-act="pay">'+WM.icon("cash",15)+'Bayar</button>')+
+    '</div></div>';
+}
+
+function draw(){
+  drawKpis();drawTabs();
+  var list=(WM.store.get("liabilities")||[]).filter(function(l){return typeFilter==="semua"||l.type===typeFilter;});
+  var grid=document.getElementById("liaGrid");
+  if(!list.length){grid.innerHTML='<div class="card s12"><div class="empty"><span class="ic">'+WM.icon("receipt",22)+'</span><b>Belum ada liabilitas'+(typeFilter!=="semua"?" jenis ini":"")+'</b><p>Tambah KPR, kartu kredit, atau pinjaman supaya WealthMe bisa hitung cicilan dan sisa pokoknya.</p><button class="btn primary" type="button" id="emptyAdd">Tambah liabilitas</button></div></div>';
+    var ea=document.getElementById("emptyAdd");if(ea)ea.addEventListener("click",openAddEdit);
+    return;
+  }
+  grid.innerHTML=list.map(liaCard).join("");
+  grid.querySelectorAll(".lia-card").forEach(function(card){
+    var id=card.dataset.id,li=WM.store.find("liabilities",id);
+    card.querySelector('[data-act="detail"]').addEventListener("click",function(){openDetail(id);});
+    card.querySelector('[data-act="edit"]').addEventListener("click",function(){openAddEdit(id);});
+    card.querySelector('[data-act="del"]').addEventListener("click",function(){delLiability(id);});
+    var pb=card.querySelector('[data-act="pay"]');if(pb)pb.addEventListener("click",function(){openPay(id);});
+  });
+}
+
+/* ============ Add / Edit dialog ============ */
+function kprPeriodsHTML(kprState){
+  var lastIdx=kprState.periods.length-1;
+  var isSyariah=kprState.scheme==="syariah_murabahah"||kprState.scheme==="syariah_mmq";
+  var rateLabel=isSyariah?"Margin/tahun (%)":"Bunga/tahun (%)";
+  return '<fieldset class="field" style="border:0;padding:0;margin:0">'+
+    '<legend class="label" style="font-size:12.5px;color:var(--muted);font-weight:500;margin-bottom:6px">Rencana suku bunga KPR</legend>'+
+    '<div class="field"><label class="label" for="kprPreset">Skema KPR</label><select class="select" id="kprPreset">'+KPR_PRESETS.map(function(p){return '<option value="'+p.id+'"'+(p.id===kprState.presetId?" selected":"")+'>'+p.label+'</option>';}).join("")+'</select></div>'+
+    (kprState.periods.some(function(p){return p.source==="official";})?'<div class="note" style="margin-top:8px">'+WM.icon("info",15)+'<span>Tarif resmi (FLPP 2026) — angka pemerintah, bukan penawaran bank kamu.</span></div>':'')+
+    (kprState.periods.some(function(p){return p.source==="example";})?'<div class="note warn" style="margin-top:8px">'+WM.icon("alert",15)+'<span>Contoh pasar, bukan penawaran bank kamu — ubah tiap angka sesuai akad aslimu.</span></div>':'')+
+    '<ol style="list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px" id="kprPeriods">'+
+    kprState.periods.map(function(p,i){
+      var n=i+1,isLast=i===lastIdx;
+      return '<li class="period-card" data-i="'+i+'"><div class="period-head"><span>Periode '+n+'</span><span style="display:flex;align-items:center;gap:6px">'+
+        (p.source==="official"?'<span class="b official">Resmi</span>':p.source==="example"?'<span class="b example">Contoh</span>':'')+
+        (kprState.periods.length>1?'<button type="button" class="ibtn" data-rm="'+i+'" aria-label="Hapus periode '+n+'">'+WM.icon("trash",14)+'</button>':'')+
+        '</span></div>'+
+        '<div class="two"><div class="field" style="margin:0"><label class="label">Jenis bunga</label><select class="select" data-f="kind" data-i="'+i+'"><option value="fixed"'+(p.kind==="fixed"?" selected":"")+'>Tetap</option><option value="floating"'+(p.kind==="floating"?" selected":"")+'>Mengambang</option></select></div>'+
+        (isLast?'<div class="field" style="margin:0"><label class="label">Lama (bulan)</label><div class="input muted">Sampai lunas</div></div>':'<div class="field" style="margin:0"><label class="label" for="kprM'+i+'">Lama (bulan)</label><input class="input mono" id="kprM'+i+'" inputmode="numeric" data-f="months" data-i="'+i+'" value="'+WM.esc(p.months)+'"></div>')+
+        '</div><div class="field" style="margin-top:8px"><label class="label" for="kprR'+i+'">'+rateLabel+' · Periode '+n+'</label><input class="input mono" id="kprR'+i+'" inputmode="decimal" data-f="rate" data-i="'+i+'" value="'+WM.esc(p.ratePercent)+'"></div></li>';
+    }).join("")+'</ol>'+
+    (kprState.periods.length<MAX_RATE_PERIODS?'<button type="button" class="btn ghost sm" id="kprAddPeriod" style="margin-top:8px">'+WM.icon("plus",15)+'Tambah periode</button>':'')+
+    '<div class="hint" style="margin-top:6px">Periode terakhir berlaku sampai lunas. Rencana ini yang dipakai untuk hitung cicilan dan jadwal amortisasi.</div>'+
+  '</fieldset>';
+}
+
+function openAddEdit(editId){
+  var editing=editId?WM.store.find("liabilities",editId):null;
+  var type=editing?editing.type:"kartu_kredit";
+  var method=editing?editing.interestMethod:DEFAULT_METHOD[type];
+  var kprState=editing&&editing.type==="kpr"&&editing.ratePeriods&&editing.ratePeriods.length?
+    {presetId:"manual",scheme:editing.kprScheme||null,periods:editing.ratePeriods.map(function(p){return {kind:p.kind,months:p.months==null?"":String(p.months),ratePercent:p.ratePercent,source:"user"};})}:
+    (function(){var p=presetById("manual");return {presetId:p.id,scheme:p.scheme,periods:p.periods.map(function(x){return Object.assign({},x,{source:p.source});})};})();
+
+  function usesTenor(m){return m!=="efektif";}
+  function usesRatePlan(t,m){return t==="kpr"&&m==="anuitas";}
+
+  var body='<fieldset class="field" style="border:1px solid var(--line);border-radius:14px;padding:14px;margin:0" role="group" aria-label="Identitas">'+
+    '<legend class="label" style="padding:0 4px;font-weight:600;font-size:13px">Identitas</legend>'+
+    '<div class="two"><div class="field" style="margin:0">'+WM.field({name:"name",label:"Nama",required:true,value:editing?editing.name:"",placeholder:"Misal: KPR Rumah Bintaro"})+'</div>'+
+    '<div class="field" style="margin:0">'+WM.field({name:"institution",label:"Institusi",optional:true,value:editing?editing.institution:"",placeholder:"Misal: BCA"})+'</div></div>'+
+    '<div class="field">'+WM.field({name:"type",label:"Jenis",type:"select",value:type,options:TYPES.map(function(t){return [t,TYPE_LABEL[t]];})})+'</div>'+
+    '<div class="field">'+WM.field({name:"notes",label:"Catatan",optional:true,value:editing?editing.notes:"",placeholder:"Misal: SHM atas nama Christian"})+'</div>'+
+  '</fieldset>'+
+  '<fieldset class="field" style="border:1px solid var(--line);border-radius:14px;padding:14px;margin:0" role="group" aria-label="Nominal">'+
+    '<legend class="label" style="padding:0 4px;font-weight:600;font-size:13px">Nominal</legend>'+
+    '<div class="two"><div class="field" style="margin:0">'+WM.field({name:"totalDebt",label:"Total Utang / Limit (Rp)",type:"money",required:true,value:editing?editing.totalDebt:""})+'</div>'+
+    '<div class="field" style="margin:0">'+WM.field({name:"remainingBalance",label:"Sisa Tagihan (Rp)",type:"money",required:true,value:editing?editing.remainingBalance:""})+'</div></div>'+
+    '<div class="field" data-show="minpay">'+WM.field({name:"minimumPayment",label:"Min. Bayar (Rp, opsional)",type:"money",optional:true,value:editing?editing.minimumPayment:""})+'</div>'+
+  '</fieldset>'+
+  '<fieldset class="field" style="border:1px solid var(--line);border-radius:14px;padding:14px;margin:0" role="group" aria-label="Bunga & Tenor">'+
+    '<legend class="label" style="padding:0 4px;font-weight:600;font-size:13px">Bunga & Tenor</legend>'+
+    '<div class="field" data-show="method">'+WM.field({name:"interestMethod",label:"Metode Bunga",type:"select",value:method,options:(METHOD_OPTIONS[type]||[method]).map(function(m){return [m,METHOD_LABEL[m]];})})+'</div>'+
+    '<div class="field" data-show="simplerate">'+WM.field({name:"interestRate",label:type==="kartu_kredit"?"Bunga/Bulan (%)":RATE_LABEL[method]||"Bunga/Tahun (%)",optional:true,value:editing?editing.interestRate:"",placeholder:"7.25"})+
+      (type==="kpr"&&method==="flat"?'<div class="hint">Margin flat dihitung dari pokok awal, tetap sepanjang tenor — beda dari anuitas yang mengecil tiap bulan.</div>':'')+'</div>'+
+    '<div class="field" data-show="tenor">'+WM.field({name:"tenorMonths",label:"Tenor (bulan)",value:editing&&editing.tenorMonths?editing.tenorMonths:"",placeholder:"180"})+'</div>'+
+    '<div class="two" data-show="startdate"><div class="field" style="margin:0">'+WM.field({name:"startDate",label:"Tanggal Akad",type:"date",value:editing?editing.startDate:""})+'</div>'+
+    '<div class="field" style="margin:0">'+WM.field({name:"installmentAmount",label:"Cicilan/bulan (Rp, opsional)",type:"money",optional:true,hint:"Kosongkan, dihitung otomatis dari bunga & tenor"})+'</div></div>'+
+    '<div data-show="ratePlan"></div>'+
+    '<div class="field">'+WM.field({name:"dueDate",label:"Tanggal Jatuh Tempo",type:"date",optional:true,value:editing?editing.dueDate:""})+'</div>'+
+    '<label class="switch" data-show="autoadv"><span>Majukan tanggal jatuh tempo otomatis tiap bulan</span><input type="checkbox" id="autoAdv"'+(editing&&editing.autoAdvanceDueDate?" checked":"")+'></label>'+
+  '</fieldset>';
+
+  var d=WM.modal({title:editing?"Ubah liabilitas":"Tambah liabilitas",size:"lg",submit:"Simpan liabilitas",body:body,onOpen:function(d,b){
+    var typeSel=b.querySelector('[name="type"]'),methodSel=b.querySelector('[name="interestMethod"]'),rateInput=b.querySelector('[name="interestRate"]');
+    function fieldset(name){return b.querySelector('[data-show="'+name+'"]');}
+    function sync(){
+      var t=typeSel.value,opts=METHOD_OPTIONS[t];
+      var m=opts?methodSel.value:DEFAULT_METHOD[t];
+      if(!opts){var wrap=fieldset("method");wrap.hidden=true;}else{fieldset("method").hidden=false;
+        if(methodSel.dataset.lastType!==t){methodSel.innerHTML=opts.map(function(x){return '<option value="'+x+'">'+METHOD_LABEL[x]+'</option>';}).join("");methodSel.value=DEFAULT_METHOD[t];methodSel.dataset.lastType=t;m=methodSel.value;}}
+      var tenorOn=usesTenor(m),ratePlanOn=usesRatePlan(t,m);
+      fieldset("minpay").hidden=tenorOn;
+      fieldset("tenor").hidden=!tenorOn;
+      fieldset("startdate").hidden=!tenorOn;
+      fieldset("simplerate").hidden=ratePlanOn;
+      fieldset("ratePlan").hidden=!ratePlanOn;
+      fieldset("autoadv").hidden=!b.querySelector('[name="dueDate"]').value;
+      var rl=b.querySelector('[data-field="interestRate"] label');
+      if(rl)rl.firstChild.textContent=(t==="kartu_kredit"?"Bunga/Bulan (%)":(RATE_LABEL[m]||"Bunga/Tahun (%)"));
+      var hint=fieldset("simplerate").querySelector(".hint");
+      if(t==="kpr"&&m==="flat"&&!hint){fieldset("simplerate").insertAdjacentHTML("beforeend",'<div class="hint">Margin flat dihitung dari pokok awal, tetap sepanjang tenor — beda dari anuitas yang mengecil tiap bulan.</div>');}
+      else if(!(t==="kpr"&&m==="flat")&&hint)hint.remove();
+      if(ratePlanOn){fieldset("ratePlan").innerHTML=kprPeriodsHTML(kprState);wirePeriods();}
+    }
+    function wirePeriods(){
+      var presetSel=b.querySelector("#kprPreset");
+      if(presetSel)presetSel.addEventListener("change",function(){
+        var p=presetById(presetSel.value);
+        kprState={presetId:p.id,scheme:p.scheme,periods:p.periods.map(function(x){return Object.assign({},x,{source:p.source});})};
+        if(p.id==="syariah_murabahah"){methodSel.value="flat";rateInput.value=p.periods[0].ratePercent;}
+        fieldset("ratePlan").innerHTML=kprPeriodsHTML(kprState);wirePeriods();
+        if(p.id==="syariah_murabahah")sync();
+      });
+      b.querySelectorAll('[data-f]').forEach(function(inp){inp.addEventListener("input",function(){
+        var i=+inp.dataset.i,f=inp.dataset.f;kprState.periods[i][f]=inp.value;if(f!=="kind")kprState.periods[i].source="user";
+        if(f==="kind"){fieldset("ratePlan").innerHTML=kprPeriodsHTML(kprState);wirePeriods();}
+      });});
+      b.querySelectorAll('[data-rm]').forEach(function(btn){btn.addEventListener("click",function(){
+        kprState.periods.splice(+btn.dataset.rm,1);fieldset("ratePlan").innerHTML=kprPeriodsHTML(kprState);wirePeriods();
+      });});
+      var add=b.querySelector("#kprAddPeriod");
+      if(add)add.addEventListener("click",function(){
+        kprState.periods.splice(kprState.periods.length-1,0,{kind:"fixed",months:"12",ratePercent:"",source:"user"});
+        fieldset("ratePlan").innerHTML=kprPeriodsHTML(kprState);wirePeriods();
+      });
+    }
+    typeSel.addEventListener("change",sync);methodSel.addEventListener("change",sync);
+    b.querySelector('[name="dueDate"]').addEventListener("change",sync);
+    methodSel.dataset.lastType=type;sync();
+  },onSubmit:function(f,v){
+    var t=v.type,m=(METHOD_OPTIONS[t]||[DEFAULT_METHOD[t]]).indexOf(f.querySelector('[name="interestMethod"]')?f.querySelector('[name="interestMethod"]').value:DEFAULT_METHOD[t])>=0?(f.querySelector('[name="interestMethod"]')?f.querySelector('[name="interestMethod"]').value:DEFAULT_METHOD[t]):DEFAULT_METHOD[t];
+    var tenorOn=usesTenor(m),ratePlanOn=usesRatePlan(t,m);
+    if(!v.name||!v.name.trim())return "Nama wajib diisi.";
+    if(!v.totalDebt||v.totalDebt<=0)return "Total utang / limit harus lebih dari 0.";
+    if(!v.remainingBalance||v.remainingBalance<=0)return "Sisa tagihan harus lebih dari 0.";
+    var tenorMonths=tenorOn?parseInt(v.tenorMonths||"0",10):null;
+    if(tenorOn&&(!tenorMonths||tenorMonths<1||tenorMonths>600))return "Tenor harus antara 1 dan 600 bulan.";
+    if(ratePlanOn&&!tenorMonths)return "Isi tenor dulu sebelum atur periode bunga.";
+    var ratePeriods=null,scheme=null,interestRate=v.interestRate;
+    if(ratePlanOn){
+      var body=kprState.periods.map(function(p,i){return {kind:p.kind,months:i===kprState.periods.length-1?null:parseInt(p.months||"0",10),ratePercent:String(p.ratePercent||"").trim().replace(",",".")};});
+      var ok=body.length>0&&body.every(function(p){return /^\d{1,2}(\.\d{1,2})?$/.test(p.ratePercent)&&parseFloat(p.ratePercent)<=30&&(p.months===null||(Number.isInteger(p.months)&&p.months>=1));});
+      if(!ok)return "Cek lagi tiap periode bunga: bunga 0–30% dan lama minimal 1 bulan.";
+      ratePeriods=body;scheme=kprState.scheme;interestRate=body[0].ratePercent;
+    } else if(interestRate){
+      var rr=String(interestRate).replace(",",".");
+      if(isNaN(parseFloat(rr))||parseFloat(rr)<0||parseFloat(rr)>30)return "Bunga harus angka antara 0 dan 30%.";
+      interestRate=rr;
+    } else interestRate=editing?editing.interestRate:"0";
+    var startDate=tenorOn?(f.querySelector('[name="startDate"]').value||(editing?editing.startDate:null)):null;
+    var installmentAmount=tenorOn?(WM.parseMoney(f.querySelector('[name="installmentAmount"]').value)||null):null;
+    var dueDate=f.querySelector('[name="dueDate"]').value||null;
+    var autoAdvanceDueDate=dueDate?!!f.querySelector("#autoAdv").checked:false;
+    var rec={v2:true,name:v.name.trim(),institution:(v.institution||"").trim(),type:t,notes:(v.notes||"").trim(),
+      totalDebt:v.totalDebt,remainingBalance:v.remainingBalance,minimumPayment:tenorOn?0:(v.minimumPayment||0),
+      interestRate:interestRate,interestMethod:m,tenorMonths:tenorMonths,startDate:startDate,
+      installmentAmount:installmentAmount,dueDate:dueDate,autoAdvanceDueDate:autoAdvanceDueDate,
+      kprScheme:t==="kpr"?scheme:null,ratePeriods:ratePeriods||[],
+      floatingRates:editing?editing.floatingRates||[]:[],lastPaidPeriod:editing?editing.lastPaidPeriod||0:0,
+      paidMonth:editing?editing.paidMonth:null,acc:editing?editing.acc:null};
+    var saved=editing?WM.store.update("liabilities",editing.id,rec):WM.store.add("liabilities",rec);
+    var inst=installmentDue(saved);
+    WM.toast((editing?"Perubahan disimpan":"Liabilitas ditambahkan")+(inst>0?" · Cicilan "+WM.rp(inst):""));
+    draw();
+  }});
+}
+document.getElementById("addLia").addEventListener("click",function(){openAddEdit();});
+
+function delLiability(id){
+  var li=WM.store.find("liabilities",id);if(!li)return;
+  WM.confirm({title:"Hapus "+li.name+"?",text:"Riwayat cicilan yang tercatat di transaksi tidak ikut terhapus. Aksi ini tidak bisa dibatalkan.",confirm:"Hapus",danger:true}).then(function(ok){
+    if(!ok)return;WM.store.remove("liabilities",id);WM.toast("Liabilitas dihapus");draw();
+  });
+}
+
+/* ============ Detail dialog (amortisation table + floating history + prepayment) ============ */
+function openDetail(id){
+  var li=WM.store.find("liabilities",id);if(!li)return;
+  var rows=scheduleFor(li);
+  var first=rows[0];
+  var paysOff=rows.length&&rows[rows.length-1].remaining===0;
+  var floating=hasFloatingSegment(li)&&li.interestMethod==="anuitas";
+  var body='<div class="stat-mini" style="grid-template-columns:repeat(2,1fr)">'+
+    '<div><small>'+(li.type==="kartu_kredit"?"Tagihan berjalan":"Sisa pokok")+'</small><b class="num" style="color:var(--bad)">'+WM.rp(li.remainingBalance)+'</b></div>'+
+    '<div><small>'+(li.type==="kartu_kredit"?"Limit":"Total utang")+'</small><b class="num">'+WM.rp(li.totalDebt)+'</b></div>'+
+    '<div><small>Cicilan/bulan</small><b class="num">'+(installmentDue(li)>0?WM.rp(installmentDue(li)):"—")+'</b></div>'+
+    '<div><small>Bunga</small><b class="num">'+(parseFloat(li.interestRate)>0?li.interestRate+"%":"—")+'</b></div>'+
+  '</div>'+
+  '<div class="two"><div><div class="hint">Jatuh tempo berikutnya</div><b>'+(nextDueISO(li)?WM.date(nextDueISO(li)):"—")+'</b></div>'+
+  '<div><div class="hint">Metode bunga</div><b>'+METHOD_LABEL[li.interestMethod]+'</b></div></div>'+
+  '<div class="card soft" style="padding:14px;border-radius:14px">'+
+    '<div style="font-weight:700;font-size:12.5px;margin-bottom:8px">Ringkasan amortisasi</div>'+
+    (first?('<div class="two"><div><div class="hint">Pokok bulan ini</div><b class="num">'+WM.rp(first.principal)+'</b></div><div><div class="hint">Bunga bulan ini</div><b class="num" style="color:var(--bad)">'+WM.rp(first.interest)+'</b></div></div>'+
+    '<div class="'+(paysOff?"":"note bad")+'" style="margin-top:8px;'+(paysOff?"color:var(--good);font-size:12.5px;font-weight:600":"")+'">'+(paysOff?"Perkiraan lunas dalam "+rows.length+" cicilan lagi.":"Cicilan saat ini belum menutup bunga berjalan — sisa pokok tidak akan turun.")+'</div>'+
+    '<div class="sched-hd" style="margin-top:12px"><span style="font-weight:700;font-size:13px">Jadwal cicilan ('+rows.length+')</span><span class="hint">Geser untuk lihat semua</span></div>'+
+    '<div class="tw" style="max-height:280px;overflow-y:auto"><table class="tbl"><thead><tr><th>#</th><th>Tanggal</th><th>Bunga</th><th class="r">Cicilan</th><th class="r">Pokok</th><th class="r">Bunga</th><th class="r">Sisa</th></tr></thead><tbody>'+
+    rows.map(function(r){var dt=li.startDate?dueDateForPeriod(li.startDate,r.period):null;
+      return '<tr><td class="mono">'+r.period+'</td><td>'+(dt?dt.toLocaleDateString("id-ID",{day:"numeric",month:"short",year:"numeric"}):"—")+'</td>'+
+      '<td class="mono">'+r.ratePercent+'%'+(r.rateKind==="floating"?' <span class="pill warn" style="padding:1px 6px">perkiraan</span>':'')+'</td>'+
+      '<td class="r num">'+WM.rp(r.installment)+'</td><td class="r num">'+WM.rp(r.principal)+'</td><td class="r num">'+WM.rp(r.interest)+'</td><td class="r num">'+WM.rp(r.remaining)+'</td></tr>';}).join("")+
+    '</tbody></table></div><div class="hint" style="margin-top:6px">Perkiraan dari sisa saldo &amp; tenor saat ini, bukan jadwal yang tersimpan di server.</div>'+
+    (floating?'<div class="note warn" style="margin-top:8px">Sebagian jadwal pakai bunga mengambang perkiraan (belum tentu sama dengan tarif bank nanti).</div>':'')):
+    '<div class="hint">Belum ada jadwal — isi total utang, bunga dan tenor dulu.</div>')+
+  '</div>'+
+  (li.notes?'<div class="note">'+WM.icon("clipboard",15)+'<span>Catatan: '+WM.esc(li.notes)+'</span></div>':'')+
+  '<div id="floatingPanel"></div><div id="prepayPanel"></div>';
+
+  var d=WM.modal({title:li.name,sub:[li.institution,TYPE_LABEL[li.type]].filter(Boolean).join(" · "),size:"lg",submit:"Bayar cicilan",cancel:"Tutup",body:body,onOpen:function(d,b){
+    if(floating)b.querySelector("#floatingPanel").outerHTML=floatingPanelHTML(li);
+    if(li.type==="kpr"&&(li.interestMethod==="anuitas"||li.interestMethod==="flat"))b.querySelector("#prepayPanel")&&(b.querySelector("#prepayPanel").outerHTML=prepayPanelHTML(li));
+    wireFloatingPanel(b,li);wirePrepayPanel(b,li);
+  },onSubmit:function(){d.close();openPay(id);return false;}});
+}
+
+function floatingPanelHTML(li){
+  var rates=li.floatingRates||[];
+  return '<section class="card soft" style="padding:14px;border-radius:14px" id="floatingPanel"><div style="font-weight:700;font-size:12.5px">Riwayat bunga mengambang</div>'+
+    '<div class="hint" style="margin:0 0 8px">Catatan manual kamu, bukan feed suku bunga bank langsung.</div>'+
+    (rates.length?'<ul style="list-style:none;margin:0;padding:0">'+rates.map(function(r){return '<li class="fh-row"><span><b class="mono">'+r.ratePercent+'%</b> · '+WM.date(r.effectiveDate)+'</span><button type="button" class="ibtn" data-rmfr="'+r.id+'" aria-label="Hapus">'+WM.icon("trash",14)+'</button></li>';}).join("")+'</ul>':'<div class="hint">Belum ada catatan perubahan bunga.</div>')+
+    '<div class="two" style="margin-top:8px"><div class="field" style="margin:0">'+WM.field({name:"frDate",label:"Berlaku sejak",type:"date"})+'</div><div class="field" style="margin:0">'+WM.field({name:"frRate",label:"Bunga baru (%)"})+'</div></div>'+
+    '<button type="button" class="btn outline sm" id="frAdd" style="margin-top:8px">Simpan bunga baru</button></section>';
+}
+function wireFloatingPanel(b,li){
+  var panel=b.querySelector("#floatingPanel");if(!panel)return;
+  panel.querySelectorAll("[data-rmfr]").forEach(function(btn){btn.addEventListener("click",function(){
+    var fresh=WM.store.find("liabilities",li.id);fresh.floatingRates=(fresh.floatingRates||[]).filter(function(r){return r.id!==btn.dataset.rmfr;});
+    WM.store.update("liabilities",li.id,{floatingRates:fresh.floatingRates});WM.toast("Catatan bunga dihapus");draw();panel.outerHTML=floatingPanelHTML(fresh);wireFloatingPanel(b,fresh);
+  });});
+  var add=panel.querySelector("#frAdd");
+  if(add)add.addEventListener("click",function(){
+    var date=panel.querySelector('[name="frDate"]').value,rate=panel.querySelector('[name="frRate"]').value;
+    if(!date||!rate||isNaN(parseFloat(rate.replace(",","."))))return WM.toast("Isi tanggal dan bunga dulu.",{bad:true});
+    var fresh=WM.store.find("liabilities",li.id);fresh.floatingRates=(fresh.floatingRates||[]).concat([{id:WM.uid("fr"),effectiveDate:date,ratePercent:rate.replace(",",".")}]);
+    WM.store.update("liabilities",li.id,{floatingRates:fresh.floatingRates});WM.toast("Bunga baru tersimpan");draw();panel.outerHTML=floatingPanelHTML(fresh);wireFloatingPanel(b,fresh);
+  });
+}
+
+var PREPAY_MODES=[["reduce_tenor","Percepat lunas"],["reduce_installment","Perkecil cicilan"],["full","Lunasi semua"]];
+function prepayPanelHTML(li){
+  return '<section class="card soft" style="padding:14px;border-radius:14px" id="prepayPanel"><div style="font-weight:700;font-size:12.5px">Simulasi pelunasan dipercepat</div>'+
+    '<div class="note" style="margin:6px 0">Ini simulasi saja — belum tercatat sampai kamu pilih rekening dan konfirmasi di bawah.</div>'+
+    '<div class="seg full" data-radio="ppmode" role="radiogroup" aria-label="Mode pelunasan">'+PREPAY_MODES.map(function(m,i){return '<button type="button" role="radio" data-v="'+m[0]+'" aria-checked="'+(i===0)+'">'+m[1]+'</button>';}).join("")+'</div>'+
+    '<div class="two" style="margin-top:8px"><div class="field" style="margin:0" id="ppAmtWrap">'+WM.field({name:"ppAmount",label:"Nominal pelunasan (Rp)",type:"money"})+'</div>'+
+    '<div class="field" style="margin:0">'+WM.field({name:"ppPenalty",label:"Denda pelunasan (%)",value:DEFAULT_PENALTY})+'</div></div>'+
+    '<div class="hint">Umumnya 1–3% dari pokok yang dilunasi — cek ketentuan bank/akad kamu.</div>'+
+    '<button type="button" class="btn outline sm" id="ppSim" style="margin-top:8px">Hitung simulasi</button>'+
+    '<div id="ppResult"></div></section>';
+}
+function wirePrepayPanel(b,li){
+  var panel=b.querySelector("#prepayPanel");if(!panel)return;
+  WM.radio(panel);
+  var mode="reduce_tenor";
+  panel.querySelector('[data-radio="ppmode"]').addEventListener("change",function(e){mode=e.detail;panel.querySelector("#ppAmtWrap").hidden=mode==="full";panel.querySelector("#ppResult").innerHTML="";});
+  panel.querySelector("#ppSim").addEventListener("click",function(){
+    var fresh=WM.store.find("liabilities",li.id);
+    var amount=mode==="full"?fresh.remainingBalance:WM.parseMoney(panel.querySelector('[name="ppAmount"]').value);
+    var penalty=panel.querySelector('[name="ppPenalty"]').value.replace(",",".")||DEFAULT_PENALTY;
+    if(parseFloat(penalty)>MAX_PENALTY)return WM.toast("Denda maksimal "+MAX_PENALTY+"%.",{bad:true});
+    if(!amount||amount<=0||amount>fresh.remainingBalance)return WM.toast("Nominal harus lebih dari 0 dan tidak lebih dari sisa pokok.",{bad:true});
+    var result=simulatePrepayment(fresh,mode,amount,penalty);
+    panel.querySelector("#ppResult").innerHTML='<dl class="kv" style="margin-top:10px;background:var(--card-2);border-radius:12px;padding:12px 14px">'+
+      '<dt>Denda</dt><dd>'+WM.rp(result.penalty)+'</dd><dt>Total keluar sekarang</dt><dd>'+WM.rp(result.cashOutNow)+'</dd>'+
+      '<dt>Cicilan</dt><dd>'+WM.rp(result.installmentBefore||0)+' → '+WM.rp(result.installmentAfter||0)+'</dd>'+
+      '<dt>Sisa tenor</dt><dd>'+result.remainingMonthsBefore+' → '+result.remainingMonthsAfter+' bulan</dd>'+
+      '<dt>Bunga dihemat</dt><dd>'+WM.rp(result.interestSaved)+'</dd><dt>Hemat bersih</dt><dd style="color:var(--good);font-weight:700">'+WM.rp(result.netSaving)+'</dd></dl>'+
+      '<div class="field" style="margin-top:10px">'+WM.field({name:"ppAcc",label:"Bayar dari rekening",type:"select",options:WM.visibleAccounts().map(function(a){return [a.id,a.bank+" · "+a.name];})})+'</div>'+
+      '<button type="button" class="btn primary sm" id="ppRecord" style="margin-top:8px">Catat pelunasan '+WM.rp(result.cashOutNow)+'</button>';
+    panel.querySelector("#ppRecord").addEventListener("click",function(){
+      var accId=panel.querySelector('[name="ppAcc"]').value;if(!accId)return WM.toast("Pilih rekening dulu.",{bad:true});
+      var again=WM.store.find("liabilities",li.id);
+      var newBalance=again.remainingBalance-amount;
+      var patch={remainingBalance:Math.max(0,newBalance)};
+      if(result.newInstallmentAmount!=null)patch.installmentAmount=result.newInstallmentAmount;
+      if(result.newTenorMonths!=null)patch.tenorMonths=result.newTenorMonths;
+      WM.store.update("liabilities",li.id,patch);
+      WM.addTx({type:"out",amount:result.cashOutNow,acc:accId,cat:catFor(again),note:"Pelunasan sebagian "+again.name});
+      WM.toast("Pelunasan "+WM.rp(result.cashOutNow)+" dicatat");
+      draw();panel.closest("dialog").close();
+    });
+  });
+}
+function simulatePrepayment(li,mode,amount,penaltyPercent){
+  var due=dueFor(li),plan=ratePlanFor(li),rateIsMonthly=li.type==="kartu_kredit";
+  var beforeRows=scheduleFor(li);
+  var balance=li.remainingBalance,prepaid=mode==="full"?balance:amount,balanceAfter=balance-prepaid;
+  var ratePercent=rateAt(plan,due.period).ratePercent;
+  var afterRows=[],newInstallmentAmount=null,newTenorMonths=null;
+  if(balanceAfter>0){
+    if(mode==="reduce_installment"){
+      if(li.interestMethod==="flat"){
+        var remMonths=li.tenorMonths-(due.period-1);
+        var newInst=computeInstallment("flat",balanceAfter,ratePercent,remMonths,rateIsMonthly);
+        afterRows=buildSchedule({method:"flat",remainingBalance:balanceAfter,originalPrincipal:balanceAfter,rateIsMonthly:rateIsMonthly,installmentAmount:newInst,remainingMonths:remMonths,firstPeriod:due.period,plan:plan,recomputeAtStart:true,installmentAnchorPeriod:due.period});
+        newInstallmentAmount=newInst;
+      } else {
+        var remMonths2=li.tenorMonths-(due.period-1);
+        afterRows=buildSchedule({method:"anuitas",remainingBalance:balanceAfter,originalPrincipal:li.totalDebt,rateIsMonthly:rateIsMonthly,installmentAmount:null,remainingMonths:remMonths2,firstPeriod:due.period,plan:plan,recomputeAtStart:true,installmentAnchorPeriod:due.period});
+        newInstallmentAmount=afterRows[0]?afterRows[0].installment:null;
+      }
+    } else {
+      var installment=currentInstallment({method:li.interestMethod,remainingBalance:balance,originalPrincipal:li.totalDebt,rateIsMonthly:rateIsMonthly,installmentAmount:li.interestMethod==="flat"?computeInstallment("flat",li.totalDebt,ratePercent,li.tenorMonths,rateIsMonthly):null,remainingMonths:li.tenorMonths-(due.period-1),firstPeriod:due.period,plan:plan,recomputeAtStart:true,installmentAnchorPeriod:due.period});
+      var months=monthsToPayOff(balanceAfter,ratePercent,installment,li.interestMethod,li.interestMethod==="flat"?li.totalDebt:undefined);
+      if(months==null)months=li.tenorMonths-(due.period-1);
+      afterRows=buildSchedule({method:li.interestMethod,remainingBalance:balanceAfter,originalPrincipal:li.interestMethod==="flat"?li.totalDebt:balanceAfter,rateIsMonthly:rateIsMonthly,installmentAmount:installment,remainingMonths:months,firstPeriod:due.period,plan:plan,recomputeAtStart:false,installmentAnchorPeriod:due.period});
+      newInstallmentAmount=installment;newTenorMonths=due.period-1+months;
+    }
+  }
+  function totalInterest(rows){return rows.reduce(function(s,r){return s+r.interest;},0);}
+  var penalty=prepaymentPenalty(prepaid,penaltyPercent);
+  var interestSaved=totalInterest(beforeRows)-totalInterest(afterRows);
+  return {mode:mode,prepaidPrincipal:prepaid,penalty:penalty,cashOutNow:prepaid+penalty,
+    installmentBefore:beforeRows[0]?beforeRows[0].installment:null,installmentAfter:afterRows[0]?afterRows[0].installment:null,
+    remainingMonthsBefore:beforeRows.length,remainingMonthsAfter:afterRows.length,
+    interestSaved:interestSaved,netSaving:interestSaved-penalty,newInstallmentAmount:newInstallmentAmount,newTenorMonths:newTenorMonths};
+}
+
+/* ============ Pay dialog ============ */
+function openPay(id){
+  var li=WM.store.find("liabilities",id);if(!li)return;
+  var inst=installmentDue(li),accs=WM.visibleAccounts();
+  var due=dueFor(li),late=li.tenorMonths?due.late:(nextDueISO(li)&&nextDueISO(li)<WM.today);
+  var body=(late?'<div class="note bad">'+WM.icon("alert",15)+'<span>Cicilan ini sudah lewat jatuh tempo.</span></div>':'')+
+    '<div class="field"><span class="label">Pilih nominal cepat</span><div class="seg full" role="group" aria-label="Preset nominal">'+
+    (inst>0?'<button type="button" class="preset" data-v="'+inst+'" aria-pressed="true">Cicilan ('+WM.short(inst)+')</button>':'')+
+    '<button type="button" class="preset" data-v="'+li.remainingBalance+'" aria-pressed="'+(inst<=0)+'">Lunasi semua ('+WM.short(li.remainingBalance)+')</button></div></div>'+
+    '<div class="field">'+WM.field({name:"amount",label:"Nominal (Rp)",type:"money",required:true,value:inst>0?inst:li.remainingBalance})+'</div>'+
+    '<div class="field">'+WM.field({name:"acc",label:"Bayar dari rekening",type:"select",required:true,options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];})})+'</div>'+
+    '<div id="paySplit" class="note" style="align-items:center"></div>';
+  var d=WM.modal({title:"Bayar cicilan",sub:[li.name,li.institution,nextDueISO(li)?("Jatuh tempo "+WM.date(nextDueISO(li))):null].filter(Boolean).join(" · "),body:body,submit:"Konfirmasi bayar",onOpen:function(d,b){
+    var amt=b.querySelector('[name="amount"]');
+    function refreshSplit(){
+      var v=WM.parseMoney(amt.value);
+      if(v<=0){b.querySelector("#paySplit").innerHTML="";return;}
+      var split=splitPayment(li.interestMethod,v,li.remainingBalance,li.totalDebt,li.interestRate,li.type==="kartu_kredit");
+      b.querySelector("#paySplit").innerHTML=WM.icon("split",15)+'<span><b>Pokok '+WM.rp(split.principal)+'</b> · <b>Bunga '+WM.rp(split.interest)+'</b><br><span class="hint" style="margin:0">Sisa setelah bayar: '+WM.rp(Math.max(0,li.remainingBalance-split.principal))+'</span></span>';
+    }
+    amt.addEventListener("input",refreshSplit);refreshSplit();
+    b.querySelectorAll(".preset").forEach(function(p){p.addEventListener("click",function(){amt.value=(+p.dataset.v).toLocaleString("id-ID");b.querySelectorAll(".preset").forEach(function(x){x.setAttribute("aria-pressed",x===p);});refreshSplit();});});
+  },onSubmit:function(f,v){
+    if(!v.acc)return "Pilih rekening sumber dana dulu.";
+    if(!v.amount||v.amount<=0)return "Nominal harus lebih dari 0.";
+    var acc=WM.account(v.acc);
+    if(acc&&acc.type!=="cc"&&acc.balance<v.amount)return "Saldo "+acc.bank+" tidak cukup ("+WM.short(acc.balance)+").";
+    var split=splitPayment(li.interestMethod,v.amount,li.remainingBalance,li.totalDebt,li.interestRate,li.type==="kartu_kredit");
+    var newBalance=Math.max(0,li.remainingBalance-split.principal);
+    var patch={remainingBalance:newBalance};
+    if(li.tenorMonths)patch.lastPaidPeriod=due.period;else patch.paidMonth=WM.today.slice(0,7);
+    if(li.dueDate&&li.autoAdvanceDueDate)patch.dueDate=addMonthsClamped(li.dueDate,1);
+    WM.store.update("liabilities",li.id,patch);
+    WM.addTx({type:"out",amount:v.amount,acc:v.acc,cat:catFor(li),note:"Cicilan "+li.name});
+    WM.toast("Cicilan "+WM.rp(v.amount)+" tercatat"+(newBalance===0?" · Lunas!":""));
+    draw();
+  }});
+}
+
+draw();
+WM.onChange(["liabilities","accounts","investments","assets"],draw);
+})();
+</script>

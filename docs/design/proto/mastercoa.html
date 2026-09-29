@@ -1,0 +1,170 @@
+<title>Master COA · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.groups-guide{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media (max-width:900px){.groups-guide{grid-template-columns:1fr}}
+.gcard{background:var(--card-2);border-radius:14px;padding:14px}
+.gcard b{display:block;font-size:13.5px;margin-bottom:4px}
+.gcard p{margin:0 0 6px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.gcard em{font-style:normal;color:var(--ink);font-size:12px;display:block;background:var(--card);border-radius:10px;padding:8px 10px;line-height:1.45}
+.coa-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.coa-pills button{border:1px solid var(--line);background:var(--card);border-radius:99px;padding:0 14px;min-height:38px;font-size:12.5px;color:var(--muted);font-weight:500}
+.coa-pills button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--card);font-weight:600}
+.grp-row td{background:var(--card-2)}
+.badge-dir{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:99px}
+.badge-dir.in{background:var(--lime-soft);color:var(--good)}
+.badge-dir.out{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+.badge-dir.tf{background:color-mix(in srgb,var(--lilac) 40%,var(--card-2));color:#5B3B82}
+:root[data-theme="dark"] .badge-dir.tf,@media (prefers-color-scheme:dark){.badge-dir.tf{color:#D9BEF2}}
+.badge-bt{font-size:11px;font-weight:600;color:var(--muted)}
+.mono-code{font-family:var(--mono);font-size:12.5px}
+.stat-link{font-size:12px;color:var(--good);font-weight:600;text-decoration:none}
+.empty-flag{color:var(--orange);font-weight:600}
+.ok-flag{color:var(--good);font-weight:600}
+</style>
+<main data-page="mastercoa">
+  <div class="ph">
+    <div><h1>Master COA</h1><p>Struktur akun yang dipakai laporan laba-rugi &amp; neraca. Untuk kebutuhan akuntansi lanjutan, opsional.</p></div>
+    <div class="acts"><a class="btn" href="masterdata.html">Master Data</a><button class="btn primary" type="button" id="addAcc" hidden>+ Tambah Akun</button></div>
+  </div>
+
+  <section class="card">
+    <details class="more-opts" id="guide">
+      <summary><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span>Apa itu Master COA?</span></summary>
+      <div>
+        <p class="muted" style="margin:0 0 10px;font-size:13px">Master COA (Chart of Accounts) adalah daftar tempat setiap transaksimu disimpan. Setiap pemasukan, pengeluaran, atau transfer masuk ke salah satu dari 6 grup di bawah, dan grup itu yang menentukan bagaimana angka itu muncul di laporan laba-rugi dan neracamu.</p>
+        <div class="groups-guide" id="groupsGuide"></div>
+        <div class="note warn" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></svg><span>Mengubah grup atau arah akun yang sudah dipakai akan mengubah arti transaksi lama, laporan laba-rugi dan neraca ikut berubah. Edit hanya kalau kamu paham konsekuensinya.</span></div>
+      </div>
+    </details>
+  </section>
+
+  <section class="grid">
+    <div class="cover s4">
+      <div class="stat"><small>Total akun</small><b id="stTotal">0</b></div>
+      <p class="muted" style="margin:10px 0 0;font-size:12.5px">6 grup akuntansi keluarga.</p>
+    </div>
+    <div class="card s4">
+      <div class="stat"><small>Kategori terhubung</small><b id="stLinked">0</b></div>
+      <p class="cap" id="stLinkedSub">dari 0 kategori aplikasi</p>
+      <a class="stat-link" href="masterdata.html">Kelola →</a>
+    </div>
+    <div class="card s4">
+      <div class="stat"><small>Akun COA kosong</small><b id="stEmpty">0</b></div>
+      <p class="cap">akun COA tanpa kategori</p>
+      <span id="stEmptyFlag" class="cap"></span>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>Daftar akun COA</h2></div>
+    <div class="coa-pills" id="pills" style="margin:12px 0 14px"></div>
+    <div class="tw"><table class="tbl" id="tbl">
+      <thead><tr><th>Kode</th><th>Nama akun</th><th>Grup</th><th>Arah</th><th>Tipe anggaran</th><th></th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+    <div class="empty" id="emptyState" hidden><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 19V5M8 7h7"/></svg></span><b>Belum ada akun di grup ini</b><p>Coba pilih grup lain atau tambah akun baru.</p></div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:document.querySelector("main").dataset.page});
+(function(){ if(!WM.allowed) return;
+var GROUP=[null,
+ {label:"Pendapatan",badge:"Income",dir:"INCOME",title:"1 · Pendapatan (Income)",meaning:"Uang yang benar-benar menambah kekayaanmu: gaji, bonus, hasil jualan, bunga tabungan. Setiap rupiah di grup ini menaikkan laba di laporan laba-rugimu.",example:"Contoh: gaji Rp 10.000.000 masuk ke BCA dan dicatat sebagai \"Gaji\" (grup 1). Laporan laba-rugi langsung menunjukkan pemasukan Rp 10.000.000."},
+ {label:"Beban",badge:"Expense",dir:"EXPENSE",title:"2 · Pengeluaran (Expense)",meaning:"Uang yang benar-benar habis terpakai dan tidak kembali: belanja, makan, listrik, transportasi. Setiap rupiah di grup ini menurunkan laba.",example:"Contoh: belanja bulanan Rp 1.500.000 dicatat sebagai \"Kebutuhan Rumah Tangga\" (grup 2), tercatat sebagai pengeluaran bulan ini."},
+ {label:"Alokasi",badge:"Alokasi",dir:"TRANSFER",title:"3 · Alokasi Kekayaan (Wealth Allocation)",meaning:"Uang yang berpindah tempat, bukan hilang: menabung, membeli emas/investasi, pindah antar rekeningmu sendiri. Tidak muncul sebagai pengeluaran.",example:"Contoh: dari gaji di atas, Rp 2.000.000 dipindah ke tabungan (grup 3, \"Tabungan\"). Laba-rugi TIDAK mencatatnya sebagai pengeluaran, hanya pindah bentuk."},
+ {label:"Piutang",badge:"Piutang",dir:"TRANSFER",title:"4 · Piutang (Account Receivable)",meaning:"Uang yang kamu PINJAMKAN dan akan kembali. Bukan pengeluaran, arahnya TRANSFER.",example:"Contoh: pinjamkan Rp 500.000 ke teman, dicatat grup 4. Kekayaan bersihmu tetap sama, cuma bentuknya berubah jadi piutang."},
+ {label:"Utang",badge:"Utang",dir:"TRANSFER",title:"5 · Utang (Account Payable)",meaning:"Uang yang kamu PINJAM (termasuk cicilan/KPR) dan harus dibayar kembali. Membayar pokok bukan pengeluaran, arahnya TRANSFER.",example:"Contoh: cicilan KPR Rp 5.000.000 (pokok Rp 4.200.000 + bunga Rp 800.000). Hanya bunga masuk expense (grup 2), pokok mengurangi utang di grup 5."},
+ {label:"Pajak",badge:"Pajak",dir:"EXPENSE",title:"6 · Pajak (Tax)",meaning:"Pajak yang kamu bayar ke negara: PPh, PBB, dan sejenisnya. Pengeluaran nyata, tetap dicatat sebagai expense.",example:"Contoh: PBB rumah Rp 800.000 dicatat di grup 6, tercatat sebagai pengeluaran Rp 800.000."}];
+var SEED=[
+ {id:"co1",code:"10001",name:"Gaji",groupNum:1,direction:"INCOME",budgetType:null},
+ {id:"co2",code:"10002",name:"Bonus",groupNum:1,direction:"INCOME",budgetType:null},
+ {id:"co3",code:"10003",name:"Hasil Investasi",groupNum:1,direction:"INCOME",budgetType:null},
+ {id:"co4",code:"10004",name:"Pendapatan Lainnya",groupNum:1,direction:"INCOME",budgetType:null},
+ {id:"co5",code:"20001",name:"Makan",groupNum:2,direction:"EXPENSE",budgetType:"VARIABLE"},
+ {id:"co6",code:"20002",name:"Transport",groupNum:2,direction:"EXPENSE",budgetType:"VARIABLE"},
+ {id:"co7",code:"20003",name:"Rumah & KPR (bunga)",groupNum:2,direction:"EXPENSE",budgetType:"FIXED"},
+ {id:"co8",code:"20004",name:"Belanja",groupNum:2,direction:"EXPENSE",budgetType:"VARIABLE"},
+ {id:"co9",code:"20005",name:"Kesehatan",groupNum:2,direction:"EXPENSE",budgetType:"VARIABLE"},
+ {id:"co10",code:"20006",name:"Pendidikan",groupNum:2,direction:"EXPENSE",budgetType:"FIXED"},
+ {id:"co11",code:"20007",name:"Zakat & Donasi",groupNum:2,direction:"EXPENSE",budgetType:"REIMBURSEMENT"},
+ {id:"co12",code:"20008",name:"Pengeluaran Lainnya",groupNum:2,direction:"EXPENSE",budgetType:"VARIABLE"},
+ {id:"co13",code:"30001",name:"Tabungan Internal",groupNum:3,direction:"TRANSFER",budgetType:null},
+ {id:"co14",code:"30002",name:"Pembelian Investasi",groupNum:3,direction:"TRANSFER",budgetType:null},
+ {id:"co15",code:"30003",name:"Transfer Antar Rekening",groupNum:3,direction:"TRANSFER",budgetType:null},
+ {id:"co16",code:"40001",name:"Piutang Anggota Keluarga",groupNum:4,direction:"TRANSFER",budgetType:null},
+ {id:"co17",code:"50001",name:"KPR BCA Bintaro",groupNum:5,direction:"TRANSFER",budgetType:null},
+ {id:"co18",code:"50002",name:"Kartu Kredit",groupNum:5,direction:"TRANSFER",budgetType:null},
+ {id:"co19",code:"50003",name:"Pinjaman Koperasi",groupNum:5,direction:"TRANSFER",budgetType:null},
+ {id:"co20",code:"60001",name:"PPh 21",groupNum:6,direction:"EXPENSE",budgetType:null},
+ {id:"co21",code:"60002",name:"PBB",groupNum:6,direction:"EXPENSE",budgetType:null}];
+WM.store.ensure("coa",SEED);
+/* link a few categories to COA accounts once, so the stats mean something */
+(function linkOnce(){var cats=WM.store.get("categories");if(cats.some(function(c){return "coaAccountId" in c;}))return;
+  var MAP={"c-makan":"co5","c-transport":"co6","c-rumah":"co7","c-belanja":"co8","c-kesehatan":"co9","c-pendidikan":"co10","c-zakat":"co11","c-gaji":"co1","c-bonus":"co2","c-invest":"co3"};
+  cats=cats.map(function(c){return Object.assign({},c,{coaAccountId:MAP[c.id]||null,isPrivate:false});});WM.store.set("categories",cats);})();
+
+var groupNums=[1,2,3,4,5,6],active=0,canManage=WM.isOwner();
+document.getElementById("addAcc").hidden=!canManage;
+
+function guideDraw(){document.getElementById("groupsGuide").innerHTML=groupNums.map(function(g){var d=GROUP[g];
+  return '<div class="gcard"><b>'+d.title+'</b><p>'+d.meaning+'</p><em>'+d.example+'</em></div>';}).join("");}
+function pillsDraw(){document.getElementById("pills").innerHTML='<button type="button" aria-pressed="'+(active===0)+'" data-g="0">Semua</button>'+
+  groupNums.map(function(g){return '<button type="button" aria-pressed="'+(active===g)+'" data-g="'+g+'">'+g+' · '+GROUP[g].label+'</button>';}).join("");
+  document.getElementById("pills").querySelectorAll("button").forEach(function(b){b.onclick=function(){active=+b.dataset.g;draw();};});}
+
+function dirBadge(dir){var m={INCOME:["in","↓ Pemasukan"],EXPENSE:["out","↑ Pengeluaran"],TRANSFER:["tf","↔ Mutasi"]}[dir];return '<span class="badge-dir '+m[0]+'">'+m[1]+'</span>';}
+function btLabel(bt){return {FIXED:"Fixed",VARIABLE:"Variable",REIMBURSEMENT:"Reimbursement"}[bt]||"–";}
+
+function draw(){
+  var coa=WM.store.get("coa"),cats=WM.store.get("categories");
+  document.getElementById("stTotal").textContent=coa.length;
+  var linked=cats.filter(function(c){return c.coaAccountId;}).length;
+  document.getElementById("stLinked").textContent=linked;
+  document.getElementById("stLinkedSub").textContent="dari "+cats.length+" kategori aplikasi";
+  var usedCoa={};cats.forEach(function(c){if(c.coaAccountId)usedCoa[c.coaAccountId]=true;});
+  var emptyN=coa.filter(function(a){return !usedCoa[a.id];}).length;
+  document.getElementById("stEmpty").textContent=emptyN;
+  document.getElementById("stEmptyFlag").innerHTML=emptyN>0?'<span class="empty-flag">Perlu dicek</span>':'<span class="ok-flag">Semua terhubung</span>';
+
+  var filtered=active===0?coa:coa.filter(function(a){return a.groupNum===active;});
+  var byGroup=groupNums.map(function(g){return {g:g,items:filtered.filter(function(a){return a.groupNum===g;})};}).filter(function(x){return x.items.length;});
+  document.getElementById("emptyState").hidden=byGroup.length>0;
+  document.getElementById("rows").innerHTML=byGroup.map(function(sec){
+    return '<tr class="grp-row"><td colspan="6">'+sec.g+' · '+GROUP[sec.g].title.split(" · ")[1]+' · '+sec.items.length+' akun</td></tr>'+
+      sec.items.map(function(a){return '<tr><td class="mono-code">'+WM.esc(a.code)+'</td><td>'+WM.esc(a.name)+'</td><td><span class="pill">'+sec.g+' · '+GROUP[sec.g].badge+'</span></td><td>'+dirBadge(a.direction)+'</td><td class="badge-bt">'+btLabel(a.budgetType)+'</td>'+
+        '<td>'+(canManage?'<div style="display:flex;gap:6px;justify-content:flex-end"><button class="ibtn" type="button" data-edit="'+a.id+'" aria-label="Ubah">'+WM.icon("edit",15)+'</button><button class="ibtn danger" type="button" data-del="'+a.id+'" aria-label="Hapus">'+WM.icon("trash",15)+'</button></div>':'')+'</td></tr>';}).join("");
+  }).join("");
+  document.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){openForm(b.dataset.edit);};});
+  document.querySelectorAll("[data-del]").forEach(function(b){b.onclick=function(){delAcc(b.dataset.del);};});
+}
+
+function nextCode(g){var coa=WM.store.get("coa"),base=g*10000+1,codes=coa.filter(function(a){return a.groupNum===g;}).map(function(a){return +a.code;});
+  var n=base;while(codes.indexOf(n)>=0)n++;return String(n);}
+
+function openForm(editId){var a=editId?WM.store.find("coa",editId):{groupNum:active||1,direction:"INCOME",budgetType:""};
+  var html='<div class="two">'+WM.field({name:"groupNum",label:"Grup (1-6)",type:"select",required:true,value:a.groupNum,options:groupNums.map(function(g){return [g,g+" · "+GROUP[g].label];})})+
+    WM.field({name:"code",label:"Kode akun",value:a.code||"",placeholder:editId?"":"Otomatis jika dikosongkan",optional:!editId,hint:editId?"":"Dikosongkan = kode dibuat otomatis dari grup, bisa diubah.",attrs:'class="mono"'})+'</div>'+
+    WM.field({name:"name",label:"Nama akun",required:true,value:a.name||"",placeholder:"cth: Kebutuhan Rumah Tangga"})+
+    '<div class="two">'+WM.field({name:"direction",label:"Arah transaksi",type:"select",required:true,value:a.direction,options:[["INCOME","↓ Pemasukan"],["EXPENSE","↑ Pengeluaran"],["TRANSFER","↔ Mutasi"]]})+
+    WM.field({name:"budgetType",label:"Tipe anggaran",type:"select",value:a.budgetType||"",options:[["","–"],["FIXED","Fixed"],["VARIABLE","Variable"],["REIMBURSEMENT","Reimbursement"]]})+'</div>'+
+    WM.field({name:"parentCode",label:"Kode induk",optional:true,value:a.parentCode||"",placeholder:"cth: 201",attrs:'class="mono"'})+
+    '<div class="note warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></svg><span>Mengubah grup atau arah akun yang sudah dipakai akan mengubah arti transaksi lama; laporan laba-rugi dan neraca ikut berubah.</span></div>';
+  WM.modal({title:editId?"Ubah akun COA":"Tambah akun COA",sub:"Kode dibuat otomatis dari grup, tapi bisa kamu ubah sendiri.",body:html,submit:editId?"Simpan perubahan":"Tambah",
+    onSubmit:function(f,v){var code=(v.code||"").trim()||nextCode(+v.groupNum);
+      var coa=WM.store.get("coa");if(coa.some(function(x){return x.code===code&&x.id!==editId;}))return "Kode "+code+" sudah dipakai akun lain.";
+      var rec={code:code,name:v.name,groupNum:+v.groupNum,direction:v.direction,budgetType:v.budgetType||null,parentCode:v.parentCode||undefined};
+      if(editId){WM.store.update("coa",editId,rec);WM.toast("Akun COA berhasil diperbarui");}else{WM.store.add("coa",rec);WM.toast("Akun COA berhasil ditambahkan");}}});}
+
+function delAcc(id){var a=WM.store.find("coa",id);if(!a)return;
+  WM.confirm({title:"Hapus akun COA?",text:"\""+a.name+"\" ("+a.code+") akan dihapus. Transaksi lama yang memakai akun ini akan kehilangan klasifikasinya di laporan laba-rugi dan neraca. Tindakan ini tidak dapat dibatalkan.",confirm:"Hapus",danger:true}).then(function(ok){
+    if(!ok)return;WM.store.remove("coa",id);WM.toast("Akun COA berhasil dihapus",{undo:function(){WM.store.add("coa",a);WM.toast("Dikembalikan");}});});}
+
+document.getElementById("addAcc").onclick=function(){openForm(null);};
+guideDraw();pillsDraw();draw();
+WM.onChange(["coa","categories"],draw);
+})();
+</script>

@@ -1,0 +1,158 @@
+<title>Bank & Account · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.deck{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x proximity;scrollbar-width:none}
+.deck::-webkit-scrollbar{display:none}
+.pcard{flex:none;width:78%;max-width:300px;aspect-ratio:1.586;border-radius:18px;padding:16px 18px;display:flex;flex-direction:column;justify-content:space-between;scroll-snap-align:start;position:relative;overflow:hidden;cursor:pointer;border:0;text-align:left;font:inherit;color:inherit}
+.pcard.lime{background:var(--lime);color:var(--lime-ink);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.13) 0 2px,transparent 2px 9px)}
+.pcard.soft{background:linear-gradient(135deg,var(--card-2),var(--ghost));color:var(--ink)}
+.pcard.dark{background:var(--ink);color:var(--card)}
+.pcard .t{display:flex;justify-content:space-between;align-items:flex-start;font-size:12px}
+.pcard .t b{font-size:16px;font-style:italic;font-weight:700;letter-spacing:.02em}
+.pcard .chipsvg{width:34px;height:26px;margin-top:4px;flex:none}
+.pcard .no{font-size:13.5px;letter-spacing:.08em;margin-top:auto}
+.pcard .bt{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;font-size:12px;margin-top:6px;white-space:nowrap}
+.pcard .bt span:first-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pcard .bt .num{font-weight:700}
+.pcard .priv{font-size:9.5px;font-weight:700;background:rgba(0,0,0,.12);border-radius:99px;padding:2px 8px;align-self:flex-start;margin-top:3px}
+.pcard.lime .priv,.pcard.dark .priv{background:rgba(255,255,255,.22)}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.addcard{border:1.5px dashed var(--line);border-radius:18px;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--muted);background:var(--card-2)}
+.addcard:hover{border-color:var(--lime);color:var(--ink)}
+</style>
+<main data-page="rekening">
+  <div class="ph">
+    <div><h1>Bank & Account</h1><p id="phSub" class="muted"></p></div>
+    <div class="acts" id="headAdd"></div>
+  </div>
+
+  <section class="grid">
+    <div class="card s4 enter"><div class="stat"><small>Saldo bank</small><b id="stBank"></b></div></div>
+    <div class="card s4 enter"><div class="stat"><small>Rekening bersama</small><b id="stShared"></b></div><div class="cap" id="stSharedN"></div></div>
+    <div class="card s4 enter"><div class="stat"><small>Milik anggota</small><b id="stOwn"></b></div><div class="cap" id="stOwnN"></div></div>
+
+    <div class="s12" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="seg" role="tablist" aria-label="Filter kepemilikan" id="filterSeg">
+        <button role="tab" aria-selected="true" data-f="all" type="button">Semua</button>
+        <button role="tab" aria-selected="false" data-f="mine" type="button">Milik saya</button>
+        <button role="tab" aria-selected="false" data-f="shared" type="button">Bersama</button>
+      </div>
+      <span class="muted" style="font-size:12px">Saldo negatif hanya berlaku untuk kartu kredit.</span>
+    </div>
+
+    <div class="card s12 flush enter" style="padding:20px">
+      <div class="pgrid" id="bankGrid"></div>
+      <div class="empty" id="bankEmpty" hidden><b>Belum ada rekening bank</b><p>Tambahkan rekening pertama keluarga.</p></div>
+    </div>
+
+    <div class="s12 enter" id="ccSection">
+      <div class="head" style="margin-bottom:8px"><div><h2 style="font-size:16px">Kartu Kredit</h2><div class="cap">Dikelola sebagai kewajiban, ditampilkan di sini agar terlihat utuh</div></div>
+        <a href="liabilitas.html" class="more" id="ccMore">Kelola di Liabilitas</a></div>
+      <div class="deck" id="ccDeck"></div>
+    </div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"rekening",title:"Bank & Account"});
+(function(){ if(!WM.allowed) return;
+var filter="all";
+var chip='<svg class="chipsvg" viewBox="0 0 34 26" aria-hidden="true"><rect x=".5" y=".5" width="33" height="25" rx="5" fill="#E9C77B" stroke="rgba(0,0,0,.18)"/><path d="M11 1v24M23 1v24M1 9h10M1 17h10M23 9h10M23 17h10M11 13h12" stroke="rgba(0,0,0,.22)" fill="none"/></svg>';
+
+function bankAccounts(){return WM.visibleAccounts().filter(function(a){return a.type==="bank";});}
+function ccAccounts(){return WM.store.get("accounts").filter(function(a){return a.type==="cc";});}
+function memberOptions(cur){var me=WM.me(),ms=WM.store.get("members");if(!WM.isOwner())return [[me.id,me.short]];
+  return [["","Keluarga (bersama)"]].concat(ms.map(function(m){return [m.id,m.short];}));}
+function maskNo(no){if(!no)return "•••• ••••";var s=String(no);return s.length>4?"•••• "+s.slice(-4):s;}
+
+function cardTone(a,i){return a.vis==="private"?"soft":(i%2===0?"lime":"soft");}
+
+function bankCardHTML(a,i){
+  return '<button type="button" class="pcard '+cardTone(a,i)+'" data-acc="'+a.id+'">'+
+   '<div class="t"><span>'+WM.esc(a.name)+'</span><b>'+WM.esc(a.bank)+'</b></div>'+
+   '<div style="display:flex;align-items:center;justify-content:space-between">'+chip+(a.vis==="private"?'<span class="priv">Privat</span>':'')+'</div>'+
+   '<div class="no num">'+maskNo(a.no)+'</div>'+
+   '<div class="bt"><span>'+WM.esc(a.owner?WM.member(a.owner).short:"Bersama")+'</span><span class="num">'+WM.rp(a.balance)+'</span></div></button>';
+}
+function ccCardHTML(a){
+  return '<button type="button" class="pcard dark" data-cc="'+a.id+'" style="width:260px">'+
+   '<div class="t"><span>'+WM.esc(a.name)+'</span><b>'+WM.esc(a.bank)+'</b></div>'+chip+
+   '<div class="no num">'+maskNo(a.no)+'</div>'+
+   '<div class="bt"><span>'+WM.esc(a.owner?WM.member(a.owner).short:"Bersama")+'</span><span class="num">Tagihan '+WM.rp(-a.balance)+'</span></div></button>';
+}
+
+function draw(){
+  var all=bankAccounts();
+  var vis=all.filter(function(a){if(filter==="mine")return a.owner===WM.meId();if(filter==="shared")return !a.owner;return true;});
+  var total=all.reduce(function(s,a){return s+a.balance;},0),shared=all.filter(function(a){return !a.owner;}),owned=all.filter(function(a){return a.owner;});
+  var sharedSum=shared.reduce(function(s,a){return s+a.balance;},0);
+  document.getElementById("phSub").textContent=all.length+" rekening terhubung · Total "+WM.rp(total);
+  document.getElementById("stBank").textContent=WM.short(total);
+  document.getElementById("stShared").textContent=WM.short(sharedSum);
+  document.getElementById("stSharedN").textContent=shared.length+" rekening";
+  document.getElementById("stOwn").textContent=WM.short(total-sharedSum);
+  document.getElementById("stOwnN").textContent=owned.length+" rekening";
+  var grid=document.getElementById("bankGrid");
+  grid.innerHTML=vis.map(bankCardHTML).join("")+(WM.isOwner()?'<button type="button" class="addcard" id="addTile">'+WM.icon("landmark",22)+'<b style="font-size:13px">Tambah rekening</b><span style="font-size:11.5px">Bank baru untuk keluarga</span></button>':"");
+  document.getElementById("bankEmpty").hidden=vis.length>0;
+  grid.querySelectorAll("[data-acc]").forEach(function(b){b.onclick=function(){openDetail(b.dataset.acc);};});
+  var at=document.getElementById("addTile");if(at)at.onclick=function(){openForm(null);};
+
+  var ccs=ccAccounts();
+  document.getElementById("ccSection").hidden=!ccs.length;
+  document.getElementById("ccDeck").innerHTML=ccs.map(ccCardHTML).join("");
+  document.getElementById("ccDeck").querySelectorAll("[data-cc]").forEach(function(b){b.onclick=function(){openCcInfo(WM.account(b.dataset.cc));};});
+}
+
+function openForm(edit){
+  var opts=memberOptions();
+  var body=WM.field({name:"bank",label:"Nama Bank",type:"select",required:true,options:["BCA","Mandiri","BRI","BNI","CIMB","OCBC","Bank Lainnya"],value:edit?edit.bank:""})+
+   WM.field({name:"name",label:"Nama Rekening",required:true,placeholder:"cth: BCA Tahapan",value:edit?edit.name:""})+
+   WM.field({name:"no",label:"Nomor Rekening",optional:true,placeholder:"cth: 1234567890",value:edit?edit.no:""})+
+   WM.field({name:"balance",label:"Saldo Saat Ini",type:"money",required:true,value:edit?edit.balance:0})+
+   (edit?"":WM.field({name:"jenis",label:"Jenis",type:"select",options:["Tabungan","Giro","Deposito"]}))+
+   '<label class="switch"><span>Rekening Privat<small>Hanya Master & Co-Master.</small></span><input type="checkbox" name="isPrivate"'+(edit&&edit.vis==="private"?" checked":"")+'></label>'+
+   WM.field({name:"owner",label:"Pemilik",type:"select",options:opts,value:edit?(edit.owner||""):(WM.isOwner()?"":WM.meId())});
+  WM.modal({title:edit?"Ubah rekening":"Tambah rekening",body:body,submit:"Simpan",
+    onSubmit:function(f,v){
+      var patch={type:"bank",bank:v.bank,name:v.name,no:v.no,balance:v.balance,owner:v.owner||"",vis:v.isPrivate?"private":"shared"};
+      if(edit)WM.store.update("accounts",edit.id,patch);else WM.store.add("accounts",Object.assign({color:"soft"},patch));
+      WM.toast("Rekening "+(edit?"diperbarui":"ditambahkan"));draw();}});
+}
+function delAccount(id,close){var a=WM.account(id);if(!a)return;
+  WM.confirm({title:'Hapus "'+a.name+'"?',text:"Riwayat transaksi akun ini tetap tersimpan, tapi rekening tidak lagi bisa dipakai.",confirm:"Hapus",danger:true}).then(function(ok){
+    if(!ok)return;WM.store.remove("accounts",id);WM.toast("Rekening dihapus");if(close)close();draw();});}
+
+function openDetail(id){
+  var a=WM.account(id);if(!a)return;
+  var tx=WM.store.get("tx").filter(function(t){return t.acc===id||t.to===id;}).sort(function(x,y){return x.date<y.date?1:-1;}).slice(0,8);
+  var body='<dl class="kv"><dt>Bank</dt><dd>'+WM.esc(a.bank)+'</dd><dt>Nomor</dt><dd class="mono">'+maskNo(a.no)+'</dd>'+
+   '<dt>Pemilik</dt><dd>'+WM.esc(a.owner?WM.member(a.owner).short:"Bersama")+(a.vis==="private"?' <span class="pill">Privat</span>':'')+'</dd>'+
+   '<dt>Saldo</dt><dd class="num">'+WM.rp(a.balance)+'</dd></dl>'+
+   '<div class="divider"></div><b style="font-size:13px">Mutasi terakhir</b>'+
+   (tx.length?'<div class="list">'+tx.map(WM.txRow).join("")+'</div>':'<p class="muted" style="font-size:12.5px;margin:6px 0 0">Belum ada mutasi di rekening ini.</p>')+
+   '<a class="more" href="rekonsiliasi.html" style="margin-top:10px">'+WM.icon("compare",14,2.2)+' Rekonsiliasi saldo bank</a>';
+  var d=WM.modal({title:a.name,sub:a.bank+" · "+maskNo(a.no),body:body,submit:false,cancel:"Tutup",
+    onOpen:function(d){if(!WM.isOwner())return;var foot=d.querySelector(".sheet-foot");
+      foot.insertAdjacentHTML("beforeend",'<button class="btn" type="button" data-del style="color:var(--bad)">'+WM.icon("trash",16)+'Hapus</button><button class="btn primary" type="button" data-edit>'+WM.icon("edit",16)+'Ubah</button>');
+      foot.querySelector("[data-edit]").onclick=function(){d.close();openForm(a);};
+      foot.querySelector("[data-del]").onclick=function(){d.close();delAccount(a.id);};}});
+}
+function openCcInfo(a){
+  WM.modal({title:a.name,sub:a.bank,size:"sm",submit:false,cancel:"Tutup",body:
+   '<dl class="kv"><dt>Nomor</dt><dd class="mono">'+maskNo(a.no)+'</dd><dt>Pemilik</dt><dd>'+WM.esc(a.owner?WM.member(a.owner).short:"Bersama")+'</dd>'+
+   '<dt>Tagihan berjalan</dt><dd class="num" style="color:var(--bad)">'+WM.rp(-a.balance)+'</dd></dl>'+
+   '<div class="note" style="margin-top:12px">'+WM.icon("info",16)+'<span>Kartu kredit dicatat sebagai kewajiban. Cicilan, limit dan tanggal cetak tagihan ada di halaman Liabilitas.</span></div>'+
+   '<a class="btn block" style="margin-top:12px" href="liabilitas.html">Buka di Liabilitas</a>'});
+}
+
+document.getElementById("filterSeg").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
+  this.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-selected",x===b);});filter=b.dataset.f;draw();});
+document.getElementById("ccMore").insertAdjacentHTML("beforeend",WM.icon("chev",14,2.2));
+if(WM.isOwner())document.getElementById("headAdd").innerHTML='<button class="btn primary" type="button" id="addTop">'+WM.icon("plus",16,2.4)+'<span>Tambah rekening</span></button>';
+var at2=document.getElementById("addTop");if(at2)at2.onclick=function(){openForm(null);};
+draw();WM.onChange(["accounts","tx"],draw);
+})();
+</script>

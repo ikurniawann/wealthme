@@ -1,0 +1,103 @@
+<title>Notifikasi · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.nf-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.nf-filters{display:flex;align-items:center;gap:10px;min-width:0}
+.nf-count{color:var(--muted);font-size:12.5px;white-space:nowrap;flex:none}
+.nf-group+.nf-group{margin-top:16px}
+.nf-group h2{margin:0 0 4px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.nf-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:flex-start;padding:13px 4px;border-bottom:1px solid var(--line);border-radius:12px;text-align:left;width:100%;background:none;border-left:0;border-right:0;border-top:0}
+.nf-row:last-child{border-bottom:0}
+.nf-row.unread{cursor:pointer}
+.nf-row.unread:hover,.nf-row.unread:focus-visible{background:var(--card-2)}
+.nf-row.read{opacity:.62}
+.nf-body{min-width:0}
+.nf-line{font-size:13.5px;line-height:1.5}
+.nf-line b{font-weight:700}
+.nf-line span{color:var(--muted)}
+.nf-time{margin-top:3px;font-size:11px;color:var(--muted)}
+.nf-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none}
+.nf-actions{display:flex;gap:4px}
+</style>
+<main data-page="notifikasi">
+<div class="ph">
+  <div><h1 id="nf-title">Notifikasi</h1><p>Persetujuan, anggaran, tagihan dan info lain, semua di satu tempat.</p></div>
+  <div class="acts"><button class="btn ghost" type="button" id="nfAll">Tandai semua dibaca</button></div>
+</div>
+
+<section class="grid">
+  <div class="card s12">
+    <div class="nf-head">
+      <div class="nf-filters"><div class="seg" id="nfSeg" role="radiogroup" aria-label="Filter notifikasi"></div></div>
+      <span class="nf-count" id="nfCount"></span>
+    </div>
+    <div class="divider"></div>
+    <div id="nfList"></div>
+  </div>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"notifikasi",title:"Notifikasi"});
+(function(){ if(!WM.allowed) return;
+
+var FILTERS=[["semua","Semua"],["belum","Belum dibaca"],["transaksi","Transaksi"],["anggaran","Anggaran"],["persetujuan","Persetujuan"],["tempo","Jatuh Tempo"],["sistem","Sistem"]];
+var KIND_TO_FILTER={approval:"persetujuan",budget:"anggaran",bill:"tempo",goal:"transaksi",sistem:"sistem"};
+var KIND_ICON={approval:"checkc",budget:"clipboard",bill:"receipt",goal:"target",sistem:"gear"};
+var filter=WM.store.get("nf-filter")||"semua";
+
+function classify(n){return KIND_TO_FILTER[n.kind]||"transaksi";}
+function relTime(iso){if(iso===WM.today)return "Hari ini";return WM.dayLabel(iso);}
+function groupByRecency(list){var t=new Date(WM.today+"T00:00:00").getTime(),oneDay=864e5,today=[],week=[],older=[];
+  list.forEach(function(n){var age=t-new Date(n.date+"T00:00:00").getTime();if(age<oneDay)today.push(n);else if(age<7*oneDay)week.push(n);else older.push(n);});
+  return {today:today,week:week,older:older};}
+
+function renderSeg(){
+  var seg=document.getElementById("nfSeg");
+  seg.innerHTML=FILTERS.map(function(f){return '<button type="button" role="radio" aria-checked="'+(f[0]===filter)+'" data-f="'+f[0]+'">'+f[1]+'</button>';}).join("");
+  seg.querySelectorAll("button").forEach(function(b){b.addEventListener("click",function(){filter=b.dataset.f;WM.store.set("nf-filter",filter);draw();});});
+}
+
+function rowHTML(n){
+  var icon=KIND_ICON[n.kind]||"bell";
+  return '<div class="nf-row '+(n.read?"read":"unread")+'"'+(n.read?"":' role="button" tabindex="0" data-open="'+n.id+'" aria-label="'+WM.esc(n.title)+', tandai dibaca dan buka"')+'>'+
+    '<span class="ic'+(n.read?"":" lime")+'">'+WM.icon(icon,18)+'</span>'+
+    '<span class="nf-body"><span class="nf-line"><b>'+WM.esc(n.title)+'</b> <span>'+WM.esc(n.body)+'</span></span><span class="nf-time">'+relTime(n.date)+'</span></span>'+
+    '<span class="nf-side">'+(n.read?"":'<span class="pill good">Baru</span>')+
+      '<span class="nf-actions">'+(n.read?"":'<button type="button" class="ibtn" data-read="'+n.id+'" aria-label="Tandai dibaca" title="Tandai dibaca">'+WM.icon("check",15)+'</button>')+
+      '<button type="button" class="ibtn danger" data-del="'+n.id+'" aria-label="Hapus notifikasi" title="Hapus">'+WM.icon("trash",15)+'</button></span>'+
+    '</span></div>';
+}
+
+function groupHTML(title,items){
+  if(!items.length)return "";
+  var unread=items.filter(function(n){return !n.read;}).length;
+  return '<div class="nf-group"><h2>'+title+(unread?' <span class="pill bad">'+unread+' baru</span>':'')+'</h2>'+items.map(rowHTML).join("")+'</div>';
+}
+
+function draw(){
+  renderSeg();
+  var all=WM.store.get("notifications").slice().sort(function(a,b){return a.date<b.date?1:-1;});
+  var list=filter==="semua"?all:filter==="belum"?all.filter(function(n){return !n.read;}):all.filter(function(n){return classify(n)===filter;});
+  document.getElementById("nfCount").textContent=list.length+" notifikasi";
+  var g=groupByRecency(list),box=document.getElementById("nfList");
+  var html=groupHTML("Hari ini",g.today)+groupHTML("Minggu ini",g.week)+groupHTML("Lebih lama",g.older);
+  box.innerHTML=html||'<div class="empty"><span class="ic">'+WM.icon("bell",24)+'</span><b>Tidak ada notifikasi'+(filter!=="semua"?" di filter ini":"")+'</b><p>'+(filter==="semua"?"Semua sudah dibaca. Yang baru akan muncul di sini.":"Coba pilih filter lain.")+'</p></div>';
+  var unreadTotal=all.filter(function(n){return !n.read;}).length;
+  document.getElementById("nf-title").innerHTML="Notifikasi"+(unreadTotal?' <span class="pill bad">'+unreadTotal+' baru</span>':"");
+  document.getElementById("nfAll").disabled=unreadTotal===0;
+  box.querySelectorAll("[data-open]").forEach(function(el){el.addEventListener("click",function(e){if(e.target.closest("[data-read],[data-del]"))return;open(el.dataset.open);});
+    el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();open(el.dataset.open);}});});
+  box.querySelectorAll("[data-read]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();WM.store.update("notifications",b.dataset.read,{read:true});draw();});});
+  box.querySelectorAll("[data-del]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();var id=b.dataset.del,old=WM.store.find("notifications",id);WM.store.remove("notifications",id);WM.toast("Notifikasi dihapus",{undo:function(){var a=WM.store.get("notifications");a.push(old);WM.store.set("notifications",a);WM.toast("Dikembalikan");}});draw();});});
+}
+function open(id){var n=WM.store.find("notifications",id);if(!n)return;if(!n.read)WM.store.update("notifications",id,{read:true});location.href=n.href||"#";}
+
+document.getElementById("nfAll").addEventListener("click",function(){WM.store.set("notifications",WM.store.get("notifications").map(function(n){n.read=true;return n;}));WM.toast("Semua notifikasi ditandai dibaca");draw();});
+
+draw();
+WM.onChange(["notifications"],draw);
+})();
+</script>

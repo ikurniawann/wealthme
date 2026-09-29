@@ -1,0 +1,387 @@
+<title>Ringkasan · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+/* page-only rules */
+.is-private .private{filter:blur(7px);user-select:none}
+#rangeWrap{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+#customRange{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+#customRange .field{min-width:150px}
+.curSel{appearance:none;border:0;background:var(--card-2) url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23737A6C%27 stroke-width=%273%27%3E%3Cpath d=%27M6 9l6 6 6-6%27/%3E%3C/svg%3E") no-repeat right 10px center;border-radius:12px;padding:0 26px 0 12px;height:34px;font:inherit;font-size:12.5px;color:var(--ink);min-width:96px}
+.gauge{display:flex;flex-direction:column;align-items:center;gap:6px}
+.gauge svg{overflow:visible}
+.gauge .gv{font-size:26px;font-weight:600;letter-spacing:-.03em}
+.gauge .gl{font-size:12px;color:var(--muted)}
+.hbars{display:flex;flex-direction:column;gap:12px}
+.hbars .hb-row{display:flex;flex-direction:column;gap:5px}
+.hbars .hb-top{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.hbars .hb-top b{font-weight:500}
+.hbars .hb-top span{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+.consol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.consol .cc small{display:block;color:var(--muted);font-size:11px}
+.consol .cc b{display:block;font-size:16px;font-weight:700;margin-top:2px}
+.consol .cc a{font-size:12.5px;font-weight:600;color:var(--good);text-decoration:none}
+@media (max-width:520px){.consol{grid-template-columns:1fr 1fr}}
+</style>
+<main data-page="ringkasan">
+  <div class="ph">
+    <div><h1>Ringkasan keuangan</h1><p id="sub"></p></div>
+  </div>
+
+  <section class="card">
+    <div class="head" style="flex-wrap:wrap;gap:12px">
+      <div id="rangeWrap">
+        <div class="seg" id="curSeg" role="tablist" aria-label="Mata uang tampilan">
+          <button type="button" role="tab" data-cur="IDR" aria-selected="true">Rupiah</button>
+          <button type="button" role="tab" data-cur="GOLD" aria-selected="false">Emas</button>
+        </div>
+        <select class="curSel" id="curForeign" aria-label="Mata uang asing">
+          <option value="" selected hidden>Mata uang lain</option>
+          <option value="USD">🇺🇸 USD</option>
+          <option value="SGD">🇸🇬 SGD</option>
+          <option value="JPY">🇯🇵 JPY</option>
+          <option value="EUR">🇪🇺 EUR</option>
+        </select>
+      </div>
+      <div class="seg" id="rangeSeg" role="tablist" aria-label="Rentang tren kekayaan bersih">
+        <button type="button" role="tab" data-r="1m" aria-selected="false">1 bln</button>
+        <button type="button" role="tab" data-r="3m" aria-selected="false">3 bln</button>
+        <button type="button" role="tab" data-r="6m" aria-selected="false">6 bln</button>
+        <button type="button" role="tab" data-r="12m" aria-selected="true">12 bln</button>
+        <button type="button" role="tab" data-r="ytd" aria-selected="false">Tahun ini</button>
+        <button type="button" role="tab" data-r="all" aria-selected="false">Semua</button>
+        <button type="button" role="tab" data-r="custom" aria-selected="false">Kustom</button>
+      </div>
+      <button class="btn ghost sm" type="button" id="privacyBtn" aria-pressed="false">Sembunyikan nominal</button>
+    </div>
+    <div id="customRange" hidden style="margin-top:12px"></div>
+    <p class="note" id="fxNote" hidden style="margin-top:12px"></p>
+  </section>
+
+  <section class="grid" aria-label="Ringkasan angka utama">
+    <article class="cover s6">
+      <small class="cap">Kekayaan bersih keluarga</small>
+      <div class="headline private num" id="hNetWorth" style="margin-top:6px"></div>
+      <div class="muted private num" id="hMonthDelta" style="margin-top:8px;font-size:13px"></div>
+    </article>
+    <article class="card s3">
+      <small class="cap">Total aset</small>
+      <div class="stat" style="margin-top:6px"><b class="private num" id="hAssets"></b></div>
+      <div class="muted" style="margin-top:8px;font-size:12.5px" id="hAssetsSub"></div>
+    </article>
+    <article class="card s3">
+      <small class="cap">Total liabilitas</small>
+      <div class="stat" style="margin-top:6px"><b class="private num" id="hLiab"></b></div>
+      <div class="muted" style="margin-top:8px;font-size:12.5px">Utang &amp; cicilan aktif</div>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Tingkat menabung dan total konsolidasi">
+    <article class="card s4">
+      <small class="cap">Tingkat menabung bulan ini</small>
+      <div class="headline" id="hRate" style="margin-top:6px;font-size:34px"></div>
+      <div class="muted private num" style="margin-top:8px;font-size:12.5px" id="hRateSub"></div>
+    </article>
+    <article class="card s8">
+      <div class="head"><h2>Total konsolidasi</h2><span class="pill">Perkiraan</span></div>
+      <div class="consol" style="margin-top:14px" id="consol"></div>
+      <p class="muted" style="margin:10px 0 0;font-size:11.5px">Kurs USD indikatif (simulasi), harga emas asumsi Rp 1.850.000/gram. Atur harga emas sungguhan di <a href="akun.html" class="link" style="font-size:inherit">Akun</a>.</p>
+    </article>
+  </section>
+
+  <section class="grid" aria-label="Tren kekayaan bersih dan komposisi aset">
+    <article class="card s8">
+      <div class="head"><h2 id="trendTitle">Tren kekayaan bersih</h2><span id="yoyBadge" hidden></span></div>
+      <div class="chart private" id="trendChart" style="margin-top:8px"></div>
+      <div id="trendEmpty" class="empty" hidden><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-6 4 3 7-8M15 7h5v5"/></svg></span><b>Belum cukup data</b><p>Tren butuh riwayat transaksi lebih dari satu bulan. Coba pilih rentang yang lebih luas.</p></div>
+    </article>
+    <article class="card s4">
+      <div class="head"><h2>Komposisi aset</h2><a class="more" href="aset.html">Detail <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a></div>
+      <div class="chart private" id="compChart" style="height:200px;margin-top:8px"></div>
+      <div class="hbars" id="compList" style="margin-top:10px"></div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>Rincian aset vs liabilitas</h2></div>
+    <div class="tw" style="margin-top:12px">
+      <table class="tbl">
+        <thead><tr><th>Pos</th><th>Jenis</th><th class="r">Porsi</th><th class="r">Nilai</th></tr></thead>
+        <tbody id="breakdownBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="grid" aria-label="Arus kas, pengeluaran terbesar dan skor kesehatan">
+    <article class="card s4">
+      <div class="head"><h2 id="cashTitle">Arus kas</h2></div>
+      <div class="chart private" id="cashChart" style="height:170px;margin-top:8px"></div>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+        <div><small class="cap">Pemasukan</small><div class="stat"><b class="private num pos" id="cIn"></b></div></div>
+        <div><small class="cap">Pengeluaran</small><div class="stat"><b class="private num" id="cOut"></b></div></div>
+        <div style="border-top:1px solid var(--line);padding-top:10px"><small class="cap">Surplus</small><div class="stat"><b class="private num" id="cNet"></b></div></div>
+      </div>
+    </article>
+    <article class="card s4">
+      <div class="head"><h2>Pengeluaran terbesar</h2><a class="more" href="laporan.html">Laporan <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a></div>
+      <div class="hbars" id="topExp" style="margin-top:14px"></div>
+    </article>
+    <article class="card s4">
+      <div class="head"><h2>Skor kesehatan</h2></div>
+      <div class="gauge" id="gauge" style="margin-top:10px"></div>
+      <div id="healthNote" style="margin-top:12px"></div>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="head"><h2>Rincian liabilitas</h2></div>
+    <div class="hbars" id="liabBars" style="margin-top:14px"></div>
+    <div class="empty" id="liabEmpty" hidden><span class="ic"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/></svg></span><b>Tidak ada liabilitas</b><p>Keluarga belum punya cicilan atau utang tercatat.</p></div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"ringkasan",title:"Ringkasan"});
+(function(){ if(!WM.allowed) return;
+
+/* ---------- state ---------- */
+var state={cur:"IDR",range:"12m",custom:{from:"2026-06-30",to:WM.today},privacy:false};
+
+/* indicative-only rates: prototype has no live FX/gold feed. Every figure using
+   these is prefixed "≈" and the card under it says plainly this is a simulation. */
+var FX_IDR={USD:16300,SGD:12200,JPY:108,EUR:17600};
+var GOLD_PRICE=1850000;
+
+/* ---------- money formatting respecting the selected display currency ---------- */
+function moneyFull(v){
+  if(state.cur==="IDR")return WM.rp(v);
+  if(state.cur==="GOLD")return GOLD_PRICE?(v/GOLD_PRICE).toLocaleString("id-ID",{maximumFractionDigits:2})+" gr":"…";
+  var r=FX_IDR[state.cur];return r?"≈ "+(v/r).toLocaleString(state.cur==="JPY"?"ja-JP":"en-US",{style:"currency",currency:state.cur,maximumFractionDigits:state.cur==="JPY"?0:2}):"…";
+}
+function moneyShort(v){ return state.cur==="IDR"?WM.short(v):moneyFull(v); }
+
+/* ---------- derived data ---------- */
+function data(){
+  var accounts=WM.store.get("accounts"),investments=WM.store.get("investments"),assets=WM.store.get("assets"),liabilities=WM.store.get("liabilities"),categories=WM.store.get("categories");
+  var totals=WM.totals();
+  var bankAmount=accounts.filter(function(a){return a.type==="bank";}).reduce(function(s,a){return s+a.balance;},0);
+  var cashAmount=accounts.filter(function(a){return a.type==="cash"||a.type==="ewallet";}).reduce(function(s,a){return s+a.balance;},0);
+  var investmentsTotal=investments.reduce(function(s,i){return s+i.value;},0);
+  var physicalAssetsTotal=assets.reduce(function(s,a){return s+a.value;},0);
+  var totalAssets=bankAmount+cashAmount+investmentsTotal+physicalAssetsTotal;
+  var totalLiabilities=totals.liabilities;
+  var netWorth=totals.netWorth;
+  var monthIncome=WM.income(),monthExpense=WM.spent(),monthNet=monthIncome-monthExpense;
+  var savingsRate=monthIncome>0?Math.round(monthNet/monthIncome*100):0;
+  var debtRatio=totalAssets>0?(totalLiabilities/totalAssets*100):null;
+  var accountTypeCount=Array.from(new Set(accounts.map(function(a){return a.type;}))).length;
+
+  /* previous month net, for the "delta dari bulan lalu" line under the headline */
+  var thisYm=WM.today.slice(0,7),prevD=new Date(WM.today+"T00:00:00");prevD.setMonth(prevD.getMonth()-1);
+  var prevYm=prevD.getFullYear()+"-"+String(prevD.getMonth()+1).padStart(2,"0");
+  var prevIncome=WM.income(prevYm),prevExpense=WM.spent(null,prevYm);
+
+  return {accounts:accounts,investments:investments,assets:assets,liabilities:liabilities,categories:categories,
+    bankAmount:bankAmount,cashAmount:cashAmount,investmentsTotal:investmentsTotal,physicalAssetsTotal:physicalAssetsTotal,
+    totalAssets:totalAssets,totalLiabilities:totalLiabilities,netWorth:netWorth,
+    monthIncome:monthIncome,monthExpense:monthExpense,monthNet:monthNet,savingsRate:savingsRate,debtRatio:debtRatio,
+    accountTypeCount:accountTypeCount,thisYm:thisYm,prevIncome:prevIncome,prevExpense:prevExpense};
+}
+
+/* months present in tx history, ascending "YYYY-MM" — the only real history this
+   prototype has (no server-side net-worth snapshots), so the trend never invents data */
+function txMonths(){
+  var set={};WM.store.get("tx").forEach(function(t){set[t.date.slice(0,7)]=true;});
+  return Object.keys(set).sort();
+}
+function monthEndNetWorth(ym,nowNetWorth){
+  /* walk back from the current, known net worth using each month's real income − expense
+     (transfers net to zero across accounts, so they never move the total) */
+  var months=txMonths(),cur=nowNetWorth,byYm={};
+  for(var i=months.length-1;i>=0;i--){
+    var m=months[i];byYm[m]=cur;
+    var net=WM.income(m)-WM.spent(null,m);cur=cur-net;
+  }
+  return byYm[ym];
+}
+
+/* ---------- render ---------- */
+var $=function(id){return document.getElementById(id);};
+function priv(html){return html;} // privacy handled by .private CSS class, not by hiding markup
+
+function draw(){
+  var d=data();
+  document.body.classList.toggle("is-private",state.privacy);
+
+  var me=WM.me();
+  $("sub").textContent="Keluarga Rizaldi · per "+WM.date(WM.today,true);
+
+  $("hNetWorth").textContent=moneyFull(d.netWorth);
+  var mn=d.monthNet;
+  $("hMonthDelta").textContent=(mn>=0?"↑ naik ":"↓ turun ")+moneyFull(Math.abs(mn))+" dari bulan lalu";
+  $("hAssets").textContent=moneyFull(d.totalAssets);
+  $("hAssetsSub").textContent=d.accountTypeCount+" jenis rekening & aset";
+  $("hLiab").textContent=moneyFull(d.totalLiabilities);
+  $("hRate").textContent=d.savingsRate+"%";
+  $("hRateSub").textContent=d.monthExpense>0?"Pengeluaran "+moneyFull(d.monthExpense):"Belum ada pengeluaran bulan ini";
+
+  /* consolidated total: same net worth, three currencies at once */
+  var usdRate=FX_IDR.USD;
+  $("consol").innerHTML=
+    '<div class="cc"><small>Rupiah</small><b class="private num">'+WM.rp(d.netWorth)+'</b></div>'+
+    '<div class="cc"><small>Dolar AS</small><b class="private num">≈ '+(d.netWorth/usdRate).toLocaleString("en-US",{style:"currency",currency:"USD",maximumFractionDigits:0})+'</b></div>'+
+    '<div class="cc"><small>Setara emas</small><b class="private num">'+(d.netWorth/GOLD_PRICE).toLocaleString("id-ID",{maximumFractionDigits:2})+' gr</b></div>';
+
+  $("fxNote").hidden=state.cur==="IDR";
+  if(state.cur!=="IDR")$("fxNote").innerHTML=WM.icon("info",15)+"<span>Nilai dalam "+(state.cur==="GOLD"?"gram emas":state.cur)+" adalah perkiraan dari kurs simulasi prototipe, bukan kurs langsung.</span>";
+
+  drawBreakdown(d);
+  drawTrend(d);
+  drawComposition(d);
+  drawCashflow(d);
+  drawTopExpenses(d);
+  drawGauge(d);
+  drawLiabilities(d);
+}
+
+function badge(label,cls){return '<span class="pill'+(cls?" "+cls:"")+'">'+label+'</span>';}
+
+function drawBreakdown(d){
+  var rows=[];
+  if(d.physicalAssetsTotal>0)rows.push({label:"Aset fisik",badge:badge("Aset fisik","good"),amount:d.physicalAssetsTotal,base:d.totalAssets});
+  if(d.investmentsTotal>0)rows.push({label:"Investasi",badge:badge("Investasi"),amount:d.investmentsTotal,base:d.totalAssets});
+  if(d.bankAmount>0)rows.push({label:"Rekening bank",badge:badge("Bank"),amount:d.bankAmount,base:d.totalAssets});
+  if(d.cashAmount>0)rows.push({label:"Kas & e-wallet",badge:badge("Kas","good"),amount:d.cashAmount,base:d.totalAssets});
+  var html=rows.map(function(r){return '<tr><td style="font-weight:500">'+r.label+'</td><td>'+r.badge+'</td><td class="r muted num">'+(r.base>0?WM.pct(r.amount/r.base*100,1):"–")+'</td><td class="r private num" style="font-weight:600">'+moneyFull(r.amount)+'</td></tr>';}).join("");
+  if(rows.length)html+='<tr style="background:var(--card-2)"><td style="font-weight:600">Total aset</td><td></td><td class="r muted num">100%</td><td class="r private num" style="font-weight:700">'+moneyFull(d.totalAssets)+'</td></tr>';
+  html+=d.liabilities.map(function(l){return '<tr><td style="font-weight:500">'+WM.esc(l.name)+'</td><td>'+badge("Liabilitas","bad")+'</td><td class="r muted num">'+(d.totalLiabilities>0?WM.pct(l.outstanding/d.totalLiabilities*100,1):"–")+'</td><td class="r private num" style="font-weight:600;color:var(--bad)">'+moneyFull(l.outstanding)+'</td></tr>';}).join("");
+  if(d.liabilities.length)html+='<tr style="background:var(--card-2)"><td style="font-weight:600">Total liabilitas</td><td></td><td class="r muted num">100%</td><td class="r private num" style="font-weight:700;color:var(--bad)">'+moneyFull(d.totalLiabilities)+'</td></tr>';
+  html+='<tr><td style="font-weight:700">Kekayaan bersih</td><td colspan="2" class="muted" style="font-size:12px;white-space:normal">Total aset − total liabilitas</td><td class="r private num" style="font-weight:700;color:var(--good);font-size:15px">'+moneyFull(d.netWorth)+'</td></tr>';
+  if(!rows.length&&!d.liabilities.length)html='<tr><td colspan="4"><div class="empty"><b>Belum ada data</b><p>Tambah rekening, aset atau liabilitas untuk melihat rinciannya di sini.</p></div></td></tr>';
+  $("breakdownBody").innerHTML=html;
+}
+
+function rangeMonths(range){
+  var months=txMonths();
+  if(range==="1m")return months.slice(-1);
+  if(range==="3m")return months.slice(-3);
+  if(range==="6m")return months.slice(-6);
+  if(range==="12m")return months.slice(-12);
+  if(range==="ytd")return months.filter(function(m){return m.slice(0,4)===WM.today.slice(0,4);});
+  if(range==="custom")return months.filter(function(m){return m>=state.custom.from.slice(0,7)&&m<=state.custom.to.slice(0,7);});
+  return months; // all
+}
+var TREND_TITLE={"1m":"Tren kekayaan bersih · 1 bulan","3m":"Tren kekayaan bersih · 3 bulan","6m":"Tren kekayaan bersih · 6 bulan","12m":"Tren kekayaan bersih · 12 bulan","ytd":"Tren kekayaan bersih · tahun ini","all":"Tren kekayaan bersih · semua waktu","custom":"Tren kekayaan bersih · kustom"};
+
+function drawTrend(d){
+  $("trendTitle").textContent=TREND_TITLE[state.range];
+  var months=rangeMonths(state.range);
+  var box=$("trendChart"),empty=$("trendEmpty");
+  if(months.length<2){box.hidden=true;empty.hidden=false;$("yoyBadge").hidden=true;return;}
+  box.hidden=false;empty.hidden=true;
+  var vals=months.map(function(m){return monthEndNetWorth(m,d.netWorth);});
+  var labels=months.map(function(m){var dt=new Date(m+"-01T00:00:00");return WM.months[dt.getMonth()]+" "+String(dt.getFullYear()).slice(2);});
+  WM.chart.area(box,{labels:labels,a:vals,fmt:moneyShort,axis:moneyShort});
+  var first=vals[0],last=vals[vals.length-1],spanDays=(new Date(months[months.length-1]+"-01")-new Date(months[0]+"-01"))/864e5;
+  var yb=$("yoyBadge");
+  if(spanDays>=330&&first!==0){var yoy=(last-first)/Math.abs(first)*100;yb.hidden=false;yb.className="chg "+(yoy>=0?"up":"dn");yb.textContent=(yoy>=0?"↑ ":"↓ ")+WM.pct(Math.abs(yoy),1)+" YoY";}
+  else yb.hidden=true;
+}
+
+var COMP_COLOR={bank:"var(--sky)",ewallet:"var(--good)",cash:"var(--muted)",investment:"var(--lime)",property:"var(--orange)"};
+function drawComposition(d){
+  var items=[];
+  if(d.bankAmount>0)items.push({label:"Rekening bank",value:d.bankAmount,color:COMP_COLOR.bank});
+  if(d.cashAmount>0)items.push({label:"Kas & e-wallet",value:d.cashAmount,color:COMP_COLOR.cash});
+  if(d.investmentsTotal>0)items.push({label:"Investasi",value:d.investmentsTotal,color:COMP_COLOR.investment});
+  if(d.physicalAssetsTotal>0)items.push({label:"Aset fisik",value:d.physicalAssetsTotal,color:COMP_COLOR.property});
+  var box=$("compChart"),list=$("compList");
+  if(!items.length){box.innerHTML="";list.innerHTML='<div class="empty"><b>Belum ada aset</b><p>Tambah rekening atau aset untuk melihat komposisi di sini.</p></div>';return;}
+  WM.chart.donut(box,{items:items.map(function(i){return [i.label,i.value,i.color];}),center:moneyShort(d.totalAssets),sub:"Total aset"});
+  list.innerHTML=items.map(function(i){var pct=d.totalAssets>0?i.value/d.totalAssets*100:0;
+    return '<div class="hb-row"><div class="hb-top"><b>'+i.label+'</b><span class="private num">'+moneyShort(i.value)+' · '+WM.pct(pct,1)+'</span></div><div class="track"><i style="width:'+pct+'%;background:'+i.color+'"></i></div></div>';}).join("");
+}
+
+function drawCashflow(d){
+  $("cashTitle").textContent="Arus kas "+WM.monthsLong[new Date(WM.today+"T00:00:00").getMonth()];
+  var months=(txMonths().slice(-3).length?txMonths().slice(-3):[d.thisYm]);
+  var inc=months.map(function(m){return WM.income(m);}),out=months.map(function(m){return WM.spent(null,m);});
+  var labels=months.map(function(m){var dt=new Date(m+"-01T00:00:00");return WM.months[dt.getMonth()];});
+  WM.chart.bars($("cashChart"),{labels:labels,series:[{d:inc,c:"var(--lime)",n:"Pemasukan"},{d:out,c:"var(--orange)",n:"Pengeluaran"}],hi:labels.length-1,fmt:moneyShort});
+  $("cIn").textContent=moneyFull(d.monthIncome);
+  $("cOut").textContent=moneyFull(d.monthExpense);
+  var netEl=$("cNet");netEl.textContent=moneyFull(d.monthNet);netEl.className="private num "+(d.monthNet>=0?"pos":"neg");
+}
+
+function drawTopExpenses(d){
+  var byCat={};
+  WM.monthTx(d.thisYm).filter(function(t){return t.type==="out";}).forEach(function(t){byCat[t.cat]=(byCat[t.cat]||0)+t.amount;});
+  var rows=Object.keys(byCat).map(function(c){return {cat:c,amount:byCat[c]};}).sort(function(a,b){return b.amount-a.amount;}).slice(0,5);
+  var box=$("topExp");
+  if(!rows.length){box.innerHTML='<div class="empty"><b>Belum ada pengeluaran</b><p>Catat transaksi pengeluaran bulan ini untuk melihat kategori terbesar.</p></div>';return;}
+  var max=rows[0].amount;
+  box.innerHTML=rows.map(function(r){var c=WM.cat(r.cat);return '<div class="hb-row"><div class="hb-top"><b>'+WM.icon(c.icon,14)+' '+c.name+'</b><span class="private num">'+moneyShort(r.amount)+'</span></div><div class="track"><i style="width:'+Math.max(4,r.amount/max*100)+'%;background:var(--bad)"></i></div></div>';}).join("");
+}
+
+function drawGauge(d){
+  var score=Math.max(0,Math.min(100,d.savingsRate));
+  var r=64,c=2*Math.PI*r,off=c*(1-score/100);
+  var color=score>=20?"var(--good)":score>=10?"var(--orange)":"var(--bad)";
+  $("gauge").innerHTML='<svg width="160" height="160" viewBox="0 0 160 160" role="img" aria-label="Skor kesehatan finansial: '+score+'">'+
+    '<circle cx="80" cy="80" r="'+r+'" fill="none" stroke="var(--ghost)" stroke-width="14"/>'+
+    '<circle cx="80" cy="80" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="14" stroke-linecap="round" stroke-dasharray="'+c+'" stroke-dashoffset="'+off+'" transform="rotate(-90 80 80)"/>'+
+    '<text x="80" y="76" text-anchor="middle" style="font-family:var(--font);font-size:28px;font-weight:600;fill:var(--ink)">'+score+'%</text>'+
+    '<text x="80" y="96" text-anchor="middle" style="font-family:var(--font);font-size:11px;fill:var(--muted)">Tingkat menabung</text></svg>'+
+    '<div class="gl">Skor kesehatan finansial</div>';
+  var badgeCls=d.savingsRate>=20?"good":d.savingsRate>=10?"warn":"bad";
+  var badgeLabel=d.savingsRate>=20?"Baik":d.savingsRate>=10?"Cukup":"Perlu perhatian";
+  var noteHtml="";
+  if(d.debtRatio!=null){
+    var safe=d.debtRatio<=40;
+    noteHtml='<div class="note'+(safe?"":" warn")+'">'+WM.icon("sparkle",15)+'<span>Rasio utang terhadap aset kamu <strong class="num">'+WM.pct(d.debtRatio,1)+'</strong>. '+(safe?"Masih di jalur aman.":"Perlu diperhatikan, coba kurangi utang atau tambah aset.")+'</span></div>';
+  }
+  $("healthNote").innerHTML='<div style="display:flex;justify-content:center;margin-bottom:'+(noteHtml?"10px":"0")+'">'+badge(badgeLabel,badgeCls)+'</div>'+noteHtml;
+}
+
+function drawLiabilities(d){
+  var box=$("liabBars"),empty=$("liabEmpty");
+  var list=d.liabilities.slice().sort(function(a,b){return b.outstanding-a.outstanding;});
+  if(!list.length){box.hidden=true;empty.hidden=false;return;}
+  box.hidden=false;empty.hidden=true;
+  var max=list[0].outstanding;
+  box.innerHTML=list.map(function(l){return '<div class="hb-row"><div class="hb-top"><b>'+WM.esc(l.name)+'</b><span class="private num">'+moneyFull(l.outstanding)+'</span></div><div class="track"><i style="width:'+Math.max(4,l.outstanding/max*100)+'%;background:var(--bad)"></i></div></div>';}).join("");
+}
+
+/* ---------- controls ---------- */
+$("curSeg").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
+  state.cur=b.dataset.cur;$("curForeign").value="";
+  $("curSeg").querySelectorAll("button").forEach(function(x){x.setAttribute("aria-selected",x===b);});
+  draw();});
+$("curForeign").addEventListener("change",function(){if(!this.value)return;state.cur=this.value;
+  $("curSeg").querySelectorAll("button").forEach(function(x){x.setAttribute("aria-selected","false");});
+  WM.toast("Menampilkan dalam "+state.cur+" (kurs simulasi)");draw();});
+
+function renderCustomRange(){
+  $("customRange").innerHTML=WM.field({name:"cf",label:"Dari",type:"date",value:state.custom.from})+WM.field({name:"ct",label:"Sampai",type:"date",value:state.custom.to})+'<button class="btn primary sm" type="button" id="applyCustom" style="align-self:flex-end">Terapkan</button>';
+  $("applyCustom").addEventListener("click",function(){var f=$("customRange").querySelector('[name="cf"]').value,t=$("customRange").querySelector('[name="ct"]').value;
+    if(!f||!t||f>t){WM.toast("Rentang tanggal belum valid",{bad:true});return;}
+    state.custom={from:f,to:t};draw();});
+}
+$("rangeSeg").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
+  state.range=b.dataset.r;
+  $("rangeSeg").querySelectorAll("button").forEach(function(x){x.setAttribute("aria-selected",x===b);});
+  $("customRange").hidden=state.range!=="custom";
+  if(state.range==="custom")renderCustomRange();
+  draw();});
+
+$("privacyBtn").addEventListener("click",function(){state.privacy=!state.privacy;this.setAttribute("aria-pressed",state.privacy);this.textContent=state.privacy?"Tampilkan nominal":"Sembunyikan nominal";draw();});
+
+/* ---------- reactivity ---------- */
+draw();
+WM.onChange(["tx","accounts","investments","assets","liabilities"],draw);
+WM.onResize($("trendChart"),function(){drawTrend(data());});
+WM.onResize($("compChart"),function(){drawComposition(data());});
+WM.onResize($("cashChart"),function(){drawCashflow(data());});
+})();
+</script>

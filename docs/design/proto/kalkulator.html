@@ -1,0 +1,283 @@
+<title>Kalkulator · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.calc-tabs{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;padding:2px}
+.calc-tabs::-webkit-scrollbar{display:none}
+.calc-tabs button{flex:none;border:1px solid var(--line);background:var(--card);color:var(--muted);border-radius:99px;padding:0 14px;min-height:38px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.calc-tabs button[aria-selected="true"]{border-color:var(--lime);background:var(--lime);color:var(--lime-ink)}
+.calc-panel{display:contents}
+.calc-panel[hidden]{display:none}
+.calc-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.calc-row:last-child{border-bottom:0}
+.calc-row span:first-child{color:var(--muted)}
+.calc-row b{font-weight:700;font-variant-numeric:tabular-nums}
+.calc-hero small{color:var(--on-cover-2);font-size:11.5px}
+.calc-hero b{display:block;font-size:26px;font-weight:800;letter-spacing:-.02em;margin-top:3px}
+.calc-note{margin:8px 0 0;font-size:12px;color:var(--on-cover-2)}
+.calc-chart{height:170px;margin-top:10px}
+.calc-warn{display:flex;gap:8px;align-items:flex-start;background:color-mix(in srgb,var(--orange) 16%,var(--card));border-radius:12px;padding:11px 13px;font-size:12px;margin-top:12px}
+.calc-warn svg{flex:none;margin-top:1px;color:color-mix(in srgb,var(--orange) 65%,var(--ink))}
+.calc-mini{border-radius:14px;background:var(--card-2);padding:16px;text-align:center}
+.calc-mini .cap{display:block}
+.calc-mini b{display:block;font-size:24px;font-weight:800;color:var(--good);margin-top:4px}
+.calc-people{display:flex;flex-direction:column;gap:6px}
+.calc-person{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:11px;padding:9px 13px;font-size:12.5px}
+.calc-person b{font-weight:700;color:var(--good)}
+@media (max-width:900px){.calc-hero b{font-size:22px}}
+</style>
+<main data-page="kalkulator">
+  <div class="ph"><div><h1>Kalkulator</h1><p>Zakat, pajak, investasi, cicilan, sampai split bill — semua di satu tempat.</p></div></div>
+
+  <div class="calc-tabs" role="group" aria-label="Pilih kalkulator" id="calcTabs"></div>
+
+  <section class="grid" style="margin-top:14px" id="calcHost"></section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"kalkulator",title:"Kalkulator"});
+(function(){ if(!WM.allowed) return;
+
+var GOLD_PRICE=1100000, NISAB_GRAMS=85;
+var PTKP_DEFAULT=54000000, BJ_RATE=0.05, BJ_CAP=6000000, PKP_UNIT=1000;
+var BRACKETS=[
+ {label:"0 – 60 Juta",upTo:60000000,rate:0.05},
+ {label:"60 – 250 Juta",upTo:250000000,rate:0.15},
+ {label:"250 – 500 Juta",upTo:500000000,rate:0.25},
+ {label:"500 Juta – 5 Miliar",upTo:5000000000,rate:0.30},
+ {label:"> 5 Miliar",upTo:null,rate:0.35}];
+var GROUP_NAMES=["Andi","Budi","Citra","Dani","Eka","Fani","Gilang","Hana","Indra","Joko"];
+
+function n(v){v=String(v==null?"":v).replace(",",".");var x=parseFloat(v);return isNaN(x)?0:x;}
+function row(l,v,cls){return '<div class="calc-row"><span>'+l+'</span><b'+(cls?' class="'+cls+'"':'')+'>'+v+'</b></div>';}
+function emptyCard(label){return '<div class="card"><div class="empty"><span class="ic">'+WM.icon("calc",22)+'</span><b>Hasil belum ada</b><p>Isi data lalu klik "'+label+'".</p></div></div>';}
+
+/* ---------- Zakat Maal ---------- */
+function computePph21(gross,zakatPaid){
+  var biayaJabatan=Math.min(gross*BJ_RATE,BJ_CAP);
+  var pkpRaw=gross-biayaJabatan-PTKP_DEFAULT-zakatPaid;
+  var pkp=Math.floor(Math.max(0,pkpRaw)/PKP_UNIT)*PKP_UNIT;
+  var remaining=pkp,prev=0,breakdown=[];
+  BRACKETS.forEach(function(b){if(remaining<=0)return;var lim=b.upTo==null?Infinity:b.upTo;var taxable=lim===Infinity?remaining:Math.min(remaining,lim-prev);breakdown.push({label:b.label,rate:b.rate,taxable:taxable,tax:taxable*b.rate});remaining-=taxable;prev=lim;});
+  var totalTax=Math.round(breakdown.reduce(function(s,b){return s+b.tax;},0));
+  return {biayaJabatan:biayaJabatan,ptkp:PTKP_DEFAULT,pkp:pkp,breakdown:breakdown,totalTax:totalTax,effectiveRate:gross>0?totalTax/gross:0};
+}
+function computeRetirement(targetAmount,years,annualRate){
+  var r=annualRate/12,ncnt=years*12,factor=Math.pow(1+r,ncnt);
+  var remaining=Math.max(0,targetAmount);
+  var mc=ncnt<=0?0:(r===0?remaining/ncnt:(remaining*r)/(factor-1));
+  var totalContrib=mc*ncnt,projected=r===0?mc*ncnt:(mc*(factor-1))/r;
+  return {monthlyContribution:mc,totalContributions:totalContrib,projectedValue:projected};
+}
+
+var TABS=[
+ {id:"zakat",label:"Zakat Maal"},
+ {id:"pph21",label:"PPh 21"},
+ {id:"investasi",label:"Investasi"},
+ {id:"kredit",label:"Kredit / KPR"},
+ {id:"pensiun",label:"Pensiun"},
+ {id:"tabungan",label:"Tabungan"},
+ {id:"splitgroup",label:"Split Group"}];
+
+document.getElementById("calcTabs").innerHTML=TABS.map(function(t,i){return '<button type="button" role="tab" aria-selected="'+(i===2)+'" data-tab="'+t.id+'">'+t.label+'</button>';}).join("");
+
+var HOST=document.getElementById("calcHost");
+var panels={};
+function panel(id,inputHtml,hasilHtml){var el=document.createElement("div");el.className="calc-panel";el.hidden=true;el.id="p-"+id;
+  el.innerHTML='<div class="card s8">'+inputHtml+'</div><div class="s4" style="display:flex;flex-direction:column;gap:12px" data-hasil>'+hasilHtml+'</div>';
+  HOST.appendChild(el);panels[id]=el;return el;}
+
+/* ---------- Zakat ---------- */
+var zkPanel=panel("zakat",
+ '<h2>Zakat Maal</h2><p class="cap">Nisab otomatis dari harga emas 85 gram.</p>'+
+ '<div class="form" style="margin-top:14px">'+
+  '<div class="two">'+WM.field({name:"cash",label:"Uang tunai & tabungan",type:"money",value:50000000})+WM.field({name:"investments",label:"Investasi",type:"money",value:30000000})+'</div>'+
+  '<div class="two">'+WM.field({name:"gold",label:"Emas (Rp)",type:"money",value:0})+WM.field({name:"liabilities",label:"Utang jatuh tempo",type:"money",value:0})+'</div>'+
+  '<label class="check"><input type="checkbox" id="zkHaul"><span>Sudah genap 1 tahun (haul) memiliki harta ini</span></label>'+
+  '<button class="btn primary block" type="button" id="zkBtn">Hitung Zakat</button>'+
+ '</div>',
+ emptyCard("Hitung Zakat"));
+WM.wire(zkPanel);
+document.getElementById("zkBtn").onclick=function(){
+  var cash=WM.parseMoney(zkPanel.querySelector('[name="cash"]').value),inv=WM.parseMoney(zkPanel.querySelector('[name="investments"]').value),
+      gold=WM.parseMoney(zkPanel.querySelector('[name="gold"]').value),liab=WM.parseMoney(zkPanel.querySelector('[name="liabilities"]').value),
+      haul=document.getElementById("zkHaul").checked;
+  var nisab=NISAB_GRAMS*GOLD_PRICE,zakatable=Math.max(0,cash+inv+gold-liab),meets=zakatable>=nisab,ob=meets&&haul,zakat=meets?zakatable*0.025:0;
+  var label=!meets?"Belum wajib zakat":ob?"Wajib zakat (sudah haul)":"Perkiraan zakat";
+  var html='<div class="cover"><div class="calc-hero"><small>'+label+'</small><b class="num">'+WM.rp(zakat)+'</b></div>'+
+   '<div class="calc-note">'+(!meets?"Harta di bawah nisab "+WM.rp(nisab)+", belum wajib zakat.":!ob?"Sudah mencapai nisab, tapi haul belum kamu centang — angka ini baru perkiraan.":"Sudah mencapai nisab dan genap 1 tahun, zakat 2,5% dari harta bersih.")+'</div></div>'+
+   '<div class="card">'+row("Harta kena zakat",WM.rp(zakatable))+row("Nisab (85 gram emas)",WM.rp(nisab))+
+   '<p class="muted" style="margin:8px 0 0;font-size:11px">Harga emas indikatif '+WM.rp(GOLD_PRICE)+'/gram, bukan harga pasar real-time.</p></div>';
+  zkPanel.querySelector("[data-hasil]").innerHTML=html;
+};
+
+/* ---------- PPh 21 ---------- */
+var pphPanel=panel("pph21",
+ '<div class="head"><div><h2>PPh 21</h2><p class="cap">PTKP TK/0, biaya jabatan 5% (maks Rp 6 juta/tahun).</p></div><button class="link" type="button" id="pphBracketBtn">Lihat rincian tarif</button></div>'+
+ '<div class="form" style="margin-top:14px">'+
+  '<div class="two">'+WM.field({name:"gross",label:"Penghasilan bruto per tahun",type:"money",value:120000000})+WM.field({name:"zakat",label:"Zakat/pajak yang sudah dibayar",type:"money",value:0,optional:true})+'</div>'+
+  '<button class="btn primary block" type="button" id="pphBtn">Hitung PPh 21</button>'+
+ '</div>',
+ emptyCard("Hitung PPh 21"));
+WM.wire(pphPanel);
+var pphResult=null;
+document.getElementById("pphBtn").onclick=function(){
+  var gross=WM.parseMoney(pphPanel.querySelector('[name="gross"]').value),zakatPaid=WM.parseMoney(pphPanel.querySelector('[name="zakat"]').value);
+  pphResult=computePph21(gross,zakatPaid);
+  var html='<div class="cover"><div class="calc-hero"><small>Estimasi PPh 21 setahun</small><b class="num">'+WM.rp(pphResult.totalTax)+'</b></div>'+
+   '<div class="calc-note">PKP '+WM.rp(pphResult.pkp)+' · tarif efektif '+(pphResult.effectiveRate*100).toFixed(2).replace(".",",")+'%</div></div>'+
+   '<div class="card">'+row("Biaya jabatan","−"+WM.rp(pphResult.biayaJabatan))+row("PTKP (TK/0)","−"+WM.rp(pphResult.ptkp))+
+   (pphResult.zakatDeductionShown=zakatPaid>0?row("Zakat/pajak dibayar","−"+WM.rp(zakatPaid)):"")+'</div>';
+  pphPanel.querySelector("[data-hasil]").innerHTML=html;
+};
+document.getElementById("pphBracketBtn").onclick=function(){
+  var body;
+  if(!pphResult||!pphResult.breakdown.length){body='<p class="muted" style="margin:0">Hitung PPh 21 dulu untuk melihat rincian per lapisan tarif.</p>';}
+  else{
+    body='<div class="tw"><table class="tbl"><thead><tr><th>Lapisan</th><th>Tarif</th><th class="r">Penghasilan kena pajak</th><th class="r">Pajak</th></tr></thead><tbody>'+
+     pphResult.breakdown.map(function(b){return '<tr><td>'+b.label+'</td><td class="mono">'+(b.rate*100).toFixed(0)+'%</td><td class="mono r">'+WM.rp(b.taxable)+'</td><td class="mono r" style="font-weight:700;color:var(--good)">'+WM.rp(b.tax)+'</td></tr>';}).join("")+
+     '</tbody></table></div><div style="display:flex;justify-content:space-between;border-top:1.5px solid var(--ink);margin-top:10px;padding-top:10px;font-weight:700"><span>Total pajak</span><span class="mono">'+WM.rp(pphResult.totalTax)+'</span></div>';
+  }
+  WM.modal({title:"Rincian tarif PPh 21",sub:"Progresif per lapisan penghasilan kena pajak (UU HPP Pasal 17).",body:body,submit:false,cancel:"Tutup"});
+};
+
+/* ---------- Investasi ---------- */
+var invPanel=panel("investasi",
+ '<h2>Investasi Berkala</h2>'+
+ '<div class="form" style="margin-top:14px">'+
+  '<div class="two">'+WM.field({name:"modal",label:"Modal awal",type:"money",value:50000000})+WM.field({name:"monthly",label:"Setoran per bulan",type:"money",value:2000000})+'</div>'+
+  '<div class="two">'+WM.field({name:"years",label:"Jangka waktu (tahun)",type:"number",value:10,min:1,max:50})+WM.field({name:"rate",label:"Imbal hasil per tahun (%)",type:"number",value:12,min:0,max:100,hint:"Perkiraan, bukan jaminan hasil."})+'</div>'+
+ '</div>',
+ '<div class="cover"><div class="calc-hero"><small>Perkiraan nilai akhir</small><b class="num" id="invFv">Rp 0</b></div><div class="calc-note" id="invNote"></div><div class="chart calc-chart" id="invChart"></div></div>'+
+ '<div class="card">'+row("Total setoran",'<span id="invModal"></span>')+row("Pertumbuhan",'<span id="invProfit" class="pos"></span>')+'</div>');
+WM.wire(invPanel);
+function drawInvest(){
+  var modal=WM.parseMoney(invPanel.querySelector('[name="modal"]').value),monthly=WM.parseMoney(invPanel.querySelector('[name="monthly"]').value),
+      years=n(invPanel.querySelector('[name="years"]').value),rate=n(invPanel.querySelector('[name="rate"]').value);
+  var r=rate/100/12,ncnt=years*12,factor=Math.pow(1+r,ncnt);
+  var fv=r===0?modal+monthly*ncnt:modal*factor+(monthly*(factor-1))/r;
+  var totalModal=modal+monthly*ncnt,profit=fv-totalModal;
+  var months=Math.max(1,ncnt),series=[modal],value=modal,labels=["Thn 0"];
+  for(var m=1;m<=months;m++){value=value*(1+r)+monthly;if(m%12===0){series.push(Math.round(value));labels.push("Thn "+(m/12));}}
+  invPanel.querySelector("#invFv").textContent=WM.rp(fv);
+  invPanel.querySelector("#invNote").textContent="Keuntungan diperkirakan "+WM.rp(profit);
+  invPanel.querySelector("#invModal").textContent=WM.rp(totalModal);
+  invPanel.querySelector("#invProfit").textContent="+"+WM.rp(profit);
+  WM.chart.area(invPanel.querySelector("#invChart"),{labels:labels,a:series,fmt:WM.short});
+}
+
+/* ---------- Kredit / KPR ---------- */
+var kprPanel=panel("kredit",
+ '<h2>Kredit / KPR</h2>'+
+ '<div class="form" style="margin-top:14px">'+
+  '<div class="two">'+WM.field({name:"harga",label:"Harga properti",type:"money",value:1500000000})+
+   '<div class="field" data-field="dp"><label>Uang muka (DP)</label><div class="affix"><span>Rp</span><input name="dp" data-money inputmode="numeric" value="300.000.000"></div><span class="hint" id="dpPct"></span></div></div>'+
+  '<div class="two">'+WM.field({name:"bunga",label:"Bunga per tahun (%)",type:"number",value:9.5,min:0,max:50})+WM.field({name:"tenor",label:"Tenor (tahun)",type:"number",value:15,min:1,max:30})+'</div>'+
+ '</div>',
+ '<div class="cover"><div class="calc-hero"><small>Cicilan per bulan</small><b class="num" id="kprCicilan">Rp 0</b></div></div>'+
+ '<div class="card">'+row("Pokok pinjaman",'<span id="kprPokok"></span>')+row("Total bunga",'<span id="kprBunga" class="neg"></span>')+row("Total pembayaran",'<span id="kprTotal"></span>')+row("Jumlah cicilan",'<span id="kprN"></span>')+
+  '<div class="calc-warn">'+WM.icon("alert",16)+'<span>Rasio cicilan disarankan maksimal 30% penghasilan. Penghasilan minimum disarankan sekitar <b id="kprMinIncome" style="font-weight:700"></b>/bulan.</span></div></div>');
+WM.wire(kprPanel);
+function drawKredit(){
+  var harga=WM.parseMoney(kprPanel.querySelector('[name="harga"]').value),dp=WM.parseMoney(kprPanel.querySelector('[name="dp"]').value),
+      bunga=n(kprPanel.querySelector('[name="bunga"]').value),tenor=n(kprPanel.querySelector('[name="tenor"]').value);
+  var pokok=Math.max(0,harga-dp),r=bunga/100/12,ncnt=Math.max(1,tenor)*12,factor=Math.pow(1+r,ncnt);
+  var cicilan=r===0?pokok/ncnt:(pokok*r*factor)/(factor-1),total=cicilan*ncnt,bungaTotal=total-pokok,dpPct=harga>0?dp/harga*100:0;
+  kprPanel.querySelector("#dpPct").textContent=dpPct.toFixed(1).replace(".",",")+"% dari harga properti";
+  kprPanel.querySelector("#kprCicilan").textContent=WM.rp(cicilan);
+  kprPanel.querySelector("#kprPokok").textContent=WM.rp(pokok);
+  kprPanel.querySelector("#kprBunga").textContent=WM.rp(bungaTotal);
+  kprPanel.querySelector("#kprTotal").textContent=WM.rp(total);
+  kprPanel.querySelector("#kprN").textContent=ncnt.toLocaleString("id-ID")+" kali";
+  kprPanel.querySelector("#kprMinIncome").textContent=WM.rp(cicilan/0.3);
+}
+
+/* ---------- Pensiun ---------- */
+var pensPanel=panel("pensiun",
+ '<h2>Dana Pensiun</h2>'+
+ '<div class="form" style="margin-top:14px">'+
+  '<div class="two">'+WM.field({name:"now",label:"Usia sekarang",type:"number",value:30})+WM.field({name:"retire",label:"Usia pensiun",type:"number",value:55})+'</div>'+
+  '<div class="two">'+WM.field({name:"monthly",label:"Pengeluaran bulanan saat ini",type:"money",value:10000000})+WM.field({name:"ret",label:"Imbal hasil investasi (%/tahun)",type:"number",value:10})+'</div>'+
+  '<button class="btn primary block" type="button" id="pensBtn">Hitung Estimasi Pensiun</button>'+
+ '</div>',
+ emptyCard("Hitung Estimasi Pensiun"));
+WM.wire(pensPanel);
+document.getElementById("pensBtn").onclick=function(){
+  var now=n(pensPanel.querySelector('[name="now"]').value),retire=n(pensPanel.querySelector('[name="retire"]').value),
+      monthly=WM.parseMoney(pensPanel.querySelector('[name="monthly"]').value),ret=n(pensPanel.querySelector('[name="ret"]').value);
+  var years=retire-now;
+  if(!isFinite(years)||years<1){WM.toast("Usia pensiun harus lebih besar dari usia sekarang, minimal 1 tahun.",{bad:true});return;}
+  var target=monthly*12*20,res=computeRetirement(target,years,ret/100);
+  var html='<div class="cover"><div class="calc-hero"><small>Perkiraan nilai dana pensiun</small><b class="num">'+WM.rp(res.projectedValue)+'</b></div></div>'+
+   '<div class="card">'+row("Setoran per bulan",WM.rp(res.monthlyContribution),"pos")+row("Total setoran",WM.rp(res.totalContributions))+row("Nilai proyeksi",WM.rp(res.projectedValue))+
+   '<p class="muted" style="margin:8px 0 0;font-size:11px">Target dana dihitung dari 20× pengeluaran tahunan saat ini.</p></div>';
+  pensPanel.querySelector("[data-hasil]").innerHTML=html;
+};
+
+/* ---------- Tabungan ---------- */
+var tabPanel=panel("tabungan",
+ '<h2>Target Tabungan</h2>'+
+ '<div class="form" style="margin-top:14px">'+
+  '<div class="two">'+WM.field({name:"target",label:"Target tabungan",type:"money",value:100000000})+WM.field({name:"current",label:"Saldo saat ini",type:"money",value:10000000})+'</div>'+
+  '<div class="two">'+WM.field({name:"bunga",label:"Bunga per tahun (%)",type:"number",value:4})+WM.field({name:"setor",label:"Setoran per bulan",type:"money",value:3000000})+'</div>'+
+ '</div>',
+ '<div class="card" id="tabHost"></div>');
+WM.wire(tabPanel);
+function drawTabungan(){
+  var target=WM.parseMoney(tabPanel.querySelector('[name="target"]').value),current=WM.parseMoney(tabPanel.querySelector('[name="current"]').value),
+      bunga=n(tabPanel.querySelector('[name="bunga"]').value),setor=WM.parseMoney(tabPanel.querySelector('[name="setor"]').value);
+  var r=bunga/100/12,saldo=current,months=0,unreachable=false;
+  while(saldo<target&&months<600){saldo=saldo*(1+r)+setor;months++;}
+  unreachable=saldo<target;
+  var errMsg="Target tidak akan tercapai dengan setoran bulanan ini, naikkan setoran per bulan atau bunga per tahun.";
+  var errField=tabPanel.querySelector('[data-field="setor"] .err');
+  if(errField)errField.textContent=unreachable?errMsg:"";
+  var host=tabPanel.querySelector("#tabHost");
+  if(unreachable){host.innerHTML='<div class="empty"><span class="ic">'+WM.icon("alert",22)+'</span><b>Target belum tercapai</b><p>'+errMsg+'</p></div>';return;}
+  var d=new Date();d.setMonth(d.getMonth()+months);
+  var label=WM.monthsLong[d.getMonth()]+" "+d.getFullYear();
+  host.innerHTML='<div class="calc-mini" style="margin:0"><span class="cap">Perkiraan waktu tercapai</span><b>±'+months.toLocaleString("id-ID")+' Bulan</b></div><p class="muted" style="text-align:center;margin:10px 0 0;font-size:12.5px">Target tercapai sekitar <strong style="color:var(--ink)">'+label+'</strong></p>';
+}
+
+/* ---------- Split Group ---------- */
+var spPanel=panel("splitgroup",
+ '<h2>Split Group</h2><p class="cap">Bagi tagihan rata ke semua orang, lalu buat Split Bill sungguhan.</p>'+
+ '<div class="form" style="margin-top:14px">'+
+  '<div class="two">'+WM.field({name:"total",label:"Total tagihan",type:"money",value:1250000})+
+   '<div class="field" data-field="people"><label>Jumlah orang</label><input name="people" data-num inputmode="numeric" value="5"><span class="err" aria-live="polite"></span></div></div>'+
+  '<div class="two">'+WM.field({name:"tax",label:"Pajak & service (%)",type:"number",value:10})+WM.field({name:"tip",label:"Tip tambahan (%)",type:"number",value:0,optional:true})+'</div>'+
+  '<button class="btn primary block" type="button" id="spBtn">Buat Split Bill</button>'+
+ '</div>',
+ '<div class="card" id="spHost"></div>');
+WM.wire(spPanel);
+function drawSplit(){
+  var total=WM.parseMoney(spPanel.querySelector('[name="total"]').value),peopleRaw=n(spPanel.querySelector('[name="people"]').value),
+      tax=n(spPanel.querySelector('[name="tax"]').value),tip=n(spPanel.querySelector('[name="tip"]').value);
+  var invalid=!(peopleRaw>0),errField=spPanel.querySelector('[data-field="people"] .err'),btn=document.getElementById("spBtn");
+  errField.textContent=invalid?"Jumlah orang harus lebih dari 0.":"";
+  btn.disabled=invalid;
+  var host=spPanel.querySelector("#spHost");
+  if(invalid){host.innerHTML='<div class="empty"><span class="ic">'+WM.icon("split",22)+'</span><b>Belum bisa dibagi</b><p>Isi jumlah orang lebih dari 0.</p></div>';return;}
+  var people=peopleRaw,grand=total+(total*tax)/100+(total*tip)/100,per=Math.round(grand/people),count=Math.min(people,10);
+  var people_html="";for(var i=0;i<count;i++){people_html+='<div class="calc-person"><span>'+GROUP_NAMES[i]+'</span><b>'+WM.rp(per)+'</b></div>';}
+  host.innerHTML='<div class="calc-mini" style="margin:0"><span class="cap">Per orang</span><b>'+WM.rp(per)+'</b></div><p class="muted" style="text-align:center;margin:8px 0 14px;font-size:12px">Total dengan pajak & tip '+WM.rp(grand)+'</p><div class="calc-people">'+people_html+'</div>';
+}
+document.getElementById("spBtn").onclick=function(){
+  var peopleRaw=n(spPanel.querySelector('[name="people"]').value);
+  if(!(peopleRaw>0))return;
+  location.href="splitbill.html";
+};
+
+/* ---------- wiring ---------- */
+[invPanel,kprPanel,tabPanel,spPanel].forEach(function(p){p.addEventListener("input",function(){
+  if(p===invPanel)drawInvest();else if(p===kprPanel)drawKredit();else if(p===tabPanel)drawTabungan();else if(p===spPanel)drawSplit();
+});});
+drawInvest();drawKredit();drawTabungan();drawSplit();
+
+function showTab(id){TABS.forEach(function(t){panels[t.id].hidden=t.id!==id;});
+  document.querySelectorAll("#calcTabs button").forEach(function(b){b.setAttribute("aria-selected",String(b.dataset.tab===id));});}
+document.getElementById("calcTabs").addEventListener("click",function(e){var b=e.target.closest("[data-tab]");if(b)showTab(b.dataset.tab);});
+showTab("investasi");
+})();
+</script>

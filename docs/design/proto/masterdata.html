@@ -1,0 +1,127 @@
+<title>Setup Master Data · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:6px 8px 6px 10px;font-size:12.5px;max-width:100%}
+.chip .ci{width:24px;height:24px;border-radius:8px;background:var(--card-2);display:grid;place-items:center;flex:none;color:var(--muted)}
+.chip .code{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.chip .x{width:22px;height:22px;border-radius:50%;border:0;background:var(--card-2);color:var(--muted);display:grid;place-items:center;flex:none}
+.chip .x:hover{background:var(--ghost);color:var(--bad)}
+.chip .edit{width:22px;height:22px;border-radius:50%;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;flex:none}
+.chip .edit:hover{color:var(--ink);background:var(--card-2)}
+.chips-wrap{display:flex;flex-wrap:wrap;gap:8px}
+.mdcard .head{margin-bottom:12px}
+.icon-pick{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.icon-pick button{border:1.5px solid var(--line);background:var(--card);border-radius:12px;height:40px;display:grid;place-items:center;color:var(--muted)}
+.icon-pick button[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft);color:var(--ink)}
+</style>
+<main data-page="masterdata">
+  <div class="ph">
+    <div><h1>Setup Master Data</h1><p>Kelola data referensi yang dipakai di seluruh aplikasi. Semua daftar di sini bisa kamu tambah dan hapus sendiri.</p></div>
+    <div class="acts"><a class="btn" href="mastercoa.html">Master COA</a></div>
+  </div>
+
+  <div class="note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><span><b>Semua daftar di halaman ini bisa diubah.</b> Item bertanda <span class="pill" style="vertical-align:middle">Bawaan</span> adalah isian awal dari WealthMe, tetap bisa kamu hapus atau ganti kalau tidak dipakai keluargamu. Perubahannya langsung berlaku untuk seluruh anggota keluarga.</span></div>
+
+  <section class="card mdcard s12" style="grid-column:span 12">
+    <div class="head"><div><h2>Kategori</h2><p class="cap">Dipakai di transaksi, anggaran, dan laporan.</p></div>
+      <div class="acts"><button class="btn ghost sm" type="button" id="addCat" hidden>+ Tambah</button></div></div>
+    <div class="chips-wrap" id="catChips"></div>
+    <div class="empty" id="catEmpty" hidden><b>Belum ada kategori</b></div>
+    <p class="cap" style="margin-top:12px"><b style="color:var(--ink)">Kategori</b> tersimpan dan dipakai di transaksi &amp; laporan. Kode di samping tiap kategori adalah akun COA tempat transaksinya tercatat. Menghapus kategori yang masih dipakai transaksi akan ditolak.</p>
+  </section>
+
+  <section class="grid">
+    <div class="card mdcard s4" data-refgroup="bank">
+      <div class="head"><div><h2>Bank</h2></div><button class="btn ghost sm" type="button" data-add="bank" hidden>+ Tambah</button></div>
+      <div class="chips-wrap" data-chips></div>
+      <div class="empty" data-empty hidden><b>Belum ada data</b></div>
+    </div>
+    <div class="card mdcard s4" data-refgroup="ewallet">
+      <div class="head"><div><h2>E-Wallet</h2></div><button class="btn ghost sm" type="button" data-add="ewallet" hidden>+ Tambah</button></div>
+      <div class="chips-wrap" data-chips></div>
+      <div class="empty" data-empty hidden><b>Belum ada data</b></div>
+    </div>
+    <div class="card mdcard s4" data-refgroup="lembaga">
+      <div class="head"><div><h2>Lembaga Donasi</h2></div><button class="btn ghost sm" type="button" data-add="lembaga" hidden>+ Tambah</button></div>
+      <div class="chips-wrap" data-chips></div>
+      <div class="empty" data-empty hidden><b>Belum ada data</b></div>
+    </div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:document.querySelector("main").dataset.page});
+(function(){ if(!WM.allowed) return;
+var canManage=WM.isOwner();
+document.getElementById("addCat").hidden=!canManage;
+document.querySelectorAll("[data-add]").forEach(function(b){b.hidden=!canManage;});
+
+WM.store.ensure("refItems",[
+ {id:"rb1",group:"bank",label:"BCA",isSystem:true},{id:"rb2",group:"bank",label:"Mandiri",isSystem:true},{id:"rb3",group:"bank",label:"BRI",isSystem:true},{id:"rb4",group:"bank",label:"BNI",isSystem:true},{id:"rb5",group:"bank",label:"Jago",isSystem:true},
+ {id:"rw1",group:"ewallet",label:"GoPay",isSystem:true},{id:"rw2",group:"ewallet",label:"OVO",isSystem:true},{id:"rw3",group:"ewallet",label:"DANA",isSystem:true},{id:"rw4",group:"ewallet",label:"ShopeePay",isSystem:true},
+ {id:"rl1",group:"lembaga",label:"Baznas",isSystem:true},{id:"rl2",group:"lembaga",label:"Dompet Dhuafa",isSystem:true},{id:"rl3",group:"lembaga",label:"Rumah Zakat",isSystem:true}]);
+
+var ICONS=["food","car","home","bag","health","school","heart","more","wallet","gift","trend","gold","phone","receipt","briefcase","landmark"];
+
+function coaOptions(kind){var coa=WM.store.get("coa")||[];var want=kind==="in"?"INCOME":"EXPENSE";
+  return [["","Otomatis (sesuai tipe)"]].concat(coa.filter(function(a){return a.direction===want;}).map(function(a){return [a.id,a.code+" — "+a.name];}));}
+
+function catChip(c){var coa=coaOptions(c.kind).concat([]),acc=(WM.store.get("coa")||[]).filter(function(a){return a.id===c.coaAccountId;})[0];
+  return '<span class="chip"><span class="ci">'+WM.icon(c.icon,15)+'</span><b>'+WM.esc(c.name)+'</b>'+
+    '<span class="pill '+(c.kind==="in"?"good":"")+'" style="padding:2px 8px">'+(c.kind==="in"?"Masuk":"Keluar")+'</span>'+
+    (acc?'<span class="code">'+WM.esc(acc.code)+'</span>':'')+
+    (c.isPrivate?'<span class="pill dark" style="padding:2px 8px">Privat</span>':'')+
+    (canManage?'<button class="edit" type="button" data-cat-edit="'+c.id+'" aria-label="Edit '+WM.esc(c.name)+'">'+WM.icon("edit",13)+'</button><button class="x" type="button" data-cat-del="'+c.id+'" aria-label="Hapus '+WM.esc(c.name)+'">'+WM.icon("x",13,2.4)+'</button>':'')+'</span>';}
+
+function drawCats(){var cats=WM.store.get("categories");document.getElementById("catEmpty").hidden=cats.length>0;
+  document.getElementById("catChips").innerHTML=cats.map(catChip).join("");
+  document.querySelectorAll("[data-cat-edit]").forEach(function(b){b.onclick=function(){openCat(b.dataset.catEdit);};});
+  document.querySelectorAll("[data-cat-del]").forEach(function(b){b.onclick=function(){delCat(b.dataset.catDel);};});}
+
+function iconPick(sel){return '<div class="field"><label>Ikon</label><div class="icon-pick" data-radio="icon" role="radiogroup" aria-label="Ikon kategori">'+
+  ICONS.map(function(i){return '<button type="button" role="radio" data-v="'+i+'" aria-checked="'+(i===sel)+'">'+WM.icon(i,17)+'</button>';}).join("")+'</div></div>';}
+
+function openCat(editId){var c=editId?WM.store.find("categories",editId):{kind:"out",icon:"more",isPrivate:false};
+  var html=WM.field({name:"name",label:"Nama kategori",required:true,value:c.name||"",placeholder:"cth: Hobi"})+
+    iconPick(c.icon)+
+    '<div class="two">'+WM.field({name:"kind",label:"Tipe",type:"select",required:true,value:c.kind,options:[["out","Pengeluaran"],["in","Pemasukan"]]})+
+    WM.field({name:"coaAccountId",label:"Akun COA",type:"select",value:c.coaAccountId||"",options:coaOptions(c.kind)})+'</div>'+
+    '<label class="switch">Kategori privat<input type="checkbox" name="isPrivate" '+(c.isPrivate?"checked":"")+'><span></span></label>'+
+    '<p class="hint" style="margin:-8px 0 0">Transaksi kategori privat hanya terlihat olehmu, dan tidak dikirim ke AI Advisor.</p>';
+  WM.modal({title:editId?"Ubah kategori":"Tambah kategori",body:html,submit:editId?"Simpan":"Tambah",
+    onOpen:function(d,b){WM.radio(b);var kindSel=b.querySelector('[name="kind"]'),coaSel=b.querySelector('[name="coaAccountId"]');
+      kindSel.addEventListener("change",function(){var opts=coaOptions(kindSel.value);coaSel.innerHTML=opts.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>';}).join("");});},
+    onSubmit:function(f,v){var icon=(f.querySelector('[data-radio="icon"] [aria-checked="true"]')||{}).dataset;icon=icon?icon.v:"more";
+      var rec={name:v.name,kind:v.kind,icon:icon,coaAccountId:v.coaAccountId||null,isPrivate:!!v.isPrivate};
+      if(editId){WM.store.update("categories",editId,rec);WM.toast("Kategori diperbarui");}else{WM.store.add("categories",rec);WM.toast("Kategori ditambahkan");}}});}
+
+function delCat(id){var c=WM.store.find("categories",id);if(!c)return;
+  var used=WM.store.get("tx").some(function(t){return t.cat===id;});
+  if(used){WM.confirm({title:'Hapus kategori "'+c.name+'"?',text:"Kategori ini masih dipakai oleh transaksi yang sudah tercatat. Menghapusnya bisa membuat transaksi lama kehilangan kategori di laporan.",confirm:"Tetap hapus",danger:true}).then(function(ok){if(ok)reallyDelCat(c);});return;}
+  WM.confirm({title:'Hapus kategori "'+c.name+'"?',text:"Tindakan ini tidak dapat dibatalkan.",confirm:"Hapus",danger:true}).then(function(ok){if(ok)reallyDelCat(c);});}
+function reallyDelCat(c){WM.store.remove("categories",c.id);WM.toast("Kategori dihapus",{undo:function(){WM.store.add("categories",c);WM.toast("Dikembalikan");}});}
+
+document.getElementById("addCat").onclick=function(){openCat(null);};
+
+function drawRef(){document.querySelectorAll("[data-refgroup]").forEach(function(card){
+  var g=card.dataset.refgroup,items=WM.store.get("refItems").filter(function(x){return x.group===g;});
+  card.querySelector("[data-empty]").hidden=items.length>0;
+  card.querySelector("[data-chips]").innerHTML=items.map(function(it){return '<span class="chip"><b>'+WM.esc(it.label)+'</b>'+
+    (it.isSystem?'<span class="pill" style="padding:2px 8px">Bawaan</span>':'')+
+    (!it.isSystem&&canManage?'<button class="x" type="button" data-ref-del="'+it.id+'" aria-label="Hapus '+WM.esc(it.label)+'">'+WM.icon("x",13,2.4)+'</button>':'')+'</span>';}).join("");});
+  document.querySelectorAll("[data-ref-del]").forEach(function(b){b.onclick=function(){delRef(b.dataset.refDel);};});}
+
+function delRef(id){var it=WM.store.find("refItems",id);if(!it)return;
+  WM.confirm({title:'Hapus "'+it.label+'"?',text:"Tindakan ini tidak dapat dibatalkan.",confirm:"Hapus",danger:true}).then(function(ok){if(!ok)return;
+    WM.store.remove("refItems",id);WM.toast(it.label+" dihapus.",{undo:function(){WM.store.add("refItems",it);WM.toast("Dikembalikan");}});});}
+
+document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){var g=b.dataset.add,label={bank:"Bank",ewallet:"E-Wallet",lembaga:"Lembaga Donasi"}[g];
+  WM.modal({title:"Tambah "+label,body:WM.field({name:"nama",label:"Nama",required:true,placeholder:"cth: "+(g==="bank"?"Seabank":g==="ewallet"?"LinkAja":"Yatim Mandiri")}),submit:"Tambah",
+    onSubmit:function(f,v){WM.store.add("refItems",{group:g,label:v.nama,isSystem:false});WM.toast("Item ditambahkan");}});};});
+
+drawCats();drawRef();
+WM.onChange(["categories","refItems","coa"],function(){drawCats();drawRef();});
+})();
+</script>

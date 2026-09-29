@@ -1,0 +1,144 @@
+<title>Persetujuan · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.pq-card{border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:12px}
+.pq-card:last-child{margin-bottom:0}
+.pq-top{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px}
+.pq-av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;font-size:12.5px;flex:none;background:linear-gradient(135deg,var(--lime),#7C6BD1)}
+.pq-meta{min-width:180px;flex:1}
+.pq-meta .nm{font-weight:700;font-size:13.5px}
+.pq-meta .sub{color:var(--muted);font-size:11.5px;margin-top:2px}
+.pq-amt{text-align:right;flex:none}
+.pq-amt b{font-size:19px;font-weight:800}
+.pq-box{border-radius:11px;border:1px solid var(--line);padding:8px 12px;margin-top:10px}
+.pq-box .lbl{font-size:11px;color:var(--muted)}
+.pq-box .val{font-size:12.5px;font-weight:700;margin-top:1px}
+.pq-acts{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+.pq-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.pq-tbl th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:0 10px 8px 0;border-bottom:1px solid var(--line)}
+.pq-tbl td{padding:9px 10px 9px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+.pq-tbl tr:last-child td{border-bottom:0}
+</style>
+<main data-page="persetujuan">
+  <div class="ph"><div><h1>Persetujuan</h1><p>Setujui atau tolak permintaan dana dari anggota keluarga.</p></div></div>
+
+  <section class="grid">
+    <div class="card s4"><div class="stat"><small>Menunggu persetujuan</small><b id="stPendingN">0</b></div><div class="cap" id="stPendingV" style="margin-top:6px"></div></div>
+    <div class="card s4"><div class="stat"><small>Disetujui bulan ini</small><b id="stApprN">0</b></div><div class="cap" id="stApprV" style="margin-top:6px"></div></div>
+    <div class="card s4"><div class="stat"><small>Ditolak bulan ini</small><b id="stRejN">0</b></div><div class="cap" id="stRejV" style="margin-top:6px"></div></div>
+  </section>
+
+  <section class="grid" style="margin-top:16px">
+    <div class="card s12">
+      <div class="tabs" role="tablist" aria-label="Tampilan persetujuan" style="margin-bottom:14px">
+        <button type="button" role="tab" data-tab="pending" aria-selected="true">Menunggu</button>
+        <button type="button" role="tab" data-tab="riwayat" aria-selected="false">Riwayat</button>
+      </div>
+      <div id="panelPending"></div>
+      <div id="panelRiwayat" hidden></div>
+    </div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"persetujuan",title:"Persetujuan"});
+(function(){ if(!WM.allowed) return;
+if(!WM.isOwner()){document.querySelector("main").innerHTML='<div class="ph"><h1>Persetujuan</h1></div><div class="card"><div class="empty"><span class="ic">'+WM.icon("lock",24)+'</span><b>Hanya Master atau Co-Master</b><p>Halaman ini hanya tersedia untuk peran yang bisa menyetujui permintaan dana.</p></div></div>';return;}
+
+var tab="pending";
+
+function requests(){return WM.store.get("requests")||[];}
+function pending(){return requests().filter(function(r){return r.status==="pending";});}
+function history(){return requests().filter(function(r){return r.status!=="pending";}).sort(function(a,b){return (b.decidedAt||b.date)<(a.decidedAt||a.date)?-1:1;});}
+function isThisMonth(iso){if(!iso)return false;var d=new Date(iso),n=new Date(WM.today);return d.getFullYear()===n.getFullYear()&&d.getMonth()===n.getMonth();}
+
+function drawStats(){
+  var p=pending(),pt=p.reduce(function(s,r){return s+r.amount;},0);
+  document.getElementById("stPendingN").textContent=p.length;
+  document.getElementById("stPendingV").textContent="Total "+WM.rp(pt);
+  var appr=requests().filter(function(r){return r.status==="approved"&&isThisMonth(r.decidedAt);}),at=appr.reduce(function(s,r){return s+r.amount;},0);
+  document.getElementById("stApprN").textContent=appr.length;
+  document.getElementById("stApprV").textContent=WM.rp(at);
+  var rej=requests().filter(function(r){return r.status==="rejected"&&isThisMonth(r.decidedAt);}),rt=rej.reduce(function(s,r){return s+r.amount;},0);
+  document.getElementById("stRejN").textContent=rej.length;
+  document.getElementById("stRejV").textContent=WM.rp(rt);
+}
+
+function pendingCard(r){
+  var m=WM.member(r.member),acc=WM.account(r.acc);
+  return '<div class="pq-card" data-id="'+r.id+'"><div class="pq-top">'+WM.avatar(m,40)+
+   '<div class="pq-meta"><div class="nm">'+WM.esc(m.short)+' → '+WM.esc(acc?acc.name:"–")+' <span class="pill warn">Menunggu</span></div>'+
+   '<div class="sub">Diminta '+WM.date(r.date,true)+'</div></div>'+
+   '<div class="pq-amt"><b class="mono">'+WM.rp(r.amount)+'</b></div></div>'+
+   '<div class="pq-box"><div class="lbl">Keperluan</div><div class="val">'+WM.esc(r.reason||"—")+'</div></div>'+
+   '<div class="pq-acts"><button class="btn primary sm" type="button" data-approve>'+WM.icon("checkc",15)+' Setujui</button>'+
+   '<button class="btn sm" type="button" data-reject>'+WM.icon("x",15)+' Tolak</button>'+
+   '<span class="cap" style="margin-left:auto">Dana akan ditransfer dari rekening yang kamu pilih</span></div></div>';
+}
+
+function drawPending(){
+  var list=pending(),wrap=document.getElementById("panelPending");
+  wrap.innerHTML=list.length?list.map(pendingCard).join(""):'<div class="empty"><span class="ic">'+WM.icon("checkc",24)+'</span><b>Tidak ada permintaan menunggu</b><p>Semua permintaan dana sudah diputuskan.</p></div>';
+}
+
+function drawRiwayat(){
+  var list=history(),wrap=document.getElementById("panelRiwayat");
+  if(!list.length){wrap.innerHTML='<div class="empty"><span class="ic">'+WM.icon("clock",24)+'</span><b>Belum ada riwayat keputusan</b><p>Riwayat persetujuan dan penolakan akan tampil di sini.</p></div>';return;}
+  wrap.innerHTML='<div class="tw"><table class="pq-tbl"><thead><tr><th>Pemohon</th><th>Keperluan</th><th>Rekening</th><th>Status</th><th>Diputuskan oleh</th><th>Tanggal</th><th style="text-align:right">Jumlah</th></tr></thead><tbody>'+
+   list.map(function(r){var m=WM.member(r.member),acc=WM.account(r.acc),by=r.decidedBy?WM.member(r.decidedBy):null;
+     return '<tr><td style="font-weight:700">'+WM.esc(m.short)+'</td><td>'+WM.esc(r.reason||"—")+'</td><td>'+WM.esc(acc?acc.name:"–")+'</td>'+
+      '<td><span class="pill'+(r.status==="approved"?" good":" bad")+'">'+(r.status==="approved"?"Disetujui":"Ditolak")+'</span></td>'+
+      '<td>'+(by?WM.esc(by.short):"—")+'</td><td class="cap">'+(r.decidedAt?WM.date(r.decidedAt):"—")+'</td>'+
+      '<td class="mono" style="text-align:right;font-weight:700">'+WM.rp(r.amount)+'</td></tr>';}).join("")+'</tbody></table></div>';
+}
+
+function draw(){drawStats();drawPending();drawRiwayat();}
+draw();
+WM.onChange(["requests","accounts","tx"],draw);
+
+document.querySelectorAll('[role="tab"]').forEach(function(b){b.addEventListener("click",function(){
+  tab=b.dataset.tab;document.querySelectorAll('[role="tab"]').forEach(function(x){x.setAttribute("aria-selected",x===b);});
+  document.getElementById("panelPending").hidden=tab!=="pending";document.getElementById("panelRiwayat").hidden=tab!=="riwayat";
+});});
+
+document.getElementById("panelPending").addEventListener("click",function(e){
+  var card=e.target.closest("[data-id]");if(!card)return;var id=card.dataset.id,r=WM.store.find("requests",id);
+  if(e.target.closest("[data-approve]"))openApprove(r);
+  else if(e.target.closest("[data-reject]"))reject(r);
+});
+
+function reject(r){
+  var m=WM.member(r.member);
+  WM.modal({title:"Tolak permintaan dana",body:'<p class="cap" style="margin:0 0 4px">'+WM.esc(m.short)+' · <b class="mono">'+WM.rp(r.amount)+'</b> · '+WM.esc(r.reason||"")+'</p>'+
+    WM.field({name:"reason",label:"Alasan penolakan",type:"textarea",optional:true,placeholder:"Opsional, akan tersimpan di riwayat"}),
+   submit:"Tolak permintaan",danger:true,
+   onSubmit:function(f,v){WM.store.update("requests",r.id,{status:"rejected",decidedAt:WM.today,decidedBy:WM.meId(),rejectReason:v.reason||""});WM.toast("Permintaan "+m.short+" ditolak");}});
+}
+
+function openApprove(r){
+  var m=WM.member(r.member),target=WM.account(r.acc);
+  var eligible=WM.visibleAccounts().filter(function(a){return a.id!==r.acc;});
+  var html='<p class="cap" style="margin:0 0 10px">'+WM.esc(m.short)+' · <b class="mono">'+WM.rp(r.amount)+'</b> → '+WM.esc(target?target.name:"–")+'</p>'+
+   '<div class="field"><label>Transfer dari rekening</label><select id="apAcc"><option value="">Pilih rekening sumber…</option>'+
+   eligible.map(function(a){return '<option value="'+a.id+'">'+WM.esc(a.bank+" · "+a.name)+" ("+WM.short(a.balance)+')</option>';}).join("")+'</select>'+
+   '<span class="hint">Saldo rekening sumber harus mencukupi jumlah yang diminta.</span></div>'+
+   '<div id="apErr" hidden class="note bad" style="margin-top:6px">'+WM.icon("alert",16)+'<span id="apErrMsg"></span></div>';
+  WM.modal({title:"Setujui permintaan dana",body:html,submit:"Setujui",
+   onSubmit:function(f,v,dlg){
+     var accId=dlg.querySelector("#apAcc").value;
+     if(!accId)return "Pilih rekening sumber terlebih dahulu.";
+     var acc=WM.account(accId);
+     if(acc.type!=="cc"&&acc.balance<r.amount){
+       var msg="Saldo rekening \""+acc.name+"\" tidak mencukupi untuk transaksi ini.";
+       dlg.querySelector("#apErr").hidden=false;dlg.querySelector("#apErrMsg").textContent=msg;
+       return msg;
+     }
+     WM.addTx({type:"tf",amount:r.amount,acc:accId,to:r.acc,member:r.member,date:WM.today,note:"Persetujuan: "+(r.reason||"Dana keluarga")});
+     WM.store.update("requests",r.id,{status:"approved",decidedAt:WM.today,decidedBy:WM.meId(),fromAcc:accId});
+     WM.toast("Permintaan "+m.short+" disetujui");
+   }});
+}
+})();
+</script>

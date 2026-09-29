@@ -1,0 +1,152 @@
+<title>Tujuan Keuangan · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.gcard{overflow:hidden;border-radius:18px;background:var(--card);box-shadow:var(--shadow);display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s}
+.gcard:hover{transform:translateY(-3px);box-shadow:0 14px 30px -14px rgba(20,30,5,.28)}
+.gcard .strip{height:3px;border-radius:0}
+.gcard .body{padding:18px}
+.gcard .top{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.gcard .top .ci{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;flex:none}
+.gcard .top .meta{min-width:0;flex:1}
+.gcard .top .meta b{font-size:14px;font-weight:700}
+.gcard .top .meta small{display:block;color:var(--muted);font-size:11.5px}
+.gcard .pctnum{font-size:26px;font-weight:800;letter-spacing:-.02em;margin:0 0 6px}
+.gcard .rowline{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted);margin-top:10px}
+.gcard .fline{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--line);margin-top:12px;padding-top:10px;font-size:12px;font-weight:600}
+.gcard .acts3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:12px}
+.gcard .acts3 button{display:flex;align-items:center;justify-content:center;gap:5px;border-radius:9px;border:1px solid var(--line);background:var(--card-2);padding:8px 4px;font-size:11px;font-weight:600;min-height:38px}
+.gcard .acts3 button.pri{color:var(--good);border-color:color-mix(in srgb,var(--good) 30%,transparent);background:var(--lime-soft)}
+.gcard .acts3 button.danger{color:var(--bad)}
+.gcard .hist{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.gcard .hist ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.gcard .hist li{display:flex;justify-content:space-between;font-size:11.5px;color:var(--muted)}
+.gcard .toggle{border:0;background:none;padding:0;color:var(--good);font-weight:600;font-size:11px;margin-top:10px}
+.kmini{border-radius:16px;padding:14px}
+.kmini .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;margin-bottom:8px}
+.addcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1.5px dashed var(--line);border-radius:18px;padding:32px;text-align:center;background:transparent}
+.addcard:hover{background:var(--card-2)}
+.addcard .ic{width:48px;height:48px;border-radius:50%;background:var(--lime-soft);color:var(--good);display:grid;place-items:center}
+</style>
+<main data-page="tujuan">
+<div class="ph"><div><h1 id="tt"></h1><p id="sub"></p></div><div class="acts"><button class="btn primary" type="button" id="addBtn">Tambah tujuan</button></div></div>
+<section class="grid" id="kpiWrap"></section>
+<section class="grid" id="goalGrid"></section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"tujuan",title:"Tujuan Keuangan"});
+(function(){ if(!WM.allowed) return;
+WM.store.ensure("goals",[]);
+WM.store.ensure("goalContributions",[]);
+var ICONS=["target","shield","globe","car","school","gift","heart","briefcase","wallet","building"];
+function esc(s){return WM.esc(s);}
+function monthsUntil(target){var t=new Date(target+"T00:00:00"),n=new Date(WM.today+"T00:00:00");var m=(t.getFullYear()-n.getFullYear())*12+(t.getMonth()-n.getMonth());return Math.max(m,1);}
+function statusOf(g){var target=g.target,saved=g.saved;
+  if(saved>=target)return "achieved";
+  if(!g.due)return "on_track";
+  var t=new Date(g.due+"T00:00:00").getTime(),now=new Date(WM.today+"T00:00:00").getTime();
+  if(t<=now)return "at_risk";
+  var created=new Date((g.since||"2026-01-01")+"T00:00:00").getTime();
+  var elapsed=Math.min(1,Math.max(0,(now-created)/(t-created||1)));
+  var expected=elapsed*100,progress=target>0?saved/target*100:0,deficit=expected-progress;
+  if(deficit>25)return "at_risk";if(deficit>10)return "needs_boost";return "on_track";}
+var STATUS={achieved:{label:"Tercapai",pill:"good",color:"var(--good)"},on_track:{label:"Sesuai rencana",pill:"",color:"var(--ink)"},
+  needs_boost:{label:"Perlu didorong",pill:"warn",color:"var(--orange)"},at_risk:{label:"Berisiko",pill:"bad",color:"var(--bad)"}};
+function monthlyNeeded(g){var remain=Math.max(0,g.target-g.saved);if(!g.due||remain<=0)return null;return Math.ceil(remain/monthsUntil(g.due));}
+
+function draw(){
+  var goals=WM.store.get("goals");
+  var totalSaved=goals.reduce(function(s,g){return s+g.saved;},0),totalTarget=goals.reduce(function(s,g){return s+g.target;},0);
+  var overall=totalTarget>0?Math.round(totalSaved/totalTarget*100):0;
+  var onTrack=goals.filter(function(g){var s=statusOf(g);return s==="on_track"||s==="achieved";}).length;
+  var needsBoost=goals.filter(function(g){return statusOf(g)==="needs_boost";}).length;
+  var atRisk=goals.filter(function(g){return statusOf(g)==="at_risk";}).length;
+  var totalMonthly=goals.reduce(function(s,g){return s+(monthlyNeeded(g)||0);},0);
+
+  document.getElementById("tt").textContent=goals.length+" tujuan aktif";
+  document.getElementById("sub").innerHTML="Total terkumpul <span class=\"num\">"+WM.rp(totalSaved)+"</span>";
+
+  var kw=document.getElementById("kpiWrap");
+  if(goals.length!==1){
+    kw.innerHTML='<div class="kmini s3" style="background:var(--lime-soft)"><span class="ic" style="background:#BBF7D0;color:var(--good)">'+WM.icon("checkc",16)+'</span><small class="muted">Sesuai rencana</small><div style="font-size:22px;font-weight:800;color:var(--good)">'+onTrack+'</div><small class="muted">Target di jalur yang benar</small></div>'+
+      '<div class="kmini s3 card"><span class="ic" style="background:color-mix(in srgb,var(--orange) 18%,transparent);color:var(--orange)">'+WM.icon("zap",16)+'</span><small class="muted">Perlu didorong</small><div style="font-size:22px;font-weight:800;color:var(--orange)">'+needsBoost+'</div><small class="muted">Nabung lebih supaya kekejar</small></div>'+
+      '<div class="kmini s3 card"><span class="ic" style="background:color-mix(in srgb,var(--lilac) 40%,transparent);color:#7C3AED">'+WM.icon("alert",16)+'</span><small class="muted">Berisiko</small><div style="font-size:22px;font-weight:800">'+atRisk+'</div><small class="muted">Jauh dari target waktu</small></div>'+
+      '<div class="kmini s3 card"><small class="muted" style="font-weight:700">Progres keseluruhan</small><div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:6px"><div style="font-size:22px;font-weight:800">'+overall+'%</div><span class="pill good">'+goals.length+' tujuan</span></div>'+
+      '<div class="track" style="margin-top:8px"><i style="width:'+Math.min(100,overall)+'%"></i></div>'+
+      '<div class="rowline" style="margin-top:8px"><span>'+WM.rp(totalSaved)+' terkumpul</span><span>dari '+WM.rp(totalTarget)+'</span></div>'+
+      '<div class="rowline" style="border-top:1px solid var(--line);padding-top:6px;margin-top:6px">Perlu ≈ <b class="num">'+WM.rp(totalMonthly)+'</b>/bulan total</div></div>';
+  } else kw.innerHTML="";
+
+  var gg=document.getElementById("goalGrid");
+  var cards=goals.map(function(g){var st=STATUS[statusOf(g)],need=monthlyNeeded(g),pct=g.target>0?Math.round(g.saved/g.target*100):0,remain=Math.max(0,g.target-g.saved);
+    var contribs=WM.store.get("goalContributions").filter(function(c){return c.goal===g.id;});
+    return '<div class="s4 gcard"><div class="strip" style="background:'+st.color+'"></div><div class="body">'+
+      '<div class="top"><span class="ci" style="background:var(--card-2)">'+WM.icon(g.icon||"target",19)+'</span><div class="meta"><b>'+esc(g.name)+'</b><small>'+(g.due?"Target "+WM.date(g.due,true):"Tanpa tenggat")+'</small></div><span class="pill'+(st.pill?" "+st.pill:"")+'">'+st.label+'</span></div>'+
+      '<div class="pctnum" style="color:'+st.color+'">'+pct+'%</div><div class="track"><i style="width:'+Math.min(100,pct)+'%;background:'+st.color+'"></i></div>'+
+      '<div class="rowline"><span>'+WM.rp(g.saved)+' terkumpul</span><span>target '+WM.rp(g.target)+'</span></div>'+
+      '<div class="fline"><span>Sisa '+WM.rp(remain)+'</span>'+(g.autoAmt?'<span class="muted">Auto-debit '+WM.rp(g.autoAmt)+"/bln"+(g.autoDay?" · tgl "+g.autoDay:"")+'</span>':'<span class="muted">Belum ada auto-debit</span>')+'</div>'+
+      (need!=null?'<div class="note'+(st.pill==="bad"?" bad":st.pill==="warn"?" warn":"")+'" style="margin-top:10px;padding:9px 10px;font-size:11.5px">'+WM.icon("wallet",14)+'<span>Perlu nabung <b class="num">'+WM.rp(need)+'</b>'+(g.autoAmt?"/bulan selama "+monthsUntil(g.due)+" bulan":" (belum ada auto-debit)")+'</span></div>':'')+
+      '<div class="acts3"><button type="button" class="pri" data-contrib="'+g.id+'">'+WM.icon("wallet",13)+' Setor</button><button type="button" data-edit="'+g.id+'">'+WM.icon("edit",13)+' Ubah</button><button type="button" class="danger" data-del="'+g.id+'">'+WM.icon("trash",13)+' Hapus</button></div>'+
+      '<button type="button" class="link toggle" data-hist="'+g.id+'" aria-expanded="false">Lihat riwayat setoran ('+contribs.length+')</button>'+
+      '<div class="hist" data-histbox="'+g.id+'" hidden>'+(contribs.length?'<ul>'+contribs.slice(0,6).map(function(c){return '<li><span>'+WM.date(c.date)+' · '+(c.acc?WM.account(c.acc)?WM.account(c.acc).bank:"":"tanpa rekening")+'</span><span class="num">'+WM.rp(c.amount)+'</span></li>';}).join("")+'</ul>':'<p class="muted" style="margin:0;font-size:11.5px">Belum ada setoran.</p>')+
+      '<button type="button" class="link" data-withdraw="'+g.id+'" style="font-size:11px;font-weight:600;border:0;background:none;padding:0;margin-top:6px">Tarik dana</button></div>'+
+      '</div></div>';}).join("");
+  gg.innerHTML=cards+'<div class="s4 addcard" id="addCard" role="button" tabindex="0"><span class="ic">'+WM.icon("target",22)+'</span><b style="font-size:13px">Tambah tujuan baru</b><small class="muted">Buat target dan mulai menabung</small></div>'+
+    (goals.length===0?'':'');
+  if(!goals.length)gg.insertAdjacentHTML("afterbegin",'<div class="s12 empty" style="grid-column:1/-1"><span class="ic">'+WM.icon("target",22)+'</span><b>Belum ada tujuan keuangan</b><p>Tambah tujuan pertamamu, misalnya dana darurat atau liburan.</p></div>');
+}
+
+function iconGrid(sel){return ICONS.map(function(k){return '<button type="button" class="ctile" role="radio" data-v="'+k+'" aria-checked="'+(k===sel)+'"><span class="ci">'+WM.icon(k,18)+'</span></button>';}).join("");}
+
+function openGoalDialog(editId){var g=editId?WM.store.find("goals",editId):null;
+  var accs=WM.visibleAccounts();
+  var html='<div class="field" data-field="name"><label for="gn">Nama tujuan</label><input id="gn" name="name" required value="'+(g?esc(g.name):"")+'" placeholder="Misal: Dana pendidikan"><span class="err" aria-live="polite"></span></div>'+
+    '<div class="field"><label>Ikon</label><div class="cgrid" data-radio="icon" role="radiogroup" aria-label="Ikon tujuan">'+iconGrid(g?g.icon:ICONS[0])+'</div></div>'+
+    '<div class="two">'+WM.field({name:"target",label:"Target dana",type:"money",required:true,value:g?g.target:""})+
+    WM.field({name:"saved",label:"Sudah terkumpul",type:"money",optional:true,value:g?g.saved:0})+'</div>'+
+    '<div class="two">'+WM.field({name:"due",label:"Tanggal target",type:"date",optional:true,value:g?g.due:""})+
+    WM.field({name:"acc",label:"Rekening tujuan",type:"select",optional:true,options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];}),value:g?g.acc:""})+'</div>'+
+    '<details class="more-opts"><summary>'+WM.icon("chevd",14,2.2)+'Auto-debit (opsional)</summary><div>'+
+    '<div class="two">'+WM.field({name:"autoAmt",label:"Nominal per bulan",type:"money",optional:true,value:g?g.autoAmt||"":""})+
+    WM.field({name:"autoDay",label:"Tanggal debit",type:"number",optional:true,min:1,max:28,value:g?g.autoDay||"":""})+'</div>'+
+    WM.field({name:"autoSrc",label:"Sumber auto-debit",type:"select",optional:true,options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];}),value:g?g.autoSrc||"":""})+
+    '</div></details>';
+  WM.modal({title:g?"Ubah tujuan":"Tambah tujuan baru",sub:g?"Perbarui detail tujuan ini.":"Tentukan target dan tenggat waktumu.",body:html,submit:g?"Simpan perubahan":"Simpan",
+    onOpen:function(d,body){WM.radio(body);},
+    onSubmit:function(f,v){
+      if(v.autoAmt&&!v.autoSrc)return "Pilih rekening sumber untuk auto-debit.";
+      var icon=(f.querySelector('[data-radio="icon"] [aria-checked="true"]')||{}).dataset;icon=icon&&icon.v||ICONS[0];
+      var patch={name:v.name.trim(),icon:icon,target:v.target,saved:v.saved||0,due:v.due||null,acc:v.acc||null,autoAmt:v.autoAmt||null,autoDay:v.autoDay||null,autoSrc:v.autoSrc||null};
+      if(g){WM.store.update("goals",g.id,patch);WM.toast("Tujuan diperbarui");}
+      else{patch.since=WM.today;WM.store.add("goals",patch);WM.toast("Tujuan ditambahkan");}
+    }});}
+
+function openContribDialog(id,withdraw){var g=WM.store.find("goals",id),accs=WM.visibleAccounts();
+  var html='<p class="hint">'+(withdraw?"Menarik dana tidak memengaruhi rekening tujuan secara otomatis kecuali kamu pilih rekening.":"Setor tidak dihitung dua kali di kekayaan bersih; nominal hanya berpindah dari rekening ke tujuan ini.")+'</p>'+
+    WM.field({name:"amount",label:"Nominal",type:"money",required:true})+
+    WM.field({name:"acc",label:withdraw?"Rekening tujuan dana":"Rekening sumber",type:"select",optional:true,options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];})})+
+    WM.field({name:"date",label:"Tanggal",type:"date",required:true,value:WM.today,attrs:'max="'+WM.today+'"'});
+  WM.modal({title:(withdraw?"Tarik dana dari ":"Setor ke ")+esc(g.name),body:html,submit:withdraw?"Tarik dana":"Setor",
+    onSubmit:function(f,v){
+      if(withdraw&&v.amount>g.saved)return "Nominal melebihi dana yang sudah terkumpul.";
+      WM.store.update("goals",g.id,{saved:withdraw?Math.max(0,g.saved-v.amount):g.saved+v.amount});
+      WM.store.add("goalContributions",{goal:g.id,amount:withdraw?-v.amount:v.amount,acc:v.acc||null,date:v.date,source:"manual"});
+      if(v.acc){WM.addTx({type:withdraw?"in":"out",amount:v.amount,acc:v.acc,cat:withdraw?"c-lain-in":"c-lain-out",note:(withdraw?"Tarik tujuan: ":"Setor tujuan: ")+g.name});}
+      WM.toast((withdraw?"Ditarik ":"Setoran ")+WM.rp(v.amount)+(withdraw?" dari ":" ke ")+esc(g.name));
+    }});}
+
+document.getElementById("addBtn").addEventListener("click",function(){openGoalDialog(null);});
+document.addEventListener("click",function(e){
+  if(e.target.closest("#addCard")){openGoalDialog(null);return;}
+  var c=e.target.closest("[data-contrib]");if(c){openContribDialog(c.dataset.contrib,false);return;}
+  var w=e.target.closest("[data-withdraw]");if(w){openContribDialog(w.dataset.withdraw,true);return;}
+  var ed=e.target.closest("[data-edit]");if(ed){openGoalDialog(ed.dataset.edit);return;}
+  var del=e.target.closest("[data-del]");if(del){var g=WM.store.find("goals",del.dataset.del);
+    WM.confirm({title:"Hapus tujuan ini?",text:'"'+esc(g.name)+'" yang dihapus tidak bisa dikembalikan. Dana yang sudah dihitung di tujuan ini tidak memengaruhi kekayaan bersih.',confirm:"Hapus",danger:true}).then(function(ok){if(ok){WM.store.remove("goals",del.dataset.del);WM.toast("Tujuan dihapus");}});return;}
+  var h=e.target.closest("[data-hist]");if(h){var box=document.querySelector('[data-histbox="'+h.dataset.hist+'"]');var open=!box.hidden;box.hidden=open;h.setAttribute("aria-expanded",!open);h.textContent=(open?"Lihat":"Sembunyikan")+" riwayat setoran ("+WM.store.get("goalContributions").filter(function(x){return x.goal===h.dataset.hist;}).length+")";return;}
+});
+draw();WM.onChange(["goals","goalContributions","accounts"],draw);
+})();
+</script>

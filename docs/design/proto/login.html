@@ -1,0 +1,166 @@
+<title>Masuk · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+body{padding:0}
+.awrap{min-height:100vh;display:flex;flex-direction:column}
+.acover{background:var(--cover);color:var(--on-cover);padding:22px 20px;position:relative;overflow:hidden;flex:none}
+.acover::before{content:"";position:absolute;inset:auto -70px -140px auto;width:320px;height:320px;border-radius:50%;background:radial-gradient(closest-side,rgba(169,216,76,.18),transparent);pointer-events:none}
+.acover>*{position:relative}
+.abrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.02em;text-decoration:none;color:inherit}
+.abrand .mark{width:30px;height:30px;border-radius:9px;background:var(--lime);display:grid;place-items:center;color:var(--lime-ink);flex:none}
+.ahl{margin:20px 0 0;font-size:21px;line-height:1.2;letter-spacing:-.03em;font-weight:600;max-width:30ch}
+.ahl em{font-style:normal;color:var(--lime)}
+.afeat{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.afeat li{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--on-cover-2)}
+.afeat svg{flex:none;color:var(--lime);margin-top:1px}
+.anote{margin-top:auto;padding-top:18px;font-size:11px;color:var(--on-cover-2);border-top:1px solid var(--cover-line)}
+.aform{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:26px 16px 40px}
+.acard{width:100%;max-width:400px}
+.aback{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:var(--muted);text-decoration:none;margin-bottom:12px}
+.aback:hover{color:var(--ink)}
+.atitle{margin:2px 0 0;font-size:19px;font-weight:600;letter-spacing:-.02em;text-align:center}
+.asub{margin:4px 0 18px;color:var(--muted);font-size:13px;text-align:center}
+.aseg{display:flex;gap:2px;background:var(--card-2);border-radius:12px;padding:3px;margin-bottom:16px}
+.aseg button{flex:1;border:0;background:transparent;border-radius:9px;padding:0 10px;min-height:38px;font-weight:600;font-size:12.5px;color:var(--muted)}
+.aseg button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.demo{display:flex;gap:10px;align-items:flex-start;background:var(--lime-soft);border-radius:12px;padding:12px 14px;font-size:12.5px;margin-bottom:14px;color:var(--good)}
+.demo svg{flex:none;margin-top:1px}
+.demo b{display:block;color:var(--ink)}
+.demo code{background:rgba(0,0,0,.08);border-radius:5px;padding:1px 5px;font-family:var(--mono);font-size:11.5px;color:var(--ink)}
+.quick{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;scrollbar-width:none;padding-bottom:2px}
+.quick::-webkit-scrollbar{display:none}
+.qm{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:10px 12px;min-width:76px;font-size:11px;color:var(--muted)}
+.qm:hover{border-color:var(--lime);background:var(--lime-soft)}
+.qm b{color:var(--ink);font-size:11.5px;font-weight:600}
+.pwrap{position:relative}
+.pwrap input{padding-right:42px!important}
+.peye{position:absolute;right:6px;top:29px;width:32px;height:32px;border-radius:9px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center}
+.peye:hover{background:var(--card-2);color:var(--ink)}
+.pwmeter{display:flex;gap:5px;margin-top:8px}
+.pwmeter i{flex:1;height:5px;border-radius:99px;background:var(--ghost);display:block}
+.pwmeter i.on1{background:var(--bad)}.pwmeter i.on2{background:var(--orange)}.pwmeter i.on3{background:var(--good)}
+.pwmsg{margin-top:5px;font-size:11.5px;color:var(--muted)}
+.rules{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.rule{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.rule.ok{color:var(--good)}
+.rule i{width:14px;height:14px;border-radius:50%;border:1.5px solid currentColor;display:grid;place-items:center;flex:none}
+.rule.ok i{background:var(--good);border-color:var(--good);color:#fff}
+.afoot{margin-top:16px;text-align:center;font-size:12.5px;color:var(--muted)}
+.afoot a,.alink{color:var(--good);font-weight:600;text-decoration:underline;text-underline-offset:3px;background:none;border:0;font-size:inherit;cursor:pointer}
+.legallinks{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11.5px;color:var(--muted)}
+.legallinks a{color:inherit;text-decoration:none}
+.legallinks a:hover{color:var(--ink);text-decoration:underline}
+.divide{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:11.5px}
+.divide::before,.divide::after{content:"";flex:1;height:1px;background:var(--line)}
+.oktick{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:var(--lime-soft);color:var(--good);margin:0 auto 14px}
+.badtick{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:color-mix(in srgb,var(--orange) 20%,transparent);color:color-mix(in srgb,var(--orange) 55%,var(--ink));margin:0 auto 14px}
+.warnbox{display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,var(--orange) 14%,var(--card));border-radius:12px;padding:12px 14px;font-size:12.5px;color:color-mix(in srgb,var(--orange) 65%,var(--ink));margin-bottom:14px}
+.warnbox svg{flex:none;margin-top:1px}
+.identity{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:var(--card-2);border-radius:12px}
+.center{text-align:center}
+.emoji64{width:56px;height:56px;border-radius:50%;background:var(--lime-soft);display:grid;place-items:center;font-size:24px;margin:0 auto 14px}
+@media(min-width:960px){
+ .awrap{flex-direction:row;min-height:100vh}
+ .acover{width:42%;min-width:380px;display:flex;flex-direction:column;padding:44px 40px;justify-content:flex-start}
+ .ahl{margin-top:30px;font-size:27px}
+ .aform{width:58%;align-items:center}
+}
+</style>
+<main data-page="login">
+<div class="awrap">
+  <div class="acover"><a class="abrand" href="landing.html"><span class="mark" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l4.5 12L12 8l4.5 10L21 6"/></svg></span>WealthMe</a>
+    <p class="ahl">Kelola keuangan <em>satu keluarga</em>, dari satu akun.</p>
+    <ul class="afeat"><li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 20c0-2.2 1-4 3-4s3 1.8 3 4"/></svg><span>Satu tempat untuk seluruh keuangan keluarga.</span></li><li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><span>Anggota anak & staf punya akses terbatas, kamu yang atur.</span></li><li><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-5 4 3 7-8M15 7h5v5"/></svg><span>Anggaran, tujuan, dan laporan otomatis terhubung.</span></li></ul>
+    <p class="anote">Prototipe statis. Data yang tampil adalah data contoh, bukan data sungguhan.</p>
+  </div>
+  <div class="aform"><div class="acard">
+    <h1 class="atitle">Selamat datang kembali</h1>
+    <p class="asub">Masuk ke Personal Wealth OS kamu</p>
+
+    <div class="demo"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><div><b>Demo tersedia</b>Pakai <code>demo@wealthme.id</code> / <code>demo1234</code>, atau pilih akun contoh di bawah.</div></div>
+
+    <div class="quick" id="quick" role="group" aria-label="Akun contoh"></div>
+
+    <div class="aseg" role="tablist" id="tabs">
+      <button type="button" role="tab" aria-selected="true" data-tab="email">Email</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="username">Username</button>
+    </div>
+
+    <form class="form" id="loginForm" novalidate>
+      <div id="paneEmail">
+        <div class="field" data-field="email"><label for="f_email">Email</label><input id="f_email" name="email" type="email" required><span class="err" aria-live="polite"></span></div>
+        <p class="asub" style="text-align:left;margin:-8px 0 0;font-size:11.5px">Anggota yang dibuatkan akun oleh Master bisa masuk dengan username keluarga, misalnya <em>budi@arsandi</em>.</p>
+      </div>
+      <div id="paneUsername" hidden>
+        <div class="field" data-field="username"><label for="f_username">Username</label><input id="f_username" name="username" type="text" required placeholder="nama@kodekeluarga"><span class="err" aria-live="polite"></span></div>
+        <p class="asub" style="text-align:left;margin:-8px 0 0;font-size:11.5px">Contoh: <em>budi@arsandi</em>. Username &amp; kode keluarga didapat dari Master keluarga kamu.</p>
+      </div>
+      <div class="field pwrap" data-field="password"><label for="f_pw">Password</label><input id="f_pw" name="password" type="password" required><button class="peye" type="button" id="pwToggle" aria-label="Tampilkan password" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button><span class="err" aria-live="polite"></span></div>
+      <p class="err" id="loginErr" role="alert" style="margin:-8px 0 0"></p>
+      <div id="forgotRow" style="text-align:right"><a class="alink" href="lupa-password.html" style="font-size:12.5px">Lupa password?</a></div>
+      <button class="btn primary block" type="submit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg> <span id="submitLbl">Masuk</span></button>
+    </form>
+
+    <div id="googleWrap">
+      <div class="divide">atau masuk dengan</div>
+      <button class="btn block" type="button" id="googleBtn">Google</button>
+      <p class="afoot">Belum punya akun? <a href="register.html">Daftar sekarang</a></p>
+    </div>
+    <div class="legallinks"><a href="legal.html?doc=privasi">Kebijakan Privasi</a><a href="legal.html?doc=syarat">Syarat &amp; Ketentuan</a></div>
+  </div></div>
+</div>
+</main>
+<script src="wm.js"></script>
+<script>
+(function(){
+  var members = WM.store.get("members");
+  var quick = document.getElementById("quick");
+  quick.innerHTML = members.map(function(m){return '<button type="button" class="qm" data-me="'+m.id+'">'+WM.avatar(m,32)+'<b>'+WM.esc(m.short)+'</b><span>'+WM.roleLabel(m.role)+'</span></button>';}).join("");
+  quick.querySelectorAll("[data-me]").forEach(function(b){b.addEventListener("click",function(){
+    var m=WM.member(b.dataset.me);
+    document.getElementById("f_email").value = (m.email || (m.short.toLowerCase()+"@rizaldi")) ;
+    document.getElementById("f_pw").value = "demo1234";
+    doLogin(m.id);
+  });});
+
+  var tabs=document.getElementById("tabs"), mode="email";
+  tabs.querySelectorAll("[data-tab]").forEach(function(b){b.addEventListener("click",function(){
+    mode=b.dataset.tab; tabs.querySelectorAll("[data-tab]").forEach(function(x){x.setAttribute("aria-selected",x===b);});
+    document.getElementById("paneEmail").hidden = mode!=="email";
+    document.getElementById("paneUsername").hidden = mode!=="username";
+    document.getElementById("forgotRow").hidden = mode!=="email";
+    document.getElementById("googleWrap").hidden = mode!=="email";
+    document.getElementById("loginErr").textContent="";
+  });});
+
+  var pwIn=document.getElementById("f_pw"), pwToggle=document.getElementById("pwToggle"), shown=false;
+  pwToggle.addEventListener("click",function(){shown=!shown;pwIn.type=shown?"text":"password";pwToggle.setAttribute("aria-pressed",shown);pwToggle.setAttribute("aria-label",shown?"Sembunyikan password":"Tampilkan password");pwToggle.innerHTML = shown? "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 3l18 18M10.6 5.1A10 10 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.2 4M6.1 6.1C3.6 7.8 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 004.2 4.2\"/></svg>" : "<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>";});
+
+  WM.wire(document.getElementById("loginForm"));
+
+  function pickRoleFor(emailOrUser){
+    var m = members.filter(function(x){return x.email && x.email.toLowerCase()===String(emailOrUser).toLowerCase();})[0];
+    if(!m) m = members.filter(function(x){return emailOrUser.toLowerCase().indexOf((x.short||"").toLowerCase())===0;})[0];
+    return m || members[0];
+  }
+  function doLogin(forceId){
+    var f=document.getElementById("loginForm"), errEl=document.getElementById("loginErr");
+    errEl.textContent="";
+    if(!WM.validate(f)) return;
+    var v=WM.readForm(f);
+    var idVal = mode==="email"?v.email:v.username;
+    if(mode==="username" && idVal.indexOf("@")<0){WM.setError(f,"username","Format username: nama@kodekeluarga.");return;}
+    var m = forceId?WM.member(forceId):pickRoleFor(idVal);
+    document.getElementById("submitLbl").textContent="Memuat…";
+    localStorage.setItem("wm-proto-v1:me", JSON.stringify(m.id));
+    setTimeout(function(){
+      WM.toast("Masuk sebagai "+m.short+" (simulasi)");
+      location.href = (m.role==="child"||m.role==="staff") ? "akses-saya.html" : "index.html";
+    },350);
+  }
+  document.getElementById("loginForm").addEventListener("submit",function(e){e.preventDefault();doLogin();});
+  document.getElementById("googleBtn").addEventListener("click",function(){WM.toast("Masuk dengan Google (simulasi)");setTimeout(function(){localStorage.setItem("wm-proto-v1:me",JSON.stringify("m1"));location.href="index.html";},400);});
+})();
+</script>

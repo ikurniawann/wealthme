@@ -1,0 +1,119 @@
+<title>Akses Saya · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.as-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:980px){.as-cards{grid-template-columns:1fr}}
+.as-cards .stat b{font-size:17px}
+</style>
+<main data-page="akses-saya">
+<section class="grid">
+  <div class="cover s12">
+    <span class="pill dark" style="background:var(--cover-2);color:var(--on-cover)" id="asEyebrow"></span>
+    <h1 class="headline" style="margin-top:10px">Lihat data apa saja yang bisa kamu akses <em>di WealthMe keluarga.</em></h1>
+    <p class="muted" style="max-width:46ch;margin-top:8px">Akun ini dipasang oleh Master untuk mencatat transaksi dan mengajukan dana, tanpa melihat seluruh kekayaan keluarga.</p>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s4"><div class="stat"><small>Rekening ditugaskan</small><b id="asAccVal">Memuat…</b></div><p class="cap" id="asAccDesc" style="margin-top:6px"></p></div>
+  <div class="card s4"><div class="stat"><small>Saldo keluarga</small><b>Tidak terlihat</b></div><p class="cap" style="margin-top:6px">Kekayaan bersih, investasi, dan aset keluarga tidak dihitung untuk akun ini.</p></div>
+  <div class="card s4"><div class="stat"><small>Laporan keluarga</small><b id="asRepVal"></b></div><p class="cap" id="asRepDesc" style="margin-top:6px"></p></div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s7">
+    <div class="head"><h2>Rekening kamu</h2></div>
+    <div class="list" id="asAccList" style="margin-top:6px"></div>
+    <div class="empty" id="asAccEmpty" hidden><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg></span><b>Belum ada rekening ditugaskan</b><p>Minta Master menugaskan rekening untuk kamu dari halaman IAM Roles.</p></div>
+  </div>
+  <div class="card s5">
+    <div class="head"><h2>Ajukan dana</h2></div>
+    <p class="cap" style="margin:2px 0 12px">Perlu disetujui Master sebelum dana berpindah.</p>
+    <button class="btn primary block" type="button" id="asReqBtn">Ajukan dana</button>
+    <div class="divider"></div>
+    <b style="font-size:12.5px">Pengajuanmu</b>
+    <div class="list" id="asReqList" style="margin-top:4px"></div>
+    <p class="empty muted" id="asReqEmpty" hidden style="padding:14px 0">Belum ada pengajuan.</p>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>Aktivitas yang diizinkan</h2>
+    <p class="cap" style="margin:2px 0 12px">Semua aksi di bawah ini tetap tercatat dan bisa ditinjau Master. <span class="pill">Read + Input terbatas</span></p>
+    <div class="tw"><table class="tbl"><thead><tr><th>Aktivitas</th><th>Status</th><th>Catatan</th></tr></thead><tbody id="asActRows"></tbody></table></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <div class="note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><span>Kalau butuh akses tambahan, minta Master menugaskan rekening atau mengubah role kamu dari halaman IAM Roles.</span></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <div class="head"><h2>Transaksi terakhirmu</h2><a class="more" href="transaksi.html">Lihat semua <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></a></div>
+    <div class="list" id="asTxList" style="margin-top:6px"></div>
+    <div class="empty" id="asTxEmpty" hidden><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/></svg></span><b>Belum ada transaksi</b><p>Transaksi yang kamu catat akan muncul di sini.</p></div>
+  </div>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"akses-saya",title:"Akses Saya",noAdd:false});
+(function(){ if(!WM.allowed) return;
+WM.store.ensure("requests",[]);
+var me=WM.me(),unlocked=WM.isOwner();
+
+document.getElementById("asEyebrow").textContent=unlocked?"Master account":"Akses terbatas · "+WM.roleLabel(me.role);
+document.getElementById("asRepVal").textContent=unlocked?"Terbuka":"Tidak terlihat";
+document.getElementById("asRepDesc").textContent=unlocked?"Kamu bisa membuka laporan keuangan keluarga secara lengkap.":"Laporan gabungan seluruh keluarga tertutup untuk peranmu.";
+document.querySelectorAll(".card s7 .ic, #asAccEmpty .ic, #asTxEmpty .ic").forEach(function(){});
+document.getElementById("asAccEmpty").querySelector(".ic").innerHTML=WM.icon("landmark",24);
+document.getElementById("asTxEmpty").querySelector(".ic").innerHTML=WM.icon("swap",24);
+document.querySelector(".note").firstElementChild.outerHTML=WM.icon("shield",16);
+document.querySelector('a.more[href="transaksi.html"]').innerHTML="Lihat semua"+WM.icon("chev",14,2.2);
+
+function draw(){
+  var accs=WM.visibleAccounts();
+  document.getElementById("asAccVal").textContent=accs.length?accs.length+" rekening":"Belum ada";
+  document.getElementById("asAccDesc").textContent=accs.length?("Boleh mencatat transaksi dan melihat mutasi di: "+accs.map(function(a){return a.name;}).join(", ")+"."):"Master belum menugaskan rekening apa pun ke akun ini.";
+  document.getElementById("asAccList").innerHTML=accs.map(function(a){return '<div class="row"><span class="ic">'+WM.icon("landmark",18)+'</span><span><b>'+WM.esc(a.name)+'</b><small>'+WM.esc(a.bank)+'</small></span><span class="r">'+(a.type==="cc"?"Tagihan "+WM.short(-a.balance):WM.short(a.balance))+'</span></div>';}).join("");
+  document.getElementById("asAccEmpty").hidden=accs.length>0;document.getElementById("asAccList").hidden=!accs.length;
+
+  var myReq=WM.store.get("requests").filter(function(r){return r.member===me.id;}).sort(function(a,b){return a.date<b.date?1:-1;});
+  var STAT={pending:["Menunggu",""],approved:["Disetujui","good"],rejected:["Ditolak","bad"]};
+  document.getElementById("asReqList").innerHTML=myReq.map(function(r){var s=STAT[r.status]||STAT.pending;return '<div class="row"><span class="ic">'+WM.icon("send",16)+'</span><span><b>'+WM.rp(r.amount)+'</b><small>'+WM.esc(r.reason)+' · '+WM.dayLabel(r.date)+'</small></span><span class="pill '+s[1]+'">'+s[0]+'</span></div>';}).join("");
+  document.getElementById("asReqEmpty").hidden=myReq.length>0;
+
+  var rows=[["Mencatat transaksi","good","Diizinkan",accs.length?"Pada rekening yang ditugaskan.":"Menunggu rekening ditugaskan Master."],
+    ["Mengajukan dana","good","Diizinkan","Perlu disetujui Master sebelum dana berpindah."],
+    ["Melihat laporan keluarga",unlocked?"good":"bad",unlocked?"Diizinkan":"Dikunci",unlocked?"Laporan keluarga terbuka untuk peranmu.":"Laporan gabungan keluarga tertutup untuk peranmu."],
+    ["Mengubah role anggota","bad","Dikunci","Hanya Master yang bisa mengubah IAM."]];
+  document.getElementById("asActRows").innerHTML=rows.map(function(r){return '<tr><td>'+r[0]+'</td><td><span class="pill '+r[1]+'">'+r[2]+'</span></td><td class="muted">'+r[3]+'</td></tr>';}).join("");
+
+  var tx=WM.store.get("tx").filter(function(t){return accs.some(function(a){return a.id===t.acc||a.id===t.to;});}).slice(0,8);
+  document.getElementById("asTxList").innerHTML=tx.map(WM.txRow).join("");
+  document.getElementById("asTxEmpty").hidden=tx.length>0;document.getElementById("asTxList").hidden=!tx.length;
+}
+
+document.getElementById("asReqBtn").addEventListener("click",function(){
+  var accs=WM.visibleAccounts();
+  if(!accs.length){WM.toast("Belum ada rekening yang ditugaskan untukmu.",{bad:true});return;}
+  var html='<div class="field"><label>Dari rekening</label><div class="acc-row" data-radio="acc" role="radiogroup"></div></div>'+
+    WM.field({name:"amount",label:"Nominal",type:"money",required:true})+
+    WM.field({name:"reason",label:"Alasan",required:true,placeholder:"cth: Beli buku kuliah"});
+  WM.modal({title:"Ajukan dana",body:html,submit:"Kirim pengajuan",
+   onOpen:function(d,b){b.querySelector('[data-radio="acc"]').innerHTML=accs.map(function(a){return '<button type="button" class="acc" role="radio" data-v="'+a.id+'" aria-checked="'+(a===accs[0])+'"><small>'+WM.esc(a.name)+'</small><b>'+WM.esc(a.bank)+'</b></button>';}).join("");WM.radio(b);WM.hscroll(b.querySelector(".field"));},
+   onSubmit:function(f,v){var accId=(f.querySelector('[data-radio="acc"] [aria-checked="true"]')||{}).dataset;accId=accId?accId.v:accs[0].id;
+     var r=WM.store.add("requests",{member:me.id,amount:v.amount,reason:v.reason,date:WM.today,status:"pending",acc:accId});
+     WM.store.add("notifications",{date:WM.today,kind:"approval",title:me.short+" minta dana "+WM.rp(v.amount),body:v.reason,href:"persetujuan.html",read:false});
+     WM.toast("Pengajuan dana terkirim, menunggu persetujuan Master");draw();}});});
+
+draw();
+WM.onChange(["accounts","tx","requests","notifications"],draw);
+})();
+</script>

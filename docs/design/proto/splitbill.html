@@ -1,0 +1,319 @@
+<title>Split Bill · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.stats-row{display:flex;flex-wrap:wrap;gap:14px 28px;margin-top:14px}
+.stats-row .stat{min-width:120px}
+.split-item{border:1px solid var(--line);border-radius:16px;padding:16px}
+.split-item+.split-item{margin-top:10px}
+.split-top{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px}
+.split-title{font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.split-meta{color:var(--muted);font-size:12px;margin-top:3px}
+.split-amt{text-align:right}
+.split-amt b{font-size:15.5px;display:block}
+.split-amt small{color:var(--muted);font-size:11.5px}
+.split-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.plist{display:flex;flex-direction:column}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.pav{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:12.5px;font-weight:700;color:#fff;flex:none}
+.prow .pname{font-size:13px;font-weight:600}
+.prow .pamt{color:var(--muted);font-size:11.5px}
+.prow .pacts{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.partf{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.partf .input{flex:1;min-width:120px}
+.amt-mono{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--good);white-space:nowrap}
+.tabs2{display:flex;gap:6px;margin-top:2px}
+.tabs2 button{border:0;border-radius:12px;padding:0 16px;min-height:40px;background:var(--card-2);color:var(--muted);font-weight:600;font-size:13px}
+.tabs2 button[aria-selected="true"]{background:var(--ink);color:var(--card)}
+</style>
+<main data-page="splitbill">
+  <div class="ph">
+    <div><h1>Split Bill</h1><p>Tagih bareng, tanpa drama nagih satu-satu.</p></div>
+    <div class="acts"><button class="btn primary" type="button" id="btnCreate">Buat split</button></div>
+  </div>
+
+  <section class="grid" style="margin-top:16px">
+    <div class="cover s12">
+      <small class="cap">Ditalangin bulan ini</small>
+      <p class="headline" id="hlTotal">Rp 0</p>
+      <div class="stats-row">
+        <div class="stat"><small>Sudah terkumpul</small><b id="stCollected" class="num">Rp 0</b></div>
+        <div class="stat"><small>Belum dibayar</small><b id="stUnpaid" class="num">Rp 0</b></div>
+        <div class="stat"><small>Split aktif</small><b id="stActive" class="num">0</b></div>
+      </div>
+    </div>
+
+    <div class="card s12">
+      <div class="head">
+        <div><h2>Daftar split</h2><div class="cap">Aktif dan riwayat</div></div>
+        <div class="tabs2" role="tablist" aria-label="Filter split">
+          <button role="tab" data-t="active" aria-selected="true" type="button">Aktif</button>
+          <button role="tab" data-t="history" aria-selected="false" type="button">Riwayat</button>
+        </div>
+      </div>
+      <div id="listActive" style="margin-top:14px"></div>
+      <div id="listHistory" style="margin-top:14px" hidden></div>
+    </div>
+
+    <div class="card s12">
+      <h2>Cara kerja split bill</h2>
+      <div class="note" id="howNote" style="margin-top:12px"></div>
+    </div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:document.querySelector("main").dataset.page,title:"Split Bill"});
+(function(){ if(!WM.allowed) return;
+
+var GRAD=["linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#FBBF24)","linear-gradient(135deg,#6366F1,#8B5CF6)","linear-gradient(135deg,#EC4899,#F43F5E)","linear-gradient(135deg,#3F8F2F,#9CCB3B)"];
+function tok(){return "sp"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+
+if(WM.store.get("splitBills")==null) WM.store.set("splitBills",[
+  {id:"sb1",title:"Makan malam ulang tahun Hima",totalAmount:960000,payoutAccountId:"a1",payoutInstructions:"Transfer ke BCA 7890 a.n. Christian Rizaldi",method:"equal",createdAt:"2026-09-24",revokedAt:null,
+    participants:[
+      {id:"p1",name:"Christian",amountOwed:240000,status:"paid",shareToken:tok()},
+      {id:"p2",name:"Vallencya",amountOwed:240000,status:"paid",shareToken:tok()},
+      {id:"p3",name:"Rian",amountOwed:240000,status:"claimed",shareToken:tok()},
+      {id:"p4",name:"Sinta",amountOwed:240000,status:"pending",shareToken:tok()}]},
+  {id:"sb2",title:"Sewa vila akhir tahun",totalAmount:6000000,payoutAccountId:"",payoutInstructions:"",method:"custom",createdAt:"2026-09-27",revokedAt:null,
+    participants:[
+      {id:"p5",name:"Christian",amountOwed:2000000,status:"pending",shareToken:tok()},
+      {id:"p6",name:"Budi",amountOwed:2000000,status:"pending",shareToken:tok()},
+      {id:"p7",name:"Citra",amountOwed:2000000,status:"pending",shareToken:tok()}]},
+  {id:"sb3",title:"Patungan kado pernikahan",totalAmount:500000,payoutAccountId:"a1",payoutInstructions:"BCA 7890",method:"equal",createdAt:"2026-08-15",revokedAt:null,
+    participants:[
+      {id:"p8",name:"Christian",amountOwed:250000,status:"paid",shareToken:tok()},
+      {id:"p9",name:"Dedi",amountOwed:250000,status:"paid",shareToken:tok()}]}
+]);
+
+function bills(){return WM.store.get("splitBills")||[];}
+function paidAmt(b){return b.participants.filter(function(p){return p.status==="paid";}).reduce(function(s,p){return s+p.amountOwed;},0);}
+function pct(b){if(!b.totalAmount)return 0;return Math.round(paidAmt(b)/b.totalAmount*100);}
+function isSettled(b){return b.participants.length>0 && b.participants.every(function(p){return p.status==="paid";});}
+function isActive(b){return !b.revokedAt && !isSettled(b);}
+
+function splitEqually(total,count){if(count<=0)return[];var base=Math.floor(total/count),left=total-base*count;return Array.from({length:count},function(_,i){return base+(i<left?1:0);});}
+function sumCustom(ids,amounts){return ids.reduce(function(s,id){return s+(WM.parseMoney(amounts[id]||"0"));},0);}
+function remainder(total,ids,amounts){return total-sumCustom(ids,amounts);}
+
+function initials(n){return (n||"?").trim().slice(0,1).toUpperCase();}
+
+function statusPill(s){
+  if(s==="paid")return '<span class="pill good">Lunas</span>';
+  if(s==="claimed")return '<span class="pill warn">Diklaim</span>';
+  return '<span class="pill">Belum bayar</span>';
+}
+
+function draw(){
+  var all=bills(),active=all.filter(isActive),history=all.filter(function(b){return !isActive(b);});
+  var totalDitalangin=active.reduce(function(s,b){return s+b.totalAmount;},0);
+  var totalTerkumpul=active.reduce(function(s,b){return s+paidAmt(b);},0);
+  document.getElementById("hlTotal").textContent=WM.rp(totalDitalangin);
+  document.getElementById("stCollected").textContent=WM.rp(totalTerkumpul);
+  document.getElementById("stUnpaid").textContent=WM.rp(totalDitalangin-totalTerkumpul);
+  document.getElementById("stActive").textContent=active.length;
+
+  document.getElementById("listActive").innerHTML= active.length? active.map(function(b){return itemHTML(b,true);}).join("") :
+    '<div class="empty"><span class="ic">'+WM.icon("split",24)+'</span><b>Belum ada split aktif</b><p>Buat split pertamamu untuk mulai menagih bareng-bareng.</p></div>';
+  document.getElementById("listHistory").innerHTML= history.length? history.map(function(b){return itemHTML(b,false);}).join("") :
+    '<div class="empty"><span class="ic">'+WM.icon("clock",24)+'</span><b>Belum ada riwayat</b><p>Split yang lunas atau dicabut akan muncul di sini.</p></div>';
+
+  [].slice.call(document.querySelectorAll("[data-open]")).forEach(function(btn){btn.onclick=function(){openDetail(btn.dataset.open);};});
+}
+
+function itemHTML(b,active){
+  var badge = b.revokedAt ? '<span class="pill bad">Dicabut</span>' : isSettled(b) ? '<span class="pill good">Lunas</span>' : !b.payoutAccountId ? '<span class="pill bad">Rekening belum diisi</span>' : '<span class="pill warn">Belum lunas</span>';
+  var p=pct(b);
+  return '<div class="split-item">'+
+    '<div class="split-top"><div><div class="split-title">'+WM.esc(b.title)+' '+badge+'</div>'+
+    '<div class="split-meta">'+b.participants.length+' orang · '+WM.date(b.createdAt)+'</div></div>'+
+    '<div class="split-amt"><b class="num">'+WM.rp(b.totalAmount)+'</b></div></div>'+
+    '<div class="track" style="margin-top:12px"><i style="width:'+p+'%;background:'+(p>=75?"var(--good)":"var(--orange)")+'"></i></div>'+
+    '<div class="split-foot"><span class="cap">'+WM.rp(paidAmt(b))+' terkumpul · '+p+'%</span>'+
+    '<button class="btn sm" type="button" data-open="'+b.id+'">'+WM.icon("share",14,2)+' Detail</button></div>'+
+  '</div>';
+}
+
+/* ---------- create dialog ---------- */
+var localParts=[];
+function seedParts(){localParts=[{id:1,name:"Andi"},{id:2,name:"Budi"},{id:3,name:"Citra"}];}
+seedParts();
+var customAmounts={};
+
+document.getElementById("btnCreate").onclick=openCreate;
+function openCreate(){
+  var accs=WM.visibleAccounts();
+  seedParts();customAmounts={};
+  var d=WM.modal({title:"Buat split baru",size:"lg",submit:"Buat & bagikan link",body:
+    WM.field({name:"title",label:"Judul tagihan",required:true,placeholder:"Misal: Makan malam kantor"})+
+    WM.field({name:"total",label:"Total tagihan",type:"money",required:true})+
+    WM.field({name:"payoutAccountId",label:"Rekening tujuan",type:"select",required:true,placeholder:"Pilih rekening",options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];}),hint:"Ke sini dana akan masuk setelah kamu konfirmasi pembayaran."})+
+    WM.field({name:"payoutInstructions",label:"Instruksi pembayaran",optional:true,placeholder:"Misal: transfer ke BCA 7890 a.n. Christian"})+
+    '<div class="field"><label>Metode split</label><div data-radio="method" role="radiogroup" class="seg full"><button role="radio" data-v="equal" aria-checked="true" type="button">Rata</button><button role="radio" data-v="custom" aria-checked="false" type="button">Custom</button></div></div>'+
+    '<div class="field"><label>Peserta (<span id="pcount">3</span>)</label><div id="partRows"></div>'+
+    '<button class="btn ghost sm block" type="button" id="addPart" style="margin-top:8px">'+WM.icon("plus",14,2)+' Tambah peserta</button>'+
+    '<div class="note" id="methodNote" style="margin-top:10px"></div></div>',
+    onOpen:function(d,body){
+      WM.radio(d);
+      renderParts(d);
+      var mradio=d.querySelector('[data-radio="method"]');
+      mradio.addEventListener("click",function(){setTimeout(function(){renderParts(d);},0);});
+      d.querySelector("#addPart").onclick=function(){localParts.push({id:Date.now(),name:"Peserta "+(localParts.length+1)});renderParts(d);};
+      d.querySelector('[name="total"]').addEventListener("input",function(){renderParts(d);});
+    },
+    onSubmit:function(f,v){
+      var method=(f.querySelector('[data-radio="method"] [aria-checked="true"]')||{}).dataset.v||"equal";
+      if(localParts.length<2)return "Minimal 2 peserta.";
+      if(!v.payoutAccountId)return "Pilih rekening tujuan dulu.";
+      var total=v.total;
+      var ids=localParts.map(function(p){return p.id;});
+      var shares;
+      if(method==="equal"){shares=splitEqually(total,localParts.length);}
+      else{
+        var rem=remainder(total,ids,customAmounts);
+        if(rem!==0)return rem>0?("Kurang "+WM.rp(rem)+" lagi supaya pas."):("Lebih "+WM.rp(Math.abs(rem))+", kurangi dulu.");
+        shares=localParts.map(function(p){return WM.parseMoney(customAmounts[p.id]||"0");});
+      }
+      var names=[].slice.call(document.querySelectorAll("#partRows [data-pname]")).reduce(function(m,el){m[el.dataset.pname]=el.value.trim();return m;},{});
+      var participants=localParts.map(function(p,i){return {id:WM.uid("pt"),name:(names[p.id]||p.name||("Peserta "+(i+1))),amountOwed:shares[i]||0,status:"pending",shareToken:tok()};});
+      var bill={title:v.title,totalAmount:total,payoutAccountId:v.payoutAccountId,payoutInstructions:v.payoutInstructions||"",method:method,createdAt:WM.today,revokedAt:null,participants:participants};
+      var created=WM.store.add("splitBills",bill);
+      WM.toast("Split dibuat. Tautan tiap peserta siap dibagikan.");
+      draw();
+      setTimeout(function(){openDetail(created.id);},150);
+    }});
+}
+
+function renderParts(dialog,skipReadTotal){
+  var totalEl=dialog.querySelector('[name="total"]'), total=WM.parseMoney(totalEl.value);
+  var method=(dialog.querySelector('[data-radio="method"] [aria-checked="true"]')||{}).dataset.v||"equal";
+  dialog.querySelector("#pcount").textContent=localParts.length;
+  var shares = method==="equal" ? splitEqually(total,localParts.length) : [];
+  var rows=localParts.map(function(p,i){
+    var amtField = method==="equal"
+      ? '<span class="amt-mono num">'+WM.rp(shares[i]||0)+'</span>'
+      : '<input class="input mono" style="width:120px" inputmode="numeric" data-pamt="'+p.id+'" placeholder="0" value="'+WM.esc(customAmounts[p.id]||"")+'">';
+    return '<div class="partf" style="margin-top:8px"><input class="input" data-pname="'+p.id+'" value="'+WM.esc(p.name)+'" aria-label="Nama peserta">'+amtField+
+      (localParts.length>2?'<button class="ibtn danger" type="button" data-rmpart="'+p.id+'" aria-label="Hapus peserta">'+WM.icon("x",14,2)+'</button>':'')+'</div>';
+  }).join("");
+  dialog.querySelector("#partRows").innerHTML=rows;
+  dialog.querySelectorAll("[data-pamt]").forEach(function(inp){
+    inp.addEventListener("input",function(){customAmounts[inp.dataset.pamt]=inp.value.replace(/\D/g,"").replace(/\B(?=(\d{3})+(?!\d))/g,".");inp.value=customAmounts[inp.dataset.pamt];updateNote(dialog);});
+  });
+  dialog.querySelectorAll("[data-rmpart]").forEach(function(btn){
+    btn.onclick=function(){localParts=localParts.filter(function(p){return String(p.id)!==btn.dataset.rmpart;});delete customAmounts[btn.dataset.rmpart];renderParts(dialog);};
+  });
+  updateNote(dialog);
+}
+function updateNote(dialog){
+  var totalEl=dialog.querySelector('[name="total"]'), total=WM.parseMoney(totalEl.value);
+  var method=(dialog.querySelector('[data-radio="method"] [aria-checked="true"]')||{}).dataset.v||"equal";
+  var note=dialog.querySelector("#methodNote");
+  if(method==="equal"){
+    var shares=splitEqually(total,localParts.length);
+    note.className="note";note.textContent="Per orang: "+WM.rp(shares[shares.length-1]||0);
+  }else{
+    var ids=localParts.map(function(p){return p.id;});
+    var rem=remainder(total,ids,customAmounts);
+    if(total<=0){note.className="note";note.textContent="Isi total tagihan dulu untuk melihat sisa alokasi.";}
+    else if(rem===0){note.className="note";note.textContent="Pas! Jumlah semua peserta sama dengan total.";}
+    else if(rem>0){note.className="note warn";note.textContent="Kurang "+WM.rp(rem)+" lagi.";}
+    else{note.className="note bad";note.textContent="Lebih "+WM.rp(Math.abs(rem))+", kurangi salah satu.";}
+  }
+}
+
+/* ---------- detail / share dialog ---------- */
+function openDetail(id){
+  var b=WM.store.find("splitBills",id);if(!b)return;
+  var accName=b.payoutAccountId?(function(){var a=WM.account(b.payoutAccountId);return a?a.bank+" · "+a.name:"Rekening tidak ditemukan";})():"";
+  var body='<div class="cap num">'+WM.rp(b.totalAmount)+' · '+b.participants.length+' orang'+(b.participants.length?(' · '+WM.rp(Math.round(b.totalAmount/b.participants.length))+'/orang'):'')+'</div>';
+  if(b.revokedAt)body+='<div class="note bad" style="margin-top:12px">'+WM.icon("alert",16)+' Tautan split ini sudah dicabut. Peserta tidak bisa membuka linknya lagi.</div>';
+  if(!b.payoutAccountId)body+='<div class="note warn" style="margin-top:12px">'+WM.icon("alert",16)+'<span style="flex:1">Rekening tujuan belum diisi, konfirmasi pembayaran belum bisa dilakukan.</span><button class="btn sm" type="button" id="btnEditPayout">Isi rekening</button></div>';
+  else body+='<div class="note" style="margin-top:12px">'+WM.icon("info",16)+' Dana masuk ke '+WM.esc(accName)+(b.payoutInstructions?' · '+WM.esc(b.payoutInstructions):'')+'</div>';
+  body+='<div class="cap" style="margin-top:16px;font-weight:600;color:var(--ink)">Status pembayaran</div><div class="plist" id="plist" style="margin-top:6px"></div>';
+
+  var d=WM.modal({title:b.title,size:"lg",submit:false,noFoot:false,cancel:"Tutup",body:body,
+    onOpen:function(dl,bd){
+      renderParticipants(dl,b);
+      var ep=dl.querySelector("#btnEditPayout");
+      if(ep)ep.onclick=function(){openEditPayout(b.id,dl);};
+    }});
+  var foot=d.querySelector(".sheet-foot");
+  if(foot && !b.revokedAt){
+    var rv=document.createElement("button");rv.type="button";rv.className="btn danger";rv.textContent="Cabut semua link";
+    rv.onclick=function(){
+      WM.confirm({title:"Cabut semua link?",text:"Semua tautan bagian peserta untuk \""+b.title+"\" akan berhenti berfungsi. Tindakan ini tidak bisa dibatalkan.",confirm:"Ya, cabut",danger:true}).then(function(ok){
+        if(!ok)return;
+        WM.store.update("splitBills",b.id,{revokedAt:WM.today});
+        WM.toast("Semua link split dicabut");
+        d.close();draw();
+      });
+    };
+    foot.insertBefore(rv,foot.querySelector('[type="submit"]')||null);
+  }
+}
+
+function renderParticipants(dialog,b){
+  var box=dialog.querySelector("#plist");
+  box.innerHTML=b.participants.map(function(p,i){
+    return '<div class="prow"><span class="pav" style="background:'+GRAD[i%GRAD.length]+'">'+initials(p.name)+'</span>'+
+      '<span style="min-width:0"><span class="pname" style="display:block">'+WM.esc(p.name)+'</span><span class="pamt num">'+WM.rp(p.amountOwed)+'</span></span>'+
+      '<span class="pacts">'+statusPill(p.status)+
+      (p.status!=="paid"?'<button class="btn sm" type="button" data-markpaid="'+p.id+'">Tandai lunas</button>':'')+
+      '<button class="ibtn" type="button" data-copylink="'+p.id+'" aria-label="Salin tautan '+WM.esc(p.name)+'"'+(b.revokedAt?' disabled':'')+'>'+WM.icon("link",15,2)+'</button>'+
+      '</span></div>';
+  }).join("");
+  box.querySelectorAll("[data-markpaid]").forEach(function(btn){
+    btn.onclick=function(){
+      var pid=btn.dataset.markpaid,p=b.participants.filter(function(x){return x.id===pid;})[0];
+      WM.confirm({title:"Konfirmasi pembayaran "+p.name+"?",text:"Dana "+WM.rp(p.amountOwed)+" akan dicatat sebagai pemasukan ke rekening tujuan. Tindakan ini tidak bisa dibatalkan.",confirm:"Ya, konfirmasi"}).then(function(ok){
+        if(!ok)return;
+        var fresh=WM.store.find("splitBills",b.id);
+        fresh.participants=fresh.participants.map(function(x){return x.id===pid?Object.assign({},x,{status:"paid"}):x;});
+        WM.store.update("splitBills",b.id,{participants:fresh.participants});
+        if(fresh.payoutAccountId)WM.addTx({type:"in",amount:p.amountOwed,acc:fresh.payoutAccountId,cat:"c-lain-in",note:"Split: "+fresh.title+" · "+p.name});
+        WM.toast("Pembayaran "+p.name+" dikonfirmasi, dana masuk (simulasi)");
+        b=WM.store.find("splitBills",b.id);renderParticipants(dialog,b);draw();
+      });
+    };
+  });
+  box.querySelectorAll("[data-copylink]").forEach(function(btn){
+    btn.onclick=function(){
+      var pid=btn.dataset.copylink,p=b.participants.filter(function(x){return x.id===pid;})[0];
+      var url=location.origin+location.pathname.replace(/splitbill\.html$/,"")+"split.html?t="+p.shareToken;
+      WM.copy(url,"Tautan "+p.name);
+    };
+  });
+}
+
+function openEditPayout(id,parentDialog){
+  var b=WM.store.find("splitBills",id),accs=WM.visibleAccounts();
+  WM.modal({title:"Isi rekening tujuan",size:"sm",submit:"Simpan",body:
+    WM.field({name:"payoutAccountId",label:"Rekening tujuan",type:"select",required:true,placeholder:"Pilih rekening",options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];}),hint:"Peserta melihat ini di tautan bagian mereka."}),
+    onSubmit:function(f,v){
+      WM.store.update("splitBills",id,{payoutAccountId:v.payoutAccountId});
+      WM.toast("Rekening tujuan diperbarui");
+      draw();
+      if(parentDialog)parentDialog.close();
+      setTimeout(function(){openDetail(id);},150);
+    }});
+}
+
+/* tabs */
+document.querySelectorAll('.tabs2 [role="tab"]').forEach(function(btn){
+  btn.onclick=function(){
+    document.querySelectorAll('.tabs2 [role="tab"]').forEach(function(b){b.setAttribute("aria-selected",b===btn);});
+    document.getElementById("listActive").hidden=btn.dataset.t!=="active";
+    document.getElementById("listHistory").hidden=btn.dataset.t!=="history";
+  };
+});
+
+document.getElementById("howNote").innerHTML=WM.icon("info",16)+' Setiap peserta dapat tautan bagiannya sendiri (split.html). Mereka klaim, kamu konfirmasi setelah dana masuk ke rekening tujuan.';
+
+draw();
+WM.onChange(["splitBills","accounts"],draw);
+})();
+</script>

@@ -1,0 +1,220 @@
+<title>Investasi · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.ilogo{width:32px;height:32px;border-radius:99px;display:grid;place-items:center;font-size:9.5px;font-weight:800;color:#fff;flex:none}
+.irow{display:flex;align-items:center;gap:10px}
+.irow .meta small{color:var(--muted);display:block}
+.irow .meta a{font-size:10.5px;font-weight:600;color:var(--good);background:none;border:0;padding:0;margin-top:2px;display:inline-block}
+</style>
+<main data-page="investasi">
+  <div class="ph">
+    <div><h1>Investasi</h1><p id="phSub"></p></div>
+    <div class="acts"><button class="btn" type="button" id="goldBtn" hidden>Atur harga emas</button><button class="btn" type="button" id="refresh">Perbarui harga</button><button class="btn primary" type="button" id="add">+ Catat investasi</button></div>
+  </div>
+
+  <section class="grid">
+    <div class="cover s4 enter"><small class="cap">Nilai portofolio</small><div class="big" id="stValue" style="font-size:30px"></div><p class="muted" id="stCap" style="margin:4px 0 0;font-size:12.5px"></p></div>
+    <div class="card s4 enter"><small class="cap">Untung / rugi</small><div class="big" id="stReturn" style="font-size:26px;margin-top:4px"></div><span class="chg" id="stReturnPct" style="margin-top:8px"></span></div>
+    <div class="card s4 enter"><small class="cap">Dividen & bunga tercatat</small><div class="big" id="stDiv" style="font-size:26px;margin-top:4px"></div><p class="muted" style="margin:4px 0 0;font-size:12px">Dari transaksi kategori Investasi</p></div>
+
+    <div class="card s12 note enter" id="srcNote" style="align-items:flex-start"></div>
+
+    <div class="s12 enter"><div class="chips-f" id="filters"></div></div>
+
+    <div class="card s5 enter" id="allocCard" hidden>
+      <div class="head"><h2>Kepemilikan</h2><div class="cap" id="allocN"></div></div>
+      <div style="display:flex;align-items:center;justify-content:center;min-height:180px;margin-top:6px"><div class="chart" id="donut" style="width:180px;height:180px"></div></div>
+      <div class="legend" id="legend" style="margin-top:6px"></div>
+    </div>
+    <div class="card s7 enter">
+      <div class="head"><h2>Modal vs Nilai per posisi</h2><div class="cap">Perbandingan hari ini, bukan tren historis</div></div>
+      <div class="chart" id="cmp" style="height:220px;margin-top:8px"></div>
+    </div>
+
+    <div class="card s12 flush enter" style="padding:20px">
+      <div class="head"><h2>Portofolio</h2><span class="cap" id="posN"></span></div>
+      <div class="tw" style="margin-top:10px"><table class="tbl">
+        <thead><tr><th>Nama</th><th>Jenis</th><th>Jumlah</th><th>Harga / Sumber</th><th>Modal</th><th>Nilai</th><th>Untung / Rugi</th><th></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table></div>
+      <div class="empty" id="empty" hidden><b>Belum ada investasi</b><p>Catat saham, reksa dana, emas atau instrumen lain.</p></div>
+    </div>
+
+    <div class="card s12 enter" id="divCard" hidden>
+      <div class="head"><h2>Dividen & Bunga</h2><a href="transaksi.html" class="more" id="divMore">Semua transaksi</a></div>
+      <div class="list" id="divList" style="margin-top:8px"></div>
+    </div>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"investasi",title:"Investasi"});
+(function(){ if(!WM.allowed) return;
+var TYPES=[["saham","Saham","#0061AF"],["reksadana","Reksa Dana","#7C3AED"],["obligasi","Obligasi","#1E3A5F"],["emas","Emas","#D97706"],["kripto","Kripto","#F97316"],["deposito","Deposito","#0F766E"],["lainnya","Lainnya","#6B7280"]];
+var TCOL={};TYPES.forEach(function(t){TCOL[t[0]]=t[2];});
+var TLABEL={};TYPES.forEach(function(t){TLABEL[t[0]]=t[1];});
+var UNIT={saham:"lembar",reksadana:"unit",obligasi:"lembar",emas:"gram",kripto:"koin",deposito:"bilyet",lainnya:"unit"};
+var AUTOMATED={saham:1,kripto:1};
+var active="semua";
+
+function settings(){return WM.store.ensure("settings",{goldPricePerGram:1180000});}
+function ensureFields(){var inv=WM.store.get("investments"),touched=false;
+  inv=inv.map(function(h){if(h.priceSource)return h;touched=true;var patch={priceSource:"cost",purchasedAt:h.purchasedAt||"2025-11-02"};
+    if(h.kind==="emas"){patch.priceSource="family-gold";if(h.unit==="kg"){patch.qty=h.qty*1000;patch.unit="gram";}}
+    if(h.kind==="deposito"){patch.priceSource="computed";patch.interestRatePct=h.interestRatePct||6.25;patch.maturityDate=h.maturityDate||"2027-03-01";}
+    return Object.assign({},h,patch);});
+  if(touched)WM.store.set("investments",inv);
+  return WM.store.get("investments");
+}
+
+function fmtQty(h){var u=UNIT[h.kind]||"unit",d=h.kind==="emas"?3:(u==="lembar"||u==="koin"?4:2);return (+h.qty||0).toLocaleString("id-ID",{maximumFractionDigits:d})+" "+u;}
+function computedDepositoValue(h){var months=Math.max(0,(new Date(WM.today)-new Date(h.purchasedAt))/2.628e9);return Math.round(h.cost*(1+(h.interestRatePct/100)*(months/12)));}
+function currentValue(h){
+  if(h.priceSource==="computed")return computedDepositoValue(h);
+  if(h.priceSource==="family-gold")return Math.round(h.qty*settings().goldPricePerGram);
+  if(h.priceSource==="manual"&&h.manualPrice)return Math.round(h.qty*h.manualPrice);
+  return h.value!=null?h.value:h.cost;
+}
+function priceSourceCell(h){
+  if(h.priceSource==="computed")return '<div class="mono">'+h.interestRatePct+'% / th</div><span class="pill">Nilai dihitung</span>';
+  if(h.priceSource==="family-gold")return '<div class="mono">'+WM.rp(settings().goldPricePerGram)+' / gram</div><span class="pill warn">Harga emas keluarga</span>';
+  if(h.priceSource==="manual"&&h.manualPrice)return '<div class="mono">'+WM.rp(h.manualPrice)+'</div><span class="pill">Harga manual · '+WM.date(h.manualPriceDate||WM.today)+'</span>';
+  if(AUTOMATED[h.kind])return '<span class="muted" style="font-size:12px">Live belum tersedia di prototipe</span><br><span class="pill warn">Pakai harga beli</span>';
+  return '<span class="muted" style="font-size:12px">Belum ada harga manual</span>';
+}
+function logoBg(h){return TCOL[h.kind]||"#6B7280";}
+function logoText(h){return (h.ticker||h.name).slice(0,3).toUpperCase();}
+
+function draw(){
+  var inv=ensureFields(),filtered=inv.filter(function(h){return active==="semua"||h.kind===active;});
+  var totalCost=inv.reduce(function(s,h){return s+h.cost;},0),totalVal=inv.reduce(function(s,h){return s+currentValue(h);},0);
+  var ret=totalVal-totalCost,retPct=totalCost?ret/totalCost*100:0;
+  document.getElementById("phSub").textContent=inv.length+" posisi tercatat";
+  document.getElementById("stValue").textContent=WM.rp(totalVal);
+  document.getElementById("stCap").textContent="Modal "+WM.rp(totalCost);
+  document.getElementById("stReturn").innerHTML='<span class="'+(ret>=0?"pos":"neg")+'">'+WM.rp(ret,true)+'</span>';
+  document.getElementById("stReturnPct").className="chg "+(ret>=0?"up":"dn");
+  document.getElementById("stReturnPct").textContent=(ret>=0?"+":"")+WM.pct(retPct);
+
+  var divTx=WM.store.get("tx").filter(function(t){return t.cat==="c-invest"&&t.type==="in";});
+  var divTotal=divTx.reduce(function(s,t){return s+t.amount;},0);
+  document.getElementById("stDiv").textContent=WM.short(divTotal);
+  var dc=document.getElementById("divCard");dc.hidden=!divTx.length;
+  document.getElementById("divList").innerHTML=divTx.map(WM.txRow).join("");
+
+  var live=inv.filter(function(h){return AUTOMATED[h.kind];}).length;
+  document.getElementById("srcNote").innerHTML=WM.icon("info",18)+'<span><strong>Harga otomatis belum aktif di prototipe ini</strong> ('+live+' posisi saham/kripto pakai harga beli sebagai gantinya). Emas mengikuti harga emas keluarga (acuan emasantam.id per kg, diatur manual). Reksa dana, obligasi dan lainnya pakai harga manual yang kamu masukkan sendiri; deposito dihitung dari bunga berjalan. Tidak ada harga yang disimulasikan.</span>';
+
+  var fdiv=document.getElementById("filters");
+  fdiv.innerHTML=['<button type="button" aria-pressed="'+(active==="semua")+'" data-t="semua">Semua</button>'].concat(TYPES.map(function(t){
+    return '<button type="button" aria-pressed="'+(active===t[0])+'" data-t="'+t[0]+'">'+t[1]+'</button>';})).join("");
+  fdiv.querySelectorAll("button").forEach(function(b){b.onclick=function(){active=b.dataset.t;draw();};});
+
+  var byType={};inv.forEach(function(h){byType[h.kind]=(byType[h.kind]||0)+currentValue(h);});
+  var segs=Object.keys(byType).filter(function(k){return byType[k]>0;}).map(function(k){return [TLABEL[k]||k,byType[k],TCOL[k]||"#6B7280"];});
+  var ac=document.getElementById("allocCard");ac.hidden=!segs.length;
+  if(segs.length){document.getElementById("allocN").textContent=filtered.length+" posisi";
+    WM.chart.donut(document.getElementById("donut"),{items:segs,center:WM.short(totalVal),sub:"Total"});
+    document.getElementById("legend").innerHTML=WM.legend(segs.map(function(s){return [s[0],s[2],WM.short(s[1])];}));}
+
+  WM.chart.bars(document.getElementById("cmp"),{labels:filtered.map(function(h){return h.name.length>9?h.name.slice(0,8)+"…":h.name;}),
+    series:[{d:filtered.map(function(h){return h.cost;}),c:"var(--cghost)",n:"Modal"},{d:filtered.map(currentValue),c:"var(--lime)",n:"Nilai"}],fmt:WM.short});
+
+  document.getElementById("posN").textContent=filtered.length+" posisi";
+  document.getElementById("empty").hidden=filtered.length>0;
+  document.getElementById("tbody").innerHTML=filtered.map(function(h){
+    var val=currentValue(h),r=val-h.cost,rp=h.cost?r/h.cost*100:0;
+    return '<tr><td><div class="irow"><span class="ilogo" style="background:'+logoBg(h)+'">'+WM.esc(logoText(h))+'</span><div class="meta"><b>'+WM.esc(h.name)+'</b>'+
+      (h.ticker?'<small>'+WM.esc(h.ticker)+' · dibeli '+WM.date(h.purchasedAt)+'</small>':'<small>Dibeli '+WM.date(h.purchasedAt)+'</small>')+
+      '<a href="#" data-detail="'+h.id+'">Lihat detail</a></div></div></td>'+
+      '<td><span class="pill">'+(TLABEL[h.kind]||h.kind)+'</span></td>'+
+      '<td class="mono" style="white-space:nowrap">'+fmtQty(h)+'</td>'+
+      '<td style="white-space:nowrap">'+priceSourceCell(h)+'</td>'+
+      '<td class="r num">'+WM.rp(h.cost)+'</td><td class="r num" style="font-weight:700">'+WM.rp(val)+'</td>'+
+      '<td class="r '+(r>=0?"pos":"neg")+'"><div class="num">'+WM.rp(r,true)+'</div><small>'+(r>=0?"+":"")+WM.pct(rp)+'</small></td>'+
+      '<td><div style="display:flex;gap:4px;justify-content:flex-end">'+(WM.isOwner()?'<button class="ibtn" type="button" data-buysell="'+h.id+'" aria-label="Beli/Jual">'+WM.icon("swap",15)+'</button><button class="ibtn" type="button" data-edit="'+h.id+'" aria-label="Ubah">'+WM.icon("edit",15)+'</button><button class="ibtn danger" type="button" data-del="'+h.id+'" aria-label="Hapus">'+WM.icon("trash",15)+'</button>':'')+'</div></td></tr>';
+  }).join("");
+  document.querySelectorAll("[data-detail]").forEach(function(a){a.onclick=function(e){e.preventDefault();openDetail(a.dataset.detail);};});
+  document.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){openForm(WM.store.find("investments",b.dataset.edit));};});
+  document.querySelectorAll("[data-del]").forEach(function(b){b.onclick=function(){delHolding(b.dataset.del);};});
+  document.querySelectorAll("[data-buysell]").forEach(function(b){b.onclick=function(){openBuySell(WM.store.find("investments",b.dataset.buysell));};});
+}
+
+function accountOptions(){return WM.visibleAccounts().filter(function(a){return a.type!=="cc";}).map(function(a){return [a.id,a.bank+" · "+a.name];});}
+
+function openForm(edit){
+  var t=edit?edit.kind:"saham";
+  function fieldsFor(kind){
+    var f=WM.field({name:"kind",label:"Jenis",type:"select",required:true,options:TYPES.map(function(x){return [x[0],x[1]];}),value:kind})+
+      WM.field({name:"name",label:"Nama Instrumen",required:true,placeholder:"cth: Bank Central Asia",value:edit?edit.name:""})+
+      WM.field({name:"ticker",label:"Kode / Ticker",optional:kind!=="saham"&&kind!=="kripto",required:kind==="saham"||kind==="kripto",placeholder:"cth: BBCA",value:edit?(edit.ticker||""):""})+
+      '<div class="two">'+WM.field({name:"qty",label:"Jumlah ("+(UNIT[kind]||"unit")+")",type:"number",required:true,value:edit?edit.qty:"",attrs:'step="any" min="0"'})+
+      WM.field({name:"cost",label:"Modal Awal",type:"money",required:true,value:edit?edit.cost:0})+'</div>'+
+      WM.field({name:"purchasedAt",label:"Tanggal Beli",type:"date",required:true,value:edit?edit.purchasedAt:WM.today,attrs:'max="'+WM.today+'"'});
+    if(kind==="obligasi"||kind==="deposito")f+=WM.field({name:"interestRatePct",label:"Suku Bunga / Tahun",type:"percent",required:true,value:edit?edit.interestRatePct:""});
+    if(kind==="deposito")f+=WM.field({name:"maturityDate",label:"Jatuh Tempo",type:"date",optional:true,value:edit?edit.maturityDate:""});
+    if(kind==="emas")f+='<div class="note">'+WM.icon("gold",16)+'<span>Nilai emas mengikuti harga emas keluarga (acuan emasantam.id per kg), diatur lewat tombol "Atur harga emas" di tabel.</span></div>';
+    if(kind!=="deposito"&&kind!=="emas"&&!AUTOMATED[kind])f+=WM.field({name:"manualPrice",label:"Harga Manual per "+(UNIT[kind]||"unit"),type:"money",optional:true,value:edit?(edit.manualPrice||""):""})+
+      WM.field({name:"manualPriceDate",label:"Tanggal Harga",type:"date",optional:true,value:edit?(edit.manualPriceDate||""):WM.today});
+    return f;
+  }
+  var d=WM.modal({title:edit?"Ubah investasi":"Catat investasi",size:"lg",body:fieldsFor(t),submit:"Simpan",
+    onOpen:function(d,b){function bindKind(){var s=b.querySelector('select[name="kind"]');if(!s)return;s.addEventListener("change",function(e){b.innerHTML=fieldsFor(e.target.value);WM.wire(b);bindKind();});}bindKind();},
+    onSubmit:function(f,v){
+      var priceSource="cost";if(v.kind==="emas")priceSource="family-gold";else if(v.kind==="deposito")priceSource="computed";else if(v.manualPrice)priceSource="manual";else if(!AUTOMATED[v.kind])priceSource="cost";
+      var patch={kind:v.kind,name:v.name,ticker:v.ticker||"",qty:parseFloat(v.qty)||0,cost:v.cost,unit:UNIT[v.kind],purchasedAt:v.purchasedAt,
+        interestRatePct:v.interestRatePct||null,maturityDate:v.maturityDate||null,manualPrice:v.manualPrice||null,manualPriceDate:v.manualPriceDate||null,priceSource:priceSource};
+      if(priceSource==="manual")patch.value=Math.round(patch.qty*v.manualPrice);else if(priceSource==="cost")patch.value=patch.cost;
+      if(edit)WM.store.update("investments",edit.id,patch);else WM.store.add("investments",patch);
+      WM.toast("Investasi "+(edit?"diperbarui":"dicatat"));}});
+}
+function delHolding(id){var h=WM.store.find("investments",id);if(!h)return;
+  WM.confirm({title:'Hapus "'+h.name+'"?',text:"Posisi ini akan dihapus dari portofolio.",confirm:"Hapus",danger:true}).then(function(ok){
+    if(!ok)return;WM.store.remove("investments",id);WM.toast("Investasi dihapus");draw();});}
+
+function openBuySell(h){
+  if(!h)return;
+  var body='<div class="seg full" data-radio="tx" role="radiogroup" aria-label="Jenis"><button type="button" role="radio" data-v="buy" aria-checked="true">Beli</button><button type="button" role="radio" data-v="sell" aria-checked="false">Jual</button></div>'+
+   WM.field({name:"qty",label:"Jumlah ("+(UNIT[h.kind]||"unit")+")",type:"number",required:true,attrs:'step="any" min="0"'})+
+   WM.field({name:"price",label:"Harga per "+(UNIT[h.kind]||"unit"),type:"money",required:true,value:h.priceSource==="manual"?h.manualPrice:(h.cost&&h.qty?Math.round(h.cost/h.qty):0)})+
+   WM.field({name:"acc",label:"Sumber dana / setoran",type:"select",optional:true,options:[["","Tidak dicatat ke akun"]].concat(accountOptions())})+
+   WM.field({name:"date",label:"Tanggal",type:"date",required:true,value:WM.today,attrs:'max="'+WM.today+'"'});
+  WM.modal({title:h.name,sub:"Catat transaksi beli atau jual",body:body,submit:"Simpan",
+    onOpen:function(d,b){WM.radio(b);},
+    onSubmit:function(f,v){
+      var type=(b_radio(f)),qty=parseFloat(v.qty)||0,cost=qty*v.price;
+      if(type==="buy"){var newQty=h.qty+qty,newCost=h.cost+cost;WM.store.update("investments",h.id,{qty:newQty,cost:newCost,value:h.priceSource==="cost"?newCost:h.value});
+        if(v.acc)WM.addTx({type:"out",amount:cost,acc:v.acc,cat:"c-invest",date:v.date,note:"Beli "+h.name});
+        WM.toast("Pembelian "+qty+" "+(UNIT[h.kind]||"unit")+" tersimpan");}
+      else{qty=Math.min(qty,h.qty);var ratio=h.qty?qty/h.qty:0,removedCost=h.cost*ratio,proceeds=qty*v.price;
+        WM.store.update("investments",h.id,{qty:h.qty-qty,cost:h.cost-removedCost,value:h.priceSource==="cost"?h.cost-removedCost:h.value});
+        if(v.acc)WM.addTx({type:"in",amount:proceeds,acc:v.acc,cat:"c-invest",date:v.date,note:"Jual "+h.name});
+        WM.toast("Penjualan "+qty+" "+(UNIT[h.kind]||"unit")+" tersimpan");}
+    }});
+  function b_radio(f){var g=f.querySelector('[data-radio="tx"] [aria-checked="true"]');return g?g.dataset.v:"buy";}
+}
+
+function openDetail(id){
+  var h=WM.store.find("investments",id);if(!h)return;
+  var val=currentValue(h),r=val-h.cost,rp=h.cost?r/h.cost*100:0;
+  WM.modal({title:h.name,sub:(TLABEL[h.kind]||h.kind)+(h.ticker?" · "+h.ticker:""),submit:false,cancel:"Tutup",body:
+    '<dl class="kv"><dt>Jumlah</dt><dd class="num">'+fmtQty(h)+'</dd><dt>Modal</dt><dd class="num">'+WM.rp(h.cost)+'</dd>'+
+    '<dt>Nilai sekarang</dt><dd class="num">'+WM.rp(val)+'</dd><dt>Untung / rugi</dt><dd class="num '+(r>=0?"pos":"neg")+'">'+WM.rp(r,true)+' ('+WM.pct(rp)+')</dd>'+
+    '<dt>Tanggal beli</dt><dd>'+WM.date(h.purchasedAt,true)+'</dd>'+(h.maturityDate?'<dt>Jatuh tempo</dt><dd>'+WM.date(h.maturityDate,true)+'</dd>':'')+'</dl>'+
+    '<div class="divider"></div><div style="font-size:13px">'+priceSourceCell(h)+'</div>'});
+}
+
+function goldSettingsPrompt(){WM.modal({title:"Atur harga emas keluarga",size:"sm",sub:"Acuan emasantam.id per kg, dikonversi ke per gram.",body:
+  WM.field({name:"perGram",label:"Harga per gram",type:"money",required:true,value:settings().goldPricePerGram}),submit:"Simpan",
+  onSubmit:function(f,v){WM.store.set("settings",Object.assign({},settings(),{goldPricePerGram:v.perGram}));WM.toast("Harga emas keluarga diperbarui");draw();}});}
+
+document.getElementById("add").onclick=function(){openForm(null);};
+document.getElementById("refresh").onclick=function(){WM.toast("Harga otomatis belum tersedia di prototipe ini (simulasi)");};
+document.getElementById("goldBtn").onclick=goldSettingsPrompt;
+document.getElementById("divMore").insertAdjacentHTML("beforeend"," "+WM.icon("chev",13,2.2));
+function syncGoldBtn(){document.getElementById("goldBtn").hidden=!WM.store.get("investments").some(function(h){return h.kind==="emas";});}
+draw();syncGoldBtn();WM.onChange(["investments","tx","settings"],function(){draw();syncGoldBtn();});WM.onResize(document.getElementById("cmp"),draw);
+})();
+</script>
