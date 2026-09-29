@@ -34,6 +34,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/crud/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { parseRupiah } from "@/lib/format";
@@ -659,6 +660,7 @@ export function ObligationsSection({
   token: string | undefined;
 }) {
   const { t } = useLocale();
+  const { handleError } = useApiError();
   const money = useMoney();
   const queryClient = useQueryClient();
   const [target, setTarget] = useState<Obligation | null>(null);
@@ -755,9 +757,7 @@ export function ObligationsSection({
       setSourceAccountId("");
       toast.success(t.anggaran.obligationsToastPaySuccess);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.anggaran.obligationsToastPayFailed);
-    },
+    onError: handleError,
   });
 
   const obligations = toObligations(liabilities, insurances);
@@ -818,6 +818,7 @@ export function ObligationsSection({
 
 export default function AnggaranPage() {
   const { t, locale } = useLocale();
+  const { handleError } = useApiError();
   const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken;
@@ -1006,10 +1007,7 @@ export default function AnggaranPage() {
         `${t.anggaran.toastCategoryAddedPrefix}${budget.categoryName}${t.anggaran.toastCategoryAddedSuffix}`,
       );
     },
-    onError: (err: unknown) => {
-      const apiErr = err as { message?: string };
-      toast.error(apiErr.message ?? t.anggaran.toastSaveFailedDefault);
-    },
+    onError: handleError,
   });
 
   // EPIC-022 C2 — edit an existing budget's limit/period. The category
@@ -1043,10 +1041,7 @@ export default function AnggaranPage() {
       setEditing(null);
       toast.success(t.anggaran.toastUpdated);
     },
-    onError: (err: unknown) => {
-      const apiErr = err as { message?: string };
-      toast.error(apiErr.message ?? t.anggaran.toastUpdateFailedDefault);
-    },
+    onError: handleError,
   });
 
   function openEdit(budget: BudgetDto) {
@@ -1087,8 +1082,7 @@ export default function AnggaranPage() {
         queryKey: queryKeys.budgets.all(familyGroupId),
       });
     } catch (err: unknown) {
-      const apiErr = err as { message?: string };
-      toast.error(apiErr.message ?? t.anggaran.toastDeleteFailedDefault);
+      handleError(err);
     } finally {
       setDeletingBudget(null);
     }

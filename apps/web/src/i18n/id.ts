@@ -2399,10 +2399,10 @@ export const id = {
     fieldCodeLabel: "Kode Akun",
     fieldCodePlaceholder: "20101",
     fieldCodeAutoPlaceholder: "Otomatis jika dikosongkan",
-    fieldGroupLabel: "Grup (1-6) *",
-    fieldNameLabel: "Nama Akun *",
+    fieldGroupLabel: "Grup (1-6)",
+    fieldNameLabel: "Nama Akun",
     fieldNamePlaceholder: "cth: Household Needs",
-    fieldDirectionLabel: "Arah Transaksi *",
+    fieldDirectionLabel: "Arah Transaksi",
     fieldBudgetTypeLabel: "Budget Type",
     fieldParentCodeLabel: "Kode Induk (opsional)",
     fieldParentCodePlaceholder: "cth: 201",
@@ -4513,7 +4513,10 @@ export const id = {
       body: "Anggaran menetapkan batas pengeluaran untuk satu kategori. Ini anggaran SUNGGUHAN, akan muncul di halaman Anggaran milikmu, dan langsung memantau transaksi di kategori yang sama.",
       nameLabel: "Nama Kategori",
       namePlaceholder: "cth: Makan & Minum",
-      limitLabel: "Batas Bulanan",
+      // Hardening batch G4 — unified with anggaran's own fieldAmountLabel
+      // for the same field, per the UX-law audit's "Batas Bulanan" vs
+      // "Budget per Bulan" consistency finding.
+      limitLabel: "Budget per Bulan (Rp)",
       requiredHint:
         "Nama kategori dan batas bulanan wajib diisi untuk melanjutkan.",
       submitButton: "Buat Anggaran",

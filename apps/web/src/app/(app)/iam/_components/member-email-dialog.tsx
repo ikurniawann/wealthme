@@ -12,6 +12,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -35,6 +36,7 @@ export function MemberEmailDialog({
   familyGroupId,
   token,
 }: MemberEmailDialogProps) {
+  const { handleError } = useApiError();
   const fieldId = useId();
   const queryClient = useQueryClient();
   const [email, setEmail] = useState(member?.pendingEmail ?? "");
@@ -59,8 +61,7 @@ export function MemberEmailDialog({
       );
       onClose();
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal menyimpan email"),
+    onError: handleError,
   });
 
   const trimmed = email.trim();

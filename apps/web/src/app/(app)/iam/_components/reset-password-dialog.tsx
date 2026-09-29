@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 
 import { CopyButton } from "./copy-button";
@@ -57,6 +58,7 @@ export function ResetPasswordDialog({
   token,
 }: ResetPasswordDialogProps) {
   const { t } = useLocale();
+  const { handleError } = useApiError();
   const fieldId = useId();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -93,8 +95,7 @@ export function ResetPasswordDialog({
       setResult({ username: vars.memberUsername, password: vars.newPassword });
       toast.success(t.akun.resetPassword.toastSuccess);
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal mengganti password"),
+    onError: handleError,
   });
 
   const tooShort = password.length > 0 && password.length < MIN_PASSWORD_LENGTH;

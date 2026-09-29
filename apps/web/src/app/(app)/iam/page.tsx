@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/wm";
+import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth-compat";
@@ -67,6 +68,7 @@ const HOW_IT_WORKS = [
 
 export default function IamRolesPage() {
   const { t } = useLocale();
+  const { handleError } = useApiError();
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const token = session?.accessToken;
@@ -145,8 +147,7 @@ export default function IamRolesPage() {
       setRemoving(null);
       toast.success("Anggota dihapus dari keluarga");
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal menghapus anggota"),
+    onError: handleError,
   });
 
   const restoreMember = useMutation({
@@ -159,8 +160,7 @@ export default function IamRolesPage() {
       await invalidateMembers();
       toast.success("Anggota diaktifkan kembali");
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal mengaktifkan anggota"),
+    onError: handleError,
   });
 
   const deleteRole = useMutation({
@@ -174,8 +174,7 @@ export default function IamRolesPage() {
       setDeletingRole(null);
       toast.success("Role dihapus");
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal menghapus role"),
+    onError: handleError,
   });
 
   const memberCount = (members ?? []).length;

@@ -5,6 +5,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { id as mockDictionary } from "../../../../i18n/id";
 
+// Hardening batch G4 — ResetPasswordDialog now uses useApiError() (mapped
+// error toasts instead of a raw err.message), which pulls in
+// components/money -> use-currency-preference -> auth-compat -> auth-client
+// (a real ESM package that jest can't parse without this mock).
+jest.mock("../../../../lib/auth-client", () => ({
+  authClient: { useSession: jest.fn(() => ({ data: null, isPending: false })) },
+}));
+
 const mockApiFetch = jest.fn();
 jest.mock("../../../../lib/api-client", () => ({
   apiFetch: (...args: unknown[]) => mockApiFetch(...args),

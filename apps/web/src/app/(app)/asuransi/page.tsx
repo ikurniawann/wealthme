@@ -22,6 +22,7 @@ import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { ConfirmDeleteDialog } from "@/components/crud";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
+import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import type { ApiError } from "@/lib/api-client";
@@ -630,6 +631,7 @@ function InsuranceModal({
   onClose,
 }: InsuranceModalProps) {
   const { t, locale } = useLocale();
+  const { handleError } = useApiError();
   const queryClient = useQueryClient();
   // EPIC-026 Wave 8 — the hand-rolled "focus the first control on mount,
   // restore on unmount" effect is gone: this is now a real Base UI Dialog,
@@ -712,13 +714,9 @@ function InsuranceModal({
 
   useEffect(() => {
     if (isMutationError) {
-      const apiErr = mutationError as { message?: string };
-      const fallback = editing
-        ? t.asuransi.toastUpdateFailed
-        : t.asuransi.toastAddFailed;
-      toast.error(apiErr.message ?? fallback);
+      handleError(mutationError);
     }
-  }, [isMutationError, mutationError, t, editing]);
+  }, [isMutationError, mutationError, handleError]);
 
   function handleSave() {
     const trimmedName = name.trim();
@@ -1220,6 +1218,7 @@ function PolicyPickerDialog({
 
 export default function AsuransiPage() {
   const { t, locale } = useLocale();
+  const { handleError } = useApiError();
   const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -1321,8 +1320,7 @@ export default function AsuransiPage() {
           : t.asuransi.toastPaySuccessNoRenewal,
       );
     },
-    onError: (err: { message?: string }) =>
-      toast.error(err.message ?? t.asuransi.toastRenewalFailed),
+    onError: handleError,
   });
 
   const deleteMutation = useMutation({
@@ -1344,9 +1342,7 @@ export default function AsuransiPage() {
       });
       toast.success(t.asuransi.toastDeleted);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.asuransi.toastDeleteFailed);
-    },
+    onError: handleError,
   });
 
   // EPIC-026 Wave 5 — real per-row beneficiary removal: the API's
@@ -1382,9 +1378,7 @@ export default function AsuransiPage() {
       });
       toast.success(t.asuransi.toastBeneficiaryDeleted);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.asuransi.toastUpdateFailed);
-    },
+    onError: handleError,
   });
 
   const {
