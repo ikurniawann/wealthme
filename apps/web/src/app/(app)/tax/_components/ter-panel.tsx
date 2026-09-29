@@ -207,7 +207,7 @@ export function TerPanel({
             {MONTHS.map((m, idx) => (
               <div className="field" key={m}>
                 <label htmlFor={`ter-thr-${m}`} className="label">
-                  {t.tax.ter.thrBonusLabel} — {m}
+                  {t.tax.ter.thrBonusLabel}, {m}
                 </label>
                 <input
                   id={`ter-thr-${m}`}

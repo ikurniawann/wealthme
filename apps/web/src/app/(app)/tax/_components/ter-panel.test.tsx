@@ -174,7 +174,7 @@ it("excludes an explicit December THR/bonus from the DTP fixed-gross cap (PMK 10
   // December: gross 16jt = fixed salary 8jt + THR 8jt. Fixed stays <=10jt
   // even though the total gross for that month is over it.
   await openDecemberWithThr();
-  const decemberThrInput = screen.getByLabelText("THR/bonus — 12");
+  const decemberThrInput = screen.getByLabelText("THR/bonus, 12");
   await userEvent.type(decemberThrInput, "8000000");
 
   await waitFor(() => expect(mockApiFetch).toHaveBeenCalled());
@@ -191,7 +191,7 @@ it("excludes an explicit December THR/bonus from the DTP fixed-gross cap (PMK 10
   expect(decemberRow).not.toBeNull();
   expect(
     within(decemberRow as HTMLElement).getByText(
-      "Ditanggung pemerintah — dibayar tunai bersama gaji",
+      "Ditanggung pemerintah, dibayar tunai bersama gaji",
     ),
   ).toBeInTheDocument();
 });
@@ -243,7 +243,7 @@ it("shows a validation error and skips the request when THR/bonus exceeds that m
 
   await openDecemberWithThr();
 
-  const decemberThrInput = screen.getByLabelText("THR/bonus — 12");
+  const decemberThrInput = screen.getByLabelText("THR/bonus, 12");
   fireEvent.change(decemberThrInput, { target: { value: "20000000" } });
 
   const errors = await screen.findAllByText(

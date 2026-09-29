@@ -107,7 +107,7 @@ it("an ineligible month renders the Pasal 17 note instead of a tax", async () =>
   render(<UmkmPanel taxYear={2026} canManage />);
   await userEvent.type(screen.getByLabelText("Jan"), "70000000");
   expect(
-    await screen.findByText("Lewat batas 7 tahun — gunakan tarif Pasal 17"),
+    await screen.findByText("Lewat batas 7 tahun, gunakan tarif Pasal 17"),
   ).toBeInTheDocument();
 });
 

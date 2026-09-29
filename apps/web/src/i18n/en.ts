@@ -384,7 +384,7 @@ export const en = {
       title: "Color Theme",
     },
     localeSwitcher: {
-      ariaLabel: "Switch language — current: %s",
+      ariaLabel: "Switch language, current: %s",
     },
     searchDialog: {
       ariaLabel: "Search transactions, accounts, menu",
@@ -994,7 +994,7 @@ export const en = {
       },
       anggaran: {
         title: "Budget",
-        desc: 'Click "Add Category", set a monthly limit per category — WealthMe automatically warns you as you approach the limit.',
+        desc: 'Click "Add Category", set a monthly limit per category, WealthMe automatically warns you as you approach the limit.',
       },
       tujuan: {
         title: "Financial Goals",
@@ -1002,7 +1002,7 @@ export const en = {
       },
       investasi: {
         title: "Investments",
-        desc: 'Click "+ Add Investment", choose the asset type (stocks, mutual funds, gold, crypto) — stocks & crypto get automated (delayed) prices, everything else you enter manually; profit/loss is computed automatically from whatever price is available.',
+        desc: 'Click "+ Add Investment", choose the asset type (stocks, mutual funds, gold, crypto), stocks & crypto get automated (delayed) prices, everything else you enter manually; profit/loss is computed automatically from whatever price is available.',
       },
       aset: {
         title: "Assets",
@@ -1010,7 +1010,7 @@ export const en = {
       },
       liabilitas: {
         title: "Liabilities",
-        desc: 'Click "Add Liability" to record a mortgage, credit card, or installment loan — your net worth is automatically reduced by the remaining debt.',
+        desc: 'Click "Add Liability" to record a mortgage, credit card, or installment loan, your net worth is automatically reduced by the remaining debt.',
       },
       asuransi: {
         title: "Insurance",
@@ -1127,7 +1127,7 @@ export const en = {
         before: "Yes. Every reference list in ",
         linkLabel: "Master Data",
         after:
-          ' has an "+ Add" button and can be deleted — including built-in items your family doesn\'t use. No list is locked.',
+          ' has an "+ Add" button and can be deleted, including built-in items your family doesn\'t use. No list is locked.',
       },
       mortgageNotFullExpense: {
         q: "Why doesn't my mortgage installment fully count as an expense?",
@@ -1474,7 +1474,7 @@ export const en = {
       resultValueSuffix: "Months",
       detailTargetReachedPrefix: "Target reached around:",
       unreachableError:
-        "This target will never be reached at this monthly deposit — increase the monthly deposit or the annual interest rate.",
+        "This target will never be reached at this monthly deposit, increase the monthly deposit or the annual interest rate.",
     },
     splitgroup: {
       cardTitle: "Split Bill Group Calculator",
@@ -1752,7 +1752,7 @@ export const en = {
       "No automated price feed supports this ticker yet, enter the price manually.",
     priceSimulatedLabel: "Price not available yet, update manually",
     priceSimulatedNote:
-      "The price provider has no quote for this ticker yet — value is computed from the buy price; update the price manually once you know the market price.",
+      "The price provider has no quote for this ticker yet, value is computed from the buy price; update the price manually once you know the market price.",
     tickerNotFoundWarning:
       "Ticker not found by the automated price provider. Value is computed from the buy price until you enter a manual price.",
     tickerNoLivePriceWarning:
@@ -1780,7 +1780,7 @@ export const en = {
     hintPurchaseDate: "Used to calculate how long you have held the position.",
     hintLotConversion: "1 lot = 100 shares (IDX rule).",
     hintQuantityLocked:
-      'Quantity can only change via "Buy More" / "Sell" — not here.',
+      'Quantity can only change via "Buy More" / "Sell", not here.',
     hintCostBasisLocked:
       "Average cost is computed automatically from buy/sell history, not here.",
     buySellButtonLabel: "Buy / Sell",
@@ -2120,19 +2120,19 @@ export const en = {
     tenorMonthsSuffix: " months",
     payLateBadge: "Late",
     payLateNote:
-      "This installment is past its due date — it still counts as the same installment during the 5-day grace window.",
+      "This installment is past its due date, it still counts as the same installment during the 5-day grace window.",
     kpr: {
       flatHint: "Installment stays fixed for the whole tenor.",
       planLegend: "Mortgage rate structure",
       presetLabel: "Mortgage scheme",
       presetNames: {
-        manual: "Manual — enter your own",
-        flpp_tapak: "FLPP landed house — 5% fixed",
-        flpp_rusun: "FLPP apartment — 6% fixed",
-        konvensional: "Conventional — fixed then floating",
+        manual: "Manual, enter your own",
+        flpp_tapak: "FLPP landed house, 5% fixed",
+        flpp_rusun: "FLPP apartment, 6% fixed",
+        konvensional: "Conventional, fixed then floating",
         berjenjang: "Tiered fixed then floating",
-        syariah_murabahah: "Sharia murabahah — fixed margin",
-        syariah_mmq: "Sharia MMQ/ijarah — fixed then reset",
+        syariah_murabahah: "Sharia murabahah, fixed margin",
+        syariah_mmq: "Sharia MMQ/ijarah, fixed then reset",
       },
       officialRateNote:
         "Official 2026 FLPP rates (Ministry of Housing): 5% landed house, 6% apartment, fixed for the whole tenor, up to 40 years.",
@@ -2157,7 +2157,7 @@ export const en = {
       planInvalid:
         "Complete every period: at least 1 month (except the last) and a rate of 0–30%.",
       tenorRequiredHint:
-        "Tenor is required for a KPR with rate periods — it's used to compute the annuity installment.",
+        "Tenor is required for a KPR with rate periods, it's used to compute the annuity installment.",
       scheduleRateHeader: "Rate",
       floatingEstimateBadge: "Estimate",
       floatingEstimateNote:
@@ -2166,7 +2166,7 @@ export const en = {
       historyHint:
         "Record it from your bank's notice. The new rate applies from the first whole installment after the effective date; the installment is recalculated from the remaining principal and tenor.",
       historyEmpty:
-        "No changes recorded yet — the schedule uses the floating rate from the rate periods.",
+        "No changes recorded yet, the schedule uses the floating rate from the rate periods.",
       historyLoadFailed: "Could not load the rate history.",
       historyDateLabel: "Effective date",
       historyRateLabel: "New rate/year (%)",
@@ -2178,17 +2178,17 @@ export const en = {
       historySaveFailed: "Could not save the rate change",
       prepayTitle: "Early repayment simulation",
       prepaySimulationNote:
-        "The figures below are a simulation — nothing is recorded until you press Record prepayment and confirm.",
+        "The figures below are a simulation, nothing is recorded until you press Record prepayment and confirm.",
       prepayModeLabel: "Repayment type",
       prepayModes: {
         full: "Pay off in full",
-        reduce_tenor: "Partial — shorter tenor",
-        reduce_installment: "Partial — smaller installment",
+        reduce_tenor: "Partial, shorter tenor",
+        reduce_installment: "Partial, smaller installment",
       },
       prepayAmountLabel: "Principal to prepay (Rp)",
       prepayPenaltyLabel: "Penalty (%)",
       prepayPenaltyHint:
-        "Example 1% — commonly 1–3% of the prepaid principal (up to 7%), often lower in the floating period. Check your credit agreement.",
+        "Example 1%, commonly 1–3% of the prepaid principal (up to 7%), often lower in the floating period. Check your credit agreement.",
       prepaySubmit: "Run simulation",
       prepayResultPenalty: "Penalty",
       prepayResultCashOut: "Total paid now",
@@ -2362,7 +2362,7 @@ export const en = {
     fieldBudgetTypeLabel: "Budget Type",
     fieldParentCodeLabel: "Parent Code (optional)",
     fieldParentCodePlaceholder: "e.g. 201",
-    budgetTypeNone: "—",
+    budgetTypeNone: "-",
     deleteConfirmTitle: "Delete COA Account?",
     deleteConfirmBody: "This action cannot be undone.",
     modalDesc:
@@ -2383,7 +2383,7 @@ export const en = {
     guide: {
       introTitle: "What is the Master COA?",
       introBody:
-        'The Master COA (Chart of Accounts) is the list of "boxes" every transaction gets filed into. Every time you record income, an expense, or a transfer, WealthMe puts it into one of the 6 groups below — and that group decides how the number shows up in your profit & loss and balance sheet.',
+        'The Master COA (Chart of Accounts) is the list of "boxes" every transaction gets filed into. Every time you record income, an expense, or a transfer, WealthMe puts it into one of the 6 groups below, and that group decides how the number shows up in your profit & loss and balance sheet.',
       riskTitle: "The risk of editing this wrong",
       riskBody:
         "The Master COA is the foundation every report rests on. If you change the group or direction (income/expense/transfer) of an account that's already in use, every past transaction filed under it changes meaning too, your profit & loss and balance sheet can go wrong instantly, with no warning. Only edit this if you genuinely understand the consequence.",
@@ -2394,7 +2394,7 @@ export const en = {
           meaning:
             "Money that genuinely grows your wealth, salary, bonuses, sales proceeds, savings interest. Every rupiah in this group raises the profit on your P&L.",
           example:
-            'Example: a Rp 10,000,000 salary lands in your BCA account and is recorded as "Salary" (group 1). This month\'s P&L immediately shows Rp 10,000,000 of income — and it also raises your net worth on the balance sheet.',
+            'Example: a Rp 10,000,000 salary lands in your BCA account and is recorded as "Salary" (group 1). This month\'s P&L immediately shows Rp 10,000,000 of income, and it also raises your net worth on the balance sheet.',
         },
         2: {
           title: "2 · Expense",
@@ -2408,14 +2408,14 @@ export const en = {
           meaning:
             "Money that moves, not money that's gone, saving, buying gold or investments, moving money between your own accounts. This money does NOT show up as an expense, because your wealth hasn't shrunk, only its shape changed.",
           example:
-            'Example: from the same Rp 10,000,000 salary above, if you move Rp 2,000,000 of it into a savings account and record it in group 3 ("Savings"), the P&L does NOT record it as an expense — the money is still yours, it just changed accounts. Compare with the salary in group 1, which DID raise profit; money moved into group 3 does NOT lower it.',
+            'Example: from the same Rp 10,000,000 salary above, if you move Rp 2,000,000 of it into a savings account and record it in group 3 ("Savings"), the P&L does NOT record it as an expense, the money is still yours, it just changed accounts. Compare with the salary in group 1, which DID raise profit; money moved into group 3 does NOT lower it.',
         },
         4: {
           title: "4 · Receivable",
           meaning:
             "Money you LEND to someone else and expect back. That's not an expense, your money isn't gone, someone else is just holding it for now. That's why this group's direction is TRANSFER, not expense.",
           example:
-            'A commonly mis-recorded example: you lend a friend Rp 500,000, recorded in group 4. The P&L does NOT treat it as a Rp 500,000 expense — your net worth stays the same, it just changed shape from "cash" to "receivable". Once your friend repays it, the receivable turns back into cash — also not income.',
+            'A commonly mis-recorded example: you lend a friend Rp 500,000, recorded in group 4. The P&L does NOT treat it as a Rp 500,000 expense, your net worth stays the same, it just changed shape from "cash" to "receivable". Once your friend repays it, the receivable turns back into cash, also not income.',
         },
         5: {
           title: "5 · Payable",
@@ -2532,7 +2532,7 @@ export const en = {
     monthDeltaSuffix: " this month",
     totalAssetsLabel: "Total Assets",
     accountTypesSuffix: " account types",
-    noDataDash: "—",
+    noDataDash: "-",
     totalLiabilitiesLabel: "Total Liabilities",
     liabilitiesSublabel: "Liabilities",
     savingsRateLabel: "Savings Rate",
@@ -2685,9 +2685,9 @@ export const en = {
     contributeSubmitting: "Saving…",
     contributeToastSuccess: "Contribution recorded!",
     contributeNetWorthNotice:
-      "This is tracked as savings progress toward the goal, but is NOT counted in your household's net worth — there's no destination account for it.",
+      "This is tracked as savings progress toward the goal, but is NOT counted in your household's net worth, there's no destination account for it.",
     deleteConfirmNetWorthNote:
-      "Deleting a goal does not return its recorded contributions to net worth — the underlying account transactions are unaffected, only this goal's own progress record is gone.",
+      "Deleting a goal does not return its recorded contributions to net worth, the underlying account transactions are unaffected, only this goal's own progress record is gone.",
     historyToggleShow: "Contribution history",
     historyToggleHide: "Hide history",
     historyLoading: "Loading history…",
@@ -2713,7 +2713,7 @@ export const en = {
     sptYearLabelPrefix: "SPT ",
     deadlinePrefix: "Deadline Mar 31, ",
     zakatDeductionTitle: "Zakat Tax Deduction",
-    zakatDeductionDash: "—",
+    zakatDeductionDash: "-",
     zakatDeductionDesc: "from recorded donations",
     calculatorTitle: "PPh 21 Calculator (Individual)",
     calculatorOtherLink: "Other Calculators",
@@ -2766,7 +2766,7 @@ export const en = {
     fieldTaxYearLabel: "Tax Year",
     fieldPerpuluhanLabel: "Tithe (deduction)",
     grossInputHint:
-      'Typed with thousands separators for readability — dots are stripped automatically before sending ("780.000.000" → "780000000").',
+      'Typed with thousands separators for readability, dots are stripped automatically before sending ("780.000.000" → "780000000").',
     ptkpSelectedPrefix: "Selected PTKP: ",
     jabatanHint: "5% of gross, capped at Rp 6,000,000/year.",
     perpuluhanAutoFilledHint:
@@ -2813,7 +2813,7 @@ export const en = {
       netoLabel: "Net income",
       balanceLabel: "Under/(over) payment",
       overpaidLabel: "Overpaid",
-      noTaxRow: "PKP Rp0 — no tax due",
+      noTaxRow: "PKP Rp0, no tax due",
       previewNeedsFamily: "Create or join a family group to calculate.",
     },
     ter: {
@@ -2834,7 +2834,7 @@ export const en = {
       colDtp: "DTP",
       decemberLabel: "December (true-up)",
       refundNote:
-        "Over-withheld — refunded by the employer in December payroll.",
+        "Over-withheld, refunded by the employer in December payroll.",
       notApplicable: "TER applies from tax year 2024.",
       dtpTitle: "PPh 21 DTP incentive",
       dtpSectorLabel: "Employer's sector",
@@ -2857,13 +2857,13 @@ export const en = {
         daily_wage_above_cap: "Daily wage above the cap",
         nik_not_validated: "NIK not validated",
       },
-      dtpEligible: "Government-borne — paid in cash with wages",
+      dtpEligible: "Government-borne, paid in cash with wages",
       dtpTotalPrefix: "Annual DTP total: ",
       emptyStateNote:
         "Enter your monthly gross salary to see the TER withholding",
       loadingLabel: "Calculating TER withholding…",
       noFamilyNote:
-        "Not part of a family yet — TER withholding needs an active family group.",
+        "Not part of a family yet, TER withholding needs an active family group.",
     },
     umkm: {
       title: "UMKM 0.5% final tax",
@@ -2888,7 +2888,7 @@ export const en = {
         "Registered before 2018? The 7-year time limit is counted starting from 2018 (PP 55/2022 Article 59(2)).",
       noTimeLimitNote:
         "Since PP 20/2026 (22 Apr 2026), individuals may use the 0.5% rate with no time limit.",
-      ineligible: "Past the 7-year limit — use Pasal 17 rates",
+      ineligible: "Past the 7-year limit, use Pasal 17 rates",
       exceedsCeiling:
         "Turnover exceeds Rp4.8bn: next year you must use the general Pasal 17 regime with bookkeeping.",
       colOmzet: "Turnover",
@@ -2924,14 +2924,13 @@ export const en = {
       sourceHolding: "Automatic",
       sourceEntry: "Manual",
       caveats: {
-        assumed_domestic:
-          "Assumed domestic exchange — change it in Investments",
+        assumed_domestic: "Assumed domestic exchange, change it in Investments",
         assumed_sbn: "Assumed to be SBN",
-        no_purchase_date: "No purchase date — counted from 1 January",
+        no_purchase_date: "No purchase date, counted from 1 January",
         no_interest_rate: "Interest rate not set in Investments",
       },
-      belowThreshold: "Principal ≤ Rp7.5m — exempt",
-      missingRate: "Rate not verified — enter your own",
+      belowThreshold: "Principal ≤ Rp7.5m, exempt",
+      missingRate: "Rate not verified, enter your own",
       missingRateNotice: "{n} line(s) have no rate yet.",
       skippedForeign:
         "{n} foreign-currency holding(s) not estimated (Indonesian tax uses the KMK tax rate).",
@@ -2942,7 +2941,7 @@ export const en = {
       fieldGross: "Gross amount",
       fieldDate: "Date received",
       fieldReinvested: "Reinvested in Indonesia within 3 years",
-      fieldRateOverride: "Own rate (%) — optional",
+      fieldRateOverride: "Own rate (%), optional",
       fieldNotes: "Notes",
       totalPrefix: "Estimated final tax total:",
       toastSaved: "Saved",
@@ -2958,14 +2957,14 @@ export const en = {
       pphOpLabel: "Personal income tax",
       finalLabel: "Final tax",
       umkmLabel: "UMKM final tax",
-      noRecord: "No income-tax record yet — calculate and save it above.",
+      noRecord: "No income-tax record yet, calculate and save it above.",
       balanceDue: "Underpaid",
       balanceOver: "Overpaid",
       deadlineLabel: "Annual SPT deadline",
       daysLeft: "{n} days left",
       daysLate: "{n} days past",
       graceNote:
-        "Administrative penalties waived if filed/paid by {date} (DJP announcement on Coretax) — the formal deadline stays {deadline}.",
+        "Administrative penalties waived if filed/paid by {date} (DJP announcement on Coretax), the formal deadline stays {deadline}.",
       coretaxNote:
         "File through DJP Coretax (coretaxdjp.pajak.go.id). Your NIK serves as your NPWP.",
       filedAtPrefix: "Filed:",
@@ -2986,7 +2985,7 @@ export const en = {
     },
     ppn: {
       summary: "VAT info",
-      infoOnly: "Information only — the transaction is not changed.",
+      infoOnly: "Information only, the transaction is not changed.",
       luxuryToggle: "Luxury goods (PPnBM)",
       dppLabel: "Tax base (DPP)",
       ppnLabel: "VAT inside the price",
@@ -4508,7 +4507,7 @@ export const en = {
     rateNotReady: "Wait for the exchange rate to load before saving.",
     storedAsIdr: "Stored as IDR, shown in {display}.",
     fxIndicativeRefused:
-      "Exchange rate is unavailable right now — try again or use IDR",
+      "Exchange rate is unavailable right now, try again or use IDR",
   },
   errors: {
     boundaryTitle: "Something went wrong",

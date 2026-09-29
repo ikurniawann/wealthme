@@ -722,7 +722,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     ).not.toBeInTheDocument();
     await user.selectOptions(dialog.getByLabelText("Skema KPR"), "berjenjang");
 
-    expect(dialog.getByText(/bukan penawaran bank Anda/)).toBeInTheDocument();
+    expect(dialog.getByText(/bukan penawaran bank kamu/)).toBeInTheDocument();
     expect(dialog.getAllByText("Contoh")).toHaveLength(3);
     const tier1 = dialog.getByLabelText("Bunga/tahun (%) · Periode 1");
     expect(tier1).toHaveValue("3.50");

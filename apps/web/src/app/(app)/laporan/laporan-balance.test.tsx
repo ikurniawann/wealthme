@@ -234,7 +234,7 @@ describe("/laporan Balance Sheet tab — honest no-data states (EPIC-023 Task B 
     render(<LaporanPage />);
 
     expect(
-      await screen.findByText("Tidak Tersedia Untuk Peran Anda"),
+      await screen.findByText("Tidak Tersedia Untuk Peran kamu"),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Belum Ada Data Historis"),
@@ -292,7 +292,7 @@ describe("/laporan Balance Sheet tab — honest no-data states (EPIC-023 Task B 
 
     expect(
       await screen.findByText(
-        "Snapshot untuk periode ini ada, tapi menyertakan semua akun. Karena peran Anda tidak bisa melihat akun privat, jembatan ini tidak bisa ditampilkan tanpa membocorkan saldo yang disembunyikan.",
+        "Snapshot untuk periode ini ada, tapi menyertakan semua akun. Karena peran kamu tidak bisa melihat akun privat, jembatan ini tidak bisa ditampilkan tanpa membocorkan saldo yang disembunyikan.",
       ),
     ).toBeInTheDocument();
     expect(

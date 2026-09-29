@@ -89,7 +89,7 @@ describe("Tabungan — unreachable target with a zero monthly deposit", () => {
     expect(screen.queryByText(/±600 Bulan/)).not.toBeInTheDocument();
     expect(
       screen.getAllByText(
-        "Target tidak akan tercapai dengan setoran bulanan ini — naikkan setoran per bulan atau bunga per tahun.",
+        "Target tidak akan tercapai dengan setoran bulanan ini, naikkan setoran per bulan atau bunga per tahun.",
       ).length,
     ).toBeGreaterThan(0);
   });
@@ -102,7 +102,7 @@ describe("Tabungan — unreachable target with a zero monthly deposit", () => {
 
     expect(
       screen.queryByText(
-        "Target tidak akan tercapai dengan setoran bulanan ini — naikkan setoran per bulan atau bunga per tahun.",
+        "Target tidak akan tercapai dengan setoran bulanan ini, naikkan setoran per bulan atau bunga per tahun.",
       ),
     ).not.toBeInTheDocument();
     expect(screen.getByText(/Bulan$/)).toBeInTheDocument();
