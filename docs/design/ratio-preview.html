@@ -1,0 +1,53 @@
+<title>WealthMe Rasio Layar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600&display=swap">
+<style>
+:root{--bg:#E4E6DF;--panel:#FFFFFF;--ink:#15170F;--muted:#6E7566;--lime:#9CCB3B;--lime-ink:#1F2A07;--frame:#1B1E17;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0B0D09;--panel:#171A13;--ink:#EEF0E8;--muted:#9BA290;--frame:#000;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0B0D09;--panel:#171A13;--ink:#EEF0E8;--muted:#9BA290;--frame:#000;color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Sora",ui-sans-serif,system-ui,sans-serif;padding-inline:16px;padding-block:16px}
+.bar{max-width:1600px;margin:0 auto 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.bar h1{font-size:16px;margin:0 auto 0 0;letter-spacing:-.02em}
+.tabs{display:flex;background:var(--panel);border-radius:12px;padding:4px;gap:2px}
+.tabs button{border:0;background:none;font:inherit;font-size:13px;color:var(--muted);border-radius:9px;padding:8px 14px;min-height:40px;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--lime);color:var(--lime-ink);font-weight:600}
+.meta{font-size:12px;color:var(--muted)}
+.stage{max-width:1600px;margin:0 auto;display:grid;place-items:center}
+.device{background:var(--frame);border-radius:18px;padding:10px;box-shadow:0 24px 60px -24px rgba(0,0,0,.45)}
+.device.phone{border-radius:40px;padding:12px}
+.screen{overflow:hidden;border-radius:10px;position:relative;background:#fff}
+.device.phone .screen{border-radius:30px}
+.screen iframe{border:0;transform-origin:0 0;display:block;position:absolute;top:0;left:0}
+</style>
+
+<div class="bar">
+  <h1>Beranda WealthMe per rasio layar</h1>
+  <div class="tabs" role="tablist" aria-label="Rasio layar">
+    <button role="tab" aria-selected="true" data-w="1920" data-h="1080" data-kind="monitor">16:9 Monitor</button>
+    <button role="tab" aria-selected="false" data-w="1440" data-h="960" data-kind="laptop">3:2 Laptop</button>
+    <button role="tab" aria-selected="false" data-w="390" data-h="693" data-kind="phone">9:16 HP</button>
+  </div>
+  <span class="meta" id="meta"></span>
+</div>
+<div class="stage"><div class="device" id="device"><div class="screen" id="screen"><iframe id="frame" src="ratio-dashboard.html" title="Pratinjau dashboard"></iframe></div></div></div>
+
+<script>
+(function(){
+  var frame=document.getElementById("frame"),screen=document.getElementById("screen"),device=document.getElementById("device"),meta=document.getElementById("meta");
+  var cur={w:1920,h:1080,kind:"monitor"};
+  function fit(){
+    var pad=cur.kind==="phone"?24:20;
+    var maxW=Math.min(window.innerWidth-32,1600)-pad, maxH=window.innerHeight-110-pad;
+    var s=Math.min(maxW/cur.w,maxH/cur.h,1);
+    frame.style.width=cur.w+"px";frame.style.height=cur.h+"px";frame.style.transform="scale("+s+")";
+    screen.style.width=Math.round(cur.w*s)+"px";screen.style.height=Math.round(cur.h*s)+"px";
+    device.className="device"+(cur.kind==="phone"?" phone":"");
+    meta.textContent=cur.w+" × "+cur.h+" px, ditampilkan "+Math.round(s*100)+"%";
+  }
+  document.querySelectorAll(".tabs button").forEach(function(b){b.addEventListener("click",function(){
+    document.querySelectorAll(".tabs button").forEach(function(x){x.setAttribute("aria-selected",x===b?"true":"false");});
+    cur={w:+b.dataset.w,h:+b.dataset.h,kind:b.dataset.kind};fit();
+  });});
+  window.addEventListener("resize",fit);fit();
+})();
+</script>
