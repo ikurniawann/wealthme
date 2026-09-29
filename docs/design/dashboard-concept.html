@@ -156,7 +156,9 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
 
 /* history */
 .tx{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column}
-.tx li{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.tx li{display:grid;grid-template-columns:36px 1fr auto;gap:12px;align-items:center;padding:13px 0;border-top:1px solid var(--line)}
+.see-all{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:6px;min-height:44px;border-radius:12px;background:var(--card-2);font-weight:600;font-size:13px;text-decoration:none}
+.see-all:hover{background:var(--ghost)}
 .tx li:first-child{border-top:0}
 .tx .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:12px;font-weight:700}
 .tx b{font-size:13px;font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -342,13 +344,12 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
       <article class="card span-3">
         <div class="head"><div><h2>Riwayat transaksi</h2></div><div class="seg" role="group" aria-label="Periode riwayat"><button type="button" aria-pressed="true">7h</button><button type="button" aria-pressed="false">30h</button></div></div>
         <ul class="tx">
-          <li><span class="ic" style="background:var(--lime-soft)">G</span><div><b>Gaji September</b><small>25 Sep · BCA</small></div><div class="amt num in">+32,5 jt<small class="cap">Masuk</small></div></li>
-          <li><span class="ic" style="background:#FCE8D0;color:#7A4108">KP</span><div><b>Cicilan KPR ke-26</b><small>24 Sep · BCA</small></div><div class="amt num out">−4,5 jt<small class="cap">Cicilan</small></div></li>
-          <li><span class="ic" style="background:#E3ECF7;color:#133C66">IN</span><div><b>Beli BBCA 2 lot</b><small>22 Sep · Investasi</small></div><div class="amt num out">−1,9 jt<small class="cap">Investasi</small></div></li>
-          <li><span class="ic" style="background:#F1E4F7;color:#4A1E66">MD</span><div><b>Minta dana, Hima</b><small>21 Sep · Uang saku</small></div><div class="amt num status-pending">500 rb<small class="cap">Menunggu</small></div></li>
-          <li><span class="ic" style="background:var(--card-2)">Z</span><div><b>Zakat maal</b><small>20 Sep · BCA</small></div><div class="amt num out">−2,5 jt<small class="cap">Donasi</small></div></li>
-          <li><span class="ic" style="background:var(--card-2)">BL</span><div><b>Belanja bulanan</b><small>19 Sep · Kartu kredit</small></div><div class="amt num out">−1,8 jt<small class="cap">Makan & Minum</small></div></li>
+          <li><span class="ic" style="background:var(--lime-soft)">G</span><div><b>Gaji September</b><small>25 Sep · BCA</small></div><div class="amt num in">+32,5 jt</div></li>
+          <li><span class="ic" style="background:#FCE8D0;color:#7A4108">KP</span><div><b>Cicilan KPR</b><small>24 Sep · ke-26</small></div><div class="amt num out">−4,5 jt</div></li>
+          <li><span class="ic" style="background:#E3ECF7;color:#133C66">IN</span><div><b>Beli BBCA</b><small>22 Sep · 2 lot</small></div><div class="amt num out">−1,9 jt</div></li>
+          <li><span class="ic" style="background:#F1E4F7;color:#4A1E66">MD</span><div><b>Minta dana</b><small>21 Sep · Hima</small></div><div class="amt num status-pending">500 rb<small class="cap">Menunggu</small></div></li>
         </ul>
+        <a href="#" class="see-all">Lihat semua riwayat <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
       </article>
     </section>
   </main>
