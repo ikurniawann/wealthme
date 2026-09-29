@@ -616,6 +616,11 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
           return Promise.resolve(buildPphOpResult());
         }
         if (url === "/auth/me") return Promise.resolve(me);
+        // Hardening batch G2 — the tax-documents list query also matches
+        // the blanket `url.includes("/tax")` fallback below; it must
+        // resolve to an empty document list, never the TaxRecordDto[]
+        // fixture (whose entries lack mimeType/size).
+        if (/\/tax\/documents\/\d+$/.test(url)) return Promise.resolve([]);
         if (url.includes("/tax/") && opts?.method === "PATCH") {
           return Promise.resolve({ ...PREV_RECORD, sptStatus: "sudah_lapor" });
         }
@@ -687,6 +692,7 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
           return Promise.resolve(buildPphOpResult());
         }
         if (url === "/auth/me") return Promise.resolve(OWNER_ME);
+        if (/\/tax\/documents\/\d+$/.test(url)) return Promise.resolve([]);
         if (url.includes("/tax/") && opts?.method === "PATCH") {
           return Promise.reject({ status: 403, message: "Access denied" });
         }
@@ -708,6 +714,80 @@ describe("TaxPage — the SPT status button follows the same access gate as Save
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expect(toast.error).toHaveBeenCalledWith(
       expect.stringContaining("Access denied"),
+    );
+  });
+});
+
+/**
+ * Hardening batch G2 — "Dokumen Pajak" used to be a permanently-empty,
+ * disabled-affordance card ("+ Upload" toasted "belum tersedia"). It now
+ * lists real documents from GET .../tax/documents/:year and lets an owner
+ * delete one via DELETE .../tax/documents/:year/:id.
+ */
+describe("TaxPage — Dokumen Pajak lists and deletes real documents", () => {
+  const DOC = {
+    id: "doc-1",
+    taxYear: new Date().getFullYear(),
+    mimeType: "application/pdf",
+    size: 20_480,
+    createdAt: "2026-03-01T00:00:00.000Z",
+  };
+
+  function mockApiWithDocuments(docs: unknown[]) {
+    mockUseSessionAuth.mockReturnValue({
+      data: {
+        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
+        user: { id: "user-1", name: "Test User", email: "user@example.com" },
+      },
+      isPending: false,
+    });
+    mockApiFetch.mockImplementation(
+      withDefaultTerRoute((url: string, opts?) => {
+        if (url === PPH_OP_PREVIEW_URL) {
+          return Promise.resolve(buildPphOpResult());
+        }
+        if (url === "/auth/me") return Promise.resolve(OWNER_ME);
+        if (/\/tax\/documents\/\d+\/doc-1$/.test(url)) {
+          expect(opts?.method).toBe("DELETE");
+          return Promise.resolve(undefined);
+        }
+        if (/\/tax\/documents\/\d+$/.test(url)) return Promise.resolve(docs);
+        if (url.includes("/tax")) return Promise.resolve([]);
+        return Promise.resolve([]);
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    queryClient.clear();
+  });
+
+  it("shows the honest empty state when there are no documents yet", async () => {
+    mockApiWithDocuments([]);
+    render(<TaxPage />);
+    expect(await screen.findByText("Belum ada dokumen")).toBeInTheDocument();
+  });
+
+  it("lists an uploaded document with its type, size, and date", async () => {
+    mockApiWithDocuments([DOC]);
+    render(<TaxPage />);
+    expect(await screen.findByText(/PDF · 20 KB/)).toBeInTheDocument();
+  });
+
+  it("deletes a document and refetches the list", async () => {
+    mockApiWithDocuments([DOC]);
+    const user = userEvent.setup();
+    render(<TaxPage />);
+
+    const deleteButton = await screen.findByLabelText("Hapus dokumen");
+    await user.click(deleteButton);
+
+    await waitFor(() =>
+      expect(mockApiFetch).toHaveBeenCalledWith(
+        expect.stringMatching(/\/tax\/documents\/\d+\/doc-1$/),
+        expect.objectContaining({ method: "DELETE" }),
+      ),
     );
   });
 });

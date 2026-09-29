@@ -2738,13 +2738,14 @@ export const en = {
     markReportedShortButton: "Mark Filed",
     documentsTitle: "Tax Documents",
     uploadButton: "+ Upload",
-    toastUploadUnavailable: "Document upload isn't available yet, coming soon.",
-    emptyDocuments:
-      "No documents yet. Tax document upload & listing is coming soon.",
+    openDocumentAria: "Open document",
+    deleteDocumentAria: "Delete document",
+    toastDocumentUploaded: "Document uploaded successfully",
+    toastDocumentFailed: "Failed to process the document. Try again.",
+    toastDocumentDeleted: "Document deleted",
     reportSptButton: "File Annual SPT",
     downloadSummaryButton: "Download Summary",
-    toastDownloadUnavailable:
-      "Summary download isn't available yet, coming soon.",
+    toastDownloadFailed: "Failed to download the summary. Try again.",
     toastSaved: "Tax data saved successfully!",
     toastSaveFailed: "Failed to save tax data",
     toastStatusUpdated: "SPT status updated!",
@@ -2773,7 +2774,8 @@ export const en = {
     perpuluhanDeductionTitle: "Tithe Tax Deduction",
     perpuluhanDeductionDesc: "from recorded donations",
     emptyDocumentsTitle: "No documents yet",
-    emptyDocumentsSub: "Tax document upload & listing is coming soon.",
+    emptyDocumentsSub:
+      "Upload a withholding slip, NPWP, or other supporting document.",
     saveDialogTitle: "Save to Tax Record",
     saveDialogDescPrefix:
       "This year's tax record will be created/updated with the figures below: ",

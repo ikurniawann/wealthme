@@ -2791,14 +2791,14 @@ export const id = {
     markReportedShortButton: "Tandai Lapor",
     documentsTitle: "Dokumen Pajak",
     uploadButton: "+ Upload",
-    toastUploadUnavailable:
-      "Upload dokumen belum tersedia, fitur ini segera hadir.",
-    emptyDocuments:
-      "Belum ada dokumen. Fitur upload & daftar dokumen pajak segera hadir.",
+    openDocumentAria: "Buka dokumen",
+    deleteDocumentAria: "Hapus dokumen",
+    toastDocumentUploaded: "Dokumen berhasil diunggah",
+    toastDocumentFailed: "Gagal memproses dokumen. Coba lagi.",
+    toastDocumentDeleted: "Dokumen dihapus",
     reportSptButton: "Lapor SPT Tahunan",
     downloadSummaryButton: "Unduh Ringkasan",
-    toastDownloadUnavailable:
-      "Unduh ringkasan belum tersedia, fitur ini segera hadir.",
+    toastDownloadFailed: "Gagal mengunduh ringkasan. Coba lagi.",
     toastSaved: "Data pajak berhasil disimpan!",
     toastSaveFailed: "Gagal menyimpan data pajak",
     toastStatusUpdated: "Status SPT diperbarui!",
@@ -2827,7 +2827,8 @@ export const id = {
     perpuluhanDeductionTitle: "Perpuluhan Pengurang Pajak",
     perpuluhanDeductionDesc: "dari donasi tercatat",
     emptyDocumentsTitle: "Belum ada dokumen",
-    emptyDocumentsSub: "Fitur upload & daftar dokumen pajak segera hadir.",
+    emptyDocumentsSub:
+      "Upload bukti potong, NPWP, atau dokumen pendukung lain.",
     saveDialogTitle: "Simpan ke Catatan Pajak",
     saveDialogDescPrefix:
       "Catatan pajak tahun akan dibuat/diperbarui dengan angka di bawah ini: ",

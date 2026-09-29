@@ -2631,11 +2631,14 @@ export type I18nDictionary = {
     markReportedShortButton: string;
     documentsTitle: string;
     uploadButton: string;
-    toastUploadUnavailable: string;
-    emptyDocuments: string;
+    openDocumentAria: string;
+    deleteDocumentAria: string;
+    toastDocumentUploaded: string;
+    toastDocumentFailed: string;
+    toastDocumentDeleted: string;
     reportSptButton: string;
     downloadSummaryButton: string;
-    toastDownloadUnavailable: string;
+    toastDownloadFailed: string;
     toastSaved: string;
     toastSaveFailed: string;
     toastStatusUpdated: string;
