@@ -33,7 +33,6 @@ import { useShell } from "@/components/shell/shell-context";
 import { QuickUnlockPrompt } from "@/components/auth/quick-unlock-prompt";
 import {
   ChevronRight,
-  User,
   Lock,
   Landmark,
   Wallet,
@@ -63,6 +62,7 @@ import {
   Target,
   Gauge,
 } from "lucide-react";
+import { ProfileHero } from "./profile-hero";
 import { toast } from "sonner";
 
 import { CrudModal, withCrudFx, type CrudModalState } from "@/components/crud";
@@ -3317,42 +3317,20 @@ export default function AkunPage() {
 
   return (
     <div className="space-y-4">
-      {/* 1. Profile hero — gradient-profile with Edit button */}
-      <div className="gradient-profile flex items-center gap-4 rounded-2xl p-5 text-white">
-        <div className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[22px] font-extrabold">
-          {meLoading ? "…" : displayInitials || <User className="size-5" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-[18px] font-extrabold">{displayName}</span>
-            {primaryGroup && (
-              <span
-                className="rounded-full px-2 py-0.5 text-[11px] font-semibold"
-                style={{ background: "rgb(255 255 255 / 0.22)", color: "#fff" }}
-              >
-                {t.common.roleLabels[primaryGroup.myRole] ??
-                  primaryGroup.myRole}
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 text-[13px] opacity-90">{displayEmail}</div>
-          <div className="mt-0.5 text-[12px] opacity-75">
-            {t.akun.heroMemberSince}
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => open("profil")}
-          className="shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold"
-          style={{
-            background: "rgb(255 255 255 / 0.16)",
-            border: "1px solid rgb(255 255 255 / 0.3)",
-            color: "#fff",
-          }}
-        >
-          <User className="size-3.5" /> {t.akun.menuProfilName}
-        </button>
-      </div>
+      {/* 1. Profile hero — identity wraps above its action on small screens. */}
+      <ProfileHero
+        initials={meLoading ? "…" : displayInitials}
+        displayName={displayName}
+        email={displayEmail}
+        role={
+          primaryGroup
+            ? (t.common.roleLabels[primaryGroup.myRole] ?? primaryGroup.myRole)
+            : undefined
+        }
+        memberSince={t.akun.heroMemberSince}
+        actionLabel={t.akun.menuProfilName}
+        onEdit={() => open("profil")}
+      />
 
       {meError && (
         <div className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive">

@@ -20,7 +20,6 @@ import {
   ImagePlus,
   Lock,
   Pencil,
-  Scale,
   Sparkles,
   Tag,
   Trash2,
@@ -37,7 +36,6 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Card } from "@/components/ui/card";
 import { useShell } from "@/components/shell/shell-context";
 import { parseRupiah } from "@/lib/format";
 import {
@@ -72,6 +70,7 @@ import type {
   TransactionListResponse,
 } from "@wealthme/contracts";
 import { getActiveTransactionFilterCount } from "./filter-count";
+import { TransactionSummary } from "./transaction-summary";
 
 // EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
 // `app/(app)/dana/page.tsx`'s own copy: never touch lib/api-client.ts.
@@ -550,67 +549,6 @@ export function TxTableRow({
         }}
       />
     </>
-  );
-}
-
-/** `.stat` card (icon + label + amount + optional muted subtext line) —
- * matches `@/components/wm`'s `SummaryCard` visuals exactly, but adds a
- * neutral (non success/destructive-forced) subtext slot that
- * `SummaryCard` (a protected foundation component) doesn't expose, needed
- * for the income/expense cards' "N transaksi · <bulan>" line. Inlined per
- * WM_CONVENTIONS.md's "if not, inline the Tailwind translation in the page
- * file" rule rather than editing the shared primitive. */
-function StatCard({
-  icon,
-  iconBg,
-  iconColor,
-  label,
-  amount,
-  amountClassName,
-  subtext,
-  subtextClassName,
-}: {
-  icon: ReactNode;
-  iconBg: string;
-  iconColor?: string;
-  label: ReactNode;
-  amount: ReactNode;
-  // EPIC-026 Wave 4 — prototype's stat values are `mono t-success`/
-  // `t-danger` colored (transaksi.html:139/152/162), not plain foreground.
-  amountClassName?: string;
-  subtext?: ReactNode;
-  subtextClassName?: string;
-}) {
-  return (
-    <Card className="gap-0 p-4">
-      <div
-        className="mb-2 flex size-[34px] items-center justify-center rounded-md text-[15px]"
-        style={{ background: iconBg, color: iconColor }}
-      >
-        {icon}
-      </div>
-      <div className="mb-0.5 text-[10.5px] font-medium text-muted-foreground">
-        {label}
-      </div>
-      <div
-        className={cn(
-          "mono mb-[3px] text-[15px] font-extrabold",
-          amountClassName,
-        )}
-      >
-        {amount}
-      </div>
-      {subtext && (
-        <div
-          className={cn(
-            "text-[10.5px] font-bold",
-            subtextClassName ?? "text-muted-foreground",
-          )}
-        >
-          {subtext}
-        </div>
-      )}
-    </Card>
   );
 }
 
@@ -1633,48 +1571,35 @@ function TransaksiPageInner() {
         </div>
       </div>
 
-      {/* Summary stat cards — prototype's `.auto-grid--metrics` of
-          `.card.stat`. Subtext lines are derived from the already-fetched
-          list/summary, not invented copy — the month label only appears
-          when a real date-range filter is active (`summary.period.from`). */}
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <StatCard
-          icon={<ArrowDownLeft className="size-[17px]" />}
-          iconBg="var(--success-soft)"
-          iconColor="var(--success)"
-          label={t.transaksi.totalIncomeLabel}
-          amount={isLoading ? "…" : money.format(totalIncome)}
-          amountClassName="text-success"
-          subtext={incomeSubtext}
-        />
-        <StatCard
-          icon={<CreditCard className="size-[17px]" />}
-          iconBg="color-mix(in oklab, var(--destructive) 14%, transparent)"
-          iconColor="var(--destructive)"
-          label={t.transaksi.totalExpenseLabel}
-          amount={isLoading ? "…" : money.format(totalExpense)}
-          amountClassName="text-destructive"
-          subtext={expenseSubtext}
-        />
-        <StatCard
-          icon={<Scale className="size-[17px]" />}
-          iconBg="var(--accent)"
-          iconColor="var(--accent-foreground)"
-          label={t.transaksi.differenceLabel}
-          amount={isLoading ? "…" : money.format(netBalance)}
-          amountClassName={
-            netBalance >= 0 ? "text-success" : "text-destructive"
-          }
-          subtext={
-            isLoading
+      {/* One compact surface keeps the three real server totals together on phones. */}
+      <TransactionSummary
+        ariaLabel={t.transaksi.summaryGroupLabel}
+        items={[
+          {
+            label: t.transaksi.totalIncomeLabel,
+            value: isLoading ? "…" : money.format(totalIncome),
+            valueClassName: "text-success",
+            detail: incomeSubtext,
+          },
+          {
+            label: t.transaksi.totalExpenseLabel,
+            value: isLoading ? "…" : money.format(totalExpense),
+            valueClassName: "text-destructive",
+            detail: expenseSubtext,
+          },
+          {
+            label: t.transaksi.differenceLabel,
+            value: isLoading ? "…" : money.format(netBalance),
+            valueClassName:
+              netBalance >= 0 ? "text-success" : "text-destructive",
+            detail: isLoading
               ? undefined
-              : `${netBalance >= 0 ? t.transaksi.surplusLabel : t.transaksi.deficitLabel} ${Math.abs(netPct)}${t.transaksi.ofIncomeSuffix}`
-          }
-          subtextClassName={
-            netBalance >= 0 ? "text-success" : "text-destructive"
-          }
-        />
-      </div>
+              : `${netBalance >= 0 ? t.transaksi.surplusLabel : t.transaksi.deficitLabel} ${Math.abs(netPct)}${t.transaksi.ofIncomeSuffix}`,
+            detailClassName:
+              netBalance >= 0 ? "text-success" : "text-destructive",
+          },
+        ]}
+      />
 
       {/* Error state */}
       {isError && (

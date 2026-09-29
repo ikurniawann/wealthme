@@ -3306,6 +3306,7 @@ export type I18nDictionary = {
     /** Carries `{shown}` and `{total}` placeholders. */
     listTruncatedNote: string;
     differenceLabel: string;
+    summaryGroupLabel: string;
     sortByLabel: string;
     sortAriaLabel: string;
     errorLoad: string;

@@ -3498,6 +3498,7 @@ export const id = {
     listTruncatedNote:
       "Menampilkan {shown} dari {total} transaksi. Persempit dengan filter tanggal untuk melihat sisanya.",
     differenceLabel: "Selisih",
+    summaryGroupLabel: "Ringkasan transaksi",
     sortByLabel: "Urutkan:",
     sortAriaLabel: "Urutan transaksi",
     errorLoad: "Gagal memuat transaksi. Silakan refresh halaman.",

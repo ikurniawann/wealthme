@@ -3429,6 +3429,7 @@ export const en = {
     listTruncatedNote:
       "Showing {shown} of {total} transactions. Narrow the date filter to see the rest.",
     differenceLabel: "Difference",
+    summaryGroupLabel: "Transaction summary",
     sortByLabel: "Sort:",
     sortAriaLabel: "Transaction order",
     errorLoad: "Failed to load transactions. Please refresh the page.",
