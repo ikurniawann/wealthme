@@ -377,6 +377,7 @@ export class FamilyGroupsController {
 
   @Delete(":familyGroupId/members/:memberId")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiParam({ name: "memberId", type: String })
   @ApiOperation({
@@ -441,6 +442,7 @@ export class FamilyGroupsController {
   }
 
   @Post(":familyGroupId/invitations")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiParam({ name: "familyGroupId", type: String })
   @ApiOperation({
     summary: "Create an invitation (owner only); returns the token",

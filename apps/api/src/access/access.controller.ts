@@ -15,6 +15,8 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { type Request as ExpressRequest } from "express";
 
+import { type AppAbility } from "../casl/casl-ability.factory";
+import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -49,6 +51,7 @@ export class AccessController {
   }
 
   @Get("access-roles")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiOperation({ summary: "List custom IAM roles (Master only)" })
   list(
     @Request() req: AuthRequest,
@@ -58,6 +61,7 @@ export class AccessController {
   }
 
   @Post("access-roles")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiOperation({ summary: "Create a custom IAM role (Master only)" })
   create(
     @Request() req: AuthRequest,
@@ -68,6 +72,7 @@ export class AccessController {
   }
 
   @Patch("access-roles/:roleId")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiOperation({ summary: "Update a custom IAM role (Master only)" })
   update(
     @Request() req: AuthRequest,
@@ -80,6 +85,7 @@ export class AccessController {
 
   @Delete("access-roles/:roleId")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiOperation({ summary: "Delete a custom IAM role (Master only)" })
   remove(
     @Request() req: AuthRequest,
@@ -91,6 +97,7 @@ export class AccessController {
 
   @Put("members/:memberId/access")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Member"))
   @ApiOperation({
     summary: "Assign a custom role and per-member overrides (Master only)",
   })

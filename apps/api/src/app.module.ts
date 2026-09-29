@@ -43,7 +43,6 @@ import { InvestmentsModule } from "./investments/investments.module";
 import { LiabilitiesModule } from "./liabilities/liabilities.module";
 import { MemberCategoryAllowancesModule } from "./member-category-allowances/member-category-allowances.module";
 import { NotificationsModule } from "./notifications/notifications.module";
-import { OpenBankingModule } from "./open-banking/open-banking.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { RedisModule } from "./redis/redis.module";
@@ -123,7 +122,6 @@ import type { IncomingMessage } from "node:http";
     GoldPriceModule,
     GdprModule,
     ReconciliationModule,
-    OpenBankingModule,
     AllowanceRequestsModule,
     MemberCategoryAllowancesModule,
     ReferenceItemsModule,

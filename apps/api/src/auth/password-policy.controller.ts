@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Throttle } from "@nestjs/throttler";
 import { type Request as ExpressRequest } from "express";
 
 import { SkipPasswordCheck } from "../common/decorators/skip-password-check.decorator";
@@ -54,6 +55,7 @@ export class PasswordPolicyController {
 
   @Post("set-password")
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
   @SkipPasswordCheck()
   @ApiOperation({
     summary:
