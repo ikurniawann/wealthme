@@ -148,6 +148,8 @@ export const id = {
     viewSummaryLink: "Lihat ringkasan",
     donutCenterLabel: "Kekayaan",
     allocationDetailLink: "Detail",
+    historyChartAriaLabel: "Riwayat kekayaan",
+    historyEmpty: "Riwayat kekayaan belum tersedia.",
   },
   shell: {
     loading: "Memuat WealthMe…",

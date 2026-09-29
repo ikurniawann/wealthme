@@ -518,6 +518,8 @@ export type I18nDictionary = {
     viewSummaryLink: string;
     donutCenterLabel: string;
     allocationDetailLink: string;
+    historyChartAriaLabel: string;
+    historyEmpty: string;
   };
   /**
    * Shell-owned copy: sidebar/topbar/mobile nav chrome, the global

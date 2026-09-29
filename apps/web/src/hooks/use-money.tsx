@@ -25,7 +25,72 @@ type MoneyContextValue = {
   isReady: boolean;
   format: (idr: number) => string;
   formatCompact: (idr: number) => string;
+  formatExact: (idr: string | bigint) => string;
 };
+
+const CURRENCY_LOCALES: Record<string, string> = {
+  IDR: "id-ID",
+  USD: "en-US",
+  SGD: "en-SG",
+  EUR: "en-US",
+  JPY: "ja-JP",
+  AUD: "en-AU",
+  CNY: "zh-CN",
+};
+
+function rateFraction(rate: number): [bigint, bigint] {
+  const [mantissa, exponentText] = rate.toString().toLowerCase().split("e");
+  const exponent = Number(exponentText ?? 0);
+  const [whole = "0", fraction = ""] = (mantissa ?? "0").split(".");
+  const digits = BigInt(`${whole}${fraction}`);
+  const scale = fraction.length - exponent;
+  return scale >= 0
+    ? [digits, BigInt(10) ** BigInt(scale)]
+    : [digits * BigInt(10) ** BigInt(-scale), BigInt(1)];
+}
+
+function formatExactCurrency(
+  amount: bigint,
+  currency: string,
+  rate: number,
+): string {
+  const locale = CURRENCY_LOCALES[currency] ?? "id-ID";
+  if (currency === "IDR" && rate === 1) {
+    return `Rp ${new Intl.NumberFormat(locale).format(amount)}`;
+  }
+  const decimals = currency === "IDR" || currency === "JPY" ? 0 : 2;
+  const [rateNumerator, rateDenominator] = rateFraction(rate);
+  const scale = BigInt(10) ** BigInt(decimals);
+  const absolute = amount < BigInt(0) ? -amount : amount;
+  const scaledNumerator = absolute * rateNumerator * scale;
+  const rounded =
+    (scaledNumerator * BigInt(2) + rateDenominator) /
+    (BigInt(2) * rateDenominator);
+  const whole = rounded / scale;
+  const fraction = rounded % scale;
+
+  const parts = new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).formatToParts(amount < BigInt(0) ? BigInt(-1) : BigInt(1));
+  const wholeText = new Intl.NumberFormat(locale).format(whole);
+  const fractionText = new Intl.NumberFormat(locale, {
+    minimumIntegerDigits: decimals || 1,
+    useGrouping: false,
+  })
+    .format(fraction)
+    .slice(-decimals);
+
+  return parts
+    .map((part) => {
+      if (part.type === "integer") return wholeText;
+      if (part.type === "fraction") return fractionText;
+      return part.value;
+    })
+    .join("");
+}
 
 const MoneyContext = createContext<MoneyContextValue | null>(null);
 
@@ -34,7 +99,7 @@ export function DisplayCurrencyProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { currency, formatMoney, isIndicative, isReady } =
+  const { currency, rate, formatMoney, isIndicative, isReady } =
     useCurrencyPreference();
 
   const value = useMemo<MoneyContextValue>(() => {
@@ -47,8 +112,21 @@ export function DisplayCurrencyProvider({
       converts ? `≈ ${formatMoney(idr)}` : formatRupiah(idr);
     const formatCompact = (idr: number): string =>
       converts ? `≈ ${formatMoney(idr)}` : formatRupiahCompact(idr);
-    return { currency, isIndicative, isReady, format, formatCompact };
-  }, [currency, formatMoney, isIndicative, isReady]);
+    const formatExact = (idr: string | bigint): string => {
+      const amount = typeof idr === "bigint" ? idr : BigInt(idr);
+      if (!isReady) return "…";
+      const result = formatExactCurrency(amount, currency, rate);
+      return isIndicative ? `≈ ${result}` : result;
+    };
+    return {
+      currency,
+      isIndicative,
+      isReady,
+      format,
+      formatCompact,
+      formatExact,
+    };
+  }, [currency, formatMoney, isIndicative, isReady, rate]);
 
   return (
     <MoneyContext.Provider value={value}>{children}</MoneyContext.Provider>
@@ -71,5 +149,6 @@ export function useMoney(): MoneyContextValue {
     isReady: true,
     format: formatRupiah,
     formatCompact: formatRupiahCompact,
+    formatExact: (idr) => formatExactCurrency(BigInt(idr), "IDR", 1),
   };
 }

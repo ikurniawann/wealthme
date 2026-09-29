@@ -145,6 +145,8 @@ export const en = {
     viewSummaryLink: "View summary",
     donutCenterLabel: "Wealth",
     allocationDetailLink: "Details",
+    historyChartAriaLabel: "Net-worth history",
+    historyEmpty: "Net-worth history is not available yet.",
   },
   shell: {
     loading: "Loading WealthMe…",

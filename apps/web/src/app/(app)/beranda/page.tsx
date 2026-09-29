@@ -70,7 +70,8 @@ function BerandaPage() {
           assetsTotal={data.assetsTotal}
           totalLiabilities={data.totalLiabilities}
           currentMonth={data.currentMonth}
-          sparklinePoints={data.sparklinePoints}
+          historyPoints={data.historyPoints}
+          isHistoryLoading={data.isHistoryLoading}
           fmt={fmt}
         />
 

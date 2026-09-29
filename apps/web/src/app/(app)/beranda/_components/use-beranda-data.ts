@@ -117,16 +117,17 @@ export function useBerandaData(period: BerandaPeriod) {
 
   const range = PERIOD_RANGE[period];
   // ponytail: inline key — lib/query-keys.ts is a protected foundation file.
-  const { data: netWorthHistory } = useQuery<NetWorthHistoryDto>({
-    queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", range],
-    queryFn: () =>
-      apiFetch<NetWorthHistoryDto>(
-        `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=${range}`,
-        { token },
-      ),
-    enabled,
-    staleTime: 60_000,
-  });
+  const { data: netWorthHistory, isLoading: isHistoryLoading } =
+    useQuery<NetWorthHistoryDto>({
+      queryKey: ["dashboard", familyGroupId ?? "", "net-worth-history", range],
+      queryFn: () =>
+        apiFetch<NetWorthHistoryDto>(
+          `/family-groups/${familyGroupId}/dashboard/net-worth/history?range=${range}`,
+          { token },
+        ),
+      enabled,
+      staleTime: 60_000,
+    });
 
   // EPIC-025 N3-G1 — bento-hero footer metric ("Liabilitas"). Same
   // `/dashboard/net-worth` endpoint `ringkasan` already fetches; only
@@ -279,18 +280,6 @@ export function useBerandaData(period: BerandaPeriod) {
   );
   const bankTotal = sumOf((type) => type === "bank");
 
-  // Real wealth trend from persisted snapshots; falls back to the 30-day
-  // transaction-flow proxy until enough snapshots accumulate.
-  const sparklinePoints = useMemo(() => {
-    const snapshotPoints = (netWorthHistory?.points ?? []).map((p) =>
-      Number(p.netWorth),
-    );
-    if (snapshotPoints.length >= 2) return snapshotPoints;
-    if (summary?.sparkline && summary.sparkline.length > 0)
-      return summary.sparkline;
-    return Array(30).fill(50) as number[];
-  }, [netWorthHistory, summary]);
-
   const allocation: AllocationItem[] = useMemo(
     () =>
       (summary?.allocation ?? []).map((item) => ({
@@ -335,7 +324,8 @@ export function useBerandaData(period: BerandaPeriod) {
     cashEwalletTotal,
     bankTotal,
     investasiTotal,
-    sparklinePoints,
+    historyPoints: netWorthHistory?.points ?? [],
+    isHistoryLoading,
     allocation,
     pendingApprovalsCount,
     nearestDueLiability,
