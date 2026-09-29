@@ -4114,6 +4114,14 @@ export const id = {
     },
     tabStrip: {
       ariaLabel: "Navigasi laporan",
+      groupAriaLabel: "Kelompok laporan",
+      groups: {
+        summary: "Ringkasan",
+        cashflow: "Arus Kas",
+        wealth: "Kekayaan",
+        liabilities: "Kewajiban",
+        taxOther: "Pajak & Lainnya",
+      },
       scrollLeftAriaLabel: "Geser tab ke kiri",
       scrollRightAriaLabel: "Geser tab ke kanan",
     },

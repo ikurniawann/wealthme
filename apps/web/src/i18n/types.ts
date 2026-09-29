@@ -3929,6 +3929,14 @@ export type I18nDictionary = {
     // EPIC-025 N3-J1 — pill tab strip with scroll arrows.
     tabStrip: {
       ariaLabel: string;
+      groupAriaLabel: string;
+      groups: {
+        summary: string;
+        cashflow: string;
+        wealth: string;
+        liabilities: string;
+        taxOther: string;
+      };
       scrollLeftAriaLabel: string;
       scrollRightAriaLabel: string;
     };

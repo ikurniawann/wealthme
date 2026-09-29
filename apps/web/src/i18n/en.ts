@@ -4046,6 +4046,14 @@ export const en = {
     },
     tabStrip: {
       ariaLabel: "Report navigation",
+      groupAriaLabel: "Report groups",
+      groups: {
+        summary: "Summary",
+        cashflow: "Cash Flow",
+        wealth: "Wealth",
+        liabilities: "Liabilities",
+        taxOther: "Tax & More",
+      },
       scrollLeftAriaLabel: "Scroll tabs left",
       scrollRightAriaLabel: "Scroll tabs right",
     },
