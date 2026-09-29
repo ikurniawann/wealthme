@@ -3475,6 +3475,7 @@ export const en = {
     attachmentDeletedToast: "Attachment deleted",
     attachmentDeleteFailedToast: "Failed to delete the attachment",
     filterCardTitle: "Filter",
+    mobileFilterToggleTemplate: "Filter ({count})",
     listSectionTitle: "Transaction List",
     listSectionHint:
       "Click a row for details; more actions appear on hover/focus",

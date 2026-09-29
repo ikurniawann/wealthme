@@ -3364,6 +3364,7 @@ export type I18nDictionary = {
      * and `.auto-grid--metrics` stat cards.
      */
     filterCardTitle: string;
+    mobileFilterToggleTemplate: string;
     listSectionTitle: string;
     listSectionHint: string;
     transactionsCountSuffix: string;

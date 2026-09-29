@@ -3543,6 +3543,7 @@ export const id = {
     attachmentDeletedToast: "Lampiran dihapus",
     attachmentDeleteFailedToast: "Gagal menghapus lampiran",
     filterCardTitle: "Filter",
+    mobileFilterToggleTemplate: "Filter ({count})",
     listSectionTitle: "Daftar Transaksi",
     listSectionHint:
       "Klik baris untuk detail; opsi lanjutan muncul saat hover/focus",
