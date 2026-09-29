@@ -40,6 +40,7 @@ jest.mock("sonner", () => ({
 }));
 
 import TaxPage, { MAX_TAX_INPUT, toClampedDigitString } from "./page";
+import { setLocale } from "../../../hooks/use-locale";
 
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
@@ -895,5 +896,25 @@ describe("TaxPage — no debug strings in Kalkulator PPh 21 (batch-2 #6)", () =>
     expect(
       screen.queryByText(/kolom Pajak selalu sama/i),
     ).not.toBeInTheDocument();
+  });
+
+  it("offers a direct link to the existing PPh 21 calculator in both locales", async () => {
+    setLocale("id");
+    const indonesian = render(<TaxPage />);
+    const idLink = await screen.findByRole("link", {
+      name: "Buka kalkulator PPh 21",
+    });
+    expect(idLink).toHaveAttribute("href", "#pph21-calculator");
+    expect(document.getElementById("pph21-calculator")).toBeInTheDocument();
+
+    indonesian.unmount();
+    setLocale("en");
+    render(<TaxPage />);
+    const enLink = await screen.findByRole("link", {
+      name: "Go to PPh 21 calculator",
+    });
+    expect(enLink).toHaveAttribute("href", "#pph21-calculator");
+    expect(document.getElementById("pph21-calculator")).toBeInTheDocument();
+    setLocale("id");
   });
 });

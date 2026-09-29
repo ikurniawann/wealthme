@@ -2805,6 +2805,7 @@ export const id = {
     zakatDeductionDesc: "dari donasi tercatat",
     calculatorTitle: "Kalkulator PPh 21 (Pribadi)",
     calculatorOtherLink: "Kalkulator Lain",
+    jumpToCalculator: "Buka kalkulator PPh 21",
     calculatorSubtitle:
       "Hitung estimasi pajak penghasilan berdasarkan tarif progresif UU HPP",
     fieldGrossLabel: "Penghasilan Bruto/Tahun (Rp)",

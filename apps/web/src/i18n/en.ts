@@ -2754,6 +2754,7 @@ export const en = {
     zakatDeductionDesc: "from recorded donations",
     calculatorTitle: "PPh 21 Calculator (Individual)",
     calculatorOtherLink: "Other Calculators",
+    jumpToCalculator: "Go to PPh 21 calculator",
     calculatorSubtitle:
       "Calculate estimated income tax based on the progressive UU HPP rates",
     fieldGrossLabel: "Gross Annual Income (Rp)",

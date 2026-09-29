@@ -2645,6 +2645,7 @@ export type I18nDictionary = {
     zakatDeductionDesc: string;
     calculatorTitle: string;
     calculatorOtherLink: string;
+    jumpToCalculator: string;
     calculatorSubtitle: string;
     fieldGrossLabel: string;
     fieldStatusLabel: string;
