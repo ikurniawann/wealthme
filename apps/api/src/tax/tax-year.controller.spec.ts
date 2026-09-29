@@ -4,6 +4,7 @@ import { DonationsService } from "../donations/donations.service";
 import { PrismaService } from "../prisma/prisma.service";
 
 import { FinalTaxService } from "./final-tax.service";
+import { TaxExportService } from "./tax-export.service";
 import { TaxSummaryService } from "./tax-summary.service";
 import { TaxYearController } from "./tax-year.controller";
 import { TaxController } from "./tax.controller";
@@ -37,6 +38,7 @@ const prisma = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  familyGroup: { findUnique: jest.fn() },
 };
 
 const donationsMock = { getTotalDeductibleAmount: jest.fn() };
@@ -57,6 +59,7 @@ describe("TaxYearController", () => {
         FinalTaxService,
         UmkmYearService,
         TaxSummaryService,
+        TaxExportService,
         { provide: PrismaService, useValue: prisma },
         { provide: DonationsService, useValue: donationsMock },
       ],
@@ -147,5 +150,46 @@ describe("TaxYearController", () => {
         dependents: 5,
       });
     expect(res.status).toBe(400);
+  });
+
+  // Hardening batch G2 — "Unduh Ringkasan" used to only toast "belum
+  // tersedia"; these are the real CSV/PDF exports of the same summary.
+  describe("GET /tax/summary/csv and /tax/summary/pdf", () => {
+    beforeEach(() => {
+      prisma.taxRecord.findUnique.mockResolvedValue(null);
+      prisma.taxUmkmYear.findUnique.mockResolvedValue(null);
+      prisma.familyGroup.findUnique.mockResolvedValue({ name: "Keluarga Uji" });
+    });
+
+    it("downloads a CSV attachment with the summary rows", async () => {
+      const res = await request(app.getHttpServer()).get(
+        `/family-groups/${FAMILY_GROUP_ID}/tax/summary/csv?year=2026`,
+      );
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toContain("text/csv");
+      expect(res.headers["content-disposition"]).toContain(
+        "ringkasan-pajak-2026.csv",
+      );
+      expect(res.text).toContain("Total Estimasi Pajak");
+    });
+
+    it("downloads a PDF attachment", async () => {
+      const res = await request(app.getHttpServer())
+        .get(`/family-groups/${FAMILY_GROUP_ID}/tax/summary/pdf?year=2026`)
+        .buffer(true)
+        .parse((response, callback) => {
+          const chunks: Buffer[] = [];
+          response.on("data", (chunk: Buffer) => chunks.push(chunk));
+          response.on("end", () => callback(null, Buffer.concat(chunks)));
+        });
+      expect(res.status).toBe(200);
+      expect(res.headers["content-type"]).toBe("application/pdf");
+      expect(res.headers["content-disposition"]).toContain(
+        "ringkasan-pajak-2026.pdf",
+      );
+      // %PDF is the real PDF magic header — proves pdf-lib actually rendered
+      // a document rather than returning a stub/placeholder.
+      expect((res.body as Buffer).subarray(0, 4).toString()).toBe("%PDF");
+    });
   });
 });

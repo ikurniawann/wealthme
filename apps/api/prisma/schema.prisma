@@ -513,6 +513,7 @@ model FamilyGroup {
   inheritanceAssets       InheritanceAsset[]
   donations               Donation[]
   taxRecords              TaxRecord[]
+  taxDocuments            TaxDocument[]
   taxFinalIncomeEntries   TaxFinalIncomeEntry[]
   taxUmkmYears            TaxUmkmYear[]
   bankSyncs               BankSync[]
@@ -1611,6 +1612,24 @@ model TaxRecord {
   @@unique([familyGroupId, taxYear])
   @@index([familyGroupId])
   @@map("tax_records")
+}
+
+// Hardening batch G2 — real tax document uploads (mirrors AssetAttachment:
+// sniffed mime, size-capped, tenant-scoped storage key). Scoped by
+// (familyGroupId, taxYear) rather than a TaxRecord FK so a document can be
+// uploaded before any TaxRecord row exists for that year.
+model TaxDocument {
+  id            String   @id @default(uuid())
+  familyGroupId String
+  taxYear       Int
+  path          String
+  mimeType      String
+  size          Int
+  createdAt     DateTime @default(now())
+  familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([familyGroupId, taxYear])
+  @@map("tax_documents")
 }
 
 model TaxFinalIncomeEntry {
