@@ -18,7 +18,6 @@ import { createContext, useContext, useMemo } from "react";
 
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
-import { useProfile } from "@/hooks/use-profile";
 
 type MoneyContextValue = {
   currency: string;
@@ -56,15 +55,14 @@ export function DisplayCurrencyProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const { currency, formatMoney, isIndicative, isReady } =
+  const { currency, formatMoney, isIndicative, isReady, privacyPrefs } =
     useCurrencyPreference();
-  const { data: profile } = useProfile();
   // Conservative fallback while the profile hasn't resolved yet (or in a
-  // test harness that mocks a bare /auth/profile response predating this
+  // test harness that mocks useCurrencyPreference() directly, predating this
   // field): behave exactly like before this batch, i.e. no decimals shown.
   // Once the real profile loads, resolvePrivacyPrefs always fills both keys.
-  const hideBalance = profile?.privacyPrefs?.hideBalance ?? false;
-  const showDecimal = profile?.privacyPrefs?.showDecimal ?? false;
+  const hideBalance = privacyPrefs?.hideBalance ?? false;
+  const showDecimal = privacyPrefs?.showDecimal ?? false;
 
   const value = useMemo<MoneyContextValue>(() => {
     // Until a non-IDR rate has actually loaded (or when it failed), show the

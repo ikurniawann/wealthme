@@ -287,12 +287,11 @@ function AccountCardItem({
         </div>
 
         {/*
-          Status badge always shows "Aktif".
-          NOTE: A real "Utama" (primary) badge requires a backend `isPrimary`
-          or `status` field on AccountDto — that field does not currently exist.
-          When the API adds it, replace this with conditional logic.
+          Hardening batch G1 (P1 honesty) — the "Aktif" badge was always
+          shown even though no status field exists on AccountDto, an
+          always-true fake state. Removed rather than faked; if the API adds
+          a real status/isPrimary field, render a badge from it here.
         */}
-        <StatusBadge variant="success">{t.rekening.activeBadge}</StatusBadge>
         {account.isPrivate && (
           <span title={t.rekening.privateBadgeTooltip}>
             <StatusBadge variant="purple">
