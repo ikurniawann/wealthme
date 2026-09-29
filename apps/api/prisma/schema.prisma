@@ -380,6 +380,10 @@ model User {
   // resolveNotifPrefs. In-app Notification rows are family-scoped, so
   // enforcement reads the family OWNER's prefs (see notification-prefs.ts).
   notificationPrefs        Json?
+  // Per-user privacy/display toggles (hardening batch G1). Nullable JSON map
+  // of the 7 known keys → boolean; null = never set → use defaults. Stored
+  // sanitized by resolvePrivacyPrefs (privacy-prefs.ts).
+  privacyPrefs              Json?
   createdAt                DateTime           @default(now())
   updatedAt                DateTime           @updatedAt
   memberships              Member[]

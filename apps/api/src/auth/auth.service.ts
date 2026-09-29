@@ -23,12 +23,15 @@ import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { RedisService } from "../redis/redis.service";
 
+import { resolvePrivacyPrefs } from "./privacy-prefs";
+
 import type { Env } from "../config/env";
 import type { NotificationPrefs } from "../notifications/notification-prefs";
 import type { ChangePasswordDto } from "./dto/change-password.dto";
 import type { LoginDto } from "./dto/login.dto";
 import type { RegisterDto } from "./dto/register.dto";
 import type { UpdateProfileDto } from "./dto/update-profile.dto";
+import type { PrivacyPrefs } from "./privacy-prefs";
 import type { GoogleProfile } from "./strategies/google.strategy";
 
 const DEFAULT_CATEGORIES = [
@@ -74,6 +77,7 @@ type UserProfile = {
   monthlyIncome?: string | null;
   currency?: string;
   notificationPrefs?: NotificationPrefs;
+  privacyPrefs?: PrivacyPrefs;
 };
 
 const PROFILE_DETAIL_SELECT = {
@@ -87,6 +91,7 @@ const PROFILE_DETAIL_SELECT = {
   jobTitle: true,
   monthlyIncome: true,
   currency: true,
+  privacyPrefs: true,
   notificationPrefs: true,
   createdAt: true,
   // EPIC-024 A3 (Evidence #1) — `createdAt: "asc"` so `memberships[0]` below
@@ -315,6 +320,7 @@ export class AuthService {
         ? this.crypto.decrypt(user.monthlyIncome)
         : null,
       notificationPrefs: resolveNotifPrefs(user.notificationPrefs),
+      privacyPrefs: resolvePrivacyPrefs(user.privacyPrefs),
       familyGroupId: user.memberships[0]?.familyGroupId ?? null,
     };
   }
@@ -343,6 +349,9 @@ export class AuthService {
         ...(dto.notificationPrefs !== undefined && {
           notificationPrefs: resolveNotifPrefs(dto.notificationPrefs) as object,
         }),
+        ...(dto.privacyPrefs !== undefined && {
+          privacyPrefs: resolvePrivacyPrefs(dto.privacyPrefs) as object,
+        }),
       },
       select: PROFILE_DETAIL_SELECT,
     });
@@ -355,6 +364,7 @@ export class AuthService {
         ? this.crypto.decrypt(updated.monthlyIncome)
         : null,
       notificationPrefs: resolveNotifPrefs(updated.notificationPrefs),
+      privacyPrefs: resolvePrivacyPrefs(updated.privacyPrefs),
       familyGroupId: updated.memberships[0]?.familyGroupId ?? null,
     };
   }

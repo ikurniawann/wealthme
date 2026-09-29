@@ -94,4 +94,14 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsObject()
   notificationPrefs?: Record<string, boolean>;
+
+  @ApiPropertyOptional({
+    type: "object",
+    additionalProperties: { type: "boolean" },
+    description:
+      "Privacy/display toggle preferences (map of known keys → boolean). Unknown keys are ignored server-side.",
+  })
+  @IsOptional()
+  @IsObject()
+  privacyPrefs?: Record<string, boolean>;
 }
