@@ -22,7 +22,7 @@ export class PayInsuranceDto {
       "Payment amount as a numeric string (whole rupiah). Defaults to the policy's premiumAmount when omitted.",
   })
   @IsString()
-  @Matches(/^\d+$/, { message: "amount must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "amount must be a numeric string" })
   @IsOptional()
   amount?: string;
 

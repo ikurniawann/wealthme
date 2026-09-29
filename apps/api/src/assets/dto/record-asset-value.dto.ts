@@ -21,7 +21,7 @@ export class RecordAssetValueDto {
     description: "New value, integer Rupiah string",
   })
   @IsOptional()
-  @Matches(/^\d+$/, { message: "value must be an integer string" })
+  @Matches(/^\d{1,15}$/, { message: "value must be an integer string" })
   value?: string;
 
   @ApiPropertyOptional({

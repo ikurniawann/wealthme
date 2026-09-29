@@ -32,3 +32,27 @@ describe("CreateAssetDto.name — E2E round 1 bug 1", () => {
     expect(dto.name).toBe("Rumah");
   });
 });
+
+// Hardening audit (validation, MEDIUM) — currentValue was an unbounded
+// `/^\d+$/`, which can overflow the BigInt column.
+describe("CreateAssetDto.currentValue — hardening audit MEDIUM", () => {
+  it("accepts currentValue exactly at the 15-digit boundary", async () => {
+    const dto = plainToInstance(CreateAssetDto, {
+      ...BASE,
+      name: "Rumah",
+      currentValue: "999999999999999",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "currentValue")).toBe(false);
+  });
+
+  it("rejects currentValue above 15 digits", async () => {
+    const dto = plainToInstance(CreateAssetDto, {
+      ...BASE,
+      name: "Rumah",
+      currentValue: "1999999999999999",
+    });
+    const errors = await validate(dto);
+    expect(errors.some((e) => e.property === "currentValue")).toBe(true);
+  });
+});
