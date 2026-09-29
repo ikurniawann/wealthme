@@ -12,6 +12,7 @@ import { RecentActivity } from "./_components/recent-activity";
 import { BudgetCard } from "./_components/budget-card";
 import { AttentionCard } from "./_components/attention-card";
 import { GoalsCard } from "./_components/goals-card";
+import { SetupChecklistCard } from "./_components/setup-checklist-card";
 import {
   useBerandaData,
   useMoneyFormatters,
@@ -32,6 +33,7 @@ function BerandaPage() {
   const { data: session } = useSession();
   const { t } = useLocale();
   const [period, setPeriod] = useState<BerandaPeriod>("6M");
+  const [dismissedSetup, setDismissedSetup] = useState(false);
 
   const fmt = useMoneyFormatters();
   const data = useBerandaData(period);
@@ -52,6 +54,14 @@ function BerandaPage() {
       <div className="section-title">
         {t.greeting[greetingKey]}, {firstName}
       </div>
+
+      {data.isSetupChecklistReady &&
+        !(data.setupChecklist.complete && dismissedSetup) && (
+          <SetupChecklistCard
+            {...data.setupChecklist}
+            onDismiss={() => setDismissedSetup(true)}
+          />
+        )}
 
       <section className="bento-dashboard" aria-label={t.beranda.title}>
         <BerandaHero

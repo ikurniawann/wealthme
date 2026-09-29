@@ -9,6 +9,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import type {
+  AccountDto,
   AllowanceRequestDto,
   BudgetDto,
   DashboardSummaryDto,
@@ -17,6 +18,7 @@ import type {
   NetWorthDto,
   NetWorthHistoryDto,
 } from "@wealthme/contracts";
+import { getSetupChecklistState } from "./setup-checklist";
 
 /**
  * EPIC-026 Wave 8 — every `/beranda` query and every value derived from one.
@@ -101,6 +103,7 @@ export function useBerandaData(period: BerandaPeriod) {
     data: summary,
     isLoading,
     isError,
+    isSuccess: isSummaryReady,
   } = useQuery<DashboardSummaryDto>({
     queryKey: queryKeys.dashboard.summary(familyGroupId ?? ""),
     queryFn: () =>
@@ -187,6 +190,48 @@ export function useBerandaData(period: BerandaPeriod) {
     enabled,
     staleTime: 60_000,
   });
+
+  const { data: setupAccounts, isSuccess: isSetupAccountsReady } = useQuery<
+    AccountDto[]
+  >({
+    queryKey: queryKeys.accounts.all(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled,
+    staleTime: 60_000,
+  });
+
+  const { data: setupMembers, isSuccess: isSetupMembersReady } = useQuery<
+    { id: string; role: string }[]
+  >({
+    queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
+    queryFn: () =>
+      apiFetch<{ id: string; role: string }[]>(
+        `/family-groups/${familyGroupId}/members`,
+        { token },
+      ),
+    enabled,
+    staleTime: 60_000,
+  });
+
+  const setupChecklist = getSetupChecklistState({
+    hasAccount: Boolean(setupAccounts?.length),
+    hasBudget: Boolean(budgets?.length),
+    hasTransaction: Boolean(summary?.recentTransactions.length),
+    hasFamilyMember:
+      (setupMembers ?? []).filter((member) => member.role !== "admin_staff")
+        .length > 1,
+    hasGoal: Boolean(goals?.length),
+  });
+  const isSetupChecklistReady =
+    Boolean(familyGroupId) &&
+    isSummaryReady &&
+    !isBudgetsLoading &&
+    !isGoalsLoading &&
+    isSetupAccountsReady &&
+    isSetupMembersReady;
 
   // ── Derivations (all from data already fetched above) ──────────────────
 
@@ -298,5 +343,7 @@ export function useBerandaData(period: BerandaPeriod) {
     isBudgetsLoading,
     goals: goals ?? [],
     isGoalsLoading,
+    setupChecklist,
+    isSetupChecklistReady,
   };
 }

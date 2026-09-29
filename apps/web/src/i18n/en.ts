@@ -91,6 +91,19 @@ export const en = {
     },
   },
   beranda: {
+    setupChecklist: {
+      title: "Setup progress",
+      nextStep: "Continue",
+      dismissAriaLabel: "Close completed checklist",
+      progressLabelTemplate: "{completed} of 5 steps complete",
+      steps: {
+        account: "First account",
+        budget: "Budget",
+        transaction: "Transaction",
+        family: "Family member",
+        goal: "Financial goal",
+      },
+    },
     title: "Home",
     totalWealth: "Total Net Worth",
     thisMonth: "This month",

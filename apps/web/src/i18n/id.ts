@@ -94,6 +94,19 @@ export const id = {
     },
   },
   beranda: {
+    setupChecklist: {
+      title: "Kelengkapan",
+      nextStep: "Lanjutkan",
+      dismissAriaLabel: "Tutup checklist yang sudah selesai",
+      progressLabelTemplate: "{completed} dari 5 langkah selesai",
+      steps: {
+        account: "Rekening pertama",
+        budget: "Anggaran",
+        transaction: "Transaksi",
+        family: "Anggota keluarga",
+        goal: "Tujuan keuangan",
+      },
+    },
     title: "Beranda",
     totalWealth: "Total Kekayaan Bersih",
     thisMonth: "Bulan ini",

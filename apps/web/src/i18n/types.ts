@@ -462,6 +462,19 @@ export type I18nDictionary = {
     };
   };
   beranda: {
+    setupChecklist: {
+      title: string;
+      nextStep: string;
+      dismissAriaLabel: string;
+      progressLabelTemplate: string;
+      steps: {
+        account: string;
+        budget: string;
+        transaction: string;
+        family: string;
+        goal: string;
+      };
+    };
     title: string;
     totalWealth: string;
     thisMonth: string;
