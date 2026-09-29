@@ -1,0 +1,437 @@
+<title>WealthMe Beranda Bento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#ECEDE8; --card:#FFFFFF; --card-2:#F4F5F1; --ink:#15170F; --muted:#737A6C; --line:#E2E4DC;
+  --lime:#9CCB3B; --lime-ink:#1F2A07; --lime-soft:#E4F1C4; --yellow:#EFDC4E; --orange:#F2A247;
+  --good:#3F8F2F; --bad:#C2462B; --ghost:#E6E8E1;
+  --radius:18px; --shadow:0 1px 2px rgba(30,40,10,.04),0 6px 18px -8px rgba(30,40,10,.10);
+  --font:"Sora",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"DM Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E100B; --card:#171A13; --card-2:#1E2219; --ink:#EEF0E8; --muted:#9BA290; --line:#2A2F23;
+  --lime:#A9D84C; --lime-ink:#172005; --lime-soft:#2B3A12; --yellow:#E6D34A; --orange:#E9973D;
+  --good:#8BD06B; --bad:#F08A6E; --ghost:#262B20; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#0E100B; --card:#171A13; --card-2:#1E2219; --ink:#EEF0E8; --muted:#9BA290; --line:#2A2F23;
+  --lime:#A9D84C; --lime-ink:#172005; --lime-soft:#2B3A12; --yellow:#E6D34A; --orange:#E9973D;
+  --good:#8BD06B; --bad:#F08A6E; --ghost:#262B20; --shadow:0 1px 2px rgba(0,0,0,.4); color-scheme:dark;}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:14px;line-height:1.45;padding:16px;}
+::selection{background:var(--lime);color:var(--lime-ink)}
+a{color:inherit}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--lime);outline-offset:2px;border-radius:10px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;white-space:nowrap}
+.mono{font-family:var(--mono)}
+.app{display:grid;grid-template-columns:232px 1fr;gap:16px;max-width:1440px;margin-inline:auto;min-height:calc(100vh - 32px)}
+
+/* sidebar */
+.side{background:var(--card);border-radius:22px;padding:20px 14px;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;letter-spacing:-.02em;padding:4px 8px 16px}
+.brand-mark{width:30px;height:30px;border-radius:9px;background:var(--lime);display:grid;place-items:center;color:var(--lime-ink)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:11px;padding:10px 10px;border-radius:12px;text-decoration:none;color:var(--muted);font-weight:500;min-height:42px}
+.nav a:hover{background:var(--card-2);color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--card-2);color:var(--ink);font-weight:600}
+.nav svg{width:18px;height:18px;flex:none}
+.sub{display:flex;flex-direction:column;margin:2px 0 4px 29px;border-left:1px solid var(--line);padding-left:12px}
+.sub a{min-height:34px;padding:6px 8px;font-size:13px}
+.badge{margin-left:auto;background:var(--ink);color:var(--card);font-size:11px;font-weight:600;border-radius:99px;padding:1px 7px}
+.sep{height:1px;background:var(--line);margin:10px 8px}
+.promo{margin-top:auto;background:var(--card-2);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}
+.promo h3{margin:0;font-size:15px;letter-spacing:-.01em}
+.promo p{margin:0;color:var(--muted);font-size:12.5px}
+.steps{display:flex;gap:4px}
+.steps i{flex:1;height:6px;border-radius:3px;background:var(--ghost)}
+.steps i.on{background:var(--lime)}
+.btn-dark{background:var(--ink);color:var(--card);border:0;border-radius:11px;padding:10px 12px;font-weight:600;font-size:13px;min-height:40px}
+
+/* main */
+.main{display:flex;flex-direction:column;gap:16px;min-width:0}
+.top{display:flex;align-items:center;gap:10px}
+.search{flex:1;max-width:340px;display:flex;align-items:center;gap:8px;background:var(--card);border-radius:13px;padding:0 14px;height:44px;color:var(--muted);box-shadow:var(--shadow)}
+.search input{border:0;background:transparent;outline:0;font:inherit;color:var(--ink);width:100%}
+.search input::placeholder{color:var(--muted)}
+.spacer{flex:1}
+.icon-btn{width:44px;height:44px;border-radius:13px;background:var(--card);border:0;display:grid;place-items:center;box-shadow:var(--shadow);position:relative}
+.icon-btn .dot{position:absolute;top:11px;right:12px;width:7px;height:7px;border-radius:50%;background:var(--orange);outline:2px solid var(--card)}
+.me{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:13px;padding:0 14px 0 6px;height:44px;box-shadow:var(--shadow)}
+.avatar{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;font-weight:600;font-size:12px;flex:none}
+.me small{display:block;color:var(--muted);font-size:11px;line-height:1.1}
+.me b{font-size:13px;line-height:1.2;display:block}
+.btn-primary{display:inline-flex;align-items:center;gap:8px;background:var(--lime);color:var(--lime-ink);border:0;border-radius:13px;height:44px;padding:0 16px;font-weight:600;box-shadow:0 2px 0 rgba(0,0,0,.04)}
+.btn-primary:hover{filter:brightness(.97)}
+.chip-demo{font-size:11px;color:var(--muted);background:var(--card);border-radius:99px;padding:4px 10px;box-shadow:var(--shadow)}
+
+.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
+.card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);min-width:0}
+.card h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
+.card .cap{color:var(--muted);font-size:12px;margin-top:2px}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.seg{display:flex;background:var(--card-2);border-radius:10px;padding:3px;gap:2px}
+.seg button{border:0;background:transparent;border-radius:8px;padding:5px 10px;font-size:12px;color:var(--muted);min-height:30px;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+.ghost-btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;font-size:12px;font-weight:500;min-height:34px}
+.span-7{grid-column:span 7}.span-5{grid-column:span 5}.span-4{grid-column:span 4}.span-3{grid-column:span 3}.span-8{grid-column:span 8}.span-9{grid-column:span 9}
+
+/* hero chart */
+.hero{display:grid;grid-template-columns:1fr 200px;gap:0;padding:0;overflow:hidden}
+.hero .chart-side{padding:20px 20px 12px}
+.big{font-size:40px;font-weight:600;letter-spacing:-.035em;line-height:1.05;margin:0}
+.big .cur{font-size:.55em;color:var(--muted);font-weight:500;margin-right:4px;letter-spacing:0}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.kpis{border-left:1px solid var(--line);padding:20px;display:flex;flex-direction:column;justify-content:space-between;gap:14px}
+.kpi small{color:var(--muted);font-size:12px}
+.kpi .v{font-size:20px;font-weight:600;letter-spacing:-.025em;margin-top:2px;white-space:nowrap}
+.delta{font-size:11.5px;display:inline-flex;align-items:center;gap:4px;margin-top:2px}
+.delta.up{color:var(--good)}.delta.down{color:var(--bad)}
+.delta em{font-style:normal;color:var(--muted)}
+svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
+.tip{position:absolute;pointer-events:none;background:var(--card);border-radius:12px;box-shadow:0 10px 30px -10px rgba(0,0,0,.25);padding:10px 12px;font-size:12px;min-width:170px}
+.tip b{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-bottom:6px}
+.tip div{display:flex;justify-content:space-between;gap:14px}
+.chart-wrap{position:relative;margin-top:10px}
+
+/* wallet */
+.wallet .cards{display:flex;gap:10px;margin-top:14px;overflow:hidden}
+.bank{flex:none;width:220px;aspect-ratio:1.62;border-radius:16px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;max-width:100%}
+.bank.l{background:var(--lime);color:var(--lime-ink);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.14) 0 2px,transparent 2px 9px)}
+.bank.g{background:var(--card-2);color:var(--ink);width:120px}
+.bank small{font-size:11px;opacity:.75}
+.bank .bal{font-size:18px;font-weight:600;letter-spacing:-.02em}
+.bank .row{display:flex;justify-content:space-between;align-items:flex-end;font-size:11px}
+.actions{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:14px}
+.act{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);background:none;border:0;padding:0}
+.act span{width:46px;height:46px;border-radius:14px;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink);background:var(--card)}
+.act:hover span{background:var(--card-2)}
+.fam{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.fam div{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:11.5px;color:var(--muted)}
+.fam .avatar{width:40px;height:40px;border-radius:12px;font-size:13px}
+.fam .me-mark{outline:2px solid var(--lime);outline-offset:2px}
+
+/* limit + tips */
+.bar{height:22px;border-radius:7px;background:var(--ghost);overflow:hidden;margin-top:16px;display:flex}
+.fill-lime{background:var(--lime);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.22) 0 2px,transparent 2px 8px)}
+.bar-legend{display:flex;justify-content:space-between;gap:8px;margin-top:8px;font-size:12px;color:var(--muted)}
+.tips{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center}
+.tips p{margin:6px 0 10px;color:var(--muted);font-size:13px;max-width:52ch}
+.more{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:13px;text-decoration:none}
+.mosaic{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;justify-self:end}
+.mosaic i{width:20px;height:20px;border-radius:4px;background:var(--ghost)}
+.mosaic i.a{background:var(--lime)}.mosaic i.b{background:var(--lime-soft)}.mosaic i.c{background:var(--yellow);opacity:.7}
+
+/* spending */
+.seg-bar{display:flex;gap:3px;margin-top:14px;height:26px}
+.seg-bar i{border-radius:6px}
+.cat{list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:9px}
+.cat li{display:flex;align-items:center;gap:10px;font-size:13px}
+.cat li i{width:10px;height:10px;border-radius:3px;flex:none}
+.cat li .p{margin-left:auto;color:var(--muted)}
+.mid{font-size:30px;font-weight:600;letter-spacing:-.03em;margin:12px 0 0}
+
+/* gauge */
+.gauge{display:grid;place-items:center;margin-top:8px;position:relative}
+.gauge .center{position:absolute;bottom:14px;text-align:center}
+.gauge .center b{font-size:26px;letter-spacing:-.03em;display:block}
+.gauge .center small{color:var(--muted);font-size:11.5px}
+.note{color:var(--muted);font-size:12px;margin:10px 0 0}
+
+/* goals */
+.goal{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.goal:first-of-type{border-top:0}
+.goal .ico{width:40px;height:40px;border-radius:12px;background:var(--card-2);display:grid;place-items:center}
+.goal .t{display:flex;justify-content:space-between;font-size:13px;font-weight:500;gap:8px}
+.goal .t .num{color:var(--muted);font-weight:400;font-size:12px}
+.goal .track{height:8px;border-radius:4px;background:var(--ghost);margin:6px 0 4px;overflow:hidden}
+.goal .track i{display:block;height:100%;border-radius:4px}
+.goal small{color:var(--muted);font-size:11.5px}
+.group-label{font-size:11.5px;color:var(--muted);margin:12px 0 2px;letter-spacing:.02em}
+
+/* history */
+.tx{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column}
+.tx li{display:grid;grid-template-columns:36px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+.tx li:first-child{border-top:0}
+.tx .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:12px;font-weight:700}
+.tx b{font-size:13px;font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx small{color:var(--muted);font-size:11.5px}
+.tx .amt{text-align:right;font-size:13px}
+.tx .amt small{display:block}
+.in{color:var(--good)}.out{color:var(--ink)}
+.status-pending{color:var(--orange)}
+
+@media (max-width:1180px){
+  .span-7,.span-5,.span-4,.span-3,.span-8,.span-9{grid-column:span 6}
+  .hero{grid-template-columns:1fr}
+  .kpis{border-left:0;border-top:1px solid var(--line);flex-direction:row;flex-wrap:wrap}
+  .kpi{flex:1 1 150px}
+}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{flex-direction:row;align-items:center;overflow-x:auto;padding:10px 12px}
+  .side .nav{flex-direction:row}
+  .side .sub,.side .sep,.side .promo,.side .nav.secondary{display:none}
+  .brand{padding:0 8px 0 0}
+  .nav a{white-space:nowrap}
+}
+@media (max-width:720px){
+  .span-7,.span-5,.span-4,.span-3,.span-8,.span-9{grid-column:1/-1}
+  .me div,.chip-demo,.top .icon-btn:nth-of-type(2){display:none}
+  .me{padding:0 6px}
+  .top{flex-wrap:wrap}
+  .search{flex:1 1 100%;order:9}
+  .kpis{flex-direction:column}
+  .kpi{flex:none}
+  .hero .head{flex-wrap:wrap}
+  .btn-primary .lbl{display:none}
+  .big{font-size:32px}
+  .tips{grid-template-columns:1fr}.mosaic{display:none}
+  .search{max-width:none}
+}
+@media (prefers-reduced-motion:no-preference){
+  .grow{transform-origin:bottom;animation:grow .5s cubic-bezier(.16,1,.3,1) both}
+  @keyframes grow{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
+}
+</style>
+
+<div class="app">
+  <aside class="side" aria-label="Navigasi utama">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l4.5 12L12 8l4.5 10L21 6"/></svg></span>
+      WealthMe
+    </div>
+    <nav class="nav">
+      <a href="#" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="8" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="15" width="7" height="6" rx="2"/></svg>Beranda</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Rekening</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>Transaksi</a>
+      <div class="sub">
+        <a href="#">Riwayat <span class="badge num">19</span></a>
+        <a href="#">Rekonsiliasi</a>
+        <a href="#">Laporan</a>
+      </div>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>Arus Kas</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h12v16l-6-3-6 3z"/></svg>Anggaran</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg>Investasi</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/></svg>Pajak & Zakat</a>
+    </nav>
+    <div class="sep"></div>
+    <nav class="nav secondary">
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h7a3 3 0 013 3v12a2 2 0 00-2-2H4zM20 5h-4a3 3 0 00-3 3"/></svg>Panduan</a>
+      <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 114 2c-.8.6-1.5 1-1.5 2M12 17h.01" stroke-linecap="round"/></svg>Bantuan</a>
+    </nav>
+    <div class="promo">
+      <h3>Lengkapi profil</h3>
+      <div class="steps" aria-label="3 dari 5 langkah selesai"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+      <p>3 dari 5 selesai. Tinggal tambah anggota keluarga dan tujuan pertama.</p>
+      <button class="btn-dark" type="button">Lanjutkan</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg><input id="q" type="search" placeholder="Cari transaksi, rekening…" aria-label="Cari"></label>
+      <span class="chip-demo">Data contoh</span>
+      <span class="spacer"></span>
+      <button class="icon-btn" type="button" aria-label="Notifikasi, 2 baru"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 16V11a6 6 0 1112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg><span class="dot"></span></button>
+      <button class="icon-btn" type="button" aria-label="Pengaturan"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.2l2-1.5-2-3.4-2.3.9a7 7 0 00-2.1-1.2L14.2 3h-4l-.4 2.6a7 7 0 00-2.1 1.2l-2.3-.9-2 3.4 2 1.5a7 7 0 000 2.4l-2 1.5 2 3.4 2.3-.9a7 7 0 002.1 1.2l.4 2.6h4l.4-2.6a7 7 0 002.1-1.2l2.3.9 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z"/></svg></button>
+      <div class="me"><span class="avatar" style="background:var(--lime-soft);color:var(--ink)">CR</span><div><b>Christian Rizaldi</b><small>Master · Keluarga Rizaldi</small></div></div>
+      <button class="btn-primary" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Tambah transaksi</span></button>
+    </header>
+
+    <section class="grid" aria-label="Ringkasan keuangan">
+      <!-- Net worth + weekly flow -->
+      <article class="card hero span-8">
+        <div class="chart-side">
+          <div class="head">
+            <div>
+              <p class="big num"><span class="cur">Rp</span>1.256.780.000</p>
+              <div class="cap">Kekayaan bersih keluarga</div>
+            </div>
+            <div class="seg" role="group" aria-label="Periode"><button type="button" aria-pressed="true" data-range="7">7 hari</button><button type="button" aria-pressed="false" data-range="30">30 hari</button></div>
+          </div>
+          <div class="legend" style="margin-top:14px"><span><i style="background:var(--yellow)"></i>Tabungan</span><span><i style="background:var(--lime)"></i>Pemasukan</span><span><i style="background:var(--orange)"></i>Pengeluaran</span></div>
+          <div class="chart-wrap" id="flow"></div>
+        </div>
+        <div class="kpis">
+          <div class="kpi"><small>Pemasukan bulan ini</small><div class="v num">Rp 38.500.000</div><div class="delta up">↑ 5,1% <em>dari bulan lalu</em></div></div>
+          <div class="kpi"><small>Pengeluaran bulan ini</small><div class="v num">Rp 16.750.000</div><div class="delta down">↑ 12,4% <em>dari bulan lalu</em></div></div>
+          <div class="kpi"><small>Ditabung</small><div class="v num">Rp 21.750.000</div><div class="delta up">↑ 8,7% <em>dari bulan lalu</em></div></div>
+        </div>
+      </article>
+
+      <!-- Wallet -->
+      <article class="card wallet span-4">
+        <div class="head"><div><h2>Rekening</h2><div class="cap">Aksi cepat</div></div><button class="ghost-btn" type="button">+ Tambah</button></div>
+        <div class="cards">
+          <div class="bank l"><div class="row"><small>Tabungan · bersama</small><b style="font-size:12px">BCA</b></div><div><div class="bal num">Rp 84.320.500</div><div class="row" style="margin-top:6px"><span class="num">•••• 7890</span><span>Keluarga</span></div></div></div>
+          <div class="bank g"><small>Kartu kredit</small><div><div class="bal num" style="font-size:14px">Rp 4,6 jt</div><small>Mandiri</small></div></div>
+        </div>
+        <div class="actions">
+          <button class="act" type="button"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>Catat</button>
+          <button class="act" type="button"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span>Transfer</button>
+          <button class="act" type="button"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v10m-4-4l4 4 4-4M5 20h14" stroke-linecap="round"/></svg></span>Minta dana</button>
+          <button class="act" type="button"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h10M4 17h7" stroke-linecap="round"/><rect x="14" y="3" width="0" height="0"/></svg></span>Scan struk</button>
+          <button class="act" type="button"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18" cy="12" r="1.6"/></svg></span>Lainnya</button>
+        </div>
+        <div class="head" style="margin-top:16px"><h2 style="font-size:13.5px">Anggota keluarga</h2><span class="cap">5 orang</span></div>
+        <div class="fam">
+          <div><span class="avatar me-mark" style="background:var(--lime-soft)">CR</span>Kamu</div>
+          <div><span class="avatar" style="background:#F6E7C9;color:#5A3D07">VI</span>Vallencya</div>
+          <div><span class="avatar" style="background:#DCE9F7;color:#123B63">HM</span>Hima</div>
+          <div><span class="avatar" style="background:#EBDDF3;color:#472062">AR</span>Arka</div>
+          <div><span class="avatar" style="background:var(--card-2)">SP</span>Sopir</div>
+        </div>
+      </article>
+
+      <!-- Monthly limit -->
+      <article class="card span-5">
+        <div class="head"><div><h2>Batas pengeluaran bulanan</h2><div class="cap">Semua anggaran, September</div></div><button class="ghost-btn" type="button" aria-label="Ubah batas">Ubah</button></div>
+        <div class="bar" role="img" aria-label="Terpakai Rp 16.750.000 dari Rp 22.000.000"><i class="fill-lime" style="width:76%"></i></div>
+        <div class="bar-legend"><span class="num">Rp 16.750.000 terpakai</span><span class="num">Rp 22.000.000</span></div>
+        <p class="note">Sisa <b class="num">Rp 5.250.000</b> untuk 3 hari lagi.</p>
+      </article>
+
+      <!-- Tip -->
+      <article class="card span-7 tips">
+        <div>
+          <h2>SPT tahunan tinggal 6 bulan lagi</h2>
+          <p>Zakat maal dan persepuluhan yang sudah tercatat mengurangi penghasilan kena pajak. Cek ringkasannya sebelum lapor.</p>
+          <a href="#" class="more">Buka Pusat Pajak <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+        </div>
+        <div class="mosaic" aria-hidden="true">
+          <i></i><i></i><i></i><i class="b"></i><i class="b"></i><i class="a"></i>
+          <i></i><i></i><i class="b"></i><i class="a"></i><i class="c"></i><i class="a"></i>
+          <i></i><i class="b"></i><i class="a"></i><i class="a"></i><i class="b"></i><i class="a"></i>
+        </div>
+      </article>
+
+      <!-- Spending analysis -->
+      <article class="card span-3">
+        <div class="head"><div><h2>Analisis pengeluaran</h2><div class="cap">Bulan ini</div></div></div>
+        <p class="mid num">Rp 16.750.000</p>
+        <div class="seg-bar" id="segbar" role="img" aria-label="Komposisi pengeluaran per kategori"></div>
+        <ul class="cat" id="cats"></ul>
+      </article>
+
+      <!-- Financial health -->
+      <article class="card span-3">
+        <div class="head"><div><h2>Kesehatan finansial</h2><div class="cap">Rasio tabungan</div></div><span class="ghost-btn" style="border:0;background:var(--card-2)">30 hari</span></div>
+        <p class="mid num" style="font-size:24px">Rp 21.750.000</p>
+        <div class="delta up">↑ 8,7% <em>dari bulan lalu</em></div>
+        <div class="gauge" id="gauge"><div class="center"><b class="num">56%</b><small>pemasukan ditabung</small></div></div>
+        <p class="note">Target sehat 20% ke atas. Kamu di atasnya.</p>
+      </article>
+
+      <!-- Goals -->
+      <article class="card span-3">
+        <div class="head"><div><h2>Tujuan</h2></div><button class="ghost-btn" type="button">+ Tujuan</button></div>
+        <div class="group-label">Tahun ini</div>
+        <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/></svg></span><div><div class="t">Dana darurat <span class="num">30 / 60 jt</span></div><div class="track"><i class="fill-lime" style="width:50%"></i></div><small>Rp 30 jt lagi, 5 bulan</small></div></div>
+        <div class="group-label">Jangka panjang</div>
+        <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9H3z"/></svg></span><div><div class="t">DP rumah <span class="num">120 / 300 jt</span></div><div class="track"><i style="width:40%;background:var(--orange)"></i></div><small>Rp 180 jt lagi, 3 tahun</small></div></div>
+        <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l4-12h8l4 12M7 14h10"/></svg></span><div><div class="t">Liburan Salatiga <span class="num">2 / 10 jt</span></div><div class="track"><i style="width:20%;background:var(--orange)"></i></div><small>Rp 8 jt lagi, Desember</small></div></div>
+      </article>
+
+      <!-- History -->
+      <article class="card span-3">
+        <div class="head"><div><h2>Riwayat transaksi</h2></div><div class="seg" role="group" aria-label="Periode riwayat"><button type="button" aria-pressed="true">7h</button><button type="button" aria-pressed="false">30h</button></div></div>
+        <ul class="tx">
+          <li><span class="ic" style="background:var(--lime-soft)">G</span><div><b>Gaji September</b><small>25 Sep · BCA</small></div><div class="amt num in">+32,5 jt<small class="cap">Masuk</small></div></li>
+          <li><span class="ic" style="background:#FCE8D0;color:#7A4108">KP</span><div><b>Cicilan KPR ke-26</b><small>24 Sep · BCA</small></div><div class="amt num out">−4,5 jt<small class="cap">Cicilan</small></div></li>
+          <li><span class="ic" style="background:#E3ECF7;color:#133C66">IN</span><div><b>Beli BBCA 2 lot</b><small>22 Sep · Investasi</small></div><div class="amt num out">−1,9 jt<small class="cap">Investasi</small></div></li>
+          <li><span class="ic" style="background:#F1E4F7;color:#4A1E66">MD</span><div><b>Minta dana, Hima</b><small>21 Sep · Uang saku</small></div><div class="amt num status-pending">500 rb<small class="cap">Menunggu</small></div></li>
+          <li><span class="ic" style="background:var(--card-2)">Z</span><div><b>Zakat maal</b><small>20 Sep · BCA</small></div><div class="amt num out">−2,5 jt<small class="cap">Donasi</small></div></li>
+          <li><span class="ic" style="background:var(--card-2)">BL</span><div><b>Belanja bulanan</b><small>19 Sep · Kartu kredit</small></div><div class="amt num out">−1,8 jt<small class="cap">Makan & Minum</small></div></li>
+        </ul>
+      </article>
+    </section>
+  </main>
+</div>
+
+<script>
+(function(){
+  var css = getComputedStyle(document.documentElement);
+  function v(n){return css.getPropertyValue(n).trim();}
+  var NS="http://www.w3.org/2000/svg";
+  function el(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+  function rp(n){return "Rp "+Math.round(n).toLocaleString("id-ID");}
+
+  // Weekly flow (in juta rupiah), savings stacked on income, expenses below zero.
+  var DATA={
+    7:[{d:"Sen",s:1.2,i:2.1,e:1.4},{d:"Sel",s:.8,i:1.6,e:2.2},{d:"Rab",s:2.6,i:4.9,e:1.9},{d:"Kam",s:1.1,i:2.4,e:1.6},{d:"Jum",s:3.2,i:6.1,e:2.4},{d:"Sab",s:.4,i:.9,e:3.1},{d:"Min",s:.2,i:.5,e:2.6}],
+    30:[{d:"Mg 1",s:6.4,i:12.8,e:5.2},{d:"Mg 2",s:3.1,i:6.9,e:4.1},{d:"Mg 3",s:4.8,i:9.6,e:3.9},{d:"Mg 4",s:7.4,i:15.2,e:3.5}]
+  };
+  var box=document.getElementById("flow");
+  var tip=document.createElement("div");tip.className="tip";tip.hidden=true;box.appendChild(tip);
+
+  function draw(range){
+    var rows=DATA[range]; var W=640,H=250,L=34,R=8,T=12,B=26;
+    var max=Math.max.apply(null,rows.map(function(r){return r.s+r.i;}));
+    var min=-Math.max.apply(null,rows.map(function(r){return r.e;}));
+    var top=Math.ceil(max/2)*2, bot=Math.floor(min/2)*2;
+    var y=function(val){return T+(top-val)/(top-bot)*(H-T-B);};
+    var svg=el("svg",{viewBox:"0 0 "+W+" "+H,width:"100%",role:"img","aria-label":"Arus kas per "+(range==7?"hari":"minggu")});
+    var defs=el("defs",{});
+    [["hl",v("--lime")],["hy",v("--yellow")],["ho",v("--orange")],["hg",v("--ghost")]].forEach(function(p){
+      var pat=el("pattern",{id:p[0],width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"});
+      pat.appendChild(el("rect",{width:8,height:8,fill:p[1]}));
+      pat.appendChild(el("rect",{width:2,height:8,fill:"rgba(255,255,255,.28)"}));
+      defs.appendChild(pat);
+    });
+    svg.appendChild(defs);
+    var step=(top-bot)/5>=2?Math.ceil((top-bot)/5/2)*2:2;
+    for(var t=bot;t<=top;t+=step){
+      svg.appendChild(el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:v("--line"),"stroke-width":1,"stroke-dasharray":t===0?"0":"3 4"}));
+      var lab=el("text",{x:L-8,y:y(t)+3.5,"text-anchor":"end"});lab.textContent=t+"";svg.appendChild(lab);
+    }
+    var band=(W-L-R)/rows.length, bw=Math.min(54,band*.62);
+    var best=rows.reduce(function(a,r,i){return (r.s+r.i)>(rows[a].s+rows[a].i)?i:a;},0);
+    rows.forEach(function(r,i){
+      var cx=L+band*i+band/2, x=cx-bw/2, on=i===best;
+      var g=el("g",{class:"grow",style:"animation-delay:"+(i*40)+"ms",tabindex:0,"aria-label":r.d+": tabungan "+r.s+" juta, pemasukan "+r.i+" juta, pengeluaran "+r.e+" juta"});
+      g.appendChild(el("rect",{x:x,y:y(r.i),width:bw,height:y(0)-y(r.i)-2,rx:7,fill:on?"url(#hl)":"url(#hg)"}));
+      g.appendChild(el("rect",{x:x,y:y(r.i+r.s),width:bw,height:y(r.i)-y(r.i+r.s)-2,rx:7,fill:on?"url(#hy)":"url(#hg)",opacity:on?1:.75}));
+      g.appendChild(el("rect",{x:x,y:y(0)+2,width:bw,height:y(-r.e)-y(0)-2,rx:7,fill:on?"url(#ho)":"url(#hg)",opacity:on?1:.6}));
+      var dl=el("text",{x:cx,y:H-8,"text-anchor":"middle"});dl.textContent=r.d;g.appendChild(dl);
+      function show(){tip.hidden=false;tip.innerHTML="<b>"+r.d+(range==7?", minggu ini":"")+"</b><div><span>Tabungan</span><span class='num'>"+rp(r.s*1e6)+"</span></div><div><span>Pemasukan</span><span class='num'>"+rp(r.i*1e6)+"</span></div><div><span>Pengeluaran</span><span class='num'>"+rp(r.e*1e6)+"</span></div>";
+        var bb=box.getBoundingClientRect(), sx=bb.width/W; tip.style.left=Math.min(bb.width-180,Math.max(0,(cx+bw/2+8)*sx))+"px"; tip.style.top=(y(r.i+r.s)*sx)+"px";}
+      g.addEventListener("mouseenter",show);g.addEventListener("focus",show);
+      g.addEventListener("mouseleave",function(){tip.hidden=true;});g.addEventListener("blur",function(){tip.hidden=true;});
+      svg.appendChild(g);
+    });
+    box.querySelectorAll("svg").forEach(function(s){s.remove();});
+    box.insertBefore(svg,tip);
+  }
+  draw(7);
+  document.querySelectorAll("[data-range]").forEach(function(b){b.addEventListener("click",function(){
+    document.querySelectorAll("[data-range]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false");});
+    tip.hidden=true; draw(+b.dataset.range);
+  });});
+
+  // Spending composition
+  var cats=[["Rumah & KPR",33,"--lime"],["Makan & Minum",18,"--yellow"],["Transportasi",11,"--orange"],["Pendidikan",14,"--lime-soft"],["Kesehatan",8,"--good"],["Lainnya",16,"--ghost"]];
+  var sb=document.getElementById("segbar"), ul=document.getElementById("cats");
+  cats.forEach(function(c){
+    var i=document.createElement("i");i.style.flex=c[1];i.style.background=v(c[2]);
+    if(c[2]==="--lime")i.className="fill-lime";sb.appendChild(i);
+    var li=document.createElement("li");li.innerHTML="<i style='background:"+v(c[2])+"'></i>"+c[0]+"<span class='p num'>"+c[1]+"%</span>";ul.appendChild(li);
+  });
+
+  // Savings-rate gauge: semicircle split into ticks
+  var gW=220,gH=124,cx=110,cy=112,r1=74,r2=100,n=28,pct=.56;
+  var gs=el("svg",{viewBox:"0 0 "+gW+" "+gH,width:"100%",style:"max-width:240px",role:"img","aria-label":"56 persen pemasukan ditabung"});
+  for(var k=0;k<n;k++){
+    var a=Math.PI+(Math.PI*(k+.5)/n), on=(k+.5)/n<=pct;
+    var da=Math.PI/n*.36;
+    var p1=[cx+r1*Math.cos(a-da),cy+r1*Math.sin(a-da)],p2=[cx+r2*Math.cos(a-da),cy+r2*Math.sin(a-da)],p3=[cx+r2*Math.cos(a+da),cy+r2*Math.sin(a+da)],p4=[cx+r1*Math.cos(a+da),cy+r1*Math.sin(a+da)];
+    gs.appendChild(el("path",{d:"M"+p1+"L"+p2+"L"+p3+"L"+p4+"Z",fill:on?(k<n*pct*.5?v("--yellow"):v("--lime")):v("--ghost"),"stroke-linejoin":"round"}));
+  }
+  document.getElementById("gauge").prepend(gs);
+})();
+</script>
