@@ -134,6 +134,47 @@ test.describe("Cross-page UX on mobile", () => {
     ).toBe(true);
   });
 
+  test("Beranda keeps the main sections aligned in reading order", async () => {
+    await page.goto("/beranda");
+    const dashboard = page.locator(".bento-dashboard--ordered");
+    await expect(dashboard).toBeVisible({ timeout: 45_000 });
+
+    const layout = await dashboard.evaluate((element) => {
+      const mainSections = Array.from(
+        element.querySelectorAll(
+          ":scope > .bento-hero, :scope > .bento-snapshot, :scope > .bento-chart, :scope > .bento-allocation, :scope > .bento-transactions, :scope > .bento-side, :scope > .bento-goals",
+        ),
+      ).map((section) => {
+        const bounds = section.getBoundingClientRect();
+        return {
+          x: Math.round(bounds.x),
+          y: Math.round(bounds.y),
+          width: Math.round(bounds.width),
+        };
+      });
+      const metrics = Array.from(
+        element.querySelectorAll(":scope > .bento-stat"),
+      ).map((metric) => {
+        const bounds = metric.getBoundingClientRect();
+        return { y: Math.round(bounds.y), width: Math.round(bounds.width) };
+      });
+
+      return { mainSections, metrics };
+    });
+
+    expect(layout.mainSections).toHaveLength(7);
+    expect(layout.mainSections.map(({ y }) => y)).toEqual(
+      [...layout.mainSections.map(({ y }) => y)].sort((a, b) => a - b),
+    );
+    expect(
+      new Set(layout.mainSections.map(({ x, width }) => `${x}:${width}`)).size,
+    ).toBe(1);
+    expect(layout.metrics).toHaveLength(4);
+    expect(layout.metrics.map(({ y }) => y)).toEqual(
+      [...layout.metrics.map(({ y }) => y)].sort((a, b) => a - b),
+    );
+  });
+
   test("form fields and primary actions meet 44px on coarse pointers", async ({
     browser,
   }) => {

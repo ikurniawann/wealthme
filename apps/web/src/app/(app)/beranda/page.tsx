@@ -63,7 +63,10 @@ function BerandaPage() {
           />
         )}
 
-      <section className="bento-dashboard" aria-label={t.beranda.title}>
+      <section
+        className="bento-dashboard bento-dashboard--ordered"
+        aria-label={t.beranda.title}
+      >
         <BerandaHero
           isLoading={data.isLoading}
           netWorth={data.netWorth}

@@ -1504,6 +1504,24 @@
     grid-column: 1 / -1;
   }
 
+  /* Beranda keeps one clear reading order instead of alternating card widths.
+     The four equivalent account totals remain aligned as a single metric row. */
+  .bento-dashboard--ordered {
+    grid-auto-flow: row;
+  }
+  .bento-dashboard--ordered > .bento-hero,
+  .bento-dashboard--ordered > .bento-snapshot,
+  .bento-dashboard--ordered > .bento-chart,
+  .bento-dashboard--ordered > .bento-allocation,
+  .bento-dashboard--ordered > .bento-transactions,
+  .bento-dashboard--ordered > .bento-side,
+  .bento-dashboard--ordered > .bento-goals {
+    grid-column: 1 / -1;
+  }
+  .bento-dashboard--ordered > .bento-stat {
+    grid-column: span 3;
+  }
+
   .bento-hero {
     display: flex;
     flex-direction: column;
@@ -1754,6 +1772,9 @@
   }
 
   @media (max-width: 1024px) {
+    .bento-dashboard--ordered > .bento-stat {
+      grid-column: span 6;
+    }
     .bento-hero,
     .bento-snapshot,
     .bento-chart,
@@ -1788,6 +1809,9 @@
       grid-column: 1 / -1;
     }
     .bento-stat {
+      grid-column: span 1;
+    }
+    .bento-dashboard--ordered > .bento-stat {
       grid-column: span 1;
     }
     .bento-hero__footer {
