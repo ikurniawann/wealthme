@@ -2,6 +2,16 @@ import type { I18nDictionary } from "./types";
 
 export const en = {
   locale: "en" as const,
+  legal: {
+    privacyTitle: "Privacy Policy",
+    termsTitle: "Terms & Conditions",
+    licenseTitle: "Open Source Licenses",
+    contentNotice: "This document is not available yet.",
+    backToLogin: "Back to sign in",
+    privacyLink: "Privacy",
+    termsLink: "Terms",
+    licenseLink: "Licenses",
+  },
   greeting: {
     morning: "Good morning",
     afternoon: "Good afternoon",

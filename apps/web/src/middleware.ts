@@ -6,6 +6,7 @@ export default function middleware(request: NextRequest) {
   const isPublicRoute =
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname.startsWith("/legal/") ||
     pathname === "/lupa-password" ||
     pathname === "/reset-password" ||
     pathname === "/konfirmasi-email" ||

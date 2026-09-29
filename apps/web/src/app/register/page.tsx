@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
 import { SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+import { LegalLinks } from "@/components/auth/legal-links";
 
 // EPIC-026 Wave 7 — markup rebuilt from docs/prototype/pages/register.html
 // (token-based `.auth` layout per EPIC-025-N3-translation-table.md). Cut
@@ -390,6 +391,7 @@ export default function RegisterPage() {
             </Link>
           </div>
         </SectionCard>
+        <LegalLinks />
 
         <div className="mt-3.5 text-center text-[11.5px] text-muted-foreground">
           Anggota keluarga didaftarkan oleh kepala keluarga.

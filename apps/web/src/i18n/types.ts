@@ -381,6 +381,16 @@ type LaporanExportTypeId =
 
 export type I18nDictionary = {
   locale: "id" | "en";
+  legal: {
+    privacyTitle: string;
+    termsTitle: string;
+    licenseTitle: string;
+    contentNotice: string;
+    backToLogin: string;
+    privacyLink: string;
+    termsLink: string;
+    licenseLink: string;
+  };
   greeting: {
     morning: string;
     afternoon: string;

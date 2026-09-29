@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { isFamilyLoginId } from "@wealthme/contracts";
 import { authClient } from "@/lib/auth-client";
 import { SectionCard } from "@/components/wm";
+import { LegalLinks } from "@/components/auth/legal-links";
 
 // EPIC-026 Wave 7 — markup rebuilt from docs/prototype/pages/login.html
 // (token-based `.auth` layout: brand above a `.card`, `.input`/`.btn`/
@@ -363,6 +364,7 @@ export default function LoginPage() {
             </>
           )}
         </SectionCard>
+        <LegalLinks />
       </div>
     </div>
   );

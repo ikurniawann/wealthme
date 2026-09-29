@@ -2,6 +2,16 @@ import type { I18nDictionary } from "./types";
 
 export const id = {
   locale: "id" as const,
+  legal: {
+    privacyTitle: "Kebijakan Privasi",
+    termsTitle: "Syarat & Ketentuan",
+    licenseTitle: "Lisensi Open Source",
+    contentNotice: "Dokumen ini belum tersedia.",
+    backToLogin: "Kembali ke masuk",
+    privacyLink: "Privasi",
+    termsLink: "Syarat",
+    licenseLink: "Lisensi",
+  },
   greeting: {
     morning: "Selamat pagi",
     afternoon: "Selamat siang",
