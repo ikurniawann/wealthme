@@ -392,7 +392,7 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
     <div class="promo">
       <h3>Lengkapi profil</h3>
       <div class="steps" aria-label="3 dari 5 langkah selesai"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
-      <p>3 dari 5 selesai. Tinggal tambah anggota keluarga dan tujuan pertama.</p>
+      <p>3 dari 5 langkah selesai.</p>
       <button class="btn-dark" type="button">Lanjutkan</button>
     </div>
   </aside>
@@ -468,14 +468,13 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
         <div class="head"><div><h2>Batas pengeluaran bulanan</h2><div class="cap">Semua anggaran, September</div></div><button class="ghost-btn" type="button" aria-label="Ubah batas">Ubah</button></div>
         <div class="bar" role="img" aria-label="Terpakai Rp 16.750.000 dari Rp 22.000.000"><i class="fill-lime" style="width:76%"></i></div>
         <div class="bar-legend"><span class="num">Rp 16.750.000 terpakai</span><span class="num">Rp 22.000.000</span></div>
-        <p class="note">Sisa <b class="num">Rp 5.250.000</b> untuk 3 hari lagi.</p>
       </article>
 
       <!-- Tip -->
       <article class="card span-7 tips a-tips">
         <div>
           <h2>SPT tahunan tinggal 6 bulan lagi</h2>
-          <p>Zakat maal dan persepuluhan yang sudah tercatat mengurangi penghasilan kena pajak. Cek ringkasannya sebelum lapor.</p>
+          <p>Zakat dan persepuluhan yang tercatat mengurangi pajakmu.</p>
           <a href="#" class="more">Buka Pusat Pajak <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
         </div>
         <div class="mosaic" aria-hidden="true">
@@ -491,7 +490,6 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
         <p class="mid num">Rp 16.750.000</p>
         <div class="seg-bar" id="segbar" role="img" aria-label="Komposisi pengeluaran per kategori"></div>
         <ul class="cat" id="cats"></ul>
-        <div class="stats push"><div><small>vs Agustus</small><b class="num" style="color:var(--bad)">+Rp 1,85 jt</b></div><div><small>Terbesar naik</small><b>Makan & Minum</b></div></div>
       </article>
 
       <!-- Financial health -->
@@ -500,8 +498,7 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
         <p class="mid num" style="font-size:24px">Rp 21.750.000</p>
         <div class="delta up">↑ 8,7% <em>dari bulan lalu</em></div>
         <div class="gauge" id="gauge"><div class="center"><b class="num">56%</b><small>pemasukan ditabung</small></div></div>
-        <div class="stats"><div><small>Dana darurat</small><b class="num">3,2× </b><small>pengeluaran bulanan</small></div><div><small>Rasio utang</small><b class="num">18%</b><small>dari aset</small></div></div>
-        <p class="note push" style="padding-top:12px">Target rasio tabungan 20% ke atas. Kamu di atasnya.</p>
+        <p class="note push" style="padding-top:12px">Dari transaksi 30 hari terakhir.</p>
       </article>
 
       <!-- Goals -->
@@ -512,7 +509,7 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
         <div class="group-label">Jangka panjang</div>
         <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9H3z"/></svg></span><div><div class="t">DP rumah <span class="num">120 / 300 jt</span></div><div class="track"><i style="width:40%;background:var(--orange)"></i></div><small>Rp 180 jt lagi, 3 tahun</small></div></div>
         <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19l4-12h8l4 12M7 14h10"/></svg></span><div><div class="t">Liburan Salatiga <span class="num">2 / 10 jt</span></div><div class="track"><i style="width:20%;background:var(--orange)"></i></div><small>Rp 8 jt lagi, Desember</small></div></div>
-        <div class="stats push" style="grid-template-columns:1fr"><div><small>Total terkumpul</small><b class="num">Rp 152 jt</b> <small style="display:inline">dari Rp 370 jt</small></div></div>
+        <div class="goal"><span class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 16h14M6 16l1.5-6h9L18 16M7 16v3M17 16v3"/></svg></span><div><div class="t">Mobil <span class="num">16 / 200 jt</span></div><div class="track"><i style="width:8%;background:var(--orange)"></i></div><small>Rp 184 jt lagi, 4 tahun</small></div></div>
       </article>
 
       <!-- History -->
@@ -729,17 +726,17 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
   dlg.addEventListener("click",function(){setTimeout(function(){updFrom();updTo();},0);});
 
   // Spending composition
-  var cats=[["Rumah & KPR",33,"--lime"],["Makan & Minum",18,"--yellow"],["Transportasi",11,"--orange"],["Pendidikan",14,"--lime-soft"],["Kesehatan",8,"--good"],["Lainnya",16,"--ghost"]];
+  var cats=[["Rumah & KPR",33,"--lime"],["Makan & Minum",18,"--yellow"],["Transportasi",11,"--orange"],["Pendidikan",9,"--lime-soft"],["Kesehatan",8,"--good"],["Investasi",7,"--lime"],["Lainnya",14,"--ghost"]];
   var sb=document.getElementById("segbar"), ul=document.getElementById("cats");
   cats.forEach(function(c){
     var i=document.createElement("i");i.style.flex=c[1];i.style.background=v(c[2]);
     if(c[2]==="--lime")i.className="fill-lime";sb.appendChild(i);
-    var li=document.createElement("li");li.innerHTML="<i style='background:"+v(c[2])+"'></i>"+c[0]+"<span class='grow1'><span class='r num'>"+(Math.round(16.75*c[1]/10)/10).toLocaleString("id-ID")+" jt</span><span class='p num'>"+c[1]+"%</span></span>";ul.appendChild(li);
+    var li=document.createElement("li");li.innerHTML="<i style='background:"+v(c[2])+"'></i>"+c[0]+"<span class='p num' style='margin-left:auto'>"+c[1]+"%</span>";ul.appendChild(li);
   });
 
   // Savings-rate gauge: semicircle split into ticks
   var gW=220,gH=124,cx=110,cy=112,r1=74,r2=100,n=28,pct=.56;
-  var gs=el("svg",{viewBox:"0 0 "+gW+" "+gH,width:"100%",style:"max-width:280px",role:"img","aria-label":"56 persen pemasukan ditabung"});
+  var gs=el("svg",{viewBox:"0 0 "+gW+" "+gH,width:"100%",style:"max-width:320px",role:"img","aria-label":"56 persen pemasukan ditabung"});
   for(var k=0;k<n;k++){
     var a=Math.PI+(Math.PI*(k+.5)/n), on=(k+.5)/n<=pct;
     var da=Math.PI/n*.36;
