@@ -114,6 +114,9 @@ export const id = {
     needsAttentionTitle: "Perlu Perhatian",
     pendingApprovalsNotice: "permintaan dana menunggu persetujuan kamu.",
     liabilityDueNotice: "jatuh tempo",
+    // Hardening batch G5 (Goal-gradient) — "Cicilan ke-N dari tenor" instead
+    // of only the due date, reusing tenorMonths/startDate already fetched.
+    liabilityInstallmentProgress: "Cicilan ke-{n} dari {total}",
     noNotices: "Tidak ada yang perlu perhatian saat ini",
     // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
     // card + composition-row badges/due-notice + Arus Kas period toggle.

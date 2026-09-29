@@ -482,6 +482,7 @@ export type I18nDictionary = {
     needsAttentionTitle: string;
     pendingApprovalsNotice: string;
     liabilityDueNotice: string;
+    liabilityInstallmentProgress: string;
     noNotices: string;
     // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
     // card + composition-row badges/due-notice + Arus Kas period toggle.

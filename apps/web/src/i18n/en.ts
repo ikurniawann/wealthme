@@ -109,6 +109,7 @@ export const en = {
     needsAttentionTitle: "Needs Attention",
     pendingApprovalsNotice: "fund requests are waiting for your approval.",
     liabilityDueNotice: "due",
+    liabilityInstallmentProgress: "Installment {n} of {total}",
     noNotices: "Nothing needs your attention right now",
     // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
     // card + composition-row badges/due-notice + Arus Kas period toggle.
