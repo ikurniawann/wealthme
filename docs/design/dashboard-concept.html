@@ -247,7 +247,7 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
 }
 
 /* add-transaction dialog */
-dialog.sheet{border:0;padding:0;border-radius:22px;background:var(--card);color:var(--ink);width:min(520px,calc(100vw - 32px));max-height:calc(100dvh - 48px);box-shadow:0 30px 80px -20px rgba(20,30,5,.35)}
+dialog.sheet{border:0;padding:0;border-radius:22px;background:var(--card);color:var(--ink);width:min(580px,calc(100vw - 32px));max-height:calc(100dvh - 48px);box-shadow:0 30px 80px -20px rgba(20,30,5,.35)}
 dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) saturate(.8);-webkit-backdrop-filter:blur(8px) saturate(.8)}
 .sheet form{display:flex;flex-direction:column;max-height:calc(100dvh - 48px)}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px}
@@ -274,8 +274,8 @@ dialog.sheet::backdrop{background:rgba(14,18,8,.66);backdrop-filter:blur(8px) sa
 .hscroll::after{right:0;background:linear-gradient(270deg,var(--card),transparent)}
 .hscroll.more-l::before,.hscroll.more-r::after{opacity:1}
 @media (pointer:coarse){.hs-btn{display:none}}
-.acc{flex:none;scroll-snap-align:start;width:132px;border-radius:14px;border:1.5px solid var(--line);background:var(--card);padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:2px;min-height:64px}
-.acc small{color:var(--muted);font-size:11px}.acc b{font-size:13px}.acc .num{font-size:12px;color:var(--muted)}
+.acc{flex:none;scroll-snap-align:start;width:172px;border-radius:16px;border:1.5px solid var(--line);background:var(--card);padding:14px 16px;text-align:left;display:flex;flex-direction:column;gap:4px;min-height:92px}
+.acc small{color:var(--muted);font-size:12px}.acc b{font-size:16px;letter-spacing:-.01em}.acc .num{font-size:13.5px;color:var(--ink);font-weight:500;margin-top:auto}
 .acc[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
 .chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .ctile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:14px;min-height:76px;padding:8px 4px;font-size:12px;line-height:1.2;text-align:center}
