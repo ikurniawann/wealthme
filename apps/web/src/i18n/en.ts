@@ -744,7 +744,6 @@ export const en = {
       licenseName: "Open Source License",
       footerMade: "Made with in Indonesia",
       footerCopyright: "© 2025 WealthMe · All rights reserved",
-      toastComingSoon: "This feature isn't available yet, coming soon.",
     },
     family: {
       membersSectionTitle: "Members",

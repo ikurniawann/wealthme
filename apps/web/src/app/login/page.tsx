@@ -363,6 +363,18 @@ export default function LoginPage() {
             </>
           )}
         </SectionCard>
+
+        {/* Hardening batch G2 — link the draft legal pages from the login
+            footer, per the coming-soon inventory decision. */}
+        <div className="mt-4 flex justify-center gap-3 text-[11.5px] text-muted-foreground">
+          <Link href="/legal/privasi" className="hover:text-foreground">
+            Kebijakan Privasi
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/legal/syarat" className="hover:text-foreground">
+            Syarat &amp; Ketentuan
+          </Link>
+        </div>
       </div>
     </div>
   );

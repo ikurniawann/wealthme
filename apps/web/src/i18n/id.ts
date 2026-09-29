@@ -745,7 +745,6 @@ export const id = {
       licenseName: "Lisensi Open Source",
       footerMade: "Dibuat dengan di Indonesia",
       footerCopyright: "© 2025 WealthMe · Semua hak dilindungi",
-      toastComingSoon: "Fitur ini belum tersedia, segera hadir.",
     },
     family: {
       membersSectionTitle: "Anggota",

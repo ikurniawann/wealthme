@@ -977,7 +977,6 @@ export type I18nDictionary = {
       licenseName: string;
       footerMade: string;
       footerCopyright: string;
-      toastComingSoon: string;
     };
     family: {
       membersSectionTitle: string;

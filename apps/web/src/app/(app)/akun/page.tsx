@@ -2261,27 +2261,33 @@ function TentangBody() {
             </span>
           }
         />
-        <SetRow
-          icon={<FileText className="size-4 text-muted-foreground" />}
-          iconBg="#F3F4F6"
-          name={t.akun.tentang.privacyPolicyName}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.toastComingSoon)}
-        />
-        <SetRow
-          icon={<Scale className="size-4 text-muted-foreground" />}
-          iconBg="#F3F4F6"
-          name={t.akun.tentang.termsName}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.toastComingSoon)}
-        />
-        <SetRow
-          icon={<Code className="size-4 text-brand-purple" />}
-          iconBg="#EDE9FE"
-          name={t.akun.tentang.licenseName}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.toastComingSoon)}
-        />
+        {/* Hardening batch G2 — these three rows used to toast
+            "belum tersedia" on click. Real draft pages now exist at
+            /legal/*, each honestly marked "Draf, belum final". */}
+        <Link href="/legal/privasi" className="block border-b last:border-b-0">
+          <SetRow
+            icon={<FileText className="size-4 text-muted-foreground" />}
+            iconBg="#F3F4F6"
+            name={t.akun.tentang.privacyPolicyName}
+            right={CHEVRON}
+          />
+        </Link>
+        <Link href="/legal/syarat" className="block border-b last:border-b-0">
+          <SetRow
+            icon={<Scale className="size-4 text-muted-foreground" />}
+            iconBg="#F3F4F6"
+            name={t.akun.tentang.termsName}
+            right={CHEVRON}
+          />
+        </Link>
+        <Link href="/legal/lisensi" className="block border-b last:border-b-0">
+          <SetRow
+            icon={<Code className="size-4 text-brand-purple" />}
+            iconBg="#EDE9FE"
+            name={t.akun.tentang.licenseName}
+            right={CHEVRON}
+          />
+        </Link>
       </SetSection>
       <div className="px-0 pt-2 pb-1 text-center text-[11.5px] text-muted-foreground">
         {t.akun.tentang.footerMade}
