@@ -3,39 +3,45 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.dn-hist{display:flex;flex-direction:column}
-.dn-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+@media (min-width:1181px){
+  .d-hero{grid-column:1/9;grid-row:1}.d-calc{grid-column:9/13;grid-row:1/3}
+  .d-hist{grid-column:1/9;grid-row:2/4}.d-tips{grid-column:9/13;grid-row:3}
+}
+.dn-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line);font-size:13px}
 .dn-row:last-child{border-bottom:0}
-.dn-ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:15px;background:var(--card-2)}
-.dn-calc{border-radius:14px;background:var(--card-2);padding:16px;text-align:center;margin-top:14px}
-.dn-calc b{display:block;font-size:24px;font-weight:800;color:var(--good);margin-top:4px}
-.zk-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:520px){.zk-grid{grid-template-columns:1fr}}
+.dn-ic{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--card-2);flex:none}
+.dn-calc{border-radius:14px;background:var(--card-2);padding:14px;text-align:center;margin-top:12px}
+.dn-calc b{display:block;font-size:22px;font-weight:800;color:var(--good);margin-top:4px}
+.d-calc .zk-grid{display:grid;grid-template-columns:1fr;gap:10px}
 </style>
 <main data-page="donation">
-  <div class="ph"><div><h1>Donasi</h1><p>Zakat, persepuluhan, dan donasi lain untuk seluruh keluarga.</p></div>
-    <div class="acts"><button class="btn primary" type="button" id="add">Catat donasi</button></div></div>
-
-  <section class="grid">
-    <div class="cover s12" id="hero">
-      <small>Total donasi tercatat tahun ini</small>
-      <div class="big mono" id="heroVal">Rp 0</div>
-      <div class="stats" style="margin-top:10px">
-        <div class="stat"><small>Transaksi</small><b id="heroCount">0</b></div>
-        <div class="stat"><small>Bisa jadi pengurang pajak</small><b id="heroDed">Rp 0</b></div>
+<section class="bento" aria-label="Donasi">
+  <article class="card hero dark d-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="heroVal"></p><div class="cap">Total donasi tahun ini</div></div>
+        <div class="hero-ctrl"><div class="ctrl-row"><button class="ghost-btn lit" type="button" id="add">+ Donasi</button></div></div>
       </div>
+      <div class="chart-wrap" id="chart"></div>
     </div>
-  </section>
-
-  <section class="grid" id="religionBox" style="margin-top:16px"></section>
-  <section class="grid" id="calcBox" style="margin-top:16px"></section>
-
-  <section class="grid" style="margin-top:16px">
-    <div class="card s12">
-      <div class="head"><h2>Riwayat donasi</h2><span class="cap" id="histCap"></span></div>
-      <div class="dn-hist" id="hist" style="margin-top:8px"></div>
+    <div class="kpis">
+      <div class="kpi"><small>Transaksi</small><div class="v" id="kCount"></div></div>
+      <div class="kpi"><small>Pengurang pajak</small><div class="v" id="kDed"></div></div>
     </div>
-  </section>
+  </article>
+
+  <article class="card d-calc" id="calcCard"></article>
+
+  <article class="card d-hist">
+    <div class="head"><div><h2>Riwayat donasi</h2><div class="cap" id="histCap"></div></div></div>
+    <div id="hist" style="margin-top:6px"></div>
+  </article>
+
+  <article class="card tips d-tips">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
@@ -88,50 +94,51 @@ function drawHero(){
   var year=new Date(WM.today).getFullYear();
   var list=donations();
   var thisYear=list.filter(function(d){return new Date(d.donatedAt).getFullYear()===year;});
-  var total=list.reduce(function(s,d){return s+d.amount;},0);
+  var total=thisYear.reduce(function(s,d){return s+d.amount;},0);
   var ded=thisYear.filter(function(d){return d.isTaxDeductible;}).reduce(function(s,d){return s+d.amount;},0);
-  document.getElementById("heroVal").textContent=WM.rp(total);
-  document.getElementById("heroCount").textContent=list.length;
-  document.getElementById("heroDed").textContent=WM.rp(ded);
-}
+  document.getElementById("heroVal").innerHTML='<span class="cur">Rp</span>'+total.toLocaleString("id-ID");
+  document.getElementById("kCount").textContent=list.length;
+  document.getElementById("kDed").textContent=WM.short(ded);
 
-function drawReligionBox(){
-  var box=document.getElementById("religionBox"),rel=religion();
-  if(rel!==null){box.innerHTML="";return;}
-  box.innerHTML='<div class="card s12"><div class="head"><h2>Pilih agama keluarga</h2><span class="cap">Menentukan kalkulator mana yang tampil di halaman ini</span></div>'+
-   '<div class="two" style="margin-top:12px;align-items:end"><div class="field"><label>Agama keluarga</label><select id="relSel"><option value="">Pilih…</option><option value="islam">Islam</option><option value="kristen">Kristen / Katolik</option><option value="hindu">Hindu</option><option value="buddha">Buddha</option><option value="none">Tidak diisi</option></select></div>'+
-   '<button class="btn primary" type="button" id="relSave">Simpan</button></div></div>';
-  document.getElementById("relSave").addEventListener("click",function(){
-    var v=document.getElementById("relSel").value;if(!v)return;
-    WM.store.set("familySettings",Object.assign({},WM.store.get("familySettings"),{religion:v}));
-    WM.toast("Agama keluarga disimpan");
-  });
+  var box=document.getElementById("chart"),byType={};
+  thisYear.forEach(function(d){byType[d.type]=(byType[d.type]||0)+d.amount;});
+  var labels=Object.keys(byType);
+  if(!labels.length){box.innerHTML='<div class="empty"><b>Belum ada donasi tahun ini</b><p>Catat donasi untuk melihat ringkasannya di sini.</p></div>';return;}
+  WM.chart.bars(box,{labels:labels.map(function(k){return (TYPE_BY_V[k]||{l:k}).l;}),series:[{d:labels.map(function(k){return byType[k];}),c:"var(--lime)"}],fmt:WM.rp,wide:true});
 }
 
 function drawCalc(){
-  var box=document.getElementById("calcBox"),rel=religion();
-  if(rel===null){box.innerHTML="";return;}
+  var box=document.getElementById("calcCard"),rel=religion();
+  if(rel===null){
+    box.innerHTML='<div class="head"><h2>Agama keluarga</h2></div><div class="field" style="margin-top:10px"><label>Pilih agama</label><select id="relSel"><option value="">Pilih…</option><option value="islam">Islam</option><option value="kristen">Kristen / Katolik</option><option value="hindu">Hindu</option><option value="buddha">Buddha</option><option value="none">Tidak diisi</option></select></div><button class="btn primary block" type="button" id="relSave" style="margin-top:10px">Simpan</button>';
+    document.getElementById("relSave").addEventListener("click",function(){
+      var v=document.getElementById("relSel").value;if(!v)return;
+      WM.store.set("familySettings",Object.assign({},WM.store.get("familySettings"),{religion:v}));
+      WM.toast("Agama keluarga disimpan");
+    });
+    return;
+  }
   if(rel==="none"||rel==="hindu"||rel==="buddha"){
-    box.innerHTML='<div class="card s12"><div class="head"><h2>'+(rel==="none"?"Belum ada kalkulator":"Kalkulator umum saja")+'</h2><span class="cap">'+(rel==="none"?"Pilih agama keluarga untuk melihat kalkulator zakat atau persepuluhan.":"Kalkulator zakat dan persepuluhan hanya tersedia untuk Islam dan Kristen/Katolik.")+'</span></div></div>';
+    box.innerHTML='<div class="head"><h2>Kalkulator umum saja</h2></div><p class="cap" style="margin-top:8px">Kalkulator zakat dan persepuluhan hanya tersedia untuk Islam dan Kristen/Katolik.</p>';
     return;
   }
   var html="";
   if(rel==="islam"){
-    html='<div class="card s12" id="zakatCard"><div class="head"><h2>Kalkulator Zakat Maal</h2><span class="cap">Nisab dihitung dari harga emas indikatif Rp '+GOLD_PRICE_PER_GRAM.toLocaleString("id-ID")+'/gram × 85 gram</span></div>'+
-     '<div class="zk-grid" style="margin-top:12px">'+
+    html='<div class="head"><h2>Kalkulator Zakat Maal</h2></div><p class="cap" style="margin-top:4px">Nisab dari harga emas indikatif Rp '+GOLD_PRICE_PER_GRAM.toLocaleString("id-ID")+'/gram × 85 gram</p>'+
+     '<div class="zk-grid" style="margin-top:10px">'+
      WM.field({name:"zkCash",label:"Kas & tabungan",type:"money"})+
      WM.field({name:"zkGold",label:"Emas & logam mulia",type:"money"})+
      WM.field({name:"zkInvest",label:"Investasi lancar",type:"money"})+
      WM.field({name:"zkDebt",label:"Utang jatuh tempo",type:"money"})+
-     '</div><label class="check" style="margin-top:12px"><input type="checkbox" id="zkHaul"><span>Sudah tersimpan 1 tahun penuh (haul)</span></label>'+
+     '</div><label class="check" style="margin-top:10px"><input type="checkbox" id="zkHaul"><span>Sudah 1 tahun penuh (haul)</span></label>'+
      '<div class="dn-calc" id="zkResult"><small class="muted">Zakat maal diperkirakan</small><b id="zkAmt">Rp 0</b><div class="cap" id="zkNote" style="margin-top:6px"></div></div>'+
-     '<button class="btn primary block" type="button" id="zkPay" style="margin-top:12px">Catat zakat sekarang</button></div>';
+     '<button class="btn primary block" type="button" id="zkPay" style="margin-top:10px">Catat zakat sekarang</button>';
   }else{
-    html='<div class="card s12" id="titheCard"><div class="head"><h2>Kalkulator Persepuluhan</h2><span class="cap">Persentase dapat kamu sesuaikan, standar 10%</span></div>'+
-     '<div class="zk-grid" style="margin-top:12px">'+WM.field({name:"tiIncome",label:"Penghasilan",type:"money"})+WM.field({name:"tiOther",label:"Penghasilan lain",type:"money"})+'</div>'+
-     WM.field({name:"tiRate",label:"Persentase",type:"percent",value:10,cls:"",hint:"0–100%"})+
+    html='<div class="head"><h2>Kalkulator Persepuluhan</h2></div><p class="cap" style="margin-top:4px">Persentase dapat disesuaikan, standar 10%</p>'+
+     '<div class="zk-grid" style="margin-top:10px">'+WM.field({name:"tiIncome",label:"Penghasilan",type:"money"})+WM.field({name:"tiOther",label:"Penghasilan lain",type:"money"})+
+     WM.field({name:"tiRate",label:"Persentase",type:"percent",value:10,hint:"0–100%"})+'</div>'+
      '<div class="dn-calc"><small class="muted">Persepuluhan diperkirakan</small><b id="tiAmt">Rp 0</b></div>'+
-     '<button class="btn primary block" type="button" id="tiPay" style="margin-top:12px">Catat persepuluhan sekarang</button></div>';
+     '<button class="btn primary block" type="button" id="tiPay" style="margin-top:10px">Catat persepuluhan sekarang</button>';
   }
   box.innerHTML=html;
   WM.wire(box);
@@ -146,7 +153,7 @@ function drawCalc(){
       cur.haul=box.querySelector("#zkHaul").checked;
       var r=calcZakat(cur.cash,cur.gold,cur.invest,cur.debt,cur.haul);
       box.querySelector("#zkAmt").textContent=WM.rp(r.zakat);
-      box.querySelector("#zkNote").textContent=!r.meetsNisab?"Belum mencapai nisab ("+WM.rp(r.nisab)+").":r.isObligated?"Sudah mencapai nisab dan wajib ("+WM.rp(r.nisab)+").":"Sudah mencapai nisab, tandai haul untuk memastikan wajib ("+WM.rp(r.nisab)+").";
+      box.querySelector("#zkNote").textContent=!r.meetsNisab?"Belum mencapai nisab ("+WM.rp(r.nisab)+").":r.isObligated?"Sudah mencapai nisab dan wajib ("+WM.rp(r.nisab)+").":"Sudah mencapai nisab, tandai haul untuk memastikan wajib.";
       box.querySelector("#zkPay").disabled=r.zakat<=0;
       box._r=r;
     }
@@ -172,20 +179,32 @@ function drawHist(){
   if(!list.length){wrap.innerHTML='<div class="empty"><span class="ic">'+WM.icon("heart",24)+'</span><b>Belum ada donasi tercatat</b><p>Catat zakat, persepuluhan, atau donasi lain untuk melihatnya di sini.</p></div>';return;}
   wrap.innerHTML=list.map(function(d){var t=TYPE_BY_V[d.type]||{l:d.type,ic:"heart"},acc=accs.filter(function(a){return a.id===d.accountId;})[0];
     return '<div class="dn-row" data-id="'+d.id+'"><span class="dn-ic" style="background:'+iconBg(d.type)+'">'+WM.icon(t.ic,15)+'</span>'+
-     '<span style="min-width:0"><b style="display:block;font-size:13.5px">'+WM.esc(t.l)+': '+WM.esc(d.recipient)+'</b><small class="muted">'+fmtDate(d.donatedAt)+(acc?" · "+WM.esc(acc.bank):"")+'</small></span>'+
-     '<span style="text-align:right;display:flex;align-items:center;gap:8px"><b class="num mono">'+WM.rp(d.amount)+'</b><span class="pill'+(d.isTaxDeductible?" good":"")+'">'+(d.isTaxDeductible?"Pengurang pajak":"Sukarela")+'</span><button class="ibtn danger" type="button" data-del title="Hapus">'+WM.icon("trash",14)+'</button></span></div>';
+     '<span style="min-width:0"><b style="display:block">'+WM.esc(t.l)+': '+WM.esc(d.recipient)+'</b><small class="muted">'+fmtDate(d.donatedAt)+(acc?" · "+WM.esc(acc.bank):"")+'</small></span>'+
+     '<span style="text-align:right;display:flex;align-items:center;gap:8px"><b class="num">'+WM.rp(d.amount)+'</b><span class="pill'+(d.isTaxDeductible?" good":"")+'">'+(d.isTaxDeductible?"Pengurang pajak":"Sukarela")+'</span><button class="ibtn danger" type="button" data-del title="Hapus">'+WM.icon("trash",14)+'</button></span></div>';
   }).join("");
 }
 
-function draw(){drawHero();drawReligionBox();drawCalc();drawHist();}
+function drawTips(){
+  var year=new Date(WM.today).getFullYear();
+  var thisYear=donations().filter(function(d){return new Date(d.donatedAt).getFullYear()===year;});
+  var total=thisYear.reduce(function(s,d){return s+d.amount;},0);
+  var ded=thisYear.filter(function(d){return d.isTaxDeductible;}).reduce(function(s,d){return s+d.amount;},0);
+  var pct=total?Math.round(ded/total*100):0;
+  var t=document.getElementById("tipT"),p=document.getElementById("tipP");
+  if(!thisYear.length){t.textContent="Belum ada donasi tahun ini";p.textContent="Catat zakat atau donasi pertamamu.";}
+  else{t.textContent=pct+"% donasi jadi pengurang pajak";p.textContent="Terisi otomatis ke kalkulator PPh 21 di Tax Center.";}
+  var n=Math.round(pct/100*18);document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
+}
+
+function draw(){drawHero();drawCalc();drawHist();drawTips();}
 draw();
 WM.onChange(["donations","familySettings","accounts"],draw);
 
 document.getElementById("hist").addEventListener("click",function(e){
   if(!e.target.closest("[data-del]"))return;
-  var id=e.target.closest("[data-id]").dataset.id,d=WM.store.find("donations",id);
-  WM.confirm({title:"Hapus catatan donasi?",text:WM.rp(d.amount)+" untuk "+d.recipient+" akan dihapus.",confirm:"Hapus",danger:true}).then(function(ok){
-    if(!ok)return;WM.store.remove("donations",id);WM.toast("Donasi dihapus",{undo:function(){var a=WM.store.get("donations");a.unshift(d);WM.store.set("donations",a);}});});
+  var id=e.target.closest("[data-id]").dataset.id,d=WM.store.find("donations",id),idx=donations().findIndex(function(x){return x.id===id;});
+  WM.store.remove("donations",id);
+  WM.toast("Donasi dihapus",{undo:function(){var a=WM.store.get("donations");a.splice(idx,0,d);WM.store.set("donations",a);}});
 });
 
 function openForm(edit,preset){
@@ -200,7 +219,7 @@ function openForm(edit,preset){
    '<div class="field"><label>Rekening sumber <span class="opt">(opsional)</span></label><select id="dnAcc"><option value="">Tidak dipotong dari rekening manapun</option>'+accs.map(function(a){return '<option value="'+a.id+'"'+((edit?edit.accountId:"")===a.id?" selected":"")+'>'+WM.esc(a.bank+" · "+a.name)+'</option>';}).join("")+'</select></div>'+
    '<label class="switch" id="dnDedWrap"><span>Pengurang pajak<br><small>Hanya zakat dan persepuluhan yang bisa dicentang.</small></span><input type="checkbox" id="dnDed"'+((edit?edit.isTaxDeductible:preset.isTaxDeductible)?" checked":"")+'></label>';
 
-  var d=WM.modal({title:edit?"Ubah donasi":"Catat donasi",submit:edit?"Simpan perubahan":"Simpan donasi",body:html,
+  WM.modal({title:edit?"Ubah donasi":"Catat donasi",submit:edit?"Simpan perubahan":"Simpan donasi",body:html,
    onOpen:function(dlg,b){
      function syncDed(){var t=TYPE_BY_V[b.querySelector("#dnType").value];var ded=b.querySelector("#dnDed");ded.disabled=!t.ded;if(!t.ded)ded.checked=false;}
      b.querySelector("#dnType").addEventListener("change",syncDed);syncDed();

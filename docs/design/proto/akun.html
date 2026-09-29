@@ -3,161 +3,152 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.hero-prof{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center}
-.hero-prof .av{width:64px;height:64px;border-radius:18px;background:var(--cover-2);display:grid;place-items:center;font-size:22px;font-weight:700}
-.hero-prof h2{margin:0;font-size:19px;letter-spacing:-.02em}
-.hero-prof p{margin:3px 0 0;color:var(--on-cover-2);font-size:12.5px}
-.set-sec+.set-sec{margin-top:18px}
-.set-sec h3{margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)}
-.set-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
-.set-row:last-child{border-bottom:0}
-.set-row .ic{width:36px;height:36px;border-radius:11px}
-.set-row .body{flex:1;min-width:0}
-.set-row .body b{display:block;font-size:13px}
-.set-row .body small{color:var(--muted);font-size:11.5px}
-.set-row button.row-btn{all:unset;display:flex;align-items:center;gap:12px;width:100%;cursor:pointer;padding:12px 0}
-.set-row button.row-btn:hover .body b{text-decoration:underline}
-.switchbox{border:1px solid var(--line);border-radius:14px;padding:2px 14px}
-.switchbox .switch+.switch{border-top:1px solid var(--line)}
+.ak-hero .head{align-items:center}
+.ak-av{width:44px;height:44px;border-radius:14px;background:var(--card-2);display:grid;place-items:center;font-weight:700;font-size:16px;flex:none}
+.set-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.set-tile{border:0;background:var(--card-2);border-radius:16px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:10px;min-height:88px}
+.set-tile:hover{background:var(--ghost)}
+.set-tile .ci{width:32px;height:32px;border-radius:10px;background:var(--card);display:grid;place-items:center}
+.set-tile b{font-size:12.5px;font-weight:600}
+.set-tile small{color:var(--muted);font-size:11px}
 .currency-tile{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:var(--card);border-radius:13px;padding:11px 13px;text-align:left;margin-bottom:8px}
 .currency-tile[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
 .currency-tile .flag{font-size:20px}
 .currency-tile b{display:block;font-size:12.5px}
 .currency-tile small{color:var(--muted);font-size:11px}
 .currency-tile .ck{margin-left:auto;color:var(--good);font-weight:700}
-.session-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
-.session-row:last-child{border-bottom:0}
+.session-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.session-row:first-child{border-top:0}
+.tentang-hero{text-align:center;padding:10px 0}
+.tentang-hero .mark{width:52px;height:52px;border-radius:16px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-size:22px;font-weight:800;margin:0 auto 8px}
 .qtabs{max-width:420px}
-.tentang-hero{text-align:center;padding:18px 0}
-.tentang-hero .mark{width:64px;height:64px;border-radius:18px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-size:26px;font-weight:800;margin:0 auto 10px}
-.member-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
-.member-row:last-child{border-bottom:0}
-.member-row .body{flex:1;min-width:0}
-.member-row b{font-size:13px}
-.member-row small{color:var(--muted);display:block;font-size:11.5px}
 </style>
 <main data-page="akun">
-  <div class="ph enter"><div><h1>Akun</h1><p>Profil, keluarga, keamanan, dan preferensi tampilan.</p></div></div>
+<section class="bento" aria-label="Akun">
+  <article class="card hero dark ak-hero" style="grid-column:1/-1">
+    <div class="chart-side">
+      <div class="head">
+        <div style="display:flex;align-items:center;gap:14px">
+          <span class="ak-av" id="heroAv"></span>
+          <div><p class="big num" id="heroPct"></p><div class="cap" id="heroSub"></div></div>
+        </div>
+        <div class="hero-ctrl"><div class="ctrl-row"><button class="ghost-btn lit" type="button" id="editProfile">Edit profil</button></div></div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Anggota keluarga</small><div class="v" id="kFam"></div></div>
+      <div class="kpi"><small>Sesi aktif</small><div class="v" id="kSess"></div></div>
+      <div class="kpi"><small>Tema</small><div class="v" id="kTheme"></div></div>
+    </div>
+  </article>
 
-  <section class="grid enter">
-    <div class="cover s12">
-      <div class="hero-prof">
-        <span class="av" id="heroAv"></span>
-        <div><h2 id="heroName"></h2><p id="heroSub"></p></div>
-        <button class="btn" type="button" id="editProfile">Edit profil</button>
+  <div class="card" style="grid-column:1/-1">
+    <div class="seg full qtabs" id="tabs" role="tablist">
+      <button type="button" role="tab" aria-selected="true" data-tab="profil">Profil</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="keamanan">Keamanan</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="preferensi">Preferensi</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="bantuan">Bantuan</button>
+    </div>
+
+    <!-- PROFIL -->
+    <div id="panelProfil" style="margin-top:18px">
+      <div id="stepperBox"></div>
+      <div class="grid" style="margin-top:14px">
+        <div class="card soft s6"><h2>Profil saya</h2><dl class="kv" id="profKv" style="margin-top:10px"></dl></div>
+        <div class="card soft s6"><h2>Group family</h2><div id="familyBox" style="margin-top:10px"></div></div>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <div class="head"><h3 style="margin:0;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Anggota (<span id="memberCount">0</span>)</h3></div>
+        <ul class="mini-list" id="memberList"></ul>
+        <a class="see-all" href="iam.html">Kelola anggota di IAM Roles</a>
       </div>
     </div>
-  </section>
 
-  <section class="grid" style="margin-top:16px">
-    <div class="card s12 enter">
-      <div class="seg full qtabs" id="tabs" role="tablist">
-        <button type="button" role="tab" aria-selected="true" data-tab="profil">Profil</button>
-        <button type="button" role="tab" aria-selected="false" data-tab="keamanan">Keamanan</button>
-        <button type="button" role="tab" aria-selected="false" data-tab="preferensi">Preferensi</button>
-        <button type="button" role="tab" aria-selected="false" data-tab="bantuan">Bantuan</button>
-      </div>
-
-      <!-- PROFIL -->
-      <div id="panelProfil" style="margin-top:18px">
-        <div id="stepperBox"></div>
-        <div class="grid" style="margin-top:14px">
-          <div class="card soft s6"><h2>Profil saya</h2><dl class="kv" id="profKv" style="margin-top:10px"></dl></div>
-          <div class="card soft s6"><h2>Group family</h2><div id="familyBox" style="margin-top:10px"></div></div>
-        </div>
-        <div class="set-sec" style="margin-top:16px">
-          <h3>Anggota (<span id="memberCount">0</span>)</h3>
-          <div id="memberList"></div>
-          <a class="btn ghost block" href="iam.html" style="margin-top:10px">Kelola anggota di IAM Roles</a>
+    <!-- KEAMANAN -->
+    <div id="panelKeamanan" style="margin-top:18px" hidden>
+      <div id="pwForm" hidden class="card soft" style="margin-bottom:16px">
+        <h2>Ubah password</h2>
+        <div style="margin-top:10px" id="pwFields"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn block" type="button" id="pwCancel">Batal</button>
+          <button class="btn primary block" type="button" id="pwSave">Simpan</button>
         </div>
       </div>
-
-      <!-- KEAMANAN -->
-      <div id="panelKeamanan" style="margin-top:18px" hidden>
-        <div id="pwForm" hidden class="card soft" style="margin-bottom:16px">
-          <h2>Ubah password</h2>
-          <div style="margin-top:10px" id="pwFields"></div>
-          <div style="display:flex;gap:8px;margin-top:10px">
-            <button class="btn block" type="button" id="pwCancel">Batal</button>
-            <button class="btn primary block" type="button" id="pwSave">Simpan</button>
-          </div>
-        </div>
-        <div class="set-sec">
-          <h3>Password & PIN</h3>
-          <button class="row-btn" type="button" id="togglePw"><span class="ic lime"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg></span><span class="body"><b>Ubah password</b><small>Klik untuk mengubah password akun</small></span></button>
-          <button class="row-btn" type="button" id="openPin"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3M15 8l2 2"/></svg></span><span class="body"><b>PIN aplikasi</b><small>6 digit PIN untuk buka aplikasi di perangkat ini</small></span></button>
-        </div>
-        <div class="set-sec">
-          <h3>Autentikasi</h3>
-          <div class="switchbox" id="authSwitches"></div>
-          <p class="cap" style="margin-top:8px">Disimpan, tapi belum aktif, belum ada mekanisme yang menegakkannya secara otomatis.</p>
-        </div>
-        <div class="set-sec">
-          <h3>Sesi aktif</h3>
-          <div id="sessionList"></div>
-        </div>
+      <div class="set-tiles">
+        <button class="set-tile" type="button" id="togglePw"><span class="ci"></span><span><b>Ubah password</b><small>Klik untuk mengubah</small></span></button>
+        <button class="set-tile" type="button" id="openPin"><span class="ci"></span><span><b>PIN aplikasi</b><small>6 digit, perangkat ini</small></span></button>
       </div>
-
-      <!-- PREFERENSI -->
-      <div id="panelPreferensi" style="margin-top:18px" hidden>
-        <div class="set-sec">
-          <h3>Tema</h3>
-          <div class="seg" id="themeSeg"></div>
-        </div>
-        <div class="set-sec">
-          <h3>Mata uang</h3>
-          <p class="cap" style="margin:0 0 8px">Mata uang tampilan default. Prototipe ini hanya menyimpan pilihannya, semua angka tetap ditampilkan dalam Rupiah.</p>
-          <div id="currencyList"></div>
-        </div>
-        <div class="set-sec">
-          <h3>Bahasa</h3>
-          <div class="field" style="max-width:280px"><label>Bahasa aplikasi</label><select class="select" id="langSel"><option value="id">ID, Bahasa Indonesia</option><option value="en">EN, English</option></select><span class="hint">Saat ini hanya Bahasa Indonesia yang tersedia.</span></div>
-        </div>
-        <div class="set-sec">
-          <h3>Lainnya</h3>
-          <button class="row-btn" type="button" id="openNotif"><span class="ic" style="background:#FEF9C3;color:#92620A"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 1112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg></span><span class="body"><b>Notifikasi</b><small>Atur alert transaksi & pengingat</small></span></button>
-          <button class="row-btn" type="button" id="openPrivasi"><span class="ic" style="background:var(--lime-soft);color:var(--good)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="body"><b>Privasi & data</b><small>Kelola data & izin akses</small></span></button>
-        </div>
+      <div class="set-sec" style="margin-top:16px">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Autentikasi</h3>
+        <div class="switchbox" id="authSwitches"></div>
+        <p class="cap" style="margin-top:8px">Disimpan, tapi belum ada mekanisme yang menegakkannya otomatis.</p>
       </div>
-
-      <!-- BANTUAN -->
-      <div id="panelBantuan" style="margin-top:18px" hidden>
-        <div class="set-sec">
-          <h3>FAQ</h3>
-          <div id="faqBox"></div>
-        </div>
-        <div class="set-sec">
-          <h3>Panduan</h3>
-          <a class="row-btn" href="panduan.html" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.7-2.5 2-2.5 4M12 17h.01"/></svg></span><span class="body"><b>Panduan fitur lengkap</b><small>Semua fitur, dikelompokkan per kategori</small></span></a>
-          <a class="row-btn" href="ai.html" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="4"/><path d="M12 4v4M9 13h.01M15 13h.01M9.5 17h5"/></svg></span><span class="body"><b>Tanya AI Advisor</b><small>Langsung tanya ke asisten keuangan AI</small></span></a>
-        </div>
-        <div class="set-sec">
-          <h3>Kontak support</h3>
-          <a class="row-btn" href="mailto:support@wealthme.id" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><span class="body"><b>Email</b><small>support@wealthme.id · Respons 1x24 jam</small></span></a>
-          <a class="row-btn" href="tel:080012345678" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/></svg></span><span class="body"><b>Telepon</b><small>0800-1234-5678 · Senin–Jumat 08.00-17.00</small></span></a>
-          <a class="row-btn" href="https://wa.me/6281123456789" target="_blank" rel="noopener" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7z"/></svg></span><span class="body"><b>WhatsApp</b><small>+62 811 2345 6789 · Chat langsung</small></span></a>
-          <div style="margin-top:10px">
-            <label class="field"><label>Kirim feedback</label><textarea class="textarea" id="fbText" rows="3" placeholder="Ceritakan pengalamanmu atau laporkan bug..."></textarea></label>
-            <button class="btn primary block" type="button" id="fbSend" disabled style="margin-top:8px">Kirim feedback</button>
-          </div>
-        </div>
-        <div class="set-sec">
-          <div class="tentang-hero"><div class="mark">W</div><div style="font-weight:700;font-size:16px">WealthMe</div><p class="cap">Personal Wealth Operating System</p><p class="cap">Versi 1.0.0 (Build 2025.04.01)</p></div>
-          <a class="row-btn" href="legal.html?doc=privasi" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><span class="body"><b>Kebijakan privasi</b></span></a>
-          <a class="row-btn" href="legal.html?doc=syarat" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h11v14a3 3 0 01-3 3H6a3 3 0 01-3-3v-1h11v1a3 3 0 003 3M8 3a3 3 0 00-3 3v10M11 8h5M11 12h5"/></svg></span><span class="body"><b>Syarat & ketentuan</b></span></a>
-          <a class="row-btn" href="legal.html?doc=lisensi" style="text-decoration:none;color:inherit"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 13h6M9 17h6"/></svg></span><span class="body"><b>Lisensi open source</b></span></a>
-        </div>
+      <div class="set-sec" style="margin-top:16px">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Sesi aktif</h3>
+        <div id="sessionList"></div>
       </div>
-
-      <button class="btn danger block" type="button" id="logoutBtn" style="margin-top:20px">Keluar dari akun</button>
     </div>
-  </section>
+
+    <!-- PREFERENSI -->
+    <div id="panelPreferensi" style="margin-top:18px" hidden>
+      <div class="set-sec">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Tema</h3>
+        <div class="seg" id="themeSeg"></div>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Mata uang</h3>
+        <p class="cap" style="margin:0 0 8px">Prototipe ini hanya menyimpan pilihannya, angka tetap tampil dalam Rupiah.</p>
+        <div id="currencyList"></div>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Bahasa</h3>
+        <div class="field" style="max-width:280px"><label>Bahasa aplikasi</label><select class="select" id="langSel"><option value="id">ID, Bahasa Indonesia</option><option value="en">EN, English</option></select><span class="hint">Saat ini hanya Bahasa Indonesia yang tersedia.</span></div>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Notifikasi</h3>
+        <div id="notifBox"></div>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Privasi &amp; data</h3>
+        <div id="privBox"></div>
+        <div class="set-tiles" style="margin-top:10px">
+          <button class="set-tile" type="button" id="exportBtn"><span class="ci"></span><span><b>Ekspor data</b><small>Unduh JSON</small></span></button>
+          <button class="set-tile" type="button" id="deleteBtn"><span class="ci" style="background:#FEE2E2;color:var(--bad)"></span><span><b>Hapus akun</b><small>Permanen</small></span></button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BANTUAN -->
+    <div id="panelBantuan" style="margin-top:18px" hidden>
+      <div class="set-sec">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">FAQ</h3>
+        <div id="faqBox"></div>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Panduan &amp; kontak</h3>
+        <ul class="mini-list" id="linkList"></ul>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <b style="font-size:12.5px">Kirim feedback</b>
+        <textarea class="textarea" id="fbText" rows="3" placeholder="Ceritakan pengalamanmu atau laporkan bug…" style="margin-top:8px"></textarea>
+        <button class="btn primary block" type="button" id="fbSend" disabled style="margin-top:8px">Kirim feedback</button>
+      </div>
+      <div class="set-sec" style="margin-top:16px">
+        <div class="tentang-hero"><div class="mark">W</div><div style="font-weight:700;font-size:15px">WealthMe</div><p class="cap">Personal Wealth Operating System · v1.0.0</p></div>
+        <ul class="mini-list" id="legalList"></ul>
+      </div>
+    </div>
+
+    <button class="btn danger block" type="button" id="logoutBtn" style="margin-top:20px">Keluar dari akun</button>
+  </div>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
 WM.shell({page:"akun",title:"Akun"});
 (function(){ if(!WM.allowed) return;
-
+var esc=WM.esc;
 WM.store.ensure("profileDetail",{phone:"",birthDate:"",gender:"",jobTitle:"",monthlyIncome:"",currency:"IDR",lang:"id",
   notifPrefs:{txnIn:true,txnOut:true,txnBig:true,budget80:true,goalMilestone:true,billDue:true,stockPrice:false,dividend:false},
   privacyPrefs:{hideFromFamily:false,screenshotProtect:true,sendAnalytics:true,aiPersonalization:true},
@@ -171,33 +162,39 @@ var CURRENCIES=[["IDR","Rp","Rupiah Indonesia"],["USD","$","US Dollar"],["SGD","
 function pd(){return WM.store.get("profileDetail");}
 function updPd(patch){WM.store.set("profileDetail",Object.assign({},pd(),patch));}
 
-/* ---------- hero ---------- */
-function drawHero(){var me=WM.me(),prof=WM.store.get("profile");
-  document.getElementById("heroAv").textContent=me.init;
-  document.getElementById("heroName").textContent=me.name;
-  document.getElementById("heroSub").textContent=me.email+" · "+WM.roleLabel(me.role)+" · Member sejak Jan 2024";}
+function chart(){var prof=WM.store.get("profile")||{step:5,of:5},box=document.getElementById("chart");
+  var d=[1,2,3,4,5].map(function(i){return i<=prof.step?1:0;});
+  WM.chart.bars(box,{labels:["1","2","3","4","5"],series:[{d:d,c:"var(--lime)"}],hi:Math.max(0,prof.step-1),wide:true});}
 
-/* ---------- tabs ---------- */
+function drawHero(){var me=WM.me(),prof=WM.store.get("profile")||{step:5,of:5};
+  document.getElementById("heroAv").textContent=me.init;
+  var pct=prof.of?Math.round(prof.step/prof.of*100):100;
+  document.getElementById("heroPct").textContent=pct+"%";
+  document.getElementById("heroSub").textContent=me.name+" · "+me.email+" · "+WM.roleLabel(me.role);
+  document.getElementById("kFam").textContent=WM.store.get("members").length;
+  document.getElementById("kSess").textContent=WM.store.get("sessions").length;
+  document.getElementById("kTheme").textContent=({light:"Terang",dark:"Gelap"})[currentThemePref()]||"Sistem";
+  chart();}
+
 var TAB="profil";
 function drawTabs(){["profil","keamanan","preferensi","bantuan"].forEach(function(t){
   document.querySelector('#tabs [data-tab="'+t+'"]').setAttribute("aria-selected",t===TAB);
   document.getElementById("panel"+t.charAt(0).toUpperCase()+t.slice(1)).hidden=t!==TAB;});}
 document.querySelectorAll("#tabs [data-tab]").forEach(function(b){b.onclick=function(){TAB=b.dataset.tab;drawTabs();};});
 
-/* ---------- profil ---------- */
-function drawStepper(){var prof=WM.store.get("profile");if(!WM.isOwner()||prof.step>=prof.of){document.getElementById("stepperBox").innerHTML="";return;}
+function drawStepper(){var prof=WM.store.get("profile");if(!WM.isOwner()||!prof||prof.step>=prof.of){document.getElementById("stepperBox").innerHTML="";return;}
   document.getElementById("stepperBox").innerHTML='<div class="note"><span>'+WM.icon("info",16)+'</span><span><b>Lengkapi profil kamu.</b> '+prof.step+' dari '+prof.of+' langkah selesai.<div class="stepper" style="margin-top:8px;max-width:220px">'+[1,2,3,4,5].map(function(i){return '<i class="'+(i<=prof.step?"on":"")+'"></i>';}).join("")+'</div></span></div>';}
 
 function drawProfKv(){var me=WM.me(),d=pd();
   var rows=[["Nama lengkap",me.name],["Email",me.email],["No. telepon",d.phone||"–"],["Pekerjaan",d.jobTitle||"–"]];
-  document.getElementById("profKv").innerHTML=rows.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+WM.esc(r[1])+'</dd>';}).join("");}
+  document.getElementById("profKv").innerHTML=rows.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>';}).join("");}
 
 function drawFamily(){var ms=WM.store.get("members"),me=WM.me();
   document.getElementById("familyBox").innerHTML='<div style="display:flex;gap:12px;align-items:center"><div style="width:44px;height:44px;border-radius:12px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;font-weight:700">KR</div><div><b style="font-size:13.5px">Keluarga Rizaldi</b><div class="cap">'+ms.length+' anggota · '+WM.roleLabel(me.role)+'</div></div></div>'+
     '<div class="note" style="margin-top:10px"><span>'+WM.icon("info",15)+'</span><span>Admin (asisten, sopir) bisa mencatat transaksi atas nama keluarga, tapi tidak bisa mengubah pengaturan group atau melihat saldo pribadi anggota.</span></div>';}
 
 function drawMembers(){var ms=WM.store.get("members");document.getElementById("memberCount").textContent=ms.length;
-  document.getElementById("memberList").innerHTML=ms.map(function(m){return '<div class="member-row">'+WM.avatar(m,38)+'<span class="body"><b>'+WM.esc(m.name)+(m.id===WM.meId()?' <span class="muted" style="font-weight:400;font-size:11.5px">(Kamu)</span>':'')+'</b><small>'+WM.roleLabel(m.role)+(m.email?" · "+WM.esc(m.email):"")+'</small></span></div>';}).join("");}
+  document.getElementById("memberList").innerHTML=ms.map(function(m){return '<li>'+WM.avatar(m,36)+'<div><b>'+esc(m.name)+(m.id===WM.meId()?' <span class="muted" style="font-weight:400;font-size:11.5px">(Kamu)</span>':'')+'</b><small>'+WM.roleLabel(m.role)+(m.email?" · "+esc(m.email):"")+'</small></div></li>';}).join("");}
 
 document.getElementById("editProfile").onclick=function(){var me=WM.me(),d=pd();
   WM.modal({title:"Edit profil",size:"lg",submit:"Simpan perubahan",
@@ -210,7 +207,7 @@ document.getElementById("editProfile").onclick=function(){var me=WM.me(),d=pd();
       WM.field({name:"monthlyIncome",label:"Penghasilan bulanan",type:"money",optional:true,value:d.monthlyIncome}),
     onSubmit:function(f,v){var ms=WM.store.get("members").map(function(m){return m.id===WM.meId()?Object.assign({},m,{name:v.name}):m;});WM.store.set("members",ms);
       updPd({phone:v.phone,birthDate:v.birthDate,gender:v.gender,jobTitle:v.jobTitle,monthlyIncome:v.monthlyIncome});
-      WM.toast("Profil berhasil disimpan");drawHero();drawProfKv();drawMembers();}});};
+      WM.toast("Profil disimpan");}});};
 
 /* ---------- keamanan ---------- */
 function drawPwFields(){document.getElementById("pwFields").innerHTML=
@@ -219,11 +216,11 @@ function drawPwFields(){document.getElementById("pwFields").innerHTML=
   WM.field({name:"confirmPw",label:"Konfirmasi password baru",type:"password",required:true,placeholder:"Ulangi password baru"});}
 document.getElementById("togglePw").onclick=function(){var box=document.getElementById("pwForm");box.hidden=!box.hidden;if(!box.hidden)drawPwFields();};
 document.getElementById("pwCancel").onclick=function(){document.getElementById("pwForm").hidden=true;};
-document.getElementById("pwSave").onclick=function(){var box=document.getElementById("pwForm"),cur=box.querySelector('[name="currentPw"]'),nw=box.querySelector('[name="newPw"]'),cf=box.querySelector('[name="confirmPw"]');
-  if(!WM.validate(box.querySelector(".card")||box))return;
+document.getElementById("pwSave").onclick=function(){var box=document.getElementById("pwForm"),nw=box.querySelector('[name="newPw"]'),cf=box.querySelector('[name="confirmPw"]');
+  if(!WM.validate(box))return;
   if(nw.value.length<8){WM.setError(box,"newPw","Password baru minimal 8 karakter");return;}
   if(nw.value!==cf.value){WM.setError(box,"confirmPw","Konfirmasi password tidak cocok");return;}
-  box.hidden=true;WM.toast("Password berhasil diubah (simulasi)");};
+  box.hidden=true;WM.toast("Password diubah (simulasi)");};
 document.getElementById("openPin").onclick=function(){WM.modal({title:"PIN aplikasi",sub:"6 digit PIN untuk membuka aplikasi cepat di perangkat ini.",submit:"Simpan PIN",
   body:WM.field({name:"pin",label:"PIN baru",type:"password",required:true,attrs:'inputmode="numeric" maxlength="6"'}),
   onSubmit:function(f,v){if(!/^\d{6}$/.test(v.pin))return "PIN harus 6 digit angka.";WM.toast("PIN disimpan (simulasi)");}});};
@@ -236,9 +233,9 @@ function drawAuthSwitches(){var d=pd();
   document.getElementById("swLogin").onchange=function(e){updPd({authPrefs:Object.assign({},pd().authPrefs,{loginAlert:e.target.checked})});WM.toast("Preferensi disimpan");};}
 
 function drawSessions(){var ss=WM.store.get("sessions");
-  document.getElementById("sessionList").innerHTML=ss.map(function(s){return '<div class="session-row"><span class="ic">'+WM.icon(s.device.indexOf("iPhone")>=0?"phone":"more",17)+'</span><span class="body"><b>'+WM.esc(s.device)+'</b><small>Aktif sejak '+WM.date(s.since)+', '+s.ip+'</small></span>'+
+  document.getElementById("sessionList").innerHTML=ss.map(function(s){return '<div class="session-row"><span class="ic">'+WM.icon(s.device.indexOf("iPhone")>=0?"phone":"more",17)+'</span><span class="body" style="flex:1;min-width:0"><b style="display:block;font-size:13px">'+esc(s.device)+'</b><small style="color:var(--muted);font-size:11.5px">Aktif sejak '+WM.date(s.since)+', '+s.ip+'</small></span>'+
     (s.current?'<span class="pill good">Ini perangkatmu</span>':'<button class="btn ghost sm" type="button" data-end="'+s.id+'" style="color:var(--bad)">Akhiri</button>')+'</div>';}).join("");
-  document.querySelectorAll("[data-end]").forEach(function(b){b.onclick=function(){WM.store.remove("sessions",b.dataset.end);WM.toast("Sesi diakhiri");drawSessions();};});}
+  document.querySelectorAll("[data-end]").forEach(function(b){b.onclick=function(){var id=b.dataset.end,old=WM.store.find("sessions",id);WM.store.remove("sessions",id);WM.toast("Sesi diakhiri",{undo:function(){WM.store.add("sessions",old);}});};});}
 
 /* ---------- preferensi ---------- */
 function isDarkNow(){var t=localStorage.getItem("wm-proto-v1:theme");if(t)return JSON.parse(t)==="dark";return matchMedia("(prefers-color-scheme: dark)").matches;}
@@ -249,7 +246,7 @@ function drawTheme(){var cur=currentThemePref();
     if(v==="system"){localStorage.removeItem("wm-proto-v1:theme");document.documentElement.removeAttribute("data-theme");}
     else{localStorage.setItem("wm-proto-v1:theme",JSON.stringify(v));document.documentElement.setAttribute("data-theme",v);}
     var btn=document.getElementById("wmTheme");if(btn)btn.innerHTML=WM.icon(isDarkNow()?"sun":"moon");
-    window.dispatchEvent(new CustomEvent("wm:theme"));drawTheme();}; });}
+    window.dispatchEvent(new CustomEvent("wm:theme"));drawTheme();drawHero();}; });}
 
 function drawCurrency(){var cur=pd().currency;
   document.getElementById("currencyList").innerHTML=CURRENCIES.map(function(c){return '<button type="button" class="currency-tile" role="radio" aria-checked="'+(c[0]===cur)+'" data-cur="'+c[0]+'"><span class="flag">'+c[1]+'</span><span><b>'+c[0]+'</b><small>'+c[2]+'</small></span>'+(c[0]===cur?'<span class="ck">✓</span>':"")+'</button>';}).join("");
@@ -258,52 +255,52 @@ function drawCurrency(){var cur=pd().currency;
 document.getElementById("langSel").onchange=function(e){if(e.target.value==="en"){WM.toast("Bahasa Inggris belum tersedia (simulasi). Tetap Bahasa Indonesia.");e.target.value="id";}};
 
 var NOTIF_ROWS=[
- ["Transaksi",[["txnIn","Notif transaksi masuk","Setiap ada dana masuk ke rekening"],["txnOut","Notif transaksi keluar","Setiap ada pengeluaran"],["txnBig","Transaksi besar (>Rp 5 jt)","Alert khusus untuk transaksi besar"]]],
- ["Tujuan & anggaran",[["budget80","Anggaran mendekati batas","Alert saat 80% budget terpakai"],["goalMilestone","Update progres tujuan","Notifikasi saat milestone tercapai"],["billDue","Jatuh tempo tagihan","Pengingat 3 hari sebelum jatuh tempo"]]],
- ["Investasi",[["stockPrice","Update harga saham","Notifikasi perubahan harga signifikan"],["dividend","Dividen masuk","Notif saat dividen diterima"]]]];
-document.getElementById("openNotif").onclick=function(){var d=pd();
-  var body=NOTIF_ROWS.map(function(sec){return '<div class="set-sec"><h3>'+sec[0]+'</h3><div class="switchbox">'+sec[1].map(function(r){return '<label class="switch"><span><b style="display:block">'+r[1]+'</b><small>'+r[2]+'</small></span><input type="checkbox" data-np="'+r[0]+'" '+(d.notifPrefs[r[0]]?"checked":"")+'></label>';}).join("")+'</div></div>';}).join("");
-  WM.modal({title:"Notifikasi",size:"lg",submit:"Simpan",body:body,
-    onOpen:function(dg,b){},
-    onSubmit:function(f){var np=Object.assign({},pd().notifPrefs);f.querySelectorAll("[data-np]").forEach(function(i){np[i.dataset.np]=i.checked;});updPd({notifPrefs:np});WM.toast("Pengaturan notifikasi disimpan");}});};
+ ["Transaksi",[["txnIn","Notif transaksi masuk","Setiap ada dana masuk"],["txnOut","Notif transaksi keluar","Setiap ada pengeluaran"],["txnBig","Transaksi besar (>Rp 5 jt)","Alert khusus"]]],
+ ["Tujuan & anggaran",[["budget80","Anggaran mendekati batas","Alert saat 80% terpakai"],["goalMilestone","Update progres tujuan","Saat milestone tercapai"],["billDue","Jatuh tempo tagihan","3 hari sebelum jatuh tempo"]]],
+ ["Investasi",[["stockPrice","Update harga saham","Perubahan harga signifikan"],["dividend","Dividen masuk","Saat dividen diterima"]]]];
+function drawNotif(){var d=pd();
+  document.getElementById("notifBox").innerHTML=NOTIF_ROWS.map(function(sec){return '<div style="margin-bottom:10px"><b style="font-size:11.5px;color:var(--muted)">'+sec[0]+'</b><div class="switchbox" style="margin-top:4px">'+sec[1].map(function(r){return '<label class="switch"><span><b style="display:block">'+r[1]+'</b><small>'+r[2]+'</small></span><input type="checkbox" data-np="'+r[0]+'" '+(d.notifPrefs[r[0]]?"checked":"")+'></label>';}).join("")+'</div></div>';}).join("");
+  document.querySelectorAll("[data-np]").forEach(function(i){i.onchange=function(){var np=Object.assign({},pd().notifPrefs);np[i.dataset.np]=i.checked;updPd({notifPrefs:np});};});}
 
-document.getElementById("openPrivasi").onclick=function(){var d=pd();
-  var body='<div class="set-sec"><h3>Visibilitas data</h3><div class="switchbox">'+
+function drawPriv(){var d=pd();
+  document.getElementById("privBox").innerHTML='<div class="switchbox">'+
     '<label class="switch"><span><b style="display:block">Sembunyikan dari anggota family</b><small>Anggota keluarga tidak bisa lihat detail saldo</small></span><input type="checkbox" data-pp="hideFromFamily" '+(d.privacyPrefs.hideFromFamily?"checked":"")+'></label>'+
-    '<label class="switch"><span><b style="display:block">Mode privasi saat screenshot</b><small>Sembunyikan angka saat screenshot</small></span><input type="checkbox" data-pp="screenshotProtect" '+(d.privacyPrefs.screenshotProtect?"checked":"")+'></label></div></div>'+
-    '<div class="set-sec"><h3>Data & analitik</h3><div class="switchbox">'+
-    '<label class="switch"><span><b style="display:block">Kirim data analitik</b><small>Bantu kami tingkatkan aplikasi (anonim)</small></span><input type="checkbox" data-pp="sendAnalytics" '+(d.privacyPrefs.sendAnalytics?"checked":"")+'></label>'+
-    '<label class="switch"><span><b style="display:block">Personalisasi AI</b><small>Izinkan AI belajar dari pola keuanganmu</small></span><input type="checkbox" data-pp="aiPersonalization" '+(d.privacyPrefs.aiPersonalization?"checked":"")+'></label></div></div>'+
-    '<div class="set-sec"><h3>Ekspor & hapus data</h3>'+
-    '<button type="button" class="row-btn" id="exportBtn"><span class="ic lime">'+WM.icon("download",17)+'</span><span class="body"><b>Ekspor data saya</b><small>Unduh seluruh data contoh dalam format JSON</small></span></button>'+
-    '<button type="button" class="row-btn" id="deleteBtn"><span class="ic" style="background:#FEE2E2;color:var(--bad)">'+WM.icon("trash",17)+'</span><span class="body"><b>Hapus akun</b><small>Semua data akan dihapus permanen</small></span></button></div>';
-  var d2=WM.modal({title:"Privasi & data",size:"lg",submit:"Simpan",body:body,
-    onOpen:function(dg,b){b.querySelector("#exportBtn").onclick=function(){var all={};["members","accounts","categories","tx","budgets","goals","investments","assets","liabilities","insurances","profile","profileDetail"].forEach(function(k){all[k]=WM.store.get(k);});
-      WM.download("wealthme-data-export.json",JSON.stringify(all,null,2),"application/json");WM.toast("Data berhasil diekspor");};
-      b.querySelector("#deleteBtn").onclick=function(){WM.confirm({title:"Hapus akun?",text:"Semua data akan dihapus permanen dan tidak bisa dikembalikan.",confirm:"Hapus akun",danger:true}).then(function(ok){
-        if(!ok)return;dg.close();WM.toast("Akun berhasil dihapus (simulasi)");setTimeout(function(){location.href="login.html";},600);});};},
-    onSubmit:function(f){var pp=Object.assign({},pd().privacyPrefs);f.querySelectorAll("[data-pp]").forEach(function(i){pp[i.dataset.pp]=i.checked;});updPd({privacyPrefs:pp});WM.toast("Pengaturan privasi tersimpan");}});};
+    '<label class="switch"><span><b style="display:block">Mode privasi saat screenshot</b><small>Sembunyikan angka saat screenshot</small></span><input type="checkbox" data-pp="screenshotProtect" '+(d.privacyPrefs.screenshotProtect?"checked":"")+'></label>'+
+    '<label class="switch"><span><b style="display:block">Kirim data analitik</b><small>Bantu tingkatkan aplikasi (anonim)</small></span><input type="checkbox" data-pp="sendAnalytics" '+(d.privacyPrefs.sendAnalytics?"checked":"")+'></label>'+
+    '<label class="switch"><span><b style="display:block">Personalisasi AI</b><small>AI belajar dari pola keuanganmu</small></span><input type="checkbox" data-pp="aiPersonalization" '+(d.privacyPrefs.aiPersonalization?"checked":"")+'></label></div>';
+  document.querySelectorAll("[data-pp]").forEach(function(i){i.onchange=function(){var pp=Object.assign({},pd().privacyPrefs);pp[i.dataset.pp]=i.checked;updPd({privacyPrefs:pp});};});}
+
+document.getElementById("exportBtn").onclick=function(){var all={};["members","accounts","categories","tx","budgets","goals","investments","assets","liabilities","insurances","profile","profileDetail"].forEach(function(k){all[k]=WM.store.get(k);});
+  WM.download("wealthme-data-export.json",JSON.stringify(all,null,2),"application/json");WM.toast("Data diekspor");};
+document.getElementById("deleteBtn").onclick=function(){WM.confirm({title:"Hapus akun?",text:"Semua data akan dihapus permanen dan tidak bisa dikembalikan.",confirm:"Hapus akun",danger:true}).then(function(ok){
+  if(!ok)return;WM.toast("Akun dihapus (simulasi)");setTimeout(function(){location.href="login.html";},600);});};
 
 /* ---------- bantuan ---------- */
 var FAQS=[
- ["Bagaimana cara menambah rekening baru?","Buka menu Bank & Account, lalu klik tombol \"+ Tambah\". Pilih bank yang kamu gunakan, kemudian masukkan detail rekeningnya."],
- ["Apakah data saya aman?","WealthMe menggunakan enkripsi untuk semua data sensitif. Kami tidak pernah menyimpan password atau PIN perbankan kamu."],
+ ["Bagaimana cara menambah rekening baru?","Buka menu Bank & Account, lalu klik tombol \"+ Tambah\". Pilih bank, lalu masukkan detail rekeningnya."],
+ ["Apakah data saya aman?","WealthMe mengenkripsi semua data sensitif. Kami tidak pernah menyimpan password atau PIN perbankanmu."],
  ["Bagaimana cara mengubah mata uang tampilan?","Buka Akun → Preferensi → Mata Uang, lalu pilih mata uang yang kamu inginkan."],
- ["Bagaimana cara mengundang anggota ke keluarga?","Buka halaman IAM Roles, lalu klik \"Tambah anggota\". Anak/staff dibuatkan username & password, anggota lain diundang lewat email."]];
+ ["Bagaimana cara mengundang anggota ke keluarga?","Buka IAM Roles, klik \"+ Tambah\". Anak/staff dibuatkan username & password, anggota lain diundang lewat email."]];
 document.getElementById("faqBox").innerHTML=FAQS.map(function(f,i){return '<details'+(i===0?" open":"")+' style="border-bottom:1px solid var(--line);padding:10px 0"><summary style="cursor:pointer;font-weight:600;font-size:13px;list-style:none">'+f[0]+'</summary><p class="cap" style="margin:8px 0 0">'+f[1]+'</p></details>';}).join("");
 document.getElementById("fbText").addEventListener("input",function(e){document.getElementById("fbSend").disabled=!e.target.value.trim();});
 document.getElementById("fbSend").onclick=function(){var v=document.getElementById("fbText").value;location.href="mailto:support@wealthme.id?subject=Feedback%20WealthMe&body="+encodeURIComponent(v);WM.toast("Membuka email…");};
 
-/* ---------- logout ---------- */
+var LINKS=[["panduan.html","book","Panduan fitur lengkap","Semua fitur, dikelompokkan per kategori"],
+  ["ai.html","bot","Tanya AI Advisor","Langsung tanya asisten keuangan AI"],
+  ["mailto:support@wealthme.id","mail","Email","support@wealthme.id · Respons 1x24 jam"],
+  ["tel:080012345678","phone","Telepon","0800-1234-5678 · Sen–Jum 08.00-17.00"],
+  ["https://wa.me/6281123456789","send","WhatsApp","+62 811 2345 6789 · Chat langsung"]];
+document.getElementById("linkList").innerHTML=LINKS.map(function(l){return '<li><a href="'+l[0]+'" style="display:contents;text-decoration:none;color:inherit"'+(l[0].indexOf("http")===0?' target="_blank" rel="noopener"':'')+'><span class="ic">'+WM.icon(l[1],16)+'</span><div><b>'+esc(l[2])+'</b><small>'+esc(l[3])+'</small></div></a></li>';}).join("");
+document.getElementById("legalList").innerHTML=[["legal.html?doc=privasi","shield","Kebijakan privasi"],["legal.html?doc=syarat","file","Syarat & ketentuan"],["legal.html?doc=lisensi","scale","Lisensi open source"]].map(function(l){return '<li><a href="'+l[0]+'" style="display:contents;text-decoration:none;color:inherit"><span class="ic">'+WM.icon(l[1],16)+'</span><div><b>'+l[2]+'</b></div></a></li>';}).join("");
+
 document.getElementById("logoutBtn").onclick=function(){WM.confirm({title:"Keluar dari akun?",text:"Kamu perlu login lagi untuk mengakses WealthMe.",confirm:"Keluar",danger:true}).then(function(ok){if(ok)location.href="login.html";});};
 
-function fillIcons(){document.getElementById("togglePw").querySelector(".ic").innerHTML=WM.icon("lock",17);
-  document.getElementById("openPin").querySelector(".ic").innerHTML=WM.icon("key",17);
-  document.getElementById("openNotif").querySelector(".ic").innerHTML=WM.icon("bell",17);
-  document.getElementById("openPrivasi").querySelector(".ic").innerHTML=WM.icon("shield",17);
-  document.querySelectorAll("#panelBantuan a.row-btn .ic").forEach(function(el,i){el.innerHTML=WM.icon(["book","bot","mail","phone","send","file","scale","file"][i]||"more",17);});}
+function fillIcons(){document.getElementById("togglePw").querySelector(".ci").innerHTML=WM.icon("lock",17);
+  document.getElementById("openPin").querySelector(".ci").innerHTML=WM.icon("key",17);
+  document.getElementById("exportBtn").querySelector(".ci").innerHTML=WM.icon("download",17);
+  document.getElementById("deleteBtn").querySelector(".ci").innerHTML=WM.icon("trash",17);}
 
-drawHero();drawTabs();drawStepper();drawProfKv();drawFamily();drawMembers();drawAuthSwitches();drawSessions();drawTheme();drawCurrency();fillIcons();
-WM.onChange(["members","profile","profileDetail","sessions"],function(){drawHero();drawStepper();drawProfKv();drawFamily();drawMembers();});
+drawHero();drawTabs();drawStepper();drawProfKv();drawFamily();drawMembers();drawAuthSwitches();drawSessions();drawTheme();drawCurrency();drawNotif();drawPriv();fillIcons();
+WM.onChange(["members","profile","profileDetail","sessions"],function(){drawHero();drawStepper();drawProfKv();drawFamily();drawMembers();drawSessions();});
 })();
 </script>

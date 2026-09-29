@@ -3,17 +3,12 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.stats-row{display:flex;flex-wrap:wrap;gap:14px 28px;margin-top:14px}
-.stats-row .stat{min-width:120px}
-.split-item{border:1px solid var(--line);border-radius:16px;padding:16px}
-.split-item+.split-item{margin-top:10px}
-.split-top{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px}
-.split-title{font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.split-meta{color:var(--muted);font-size:12px;margin-top:3px}
-.split-amt{text-align:right}
-.split-amt b{font-size:15.5px;display:block}
-.split-amt small{color:var(--muted);font-size:11.5px}
-.split-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+@media (min-width:1181px){
+  .sb-hero{grid-column:1/9;grid-row:1}.sb-hist{grid-column:9/13;grid-row:1/3}
+  .sb-active{grid-column:1/9;grid-row:2/4}.sb-tip{grid-column:9/13;grid-row:3}
+}
+.sb-tip .mosaic{margin-top:14px}
+@media (max-width:720px){.sb-tip .mosaic{display:none}}
 .plist{display:flex;flex-direction:column}
 .prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
 .prow:first-child{border-top:0}
@@ -24,50 +19,48 @@
 .partf{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .partf .input{flex:1;min-width:120px}
 .amt-mono{font-family:var(--mono);font-size:12.5px;font-weight:600;color:var(--good);white-space:nowrap}
-.tabs2{display:flex;gap:6px;margin-top:2px}
-.tabs2 button{border:0;border-radius:12px;padding:0 16px;min-height:40px;background:var(--card-2);color:var(--muted);font-weight:600;font-size:13px}
-.tabs2 button[aria-selected="true"]{background:var(--ink);color:var(--card)}
 </style>
 <main data-page="splitbill">
-  <div class="ph">
-    <div><h1>Split Bill</h1><p>Tagih bareng, tanpa drama nagih satu-satu.</p></div>
-    <div class="acts"><button class="btn primary" type="button" id="btnCreate">Buat split</button></div>
-  </div>
-
-  <section class="grid" style="margin-top:16px">
-    <div class="cover s12">
-      <small class="cap">Ditalangin bulan ini</small>
-      <p class="headline" id="hlTotal">Rp 0</p>
-      <div class="stats-row">
-        <div class="stat"><small>Sudah terkumpul</small><b id="stCollected" class="num">Rp 0</b></div>
-        <div class="stat"><small>Belum dibayar</small><b id="stUnpaid" class="num">Rp 0</b></div>
-        <div class="stat"><small>Split aktif</small><b id="stActive" class="num">0</b></div>
-      </div>
-    </div>
-
-    <div class="card s12">
+<section class="bento" aria-label="Split Bill">
+  <article class="card hero dark sb-hero">
+    <div class="chart-side">
       <div class="head">
-        <div><h2>Daftar split</h2><div class="cap">Aktif dan riwayat</div></div>
-        <div class="tabs2" role="tablist" aria-label="Filter split">
-          <button role="tab" data-t="active" aria-selected="true" type="button">Aktif</button>
-          <button role="tab" data-t="history" aria-selected="false" type="button">Riwayat</button>
+        <div><p class="big num" id="hlTotal"></p><div class="cap" id="hlCap"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn lit" type="button" id="btnCreate">+ Split</button></div>
+          <div class="legend"><span><i style="background:var(--lime)"></i>Terkumpul</span><span><i style="background:var(--ghost)"></i>Total</span></div>
         </div>
       </div>
-      <div id="listActive" style="margin-top:14px"></div>
-      <div id="listHistory" style="margin-top:14px" hidden></div>
+      <div class="chart-wrap" id="chart"></div>
     </div>
+    <div class="kpis">
+      <div class="kpi"><small>Terkumpul</small><div class="v" id="kCollected"></div></div>
+      <div class="kpi"><small>Belum dibayar</small><div class="v" id="kUnpaid"></div></div>
+      <div class="kpi"><small>Split aktif</small><div class="v" id="kActive"></div></div>
+    </div>
+  </article>
 
-    <div class="card s12">
-      <h2>Cara kerja split bill</h2>
-      <div class="note" id="howNote" style="margin-top:12px"></div>
-    </div>
-  </section>
+  <article class="card sb-hist">
+    <div class="head"><div><h2>Riwayat</h2><div class="cap" id="histCap"></div></div></div>
+    <ul class="mini-list" id="histList"></ul>
+  </article>
+
+  <article class="card sb-active">
+    <div class="head"><div><h2>Split aktif</h2><div class="cap">Ketuk kartu untuk lihat status &amp; bagikan tautan</div></div></div>
+    <div class="btiles" id="tiles"></div>
+  </article>
+
+  <article class="card tips sb-tip">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
-WM.shell({page:document.querySelector("main").dataset.page,title:"Split Bill"});
+WM.shell({page:"splitbill",title:"Split Bill"});
 (function(){ if(!WM.allowed) return;
-
+var esc=WM.esc;
 var GRAD=["linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#FBBF24)","linear-gradient(135deg,#6366F1,#8B5CF6)","linear-gradient(135deg,#EC4899,#F43F5E)","linear-gradient(135deg,#3F8F2F,#9CCB3B)"];
 function tok(){return "sp"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
 
@@ -98,43 +91,59 @@ function isActive(b){return !b.revokedAt && !isSettled(b);}
 function splitEqually(total,count){if(count<=0)return[];var base=Math.floor(total/count),left=total-base*count;return Array.from({length:count},function(_,i){return base+(i<left?1:0);});}
 function sumCustom(ids,amounts){return ids.reduce(function(s,id){return s+(WM.parseMoney(amounts[id]||"0"));},0);}
 function remainder(total,ids,amounts){return total-sumCustom(ids,amounts);}
-
 function initials(n){return (n||"?").trim().slice(0,1).toUpperCase();}
-
 function statusPill(s){
   if(s==="paid")return '<span class="pill good">Lunas</span>';
   if(s==="claimed")return '<span class="pill warn">Diklaim</span>';
   return '<span class="pill">Belum bayar</span>';
 }
 
+/* hero chart: ghost bar = total, hatched bar = terkumpul, tightest-to-goal split is lit */
+function chart(list){var box=document.getElementById("chart"),css=getComputedStyle(box),v=function(n){return css.getPropertyValue(n).trim();};
+  var NS="http://www.w3.org/2000/svg",mk=function(t,a,x){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(x!=null)e.textContent=x;return e;};
+  var W=Math.max(260,box.clientWidth),H=Math.max(180,box.clientHeight),c=W<480,L=c?2:42,T=34,B=26,svg=mk("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Terkumpul dibanding total per split"});
+  if(!list.length){box.innerHTML='<div class="empty"><b>Belum ada split</b><p>Buat split pertamamu untuk mulai menagih bareng.</p></div>';return;}
+  var defs=mk("defs",{});["lime"].forEach(function(n){var p=mk("pattern",{id:"ph-"+n,width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"});p.appendChild(mk("rect",{width:8,height:8,fill:v("--"+n)}));p.appendChild(mk("rect",{width:2,height:8,fill:"rgba(255,255,255,.28)"}));defs.appendChild(p);});svg.appendChild(defs);
+  var max=Math.max.apply(null,list.map(function(b){return b.totalAmount;})),top=Math.ceil(max/1e6)*1e6||1,y=function(x){return T+(top-x)/top*(H-T-B);};
+  if(!c)[0,top/2,top].forEach(function(t){svg.appendChild(mk("line",{x1:L,x2:W,y1:y(t),y2:y(t),stroke:v("--line"),"stroke-dasharray":t?"3 4":"0"}));svg.appendChild(mk("text",{x:L-8,y:y(t)+3.5,"text-anchor":"end"},Math.round(t/1e6)+" jt"));});
+  var band=(W-L)/list.length,bw=Math.min(56,band*.62),hi=list.reduce(function(a,b,i){return pct(b)>pct(list[a])?i:a;},0);
+  list.forEach(function(b,i){var x=L+band*i+band/2-bw/2,on=i===hi,sp=paidAmt(b),g=mk("g",{class:"gb",style:"animation-delay:"+(i*40)+"ms"});
+    g.appendChild(mk("rect",{x:x,y:y(b.totalAmount),width:bw,height:Math.max(0,y(0)-y(b.totalAmount)),rx:8,fill:v("--ghost")}));
+    g.appendChild(mk("rect",{x:x,y:y(Math.min(sp,max)),width:bw,height:Math.max(3,y(0)-y(sp)),rx:8,fill:on?"url(#ph-lime)":v("--muted"),opacity:on?1:.28}));
+    g.appendChild(mk("title",{},b.title+": "+WM.rp(sp)+" dari "+WM.rp(b.totalAmount)));svg.appendChild(g);
+    svg.appendChild(mk("text",{x:x+bw/2,y:H-8,"text-anchor":"middle",style:on?"fill:"+v("--ink")+";font-weight:500":""},b.title.split(" ")[0].slice(0,8)));
+    if(on){var tx=pct(b)+"%",pw=48,px=Math.max(0,Math.min(W-pw,x+bw/2-pw/2)),py=y(Math.max(sp,b.totalAmount))-28;svg.appendChild(mk("rect",{x:px,y:py,width:pw,height:22,rx:11,fill:v("--ink")}));svg.appendChild(mk("text",{x:px+pw/2,y:py+15,"text-anchor":"middle",style:"fill:"+v("--card")+";font-family:var(--font);font-size:11px;font-weight:600"},tx));}});
+  box.innerHTML="";box.appendChild(svg);}
+
 function draw(){
   var all=bills(),active=all.filter(isActive),history=all.filter(function(b){return !isActive(b);});
   var totalDitalangin=active.reduce(function(s,b){return s+b.totalAmount;},0);
   var totalTerkumpul=active.reduce(function(s,b){return s+paidAmt(b);},0);
-  document.getElementById("hlTotal").textContent=WM.rp(totalDitalangin);
-  document.getElementById("stCollected").textContent=WM.rp(totalTerkumpul);
-  document.getElementById("stUnpaid").textContent=WM.rp(totalDitalangin-totalTerkumpul);
-  document.getElementById("stActive").textContent=active.length;
+  var pctAll=totalDitalangin?Math.round(totalTerkumpul/totalDitalangin*100):0;
+  document.getElementById("hlTotal").innerHTML='<span class="cur">Rp</span>'+totalDitalangin.toLocaleString("id-ID");
+  document.getElementById("hlCap").textContent="Ditalangin bulan ini";
+  document.getElementById("kCollected").textContent=WM.rp(totalTerkumpul);
+  document.getElementById("kUnpaid").textContent=WM.rp(totalDitalangin-totalTerkumpul);
+  document.getElementById("kActive").textContent=active.length;
+  chart(active);
 
-  document.getElementById("listActive").innerHTML= active.length? active.map(function(b){return itemHTML(b,true);}).join("") :
-    '<div class="empty"><span class="ic">'+WM.icon("split",24)+'</span><b>Belum ada split aktif</b><p>Buat split pertamamu untuk mulai menagih bareng-bareng.</p></div>';
-  document.getElementById("listHistory").innerHTML= history.length? history.map(function(b){return itemHTML(b,false);}).join("") :
-    '<div class="empty"><span class="ic">'+WM.icon("clock",24)+'</span><b>Belum ada riwayat</b><p>Split yang lunas atau dicabut akan muncul di sini.</p></div>';
+  document.getElementById("tiles").innerHTML=(active.length?active.map(function(b){var p=pct(b);
+    return '<button type="button" class="btile" data-open="'+b.id+'" aria-label="'+esc(b.title)+', '+p+' persen terkumpul"><span class="tt">'+esc(b.title)+'</span><span class="pv" style="color:var(--ink)">'+p+'%</span><span class="track"><i class="fill-lime" style="width:'+Math.min(100,p)+'%"></i></span><small>'+WM.short(paidAmt(b))+' dari '+WM.short(b.totalAmount)+' · '+b.participants.length+' orang</small></button>';}).join(""):'<div class="empty" style="grid-column:1/-1"><b>Belum ada split aktif</b><p>Buat split pertamamu untuk mulai menagih bareng.</p></div>')+
+    '<button type="button" class="btile add" id="btnAddTile">'+WM.icon("plus",18,2)+'Split baru</button>';
+  var at=document.getElementById("btnAddTile");if(at)at.onclick=openCreate;
 
-  [].slice.call(document.querySelectorAll("[data-open]")).forEach(function(btn){btn.onclick=function(){openDetail(btn.dataset.open);};});
-}
+  document.getElementById("histCap").textContent=history.length+" selesai";
+  document.getElementById("histList").innerHTML=history.length?history.slice(0,5).map(function(b){
+    var badge=b.revokedAt?'<span class="pill bad">Dicabut</span>':'<span class="pill good">Lunas</span>';
+    return '<li class="click" data-open="'+b.id+'" style="cursor:pointer"><span class="ic">'+WM.icon("split",16)+'</span><div><b>'+esc(b.title)+'</b><small>'+b.participants.length+' orang · '+WM.date(b.createdAt)+'</small></div><span class="amt">'+badge+'</span></li>';
+  }).join(""):'<li style="border:0"><small>Belum ada split yang selesai.</small></li>';
 
-function itemHTML(b,active){
-  var badge = b.revokedAt ? '<span class="pill bad">Dicabut</span>' : isSettled(b) ? '<span class="pill good">Lunas</span>' : !b.payoutAccountId ? '<span class="pill bad">Rekening belum diisi</span>' : '<span class="pill warn">Belum lunas</span>';
-  var p=pct(b);
-  return '<div class="split-item">'+
-    '<div class="split-top"><div><div class="split-title">'+WM.esc(b.title)+' '+badge+'</div>'+
-    '<div class="split-meta">'+b.participants.length+' orang · '+WM.date(b.createdAt)+'</div></div>'+
-    '<div class="split-amt"><b class="num">'+WM.rp(b.totalAmount)+'</b></div></div>'+
-    '<div class="track" style="margin-top:12px"><i style="width:'+p+'%;background:'+(p>=75?"var(--good)":"var(--orange)")+'"></i></div>'+
-    '<div class="split-foot"><span class="cap">'+WM.rp(paidAmt(b))+' terkumpul · '+p+'%</span>'+
-    '<button class="btn sm" type="button" data-open="'+b.id+'">'+WM.icon("share",14,2)+' Detail</button></div>'+
-  '</div>';
+  var worst=active.slice().sort(function(a,b){return pct(a)-pct(b);})[0];
+  document.getElementById("tipT").textContent=worst?(worst.title+" baru "+pct(worst)+"%"):(active.length?"Semua split di jalur bagus":"Belum ada split aktif");
+  document.getElementById("tipP").textContent=worst?"Sisa "+WM.rp(worst.totalAmount-paidAmt(worst))+" dari "+worst.participants.filter(function(p){return p.status!=="paid";}).length+" orang.":"Ajak teman patungan lewat tautan mereka masing-masing.";
+  var n=Math.round(pctAll/100*18);document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"c":i%5===0?"b":"")+'"></i>';}).join("");
+
+  document.querySelectorAll("[data-open]").forEach(function(el){el.onclick=function(){openDetail(el.dataset.open);};});
 }
 
 /* ---------- create dialog ---------- */
@@ -187,7 +196,7 @@ function openCreate(){
     }});
 }
 
-function renderParts(dialog,skipReadTotal){
+function renderParts(dialog){
   var totalEl=dialog.querySelector('[name="total"]'), total=WM.parseMoney(totalEl.value);
   var method=(dialog.querySelector('[data-radio="method"] [aria-checked="true"]')||{}).dataset.v||"equal";
   dialog.querySelector("#pcount").textContent=localParts.length;
@@ -225,7 +234,7 @@ function updateNote(dialog){
   }
 }
 
-/* ---------- detail / share dialog ---------- */
+/* ---------- detail / share side panel ---------- */
 function openDetail(id){
   var b=WM.store.find("splitBills",id);if(!b)return;
   var accName=b.payoutAccountId?(function(){var a=WM.account(b.payoutAccountId);return a?a.bank+" · "+a.name:"Rekening tidak ditemukan";})():"";
@@ -302,18 +311,8 @@ function openEditPayout(id,parentDialog){
     }});
 }
 
-/* tabs */
-document.querySelectorAll('.tabs2 [role="tab"]').forEach(function(btn){
-  btn.onclick=function(){
-    document.querySelectorAll('.tabs2 [role="tab"]').forEach(function(b){b.setAttribute("aria-selected",b===btn);});
-    document.getElementById("listActive").hidden=btn.dataset.t!=="active";
-    document.getElementById("listHistory").hidden=btn.dataset.t!=="history";
-  };
-});
-
-document.getElementById("howNote").innerHTML=WM.icon("info",16)+' Setiap peserta dapat tautan bagiannya sendiri (split.html). Mereka klaim, kamu konfirmasi setelah dana masuk ke rekening tujuan.';
-
 draw();
 WM.onChange(["splitBills","accounts"],draw);
+WM.onResize(document.getElementById("chart"),draw);
 })();
 </script>

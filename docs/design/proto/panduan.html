@@ -3,15 +3,24 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.pd-search{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:13px;padding:0 14px;height:48px;box-shadow:var(--shadow);max-width:460px}
-.pd-search input{border:0;background:none;flex:1;font:inherit;color:var(--ink);height:100%}
+@media (min-width:1181px){
+  .pd-hero{grid-column:1/13;grid-row:1}
+  .pd-list{grid-column:1/13;grid-row:2}
+  .pd-faq{grid-column:1/13;grid-row:3}
+  .pd-contact{grid-column:1/13;grid-row:4}
+}
+.pd-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.pd-top .big{font-size:26px}
+.pd-search{display:flex;align-items:center;gap:9px;background:var(--card-2);border-radius:12px;padding:0 14px;height:42px;min-width:260px}
+.pd-search input{border:0;background:none;flex:1;font:inherit;font-size:13px;color:var(--ink);height:100%}
 .pd-search input:focus{outline:0}
-.pd-count{color:var(--muted);font-size:12.5px;margin-top:8px}
-.pd-groups{display:flex;flex-direction:column;gap:16px;margin-top:16px}
-.pd-group h2{margin:0 0 2px;font-size:15px;font-weight:600}
+.pd-hero .seg{margin-top:16px}
+.pd-groups{display:flex;flex-direction:column;gap:18px;margin-top:16px}
+.pd-group h2{margin:0 0 2px;font-size:14.5px;font-weight:600}
 .pd-group .tag{color:var(--muted);font-size:12.5px;margin:0 0 12px}
 .pd-items{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
-.pd-item{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--card)}
+.pd-item{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:14px;border-radius:14px;border:1px solid var(--line);background:var(--card);text-decoration:none;color:var(--ink)}
+.pd-item .ic{width:34px;height:34px;border-radius:10px;background:var(--card-2);display:flex;align-items:center;justify-content:center;flex:none;color:var(--ink)}
 a.pd-item:hover{border-color:var(--muted)}
 .pd-item b{display:block;font-size:13.5px;margin-bottom:3px}
 .pd-item p{margin:0;color:var(--muted);font-size:12.5px;line-height:1.5}
@@ -22,89 +31,85 @@ a.pd-item:hover{border-color:var(--muted)}
 .faq-item summary svg{transition:transform .2s;flex:none;color:var(--muted)}
 .faq-item[open] summary svg{transform:rotate(180deg)}
 .faq-item .a{margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.6}
-.faq-item .a button{border:0;background:none;padding:0;color:var(--good);font-weight:600;text-decoration:underline;text-underline-offset:2px;cursor:pointer;font-size:inherit}
-.contact-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
-.contact-card{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:14px;background:var(--card-2);text-decoration:none;color:var(--ink)}
-.contact-card b{font-size:13px}
-.contact-card small{color:var(--muted);font-size:12px}
+.faq-item .a a{color:var(--good);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.pd-contact .btiles{margin-top:14px}
+.pd-contact .btile{min-height:96px;text-decoration:none;color:var(--ink)}
+.pd-contact .btile *{text-decoration:none}
+.pd-contact .btile small{color:var(--muted)}
 </style>
 <main data-page="panduan">
-<div class="ph">
-  <div><h1>Panduan Fitur</h1><p>Semua fitur, dikelompokkan berdasarkan alur pemakaian. Cari atau jelajahi sesuai kebutuhanmu.</p></div>
-  <div class="acts"><a class="btn" href="#bantuan">Hubungi kami</a></div>
-</div>
-
-<section class="grid">
-  <div class="card s12">
-    <label class="pd-search" for="pdQ">
-      <span id="pdSearchIcon"></span>
-      <input id="pdQ" type="search" placeholder="Cari fitur, misalnya &quot;anggaran&quot; atau &quot;rekonsiliasi&quot;" aria-label="Cari topik panduan">
-    </label>
-    <div class="seg" id="pdTabs" role="tablist" aria-label="Kelompok fitur" style="margin-top:14px"></div>
-    <p class="pd-count" id="pdCount"></p>
-    <div class="pd-groups" id="pdGroups"></div>
-  </div>
-</section>
-
-<section class="grid" style="margin-top:16px">
-  <div class="card s12">
-    <h2>Pertanyaan yang sering diajukan</h2>
-    <div id="pdFaq" style="margin-top:8px"></div>
-  </div>
-</section>
-
-<section class="grid" id="bantuan" style="margin-top:16px;scroll-margin-top:20px">
-  <div class="card s12">
-    <h2>Masih butuh bantuan?</h2>
-    <p class="cap">Tim kami siap membantu langsung.</p>
-    <div class="contact-grid" style="margin-top:14px">
-      <a class="contact-card" href="mailto:support@wealthme.id?subject=Bantuan%20WealthMe"><b>Email</b><span class="num">support@wealthme.id</span><small>Respons 1x24 jam kerja.</small></a>
-      <a class="contact-card" href="https://wa.me/6281123456789" target="_blank" rel="noopener"><b>WhatsApp</b><span class="num">+62 811 2345 6789</span><small>Chat langsung.</small></a>
-      <a class="contact-card" href="tel:080012345678"><b>Telepon</b><span class="num">0800-1234-5678</span><small>Senin - Jumat, 08.00-17.00 WIB.</small></a>
+<section class="bento" aria-label="Panduan Fitur">
+  <article class="card dark pd-hero">
+    <div class="pd-top">
+      <div><p class="big">Cari panduan atau jelajahi fitur</p><div class="cap" id="pdCount"></div></div>
+      <label class="pd-search" for="pdQ"><span id="pdSearchIcon"></span><input id="pdQ" type="search" placeholder='Cari, misalnya "anggaran"' aria-label="Cari topik panduan"></label>
     </div>
-  </div>
+    <div class="seg" id="pdTabs" role="tablist" aria-label="Kelompok fitur"></div>
+  </article>
+
+  <article class="card pd-list">
+    <div class="pd-groups" id="pdGroups"></div>
+  </article>
+
+  <article class="card pd-faq">
+    <div class="head"><div><h2>Pertanyaan yang sering diajukan</h2></div></div>
+    <div id="pdFaq" style="margin-top:8px"></div>
+  </article>
+
+  <article class="card pd-contact" id="bantuan">
+    <div class="head"><div><h2>Masih butuh bantuan?</h2><div class="cap">Tim kami siap membantu langsung</div></div></div>
+    <div class="btiles">
+      <a class="btile" href="mailto:support@wealthme.id?subject=Bantuan%20WealthMe"><span class="tt"><span class="ci" id="pdMailIcon"></span>Email</span><span class="pv" style="font-size:14px" id="pdMail"></span><small>Respons 1x24 jam kerja.</small></a>
+      <a class="btile" href="https://wa.me/6281123456789" target="_blank" rel="noopener"><span class="tt"><span class="ci" id="pdWaIcon"></span>WhatsApp</span><span class="pv" style="font-size:14px">+62 811 2345 6789</span><small>Chat langsung.</small></a>
+      <a class="btile" href="tel:080012345678"><span class="tt"><span class="ci" id="pdPhoneIcon"></span>Telepon</span><span class="pv" style="font-size:14px">0800-1234-5678</span><small>Senin - Jumat, 08.00-17.00 WIB.</small></a>
+    </div>
+  </article>
 </section>
 </main>
 <script src="wm.js"></script>
 <script>
 WM.shell({page:"panduan",title:"Panduan Fitur"});
 (function(){ if(!WM.allowed) return;
-document.getElementById("pdSearchIcon").innerHTML=WM.icon("search",17,2);
+document.getElementById("pdSearchIcon").innerHTML=WM.icon("search",16,2);
+document.getElementById("pdMail").textContent="support@wealthme.id";
+document.getElementById("pdMailIcon").innerHTML=WM.icon("mail",16);
+document.getElementById("pdWaIcon").innerHTML=WM.icon("phone",16);
+document.getElementById("pdPhoneIcon").innerHTML=WM.icon("phone",16);
 
 var GROUPS=[
- {id:"memulai",title:"1 · Memulai",tag:"Kenali dashboard utamamu",items:[
+ {id:"memulai",title:"Memulai",tag:"Kenali dashboard utamamu",items:[
    {t:"Beranda",d:"Buka setiap hari untuk memantau kekayaan bersih, tren bulanan, arus kas, dan aktivitas terbaru dalam satu layar.",icon:"grid",href:"index.html"},
    {t:"Ringkasan",d:"Butuh versi ringkas? Halaman ini menampilkan komposisi aset dan statistik kunci tanpa detail beranda.",icon:"pie",href:"ringkasan.html"},
    {t:"Bank & Account",d:'Klik "Tambah" untuk mendaftarkan rekening bank pertamamu, saldonya otomatis masuk ke kekayaan bersih dan mutasinya tercatat per rekening.',icon:"landmark",href:"rekening.html"},
    {t:"Cash & E-Wallet",d:"Tambahkan saldo kas tunai atau e-wallet (GoPay, OVO, DANA) yang belum tercatat di rekening bank.",icon:"wallet",href:"dana.html"},
    {t:"Setup Master Data",d:"Sesuaikan kategori transaksi (makan, transport, gaji, dll) di sini, dipakai bersama oleh anggaran dan laporan.",icon:"db",href:"masterdata.html"}]},
- {id:"transaksi",title:"2 · Transaksi",tag:"Yang paling sering kamu pakai",items:[
+ {id:"transaksi",title:"Transaksi",tag:"Yang paling sering kamu pakai",items:[
    {t:"Tombol + Tambah Transaksi",d:"Klik ikon + di sidebar dari halaman mana pun untuk mencatat pemasukan, pengeluaran, atau transfer dalam hitungan detik.",icon:"plus"},
    {t:"Transaksi",d:"Gunakan filter tanggal/kategori untuk menelusuri riwayat, atau ketuk satu baris untuk mengubah maupun menghapusnya.",icon:"swap",href:"transaksi.html"},
    {t:"Input Cepat",d:"Tekan tombol ini untuk memilih jenis data (transaksi, rekening, aset, dll), lalu langsung isi formulirnya tanpa pindah halaman.",icon:"zap",href:"quickinput.html"},
    {t:"Pencarian (Ctrl/Cmd+K)",d:"Tekan Ctrl/Cmd+K kapan saja untuk melompat ke halaman atau mencari transaksi, rekening, dan kategori.",icon:"search"},
    {t:"Rekonsiliasi Bank",d:"Unggah file mutasi bank (CSV), WealthMe mencocokkannya otomatis dengan transaksi yang sudah kamu catat.",icon:"compare",href:"rekonsiliasi.html"},
    {t:"Split Bill",d:"Buat tagihan bersama, tambahkan peserta, lalu lacak siapa yang sudah dan belum membayar bagiannya.",icon:"split",href:"splitbill.html"}]},
- {id:"anggaran",title:"3 · Anggaran",tag:"Beri arah pada uangmu",items:[
+ {id:"anggaran",title:"Anggaran",tag:"Beri arah pada uangmu",items:[
    {t:"Anggaran",d:'Klik "Tambah Kategori", tentukan batas bulanan per kategori, WealthMe otomatis memperingatkanmu saat mendekati batas.',icon:"clipboard",href:"anggaran.html"},
    {t:"Tujuan Keuangan",d:"Buat target (misal dana darurat), atur nominal & tenggat, lalu aktifkan auto-debit bulanan agar progresnya naik sendiri.",icon:"target",href:"tujuan.html"},
    {t:"Kalkulator",d:"Pilih kalkulator yang kamu butuhkan (zakat, PPh 21, kredit, pensiun, dll), isi angkanya, hasilnya langsung muncul.",icon:"calc",href:"kalkulator.html"}]},
- {id:"laporan",title:"4 · Laporan",tag:"Ambil manfaat dari data yang sudah dicatat",items:[
+ {id:"laporan",title:"Laporan",tag:"Ambil manfaat dari data yang sudah dicatat",items:[
    {t:"Laporan",d:"Pilih jenis laporan (laba-rugi, neraca, arus kas, performa investasi) dan rentang tanggal untuk analisis mendalam.",icon:"chart",href:"laporan.html"},
    {t:"Tax Center",d:"Isi penghasilan bulananmu untuk menghitung PPh 21 progresif, lalu tandai status pelaporan SPT tahunanmu.",icon:"file",href:"tax.html"},
    {t:"Master COA",d:"Untuk kebutuhan akuntansi lanjutan: kelola struktur akun (COA) yang dipakai laporan laba-rugi & neraca.",icon:"book",href:"mastercoa.html"},
    {t:"AI Advisor",d:"Ketik pertanyaan seputar keuanganmu, AI menganalisis data transaksimu dan memberi saran konkret.",icon:"bot",href:"ai.html"}]},
- {id:"keluarga",title:"5 · Keluarga & Peran",tag:"Kelola keuangan bersama",items:[
+ {id:"keluarga",title:"Keluarga & Peran",tag:"Kelola keuangan bersama",items:[
    {t:"Akun & Keluarga",d:"Undang pasangan, anak, atau asisten rumah tangga, lalu tentukan perannya: master, co-master, anggota, atau hanya lihat.",icon:"user",href:"akun.html"},
    {t:"Persetujuan",d:"Permintaan dana dari anggota keluarga masuk ke sini, setujui atau tolak, lengkap dengan catatan.",icon:"checkc",href:"persetujuan.html"},
    {t:"Donasi & Zakat",d:"Hitung zakat maal dari total asetmu, lalu catat infaq, sedekah, atau wakaf yang sudah kamu keluarkan.",icon:"heart",href:"donation.html"},
    {t:"Warisan",d:"Catat daftar aset dan ahli waris untuk merencanakan pembagian warisan keluarga.",icon:"scroll",href:"warisan.html"}]},
- {id:"keamanan",title:"6 · Keamanan",tag:"Lindungi data keluargamu",items:[
+ {id:"keamanan",title:"Keamanan",tag:"Lindungi data keluargamu",items:[
    {t:"Kata Sandi & Login",d:"Ganti kata sandi, lihat perangkat yang sedang login, dan keluarkan sesi yang tidak kamu kenali.",icon:"lock",href:"akun.html"},
    {t:"Kategori Privat",d:"Tandai kategori sebagai privat, transaksinya hanya terlihat olehmu dan tidak dikirim ke AI Advisor.",icon:"eyeoff",href:"masterdata.html"},
    {t:"API Key AI",d:"Key AI disimpan terenkripsi di server dan hanya bisa diatur oleh owner atau pasangan.",icon:"key",href:"ai.html"}]}];
 var TOTAL=GROUPS.reduce(function(s,g){return s+g.items.length;},0);
-var TABS=[["semua","Semua"]].concat(GROUPS.map(function(g){return [g.id,g.title.replace(/^\d+ · /,"")];}));
+var TABS=[["semua","Semua"]].concat(GROUPS.map(function(g){return [g.id,g.title];}));
 var tab="semua",q="";
 
 function renderTabs(){
@@ -112,7 +117,7 @@ function renderTabs(){
   document.querySelectorAll("#pdTabs button").forEach(function(b){b.addEventListener("click",function(){tab=b.dataset.t;draw();});});
 }
 function itemHTML(it){
-  var inner='<span class="ic">'+WM.icon(it.icon,18)+'</span><span><b>'+WM.esc(it.t)+'</b><p>'+WM.esc(it.d)+'</p></span>';
+  var inner='<span class="ic">'+WM.icon(it.icon,17)+'</span><span><b>'+WM.esc(it.t)+'</b><p>'+WM.esc(it.d)+'</p></span>';
   return it.href?'<a class="pd-item" href="'+it.href+'">'+inner+'</a>':'<div class="pd-item" style="cursor:default">'+inner+'</div>';
 }
 function draw(){
@@ -121,8 +126,8 @@ function draw(){
   var groups=GROUPS.filter(function(g){return tab==="semua"||g.id===tab;}).map(function(g){
     var items=g.items.filter(function(it){return !qq||(it.t+" "+it.d).toLowerCase().indexOf(qq)>=0;});
     shown+=items.length;return {g:g,items:items};}).filter(function(x){return x.items.length;});
-  document.getElementById("pdCount").textContent=qq&&!shown?"Tidak ada topik yang cocok, coba kata kunci lain atau hubungi kami.":("Menampilkan "+shown+" dari "+TOTAL+" topik");
-  document.getElementById("pdGroups").innerHTML=groups.map(function(x){return '<div class="pd-group"><h2>'+x.g.title+'</h2><p class="tag">'+x.g.tag+'</p><div class="pd-items">'+x.items.map(itemHTML).join("")+'</div></div>';}).join("");
+  document.getElementById("pdCount").textContent=qq&&!shown?"Tidak ada topik yang cocok, coba kata kunci lain.":("Menampilkan "+shown+" dari "+TOTAL+" topik");
+  document.getElementById("pdGroups").innerHTML=groups.map(function(x){return '<div class="pd-group"><h2>'+x.g.title+'</h2><p class="tag">'+x.g.tag+'</p><div class="pd-items">'+x.items.map(itemHTML).join("")+'</div></div>';}).join("")||'<div class="empty"><b>Tidak ditemukan</b><p>Coba kata kunci lain atau <a href="#bantuan">hubungi kami</a>.</p></div>';
 }
 document.getElementById("pdQ").addEventListener("input",function(e){q=e.target.value;draw();});
 draw();

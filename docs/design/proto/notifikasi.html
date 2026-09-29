@@ -3,9 +3,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.nf-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.nf-filters{display:flex;align-items:center;gap:10px;min-width:0}
-.nf-count{color:var(--muted);font-size:12.5px;white-space:nowrap;flex:none}
+@media (min-width:1181px){.n-hero{grid-column:1/13;grid-row:1}.n-list{grid-column:1/13;grid-row:2}}
+.n-hero .chart-side{min-height:0}
 .nf-group+.nf-group{margin-top:16px}
 .nf-group h2{margin:0 0 4px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
 .nf-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:flex-start;padding:13px 4px;border-bottom:1px solid var(--line);border-radius:12px;text-align:left;width:100%;background:none;border-left:0;border-right:0;border-top:0}
@@ -22,20 +21,28 @@
 .nf-actions{display:flex;gap:4px}
 </style>
 <main data-page="notifikasi">
-<div class="ph">
-  <div><h1 id="nf-title">Notifikasi</h1><p>Persetujuan, anggaran, tagihan dan info lain, semua di satu tempat.</p></div>
-  <div class="acts"><button class="btn ghost" type="button" id="nfAll">Tandai semua dibaca</button></div>
-</div>
-
-<section class="grid">
-  <div class="card s12">
-    <div class="nf-head">
-      <div class="nf-filters"><div class="seg" id="nfSeg" role="radiogroup" aria-label="Filter notifikasi"></div></div>
-      <span class="nf-count" id="nfCount"></span>
+<section class="bento" aria-label="Notifikasi">
+  <article class="card hero dark n-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="hUnread"></p><div class="cap">notifikasi belum dibaca</div></div>
+        <div class="hero-ctrl"><div class="ctrl-row"><button class="ghost-btn lit" type="button" id="nfAll">Tandai semua dibaca</button></div></div>
+      </div>
     </div>
-    <div class="divider"></div>
-    <div id="nfList"></div>
-  </div>
+    <div class="kpis">
+      <div class="kpi"><small>Total notifikasi</small><div class="v" id="kTotal"></div></div>
+      <div class="kpi"><small>Persetujuan</small><div class="v" id="kApproval"></div></div>
+      <div class="kpi"><small>Jatuh tempo</small><div class="v" id="kBill"></div></div>
+    </div>
+  </article>
+
+  <article class="card n-list">
+    <div class="head" style="flex-wrap:wrap;gap:10px">
+      <div class="seg" id="nfSeg" role="radiogroup" aria-label="Filter notifikasi" style="flex-wrap:wrap"></div>
+      <span class="cap" id="nfCount"></span>
+    </div>
+    <div id="nfList" style="margin-top:12px"></div>
+  </article>
 </section>
 </main>
 <script src="wm.js"></script>
@@ -85,9 +92,15 @@ function draw(){
   var g=groupByRecency(list),box=document.getElementById("nfList");
   var html=groupHTML("Hari ini",g.today)+groupHTML("Minggu ini",g.week)+groupHTML("Lebih lama",g.older);
   box.innerHTML=html||'<div class="empty"><span class="ic">'+WM.icon("bell",24)+'</span><b>Tidak ada notifikasi'+(filter!=="semua"?" di filter ini":"")+'</b><p>'+(filter==="semua"?"Semua sudah dibaca. Yang baru akan muncul di sini.":"Coba pilih filter lain.")+'</p></div>';
+
   var unreadTotal=all.filter(function(n){return !n.read;}).length;
-  document.getElementById("nf-title").innerHTML="Notifikasi"+(unreadTotal?' <span class="pill bad">'+unreadTotal+' baru</span>':"");
+  document.getElementById("hUnread").textContent=unreadTotal;
+  var setKpi=function(id,n){var e=document.getElementById(id);e.textContent=n;e.dataset.short=n;};
+  setKpi("kTotal",all.length);
+  setKpi("kApproval",all.filter(function(n){return classify(n)==="persetujuan";}).length);
+  setKpi("kBill",all.filter(function(n){return classify(n)==="tempo";}).length);
   document.getElementById("nfAll").disabled=unreadTotal===0;
+
   box.querySelectorAll("[data-open]").forEach(function(el){el.addEventListener("click",function(e){if(e.target.closest("[data-read],[data-del]"))return;open(el.dataset.open);});
     el.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();open(el.dataset.open);}});});
   box.querySelectorAll("[data-read]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();WM.store.update("notifications",b.dataset.read,{read:true});draw();});});

@@ -3,42 +3,73 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.asset-mini-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
-.asset-mini{border:1.5px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;transition:border-color .15s,transform .15s}
-.asset-mini:hover{border-color:var(--muted)}
-.banner{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
-.banner .headline{font-size:30px;font-weight:600;letter-spacing:-.03em;margin:2px 0 0}
+@media (min-width:1181px){
+  .a-hero{grid-column:1/9;grid-row:1}.a-side{grid-column:9/13;grid-row:1/3}
+  .a-accounts{grid-column:1/9;grid-row:2}.a-fisik{grid-column:1/13;grid-row:3}.a-tips{grid-column:1/13;grid-row:4}
+}
 [data-page="aset"].priv .money{filter:blur(6px);user-select:none}
-.mini-name{font-weight:600;font-size:13.5px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none;color:inherit}
-.mini-name:hover{text-decoration:underline}
-.mini-sub{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
-@media (max-width:720px){.banner{align-items:flex-start}}
+.a-fisik .btiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+.btile.asset{position:relative;min-height:118px}
+.btile.asset .del{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;border:0;background:var(--card);color:var(--muted);display:grid;place-items:center}
+.btile.asset .del:hover{color:var(--bad);background:var(--ghost)}
+.btile.asset .pv{font-size:16px}
+@media (max-width:900px){.a-fisik .btiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 <main data-page="aset">
-  <div class="ph"><div><h1>Aset</h1><p>Semua dana, rekening, investasi, dan aset fisik keluarga dalam satu tempat.</p></div></div>
-  <div class="tabs" role="tablist" id="tabs" aria-label="Filter aset"></div>
-  <section class="grid">
-    <div class="cover s12" id="banner"></div>
-  </section>
-  <section class="grid" id="breakdown"></section>
-  <section class="grid" id="chartsRow"></section>
-  <section class="grid" id="groups"></section>
+<section class="bento" aria-label="Aset">
+  <article class="card hero dark a-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num money" id="grand"></p><div class="cap" id="grandCap"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn" type="button" id="eye"></button><button class="ghost-btn lit" type="button" id="add">+ Aset</button></div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Dana &amp; rekening</small><div class="v money" id="kAcc"></div></div>
+      <div class="kpi"><small>Investasi</small><div class="v money" id="kInv"></div></div>
+      <div class="kpi"><small>Aset fisik</small><div class="v money" id="kFisik"></div></div>
+    </div>
+  </article>
+
+  <article class="card a-side">
+    <div class="head"><div><h2>Investasi</h2><div class="cap" id="invCap"></div></div></div>
+    <ul class="mini-list" id="invList"></ul>
+    <a class="see-all" href="investasi.html">Semua investasi <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+  </article>
+
+  <article class="card a-accounts">
+    <div class="head"><div><h2>Dana &amp; rekening</h2><div class="cap" id="accCap"></div></div></div>
+    <ul class="mini-list" id="accList"></ul>
+    <a class="see-all" href="rekening.html">Semua rekening &amp; dana <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+  </article>
+
+  <article class="card a-fisik" id="fisik">
+    <div class="head"><div><h2>Aset fisik</h2><div class="cap" id="fisikCap">Ketuk kartu untuk ubah</div></div></div>
+    <div class="btiles" id="fisikTiles"></div>
+  </article>
+
+  <article class="card tips a-tips">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
-WM.shell({page:document.querySelector("main").dataset.page});
+WM.shell({page:"aset"});
 (function(){
 if(!WM.allowed) return;
 var main=document.querySelector('main[data-page="aset"]');
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 
-var TAB_IDS=["semua","dana","rekening","investasi","fisik"];
-var TAB_LABEL={semua:"Semua",dana:"Dana",rekening:"Rekening",investasi:"Investasi",fisik:"Aset fisik"};
-var TYPES=[["properti","Properti"],["kendaraan","Kendaraan"],["elektronik","Elektronik"],["perhiasan","Perhiasan"],["emas","Emas"],["lainnya","Lainnya"]];
 var TYPE_LABEL={properti:"Properti",kendaraan:"Kendaraan",elektronik:"Elektronik",perhiasan:"Perhiasan",emas:"Emas",lainnya:"Lainnya"};
+var TYPES=[["properti","Properti"],["kendaraan","Kendaraan"],["elektronik","Elektronik"],["perhiasan","Perhiasan"],["emas","Emas"],["lainnya","Lainnya"]];
 var TYPE_ICON={properti:"home",kendaraan:"car",elektronik:"zap",perhiasan:"sparkle",emas:"gold",lainnya:"more"};
 var DEFAULT_RATE={properti:3,kendaraan:-12,elektronik:-20,perhiasan:2,emas:0,lainnya:0};
-var activeTab=0;
 
 /* ---- migrate seed/legacy asset shape to the fields this prototype needs, once ---- */
 function normalize(){
@@ -143,7 +174,10 @@ function wireAssetForm(d,body,a){
 function openAssetModal(id){
   var editing=id?WM.store.find("assets",id):null;
   WM.modal({title:editing?"Ubah aset":"Tambah aset fisik",size:"lg",submit:editing?"Simpan perubahan":"Tambah aset",
-    onOpen:function(d,body){body.innerHTML=assetFormBody(editing);wireAssetForm(d,body,editing);},
+    onOpen:function(d,body){body.innerHTML=assetFormBody(editing);wireAssetForm(d,body,editing);
+      if(editing){var ft=d.querySelector(".sheet-foot");ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+        ft.querySelector("[data-rm]").onclick=function(){d.close();deleteAsset(editing.id);};}
+    },
     onSubmit:function(f,v,d){
       var mode=(f.querySelector('[data-radio="mode"] [aria-checked="true"]')||{}).dataset.v||"percent";
       var rec={name:v.name,type:v.type,value:v.value,
@@ -171,73 +205,35 @@ function openAssetModal(id){
 }
 function deleteAsset(id){
   var a=WM.store.find("assets",id);if(!a)return;
-  WM.confirm({title:"Hapus aset ini?",text:'"'+esc(a.name)+'" akan dihapus dari daftar aset kamu.',confirm:"Hapus",danger:true}).then(function(ok){
-    if(!ok)return;WM.store.remove("assets",id);WM.toast("Aset dihapus");draw();
-  });
-}
-function adoptProjection(id){
-  var a=WM.store.find("assets",id);if(!a)return;
-  var est=estimateCurrent(a),hist=(a.history||[]).slice();
-  hist.push({id:WM.uid("h"),date:WM.today,value:est,note:"Disesuaikan ke proyeksi",by:WM.meId()});
-  WM.store.update("assets",id,{value:est,history:hist});
-  WM.toast("Nilai diperbarui ke "+WM.rp(est));draw();
+  WM.store.remove("assets",id);
+  WM.toast("Aset "+a.name+" dihapus",{undo:function(){var arr=WM.store.get("assets");arr.push(a);WM.store.set("assets",arr);}});
+  draw();
 }
 
 /* ---------- render pieces ---------- */
-function rowHTML(icon,name,sub,val,isLast){
-  return '<div class="row" style="'+(isLast?"border-bottom:0":"")+'"><span class="ic lime">'+WM.icon(icon,18)+'</span>'+
-   '<span style="min-width:0"><b class="mini-sub" style="font-weight:500">'+esc(name)+'</b><small class="mini-sub">'+esc(sub)+'</small></span>'+
-   '<span class="r num money">'+WM.rp(val)+'</span></div>';
+function accRow(a,isLast){
+  var typeIcon=a.type==="bank"?"landmark":a.type==="cc"?"card":"wallet";
+  var typeLabel={bank:"Bank",cash:"Tunai",ewallet:"E-wallet",cc:"Kartu kredit"}[a.type]||a.type;
+  var owner=a.vis==="private"?WM.member(a.owner).short:"Bersama";
+  return '<li'+(isLast?' style="border-top:0"':'')+'><span class="ic lime">'+WM.icon(typeIcon,16)+'</span><div><b>'+esc(a.name)+'</b><small>'+esc([typeLabel,a.bank,owner].filter(Boolean).join(" · "))+'</small></div><span class="amt num money">'+WM.rp(a.balance)+'</span></li>';
 }
-function accountsGroupHTML(list,title,icon){
-  var total=list.reduce(function(s,a){return s+a.balance;},0);
-  var body=list.length?list.map(function(a,i){
-    var typeIcon=a.type==="bank"?"landmark":a.type==="cc"?"card":"wallet";
-    var typeLabel={bank:"Bank",cash:"Tunai",ewallet:"E-wallet",cc:"Kartu kredit"}[a.type]||a.type;
-    var owner=a.vis==="private"?WM.member(a.owner).short:"Bersama";
-    var sub=[typeLabel,a.bank,a.no?"···"+a.no:null,owner].filter(Boolean).join(" · ");
-    return rowHTML(typeIcon,a.name,sub,a.balance,i===list.length-1);
-  }).join(""):'<div class="empty"><span class="ic">'+WM.icon(icon,20)+'</span><b>Belum ada dana atau rekening</b><p>Tambahkan lewat halaman Dana atau Rekening.</p></div>';
-  return '<div class="card s12"><div class="head"><div style="display:flex;align-items:center;gap:10px"><span class="ic lime">'+WM.icon(icon,18)+'</span><h2>'+title+'</h2></div><b class="num money" style="font-size:15px">'+WM.rp(total)+'</b></div><div class="list">'+body+'</div></div>';
-}
-function investGroupHTML(list){
-  var total=list.reduce(function(s,i){return s+i.value;},0);
+function invRow(inv,isLast){
   var lbl={saham:"Saham",reksadana:"Reksadana",emas:"Emas",deposito:"Deposito",kripto:"Kripto"};
   var icons={saham:"trend",reksadana:"bars",emas:"gold",deposito:"landmark",kripto:"trend"};
-  var body=list.length?list.map(function(inv,i){
-    var name=(inv.ticker?inv.ticker+" · ":"")+inv.name;
-    return rowHTML(icons[inv.kind]||"more",name,lbl[inv.kind]||inv.kind,inv.value,i===list.length-1);
-  }).join(""):'<div class="empty"><span class="ic">'+WM.icon("bars",20)+'</span><b>Belum ada investasi</b><p>Catat saham, reksadana, atau instrumen lain di halaman Investasi.</p></div>';
-  return '<div class="card s12"><div class="head"><div style="display:flex;align-items:center;gap:10px"><span class="ic lime">'+WM.icon("bars",18)+'</span><h2>Investasi</h2></div><b class="num money" style="font-size:15px">'+WM.rp(total)+'</b></div><div class="list">'+body+'</div></div>';
+  var name=(inv.ticker?inv.ticker+" · ":"")+inv.name;
+  return '<li'+(isLast?' style="border-top:0"':'')+'><span class="ic lime">'+WM.icon(icons[inv.kind]||"more",16)+'</span><div><b>'+esc(name)+'</b><small>'+esc(lbl[inv.kind]||inv.kind)+'</small></div><span class="amt num money">'+WM.rp(inv.value)+'</span></li>';
 }
-function assetMiniHTML(a,i){
+function assetTile(a){
   var est=estimateCurrent(a),drift=est!==a.value;
   var hasInfo=a.valueChangeMode==="fixed"?!!a.valueChangeAmount:!!a.valueChangeRatePct;
   var positive=a.valueChangeMode==="fixed"?(a.valueChangeAmount||0)>=0:(a.valueChangeRatePct||0)>=0;
   var badge=a.valueChangeMode==="fixed"?((a.valueChangeAmount>=0?"+":"")+WM.rp(a.valueChangeAmount)+"/thn"):((a.valueChangeRatePct>=0?"+":"")+WM.pct(a.valueChangeRatePct)+"/thn");
-  return '<div class="asset-mini enter" style="animation-delay:'+(i*30)+'ms">'+
-   '<div style="display:flex;align-items:center;gap:10px">'+
-     '<span class="ic lime" style="border-radius:99px">'+WM.icon(TYPE_ICON[a.type]||"more",18)+'</span>'+
-     '<div style="min-width:0;flex:1"><a class="mini-name" href="aset-detail.html?id='+encodeURIComponent(a.id)+'">'+esc(a.name)+'</a><small class="muted mini-sub">'+esc(a.notes||TYPE_LABEL[a.type]||"Lainnya")+'</small></div>'+
-     '<div style="display:flex;gap:4px">'+
-       '<button class="ibtn" type="button" data-edit="'+a.id+'" aria-label="Ubah aset">'+WM.icon("edit",15)+'</button>'+
-       '<button class="ibtn" type="button" data-del="'+a.id+'" aria-label="Hapus aset">'+WM.icon("trash",15)+'</button>'+
-     '</div>'+
-   '</div>'+
-   '<div style="display:grid;grid-template-columns:'+(drift?"1fr 1fr":"1fr")+';gap:10px">'+
-     '<div><small class="muted">Nilai tercatat</small><b class="num money" style="display:block;font-size:14px">'+WM.rp(a.value)+'</b></div>'+
-     (drift?'<div><small class="muted">Proyeksi</small><b class="num money" style="display:block;font-size:14px;color:'+(est>a.value?"var(--good)":"var(--bad)")+'">'+WM.rp(est)+'</b></div>':'')+
-   '</div>'+
-   (hasInfo?'<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">'+
-     '<span class="pill '+(positive?"good":"bad")+'">'+badge+'</span>'+
-     (drift?'<button type="button" class="btn sm ghost" style="padding:0;min-height:auto;height:auto" data-adopt="'+a.id+'">Gunakan nilai ini</button>':'')+
-   '</div>':'')+
+  return '<div class="btile asset" data-edit="'+a.id+'">'+
+    '<button type="button" class="del" data-del="'+a.id+'" aria-label="Hapus '+esc(a.name)+'">'+WM.icon("trash",14)+'</button>'+
+    '<span class="tt"><span class="ci">'+WM.icon(TYPE_ICON[a.type]||"more",15)+'</span>'+esc(a.name)+'</span>'+
+    '<span class="pv money" style="color:'+(drift?(est>a.value?"var(--good)":"var(--bad)"):"var(--ink)")+'">'+WM.rp(drift?est:a.value)+'</span>'+
+    '<small>'+(hasInfo?badge+' · ':'')+esc(TYPE_LABEL[a.type]||"Lainnya")+'</small>'+
   '</div>';
-}
-function fisikGroupHTML(list){
-  var total=list.reduce(function(s,a){return s+a.value;},0);
-  var body=list.length?'<div class="asset-mini-grid">'+list.map(assetMiniHTML).join("")+'</div>':'<div class="empty"><span class="ic">'+WM.icon("home",20)+'</span><b>Belum ada aset fisik</b><p>Tambahkan properti, kendaraan, atau barang berharga lain.</p></div>';
-  return '<div class="card s12"><div class="head"><div style="display:flex;align-items:center;gap:10px"><span class="ic lime">'+WM.icon("home",18)+'</span><h2>Aset fisik</h2></div><b class="num money" style="font-size:15px">'+WM.rp(total)+'</b></div>'+body+'</div>';
 }
 
 /* ---------- main draw ---------- */
@@ -245,60 +241,54 @@ function draw(){
   var accounts=WM.visibleAccounts(),investments=WM.store.get("investments"),assets=WM.store.get("assets");
   var danaAcc=accounts.filter(function(a){return a.type==="cash"||a.type==="ewallet";});
   var rekAcc=accounts.filter(function(a){return a.type==="bank";});
-  var cashTotal=danaAcc.reduce(function(s,a){return s+a.balance;},0);
-  var bankTotal=rekAcc.reduce(function(s,a){return s+a.balance;},0);
   var accTotal=accounts.reduce(function(s,a){return s+a.balance;},0);
   var invTotal=investments.reduce(function(s,i){return s+i.value;},0);
   var astTotal=assets.reduce(function(s,a){return s+a.value;},0);
   var grand=accTotal+invTotal+astTotal;
 
-  /* tabs */
-  document.getElementById("tabs").innerHTML=TAB_IDS.map(function(id,i){return '<button type="button" role="tab" aria-selected="'+(i===activeTab)+'" data-tab="'+i+'">'+TAB_LABEL[id]+'</button>';}).join("");
-  document.querySelectorAll("[data-tab]").forEach(function(b){b.onclick=function(){activeTab=+b.dataset.tab;draw();};});
-
-  /* banner */
-  document.getElementById("banner").innerHTML=
-   '<div class="banner"><div><small class="cap">Total aset</small><div class="headline num money">'+WM.rp(grand)+'</div>'+
-    '<small class="cap">per '+WM.date(WM.today,true)+'</small></div>'+
-    '<div style="display:flex;gap:8px;align-items:center">'+
-      '<button class="btn primary" type="button" id="add">'+WM.icon("plus",16)+'Tambah aset</button>'+
-      '<button class="ibtn" type="button" id="eye" aria-pressed="'+privOn()+'" aria-label="'+(privOn()?"Tampilkan nominal":"Sembunyikan nominal")+'">'+WM.icon(privOn()?"eyeoff":"eye",17)+'</button>'+
-    '</div></div>';
+  document.getElementById("grand").innerHTML='<span class="cur">Rp</span>'+grand.toLocaleString("id-ID");
+  document.getElementById("grandCap").textContent="Total aset per "+WM.date(WM.today,true);
+  document.getElementById("eye").innerHTML=WM.icon(privOn()?"eyeoff":"eye",15)+(privOn()?"Tampilkan":"Sembunyikan");
+  document.getElementById("eye").onclick=function(){setPriv(!privOn());draw();};
   document.getElementById("add").onclick=function(){openAssetModal();};
-  document.getElementById("eye").onclick=function(){var v=!privOn();setPriv(v);draw();};
   main.classList.toggle("priv",privOn());
+  document.getElementById("kAcc").textContent=WM.rp(accTotal);
+  document.getElementById("kInv").textContent=WM.rp(invTotal);
+  document.getElementById("kFisik").textContent=WM.rp(astTotal);
 
-  /* breakdown */
-  var nonZero=[cashTotal>0,bankTotal>0,invTotal>0,astTotal>0].filter(Boolean).length;
-  document.getElementById("breakdown").innerHTML=nonZero>=2?[
-    ["wallet","Dana",cashTotal],["landmark","Rekening",bankTotal],["bars","Investasi",invTotal],["home","Aset fisik",astTotal,"Nilai tercatat, bukan proyeksi"]
-  ].map(function(s){return '<div class="card s3"><span class="ic lime" style="margin-bottom:10px">'+WM.icon(s[0],18)+'</span><small class="muted" style="display:block">'+s[1]+'</small><b class="num money" style="display:block;font-size:16px;margin-top:2px">'+WM.rp(s[2])+'</b>'+(s[3]?'<small class="muted" style="display:block;margin-top:2px">'+s[3]+'</small>':'')+'</div>';}).join(""):"";
+  var segs=[["Aset fisik",astTotal,"var(--orange)"],["Investasi",invTotal,"var(--lilac)"],["Rekening",rekAcc.reduce(function(s,a){return s+a.balance;},0),"var(--sky)"],["Dana",danaAcc.reduce(function(s,a){return s+a.balance;},0),"var(--lime)"]].filter(function(s){return s[1]>0;});
+  var box=document.getElementById("chart");
+  if(segs.length){WM.chart.donut(box,{items:segs,center:WM.short(grand),sub:"Total aset"});}
+  else box.innerHTML='<div class="empty"><b>Belum ada aset</b><p>Tambah dana, rekening, investasi atau aset fisik untuk mulai.</p></div>';
+  document.getElementById("legend").innerHTML=segs.map(function(s){return '<span><i style="background:'+s[2]+'"></i>'+s[0]+'</span>';}).join("");
 
-  /* charts */
-  var trend=assetTrend(assets),segs=[["Aset fisik",astTotal,"var(--orange)"],["Investasi",invTotal,"#8B7FD6"],["Rekening",bankTotal,"var(--sky,#5B9BD5)"],["Dana",cashTotal,"var(--lime)"]].filter(function(s){return s[1]>0;});
-  var chartsHTML="";
-  if(trend||segs.length){
-    chartsHTML='<div class="card s8"><h2>Tren nilai aset fisik</h2><p class="cap">'+(trend?"6 bulan terakhir, dari riwayat nilai yang tercatat.":"Belum cukup riwayat untuk grafik.")+'</p><div class="chart" id="trendChart" style="height:220px;margin-top:8px">'+(trend?"":'<div class="empty" style="padding:20px"><span class="ic">'+WM.icon("chart",18)+'</span><p>Catat perubahan nilai aset di halaman detail untuk mulai melihat tren.</p></div>')+'</div></div>'+
-      '<div class="card s4"><h2>Alokasi aset</h2><div class="chart" id="donutChart" style="height:180px;margin-top:8px">'+(segs.length?"":'<div class="empty" style="padding:20px"><p>Belum ada data.</p></div>')+'</div>'+(segs.length?WM.legend(segs.map(function(s){return [s[0],s[2],WM.short(s[1])];})):"")+'</div>';
+  document.getElementById("invCap").textContent=investments.length+" instrumen";
+  document.getElementById("invList").innerHTML=investments.length?investments.slice(0,5).map(function(i,idx,arr){return invRow(i,idx===arr.length-1);}).join(""):'<li style="border-top:0"><small>Belum ada investasi.</small></li>';
+
+  document.getElementById("accCap").textContent=accounts.length+" akun";
+  document.getElementById("accList").innerHTML=accounts.length?accounts.slice(0,5).map(function(a,idx,arr){return accRow(a,idx===arr.length-1);}).join(""):'<li style="border-top:0"><small>Belum ada dana atau rekening.</small></li>';
+
+  document.getElementById("fisikCap").textContent=(assets.length?assets.length+" aset · ":"")+"Ketuk kartu untuk ubah";
+  document.getElementById("fisikTiles").innerHTML=(assets.length?assets.map(assetTile).join(""):'<div class="empty" style="grid-column:1/-1"><b>Belum ada aset fisik</b><p>Tambahkan properti, kendaraan, atau barang berharga lain.</p></div>')+
+    '<button type="button" class="btile add" id="fisikAdd">'+WM.icon("plus",18,2)+'Aset baru</button>';
+  document.getElementById("fisikAdd").onclick=function(){openAssetModal();};
+  document.querySelectorAll("[data-edit]").forEach(function(t){t.addEventListener("click",function(e){if(e.target.closest("[data-del]"))return;openAssetModal(t.dataset.edit);});});
+  document.querySelectorAll("[data-del]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();deleteAsset(b.dataset.del);});});
+
+  var trend=assetTrend(assets),biggest=segs[0];
+  if(biggest){
+    document.getElementById("tipT").textContent=biggest[0]+" porsi terbesar";
+    document.getElementById("tipP").textContent=Math.round(biggest[1]/grand*100)+"% dari total aset keluarga"+(trend?". Nilai aset fisik naik/turun mengikuti riwayat yang kamu catat.":". Catat riwayat nilai aset fisik untuk melihat tren.");
+  }else{
+    document.getElementById("tipT").textContent="Belum ada aset tercatat";
+    document.getElementById("tipP").textContent="Tambah dana, rekening, investasi, atau aset fisik untuk mulai memantau kekayaan keluarga.";
   }
-  document.getElementById("chartsRow").innerHTML=chartsHTML;
-  if(trend){var box=document.getElementById("trendChart");WM.chart.area(box,{labels:trend.map(function(p){return p.label;}),a:trend.map(function(p){return p.v;}),fmt:WM.short});WM.onResize(box,function(){WM.chart.area(box,{labels:trend.map(function(p){return p.label;}),a:trend.map(function(p){return p.v;}),fmt:WM.short});});}
-  if(segs.length){var db=document.getElementById("donutChart");WM.chart.donut(db,{items:segs,center:WM.short(grand),sub:"Total"});}
-
-  /* groups by tab */
-  var id=TAB_IDS[activeTab],html="";
-  if(id==="semua")html+=accountsGroupHTML(accounts,"Dana & rekening","wallet");
-  if(id==="dana")html+=accountsGroupHTML(danaAcc,"Dana","wallet");
-  if(id==="rekening")html+=accountsGroupHTML(rekAcc,"Rekening","landmark");
-  if(id==="semua"||id==="investasi")html+=investGroupHTML(investments);
-  if(id==="semua"||id==="fisik")html+=fisikGroupHTML(assets);
-  document.getElementById("groups").innerHTML=html;
-  document.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){openAssetModal(b.dataset.edit);};});
-  document.querySelectorAll("[data-del]").forEach(function(b){b.onclick=function(){deleteAsset(b.dataset.del);};});
-  document.querySelectorAll("[data-adopt]").forEach(function(b){b.onclick=function(){adoptProjection(b.dataset.adopt);};});
+  var n=grand?Math.round((biggest?biggest[1]/grand:0)*18):0;
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
 }
 normalize();
 draw();
 WM.onChange(["assets","accounts","investments"],draw);
+WM.onResize(document.getElementById("chart"),draw);
 })();
 </script>

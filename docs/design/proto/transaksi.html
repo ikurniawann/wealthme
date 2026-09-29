@@ -3,122 +3,93 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-/* page-local: transaksi list + filters + pagination (not in wm.css) */
-[data-page="transaksi"] .hero-tx{display:grid;grid-template-columns:1.3fr 1fr;gap:0;overflow:hidden;padding:0}
-[data-page="transaksi"] .hero-tx .side{padding:22px 24px}
-[data-page="transaksi"] .hero-tx .chartside{padding:22px 22px 16px;border-left:1px solid var(--cover-line);display:flex;flex-direction:column;min-width:0}
-[data-page="transaksi"] .hero-tx .chartbox{height:150px;margin-top:10px}
-[data-page="transaksi"] .stat-row{display:flex;gap:22px;flex-wrap:wrap;margin-top:16px}
-[data-page="transaksi"] .stat-row .st small{display:block;color:var(--on-cover-2);font-size:12px}
-[data-page="transaksi"] .stat-row .st b{display:block;font-size:19px;font-weight:600;letter-spacing:-.02em;margin-top:2px}
-[data-page="transaksi"] .filt-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
-[data-page="transaksi"] .filt-grid .field{margin:0}
-[data-page="transaksi"] .filt-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px}
-[data-page="transaksi"] .search-i{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);min-height:44px;padding:0 12px;color:var(--muted);max-width:280px;flex:1}
-[data-page="transaksi"] .search-i input{border:0;background:transparent;outline:0;font:inherit;color:var(--ink);width:100%}
-[data-page="transaksi"] .search-i svg{flex:none}
-[data-page="transaksi"] .sort-i{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted)}
-[data-page="transaksi"] .sort-i select{border:1.5px solid var(--line);border-radius:10px;background:var(--card);min-height:36px;padding:0 10px;font:inherit;color:var(--ink)}
-[data-page="transaksi"] .tbl td.opt,[data-page="transaksi"] .tbl th.opt{text-align:right}
-[data-page="transaksi"] .tbl .rowacts{display:inline-flex;gap:6px;justify-content:flex-end}
-[data-page="transaksi"] .tbl tbody tr[data-tx]{cursor:pointer}
-[data-page="transaksi"] .amt.in{color:var(--good)}
-[data-page="transaksi"] .pag{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-[data-page="transaksi"] .pag .cap{color:var(--muted);font-size:12px}
-[data-page="transaksi"] .pag .pbtns{display:flex;gap:6px}
-[data-page="transaksi"] .active-filter{display:inline-flex;align-items:center;gap:6px;background:var(--card-2);border-radius:99px;padding:4px 6px 4px 12px;font-size:12.5px;font-weight:500}
-[data-page="transaksi"] .active-filter button{width:22px;height:22px;border-radius:50%;border:0;background:var(--card);display:grid;place-items:center;color:var(--muted)}
-[data-page="transaksi"] .truncnote{margin-top:10px}
-@media (max-width:1024px){[data-page="transaksi"] .filt-grid{grid-template-columns:1fr 1fr}[data-page="transaksi"] .hero-tx{grid-template-columns:1fr}[data-page="transaksi"] .hero-tx .chartside{border-left:0;border-top:1px solid var(--cover-line)}}
-@media (max-width:640px){[data-page="transaksi"] .filt-grid{grid-template-columns:1fr}}
+@media (min-width:1181px){
+  .t-hero{grid-column:1/9;grid-row:1}.t-filt{grid-column:9/13;grid-row:1/3}
+  .t-list{grid-column:1/9;grid-row:2}
+}
+.t-filt .search-i{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:12px;background:var(--card);min-height:40px;padding:0 10px;color:var(--muted)}
+.t-filt .search-i input{border:0;background:transparent;outline:0;font:inherit;font-size:13px;color:var(--ink);width:100%}
+.t-filt .field{margin:10px 0 0}
+.t-filt .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.t-filt .active-filter{display:inline-flex;align-items:center;gap:6px;background:var(--card-2);border-radius:99px;padding:3px 4px 3px 10px;font-size:12px;font-weight:500}
+.t-filt .active-filter button{width:20px;height:20px;border-radius:50%;border:0;background:var(--card);display:grid;place-items:center;color:var(--muted)}
+.t-filt .members{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.t-filt .member{border:0;background:none;border-radius:50%;padding:0}
+.t-filt .member[aria-checked="true"]{outline:2px solid var(--lime);outline-offset:2px;border-radius:50%}
+.tx{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column}
+.tx li{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}
+.tx li:first-child{border-top:0}
+.tx li>div{min-width:0}
+.tx .ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;font-size:12px;font-weight:700}
+.tx b{font-size:13px;font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx small{color:var(--muted);font-size:11.5px}
+.tx .amt{text-align:right;font-size:13px;white-space:nowrap}
+.tx .in{color:var(--good)}
+.pag{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.pag .cap{color:var(--muted);font-size:12px}
+.pag .pbtns{display:flex;gap:6px}
 </style>
 <main data-page="transaksi">
-  <div class="ph">
-    <div><h1>Transaksi</h1><p>Semua pemasukan, pengeluaran dan transfer keluarga.</p></div>
-    <div class="acts">
-      <button class="btn" type="button" id="exportBtn">Ekspor CSV</button>
-      <button class="btn primary" type="button" id="addBtn">Catat transaksi</button>
-    </div>
-  </div>
-
-  <section class="grid" style="margin-top:16px">
-    <div class="cover s12 hero-tx enter">
-      <div class="side">
-        <div class="cap">Bulan ini</div>
-        <p class="headline" style="margin-top:4px"><em id="heroDelta">Rp 0</em></p>
-        <div class="cap" id="heroSub">selisih pemasukan dan pengeluaran</div>
-        <div class="stat-row">
-          <div class="st"><small>Pemasukan</small><b class="num" id="stIn">Rp 0</b></div>
-          <div class="st"><small>Pengeluaran</small><b class="num" id="stOut">Rp 0</b></div>
-          <div class="st"><small>Jumlah transaksi</small><b class="num" id="stCount">0</b></div>
+<section class="bento" aria-label="Transaksi">
+  <article class="card hero dark t-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="heroDelta"></p><div class="cap" id="heroSub"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn" type="button" id="exportBtn">Ekspor CSV</button><button class="ghost-btn lit" type="button" id="addBtn">+ Catat</button></div>
+          <div class="legend"><span><i style="background:var(--lime)"></i>Pemasukan</span><span><i style="background:var(--orange)"></i>Pengeluaran</span></div>
         </div>
       </div>
-      <div class="chartside">
-        <div class="legend"><span><i style="background:var(--lime)"></i>Pemasukan</span><span><i style="background:var(--orange)"></i>Pengeluaran</span></div>
-        <div class="chartbox" id="heroChart"></div>
-      </div>
+      <div class="chart-wrap" id="heroChart"></div>
     </div>
+    <div class="kpis">
+      <div class="kpi"><small>Pemasukan</small><div class="v" id="stIn"></div></div>
+      <div class="kpi"><small>Pengeluaran</small><div class="v" id="stOut"></div></div>
+      <div class="kpi"><small>Jumlah transaksi</small><div class="v" id="stCount"></div></div>
+    </div>
+  </article>
 
-    <div class="card s12">
-      <div class="head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
-        <div><h2>Cari &amp; saring</h2><div class="cap">Persempit daftar di bawah</div></div>
-        <button class="btn ghost sm" type="button" id="resetBtn">Reset</button>
-      </div>
-      <div class="search-i" style="margin-top:14px">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
-        <input type="search" id="q" placeholder="Cari catatan, kategori atau rekening…" aria-label="Cari transaksi">
-      </div>
-      <div class="filt-grid">
-        <div class="field"><label for="fFrom">Dari tanggal</label><input type="date" id="fFrom"></div>
-        <div class="field"><label for="fTo">Sampai tanggal</label><input type="date" id="fTo"></div>
-        <div class="field"><label for="fAcc">Rekening</label><select id="fAcc"><option value="">Semua rekening</option></select></div>
-        <div class="field"><label for="fCat">Kategori</label><select id="fCat"><option value="">Semua kategori</option></select></div>
-      </div>
-      <div class="filt-row">
-        <div class="chips-f" role="group" aria-label="Jenis transaksi" id="typeChips">
-          <button type="button" data-t="all" aria-pressed="true">Semua</button>
-          <button type="button" data-t="in" aria-pressed="false">Masuk</button>
-          <button type="button" data-t="out" aria-pressed="false">Keluar</button>
-          <button type="button" data-t="tf" aria-pressed="false">Transfer</button>
-          <button type="button" data-t="cc" aria-pressed="false">Kartu kredit</button>
-        </div>
-        <label class="sort-i">Urutkan
-          <select id="fSort"><option value="new">Terbaru</option><option value="old">Terlama</option></select>
-        </label>
-      </div>
-      <div id="memberFilterWrap" style="margin-top:12px"></div>
-      <div id="activeFilters" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"></div>
+  <article class="card t-filt">
+    <div class="head"><div><h2>Cari &amp; saring</h2></div><button class="btn ghost sm" type="button" id="resetBtn">Reset</button></div>
+    <div class="search-i" style="margin-top:12px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="search" id="q" placeholder="Cari catatan, kategori, rekening…" aria-label="Cari transaksi">
     </div>
+    <div class="seg" role="group" aria-label="Jenis transaksi" id="typeChips" style="margin-top:12px;flex-wrap:wrap">
+      <button type="button" data-t="all" aria-pressed="true">Semua</button>
+      <button type="button" data-t="in" aria-pressed="false">Masuk</button>
+      <button type="button" data-t="out" aria-pressed="false">Keluar</button>
+      <button type="button" data-t="tf" aria-pressed="false">Transfer</button>
+      <button type="button" data-t="cc" aria-pressed="false">Kartu kredit</button>
+    </div>
+    <div class="two">
+      <div class="field"><label for="fFrom">Dari</label><input type="date" id="fFrom"></div>
+      <div class="field"><label for="fTo">Sampai</label><input type="date" id="fTo"></div>
+    </div>
+    <div class="field"><label for="fAcc">Rekening</label><select id="fAcc"><option value="">Semua rekening</option></select></div>
+    <div class="field"><label for="fCat">Kategori</label><select id="fCat"><option value="">Semua kategori</option></select></div>
+    <div class="field"><label for="fSort">Urutkan</label><select id="fSort"><option value="new">Terbaru</option><option value="old">Terlama</option></select></div>
+    <div id="memberFilterWrap"></div>
+    <div id="activeFilters" style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"></div>
+  </article>
 
-    <div class="card s12">
-      <div class="head" style="display:flex;justify-content:space-between;align-items:center;gap:12px">
-        <h2>Riwayat</h2>
-        <span class="cap" id="listCap">0 transaksi</span>
-      </div>
-      <div class="tw" style="margin-top:12px">
-        <table class="tbl" id="tblTx">
-          <thead>
-            <tr>
-              <th>Tanggal</th><th>Catatan</th><th>Kategori</th><th>Rekening</th><th>Anggota</th><th class="r">Jumlah</th><th class="opt">Opsi</th>
-            </tr>
-          </thead>
-          <tbody id="tblBody"></tbody>
-        </table>
-      </div>
-      <div id="emptyState" class="empty" hidden>
-        <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/></svg></span>
-        <b>Belum ada transaksi yang cocok</b>
-        <p>Coba ubah kata kunci atau saringan, atau catat transaksi baru.</p>
-      </div>
-      <div class="pag" id="pagWrap">
-        <span class="cap" id="pagCap">Menampilkan 0–0 dari 0 transaksi</span>
-        <div class="pbtns">
-          <button class="btn sm" type="button" id="pagPrev">Sebelumnya</button>
-          <button class="btn sm" type="button" id="pagNext">Berikutnya</button>
-        </div>
+  <article class="card t-list">
+    <div class="head"><div><h2>Riwayat</h2></div><span class="cap" id="listCap"></span></div>
+    <ul class="tx" id="txList"></ul>
+    <div id="emptyState" class="empty" hidden>
+      <span class="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6M9 16h3"/></svg></span>
+      <b>Belum ada transaksi yang cocok</b>
+      <p>Coba ubah kata kunci atau saringan, atau catat transaksi baru.</p>
+    </div>
+    <div class="pag" id="pagWrap">
+      <span class="cap" id="pagCap"></span>
+      <div class="pbtns">
+        <button class="btn sm" type="button" id="pagPrev">Sebelumnya</button>
+        <button class="btn sm" type="button" id="pagNext">Berikutnya</button>
       </div>
     </div>
-  </section>
+  </article>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
@@ -128,10 +99,6 @@ WM.shell({page:document.querySelector("main").dataset.page});
   var PAGE_SIZE=10, page=1;
   var state={type:"all",cat:"",acc:"",member:"",from:"",to:"",q:"",sort:"new"};
 
-  function fmtSignedAmt(t){
-    if(t.type==="tf") return WM.rp(t.amount);
-    return WM.rp(t.type==="in"?t.amount:-t.amount,true);
-  }
   function isCC(t){var a=WM.account(t.acc);return !!(a&&a.type==="cc")||(t.to&&WM.account(t.to)&&WM.account(t.to).type==="cc");}
 
   function fillSelect(sel,list,cur){
@@ -147,10 +114,10 @@ WM.shell({page:document.querySelector("main").dataset.page});
     var wrap=document.getElementById("memberFilterWrap");
     if(WM.isOwner()){
       var ms=WM.store.get("members");
-      wrap.innerHTML='<div class="flabel"><span>Anggota</span></div><div class="members" data-radio="fMember" role="radiogroup" aria-label="Saring anggota">'+
-        '<button type="button" class="member" role="radio" data-v="" aria-checked="'+(state.member===""?"true":"false")+'" aria-label="Semua" title="Semua"><span class="avatar" style="background:var(--card-2);color:var(--muted);width:42px;height:42px;font-size:11px;display:grid;place-items:center">Semua</span></button>'+
-        ms.map(function(m){return '<button type="button" class="member" role="radio" data-v="'+m.id+'" aria-checked="'+(state.member===m.id?"true":"false")+'" aria-label="'+WM.esc(m.short)+'" title="'+WM.esc(m.short)+'">'+WM.avatar(m,42)+'</button>';}).join("")+
-        '</div>';
+      wrap.innerHTML='<div class="field"><label>Anggota</label><div class="members" data-radio="fMember" role="radiogroup" aria-label="Saring anggota">'+
+        '<button type="button" class="member" role="radio" data-v="" aria-checked="'+(state.member===""?"true":"false")+'" aria-label="Semua" title="Semua"><span class="avatar" style="background:var(--card-2);color:var(--muted);width:34px;height:34px;font-size:10px;display:grid;place-items:center">Semua</span></button>'+
+        ms.map(function(m){return '<button type="button" class="member" role="radio" data-v="'+m.id+'" aria-checked="'+(state.member===m.id?"true":"false")+'" aria-label="'+WM.esc(m.short)+'" title="'+WM.esc(m.short)+'">'+WM.avatar(m,34)+'</button>';}).join("")+
+        '</div></div>';
       WM.radio(wrap);
       wrap.querySelector('[data-radio="fMember"]').addEventListener("change",function(e){state.member=e.detail;page=1;draw();});
     } else { wrap.innerHTML=""; }
@@ -166,7 +133,7 @@ WM.shell({page:document.querySelector("main").dataset.page});
     };
     Object.keys(labels).forEach(function(k){
       if(!labels[k]) return;
-      out.push('<span class="active-filter">'+WM.esc(labels[k])+'<button type="button" data-clr="'+k+'" aria-label="Hapus saringan">'+WM.icon("x",12,2.4)+'</button></span>');
+      out.push('<span class="active-filter">'+WM.esc(labels[k])+'<button type="button" data-clr="'+k+'" aria-label="Hapus saringan">'+WM.icon("x",11,2.4)+'</button></span>');
     });
     var box=document.getElementById("activeFilters");
     box.innerHTML=out.join("");
@@ -203,19 +170,11 @@ WM.shell({page:document.querySelector("main").dataset.page});
   }
 
   function rowHtml(t){
-    var c=WM.cat(t.cat),a=WM.account(t.acc),to=t.to&&WM.account(t.to),m=WM.member(t.member),can=WM.canModifyTx(t);
-    var acctxt=t.type==="tf"?(a?a.bank:"–")+" → "+(to?to.bank:"–"):(a?a.bank+" · "+a.name:"–");
-    return '<tr data-tx="'+t.id+'">'+
-      '<td class="num">'+WM.date(t.date)+'</td>'+
-      '<td>'+WM.esc(t.note||(t.type==="tf"?"Transfer":c.name))+'</td>'+
-      '<td>'+(t.type==="tf"?'<span class="pill">Transfer</span>':WM.esc(c.name))+'</td>'+
-      '<td>'+WM.esc(acctxt)+'</td>'+
-      '<td>'+WM.esc(m.short)+'</td>'+
-      '<td class="r num amt'+(t.type==="in"?" in":"")+'">'+fmtSignedAmt(t)+'</td>'+
-      '<td class="opt"><span class="rowacts">'+
-        '<button type="button" class="ibtn" data-edit="'+t.id+'" aria-label="Ubah transaksi"'+(can?"":" disabled")+' title="'+(can?"Ubah":"Hanya pencatat atau pemilik rekening pribadi yang bisa mengubah")+'">'+WM.icon("edit",15)+'</button>'+
-        '<button type="button" class="ibtn danger" data-del="'+t.id+'" aria-label="Hapus transaksi"'+(can?"":" disabled")+' title="'+(can?"Hapus":"Tidak bisa dihapus")+'">'+WM.icon("trash",15)+'</button>'+
-      '</span></td></tr>';
+    var c=WM.cat(t.cat),a=WM.account(t.acc),to=t.to&&WM.account(t.to),inn=t.type==="in";
+    var sub=t.type==="tf"?(a?a.bank:"–")+" → "+(to?to.bank:"–"):WM.date(t.date).replace(" 2026","")+" · "+(a?a.bank:"–");
+    return '<li data-tx="'+t.id+'"><span class="ic" style="background:'+(inn?"var(--lime-soft)":"var(--card-2)")+'">'+WM.icon(t.type==="tf"?"swap":c.icon,16)+'</span>'+
+      '<div><b>'+WM.esc(t.note||(t.type==="tf"?"Transfer":c.name))+'</b><small>'+WM.esc(sub)+'</small></div>'+
+      '<div class="amt num'+(inn?" in":"")+'">'+(t.type==="tf"?WM.rp(t.amount):WM.rp(inn?t.amount:-t.amount,true))+'</div></li>';
   }
 
   function draw(){
@@ -226,11 +185,12 @@ WM.shell({page:document.querySelector("main").dataset.page});
     var list=filtered();
     var totalIn=0,totalOut=0;
     WM.monthTx().forEach(function(t){if(t.type==="in")totalIn+=t.amount;if(t.type==="out")totalOut+=t.amount;});
-    document.getElementById("stIn").textContent=WM.rp(totalIn);
-    document.getElementById("stOut").textContent=WM.rp(totalOut);
-    document.getElementById("stCount").textContent=WM.monthTx().length;
-    document.getElementById("heroDelta").textContent=WM.rp(totalIn-totalOut,true);
-    document.getElementById("heroSub").textContent=(totalIn-totalOut>=0?"surplus":"defisit")+" bulan ini, "+WM.monthsLong[new Date(WM.today+"T00:00:00").getMonth()];
+    var set=function(id,full,short){var e=document.getElementById(id);e.textContent=full;e.dataset.short=short||full;};
+    set("stIn",WM.rp(totalIn),WM.short(totalIn));
+    set("stOut",WM.rp(totalOut),WM.short(totalOut));
+    set("stCount",WM.monthTx().length);
+    document.getElementById("heroDelta").innerHTML='<span class="cur">Rp</span>'+Math.abs(totalIn-totalOut).toLocaleString("id-ID");
+    document.getElementById("heroSub").textContent=(totalIn-totalOut>=0?"Surplus ":"Defisit ")+WM.monthsLong[new Date(WM.today+"T00:00:00").getMonth()];
 
     var weeks=[[],[],[],[]];
     WM.monthTx().forEach(function(t){var day=+t.date.slice(8,10);var w=Math.min(3,Math.floor((day-1)/8));if(t.type==="in")weeks[w][0]=(weeks[w][0]||0)+t.amount;if(t.type==="out")weeks[w][1]=(weeks[w][1]||0)+t.amount;});
@@ -245,12 +205,12 @@ WM.shell({page:document.querySelector("main").dataset.page});
     var start=(page-1)*PAGE_SIZE,paged=list.slice(start,start+PAGE_SIZE);
 
     document.getElementById("listCap").textContent=totalRows+" transaksi";
-    document.getElementById("tblBody").innerHTML=paged.map(rowHtml).join("");
-    var tblWrap=document.querySelector('[data-page="transaksi"] .tw'),empty=document.getElementById("emptyState");
+    document.getElementById("txList").innerHTML=paged.map(rowHtml).join("");
+    var empty=document.getElementById("emptyState");
     var showEmpty=totalRows===0;
-    tblWrap.hidden=showEmpty;empty.hidden=!showEmpty;
+    document.getElementById("txList").hidden=showEmpty;empty.hidden=!showEmpty;
     document.getElementById("pagWrap").hidden=showEmpty;
-    document.getElementById("pagCap").textContent=showEmpty?"":("Menampilkan "+(start+1)+"–"+Math.min(start+PAGE_SIZE,totalRows)+" dari "+totalRows+" transaksi");
+    document.getElementById("pagCap").textContent=showEmpty?"":("Menampilkan "+(start+1)+"–"+Math.min(start+PAGE_SIZE,totalRows)+" dari "+totalRows);
     document.getElementById("pagPrev").disabled=page<=1;
     document.getElementById("pagNext").disabled=page>=totalPages;
   }
@@ -269,22 +229,11 @@ WM.shell({page:document.querySelector("main").dataset.page});
     document.getElementById("q").value="";document.getElementById("fFrom").value="";document.getElementById("fTo").value="";document.getElementById("fSort").value="new";
     draw();
   });
-  document.getElementById("pagPrev").addEventListener("click",function(){page=Math.max(1,page-1);draw();window.scrollTo({top:document.querySelector('[data-page="transaksi"] .card:last-of-type').offsetTop-80,behavior:"smooth"});});
-  document.getElementById("pagNext").addEventListener("click",function(){page=page+1;draw();window.scrollTo({top:document.querySelector('[data-page="transaksi"] .card:last-of-type').offsetTop-80,behavior:"smooth"});});
+  document.getElementById("pagPrev").addEventListener("click",function(){page=Math.max(1,page-1);draw();document.querySelector(".t-list").scrollIntoView({behavior:"smooth",block:"start"});});
+  document.getElementById("pagNext").addEventListener("click",function(){page=page+1;draw();document.querySelector(".t-list").scrollIntoView({behavior:"smooth",block:"start"});});
 
   document.getElementById("addBtn").addEventListener("click",function(){WM.openTx();});
-  document.getElementById("tblBody").addEventListener("click",function(e){
-    var edit=e.target.closest("[data-edit]"),del=e.target.closest("[data-del]");
-    if(edit){e.stopPropagation();e.preventDefault();if(!edit.disabled)WM.openTx(edit.dataset.edit);return;}
-    if(del){e.stopPropagation();e.preventDefault();if(del.disabled)return;
-      var id=del.dataset.del,t=WM.store.find("tx",id);if(!t)return;var c=WM.cat(t.cat);
-      WM.confirm({title:"Hapus transaksi ini?",text:WM.esc(t.note||c.name)+" "+WM.rp(t.amount)+" akan dihapus dan saldo rekening dikembalikan.",confirm:"Hapus",danger:true}).then(function(ok){
-        if(!ok)return;var old=WM.removeTx(id);WM.toast("Transaksi dihapus",{undo:function(){WM.restoreTx(old);WM.toast("Transaksi dikembalikan");}});
-      });
-      return;
-    }
-    // row click (not on a button) opens detail via wm.js's own [data-tx] delegated handler
-  });
+  // row click opens detail via wm.js's own [data-tx] delegated handler (edit/delete/undo live there)
 
   document.getElementById("exportBtn").addEventListener("click",function(){
     var rows=[["Tanggal","Catatan","Jenis","Kategori","Rekening","Anggota","Jumlah"]];

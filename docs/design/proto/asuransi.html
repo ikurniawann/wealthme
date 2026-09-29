@@ -3,73 +3,69 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.ins-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
-.ins-row small{color:var(--muted);font-size:11px}
-.ins-row b{font-size:13.5px}
+@media (min-width:1181px){
+  .i-hero{grid-column:1/9;grid-row:1}.i-side{grid-column:9/13;grid-row:1/3}
+  .i-grid{grid-column:1/9;grid-row:2/4}.i-tips{grid-column:9/13;grid-row:3}.i-ben{grid-column:1/13;grid-row:4}
+}
+.i-grid .btiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pol-tile{min-height:auto;gap:6px}
+.pol-tile .tt{justify-content:space-between}
+.pol-tile .pv{margin-top:4px;font-size:20px}
+.pol-tile .foot{display:flex;align-items:center;gap:8px;margin-top:6px}
+.pol-pay{border:0;border-radius:99px;background:var(--lime);color:var(--lime-ink);font-weight:600;font-size:12px;min-height:32px;padding:0 12px;margin-left:auto}
+.pol-pay:disabled{background:var(--card-2);color:var(--muted);opacity:1}
+.pol-detail{border:0;background:var(--card);border-radius:99px;font-size:12px;font-weight:500;min-height:32px;padding:0 12px;color:var(--muted)}
+.alloc-note{display:flex;align-items:center;gap:8px;background:var(--card-2);border-radius:12px;padding:10px 12px;font-size:12.5px;margin-bottom:10px}
 .ben-row{border:1.5px solid var(--line);border-radius:14px;padding:12px}
 .ben-row+.ben-row{margin-top:10px}
 .ben-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .ben-head label{font-size:12px;font-weight:600;color:var(--muted)}
-.alloc-note{display:flex;align-items:center;gap:8px;background:var(--card-2);border-radius:12px;padding:10px 12px;font-size:12.5px;margin-top:10px}
-.type-ic{width:40px;height:40px;border-radius:12px;background:var(--card-2);display:grid;place-items:center;color:var(--ink);flex:none}
-.pol-foot{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-@media (max-width:520px){.pol-foot .btn{flex:1;min-width:100px}}
+@media (max-width:900px){.i-grid .btiles{grid-template-columns:1fr}}
 </style>
 <main data-page="asuransi">
-  <div class="ph">
-    <div>
-      <h1>Asuransi</h1>
-      <div class="muted" id="subhead" style="font-size:12.5px;margin-top:2px"></div>
-    </div>
-    <div class="acts">
-      <button class="btn" type="button" id="payHeader"></button>
-      <button class="btn primary" type="button" id="addPolicy"></button>
-    </div>
-  </div>
-
-  <section class="grid enter" id="chartRow" style="margin-top:16px">
-    <div class="cover s5">
-      <div class="stat"><small>Premi bulan ini</small><b id="hlPremium" style="font-size:30px">Rp 0</b></div>
-      <div class="two" style="margin-top:18px;gap:14px">
-        <div class="stat"><small>Polis aktif</small><b id="statActive">0</b></div>
-        <div class="stat"><small>Total pertanggungan</small><b id="statCoverage">Rp 0</b></div>
+<section class="bento" aria-label="Asuransi">
+  <article class="card hero dark i-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num money" id="hlPremium"></p><div class="cap">Premi bulan ini</div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn" type="button" id="payHeader"></button><button class="ghost-btn lit" type="button" id="addPolicy">+ Polis</button></div>
+          <div class="legend" id="legend"></div>
+        </div>
       </div>
+      <div class="chart-wrap" id="trendChart"></div>
     </div>
-    <div class="card s7" id="trendCard">
-      <h2 style="margin:0 0 2px;font-size:14.5px">Premi 6 bulan terakhir</h2>
-      <p class="muted" style="margin:0 0 8px;font-size:12px">≈ Perkiraan berdasarkan premi bulanan saat ini</p>
-      <div class="chart" id="trendChart" style="height:210px"></div>
+    <div class="kpis">
+      <div class="kpi"><small>Polis aktif</small><div class="v" id="statActive"></div></div>
+      <div class="kpi"><small>Pertanggungan</small><div class="v money" id="statCoverage"></div></div>
+      <div class="kpi"><small>Perpanjangan terdekat</small><div class="v" id="statRenew" style="font-size:13px;white-space:normal;line-height:1.35"></div></div>
     </div>
-  </section>
+  </article>
 
-  <section class="grid" id="donutSection" style="margin-top:16px" hidden>
-    <div class="card s5">
-      <h2 style="margin:0 0 10px;font-size:14.5px">Alokasi pertanggungan</h2>
-      <div class="chart" id="donutChart" style="height:200px"></div>
-    </div>
-    <div class="card s7" id="renewalCard">
-      <h2 style="margin:0 0 10px;font-size:14.5px">Polis terdekat jatuh tempo</h2>
-      <div id="renewalBody"></div>
-    </div>
-  </section>
+  <article class="card i-side">
+    <div class="head"><div><h2>Alokasi pertanggungan</h2><div class="cap" id="donutCap"></div></div></div>
+    <div class="chart" id="donutChart" style="height:160px;margin-top:8px"></div>
+  </article>
 
-  <div id="renewalNoteOnly" style="margin-top:16px" hidden></div>
+  <article class="card i-grid">
+    <div class="head"><div><h2>Polis</h2><div class="cap" id="gridCap"></div></div></div>
+    <div class="btiles" id="policiesGrid"></div>
+  </article>
 
-  <section class="grid" id="policiesGrid" style="margin-top:16px"></section>
+  <article class="card tips i-tips">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
 
-  <section class="grid" id="benSection" style="margin-top:16px" hidden>
-    <div class="card s12">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px">
-        <h2 style="margin:0;font-size:14.5px">Ahli waris asuransi</h2>
-        <button type="button" class="btn ghost sm" id="addBenHeader">Tambah ahli waris</button>
-      </div>
-      <div id="allocNote"></div>
-      <div class="tw"><table class="tbl" id="benTable">
-        <thead><tr><th>Nama</th><th>Hubungan</th><th>Anggota</th><th>Persentase</th><th>Perkiraan manfaat</th><th></th></tr></thead>
-        <tbody id="benBody"></tbody>
-      </table></div>
-    </div>
-  </section>
+  <article class="card i-ben" id="benSection" hidden>
+    <div class="head"><div><h2>Ahli waris asuransi</h2><div class="cap" id="benCap"></div></div><button type="button" class="btn ghost sm" id="addBenHeader">Tambah ahli waris</button></div>
+    <div id="allocNote"></div>
+    <div class="tw"><table class="tbl" id="benTable">
+      <thead><tr><th>Nama</th><th>Hubungan</th><th>Anggota</th><th>Persentase</th><th>Perkiraan manfaat</th><th></th></tr></thead>
+      <tbody id="benBody"></tbody>
+    </table></div>
+  </article>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
@@ -80,7 +76,7 @@ var esc=WM.esc;
 /* ---------- lookups ---------- */
 var TYPE_ICON={jiwa:"shield",kesehatan:"health",kendaraan:"car",properti:"home",pendidikan:"school",lainnya:"more"};
 var TYPE_LABEL={jiwa:"Jiwa",kesehatan:"Kesehatan",kendaraan:"Kendaraan",properti:"Properti",pendidikan:"Pendidikan",lainnya:"Lainnya"};
-var TYPE_COLOR={kesehatan:"var(--lime)",jiwa:"var(--lilac)",kendaraan:"var(--sky)",properti:"var(--gold)",pendidikan:"var(--rose)",lainnya:"var(--yellow)"};
+var TYPE_COLOR={kesehatan:"var(--lime)",jiwa:"var(--lilac)",kendaraan:"var(--sky)",properti:"var(--gold)",pendidikan:"var(--rose,var(--bad))",lainnya:"var(--yellow)"};
 var STATUS_LABEL={aktif:"Aktif",tidak_aktif:"Tidak aktif",kadaluarsa:"Kadaluarsa"};
 var STATUS_PILL={aktif:"good",tidak_aktif:"warn",kadaluarsa:"bad"};
 var PERIOD_LABEL={monthly:"/bulan",quarterly:"/triwulan",yearly:"/tahun"};
@@ -114,66 +110,57 @@ function advanceDate(iso,period){var base=iso?new Date(iso+"T00:00:00"):new Date
   var add=period==="yearly"?12:period==="quarterly"?3:1;var d=new Date(base.getFullYear(),base.getMonth()+add,base.getDate());
   return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
 function last6MonthLabels(){var d=new Date(WM.today+"T00:00:00"),labels=[];for(var i=5;i>=0;i--){var dt=new Date(d.getFullYear(),d.getMonth()-i,1);labels.push(WM.months[dt.getMonth()]);}return labels;}
-function stat(l,v){return '<div><small style="display:block;color:var(--muted);font-size:11px;margin-bottom:2px">'+l+'</small><b class="num" style="font-size:13.5px">'+v+'</b></div>';}
 function relationDefault(memberId){var m=WM.member(memberId);return RELATION_DEFAULT[m.role]||"";}
 
 /* ---------- render ---------- */
 function draw(){
   var insurances=getInsurances();
-  var members=WM.store.get("members")||[];
   var active=insurances.filter(function(p){return p.status==="aktif";});
   var totalMonthly=active.reduce(function(s,p){return s+periodToMonthly(p.premium,p.period);},0);
   var totalCoverage=active.reduce(function(s,p){return s+(p.coverage||0);},0);
 
-  document.getElementById("hlPremium").textContent=WM.rp(Math.round(totalMonthly));
+  document.getElementById("hlPremium").innerHTML='<span class="cur">Rp</span>'+Math.round(totalMonthly).toLocaleString("id-ID");
   document.getElementById("statActive").textContent=active.length;
   document.getElementById("statCoverage").textContent=WM.short(totalCoverage);
-  var sub=active.length+" polis aktif · Premi "+WM.rp(Math.round(totalMonthly))+"/bulan";
-  if(totalCoverage>0)sub+=" · Pertanggungan "+WM.short(totalCoverage);
-  document.getElementById("subhead").textContent=sub;
+  document.getElementById("payHeader").innerHTML=WM.icon("cash",15)+"Bayar premi";
+  document.getElementById("addPolicy").textContent="+ Polis";
 
   /* trend chart (estimate) */
+  var box=document.getElementById("trendChart");
   if(totalMonthly>0){
-    document.getElementById("trendCard").hidden=false;
     var labels=last6MonthLabels(),ratios=[0.82,0.84,1.02,0.86,0.98,1],data=ratios.map(function(r){return Math.round(totalMonthly*r);});
-    WM.chart.bars(document.getElementById("trendChart"),{labels:labels,series:[{d:data,c:"var(--lime)",n:"Premi"}],hi:5,fmt:WM.short});
-  }else{document.getElementById("trendCard").hidden=true;}
+    WM.chart.bars(box,{labels:labels,series:[{d:data,c:"var(--lime)",n:"Premi"}],hi:5,fmt:WM.short});
+  }else{
+    box.innerHTML='<div class="empty"><b>Belum ada premi</b><p>Tambah polis untuk mulai memantau premi.</p></div>';
+  }
 
-  /* coverage donut */
+  /* nearest renewal for hero kpi */
+  var upcoming=active.filter(function(p){return p.renewalDate;}).map(function(p){return {p:p,d:daysUntil(p.renewalDate)};}).sort(function(a,b){return a.d-b.d;})[0];
+  document.getElementById("statRenew").textContent=upcoming?(upcoming.p.name+" · "+daysLabel(upcoming.d)):"—";
+
+  /* coverage donut (side card) */
   var byType={};insurances.forEach(function(p){if(p.status!=="aktif"||!p.coverage)return;byType[p.type]=(byType[p.type]||0)+p.coverage;});
   var segKeys=Object.keys(byType);
+  var donutBox=document.getElementById("donutChart");
+  document.getElementById("donutCap").textContent=segKeys.length?WM.short(totalCoverage)+" total":"Belum ada data";
+  document.getElementById("legend").innerHTML=segKeys.map(function(k){return '<span><i style="background:'+TYPE_COLOR[k]+'"></i>'+TYPE_LABEL[k]+'</span>';}).join("");
   if(segKeys.length){
-    document.getElementById("donutSection").hidden=false;
     var items=segKeys.map(function(k){return [TYPE_LABEL[k],byType[k],TYPE_COLOR[k]];});
-    WM.chart.donut(document.getElementById("donutChart"),{items:items,center:WM.short(totalCoverage),sub:"Pertanggungan"});
-  }else{document.getElementById("donutSection").hidden=true;}
-
-  /* nearest renewal */
-  var upcoming=active.filter(function(p){return p.renewalDate;}).map(function(p){return {p:p,d:daysUntil(p.renewalDate)};}).sort(function(a,b){return a.d-b.d;})[0];
-  var renewalBody=document.getElementById("renewalBody");
-  if(upcoming){
-    renewalBody.innerHTML='<div class="ins-row"><b>'+esc(upcoming.p.name)+'</b><span class="pill '+renewalPill(upcoming.d)+'">'+daysLabel(upcoming.d)+'</span></div>'+
-      '<p class="muted" style="margin:4px 0 0;font-size:12.5px">Jatuh tempo '+WM.date(upcoming.p.renewalDate,true)+'. '+(upcoming.d<=30?"Segera bayar premi supaya polis tetap aktif.":"Masih ada waktu, tapi baik untuk direncanakan.")+'</p>';
+    WM.chart.donut(donutBox,{items:items,center:WM.short(totalCoverage),sub:"Pertanggungan"});
   }else{
-    renewalBody.innerHTML='<p class="muted" style="margin:0;font-size:12.5px">Tidak ada polis dengan tanggal perpanjangan tercatat.</p>';
+    donutBox.innerHTML='<div class="empty" style="padding:14px"><p>Belum ada data pertanggungan.</p></div>';
   }
-  var noteOnly=document.getElementById("renewalNoteOnly");
-  if(!segKeys.length && upcoming && upcoming.d<=30){
-    noteOnly.hidden=false;
-    noteOnly.innerHTML='<div class="note warn">'+WM.icon("cal",16)+'<span><b>'+esc(upcoming.p.name)+'</b> jatuh tempo '+WM.date(upcoming.p.renewalDate,true)+' · '+daysLabel(upcoming.d,"hari lagi")+'.</span></div>';
-  }else{noteOnly.hidden=true;}
 
-  /* policy cards */
+  /* policy tiles */
   var grid=document.getElementById("policiesGrid");
+  document.getElementById("gridCap").textContent=insurances.length+" polis";
   if(!insurances.length){
-    grid.innerHTML='<div class="card s12"><div class="empty"><span class="ic">'+WM.icon("shield",24)+'</span><b>Belum ada polis asuransi</b><p>Tambahkan polis pertamamu untuk mulai melacak premi dan pertanggungan.</p><button class="btn primary" type="button" data-add-empty>Tambah polis</button></div></div>';
-    grid.querySelector("[data-add-empty]").addEventListener("click",function(){openPolicyModal();});
+    grid.innerHTML='<div class="empty" style="grid-column:1/-1"><span class="ic">'+WM.icon("shield",22)+'</span><b>Belum ada polis asuransi</b><p>Tambahkan polis pertamamu untuk mulai melacak premi dan pertanggungan.</p></div>';
   }else{
-    grid.innerHTML=insurances.map(policyCardHTML).join("");
-    grid.querySelectorAll("[data-pay]").forEach(function(b){b.addEventListener("click",function(){openPayDialog(b.dataset.pay);});});
-    grid.querySelectorAll("[data-edit]").forEach(function(b){b.addEventListener("click",function(){openPolicyModal(b.dataset.edit);});});
-    grid.querySelectorAll("[data-del]").forEach(function(b){b.addEventListener("click",function(){deletePolicy(b.dataset.del);});});
+    grid.innerHTML=insurances.map(policyTile).join("");
   }
+  grid.querySelectorAll("[data-pay]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();openPayDialog(b.dataset.pay);});});
+  grid.querySelectorAll("[data-detail]").forEach(function(b){b.addEventListener("click",function(){openPolicyModal(b.dataset.detail);});});
 
   /* beneficiaries table */
   var benRows=[];
@@ -181,6 +168,7 @@ function draw(){
   var benSection=document.getElementById("benSection");
   if(benRows.length){
     benSection.hidden=false;
+    document.getElementById("benCap").textContent=benRows.length+" ahli waris";
     var withBen=insurances.filter(function(p){return p.beneficiaries.length>0;});
     var soleFull=withBen.length===1 && withBen[0].beneficiaries.reduce(function(s,b){return s+b.sharePercent;},0)>=100 ? withBen[0] : null;
     document.getElementById("allocNote").innerHTML=soleFull?('<div class="alloc-note"><span><b>Sudah teralokasi 100%</b> untuk polis '+esc(soleFull.name)+'.</span></div>'):"";
@@ -197,45 +185,43 @@ function draw(){
     benSection.querySelectorAll("[data-del-ben]").forEach(function(btn){btn.addEventListener("click",function(){
       var parts=btn.dataset.delBen.split("|");deleteBeneficiary(parts[0],parts[1]);});});
   }else{benSection.hidden=true;}
+
+  /* tips insight */
+  if(upcoming){
+    document.getElementById("tipT").textContent=upcoming.p.name+" jatuh tempo "+WM.date(upcoming.p.renewalDate,true);
+    document.getElementById("tipP").textContent=daysLabel(upcoming.d)+(upcoming.d<=30?". Segera bayar premi supaya polis tetap aktif.":". Masih ada waktu, tapi baik untuk direncanakan.");
+  }else if(insurances.length){
+    document.getElementById("tipT").textContent="Tidak ada perpanjangan terjadwal";
+    document.getElementById("tipP").textContent="Belum ada polis dengan tanggal perpanjangan tercatat.";
+  }else{
+    document.getElementById("tipT").textContent="Belum ada polis asuransi";
+    document.getElementById("tipP").textContent="Tambah polis pertamamu untuk mulai melacak premi dan pertanggungan.";
+  }
+  var n=active.length?Math.round(active.filter(function(p){return !p.paidThisPeriod;}).length/active.length*18):0;
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"o":i%5===0?"b":"")+'"></i>';}).join("");
 }
 
-function policyCardHTML(p){
-  var icon=TYPE_ICON[p.type],typeLabel=TYPE_LABEL[p.type],statusLabel=STATUS_LABEL[p.status],pillCls=STATUS_PILL[p.status];
+function policyTile(p){
   var days=daysUntil(p.renewalDate);
-  var benSummary=p.beneficiaries.length?p.beneficiaries.map(function(b){return b.name+" ("+b.sharePercent+"%)";}).join(", "):null;
   var canPay=p.status==="aktif"&&!p.paidThisPeriod;
-  var title=p.paidThisPeriod?"Sudah dibayar untuk periode ini":(p.status!=="aktif"?"Polis tidak aktif":"");
-  return '<article class="card s6 enter">'+
-    '<div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">'+
-      '<span class="type-ic">'+WM.icon(icon,19)+'</span>'+
-      '<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'+
-      '<div style="font-size:11.5px;color:var(--muted)">'+(p.provider?esc(p.provider)+" · ":"")+typeLabel+'</div></div>'+
-      '<span class="pill '+pillCls+'">'+statusLabel+'</span>'+
-    '</div>'+
-    '<div class="two">'+
-      (p.coverage?stat("Pertanggungan",WM.rp(p.coverage)):"")+
-      stat("Premi",WM.rp(p.premium)+'<span style="font-weight:400;color:var(--muted);font-size:11.5px">'+PERIOD_LABEL[p.period]+'</span>')+
-    '</div>'+
-    (p.renewalDate?('<div class="ins-row" style="margin-top:10px"><span><small style="display:block;color:var(--muted);font-size:11px;margin-bottom:2px">Perpanjangan</small><b style="font-size:13.5px">'+WM.date(p.renewalDate,true)+'</b></span>'+(days!=null?'<span class="pill '+renewalPill(days)+'">'+daysLabel(days)+'</span>':'')+'</div>'):"")+
-    (p.policyNumber?('<div style="margin-top:8px;font-size:11.5px;color:var(--muted)"><b style="color:var(--ink)">No. polis:</b> <span class="num">'+esc(p.policyNumber)+'</span></div>'):"")+
-    (benSummary?('<div style="margin-top:8px;font-size:11.5px;color:var(--muted)"><b style="color:var(--ink)">Ahli waris:</b> '+esc(benSummary)+'</div>'):"")+
-    '<div class="pol-foot">'+
-      '<button class="btn sm '+(canPay?"primary":"")+'" type="button" data-pay="'+p.id+'"'+(canPay?"":" disabled")+(title?' title="'+esc(title)+'"':'')+'>Bayar premi</button>'+
-      '<button class="btn sm" type="button" data-edit="'+p.id+'">'+WM.icon("edit",14)+' Ubah</button>'+
-      '<button class="btn sm" type="button" data-del="'+p.id+'" style="color:var(--bad)">'+WM.icon("trash",14)+' Hapus</button>'+
-    '</div>'+
-  '</article>';
+  return '<div class="btile pol-tile" data-id="'+p.id+'">'+
+    '<span class="tt" data-detail="'+p.id+'" role="button" tabindex="0"><span><span class="ci">'+WM.icon(TYPE_ICON[p.type],15)+'</span>'+esc(p.name)+'</span><span class="pill '+STATUS_PILL[p.status]+'" style="font-size:10.5px">'+STATUS_LABEL[p.status]+'</span></span>'+
+    '<span class="pv money" data-detail="'+p.id+'">'+WM.rp(p.premium)+'<span style="font-weight:400;color:var(--muted);font-size:11.5px">'+PERIOD_LABEL[p.period]+'</span></span>'+
+    '<small data-detail="'+p.id+'">'+(p.coverage?"Pertanggungan "+WM.short(p.coverage)+" · ":"")+(p.provider||TYPE_LABEL[p.type])+'</small>'+
+    (p.renewalDate?'<small data-detail="'+p.id+'">'+(days!=null?daysLabel(days)+" · ":"")+WM.date(p.renewalDate,true)+'</small>':'')+
+    '<div class="foot"><button type="button" class="pol-detail" data-detail="'+p.id+'">Detail</button>'+
+      '<button type="button" class="pol-pay" data-pay="'+p.id+'"'+(canPay?"":" disabled")+'>'+(p.paidThisPeriod?"Lunas":"Bayar")+'</button>'+
+    '</div></div>';
 }
 
 /* ---------- delete policy / beneficiary ---------- */
 function deletePolicy(id){var p=getInsurances().filter(function(x){return x.id===id;})[0];if(!p)return;
-  WM.confirm({title:"Hapus polis ini?",text:'"'+p.name+'" akan dihapus dari daftar asuransimu.',confirm:"Hapus",danger:true}).then(function(ok){if(!ok)return;
-    var arr=getInsurances().filter(function(x){return x.id!==id;});setInsurances(arr);
-    WM.toast("Polis dihapus",{undo:function(){var a2=getInsurances();a2.unshift(p);setInsurances(a2);WM.toast("Polis dikembalikan");}});});}
+  var arr=getInsurances().filter(function(x){return x.id!==id;});setInsurances(arr);
+  WM.toast("Polis "+p.name+" dihapus",{undo:function(){var a2=getInsurances();a2.unshift(p);setInsurances(a2);}});}
 function deleteBeneficiary(policyId,benId){var arr=getInsurances(),p=arr.filter(function(x){return x.id===policyId;})[0];if(!p)return;
   var ben=p.beneficiaries.filter(function(b){return b.id===benId;})[0];if(!ben)return;
-  WM.confirm({title:"Hapus ahli waris?",text:'"'+ben.name+'" akan dihapus dari polis '+p.name+'.',confirm:"Hapus",danger:true}).then(function(ok){if(!ok)return;
-    p.beneficiaries=p.beneficiaries.filter(function(b){return b.id!==benId;});setInsurances(arr);WM.toast("Ahli waris dihapus");});}
+  p.beneficiaries=p.beneficiaries.filter(function(b){return b.id!==benId;});setInsurances(arr);
+  WM.toast("Ahli waris "+ben.name+" dihapus",{undo:function(){var arr2=getInsurances(),p2=arr2.filter(function(x){return x.id===policyId;})[0];if(p2){p2.beneficiaries.push(ben);setInsurances(arr2);}}});}
 
 /* ---------- pay dialog ---------- */
 function openPayDialog(id){var p=getInsurances().filter(function(x){return x.id===id;})[0];if(!p)return;
@@ -254,6 +240,7 @@ function openPayDialog(id){var p=getInsurances().filter(function(x){return x.id=
       var arr=getInsurances(),cur=arr.filter(function(x){return x.id===id;})[0];
       if(cur){cur.renewalDate=next;cur.paidThisPeriod=true;setInsurances(arr);}
       WM.toast("Premi terbayar, jatuh tempo berikutnya "+WM.date(next));
+      draw();
     }});}
 
 /* ---------- policy picker (header actions) ---------- */
@@ -282,7 +269,7 @@ function openPolicyModal(id){
     WM.field({name:"coverage",label:"Pertanggungan",type:"money",optional:true,value:editing&&editing.coverage?editing.coverage:""})+
     WM.field({name:"renewalDate",label:"Tanggal perpanjangan",type:"date",optional:true,value:editing?editing.renewalDate:""})+
   '</div>'+
-    WM.field({cls:"",name:"policyNumber",label:"No. polis",optional:true,value:editing?editing.policyNumber:"",placeholder:"Misal: 0192-8823-KES"})+
+    WM.field({name:"policyNumber",label:"No. polis",optional:true,value:editing?editing.policyNumber:"",placeholder:"Misal: 0192-8823-KES"})+
   '<div id="autoRenewRow_'+uid+'" hidden style="margin-top:4px"><label class="check"><input type="checkbox" name="autoRenew" id="autoRenew_'+uid+'"'+(editing&&editing.autoRenew?" checked":"")+'> <span>Perpanjang otomatis saat jatuh tempo</span></label></div>'+
     WM.field({name:"notes",label:"Catatan",type:"textarea",optional:true,value:editing?editing.notes:"",placeholder:"Catatan tambahan (opsional)"})+
   '<details class="more-opts" style="margin-top:14px"'+(rows.length?" open":"")+'><summary>'+WM.icon("chevd",14)+' Ahli waris (opsional)</summary><div>'+
@@ -293,6 +280,8 @@ function openPolicyModal(id){
 
   WM.modal({title:editing?"Ubah polis":"Tambah polis",sub:"Lengkapi data polis asuransi keluarga.",size:"lg",body:body,submit:editing?"Simpan perubahan":"Simpan",
     onOpen:function(d,b){
+      if(editing){var ft=d.querySelector(".sheet-foot");ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+        ft.querySelector("[data-rm]").onclick=function(){d.close();deletePolicy(editing.id);draw();};}
       var dateInput=b.querySelector('[name="renewalDate"]'),renewRow=b.querySelector("#autoRenewRow_"+uid);
       function syncRenewRow(){renewRow.hidden=!dateInput.value;}
       dateInput.addEventListener("input",syncRenewRow);syncRenewRow();
@@ -349,11 +338,10 @@ function openPolicyModal(id){
       if(editing){arr=arr.map(function(x){return x.id===editing.id?Object.assign({},x,rec):x;});setInsurances(arr);WM.toast("Polis diperbarui");}
       else{rec.id=WM.uid("n");arr.unshift(rec);setInsurances(arr);WM.toast("Polis ditambahkan");}
       if(benDtos.length && totalPct<100)WM.toast("Alokasi ahli waris baru "+totalPct+"%, sisanya belum dibagi.");
+      draw();
     }});}
 
 /* ---------- wire header actions ---------- */
-document.getElementById("payHeader").innerHTML=WM.icon("cash",16)+"Bayar premi";
-document.getElementById("addPolicy").innerHTML=WM.icon("plus",16,2.4)+"Tambah";
 document.getElementById("addPolicy").addEventListener("click",function(){openPolicyModal();});
 document.getElementById("payHeader").addEventListener("click",function(){
   var payable=getInsurances().filter(function(p){return p.status==="aktif"&&!p.paidThisPeriod;});

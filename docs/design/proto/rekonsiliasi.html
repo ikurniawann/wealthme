@@ -3,6 +3,13 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
+@media (min-width:1181px){
+  .rk-hero{grid-column:1/9;grid-row:1}.rk-hist{grid-column:9/13;grid-row:1/3}
+  .rk-table{grid-column:1/13;grid-row:2/4}
+  .rk-wmonly{grid-column:1/7;grid-row:4}.rk-tip{grid-column:7/13;grid-row:4}
+}
+.rk-tip .mosaic{margin-top:14px}
+@media (max-width:720px){.rk-tip .mosaic{display:none}}
 .rk-bank{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--card);border-radius:13px;padding:10px 14px;font-size:13px;font-weight:600;min-height:44px;flex:1;text-align:left}
 .rk-bank[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
 .rk-bank i{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff}
@@ -10,36 +17,48 @@
 .rk-demo button{display:flex;align-items:center;gap:10px;text-align:left;border:1.5px dashed var(--line);border-radius:13px;padding:11px 13px;background:var(--card);font-size:12.5px;min-height:44px}
 .rk-demo button:hover{border-color:var(--lime);background:var(--lime-soft)}
 .rk-demo small{display:block;color:var(--muted);font-size:11.5px;font-weight:400}
-.rk-comp{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--ghost)}
 .rk-row-tx{display:flex;align-items:center;gap:8px;font-size:12px}
 .rk-row-tx .ic{width:28px;height:28px;border-radius:9px}
 .rk-empty-mini{padding:22px 14px;text-align:center;color:var(--muted);font-size:12.5px}
 @media (max-width:640px){.rk-bank{flex:1 1 100%}}
 </style>
 <main data-page="rekonsiliasi">
-  <div class="ph">
-    <div><h1>Rekonsiliasi Bank</h1><p>Cocokkan mutasi rekening koran dengan transaksi yang sudah kamu catat di WealthMe.</p></div>
-    <div class="acts"><button class="btn primary" type="button" id="btnUpload">Upload Mutasi</button></div>
-  </div>
-
-  <section class="grid" style="margin-top:16px" id="empty" hidden>
+  <section class="grid" id="empty" hidden>
     <div class="card s12">
       <div class="empty">
         <span class="ic" style="width:52px;height:52px;border-radius:16px"></span>
-        <b>Belum ada mutasi yang diunggah</b>
+        <b>Rekonsiliasi Bank</b>
         <p>Upload file mutasi rekening (CSV atau Excel) dan WealthMe akan mencocokkannya otomatis dengan transaksi yang sudah kamu catat, lalu menunjukkan selisihnya.</p>
         <button class="btn primary" type="button" id="btnUploadEmpty">Upload mutasi pertamamu</button>
       </div>
     </div>
   </section>
 
-  <section id="content" hidden>
-    <div class="grid">
-      <div class="cover s5" id="coverBox"></div>
-      <div class="card s7" id="compCard"></div>
-    </div>
+  <section class="bento" aria-label="Rekonsiliasi Bank" id="content" hidden>
+    <article class="card hero dark rk-hero">
+      <div class="chart-side">
+        <div class="head">
+          <div><p class="big num" id="hlDiff"></p><div class="cap" id="hlCap"></div></div>
+          <div class="hero-ctrl">
+            <div class="ctrl-row"><span class="ghost-btn" style="border:0;background:var(--card-2)" id="fileTag"></span><button class="ghost-btn lit" type="button" id="btnUpload2">+ Upload</button></div>
+            <div class="legend"><span><i style="background:var(--good)"></i>Cocok</span><span><i style="background:var(--orange)"></i>Ditinjau</span><span><i style="background:var(--bad)"></i>Belum cocok</span></div>
+          </div>
+        </div>
+        <div class="chart-wrap" id="chart"></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><small>Cocok</small><div class="v" id="kOk"></div></div>
+        <div class="kpi"><small>Perlu ditinjau</small><div class="v" id="kWarn"></div></div>
+        <div class="kpi"><small>Belum cocok</small><div class="v" id="kErr"></div></div>
+      </div>
+    </article>
 
-    <div class="card" style="margin-top:16px">
+    <article class="card rk-hist">
+      <div class="head"><div><h2>Riwayat unggahan</h2><div class="cap" id="histCap"></div></div></div>
+      <ul class="mini-list" id="histList"></ul>
+    </article>
+
+    <article class="card rk-table">
       <div class="head">
         <div><h2>Pencocokan mutasi</h2><span class="cap" id="matchCap"></span></div>
         <div class="seg" id="filterSeg" role="group" aria-label="Filter status pencocokan">
@@ -50,18 +69,17 @@
       </div>
       <div id="bulkBar" style="margin-top:12px"></div>
       <div class="tw" style="margin-top:12px"><table class="tbl" id="entriesTbl"></table></div>
-    </div>
+    </article>
 
-    <div class="grid" style="margin-top:16px">
-      <div class="card s6">
-        <div class="head"><h2>Transaksi WealthMe belum ada padanan</h2><span class="cap">Bulan yang sama dengan mutasi ini, tapi tidak muncul di file bank</span></div>
-        <div id="wmOnly" style="margin-top:8px"></div>
-      </div>
-      <div class="card s6">
-        <div class="head"><h2>Riwayat unggahan</h2><span class="cap" id="histCap"></span></div>
-        <div class="tw" style="margin-top:8px"><table class="tbl" id="histTbl"></table></div>
-      </div>
-    </div>
+    <article class="card rk-wmonly">
+      <div class="head"><div><h2>Belum ada padanan</h2><div class="cap">Transaksi WealthMe bulan ini yang tidak muncul di mutasi bank</div></div></div>
+      <div id="wmOnly"></div>
+    </article>
+
+    <article class="card tips rk-tip">
+      <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+      <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+    </article>
   </section>
 </main>
 <script src="wm.js"></script>
@@ -69,7 +87,6 @@
 WM.shell({page:"rekonsiliasi",title:"Rekonsiliasi Bank"});
 (function(){ if(!WM.allowed) return;
 
-document.getElementById("btnUpload").insertAdjacentHTML("afterbegin",WM.icon("upload",16,2.2));
 document.getElementById("empty").querySelector(".ic").innerHTML=WM.icon("compare",24);
 
 /* ---------- store ---------- */
@@ -288,8 +305,6 @@ function draw(){
   var matched=entries.filter(function(e){return e.reconStatus==="matched";});
   var suggested=entries.filter(function(e){return e.reconStatus==="suggested";});
   var unmatched=entries.filter(function(e){return e.reconStatus==="unmatched";});
-  var total=entries.length||1;
-  var mPct=matched.length/total*100, sPct=suggested.length/total*100, uPct=unmatched.length/total*100;
 
   var bankTotal=entries.reduce(function(s,e){return s+e.amount;},0);
   var linkedIds={};entries.forEach(function(e){if(e.matchedTxId)linkedIds[e.matchedTxId]=true;});
@@ -299,34 +314,24 @@ function draw(){
   var wmOnly=monthTx.filter(function(t){return !linkedIds[t.id];});
   var diff=bankTotal-wmTotal;
 
-  /* cover: headline selisih */
-  var cover=document.getElementById("coverBox");
-  cover.innerHTML=
-    '<span class="pill dark" style="background:var(--cover-2);color:var(--on-cover)">'+WM.esc(imp.fileName)+' · '+WM.date(imp.uploadedAt,true)+'</span>'+
-    '<h2 class="headline" style="margin-top:12px">Selisih mutasi bulan ini <em>'+WM.rp(Math.abs(diff))+'</em></h2>'+
-    '<p class="muted" style="margin-top:6px;max-width:38ch">'+(diff===0?"Total mutasi bank dan transaksi WealthMe sudah sama persis.":diff>0?"Mutasi bank lebih besar dari total transaksi yang tercatat. Periksa baris yang belum cocok.":"Transaksi tercatat lebih besar dari mutasi bank. Mungkin ada transaksi ganda atau salah bulan.")+'</p>'+
-    '<div class="stats" style="margin-top:16px">'+
-      '<div class="stat"><small>Cocok</small><b class="num">'+matched.length+'</b></div>'+
-      '<div class="stat"><small>Perlu ditinjau</small><b class="num">'+suggested.length+'</b></div>'+
-      '<div class="stat"><small>Belum cocok</small><b class="num">'+unmatched.length+'</b></div>'+
-      '<div class="stat"><small>Total baris</small><b class="num">'+entries.length+'</b></div>'+
-    '</div>';
+  document.getElementById("hlDiff").innerHTML='<span class="cur">Rp</span>'+Math.abs(diff).toLocaleString("id-ID");
+  document.getElementById("hlCap").textContent=diff===0?"Mutasi sudah pas":diff>0?"Mutasi bank lebih besar":"Transaksi tercatat lebih besar";
+  document.getElementById("fileTag").textContent=imp.fileName;
+  document.getElementById("kOk").textContent=matched.length;
+  document.getElementById("kWarn").textContent=suggested.length;
+  document.getElementById("kErr").textContent=unmatched.length;
 
-  /* composition card */
-  var comp=document.getElementById("compCard");
-  comp.innerHTML='<div class="head"><h2>Komposisi hasil</h2><span class="cap">'+entries.length+' baris mutasi</span></div>'+
-    '<div class="rk-comp" style="margin-top:14px" role="img" aria-label="'+matched.length+' cocok, '+suggested.length+' perlu ditinjau, '+unmatched.length+' belum cocok">'+
-      (matched.length?'<span style="flex:'+mPct+';background:var(--good)"></span>':'')+
-      (suggested.length?'<span style="flex:'+sPct+';background:var(--orange)"></span>':'')+
-      (unmatched.length?'<span style="flex:'+uPct+';background:var(--bad)"></span>':'')+
-    '</div>'+
-    '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;font-size:12.5px">'+
-      '<div style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--good);border-radius:99px"></span><span class="muted" style="flex:1">Cocok</span><b class="num">'+matched.length+'</b></div>'+
-      '<div style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--orange);border-radius:99px"></span><span class="muted" style="flex:1">Perlu ditinjau</span><b class="num">'+suggested.length+'</b></div>'+
-      '<div style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:var(--bad);border-radius:99px"></span><span class="muted" style="flex:1">Belum cocok</span><b class="num">'+unmatched.length+'</b></div>'+
-    '</div>'+
-    '<div class="divider"></div>'+
-    '<dl class="kv"><dt>Total mutasi bank</dt><dd class="num">'+WM.rp(bankTotal)+'</dd><dt>Total transaksi WealthMe</dt><dd class="num">'+WM.rp(wmTotal)+'</dd></dl>';
+  var box=document.getElementById("chart");
+  if(!entries.length){box.innerHTML='';}
+  else WM.chart.donut(box,{items:[["Cocok",Math.max(matched.length,0.0001),"var(--good)"],["Perlu ditinjau",suggested.length,"var(--orange)"],["Belum cocok",unmatched.length,"var(--bad)"]].filter(function(it){return it[1]>0;}),center:entries.length+"",sub:"baris"});
+
+  /* history mini-list, click switches active import */
+  var allImports=imports();
+  document.getElementById("histCap").textContent=allImports.length+" unggahan";
+  document.getElementById("histList").innerHTML=allImports.slice(0,5).map(function(x){
+    var m=x.entries.filter(function(e){return e.reconStatus==="matched";}).length;
+    return '<li class="click" data-imp="'+x.id+'" style="cursor:pointer"><span class="ic">'+WM.icon("file",16)+'</span><div><b>'+WM.esc(x.fileName)+'</b><small>'+WM.date(x.uploadedAt)+'</small></div><span class="amt">'+m+'/'+x.entries.length+'</span></li>';
+  }).join("");
 
   /* filter seg state */
   document.querySelectorAll("#filterSeg button").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.f===entryFilter));});
@@ -370,29 +375,35 @@ function draw(){
 
   /* wm-only list */
   var wmOnlyBox=document.getElementById("wmOnly");
-  wmOnlyBox.innerHTML=wmOnly.length?wmOnly.map(function(t){
+  wmOnlyBox.innerHTML=wmOnly.length?wmOnly.slice(0,5).map(function(t){
     return '<div class="row"><span class="ic'+(t.type==="in"?" lime":"")+'">'+WM.icon(WM.cat(t.cat).icon,16)+'</span>'+
       '<span style="min-width:0"><b style="display:block">'+WM.esc(t.note||WM.cat(t.cat).name)+'</b><small>'+WM.date(t.date)+' · '+WM.esc((WM.account(t.acc)||{}).bank||"")+'</small></span>'+
       '<span class="r '+(t.type==="in"?"pos":"")+'">'+WM.rp(t.type==="in"?t.amount:-t.amount,true)+'</span></div>';
   }).join(""):'<div class="rk-empty-mini">Semua transaksi WealthMe bulan ini sudah punya padanan di mutasi bank.</div>';
 
-  /* history table */
-  var histTbl=document.getElementById("histTbl");
-  var allImports=imports();
-  document.getElementById("histCap").textContent=allImports.length+" unggahan";
-  histTbl.innerHTML='<thead><tr><th>File</th><th>Tanggal</th><th>Baris</th><th>Cocok</th></tr></thead><tbody>'+
-    allImports.map(function(x){
-      var m=x.entries.filter(function(e){return e.reconStatus==="matched";}).length;
-      return '<tr class="click" data-imp="'+x.id+'"><td>'+WM.esc(x.fileName)+'</td><td class="mono">'+WM.date(x.uploadedAt)+'</td><td class="r num">'+x.entries.length+'</td><td class="r num">'+m+'/'+x.entries.length+'</td></tr>';
-    }).join("")+'</tbody>';
+  /* tips: the one alert */
+  document.getElementById("tipT").textContent=unmatched.length?unmatched.length+" baris belum ketemu padanannya":suggested.length?suggested.length+" baris tersarankan, tinggal dikonfirmasi":"Semua baris sudah cocok";
+  document.getElementById("tipP").textContent=unmatched.length?"Buat transaksi baru atau periksa lagi mutasi banknya.":suggested.length?"Cek dulu sebelum konfirmasi massal.":"Tidak ada yang perlu ditindaklanjuti bulan ini.";
+  var total=entries.length||1,n=Math.round(matched.length/total*18);
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"c":i%5===0?"b":"")+'"></i>';}).join("");
 }
 
-document.getElementById("btnUpload").addEventListener("click",openUploadDialog);
+document.getElementById("btnUpload2").addEventListener("click",openUploadDialog);
 document.getElementById("btnUploadEmpty").addEventListener("click",openUploadDialog);
 document.getElementById("filterSeg").addEventListener("click",function(e){
   var b=e.target.closest("button[data-f]");if(!b)return;entryFilter=b.dataset.f;draw();
 });
 document.getElementById("content").addEventListener("click",function(e){
+  var imp2row=e.target.closest("[data-imp]");
+  if(imp2row){
+    var id=imp2row.dataset.imp,list=imports(),idx=list.map(function(x){return x.id;}).indexOf(id);
+    if(idx<0)return;
+    var picked=list.splice(idx,1)[0];list.unshift(picked);
+    WM.store.set("bankImports",list);
+    entryFilter="all";
+    draw();
+    return;
+  }
   var b=e.target.closest("[data-act]");if(!b)return;
   var imp=activeImport();if(!imp)return;
   var act=b.dataset.act,id=b.dataset.id;
@@ -400,15 +411,6 @@ document.getElementById("content").addEventListener("click",function(e){
   else if(act==="unmatch")unmatchEntry(imp.id,id);
   else if(act==="create")createTxFromEntry(imp.id,id);
   else if(act==="detail")openEntryDetail(imp.id,id);
-});
-document.getElementById("histTbl").addEventListener("click",function(e){
-  var row=e.target.closest("[data-imp]");if(!row)return;
-  var id=row.dataset.imp,list=imports(),idx=list.map(function(x){return x.id;}).indexOf(id);
-  if(idx<0)return;
-  var picked=list.splice(idx,1)[0];list.unshift(picked);
-  WM.store.set("bankImports",list);
-  entryFilter="all";
-  draw();
 });
 
 draw();

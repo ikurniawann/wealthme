@@ -3,68 +3,58 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-.kpi-row{display:flex;flex-wrap:wrap;gap:22px 34px;margin-top:14px}
-.kpi-row .stat b{font-size:22px}
-.riskbar{height:8px;border-radius:4px;background:var(--cover-line);overflow:hidden;margin-top:10px;display:flex}
+@media (min-width:1181px){
+  .l-hero{grid-column:1/9;grid-row:1}.l-risk{grid-column:9/13;grid-row:1/3}
+  .l-grid{grid-column:1/9;grid-row:2/4}.l-tips{grid-column:9/13;grid-row:3}
+}
+.riskbar{height:8px;border-radius:4px;background:var(--ghost);overflow:hidden;margin-top:10px;display:flex}
 .riskbar i{display:block;height:100%}
-.type-tabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:2px 0}
-.type-tabs::-webkit-scrollbar{display:none}
-.type-tabs button{flex:none;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:0 15px;min-height:40px;font-size:12.5px;font-weight:600;color:var(--muted)}
-.type-tabs button[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--card)}
-.lia-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
-.lia-card{background:var(--card);border-radius:var(--radius);padding:16px 17px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px;min-width:0;transition:transform .18s,box-shadow .18s}
-.lia-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px -14px rgba(20,30,5,.28)}
-.lia-top{display:flex;align-items:center;gap:11px}
-.lia-top .meta{min-width:0}
-.lia-top .meta b{display:block;font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.lia-top .meta small{color:var(--muted);font-size:11.5px}
-.lia-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 14px}
-.lia-stats div small{display:block;color:var(--muted);font-size:11px;margin-bottom:2px}
-.lia-stats div b{font-size:13.5px;font-weight:700}
-.lia-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px;border-top:1px solid var(--line);padding-top:12px}
-.lia-actions .ghost{border:0;background:none;border-radius:10px;padding:7px 9px;font-size:12px;font-weight:600;color:var(--ink);display:inline-flex;align-items:center;gap:5px;min-height:36px}
-.lia-actions .ghost:hover{background:var(--card-2)}
-.lia-actions .ghost.bad{color:var(--bad)}
-.lia-actions .ghost.bad:hover{background:color-mix(in srgb,var(--bad) 10%,transparent)}
-.lia-actions .pay{margin-left:auto;background:var(--lime);color:var(--lime-ink);border:0;border-radius:10px;padding:0 14px;min-height:38px;font-weight:700;font-size:12.5px;display:inline-flex;align-items:center;gap:6px}
-.lia-actions .paid{margin-left:auto;color:var(--muted);font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
-.period-card{border:1.5px solid var(--line);border-radius:14px;padding:11px}
-.period-head{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;font-weight:700;margin-bottom:8px}
-.period-head .b{font-size:11px;font-weight:700;border-radius:99px;padding:2px 8px}
-.period-head .b.official{background:var(--lime-soft);color:var(--good)}
-.period-head .b.example{background:color-mix(in srgb,var(--orange) 18%,transparent);color:color-mix(in srgb,var(--orange) 60%,var(--ink))}
-.fh-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
-.fh-row:last-child{border-bottom:0}
-.stat-mini{display:grid;grid-template-columns:1fr 1fr;gap:10px;background:var(--card-2);border-radius:12px;padding:12px}
-.stat-mini div small{display:block;color:var(--muted);font-size:11px}
-.stat-mini div b{font-size:13.5px;font-weight:700}
-.sched-hd{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:6px}
-.rate-note{font-size:11.5px}
-@media (max-width:900px){.lia-grid{grid-template-columns:1fr}}
+.l-grid .btiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.lia-tile{min-height:auto;gap:6px}
+.lia-tile .tt{justify-content:space-between}
+.lia-tile .pv{margin-top:4px;font-size:20px}
+.lia-tile .foot{display:flex;align-items:center;gap:8px;margin-top:6px}
+.lia-pay{border:0;border-radius:99px;background:var(--lime);color:var(--lime-ink);font-weight:600;font-size:12px;min-height:32px;padding:0 12px;margin-left:auto}
+.lia-detail{border:0;background:var(--card);border-radius:99px;font-size:12px;font-weight:500;min-height:32px;padding:0 12px;color:var(--muted)}
+@media (max-width:900px){.l-grid .btiles{grid-template-columns:1fr}}
 </style>
 <main data-page="liabilitas">
-  <div class="ph">
-    <div><h1>Liabilitas</h1><p>Pantau KPR, kartu kredit, dan pinjaman keluarga — sisa pokok, jadwal cicilan, dan simulasi pelunasan dipercepat.</p></div>
-    <div class="acts"><button class="btn primary" type="button" id="addLia">Tambah liabilitas</button></div>
-  </div>
-
-  <section class="cover s12" style="border-radius:24px">
-    <div class="stat"><small>Total sisa liabilitas</small></div>
-    <p class="headline" style="margin-top:4px">Sisa liabilitas keluarga <em id="hdTotal">Rp 0</em></p>
-    <div class="kpi-row">
-      <div class="stat"><small>KPR &amp; pinjaman</small><b id="kpiLoan" class="num">Rp 0</b></div>
-      <div class="stat"><small>Kartu kredit</small><b id="kpiCard" class="num">Rp 0</b></div>
-      <div class="stat"><small>Cicilan bulan ini</small><b id="kpiMonthly" class="num">Rp 0</b></div>
-      <div class="stat" style="min-width:170px"><small>Rasio utang terhadap aset</small><b id="kpiDta" class="num">0%</b>
-        <div class="riskbar" id="riskbar"><i></i></div>
+<section class="bento" aria-label="Liabilitas">
+  <article class="card hero dark l-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num money" id="hdTotal"></p><div class="cap">Sisa liabilitas keluarga</div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn lit" type="button" id="addLia">+ Liabilitas</button></div>
+          <div class="legend"><span><i style="background:var(--lime)"></i>Dibayar</span><span><i style="background:var(--ghost)"></i>Total</span></div>
+        </div>
       </div>
+      <div class="chart-wrap" id="chart"></div>
     </div>
-  </section>
+    <div class="kpis">
+      <div class="kpi"><small>KPR &amp; pinjaman</small><div class="v money" id="kpiLoan"></div></div>
+      <div class="kpi"><small>Kartu kredit</small><div class="v money" id="kpiCard"></div></div>
+      <div class="kpi"><small>Cicilan bulan ini</small><div class="v money" id="kpiMonthly"></div></div>
+    </div>
+  </article>
 
-  <section class="grid">
-    <div class="s12"><div class="type-tabs" role="group" aria-label="Filter jenis liabilitas" id="typeTabs"></div></div>
-    <div class="s12"><div class="lia-grid" id="liaGrid"></div></div>
-  </section>
+  <article class="card l-risk">
+    <div class="head"><div><h2>Rasio utang</h2><div class="cap">Terhadap total aset</div></div></div>
+    <p class="mid" id="kpiDta"></p>
+    <div class="riskbar" id="riskbar"><i></i></div>
+    <p class="cap" id="riskLabel" style="margin-top:10px"></p>
+  </article>
+
+  <article class="card l-grid">
+    <div class="head"><div><h2>Liabilitas</h2><div class="cap" id="gridCap"></div></div><div class="seg" role="group" aria-label="Filter jenis" id="typeTabs"></div></div>
+    <div class="btiles" id="liaGrid"></div>
+  </article>
+
+  <article class="card tips l-tips">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
@@ -239,12 +229,7 @@ WM.store.ensure("liabilities",[]);
 
 /* ============ page state ============ */
 var typeFilter="semua";
-
-function fmtSchemeRatePlan(li){
-  var m=li.interestMethod;
-  if(li.type==="kpr")return m==="flat"?"Flat":"Anuitas";
-  return METHOD_LABEL[m]||m;
-}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 
 function assetsTotal(){
   var acc=WM.store.get("accounts")||[],inv=WM.store.get("investments")||[],ast=WM.store.get("assets")||[];
@@ -260,6 +245,28 @@ function dtaRisk(dta){
   return {label:"Berisiko",cls:"bad",color:"var(--bad)"};
 }
 
+/* hero chart: ghost bar = total utang, hatched bar = terbayar (total - sisa) per jenis */
+function heroChart(list){
+  var box=document.getElementById("chart"),css=getComputedStyle(box),v=function(n){return css.getPropertyValue(n).trim();};
+  var NS="http://www.w3.org/2000/svg",mk=function(t,a,x){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(x!=null)e.textContent=x;return e;};
+  var groups=TYPES.map(function(t){var items=list.filter(function(l){return l.type===t;});
+    return {type:t,label:TYPE_LABEL[t],total:items.reduce(function(s,l){return s+l.totalDebt;},0),paid:items.reduce(function(s,l){return s+Math.max(0,l.totalDebt-l.remainingBalance);},0)};
+  }).filter(function(g){return g.total>0;});
+  var W=Math.max(260,box.clientWidth),H=Math.max(180,box.clientHeight),c=W<480,L=c?2:42,T=20,B=26,svg=mk("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Terbayar dibanding total utang per jenis"});
+  if(!groups.length){box.innerHTML='<div class="empty"><b>Belum ada liabilitas</b><p>Tambah KPR, kartu kredit, atau pinjaman untuk mulai memantau.</p></div>';return;}
+  var max=Math.max.apply(null,groups.map(function(g){return g.total;})),top=Math.ceil(max/1e6)*1e6||1e6,y=function(x){return T+(top-x)/top*(H-T-B);};
+  if(!c)[0,top/2,top].forEach(function(t){svg.appendChild(mk("line",{x1:L,x2:W,y1:y(t),y2:y(t),stroke:v("--line"),"stroke-dasharray":t?"3 4":"0"}));svg.appendChild(mk("text",{x:L-8,y:y(t)+3.5,"text-anchor":"end"},Math.round(t/1e6)+" jt"));});
+  var band=(W-L)/groups.length,bw=Math.min(56,band*.62);
+  groups.forEach(function(g,i){var x=L+band*i+band/2-bw/2;
+    var box2=mk("g",{class:"gb",style:"animation-delay:"+(i*40)+"ms"});
+    box2.appendChild(mk("rect",{x:x,y:y(g.total),width:bw,height:Math.max(0,y(0)-y(g.total)),rx:8,fill:v("--ghost")}));
+    box2.appendChild(mk("rect",{x:x,y:y(Math.min(g.paid,g.total)),width:bw,height:Math.max(3,y(0)-y(g.paid)),rx:8,fill:v("--lime")}));
+    box2.appendChild(mk("title",{},g.label+": "+WM.rp(g.paid)+" terbayar dari "+WM.rp(g.total)));svg.appendChild(box2);
+    svg.appendChild(mk("text",{x:x+bw/2,y:H-8,"text-anchor":"middle"},c?g.label.split(" ")[0].slice(0,6):g.label));
+  });
+  box.innerHTML="";box.appendChild(svg);
+}
+
 function drawKpis(){
   var list=WM.store.get("liabilities")||[];
   var total=list.reduce(function(s,l){return s+l.remainingBalance;},0);
@@ -269,67 +276,69 @@ function drawKpis(){
   var assets=assetsTotal();
   var dta=assets>0?Math.round(total/assets*1000)/10:0;
   var risk=dtaRisk(dta);
-  document.getElementById("hdTotal").textContent=WM.short(total);
+  document.getElementById("hdTotal").innerHTML='<span class="cur">Rp</span>'+total.toLocaleString("id-ID");
   document.getElementById("kpiLoan").textContent=WM.rp(loan);
   document.getElementById("kpiCard").textContent=WM.rp(card);
   document.getElementById("kpiMonthly").textContent=WM.rp(monthly);
-  document.getElementById("kpiDta").innerHTML=WM.pct(dta)+' <span style="font-size:11px;font-weight:600;color:'+risk.color+'">'+risk.label+'</span>';
+  document.getElementById("kpiDta").innerHTML=WM.pct(dta)+' <span style="font-size:13px;font-weight:600;color:'+risk.color+'">'+risk.label+'</span>';
   document.getElementById("riskbar").innerHTML='<i style="width:'+Math.min(100,dta)+'%;background:'+risk.color+'"></i>';
+  document.getElementById("riskLabel").textContent=risk.cls==="good"?"Sisa liabilitas masih sehat dibanding aset keluarga.":"Sisa liabilitas mendekati atau melebihi porsi aman.";
+  heroChart(list);
+  return {list:list,total:total,dta:dta,risk:risk};
 }
 
 function drawTabs(){
   var list=WM.store.get("liabilities")||[];
   var counts={};TYPES.forEach(function(t){counts[t]=0;});list.forEach(function(l){counts[l.type]=(counts[l.type]||0)+1;});
   var tabs=[["semua","Semua",list.length]].concat(TYPES.map(function(t){return [t,TYPE_LABEL[t],counts[t]||0];}));
-  document.getElementById("typeTabs").innerHTML=tabs.map(function(t){return '<button type="button" role="button" aria-pressed="'+(typeFilter===t[0])+'" data-t="'+t[0]+'">'+t[1]+(t[2]?' · '+t[2]:'')+'</button>';}).join("");
+  document.getElementById("typeTabs").innerHTML=tabs.map(function(t){return '<button type="button" aria-pressed="'+(typeFilter===t[0])+'" data-t="'+t[0]+'">'+t[1]+(t[2]?' · '+t[2]:'')+'</button>';}).join("");
   document.querySelectorAll("#typeTabs button").forEach(function(b){b.addEventListener("click",function(){typeFilter=b.dataset.t;draw();});});
 }
 
-function liaCard(li){
+function liaTile(li){
   var status=dueStatus(li);
   var isCC=li.type==="kartu_kredit";
   var remaining=li.remainingBalance,total=li.totalDebt,inst=installmentDue(li);
   var progress=isCC?Math.round(100-Math.min(100,remaining/Math.max(1,total)*100)):Math.round(Math.min(100,(total-remaining)/Math.max(1,total)*100));
-  var progColor=progress>=80?"var(--bad)":progress>=50?"var(--orange)":"var(--good)";
-  var progLabel=isCC?"Pemakaian limit":"Progres pelunasan";
-  var paid=paidThisPeriod(li);
-  var late=status.variant==="bad"&&!paid;
-  return '<div class="lia-card" data-id="'+li.id+'">'+
-    '<div class="lia-top"><span class="ic'+(late?"":"")+'" style="width:40px;height:40px;border-radius:12px">'+WM.icon(TYPE_ICON[li.type],19)+'</span>'+
-    '<div class="meta"><b>'+WM.esc(li.name)+'</b><small>'+WM.esc(li.institution?li.institution+" · "+TYPE_LABEL[li.type]:TYPE_LABEL[li.type])+'</small></div>'+
-    '<span class="pill '+status.variant+'" style="margin-left:auto">'+status.text+'</span></div>'+
-    '<div class="lia-stats">'+
-      '<div><small>'+(isCC?"Tagihan berjalan":"Sisa pokok")+'</small><b class="num" style="color:var(--bad)">'+WM.rp(remaining)+'</b></div>'+
-      '<div><small>'+(isCC?"Limit":"Total utang")+'</small><b class="num">'+WM.rp(total)+'</b></div>'+
-      (inst>0?'<div><small>'+(isCC?"Min. bayar":"Cicilan/bulan")+'</small><b class="num">'+WM.rp(inst)+'</b></div>':'')+
-      (parseFloat(li.interestRate)>0?'<div><small>'+(isCC?"Bunga/bulan":"Bunga/tahun")+'</small><b class="num" style="color:var(--bad)">'+li.interestRate+'%</b></div>':'')+
-    '</div>'+
-    '<div><div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:11.5px"><b>'+progLabel+'</b><b class="num" style="color:'+progColor+'">'+progress+'%</b></div><div class="track"><i style="width:'+progress+'%;background:'+progColor+'"></i></div></div>'+
-    (late?'<div class="note bad">'+WM.icon("alert",15)+'<span>Terlambat sejak '+WM.date(nextDueISO(li))+'. Bayar segera biar catatannya bersih.</span></div>':'')+
-    '<div class="lia-actions">'+
-      '<button type="button" class="ghost" data-act="detail">'+WM.icon("file",15)+'Detail</button>'+
-      '<button type="button" class="ghost" data-act="edit">'+WM.icon("edit",15)+'Edit</button>'+
-      '<button type="button" class="ghost bad" data-act="del">'+WM.icon("trash",15)+'Hapus</button>'+
-      (paid?'<span class="paid">'+WM.icon("checkc",15)+'Sudah dibayar</span>':'<button type="button" class="pay" data-act="pay">'+WM.icon("cash",15)+'Bayar</button>')+
+  var tone=progress>=80?"lime":progress>=50?"orange":"bad";
+  var paid=paidThisPeriod(li),late=status.variant==="bad"&&!paid;
+  return '<div class="btile lia-tile" data-id="'+li.id+'">'+
+    '<span class="tt" data-detail="'+li.id+'" role="button" tabindex="0"><span><span class="ci">'+WM.icon(TYPE_ICON[li.type],15)+'</span>'+esc(li.name)+'</span><span class="pill '+status.variant+'" style="font-size:10.5px">'+status.text+'</span></span>'+
+    '<span class="pv money" data-detail="'+li.id+'" style="color:var(--bad)">'+WM.rp(remaining)+'</span>'+
+    '<span class="track"><i class="fill-'+tone+'" style="width:'+progress+'%"></i></span>'+
+    '<small data-detail="'+li.id+'">'+(inst>0?WM.short(inst)+"/bln":TYPE_LABEL[li.type])+(li.institution?" · "+esc(li.institution):"")+'</small>'+
+    (late?'<small style="color:var(--bad)">Terlambat sejak '+WM.date(nextDueISO(li))+'</small>':'')+
+    '<div class="foot"><button type="button" class="lia-detail" data-detail="'+li.id+'">Detail</button>'+
+      (paid?'<span class="pill good" style="margin-left:auto">Lunas</span>':'<button type="button" class="lia-pay" data-pay="'+li.id+'">Bayar</button>')+
     '</div></div>';
 }
 
 function draw(){
-  drawKpis();drawTabs();
-  var list=(WM.store.get("liabilities")||[]).filter(function(l){return typeFilter==="semua"||l.type===typeFilter;});
+  var k=drawKpis();drawTabs();
+  var list=k.list.filter(function(l){return typeFilter==="semua"||l.type===typeFilter;});
   var grid=document.getElementById("liaGrid");
-  if(!list.length){grid.innerHTML='<div class="card s12"><div class="empty"><span class="ic">'+WM.icon("receipt",22)+'</span><b>Belum ada liabilitas'+(typeFilter!=="semua"?" jenis ini":"")+'</b><p>Tambah KPR, kartu kredit, atau pinjaman supaya WealthMe bisa hitung cicilan dan sisa pokoknya.</p><button class="btn primary" type="button" id="emptyAdd">Tambah liabilitas</button></div></div>';
-    var ea=document.getElementById("emptyAdd");if(ea)ea.addEventListener("click",openAddEdit);
-    return;
+  document.getElementById("gridCap").textContent=list.length+(typeFilter==="semua"?" liabilitas":" "+TYPE_LABEL[typeFilter].toLowerCase());
+  if(!list.length){
+    grid.innerHTML='<div class="empty" style="grid-column:1/-1"><span class="ic">'+WM.icon("receipt",22)+'</span><b>Belum ada liabilitas'+(typeFilter!=="semua"?" jenis ini":"")+'</b><p>Tambah KPR, kartu kredit, atau pinjaman supaya WealthMe bisa hitung cicilan dan sisa pokoknya.</p></div>';
+  }else{
+    grid.innerHTML=list.map(liaTile).join("");
   }
-  grid.innerHTML=list.map(liaCard).join("");
-  grid.querySelectorAll(".lia-card").forEach(function(card){
-    var id=card.dataset.id,li=WM.store.find("liabilities",id);
-    card.querySelector('[data-act="detail"]').addEventListener("click",function(){openDetail(id);});
-    card.querySelector('[data-act="edit"]').addEventListener("click",function(){openAddEdit(id);});
-    card.querySelector('[data-act="del"]').addEventListener("click",function(){delLiability(id);});
-    var pb=card.querySelector('[data-act="pay"]');if(pb)pb.addEventListener("click",function(){openPay(id);});
-  });
+  document.querySelectorAll("[data-detail]").forEach(function(b){b.addEventListener("click",function(){openDetail(b.dataset.detail);});});
+  document.querySelectorAll("[data-pay]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();openPay(b.dataset.pay);});});
+
+  var worst=k.list.filter(function(l){return dueStatus(l).variant==="bad"||dueStatus(l).variant==="warn";}).sort(function(a,b){var da=nextDueISO(a),db=nextDueISO(b);return (da||"9999")<(db||"9999")?-1:1;})[0];
+  if(worst){
+    document.getElementById("tipT").textContent=worst.name+(dueStatus(worst).variant==="bad"?" sudah jatuh tempo":" segera jatuh tempo");
+    document.getElementById("tipP").textContent="Cicilan "+WM.rp(installmentDue(worst))+" · "+dueStatus(worst).text+".";
+  }else if(k.list.length){
+    document.getElementById("tipT").textContent="Semua liabilitas berjalan lancar";
+    document.getElementById("tipP").textContent="Tidak ada cicilan yang jatuh tempo dalam waktu dekat.";
+  }else{
+    document.getElementById("tipT").textContent="Belum ada liabilitas";
+    document.getElementById("tipP").textContent="Tambah KPR, kartu kredit, atau pinjaman untuk mulai melacaknya.";
+  }
+  var n=Math.round(Math.min(100,k.dta)/100*18);
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?(k.dta>=70?"o":i>n-4?"c":"a"):i%5===0?"b":"")+'"></i>';}).join("");
 }
 
 /* ============ Add / Edit dialog ============ */
@@ -350,8 +359,8 @@ function kprPeriodsHTML(kprState){
         (kprState.periods.length>1?'<button type="button" class="ibtn" data-rm="'+i+'" aria-label="Hapus periode '+n+'">'+WM.icon("trash",14)+'</button>':'')+
         '</span></div>'+
         '<div class="two"><div class="field" style="margin:0"><label class="label">Jenis bunga</label><select class="select" data-f="kind" data-i="'+i+'"><option value="fixed"'+(p.kind==="fixed"?" selected":"")+'>Tetap</option><option value="floating"'+(p.kind==="floating"?" selected":"")+'>Mengambang</option></select></div>'+
-        (isLast?'<div class="field" style="margin:0"><label class="label">Lama (bulan)</label><div class="input muted">Sampai lunas</div></div>':'<div class="field" style="margin:0"><label class="label" for="kprM'+i+'">Lama (bulan)</label><input class="input mono" id="kprM'+i+'" inputmode="numeric" data-f="months" data-i="'+i+'" value="'+WM.esc(p.months)+'"></div>')+
-        '</div><div class="field" style="margin-top:8px"><label class="label" for="kprR'+i+'">'+rateLabel+' · Periode '+n+'</label><input class="input mono" id="kprR'+i+'" inputmode="decimal" data-f="rate" data-i="'+i+'" value="'+WM.esc(p.ratePercent)+'"></div></li>';
+        (isLast?'<div class="field" style="margin:0"><label class="label">Lama (bulan)</label><div class="input muted">Sampai lunas</div></div>':'<div class="field" style="margin:0"><label class="label" for="kprM'+i+'">Lama (bulan)</label><input class="input mono" id="kprM'+i+'" inputmode="numeric" data-f="months" data-i="'+i+'" value="'+esc(p.months)+'"></div>')+
+        '</div><div class="field" style="margin-top:8px"><label class="label" for="kprR'+i+'">'+rateLabel+' · Periode '+n+'</label><input class="input mono" id="kprR'+i+'" inputmode="decimal" data-f="rate" data-i="'+i+'" value="'+esc(p.ratePercent)+'"></div></li>';
     }).join("")+'</ol>'+
     (kprState.periods.length<MAX_RATE_PERIODS?'<button type="button" class="btn ghost sm" id="kprAddPeriod" style="margin-top:8px">'+WM.icon("plus",15)+'Tambah periode</button>':'')+
     '<div class="hint" style="margin-top:6px">Periode terakhir berlaku sampai lunas. Rencana ini yang dipakai untuk hitung cicilan dan jadwal amortisasi.</div>'+
@@ -383,7 +392,7 @@ function openAddEdit(editId){
     '<div class="field" data-show="minpay">'+WM.field({name:"minimumPayment",label:"Min. Bayar (Rp, opsional)",type:"money",optional:true,value:editing?editing.minimumPayment:""})+'</div>'+
   '</fieldset>'+
   '<fieldset class="field" style="border:1px solid var(--line);border-radius:14px;padding:14px;margin:0" role="group" aria-label="Bunga & Tenor">'+
-    '<legend class="label" style="padding:0 4px;font-weight:600;font-size:13px">Bunga & Tenor</legend>'+
+    '<legend class="label" style="padding:0 4px;font-weight:600;font-size:13px">Bunga &amp; Tenor</legend>'+
     '<div class="field" data-show="method">'+WM.field({name:"interestMethod",label:"Metode Bunga",type:"select",value:method,options:(METHOD_OPTIONS[type]||[method]).map(function(m){return [m,METHOD_LABEL[m]];})})+'</div>'+
     '<div class="field" data-show="simplerate">'+WM.field({name:"interestRate",label:type==="kartu_kredit"?"Bunga/Bulan (%)":RATE_LABEL[method]||"Bunga/Tahun (%)",optional:true,value:editing?editing.interestRate:"",placeholder:"7.25"})+
       (type==="kpr"&&method==="flat"?'<div class="hint">Margin flat dihitung dari pokok awal, tetap sepanjang tenor — beda dari anuitas yang mengecil tiap bulan.</div>':'')+'</div>'+
@@ -396,6 +405,8 @@ function openAddEdit(editId){
   '</fieldset>';
 
   var d=WM.modal({title:editing?"Ubah liabilitas":"Tambah liabilitas",size:"lg",submit:"Simpan liabilitas",body:body,onOpen:function(d,b){
+    if(editing){var ft=d.querySelector(".sheet-foot");ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+      ft.querySelector("[data-rm]").onclick=function(){d.close();delLiability(editing.id);};}
     var typeSel=b.querySelector('[name="type"]'),methodSel=b.querySelector('[name="interestMethod"]'),rateInput=b.querySelector('[name="interestRate"]');
     function fieldset(name){return b.querySelector('[data-show="'+name+'"]');}
     function sync(){
@@ -483,9 +494,9 @@ document.getElementById("addLia").addEventListener("click",function(){openAddEdi
 
 function delLiability(id){
   var li=WM.store.find("liabilities",id);if(!li)return;
-  WM.confirm({title:"Hapus "+li.name+"?",text:"Riwayat cicilan yang tercatat di transaksi tidak ikut terhapus. Aksi ini tidak bisa dibatalkan.",confirm:"Hapus",danger:true}).then(function(ok){
-    if(!ok)return;WM.store.remove("liabilities",id);WM.toast("Liabilitas dihapus");draw();
-  });
+  WM.store.remove("liabilities",id);
+  WM.toast("Liabilitas "+li.name+" dihapus",{undo:function(){var a=WM.store.get("liabilities");a.push(li);WM.store.set("liabilities",a);}});
+  draw();
 }
 
 /* ============ Detail dialog (amortisation table + floating history + prepayment) ============ */
@@ -517,10 +528,14 @@ function openDetail(id){
     (floating?'<div class="note warn" style="margin-top:8px">Sebagian jadwal pakai bunga mengambang perkiraan (belum tentu sama dengan tarif bank nanti).</div>':'')):
     '<div class="hint">Belum ada jadwal — isi total utang, bunga dan tenor dulu.</div>')+
   '</div>'+
-  (li.notes?'<div class="note">'+WM.icon("clipboard",15)+'<span>Catatan: '+WM.esc(li.notes)+'</span></div>':'')+
+  (li.notes?'<div class="note">'+WM.icon("clipboard",15)+'<span>Catatan: '+esc(li.notes)+'</span></div>':'')+
   '<div id="floatingPanel"></div><div id="prepayPanel"></div>';
 
   var d=WM.modal({title:li.name,sub:[li.institution,TYPE_LABEL[li.type]].filter(Boolean).join(" · "),size:"lg",submit:"Bayar cicilan",cancel:"Tutup",body:body,onOpen:function(d,b){
+    var ft=d.querySelector(".sheet-foot");
+    ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-edit style="flex:none">'+WM.icon("edit",16)+'Ubah</button><button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+    ft.querySelector("[data-edit]").onclick=function(){d.close();openAddEdit(id);};
+    ft.querySelector("[data-rm]").onclick=function(){d.close();delLiability(id);};
     if(floating)b.querySelector("#floatingPanel").outerHTML=floatingPanelHTML(li);
     if(li.type==="kpr"&&(li.interestMethod==="anuitas"||li.interestMethod==="flat"))b.querySelector("#prepayPanel")&&(b.querySelector("#prepayPanel").outerHTML=prepayPanelHTML(li));
     wireFloatingPanel(b,li);wirePrepayPanel(b,li);
@@ -670,5 +685,6 @@ function openPay(id){
 
 draw();
 WM.onChange(["liabilities","accounts","investments","assets"],draw);
+WM.onResize(document.getElementById("chart"),draw);
 })();
 </script>

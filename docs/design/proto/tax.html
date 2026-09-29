@@ -3,6 +3,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
+.t-hero{grid-column:1/-1}
 .tx-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
 .tx-tbl th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:0 10px 8px 0;border-bottom:1px solid var(--line)}
 .tx-tbl td{padding:8px 10px 8px 0;border-bottom:1px solid var(--line)}
@@ -19,122 +20,118 @@
 .tx-hrow:last-child{border-bottom:0}
 </style>
 <main data-page="tax">
-  <div class="ph"><div><h1>Tax Center</h1><p>PPh 21, TER bulanan, PPh final UMKM, dan pajak final investasi. Semua angka adalah perkiraan.</p></div></div>
-
-  <section class="grid">
-    <div class="cover s12" id="hero">
-      <small id="heroYear">Perkiraan pajak tahun ini</small>
-      <div class="big mono" id="heroVal">Rp 0</div>
-      <div class="cap" id="heroSub" style="margin-top:8px;color:var(--on-cover-2)">Berdasarkan kalkulator PPh 21 OP di bawah</div>
-    </div>
-  </section>
-
-  <section class="grid" style="margin-top:14px">
-    <div style="grid-column:1/-1"><span class="tx-badge">Perkiraan — cek aturan terbaru DJP untuk angka final</span></div>
-  </section>
-
-  <section class="grid" style="margin-top:14px">
-    <div class="card s4"><div class="stat"><small id="prevYearLbl">Status SPT tahun lalu</small><b id="prevStatus">Belum ada data</b></div><button class="btn sm ghost" type="button" id="prevMark" style="margin-top:10px" hidden>Tandai sudah lapor</button></div>
-    <div class="card s4"><div class="stat"><small id="curYearLbl">Status SPT tahun ini</small><b id="curStatus">Belum lapor</b></div><button class="btn sm ghost" type="button" id="curMark" style="margin-top:10px" hidden>Tandai sudah lapor</button></div>
-    <div class="card s4"><div class="stat"><small>Pengurang zakat/persepuluhan tersimpan</small><b id="dedAmt">Rp 0</b></div><div class="cap" style="margin-top:6px">Terisi otomatis dari catatan donasi tahun ini</div></div>
-  </section>
-
-  <section class="grid" style="margin-top:16px" id="pph21-calc">
-    <div class="card s12">
-      <div class="head"><h2>Kalkulator PPh 21 Orang Pribadi</h2><span class="cap">Wajib pajak individu, penghasilan neto setahun</span></div>
-      <div class="two" style="margin-top:12px">
-        <div class="field"><label>Tahun pajak</label><select id="taxYear"></select></div>
-        <div class="field"><label>Penghasilan bruto setahun</label><div class="affix"><span>Rp</span><input id="gross" inputmode="numeric" placeholder="0"></div></div>
+<section class="bento" aria-label="Tax Center" style="margin-bottom:16px">
+  <article class="card hero dark t-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="heroVal"></p><div class="cap" id="heroYear"></div></div>
+        <div class="hero-ctrl"><div class="ctrl-row"><select id="taxYear" class="ghost-btn" style="border:0;background:var(--card-2)"></select></div><span class="tx-badge" id="heroSub"></span></div>
       </div>
-      <div class="two" style="margin-top:12px">
-        <div class="field"><label>Status pernikahan</label><div class="seg full" data-radio="marital" role="radiogroup"><button type="button" role="radio" data-v="TK" aria-checked="true">TK — Belum menikah</button><button type="button" role="radio" data-v="K" aria-checked="false">K — Menikah</button><button type="button" role="radio" data-v="KI" aria-checked="false">KI — Gabung istri</button></div></div>
-        <div class="field"><label>Jumlah tanggungan (maks 3)</label><div class="seg full" data-radio="dependents" role="radiogroup"><button type="button" role="radio" data-v="0" aria-checked="true">0</button><button type="button" role="radio" data-v="1" aria-checked="false">1</button><button type="button" role="radio" data-v="2" aria-checked="false">2</button><button type="button" role="radio" data-v="3" aria-checked="false">3</button></div></div>
-      </div>
-      <div class="two" style="margin-top:12px">
-        <div class="field"><label>Iuran pensiun <span class="opt">(opsional)</span></label><div class="affix"><span>Rp</span><input id="pension" inputmode="numeric" placeholder="0"></div></div>
-        <div class="field"><label>Penghasilan lain neto <span class="opt">(opsional)</span></label><div class="affix"><span>Rp</span><input id="otherNet" inputmode="numeric" placeholder="0"></div></div>
-      </div>
-      <details class="more-opts" style="margin-top:6px"><summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg> Penghasilan freelance / bebas (opsional)</summary>
-        <div class="two"><div class="field"><label>Bruto freelance</label><div class="affix"><span>Rp</span><input id="freelance" inputmode="numeric" placeholder="0"></div></div>
-        <div class="field"><label>% Norma (NPPN)</label><div class="affix"><input id="nppn" inputmode="decimal" placeholder="0"><span>%</span></div><span class="hint">Isi persentase norma penghitungan penghasilan neto (NPPN) sesuai profesimu, atau bruto freelance tidak akan dihitung.</span></div></div>
-      </details>
-      <div class="two" style="margin-top:12px">
-        <div class="field"><label>Biaya jabatan (otomatis)</label><input id="jabatan" disabled value="Rp 0"></div>
-        <div class="field"><label>Pengurang zakat/persepuluhan</label><div class="affix"><span>Rp</span><input id="zakat" inputmode="numeric" placeholder="0"></div><span class="hint">Terisi otomatis dari donasi tahun ini, bisa diubah.</span></div>
-      </div>
-      <div class="tx-calc" id="pphResult">
-        <small class="muted">Perkiraan PPh 21 setahun</small>
-        <b id="pphTax">Rp 0</b>
-        <div class="cap" id="pphSub" style="margin-top:6px"></div>
-      </div>
-      <div class="acts" style="margin-top:14px;gap:8px">
-        <button class="btn primary" type="button" id="saveTax">Simpan ke catatan pajak</button>
-        <button class="btn" type="button" id="resetTax">Reset</button>
-      </div>
+      <div class="chart-wrap" id="chart"></div>
     </div>
-  </section>
+    <div class="kpis">
+      <div class="kpi"><small>Status SPT tahun ini</small><div class="v" id="curStatus"></div></div>
+      <div class="kpi"><small>Pengurang zakat/persepuluhan</small><div class="v" id="dedAmt"></div></div>
+      <div class="kpi"><small>Status SPT tahun lalu</small><div class="v" id="prevStatus"></div></div>
+    </div>
+  </article>
+</section>
 
-  <section class="grid" style="margin-top:16px">
-    <div class="card s12">
-      <h2>Rincian tarif progresif (Pasal 17)</h2>
-      <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Lapisan</th><th>Tarif</th><th class="r">Dasar pengenaan</th><th class="r">Pajak</th></tr></thead><tbody id="bracketBody"></tbody></table></div>
-    </div>
-  </section>
+<section class="grid">
+  <div class="card s6"><div class="stat"><small id="curYearLbl">Status SPT tahun ini</small><b id="curStatusB">Belum lapor</b></div><button class="btn sm ghost" type="button" id="curMark" style="margin-top:10px" hidden>Tandai sudah lapor</button></div>
+  <div class="card s6"><div class="stat"><small id="prevYearLbl">Status SPT tahun lalu</small><b id="prevStatusB">Belum ada data</b></div><button class="btn sm ghost" type="button" id="prevMark" style="margin-top:10px" hidden>Tandai sudah lapor</button></div>
+</section>
 
-  <section class="grid" style="margin-top:16px">
-    <div class="card s12">
-      <div class="head"><h2>TER bulanan &amp; koreksi Desember</h2><span class="cap">Tarif Efektif Rata-rata pemotongan bulanan, dengan koreksi di Desember</span></div>
-      <div class="cap" id="terCat" style="margin-top:8px"></div>
-      <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Bulan</th><th class="r">Bruto</th><th>Tarif</th><th class="r">Pemotongan</th></tr></thead><tbody id="terBody"></tbody></table></div>
+<section class="grid" style="margin-top:16px" id="pph21-calc">
+  <div class="card s12">
+    <div class="head"><h2>Kalkulator PPh 21 Orang Pribadi</h2><span class="cap">Wajib pajak individu, penghasilan neto setahun · perkiraan</span></div>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Penghasilan bruto setahun</label><div class="affix"><span>Rp</span><input id="gross" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field"><label>Iuran pensiun <span class="opt">(opsional)</span></label><div class="affix"><span>Rp</span><input id="pension" inputmode="numeric" placeholder="0"></div></div>
     </div>
-  </section>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Status pernikahan</label><div class="seg full" data-radio="marital" role="radiogroup"><button type="button" role="radio" data-v="TK" aria-checked="true">TK — Belum menikah</button><button type="button" role="radio" data-v="K" aria-checked="false">K — Menikah</button><button type="button" role="radio" data-v="KI" aria-checked="false">KI — Gabung istri</button></div></div>
+      <div class="field"><label>Jumlah tanggungan (maks 3)</label><div class="seg full" data-radio="dependents" role="radiogroup"><button type="button" role="radio" data-v="0" aria-checked="true">0</button><button type="button" role="radio" data-v="1" aria-checked="false">1</button><button type="button" role="radio" data-v="2" aria-checked="false">2</button><button type="button" role="radio" data-v="3" aria-checked="false">3</button></div></div>
+    </div>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Penghasilan lain neto <span class="opt">(opsional)</span></label><div class="affix"><span>Rp</span><input id="otherNet" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field"><label>Pengurang zakat/persepuluhan</label><div class="affix"><span>Rp</span><input id="zakat" inputmode="numeric" placeholder="0"></div><span class="hint">Terisi otomatis dari donasi tahun ini, bisa diubah.</span></div>
+    </div>
+    <details class="more-opts" style="margin-top:6px"><summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg> Penghasilan freelance / bebas (opsional)</summary>
+      <div class="two"><div class="field"><label>Bruto freelance</label><div class="affix"><span>Rp</span><input id="freelance" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field"><label>% Norma (NPPN)</label><div class="affix"><input id="nppn" inputmode="decimal" placeholder="0"><span>%</span></div><span class="hint">Isi persentase norma penghitungan penghasilan neto (NPPN) sesuai profesimu.</span></div></div>
+    </details>
+    <div class="field" style="margin-top:12px;max-width:260px"><label>Biaya jabatan (otomatis)</label><input id="jabatan" disabled value="Rp 0"></div>
+    <div class="tx-calc" id="pphResult">
+      <small class="muted">Perkiraan PPh 21 setahun</small>
+      <b id="pphTax">Rp 0</b>
+      <div class="cap" id="pphSub" style="margin-top:6px"></div>
+    </div>
+    <div class="acts" style="margin-top:14px;gap:8px">
+      <button class="btn primary" type="button" id="saveTax">Simpan ke catatan pajak</button>
+      <button class="btn" type="button" id="resetTax">Reset</button>
+    </div>
+  </div>
+</section>
 
-  <section class="grid" style="margin-top:16px" id="umkm-section">
-    <div class="card s12">
-      <div class="head"><h2>PPh final UMKM 0,5%</h2><span class="cap">Omzet usaha per bulan, bebas pajak sampai Rp 500 juta/tahun</span></div>
-      <div class="field" style="margin-top:10px;max-width:260px"><label>Tahun pertama terdaftar UMKM <span class="opt">(opsional)</span></label><input id="umkmFirstYear" inputmode="numeric" placeholder="mis. 2021"></div>
-      <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Bulan</th><th class="r">Omzet</th><th class="r">Kumulatif</th><th class="r">Dasar kena pajak</th><th class="r">Pajak 0,5%</th></tr></thead><tbody id="umkmBody"></tbody></table></div>
-      <div class="tx-calc" id="umkmResult"><small class="muted">Total PPh final UMKM setahun</small><b id="umkmTax">Rp 0</b><div class="cap" id="umkmNote" style="margin-top:6px"></div></div>
-    </div>
-  </section>
+<section class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>Rincian tarif progresif (Pasal 17)</h2>
+    <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Lapisan</th><th>Tarif</th><th class="r">Dasar pengenaan</th><th class="r">Pajak</th></tr></thead><tbody id="bracketBody"></tbody></table></div>
+  </div>
+</section>
 
-  <section class="grid" style="margin-top:16px" id="pajak-final">
-    <div class="card s12">
-      <div class="head"><h2>Pajak final investasi &amp; penghasilan lain</h2><span class="cap">Bunga deposito, dividen, saham, SBN, kripto, sewa, dan lainnya</span></div>
-      <div class="two" style="margin-top:12px">
-        <div class="field"><label>Jenis penghasilan</label><select id="finInstr"></select></div>
-        <div class="field"><label>Jumlah bruto</label><div class="affix"><span>Rp</span><input id="finAmount" inputmode="numeric" placeholder="0"></div></div>
-      </div>
-      <div class="two" style="margin-top:12px">
-        <div class="field" id="finPrincipalWrap"><label>Pokok simpanan <span class="opt">(untuk cek batas bebas pajak)</span></label><div class="affix"><span>Rp</span><input id="finPrincipal" inputmode="numeric" placeholder="0"></div></div>
-        <div class="field" id="finRateWrap" hidden><label>Tarif <span class="opt">(kamu isi sendiri)</span></label><div class="affix"><input id="finRate" inputmode="decimal" placeholder="0"><span>%</span></div></div>
-      </div>
-      <label class="check" id="finReinvestWrap" hidden style="margin-top:8px"><input type="checkbox" id="finReinvest"><span>Dividen diinvestasikan kembali di Indonesia (bebas pajak)</span></label>
-      <div class="tx-calc"><small class="muted">Perkiraan pajak final</small><b id="finTax">Rp 0</b><div class="cap" id="finNote" style="margin-top:6px"></div></div>
-    </div>
-  </section>
+<section class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <div class="head"><h2>TER bulanan &amp; koreksi Desember</h2><span class="cap">Tarif Efektif Rata-rata pemotongan bulanan, dengan koreksi di Desember</span></div>
+    <div class="cap" id="terCat" style="margin-top:8px"></div>
+    <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Bulan</th><th class="r">Bruto</th><th>Tarif</th><th class="r">Pemotongan</th></tr></thead><tbody id="terBody"></tbody></table></div>
+  </div>
+</section>
 
-  <section class="grid" style="margin-top:16px">
-    <div class="card s12">
-      <div class="head"><h2>Dokumen pajak</h2><label class="btn ghost sm" style="cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V5m-4 4l4-4 4 4M5 20h14"/></svg> Unggah<input type="file" id="docUpload" hidden></label></div>
-      <div class="cap" style="margin-top:4px">Simulasi — berkas tidak benar-benar diunggah ke server, hanya tercatat di prototipe ini.</div>
-      <div class="tx-docs" id="docList" style="margin-top:8px"></div>
-    </div>
-  </section>
+<section class="grid" style="margin-top:16px" id="umkm-section">
+  <div class="card s12">
+    <div class="head"><h2>PPh final UMKM 0,5%</h2><span class="cap">Omzet usaha per bulan, bebas pajak sampai Rp 500 juta/tahun</span></div>
+    <div class="field" style="margin-top:10px;max-width:260px"><label>Tahun pertama terdaftar UMKM <span class="opt">(opsional)</span></label><input id="umkmFirstYear" inputmode="numeric" placeholder="mis. 2021"></div>
+    <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Bulan</th><th class="r">Omzet</th><th class="r">Kumulatif</th><th class="r">Dasar kena pajak</th><th class="r">Pajak 0,5%</th></tr></thead><tbody id="umkmBody"></tbody></table></div>
+    <div class="tx-calc" id="umkmResult"><small class="muted">Total PPh final UMKM setahun</small><b id="umkmTax">Rp 0</b><div class="cap" id="umkmNote" style="margin-top:6px"></div></div>
+  </div>
+</section>
 
-  <section class="grid" style="margin-top:16px">
-    <div class="card s12">
-      <div class="head"><h2>Riwayat pajak</h2></div>
-      <div class="tx-hist" id="histList" style="margin-top:8px"></div>
+<section class="grid" style="margin-top:16px" id="pajak-final">
+  <div class="card s12">
+    <div class="head"><h2>Pajak final investasi &amp; penghasilan lain</h2><span class="cap">Bunga deposito, dividen, saham, SBN, kripto, sewa, dan lainnya</span></div>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Jenis penghasilan</label><select id="finInstr"></select></div>
+      <div class="field"><label>Jumlah bruto</label><div class="affix"><span>Rp</span><input id="finAmount" inputmode="numeric" placeholder="0"></div></div>
     </div>
-  </section>
+    <div class="two" style="margin-top:12px">
+      <div class="field" id="finPrincipalWrap"><label>Pokok simpanan <span class="opt">(untuk cek batas bebas pajak)</span></label><div class="affix"><span>Rp</span><input id="finPrincipal" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field" id="finRateWrap" hidden><label>Tarif <span class="opt">(kamu isi sendiri)</span></label><div class="affix"><input id="finRate" inputmode="decimal" placeholder="0"><span>%</span></div></div>
+    </div>
+    <label class="check" id="finReinvestWrap" hidden style="margin-top:8px"><input type="checkbox" id="finReinvest"><span>Dividen diinvestasikan kembali di Indonesia (bebas pajak)</span></label>
+    <div class="tx-calc"><small class="muted">Perkiraan pajak final</small><b id="finTax">Rp 0</b><div class="cap" id="finNote" style="margin-top:6px"></div></div>
+  </div>
+</section>
 
-  <section class="grid" style="margin-top:16px;margin-bottom:8px">
-    <div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px">
-      <a class="btn primary" style="flex:1;min-width:160px" href="https://djponline.pajak.go.id" target="_blank" rel="noopener noreferrer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7z"/></svg> Lapor SPT di DJP Online</a>
-      <button class="btn" style="flex:1;min-width:160px" type="button" id="dlCsv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m-4-4l4 4 4-4M5 20h14"/></svg> Unduh ringkasan (CSV)</button>
-    </div>
-  </section>
+<section class="grid" style="margin-top:16px">
+  <div class="card s7">
+    <div class="head"><h2>Dokumen pajak</h2><label class="btn ghost sm" style="cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V5m-4 4l4-4 4 4M5 20h14"/></svg> Unggah<input type="file" id="docUpload" hidden></label></div>
+    <div class="cap" style="margin-top:4px">Simulasi — berkas tidak benar-benar diunggah, hanya tercatat di prototipe ini.</div>
+    <div class="tx-docs" id="docList" style="margin-top:8px"></div>
+  </div>
+  <div class="card s5">
+    <div class="head"><h2>Riwayat pajak</h2></div>
+    <div class="tx-hist" id="histList" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px;margin-bottom:8px">
+  <div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px">
+    <a class="btn primary" style="flex:1;min-width:160px" href="https://djponline.pajak.go.id" target="_blank" rel="noopener noreferrer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7z"/></svg> Lapor SPT di DJP Online</a>
+    <button class="btn" style="flex:1;min-width:160px" type="button" id="dlCsv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m-4-4l4 4 4-4M5 20h14"/></svg> Unduh ringkasan (CSV)</button>
+  </div>
+</section>
 </main>
 <script src="wm.js"></script>
 <script>
@@ -242,10 +239,14 @@ function recalcPph(){
   document.getElementById("pphTax").textContent=WM.rp(r.tax);
   var effRate=inp.gross+inp.freelanceGross>0?(r.tax/(inp.gross+inp.freelanceGross)*100).toFixed(1).replace(".",","):"0";
   document.getElementById("pphSub").innerHTML="PKP <b>"+WM.rp(r.pkp)+"</b> · tarif efektif <b>"+effRate+"%</b> · PTKP <b>"+WM.rp(r.ptkp)+"</b>";
-  document.getElementById("bracketBody").innerHTML=r.brackets.length?r.brackets.map(function(b){return '<tr><td>'+b.label+'</td><td>'+(b.rate*100).toLocaleString("id-ID")+'%</td><td class="r mono">'+WM.rp(b.taxable)+'</td><td class="r mono">'+WM.rp(b.tax)+'</td></tr>';}).join(""):'<tr><td colspan="4" class="cap" style="text-align:center">Belum ada PKP kena pajak</td></tr>';
-  document.getElementById("heroVal").textContent=WM.rp(r.tax);
-  document.getElementById("heroYear").textContent="Perkiraan PPh 21 tahun "+inp.taxYear;
+  document.getElementById("bracketBody").innerHTML=r.brackets.length?r.brackets.map(function(b){return '<tr><td>'+b.label+'</td><td>'+(b.rate*100).toLocaleString("id-ID")+'%</td><td class="r num">'+WM.rp(b.taxable)+'</td><td class="r num">'+WM.rp(b.tax)+'</td></tr>';}).join(""):'<tr><td colspan="4" class="cap" style="text-align:center">Belum ada PKP kena pajak</td></tr>';
+  document.getElementById("heroVal").innerHTML='<span class="cur">Rp</span>'+r.tax.toLocaleString("id-ID");
+  document.getElementById("heroYear").textContent="Perkiraan pajak tahun "+inp.taxYear;
+  document.getElementById("heroSub").textContent="Perkiraan — cek aturan terbaru DJP untuk angka final";
   window._pph=r;window._pphInput=inp;
+  var chart=document.getElementById("chart");
+  if(r.brackets.length){chart.innerHTML="";WM.chart.bars(chart,{labels:r.brackets.map(function(b){return b.label.split(" ")[0];}),series:[{d:r.brackets.map(function(b){return b.tax;}),c:"var(--lime)"}],fmt:WM.rp,wide:true});}
+  else chart.innerHTML='<div class="empty"><b>Belum ada PKP</b><p>Isi penghasilan bruto untuk melihat rincian lapisan pajak.</p></div>';
   recalcTer(inp);
 }
 
@@ -261,7 +262,7 @@ function recalcTer(inp){
   var dec=window._pph.tax-withheldJanNov;
   rows.push({m:12,gross:monthly,rate:"Koreksi",wh:dec});
   var MON=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
-  document.getElementById("terBody").innerHTML=rows.map(function(r){return '<tr><td>'+MON[r.m-1]+'</td><td class="r mono">'+WM.rp(r.gross)+'</td><td>'+r.rate+'</td><td class="r mono'+(r.wh<0?" neg":"")+'">'+WM.rp(r.wh,r.m===12)+'</td></tr>';}).join("");
+  document.getElementById("terBody").innerHTML=rows.map(function(r){return '<tr><td>'+MON[r.m-1]+'</td><td class="r num">'+WM.rp(r.gross)+'</td><td>'+r.rate+'</td><td class="r num'+(r.wh<0?" neg":"")+'">'+WM.rp(r.wh,r.m===12)+'</td></tr>';}).join("");
 }
 
 document.getElementById("gross").addEventListener("input",function(e){e.target.value=e.target.value===""?"":WM.parseMoney(e.target.value).toLocaleString("id-ID");recalcPph();});
@@ -286,22 +287,25 @@ function drawStatus(){
   document.getElementById("prevYearLbl").textContent="Status SPT "+(year-1);
   document.getElementById("curYearLbl").textContent="Status SPT "+year;
   var LBL={belum_lapor:"Belum lapor",sudah_lapor:"Sudah lapor",terlambat:"Terlambat"};
-  document.getElementById("prevStatus").textContent=prev?LBL[prev.sptStatus]:"Belum ada data";
-  document.getElementById("curStatus").textContent=cur?LBL[cur.sptStatus]:"Belum lapor";
+  var prevTxt=prev?LBL[prev.sptStatus]:"Belum ada data",curTxt=cur?LBL[cur.sptStatus]:"Belum lapor";
+  document.getElementById("prevStatus").textContent=prevTxt;
+  document.getElementById("curStatus").textContent=curTxt;
+  document.getElementById("prevStatusB").textContent=prevTxt;
+  document.getElementById("curStatusB").textContent=curTxt;
   document.getElementById("prevMark").hidden=!(prev&&prev.sptStatus==="belum_lapor");
   document.getElementById("curMark").hidden=!(cur&&cur.sptStatus==="belum_lapor");
   document.getElementById("prevMark").onclick=function(){WM.store.update("taxRecords",prev.id,{sptStatus:"sudah_lapor"});WM.toast("Ditandai sudah lapor");};
   document.getElementById("curMark").onclick=function(){if(cur)WM.store.update("taxRecords",cur.id,{sptStatus:"sudah_lapor"});WM.toast("Ditandai sudah lapor");};
-  document.getElementById("dedAmt").textContent=WM.rp(cur?cur.zakatDeduction:zakatDeductibleThisYear(year));
+  document.getElementById("dedAmt").textContent=WM.short(cur?cur.zakatDeduction:zakatDeductibleThisYear(year));
 }
 
 document.getElementById("saveTax").addEventListener("click",function(){
   var inp=window._pphInput,r=window._pph;
   var html='<div class="tw"><table class="tx-tbl">'+
-   '<tr><td>Penghasilan bruto</td><td class="r mono">'+WM.rp(inp.gross)+'</td></tr>'+
-   '<tr><td>PTKP</td><td class="r mono">'+WM.rp(r.ptkp)+'</td></tr>'+
-   '<tr><td>Pengurang zakat/persepuluhan</td><td class="r mono">'+WM.rp(r.zakatApplied)+'</td></tr>'+
-   '<tr><td><b>Perkiraan pajak</b></td><td class="r mono" style="font-weight:800;color:var(--good)">'+WM.rp(r.tax)+'</td></tr>'+
+   '<tr><td>Penghasilan bruto</td><td class="r num">'+WM.rp(inp.gross)+'</td></tr>'+
+   '<tr><td>PTKP</td><td class="r num">'+WM.rp(r.ptkp)+'</td></tr>'+
+   '<tr><td>Pengurang zakat/persepuluhan</td><td class="r num">'+WM.rp(r.zakatApplied)+'</td></tr>'+
+   '<tr><td><b>Perkiraan pajak</b></td><td class="r num" style="font-weight:800;color:var(--good)">'+WM.rp(r.tax)+'</td></tr>'+
    '</table></div><div class="note" style="margin-top:10px">'+WM.icon("shield",16)+'<span>Angka disimpan sebagai catatan pribadi, bukan laporan resmi ke DJP.</span></div>';
   WM.modal({title:"Simpan ke catatan pajak "+inp.taxYear,body:html,submit:"Simpan",
    onSubmit:function(){
@@ -320,7 +324,7 @@ document.getElementById("resetTax").addEventListener("click",function(){
 var umkmOmzet=new Array(12).fill(0);
 function drawUmkm(){
   var body=document.getElementById("umkmBody"),MON=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
-  body.innerHTML=MON.map(function(l,i){return '<tr><td>'+l+'</td><td class="r"><input data-um="'+i+'" inputmode="numeric" style="width:120px;text-align:right;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;background:var(--card);color:inherit" value="'+(umkmOmzet[i]?umkmOmzet[i].toLocaleString("id-ID"):"")+'" placeholder="0"></td><td class="r mono" data-umc="'+i+'">Rp 0</td><td class="r mono" data-umt="'+i+'">Rp 0</td><td class="r mono" data-umx="'+i+'">Rp 0</td></tr>';}).join("");
+  body.innerHTML=MON.map(function(l,i){return '<tr><td>'+l+'</td><td class="r"><input data-um="'+i+'" inputmode="numeric" style="width:120px;text-align:right;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;background:var(--card);color:inherit" value="'+(umkmOmzet[i]?umkmOmzet[i].toLocaleString("id-ID"):"")+'" placeholder="0"></td><td class="r num" data-umc="'+i+'">Rp 0</td><td class="r num" data-umt="'+i+'">Rp 0</td><td class="r num" data-umx="'+i+'">Rp 0</td></tr>';}).join("");
   body.querySelectorAll("[data-um]").forEach(function(inp){inp.addEventListener("input",function(){
     var i=+inp.dataset.um;umkmOmzet[i]=WM.parseMoney(inp.value);inp.value=umkmOmzet[i]?umkmOmzet[i].toLocaleString("id-ID"):"";recalcUmkm();});});
   recalcUmkm();
