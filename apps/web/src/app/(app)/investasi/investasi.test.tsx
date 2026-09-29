@@ -1105,6 +1105,37 @@ describe("InvestasiPage — allocation donut renders once (Batch 5 item 2)", () 
   });
 });
 
+describe("InvestasiPage — hardening G1 (P0 honesty): no fabricated portfolio trend", () => {
+  it("never renders the fabricated 'Nilai Portofolio 6 Bulan' trend chart", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+    await screen.findByText("Emas Batangan");
+
+    expect(
+      screen.queryByText("Nilai Portofolio 6 Bulan"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows an honest empty state for the holding detail sparkline when there's no real price history", async () => {
+    mockSession("owner");
+    render(<InvestasiPage />);
+
+    const row = (await screen.findByText("Emas Batangan")).closest(
+      "tr",
+    ) as HTMLElement;
+    await userEvent.click(
+      within(row).getByRole("button", { name: "Lihat Detail" }),
+    );
+
+    // No detailPrices mocked for this holding — the sparkline must fall
+    // back to the same honest empty-state copy as the price-history list,
+    // never the old static fabricated curve.
+    expect(
+      screen.getAllByText(idDict.investasi.priceHistoryEmpty).length,
+    ).toBeGreaterThan(0);
+  });
+});
+
 describe("InvestasiPage — polish batch 7b item 3 (notice disclosure + formula tooltip)", () => {
   it("shows the pricing-source notice as one line, with the full body collapsed under a disclosure", async () => {
     mockSession("owner");

@@ -25,7 +25,7 @@ import {
   Rise,
   DateField,
 } from "@/components/wm";
-import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
+import { DonutChart } from "@/components/charts/apex-presets";
 import type { DonutSegment } from "@/components/charts/donut";
 import { DateRangeFilterField } from "@/components/wm/date-range-field";
 import { Card } from "@/components/ui/card";
@@ -1578,26 +1578,59 @@ function DetailMetric({
   );
 }
 
-function SparklinePreview() {
+// Hardening batch G1 (P0 honesty) — this used to draw the exact same static
+// curve for every holding under "Harga penutupan 12 bulan terakhir", a
+// fabricated trend. It now builds a real polyline from the holding's own
+// fetched price history (`detailPrices`), or shows an honest empty state
+// when there isn't enough history to draw a line yet.
+function RealSparkline({
+  prices,
+  emptyLabel,
+}: {
+  prices: { asOf: string; price: string }[];
+  emptyLabel: string;
+}) {
+  const sorted = [...prices]
+    .map((p) => ({ t: new Date(p.asOf).getTime(), v: Number(p.price) }))
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.v))
+    .sort((a, b) => a.t - b.t);
+
+  if (sorted.length < 2) {
+    return (
+      <div className="flex h-[72px] w-full items-center justify-center text-[12px] text-muted-foreground">
+        {emptyLabel}
+      </div>
+    );
+  }
+
+  const width = 320;
+  const height = 72;
+  const min = Math.min(...sorted.map((p) => p.v));
+  const max = Math.max(...sorted.map((p) => p.v));
+  const range = max - min || 1;
+  const points = sorted.map((p, i) => {
+    const x = (i / (sorted.length - 1)) * width;
+    const y = height - ((p.v - min) / range) * height;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  const line = `M${points.join(" L")}`;
+  const area = `${line} L${width},${height} L0,${height} Z`;
+
   return (
     <svg
-      viewBox="0 0 320 72"
+      viewBox={`0 0 ${width} ${height}`}
       className="h-[72px] w-full"
       role="img"
-      aria-label="Tren harga ringkas"
+      aria-label="Tren harga dari riwayat tersimpan"
     >
       <path
-        d="M0 52 C32 50 35 40 64 43 C94 46 96 34 128 35 C158 36 164 25 192 28 C224 31 226 20 256 20 C286 20 290 14 320 12"
+        d={line}
         fill="none"
         stroke="var(--primary)"
         strokeLinecap="round"
         strokeWidth="3"
       />
-      <path
-        d="M0 52 C32 50 35 40 64 43 C94 46 96 34 128 35 C158 36 164 25 192 28 C224 31 226 20 256 20 C286 20 290 14 320 12 L320 72 L0 72 Z"
-        fill="var(--primary)"
-        opacity="0.12"
-      />
+      <path d={area} fill="var(--primary)" opacity="0.12" />
     </svg>
   );
 }
@@ -1771,14 +1804,6 @@ export default function InvestasiPage() {
     (h) => activeFilter === "semua" || h.type === activeFilter,
   );
 
-  const totalPortfolioValue = parseFloat(summary?.totalCurrentValue ?? "0");
-  const portfolioTrendSeries =
-    totalPortfolioValue > 0
-      ? [0.88, 0.91, 0.93, 0.96, 0.98, 1].map((ratio) =>
-          Math.round(totalPortfolioValue * ratio),
-        )
-      : [];
-
   // EPIC-025 N3-F2 — allocation-by-instrument donut: derived from the same
   // `holdings` list already fetched above, no new endpoint.
   const allocationByType = new Map<string, number>();
@@ -1904,9 +1929,12 @@ export default function InvestasiPage() {
               <DialogBody className="grid gap-4 md:grid-cols-2">
                 <div className="min-w-0 space-y-3">
                   <div className="rounded-[10px] border bg-muted/30 p-3">
-                    <SparklinePreview />
+                    <RealSparkline
+                      prices={detailPrices ?? []}
+                      emptyLabel={t.investasi.priceHistoryEmpty}
+                    />
                     <div className="mt-2 text-[12px] text-muted-foreground">
-                      Harga penutupan 12 bulan terakhir
+                      {t.investasi.priceHistoryChartCaption}
                     </div>
                   </div>
                   <div className="grid gap-2 text-[12.5px] sm:grid-cols-2">
@@ -2394,58 +2422,42 @@ export default function InvestasiPage() {
           section that renders `t.investasi.allocationTitle`). */}
       <InvestmentTaxCard />
 
-      {!isLoading &&
-        (portfolioTrendSeries.length > 0 || allocationSegments.length > 0) && (
-          <SectionCard
-            title="Kepemilikan"
-            action={
-              <span className="text-[12px] text-muted-foreground">
-                {filteredHoldings.length} {t.investasi.positionsCountSuffix}
-              </span>
-            }
-          >
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
-              {portfolioTrendSeries.length > 0 && (
-                <div className="min-w-0">
-                  <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
-                    Nilai Portofolio 6 Bulan
-                  </div>
-                  <TrendChart
-                    categories={["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"]}
-                    series={[
-                      {
-                        name: t.investasi.totalValueLabel,
-                        data: portfolioTrendSeries,
-                      },
-                    ]}
-                    height={230}
-                    ariaLabel="Tren nilai portofolio 6 bulan"
-                    money={money}
-                  />
-                </div>
-              )}
-              {allocationSegments.length > 0 && (
-                <div className="min-w-0 rounded-[10px] border p-3">
-                  <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
-                    {t.investasi.allocationTitle}
-                  </div>
-                  <DonutChart
-                    segments={allocationSegments}
-                    centerLabel={t.investasi.totalValueLabel}
-                    height={220}
-                    ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments
-                      .map(
-                        (s) =>
-                          `${s.label} ${formatDecimalRupiah(String(s.value))}`,
-                      )
-                      .join(", ")}`}
-                    money={money}
-                  />
-                </div>
-              )}
+      {/* Hardening batch G1 (P0 honesty) — this section used to also render
+          a "Nilai Portofolio 6 Bulan" line chart plotting today's total ×
+          [0.88…1] against hardcoded months, a fabricated rising trend. No
+          real portfolio-value-over-time endpoint exists yet (only real
+          per-holding price history, used in the detail dialog's
+          RealSparkline above); removed rather than faked, per dana's own
+          "refuse to invent trends" precedent. */}
+      {!isLoading && allocationSegments.length > 0 && (
+        <SectionCard
+          title="Kepemilikan"
+          action={
+            <span className="text-[12px] text-muted-foreground">
+              {filteredHoldings.length} {t.investasi.positionsCountSuffix}
+            </span>
+          }
+        >
+          <div className="max-w-[360px]">
+            <div className="min-w-0 rounded-[10px] border p-3">
+              <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
+                {t.investasi.allocationTitle}
+              </div>
+              <DonutChart
+                segments={allocationSegments}
+                centerLabel={t.investasi.totalValueLabel}
+                height={220}
+                ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments
+                  .map(
+                    (s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`,
+                  )
+                  .join(", ")}`}
+                money={money}
+              />
             </div>
-          </SectionCard>
-        )}
+          </div>
+        </SectionCard>
+      )}
 
       <SectionCard
         title={t.investasi.portfolioSectionTitle}

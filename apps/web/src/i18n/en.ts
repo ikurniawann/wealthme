@@ -1807,6 +1807,7 @@ export const en = {
     historyEmptyLabel: "No buy/sell transactions recorded yet.",
     priceHistoryTitle: "Price History",
     priceHistoryEmpty: "No prices recorded yet.",
+    priceHistoryChartCaption: "Price trend from stored history",
     priceSourceManual: "manual",
     historyBuyLabel: "Buy",
     historySellLabel: "Sell",

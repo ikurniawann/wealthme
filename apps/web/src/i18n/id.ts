@@ -1845,6 +1845,7 @@ export const id = {
     historyEmptyLabel: "Belum ada transaksi beli/jual tercatat.",
     priceHistoryTitle: "Riwayat Harga",
     priceHistoryEmpty: "Belum ada harga tercatat.",
+    priceHistoryChartCaption: "Tren harga dari riwayat tersimpan",
     priceSourceManual: "manual",
     historyBuyLabel: "Beli",
     historySellLabel: "Jual",

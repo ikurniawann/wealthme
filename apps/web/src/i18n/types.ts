@@ -1830,6 +1830,7 @@ export type I18nDictionary = {
     historyEmptyLabel: string;
     priceHistoryTitle: string;
     priceHistoryEmpty: string;
+    priceHistoryChartCaption: string;
     priceSourceManual: string;
     historyBuyLabel: string;
     historySellLabel: string;
