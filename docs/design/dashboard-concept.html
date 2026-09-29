@@ -81,7 +81,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 
 /* hero chart */
 .hero{display:grid;grid-template-columns:1fr 200px;gap:0;padding:0;overflow:hidden}
-.hero .chart-side{padding:20px 20px 12px}
+.hero .chart-side{padding:20px 20px 12px;display:flex;flex-direction:column;min-height:0}
 .big{font-size:40px;font-weight:600;letter-spacing:-.035em;line-height:1.05;margin:0}
 .big .cur{font-size:.55em;color:var(--muted);font-weight:500;margin-right:4px;letter-spacing:0}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);flex-wrap:wrap}
@@ -103,7 +103,8 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
 .tip{position:absolute;pointer-events:none;background:var(--card);border-radius:12px;box-shadow:0 10px 30px -10px rgba(0,0,0,.25);padding:10px 12px;font-size:12px;min-width:170px}
 .tip b{display:block;font-size:11px;color:var(--muted);font-weight:500;margin-bottom:6px}
 .tip div{display:flex;justify-content:space-between;gap:14px}
-.chart-wrap{position:relative;margin-top:10px}
+.chart-wrap{position:relative;margin-top:10px;flex:1;min-height:230px}
+.chart-wrap svg{position:absolute;inset:0;width:100%;height:100%}
 
 /* wallet */
 .wallet .cards{display:flex;gap:10px;margin-top:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;overscroll-behavior-x:contain;padding-bottom:2px}
@@ -543,12 +544,12 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
   var tip=document.createElement("div");tip.className="tip";tip.hidden=true;box.appendChild(tip);
 
   function draw(range,still){
-    var rows=DATA[range]; var W=640,H=250,L=34,R=8,T=12,B=26;
+    var rows=DATA[range]; var W=Math.max(280,box.clientWidth),H=Math.max(200,box.clientHeight),L=34,R=8,T=12,B=26;
     var max=Math.max.apply(null,rows.map(function(r){return r.s+r.i;}));
     var min=-Math.max.apply(null,rows.map(function(r){return r.e;}));
     var top=Math.ceil(max/2)*2, bot=Math.floor(min/2)*2;
     var y=function(val){return T+(top-val)/(top-bot)*(H-T-B);};
-    var svg=el("svg",{viewBox:"0 0 "+W+" "+H,width:"100%",role:"img","aria-label":"Arus kas per "+(range==7?"hari":"minggu")});
+    var svg=el("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Arus kas per "+(range==7?"hari":"minggu")});
     var defs=el("defs",{});
     [["hl",v("--lime")],["hy",v("--yellow")],["ho",v("--orange")],["hg",v("--ghost")]].forEach(function(p){
       var pat=el("pattern",{id:p[0],width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"});
@@ -562,7 +563,7 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
       svg.appendChild(el("line",{x1:L,x2:W-R,y1:y(t),y2:y(t),stroke:v("--line"),"stroke-width":1,"stroke-dasharray":t===0?"0":"3 4"}));
       var lab=el("text",{x:L-8,y:y(t)+3.5,"text-anchor":"end"});lab.textContent=t+"";svg.appendChild(lab);
     }
-    var showBest=function(){};var band=(W-L-R)/rows.length, bw=Math.min(54,band*.62);
+    var showBest=function(){};var band=(W-L-R)/rows.length, bw=Math.min(64,band*.62);
     var best=rows.reduce(function(a,r,i){return (r.s+r.i)>(rows[a].s+rows[a].i)?i:a;},0);
     rows.forEach(function(r,i){
       var cx=L+band*i+band/2, x=cx-bw/2, on=i===best;
@@ -584,8 +585,8 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
   }
   draw(7);
   document.getElementById("range").addEventListener("change",function(e){draw(+e.target.value);});
-  var lastW=box.clientWidth,rz;
-  window.addEventListener("resize",function(){clearTimeout(rz);rz=setTimeout(function(){if(box.clientWidth!==lastW){lastW=box.clientWidth;draw(+document.getElementById("range").value,true);}},150);});
+  var lastW=box.clientWidth,lastH=box.clientHeight,rz;
+  new ResizeObserver(function(){clearTimeout(rz);rz=setTimeout(function(){if(box.clientWidth!==lastW||box.clientHeight!==lastH){lastW=box.clientWidth;lastH=box.clientHeight;draw(+document.getElementById("range").value,true);}},120);}).observe(box);
 
   // Account carousel
   var track=document.getElementById("cards"), cardsEl=[].slice.call(track.children), dots=document.getElementById("dots");
