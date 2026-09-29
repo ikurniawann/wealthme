@@ -100,7 +100,19 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
 .chart-wrap{position:relative;margin-top:10px}
 
 /* wallet */
-.wallet .cards{display:flex;gap:10px;margin-top:14px;overflow:hidden}
+.wallet .cards{display:flex;gap:10px;margin-top:14px;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;overscroll-behavior-x:contain;padding-bottom:2px}
+.wallet .cards::-webkit-scrollbar{display:none}
+.bank{scroll-snap-align:start}
+.bank.d{background:var(--ink);color:var(--card);background-image:radial-gradient(120% 90% at 100% 0,rgba(156,203,59,.28),transparent 60%)}
+.bank.s{background:var(--card-2);color:var(--ink)}
+.car-foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px}
+.dots{display:flex;gap:5px}
+.dots button{width:7px;height:7px;border-radius:99px;border:0;padding:0;background:var(--ghost);transition:width .2s,background .2s}
+.dots button[aria-current="true"]{width:18px;background:var(--lime)}
+.arrows{display:flex;gap:6px}
+.arrows button{width:32px;height:32px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center}
+.arrows button:disabled{opacity:.35;cursor:default}
+@media (pointer:coarse){.arrows{display:none}}
 .bank{flex:none;width:220px;aspect-ratio:1.62;border-radius:16px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;max-width:100%}
 .bank.l{background:var(--lime);color:var(--lime-ink);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.14) 0 2px,transparent 2px 9px)}
 .bank.g{background:var(--card-2);color:var(--ink);width:120px}
@@ -279,10 +291,14 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
       <!-- Wallet -->
       <article class="card wallet span-4">
         <div class="head"><div><h2>Rekening</h2><div class="cap">Aksi cepat</div></div><button class="ghost-btn" type="button">+ Tambah</button></div>
-        <div class="cards">
+        <div class="cards" id="cards" tabindex="0" aria-label="Rekening dan kartu, geser untuk melihat semua">
           <div class="bank l"><div class="row"><small>Tabungan · bersama</small><b style="font-size:12px">BCA</b></div><div><div class="bal num">Rp 84.320.500</div><div class="row" style="margin-top:6px"><span class="num">•••• 7890</span><span>Keluarga</span></div></div></div>
-          <div class="bank g"><small>Kartu kredit</small><div><div class="bal num" style="font-size:14px">Rp 4,6 jt</div><small>Mandiri</small></div></div>
+          <div class="bank d"><div class="row"><small>Kartu kredit</small><b style="font-size:12px">Mandiri</b></div><div><div class="bal num">Rp 4.612.500</div><div class="row" style="margin-top:6px"><span class="num">•••• 4412</span><span>Limit 20 jt</span></div></div></div>
+          <div class="bank s"><div class="row"><small>Tabungan · pribadi</small><b style="font-size:12px">BRI</b></div><div><div class="bal num">Rp 12.480.000</div><div class="row" style="margin-top:6px"><span class="num">•••• 0931</span><span>Vallencya</span></div></div></div>
+          <div class="bank s"><div class="row"><small>E-wallet</small><b style="font-size:12px">GoPay</b></div><div><div class="bal num">Rp 845.200</div><div class="row" style="margin-top:6px"><span class="num">0812 •••• 88</span><span>Hima</span></div></div></div>
+          <div class="bank s"><div class="row"><small>Kas</small><b style="font-size:12px">Tunai</b></div><div><div class="bal num">Rp 1.250.000</div><div class="row" style="margin-top:6px"><span>Dompet rumah</span><span>Keluarga</span></div></div></div>
         </div>
+        <div class="car-foot"><div class="dots" id="dots" role="group" aria-label="Pilih kartu"></div><div class="arrows"><button type="button" id="prev" aria-label="Kartu sebelumnya"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg></button><button type="button" id="next" aria-label="Kartu berikutnya"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></button></div></div>
         <div class="actions">
           <button class="act" type="button"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>Catat</button>
           <button class="act" type="button"><span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg></span>Transfer</button>
@@ -426,6 +442,21 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
     document.querySelectorAll("[data-range]").forEach(function(x){x.setAttribute("aria-pressed",x===b?"true":"false");});
     tip.hidden=true; draw(+b.dataset.range);
   });});
+
+  // Account carousel
+  var track=document.getElementById("cards"), cardsEl=[].slice.call(track.children), dots=document.getElementById("dots");
+  cardsEl.forEach(function(c,i){var d=document.createElement("button");d.type="button";d.setAttribute("aria-label","Kartu "+(i+1)+" dari "+cardsEl.length);
+    d.addEventListener("click",function(){track.scrollTo({left:c.offsetLeft-track.offsetLeft,behavior:"smooth"});});dots.appendChild(d);});
+  function sync(){var x=track.scrollLeft, idx=0;cardsEl.forEach(function(c,i){if(c.offsetLeft-track.offsetLeft<=x+8)idx=i;});
+    if(track.scrollLeft+track.clientWidth>=track.scrollWidth-4)idx=cardsEl.length-1;
+    [].forEach.call(dots.children,function(d,i){d.setAttribute("aria-current",i===idx?"true":"false");});
+    document.getElementById("prev").disabled=idx===0;document.getElementById("next").disabled=idx===cardsEl.length-1;}
+  function go(dir){var w=cardsEl[0].getBoundingClientRect().width+10;track.scrollBy({left:dir*w,behavior:"smooth"});}
+  document.getElementById("prev").addEventListener("click",function(){go(-1);});
+  document.getElementById("next").addEventListener("click",function(){go(1);});
+  track.addEventListener("keydown",function(e){if(e.key==="ArrowRight"){e.preventDefault();go(1);}if(e.key==="ArrowLeft"){e.preventDefault();go(-1);}});
+  track.addEventListener("scroll",function(){window.requestAnimationFrame(sync);},{passive:true});
+  sync();
 
   // Spending composition
   var cats=[["Rumah & KPR",33,"--lime"],["Makan & Minum",18,"--yellow"],["Transportasi",11,"--orange"],["Pendidikan",14,"--lime-soft"],["Kesehatan",8,"--good"],["Lainnya",16,"--ghost"]];
