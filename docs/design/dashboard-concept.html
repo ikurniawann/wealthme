@@ -68,6 +68,12 @@ button{font:inherit;color:inherit;cursor:pointer}
 .btn-primary:hover{filter:brightness(.97)}
 .chip-demo{font-size:11px;color:var(--muted);background:var(--card);border-radius:99px;padding:4px 10px;box-shadow:var(--shadow)}
 
+.mbrand{display:none;align-items:center;gap:8px;font-weight:700;font-size:16px;letter-spacing:-.02em;margin-right:auto}
+.mbrand .brand-mark{width:28px;height:28px}
+.mnav{display:none;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:4;grid-template-columns:repeat(5,1fr);align-items:center;background:var(--card);border-radius:20px;padding:6px;box-shadow:0 12px 30px -10px rgba(20,30,5,.35)}
+.mnav a,.mnav button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;color:var(--muted);text-decoration:none;border:0;background:none;min-height:48px;justify-content:center}
+.mnav a[aria-current="page"]{color:var(--ink);font-weight:600}
+.mnav .fab{width:48px;height:48px;border-radius:16px;background:var(--lime);color:var(--lime-ink);margin:0 auto;min-height:0}
 .grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:16px}
 .card{background:var(--card);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);min-width:0}
 .card h2{margin:0;font-size:15px;font-weight:600;letter-spacing:-.01em;text-wrap:balance}
@@ -216,32 +222,47 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
   .a-wallet .fam div{min-width:0;font-size:11px}
 }
 @media (max-width:1180px){
-  .span-7,.span-5,.span-4,.span-3,.span-8,.span-9{grid-column:span 6}
+  .grid>.card{grid-column:1/-1;grid-row:auto}
   .hero{grid-template-columns:1fr}
-  .kpis{border-left:0;border-top:1px solid var(--line);flex-direction:row;flex-wrap:wrap}
-  .kpi{flex:1 1 150px}
+  .kpis{border-left:0;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+  .kpi .v{font-size:18px}
+  .hero .head{flex-wrap:wrap;row-gap:12px}
+  .hero-ctrl{align-items:flex-start}
+  .search{min-width:180px}
+  .tips{grid-template-columns:1fr}.mosaic{display:none}
+  .me div,.chip-demo{display:none}
+  .me{padding:0 6px}
+  .btn-primary{white-space:nowrap}
+}
+@media (max-width:1180px) and (min-width:721px){
+  .grid>.a-wallet{grid-column:1/7;grid-row:2/4}
+  .grid>.a-limit{grid-column:7/13;grid-row:2}
+  .grid>.a-tips{grid-column:7/13;grid-row:3;align-content:start}
+  .grid>.a-spend{grid-column:1/7;grid-row:4}
+  .grid>.a-health{grid-column:7/13;grid-row:4}
+  .grid>.a-goals{grid-column:1/7;grid-row:5}
+  .grid>.a-hist{grid-column:7/13;grid-row:5}
+  .a-wallet .bank.l{width:min(100%,300px)}
 }
 @media (max-width:900px){
   .app{grid-template-columns:1fr}
-  .side{flex-direction:row;align-items:center;overflow-x:auto;padding:10px 12px}
-  .side .nav{flex-direction:row}
-  .side .sub,.side .sep,.side .promo,.side .nav.secondary{display:none}
-  .brand{padding:0 8px 0 0}
-  .nav a{white-space:nowrap}
+  .side{display:none}
+  .mbrand{display:flex}
 }
 @media (max-width:720px){
-  .span-7,.span-5,.span-4,.span-3,.span-8,.span-9{grid-column:1/-1}
-  .me div,.chip-demo,.top .icon-btn:nth-of-type(2){display:none}
-  .me{padding:0 6px}
+  body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
   .top{flex-wrap:wrap}
-  .search{flex:1 1 100%;order:9}
-  .kpis{flex-direction:column}
-  .kpi{flex:none}
-  .hero .head{flex-wrap:wrap}
-  .btn-primary .lbl{display:none}
+  .search{flex:1 1 100%;order:9;min-width:0}
+  .me div,.chip-demo,.top .icon-btn:nth-of-type(2),.top .btn-primary{display:none}
+  .me{padding:0 6px}
+  .kpis{grid-template-columns:1fr;gap:14px}
+  .kpi .v{font-size:20px}
   .big{font-size:32px}
-  .tips{grid-template-columns:1fr}.mosaic{display:none}
-  .search{max-width:none}
+  .hero-ctrl .legend{white-space:normal;flex-wrap:wrap}
+  .chart-wrap{min-height:210px}
+  .tip.pinned{display:none}
+  .bank.l{width:84%}
+  .mnav{display:grid}
 }
 @media (prefers-reduced-motion:no-preference){
   .grow{transform-origin:bottom;animation:grow .5s cubic-bezier(.16,1,.3,1) both}
@@ -354,6 +375,7 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
 
   <main class="main">
     <header class="top">
+      <div class="mbrand"><span class="brand-mark" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l4.5 12L12 8l4.5 10L21 6"/></svg></span>WealthMe</div>
       <label class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg><input id="q" type="search" placeholder="Cari transaksi, rekening…" aria-label="Cari"></label>
       <span class="chip-demo">Data contoh</span>
       <span class="spacer"></span>
@@ -489,6 +511,14 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
 </div>
 
 
+<nav class="mnav" aria-label="Navigasi utama">
+  <a href="#" aria-current="page"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="8" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="15" width="7" height="6" rx="2"/></svg>Beranda</a>
+  <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 8h13l-3-3M20 16H7l3 3"/></svg>Transaksi</a>
+  <button type="button" class="fab" id="mfab" aria-label="Tambah transaksi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+  <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h12v16l-6-3-6 3z"/></svg>Anggaran</a>
+  <a href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Akun</a>
+</nav>
+
 <dialog class="sheet" id="txDialog" aria-labelledby="txTitle">
   <form method="dialog" id="txForm" novalidate>
     <div class="sheet-head"><h2 id="txTitle">Tambah transaksi</h2><button type="button" class="x" id="txClose" aria-label="Tutup"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
@@ -572,11 +602,12 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
       g.appendChild(el("rect",{x:x,y:y(r.i+r.s),width:bw,height:y(r.i)-y(r.i+r.s)-2,rx:7,fill:on?"url(#hy)":"url(#hg)",opacity:on?1:.75}));
       g.appendChild(el("rect",{x:x,y:y(0)+2,width:bw,height:y(-r.e)-y(0)-2,rx:7,fill:on?"url(#ho)":"url(#hg)",opacity:on?1:.6}));
       var dl=el("text",{x:cx,y:H-8,"text-anchor":"middle"});dl.textContent=r.d;g.appendChild(dl);
-      function show(){tip.hidden=false;tip.innerHTML="<b>"+r.d+(range==7?", minggu ini":"")+"</b><div><span>Tabungan</span><span class='num'>"+rp(r.s*1e6)+"</span></div><div><span>Pemasukan</span><span class='num'>"+rp(r.i*1e6)+"</span></div><div><span>Pengeluaran</span><span class='num'>"+rp(r.e*1e6)+"</span></div>";
+      function show(){tip.hidden=false;tip.classList.remove("pinned");tip.innerHTML="<b>"+r.d+(range==7?", minggu ini":"")+"</b><div><span>Tabungan</span><span class='num'>"+rp(r.s*1e6)+"</span></div><div><span>Pemasukan</span><span class='num'>"+rp(r.i*1e6)+"</span></div><div><span>Pengeluaran</span><span class='num'>"+rp(r.e*1e6)+"</span></div>";
         var bb=box.getBoundingClientRect(), sx=bb.width/W, tw=tip.offsetWidth||180, right=(cx+bw/2+10)*sx, left=(cx-bw/2-10)*sx-tw; tip.style.left=(right+tw<=bb.width?right:Math.max(0,left))+"px"; tip.style.top=Math.max(0,y(r.i+r.s)*sx-4)+"px";}
       g.addEventListener("mouseenter",show);g.addEventListener("focus",show);
       g.addEventListener("mouseleave",function(){showBest();});g.addEventListener("blur",function(){showBest();});
-      if(on)showBest=show;
+      if(on)showBest=function(){show();tip.classList.add("pinned");};
+      g.addEventListener("click",function(){show();tip.classList.remove("pinned");});
       svg.appendChild(g);
     });
     box.querySelectorAll("svg").forEach(function(s){s.remove();});
@@ -637,6 +668,7 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
   function open(){form.reset();err.textContent="";document.getElementById("txDate").value=new Date(Date.now()+7*3600e3).toISOString().slice(0,10);setType("out");dlg.showModal();amt.focus();requestAnimationFrame(function(){updFrom&&updFrom();updTo&&updTo();});}
   document.querySelector(".top .btn-primary").addEventListener("click",open);
   document.querySelector(".actions .act").addEventListener("click",open);
+  document.getElementById("mfab").addEventListener("click",open);
   document.getElementById("txClose").addEventListener("click",function(){dlg.close();});
   document.getElementById("txCancel").addEventListener("click",function(){dlg.close();});
   dlg.addEventListener("click",function(e){if(e.target===dlg)dlg.close();});
@@ -677,7 +709,6 @@ dialog.sheet::backdrop{background:rgba(18,22,10,.38);backdrop-filter:blur(3px)}
     return upd;
   }
   var updFrom=hscroll(document.getElementById("accFrom")), updTo=hscroll(document.getElementById("accTo"));
-  hscroll(document.getElementById("cards"));
   dlg.addEventListener("click",function(){setTimeout(function(){updFrom();updTo();},0);});
 
   // Spending composition
