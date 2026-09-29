@@ -72,6 +72,8 @@ function BerandaPage() {
           currentMonth={data.currentMonth}
           historyPoints={data.historyPoints}
           isHistoryLoading={data.isHistoryLoading}
+          period={period}
+          onPeriodChange={setPeriod}
           fmt={fmt}
         />
 
@@ -95,8 +97,6 @@ function BerandaPage() {
 
         <CashflowCard
           isLoading={data.isLoading}
-          period={period}
-          onPeriodChange={setPeriod}
           cashflow={data.cashflow}
           currentMonth={data.currentMonth}
           fmt={fmt}

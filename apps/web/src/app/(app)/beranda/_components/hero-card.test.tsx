@@ -65,6 +65,8 @@ function renderHero(
       }}
       historyPoints={historyPoints}
       isHistoryLoading={false}
+      period="6M"
+      onPeriodChange={jest.fn()}
       fmt={fmt}
     />,
   );

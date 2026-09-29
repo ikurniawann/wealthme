@@ -11,8 +11,10 @@ import { useLocale } from "@/hooks/use-locale";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { cn } from "@/lib/utils";
 import { formatGoldGrams } from "@/components/consolidated-total-card";
-import type { MoneyFormatters } from "./use-beranda-data";
+import type { BerandaPeriod, MoneyFormatters } from "./use-beranda-data";
 import { NetWorthTrend } from "./net-worth-trend";
+
+const PERIODS: BerandaPeriod[] = ["6M", "12M"];
 
 /**
  * EPIC-026 Wave 8 — `docs/prototype/pages/beranda.html`'s
@@ -30,6 +32,8 @@ export function BerandaHero({
   currentMonth,
   historyPoints,
   isHistoryLoading,
+  period,
+  onPeriodChange,
   fmt,
 }: {
   isLoading: boolean;
@@ -39,6 +43,8 @@ export function BerandaHero({
   currentMonth: DashboardSummaryDto["currentMonth"] | undefined;
   historyPoints: NetWorthHistoryPointDto[];
   isHistoryLoading: boolean;
+  period: BerandaPeriod;
+  onPeriodChange: (next: BerandaPeriod) => void;
   fmt: MoneyFormatters;
 }) {
   const router = useRouter();
@@ -140,6 +146,26 @@ export function BerandaHero({
         </div>
       </div>
 
+      <div className="mb-2 flex justify-end">
+        <div
+          className="segmented"
+          role="tablist"
+          aria-label={t.beranda.periodToggleAriaLabel}
+        >
+          {PERIODS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              role="tab"
+              className="segmented__item"
+              aria-selected={period === p}
+              onClick={() => onPeriodChange(p)}
+            >
+              {p === "12M" ? t.beranda.periodToggle12 : t.beranda.periodToggle6}
+            </button>
+          ))}
+        </div>
+      </div>
       <NetWorthTrend points={historyPoints} isLoading={isHistoryLoading} />
 
       <div className="bento-hero__footer">
