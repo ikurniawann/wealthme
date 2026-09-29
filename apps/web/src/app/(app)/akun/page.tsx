@@ -97,6 +97,14 @@ import type {
   MemberCategoryAllowanceDto,
   Role,
 } from "@wealthme/contracts";
+import {
+  ACCOUNT_TAB_IDS,
+  getAccountTabForSubpage,
+  getInitialAccountTab,
+  notifyAccountTabChange,
+  useAccountTab,
+  type AccountTabId,
+} from "./account-tabs";
 
 type SubPageId =
   | "profil"
@@ -3054,6 +3062,7 @@ export default function AkunPage() {
   const queryClient = useQueryClient();
   const { startTour } = useShell();
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
+  const activeTab = useAccountTab();
   const [crud, setCrud] = useState<CrudModalState | null>(null);
   // EPIC-026 Wave 2 — the members table's Aksi column reuses the exact
   // member controls FamilyBody already had (category-limit + threshold
@@ -3067,6 +3076,26 @@ export default function AkunPage() {
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const myUserId = session?.userId ?? "";
+
+  useEffect(() => {
+    const remembered = window.localStorage.getItem("wealthme-account-tab");
+    const nextTab = getInitialAccountTab(window.location.search, remembered);
+    window.localStorage.setItem("wealthme-account-tab", nextTab);
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") !== nextTab) {
+      params.set("tab", nextTab);
+      router.replace(`/akun?${params.toString()}`, { scroll: false });
+    }
+    notifyAccountTabChange();
+  }, [router]);
+
+  function selectTab(tab: AccountTabId) {
+    window.localStorage.setItem("wealthme-account-tab", tab);
+    notifyAccountTabChange();
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", tab);
+    router.replace(`/akun?${params.toString()}`, { scroll: false });
+  }
 
   const {
     data: me,
@@ -3147,7 +3176,10 @@ export default function AkunPage() {
           .map((w) => w[0]?.toUpperCase() ?? "")
           .join("");
 
-  const open = (id: SubPageId) => setSubpage(id);
+  const open = (id: SubPageId) => {
+    setSubpage(id);
+    selectTab(getAccountTabForSubpage(id));
+  };
   const closeSheet = () => setSubpage(null);
 
   const familyGroupId = session?.familyGroupId ?? null;
@@ -3328,167 +3360,221 @@ export default function AkunPage() {
         </div>
       )}
 
-      {/* 2. 2-col grid: Profil Saya + Group Family */}
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        {/* Profil Saya — read-only list rows */}
-        <SectionCard title={t.akun.menuProfilName}>
-          <div className="divide-y">
-            <div className="flex items-center gap-3 py-3">
-              <span className="text-[17px]">👤</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[12px] text-muted-foreground">
-                  {t.akun.profil.nameLabel}
-                </div>
-                <div className="text-[13.5px] font-semibold text-foreground truncate">
-                  {displayName}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 py-3">
-              <span className="text-[17px]">✉️</span>
-              <div className="min-w-0 flex-1">
-                <div className="text-[12px] text-muted-foreground">
-                  {t.akun.profil.emailLabel}
-                </div>
-                <div className="text-[13.5px] font-semibold text-foreground truncate">
-                  {displayEmail}
-                </div>
-              </div>
-            </div>
-            {profileDetail?.phone && (
-              <div className="flex items-center gap-3 py-3">
-                <span className="text-[17px]">📱</span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] text-muted-foreground">
-                    {t.akun.profil.phoneLabel}
-                  </div>
-                  <div className="text-[13.5px] font-semibold text-foreground">
-                    {profileDetail.phone}
-                  </div>
-                </div>
-              </div>
-            )}
-            {profileDetail?.jobTitle && (
-              <div className="flex items-center gap-3 py-3">
-                <span className="text-[17px]">💼</span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] text-muted-foreground">
-                    {t.akun.profil.jobTitleLabel}
-                  </div>
-                  <div className="text-[13.5px] font-semibold text-foreground">
-                    {profileDetail.jobTitle}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </SectionCard>
-
-        {/* Group Family card — J1 CUT: Kekayaan Keluarga + Rekening Terhubung tiles removed */}
-        <SectionCard title={`👨‍👩‍👧‍👦 ${t.akun.familyGroupCardTitle}`}>
-          {primaryGroup ? (
-            <>
-              <div className="flex items-center gap-3">
-                <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl gradient-wealth text-[20px] text-white font-extrabold">
-                  {(primaryGroup.name ?? "").slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[14px] font-extrabold text-foreground">
-                    {primaryGroup.name}
-                  </div>
-                  <div className="text-[12px] text-muted-foreground">
-                    {primaryGroup.memberCount} {t.akun.memberCountSuffix} ·{" "}
-                    {t.common.roleLabels[primaryGroup.myRole] ??
-                      primaryGroup.myRole}
-                  </div>
-                </div>
-              </div>
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
-                <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                <span>{t.akun.family.adminInfoNote}</span>
-              </div>
-            </>
-          ) : (
-            <div className="py-3 text-[12px] text-muted-foreground">
-              {t.akun.createOrJoinFamilyGroup}
-            </div>
-          )}
-        </SectionCard>
+      <div
+        role="group"
+        aria-label={t.akun.tabs.ariaLabel}
+        className="grid grid-cols-2 gap-1.5 rounded-xl bg-secondary p-1 sm:grid-cols-4"
+      >
+        {ACCOUNT_TAB_IDS.map((tab) => {
+          const active = activeTab === tab;
+          return (
+            <button
+              key={tab}
+              type="button"
+              aria-pressed={active}
+              onClick={() => selectTab(tab)}
+              className={
+                "min-h-11 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors " +
+                (active
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-card/60")
+              }
+            >
+              {t.akun.tabs[tab]}
+            </button>
+          );
+        })}
       </div>
 
-      {/* 3. Anggota Keluarga table */}
-      <FamilyMembersTableCard
-        familyMembers={familyMembers}
-        myUserId={myUserId}
-        displayInitials={displayInitials}
-        displayName={displayName}
-        displayEmail={displayEmail}
-        isElevated={isElevated}
-        isOwner={primaryGroup?.myRole === "owner"}
-        onCategoryLimit={setCategoryLimitMember}
-        onThreshold={setThresholdMember}
-      />
+      {/* 2. 2-col grid: Profil Saya + Group Family */}
+      {activeTab === "profil" && (
+        <>
+          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+            {/* Profil Saya — read-only list rows */}
+            <SectionCard title={t.akun.menuProfilName}>
+              <div className="divide-y">
+                <div className="flex items-center gap-3 py-3">
+                  <span className="text-[17px]">👤</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] text-muted-foreground">
+                      {t.akun.profil.nameLabel}
+                    </div>
+                    <div className="text-[13.5px] font-semibold text-foreground truncate">
+                      {displayName}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 py-3">
+                  <span className="text-[17px]">✉️</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[12px] text-muted-foreground">
+                      {t.akun.profil.emailLabel}
+                    </div>
+                    <div className="text-[13.5px] font-semibold text-foreground truncate">
+                      {displayEmail}
+                    </div>
+                  </div>
+                </div>
+                {profileDetail?.phone && (
+                  <div className="flex items-center gap-3 py-3">
+                    <span className="text-[17px]">📱</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] text-muted-foreground">
+                        {t.akun.profil.phoneLabel}
+                      </div>
+                      <div className="text-[13.5px] font-semibold text-foreground">
+                        {profileDetail.phone}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {profileDetail?.jobTitle && (
+                  <div className="flex items-center gap-3 py-3">
+                    <span className="text-[17px]">💼</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[12px] text-muted-foreground">
+                        {t.akun.profil.jobTitleLabel}
+                      </div>
+                      <div className="text-[13.5px] font-semibold text-foreground">
+                        {profileDetail.jobTitle}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </SectionCard>
+
+            {/* Group Family card — J1 CUT: Kekayaan Keluarga + Rekening Terhubung tiles removed */}
+            <SectionCard title={`👨‍👩‍👧‍👦 ${t.akun.familyGroupCardTitle}`}>
+              {primaryGroup ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl gradient-wealth text-[20px] text-white font-extrabold">
+                      {(primaryGroup.name ?? "").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-extrabold text-foreground">
+                        {primaryGroup.name}
+                      </div>
+                      <div className="text-[12px] text-muted-foreground">
+                        {primaryGroup.memberCount} {t.akun.memberCountSuffix} ·{" "}
+                        {t.common.roleLabels[primaryGroup.myRole] ??
+                          primaryGroup.myRole}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
+                    <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                    <span>{t.akun.family.adminInfoNote}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="py-3 text-[12px] text-muted-foreground">
+                  {t.akun.createOrJoinFamilyGroup}
+                </div>
+              )}
+            </SectionCard>
+          </div>
+
+          {/* 3. Anggota Keluarga table */}
+          <FamilyMembersTableCard
+            familyMembers={familyMembers}
+            myUserId={myUserId}
+            displayInitials={displayInitials}
+            displayName={displayName}
+            displayEmail={displayEmail}
+            isElevated={isElevated}
+            isOwner={primaryGroup?.myRole === "owner"}
+            onCategoryLimit={setCategoryLimitMember}
+            onThreshold={setThresholdMember}
+          />
+        </>
+      )}
 
       {/* 4. Keamanan — inline KeamananBody */}
-      <SectionCard title={t.akun.menuKeamananName}>
-        <KeamananBody />
-      </SectionCard>
+      {activeTab === "keamanan" && (
+        <SectionCard title={t.akun.menuKeamananName}>
+          <KeamananBody />
+        </SectionCard>
+      )}
 
       {/* 5. Pengaturan Umum — inline PengaturanBody */}
-      <SectionCard title={t.akun.menuPengaturanName}>
-        <PengaturanBody />
-      </SectionCard>
+      {activeTab === "preferensi" && (
+        <SectionCard title={t.akun.menuPengaturanName}>
+          <PengaturanBody />
+        </SectionCard>
+      )}
 
       {/* Extra non-prototype features as a compact menu section */}
-      <SectionCard title={t.akun.sectionBantuan}>
-        <MenuRow
-          icon={<Landmark className="size-4" style={{ color: "#1D4ED8" }} />}
-          iconBg="#DBEAFE"
-          name={t.akun.menuKoneksiName}
-          sub={t.akun.menuKoneksiSub}
-          onClick={() => open("koneksi")}
-        />
-        <MenuRow
-          icon={<Bell className="size-4 text-warning" />}
-          iconBg="#FEF9C3"
-          name={t.akun.menuNotifName}
-          sub={t.akun.menuNotifSub}
-          onClick={() => open("notif-setting")}
-        />
-        <MenuRow
-          icon={<ShieldHalf className="size-4 text-brand-purple" />}
-          iconBg="#EDE9FE"
-          name={t.akun.menuPrivasiName}
-          sub={t.akun.menuPrivasiSub}
-          onClick={() => open("privasi")}
-        />
-        <MenuRow
-          icon={<CircleQuestionMark className="size-4 text-destructive" />}
-          iconBg="#FEE2E2"
-          name={t.akun.menuBantuanName}
-          sub={t.akun.menuBantuanSub}
-          onClick={() => open("bantuan")}
-        />
-        <MenuRow
-          icon={<Headset className="size-4 text-success" />}
-          iconBg="#DCFCE7"
-          name={t.akun.menuHubungiName}
-          sub={t.akun.menuHubungiSub}
-          onClick={() => open("hubungi")}
-        />
-        <MenuRow
-          icon={<Info className="size-4 text-muted-foreground" />}
-          iconBg="#F3F4F6"
-          name={t.akun.menuTentangName}
-          sub={t.akun.menuTentangSub}
-          right={
-            <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-              v1.0.0
-            </span>
+      {(activeTab === "preferensi" || activeTab === "bantuan") && (
+        <SectionCard
+          title={
+            activeTab === "preferensi"
+              ? t.akun.sectionPengaturan
+              : t.akun.sectionBantuan
           }
-          onClick={() => open("tentang")}
-        />
-      </SectionCard>
+        >
+          {activeTab === "preferensi" && (
+            <>
+              <MenuRow
+                icon={
+                  <Landmark className="size-4" style={{ color: "#1D4ED8" }} />
+                }
+                iconBg="#DBEAFE"
+                name={t.akun.menuKoneksiName}
+                sub={t.akun.menuKoneksiSub}
+                onClick={() => open("koneksi")}
+              />
+              <MenuRow
+                icon={<Bell className="size-4 text-warning" />}
+                iconBg="#FEF9C3"
+                name={t.akun.menuNotifName}
+                sub={t.akun.menuNotifSub}
+                onClick={() => open("notif-setting")}
+              />
+              <MenuRow
+                icon={<ShieldHalf className="size-4 text-brand-purple" />}
+                iconBg="#EDE9FE"
+                name={t.akun.menuPrivasiName}
+                sub={t.akun.menuPrivasiSub}
+                onClick={() => open("privasi")}
+              />
+            </>
+          )}
+          {activeTab === "bantuan" && (
+            <>
+              <MenuRow
+                icon={
+                  <CircleQuestionMark className="size-4 text-destructive" />
+                }
+                iconBg="#FEE2E2"
+                name={t.akun.menuBantuanName}
+                sub={t.akun.menuBantuanSub}
+                onClick={() => open("bantuan")}
+              />
+              <MenuRow
+                icon={<Headset className="size-4 text-success" />}
+                iconBg="#DCFCE7"
+                name={t.akun.menuHubungiName}
+                sub={t.akun.menuHubungiSub}
+                onClick={() => open("hubungi")}
+              />
+              <MenuRow
+                icon={<Info className="size-4 text-muted-foreground" />}
+                iconBg="#F3F4F6"
+                name={t.akun.menuTentangName}
+                sub={t.akun.menuTentangSub}
+                right={
+                  <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+                    v1.0.0
+                  </span>
+                }
+                onClick={() => open("tentang")}
+              />
+            </>
+          )}
+        </SectionCard>
+      )}
 
       <button
         onClick={() => {

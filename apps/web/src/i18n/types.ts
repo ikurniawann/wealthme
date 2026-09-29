@@ -705,6 +705,13 @@ export type I18nDictionary = {
   };
   /** EPIC-018 A2 — `/akun` page and sub-page copy. */
   akun: {
+    tabs: {
+      profil: string;
+      keamanan: string;
+      preferensi: string;
+      bantuan: string;
+      ariaLabel: string;
+    };
     heroMemberSince: string;
     loadProfileError: string;
     familyGroupCardTitle: string;

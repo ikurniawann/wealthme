@@ -422,6 +422,13 @@ export const id = {
     familyReportsRowNoteLocked: "Hanya Master dan Co-Master.",
   },
   akun: {
+    tabs: {
+      profil: "Profil",
+      keamanan: "Keamanan",
+      preferensi: "Preferensi",
+      bantuan: "Bantuan",
+      ariaLabel: "Bagian akun",
+    },
     heroMemberSince: "Member sejak Januari 2024",
     loadProfileError: "Gagal memuat profil. Silakan refresh halaman.",
     familyGroupCardTitle: "Group Family",

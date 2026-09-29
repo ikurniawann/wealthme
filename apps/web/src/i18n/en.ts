@@ -419,6 +419,13 @@ export const en = {
     familyReportsRowNoteLocked: "Master and Co-Master only.",
   },
   akun: {
+    tabs: {
+      profil: "Profile",
+      keamanan: "Security",
+      preferensi: "Preferences",
+      bantuan: "Help",
+      ariaLabel: "Account sections",
+    },
     heroMemberSince: "Member since January 2024",
     loadProfileError: "Failed to load profile. Please refresh the page.",
     familyGroupCardTitle: "Family Group",
