@@ -3080,7 +3080,7 @@ export default function RekonsiliasiPage() {
                                           });
                                         }
                                       }}
-                                      className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                                      className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60 [@media(pointer:coarse)]:min-h-11"
                                     >
                                       {t.rekonsiliasi.confirmButton}
                                     </button>
@@ -3099,7 +3099,7 @@ export default function RekonsiliasiPage() {
                                           entryId: entry.id,
                                         })
                                       }
-                                      className="flex items-center gap-1 rounded-md border border-primary/40 bg-accent/40 px-2.5 py-1 text-[11px] font-bold text-primary-strong transition-colors hover:bg-accent disabled:opacity-60"
+                                      className="flex items-center gap-1 rounded-md border border-primary/40 bg-accent/40 px-2.5 py-1 text-[11px] font-bold text-primary-strong transition-colors hover:bg-accent disabled:opacity-60 [@media(pointer:coarse)]:min-h-11"
                                     >
                                       <Plus className="size-3" />
                                       {t.rekonsiliasi.importEntryButton}
@@ -3110,7 +3110,7 @@ export default function RekonsiliasiPage() {
                                       type="button"
                                       aria-label={`${t.rekonsiliasi.splitButtonAriaLabelPrefix} ${entry.description}`}
                                       onClick={() => setSplitEntryTarget(entry)}
-                                      className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent"
+                                      className="flex items-center gap-1 rounded-md border px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-accent [@media(pointer:coarse)]:min-h-11"
                                     >
                                       <Scissors className="size-3" />
                                       {t.rekonsiliasi.splitButton}
@@ -3120,7 +3120,7 @@ export default function RekonsiliasiPage() {
                                     type="button"
                                     aria-label={`${t.rekonsiliasi.entryDetailAriaLabelPrefix} ${entry.description}, ${amtDisplay}`}
                                     onClick={() => setDetailEntry(entry)}
-                                    className="rounded-md px-2.5 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-accent"
+                                    className="rounded-md px-2.5 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:bg-accent [@media(pointer:coarse)]:min-h-11"
                                   >
                                     Detail
                                   </button>
