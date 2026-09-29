@@ -8,10 +8,14 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  Max,
   MaxLength,
 } from "class-validator";
 
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
+// Hardening audit (validation, MEDIUM) — mirrors create-transaction.dto.ts.
+const MAX_TRANSACTION_AMOUNT = 999_999_999_999;
 
 export class UpdateTransactionDto {
   @ApiPropertyOptional({ type: String, description: "Account UUID" })
@@ -40,6 +44,7 @@ export class UpdateTransactionDto {
   })
   @IsInt()
   @IsPositive()
+  @Max(MAX_TRANSACTION_AMOUNT)
   @IsOptional()
   amount?: number;
 

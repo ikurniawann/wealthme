@@ -105,7 +105,7 @@ it("no record → the noRecord hint and no PPh OP figure", async () => {
   render(<AnnualSummary taxYear={2026} />);
   expect(
     await screen.findByText(
-      "Belum ada catatan PPh — hitung dan simpan di kalkulator di atas.",
+      "Belum ada catatan PPh, hitung dan simpan di kalkulator di atas.",
     ),
   ).toBeInTheDocument();
   expect(screen.getByText("186 hari lagi")).toBeInTheDocument();

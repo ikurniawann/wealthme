@@ -311,20 +311,22 @@ function GoalCard({
               type="button"
               onClick={() => onContribute(goal)}
               aria-label={`${t.tujuan.contributeButtonAriaPrefix}${goal.name}`}
-              className="flex items-center justify-center gap-1.5 rounded-[7px] border border-primary/30 bg-accent px-3 py-[7px] text-[11px] font-semibold text-primary transition-colors hover:bg-accent/70"
+              className="flex items-center justify-center gap-1.5 rounded-[7px] border border-primary/30 bg-accent px-3 py-[7px] text-[11px] font-semibold text-primary transition-colors hover:bg-accent/70 [@media(pointer:coarse)]:min-h-11"
             >
               <Wallet className="size-[13px]" aria-hidden="true" />{" "}
               {t.tujuan.contributeButton}
             </button>
             <button
+              type="button"
               onClick={() => onEdit(goal)}
-              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent"
+              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold transition-colors hover:bg-accent [@media(pointer:coarse)]:min-h-11"
             >
               <Pencil className="size-[13px]" /> {t.tujuan.editButton}
             </button>
             <button
+              type="button"
               onClick={() => onDelete(goal)}
-              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/5"
+              className="flex items-center justify-center gap-1.5 rounded-[7px] border px-3 py-[7px] text-[11px] font-semibold text-destructive transition-colors hover:bg-destructive/5 [@media(pointer:coarse)]:min-h-11"
             >
               <Trash2 className="size-[13px]" /> {t.tujuan.deleteButton}
             </button>

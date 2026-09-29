@@ -2,14 +2,19 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { InheritanceVisibility } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
   IsEnum,
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
   ValidateNested,
 } from "class-validator";
+
+// Hardening audit (validation, MEDIUM/LOW) — matches transactions/budgets.
+const MAX_INHERITANCE_VALUE = 999_999_999_999;
 
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
@@ -32,6 +37,7 @@ export class CreateInheritanceAssetDto {
   @ApiProperty({ description: "Estimated value in smallest currency unit" })
   @IsInt()
   @Min(0)
+  @Max(MAX_INHERITANCE_VALUE)
   estimatedValue!: number;
 
   @ApiPropertyOptional({ default: "IDR" })
@@ -43,6 +49,7 @@ export class CreateInheritanceAssetDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   notes?: string;
 
   @ApiPropertyOptional({ enum: InheritanceVisibility })
@@ -60,6 +67,7 @@ export class CreateInheritanceAssetDto {
 
   @ApiPropertyOptional({ type: [CreateHeirDto] })
   @IsOptional()
+  @ArrayMaxSize(20)
   @ValidateNested({ each: true })
   @Type(() => CreateHeirDto)
   heirs?: CreateHeirDto[];

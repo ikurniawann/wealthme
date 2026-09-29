@@ -36,13 +36,16 @@ export function RowActions({
   const deleteLabel = disabled && disabledLabel ? disabledLabel : "Hapus";
   return (
     <div className={`flex shrink-0 gap-[5px] ${className ?? ""}`}>
+      {/* Hardening batch G3 (P1) — 28px misses the 44px WCAG 2.2 AA touch
+          target; the `[@media(pointer:coarse)]:` variant bumps only real
+          touchscreens, leaving mouse/trackpad desktop sizing untouched. */}
       <button
         type="button"
         aria-label={editLabel}
         title={editLabel}
         onClick={handle(onEdit)}
         disabled={disabled}
-        className="flex size-7 items-center justify-center rounded-[7px] bg-accent text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent disabled:hover:text-primary"
+        className="flex size-7 items-center justify-center rounded-[7px] bg-accent text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent disabled:hover:text-primary [@media(pointer:coarse)]:size-11"
       >
         <Pencil className="size-3" />
       </button>
@@ -52,7 +55,7 @@ export function RowActions({
         title={deleteLabel}
         onClick={handle(onDelete)}
         disabled={disabled}
-        className="flex size-7 items-center justify-center rounded-[7px] bg-destructive/10 text-destructive transition-colors hover:bg-destructive hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-destructive/10 disabled:hover:text-destructive"
+        className="flex size-7 items-center justify-center rounded-[7px] bg-destructive/10 text-destructive transition-colors hover:bg-destructive hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-destructive/10 disabled:hover:text-destructive [@media(pointer:coarse)]:size-11"
       >
         <Trash2 className="size-3" />
       </button>

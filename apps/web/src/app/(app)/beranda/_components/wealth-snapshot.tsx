@@ -53,8 +53,8 @@ export function WealthSnapshot({
             <span className="snapshot-row__icon">
               <Droplets className="size-4" aria-hidden="true" />
             </span>
-            <span className="snapshot-row__body">
-              <span className="snapshot-row__label">
+            <span className="snapshot-row__body min-w-0">
+              <span className="snapshot-row__label truncate">
                 {t.beranda.liquidAssets} ({liquidPct}%)
               </span>
               <span className="snapshot-row__value mono">
@@ -73,8 +73,12 @@ export function WealthSnapshot({
             >
               <Landmark className="size-4" aria-hidden="true" />
             </span>
-            <span className="snapshot-row__body">
-              <span className="snapshot-row__label">
+            {/* Hardening batch G5 — "Aset Non-Likuid" truncated at 390px
+                (the longest label + badge together overflowed the row);
+                `min-w-0` lets this flex child actually shrink instead of
+                forcing the label to clip under the badge. */}
+            <span className="snapshot-row__body min-w-0">
+              <span className="snapshot-row__label truncate">
                 {t.beranda.nonLiquidAssets} ({nonLiquidPct}%)
               </span>
               <span className="snapshot-row__value mono">

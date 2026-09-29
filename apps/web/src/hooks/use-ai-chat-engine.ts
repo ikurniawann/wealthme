@@ -16,6 +16,13 @@ import { useAiConversations } from "@/hooks/use-ai-conversations";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+// Hardening audit (errors) — the stream has an AbortController for
+// unmount/"Mulai Baru", but nothing bounded how long it waits between SSE
+// chunks. A server that opens the stream then stalls (no more bytes, no
+// close) left isStreaming true and the send box disabled indefinitely.
+// Reset on every chunk; fires only when the server truly goes silent.
+const STALL_TIMEOUT_MS = 30000;
+
 export type AiChatMsg = {
   id: number;
   role: "user" | "assistant";
@@ -83,6 +90,10 @@ export function useAiChatEngine() {
   const idRef = React.useRef(1);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const abortRef = React.useRef<AbortController | null>(null);
+  const stallTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const stalledRef = React.useRef(false);
 
   React.useEffect(() => {
     const el = scrollRef.current;
@@ -91,9 +102,18 @@ export function useAiChatEngine() {
 
   React.useEffect(() => {
     return () => {
+      if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
       abortRef.current?.abort();
     };
   }, []);
+
+  function armStallTimer(ctrl: AbortController) {
+    if (stallTimerRef.current) clearTimeout(stallTimerRef.current);
+    stallTimerRef.current = setTimeout(() => {
+      stalledRef.current = true;
+      ctrl.abort();
+    }, STALL_TIMEOUT_MS);
+  }
 
   async function send(userText: string) {
     const trimmed = userText.trim();
@@ -114,6 +134,8 @@ export function useAiChatEngine() {
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
+    stalledRef.current = false;
+    armStallTimer(ctrl);
 
     try {
       const res = await fetch(
@@ -147,6 +169,7 @@ export function useAiChatEngine() {
 
       for (;;) {
         const { done, value } = await reader.read();
+        armStallTimer(ctrl);
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
@@ -201,13 +224,20 @@ export function useAiChatEngine() {
         }
       }
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") {
+        if (!stalledRef.current) return;
+        stalledRef.current = false;
+      }
       setMessages((prev) =>
         prev.map((m) =>
           m.id === aiMsgId ? { ...m, text: t.ai.errorConnection } : m,
         ),
       );
     } finally {
+      if (stallTimerRef.current) {
+        clearTimeout(stallTimerRef.current);
+        stallTimerRef.current = null;
+      }
       setIsStreaming(false);
       abortRef.current = null;
     }

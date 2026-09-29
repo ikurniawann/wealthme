@@ -28,6 +28,7 @@ import {
   useMoneyField,
   formatMoneyTyping,
 } from "@/components/money";
+import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { parseRupiah, formatRupiah } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
@@ -84,6 +85,7 @@ function computePct(split: SplitBillDto): number {
 
 export default function SplitBillPage() {
   const { t, locale } = useLocale();
+  const { handleError } = useApiError();
   const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -286,9 +288,7 @@ export default function SplitBillPage() {
       resetCreateForm();
       setSelectedSplit(created);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.splitbill.toastCreateFailedDefault);
-    },
+    onError: handleError,
   });
 
   // EPIC-023 F3 (D21) — "confirm" (renamed from "settle"): posts a REAL
@@ -347,9 +347,7 @@ export default function SplitBillPage() {
       });
       toast.success(t.splitbill.toastSettled);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.splitbill.toastSettleFailedDefault);
-    },
+    onError: handleError,
   });
 
   // EPIC-023 F3 (D21) — "revocable": kills every participant's share link
@@ -369,9 +367,7 @@ export default function SplitBillPage() {
       );
       toast.success(t.splitbill.toastRevoked);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.splitbill.toastRevokeFailedDefault);
-    },
+    onError: handleError,
   });
 
   // Group F (task F3) — repairs a bill whose payoutAccountId is null or

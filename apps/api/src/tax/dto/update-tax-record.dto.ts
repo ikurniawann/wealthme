@@ -25,19 +25,22 @@ export class UpdateTaxRecordDto {
   @ApiPropertyOptional({ description: "Gross income as numeric string" })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "grossIncome must be a numeric string" })
+  // Hardening audit (validation, HIGH) — was a raw `/^\d+$/` with no digit
+  // cap, unlike create-tax-record.dto.ts's `TAX_DIGITS`; an unbounded PATCH
+  // value can overflow the BigInt column.
+  @Matches(TAX_DIGITS, { message: "grossIncome must be a numeric string" })
   grossIncome?: string;
 
   @ApiPropertyOptional({ description: "PTKP amount as numeric string" })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "ptkp must be a numeric string" })
+  @Matches(TAX_DIGITS, { message: "ptkp must be a numeric string" })
   ptkp?: string;
 
   @ApiPropertyOptional({ description: "Net tax as numeric string" })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "netTax must be a numeric string" })
+  @Matches(TAX_DIGITS, { message: "netTax must be a numeric string" })
   netTax?: string;
 
   @ApiPropertyOptional({ enum: SptStatus })

@@ -106,6 +106,14 @@ export function AddMemberDialog({
   const [relationship, setRelationship] = useState<MemberRelationship | "">("");
   const [accessRoleId, setAccessRoleId] = useState("");
   const isIstriCoMaster = role === "spouse";
+  // Hardening batch G3 (P1) — "Buat Akun" used to return silently when a
+  // required field was empty: no inline error, no aria-invalid, no toast.
+  // Mirrors reset-password-dialog.tsx's inline-error pattern.
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: boolean;
+    username?: boolean;
+    password?: boolean;
+  }>({});
   // FIX 2 (HIGH, react-reviewer + security-reviewer) — show/hide toggle so
   // the head can verify the initial password before handing it over, same
   // pattern as login/page.tsx, without it being permanently plaintext.
@@ -187,7 +195,14 @@ export function AddMemberDialog({
     const username = usernameRef.current?.value?.trim() ?? "";
     const email = emailRef.current?.value?.trim() ?? "";
     const initialPassword = passwordRef.current?.value ?? "";
-    if (!name || !username || !initialPassword || !familyGroupId) return;
+    const errors = {
+      name: !name,
+      username: !username,
+      password: !initialPassword,
+    };
+    setFieldErrors(errors);
+    if (errors.name || errors.username || errors.password) return;
+    if (!familyGroupId) return;
     // EPIC-024 A1 — the istri co-master path always sends
     // relationship: "istri" regardless of what the (disabled) relationship
     // picker shows, so the role/relationship pairing the API requires is
@@ -218,6 +233,7 @@ export function AddMemberDialog({
       // IAM copy-credentials — never let the password outlive this dialog.
       setCredentials(null);
       setShowCredPassword(false);
+      setFieldErrors({});
     }
     onOpenChange(next);
   }
@@ -329,7 +345,20 @@ export function AddMemberDialog({
                 className="input"
                 placeholder={t.akun.addDependant.namePlaceholder}
                 type="text"
+                aria-invalid={fieldErrors.name}
+                aria-describedby={
+                  fieldErrors.name ? `${fieldId}-name-error` : undefined
+                }
+                onChange={() => setFieldErrors((e) => ({ ...e, name: false }))}
               />
+              {fieldErrors.name && (
+                <p
+                  id={`${fieldId}-name-error`}
+                  className="hint text-destructive"
+                >
+                  {t.akun.addDependant.nameRequiredError}
+                </p>
+              )}
             </div>
             <div className="field">
               <label className="label" htmlFor={`${fieldId}-username`}>
@@ -344,11 +373,28 @@ export function AddMemberDialog({
                   type="text"
                   autoCapitalize="none"
                   autoCorrect="off"
+                  aria-invalid={fieldErrors.username}
+                  aria-describedby={
+                    fieldErrors.username
+                      ? `${fieldId}-username-error`
+                      : undefined
+                  }
+                  onChange={() =>
+                    setFieldErrors((e) => ({ ...e, username: false }))
+                  }
                 />
                 <span className="mono grid shrink-0 place-items-center rounded-r-[9px] border border-l-0 bg-secondary px-2.5 text-[12.5px] text-muted-foreground">
                   @{handle ?? "…"}
                 </span>
               </div>
+              {fieldErrors.username && (
+                <p
+                  id={`${fieldId}-username-error`}
+                  className="hint text-destructive"
+                >
+                  {t.akun.addDependant.usernameRequiredError}
+                </p>
+              )}
             </div>
             <div className="field">
               <label className="label" htmlFor={`${fieldId}-password`}>
@@ -362,6 +408,15 @@ export function AddMemberDialog({
                   placeholder={t.akun.addDependant.passwordPlaceholder}
                   type={showPassword ? "text" : "password"}
                   autoComplete="new-password"
+                  aria-invalid={fieldErrors.password}
+                  aria-describedby={
+                    fieldErrors.password
+                      ? `${fieldId}-password-error`
+                      : undefined
+                  }
+                  onChange={() =>
+                    setFieldErrors((e) => ({ ...e, password: false }))
+                  }
                 />
                 <button
                   type="button"
@@ -385,6 +440,14 @@ export function AddMemberDialog({
                   )}
                 </button>
               </div>
+              {fieldErrors.password && (
+                <p
+                  id={`${fieldId}-password-error`}
+                  className="hint text-destructive"
+                >
+                  {t.akun.addDependant.passwordRequiredError}
+                </p>
+              )}
             </div>
             <div className="field">
               <div className="flex items-center gap-1">

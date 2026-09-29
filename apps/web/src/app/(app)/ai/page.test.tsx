@@ -123,6 +123,28 @@ function chatCalls(fetchMock: jest.Mock) {
   ) as [string, { body: string }][];
 }
 
+/**
+ * G8 — the FIRST message of a fresh conversation now goes through
+ * AIChatCard's empty state (a typed-placeholder display that only becomes a
+ * real `<textarea>` once clicked, and a "Kirim pesan"-labelled send button),
+ * not the classic `<input>` + "Kirim" the page falls back to once
+ * `messages.length > 1`. Every send AFTER the first one in the same test
+ * still uses that classic input directly.
+ */
+async function sendFirstMessage(
+  user: ReturnType<typeof userEvent.setup>,
+  text: string,
+) {
+  await user.click(screen.getByText(idDict.ai.chatCard.placeholder));
+  await user.type(
+    screen.getByPlaceholderText(idDict.ai.chatCard.placeholder),
+    text,
+  );
+  await user.click(
+    screen.getByRole("button", { name: idDict.ai.chatCard.sendAriaLabel }),
+  );
+}
+
 describe("AiPage — truncation notice rendering", () => {
   const originalFetch = global.fetch;
 
@@ -161,9 +183,7 @@ describe("AiPage — truncation notice rendering", () => {
 
     renderAiPage();
 
-    const input = screen.getByPlaceholderText(/./); // the chat input field
-    await user.type(input, "Halo");
-    await user.click(screen.getByRole("button", { name: "Kirim" }));
+    await sendFirstMessage(user, "Halo");
 
     const notice = await screen.findByText(TRUNCATED_NOTICE);
     expect(notice).toBeInTheDocument();
@@ -189,9 +209,7 @@ describe("AiPage — truncation notice rendering", () => {
 
     renderAiPage();
 
-    const input = screen.getByPlaceholderText(/./);
-    await user.type(input, "Halo");
-    await user.click(screen.getByRole("button", { name: "Kirim" }));
+    await sendFirstMessage(user, "Halo");
 
     await screen.findByText("Complete answer");
     await waitFor(() => {
@@ -243,8 +261,7 @@ describe("AiPage — markdown rendering of assistant answers", () => {
       ) as unknown as typeof fetch;
 
     renderAiPage();
-    await user.type(screen.getByPlaceholderText(/./), "Halo");
-    await user.click(screen.getByRole("button", { name: "Kirim" }));
+    await sendFirstMessage(user, "Halo");
   }
 
   it("turns headings, bold and bullets into elements instead of printing their syntax", async () => {
@@ -351,8 +368,7 @@ describe("AiPage — saved session history", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     renderAiPage();
-    await user.type(screen.getByPlaceholderText(/./), "Halo");
-    await user.click(screen.getByRole("button", { name: "Kirim" }));
+    await sendFirstMessage(user, "Halo");
     await screen.findByText("Jawaban");
 
     // First turn carries no conversationId — the server creates the session.
@@ -402,8 +418,7 @@ describe("AiPage — saved session history", () => {
     global.fetch = fetchMock as unknown as typeof fetch;
 
     renderAiPage();
-    await user.type(screen.getByPlaceholderText(/./), "Halo");
-    await user.click(screen.getByRole("button", { name: "Kirim" }));
+    await sendFirstMessage(user, "Halo");
     await screen.findByText("Jawaban");
 
     await user.click(
@@ -418,9 +433,10 @@ describe("AiPage — saved session history", () => {
     expect(screen.getByText("Sesi lama")).toBeInTheDocument();
     expect(deleteConversation).not.toHaveBeenCalled();
 
-    // ...and the next turn starts a NEW session rather than appending to it.
-    await user.type(screen.getByPlaceholderText(/./), "Pertanyaan baru");
-    await user.click(screen.getByRole("button", { name: "Kirim" }));
+    // ...and the next turn starts a NEW session rather than appending to it
+    // ("Mulai Baru" reset messages back to 1, so this is AIChatCard's empty
+    // state again, not the classic input).
+    await sendFirstMessage(user, "Pertanyaan baru");
     await waitFor(() => expect(chatCalls(fetchMock)).toHaveLength(2));
     const body = JSON.parse(chatCalls(fetchMock)[1][1].body) as {
       conversationId?: string;

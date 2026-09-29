@@ -46,19 +46,42 @@ async function handleSessionExpired(): Promise<void> {
   window.location.href = "/login";
 }
 
+// Hardening audit (errors) — apiFetch never bounded how long it would wait,
+// so a hung backend/dead connection left every caller's isSaving/isPending
+// flag true forever (a real UI freeze, not just a slow one). A caller-passed
+// `signal` still wins; this only fills in when none is given.
+const DEFAULT_TIMEOUT_MS = 15000;
+
 export async function apiFetch<T>(
   path: string,
   options?: RequestInit & { token?: string },
 ): Promise<T> {
-  const { token, ...rest } = options ?? {};
-  const res = await fetch(`${API_URL}${path}`, {
-    ...rest,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...rest.headers,
-    },
-  });
+  const { token, signal, ...rest } = options ?? {};
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...rest,
+      signal: signal ?? AbortSignal.timeout(DEFAULT_TIMEOUT_MS),
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...rest.headers,
+      },
+    });
+  } catch (err) {
+    // `AbortSignal.timeout()` rejects fetch with a DOMException named
+    // "TimeoutError" — distinct from a caller-triggered "AbortError" — so
+    // `useApiError` can show a dedicated "waktu habis" message instead of
+    // the generic fallback.
+    if (err instanceof DOMException && err.name === "TimeoutError") {
+      throw {
+        status: 0,
+        message: "Request timed out",
+        code: "TIMEOUT",
+      } satisfies ApiError;
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     const body = (await res.json().catch(() => ({}))) as {

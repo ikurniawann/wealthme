@@ -6,6 +6,6 @@ export class PaymentPreviewQueryDto {
     description: "Payment amount to preview as a numeric string (whole rupiah)",
   })
   @IsString()
-  @Matches(/^\d+$/, { message: "amount must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "amount must be a numeric string" })
   amount!: string;
 }

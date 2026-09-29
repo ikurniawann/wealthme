@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -61,6 +62,7 @@ export function RoleEditorDialog({
   token,
 }: RoleEditorDialogProps) {
   const { t } = useLocale();
+  const { handleError } = useApiError();
   const fieldId = useId();
   const queryClient = useQueryClient();
   const editing = target !== null && target !== "new" ? target : null;
@@ -109,8 +111,7 @@ export function RoleEditorDialog({
       });
       onClose();
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal menyimpan role"),
+    onError: handleError,
   });
 
   const applyTemplate = (key: TemplateKey) => {

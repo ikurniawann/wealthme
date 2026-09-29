@@ -672,6 +672,75 @@ describe("AuthService", () => {
         });
       });
     });
+
+    describe("[Privacy Preferences]", () => {
+      it("sanitizes privacyPrefs before persisting: unknown keys dropped, known keys kept", async () => {
+        // Arrange — dto includes a bogus key alongside a real one
+        const updateDto: UpdateProfileDto = {
+          privacyPrefs: {
+            hideBalance: true,
+            bogus: 1 as unknown as boolean,
+          },
+        };
+        const updated = {
+          ...baseUser,
+          privacyPrefs: {
+            hideBalance: true,
+            showDecimal: true,
+            weeklySummary: true,
+            hideFromFamily: false,
+            screenshotProtect: true,
+            sendAnalytics: true,
+            aiPersonalization: true,
+          },
+        };
+        mockPrisma.user.update.mockResolvedValue(updated);
+
+        // Act
+        const result = await service.updateProfile("user-1", updateDto);
+
+        // Assert — Prisma is called with exactly the 7 sanitized keys,
+        // hideBalance true, and no "bogus" key ever reaches the database.
+        const [callArg] = mockPrisma.user.update.mock.calls[0] as [
+          { data: Record<string, unknown> },
+        ];
+        const sentPrefs = callArg.data.privacyPrefs as Record<string, boolean>;
+        expect(Object.keys(sentPrefs).sort()).toEqual(
+          [
+            "hideBalance",
+            "showDecimal",
+            "weeklySummary",
+            "hideFromFamily",
+            "screenshotProtect",
+            "sendAnalytics",
+            "aiPersonalization",
+          ].sort(),
+        );
+        expect(sentPrefs.hideBalance).toBe(true);
+        expect(sentPrefs).not.toHaveProperty("bogus");
+        expect(result.privacyPrefs).toEqual(updated.privacyPrefs);
+      });
+
+      it("returns all 7 keys defaulted when the stored value is null", async () => {
+        // Arrange — a user whose privacyPrefs column has never been set
+        const userWithNullPrefs = { ...baseUser, privacyPrefs: null };
+        mockPrisma.user.findUniqueOrThrow.mockResolvedValue(userWithNullPrefs);
+
+        // Act
+        const result = await service.getProfileDetail("user-1");
+
+        // Assert
+        expect(result.privacyPrefs).toEqual({
+          hideBalance: false,
+          showDecimal: true,
+          weeklySummary: true,
+          hideFromFamily: false,
+          screenshotProtect: true,
+          sendAnalytics: true,
+          aiPersonalization: true,
+        });
+      });
+    });
   });
 
   describe("changePassword()", () => {

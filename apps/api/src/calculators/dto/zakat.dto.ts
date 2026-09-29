@@ -1,25 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { IsBoolean, IsNumber, IsOptional, Min } from "class-validator";
+import { IsBoolean, IsNumber, IsOptional, Max, Min } from "class-validator";
 
+import { MAX_TAX_AMOUNT } from "./pph21.dto";
+
+// Hardening audit (validation, MEDIUM) — public `@Public` endpoint with
+// `@Min(0)` and no `@Max`, unlike pph21.dto.ts. Reuses its MAX_TAX_AMOUNT.
 export class ZakatRequestDto {
   @ApiProperty({ description: "Total cash holdings (IDR)" })
   @IsNumber()
   @Min(0)
+  @Max(MAX_TAX_AMOUNT)
   cash!: number;
 
   @ApiProperty({ description: "Total investment value (IDR)" })
   @IsNumber()
   @Min(0)
+  @Max(MAX_TAX_AMOUNT)
   investments!: number;
 
   @ApiProperty({ description: "Total gold value (IDR)" })
   @IsNumber()
   @Min(0)
+  @Max(MAX_TAX_AMOUNT)
   gold!: number;
 
   @ApiProperty({ description: "Total short-term / due liabilities (IDR)" })
   @IsNumber()
   @Min(0)
+  @Max(MAX_TAX_AMOUNT)
   liabilities!: number;
 
   @ApiProperty({
@@ -36,6 +44,7 @@ export class ZakatRequestDto {
   @IsOptional()
   @IsNumber()
   @Min(0)
+  @Max(MAX_TAX_AMOUNT)
   goldPricePerGram?: number;
 }
 

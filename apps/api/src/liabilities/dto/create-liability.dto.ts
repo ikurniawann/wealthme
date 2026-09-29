@@ -44,12 +44,14 @@ export class CreateLiabilityDto {
     description: "Total original debt or credit limit as numeric string",
   })
   @IsString()
-  @Matches(/^\d+$/, { message: "totalDebt must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "totalDebt must be a numeric string" })
   totalDebt!: string;
 
   @ApiProperty({ description: "Current remaining balance as numeric string" })
   @IsString()
-  @Matches(/^\d+$/, { message: "remainingBalance must be a numeric string" })
+  @Matches(/^\d{1,15}$/, {
+    message: "remainingBalance must be a numeric string",
+  })
   remainingBalance!: string;
 
   @ApiPropertyOptional({
@@ -57,7 +59,7 @@ export class CreateLiabilityDto {
   })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "minimumPayment must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "minimumPayment must be a numeric string" })
   minimumPayment?: string;
 
   @ApiPropertyOptional({
@@ -121,7 +123,9 @@ export class CreateLiabilityDto {
   })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "installmentAmount must be a numeric string" })
+  @Matches(/^\d{1,15}$/, {
+    message: "installmentAmount must be a numeric string",
+  })
   installmentAmount?: string;
 
   @ApiPropertyOptional({

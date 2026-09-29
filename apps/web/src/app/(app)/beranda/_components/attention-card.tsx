@@ -7,6 +7,29 @@ import { SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 
 /**
+ * Hardening batch G5 (Goal-gradient) — how many installments have elapsed
+ * since `startDate`, out of `tenorMonths`, clamped to [1, tenorMonths].
+ * Whole months only, so this is an honest approximation, not a promise of
+ * the exact installment index (a floating-rate re-amortisation could shift
+ * it) — good enough for "roughly how far along" framing.
+ */
+function installmentProgress(
+  liability: LiabilityDto,
+): { current: number; total: number } | null {
+  const { startDate, tenorMonths } = liability;
+  if (!startDate || !tenorMonths || tenorMonths <= 0) return null;
+  const start = new Date(startDate);
+  if (Number.isNaN(start.getTime())) return null;
+  const now = new Date();
+  const monthsElapsed =
+    (now.getFullYear() - start.getFullYear()) * 12 +
+    (now.getMonth() - start.getMonth()) +
+    1;
+  const current = Math.min(Math.max(monthsElapsed, 1), tenorMonths);
+  return { current, total: tenorMonths };
+}
+
+/**
  * EPIC-026 Wave 8 — prototype's second `.bento-side` card ("Perlu Perhatian"),
  * a stack of `.notice` links.
  *
@@ -26,9 +49,20 @@ export function AttentionCard({
 }) {
   const router = useRouter();
   const { t } = useLocale();
+  const hasNotices = pendingApprovalsCount > 0 || !!nearestDueLiability;
 
   return (
-    <SectionCard title={t.beranda.needsAttentionTitle} bodyClassName="stack">
+    <SectionCard
+      title={t.beranda.needsAttentionTitle}
+      bodyClassName="stack"
+      // Hardening batch G5 (Von Restorff) — this is the one time-sensitive
+      // card among ~9 otherwise visually-identical bento cards; give it a
+      // warning accent when it actually has something to flag, so it
+      // doesn't read the same as a plain white card like Budget's.
+      className={
+        hasNotices ? "border-warning/50 bg-warning-soft/40" : undefined
+      }
+    >
       {isLoading ? (
         Array.from({ length: 2 }).map((_, i) => (
           <div
@@ -56,29 +90,46 @@ export function AttentionCard({
               </span>
             </button>
           )}
-          {nearestDueLiability && (
-            <button
-              type="button"
-              onClick={() => router.push("/liabilitas")}
-              className="notice notice--info w-full cursor-pointer items-center text-left"
-            >
-              <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
-              <span>
-                <strong>{nearestDueLiability.name}</strong>{" "}
-                {t.beranda.liabilityDueNotice}{" "}
-                {new Date(
-                  // E2E round 1 bug 2 — prefer the real `nextDueDate` over
-                  // the legacy manual `dueDate` field.
-                  (nearestDueLiability.nextDueDate ??
-                    nearestDueLiability.dueDate)!,
-                ).toLocaleDateString(t.beranda.dateLocale, {
-                  day: "numeric",
-                  month: "short",
-                })}
-                .
-              </span>
-            </button>
-          )}
+          {nearestDueLiability &&
+            (() => {
+              const progress = installmentProgress(nearestDueLiability);
+              return (
+                <button
+                  type="button"
+                  onClick={() => router.push("/liabilitas")}
+                  className="notice notice--info w-full cursor-pointer items-center text-left"
+                >
+                  <CalendarClock
+                    className="size-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <strong>{nearestDueLiability.name}</strong>{" "}
+                    {t.beranda.liabilityDueNotice}{" "}
+                    {new Date(
+                      // E2E round 1 bug 2 — prefer the real `nextDueDate`
+                      // over the legacy manual `dueDate` field.
+                      (nearestDueLiability.nextDueDate ??
+                        nearestDueLiability.dueDate)!,
+                    ).toLocaleDateString(t.beranda.dateLocale, {
+                      day: "numeric",
+                      month: "short",
+                    })}
+                    .
+                    {progress && (
+                      <>
+                        {" "}
+                        (
+                        {t.beranda.liabilityInstallmentProgress
+                          .replace("{n}", String(progress.current))
+                          .replace("{total}", String(progress.total))}
+                        )
+                      </>
+                    )}
+                  </span>
+                </button>
+              );
+            })()}
         </>
       )}
     </SectionCard>

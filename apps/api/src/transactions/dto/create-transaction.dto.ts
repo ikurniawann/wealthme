@@ -8,11 +8,17 @@ import {
   IsPositive,
   IsString,
   IsUUID,
+  Max,
   Min,
   MaxLength,
 } from "class-validator";
 
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
+// Hardening audit (validation, MEDIUM) — `amount`/`adminFee` had no `@Max`,
+// so a value above 2^53 could lose precision before reaching `BigInt`.
+// Matches budgets/goals' MAX_BUDGET_AMOUNT/MAX_AMOUNT.
+const MAX_TRANSACTION_AMOUNT = 999_999_999_999;
 
 export class CreateTransactionDto {
   @ApiProperty({ type: String, description: "Account UUID" })
@@ -40,6 +46,7 @@ export class CreateTransactionDto {
   })
   @IsInt()
   @Min(0)
+  @Max(MAX_TRANSACTION_AMOUNT)
   @IsOptional()
   adminFee?: number;
 
@@ -49,6 +56,7 @@ export class CreateTransactionDto {
   })
   @IsInt()
   @IsPositive()
+  @Max(MAX_TRANSACTION_AMOUNT)
   amount!: number;
 
   @ApiProperty({ enum: TransactionType, description: "Transaction type" })

@@ -27,6 +27,9 @@ export type ProfileDetail = {
   // if the profile query hasn't loaded yet — the server always resolves all
   // 8 known keys via resolveNotifPrefs, defaulting unset ones to true.
   notificationPrefs?: Record<string, boolean>;
+  // Resolved privacy/display toggle preferences (hardening batch G1). Same
+  // shape/guarantee as notificationPrefs above.
+  privacyPrefs?: Record<string, boolean>;
 };
 
 export function useProfile() {

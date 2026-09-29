@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { InsuranceStatus, InsuranceType, PremiumPeriod } from "@prisma/client";
 import { Type } from "class-transformer";
 import {
+  ArrayMaxSize,
   IsBoolean,
   IsDateString,
   IsEnum,
@@ -42,12 +43,12 @@ export class CreateInsuranceDto {
   @ApiPropertyOptional({ description: "Coverage amount as numeric string" })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "coverageAmount must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "coverageAmount must be a numeric string" })
   coverageAmount?: string;
 
   @ApiProperty({ description: "Premium amount as numeric string" })
   @IsString()
-  @Matches(/^\d+$/, { message: "premiumAmount must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "premiumAmount must be a numeric string" })
   premiumAmount!: string;
 
   @ApiPropertyOptional({ enum: PremiumPeriod })
@@ -86,8 +87,11 @@ export class CreateInsuranceDto {
   @MaxLength(3)
   currency?: string;
 
+  // Hardening audit (validation, MEDIUM) — was unbounded; the sum of
+  // sharePercent is checked in insurances.service.ts.
   @ApiPropertyOptional({ type: [CreateInsuranceBeneficiaryDto] })
   @IsOptional()
+  @ArrayMaxSize(20)
   @ValidateNested({ each: true })
   @Type(() => CreateInsuranceBeneficiaryDto)
   beneficiaries?: CreateInsuranceBeneficiaryDto[];

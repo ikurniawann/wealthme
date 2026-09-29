@@ -103,7 +103,7 @@ it("renders the total and a kripto line with its caveat", async () => {
   render(<InvestmentTaxCard />);
   expect((await screen.findAllByText("Rp 10.500")).length).toBeGreaterThan(0);
   expect(
-    screen.getByText("Diasumsikan exchange domestik — ubah di Investasi"),
+    screen.getByText("Diasumsikan exchange domestik, ubah di Investasi"),
   ).toBeInTheDocument();
 });
 

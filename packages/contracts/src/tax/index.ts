@@ -304,3 +304,12 @@ export interface TaxAnnualSummaryDto {
   spt: SptTimingDto;
   rules: TaxRuleRefDto[];
 }
+
+/** Hardening batch G2 — a document uploaded for a family's tax year. */
+export interface TaxDocumentDto {
+  id: string;
+  taxYear: number;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}

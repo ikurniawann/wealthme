@@ -29,7 +29,7 @@ export class UpdateAssetDto {
   @ApiPropertyOptional({ description: "BigInt value as numeric string" })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "currentValue must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "currentValue must be a numeric string" })
   currentValue?: string;
 
   @ApiPropertyOptional()

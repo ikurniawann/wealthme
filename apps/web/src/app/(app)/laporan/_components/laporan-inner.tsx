@@ -591,9 +591,17 @@ export function LaporanInner() {
           </button>
           <button
             type="button"
-            onClick={() => void exportJob.startExport("pdf")}
-            disabled={!!exportJob.isActive || exportJob.isSubmitting}
-            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            // G7 — the server pdf-lib export ("masih jelek banget") is
+            // replaced here by the print-optimized HTML report; the job
+            // itself (exportJob.startExport("pdf")) stays wired below in
+            // ExportSection for API-parity/detailed exports.
+            onClick={() =>
+              window.open(
+                `/laporan/cetak?months=6&endDate=${wibDateOf(summaryAnchorEnd)}`,
+                "_blank",
+              )
+            }
+            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent"
           >
             <FileText className="size-3.5" />
             {t.laporan.header.exportPdfButton}

@@ -25,17 +25,44 @@ type MoneyContextValue = {
   isReady: boolean;
   format: (idr: number) => string;
   formatCompact: (idr: number) => string;
+  // hardening G1 — real "Sembunyikan Saldo Default" state, so callers that
+  // need to react to it directly (rare; most just call format/formatCompact)
+  // don't have to re-read the profile themselves.
+  hideBalance: boolean;
 };
 
 const MoneyContext = createContext<MoneyContextValue | null>(null);
+
+// Masks the numeric portion of an already-formatted amount, keeping any
+// leading currency symbol/prefix (e.g. "Rp ", "≈ $ ") — never the digits
+// themselves, since "Sembunyikan Saldo Default" promises no real amount
+// leaks while it's on.
+function maskAmount(formatted: string): string {
+  const digitIndex = formatted.search(/\d/);
+  const prefix = digitIndex === -1 ? formatted : formatted.slice(0, digitIndex);
+  return `${prefix}••••••`;
+}
+
+// "Tampilkan Desimal" only affects the plain IDR path (no conversion target)
+// — formatRupiah never prints decimals there. Converted amounts already
+// carry their currency's own decimal precision from CURRENCY_CONFIG.
+function withDecimals(formatted: string): string {
+  return /,\d\d$/.test(formatted) ? formatted : `${formatted},00`;
+}
 
 export function DisplayCurrencyProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { currency, formatMoney, isIndicative, isReady } =
+  const { currency, formatMoney, isIndicative, isReady, privacyPrefs } =
     useCurrencyPreference();
+  // Conservative fallback while the profile hasn't resolved yet (or in a
+  // test harness that mocks useCurrencyPreference() directly, predating this
+  // field): behave exactly like before this batch, i.e. no decimals shown.
+  // Once the real profile loads, resolvePrivacyPrefs always fills both keys.
+  const hideBalance = privacyPrefs?.hideBalance ?? false;
+  const showDecimal = privacyPrefs?.showDecimal ?? false;
 
   const value = useMemo<MoneyContextValue>(() => {
     // Until a non-IDR rate has actually loaded (or when it failed), show the
@@ -43,12 +70,29 @@ export function DisplayCurrencyProvider({
     // 1:1 rate in that window, which would print an IDR-scale number under a
     // foreign symbol.
     const converts = isIndicative && isReady;
-    const format = (idr: number): string =>
-      converts ? `≈ ${formatMoney(idr)}` : formatRupiah(idr);
-    const formatCompact = (idr: number): string =>
-      converts ? `≈ ${formatMoney(idr)}` : formatRupiahCompact(idr);
-    return { currency, isIndicative, isReady, format, formatCompact };
-  }, [currency, formatMoney, isIndicative, isReady]);
+    const format = (idr: number): string => {
+      const base = converts ? `≈ ${formatMoney(idr)}` : formatRupiah(idr);
+      const withDecimalsApplied =
+        showDecimal && !converts ? withDecimals(base) : base;
+      return hideBalance
+        ? maskAmount(withDecimalsApplied)
+        : withDecimalsApplied;
+    };
+    const formatCompact = (idr: number): string => {
+      const base = converts
+        ? `≈ ${formatMoney(idr)}`
+        : formatRupiahCompact(idr);
+      return hideBalance ? maskAmount(base) : base;
+    };
+    return {
+      currency,
+      isIndicative,
+      isReady,
+      format,
+      formatCompact,
+      hideBalance,
+    };
+  }, [currency, formatMoney, isIndicative, isReady, hideBalance, showDecimal]);
 
   return (
     <MoneyContext.Provider value={value}>{children}</MoneyContext.Provider>
@@ -71,5 +115,6 @@ export function useMoney(): MoneyContextValue {
     isReady: true,
     format: formatRupiah,
     formatCompact: formatRupiahCompact,
+    hideBalance: false,
   };
 }

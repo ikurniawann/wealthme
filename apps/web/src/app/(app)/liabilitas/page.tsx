@@ -987,7 +987,7 @@ function LiabilityCard({
     : item.paymentRatio;
   const progressColor =
     progressValue >= 80
-      ? "var(--danger)"
+      ? "var(--destructive)"
       : progressValue >= 50
         ? "var(--warning)"
         : "var(--success)";
@@ -1040,7 +1040,7 @@ function LiabilityCard({
               </div>
               <div
                 className="text-[13.5px] font-bold"
-                style={{ color: "var(--danger)" }}
+                style={{ color: "var(--destructive)" }}
               >
                 {money.format(remaining)}
               </div>
@@ -1076,7 +1076,7 @@ function LiabilityCard({
                 </div>
                 <div
                   className="text-[13.5px] font-bold"
-                  style={{ color: "var(--danger)" }}
+                  style={{ color: "var(--destructive)" }}
                 >
                   {item.interestRate}%
                 </div>
@@ -1198,7 +1198,7 @@ function LiabilityDetailDialog({
                   </div>
                   <div
                     className="mono text-[14px] font-bold"
-                    style={{ color: "var(--danger)" }}
+                    style={{ color: "var(--destructive)" }}
                   >
                     {money.format(remaining)}
                   </div>
@@ -1299,7 +1299,7 @@ function LiabilityDetailDialog({
                         </div>
                         <div
                           className="mono text-[13.5px] font-bold"
-                          style={{ color: "var(--danger)" }}
+                          style={{ color: "var(--destructive)" }}
                         >
                           {money.format(Number(firstRow.interest))}
                         </div>

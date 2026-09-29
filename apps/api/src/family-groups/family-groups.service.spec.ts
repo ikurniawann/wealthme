@@ -44,6 +44,7 @@ function makePrisma() {
       create: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
     },
     $queryRaw: jest.fn().mockResolvedValue(undefined),
     // Supports BOTH call shapes used across this service: the array form
@@ -854,6 +855,7 @@ describe("FamilyGroupsService.acceptInvitation — relationship carried through 
 
   const TOKEN = "tok-relationship";
   const ACCEPTING_USER_ID = "user-accepting";
+  const ACCEPTING_EMAIL = "istri@example.com";
 
   beforeEach(async () => {
     prisma = makePrisma();
@@ -862,6 +864,7 @@ describe("FamilyGroupsService.acceptInvitation — relationship carried through 
       familyGroupId: FAMILY_GROUP_ID,
       role: Role.spouse,
       relationship: "istri",
+      email: ACCEPTING_EMAIL,
       expiresAt: new Date(Date.now() + 86_400_000),
       usedAt: null,
       familyGroup: { name: "Keluarga Arsandi" },
@@ -894,7 +897,11 @@ describe("FamilyGroupsService.acceptInvitation — relationship carried through 
   });
 
   it("carries the invitation's relationship onto the created Member row", async () => {
-    const result = await service.acceptInvitation(TOKEN, ACCEPTING_USER_ID);
+    const result = await service.acceptInvitation(
+      TOKEN,
+      ACCEPTING_USER_ID,
+      ACCEPTING_EMAIL,
+    );
 
     expect(prisma.member.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -905,6 +912,48 @@ describe("FamilyGroupsService.acceptInvitation — relationship carried through 
       }),
     );
     expect(result.relationship).toBe("istri");
+  });
+
+  // Hardening audit (validation, HIGH) — a forwarded link used to let ANY
+  // signed-in holder of the token join with the invited role.
+  it("rejects acceptance when the caller's email does not match the invitation", async () => {
+    await expect(
+      service.acceptInvitation(
+        TOKEN,
+        ACCEPTING_USER_ID,
+        "someone-else@example.com",
+      ),
+    ).rejects.toThrow("different email address");
+    expect(prisma.member.create).not.toHaveBeenCalled();
+    expect(prisma.invitation.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("matches the invitation email case-insensitively", async () => {
+    await expect(
+      service.acceptInvitation(TOKEN, ACCEPTING_USER_ID, "ISTRI@EXAMPLE.COM"),
+    ).resolves.toBeDefined();
+  });
+
+  // Hardening audit (validation, HIGH) — the prior read-then-write raced:
+  // two concurrent accepts could both pass the `usedAt` check before either
+  // write landed. The redeem is now a conditional `updateMany` inside the
+  // same transaction as the member create.
+  it("aborts atomically (no member row) when the token was already claimed by a concurrent request", async () => {
+    prisma.invitation.updateMany.mockResolvedValueOnce({ count: 0 });
+
+    await expect(
+      service.acceptInvitation(TOKEN, ACCEPTING_USER_ID, ACCEPTING_EMAIL),
+    ).rejects.toThrow("already been used");
+    expect(prisma.member.create).not.toHaveBeenCalled();
+  });
+
+  it("claims the token with a conditional updateMany (token + usedAt: null), not an unconditional update", async () => {
+    await service.acceptInvitation(TOKEN, ACCEPTING_USER_ID, ACCEPTING_EMAIL);
+
+    expect(prisma.invitation.updateMany).toHaveBeenCalledWith({
+      where: { token: TOKEN, usedAt: null },
+      data: { usedAt: expect.any(Date) },
+    });
   });
 });
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Send, FileText, ShieldCheck } from "lucide-react";
+import { Send, FileText, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,7 +19,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { HeroCard, SectionCard, CardLink, StatusBadge } from "@/components/wm";
+import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatNumber } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -30,6 +30,11 @@ import { usePphOpPreview } from "@/components/tax/use-tax-api";
 import { extractApiErrorMessage } from "./_components/api-error";
 import { MAX_TAX_INPUT, toClampedDigitString } from "./_components/digits";
 import { AnnualSummary } from "./_components/annual-summary";
+import {
+  downloadTaxSummary,
+  openTaxDocument,
+  uploadTaxDocument,
+} from "./_components/tax-documents";
 import { FinalIncomePanel } from "./_components/final-income-panel";
 import { PphOpFields } from "./_components/pph-op-fields";
 import {
@@ -44,6 +49,7 @@ import type {
   CreateTaxRecordDto,
   PphOpPreviewRequestDto,
   Role,
+  TaxDocumentDto,
   TaxMaritalStatus,
   TaxRecordDto,
   SptStatus,
@@ -174,6 +180,59 @@ function TaxPageContent() {
   // (TaxRecordDto.taxYear accepts any year), unlike a hero-level year
   // switcher which would have no distinct historical estimate to show.
   const [taxYear, setTaxYear] = useState(CURRENT_YEAR);
+
+  // Hardening batch G2 — real tax document uploads, mirroring
+  // aset/[id]/page.tsx's attachments wiring exactly.
+  const { data: taxDocuments } = useQuery<TaxDocumentDto[]>({
+    queryKey: ["tax", "documents", fgId ?? "", taxYear],
+    queryFn: () =>
+      apiFetch<TaxDocumentDto[]>(
+        `/family-groups/${fgId}/tax/documents/${taxYear}`,
+        { token },
+      ),
+    enabled: !!token && !!fgId,
+  });
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  async function invalidateTaxDocuments() {
+    await queryClient.invalidateQueries({
+      queryKey: ["tax", "documents", fgId ?? "", taxYear],
+    });
+  }
+  async function handleUploadTaxDocument(file: File | null) {
+    if (!file || !fgId) return;
+    setUploadingDoc(true);
+    try {
+      await uploadTaxDocument(fgId, taxYear, file, token);
+      toast.success(t.tax.toastDocumentUploaded);
+      await invalidateTaxDocuments();
+    } catch {
+      toast.error(t.tax.toastDocumentFailed);
+    } finally {
+      setUploadingDoc(false);
+    }
+  }
+  async function handleDeleteTaxDocument(id: string) {
+    if (!fgId) return;
+    try {
+      await apiFetch(`/family-groups/${fgId}/tax/documents/${taxYear}/${id}`, {
+        method: "DELETE",
+        token,
+      });
+      toast.success(t.tax.toastDocumentDeleted);
+      await invalidateTaxDocuments();
+    } catch {
+      toast.error(t.tax.toastDocumentFailed);
+    }
+  }
+  async function handleDownloadSummary(format: "csv" | "pdf") {
+    if (!fgId) return;
+    try {
+      await downloadTaxSummary(fgId, taxYear, format, token);
+    } catch {
+      toast.error(t.tax.toastDownloadFailed);
+    }
+  }
+
   // EPIC-026 Wave 2 — prototype structural port: the prototype gates Save
   // behind a review dialog ("Simpan ke Catatan Pajak") showing the exact
   // numbers about to be persisted; Save used to write through immediately
@@ -846,7 +905,12 @@ function TaxPageContent() {
                   {t.tax.sptStatusLabels[r.sptStatus as SptStatus]}
                 </StatusBadge>
                 {r.sptStatus === "belum_lapor" && (
+                  // Hardening batch G3 (P1) — this used to be a 10px text
+                  // link with no padding, well under the 44px touch target.
+                  // A real `.btn--sm` (44px on coarse pointers per the
+                  // foundation fix above) with 12px+ text.
                   <button
+                    type="button"
                     onClick={() => handleUpdateSptStatus(r.id, "sudah_lapor")}
                     disabled={!canManageTaxRecords}
                     aria-describedby={
@@ -857,11 +921,7 @@ function TaxPageContent() {
                         ? (accessNote ?? undefined)
                         : undefined
                     }
-                    className={`mt-0.5 text-[10px] text-primary ${
-                      canManageTaxRecords
-                        ? "cursor-pointer hover:underline"
-                        : "cursor-not-allowed opacity-50"
-                    }`}
+                    className="btn btn--outline btn--sm mt-1.5 h-auto py-1 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {t.tax.markReportedShortButton}
                   </button>
@@ -872,28 +932,91 @@ function TaxPageContent() {
         </SectionCard>
       )}
 
-      {/* Dokumen Pajak — upload/list not yet backed by a real API; keep the
-          affordance honestly disabled instead of showing example documents. */}
+      {/* Dokumen Pajak — hardening batch G2: real upload/list/delete via
+          TaxDocumentsController, mirroring aset/[id]/page.tsx's attachments
+          UI exactly. */}
       <SectionCard
         title={t.tax.documentsTitle}
         action={
-          <CardLink onClick={() => toast(t.tax.toastUploadUnavailable)}>
-            {t.tax.uploadButton}
-          </CardLink>
+          canManageTaxRecords ? (
+            <label className="btn btn--outline btn--sm cursor-pointer">
+              <Upload className="size-3.5" />
+              {t.tax.uploadButton}
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp,.pdf"
+                className="sr-only"
+                disabled={uploadingDoc}
+                onChange={(e) => {
+                  void handleUploadTaxDocument(e.target.files?.[0] ?? null);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          ) : undefined
         }
         bodyClassName="-mt-1"
       >
-        <div className="flex flex-col items-center gap-1 py-6 text-center">
-          <div className="mb-1 text-[28px]" aria-hidden>
-            📄
+        {(taxDocuments ?? []).length === 0 ? (
+          <div className="flex flex-col items-center gap-1 py-6 text-center">
+            <div className="mb-1 text-[28px]" aria-hidden>
+              📄
+            </div>
+            <div className="text-[13px] font-bold">
+              {t.tax.emptyDocumentsTitle}
+            </div>
+            <div className="text-[12px] text-muted-foreground">
+              {t.tax.emptyDocumentsSub}
+            </div>
           </div>
-          <div className="text-[13px] font-bold">
-            {t.tax.emptyDocumentsTitle}
-          </div>
-          <div className="text-[12px] text-muted-foreground">
-            {t.tax.emptyDocumentsSub}
-          </div>
-        </div>
+        ) : (
+          <ul className="divide-y">
+            {(taxDocuments ?? []).map((d) => (
+              <li
+                key={d.id}
+                className="flex items-center justify-between gap-2 py-2.5 text-[12.5px]"
+              >
+                <button
+                  type="button"
+                  className="flex min-w-0 items-center gap-2 text-left hover:underline"
+                  aria-label={t.tax.openDocumentAria}
+                  onClick={() =>
+                    fgId && void openTaxDocument(fgId, taxYear, d.id, token)
+                  }
+                >
+                  <FileText className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">
+                    {d.mimeType
+                      .replace("image/", "")
+                      .replace("application/", "")
+                      .toUpperCase()}
+                    {" · "}
+                    {Math.max(1, Math.ceil(d.size / 1024)).toLocaleString(
+                      "id-ID",
+                    )}{" "}
+                    KB
+                    {" · "}
+                    {new Date(d.createdAt).toLocaleDateString("id-ID", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </button>
+                {canManageTaxRecords && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--icon text-destructive"
+                    aria-label={t.tax.deleteDocumentAria}
+                    onClick={() => void handleDeleteTaxDocument(d.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </SectionCard>
 
       {/* Action buttons */}
@@ -913,10 +1036,17 @@ function TaxPageContent() {
         </Button>
         <Button
           variant="outline"
-          onClick={() => toast(t.tax.toastDownloadUnavailable)}
+          onClick={() => void handleDownloadSummary("csv")}
           className="h-auto min-w-[160px] flex-1 py-2.5"
         >
-          <FileText className="size-4" /> {t.tax.downloadSummaryButton}
+          <FileText className="size-4" /> {t.tax.downloadSummaryButton} (CSV)
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => void handleDownloadSummary("pdf")}
+          className="h-auto min-w-[160px] flex-1 py-2.5"
+        >
+          <FileText className="size-4" /> {t.tax.downloadSummaryButton} (PDF)
         </Button>
       </div>
 

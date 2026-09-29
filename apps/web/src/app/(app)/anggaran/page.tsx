@@ -34,6 +34,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/crud/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { parseRupiah } from "@/lib/format";
@@ -154,7 +155,7 @@ function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
             <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-secondary">
               {barWidth > 0 && (
                 <div
-                  className="h-full rounded-full transition-[width] duration-700"
+                  className="h-full rounded-full transition-[width] duration-200"
                   style={{
                     width: `${Math.min(100, barWidth)}%`,
                     background: color,
@@ -659,6 +660,7 @@ export function ObligationsSection({
   token: string | undefined;
 }) {
   const { t } = useLocale();
+  const { handleError } = useApiError();
   const money = useMoney();
   const queryClient = useQueryClient();
   const [target, setTarget] = useState<Obligation | null>(null);
@@ -755,9 +757,7 @@ export function ObligationsSection({
       setSourceAccountId("");
       toast.success(t.anggaran.obligationsToastPaySuccess);
     },
-    onError: (err: { message?: string }) => {
-      toast.error(err.message ?? t.anggaran.obligationsToastPayFailed);
-    },
+    onError: handleError,
   });
 
   const obligations = toObligations(liabilities, insurances);
@@ -818,6 +818,7 @@ export function ObligationsSection({
 
 export default function AnggaranPage() {
   const { t, locale } = useLocale();
+  const { handleError } = useApiError();
   const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken;
@@ -1006,10 +1007,7 @@ export default function AnggaranPage() {
         `${t.anggaran.toastCategoryAddedPrefix}${budget.categoryName}${t.anggaran.toastCategoryAddedSuffix}`,
       );
     },
-    onError: (err: unknown) => {
-      const apiErr = err as { message?: string };
-      toast.error(apiErr.message ?? t.anggaran.toastSaveFailedDefault);
-    },
+    onError: handleError,
   });
 
   // EPIC-022 C2 — edit an existing budget's limit/period. The category
@@ -1043,10 +1041,7 @@ export default function AnggaranPage() {
       setEditing(null);
       toast.success(t.anggaran.toastUpdated);
     },
-    onError: (err: unknown) => {
-      const apiErr = err as { message?: string };
-      toast.error(apiErr.message ?? t.anggaran.toastUpdateFailedDefault);
-    },
+    onError: handleError,
   });
 
   function openEdit(budget: BudgetDto) {
@@ -1087,8 +1082,7 @@ export default function AnggaranPage() {
         queryKey: queryKeys.budgets.all(familyGroupId),
       });
     } catch (err: unknown) {
-      const apiErr = err as { message?: string };
-      toast.error(apiErr.message ?? t.anggaran.toastDeleteFailedDefault);
+      handleError(err);
     } finally {
       setDeletingBudget(null);
     }
@@ -1234,7 +1228,7 @@ export default function AnggaranPage() {
             </div>
             <div className="mt-3.5 h-[7px] overflow-hidden rounded-full bg-white/25">
               <div
-                className="h-full rounded-full bg-white transition-[width] duration-700"
+                className="h-full rounded-full bg-white transition-[width] duration-200"
                 style={{ width: `${Math.min(100, usagePct)}%` }}
               />
             </div>

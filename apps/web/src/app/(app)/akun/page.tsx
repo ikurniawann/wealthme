@@ -234,6 +234,12 @@ function SetSection({ children }: { children: React.ReactNode }) {
   return <div className="mb-6 last:mb-0">{children}</div>;
 }
 
+// Hardening batch G3 (P1, WCAG 2.1.1/4.1.2) — this used to always render a
+// `<div onClick>` for ~15 settings rows (change password, PIN, sessions,
+// export, delete account, tour, about), unreachable by keyboard or a screen
+// reader. It now renders a real `<button>` whenever `onClick` is set
+// (mirroring MenuRow below) and falls back to a plain, non-interactive
+// `<div>` only when there's genuinely nothing to activate.
 function SetRow({
   icon,
   iconBg,
@@ -249,13 +255,8 @@ function SetRow({
   right?: React.ReactNode;
   onClick?: () => void;
 }) {
-  return (
-    <div
-      className={`flex items-center gap-3 border-b py-3 last:border-b-0 ${
-        onClick ? "cursor-pointer" : ""
-      }`}
-      onClick={onClick}
-    >
+  const content = (
+    <>
       <div
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]"
         style={{ background: iconBg }}
@@ -269,6 +270,24 @@ function SetRow({
         )}
       </div>
       {right}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex w-full items-center gap-3 border-b py-3 text-left last:border-b-0"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3 border-b py-3 last:border-b-0">
+      {content}
     </div>
   );
 }
@@ -801,12 +820,6 @@ export function KeamananBody() {
         <ToggleBox
           rows={[
             {
-              label: t.akun.keamanan.biometricLabel,
-              sub: t.akun.keamanan.biometricSub,
-              defaultChecked: false,
-              disabled: true,
-            },
-            {
               label: t.akun.keamanan.bigTxnLabel,
               sub: t.akun.keamanan.bigTxnSub,
               checked: isAuthOn("bigTxnConfirm"),
@@ -1063,12 +1076,13 @@ function KoneksiBody({
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
           <SectionTitle>{t.akun.koneksi.bankSectionTitle}</SectionTitle>
-          <span
+          <button
+            type="button"
             className="cursor-pointer text-[12px] font-bold text-primary"
             onClick={onAddRekening}
           >
             {t.akun.koneksi.addButton}
-          </span>
+          </button>
         </div>
         {bankAccounts.map((a) => (
           <SetRow
@@ -1098,12 +1112,13 @@ function KoneksiBody({
       <SetSection>
         <div className="mb-2.5 flex items-center justify-between">
           <SectionTitle>{t.akun.koneksi.ewalletSectionTitle}</SectionTitle>
-          <span
+          <button
+            type="button"
             className="cursor-pointer text-[12px] font-bold text-primary"
             onClick={onAddEwallet}
           >
             {t.akun.koneksi.addButton}
-          </span>
+          </button>
         </div>
         {ewalletAccounts.map((a) => (
           <SetRow
@@ -1216,6 +1231,72 @@ function localeLabelToValue(label: string): "id" | "en" {
   );
 }
 
+// Hardening batch G1 (P0 honesty) — shared instant-toggle + PATCH
+// /auth/profile mutation for the privacyPrefs map, used by both
+// PengaturanBody's "data" toggles (hideBalance/showDecimal/weeklySummary)
+// and PrivasiBody's toggles. Same overrides-map + optimistic-rollback shape
+// as KeamananBody's toggleAuthPref above (notificationPrefs), just against
+// the privacyPrefs column instead.
+// Mirrors DEFAULT_PRIVACY_PREFS (apps/api/src/auth/privacy-prefs.ts) so the
+// switches don't flash their "off" fallback before the profile query
+// resolves — only hideBalance/hideFromFamily started life unchecked.
+const PRIVACY_PREF_DEFAULTS: Record<string, boolean> = {
+  hideBalance: false,
+  showDecimal: true,
+  weeklySummary: true,
+  hideFromFamily: false,
+  screenshotProtect: true,
+  sendAnalytics: true,
+  aiPersonalization: true,
+};
+
+function usePrivacyPrefToggle() {
+  const { t } = useLocale();
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+
+  const isOn = (key: string): boolean =>
+    overrides[key] ??
+    profile?.privacyPrefs?.[key] ??
+    PRIVACY_PREF_DEFAULTS[key] ??
+    false;
+
+  const { mutate: savePrivacyPref } = useMutation({
+    mutationFn: (payload: Record<string, boolean>) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: session?.accessToken,
+        body: JSON.stringify({ privacyPrefs: payload }),
+      }),
+  });
+
+  function toggle(key: string) {
+    return (value: boolean) => {
+      const previous = isOn(key);
+      setOverrides((o) => ({ ...o, [key]: value }));
+      savePrivacyPref(
+        { ...(profile?.privacyPrefs ?? {}), [key]: value },
+        {
+          onSuccess: () => {
+            void queryClient.invalidateQueries({
+              queryKey: ["auth", "profile", session?.accessToken],
+            });
+            toast.success(t.akun.privasi.toastPrefsSaved);
+          },
+          onError: () => {
+            setOverrides((o) => ({ ...o, [key]: previous }));
+            toast.error(t.akun.privasi.toastPrefsFailed);
+          },
+        },
+      );
+    };
+  }
+
+  return { isOn, toggle };
+}
+
 export function PengaturanBody() {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const { theme, setTheme } = useTheme();
@@ -1224,6 +1305,8 @@ export function PengaturanBody() {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
   const { data: profile } = useProfile();
+  const { isOn: isPrivacyOn, toggle: togglePrivacyPref } =
+    usePrivacyPrefToggle();
   // Absent for pre-migration users (and while the query is still loading) —
   // the server itself defaults new/untouched rows to "IDR", so this mirrors
   // that default rather than inventing a different one client-side.
@@ -1306,7 +1389,7 @@ export function PengaturanBody() {
   // Currency applies immediately on selection (same UX as theme/language),
   // by writing straight to the real profile — never to the orphaned
   // localStorage blob below, which only still covers dateFormat.
-  const { mutate: updateCurrency } = useMutation({
+  const { mutate: updateCurrency, isPending: isCurrencyPending } = useMutation({
     mutationFn: (code: string) =>
       apiFetch("/auth/profile", {
         method: "PATCH",
@@ -1382,6 +1465,7 @@ export function PengaturanBody() {
           className="mb-3.5"
           role="radiogroup"
           aria-label={t.akun.pengaturan.currencySectionTitle}
+          aria-disabled={isCurrencyPending}
         >
           <div className="mb-2.5 text-[12px] text-muted-foreground">
             {t.akun.pengaturan.currencyHint}
@@ -1395,10 +1479,20 @@ export function PengaturanBody() {
                 type="button"
                 role="radio"
                 aria-checked={selected}
-                onClick={() => updateCurrency(c.code)}
-                className={`mb-2 flex w-full cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
-                  selected ? "border-primary bg-accent" : ""
-                }`}
+                disabled={isCurrencyPending}
+                onClick={() => {
+                  // Hardening audit (errors, LOW) — unlike the gold-price/AI-key
+                  // saves in this file, this had no isPending guard: a fast
+                  // double-click could fire two concurrent PATCH /auth/profile
+                  // calls that could resolve out of order.
+                  if (isCurrencyPending) return;
+                  updateCurrency(c.code);
+                }}
+                className={`mb-2 flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
+                  isCurrencyPending
+                    ? "cursor-not-allowed opacity-60"
+                    : "cursor-pointer"
+                } ${selected ? "border-primary bg-accent" : ""}`}
               >
                 <div className="text-[22px]">{c.flag}</div>
                 <div className="flex-1">
@@ -1711,16 +1805,20 @@ export function PengaturanBody() {
             {
               label: t.akun.pengaturan.hideBalanceLabel,
               sub: t.akun.pengaturan.hideBalanceSub,
+              checked: isPrivacyOn("hideBalance"),
+              onCheckedChange: togglePrivacyPref("hideBalance"),
             },
             {
               label: t.akun.pengaturan.showDecimalLabel,
               sub: t.akun.pengaturan.showDecimalSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("showDecimal"),
+              onCheckedChange: togglePrivacyPref("showDecimal"),
             },
             {
               label: t.akun.pengaturan.weeklySummaryLabel,
               sub: t.akun.pengaturan.weeklySummarySub,
-              defaultChecked: true,
+              checked: isPrivacyOn("weeklySummary"),
+              onCheckedChange: togglePrivacyPref("weeklySummary"),
             },
           ]}
         />
@@ -1875,11 +1973,13 @@ export function NotifSettingBody() {
   );
 }
 
-function PrivasiBody() {
+export function PrivasiBody() {
   const { t } = useLocale();
   const router = useRouter();
   const { data: session } = useSession();
   const token = session?.accessToken;
+  const { isOn: isPrivacyOn, toggle: togglePrivacyPref } =
+    usePrivacyPrefToggle();
 
   // Ekspor Data Saya — real GET /users/me/gdpr/export, downloaded as a JSON
   // file (EPIC-016 Task D).
@@ -1934,11 +2034,14 @@ function PrivasiBody() {
             {
               label: t.akun.privasi.hideFromFamilyLabel,
               sub: t.akun.privasi.hideFromFamilySub,
+              checked: isPrivacyOn("hideFromFamily"),
+              onCheckedChange: togglePrivacyPref("hideFromFamily"),
             },
             {
               label: t.akun.privasi.privacyScreenshotLabel,
               sub: t.akun.privasi.privacyScreenshotSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("screenshotProtect"),
+              onCheckedChange: togglePrivacyPref("screenshotProtect"),
             },
           ]}
         />
@@ -1950,12 +2053,14 @@ function PrivasiBody() {
             {
               label: t.akun.privasi.sendAnalyticsLabel,
               sub: t.akun.privasi.sendAnalyticsSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("sendAnalytics"),
+              onCheckedChange: togglePrivacyPref("sendAnalytics"),
             },
             {
               label: t.akun.privasi.aiPersonalizationLabel,
               sub: t.akun.privasi.aiPersonalizationSub,
-              defaultChecked: true,
+              checked: isPrivacyOn("aiPersonalization"),
+              onCheckedChange: togglePrivacyPref("aiPersonalization"),
             },
           ]}
         />
@@ -2069,18 +2174,11 @@ function HubungiBody() {
     <>
       <SetSection>
         <SectionTitle>{t.akun.hubungi.contactSectionTitle}</SectionTitle>
-        <SetRow
-          icon={<MessageCircle className="size-4 text-success" />}
-          iconBg="#DCFCE7"
-          name={t.akun.hubungi.liveChatName}
-          sub={t.akun.hubungi.liveChatSub}
-          right={
-            <StatusBadge variant="gray">
-              {t.akun.hubungi.liveChatBadge}
-            </StatusBadge>
-          }
-          onClick={() => toast(t.akun.hubungi.toastLiveChat)}
-        />
+        {/* Hardening batch G2 — the "Live Chat" row used to show an
+            always-"Online" StatusBadge and toast "belum tersedia" on click,
+            actively misleading users. No real chat backend exists (only the
+            unrelated AI advisor); removed rather than faked — the WhatsApp
+            row below already covers real-time chat honestly. */}
         <a
           href={`mailto:${SUPPORT_EMAIL}`}
           className="block border-b last:border-b-0"
@@ -2184,27 +2282,33 @@ function TentangBody() {
             </span>
           }
         />
-        <SetRow
-          icon={<FileText className="size-4 text-muted-foreground" />}
-          iconBg="#F3F4F6"
-          name={t.akun.tentang.privacyPolicyName}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.toastComingSoon)}
-        />
-        <SetRow
-          icon={<Scale className="size-4 text-muted-foreground" />}
-          iconBg="#F3F4F6"
-          name={t.akun.tentang.termsName}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.toastComingSoon)}
-        />
-        <SetRow
-          icon={<Code className="size-4 text-brand-purple" />}
-          iconBg="#EDE9FE"
-          name={t.akun.tentang.licenseName}
-          right={CHEVRON}
-          onClick={() => toast(t.akun.tentang.toastComingSoon)}
-        />
+        {/* Hardening batch G2 — these three rows used to toast
+            "belum tersedia" on click. Real draft pages now exist at
+            /legal/*, each honestly marked "Draf, belum final". */}
+        <Link href="/legal/privasi" className="block border-b last:border-b-0">
+          <SetRow
+            icon={<FileText className="size-4 text-muted-foreground" />}
+            iconBg="#F3F4F6"
+            name={t.akun.tentang.privacyPolicyName}
+            right={CHEVRON}
+          />
+        </Link>
+        <Link href="/legal/syarat" className="block border-b last:border-b-0">
+          <SetRow
+            icon={<Scale className="size-4 text-muted-foreground" />}
+            iconBg="#F3F4F6"
+            name={t.akun.tentang.termsName}
+            right={CHEVRON}
+          />
+        </Link>
+        <Link href="/legal/lisensi" className="block border-b last:border-b-0">
+          <SetRow
+            icon={<Code className="size-4 text-brand-purple" />}
+            iconBg="#EDE9FE"
+            name={t.akun.tentang.licenseName}
+            right={CHEVRON}
+          />
+        </Link>
       </SetSection>
       <div className="px-0 pt-2 pb-1 text-center text-[11.5px] text-muted-foreground">
         {t.akun.tentang.footerMade}

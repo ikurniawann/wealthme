@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
+import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -87,6 +88,7 @@ export function MemberAccessDialog({
   familyGroupId,
   token,
 }: MemberAccessDialogProps) {
+  const { handleError } = useApiError();
   const { t } = useLocale();
   const fieldId = useId();
   const queryClient = useQueryClient();
@@ -147,8 +149,7 @@ export function MemberAccessDialog({
       });
       onClose();
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal menyimpan akses"),
+    onError: handleError,
   });
 
   return (

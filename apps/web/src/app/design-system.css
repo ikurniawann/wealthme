@@ -640,6 +640,27 @@
     width: 30px;
   }
 
+  /* Hardening batch G3 (P1, design-system.css override per constraints.md
+     — "user allows overriding the design system where it blocks a better
+     result") — every `.btn` variant falls short of the 44px WCAG 2.2 AA
+     touch-target minimum on phones (`.btn` 36px, `.btn--sm`/icon-sm 30px).
+     Scoped to coarse pointers only (real touchscreens) so the mouse/trackpad
+     desktop sizing above is untouched. */
+  @media (pointer: coarse) {
+    .btn {
+      min-height: 44px;
+    }
+    .btn--sm {
+      min-height: 44px;
+    }
+    .btn--icon {
+      min-width: 44px;
+    }
+    .btn--icon.btn--sm {
+      min-width: 44px;
+    }
+  }
+
   .btn--block {
     width: 100%;
   }
@@ -1984,7 +2005,8 @@
     height: 100%;
     border-radius: 999px;
     background: var(--primary);
-    transition: width 0.4s ease;
+    /* Hardening batch G6 — was 0.4s, over the 150-250ms motion budget. */
+    transition: width 0.22s ease;
   }
 
   .budget-overview .progress {
@@ -4421,7 +4443,10 @@
   :root {
     --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
     --dur-fast: 0.18s;
-    --dur-base: 0.32s;
+    /* Hardening batch G6 — was 0.32s, over the Operate 150-250ms motion
+       budget on every control that transitions (buttons, dialogs, sidebar,
+       etc. all reference this one variable). */
+    --dur-base: 0.22s;
     --radius-control: 10px;
     --radius-surface: 16px;
   }
@@ -4596,20 +4621,23 @@
       transform: translateY(14px);
     }
   }
+  /* Hardening batch G6 — was 0.55s with a 45ms/step stagger (up to 20 rows
+     settling ~1.9s after mount); capped to the Operate 150-250ms budget
+     with a smaller offset. */
   .page > * > * {
-    animation: page-in 0.55s var(--ease-spring) both;
+    animation: page-in 0.22s var(--ease-spring) both;
   }
   .page > * > :nth-child(2) {
-    animation-delay: 45ms;
+    animation-delay: 30ms;
   }
   .page > * > :nth-child(3) {
-    animation-delay: 90ms;
+    animation-delay: 60ms;
   }
   .page > * > :nth-child(4) {
-    animation-delay: 135ms;
+    animation-delay: 90ms;
   }
   .page > * > :nth-child(n + 5) {
-    animation-delay: 180ms;
+    animation-delay: 120ms;
   }
 
   @media (prefers-reduced-motion: reduce) {

@@ -28,7 +28,7 @@ export class CreateAssetDto {
     description: "BigInt value as numeric string, e.g. '200000000'",
   })
   @IsString()
-  @Matches(/^\d+$/, { message: "currentValue must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "currentValue must be a numeric string" })
   currentValue!: string;
 
   @ApiPropertyOptional()

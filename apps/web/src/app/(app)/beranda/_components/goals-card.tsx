@@ -86,6 +86,13 @@ export function GoalsCard({
                 color={GOAL_STATUS_COLOR[g.status] ?? "var(--primary)"}
               />
             </div>
+            {/* Hardening batch G5 (Goal-gradient effect) — verbal framing of
+                "how far to done" next to the existing %/Rp progress bar. */}
+            <div className="mt-1 text-right text-[11px] text-muted-foreground">
+              {g.remainingAmount > 0
+                ? `${t.beranda.goalRemainingPrefix}${fmt.moneyCompact(g.remainingAmount)}${t.beranda.goalRemainingSuffix}`
+                : t.beranda.goalAchieved}
+            </div>
           </div>
         ))
       )}

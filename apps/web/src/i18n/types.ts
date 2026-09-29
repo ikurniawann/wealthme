@@ -449,6 +449,10 @@ export type I18nDictionary = {
       sessionExpired: string;
       accessDenied: string;
       generic: string;
+      // Hardening audit (errors) — apiFetch's dedicated timeout message,
+      // distinct from `generic` so a hung request reads differently from a
+      // generic failure.
+      timeout: string;
     };
   };
   beranda: {
@@ -463,6 +467,9 @@ export type I18nDictionary = {
     noTransactions: string;
     noGoals: string;
     addGoalCta: string;
+    goalRemainingPrefix: string;
+    goalRemainingSuffix: string;
+    goalAchieved: string;
     aiInsightTitle: string;
     aiInsightBody: string;
     aiInsightCta: string;
@@ -475,6 +482,7 @@ export type I18nDictionary = {
     needsAttentionTitle: string;
     pendingApprovalsNotice: string;
     liabilityDueNotice: string;
+    liabilityInstallmentProgress: string;
     noNotices: string;
     // EPIC-025 N3 fidelity follow-up — prototype's `.bento-side` budget
     // card + composition-row badges/due-notice + Arus Kas period toggle.
@@ -752,8 +760,6 @@ export type I18nDictionary = {
       pinRowName: string;
       pinRowSub: string;
       authSectionTitle: string;
-      biometricLabel: string;
-      biometricSub: string;
       bigTxnLabel: string;
       bigTxnSub: string;
       newLoginLabel: string;
@@ -929,6 +935,8 @@ export type I18nDictionary = {
       deleteAccountConfirm: string;
       toastDeleteSuccess: string;
       toastDeleteFailed: string;
+      toastPrefsSaved: string;
+      toastPrefsFailed: string;
     };
     bantuan: {
       faqSectionTitle: string;
@@ -950,16 +958,12 @@ export type I18nDictionary = {
     };
     hubungi: {
       contactSectionTitle: string;
-      liveChatName: string;
-      liveChatSub: string;
-      liveChatBadge: string;
       emailName: string;
       emailSub: string;
       phoneName: string;
       phoneSub: string;
       whatsappName: string;
       whatsappSub: string;
-      toastLiveChat: string;
       feedbackTitle: string;
       feedbackPlaceholder: string;
       feedbackButton: string;
@@ -977,7 +981,6 @@ export type I18nDictionary = {
       licenseName: string;
       footerMade: string;
       footerCopyright: string;
-      toastComingSoon: string;
     };
     family: {
       membersSectionTitle: string;
@@ -1042,6 +1045,9 @@ export type I18nDictionary = {
       usernamePlaceholder: string;
       passwordLabel: string;
       passwordPlaceholder: string;
+      nameRequiredError: string;
+      usernameRequiredError: string;
+      passwordRequiredError: string;
       showPassword: string;
       hidePassword: string;
       roleLabel: string;
@@ -1623,6 +1629,17 @@ export type I18nDictionary = {
       openFullPageLink: string;
       notConfiguredBody: string;
     };
+    // G8 (hardening batch) — AIChatCard empty/start state copy.
+    chatCard: {
+      title: string;
+      subtitle: string;
+      promptText: string;
+      placeholder: string;
+      prompts: string[];
+      resetAriaLabel: string;
+      attachAriaLabel: string;
+      sendAriaLabel: string;
+    };
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
@@ -1824,6 +1841,7 @@ export type I18nDictionary = {
     historyEmptyLabel: string;
     priceHistoryTitle: string;
     priceHistoryEmpty: string;
+    priceHistoryChartCaption: string;
     priceSourceManual: string;
     historyBuyLabel: string;
     historySellLabel: string;
@@ -2631,11 +2649,14 @@ export type I18nDictionary = {
     markReportedShortButton: string;
     documentsTitle: string;
     uploadButton: string;
-    toastUploadUnavailable: string;
-    emptyDocuments: string;
+    openDocumentAria: string;
+    deleteDocumentAria: string;
+    toastDocumentUploaded: string;
+    toastDocumentFailed: string;
+    toastDocumentDeleted: string;
     reportSptButton: string;
     downloadSummaryButton: string;
-    toastDownloadUnavailable: string;
+    toastDownloadFailed: string;
     toastSaved: string;
     toastSaveFailed: string;
     toastStatusUpdated: string;
@@ -3060,8 +3081,6 @@ export type I18nDictionary = {
     emptyState: string;
     insightTitle: string;
     insightDesc: string;
-    uploadComingSoonButton: string;
-    toastUploadUnavailable: string;
     modalTitleEdit: string;
     fieldCategoryLabel: string;
     fieldNameLabel: string;
@@ -3069,8 +3088,6 @@ export type I18nDictionary = {
     fieldValueLabel: string;
     fieldNotesLabel: string;
     fieldNotesPlaceholder: string;
-    fieldDocumentLabel: string;
-    documentUploadHint: string;
     fieldAccessLabel: string;
     visibleToHeirsLabel: string;
     visibleToHeirsOnDesc: string;
@@ -4429,5 +4446,23 @@ export type I18nDictionary = {
     rateNotReady: string;
     storedAsIdr: string;
     fxIndicativeRefused: string;
+  };
+  /**
+   * Hardening audit (errors, HIGH) — copy for `app/error.tsx`,
+   * `(app)/error.tsx`, `app/global-error.tsx` and `app/not-found.tsx`. None
+   * of these existed before, so an uncaught render/query throw showed
+   * Next.js's default blank/dev-overlay screen instead of friendly copy with
+   * a retry.
+   */
+  errors: {
+    boundaryTitle: string;
+    boundaryBody: string;
+    retryButton: string;
+    homeButton: string;
+    notFoundTitle: string;
+    notFoundBody: string;
+    notFoundButton: string;
+    globalErrorTitle: string;
+    globalErrorBody: string;
   };
 };

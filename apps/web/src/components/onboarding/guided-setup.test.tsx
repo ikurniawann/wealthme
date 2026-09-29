@@ -252,7 +252,7 @@ describe("GuidedSetup, guided first setup (EPIC-023 H3)", () => {
     // Step 2 — budget.
     await screen.findByText("Buat anggaran pertamamu");
     await user.type(screen.getByLabelText("Nama Kategori"), "Makan & Minum");
-    await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
+    await user.type(screen.getByLabelText("Budget per Bulan (Rp)"), "2000000");
     await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
 
     const budgetConsequenceHeading = await screen.findByText(
@@ -452,7 +452,7 @@ describe("GuidedSetup, guided first setup (EPIC-023 H3)", () => {
 
     await screen.findByText("Buat anggaran pertamamu");
     await user.type(screen.getByLabelText("Nama Kategori"), "Makan & Minum");
-    await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
+    await user.type(screen.getByLabelText("Budget per Bulan (Rp)"), "2000000");
     await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
     await screen.findByText("Anggaran siap, 0% terpakai");
     await user.click(screen.getByRole("button", { name: "Lanjut" }));
@@ -579,7 +579,7 @@ describe("GuidedSetup, guided first setup (EPIC-023 H3)", () => {
     // Step 2 — budget stays IDR (no currency picked): no fxInputs.
     await screen.findByText("Buat anggaran pertamamu");
     await user.type(screen.getByLabelText("Nama Kategori"), "Makan & Minum");
-    await user.type(screen.getByLabelText("Batas Bulanan"), "2000000");
+    await user.type(screen.getByLabelText("Budget per Bulan (Rp)"), "2000000");
     await user.click(screen.getByRole("button", { name: "Buat Anggaran" }));
 
     await screen.findByText("Anggaran siap, 0% terpakai");

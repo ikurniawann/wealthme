@@ -5,6 +5,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 
 import {
   AllExceptionsFilter,
@@ -12,6 +13,13 @@ import {
 } from "./all-exceptions.filter";
 
 import type { ArgumentsHost } from "@nestjs/common";
+
+function prismaKnownError(code: string): Prisma.PrismaClientKnownRequestError {
+  return new Prisma.PrismaClientKnownRequestError("mock prisma error", {
+    code,
+    clientVersion: "test",
+  });
+}
 
 /**
  * EPIC-023 Task G retry (HIGH five-reviewer finding, round 2) — the prior
@@ -210,5 +218,68 @@ describe("AllExceptionsFilter — the real HTTP response body, not the exception
 
     const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(body).not.toHaveProperty("code");
+  });
+
+  // Hardening audit (errors, MEDIUM) — global fallback for any service that
+  // does NOT already catch+remap its own Prisma errors.
+  describe("global Prisma error mapping fallback", () => {
+    it("maps an unhandled P2002 (unique constraint) to 409 with a friendly message", () => {
+      const { host, statusMock, jsonMock } = buildHost();
+
+      filter.catch(prismaKnownError("P2002"), host);
+
+      expect(statusMock).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+      const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(body.message).toBe("Data sudah ada");
+      expect(body).not.toHaveProperty("code");
+    });
+
+    it("maps an unhandled P2025 (record not found) to 404 with a friendly message", () => {
+      const { host, statusMock, jsonMock } = buildHost();
+
+      filter.catch(prismaKnownError("P2025"), host);
+
+      expect(statusMock).toHaveBeenCalledWith(HttpStatus.NOT_FOUND);
+      const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(body.message).toBe("Data tidak ditemukan");
+    });
+
+    it("maps an unhandled P2003 (FK constraint) to 409 with a friendly message", () => {
+      const { host, statusMock, jsonMock } = buildHost();
+
+      filter.catch(prismaKnownError("P2003"), host);
+
+      expect(statusMock).toHaveBeenCalledWith(HttpStatus.CONFLICT);
+      const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(body.message).toBe("Data masih dipakai/terkait");
+    });
+
+    it("leaves an unmapped Prisma error code on the generic 500 path without leaking internals", () => {
+      const { host, statusMock, jsonMock } = buildHost();
+
+      filter.catch(prismaKnownError("P2014"), host);
+
+      expect(statusMock).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+      const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(body.message).toBe("Internal server error");
+      expect(JSON.stringify(body)).not.toMatch(/prisma|P2014/i);
+    });
+
+    it("does not re-map a Prisma error a service already converted to its own HttpException", () => {
+      const { host, statusMock, jsonMock } = buildHost();
+      // Simulates a service (e.g. accounts.service.ts) that already caught
+      // P2002 and rethrew its own domain-specific message/status.
+      const exception = new BadRequestException({
+        message: "Nama rekening sudah dipakai di keluarga ini",
+        code: "ACCOUNT_NAME_TAKEN",
+      });
+
+      filter.catch(exception, host);
+
+      expect(statusMock).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
+      const body = jsonMock.mock.calls[0]?.[0] as Record<string, unknown>;
+      expect(body.message).toBe("Nama rekening sudah dipakai di keluarga ini");
+      expect(body.code).toBe("ACCOUNT_NAME_TAKEN");
+    });
   });
 });

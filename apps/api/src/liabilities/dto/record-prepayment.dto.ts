@@ -21,7 +21,7 @@ export class RecordPrepaymentDto {
   })
   @IsOptional()
   @IsString()
-  @Matches(/^\d+$/, { message: "amount must be a numeric string" })
+  @Matches(/^\d{1,15}$/, { message: "amount must be a numeric string" })
   amount?: string;
 
   @ApiPropertyOptional({

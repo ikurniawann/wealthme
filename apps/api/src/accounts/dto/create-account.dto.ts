@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  Max,
   MaxLength,
   Min,
   MinLength,
@@ -15,6 +16,10 @@ import {
 
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+
+// Hardening audit (validation, MEDIUM) — `balance` had no `@Max`, matching
+// the bound already used on transactions/budgets/goals.
+const MAX_ACCOUNT_BALANCE = 999_999_999_999;
 
 export class CreateAccountDto {
   @ApiProperty({ enum: AccountType, description: "Account type" })
@@ -57,6 +62,8 @@ export class CreateAccountDto {
       "guard for transaction-driven debits lives in transactions.service.ts.",
   })
   @IsInt()
+  @Max(MAX_ACCOUNT_BALANCE)
+  @Min(-MAX_ACCOUNT_BALANCE)
   @ValidateIf((o: CreateAccountDto) => o.type !== AccountType.cash)
   @Min(0)
   balance!: number;

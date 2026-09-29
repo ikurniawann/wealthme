@@ -14,6 +14,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -31,6 +32,7 @@ export function FamilyHandleCard({
   familyGroupId,
   token,
 }: FamilyHandleCardProps) {
+  const { handleError } = useApiError();
   const fieldId = useId();
   const queryClient = useQueryClient();
   const key = queryKeys.familyGroups.loginHandle(familyGroupId ?? "");
@@ -65,8 +67,7 @@ export function FamilyHandleCard({
       });
       setEditing(false);
     },
-    onError: (e: { message?: string }) =>
-      toast.error(e.message ?? "Gagal mengubah kode keluarga"),
+    onError: handleError,
   });
 
   const normalized = draft.trim().toLowerCase();

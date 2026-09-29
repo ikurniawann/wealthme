@@ -141,7 +141,7 @@ it("adding a dividend posts reinvested only for dividen and the rate override in
     screen.getByLabelText("Diinvestasikan kembali di Indonesia ≤ 3 tahun"),
   );
   await userEvent.type(
-    screen.getByLabelText("Tarif sendiri (%) — opsional"),
+    screen.getByLabelText("Tarif sendiri (%), opsional"),
     "15",
   );
   await userEvent.click(screen.getByRole("button", { name: "Simpan" }));

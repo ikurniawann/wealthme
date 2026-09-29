@@ -10,6 +10,8 @@ import { apiFetch } from "@/lib/api-client";
 import { useMoney } from "@/hooks/use-money";
 
 import { MarkdownMessage } from "@/components/ai/markdown-message";
+import { AIChatCard } from "@/components/ui/ai-chat-card";
+import { useTimeGreeting } from "@/hooks/use-time-greeting";
 
 /** Restructure (prototype parity) — minimal shape read from the real
  * `/dashboard/summary` endpoint (mirrors `DashboardSummaryDto` from
@@ -97,6 +99,7 @@ export default function AiPage() {
   const { t } = useLocale();
   const money = useMoney();
   const { data: session } = useSession();
+  const greeting = useTimeGreeting(session?.user?.name);
   const familyGroupId = session?.familyGroupId ?? undefined;
   const token = session?.accessToken ?? "";
   const {
@@ -232,25 +235,44 @@ export default function AiPage() {
           on tablet/mobile per the translation table's bento-grid mapping. */}
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
         <div className="lg:col-span-8">
-          {/* Chat */}
-          <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
-            {/* Prototype parity (docs/prototype/pages/ai.html): the chat card
+          {/* G8 (hardening batch) — the empty state (only the seed
+              assistant greeting, no real exchange yet) now uses AIChatCard
+              instead of a blank transcript; sending a message switches
+              straight to the normal chat view below since `messages`
+              grows past 1 on the engine's own send(). */}
+          {messages.length <= 1 ? (
+            <AIChatCard
+              title={t.ai.chatCard.title}
+              subtitle={t.ai.chatCard.subtitle}
+              greeting={greeting}
+              prompt={t.ai.chatCard.promptText}
+              prompts={t.ai.chatCard.prompts}
+              placeholder={t.ai.chatCard.placeholder}
+              resetAriaLabel={t.ai.chatCard.resetAriaLabel}
+              attachAriaLabel={t.ai.chatCard.attachAriaLabel}
+              sendAriaLabel={t.ai.chatCard.sendAriaLabel}
+              onSend={(text) => send(text)}
+              onReset={handleNewConversation}
+            />
+          ) : (
+            <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
+              {/* Prototype parity (docs/prototype/pages/ai.html): the chat card
                 carries a "Percakapan" title. The app rendered a bare row with
                 only the reset button, so the card had no heading at all —
                 found by the text-presence parity audit, not by the earlier
                 selector-based one, which reported it as present. */}
-            <div className="row--between flex items-center border-b px-3 py-2">
-              <h2 className="card__title">{t.ai.chatCardTitle}</h2>
-              <button
-                type="button"
-                onClick={handleNewConversation}
-                disabled={isStreaming}
-                className="rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary transition-colors hover:bg-accent disabled:opacity-50"
-              >
-                {t.ai.newConversationButton}
-              </button>
-            </div>
-            {/* The transcript used to sit at a fixed `min-h-[200px]
+              <div className="row--between flex items-center border-b px-3 py-2">
+                <h2 className="card__title">{t.ai.chatCardTitle}</h2>
+                <button
+                  type="button"
+                  onClick={handleNewConversation}
+                  disabled={isStreaming}
+                  className="rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary transition-colors hover:bg-accent disabled:opacity-50"
+                >
+                  {t.ai.newConversationButton}
+                </button>
+              </div>
+              {/* The transcript used to sit at a fixed `min-h-[200px]
                 max-h-[440px]`, which on a 900px-tall desktop left ~324px of
                 empty viewport below the card while the conversation scrolled
                 inside a letterbox. It now grows downward into that space:
@@ -260,20 +282,20 @@ export default function AiPage() {
                 cap stops the line length from sprawling on a tall monitor.
                 On mobile the page scrolls anyway, so the taller panel simply
                 shows more of the conversation. */}
-            <div
-              ref={scrollRef}
-              className="hide-scrollbar flex h-[clamp(320px,calc(100dvh_-_400px),760px)] flex-col gap-4 overflow-y-auto p-4"
-            >
-              {messages.map((msg) =>
-                msg.role === "assistant" ? (
-                  <div key={msg.id} className="flex items-start gap-2.5">
-                    <div
-                      className="flex size-9 flex-shrink-0 items-center justify-center rounded-full text-[16px]"
-                      style={{ background: "#EEF2FF" }}
-                    >
-                      🤖
-                    </div>
-                    {/* EPIC-023 Task G retry (MEDIUM five-reviewer finding,
+              <div
+                ref={scrollRef}
+                className="hide-scrollbar flex h-[clamp(320px,calc(100dvh_-_400px),760px)] flex-col gap-4 overflow-y-auto p-4"
+              >
+                {messages.map((msg) =>
+                  msg.role === "assistant" ? (
+                    <div key={msg.id} className="flex items-start gap-2.5">
+                      <div
+                        className="flex size-9 flex-shrink-0 items-center justify-center rounded-full text-[16px]"
+                        style={{ background: "#EEF2FF" }}
+                      >
+                        🤖
+                      </div>
+                      {/* EPIC-023 Task G retry (MEDIUM five-reviewer finding,
                     round 2) — the truncation notice is a SEPARATE, visually
                     distinct element below the bubble, not text appended
                     into it (which collapsed into one run-on sentence and
@@ -283,60 +305,61 @@ export default function AiPage() {
                     block elements whose own margins handle the spacing —
                     keeping pre-wrap would additionally honour the source's
                     newlines and double every gap. */}
-                    <div className="flex max-w-[78%] flex-col gap-1">
-                      <div className="rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
-                        {msg.text ? (
-                          <MarkdownMessage text={msg.text} />
-                        ) : (
-                          <span className="animate-pulse text-muted-foreground">
-                            ●●●
-                          </span>
+                      <div className="flex max-w-[78%] flex-col gap-1">
+                        <div className="rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
+                          {msg.text ? (
+                            <MarkdownMessage text={msg.text} />
+                          ) : (
+                            <span className="animate-pulse text-muted-foreground">
+                              ●●●
+                            </span>
+                          )}
+                        </div>
+                        {msg.truncated && (
+                          <div className="px-1 text-[11px] font-medium italic text-muted-foreground">
+                            {t.ai.truncatedNotice}
+                          </div>
                         )}
                       </div>
-                      {msg.truncated && (
-                        <div className="px-1 text-[11px] font-medium italic text-muted-foreground">
-                          {t.ai.truncatedNotice}
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div
-                    key={msg.id}
-                    className="flex items-start justify-end gap-2.5"
-                  >
-                    <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-white">
-                      {msg.text}
+                  ) : (
+                    <div
+                      key={msg.id}
+                      className="flex items-start justify-end gap-2.5"
+                    >
+                      <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-white">
+                        {msg.text}
+                      </div>
                     </div>
-                  </div>
-                ),
-              )}
-            </div>
+                  ),
+                )}
+              </div>
 
-            {/* Input */}
-            <div className="flex items-center gap-2 border-t p-3">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleSubmit();
-                }}
-                disabled={isStreaming}
-                placeholder={t.ai.inputPlaceholder}
-                className="w-full rounded-full border bg-background px-4 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
-              />
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isStreaming || !input.trim()}
-                aria-label={t.ai.sendAriaLabel}
-                className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-              >
-                ➤
-              </button>
+              {/* Input */}
+              <div className="flex items-center gap-2 border-t p-3">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSubmit();
+                  }}
+                  disabled={isStreaming}
+                  placeholder={t.ai.inputPlaceholder}
+                  className="w-full rounded-full border bg-background px-4 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={isStreaming || !input.trim()}
+                  aria-label={t.ai.sendAriaLabel}
+                  className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  ➤
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Disclaimer */}
           <p className="mt-3 text-center text-[11px] text-muted-foreground">

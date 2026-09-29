@@ -57,6 +57,8 @@ import { parseRupiah, formatAmountInput } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 
+import { isSafeHttpUrl } from "./is-safe-http-url";
+
 import type {
   AccountDto,
   CreateDonationDto,
@@ -801,7 +803,7 @@ export default function DonationPage() {
                       {formatLocaleDate(d.donatedAt, locale)}
                       {accountLabel && `, ${accountLabel}`}
                     </span>
-                    {d.receiptUrl && (
+                    {d.receiptUrl && isSafeHttpUrl(d.receiptUrl) && (
                       <>
                         {", "}
                         <a
