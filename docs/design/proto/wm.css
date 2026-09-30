@@ -3710,3 +3710,327 @@ svg text {
   font-family: var(--font) !important;
   font-size: 11px;
 }
+
+/* ================= dark mode: neutral near-black, lime only as accent (reference: ACRU/venzer dark) ================= */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #09090a;
+    --card: #131314;
+    --card-2: #1a1a1c;
+    --ink: #f3f3f1;
+    --muted: #8e8e8b;
+    --line: rgba(255, 255, 255, 0.07);
+    --ghost: #242426;
+    --lime: #c6e48c;
+    --lime-ink: #10160a;
+    --lime-soft: rgba(198, 228, 140, 0.12);
+    --yellow: #e2d78a;
+    --orange: #e9a56a;
+    --good: #aed97a;
+    --bad: #f07a63;
+    --cover: #111112;
+    --cover-2: #1c1c1e;
+    --on-cover: #f3f3f1;
+    --on-cover-2: #8e8e8b;
+    --cover-line: rgba(255, 255, 255, 0.07);
+    --ctext: #8e8e8b;
+    --cgrid: rgba(255, 255, 255, 0.07);
+    --cghost: #2a2a2c;
+    --cstrong: #f3f3f1;
+    --cbg: #131314;
+    --shadow: none;
+    color-scheme: dark;
+  }
+  :root:not([data-theme="light"]) body {
+    background: #09090a;
+  }
+  :root:not([data-theme="light"]) .card,
+  :root:not([data-theme="light"]) .side,
+  :root:not([data-theme="light"]) .search,
+  :root:not([data-theme="light"]) .icon-btn,
+  :root:not([data-theme="light"]) .me,
+  :root:not([data-theme="light"]) .chip-demo,
+  :root:not([data-theme="light"]) .mh-tile,
+  :root:not([data-theme="light"]) .mh-stat {
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    box-shadow: none;
+  }
+  :root:not([data-theme="light"]) .card.dark,
+  :root:not([data-theme="light"]) .card.hero.dark,
+  :root:not([data-theme="light"]) .cover {
+    --ink: #f3f3f1;
+    --muted: #8e8e8b;
+    --line: rgba(255, 255, 255, 0.07);
+    --ghost: #2a2a2c;
+    --card: #161617;
+    --card-2: #1e1e20;
+    --lime-soft: rgba(198, 228, 140, 0.12);
+    --ctext: #8e8e8b;
+    --cgrid: rgba(255, 255, 255, 0.07);
+    --cghost: #2a2a2c;
+    --cstrong: #f3f3f1;
+    --cbg: #161617;
+    background:
+      radial-gradient(
+        80% 80% at 100% 100%,
+        rgba(198, 228, 140, 0.05),
+        transparent 60%
+      ),
+      linear-gradient(160deg, #1b1b1d 0%, #121213 100%);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: none;
+  }
+  :root:not([data-theme="light"]) .cover::before {
+    display: none;
+  }
+  :root:not([data-theme="light"]) .card.dark .ghost-btn.lit,
+  :root:not([data-theme="light"]) .ghost-btn.lit,
+  :root:not([data-theme="light"]) .btn.primary,
+  :root:not([data-theme="light"]) .btn-primary {
+    background: var(--lime);
+    border-color: var(--lime);
+    color: #10160a;
+  }
+  :root:not([data-theme="light"]) .nav a[aria-current="page"],
+  :root:not([data-theme="light"]) .sub a[aria-current="page"] {
+    background: #1e1e20;
+    color: #f3f3f1;
+  }
+  :root:not([data-theme="light"]) .nav a[aria-current="page"] {
+    box-shadow: inset 3px 0 0 var(--lime);
+  }
+  :root:not([data-theme="light"]) .pcard.lime,
+  :root:not([data-theme="light"]) .mh-acc {
+    background: linear-gradient(135deg, #2b2b2d, #1c1c1e);
+    color: #f3f3f1;
+    background-image: none;
+  }
+  :root:not([data-theme="light"]) .pcard.soft {
+    background: linear-gradient(135deg, #232325, #19191b);
+    color: #f3f3f1;
+  }
+  :root:not([data-theme="light"]) .pcard.dark {
+    background: #0e0e0f;
+    color: #f3f3f1;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  :root:not([data-theme="light"]) dialog.sheet {
+    background: #131314;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  :root:not([data-theme="light"]) dialog.sheet .sheet-head {
+    background: linear-gradient(160deg, #1c1c1e, #131314);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+  :root:not([data-theme="light"]) dialog.sheet::backdrop {
+    background: rgba(0, 0, 0, 0.7);
+  }
+  :root:not([data-theme="light"]) .sheet-foot .btn.primary {
+    background: var(--lime);
+    border-color: var(--lime);
+    color: #10160a;
+  }
+  :root:not([data-theme="light"]) .mnav {
+    background: #161617 !important;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  :root:not([data-theme="light"]) .mnav a[aria-current="page"],
+  :root:not([data-theme="light"])
+    .mnav
+    button[data-wm-menu][aria-current="page"] {
+    box-shadow: 0 0 0 4px #161617 !important;
+  }
+  :root:not([data-theme="light"]) .mnav .fab {
+    background: var(--lime);
+    color: #10160a;
+  }
+  :root:not([data-theme="light"]) .fai {
+    background: #161617;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  :root:not([data-theme="light"]) .toast {
+    background: #f3f3f1;
+    color: #111;
+  }
+  :root:not([data-theme="light"]) .tile[aria-checked="true"],
+  :root:not([data-theme="light"]) .ctile[aria-checked="true"],
+  :root:not([data-theme="light"]) .acc[aria-checked="true"] {
+    background: rgba(198, 228, 140, 0.1);
+  }
+  :root:not([data-theme="light"]) .card.dark::before {
+    background: #09090a;
+  }
+  :root:not([data-theme="light"]) .ak-av {
+    background: #2a2a2c;
+    color: #f3f3f1;
+    box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.05);
+  }
+  :root:not([data-theme="light"]) .mosaic i.a {
+    background: var(--lime);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #09090a;
+  --card: #131314;
+  --card-2: #1a1a1c;
+  --ink: #f3f3f1;
+  --muted: #8e8e8b;
+  --line: rgba(255, 255, 255, 0.07);
+  --ghost: #242426;
+  --lime: #c6e48c;
+  --lime-ink: #10160a;
+  --lime-soft: rgba(198, 228, 140, 0.12);
+  --yellow: #e2d78a;
+  --orange: #e9a56a;
+  --good: #aed97a;
+  --bad: #f07a63;
+  --cover: #111112;
+  --cover-2: #1c1c1e;
+  --on-cover: #f3f3f1;
+  --on-cover-2: #8e8e8b;
+  --cover-line: rgba(255, 255, 255, 0.07);
+  --ctext: #8e8e8b;
+  --cgrid: rgba(255, 255, 255, 0.07);
+  --cghost: #2a2a2c;
+  --cstrong: #f3f3f1;
+  --cbg: #131314;
+  --shadow: none;
+  color-scheme: dark;
+}
+:root[data-theme="dark"] body {
+  background: #09090a;
+}
+:root[data-theme="dark"] .card,
+:root[data-theme="dark"] .side,
+:root[data-theme="dark"] .search,
+:root[data-theme="dark"] .icon-btn,
+:root[data-theme="dark"] .me,
+:root[data-theme="dark"] .chip-demo,
+:root[data-theme="dark"] .mh-tile,
+:root[data-theme="dark"] .mh-stat {
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: none;
+}
+:root[data-theme="dark"] .card.dark,
+:root[data-theme="dark"] .card.hero.dark,
+:root[data-theme="dark"] .cover {
+  --ink: #f3f3f1;
+  --muted: #8e8e8b;
+  --line: rgba(255, 255, 255, 0.07);
+  --ghost: #2a2a2c;
+  --card: #161617;
+  --card-2: #1e1e20;
+  --lime-soft: rgba(198, 228, 140, 0.12);
+  --ctext: #8e8e8b;
+  --cgrid: rgba(255, 255, 255, 0.07);
+  --cghost: #2a2a2c;
+  --cstrong: #f3f3f1;
+  --cbg: #161617;
+  background:
+    radial-gradient(
+      80% 80% at 100% 100%,
+      rgba(198, 228, 140, 0.05),
+      transparent 60%
+    ),
+    linear-gradient(160deg, #1b1b1d 0%, #121213 100%);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+}
+:root[data-theme="dark"] .cover::before {
+  display: none;
+}
+:root[data-theme="dark"] .card.dark .ghost-btn.lit,
+:root[data-theme="dark"] .ghost-btn.lit,
+:root[data-theme="dark"] .btn.primary,
+:root[data-theme="dark"] .btn-primary {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #10160a;
+}
+:root[data-theme="dark"] .nav a[aria-current="page"],
+:root[data-theme="dark"] .sub a[aria-current="page"] {
+  background: #1e1e20;
+  color: #f3f3f1;
+}
+:root[data-theme="dark"] .nav a[aria-current="page"] {
+  box-shadow: inset 3px 0 0 var(--lime);
+}
+:root[data-theme="dark"] .pcard.lime,
+:root[data-theme="dark"] .mh-acc {
+  background: linear-gradient(135deg, #2b2b2d, #1c1c1e);
+  color: #f3f3f1;
+  background-image: none;
+}
+:root[data-theme="dark"] .pcard.soft {
+  background: linear-gradient(135deg, #232325, #19191b);
+  color: #f3f3f1;
+}
+:root[data-theme="dark"] .pcard.dark {
+  background: #0e0e0f;
+  color: #f3f3f1;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="dark"] dialog.sheet {
+  background: #131314;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="dark"] dialog.sheet .sheet-head {
+  background: linear-gradient(160deg, #1c1c1e, #131314);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+:root[data-theme="dark"] dialog.sheet::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+:root[data-theme="dark"] .sheet-foot .btn.primary {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #10160a;
+}
+:root[data-theme="dark"] .mnav {
+  background: #161617 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+:root[data-theme="dark"] .mnav a[aria-current="page"],
+:root[data-theme="dark"] .mnav button[data-wm-menu][aria-current="page"] {
+  box-shadow: 0 0 0 4px #161617 !important;
+}
+:root[data-theme="dark"] .mnav .fab {
+  background: var(--lime);
+  color: #10160a;
+}
+:root[data-theme="dark"] .fai {
+  background: #161617;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+:root[data-theme="dark"] .toast {
+  background: #f3f3f1;
+  color: #111;
+}
+:root[data-theme="dark"] .tile[aria-checked="true"],
+:root[data-theme="dark"] .ctile[aria-checked="true"],
+:root[data-theme="dark"] .acc[aria-checked="true"] {
+  background: rgba(198, 228, 140, 0.1);
+}
+:root[data-theme="dark"] .card.dark::before {
+  background: #09090a;
+}
+:root[data-theme="dark"] .ak-av {
+  background: #2a2a2c;
+  color: #f3f3f1;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.05);
+}
+:root[data-theme="dark"] .mosaic i.a {
+  background: var(--lime);
+}
+
+.search .lbl,
+.search > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.search kbd {
+  flex: none;
+}
