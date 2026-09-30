@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, HandCoins, Palette } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Plus,
+  HandCoins,
+  Palette,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -26,6 +33,7 @@ import {
   GhostButton,
   HeroKpi,
   TipsCard,
+  ARow,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import "./dana.css";
@@ -266,25 +274,19 @@ function MutationRow({
       ? tx.accountName
       : (tx.toAccountName ?? tx.accountName);
 
+  const Icon = isTransfer
+    ? ArrowLeftRight
+    : isIncome
+      ? ArrowDownLeft
+      : ArrowUpRight;
+
   return (
-    <tr className="border-b last:border-b-0">
-      <td className="px-3 py-2.5 align-top font-[family-name:var(--font-mono)] text-[11.5px] whitespace-nowrap">
-        {formatShortDate(tx.occurredAt, locale)}
-      </td>
-      <td className="px-3 py-2.5 align-top text-[13px]">
-        {tx.description ?? tx.categoryName ?? "—"}
-      </td>
-      <td className="px-3 py-2.5 align-top">
-        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-[3px] text-[11px] font-semibold text-secondary-foreground">
-          {accountLabel ?? "—"}
-        </span>
-      </td>
-      <td
-        className={`px-3 py-2.5 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-semibold whitespace-nowrap ${amountClass}`}
-      >
-        {amountStr}
-      </td>
-    </tr>
+    <ARow
+      badge={<Icon className="size-4" aria-hidden="true" />}
+      title={tx.description ?? tx.categoryName ?? "—"}
+      meta={`${formatShortDate(tx.occurredAt, locale)} · ${accountLabel ?? "—"}`}
+      amount={<span className={amountClass}>{amountStr}</span>}
+    />
   );
 }
 
@@ -797,35 +799,15 @@ export default function DanaPage() {
             </a>
           }
         >
-          <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[520px] border-collapse text-left">
-              <thead>
-                <tr className="border-b text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                  <th className="px-3 py-2 font-bold">
-                    {t.dana.tableDateHeader}
-                  </th>
-                  <th className="px-3 py-2 font-bold">
-                    {t.dana.tableDescriptionHeader}
-                  </th>
-                  <th className="px-3 py-2 font-bold">
-                    {t.dana.tableAccountHeader}
-                  </th>
-                  <th className="px-3 py-2 text-right font-bold">
-                    {t.dana.tableAmountHeader}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentDanaTransactions.map((tx) => (
-                  <MutationRow
-                    key={tx.id}
-                    tx={tx}
-                    danaAccountIds={danaAccountIds}
-                    locale={locale}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="dn-mut-list">
+            {recentDanaTransactions.map((tx) => (
+              <MutationRow
+                key={tx.id}
+                tx={tx}
+                danaAccountIds={danaAccountIds}
+                locale={locale}
+              />
+            ))}
           </div>
         </SectionCard>
       )}
