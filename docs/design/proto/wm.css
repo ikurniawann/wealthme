@@ -3344,3 +3344,306 @@ kbd {
   margin-right: 0 !important;
   aspect-ratio: auto !important;
 }
+
+/* ================= bold dialogs (all forms, panels, sheets) ================= */
+dialog.sheet {
+  background: var(--card);
+  overflow: hidden;
+}
+dialog.sheet .sheet-head {
+  position: relative;
+  margin: 0;
+  padding: 24px 24px 22px;
+  color: #eef0e8;
+  background:
+    radial-gradient(
+      90% 140% at 100% 0%,
+      rgba(169, 216, 76, 0.28),
+      transparent 60%
+    ),
+    linear-gradient(160deg, #20241a 0%, #12140d 70%, #0d0f09 100%);
+}
+dialog.sheet.side .sheet-head {
+  padding: 28px 26px 24px;
+}
+dialog.sheet .sheet-head h2 {
+  font-size: 26px;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+  font-weight: 600;
+  color: #eef0e8;
+}
+dialog.sheet.sm .sheet-head h2 {
+  font-size: 21px;
+}
+dialog.sheet .sheet-head p {
+  color: #a3aa95;
+  font-size: 13px;
+  margin-top: 6px;
+}
+dialog.sheet .sheet-head .x {
+  background: rgba(238, 240, 232, 0.1);
+  color: #eef0e8;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+dialog.sheet .sheet-head .x:hover {
+  background: rgba(238, 240, 232, 0.2);
+}
+dialog.sheet .sheet-body {
+  padding: 22px 24px 20px;
+  gap: 18px;
+}
+dialog.sheet.side .sheet-body {
+  padding: 24px 26px 22px;
+}
+.sheet .field > label,
+.sheet .flabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.sheet .field .opt,
+.sheet .flabel .opt {
+  font-weight: 500;
+  color: var(--muted);
+}
+.sheet
+  .field
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    [type="file"]
+  ),
+.sheet .field select,
+.sheet .field textarea {
+  background-color: var(--card-2);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  min-height: 54px;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 500;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
+}
+.sheet .field select {
+  padding-right: 40px;
+  background-position: right 16px center;
+}
+.sheet .field input:hover,
+.sheet .field select:hover,
+.sheet .field textarea:hover {
+  background-color: var(--ghost);
+}
+.sheet .field input:focus,
+.sheet .field select:focus,
+.sheet .field textarea:focus {
+  background-color: var(--card);
+  border-color: var(--lime);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--lime) 22%, transparent);
+}
+.sheet .field input::placeholder,
+.sheet .field textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 70%, transparent);
+  font-weight: 400;
+}
+.sheet .affix {
+  background: var(--card-2);
+  border: 2px solid transparent;
+  border-radius: 16px;
+  min-height: 54px;
+  padding: 0 8px 0 8px;
+  gap: 10px;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    box-shadow 0.15s;
+}
+.sheet .affix:hover {
+  background: var(--ghost);
+}
+.sheet .affix:focus-within {
+  background: var(--card);
+  border-color: var(--lime);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--lime) 22%, transparent);
+}
+.sheet .affix > span:first-child {
+  background: var(--ink);
+  color: var(--card);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.sheet .affix > span:last-child:not(:first-child) {
+  color: var(--muted);
+  font-weight: 600;
+  padding-right: 8px;
+}
+.sheet .field .affix input {
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  min-height: 0;
+  padding: 12px 0;
+}
+.sheet .field.invalid input,
+.sheet .field.invalid select,
+.sheet .field.invalid textarea,
+.sheet .field.invalid .affix {
+  border-color: var(--bad);
+  background-color: color-mix(in srgb, var(--bad) 6%, var(--card));
+}
+.sheet .field .err {
+  font-weight: 500;
+}
+.sheet .field .hint {
+  font-size: 12px;
+}
+.sheet .switch {
+  background: var(--card-2);
+  border-radius: 16px;
+  padding: 12px 16px;
+  min-height: 62px;
+}
+.sheet .switch span {
+  font-weight: 600;
+}
+.sheet .check {
+  background: var(--card-2);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.sheet .two,
+.sheet .three {
+  gap: 14px;
+}
+.sheet .amount {
+  border-bottom-width: 3px;
+}
+.sheet .amount input {
+  font-size: 42px;
+}
+.sheet .seg.full {
+  background: var(--card-2);
+  border-radius: 16px;
+  padding: 4px;
+}
+.sheet .seg.full button {
+  min-height: 46px;
+  border-radius: 12px;
+  font-size: 14px;
+}
+.sheet .seg.full button[aria-checked="true"],
+.sheet .seg.full button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--card);
+  box-shadow: none;
+}
+.sheet .ctile,
+.sheet .acc,
+.sheet .tile {
+  border-width: 2px;
+  border-radius: 16px;
+}
+.sheet .drop {
+  border-radius: 18px;
+  border-width: 2px;
+}
+dialog.sheet .sheet-foot {
+  border-top: 0;
+  padding: 16px 24px 22px;
+  background: linear-gradient(180deg, transparent, var(--card) 30%);
+  gap: 10px;
+}
+dialog.sheet.side .sheet-foot {
+  padding: 18px 26px 26px;
+}
+.sheet-foot .btn {
+  min-height: 54px;
+  border-radius: 99px;
+  font-size: 14.5px;
+}
+.sheet-foot .btn:not(.primary):not(.danger):not(.dark) {
+  background: transparent;
+  border-color: var(--line);
+}
+.sheet-foot .btn.primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--card);
+  box-shadow: 0 10px 24px -12px rgba(20, 30, 5, 0.6);
+}
+.sheet-foot .btn.primary::after {
+  content: "";
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--lime)
+    url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%231F2A07%27 stroke-width=%273%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M5 12h14M13 6l6 6-6 6%27/%3E%3C/svg%3E")
+    no-repeat center;
+  margin-left: 4px;
+}
+.sheet-foot .btn.primary:hover {
+  filter: brightness(1.25);
+  background: var(--ink);
+}
+.sheet-foot .btn.danger {
+  border-radius: 99px;
+}
+:root[data-theme="dark"] .sheet-foot .btn.primary {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--lime-ink);
+}
+@media (max-width: 720px) {
+  dialog.sheet .sheet-head {
+    padding: 26px 18px 20px;
+  }
+  dialog.sheet .sheet-head::before {
+    content: "";
+    position: absolute;
+    top: 9px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(238, 240, 232, 0.3);
+  }
+  dialog.sheet .sheet-head h2 {
+    font-size: 22px;
+  }
+  dialog.sheet .sheet-body {
+    padding: 18px 18px 16px;
+  }
+  dialog.sheet .sheet-foot {
+    padding: 14px 18px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+}
+.sheet .amount input {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  font-size: 42px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.035em;
+}
+.sheet .amount {
+  background: transparent;
+  border-bottom: 3px solid var(--line);
+}
+.sheet .amount:focus-within {
+  border-color: var(--lime);
+}
+.sheet-body > * {
+  flex-shrink: 0;
+}

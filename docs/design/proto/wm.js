@@ -2789,7 +2789,7 @@
         fxu();
         setType(type);
         setTimeout(function () {
-          amt.focus();
+          amt.focus({ preventScroll: true });
         }, 30);
       },
       onSubmit: function (f, v) {
