@@ -53,6 +53,9 @@ details.coa .kid{padding-left:32px}
 @media (max-width:900px){.lap{grid-template-columns:minmax(0,1fr)}.idx{display:none}.picker{display:flex}}
 @media (max-width:720px){.c-acts{width:100%}.cbtn{flex:1;justify-content:center}}
 @media print{.side,.top,.mnav,.idx,.picker,.c-acts,.filt-print,.fai{display:none!important}}
+.rbody>.card{grid-column:1/-1}
+.rbody>.card.s7{grid-column:span 7}.rbody>.card.s5{grid-column:span 5}.rbody>.card.s6{grid-column:span 6}
+@media (max-width:1180px){.rbody>.card.s7,.rbody>.card.s5,.rbody>.card.s6{grid-column:1/-1}}
 </style>
 <main data-page="laporan">
 <div class="card">
@@ -319,7 +322,7 @@ function show(id,focus){cur=ALL.filter(function(r){return r.id===id;})[0]||ALL[0
     '<button class="cbtn" type="button" id="csvBtn">'+WM.icon("download",15)+'CSV</button><button class="cbtn lit" type="button" id="pdfBtn">'+WM.icon("download",15)+'Cetak PDF</button></div></div>'+
     '<h1 class="headline" id="rh" tabindex="-1">'+r.h()+'</h1>'+(r.note?'<p class="c-note">'+r.note+'</p>':'')+
     '<div class="c-viz" id="viz"></div><div class="c-leg">'+leg.map(function(l){return '<span><i style="background:'+l[1]+'"></i>'+l[0]+(l[2]!=null?' <b>'+l[2]+'</b>':'')+'</span>';}).join("")+'</div></section>'+
-    '<div class="grid">'+r.body()+'</div>';
+    '<div class="grid rbody">'+r.body()+'</div>';
   r.viz(document.getElementById("viz"));if(r.after)r.after();
   document.getElementById("pickIc").innerHTML=WM.icon(IC[r.id],17);document.getElementById("pickGrp").textContent=r.g;document.getElementById("pickName").textContent=r.n;
   drawIdx();try{history.replaceState(null,"","#"+r.id);}catch(e){}

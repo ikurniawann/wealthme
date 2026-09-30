@@ -3184,7 +3184,11 @@
         mk(
           "text",
           { x: L - 8, y: y(t) + 3.5, "text-anchor": "end" },
-          typeof fmt === "function" ? fmt(t) : Math.round(t),
+          typeof fmt === "function"
+            ? fmt(t)
+            : Math.abs(top) >= 1e5
+              ? WM.short(t).replace("Rp ", "")
+              : Math.round(t),
         ),
       );
     });
@@ -3569,7 +3573,12 @@
                 "fill:" +
                 cv(box, "--cstrong") +
                 ";font-family:var(--font);font-size:" +
-                Math.round(R * 0.28) +
+                Math.round(
+                  Math.min(
+                    R * 0.28,
+                    (r * 1.7) / Math.max(4, String(o.center).length * 0.62),
+                  ),
+                ) +
                 "px;font-weight:600",
             },
             o.center,
