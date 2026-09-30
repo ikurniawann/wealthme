@@ -3702,3 +3702,11 @@ h3,
   font-family: var(--mono);
   font-size: 12px;
 }
+
+/* chart labels use the interface font, not mono */
+.chart svg text,
+.chart-wrap svg text,
+svg text {
+  font-family: var(--font) !important;
+  font-size: 11px;
+}

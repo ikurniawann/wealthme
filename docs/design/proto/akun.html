@@ -5,37 +5,54 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 .ak-hero .head{align-items:center}
-.ak-av{width:44px;height:44px;border-radius:14px;background:var(--card-2);display:grid;place-items:center;font-weight:700;font-size:16px;flex:none}
+.ak-id{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ak-av{width:76px;height:76px;border-radius:50%;background:#DDEFB5;color:#1F2A07;display:grid;place-items:center;font-weight:700;font-size:28px;flex:none;box-shadow:0 0 0 6px rgba(169,216,76,.18)}
+.ak-who{flex:1;min-width:200px}.ak-who h1{margin:0;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.1}
+.ak-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;color:var(--muted);font-size:13px}
+.card.dark .ak-meta .pill{background:rgba(169,216,76,.18);color:#C9E88E}
+.ak-prog{margin-top:auto;padding-top:28px}
+.ak-prog-h{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;margin-bottom:12px}.ak-prog-h b{font-weight:600}.ak-prog-h .num{font-size:28px;font-weight:600;letter-spacing:-.03em}
+.ak-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ak-step{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)}
+.ak-step i{height:10px;border-radius:5px;background:rgba(238,240,232,.14)}
+.ak-step.on i{background:#A9D84C;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.22) 0 2px,transparent 2px 8px)}
+.ak-step.on{color:#EEF0E8}
+@media (max-width:720px){.ak-id{flex-direction:column;text-align:center}.ak-meta{justify-content:center}.ak-steps{grid-template-columns:repeat(5,1fr)}.ak-step span{display:none}}
+.qtabs{max-width:420px}
 .set-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .set-tile{border:0;background:var(--card-2);border-radius:16px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:10px;min-height:88px}
 .set-tile:hover{background:var(--ghost)}
 .set-tile .ci{width:32px;height:32px;border-radius:10px;background:var(--card);display:grid;place-items:center}
-.set-tile b{font-size:13px;font-weight:600}
+.set-tile b{display:block;font-size:13px;font-weight:600}
 .set-tile small{color:var(--muted);font-size:11px}
-.currency-tile{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:var(--card);border-radius:13px;padding:11px 13px;text-align:left;margin-bottom:8px}
+.pref-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.currency-tile{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:var(--card);border-radius:13px;padding:12px 14px;text-align:left}
 .currency-tile[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
-.currency-tile .flag{font-size:20px}
+.currency-tile .flag{font-size:15px;font-weight:700;line-height:1;display:grid;place-items:center;min-width:24px;flex:none}
 .currency-tile b{display:block;font-size:13px}
 .currency-tile small{color:var(--muted);font-size:11px}
 .currency-tile .ck{margin-left:auto;color:var(--good);font-weight:700}
-.session-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
-.session-row:first-child{border-top:0}
-.tentang-hero{text-align:center;padding:10px 0}
-.tentang-hero .mark{width:52px;height:52px;border-radius:16px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-size:20px;font-weight:800;margin:0 auto 8px}
-.qtabs{max-width:420px}
+.switchbox{display:flex;flex-direction:column}
+.switchbox .switch{padding:12px 0;border-top:1px solid var(--line)}
+.switchbox .switch:first-child{padding-top:0;border-top:0}
+.soon{font-size:11px;font-weight:600;color:var(--muted);background:var(--card-2);border-radius:99px;padding:1px 7px;margin-left:6px}
+.session-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.session-row:first-child{padding-top:0;border-top:0}
+.tentang-hero{text-align:center;padding:8px 0 4px}
+.tentang-hero .mark{width:52px;height:52px;border-radius:16px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-size:20px;font-weight:700;margin:0 auto 10px}
+.danger-zone{border:1.5px solid var(--bad);background:transparent;box-shadow:none}
+.danger-zone h2{color:var(--bad)}
 </style>
 <main data-page="akun">
 <section class="bento" aria-label="Akun">
   <article class="card hero dark ak-hero" style="grid-column:1/-1">
     <div class="chart-side">
-      <div class="head">
-        <div style="display:flex;align-items:center;gap:14px">
-          <span class="ak-av" id="heroAv"></span>
-          <div><p class="big num" id="heroPct"></p><div class="cap" id="heroSub"></div></div>
-        </div>
-        <div class="hero-ctrl"><div class="ctrl-row"><button class="ghost-btn lit" type="button" id="editProfile">Edit profil</button></div></div>
+      <div class="ak-id">
+        <span class="ak-av" id="heroAv"></span>
+        <div class="ak-who"><h1 id="heroName"></h1><div class="ak-meta"><span class="pill" id="heroRole"></span><span id="heroMail"></span></div></div>
+        <div class="ak-btns"><button class="ghost-btn lit" type="button" id="editProfile">Edit profil</button></div>
       </div>
-      <div class="chart-wrap" id="chart"></div>
+      <div class="ak-prog"><div class="ak-prog-h"><b>Kelengkapan profil</b><span class="num" id="heroPct"></span></div><div class="ak-steps" id="chart"></div></div>
     </div>
     <div class="kpis">
       <div class="kpi"><small>Anggota keluarga</small><div class="v" id="kFam"></div></div>
@@ -53,15 +70,13 @@
     </div>
 
     <!-- PROFIL -->
-    <div id="panelProfil" style="margin-top:18px">
-      <div id="stepperBox"></div>
-      <div class="grid" style="margin-top:14px">
-        <div class="card soft s6"><h2>Profil saya</h2><dl class="kv" id="profKv" style="margin-top:10px"></dl></div>
-        <div class="card soft s6"><h2>Group family</h2><div id="familyBox" style="margin-top:10px"></div></div>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <div class="head"><h3 style="margin:0;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Anggota (<span id="memberCount">0</span>)</h3></div>
-        <ul class="mini-list" id="memberList"></ul>
+    <div id="panelProfil" class="grid" style="margin-top:18px">
+      <div id="stepperBox" style="grid-column:1/-1"></div>
+      <div class="card soft s6"><h2>Profil saya</h2><dl class="kv" id="profKv" style="margin-top:12px"></dl></div>
+      <div class="card soft s6"><h2>Group family</h2><div id="familyBox" style="margin-top:12px"></div></div>
+      <div class="card soft" style="grid-column:1/-1">
+        <div class="head"><h2>Anggota (<span id="memberCount">0</span>)</h2></div>
+        <ul class="mini-list" id="memberList" style="margin-top:12px"></ul>
         <a class="see-all" href="iam.html">Kelola anggota di IAM Roles</a>
       </div>
     </div>
@@ -70,78 +85,98 @@
     <div id="panelKeamanan" style="margin-top:18px" hidden>
       <div id="pwForm" hidden class="card soft" style="margin-bottom:16px">
         <h2>Ubah password</h2>
-        <div style="margin-top:10px" id="pwFields"></div>
-        <div style="display:flex;gap:8px;margin-top:10px">
+        <div style="margin-top:12px" id="pwFields"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
           <button class="btn block" type="button" id="pwCancel">Batal</button>
           <button class="btn primary block" type="button" id="pwSave">Simpan</button>
         </div>
       </div>
-      <div class="set-tiles">
-        <button class="set-tile" type="button" id="togglePw"><span class="ci"></span><span><b>Ubah password</b><small>Klik untuk mengubah</small></span></button>
-        <button class="set-tile" type="button" id="openPin"><span class="ci"></span><span><b>PIN aplikasi</b><small>6 digit, perangkat ini</small></span></button>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Autentikasi</h3>
-        <div class="switchbox" id="authSwitches"></div>
-        <p class="cap" style="margin-top:8px">Disimpan, tapi belum ada mekanisme yang menegakkannya otomatis.</p>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Sesi aktif</h3>
-        <div id="sessionList"></div>
+      <div class="grid">
+        <div class="card soft s6">
+          <h2>Password &amp; PIN</h2>
+          <div class="set-tiles" style="margin-top:12px">
+            <button class="set-tile" type="button" id="togglePw"><span class="ci"></span><span><b>Ubah password</b><small>Klik untuk mengubah</small></span></button>
+            <button class="set-tile" type="button" id="openPin"><span class="ci"></span><span><b>PIN aplikasi</b><small>6 digit, perangkat ini</small></span></button>
+          </div>
+        </div>
+        <div class="card soft s6">
+          <h2>Autentikasi</h2>
+          <div class="switchbox" id="authSwitches" style="margin-top:12px"></div>
+          <p class="cap" style="margin-top:10px">Disimpan, tapi belum ada mekanisme yang menegakkannya otomatis.</p>
+        </div>
+        <div class="card soft" style="grid-column:1/-1">
+          <h2>Sesi aktif</h2>
+          <div id="sessionList" style="margin-top:12px"></div>
+        </div>
       </div>
     </div>
 
     <!-- PREFERENSI -->
     <div id="panelPreferensi" style="margin-top:18px" hidden>
-      <div class="set-sec">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Tema</h3>
-        <div class="seg" id="themeSeg"></div>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Mata uang</h3>
-        <p class="cap" style="margin:0 0 8px">Prototipe ini hanya menyimpan pilihannya, angka tetap tampil dalam Rupiah.</p>
-        <div id="currencyList"></div>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Bahasa</h3>
-        <div class="field" style="max-width:280px"><label>Bahasa aplikasi</label><select class="select" id="langSel"><option value="id">ID, Bahasa Indonesia</option><option value="en">EN, English</option></select><span class="hint">Saat ini hanya Bahasa Indonesia yang tersedia.</span></div>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Notifikasi</h3>
-        <div id="notifBox"></div>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Privasi &amp; data</h3>
-        <div id="privBox"></div>
-        <div class="set-tiles" style="margin-top:10px">
-          <button class="set-tile" type="button" id="exportBtn"><span class="ci"></span><span><b>Ekspor data</b><small>Unduh JSON</small></span></button>
-          <button class="set-tile" type="button" id="deleteBtn"><span class="ci" style="background:#FEE2E2;color:var(--bad)"></span><span><b>Hapus akun</b><small>Permanen</small></span></button>
+      <div class="grid">
+        <div class="card soft s6">
+          <h2>Bahasa</h2>
+          <div class="seg full" id="langSeg" role="radiogroup" aria-label="Bahasa aplikasi" style="margin-top:12px">
+            <button type="button" role="radio" aria-checked="true" data-lang="id">Bahasa Indonesia</button>
+            <button type="button" role="radio" aria-checked="false" data-lang="en" disabled>English<span class="soon">Segera</span></button>
+          </div>
         </div>
+        <div class="card soft s6">
+          <h2>Tema</h2>
+          <div class="pref-tiles" id="themeSeg" style="margin-top:12px"></div>
+        </div>
+      </div>
+      <div class="card soft" style="margin-top:16px">
+        <h2>Mata uang</h2>
+        <p class="cap" style="margin-top:4px">Prototipe ini hanya menyimpan pilihannya, angka tetap tampil dalam Rupiah.</p>
+        <div class="pref-tiles" id="currencyList" style="margin-top:12px"></div>
+      </div>
+      <div class="grid" style="margin-top:16px">
+        <div class="card soft s4"><h2>Transaksi</h2><div class="switchbox" id="notifTxn" style="margin-top:12px"></div></div>
+        <div class="card soft s4"><h2>Tujuan &amp; anggaran</h2><div class="switchbox" id="notifGoal" style="margin-top:12px"></div></div>
+        <div class="card soft s4"><h2>Investasi</h2><div class="switchbox" id="notifInvest" style="margin-top:12px"></div></div>
+      </div>
+      <div class="grid" style="margin-top:16px">
+        <div class="card soft s7">
+          <h2>Privasi</h2>
+          <div class="switchbox" id="privBox" style="margin-top:12px"></div>
+        </div>
+        <div class="card soft s5">
+          <h2>Data</h2>
+          <button class="set-tile" type="button" id="exportBtn" style="margin-top:12px;width:100%"><span class="ci"></span><span><b>Ekspor data</b><small>Unduh seluruh datamu sebagai JSON</small></span></button>
+        </div>
+      </div>
+      <div class="card danger-zone" style="margin-top:16px">
+        <h2>Zona berbahaya</h2>
+        <p class="cap" style="margin-top:4px">Menghapus akun akan menghapus seluruh data keluarga secara permanen dan tidak bisa dikembalikan.</p>
+        <button class="btn danger" type="button" id="deleteBtn" style="margin-top:14px">Hapus akun</button>
       </div>
     </div>
 
     <!-- BANTUAN -->
     <div id="panelBantuan" style="margin-top:18px" hidden>
-      <div class="set-sec">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">FAQ</h3>
-        <div id="faqBox"></div>
+      <div class="grid">
+        <div class="card soft s7">
+          <h2>FAQ</h2>
+          <div id="faqBox" style="margin-top:10px"></div>
+        </div>
+        <div class="card soft s5">
+          <h2>Panduan &amp; kontak</h2>
+          <ul class="mini-list" id="linkList" style="margin-top:10px"></ul>
+        </div>
       </div>
-      <div class="set-sec" style="margin-top:16px">
-        <h3 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;color:var(--muted)">Panduan &amp; kontak</h3>
-        <ul class="mini-list" id="linkList"></ul>
+      <div class="card soft" style="margin-top:16px">
+        <h2>Kirim feedback</h2>
+        <textarea class="textarea" id="fbText" rows="3" placeholder="Ceritakan pengalamanmu atau laporkan bug…" style="margin-top:12px"></textarea>
+        <button class="btn primary block" type="button" id="fbSend" disabled style="margin-top:10px">Kirim feedback</button>
       </div>
-      <div class="set-sec" style="margin-top:16px">
-        <b style="font-size:13px">Kirim feedback</b>
-        <textarea class="textarea" id="fbText" rows="3" placeholder="Ceritakan pengalamanmu atau laporkan bug…" style="margin-top:8px"></textarea>
-        <button class="btn primary block" type="button" id="fbSend" disabled style="margin-top:8px">Kirim feedback</button>
-      </div>
-      <div class="set-sec" style="margin-top:16px">
-        <div class="tentang-hero"><div class="mark">W</div><div style="font-weight:700;font-size:16px">WealthMe</div><p class="cap">Personal Wealth Operating System · v1.0.0</p></div>
-        <ul class="mini-list" id="legalList"></ul>
+      <div class="card soft" style="margin-top:16px">
+        <div class="tentang-hero"><div class="mark">W</div><div style="font-weight:600;font-size:16px">WealthMe</div><p class="cap">Personal Wealth Operating System · v1.0.0</p></div>
+        <ul class="mini-list" id="legalList" style="margin-top:12px"></ul>
       </div>
     </div>
 
-    <button class="btn danger block" type="button" id="logoutBtn" style="margin-top:20px">Keluar dari akun</button>
+    <button class="btn danger block" type="button" id="logoutBtn" style="margin-top:24px">Keluar dari akun</button>
   </div>
 </section>
 </main>
@@ -163,16 +198,14 @@ var CURRENCIES=[["IDR","Rp","Rupiah Indonesia"],["USD","$","US Dollar"],["SGD","
 function pd(){return WM.store.get("profileDetail");}
 function updPd(patch){WM.store.set("profileDetail",Object.assign({},pd(),patch));}
 
-function chart(){var d=pd(),box=document.getElementById("chart");
-  var counts=NOTIF_ROWS.map(function(sec){return sec[1].filter(function(r){return d.notifPrefs[r[0]];}).length;});
-  var hi=counts.reduce(function(a,v,i){return v>counts[a]?i:a;},0);
-  WM.chart.bars(box,{labels:NOTIF_ROWS.map(function(s){return s[0];}),series:[{d:counts,c:"var(--lime)"}],hi:hi,wide:true,fmt:function(v){return v+" notifikasi aktif";}});}
+function chart(){var prof=WM.store.get("profile")||{step:5,of:5},L=["Profil dasar","Rekening","Anggaran","Anggota","Tujuan"];
+  document.getElementById("chart").innerHTML=L.map(function(l,i){return '<div class="ak-step'+(i<prof.step?" on":"")+'"><i></i><span>'+l+'</span></div>';}).join("");}
 
 function drawHero(){var me=WM.me(),prof=WM.store.get("profile")||{step:5,of:5};
   document.getElementById("heroAv").textContent=me.init;
   var pct=prof.of?Math.round(prof.step/prof.of*100):100;
   document.getElementById("heroPct").textContent=pct+"%";
-  document.getElementById("heroSub").textContent=me.name+" · "+me.email+" · "+WM.roleLabel(me.role);
+  document.getElementById("heroName").textContent=me.name;document.getElementById("heroRole").textContent=WM.roleLabel(me.role);document.getElementById("heroMail").textContent=me.email;
   document.getElementById("kFam").textContent=WM.store.get("members").length;
   document.getElementById("kSess").textContent=WM.store.get("sessions").length;
   document.getElementById("kTheme").textContent=({light:"Terang",dark:"Gelap"})[currentThemePref()]||"Sistem";
@@ -243,7 +276,8 @@ function drawSessions(){var ss=WM.store.get("sessions");
 function isDarkNow(){var t=localStorage.getItem("wm-proto-v1:theme");if(t)return JSON.parse(t)==="dark";return matchMedia("(prefers-color-scheme: dark)").matches;}
 function currentThemePref(){var t=localStorage.getItem("wm-proto-v1:theme");return t?JSON.parse(t):"system";}
 function drawTheme(){var cur=currentThemePref();
-  document.getElementById("themeSeg").innerHTML=[["light","Terang"],["dark","Gelap"],["system","Ikuti sistem"]].map(function(o){return '<button type="button" aria-pressed="'+(o[0]===cur)+'" data-theme-v="'+o[0]+'">'+o[1]+'</button>';}).join("");
+  var OPTS=[["light","Terang","sun"],["dark","Gelap","moon"],["system","Ikuti sistem","checkc"]];
+  document.getElementById("themeSeg").innerHTML=OPTS.map(function(o){return '<button type="button" class="currency-tile" role="radio" aria-checked="'+(o[0]===cur)+'" data-theme-v="'+o[0]+'"><span class="flag">'+WM.icon(o[2],18)+'</span><b>'+o[1]+'</b>'+(o[0]===cur?'<span class="ck">✓</span>':"")+'</button>';}).join("");
   document.querySelectorAll("[data-theme-v]").forEach(function(b){b.onclick=function(){var v=b.dataset.themeV;
     if(v==="system"){localStorage.removeItem("wm-proto-v1:theme");document.documentElement.removeAttribute("data-theme");}
     else{localStorage.setItem("wm-proto-v1:theme",JSON.stringify(v));document.documentElement.setAttribute("data-theme",v);}
@@ -254,14 +288,12 @@ function drawCurrency(){var cur=pd().currency;
   document.getElementById("currencyList").innerHTML=CURRENCIES.map(function(c){return '<button type="button" class="currency-tile" role="radio" aria-checked="'+(c[0]===cur)+'" data-cur="'+c[0]+'"><span class="flag">'+c[1]+'</span><span><b>'+c[0]+'</b><small>'+c[2]+'</small></span>'+(c[0]===cur?'<span class="ck">✓</span>':"")+'</button>';}).join("");
   document.querySelectorAll("[data-cur]").forEach(function(b){b.onclick=function(){updPd({currency:b.dataset.cur});WM.toast("Mata uang tampilan diperbarui");drawCurrency();};});}
 
-document.getElementById("langSel").onchange=function(e){if(e.target.value==="en"){WM.toast("Bahasa Inggris belum tersedia (simulasi). Tetap Bahasa Indonesia.");e.target.value="id";}};
-
 var NOTIF_ROWS=[
- ["Transaksi",[["txnIn","Notif transaksi masuk","Setiap ada dana masuk"],["txnOut","Notif transaksi keluar","Setiap ada pengeluaran"],["txnBig","Transaksi besar (>Rp 5 jt)","Alert khusus"]]],
- ["Tujuan & anggaran",[["budget80","Anggaran mendekati batas","Alert saat 80% terpakai"],["goalMilestone","Update progres tujuan","Saat milestone tercapai"],["billDue","Jatuh tempo tagihan","3 hari sebelum jatuh tempo"]]],
- ["Investasi",[["stockPrice","Update harga saham","Perubahan harga signifikan"],["dividend","Dividen masuk","Saat dividen diterima"]]]];
+ ["Transaksi","notifTxn",[["txnIn","Notif transaksi masuk","Setiap ada dana masuk"],["txnOut","Notif transaksi keluar","Setiap ada pengeluaran"],["txnBig","Transaksi besar (>Rp 5 jt)","Alert khusus"]]],
+ ["Tujuan & anggaran","notifGoal",[["budget80","Anggaran mendekati batas","Alert saat 80% terpakai"],["goalMilestone","Update progres tujuan","Saat milestone tercapai"],["billDue","Jatuh tempo tagihan","3 hari sebelum jatuh tempo"]]],
+ ["Investasi","notifInvest",[["stockPrice","Update harga saham","Perubahan harga signifikan"],["dividend","Dividen masuk","Saat dividen diterima"]]]];
 function drawNotif(){var d=pd();
-  document.getElementById("notifBox").innerHTML=NOTIF_ROWS.map(function(sec){return '<div style="margin-bottom:10px"><b style="font-size:12px;color:var(--muted)">'+sec[0]+'</b><div class="switchbox" style="margin-top:4px">'+sec[1].map(function(r){return '<label class="switch"><span><b style="display:block">'+r[1]+'</b><small>'+r[2]+'</small></span><input type="checkbox" data-np="'+r[0]+'" '+(d.notifPrefs[r[0]]?"checked":"")+'></label>';}).join("")+'</div></div>';}).join("");
+  NOTIF_ROWS.forEach(function(sec){document.getElementById(sec[1]).innerHTML=sec[2].map(function(r){return '<label class="switch"><span><b style="display:block">'+r[1]+'</b><small>'+r[2]+'</small></span><input type="checkbox" data-np="'+r[0]+'" '+(d.notifPrefs[r[0]]?"checked":"")+'></label>';}).join("");});
   document.querySelectorAll("[data-np]").forEach(function(i){i.onchange=function(){var np=Object.assign({},pd().notifPrefs);np[i.dataset.np]=i.checked;updPd({notifPrefs:np});};});}
 
 function drawPriv(){var d=pd();
@@ -300,7 +332,7 @@ document.getElementById("logoutBtn").onclick=function(){WM.confirm({title:"Kelua
 function fillIcons(){document.getElementById("togglePw").querySelector(".ci").innerHTML=WM.icon("lock",17);
   document.getElementById("openPin").querySelector(".ci").innerHTML=WM.icon("key",17);
   document.getElementById("exportBtn").querySelector(".ci").innerHTML=WM.icon("download",17);
-  document.getElementById("deleteBtn").querySelector(".ci").innerHTML=WM.icon("trash",17);}
+  document.getElementById("deleteBtn").insertAdjacentHTML("afterbegin",WM.icon("trash",16));}
 
 drawHero();drawTabs();drawStepper();drawProfKv();drawFamily();drawMembers();drawAuthSwitches();drawSessions();drawTheme();drawCurrency();drawNotif();drawPriv();fillIcons();
 WM.onChange(["members","profile","profileDetail","sessions"],function(){drawHero();drawStepper();drawProfKv();drawFamily();drawMembers();drawSessions();});
