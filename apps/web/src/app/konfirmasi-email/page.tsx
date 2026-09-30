@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle2, MailWarning } from "lucide-react";
 
-import { SectionCard } from "@/components/wm";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { apiFetch } from "@/lib/api-client";
 
 /**
@@ -52,70 +52,48 @@ function Confirm() {
         : { kind: "loading" };
 
   return (
-    <SectionCard>
-      <div className="grid place-items-center gap-2 px-5 py-6 text-center">
-        {state.kind === "loading" && (
-          <div className="text-[13px] text-muted-foreground">
-            Mengonfirmasi email…
+    <div className="au-panel au-center">
+      {state.kind === "loading" && (
+        <p className="au-sub" role="status">
+          Mengonfirmasi email…
+        </p>
+      )}
+      {state.kind === "done" && (
+        <>
+          <div className="au-tick">
+            <CheckCircle2 size={26} aria-hidden="true" />
           </div>
-        )}
-        {state.kind === "done" && (
-          <>
-            <div className="grid size-16 place-items-center rounded-full bg-success-soft text-success">
-              <CheckCircle2 className="size-[26px]" aria-hidden="true" />
-            </div>
-            <h1 className="text-[16px] font-extrabold">Email terkonfirmasi</h1>
-            <p className="text-[12.5px] text-muted-foreground">
-              Sekarang Anda bisa masuk dengan <strong>{state.email}</strong>{" "}
-              (atau username keluarga Anda) dan memakai Lupa Password.
-            </p>
-          </>
-        )}
-        {state.kind === "error" && (
-          <>
-            <div className="grid size-16 place-items-center rounded-full bg-warning-soft text-warning">
-              <MailWarning className="size-[26px]" aria-hidden="true" />
-            </div>
-            <h1 className="text-[16px] font-extrabold">
-              Tidak bisa dikonfirmasi
-            </h1>
-            <p className="text-[12.5px] text-muted-foreground" role="alert">
-              {state.message}
-            </p>
-          </>
-        )}
-      </div>
-      <Link
-        href="/login"
-        className="flex h-9 w-full items-center justify-center rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary"
-      >
+          <h1 className="au-title">Email terkonfirmasi</h1>
+          <p className="au-sub">
+            Sekarang Anda bisa masuk dengan <strong>{state.email}</strong> (atau
+            username keluarga Anda) dan memakai Lupa Password.
+          </p>
+        </>
+      )}
+      {state.kind === "error" && (
+        <>
+          <div className="au-tick" data-tone="warn">
+            <MailWarning size={26} aria-hidden="true" />
+          </div>
+          <h1 className="au-title">Tidak bisa dikonfirmasi</h1>
+          <p className="au-err" role="alert" style={{ marginBottom: 12 }}>
+            {state.message}
+          </p>
+        </>
+      )}
+      <Link href="/login" className="au-btn">
         Ke halaman Login
       </Link>
-    </SectionCard>
+    </div>
   );
 }
 
 export default function KonfirmasiEmailPage() {
   return (
-    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
-      <div className="w-full max-w-[420px]">
-        <div className="mb-[18px] flex items-center justify-center gap-2.5">
-          <div className="grid size-[34px] place-items-center rounded-[9px]">
-            {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
-            <img
-              src="/brand/wealthme-mark.png"
-              alt=""
-              className="size-full object-contain"
-            />
-          </div>
-          <div className="text-[18px] font-extrabold tracking-tight">
-            WealthMe
-          </div>
-        </div>
-        <Suspense fallback={null}>
-          <Confirm />
-        </Suspense>
-      </div>
-    </div>
+    <AuthShell>
+      <Suspense fallback={null}>
+        <Confirm />
+      </Suspense>
+    </AuthShell>
   );
 }

@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
-import { SectionCard } from "@/components/wm";
+import { Users } from "lucide-react";
+import { AuthShell } from "@/components/auth/auth-shell";
 import { id } from "@/i18n/id";
 
 import type { Role } from "@wealthme/contracts";
@@ -75,105 +76,91 @@ export default function JoinPage({
   }
 
   return (
-    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
-      <div className="w-full max-w-[440px]">
-        <div className="mb-[18px] flex items-center justify-center gap-2.5">
-          <div className="grid size-[34px] place-items-center rounded-[9px]">
-            {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
-            <img
-              src="/brand/wealthme-mark.png"
-              alt=""
-              className="size-full object-contain"
-            />
-          </div>
-          <div className="text-[18px] font-extrabold tracking-tight">
-            WealthMe
-          </div>
+    <AuthShell wide>
+      <div className="au-panel au-center">
+        <div className="au-tick">
+          <Users size={26} aria-hidden="true" />
         </div>
 
-        <SectionCard bodyClassName="text-center">
-          <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full bg-accent text-[26px]">
-            👨‍👩‍👧‍👦
-          </div>
+        {isLoading && <p className="au-sub">Memuat undangan…</p>}
 
-          {isLoading && (
-            <div className="text-[12.5px] text-muted-foreground">
-              Memuat undangan…
-            </div>
-          )}
+        {isError && (
+          <>
+            <h1 className="au-title">Undangan tidak valid</h1>
+            <p className="au-sub" style={{ marginBottom: 0 }}>
+              {error instanceof Error && error.message
+                ? error.message
+                : "Link undangan kedaluwarsa, sudah dipakai, atau tidak ditemukan."}
+            </p>
+          </>
+        )}
 
-          {isError && (
-            <>
-              <div className="text-[16px] font-extrabold">
-                Undangan tidak valid
-              </div>
-              <div className="mt-2 text-[12.5px] text-muted-foreground">
-                {error instanceof Error && error.message
-                  ? error.message
-                  : "Link undangan kedaluwarsa, sudah dipakai, atau tidak ditemukan."}
-              </div>
-            </>
-          )}
+        {invitation && !accepted && (
+          <>
+            <h1 className="au-title" style={{ fontSize: 16 }}>
+              Undangan bergabung ke
+              <br />
+              &ldquo;{invitation.familyGroupName}&rdquo;
+            </h1>
+            <p className="au-sub">
+              Untuk {invitation.email} · peran{" "}
+              {id.common.roleLabels[invitation.role] ?? invitation.role}
+            </p>
 
-          {invitation && !accepted && (
-            <>
-              <div className="text-[16px] font-extrabold">
-                Undangan bergabung ke
-                <br />
-                &ldquo;{invitation.familyGroupName}&rdquo;
-              </div>
-              <div className="mt-2 text-[12.5px] text-muted-foreground">
-                Untuk {invitation.email} · peran{" "}
-                {id.common.roleLabels[invitation.role] ?? invitation.role}
-              </div>
-
-              {session?.accessToken ? (
-                <button
-                  type="button"
-                  disabled={accepting}
-                  onClick={handleAccept}
-                  className="mt-5 flex h-9 w-full cursor-pointer items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
+            {session?.accessToken ? (
+              <button
+                type="button"
+                disabled={accepting}
+                onClick={handleAccept}
+                className="au-btn"
+                data-variant="primary"
+              >
+                {accepting ? "Memproses…" : "Terima Undangan"}
+              </button>
+            ) : (
+              <>
+                <p className="au-sub">
+                  Masuk atau daftar dulu, lalu buka link ini kembali.
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 8,
+                  }}
                 >
-                  {accepting ? "Memproses…" : "Terima Undangan"}
-                </button>
-              ) : (
-                <>
-                  <div className="mt-4 text-[12.5px] text-muted-foreground">
-                    Masuk atau daftar dulu, lalu buka link ini kembali.
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => router.push("/login")}
-                      className="flex h-9 cursor-pointer items-center justify-center rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong"
-                    >
-                      Masuk
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => router.push("/register")}
-                      className="flex h-9 cursor-pointer items-center justify-center rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary"
-                    >
-                      Daftar
-                    </button>
-                  </div>
-                </>
-              )}
-            </>
-          )}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/login")}
+                    className="au-btn"
+                    data-variant="primary"
+                  >
+                    Masuk
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => router.push("/register")}
+                    className="au-btn"
+                  >
+                    Daftar
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
 
-          {accepted && (
-            <>
-              <div className="text-[16px] font-extrabold text-success">
-                Berhasil bergabung! 🎉
-              </div>
-              <div className="mt-2 text-[12.5px] text-muted-foreground">
-                Mengalihkan ke halaman masuk…
-              </div>
-            </>
-          )}
-        </SectionCard>
+        {accepted && (
+          <>
+            <h1 className="au-title" style={{ color: "var(--wm-good)" }}>
+              Berhasil bergabung!
+            </h1>
+            <p className="au-sub" style={{ marginBottom: 0 }}>
+              Mengalihkan ke halaman masuk…
+            </p>
+          </>
+        )}
       </div>
-    </div>
+    </AuthShell>
   );
 }
