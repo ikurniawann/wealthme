@@ -1,0 +1,132 @@
+.lg-wrap {
+  min-height: 100vh;
+  background: var(--wm-bg);
+  color: var(--wm-ink);
+}
+.lg-in {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 16px 48px;
+}
+.lg-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--wm-muted);
+  text-decoration: none;
+  margin-bottom: 14px;
+}
+.lg-back:hover {
+  color: var(--wm-ink);
+}
+.lg-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+.lg-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--wm-lime);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: none;
+}
+.lg-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.lg-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.lg-date {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--wm-muted);
+}
+.lg-draft {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 16px;
+  background: color-mix(in srgb, var(--wm-orange) 16%, var(--wm-card));
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-weight: 600;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--wm-orange) 65%, var(--wm-ink));
+}
+.lg-draft svg {
+  flex: none;
+  margin-top: 1px;
+}
+.lg-body {
+  margin-top: 20px;
+  background: var(--wm-card);
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: var(--wm-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  font-size: 14px;
+  line-height: 1.65;
+}
+.lg-body h2 {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--wm-ink);
+}
+.lg-sec-in {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--wm-muted);
+}
+.lg-sec-in ul {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lg-sec-in a {
+  color: var(--wm-good);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.lg-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+.lg-tabs a {
+  border: 1px solid var(--wm-line);
+  border-radius: 99px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--wm-muted);
+}
+.lg-tabs a:hover {
+  color: var(--wm-ink);
+}
+.lg-tabs a[aria-current="page"] {
+  background: var(--wm-ink);
+  color: var(--wm-card);
+  border-color: var(--wm-ink);
+}
