@@ -1465,19 +1465,30 @@
           ["transaksi", "transaksi.html", "Transaksi", "swap"],
           null,
           ["laporan", "laporan.html", "Laporan", "chart"],
-          ["akun", "akun.html", "Akun", "user"],
+          "menu",
         ]
       : [
           ["akses-saya", "akses-saya.html", "Akses", "usercheck"],
           ["transaksi", "transaksi.html", "Transaksi", "swap"],
           null,
           ["notifikasi", "notifikasi.html", "Notifikasi", "bell"],
-          ["akun", "akun.html", "Akun", "user"],
+          "menu",
         ];
+    var inDock = mItems.some(function (i) {
+      return i && i !== "menu" && i[0] === page;
+    });
     var mnav =
       '<nav class="mnav no-print" aria-label="Navigasi bawah">' +
       mItems
         .map(function (i) {
+          if (i === "menu")
+            return (
+              '<button type="button" data-wm-menu aria-label="Semua menu"' +
+              (inDock ? "" : ' aria-current="page"') +
+              ">" +
+              WM.icon("menu", 20) +
+              "</button>"
+            );
           if (!i)
             return (
               '<button class="fab" type="button" data-wm-add aria-label="Tambah transaksi">' +
@@ -1611,21 +1622,62 @@
     });
     var mm = q("wmMenu");
     function mq() {
-      mm.hidden = window.innerWidth > 900;
+      mm.hidden = window.innerWidth > 900 || window.innerWidth <= 720;
     }
     mq();
     window.addEventListener("resize", mq);
-    mm.addEventListener("click", function () {
+    function openMenu() {
+      var m = navModel(),
+        hubs = m[0].concat(m[1]);
       var d = WM.modal({
-        title: "Menu",
+        title: "Semua menu",
         size: "sm",
         body:
           '<button type="button" class="search" data-msearch style="max-width:none;width:100%;box-shadow:none;background:var(--card-2)">' +
           WM.icon("search", 16, 2) +
           "<span>Cari halaman, transaksi…</span></button>" +
-          '<div class="menu-sheet">' +
-          navHTML(page, true) +
-          "</div>",
+          '<div class="hubgrid">' +
+          hubs
+            .map(function (h) {
+              var on =
+                h[0] === page ||
+                h[4].some(function (x) {
+                  return x[0] === page;
+                });
+              return (
+                '<div class="hub' +
+                (on ? " on" : "") +
+                '"><a class="hub-main" href="' +
+                h[1] +
+                '"><span class="ic">' +
+                WM.icon(h[3], 18) +
+                "</span><b>" +
+                h[2] +
+                "</b></a>" +
+                (h[4].length
+                  ? '<div class="hub-subs">' +
+                    h[4]
+                      .map(function (x) {
+                        return (
+                          '<a href="' +
+                          x[1] +
+                          '"' +
+                          (x[0] === page ? ' aria-current="page"' : "") +
+                          ">" +
+                          x[2] +
+                          "</a>"
+                        );
+                      })
+                      .join("") +
+                    "</div>"
+                  : "") +
+                "</div>"
+              );
+            })
+            .join("") +
+          '<div class="hub"><a class="hub-main" href="akun.html"><span class="ic">' +
+          WM.icon("user", 18) +
+          "</span><b>Akun</b></a></div></div>",
         onOpen: function (dd, body) {
           body.querySelector("[data-msearch]").onclick = function () {
             dd.close();
@@ -1634,6 +1686,10 @@
         },
         noFoot: true,
       });
+    }
+    mm.addEventListener("click", openMenu);
+    document.querySelectorAll("[data-wm-menu]").forEach(function (b) {
+      b.addEventListener("click", openMenu);
     });
   }
 

@@ -1,4 +1,5 @@
 <title>Beranda · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
@@ -212,11 +213,72 @@ svg text{font-family:var(--mono);font-size:10.5px;fill:var(--muted)}
 /* collapsed icon sidebar for laptop widths */
 
 .pcard:hover{filter:brightness(.98)}
+
+.mhome{display:none}
+@media (max-width:720px){
+  .grid{display:none!important}
+  .mhome{display:flex;flex-direction:column;gap:14px}
+  .mh-card{border-radius:30px;padding:14px 14px 16px;text-align:center}
+  .mh-accs{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:0 -2px}
+  .mh-accs::-webkit-scrollbar{display:none}
+  .mh-acc{flex:none;width:100%;scroll-snap-align:center;border-radius:20px;padding:12px 14px;text-align:left;text-decoration:none;color:#1F2A07;background:linear-gradient(135deg,#DDEFB5,#B9DC73);display:grid;grid-template-columns:1fr auto;row-gap:18px}
+  .mh-acc span{font-size:12.5px}.mh-acc b{font-style:italic;font-weight:700;text-align:right}
+  .mh-acc .no{font-size:13px;letter-spacing:.06em}.mh-acc .bal{text-align:right;font-weight:600;font-size:13px}
+  .mh-dots{display:flex;justify-content:center;gap:5px;margin:10px 0 4px}.mh-dots i{width:6px;height:6px;border-radius:50%;background:rgba(238,240,232,.25)}.mh-dots i.on{background:#EEF0E8;width:16px;border-radius:3px}
+  .mh-badge{width:26px;height:26px;border-radius:50%;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;margin:10px auto 6px;font-weight:700;font-size:12px}
+  .mh-total{font-size:32px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums;margin:0}
+  .mh-total small{font-size:.5em;color:#A3AA95;font-weight:500;margin-right:3px}
+  .mh-cap{color:#A3AA95;font-size:12.5px;margin-top:2px}
+  .mh-acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+  .mh-acts button{min-height:46px;border-radius:99px;font-weight:600;font-size:14px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(238,240,232,.3);background:transparent;color:#EEF0E8}
+  .mh-acts button.w{background:#fff;border-color:#fff;color:#15170F}
+  .mh-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mh-tile{background:#fff;border-radius:24px;padding:14px;min-height:150px;display:flex;flex-direction:column;text-decoration:none;box-shadow:0 10px 26px -18px rgba(20,40,10,.3)}
+  :root[data-theme="dark"] .mh-tile{background:var(--card)}
+  .mh-tile .h{display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:500}
+  .mh-tile .h .d{display:inline-flex;align-items:center;gap:6px}
+  .mh-tile .h .d i{width:18px;height:18px;border-radius:50%;background:var(--lime);display:grid;place-items:center;font-style:normal;font-size:10px;color:var(--lime-ink);font-weight:700}
+  .mh-tile .v{margin-top:auto;font-size:22px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .mh-tile .v em{font-style:normal;font-size:10.5px;background:var(--lime-soft);color:var(--good);border-radius:99px;padding:2px 6px;font-weight:600}
+  .mh-tile small{color:var(--muted);font-size:12px}
+  .mh-av{display:flex;align-items:center;margin-top:auto}
+  .mh-av .avatar{width:34px;height:34px;border-radius:50%;border:2px solid #fff;margin-right:-8px;font-size:11px}
+  .mh-av button{margin-left:auto;width:36px;height:36px;border-radius:50%;border:0;background:#15170F;color:#EEF0E8;display:grid;place-items:center}
+  .mh-stat{background:#fff;border-radius:24px;padding:16px;box-shadow:0 10px 26px -18px rgba(20,40,10,.3)}
+  :root[data-theme="dark"] .mh-stat{background:var(--card)}
+  .mh-stat .h{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;font-weight:600}
+  .mh-matrix{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:14px;align-items:end}
+  .mh-col{display:flex;flex-direction:column-reverse;align-items:center;gap:4px}
+  .mh-col i{width:8px;height:8px;border-radius:50%;background:var(--ghost)}
+  .mh-col i.a{background:var(--lime)}.mh-col i.b{background:#15170F}
+  :root[data-theme="dark"] .mh-col i.b{background:#EEF0E8}
+  .mh-col span{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px}
+  .mh-leg{display:flex;gap:14px;margin-top:10px;font-size:12px;color:var(--muted)}.mh-leg i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+  .mh-goal{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);text-decoration:none}
+  .mh-goal:first-of-type{border-top:0}
+  .mh-goal .t{flex:1;min-width:0;display:flex;flex-direction:column}.mh-goal b{font-size:13px;font-weight:500;display:block}.mh-goal .track{margin-top:6px}
+}
 </style>
 <main data-page="beranda">
     <div class="mhead"><div><b>Hai, Christian!</b><small>Selasa, 30 September 2026</small></div></div>
     <h1 class="mtitle">Ringkasan keuangan</h1>
-    <section class="grid" aria-label="Ringkasan keuangan">
+    <section class="mhome" aria-label="Ringkasan di ponsel">
+  <div class="card dark mh-card">
+    <div class="mh-accs" id="mhAccs"></div>
+    <div class="mh-dots" id="mhDots"></div>
+    <div class="mh-badge">Rp</div>
+    <p class="mh-total" id="mhTotal"></p>
+    <div class="mh-cap">Kekayaan bersih keluarga</div>
+    <div class="mh-acts"><button type="button" id="mhIn">Catat</button><button type="button" class="w" id="mhTf">Transfer</button></div>
+  </div>
+  <div class="mh-two">
+    <a class="mh-tile" href="anggaran.html"><span class="h"><span class="d"><i>Rp</i>Pengeluaran</span><span id="mhArrow"></span></span><span class="v" id="mhSpent"></span><small>Bulan ini</small></a>
+    <div class="mh-tile"><span class="h">Transaksi terakhir</span><small id="mhLast" style="margin-top:auto"></small><div class="mh-av" id="mhAv"></div></div>
+  </div>
+  <div class="mh-stat"><div class="h"><span>Statistik 7 hari</span><a class="more" href="ringkasan.html" style="font-size:12px">Detail</a></div><div class="mh-matrix" id="mhMatrix"></div><div class="mh-leg"><span><i style="background:var(--lime)"></i>Pemasukan</span><span><i style="background:#15170F"></i>Pengeluaran</span></div></div>
+  <div class="mh-stat"><div class="h"><span>Tujuan</span><a class="more" href="tujuan.html" style="font-size:12px">Semua</a></div><div id="mhGoals" style="margin-top:6px"></div></div>
+</section>
+<section class="grid" aria-label="Ringkasan keuangan">
       <!-- Net worth + weekly flow -->
       <article class="card hero span-8 a-hero">
         <div class="chart-side">
@@ -463,4 +525,21 @@ if(WM.allowed){
   $(".a-hist .see-all").href="transaksi.html";
 })();
 }
+
+(function(){if(!WM.allowed)return;function mh(){var T=WM.totals(),accs=WM.visibleAccounts();
+  document.getElementById("mhAccs").innerHTML=accs.map(function(a){return '<a class="mh-acc" href="'+(a.type==="cash"||a.type==="ewallet"?"dana.html":"rekening.html")+'"><span>'+WM.esc(WM.member(a.owner).name)+'</span><b>'+WM.esc(a.bank)+'</b><span class="no">'+(a.no?"**** "+a.no:WM.esc(a.name))+'</span><span class="bal">'+(a.type==="cc"?"Tagihan "+WM.short(-a.balance):WM.short(a.balance))+'</span></a>';}).join("");
+  var tr=document.getElementById("mhAccs"),dots=document.getElementById("mhDots");function d(){var i=Math.round(tr.scrollLeft/Math.max(1,tr.clientWidth));dots.innerHTML=accs.map(function(_,k){return '<i class="'+(k===i?"on":"")+'"></i>';}).join("");}tr.onscroll=d;d();
+  document.getElementById("mhTotal").innerHTML="<small>Rp</small>"+Math.round(T.netWorth).toLocaleString("id-ID");
+  document.getElementById("mhArrow").innerHTML=WM.icon("trend",18);
+  var out=WM.spent(),prev=WM.spent(null,"2026-08");document.getElementById("mhSpent").innerHTML=WM.short(out)+(prev?'<em'+(out>prev?' style="background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)"':'')+'>'+(out>=prev?"+":"−")+Math.abs(Math.round((out-prev)/prev*100))+'%</em>':"");
+  var tx=WM.store.get("tx").slice(0,4),seen={},av=[];tx.forEach(function(t){if(!seen[t.member]){seen[t.member]=1;av.push(WM.member(t.member));}});
+  document.getElementById("mhLast").textContent=tx[0]?(tx[0].note+" · "+WM.short(tx[0].amount)):"Belum ada";
+  document.getElementById("mhAv").innerHTML=av.slice(0,3).map(function(m){return WM.avatar(m,34);}).join("")+'<button type="button" aria-label="Catat transaksi" id="mhAdd">'+WM.icon("plus",16,2.4)+'</button>';
+  document.getElementById("mhAdd").onclick=function(){WM.openTx();};
+  var days=[],all=WM.store.get("tx");for(var k=6;k>=0;k--){var dt=new Date(new Date(WM.today)-k*864e5).toISOString().slice(0,10);var inn=0,o=0;all.forEach(function(t){if(t.date===dt){if(t.type==="in")inn+=t.amount;else if(t.type==="out")o+=t.amount;}});days.push([dt,inn,o]);}
+  var mx=Math.max.apply(null,days.map(function(x){return Math.max(x[1],x[2]);}).concat([1])),N=9;
+  document.getElementById("mhMatrix").innerHTML=days.map(function(x){var a=Math.round(x[1]/mx*N),b=Math.round(x[2]/mx*N),h="";for(var i=0;i<N;i++){h+='<i class="'+(i<b?"b":i<b+a?"a":"")+'"></i>';}return '<div class="mh-col" title="'+WM.date(x[0])+': masuk '+WM.short(x[1])+', keluar '+WM.short(x[2])+'"><span>'+new Date(x[0]).getDate()+'</span>'+h+'</div>';}).join("");
+  document.getElementById("mhGoals").innerHTML=WM.store.get("goals").slice(0,3).map(function(g){var p=Math.round(g.saved/g.target*100);return '<a class="mh-goal" href="tujuan.html"><span class="ic">'+WM.icon(g.icon,16)+'</span><span class="t"><b>'+WM.esc(g.name)+'</b><span class="track"><i class="fill-lime" style="width:'+p+'%"></i></span></span><span class="num" style="font-size:13px;font-weight:600">'+p+'%</span></a>';}).join("");}
+  document.getElementById("mhIn").onclick=function(){WM.openTx();};document.getElementById("mhTf").onclick=function(){WM.openTx(null,{type:"tf"});};
+  mh();WM.onChange(["tx","accounts","goals"],mh);})();
 </script>

@@ -3019,3 +3019,68 @@ kbd {
     background: var(--card);
   }
 }
+.hubgrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.hub {
+  background: var(--card-2);
+  border-radius: 18px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.hub.on {
+  background: var(--lime-soft);
+}
+.hub-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  min-height: 40px;
+}
+.hub-main .ic {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: var(--card);
+}
+.hub-main b {
+  font-size: 14px;
+  font-weight: 600;
+}
+.hub-subs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.hub-subs a {
+  font-size: 12px;
+  text-decoration: none;
+  background: var(--card);
+  border-radius: 99px;
+  padding: 6px 10px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+}
+.hub-subs a[aria-current="page"] {
+  background: var(--ink);
+  color: var(--card);
+  font-weight: 600;
+}
+@media (max-width: 720px) {
+  .mnav button[data-wm-menu][aria-current="page"] {
+    width: 58px;
+    height: 58px;
+    margin: -4px 0;
+    background: #fff;
+    color: #15170f;
+    box-shadow:
+      0 0 0 4px #15170f,
+      0 8px 18px -6px rgba(0, 0, 0, 0.5);
+  }
+}
