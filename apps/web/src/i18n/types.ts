@@ -816,6 +816,44 @@ export type I18nDictionary = {
    * out of this batch's scope.
    */
   aksesSaya: {
+    v2: {
+      heroDesc: string;
+      heroCap: string;
+      rolePrefix: string;
+      kpiBalance: string;
+      kpiReports: string;
+      kpiRole: string;
+      accTitle: string;
+      accEmptyTitle: string;
+      accEmptyHint: string;
+      accNote: string;
+      permAccTitle: string;
+      permAccLoading: string;
+      permAccNone: string;
+      permAccCount: string;
+      permAccDescYes: string;
+      permAccDescNo: string;
+      permBalTitle: string;
+      permBalValue: string;
+      permBalDesc: string;
+      permRepTitle: string;
+      actTitle: string;
+      actCaption: string;
+      actBadge: string;
+      colActivity: string;
+      colStatus: string;
+      colNote: string;
+      actRecord: string;
+      actRecordYes: string;
+      actRecordWait: string;
+      actFund: string;
+      actFundNote: string;
+      actAllowed: string;
+      actReports: string;
+      actRole: string;
+      actLocked: string;
+      actRoleNote: string;
+    };
     eyebrowMaster: string;
     eyebrowDependant: string;
     familyReportsUnlocked: string;
