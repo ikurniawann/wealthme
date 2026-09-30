@@ -2053,6 +2053,11 @@ export type I18nDictionary = {
       trendAria: string;
       compAria: string;
       trendLegend: string;
+      detailKpiNow: string;
+      detailKpiFirst: string;
+      detailKpiChange: string;
+      detailDocCount: string;
+      detailHistCaption: string;
       tileProjection: string;
     };
     tabs: Record<AsetTabId, string>;

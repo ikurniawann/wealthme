@@ -4,7 +4,14 @@ import { useId, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, FileText, Plus, Trash2, Upload } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  History,
+  Plus,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
@@ -28,8 +35,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { SectionCard, DateField } from "@/components/wm";
-import { TrendChart } from "@/components/charts/apex-presets";
+import "./detail.css";
+import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  DateField,
+  GhostButton,
+  HeroKpi,
+  MiniList,
+  MiniRow,
+} from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
 import type {
   AssetAttachmentDto,
   AssetDto,
@@ -145,210 +162,214 @@ export default function AssetDetailPage() {
 
   if (!isLoading && !asset) {
     return (
-      <div className="space-y-4">
-        <Link href="/aset" className="card-link inline-flex items-center gap-1">
-          <ArrowLeft className="size-3.5" /> {t.aset.detailBackLink}
+      <div data-page="aset-detail" className="ad-page">
+        <Link href="/aset" className="ad-back ad-back-solo">
+          <ArrowLeft className="size-3.5" aria-hidden="true" />{" "}
+          {t.aset.detailBackLink}
         </Link>
-        <div className="card p-6 text-[13px] text-muted-foreground">
-          {t.aset.detailNotFound}
-        </div>
+        <p className="ad-empty">{t.aset.detailNotFound}</p>
       </div>
     );
   }
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <Link
-            href="/aset"
-            className="card-link inline-flex items-center gap-1"
-          >
-            <ArrowLeft className="size-3.5" /> {t.aset.detailBackLink}
-          </Link>
-          <h1 className="section-title mt-1 truncate">{asset?.name ?? "…"}</h1>
-          <div className="wm-money text-[22px] font-extrabold">
-            {asset ? money.format(Number(BigInt(asset.currentValue))) : ""}
-          </div>
-        </div>
-        {canManage && asset && (
-          <Button type="button" onClick={() => setAdding(true)}>
-            <Plus className="size-4" /> {t.aset.addHistoryButton}
-          </Button>
-        )}
-      </div>
+  const firstValue = rows.length > 0 ? Number(BigInt(rows[0].value)) : null;
+  const nowValue = asset ? Number(BigInt(asset.currentValue)) : 0;
+  const sinceFirst =
+    firstValue && firstValue !== 0
+      ? ((nowValue - firstValue) / firstValue) * 100
+      : null;
+  const docs = documents ?? [];
 
-      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[260px_1fr]">
-        {/* Date list */}
-        <SectionCard title={t.aset.detailHistoryTitle} bodyClassName="pt-0">
-          {newestFirst.length === 0 ? (
-            <div className="py-3 text-[12.5px] text-muted-foreground">
-              {t.aset.historyEmpty}
+  return (
+    <div data-page="aset-detail" className="ad-page">
+      <BentoGrid className="ad-grid">
+        <BentoHero
+          className="ad-hero"
+          valueAs="h1"
+          currency={null}
+          value={
+            <span className="wm-money">
+              {asset ? money.format(nowValue) : ""}
+            </span>
+          }
+          caption={
+            <>
+              <Link href="/aset" className="ad-back">
+                <ArrowLeft className="size-3.5" aria-hidden="true" />{" "}
+                {t.aset.detailBackLink}
+              </Link>
+              <span className="ad-name">{asset?.name ?? "…"}</span>
+            </>
+          }
+          controls={
+            canManage && asset ? (
+              <GhostButton lit onClick={() => setAdding(true)}>
+                <Plus className="size-4" aria-hidden="true" />{" "}
+                {t.aset.addHistoryButton}
+              </GhostButton>
+            ) : undefined
+          }
+          chart={
+            <div className="ad-plot">
+              {rows.length >= 2 ? (
+                <HatchedBarChart
+                  labels={rows.map((h) =>
+                    dateFmt.format(new Date(h.recordedAt)),
+                  )}
+                  series={[
+                    {
+                      name: asset?.name ?? "",
+                      data: rows.map((h) => Number(BigInt(h.value))),
+                      color: "var(--wm-lime)",
+                    },
+                  ]}
+                  format={money.formatCompact}
+                  wide
+                  ariaLabel={`${t.aset.detailChartTitle}: ${asset?.name ?? ""}`}
+                />
+              ) : (
+                <p className="ad-empty">{t.aset.historyEmpty}</p>
+              )}
             </div>
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.aset.v2.detailKpiNow}
+                value={
+                  <span className="wm-money">{money.format(nowValue)}</span>
+                }
+              />
+              <HeroKpi
+                label={t.aset.v2.detailKpiFirst}
+                value={
+                  firstValue === null ? (
+                    "—"
+                  ) : (
+                    <span className="wm-money">{money.format(firstValue)}</span>
+                  )
+                }
+              />
+              <HeroKpi
+                label={t.aset.v2.detailKpiChange}
+                value={
+                  sinceFirst === null
+                    ? "—"
+                    : `${sinceFirst >= 0 ? "+" : ""}${sinceFirst.toFixed(2)}%`
+                }
+              />
+            </>
+          }
+        />
+
+        <BentoCard
+          className="ad-docs"
+          title={t.aset.documentsTitle}
+          caption={`${docs.length} ${t.aset.v2.detailDocCount}`}
+          action={
+            canManage ? (
+              <label className="wm-ghost-btn ad-upload">
+                <Upload className="size-3.5" aria-hidden="true" />
+                {t.aset.uploadDocumentButton}
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                  className="sr-only"
+                  disabled={uploading}
+                  onChange={(e) => {
+                    void handleUpload(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            ) : undefined
+          }
+        >
+          {docs.length === 0 ? (
+            <p className="ad-empty">{t.aset.documentsEmpty}</p>
           ) : (
-            <ul className="divide-y">
-              {newestFirst.map((h) => (
-                <li
-                  key={h.id}
-                  className="flex items-center justify-between gap-2 py-2.5 text-[12.5px]"
-                >
-                  <span className="text-muted-foreground">
-                    {dateFmt.format(new Date(h.recordedAt))}
-                  </span>
-                  <span className="mono font-semibold">
-                    {money.format(Number(BigInt(h.value)))}
-                  </span>
+            <ul className="ad-doclist">
+              {docs.map((d) => (
+                <li key={d.id} className="ad-doc">
+                  <button
+                    type="button"
+                    className="ad-doc-open"
+                    aria-label={t.aset.openDocumentAria}
+                    onClick={() =>
+                      void openAssetDocument(
+                        familyGroupId,
+                        assetId,
+                        d.id,
+                        token,
+                      )
+                    }
+                  >
+                    <FileText className="size-4 shrink-0" aria-hidden="true" />
+                    <span>
+                      {d.mimeType
+                        .replace("image/", "")
+                        .replace("application/", "")
+                        .toUpperCase()}
+                      {" · "}
+                      {Math.max(1, Math.ceil(d.size / 1024)).toLocaleString(
+                        "id-ID",
+                      )}{" "}
+                      KB
+                      {" · "}
+                      {dateFmt.format(new Date(d.createdAt))}
+                    </span>
+                  </button>
+                  {canManage && (
+                    <button
+                      type="button"
+                      className="ad-doc-del"
+                      aria-label={t.aset.deleteDocumentAria}
+                      onClick={() => void handleDeleteDoc(d.id)}
+                    >
+                      <Trash2 className="size-3.5" aria-hidden="true" />
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           )}
-        </SectionCard>
+        </BentoCard>
 
-        <div className="space-y-3.5">
-          {/* Chart */}
-          <SectionCard title={t.aset.detailChartTitle}>
-            {rows.length === 0 ? (
-              <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-                {t.aset.historyEmpty}
-              </div>
-            ) : (
-              <TrendChart
-                categories={rows.map((h) =>
-                  dateFmt.format(new Date(h.recordedAt)),
-                )}
-                series={[
-                  {
-                    name: asset?.name ?? "",
-                    data: rows.map((h) => Number(BigInt(h.value))),
-                  },
-                ]}
-                height={260}
-                ariaLabel={`${t.aset.detailChartTitle}: ${asset?.name ?? ""}`}
-                money={money}
-              />
-            )}
-          </SectionCard>
-
-          {/* Documents (EPIC-033 p14) */}
-          <SectionCard
-            title={t.aset.documentsTitle}
-            action={
-              canManage ? (
-                <label className="btn btn--outline btn--sm cursor-pointer">
-                  <Upload className="size-3.5" />
-                  {t.aset.uploadDocumentButton}
-                  <input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp,.pdf"
-                    className="sr-only"
-                    disabled={uploading}
-                    onChange={(e) => {
-                      void handleUpload(e.target.files?.[0] ?? null);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              ) : undefined
-            }
-            bodyClassName="pt-0"
-          >
-            {(documents ?? []).length === 0 ? (
-              <div className="py-3 text-[12.5px] text-muted-foreground">
-                {t.aset.documentsEmpty}
-              </div>
-            ) : (
-              <ul className="divide-y">
-                {(documents ?? []).map((d) => (
-                  <li
-                    key={d.id}
-                    className="flex items-center justify-between gap-2 py-2.5 text-[12.5px]"
-                  >
-                    <button
-                      type="button"
-                      className="flex min-w-0 items-center gap-2 text-left hover:underline"
-                      aria-label={t.aset.openDocumentAria}
-                      onClick={() =>
-                        void openAssetDocument(
-                          familyGroupId,
-                          assetId,
-                          d.id,
-                          token,
-                        )
-                      }
-                    >
-                      <FileText className="size-4 shrink-0 text-muted-foreground" />
-                      <span className="truncate">
-                        {d.mimeType
-                          .replace("image/", "")
-                          .replace("application/", "")
-                          .toUpperCase()}
-                        {" · "}
-                        {Math.max(1, Math.ceil(d.size / 1024)).toLocaleString(
-                          "id-ID",
-                        )}{" "}
-                        KB
-                        {" · "}
-                        {dateFmt.format(new Date(d.createdAt))}
+        <BentoCard
+          className="ad-hist"
+          title={t.aset.detailHistoryTitle}
+          caption={t.aset.v2.detailHistCaption}
+        >
+          {newestFirst.length === 0 ? (
+            <p className="ad-empty">{t.aset.historyEmpty}</p>
+          ) : (
+            <MiniList>
+              {newestFirst.map((h) => {
+                const pct = h.changePercent ? Number(h.changePercent) : null;
+                return (
+                  <MiniRow
+                    key={h.id}
+                    icon={<History className="size-4" aria-hidden="true" />}
+                    title={dateFmt.format(new Date(h.recordedAt))}
+                    meta={`${t.aset.historyByPrefix}${h.recordedByName ?? t.aset.historySystemActor}${h.note ? ` · ${h.note}` : ""}`}
+                    amount={
+                      <span className="wm-money">
+                        {money.format(Number(BigInt(h.value)))}
+                        {pct !== null && (
+                          <small className={pct >= 0 ? "ad-up" : "ad-down"}>
+                            {pct >= 0 ? "+" : ""}
+                            {pct.toFixed(2)}%
+                          </small>
+                        )}
                       </span>
-                    </button>
-                    {canManage && (
-                      <button
-                        type="button"
-                        className="btn btn--ghost btn--icon text-destructive"
-                        aria-label={t.aset.deleteDocumentAria}
-                        onClick={() => void handleDeleteDoc(d.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </SectionCard>
-
-          {/* Change list: who changed what */}
-          <SectionCard title={t.aset.detailChangesTitle} bodyClassName="pt-0">
-            {newestFirst.length === 0 ? (
-              <div className="py-3 text-[12.5px] text-muted-foreground">
-                {t.aset.historyEmpty}
-              </div>
-            ) : (
-              <ul className="divide-y">
-                {newestFirst.map((h) => {
-                  const pct = h.changePercent ? Number(h.changePercent) : null;
-                  return (
-                    <li
-                      key={h.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-3 text-[12.5px]"
-                    >
-                      <div className="min-w-0">
-                        <div className="font-semibold">
-                          {money.format(Number(BigInt(h.value)))}
-                          {pct !== null && (
-                            <span
-                              className={`mono ml-2 text-[11.5px] ${pct >= 0 ? "text-success" : "text-destructive"}`}
-                            >
-                              {pct >= 0 ? "+" : ""}
-                              {pct.toFixed(2)}%
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[11.5px] text-muted-foreground">
-                          {dateFmt.format(new Date(h.recordedAt))} ·{" "}
-                          {t.aset.historyByPrefix}
-                          {h.recordedByName ?? t.aset.historySystemActor}
-                          {h.note ? ` · ${h.note}` : ""}
-                        </div>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </SectionCard>
-        </div>
-      </div>
+                    }
+                  />
+                );
+              })}
+            </MiniList>
+          )}
+        </BentoCard>
+      </BentoGrid>
 
       {asset && (
         <AddHistoryDialog

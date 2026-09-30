@@ -2089,6 +2089,11 @@ export const id = {
       trendAria: "Tren total aset per bulan",
       compAria: "Komposisi aset",
       trendLegend: "Total aset",
+      detailKpiNow: "Nilai tercatat",
+      detailKpiFirst: "Nilai pertama",
+      detailKpiChange: "Sejak dicatat",
+      detailDocCount: "file",
+      detailHistCaption: "Terbaru di atas",
       tileProjection: "dari",
     },
     tabs: {

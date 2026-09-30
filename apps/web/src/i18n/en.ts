@@ -2048,6 +2048,11 @@ export const en = {
       trendAria: "Monthly total assets trend",
       compAria: "Asset composition",
       trendLegend: "Total assets",
+      detailKpiNow: "Recorded value",
+      detailKpiFirst: "First value",
+      detailKpiChange: "Since first entry",
+      detailDocCount: "files",
+      detailHistCaption: "Newest first",
       tileProjection: "from",
     },
     tabs: {
