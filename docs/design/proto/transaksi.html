@@ -193,12 +193,14 @@ WM.shell({page:document.querySelector("main").dataset.page});
     document.getElementById("heroDelta").innerHTML='<span class="cur">Rp</span>'+Math.abs(totalIn-totalOut).toLocaleString("id-ID");
     document.getElementById("heroSub").textContent=(totalIn-totalOut>=0?"Surplus ":"Defisit ")+WM.monthsLong[new Date(WM.today+"T00:00:00").getMonth()];
 
-    var weeks=[[],[],[],[]];
-    WM.monthTx().forEach(function(t){var day=+t.date.slice(8,10);var w=Math.min(3,Math.floor((day-1)/8));if(t.type==="in")weeks[w][0]=(weeks[w][0]||0)+t.amount;if(t.type==="out")weeks[w][1]=(weeks[w][1]||0)+t.amount;});
+    /* weekly flow (7-day buckets), the strongest week is lit and pinned */
+    var dim=new Date(+WM.today.slice(0,4),+WM.today.slice(5,7),0).getDate(),nw=Math.ceil(dim/7),weeks=[];for(var k=0;k<nw;k++)weeks.push([0,0]);
+    WM.monthTx().forEach(function(t){var w=Math.min(nw-1,Math.floor((+t.date.slice(8,10)-1)/7));if(t.type==="in")weeks[w][0]+=t.amount;if(t.type==="out")weeks[w][1]+=t.amount;});
+    var hiW=weeks.reduce(function(m,w,i){return (w[0]+w[1])>(weeks[m][0]+weeks[m][1])?i:m;},0);
     WM.chart.bars(document.getElementById("heroChart"),{
-      labels:["M1","M2","M3","M4"],
-      series:[{d:weeks.map(function(w){return (w[0]||0)/1e6;}),c:"var(--lime)",n:"Pemasukan"},{d:weeks.map(function(w){return (w[1]||0)/1e6;}),c:"var(--orange)",n:"Pengeluaran"}],
-      fmt:function(v){return v.toLocaleString("id-ID",{maximumFractionDigits:1})+" jt";}
+      labels:weeks.map(function(_,i){var a=i*7+1,z=Math.min(dim,a+6);return a+"–"+z;}),
+      series:[{d:weeks.map(function(w){return w[0];}),c:"var(--lime)",n:"Pemasukan"},{d:weeks.map(function(w){return w[1];}),c:"var(--orange)",n:"Pengeluaran"}],
+      hi:hiW,wide:true,fmt:function(v){return WM.short(v);},axis:function(t){return WM.short(t).replace("Rp ","");}
     });
 
     var totalRows=list.length,totalPages=Math.max(1,Math.ceil(totalRows/PAGE_SIZE));
