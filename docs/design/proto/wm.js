@@ -1505,6 +1505,32 @@
     main.parentNode.insertBefore(app, main);
     app.appendChild(main);
     main.insertAdjacentHTML("afterbegin", top);
+    /* phone-only page title, reference style: small greeting + big two-line title */
+    var hour = new Date().getHours(),
+      greet =
+        hour < 11
+          ? "Selamat pagi"
+          : hour < 15
+            ? "Selamat siang"
+            : hour < 19
+              ? "Selamat sore"
+              : "Selamat malam";
+    var ptitle =
+      page === "beranda"
+        ? "Selamat datang kembali!"
+        : WM.pageTitle(page) || document.title.split(" · ")[0];
+    main
+      .querySelector(".top")
+      .insertAdjacentHTML(
+        "afterend",
+        '<div class="mtitle-wrap"><small>' +
+          greet +
+          ", " +
+          esc(me.short) +
+          '</small><h1 class="mtitle-h">' +
+          esc(ptitle) +
+          "</h1></div>",
+      );
     document.body.insertAdjacentHTML(
       "beforeend",
       mnav +
@@ -1593,7 +1619,19 @@
       var d = WM.modal({
         title: "Menu",
         size: "sm",
-        body: '<div class="menu-sheet">' + navHTML(page, true) + "</div>",
+        body:
+          '<button type="button" class="search" data-msearch style="max-width:none;width:100%;box-shadow:none;background:var(--card-2)">' +
+          WM.icon("search", 16, 2) +
+          "<span>Cari halaman, transaksi…</span></button>" +
+          '<div class="menu-sheet">' +
+          navHTML(page, true) +
+          "</div>",
+        onOpen: function (dd, body) {
+          body.querySelector("[data-msearch]").onclick = function () {
+            dd.close();
+            palette();
+          };
+        },
         noFoot: true,
       });
     });

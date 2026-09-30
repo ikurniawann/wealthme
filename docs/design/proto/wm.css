@@ -2679,9 +2679,12 @@ dialog.sheet::backdrop {
     gap: 8px;
   }
   .kpi .v {
+    font-size: 15px;
+  }
+  .kpi .v[data-short] {
     font-size: 0;
   }
-  .kpi .v::after {
+  .kpi .v[data-short]::after {
     content: attr(data-short);
     font-size: 15px;
   }
@@ -2838,4 +2841,181 @@ kbd {
   border-radius: 6px;
   padding: 1px 6px;
   border: 1px solid var(--line);
+}
+
+/* ---------- phone view (reference: soft mint canvas, big titles, notched dark hero, floating pill nav) ---------- */
+.mtitle-wrap {
+  display: none;
+}
+@media (max-width: 720px) {
+  :root:not([data-theme="dark"]) {
+    --bg: #e9efe2;
+  }
+  body {
+    background:
+      radial-gradient(120% 60% at 0% 0%, #f4f8ef 0%, transparent 60%),
+      linear-gradient(180deg, #eef3e7 0%, #e3eadb 100%);
+    background-attachment: fixed;
+  }
+  .mhead,
+  .mtitle {
+    display: none !important;
+  }
+  .top {
+    position: static !important;
+    gap: 10px;
+  }
+  .mbrand {
+    display: flex !important;
+    font-size: 19px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .mbrand .brand-mark {
+    display: none;
+  }
+  .top .search {
+    display: none;
+  }
+  .top .icon-btn,
+  .top .me {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 6px 16px -10px rgba(20, 30, 5, 0.35);
+  }
+  .mtitle-wrap {
+    display: block;
+    margin: 10px 2px 4px;
+  }
+  .mtitle-wrap small {
+    display: block;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .mtitle-h {
+    margin: 2px 0 0;
+    font-size: 34px;
+    line-height: 1.08;
+    letter-spacing: -0.045em;
+    font-weight: 500;
+    max-width: 12ch;
+  }
+  .ph h1 {
+    display: none;
+  }
+  .card {
+    border-radius: 26px;
+    box-shadow: 0 10px 30px -18px rgba(20, 40, 10, 0.28);
+  }
+  /* notched dark hero */
+  .card.dark {
+    position: relative;
+    border-radius: 28px;
+    padding-top: 30px;
+  }
+  .card.dark::before {
+    content: "";
+    position: absolute;
+    top: -1px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 42%;
+    height: 16px;
+    background: #e9efe2;
+    border-radius: 0 0 18px 18px;
+    z-index: 1;
+  }
+  .hero.dark .chart-side .head {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .hero.dark .big {
+    font-size: 34px;
+    margin-top: 4px;
+  }
+  .hero.dark .hero-ctrl {
+    align-items: center;
+  }
+  .hero.dark .ctrl-row {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .card.dark .ghost-btn {
+    border-radius: 99px;
+    min-height: 40px;
+    padding: 0 16px;
+    font-size: 13px;
+  }
+  .card.dark .ghost-btn.lit {
+    background: #fff;
+    border-color: #fff;
+    color: #15170f;
+  }
+  .hero .kpis {
+    border-top-color: rgba(238, 240, 232, 0.1);
+  }
+  /* floating pill nav, white round active item */
+  .mnav {
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    width: auto;
+    gap: 6px;
+    padding: 7px;
+    background: #15170f;
+  }
+  .mnav a,
+  .mnav button {
+    width: 50px;
+    height: 50px;
+    background: transparent;
+    color: #eef0e8;
+  }
+  .mnav a[aria-current="page"] {
+    flex: none;
+    width: 58px;
+    height: 58px;
+    margin: -4px 0;
+    background: #fff;
+    color: #15170f;
+    font-size: 0;
+    box-shadow:
+      0 0 0 4px #15170f,
+      0 8px 18px -6px rgba(0, 0, 0, 0.5);
+  }
+  .mnav a[aria-current="page"] span {
+    display: none;
+  }
+  .mnav .fab {
+    background: var(--lime);
+    color: var(--lime-ink);
+  }
+  .btile {
+    background: #fff;
+    box-shadow: 0 8px 20px -16px rgba(20, 40, 10, 0.35);
+  }
+  .card .btile {
+    background: var(--card-2);
+    box-shadow: none;
+  }
+}
+@media (max-width: 720px) and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) body {
+    background: var(--bg);
+  }
+}
+:root[data-theme="dark"] body {
+  background: var(--bg);
+}
+@media (max-width: 720px) {
+  :root[data-theme="dark"] .card.dark::before {
+    background: var(--bg);
+  }
+  :root[data-theme="dark"] .top .icon-btn,
+  :root[data-theme="dark"] .top .me {
+    background: var(--card);
+  }
 }
