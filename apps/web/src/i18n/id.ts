@@ -2855,6 +2855,27 @@ export const id = {
       "- mendekati batas, pertimbangkan mengurangi utang.",
   },
   tujuan: {
+    v2: {
+      heroCapPrefix: "Terkumpul dari ",
+      heroCapSuffix: " tujuan",
+      legendSaved: "Terkumpul",
+      legendTarget: "Target",
+      chartEmpty: "Belum ada tujuan untuk ditampilkan.",
+      kpiOnTrack: "Sesuai rencana",
+      kpiBoost: "Perlu didorong",
+      kpiRisk: "Berisiko",
+      attTitle: "Perlu perhatian",
+      attCaption: "Tujuan yang tertinggal dari rencana",
+      attAllGood: "Semua tujuan berjalan sesuai rencana.",
+      tilesTitle: "Semua tujuan",
+      tilesCaption: "Setor, ubah, atau hapus tiap tujuan",
+      addTile: "Tujuan baru",
+      tipsOkTitle: "Semua tujuan berjalan baik",
+      tipsWorstSuffix: " perlu dorongan",
+      tipsOkBody:
+        "Terus setor sesuai rencana supaya target tercapai tepat waktu.",
+      tipsOverallPrefix: "Progres keseluruhan ",
+    },
     statusLabels: {
       achieved: "Tercapai",
       on_track: "On Track",

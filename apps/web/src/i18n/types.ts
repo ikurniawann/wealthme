@@ -2698,6 +2698,26 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/tujuan` (financial goals) page copy. */
   tujuan: {
+    v2: {
+      heroCapPrefix: string;
+      heroCapSuffix: string;
+      legendSaved: string;
+      legendTarget: string;
+      chartEmpty: string;
+      kpiOnTrack: string;
+      kpiBoost: string;
+      kpiRisk: string;
+      attTitle: string;
+      attCaption: string;
+      attAllGood: string;
+      tilesTitle: string;
+      tilesCaption: string;
+      addTile: string;
+      tipsOkTitle: string;
+      tipsWorstSuffix: string;
+      tipsOkBody: string;
+      tipsOverallPrefix: string;
+    };
     statusLabels: Record<TujuanStatusId, string>;
     noTargetDate: string;
     targetDatePrefix: string;
