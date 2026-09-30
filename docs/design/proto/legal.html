@@ -1,0 +1,122 @@
+<title>Dokumen legal · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+body{padding:0}
+.awrap{min-height:100vh;display:flex;flex-direction:column}
+.acover{background:var(--cover);color:var(--on-cover);padding:22px 20px;position:relative;overflow:hidden;flex:none}
+.acover::before{content:"";position:absolute;inset:auto -70px -140px auto;width:320px;height:320px;border-radius:50%;background:radial-gradient(closest-side,rgba(169,216,76,.18),transparent);pointer-events:none}
+.acover>*{position:relative}
+.abrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.02em;text-decoration:none;color:inherit}
+.abrand .mark{width:30px;height:30px;border-radius:9px;background:var(--lime);display:grid;place-items:center;color:var(--lime-ink);flex:none}
+.ahl{margin:20px 0 0;font-size:20px;line-height:1.2;letter-spacing:-.03em;font-weight:600;max-width:30ch}
+.ahl em{font-style:normal;color:var(--lime)}
+.afeat{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.afeat li{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--on-cover-2)}
+.afeat svg{flex:none;color:var(--lime);margin-top:1px}
+.anote{margin-top:auto;padding-top:18px;font-size:11px;color:var(--on-cover-2);border-top:1px solid var(--cover-line)}
+.aform{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:26px 16px 40px}
+.acard{width:100%;max-width:400px}
+.aback{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;margin-bottom:12px}
+.aback:hover{color:var(--ink)}
+.atitle{margin:2px 0 0;font-size:20px;font-weight:600;letter-spacing:-.02em;text-align:center}
+.asub{margin:4px 0 18px;color:var(--muted);font-size:13px;text-align:center}
+.aseg{display:flex;gap:2px;background:var(--card-2);border-radius:12px;padding:3px;margin-bottom:16px}
+.aseg button{flex:1;border:0;background:transparent;border-radius:9px;padding:0 10px;min-height:38px;font-weight:600;font-size:13px;color:var(--muted)}
+.aseg button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.demo{display:flex;gap:10px;align-items:flex-start;background:var(--lime-soft);border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:14px;color:var(--good)}
+.demo svg{flex:none;margin-top:1px}
+.demo b{display:block;color:var(--ink)}
+.demo code{background:rgba(0,0,0,.08);border-radius:5px;padding:1px 5px;font-family:var(--mono);font-size:12px;color:var(--ink)}
+.quick{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;scrollbar-width:none;padding-bottom:2px}
+.quick::-webkit-scrollbar{display:none}
+.qm{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:10px 12px;min-width:76px;font-size:11px;color:var(--muted)}
+.qm:hover{border-color:var(--lime);background:var(--lime-soft)}
+.qm b{color:var(--ink);font-size:12px;font-weight:600}
+.pwrap{position:relative}
+.pwrap input{padding-right:42px!important}
+.peye{position:absolute;right:6px;top:29px;width:32px;height:32px;border-radius:9px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center}
+.peye:hover{background:var(--card-2);color:var(--ink)}
+.pwmeter{display:flex;gap:5px;margin-top:8px}
+.pwmeter i{flex:1;height:5px;border-radius:99px;background:var(--ghost);display:block}
+.pwmeter i.on1{background:var(--bad)}.pwmeter i.on2{background:var(--orange)}.pwmeter i.on3{background:var(--good)}
+.pwmsg{margin-top:5px;font-size:12px;color:var(--muted)}
+.rules{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.rule{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.rule.ok{color:var(--good)}
+.rule i{width:14px;height:14px;border-radius:50%;border:1.5px solid currentColor;display:grid;place-items:center;flex:none}
+.rule.ok i{background:var(--good);border-color:var(--good);color:#fff}
+.afoot{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
+.afoot a,.alink{color:var(--good);font-weight:600;text-decoration:underline;text-underline-offset:3px;background:none;border:0;font-size:inherit;cursor:pointer}
+.legallinks{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legallinks a{color:inherit;text-decoration:none}
+.legallinks a:hover{color:var(--ink);text-decoration:underline}
+.divide{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px}
+.divide::before,.divide::after{content:"";flex:1;height:1px;background:var(--line)}
+.oktick{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:var(--lime-soft);color:var(--good);margin:0 auto 14px}
+.badtick{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:color-mix(in srgb,var(--orange) 20%,transparent);color:color-mix(in srgb,var(--orange) 55%,var(--ink));margin:0 auto 14px}
+.warnbox{display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,var(--orange) 14%,var(--card));border-radius:12px;padding:12px 14px;font-size:13px;color:color-mix(in srgb,var(--orange) 65%,var(--ink));margin-bottom:14px}
+.warnbox svg{flex:none;margin-top:1px}
+.identity{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:var(--card-2);border-radius:12px}
+.center{text-align:center}
+.emoji64{width:56px;height:56px;border-radius:50%;background:var(--lime-soft);display:grid;place-items:center;font-size:28px;margin:0 auto 14px}
+@media(min-width:960px){
+ .awrap{flex-direction:row;min-height:100vh}
+ .acover{width:42%;min-width:380px;display:flex;flex-direction:column;padding:44px 40px;justify-content:flex-start}
+ .ahl{margin-top:30px;font-size:28px}
+ .aform{width:58%;align-items:center}
+}
+
+.lwrap{max-width:720px;margin:0 auto;padding:28px 16px 48px}
+.lback{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;margin-bottom:14px}
+.lback:hover{color:var(--ink)}
+.lbrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;margin-bottom:10px}
+.ltitle{margin:0;font-size:28px;font-weight:600;letter-spacing:-.03em}
+.ldate{margin:4px 0 0;font-size:12px;color:var(--muted)}
+.ldraft{display:flex;gap:10px;align-items:flex-start;margin-top:16px;background:color-mix(in srgb,var(--orange) 16%,var(--card));border-radius:14px;padding:12px 14px;font-weight:600;font-size:13px;color:color-mix(in srgb,var(--orange) 60%,var(--ink))}
+.ldraft svg{flex:none;margin-top:1px}
+.lbody{margin-top:20px;background:var(--card);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:20px;font-size:14px;line-height:1.65}
+.lbody h2{margin:0 0 6px;font-size:14px;font-weight:700}
+.lbody p,.lbody ul{margin:0;color:var(--muted)}
+.lbody ul{padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.lbody a{color:var(--good);font-weight:600;text-decoration:underline;text-underline-offset:2px}
+.ltabs{display:flex;gap:6px;flex-wrap:wrap;margin-top:16px}
+.ltabs a{border:1px solid var(--line);border-radius:99px;padding:6px 14px;font-size:13px;font-weight:600;text-decoration:none;color:var(--muted)}
+.ltabs a[aria-current="page"]{background:var(--ink);color:var(--card);border-color:var(--ink)}
+.libtable{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.libtable li{display:flex;justify-content:space-between;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.libtable li:last-child{border-bottom:0}
+.libtable a{color:var(--ink);font-weight:600;text-decoration:none}
+.libtable a:hover{color:var(--good)}
+.libtable span{color:var(--muted)}</style>
+<main data-page="legal">
+<div class="lwrap">
+  <a class="lback" href="login.html"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6"/></svg> Kembali</a>
+  <div class="lbrand"><span class="mark" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l4.5 12L12 8l4.5 10L21 6"/></svg></span>WealthMe</div>
+  <h1 class="ltitle" id="lTitle"></h1>
+  <p class="ldate" id="lDate"></p>
+  <div class="ldraft"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2zM12 10v5M12 18h.01"/></svg><span>Draf, belum final. Dokumen ini sedang disusun dan belum ditinjau oleh tim hukum. Isinya dapat berubah sewaktu-waktu.</span></div>
+  <div class="lbody" id="lBody"></div>
+  <div class="ltabs">
+    <a href="legal.html?doc=privasi" data-doc="privasi">Kebijakan Privasi</a>
+    <a href="legal.html?doc=syarat" data-doc="syarat">Syarat &amp; Ketentuan</a>
+    <a href="legal.html?doc=lisensi" data-doc="lisensi">Lisensi Open Source</a>
+  </div>
+</div>
+</main>
+<script src="wm.js"></script>
+<script>
+(function(){
+  var DOCS = { privasi: {"title":"Kebijakan Privasi","date":"29 September 2026","html":"\n<section><h2>1. Ringkasan</h2><p>WealthMe adalah aplikasi manajemen keuangan keluarga. Kami mengumpulkan dan memproses data pribadi kamu untuk menyediakan fitur pencatatan transaksi, anggaran, aset, dan pelaporan keuangan sesuai dengan Undang-Undang Nomor 27 Tahun 2022 tentang Pelindungan Data Pribadi (\"UU PDP\").</p></section>\n<section><h2>2. Data yang Kami Kumpulkan</h2><ul><li>Data identitas: nama, email, nomor telepon, tanggal lahir.</li><li>Data keuangan: saldo rekening, transaksi, anggaran, aset, liabilitas, dan investasi yang kamu catat sendiri.</li><li>Data teknis: alamat IP, jenis perangkat, dan log aktivitas untuk keamanan akun.</li></ul></section>\n<section><h2>3. Dasar dan Tujuan Pemrosesan</h2><p>Data diproses berdasarkan persetujuan kamu saat mendaftar dan kebutuhan pelaksanaan layanan (Pasal 20 UU PDP), untuk: menyediakan fitur aplikasi, mengamankan akun, mengirim notifikasi terkait keuangan keluarga, dan meningkatkan kualitas layanan.</p></section>\n<section><h2>4. Berbagi Data dengan Anggota Keluarga</h2><p>Dalam satu grup keluarga, data keuangan dapat terlihat oleh anggota lain sesuai peran dan pengaturan visibilitas yang kamu pilih sendiri (mis. \"Sembunyikan dari Anggota Family\" di Pengaturan Privasi).</p></section>\n<section><h2>5. Penyimpanan dan Keamanan</h2><p>Data disimpan pada infrastruktur milik penyedia layanan yang kami gunakan, dengan enkripsi untuk data sensitif (mis. tanggal lahir, penghasilan) sesuai standar keamanan yang berlaku. Kata sandi disimpan dalam bentuk hash, tidak pernah dalam bentuk teks biasa.</p></section>\n<section><h2>6. Hak Kamu sebagai Subjek Data</h2><p>Sesuai Pasal 5–7 UU PDP, kamu berhak untuk:</p><ul><li>Mengakses dan mendapatkan salinan data pribadimu.</li><li>Memperbarui atau memperbaiki data yang tidak akurat.</li><li>Meminta penghapusan data dan akunmu (tersedia di Akun › Privasi &amp; Keamanan Data).</li><li>Menarik persetujuan pemrosesan data.</li></ul></section>\n<section><h2>7. Kontak</h2><p>Pertanyaan seputar privasi dapat dikirim ke <a href=\"mailto:support@wealthme.id\">support@wealthme.id</a>.</p></section>"}, syarat: {"title":"Syarat &amp; Ketentuan","date":"29 September 2026","html":"\n<section><h2>1. Penerimaan Syarat</h2><p>Dengan membuat akun dan menggunakan WealthMe, kamu menyetujui syarat dan ketentuan ini. Jika kamu tidak setuju, mohon untuk tidak menggunakan layanan ini.</p></section>\n<section><h2>2. Deskripsi Layanan</h2><p>WealthMe adalah aplikasi pencatatan dan perencanaan keuangan pribadi/keluarga: transaksi, anggaran, aset, liabilitas, investasi, dan pelaporan. WealthMe bukan lembaga jasa keuangan, tidak menyimpan atau memindahkan dana kamu, dan tidak memberikan nasihat investasi berlisensi.</p></section>\n<section><h2>3. Akun dan Tanggung Jawab Pengguna</h2><ul><li>Kamu bertanggung jawab menjaga kerahasiaan kata sandi.</li><li>Kamu bertanggung jawab atas keakuratan data yang kamu masukkan sendiri (saldo, transaksi, nilai aset).</li><li>Master/pemilik grup keluarga bertanggung jawab mengelola akses anggota keluarga lain.</li></ul></section>\n<section><h2>4. Batasan Tanggung Jawab</h2><p>Fitur kalkulator, estimasi pajak, dan simulasi (mis. KPR, zakat) bersifat perkiraan untuk membantu perencanaan dan bukan nasihat keuangan, pajak, atau hukum resmi. Keputusan keuangan tetap menjadi tanggung jawab kamu sepenuhnya.</p></section>\n<section><h2>5. Perubahan Layanan</h2><p>Kami dapat mengubah, menambah, atau menghentikan fitur tertentu dari waktu ke waktu. Perubahan material akan diinformasikan melalui aplikasi.</p></section>\n<section><h2>6. Penghentian Akun</h2><p>Kamu dapat menghapus akunmu kapan saja melalui Akun › Privasi &amp; Keamanan Data. Kami dapat menangguhkan akun yang melanggar ketentuan ini atau digunakan untuk aktivitas melawan hukum.</p></section>\n<section><h2>7. Hukum yang Berlaku</h2><p>Syarat dan ketentuan ini tunduk pada hukum Republik Indonesia, termasuk Undang-Undang Nomor 27 Tahun 2022 tentang Pelindungan Data Pribadi.</p></section>"}, lisensi: {"title":"Lisensi Open Source","date":"29 September 2026","html":"<section><h2>Pustaka yang Digunakan</h2><p>WealthMe dibangun menggunakan sejumlah pustaka open-source. Daftar di bawah ini mencakup komponen utama; daftar lengkap seluruh dependensi (termasuk yang transitif) belum digenerate secara otomatis dari lockfile proyek.</p></section>\n<ul class=\"libtable\"><li><a href=\"https://nextjs.org\" target=\"_blank\" rel=\"noopener noreferrer\">Next.js</a><span>MIT</span></li><li><a href=\"https://react.dev\" target=\"_blank\" rel=\"noopener noreferrer\">React</a><span>MIT</span></li><li><a href=\"https://nestjs.com\" target=\"_blank\" rel=\"noopener noreferrer\">NestJS</a><span>MIT</span></li><li><a href=\"https://www.prisma.io\" target=\"_blank\" rel=\"noopener noreferrer\">Prisma</a><span>Apache-2.0</span></li><li><a href=\"https://tanstack.com/query\" target=\"_blank\" rel=\"noopener noreferrer\">TanStack Query</a><span>MIT</span></li><li><a href=\"https://tailwindcss.com\" target=\"_blank\" rel=\"noopener noreferrer\">Tailwind CSS</a><span>MIT</span></li><li><a href=\"https://base-ui.com\" target=\"_blank\" rel=\"noopener noreferrer\">Base UI</a><span>MIT</span></li><li><a href=\"https://www.better-auth.com\" target=\"_blank\" rel=\"noopener noreferrer\">Better Auth</a><span>MIT</span></li><li><a href=\"https://apexcharts.com\" target=\"_blank\" rel=\"noopener noreferrer\">ApexCharts</a><span>MIT</span></li><li><a href=\"https://lucide.dev\" target=\"_blank\" rel=\"noopener noreferrer\">Lucide</a><span>ISC</span></li><li><a href=\"https://sonner.emilkowal.ski\" target=\"_blank\" rel=\"noopener noreferrer\">Sonner</a><span>MIT</span></li><li><a href=\"https://zod.dev\" target=\"_blank\" rel=\"noopener noreferrer\">Zod</a><span>MIT</span></li><li><a href=\"https://www.npmjs.com/package/argon2\" target=\"_blank\" rel=\"noopener noreferrer\">Argon2</a><span>MIT</span></li><li><a href=\"https://mozilla.github.io/pdf.js\" target=\"_blank\" rel=\"noopener noreferrer\">pdf.js</a><span>Apache-2.0</span></li><li><a href=\"https://socket.io\" target=\"_blank\" rel=\"noopener noreferrer\">Socket.IO</a><span>MIT</span></li></ul>"} };
+  var key = new URLSearchParams(location.search).get("doc");
+  if(!DOCS[key]) key="privasi";
+  var d = DOCS[key];
+  document.getElementById("lTitle").innerHTML = d.title;
+  document.getElementById("lDate").textContent = "Diperbarui terakhir: " + d.date;
+  document.getElementById("lBody").innerHTML = d.html;
+  document.title = d.title.replace(/&amp;/g,"&") + " · WealthMe";
+  document.querySelectorAll(".ltabs a").forEach(function(a){if(a.dataset.doc===key)a.setAttribute("aria-current","page");});
+})();
+</script>

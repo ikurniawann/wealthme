@@ -1,0 +1,261 @@
+<title>Investasi · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .i-hero{grid-column:1/9;grid-row:1}.i-donut{grid-column:9/13;grid-row:1}
+  .i-tbl{grid-column:1/9;grid-row:2}.i-note{grid-column:9/13;grid-row:2}
+}
+.ilogo{width:38px;height:38px;border-radius:99px;display:grid;place-items:center;font-size:11px;font-weight:800;color:#fff;flex:none}
+.irow{display:flex;align-items:center;gap:9px}
+.irow .meta small{color:var(--muted);display:block}
+.irow .meta a{font-size:11px;font-weight:600;color:var(--good);background:none;border:0;padding:0;margin-top:2px;display:inline-block}
+.i-hero .filters{margin-top:12px}
+.prow{display:flex;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.prow .pbody{flex:1;min-width:0}
+.prow .ptop{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.prow .ptop b{font-size:14px;font-weight:600}
+.prow .pmeta{color:var(--muted);font-size:12px;margin-top:2px}
+.prow .psrc{margin-top:4px;font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.prow .pfig{text-align:right;flex:none}
+.prow .pval{font-weight:700;font-size:14px}
+.prow .pdelta{font-size:12px;font-weight:600;margin-top:2px}
+.prow .pmodal{color:var(--muted);font-size:11px;margin-top:2px}
+.prow .pact{display:flex;gap:4px;flex:none}
+@media (max-width:640px){.prow{flex-wrap:wrap}.prow .pfig{text-align:left;margin-left:50px}.prow .pact{margin-left:50px}}
+.i-note{display:flex;flex-direction:column}
+.i-note .tip-head{flex:none}
+.i-note .mosaic{flex:1;grid-template-columns:repeat(9,1fr);grid-auto-rows:1fr;justify-self:stretch;width:100%;margin-top:14px}
+.i-note .mosaic i{width:auto;height:auto;border-radius:5px}
+#legend{display:none}
+</style>
+<main data-page="investasi">
+<section class="bento" aria-label="Investasi">
+  <article class="card hero dark i-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="hValue"></p><div class="cap" id="hCap"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn" type="button" id="goldBtn" hidden>Harga emas</button><button class="ghost-btn" type="button" id="refresh">Perbarui</button><button class="ghost-btn lit" type="button" id="add">+ Catat</button></div>
+          <div class="legend"><span><i style="background:var(--ghost)"></i>Modal</span><span><i style="background:var(--lime)"></i>Nilai</span></div>
+        </div>
+      </div>
+      <div class="chips-f filters" id="filters"></div>
+      <div class="chart-wrap" id="cmp"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Nilai portofolio</small><div class="v" id="kValue"></div></div>
+      <div class="kpi"><small>Untung / rugi</small><div class="v" id="kReturn"></div><div class="delta" id="kReturnPct"></div></div>
+      <div class="kpi"><small>Dividen & bunga</small><div class="v" id="kDiv"></div></div>
+    </div>
+  </article>
+
+  <article class="card i-donut">
+    <div class="head"><div><h2>Kepemilikan</h2><div class="cap" id="allocN"></div></div></div>
+    <div style="display:flex;align-items:center;justify-content:center;min-height:170px;margin-top:6px"><div class="chart" id="donut" style="width:170px;height:170px"></div></div>
+    <div class="legend" id="legend" style="margin-top:6px"></div>
+  </article>
+
+  <article class="card i-tbl">
+    <div class="head"><h2>Portofolio</h2><span class="cap" id="posN"></span></div>
+    <div id="plist" style="margin-top:6px"></div>
+    <div class="empty" id="empty" hidden><b>Belum ada investasi</b><p>Catat saham, reksa dana, emas atau instrumen lain.</p></div>
+  </article>
+
+  <article class="card tips i-note" id="srcNote">
+    <div class="tip-head"><h2>Harga otomatis belum aktif</h2><p id="srcP"></p><a class="more" href="transaksi.html" id="divMore">Dividen &amp; bunga tercatat <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"investasi",title:"Investasi"});
+(function(){ if(!WM.allowed) return;
+var esc=WM.esc;
+var TYPES=[["saham","Saham","#0061AF"],["reksadana","Reksa Dana","#7C3AED"],["obligasi","Obligasi","#1E3A5F"],["emas","Emas","#D97706"],["kripto","Kripto","#F97316"],["deposito","Deposito","#0F766E"],["lainnya","Lainnya","#6B7280"]];
+var TCOL={};TYPES.forEach(function(t){TCOL[t[0]]=t[2];});
+var TLABEL={};TYPES.forEach(function(t){TLABEL[t[0]]=t[1];});
+var UNIT={saham:"lembar",reksadana:"unit",obligasi:"lembar",emas:"gram",kripto:"koin",deposito:"bilyet",lainnya:"unit"};
+var AUTOMATED={saham:1,kripto:1};
+var active="semua";
+
+function settings(){return WM.store.ensure("settings",{goldPricePerGram:1180000});}
+function ensureFields(){var inv=WM.store.get("investments"),touched=false;
+  inv=inv.map(function(h){if(h.priceSource)return h;touched=true;var patch={priceSource:"cost",purchasedAt:h.purchasedAt||"2025-11-02"};
+    if(h.kind==="emas"){patch.priceSource="family-gold";if(h.unit==="kg"){patch.qty=h.qty*1000;patch.unit="gram";}}
+    if(h.kind==="deposito"){patch.priceSource="computed";patch.interestRatePct=h.interestRatePct||6.25;patch.maturityDate=h.maturityDate||"2027-03-01";}
+    return Object.assign({},h,patch);});
+  if(touched)WM.store.set("investments",inv);
+  return WM.store.get("investments");
+}
+
+function fmtQty(h){var u=UNIT[h.kind]||"unit",d=h.kind==="emas"?3:(u==="lembar"||u==="koin"?4:2);return (+h.qty||0).toLocaleString("id-ID",{maximumFractionDigits:d})+" "+u;}
+function computedDepositoValue(h){var months=Math.max(0,(new Date(WM.today)-new Date(h.purchasedAt))/2.628e9);return Math.round(h.cost*(1+(h.interestRatePct/100)*(months/12)));}
+function currentValue(h){
+  if(h.priceSource==="computed")return computedDepositoValue(h);
+  if(h.priceSource==="family-gold")return Math.round(h.qty*settings().goldPricePerGram);
+  if(h.priceSource==="manual"&&h.manualPrice)return Math.round(h.qty*h.manualPrice);
+  return h.value!=null?h.value:h.cost;
+}
+function priceSourceCell(h){
+  if(h.priceSource==="computed")return '<div class="mono">'+h.interestRatePct+'% / th</div><span class="pill">Nilai dihitung</span>';
+  if(h.priceSource==="family-gold")return '<div class="mono">'+WM.rp(settings().goldPricePerGram)+' / gram</div><span class="pill warn">Harga emas keluarga</span>';
+  if(h.priceSource==="manual"&&h.manualPrice)return '<div class="mono">'+WM.rp(h.manualPrice)+'</div><span class="pill">Harga manual · '+WM.date(h.manualPriceDate||WM.today)+'</span>';
+  if(AUTOMATED[h.kind])return '<span class="muted" style="font-size:12px">Live belum tersedia</span><br><span class="pill warn">Pakai harga beli</span>';
+  return '<span class="muted" style="font-size:12px">Belum ada harga manual</span>';
+}
+function logoBg(h){return TCOL[h.kind]||"#6B7280";}
+function logoText(h){return (h.ticker||h.name).slice(0,3).toUpperCase();}
+
+function chart(list){var box=document.getElementById("cmp"),css=getComputedStyle(box),v=function(n){return css.getPropertyValue(n).trim();};
+  var NS="http://www.w3.org/2000/svg",mk=function(t,a,x){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(x!=null)e.textContent=x;return e;};
+  var W=Math.max(260,box.clientWidth),H=Math.max(150,box.clientHeight),c=W<480,L=c?2:42,T=16,B=26,svg=mk("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Modal dibanding nilai per posisi"});
+  if(!list.length){box.innerHTML='<div class="empty"><b>Belum ada posisi</b><p>Catat investasi pertamamu.</p></div>';return;}
+  var defs=mk("defs",{});var p=mk("pattern",{id:"ph-lime",width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"});p.appendChild(mk("rect",{width:8,height:8,fill:v("--lime")}));p.appendChild(mk("rect",{width:2,height:8,fill:"rgba(255,255,255,.28)"}));defs.appendChild(p);svg.appendChild(defs);
+  var max=Math.max.apply(null,list.map(function(h){return Math.max(h.cost,currentValue(h));}))||1,top=Math.ceil(max/1e6)*1e6||1e6,y=function(x){return T+(top-x)/top*(H-T-B);};
+  var band=(W-L)/list.length,gw=Math.min(64,band*.62),bw=gw*.42;
+  list.forEach(function(h,i){var val=currentValue(h),x=L+band*i+band/2-gw/2;
+    var g=mk("g",{class:"gb",style:"animation-delay:"+(i*40)+"ms"});
+    g.appendChild(mk("rect",{x:x,y:y(h.cost),width:bw,height:Math.max(2,y(0)-y(h.cost)),rx:6,fill:v("--ghost")}));
+    g.appendChild(mk("rect",{x:x+gw-bw,y:y(val),width:bw,height:Math.max(2,y(0)-y(val)),rx:6,fill:"url(#ph-lime)"}));
+    g.appendChild(mk("title",{},h.name+": modal "+WM.rp(h.cost)+", nilai "+WM.rp(val)));svg.appendChild(g);
+    svg.appendChild(mk("text",{x:x+gw/2,y:H-8,"text-anchor":"middle"},h.name.length>9?h.name.slice(0,8)+"…":h.name));});
+  box.innerHTML="";box.appendChild(svg);}
+
+function draw(){
+  var inv=ensureFields(),filtered=inv.filter(function(h){return active==="semua"||h.kind===active;});
+  var totalCost=inv.reduce(function(s,h){return s+h.cost;},0),totalVal=inv.reduce(function(s,h){return s+currentValue(h);},0);
+  var ret=totalVal-totalCost,retPct=totalCost?ret/totalCost*100:0;
+  document.getElementById("hValue").innerHTML='<span class="cur">Rp</span>'+totalVal.toLocaleString("id-ID");
+  document.getElementById("hCap").textContent=inv.length+" posisi tercatat";
+  document.getElementById("kValue").textContent=WM.rp(totalVal);
+  document.getElementById("kReturn").innerHTML='<span class="'+(ret>=0?"pos":"neg")+'">'+WM.rp(ret,true)+'</span>';
+  var kp=document.getElementById("kReturnPct");kp.className="delta "+(ret>=0?"up":"down");kp.innerHTML=(ret>=0?"+":"")+WM.pct(retPct)+" <em>modal "+WM.short(totalCost)+"</em>";
+
+  var divTx=WM.store.get("tx").filter(function(t){return t.cat==="c-invest"&&t.type==="in";});
+  var divTotal=divTx.reduce(function(s,t){return s+t.amount;},0);
+  document.getElementById("kDiv").textContent=WM.short(divTotal);
+
+  var live=inv.filter(function(h){return AUTOMATED[h.kind];}).length;
+  document.getElementById("srcP").textContent=live+" posisi saham/kripto pakai harga beli. Emas mengikuti harga emas keluarga (per kg, manual). Reksa dana, obligasi dan lainnya pakai harga manual; deposito dihitung dari bunga berjalan. Tidak ada harga yang disimulasikan.";
+
+  var fdiv=document.getElementById("filters");
+  fdiv.innerHTML=['<button type="button" aria-pressed="'+(active==="semua")+'" data-t="semua">Semua</button>'].concat(TYPES.map(function(t){
+    return '<button type="button" aria-pressed="'+(active===t[0])+'" data-t="'+t[0]+'">'+t[1]+'</button>';})).join("");
+  fdiv.querySelectorAll("button").forEach(function(b){b.onclick=function(){active=b.dataset.t;draw();};});
+
+  var byType={};inv.forEach(function(h){byType[h.kind]=(byType[h.kind]||0)+currentValue(h);});
+  var segs=Object.keys(byType).filter(function(k){return byType[k]>0;}).map(function(k){return [TLABEL[k]||k,byType[k],TCOL[k]||"#6B7280"];});
+  document.getElementById("allocN").textContent=filtered.length+" posisi";
+  if(segs.length){document.getElementById("donut").hidden=false;
+    WM.chart.donut(document.getElementById("donut"),{items:segs,center:WM.short(totalVal),sub:"Total"});
+    document.getElementById("legend").innerHTML=WM.legend(segs.map(function(s){return [s[0],s[2],WM.short(s[1])];}));}
+  else{document.getElementById("donut").innerHTML="";document.getElementById("legend").innerHTML="";}
+
+  chart(filtered);
+
+  document.getElementById("posN").textContent=filtered.length+" posisi";
+  document.getElementById("empty").hidden=filtered.length>0;
+  document.getElementById("plist").innerHTML=filtered.map(function(h){
+    var val=currentValue(h),r=val-h.cost,rp=h.cost?r/h.cost*100:0;
+    return '<div class="prow"><span class="ilogo" style="background:'+logoBg(h)+'">'+esc(logoText(h))+'</span>'+
+      '<div class="pbody"><div class="ptop"><b>'+esc(h.name)+'</b><span class="pill">'+(TLABEL[h.kind]||h.kind)+'</span></div>'+
+      '<div class="pmeta">'+(h.ticker?esc(h.ticker)+' · ':'')+'dibeli '+WM.date(h.purchasedAt)+' · '+fmtQty(h)+' · <a href="#" data-detail="'+h.id+'">Lihat detail</a></div>'+
+      '<div class="psrc">'+priceSourceCell(h)+'</div></div>'+
+      '<div class="pfig"><div class="pval num">'+WM.rp(val)+'</div><div class="pdelta num '+(r>=0?"pos":"neg")+'">'+WM.rp(r,true)+' · '+(r>=0?"+":"")+WM.pct(rp)+'</div><div class="pmodal num">Modal '+WM.rp(h.cost)+'</div></div>'+
+      '<div class="pact">'+(WM.isOwner()?'<button class="ibtn" type="button" data-buysell="'+h.id+'" aria-label="Beli/Jual">'+WM.icon("swap",15)+'</button><button class="ibtn" type="button" data-edit="'+h.id+'" aria-label="Ubah">'+WM.icon("edit",15)+'</button><button class="ibtn danger" type="button" data-del="'+h.id+'" aria-label="Hapus">'+WM.icon("trash",15)+'</button>':'')+'</div></div>';
+  }).join("");
+  document.querySelectorAll("[data-detail]").forEach(function(a){a.onclick=function(e){e.preventDefault();openDetail(a.dataset.detail);};});
+  document.querySelectorAll("[data-edit]").forEach(function(b){b.onclick=function(){openForm(WM.store.find("investments",b.dataset.edit));};});
+  document.querySelectorAll("[data-del]").forEach(function(b){b.onclick=function(){delHolding(b.dataset.del);};});
+  document.querySelectorAll("[data-buysell]").forEach(function(b){b.onclick=function(){openBuySell(WM.store.find("investments",b.dataset.buysell));};});
+
+  var pct=totalCost?Math.min(100,Math.max(0,Math.round((ret/totalCost*100+50)))):50,cells=45,n=Math.round(Math.min(100,Math.max(0,pct))/100*cells);
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:cells}).map(function(_,i){return '<i class="'+(i<n?(ret>=0?"a":"o"):i%5===0?"b":"")+'"></i>';}).join("");
+}
+
+function accountOptions(){return WM.visibleAccounts().filter(function(a){return a.type!=="cc";}).map(function(a){return [a.id,a.bank+" · "+a.name];});}
+
+function openForm(edit){
+  var t=edit?edit.kind:"saham";
+  function fieldsFor(kind){
+    var f=WM.field({name:"kind",label:"Jenis",type:"select",required:true,options:TYPES.map(function(x){return [x[0],x[1]];}),value:kind})+
+      WM.field({name:"name",label:"Nama Instrumen",required:true,placeholder:"cth: Bank Central Asia",value:edit?edit.name:""})+
+      WM.field({name:"ticker",label:"Kode / Ticker",optional:kind!=="saham"&&kind!=="kripto",required:kind==="saham"||kind==="kripto",placeholder:"cth: BBCA",value:edit?(edit.ticker||""):""})+
+      '<div class="two">'+WM.field({name:"qty",label:"Jumlah ("+(UNIT[kind]||"unit")+")",type:"number",required:true,value:edit?edit.qty:"",attrs:'step="any" min="0"'})+
+      WM.field({name:"cost",label:"Modal Awal",type:"money",required:true,value:edit?edit.cost:0})+'</div>'+
+      WM.field({name:"purchasedAt",label:"Tanggal Beli",type:"date",required:true,value:edit?edit.purchasedAt:WM.today,attrs:'max="'+WM.today+'"'});
+    if(kind==="obligasi"||kind==="deposito")f+=WM.field({name:"interestRatePct",label:"Suku Bunga / Tahun",type:"percent",required:true,value:edit?edit.interestRatePct:""});
+    if(kind==="deposito")f+=WM.field({name:"maturityDate",label:"Jatuh Tempo",type:"date",optional:true,value:edit?edit.maturityDate:""});
+    if(kind==="emas")f+='<div class="note">'+WM.icon("gold",16)+'<span>Nilai emas mengikuti harga emas keluarga (acuan emasantam.id per kg), diatur lewat tombol "Harga emas" di hero.</span></div>';
+    if(kind!=="deposito"&&kind!=="emas"&&!AUTOMATED[kind])f+=WM.field({name:"manualPrice",label:"Harga Manual per "+(UNIT[kind]||"unit"),type:"money",optional:true,value:edit?(edit.manualPrice||""):""})+
+      WM.field({name:"manualPriceDate",label:"Tanggal Harga",type:"date",optional:true,value:edit?(edit.manualPriceDate||""):WM.today});
+    return f;
+  }
+  var d=WM.modal({title:edit?"Ubah investasi":"Catat investasi",size:"lg",body:fieldsFor(t),submit:"Simpan",
+    onOpen:function(d,b){function bindKind(){var s=b.querySelector('select[name="kind"]');if(!s)return;s.addEventListener("change",function(e){b.innerHTML=fieldsFor(e.target.value);WM.wire(b);bindKind();});}bindKind();
+      if(!edit)return;var ft=d.querySelector(".sheet-foot");
+      ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+      ft.querySelector("[data-rm]").onclick=function(){d.close();delHolding(edit.id);};},
+    onSubmit:function(f,v){
+      var priceSource="cost";if(v.kind==="emas")priceSource="family-gold";else if(v.kind==="deposito")priceSource="computed";else if(v.manualPrice)priceSource="manual";else if(!AUTOMATED[v.kind])priceSource="cost";
+      var patch={kind:v.kind,name:v.name,ticker:v.ticker||"",qty:parseFloat(v.qty)||0,cost:v.cost,unit:UNIT[v.kind],purchasedAt:v.purchasedAt,
+        interestRatePct:v.interestRatePct||null,maturityDate:v.maturityDate||null,manualPrice:v.manualPrice||null,manualPriceDate:v.manualPriceDate||null,priceSource:priceSource};
+      if(priceSource==="manual")patch.value=Math.round(patch.qty*v.manualPrice);else if(priceSource==="cost")patch.value=patch.cost;
+      if(edit)WM.store.update("investments",edit.id,patch);else WM.store.add("investments",patch);
+      WM.toast("Investasi "+(edit?"diperbarui":"dicatat"));}});
+}
+function delHolding(id){var h=WM.store.find("investments",id);if(!h)return;
+  WM.store.remove("investments",id);
+  WM.toast("Investasi dihapus",{undo:function(){var arr=WM.store.get("investments");arr.push(h);WM.store.set("investments",arr);}});
+  draw();}
+
+function openBuySell(h){
+  if(!h)return;
+  var body='<div class="seg full" data-radio="tx" role="radiogroup" aria-label="Jenis"><button type="button" role="radio" data-v="buy" aria-checked="true">Beli</button><button type="button" role="radio" data-v="sell" aria-checked="false">Jual</button></div>'+
+   WM.field({name:"qty",label:"Jumlah ("+(UNIT[h.kind]||"unit")+")",type:"number",required:true,attrs:'step="any" min="0"'})+
+   WM.field({name:"price",label:"Harga per "+(UNIT[h.kind]||"unit"),type:"money",required:true,value:h.priceSource==="manual"?h.manualPrice:(h.cost&&h.qty?Math.round(h.cost/h.qty):0)})+
+   WM.field({name:"acc",label:"Sumber dana / setoran",type:"select",optional:true,options:[["","Tidak dicatat ke akun"]].concat(accountOptions())})+
+   WM.field({name:"date",label:"Tanggal",type:"date",required:true,value:WM.today,attrs:'max="'+WM.today+'"'});
+  WM.modal({title:h.name,sub:"Catat transaksi beli atau jual",body:body,submit:"Simpan",
+    onOpen:function(d,b){WM.radio(b);},
+    onSubmit:function(f,v){
+      var type=(b_radio(f)),qty=parseFloat(v.qty)||0,cost=qty*v.price;
+      if(type==="buy"){var newQty=h.qty+qty,newCost=h.cost+cost;WM.store.update("investments",h.id,{qty:newQty,cost:newCost,value:h.priceSource==="cost"?newCost:h.value});
+        if(v.acc)WM.addTx({type:"out",amount:cost,acc:v.acc,cat:"c-invest",date:v.date,note:"Beli "+h.name});
+        WM.toast("Pembelian "+qty+" "+(UNIT[h.kind]||"unit")+" tersimpan");}
+      else{qty=Math.min(qty,h.qty);var ratio=h.qty?qty/h.qty:0,removedCost=h.cost*ratio,proceeds=qty*v.price;
+        WM.store.update("investments",h.id,{qty:h.qty-qty,cost:h.cost-removedCost,value:h.priceSource==="cost"?h.cost-removedCost:h.value});
+        if(v.acc)WM.addTx({type:"in",amount:proceeds,acc:v.acc,cat:"c-invest",date:v.date,note:"Jual "+h.name});
+        WM.toast("Penjualan "+qty+" "+(UNIT[h.kind]||"unit")+" tersimpan");}
+    }});
+  function b_radio(f){var g=f.querySelector('[data-radio="tx"] [aria-checked="true"]');return g?g.dataset.v:"buy";}
+}
+
+function openDetail(id){
+  var h=WM.store.find("investments",id);if(!h)return;
+  var val=currentValue(h),r=val-h.cost,rp=h.cost?r/h.cost*100:0;
+  var divTx=WM.store.get("tx").filter(function(t){return t.cat==="c-invest"&&t.type==="in"&&(t.note||"").indexOf(h.name)>=0;});
+  WM.modal({title:h.name,sub:(TLABEL[h.kind]||h.kind)+(h.ticker?" · "+h.ticker:""),submit:false,cancel:"Tutup",body:
+    '<dl class="kv"><dt>Jumlah</dt><dd class="num">'+fmtQty(h)+'</dd><dt>Modal</dt><dd class="num">'+WM.rp(h.cost)+'</dd>'+
+    '<dt>Nilai sekarang</dt><dd class="num">'+WM.rp(val)+'</dd><dt>Untung / rugi</dt><dd class="num '+(r>=0?"pos":"neg")+'">'+WM.rp(r,true)+' ('+WM.pct(rp)+')</dd>'+
+    '<dt>Tanggal beli</dt><dd>'+WM.date(h.purchasedAt,true)+'</dd>'+(h.maturityDate?'<dt>Jatuh tempo</dt><dd>'+WM.date(h.maturityDate,true)+'</dd>':'')+'</dl>'+
+    '<div class="divider"></div><div style="font-size:13px">'+priceSourceCell(h)+'</div>'+
+    (divTx.length?'<div class="divider"></div><b style="font-size:13px">Dividen & bunga</b><div class="list" style="margin-top:6px">'+divTx.slice(0,4).map(WM.txRow).join("")+'</div>':'')});
+}
+
+function goldSettingsPrompt(){WM.modal({title:"Atur harga emas keluarga",size:"sm",sub:"Acuan emasantam.id per kg, dikonversi ke per gram.",body:
+  WM.field({name:"perGram",label:"Harga per gram",type:"money",required:true,value:settings().goldPricePerGram}),submit:"Simpan",
+  onSubmit:function(f,v){WM.store.set("settings",Object.assign({},settings(),{goldPricePerGram:v.perGram}));WM.toast("Harga emas keluarga diperbarui");draw();}});}
+
+document.getElementById("add").onclick=function(){openForm(null);};
+document.getElementById("refresh").onclick=function(){WM.toast("Harga otomatis belum tersedia di prototipe ini (simulasi)");};
+document.getElementById("goldBtn").onclick=goldSettingsPrompt;
+function syncGoldBtn(){document.getElementById("goldBtn").hidden=!WM.store.get("investments").some(function(h){return h.kind==="emas";});}
+draw();syncGoldBtn();WM.onChange(["investments","tx","settings"],function(){draw();syncGoldBtn();});WM.onResize(document.getElementById("cmp"),draw);
+})();
+</script>

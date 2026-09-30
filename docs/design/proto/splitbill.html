@@ -1,0 +1,322 @@
+<title>Split Bill · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .sb-hero{grid-column:1/9;grid-row:1}.sb-hist{grid-column:9/13;grid-row:1/3}
+  .sb-active{grid-column:1/9;grid-row:2/4}.sb-tip{grid-column:9/13;grid-row:3}
+}
+.sb-tip .mosaic{margin-top:14px}
+@media (max-width:720px){.sb-tip .mosaic{display:none}}
+.plist{display:flex;flex-direction:column}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.prow:first-child{border-top:0}
+.pav{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;color:#fff;flex:none}
+.prow .pname{font-size:13px;font-weight:600}
+.prow .pamt{color:var(--muted);font-size:12px}
+.prow .pacts{display:flex;align-items:center;gap:6px;margin-left:auto;flex-wrap:wrap;justify-content:flex-end}
+.partf{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.partf .input{flex:1;min-width:120px}
+.amt-mono{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--good);white-space:nowrap}
+</style>
+<main data-page="splitbill">
+<section class="bento" aria-label="Split Bill">
+  <article class="card hero dark sb-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="hlTotal"></p><div class="cap" id="hlCap"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn lit" type="button" id="btnCreate">+ Split</button></div>
+          <div class="legend"><span><i style="background:var(--lime)"></i>Terkumpul</span><span><i style="background:var(--ghost)"></i>Total</span></div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Terkumpul</small><div class="v" id="kCollected"></div></div>
+      <div class="kpi"><small>Belum dibayar</small><div class="v" id="kUnpaid"></div></div>
+      <div class="kpi"><small>Split aktif</small><div class="v" id="kActive"></div></div>
+    </div>
+  </article>
+
+  <article class="card sb-hist">
+    <div class="head"><div><h2>Riwayat</h2><div class="cap" id="histCap"></div></div></div>
+    <p class="mid" id="histTotal"></p>
+    <div class="cap">Total split yang sudah selesai</div>
+    <ul class="mini-list" id="histList"></ul>
+  </article>
+
+  <article class="card sb-active">
+    <div class="head"><div><h2>Split aktif</h2><div class="cap">Ketuk kartu untuk lihat status &amp; bagikan tautan</div></div></div>
+    <div class="btiles" id="tiles"></div>
+  </article>
+
+  <article class="card tips sb-tip">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"splitbill",title:"Split Bill"});
+(function(){ if(!WM.allowed) return;
+var esc=WM.esc;
+var GRAD=["linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#FBBF24)","linear-gradient(135deg,#6366F1,#8B5CF6)","linear-gradient(135deg,#EC4899,#F43F5E)","linear-gradient(135deg,#3F8F2F,#9CCB3B)"];
+function tok(){return "sp"+Date.now().toString(36)+Math.random().toString(36).slice(2,8);}
+
+if(WM.store.get("splitBills")==null) WM.store.set("splitBills",[
+  {id:"sb1",title:"Makan malam ulang tahun Hima",totalAmount:960000,payoutAccountId:"a1",payoutInstructions:"Transfer ke BCA 7890 a.n. Christian Rizaldi",method:"equal",createdAt:"2026-09-24",revokedAt:null,
+    participants:[
+      {id:"p1",name:"Christian",amountOwed:240000,status:"paid",shareToken:tok()},
+      {id:"p2",name:"Vallencya",amountOwed:240000,status:"paid",shareToken:tok()},
+      {id:"p3",name:"Rian",amountOwed:240000,status:"claimed",shareToken:tok()},
+      {id:"p4",name:"Sinta",amountOwed:240000,status:"pending",shareToken:tok()}]},
+  {id:"sb2",title:"Sewa vila akhir tahun",totalAmount:6000000,payoutAccountId:"",payoutInstructions:"",method:"custom",createdAt:"2026-09-27",revokedAt:null,
+    participants:[
+      {id:"p5",name:"Christian",amountOwed:2000000,status:"pending",shareToken:tok()},
+      {id:"p6",name:"Budi",amountOwed:2000000,status:"pending",shareToken:tok()},
+      {id:"p7",name:"Citra",amountOwed:2000000,status:"pending",shareToken:tok()}]},
+  {id:"sb3",title:"Patungan kado pernikahan",totalAmount:500000,payoutAccountId:"a1",payoutInstructions:"BCA 7890",method:"equal",createdAt:"2026-08-15",revokedAt:null,
+    participants:[
+      {id:"p8",name:"Christian",amountOwed:250000,status:"paid",shareToken:tok()},
+      {id:"p9",name:"Dedi",amountOwed:250000,status:"paid",shareToken:tok()}]}
+]);
+
+function bills(){return WM.store.get("splitBills")||[];}
+function paidAmt(b){return b.participants.filter(function(p){return p.status==="paid";}).reduce(function(s,p){return s+p.amountOwed;},0);}
+function pct(b){if(!b.totalAmount)return 0;return Math.round(paidAmt(b)/b.totalAmount*100);}
+function isSettled(b){return b.participants.length>0 && b.participants.every(function(p){return p.status==="paid";});}
+function isActive(b){return !b.revokedAt && !isSettled(b);}
+
+function splitEqually(total,count){if(count<=0)return[];var base=Math.floor(total/count),left=total-base*count;return Array.from({length:count},function(_,i){return base+(i<left?1:0);});}
+function sumCustom(ids,amounts){return ids.reduce(function(s,id){return s+(WM.parseMoney(amounts[id]||"0"));},0);}
+function remainder(total,ids,amounts){return total-sumCustom(ids,amounts);}
+function initials(n){return (n||"?").trim().slice(0,1).toUpperCase();}
+function statusPill(s){
+  if(s==="paid")return '<span class="pill good">Lunas</span>';
+  if(s==="claimed")return '<span class="pill warn">Diklaim</span>';
+  return '<span class="pill">Belum bayar</span>';
+}
+
+/* hero chart: ghost bar = total, hatched bar = terkumpul, tightest-to-goal split is lit */
+function chart(list){var box=document.getElementById("chart"),css=getComputedStyle(box),v=function(n){return css.getPropertyValue(n).trim();};
+  var NS="http://www.w3.org/2000/svg",mk=function(t,a,x){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(x!=null)e.textContent=x;return e;};
+  var W=Math.max(260,box.clientWidth),H=Math.max(180,box.clientHeight),c=W<480,L=c?2:42,T=34,B=26,svg=mk("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Terkumpul dibanding total per split"});
+  if(!list.length){box.innerHTML='<div class="empty"><b>Belum ada split</b><p>Buat split pertamamu untuk mulai menagih bareng.</p></div>';return;}
+  var defs=mk("defs",{});["lime"].forEach(function(n){var p=mk("pattern",{id:"ph-"+n,width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"});p.appendChild(mk("rect",{width:8,height:8,fill:v("--"+n)}));p.appendChild(mk("rect",{width:2,height:8,fill:"rgba(255,255,255,.28)"}));defs.appendChild(p);});svg.appendChild(defs);
+  var max=Math.max.apply(null,list.map(function(b){return b.totalAmount;})),top=Math.ceil(max/1e6)*1e6||1,y=function(x){return T+(top-x)/top*(H-T-B);};
+  if(!c)[0,top/2,top].forEach(function(t){svg.appendChild(mk("line",{x1:L,x2:W,y1:y(t),y2:y(t),stroke:v("--line"),"stroke-dasharray":t?"3 4":"0"}));svg.appendChild(mk("text",{x:L-8,y:y(t)+3.5,"text-anchor":"end"},Math.round(t/1e6)+" jt"));});
+  var band=(W-L)/list.length,bw=Math.min(56,band*.62),hi=list.reduce(function(a,b,i){return pct(b)>pct(list[a])?i:a;},0);
+  list.forEach(function(b,i){var x=L+band*i+band/2-bw/2,on=i===hi,sp=paidAmt(b),g=mk("g",{class:"gb",style:"animation-delay:"+(i*40)+"ms"});
+    g.appendChild(mk("rect",{x:x,y:y(b.totalAmount),width:bw,height:Math.max(0,y(0)-y(b.totalAmount)),rx:8,fill:v("--ghost")}));
+    g.appendChild(mk("rect",{x:x,y:y(Math.min(sp,max)),width:bw,height:Math.max(3,y(0)-y(sp)),rx:8,fill:on?"url(#ph-lime)":v("--muted"),opacity:on?1:.28}));
+    g.appendChild(mk("title",{},b.title+": "+WM.rp(sp)+" dari "+WM.rp(b.totalAmount)));svg.appendChild(g);
+    svg.appendChild(mk("text",{x:x+bw/2,y:H-8,"text-anchor":"middle",style:on?"fill:"+v("--ink")+";font-weight:500":""},b.title.split(" ")[0].slice(0,8)));
+    if(on){var tx=pct(b)+"%",pw=48,px=Math.max(0,Math.min(W-pw,x+bw/2-pw/2)),py=y(Math.max(sp,b.totalAmount))-28;svg.appendChild(mk("rect",{x:px,y:py,width:pw,height:22,rx:11,fill:v("--ink")}));svg.appendChild(mk("text",{x:px+pw/2,y:py+15,"text-anchor":"middle",style:"fill:"+v("--card")+";font-family:var(--font);font-size:11px;font-weight:600"},tx));}});
+  box.innerHTML="";box.appendChild(svg);}
+
+function draw(){
+  var all=bills(),active=all.filter(isActive),history=all.filter(function(b){return !isActive(b);});
+  var totalDitalangin=active.reduce(function(s,b){return s+b.totalAmount;},0);
+  var totalTerkumpul=active.reduce(function(s,b){return s+paidAmt(b);},0);
+  var pctAll=totalDitalangin?Math.round(totalTerkumpul/totalDitalangin*100):0;
+  document.getElementById("hlTotal").innerHTML='<span class="cur">Rp</span>'+totalDitalangin.toLocaleString("id-ID");
+  document.getElementById("hlCap").textContent="Ditalangin bulan ini";
+  document.getElementById("kCollected").textContent=WM.rp(totalTerkumpul);
+  document.getElementById("kUnpaid").textContent=WM.rp(totalDitalangin-totalTerkumpul);
+  document.getElementById("kActive").textContent=active.length;
+  chart(active);
+
+  document.getElementById("tiles").innerHTML=(active.length?active.map(function(b){var p=pct(b);
+    return '<button type="button" class="btile" data-open="'+b.id+'" aria-label="'+esc(b.title)+', '+p+' persen terkumpul"><span class="tt">'+esc(b.title)+'</span><span class="pv" style="color:var(--ink)">'+p+'%</span><span class="track"><i class="fill-lime" style="width:'+Math.min(100,p)+'%"></i></span><small>'+WM.short(paidAmt(b))+' dari '+WM.short(b.totalAmount)+' · '+b.participants.length+' orang</small></button>';}).join(""):'<div class="empty" style="grid-column:1/-1"><b>Belum ada split aktif</b><p>Buat split pertamamu untuk mulai menagih bareng.</p></div>')+
+    '<button type="button" class="btile add" id="btnAddTile">'+WM.icon("plus",18,2)+'Split baru</button>';
+  var at=document.getElementById("btnAddTile");if(at)at.onclick=openCreate;
+
+  document.getElementById("histCap").textContent=history.length+" selesai";
+  document.getElementById("histTotal").textContent=WM.rp(history.reduce(function(s,b){return s+b.totalAmount;},0));
+  document.getElementById("histList").innerHTML=history.length?history.slice(0,5).map(function(b){
+    var badge=b.revokedAt?'<span class="pill bad">Dicabut</span>':'<span class="pill good">Lunas</span>';
+    return '<li class="click" data-open="'+b.id+'" style="cursor:pointer"><span class="ic">'+WM.icon("split",16)+'</span><div><b>'+esc(b.title)+'</b><small>'+b.participants.length+' orang · '+WM.date(b.createdAt)+'</small></div><span class="amt">'+badge+'</span></li>';
+  }).join(""):'<li style="border:0"><small>Belum ada split yang selesai.</small></li>';
+
+  var worst=active.slice().sort(function(a,b){return pct(a)-pct(b);})[0];
+  document.getElementById("tipT").textContent=worst?(worst.title+" baru "+pct(worst)+"%"):(active.length?"Semua split di jalur bagus":"Belum ada split aktif");
+  document.getElementById("tipP").textContent=worst?"Sisa "+WM.rp(worst.totalAmount-paidAmt(worst))+" dari "+worst.participants.filter(function(p){return p.status!=="paid";}).length+" orang.":"Ajak teman patungan lewat tautan mereka masing-masing.";
+  var n=Math.round(pctAll/100*18);document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"c":i%5===0?"b":"")+'"></i>';}).join("");
+
+  document.querySelectorAll("[data-open]").forEach(function(el){el.onclick=function(){openDetail(el.dataset.open);};});
+}
+
+/* ---------- create dialog ---------- */
+var localParts=[];
+function seedParts(){localParts=[{id:1,name:"Andi"},{id:2,name:"Budi"},{id:3,name:"Citra"}];}
+seedParts();
+var customAmounts={};
+
+document.getElementById("btnCreate").onclick=openCreate;
+function openCreate(){
+  var accs=WM.visibleAccounts();
+  seedParts();customAmounts={};
+  var d=WM.modal({title:"Buat split baru",size:"lg",submit:"Buat & bagikan link",body:
+    WM.field({name:"title",label:"Judul tagihan",required:true,placeholder:"Misal: Makan malam kantor"})+
+    WM.field({name:"total",label:"Total tagihan",type:"money",required:true})+
+    WM.field({name:"payoutAccountId",label:"Rekening tujuan",type:"select",required:true,placeholder:"Pilih rekening",options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];}),hint:"Ke sini dana akan masuk setelah kamu konfirmasi pembayaran."})+
+    WM.field({name:"payoutInstructions",label:"Instruksi pembayaran",optional:true,placeholder:"Misal: transfer ke BCA 7890 a.n. Christian"})+
+    '<div class="field"><label>Metode split</label><div data-radio="method" role="radiogroup" class="seg full"><button role="radio" data-v="equal" aria-checked="true" type="button">Rata</button><button role="radio" data-v="custom" aria-checked="false" type="button">Custom</button></div></div>'+
+    '<div class="field"><label>Peserta (<span id="pcount">3</span>)</label><div id="partRows"></div>'+
+    '<button class="btn ghost sm block" type="button" id="addPart" style="margin-top:8px">'+WM.icon("plus",14,2)+' Tambah peserta</button>'+
+    '<div class="note" id="methodNote" style="margin-top:10px"></div></div>',
+    onOpen:function(d,body){
+      WM.radio(d);
+      renderParts(d);
+      var mradio=d.querySelector('[data-radio="method"]');
+      mradio.addEventListener("click",function(){setTimeout(function(){renderParts(d);},0);});
+      d.querySelector("#addPart").onclick=function(){localParts.push({id:Date.now(),name:"Peserta "+(localParts.length+1)});renderParts(d);};
+      d.querySelector('[name="total"]').addEventListener("input",function(){renderParts(d);});
+    },
+    onSubmit:function(f,v){
+      var method=(f.querySelector('[data-radio="method"] [aria-checked="true"]')||{}).dataset.v||"equal";
+      if(localParts.length<2)return "Minimal 2 peserta.";
+      if(!v.payoutAccountId)return "Pilih rekening tujuan dulu.";
+      var total=v.total;
+      var ids=localParts.map(function(p){return p.id;});
+      var shares;
+      if(method==="equal"){shares=splitEqually(total,localParts.length);}
+      else{
+        var rem=remainder(total,ids,customAmounts);
+        if(rem!==0)return rem>0?("Kurang "+WM.rp(rem)+" lagi supaya pas."):("Lebih "+WM.rp(Math.abs(rem))+", kurangi dulu.");
+        shares=localParts.map(function(p){return WM.parseMoney(customAmounts[p.id]||"0");});
+      }
+      var names=[].slice.call(document.querySelectorAll("#partRows [data-pname]")).reduce(function(m,el){m[el.dataset.pname]=el.value.trim();return m;},{});
+      var participants=localParts.map(function(p,i){return {id:WM.uid("pt"),name:(names[p.id]||p.name||("Peserta "+(i+1))),amountOwed:shares[i]||0,status:"pending",shareToken:tok()};});
+      var bill={title:v.title,totalAmount:total,payoutAccountId:v.payoutAccountId,payoutInstructions:v.payoutInstructions||"",method:method,createdAt:WM.today,revokedAt:null,participants:participants};
+      var created=WM.store.add("splitBills",bill);
+      WM.toast("Split dibuat. Tautan tiap peserta siap dibagikan.");
+      draw();
+      setTimeout(function(){openDetail(created.id);},150);
+    }});
+}
+
+function renderParts(dialog){
+  var totalEl=dialog.querySelector('[name="total"]'), total=WM.parseMoney(totalEl.value);
+  var method=(dialog.querySelector('[data-radio="method"] [aria-checked="true"]')||{}).dataset.v||"equal";
+  dialog.querySelector("#pcount").textContent=localParts.length;
+  var shares = method==="equal" ? splitEqually(total,localParts.length) : [];
+  var rows=localParts.map(function(p,i){
+    var amtField = method==="equal"
+      ? '<span class="amt-mono num">'+WM.rp(shares[i]||0)+'</span>'
+      : '<input class="input mono" style="width:120px" inputmode="numeric" data-pamt="'+p.id+'" placeholder="0" value="'+WM.esc(customAmounts[p.id]||"")+'">';
+    return '<div class="partf" style="margin-top:8px"><input class="input" data-pname="'+p.id+'" value="'+WM.esc(p.name)+'" aria-label="Nama peserta">'+amtField+
+      (localParts.length>2?'<button class="ibtn danger" type="button" data-rmpart="'+p.id+'" aria-label="Hapus peserta">'+WM.icon("x",14,2)+'</button>':'')+'</div>';
+  }).join("");
+  dialog.querySelector("#partRows").innerHTML=rows;
+  dialog.querySelectorAll("[data-pamt]").forEach(function(inp){
+    inp.addEventListener("input",function(){customAmounts[inp.dataset.pamt]=inp.value.replace(/\D/g,"").replace(/\B(?=(\d{3})+(?!\d))/g,".");inp.value=customAmounts[inp.dataset.pamt];updateNote(dialog);});
+  });
+  dialog.querySelectorAll("[data-rmpart]").forEach(function(btn){
+    btn.onclick=function(){localParts=localParts.filter(function(p){return String(p.id)!==btn.dataset.rmpart;});delete customAmounts[btn.dataset.rmpart];renderParts(dialog);};
+  });
+  updateNote(dialog);
+}
+function updateNote(dialog){
+  var totalEl=dialog.querySelector('[name="total"]'), total=WM.parseMoney(totalEl.value);
+  var method=(dialog.querySelector('[data-radio="method"] [aria-checked="true"]')||{}).dataset.v||"equal";
+  var note=dialog.querySelector("#methodNote");
+  if(method==="equal"){
+    var shares=splitEqually(total,localParts.length);
+    note.className="note";note.textContent="Per orang: "+WM.rp(shares[shares.length-1]||0);
+  }else{
+    var ids=localParts.map(function(p){return p.id;});
+    var rem=remainder(total,ids,customAmounts);
+    if(total<=0){note.className="note";note.textContent="Isi total tagihan dulu untuk melihat sisa alokasi.";}
+    else if(rem===0){note.className="note";note.textContent="Pas! Jumlah semua peserta sama dengan total.";}
+    else if(rem>0){note.className="note warn";note.textContent="Kurang "+WM.rp(rem)+" lagi.";}
+    else{note.className="note bad";note.textContent="Lebih "+WM.rp(Math.abs(rem))+", kurangi salah satu.";}
+  }
+}
+
+/* ---------- detail / share side panel ---------- */
+function openDetail(id){
+  var b=WM.store.find("splitBills",id);if(!b)return;
+  var accName=b.payoutAccountId?(function(){var a=WM.account(b.payoutAccountId);return a?a.bank+" · "+a.name:"Rekening tidak ditemukan";})():"";
+  var body='<div class="cap num">'+WM.rp(b.totalAmount)+' · '+b.participants.length+' orang'+(b.participants.length?(' · '+WM.rp(Math.round(b.totalAmount/b.participants.length))+'/orang'):'')+'</div>';
+  if(b.revokedAt)body+='<div class="note bad" style="margin-top:12px">'+WM.icon("alert",16)+' Tautan split ini sudah dicabut. Peserta tidak bisa membuka linknya lagi.</div>';
+  if(!b.payoutAccountId)body+='<div class="note warn" style="margin-top:12px">'+WM.icon("alert",16)+'<span style="flex:1">Rekening tujuan belum diisi, konfirmasi pembayaran belum bisa dilakukan.</span><button class="btn sm" type="button" id="btnEditPayout">Isi rekening</button></div>';
+  else body+='<div class="note" style="margin-top:12px">'+WM.icon("info",16)+' Dana masuk ke '+WM.esc(accName)+(b.payoutInstructions?' · '+WM.esc(b.payoutInstructions):'')+'</div>';
+  body+='<div class="cap" style="margin-top:16px;font-weight:600;color:var(--ink)">Status pembayaran</div><div class="plist" id="plist" style="margin-top:6px"></div>';
+
+  var d=WM.modal({title:b.title,size:"lg",submit:false,noFoot:false,cancel:"Tutup",body:body,
+    onOpen:function(dl,bd){
+      renderParticipants(dl,b);
+      var ep=dl.querySelector("#btnEditPayout");
+      if(ep)ep.onclick=function(){openEditPayout(b.id,dl);};
+    }});
+  var foot=d.querySelector(".sheet-foot");
+  if(foot && !b.revokedAt){
+    var rv=document.createElement("button");rv.type="button";rv.className="btn danger";rv.textContent="Cabut semua link";
+    rv.onclick=function(){
+      WM.confirm({title:"Cabut semua link?",text:"Semua tautan bagian peserta untuk \""+b.title+"\" akan berhenti berfungsi. Tindakan ini tidak bisa dibatalkan.",confirm:"Ya, cabut",danger:true}).then(function(ok){
+        if(!ok)return;
+        WM.store.update("splitBills",b.id,{revokedAt:WM.today});
+        WM.toast("Semua link split dicabut");
+        d.close();draw();
+      });
+    };
+    foot.insertBefore(rv,foot.querySelector('[type="submit"]')||null);
+  }
+}
+
+function renderParticipants(dialog,b){
+  var box=dialog.querySelector("#plist");
+  box.innerHTML=b.participants.map(function(p,i){
+    return '<div class="prow"><span class="pav" style="background:'+GRAD[i%GRAD.length]+'">'+initials(p.name)+'</span>'+
+      '<span style="min-width:0"><span class="pname" style="display:block">'+WM.esc(p.name)+'</span><span class="pamt num">'+WM.rp(p.amountOwed)+'</span></span>'+
+      '<span class="pacts">'+statusPill(p.status)+
+      (p.status!=="paid"?'<button class="btn sm" type="button" data-markpaid="'+p.id+'">Tandai lunas</button>':'')+
+      '<button class="ibtn" type="button" data-copylink="'+p.id+'" aria-label="Salin tautan '+WM.esc(p.name)+'"'+(b.revokedAt?' disabled':'')+'>'+WM.icon("link",15,2)+'</button>'+
+      '</span></div>';
+  }).join("");
+  box.querySelectorAll("[data-markpaid]").forEach(function(btn){
+    btn.onclick=function(){
+      var pid=btn.dataset.markpaid,p=b.participants.filter(function(x){return x.id===pid;})[0];
+      WM.confirm({title:"Konfirmasi pembayaran "+p.name+"?",text:"Dana "+WM.rp(p.amountOwed)+" akan dicatat sebagai pemasukan ke rekening tujuan. Tindakan ini tidak bisa dibatalkan.",confirm:"Ya, konfirmasi"}).then(function(ok){
+        if(!ok)return;
+        var fresh=WM.store.find("splitBills",b.id);
+        fresh.participants=fresh.participants.map(function(x){return x.id===pid?Object.assign({},x,{status:"paid"}):x;});
+        WM.store.update("splitBills",b.id,{participants:fresh.participants});
+        if(fresh.payoutAccountId)WM.addTx({type:"in",amount:p.amountOwed,acc:fresh.payoutAccountId,cat:"c-lain-in",note:"Split: "+fresh.title+" · "+p.name});
+        WM.toast("Pembayaran "+p.name+" dikonfirmasi, dana masuk (simulasi)");
+        b=WM.store.find("splitBills",b.id);renderParticipants(dialog,b);draw();
+      });
+    };
+  });
+  box.querySelectorAll("[data-copylink]").forEach(function(btn){
+    btn.onclick=function(){
+      var pid=btn.dataset.copylink,p=b.participants.filter(function(x){return x.id===pid;})[0];
+      var url=location.origin+location.pathname.replace(/splitbill\.html$/,"")+"split.html?t="+p.shareToken;
+      WM.copy(url,"Tautan "+p.name);
+    };
+  });
+}
+
+function openEditPayout(id,parentDialog){
+  var b=WM.store.find("splitBills",id),accs=WM.visibleAccounts();
+  WM.modal({title:"Isi rekening tujuan",size:"sm",submit:"Simpan",body:
+    WM.field({name:"payoutAccountId",label:"Rekening tujuan",type:"select",required:true,placeholder:"Pilih rekening",options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];}),hint:"Peserta melihat ini di tautan bagian mereka."}),
+    onSubmit:function(f,v){
+      WM.store.update("splitBills",id,{payoutAccountId:v.payoutAccountId});
+      WM.toast("Rekening tujuan diperbarui");
+      draw();
+      if(parentDialog)parentDialog.close();
+      setTimeout(function(){openDetail(id);},150);
+    }});
+}
+
+draw();
+WM.onChange(["splitBills","accounts"],draw);
+WM.onResize(document.getElementById("chart"),draw);
+})();
+</script>

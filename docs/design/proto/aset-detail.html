@@ -1,0 +1,213 @@
+<title>Detail aset · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .d-hero{grid-column:1/9;grid-row:1}.d-side{grid-column:9/13;grid-row:1}
+  .d-hist{grid-column:1/13;grid-row:2}
+}
+.d-side{display:flex;flex-direction:column}
+#docList{display:flex;flex-direction:column;flex:1;justify-content:center}
+#docList .empty{padding:20px 0}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);text-decoration:none;font-size:12px;font-weight:500}
+.back:hover{color:var(--ink)}
+.d-hero .back{color:var(--muted)}
+.doc-item{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-top:1px solid var(--line);font-size:13px}
+.doc-item:first-child{border-top:0}
+.doc-item button.link{background:none;border:0;padding:0;display:flex;align-items:center;gap:8px;text-align:left;color:inherit;cursor:pointer;min-width:0}
+.doc-item button.link:hover{text-decoration:underline}
+</style>
+<main data-page="aset">
+<section class="bento" aria-label="Detail aset">
+  <article class="card hero dark d-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><a class="back" href="aset.html">Kembali</a><p class="big num money" id="val" style="margin-top:6px"></p><div class="cap" id="cap"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row" id="acts"></div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Nilai tercatat</small><div class="v money" id="kVal"></div></div>
+      <div class="kpi"><small>Diperoleh</small><div class="v" id="kDate"></div></div>
+      <div class="kpi"><small>Perubahan/tahun</small><div class="v" id="kRate"></div></div>
+    </div>
+  </article>
+
+  <article class="card d-side">
+    <div class="head"><div><h2>Dokumen</h2><div class="cap" id="docCap"></div></div><label class="btn sm ghost" id="uploadBtn" for="docInput" style="cursor:pointer">Unggah</label></div>
+    <input type="file" id="docInput" accept=".jpg,.jpeg,.png,.webp,.pdf" style="display:none">
+    <div id="docList"></div>
+  </article>
+
+  <article class="card d-hist">
+    <div class="head"><div><h2>Riwayat nilai</h2><div class="cap">Terbaru di atas</div></div></div>
+    <ul class="mini-list" id="histList"></ul>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"aset"});
+(function(){
+if(!WM.allowed) return;
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+document.querySelector(".back").innerHTML=WM.icon("chevl",13)+"Kembali";
+document.getElementById("uploadBtn").innerHTML=WM.icon("upload",15)+"Unggah";
+
+var qs=new URLSearchParams(location.search),assetId=qs.get("id");
+var TYPE_LABEL={properti:"Properti",kendaraan:"Kendaraan",elektronik:"Elektronik",perhiasan:"Perhiasan",emas:"Emas",lainnya:"Lainnya"};
+var TYPE_ICON={properti:"home",kendaraan:"car",elektronik:"zap",perhiasan:"sparkle",emas:"gold",lainnya:"more"};
+
+function normalizeOne(a){
+  var n=Object.assign({},a),changed=false;
+  if(n.type==null){n.type=n.kind||"lainnya";changed=true;}
+  if(n.notes==null){n.notes=n.note||"";changed=true;}
+  if(n.acquisitionDate==null){n.acquisitionDate=n.since||WM.today;changed=true;}
+  if(n.valueChangeMode==null){n.valueChangeMode="percent";changed=true;}
+  if(n.valueChangeRatePct===undefined){n.valueChangeRatePct=0;changed=true;}
+  if(n.valueChangeAmount===undefined){n.valueChangeAmount=null;changed=true;}
+  if(!n.history){
+    n.history=[];
+    if(n.cost!=null&&n.cost!==n.value)n.history.push({id:WM.uid("h"),date:n.acquisitionDate,value:n.cost,note:"Nilai awal",by:n.owner||WM.meId()});
+    n.history.push({id:WM.uid("h"),date:WM.today,value:n.value,note:"Nilai tercatat",by:n.owner||WM.meId()});
+    changed=true;
+  }
+  if(!n.docs){n.docs=[];changed=true;}
+  return {a:n,changed:changed};
+}
+function allAssets(){
+  var list=WM.store.get("assets")||[],changed=false;
+  list=list.map(function(x){var r=normalizeOne(x);if(r.changed)changed=true;return r.a;});
+  if(changed)WM.store.set("assets",list);
+  return list;
+}
+function getAsset(){
+  var list=allAssets();
+  if(!assetId&&list.length){assetId=list[0].id;}
+  return list.filter(function(x){return x.id===assetId;})[0]||null;
+}
+
+function openHistoryModal(asset){
+  WM.modal({title:"Catat nilai baru",sub:esc(asset.name),size:"sm",submit:"Simpan",
+    onOpen:function(d,body){
+      body.innerHTML='<div class="field"><label>Cara mencatat</label><div class="seg full" data-radio="mode" role="radiogroup" aria-label="Cara mencatat nilai">'+
+        '<button type="button" role="radio" data-v="value" aria-checked="true">Nilai baru</button>'+
+        '<button type="button" role="radio" data-v="percent" aria-checked="false">Persentase perubahan</button>'+
+      '</div></div>'+
+      '<div data-panel="value">'+WM.field({name:"value",label:"Nilai baru",type:"money",value:asset.value})+'</div>'+
+      '<div data-panel="percent" hidden>'+WM.field({name:"percent",label:"Perubahan (%)",type:"text",placeholder:"misal -2,5 atau 3",hint:"Dihitung dari nilai tercatat saat ini: "+WM.rp(asset.value)+"."})+'</div>'+
+      WM.field({name:"recordedAt",label:"Tanggal",type:"date",value:WM.today,max:WM.today})+
+      WM.field({name:"note",label:"Catatan",optional:true,placeholder:"misal Hasil appraisal baru"});
+      WM.radio(body);
+      var group=body.querySelector('[data-radio="mode"]');
+      group.addEventListener("change",function(){
+        var v=(group.querySelector('[aria-checked="true"]')||{}).dataset.v;
+        body.querySelector('[data-panel="value"]').hidden=v!=="value";
+        body.querySelector('[data-panel="percent"]').hidden=v!=="percent";
+      });
+    },
+    onSubmit:function(f,v,d){
+      var mode=(f.querySelector('[data-radio="mode"] [aria-checked="true"]')||{}).dataset.v||"value";
+      var newValue;
+      if(mode==="value"){
+        newValue=v.value;
+        if(!newValue||newValue<=0){WM.setError(f,"value","Masukkan nilai lebih dari 0.");return false;}
+      }else{
+        var pct=parseFloat(String(v.percent||"").replace(",","."));
+        if(!isFinite(pct)){WM.setError(f,"percent","Masukkan angka, misal -2,5 atau 3.");return false;}
+        newValue=Math.max(Math.round(asset.value*(1+pct/100)),0);
+      }
+      if(v.recordedAt>WM.today){WM.setError(f,"recordedAt","Tanggal tidak boleh di masa depan.");return false;}
+      var changePct=asset.value?((newValue-asset.value)/asset.value*100):null;
+      var hist=(asset.history||[]).slice();
+      hist.push({id:WM.uid("h"),date:v.recordedAt,value:newValue,note:v.note||"",by:WM.meId(),changePercent:changePct});
+      WM.store.update("assets",asset.id,{value:newValue,history:hist});
+      WM.toast("Riwayat nilai tersimpan");
+      renderAll();
+    }});
+}
+
+function deleteDoc(asset,docId){
+  var doc=(asset.docs||[]).filter(function(d){return d.id===docId;})[0];if(!doc)return;
+  var docs=(asset.docs||[]).filter(function(d){return d.id!==docId;});
+  WM.store.update("assets",asset.id,{docs:docs});
+  WM.toast("Dokumen dihapus",{undo:function(){var fresh=WM.store.find("assets",asset.id);var d2=(fresh.docs||[]).concat([doc]);WM.store.update("assets",asset.id,{docs:d2});}});
+  renderAll();
+}
+
+function renderAll(){
+  var asset=getAsset();
+  if(!asset){
+    document.getElementById("cap").textContent="Aset tidak ditemukan";
+    document.getElementById("val").innerHTML='<span class="cur">Rp</span>0';
+    ["d-side","d-hist"].forEach(function(c){var el=document.querySelector("."+c);if(el)el.style.display="none";});
+    document.getElementById("acts").innerHTML="";
+    document.getElementById("chart").innerHTML='<div class="empty"><b>Aset tidak ditemukan</b><p>Aset ini mungkin sudah dihapus.</p></div>';
+    return;
+  }
+  var hist=(asset.history||[]).slice().sort(function(a,b){return a.date<b.date?-1:1;});
+  var newestFirst=hist.slice().reverse();
+  var canManage=WM.isOwner();
+  var rateBadge=asset.valueChangeMode==="fixed"?((asset.valueChangeAmount>=0?"+":"")+WM.rp(asset.valueChangeAmount||0)):((asset.valueChangeRatePct>=0?"+":"")+WM.pct(asset.valueChangeRatePct||0));
+
+  document.getElementById("val").innerHTML='<span class="cur">Rp</span>'+asset.value.toLocaleString("id-ID");
+  document.getElementById("cap").textContent=asset.name+" · "+(TYPE_LABEL[asset.type]||asset.type)+(asset.notes?" · "+asset.notes:"");
+  document.getElementById("kVal").textContent=WM.rp(asset.value);
+  document.getElementById("kDate").textContent=WM.date(asset.acquisitionDate);
+  document.getElementById("kRate").textContent=rateBadge;
+  document.getElementById("acts").innerHTML=canManage?'<button class="ghost-btn lit" type="button" id="addHist">+ Catat nilai</button>':"";
+  if(canManage)document.getElementById("addHist").onclick=function(){openHistoryModal(asset);};
+
+  /* chart */
+  var box=document.getElementById("chart");
+  if(hist.length>=2){
+    function drawChart(){WM.chart.area(box,{labels:hist.map(function(h){return WM.date(h.date);}),a:hist.map(function(h){return h.value;}),fmt:WM.short});}
+    drawChart();WM.onResize(box,drawChart);
+  }else{
+    box.innerHTML='<div class="empty"><b>Belum cukup data</b><p>Catat nilai baru minimal dua kali untuk melihat grafik.</p></div>';
+  }
+
+  /* documents */
+  var docs=asset.docs||[];
+  document.getElementById("docCap").textContent=docs.length+" file";
+  document.getElementById("docList").innerHTML=docs.length?docs.map(function(d){
+    var kb=Math.max(1,Math.ceil((d.size||0)/1024)).toLocaleString("id-ID");
+    var kind=(d.mime||"").replace("image/","").replace("application/","").toUpperCase()||"FILE";
+    return '<div class="doc-item"><button type="button" class="link" data-open="'+d.id+'">'+WM.icon("file",15)+'<span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(d.name)+'</span></button>'+
+     '<span class="muted" style="white-space:nowrap;font-size:11px">'+kind+' · '+kb+' KB'+
+     (canManage?' <button class="ibtn" type="button" data-doc-del="'+d.id+'" aria-label="Hapus dokumen" style="color:var(--bad)">'+WM.icon("trash",13)+'</button>':'')+'</span>'+
+     '</div>';
+  }).join(""):'<div class="empty"><span class="ic">'+WM.icon("file",22)+'</span><b>Belum ada dokumen</b><p>Unggah bukti kepemilikan, kwitansi, atau dokumen pendukung lain.</p></div>';
+  document.getElementById("uploadBtn").style.display=canManage?"":"none";
+  document.querySelectorAll("[data-open]").forEach(function(b){b.onclick=function(){WM.toast("Simulasi: pratinjau dokumen belum tersedia di prototipe ini.");};});
+  document.querySelectorAll("[data-doc-del]").forEach(function(b){b.onclick=function(){deleteDoc(asset,b.dataset.docDel);};});
+
+  /* combined value + change history */
+  document.getElementById("histList").innerHTML=newestFirst.length?newestFirst.slice(0,8).map(function(h){
+    var pct=h.changePercent!=null&&isFinite(h.changePercent)?h.changePercent:null;
+    return '<li><span class="ic lime">'+WM.icon("chart",16)+'</span><div><b>'+WM.date(h.date,true)+'</b><small>'+(h.by?"oleh "+esc(WM.member(h.by).short):"")+(h.note?" · "+esc(h.note):"")+'</small></div>'+
+      '<span class="amt num money">'+WM.rp(h.value)+(pct!=null?' <span style="font-size:11px;font-weight:600;color:'+(pct>=0?"var(--good)":"var(--bad)")+'">'+(pct>=0?"+":"")+pct.toFixed(1)+'%</span>':'')+'</span></li>';
+  }).join(""):'<li style="border-top:0"><small>Belum ada riwayat nilai.</small></li>';
+}
+
+var docInput=document.getElementById("docInput");
+docInput.addEventListener("change",function(){
+  var f=docInput.files&&docInput.files[0];if(!f)return;
+  var asset=getAsset();if(!asset)return;
+  var docs=(asset.docs||[]).slice();
+  docs.push({id:WM.uid("d"),name:f.name,size:f.size,mime:f.type||"application/octet-stream",date:WM.today});
+  WM.store.update("assets",asset.id,{docs:docs});
+  WM.toast("Dokumen terlampir (simulasi)");
+  docInput.value="";
+  renderAll();
+});
+
+renderAll();
+WM.onChange(["assets"],renderAll);
+})();
+</script>

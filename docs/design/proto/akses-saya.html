@@ -1,0 +1,110 @@
+<title>Akses Saya · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .as-hero{grid-column:1/9;grid-row:1}.as-acc{grid-column:9/13;grid-row:1/3}
+  .as-act{grid-column:1/9;grid-row:2/4}
+  .as-tx{grid-column:1/13;grid-row:4}
+}
+</style>
+<main data-page="akses-saya">
+<section class="bento" aria-label="Akses Saya">
+  <article class="card hero dark as-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="hAcc"></p><div class="cap" id="hCap"></div></div>
+        <div class="hero-ctrl"><div class="ctrl-row"><button class="ghost-btn lit" type="button" id="asReqBtn">+ Ajukan dana</button></div></div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Saldo keluarga</small><div class="v" style="font-size:16px">Tidak terlihat</div></div>
+      <div class="kpi"><small>Laporan keluarga</small><div class="v" id="kRep" style="font-size:16px"></div></div>
+      <div class="kpi"><small>Pengajuan tertunda</small><div class="v" id="kPending"></div></div>
+    </div>
+  </article>
+
+  <article class="card as-acc">
+    <div class="head"><div><h2>Rekening kamu</h2></div></div>
+    <ul class="mini-list" id="asAccList"></ul>
+    <div class="empty" id="asAccEmpty" hidden><b>Belum ditugaskan</b><p>Minta Master menugaskan rekening dari IAM Roles.</p></div>
+    <div class="note" style="margin-top:auto"><span id="asTipIcon"></span><span>Butuh akses lebih? Minta Master menugaskan rekening atau mengubah role kamu di IAM Roles.</span></div>
+  </article>
+
+  <article class="card as-act">
+    <div class="head"><div><h2>Aktivitas yang diizinkan</h2><div class="cap">Tercatat dan bisa ditinjau Master</div></div></div>
+    <div class="list" id="asActRows" style="margin-top:4px"></div>
+    <div class="head" style="margin-top:16px"><div><h2>Pengajuanmu</h2></div></div>
+    <ul class="mini-list" id="asReqList"></ul>
+    <p class="empty muted" id="asReqEmpty" hidden style="padding:10px 0">Belum ada pengajuan.</p>
+  </article>
+
+  <article class="card as-tx">
+    <div class="head"><div><h2>Transaksi terakhirmu</h2></div><a class="more" href="transaksi.html">Lihat semua <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
+    <ul class="mini-list" id="asTxList"></ul>
+    <div class="empty" id="asTxEmpty" hidden><b>Belum ada transaksi</b><p>Transaksi yang kamu catat akan muncul di sini.</p></div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"akses-saya",title:"Akses Saya"});
+(function(){ if(!WM.allowed) return;
+var esc=WM.esc;
+document.getElementById("asTipIcon").innerHTML=WM.icon("info",15);
+WM.store.ensure("requests",[]);
+var me=WM.me(),unlocked=WM.isOwner();
+
+function chart(){var box=document.getElementById("chart"),reqs=WM.store.get("requests").filter(function(r){return r.member===me.id;});
+  var c={pending:0,approved:0,rejected:0};reqs.forEach(function(r){c[r.status]=(c[r.status]||0)+1;});
+  WM.chart.bars(box,{labels:["Menunggu","Disetujui","Ditolak"],series:[{d:[c.pending,c.approved,c.rejected],c:"var(--lime)"}],hi:0,wide:true});}
+
+function draw(){
+  var accs=WM.visibleAccounts();
+  document.getElementById("hAcc").textContent=accs.length;
+  document.getElementById("hCap").textContent=unlocked?"Master account · akses penuh":"Rekening ditugaskan · "+WM.roleLabel(me.role);
+  document.getElementById("kRep").textContent=unlocked?"Terbuka":"Tidak terlihat";
+  document.getElementById("asAccList").innerHTML=accs.map(function(a){return '<li><span class="ic">'+WM.icon("landmark",16)+'</span><div><b>'+esc(a.name)+'</b><small>'+esc(a.bank)+'</small></div><span class="amt num">'+(a.type==="cc"?"Tagihan "+WM.short(-a.balance):WM.short(a.balance))+'</span></li>';}).join("");
+  document.getElementById("asAccEmpty").hidden=accs.length>0;
+
+  var myReq=WM.store.get("requests").filter(function(r){return r.member===me.id;}).sort(function(a,b){return a.date<b.date?1:-1;});
+  document.getElementById("kPending").textContent=myReq.filter(function(r){return r.status==="pending";}).length;
+  var STAT={pending:["Menunggu",""],approved:["Disetujui","good"],rejected:["Ditolak","bad"]};
+  document.getElementById("asReqList").innerHTML=myReq.map(function(r){var s=STAT[r.status]||STAT.pending;return '<li><span class="ic">'+WM.icon("send",16)+'</span><div><b>'+WM.rp(r.amount)+'</b><small>'+esc(r.reason)+' · '+WM.dayLabel(r.date)+'</small></div><span class="pill '+s[1]+'">'+s[0]+'</span></li>';}).join("");
+  document.getElementById("asReqEmpty").hidden=myReq.length>0;
+
+  var rows=[["Mencatat transaksi","good","Diizinkan",accs.length?"Pada rekening yang ditugaskan.":"Menunggu rekening ditugaskan Master."],
+    ["Mengajukan dana","good","Diizinkan","Perlu disetujui Master sebelum dana berpindah."],
+    ["Melihat laporan keluarga",unlocked?"good":"bad",unlocked?"Diizinkan":"Dikunci",unlocked?"Laporan keluarga terbuka untuk peranmu.":"Laporan gabungan keluarga tertutup untuk peranmu."],
+    ["Mengubah role anggota","bad","Dikunci","Hanya Master yang bisa mengubah IAM."]];
+  document.getElementById("asActRows").innerHTML=rows.map(function(r){return '<div class="row"><b>'+r[0]+'</b><small>'+r[3]+'</small><span class="pill '+r[1]+'" style="justify-self:end">'+r[2]+'</span></div>';}).join("");
+
+  var tx=WM.store.get("tx").filter(function(t){return accs.some(function(a){return a.id===t.acc||a.id===t.to;});}).slice(0,6);
+  document.getElementById("asTxList").innerHTML=tx.map(function(t){var c=WM.cat(t.cat),inn=t.type==="in";return '<li data-tx="'+t.id+'" style="cursor:pointer"><span class="ic" style="background:'+(inn?"var(--lime-soft)":"var(--card-2)")+'">'+WM.icon(t.type==="tf"?"swap":c.icon,16)+'</span><div><b>'+esc(t.note||c.name)+'</b><small>'+WM.date(t.date).replace(" 2026","")+' · '+esc((WM.account(t.acc)||{}).bank||"")+'</small></div><div class="amt num '+(inn?"in":"out")+'">'+(t.type==="tf"?"":inn?"+":"−")+WM.short(t.amount).replace("Rp ","")+'</div></li>';}).join("");
+  document.querySelectorAll("#asTxList [data-tx]").forEach(function(li){li.onclick=function(){WM.openTxDetail(li.dataset.tx);};});
+  document.getElementById("asTxEmpty").hidden=tx.length>0;
+
+  chart();
+}
+
+document.getElementById("asReqBtn").addEventListener("click",function(){
+  var accs=WM.visibleAccounts();
+  if(!accs.length){WM.toast("Belum ada rekening yang ditugaskan untukmu.",{bad:true});return;}
+  var html='<div class="field"><label>Dari rekening</label><div class="acc-row" data-radio="acc" role="radiogroup"></div></div>'+
+    WM.field({name:"amount",label:"Nominal",type:"money",required:true})+
+    WM.field({name:"reason",label:"Alasan",required:true,placeholder:"cth: Beli buku kuliah"});
+  WM.modal({title:"Ajukan dana",body:html,submit:"Kirim pengajuan",
+   onOpen:function(d,b){b.querySelector('[data-radio="acc"]').innerHTML=accs.map(function(a){return '<button type="button" class="acc" role="radio" data-v="'+a.id+'" aria-checked="'+(a===accs[0])+'"><small>'+esc(a.name)+'</small><b>'+esc(a.bank)+'</b></button>';}).join("");WM.radio(b);WM.hscroll(b.querySelector(".field"));},
+   onSubmit:function(f,v){var accId=(f.querySelector('[data-radio="acc"] [aria-checked="true"]')||{}).dataset;accId=accId?accId.v:accs[0].id;
+     WM.store.add("requests",{member:me.id,amount:v.amount,reason:v.reason,date:WM.today,status:"pending",acc:accId});
+     WM.store.add("notifications",{date:WM.today,kind:"approval",title:me.short+" minta dana "+WM.rp(v.amount),body:v.reason,href:"persetujuan.html",read:false});
+     WM.toast("Pengajuan dana terkirim, menunggu persetujuan Master");}});});
+
+draw();
+WM.onChange(["accounts","tx","requests","notifications"],draw);
+WM.onResize(document.getElementById("chart"),chart);
+})();
+</script>

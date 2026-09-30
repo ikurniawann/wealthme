@@ -1,0 +1,423 @@
+<title>Rekonsiliasi Bank · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .rk-hero{grid-column:1/9;grid-row:1}.rk-hist{grid-column:9/13;grid-row:1}
+  .rk-table{grid-column:1/13;grid-row:2}
+  .rk-wmonly{grid-column:1/9;grid-row:3}.rk-tip{grid-column:9/13;grid-row:3}
+}
+.rk-tip .mosaic{margin-top:14px}
+@media (max-width:720px){.rk-tip .mosaic{display:none}}
+.rk-bank{display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--line);background:var(--card);border-radius:13px;padding:10px 14px;font-size:13px;font-weight:600;min-height:44px;flex:1;text-align:left}
+.rk-bank[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
+.rk-bank i{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff}
+.rk-demo{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.rk-demo button{display:flex;align-items:center;gap:10px;text-align:left;border:1.5px dashed var(--line);border-radius:13px;padding:11px 13px;background:var(--card);font-size:13px;min-height:44px}
+.rk-demo button:hover{border-color:var(--lime);background:var(--lime-soft)}
+.rk-demo small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.rk-row-tx{display:flex;align-items:center;gap:8px;font-size:12px}
+.rk-row-tx .ic{width:28px;height:28px;border-radius:9px}
+.rk-empty-mini{padding:22px 14px;text-align:center;color:var(--muted);font-size:13px}
+@media (max-width:640px){.rk-bank{flex:1 1 100%}}
+</style>
+<main data-page="rekonsiliasi">
+  <section class="grid" id="empty" hidden>
+    <div class="card s12">
+      <div class="empty">
+        <span class="ic" style="width:52px;height:52px;border-radius:16px"></span>
+        <b>Rekonsiliasi Bank</b>
+        <p>Upload file mutasi rekening (CSV atau Excel) dan WealthMe akan mencocokkannya otomatis dengan transaksi yang sudah kamu catat, lalu menunjukkan selisihnya.</p>
+        <button class="btn primary" type="button" id="btnUploadEmpty">Upload mutasi pertamamu</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="bento" aria-label="Rekonsiliasi Bank" id="content" hidden>
+    <article class="card hero dark rk-hero">
+      <div class="chart-side">
+        <div class="head">
+          <div><p class="big num" id="hlDiff"></p><div class="cap" id="hlCap"></div></div>
+          <div class="hero-ctrl">
+            <div class="ctrl-row"><span class="ghost-btn" style="border:0;background:var(--card-2)" id="fileTag"></span><button class="ghost-btn lit" type="button" id="btnUpload2">+ Upload</button></div>
+            <div class="legend"><span><i style="background:var(--good)"></i>Cocok</span><span><i style="background:var(--orange)"></i>Ditinjau</span><span><i style="background:var(--bad)"></i>Belum cocok</span></div>
+          </div>
+        </div>
+        <div class="chart-wrap" id="chart"></div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><small>Cocok</small><div class="v" id="kOk"></div></div>
+        <div class="kpi"><small>Perlu ditinjau</small><div class="v" id="kWarn"></div></div>
+        <div class="kpi"><small>Belum cocok</small><div class="v" id="kErr"></div></div>
+      </div>
+    </article>
+
+    <article class="card rk-hist">
+      <div class="head"><div><h2>Riwayat unggahan</h2><div class="cap" id="histCap"></div></div></div>
+      <p class="mid" id="histTotalRows"></p>
+      <div class="cap">Total baris diproses</div>
+      <ul class="mini-list" id="histList"></ul>
+    </article>
+
+    <article class="card rk-table">
+      <div class="head">
+        <div><h2>Pencocokan mutasi</h2><span class="cap" id="matchCap"></span></div>
+        <div class="seg" id="filterSeg" role="group" aria-label="Filter status pencocokan">
+          <button type="button" data-f="all" aria-pressed="true">Semua</button>
+          <button type="button" data-f="warn">Perlu ditinjau</button>
+          <button type="button" data-f="err">Belum cocok</button>
+        </div>
+      </div>
+      <div id="bulkBar" style="margin-top:12px"></div>
+      <div class="tw" style="margin-top:12px"><table class="tbl" id="entriesTbl"></table></div>
+    </article>
+
+    <article class="card rk-wmonly">
+      <div class="head"><div><h2>Belum ada padanan</h2><div class="cap">Transaksi WealthMe bulan ini yang tidak muncul di mutasi bank</div></div></div>
+      <div id="wmOnly"></div>
+    </article>
+
+    <article class="card tips rk-tip">
+      <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+      <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+    </article>
+  </section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"rekonsiliasi",title:"Rekonsiliasi Bank"});
+(function(){ if(!WM.allowed) return;
+
+document.getElementById("empty").querySelector(".ic").innerHTML=WM.icon("compare",24);
+
+/* ---------- store ---------- */
+if(WM.store.get("bankImports")==null) WM.store.set("bankImports",[]);
+
+var BANKS=[
+ {code:"BCA",name:"BCA",bg:"#0061AF"},
+ {code:"MDR",name:"Mandiri",bg:"#F9A01B"},
+ {code:"OTHER",name:"Bank lain",bg:"#5B6152"}
+];
+
+/* Fixed sample rows per bank — clearly a stand-in for real file parsing.
+   Amounts/dates deliberately overlap some seeded WealthMe transactions so the
+   matching demo has real "cocok" cases, and some don't, so it has real
+   "belum cocok" cases too. */
+function sampleRows(bankCode){
+  var bankLabel=(BANKS.filter(function(b){return b.code===bankCode;})[0]||BANKS[2]).name;
+  return [
+    {date:"2026-09-30",description:"QRIS MAKAN SIANG TIM",amount:-185000},
+    {date:"2026-09-29",description:"GOJEK TRANSPORT",amount:-320000},
+    {date:"2026-09-27",description:"TRSF E-BANKING KE GOPAY",amount:-1500000},
+    {date:"2026-09-25",description:"TRANSFER MASUK GAJI PT MAJU BERSAMA",amount:32500000},
+    {date:"2026-09-24",description:"DEBET OTOMATIS ANGSURAN KPR",amount:-4500000},
+    {date:"2026-09-22",description:"BELI SAHAM ONLINE SEKURITAS",amount:-1900000},
+    {date:"2026-09-20",description:"ZISWAF BAZNAS",amount:-2500000},
+    {date:"2026-09-15",description:"BIAYA ADMIN "+bankLabel.toUpperCase(),amount:-15000},
+    {date:"2026-09-08",description:"TARIK TUNAI ATM "+bankLabel.toUpperCase(),amount:-500000},
+    {date:"2026-09-05",description:"BUNGA TABUNGAN",amount:12500}
+  ];
+}
+
+/* Naive amount+date match against existing in/out transactions — good enough
+   for a prototype heuristic, not the real matching engine. */
+function autoMatch(rows){
+  var used={};
+  var tx=WM.store.get("tx").filter(function(t){return t.type==="in"||t.type==="out";});
+  return rows.map(function(r,i){
+    var wantType=r.amount<0?"out":"in";
+    var hit=tx.filter(function(t){
+      return !used[t.id]&&t.type===wantType&&t.date===r.date&&Math.abs(t.amount-Math.abs(r.amount))<1;
+    })[0];
+    if(hit)used[hit.id]=true;
+    return Object.assign({id:"rk"+Date.now().toString(36)+i+Math.random().toString(36).slice(2,5)},r,{
+      reconStatus:hit?"suggested":"unmatched",
+      suggestedTxId:hit?hit.id:null,
+      matchedTxId:null
+    });
+  });
+}
+
+function imports(){return WM.store.get("bankImports")||[];}
+function activeImport(){var l=imports();return l.length?l[0]:null;}
+function saveImport(imp){
+  var list=imports().map(function(x){return x.id===imp.id?imp:x;});
+  WM.store.set("bankImports",list);
+}
+
+function entryStatus(e){return e.reconStatus==="matched"?"ok":e.reconStatus==="suggested"?"warn":"err";}
+function fmtAmt(n){var a=Math.abs(n);return (n<0?"−":"+")+"Rp "+a.toLocaleString("id-ID");}
+
+/* ---------- upload dialog ---------- */
+function openUploadDialog(){
+  var chosenBank=BANKS[0].code;
+  var body=
+    '<div class="flabel"><span>Bank</span></div>'+
+    '<div style="display:flex;gap:8px;flex-wrap:wrap" data-radio="bank" role="radiogroup" aria-label="Pilih bank">'+
+      BANKS.map(function(b,i){return '<button type="button" class="rk-bank" role="radio" data-v="'+b.code+'" aria-checked="'+(i===0)+'"><i style="background:'+b.bg+'">'+b.name.slice(0,2).toUpperCase()+'</i>'+b.name+'</button>';}).join("")+
+    '</div>'+
+    '<label class="drop" id="rkDrop" style="margin-top:14px">'+WM.icon("upload",26)+'<b>Pilih atau seret file mutasi</b><span>CSV atau Excel (.xlsx). Maks 10 MB.</span><input type="file" id="rkFile" accept=".csv,.xlsx" hidden></label>'+
+    '<div class="rk-demo">'+
+      '<button type="button" data-demo="open">'+WM.icon("file",18)+'<span><b>Contoh mutasi_'+chosenBank.toLowerCase()+'.csv</b><small>File biasa, langsung diproses (simulasi)</small></span></button>'+
+      '<button type="button" data-demo="locked">'+WM.icon("lock",18)+'<span><b>Contoh mutasi_terkunci.xlsx</b><small>Butuh kata sandi sebelum dibuka (simulasi)</small></span></button>'+
+    '</div>'+
+    '<div id="rkPwWrap" hidden style="margin-top:14px">'+
+      WM.field({name:"pw",label:"Kata sandi file",type:"password",placeholder:"Masukkan kata sandi",hint:"Contoh: rizaldi2026 (dibuat untuk latihan ini)"})+
+      '<div class="err" id="rkPwErr" aria-live="polite" style="min-height:16px"></div>'+
+    '</div>'+
+    '<p class="hint" style="margin:2px 0 0">Isi baris di file tidak benar-benar dibaca di prototipe ini. Data contoh di bawah dipakai untuk menunjukkan alur pencocokan (simulasi).</p>';
+
+  WM.modal({title:"Upload mutasi rekening",sub:"Kami cocokkan otomatis dengan transaksi yang sudah tercatat.",size:"lg",submit:false,noAutofocus:true,body:body,
+    onOpen:function(dlg,b){
+      WM.radio(b);
+      b.querySelector('[data-radio="bank"]').addEventListener("change",function(e){chosenBank=e.detail;});
+      var pwWrap=b.querySelector("#rkPwWrap"),pwErr=b.querySelector("#rkPwErr"),pwInput=b.querySelector('[name="pw"]');
+      function finishUpload(kind){
+        dlg.close();
+        var rows=sampleRows(chosenBank);
+        doUpload(chosenBank,kind==="locked"?"mutasi_terkunci.xlsx":"mutasi_"+chosenBank.toLowerCase()+".csv",rows);
+      }
+      b.querySelector('[data-demo="open"]').addEventListener("click",function(){finishUpload("open");});
+      b.querySelector('[data-demo="locked"]').addEventListener("click",function(){
+        pwWrap.hidden=false; pwErr.textContent=""; pwInput.value=""; pwInput.focus();
+      });
+      b.querySelector("#rkFile").addEventListener("change",function(e){
+        if(!e.target.files||!e.target.files[0])return;
+        var name=e.target.files[0].name;
+        WM.toast("File dipilih: "+name+". Isi file tidak diproses, contoh data dipakai (simulasi)");
+        finishUpload("open");
+      });
+      b.querySelector("#rkDrop").addEventListener("click",function(e){e.preventDefault();b.querySelector("#rkFile").click();});
+      pwInput.addEventListener("keydown",function(e){if(e.key==="Enter"){e.preventDefault();check();}});
+      var submitBtn=document.createElement("button");
+      submitBtn.type="button";submitBtn.className="btn primary";submitBtn.style.display="none";submitBtn.textContent="Buka file";submitBtn.id="rkPwSubmit";
+      pwWrap.appendChild(submitBtn);
+      function showBtn(){submitBtn.style.display=pwWrap.hidden?"none":"inline-flex";submitBtn.style.marginTop="4px";}
+      var origLocked=b.querySelector('[data-demo="locked"]');
+      origLocked.addEventListener("click",showBtn);
+      function check(){
+        if(pwInput.value.trim()==="rizaldi2026"){
+          pwErr.textContent="";
+          WM.toast("Kata sandi benar, file dibuka (simulasi)");
+          finishUpload("locked");
+        }else{
+          pwErr.textContent="Kata sandi salah. Coba lagi, kamu tidak perlu memilih ulang filenya (simulasi).";
+          pwInput.select();
+        }
+      }
+      submitBtn.addEventListener("click",check);
+    }});
+}
+
+/* ---------- do upload ---------- */
+function doUpload(bankCode,fileName,rows){
+  var entries=autoMatch(rows);
+  var imp={
+    id:WM.uid("bi"),
+    bankCode:bankCode,
+    fileName:fileName,
+    uploadedAt:WM.today,
+    entries:entries
+  };
+  var list=imports();list.unshift(imp);WM.store.set("bankImports",list);
+  var suggested=entries.filter(function(e){return e.reconStatus==="suggested";}).length;
+  if(suggested>0){
+    WM.toast(entries.length+" baris terbaca, "+suggested+" langsung tersarankan cocok (simulasi)");
+  }else{
+    WM.toast(entries.length+" baris terbaca dari "+fileName+" (simulasi)");
+  }
+  entryFilter="all";
+  draw();
+}
+
+/* ---------- entry actions ---------- */
+function confirmEntry(impId,entryId){
+  var imp=imports().filter(function(x){return x.id===impId;})[0];if(!imp)return;
+  imp.entries=imp.entries.map(function(e){return e.id===entryId?Object.assign({},e,{reconStatus:"matched",matchedTxId:e.suggestedTxId}):e;});
+  saveImport(imp);
+  WM.toast("Ditandai cocok");
+  draw();
+}
+function unmatchEntry(impId,entryId){
+  var imp=imports().filter(function(x){return x.id===impId;})[0];if(!imp)return;
+  imp.entries=imp.entries.map(function(e){return e.id===entryId?Object.assign({},e,{reconStatus:e.suggestedTxId?"suggested":"unmatched",matchedTxId:null}):e;});
+  saveImport(imp);
+  WM.toast("Pencocokan dibatalkan");
+  draw();
+}
+function createTxFromEntry(impId,entryId){
+  var imp=imports().filter(function(x){return x.id===impId;})[0];if(!imp)return;
+  var entry=imp.entries.filter(function(e){return e.id===entryId;})[0];if(!entry)return;
+  var before=WM.store.get("tx").length;
+  WM.openTx(null,{type:entry.amount<0?"out":"in",amount:Math.abs(entry.amount),date:entry.date,note:entry.description});
+  var dlg=document.querySelector("dialog.sheet[open]");
+  function handler(e){
+    if(e.detail.key!=="tx")return;
+    var tx=WM.store.get("tx");
+    if(tx.length>before){
+      var newest=tx[0];
+      var imp2=imports().filter(function(x){return x.id===impId;})[0];
+      imp2.entries=imp2.entries.map(function(x){return x.id===entryId?Object.assign({},x,{reconStatus:"matched",matchedTxId:newest.id,suggestedTxId:newest.id}):x;});
+      saveImport(imp2);
+      draw();
+    }
+    cleanup();
+  }
+  function cleanup(){window.removeEventListener("wm:change",handler);if(dlg)dlg.removeEventListener("close",cleanup);}
+  window.addEventListener("wm:change",handler);
+  if(dlg)dlg.addEventListener("close",cleanup);
+}
+function bulkConfirm(impId){
+  var imp=imports().filter(function(x){return x.id===impId;})[0];if(!imp)return;
+  var n=0;
+  imp.entries=imp.entries.map(function(e){if(e.reconStatus==="suggested"){n++;return Object.assign({},e,{reconStatus:"matched",matchedTxId:e.suggestedTxId});}return e;});
+  saveImport(imp);
+  WM.toast(n+" baris tersarankan ditandai cocok sekaligus");
+  draw();
+}
+function openEntryDetail(impId,entryId){
+  var imp=imports().filter(function(x){return x.id===impId;})[0];if(!imp)return;
+  var e=imp.entries.filter(function(x){return x.id===entryId;})[0];if(!e)return;
+  var status=entryStatus(e);
+  var statusLabel=status==="ok"?"Cocok":status==="warn"?"Tersarankan":"Belum ditemukan";
+  var tx=(e.matchedTxId||e.suggestedTxId)?WM.store.find("tx",e.matchedTxId||e.suggestedTxId):null;
+  var body='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'+
+    '<span class="pill '+(status==="ok"?"good":status==="warn"?"warn":"bad")+'">'+statusLabel+'</span>'+
+    '<b class="num" style="font-size:16px;color:'+(e.amount<0?"var(--bad)":"var(--good)")+'">'+fmtAmt(e.amount)+'</b></div>'+
+    '<dl class="kv"><dt>Tanggal</dt><dd>'+WM.date(e.date,true)+'</dd><dt>Keterangan bank</dt><dd>'+WM.esc(e.description)+'</dd></dl>';
+  if(tx){
+    body+='<div class="divider"></div><b style="font-size:13px">Transaksi WealthMe'+(e.reconStatus==="matched"?" tercocok":" tersarankan")+'</b>'+
+      '<dl class="kv" style="margin-top:6px"><dt>Catatan</dt><dd>'+WM.esc(tx.note||WM.cat(tx.cat).name)+'</dd><dt>Jumlah</dt><dd>'+WM.rp(tx.amount)+'</dd><dt>Rekening</dt><dd>'+WM.esc((WM.account(tx.acc)||{}).bank||"–")+'</dd><dt>Tanggal</dt><dd>'+WM.date(tx.date,true)+'</dd></dl>';
+  }else{
+    body+='<div class="note" style="margin-top:12px">'+WM.icon("info",16)+'<span>Belum ada transaksi WealthMe yang cocok untuk baris ini.</span></div>';
+  }
+  WM.modal({title:"Detail baris mutasi",size:"sm",body:body,submit:false,cancel:"Tutup"});
+}
+
+/* ---------- render ---------- */
+var entryFilter="all";
+function draw(){
+  var imp=activeImport();
+  document.getElementById("empty").hidden=!!imp;
+  document.getElementById("content").hidden=!imp;
+  if(!imp)return;
+
+  var entries=imp.entries;
+  var matched=entries.filter(function(e){return e.reconStatus==="matched";});
+  var suggested=entries.filter(function(e){return e.reconStatus==="suggested";});
+  var unmatched=entries.filter(function(e){return e.reconStatus==="unmatched";});
+
+  var bankTotal=entries.reduce(function(s,e){return s+e.amount;},0);
+  var linkedIds={};entries.forEach(function(e){if(e.matchedTxId)linkedIds[e.matchedTxId]=true;});
+  var month=imp.uploadedAt.slice(0,7);
+  var monthTx=WM.monthTx(month).filter(function(t){return t.type==="in"||t.type==="out";});
+  var wmTotal=monthTx.reduce(function(s,t){return s+(t.type==="in"?t.amount:-t.amount);},0);
+  var wmOnly=monthTx.filter(function(t){return !linkedIds[t.id];});
+  var diff=bankTotal-wmTotal;
+
+  document.getElementById("hlDiff").innerHTML='<span class="cur">Rp</span>'+Math.abs(diff).toLocaleString("id-ID");
+  document.getElementById("hlCap").textContent=diff===0?"Mutasi sudah pas":diff>0?"Mutasi bank lebih besar":"Transaksi tercatat lebih besar";
+  document.getElementById("fileTag").textContent=imp.fileName;
+  document.getElementById("kOk").textContent=matched.length;
+  document.getElementById("kWarn").textContent=suggested.length;
+  document.getElementById("kErr").textContent=unmatched.length;
+
+  var box=document.getElementById("chart");
+  if(!entries.length){box.innerHTML='';}
+  else WM.chart.donut(box,{items:[["Cocok",Math.max(matched.length,0.0001),"var(--good)"],["Perlu ditinjau",suggested.length,"var(--orange)"],["Belum cocok",unmatched.length,"var(--bad)"]].filter(function(it){return it[1]>0;}),center:entries.length+"",sub:"baris"});
+
+  /* history mini-list, click switches active import */
+  var allImports=imports();
+  document.getElementById("histCap").textContent=allImports.length+" unggahan";
+  document.getElementById("histTotalRows").textContent=allImports.reduce(function(s,x){return s+x.entries.length;},0)+" baris";
+  document.getElementById("histList").innerHTML=allImports.slice(0,5).map(function(x){
+    var m=x.entries.filter(function(e){return e.reconStatus==="matched";}).length;
+    return '<li class="click" data-imp="'+x.id+'" style="cursor:pointer"><span class="ic">'+WM.icon("file",16)+'</span><div><b>'+WM.esc(x.fileName)+'</b><small>'+WM.date(x.uploadedAt)+'</small></div><span class="amt">'+m+'/'+x.entries.length+'</span></li>';
+  }).join("");
+
+  /* filter seg state */
+  document.querySelectorAll("#filterSeg button").forEach(function(b){b.setAttribute("aria-pressed",String(b.dataset.f===entryFilter));});
+  document.getElementById("matchCap").textContent=entries.length+" baris dari "+WM.esc(imp.fileName);
+
+  /* bulk bar */
+  var bulk=document.getElementById("bulkBar");
+  bulk.innerHTML=suggested.length>0?
+    '<div class="note" style="align-items:center"><span style="flex:1">'+suggested.length+' baris tersarankan cocok, tapi belum kamu konfirmasi.</span><button class="btn sm primary" type="button" id="btnBulk">Konfirmasi semua yang tersarankan</button></div>':"";
+  var bb=document.getElementById("btnBulk");if(bb)bb.addEventListener("click",function(){bulkConfirm(imp.id);});
+
+  /* table */
+  var filtered=entries.filter(function(e){return entryFilter==="all"||entryStatus(e)===entryFilter;});
+  var tbl=document.getElementById("entriesTbl");
+  if(!filtered.length){
+    tbl.innerHTML='<tbody><tr><td class="rk-empty-mini" style="border-bottom:0">Tidak ada baris untuk filter ini.</td></tr></tbody>';
+  }else{
+    var rows=filtered.map(function(e){
+      var status=entryStatus(e),statusLabel=status==="ok"?"Cocok":status==="warn"?"Tersarankan":"Belum ditemukan";
+      var candTx=e.matchedTxId?WM.store.find("tx",e.matchedTxId):(e.suggestedTxId?WM.store.find("tx",e.suggestedTxId):null);
+      var actions="";
+      if(status==="warn"){
+        actions='<button class="btn sm primary" type="button" data-act="confirm" data-id="'+e.id+'">Konfirmasi</button>';
+      }else if(status==="ok"){
+        actions='<button class="btn sm ghost" type="button" data-act="unmatch" data-id="'+e.id+'">Batalkan</button>';
+      }else{
+        actions='<button class="btn sm" type="button" data-act="create" data-id="'+e.id+'">'+WM.icon("plus",14)+' Buat transaksi</button>';
+      }
+      actions+=' <button class="ibtn" type="button" data-act="detail" data-id="'+e.id+'" title="Detail" aria-label="Detail baris">'+WM.icon("eye",15)+'</button>';
+      return '<tr>'+
+        '<td class="mono">'+WM.date(e.date)+'</td>'+
+        '<td style="white-space:normal;max-width:220px">'+WM.esc(e.description)+'</td>'+
+        '<td class="r num" style="color:'+(e.amount<0?"var(--bad)":"var(--good)")+'">'+fmtAmt(e.amount)+'</td>'+
+        '<td>'+(candTx?'<div class="rk-row-tx"><span class="ic'+(status==="ok"?" lime":"")+'">'+WM.icon(WM.cat(candTx.cat).icon,14)+'</span><span>'+WM.esc(candTx.note||WM.cat(candTx.cat).name)+'</span></div>':'<span class="muted">–</span>')+'</td>'+
+        '<td><span class="pill '+(status==="ok"?"good":status==="warn"?"warn":"bad")+'">'+statusLabel+'</span></td>'+
+        '<td>'+actions+'</td>'+
+        '</tr>';
+    }).join("");
+    tbl.innerHTML='<thead><tr><th>Tanggal</th><th>Mutasi bank</th><th>Jumlah</th><th>Transaksi WealthMe</th><th>Status</th><th>Aksi</th></tr></thead><tbody>'+rows+'</tbody>';
+  }
+
+  /* wm-only list */
+  var wmOnlyBox=document.getElementById("wmOnly");
+  wmOnlyBox.innerHTML=wmOnly.length?wmOnly.slice(0,5).map(function(t){
+    return '<div class="row"><span class="ic'+(t.type==="in"?" lime":"")+'">'+WM.icon(WM.cat(t.cat).icon,16)+'</span>'+
+      '<span style="min-width:0"><b style="display:block">'+WM.esc(t.note||WM.cat(t.cat).name)+'</b><small>'+WM.date(t.date)+' · '+WM.esc((WM.account(t.acc)||{}).bank||"")+'</small></span>'+
+      '<span class="r '+(t.type==="in"?"pos":"")+'">'+WM.rp(t.type==="in"?t.amount:-t.amount,true)+'</span></div>';
+  }).join(""):'<div class="rk-empty-mini">Semua transaksi WealthMe bulan ini sudah punya padanan di mutasi bank.</div>';
+
+  /* tips: the one alert */
+  document.getElementById("tipT").textContent=unmatched.length?unmatched.length+" baris belum ketemu padanannya":suggested.length?suggested.length+" baris tersarankan, tinggal dikonfirmasi":"Semua baris sudah cocok";
+  document.getElementById("tipP").textContent=unmatched.length?"Buat transaksi baru atau periksa lagi mutasi banknya.":suggested.length?"Cek dulu sebelum konfirmasi massal.":"Tidak ada yang perlu ditindaklanjuti bulan ini.";
+  var total=entries.length||1,n=Math.round(matched.length/total*18);
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"c":i%5===0?"b":"")+'"></i>';}).join("");
+}
+
+document.getElementById("btnUpload2").addEventListener("click",openUploadDialog);
+document.getElementById("btnUploadEmpty").addEventListener("click",openUploadDialog);
+document.getElementById("filterSeg").addEventListener("click",function(e){
+  var b=e.target.closest("button[data-f]");if(!b)return;entryFilter=b.dataset.f;draw();
+});
+document.getElementById("content").addEventListener("click",function(e){
+  var imp2row=e.target.closest("[data-imp]");
+  if(imp2row){
+    var id=imp2row.dataset.imp,list=imports(),idx=list.map(function(x){return x.id;}).indexOf(id);
+    if(idx<0)return;
+    var picked=list.splice(idx,1)[0];list.unshift(picked);
+    WM.store.set("bankImports",list);
+    entryFilter="all";
+    draw();
+    return;
+  }
+  var b=e.target.closest("[data-act]");if(!b)return;
+  var imp=activeImport();if(!imp)return;
+  var act=b.dataset.act,id=b.dataset.id;
+  if(act==="confirm")confirmEntry(imp.id,id);
+  else if(act==="unmatch")unmatchEntry(imp.id,id);
+  else if(act==="create")createTxFromEntry(imp.id,id);
+  else if(act==="detail")openEntryDetail(imp.id,id);
+});
+
+draw();
+WM.onChange(["bankImports","tx","accounts"],draw);
+})();
+</script>

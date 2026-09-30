@@ -1,0 +1,210 @@
+<title>Cash & E-Wallet · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .d-hero{grid-column:1/9;grid-row:1}.d-donut{grid-column:9/13;grid-row:1}
+  .d-cash{grid-column:1/5;grid-row:2}.d-ew{grid-column:5/9;grid-row:2}.d-tip{grid-column:9/13;grid-row:2}
+  .d-mut{grid-column:1/13;grid-row:3}
+}
+.wrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer;border-radius:10px}
+.wrow:first-child{border-top:0}
+.wrow:hover{background:var(--card-2)}
+.wrow .ic{width:38px;height:38px;border-radius:11px;flex:none;font-weight:700;color:#fff;display:grid;place-items:center;font-size:13px}
+.wrow .body{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.wrow .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.wrow .top b{font-size:13px;font-weight:500;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.wrow .top .amt{flex:none;font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--ink)}
+.wrow .top .amt.neg{color:var(--bad)}
+.wrow small{color:var(--muted);font-size:12px}
+.badge-own{font-size:11px;font-weight:600;background:var(--card-2);color:var(--muted);border-radius:99px;padding:2px 7px;flex:none}
+.badge-own.me{background:var(--lime-soft);color:var(--good)}
+.d-hero .strip{height:26px;border-radius:9px}
+.d-hero .strip-legend{margin-top:12px;flex-wrap:wrap;gap:12px 16px}
+.d-hero .big{font-size:52px;letter-spacing:-.035em}
+.hbars{display:flex;flex-direction:column;gap:12px}
+.hbars .hb-row{display:flex;flex-direction:column;gap:5px}
+.hbars .hb-top{display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.hbars .hb-top b{font-weight:500}
+.hbars .hb-top span{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+.d-tip{display:flex;flex-direction:column}
+.d-tip .tip-head{flex:none}
+.d-tip .mosaic{flex:1;grid-template-columns:repeat(9,1fr);grid-auto-rows:1fr;justify-self:stretch;width:100%;margin-top:14px}
+.d-tip .mosaic i{width:auto;height:auto;border-radius:5px}
+#legend{display:none}
+</style>
+<main data-page="dana">
+<section class="bento" aria-label="Cash & E-Wallet">
+  <article class="card hero dark d-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="hTotal"></p><div class="cap" id="hCap"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn" type="button" id="addCash">+ Kas</button><button class="ghost-btn lit" type="button" id="addEwallet">+ E-wallet</button></div>
+          <div class="legend" id="heroLegend"></div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Kas tunai</small><div class="v" id="kCash"></div></div>
+      <div class="kpi"><small>E-wallet</small><div class="v" id="kEw"></div></div>
+      <div class="kpi"><small>Akun terhubung</small><div class="v" id="kN"></div></div>
+    </div>
+  </article>
+
+  <article class="card d-donut">
+    <div class="head"><div><h2>Komposisi</h2><div class="cap">Per instrumen</div></div></div>
+    <div style="display:flex;align-items:center;justify-content:center;min-height:190px;margin-top:6px"><div class="chart" id="donut" style="width:190px;height:190px"></div></div>
+    <div class="hbars" id="legend" style="margin-top:16px"></div>
+  </article>
+
+  <article class="card d-cash">
+    <div class="head"><div><h2>Kas Tunai</h2></div><button class="ghost-btn" type="button" id="addCash2">+ Tambah</button></div>
+    <div id="cashList"></div>
+  </article>
+  <article class="card d-ew">
+    <div class="head"><div><h2>E-Wallet</h2></div><button class="ghost-btn" type="button" id="addEwallet2">+ Tambah</button></div>
+    <div id="ewalletList"></div>
+  </article>
+
+  <article class="card d-mut" id="mutCard" hidden>
+    <div class="head"><div><h2>Mutasi terakhir</h2><div class="cap">Kas & e-wallet</div></div><a href="transaksi.html" class="more" id="mutMore">Semua</a></div>
+    <ul class="mini-list" id="mutList"></ul>
+  </article>
+
+  <article class="card tips d-tip">
+    <div class="tip-head"><h2>Kartu & bank di tempat lain</h2><p>Kartu kredit dan rekening bank dikelola di Bank &amp; Account. Halaman ini khusus kas tunai dan e-wallet.</p><a class="more" href="rekening.html">Buka Bank &amp; Account <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"dana",title:"Cash & E-Wallet"});
+(function(){ if(!WM.allowed) return;
+var esc=WM.esc;
+var EWALLET_BRANDS=[["gopay","#00AA5B"],["ovo","#4C2A86"],["dana","#118EEA"],["shopeepay","#EE4D2D"],["linkaja","#E62129"]];
+var TUNAI_COLOR="#B8860B";
+function ewalletBg(a){var h=((a.bank||a.name||"")+"").toLowerCase();for(var i=0;i<EWALLET_BRANDS.length;i++)if(h.indexOf(EWALLET_BRANDS[i][0])>=0)return EWALLET_BRANDS[i][1];return "var(--good)";}
+function walletColor(a){return a.type==="cash"?TUNAI_COLOR:ewalletBg(a);}
+function danaAccounts(){return WM.visibleAccounts().filter(function(a){return a.type==="cash"||a.type==="ewallet";});}
+function ownerLabel(a){return a.owner?WM.member(a.owner).short:"Bersama";}
+function ownerBadge(a){var mine=a.owner===WM.meId();return '<span class="badge-own'+(mine?" me":"")+'">'+(a.owner?esc(ownerLabel(a)):"Bersama")+'</span>';}
+function memberOptions(){var me=WM.me(),ms=WM.store.get("members");if(!WM.isOwner())return [[me.id,me.short]];
+  return [["","Keluarga (bersama)"]].concat(ms.map(function(m){return [m.id,m.short];}));}
+
+function walletRow(a){var isE=a.type==="ewallet",bg=walletColor(a);
+  var sub=a.no?esc(a.no):(a.updated?"Diperbarui "+WM.date(a.updated):"");
+  return '<div class="wrow" data-acc="'+a.id+'"><span class="ic" style="background:'+bg+'">'+(isE?WM.icon("phone",16):WM.icon("cash",16))+'</span>'+
+   '<div class="body"><div class="top"><b>'+esc(a.name)+'</b>'+ownerBadge(a)+'</div>'+
+   '<div class="top"><span class="amt'+(a.balance<0?" neg":"")+' num">'+WM.rp(a.balance)+'</span><small>'+sub+'</small></div></div></div>';}
+
+function draw(){
+  var accs=danaAccounts(),cash=accs.filter(function(a){return a.type==="cash";}),ew=accs.filter(function(a){return a.type==="ewallet";});
+  var total=accs.reduce(function(s,a){return s+a.balance;},0),cashT=cash.reduce(function(s,a){return s+a.balance;},0),ewT=ew.reduce(function(s,a){return s+a.balance;},0);
+  document.getElementById("hTotal").innerHTML='<span class="cur">Rp</span>'+total.toLocaleString("id-ID");
+  document.getElementById("hCap").textContent="Total kas & e-wallet";
+  document.getElementById("kCash").textContent=WM.short(cashT);
+  document.getElementById("kEw").textContent=WM.short(ewT);
+  document.getElementById("kN").innerHTML='<em>'+accs.length+' akun</em>';
+  document.getElementById("cashList").innerHTML=cash.length?cash.map(walletRow).join(""):'<div class="empty" style="padding:20px 10px"><b>Belum ada kas tunai</b><p>Tambahkan dompet rumah atau kas kerja.</p></div>';
+  document.getElementById("ewalletList").innerHTML=ew.length?ew.map(walletRow).join(""):'<div class="empty" style="padding:20px 10px"><b>Belum ada e-wallet</b><p>Tambahkan GoPay, OVO, atau lainnya.</p></div>';
+
+  var ids0={};accs.forEach(function(a){ids0[a.id]=1;});
+  drawTrend(ids0,total);
+  document.getElementById("heroLegend").innerHTML=accs.length?WM.legend(accs.map(function(a){return [a.name,walletColor(a)];})):"";
+
+  var dsegs=ew.map(function(a){return [a.name,a.balance,ewalletBg(a)];}).filter(function(s){return s[1]>0;});
+  if(cashT>0)dsegs.push(["Tunai",cashT,TUNAI_COLOR]);
+  var dw=document.getElementById("donut");
+  if(dsegs.length){WM.chart.donut(dw,{items:dsegs,center:WM.short(total),sub:"Total"});
+    document.getElementById("legend").innerHTML=dsegs.map(function(s){var pct=total>0?s[1]/total*100:0;
+      return '<div class="hb-row"><div class="hb-top"><b>'+esc(s[0])+'</b><span class="num">'+WM.short(s[1])+' · '+WM.pct(pct,1)+'</span></div><div class="track"><i style="width:'+pct+'%;background:'+s[2]+'"></i></div></div>';}).join("");}
+  else{dw.innerHTML="";document.getElementById("legend").innerHTML="";
+    dw.parentElement.insertAdjacentHTML("beforeend",'<div class="empty" style="padding:0"><b>Belum ada saldo</b><p>Komposisi muncul setelah ada saldo.</p></div>');}
+
+  var ids={};accs.forEach(function(a){ids[a.id]=1;});
+  var tx=WM.store.get("tx").filter(function(t){return ids[t.acc]||ids[t.to];}).sort(function(a,b){return a.date<b.date?1:-1;}).slice(0,6);
+  var mc=document.getElementById("mutCard");
+  if(tx.length){mc.hidden=false;document.getElementById("mutList").innerHTML=tx.map(function(t){
+    var acc=WM.account(ids[t.acc]?t.acc:t.to),isTf=t.type==="tf",isIn=t.type==="in",c=WM.cat(t.cat);
+    var amt=isTf?WM.rp(t.amount):WM.rp(isIn?t.amount:-t.amount,true);
+    return '<li><span class="ic" style="background:'+(isIn?"var(--lime-soft)":"var(--card-2)")+'">'+WM.icon(t.type==="tf"?"swap":c.icon,16)+'</span><div><b>'+esc(t.note||c.name)+'</b><small>'+WM.date(t.date)+' · '+esc(acc?acc.name:"–")+'</small></div><div class="amt num">'+amt+'</div></li>';}).join("");}
+  else mc.hidden=true;
+
+  root.querySelectorAll("[data-acc]").forEach(function(row){row.onclick=function(){openRowActions(WM.account(row.dataset.acc));};});
+  var pct=total>0?Math.round(ewT/total*100):0;
+  var cells=45,ncell=Math.round(pct/100*cells);
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:cells}).map(function(_,i){return '<i class="'+(i<ncell?"a":i%5===0?"b":"")+'"></i>';}).join("");
+}
+var root=document;
+
+/* balance trend: reconstruct end-of-week totals for the last 8 weeks from real tx history,
+   walking backward from the current total (same technique as ringkasan's net-worth trend) */
+var TREND_LABELS=["8mgu","7mgu","6mgu","5mgu","4mgu","3mgu","2mgu","Minggu ini"];
+function txDelta(t,ids){
+  if(t.type==="tf"){var toIn=!!ids[t.to],fromIn=!!ids[t.acc];
+    if(toIn&&fromIn)return 0; if(toIn)return t.amount; if(fromIn)return -t.amount; return 0;}
+  if(!ids[t.acc])return 0;
+  return t.type==="in"?t.amount:-t.amount;
+}
+function drawTrend(ids,total){
+  var weeks=8,buckets=new Array(weeks).fill(0),today=new Date(WM.today+"T00:00:00");
+  WM.store.get("tx").forEach(function(t){var d=txDelta(t,ids);if(!d)return;
+    var dt=new Date(t.date+"T00:00:00"),diff=Math.floor((today-dt)/864e5),wk=Math.floor(diff/7);
+    if(wk>=0&&wk<weeks)buckets[weeks-1-wk]+=d;});
+  var vals=new Array(weeks);vals[weeks-1]=total;
+  for(var i=weeks-1;i>0;i--)vals[i-1]=vals[i]-buckets[i];
+  var box=document.getElementById("chart");
+  WM.chart.area(box,{labels:TREND_LABELS,a:vals,fmt:WM.short,axis:WM.short,floor:Math.min(0,Math.min.apply(null,vals))});
+}
+
+function openForm(edit,typeHint){
+  var isEwallet=edit?edit.type==="ewallet":typeHint==="ewallet",me=WM.me(),opts=memberOptions();
+  var body=isEwallet?
+    WM.field({name:"bank",label:"E-Wallet",type:"select",required:true,options:["GoPay","OVO","DANA","LinkAja","ShopeePay"],value:edit?edit.bank:""})+
+    WM.field({name:"no",label:"Nomor Terdaftar",optional:true,placeholder:"08xxxxxxxxxx",value:edit?edit.no:""})+
+    WM.field({name:"balance",label:"Saldo Saat Ini",type:"money",required:true,value:edit?edit.balance:0})+
+    WM.field({name:"owner",label:"Pemilik",type:"select",options:opts,value:edit?(edit.owner||""):(WM.isOwner()?"":me.id)})
+    :
+    WM.field({name:"name",label:"Nama Kas",required:true,placeholder:"cth: Kas Tunai, Dompet Kerja",value:edit?edit.name:""})+
+    WM.field({name:"balance",label:"Saldo Saat Ini",type:"money",required:true,value:edit?edit.balance:0,attrs:"data-allow-zero"})+
+    WM.field({name:"owner",label:"Pemilik",type:"select",options:opts,value:edit?(edit.owner||""):(WM.isOwner()?"":me.id)});
+  WM.modal({title:edit?"Ubah "+(isEwallet?"e-wallet":"kas"):(isEwallet?"Tambah e-wallet":"Tambah kas"),body:body,submit:"Simpan",
+    onOpen:function(d){if(!edit)return;var ft=d.querySelector(".sheet-foot");
+      ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+      ft.querySelector("[data-rm]").onclick=function(){d.close();delAccount(edit.id);};},
+    onSubmit:function(f,v){
+      var patch=isEwallet?{type:"ewallet",bank:v.bank,name:v.bank,no:v.no,balance:v.balance,owner:v.owner||"",vis:"shared",updated:WM.today}
+        :{type:"cash",bank:"Tunai",name:v.name,balance:v.balance,owner:v.owner||"",vis:"shared",updated:WM.today};
+      if(edit)WM.store.update("accounts",edit.id,patch);else WM.store.add("accounts",patch);
+      WM.toast((isEwallet?"E-wallet":"Kas")+(edit?" diperbarui":" ditambahkan"));}});
+}
+function delAccount(id){var a=WM.account(id);if(!a)return;
+  WM.store.remove("accounts",id);
+  WM.toast((a.type==="cash"?"Kas":"E-wallet")+" dihapus",{undo:function(){var arr=WM.store.get("accounts");arr.push(a);WM.store.set("accounts",arr);}});}
+function openMinta(source){var mine=WM.store.get("accounts").filter(function(a){return a.owner===WM.meId();});
+  if(!mine.length){WM.toast("Kamu belum punya akun sendiri untuk menerima dana.",{bad:true});return;}
+  WM.modal({title:"Minta Dana: "+source.name,sub:"Diminta dari "+source.name+", menunggu persetujuan Master.",body:
+    WM.field({name:"target",label:"Masuk ke akun",type:"select",required:true,options:mine.map(function(a){return [a.id,a.name];})})+
+    WM.field({name:"amount",label:"Nominal",type:"money",required:true})+
+    WM.field({name:"reason",label:"Catatan",optional:true,placeholder:"Untuk apa dana ini?"}),
+    submit:"Kirim permintaan",onSubmit:function(f,v){
+      WM.store.add("requests",{member:WM.meId(),amount:v.amount,reason:v.reason||"Minta dana",date:WM.today,status:"pending",acc:v.target});
+      WM.toast("Permintaan dana terkirim, menunggu persetujuan");}});}
+function openRowActions(a){
+  if(WM.isOwner()||a.owner===WM.meId()){openForm(a);return;}
+  if(!a.owner){openMinta(a);return;}
+}
+
+document.getElementById("mutMore").insertAdjacentHTML("beforeend",WM.icon("chev",14,2.2));
+document.getElementById("addCash").onclick=function(){openForm(null,"cash");};
+document.getElementById("addCash2").onclick=function(){openForm(null,"cash");};
+document.getElementById("addEwallet").onclick=function(){openForm(null,"ewallet");};
+document.getElementById("addEwallet2").onclick=function(){openForm(null,"ewallet");};
+draw();WM.onChange(["accounts","tx","requests"],draw);WM.onResize(document.getElementById("chart"),draw);
+})();
+</script>

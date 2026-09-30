@@ -1,0 +1,340 @@
+<title>Akun · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.ak-hero .head{align-items:center}
+.ak-id{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.ak-av{width:76px;height:76px;border-radius:50%;background:#DDEFB5;color:#1F2A07;display:grid;place-items:center;font-weight:700;font-size:28px;flex:none;box-shadow:0 0 0 6px rgba(169,216,76,.18)}
+.ak-who{flex:1;min-width:200px}.ak-who h1{margin:0;font-size:28px;font-weight:600;letter-spacing:-.035em;line-height:1.1}
+.ak-meta{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;color:var(--muted);font-size:13px}
+.card.dark .ak-meta .pill{background:rgba(169,216,76,.18);color:#C9E88E}
+.ak-prog{margin-top:auto;padding-top:28px}
+.ak-prog-h{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;margin-bottom:12px}.ak-prog-h b{font-weight:600}.ak-prog-h .num{font-size:28px;font-weight:600;letter-spacing:-.03em}
+.ak-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.ak-step{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--muted)}
+.ak-step i{height:10px;border-radius:5px;background:rgba(238,240,232,.14)}
+.ak-step.on i{background:#A9D84C;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.22) 0 2px,transparent 2px 8px)}
+.ak-step.on{color:#EEF0E8}
+@media (max-width:720px){.ak-id{flex-direction:column;text-align:center}.ak-meta{justify-content:center}.ak-steps{grid-template-columns:repeat(5,1fr)}.ak-step span{display:none}}
+.qtabs{max-width:420px}
+.set-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.set-tile{border:0;background:var(--card-2);border-radius:16px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:10px;min-height:88px}
+.set-tile:hover{background:var(--ghost)}
+.set-tile .ci{width:32px;height:32px;border-radius:10px;background:var(--card);display:grid;place-items:center}
+.set-tile b{display:block;font-size:13px;font-weight:600}
+.set-tile small{color:var(--muted);font-size:11px}
+.pref-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.currency-tile{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:var(--card);border-radius:13px;padding:12px 14px;text-align:left}
+.currency-tile[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
+.currency-tile .flag{font-size:15px;font-weight:700;line-height:1;display:grid;place-items:center;min-width:24px;flex:none}
+.currency-tile b{display:block;font-size:13px}
+.currency-tile small{color:var(--muted);font-size:11px}
+.currency-tile .ck{margin-left:auto;color:var(--good);font-weight:700}
+.switchbox{display:flex;flex-direction:column}
+.switchbox .switch{padding:12px 0;border-top:1px solid var(--line)}
+.switchbox .switch:first-child{padding-top:0;border-top:0}
+.soon{font-size:11px;font-weight:600;color:var(--muted);background:var(--card-2);border-radius:99px;padding:1px 7px;margin-left:6px}
+.session-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.session-row:first-child{padding-top:0;border-top:0}
+.tentang-hero{text-align:center;padding:8px 0 4px}
+.tentang-hero .mark{width:52px;height:52px;border-radius:16px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-size:20px;font-weight:700;margin:0 auto 10px}
+.danger-zone{border:1.5px solid var(--bad);background:transparent;box-shadow:none}
+.danger-zone h2{color:var(--bad)}
+</style>
+<main data-page="akun">
+<section class="bento" aria-label="Akun">
+  <article class="card hero dark ak-hero" style="grid-column:1/-1">
+    <div class="chart-side">
+      <div class="ak-id">
+        <span class="ak-av" id="heroAv"></span>
+        <div class="ak-who"><h1 id="heroName"></h1><div class="ak-meta"><span class="pill" id="heroRole"></span><span id="heroMail"></span></div></div>
+        <div class="ak-btns"><button class="ghost-btn lit" type="button" id="editProfile">Edit profil</button></div>
+      </div>
+      <div class="ak-prog"><div class="ak-prog-h"><b>Kelengkapan profil</b><span class="num" id="heroPct"></span></div><div class="ak-steps" id="chart"></div></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Anggota keluarga</small><div class="v" id="kFam"></div></div>
+      <div class="kpi"><small>Sesi aktif</small><div class="v" id="kSess"></div></div>
+      <div class="kpi"><small>Tema</small><div class="v" id="kTheme"></div></div>
+    </div>
+  </article>
+
+  <div class="card" style="grid-column:1/-1">
+    <div class="seg full qtabs" id="tabs" role="tablist">
+      <button type="button" role="tab" aria-selected="true" data-tab="profil">Profil</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="keamanan">Keamanan</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="preferensi">Preferensi</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="bantuan">Bantuan</button>
+    </div>
+
+    <!-- PROFIL -->
+    <div id="panelProfil" class="grid" style="margin-top:18px">
+      <div id="stepperBox" style="grid-column:1/-1"></div>
+      <div class="card soft s6"><h2>Profil saya</h2><dl class="kv" id="profKv" style="margin-top:12px"></dl></div>
+      <div class="card soft s6"><h2>Group family</h2><div id="familyBox" style="margin-top:12px"></div></div>
+      <div class="card soft" style="grid-column:1/-1">
+        <div class="head"><h2>Anggota (<span id="memberCount">0</span>)</h2></div>
+        <ul class="mini-list" id="memberList" style="margin-top:12px"></ul>
+        <a class="see-all" href="iam.html">Kelola anggota di IAM Roles</a>
+      </div>
+    </div>
+
+    <!-- KEAMANAN -->
+    <div id="panelKeamanan" style="margin-top:18px" hidden>
+      <div id="pwForm" hidden class="card soft" style="margin-bottom:16px">
+        <h2>Ubah password</h2>
+        <div style="margin-top:12px" id="pwFields"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn block" type="button" id="pwCancel">Batal</button>
+          <button class="btn primary block" type="button" id="pwSave">Simpan</button>
+        </div>
+      </div>
+      <div class="grid">
+        <div class="card soft s6">
+          <h2>Password &amp; PIN</h2>
+          <div class="set-tiles" style="margin-top:12px">
+            <button class="set-tile" type="button" id="togglePw"><span class="ci"></span><span><b>Ubah password</b><small>Klik untuk mengubah</small></span></button>
+            <button class="set-tile" type="button" id="openPin"><span class="ci"></span><span><b>PIN aplikasi</b><small>6 digit, perangkat ini</small></span></button>
+          </div>
+        </div>
+        <div class="card soft s6">
+          <h2>Autentikasi</h2>
+          <div class="switchbox" id="authSwitches" style="margin-top:12px"></div>
+          <p class="cap" style="margin-top:10px">Disimpan, tapi belum ada mekanisme yang menegakkannya otomatis.</p>
+        </div>
+        <div class="card soft" style="grid-column:1/-1">
+          <h2>Sesi aktif</h2>
+          <div id="sessionList" style="margin-top:12px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PREFERENSI -->
+    <div id="panelPreferensi" style="margin-top:18px" hidden>
+      <div class="grid">
+        <div class="card soft s6">
+          <h2>Bahasa</h2>
+          <div class="seg full" id="langSeg" role="radiogroup" aria-label="Bahasa aplikasi" style="margin-top:12px">
+            <button type="button" role="radio" aria-checked="true" data-lang="id">Bahasa Indonesia</button>
+            <button type="button" role="radio" aria-checked="false" data-lang="en" disabled>English<span class="soon">Segera</span></button>
+          </div>
+        </div>
+        <div class="card soft s6">
+          <h2>Tema</h2>
+          <div class="pref-tiles" id="themeSeg" style="margin-top:12px"></div>
+        </div>
+      </div>
+      <div class="card soft" style="margin-top:16px">
+        <h2>Mata uang</h2>
+        <p class="cap" style="margin-top:4px">Prototipe ini hanya menyimpan pilihannya, angka tetap tampil dalam Rupiah.</p>
+        <div class="pref-tiles" id="currencyList" style="margin-top:12px"></div>
+      </div>
+      <div class="grid" style="margin-top:16px">
+        <div class="card soft s4"><h2>Transaksi</h2><div class="switchbox" id="notifTxn" style="margin-top:12px"></div></div>
+        <div class="card soft s4"><h2>Tujuan &amp; anggaran</h2><div class="switchbox" id="notifGoal" style="margin-top:12px"></div></div>
+        <div class="card soft s4"><h2>Investasi</h2><div class="switchbox" id="notifInvest" style="margin-top:12px"></div></div>
+      </div>
+      <div class="grid" style="margin-top:16px">
+        <div class="card soft s7">
+          <h2>Privasi</h2>
+          <div class="switchbox" id="privBox" style="margin-top:12px"></div>
+        </div>
+        <div class="card soft s5">
+          <h2>Data</h2>
+          <button class="set-tile" type="button" id="exportBtn" style="margin-top:12px;width:100%"><span class="ci"></span><span><b>Ekspor data</b><small>Unduh seluruh datamu sebagai JSON</small></span></button>
+        </div>
+      </div>
+      <div class="card danger-zone" style="margin-top:16px">
+        <h2>Zona berbahaya</h2>
+        <p class="cap" style="margin-top:4px">Menghapus akun akan menghapus seluruh data keluarga secara permanen dan tidak bisa dikembalikan.</p>
+        <button class="btn danger" type="button" id="deleteBtn" style="margin-top:14px">Hapus akun</button>
+      </div>
+    </div>
+
+    <!-- BANTUAN -->
+    <div id="panelBantuan" style="margin-top:18px" hidden>
+      <div class="grid">
+        <div class="card soft s7">
+          <h2>FAQ</h2>
+          <div id="faqBox" style="margin-top:10px"></div>
+        </div>
+        <div class="card soft s5">
+          <h2>Panduan &amp; kontak</h2>
+          <ul class="mini-list" id="linkList" style="margin-top:10px"></ul>
+        </div>
+      </div>
+      <div class="card soft" style="margin-top:16px">
+        <h2>Kirim feedback</h2>
+        <textarea class="textarea" id="fbText" rows="3" placeholder="Ceritakan pengalamanmu atau laporkan bug…" style="margin-top:12px"></textarea>
+        <button class="btn primary block" type="button" id="fbSend" disabled style="margin-top:10px">Kirim feedback</button>
+      </div>
+      <div class="card soft" style="margin-top:16px">
+        <div class="tentang-hero"><div class="mark">W</div><div style="font-weight:600;font-size:16px">WealthMe</div><p class="cap">Personal Wealth Operating System · v1.0.0</p></div>
+        <ul class="mini-list" id="legalList" style="margin-top:12px"></ul>
+      </div>
+    </div>
+
+    <button class="btn danger block" type="button" id="logoutBtn" style="margin-top:24px">Keluar dari akun</button>
+  </div>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"akun",title:"Akun"});
+(function(){ if(!WM.allowed) return;
+var esc=WM.esc;
+WM.store.ensure("profileDetail",{phone:"",birthDate:"",gender:"",jobTitle:"",monthlyIncome:"",currency:"IDR",lang:"id",
+  notifPrefs:{txnIn:true,txnOut:true,txnBig:true,budget80:true,goalMilestone:true,billDue:true,stockPrice:false,dividend:false},
+  privacyPrefs:{hideFromFamily:false,screenshotProtect:true,sendAnalytics:true,aiPersonalization:true},
+  authPrefs:{bigTxnConfirm:false,loginAlert:false}});
+WM.store.ensure("sessions",[
+  {id:"s1",device:"iPhone 15 Pro",current:true,since:"2026-09-28",ip:"114.10.22.9"},
+  {id:"s2",device:"Windows",current:false,since:"2026-09-20",ip:"36.72.5.101"}]);
+
+var CURRENCIES=[["IDR","Rp","Rupiah Indonesia"],["USD","$","US Dollar"],["SGD","S$","Singapore Dollar"],["EUR","€","Euro"],["JPY","¥","Japanese Yen"],["AUD","A$","Dollar Australia"],["CNY","CN¥","Yuan Tiongkok"]];
+
+function pd(){return WM.store.get("profileDetail");}
+function updPd(patch){WM.store.set("profileDetail",Object.assign({},pd(),patch));}
+
+function chart(){var prof=WM.store.get("profile")||{step:5,of:5},L=["Profil dasar","Rekening","Anggaran","Anggota","Tujuan"];
+  document.getElementById("chart").innerHTML=L.map(function(l,i){return '<div class="ak-step'+(i<prof.step?" on":"")+'"><i></i><span>'+l+'</span></div>';}).join("");}
+
+function drawHero(){var me=WM.me(),prof=WM.store.get("profile")||{step:5,of:5};
+  document.getElementById("heroAv").textContent=me.init;
+  var pct=prof.of?Math.round(prof.step/prof.of*100):100;
+  document.getElementById("heroPct").textContent=pct+"%";
+  document.getElementById("heroName").textContent=me.name;document.getElementById("heroRole").textContent=WM.roleLabel(me.role);document.getElementById("heroMail").textContent=me.email;
+  document.getElementById("kFam").textContent=WM.store.get("members").length;
+  document.getElementById("kSess").textContent=WM.store.get("sessions").length;
+  document.getElementById("kTheme").textContent=({light:"Terang",dark:"Gelap"})[currentThemePref()]||"Sistem";
+  chart();}
+
+var TAB="profil";
+function drawTabs(){["profil","keamanan","preferensi","bantuan"].forEach(function(t){
+  document.querySelector('#tabs [data-tab="'+t+'"]').setAttribute("aria-selected",t===TAB);
+  document.getElementById("panel"+t.charAt(0).toUpperCase()+t.slice(1)).hidden=t!==TAB;});}
+document.querySelectorAll("#tabs [data-tab]").forEach(function(b){b.onclick=function(){TAB=b.dataset.tab;drawTabs();};});
+
+function drawStepper(){var prof=WM.store.get("profile");if(!WM.isOwner()||!prof||prof.step>=prof.of){document.getElementById("stepperBox").innerHTML="";return;}
+  document.getElementById("stepperBox").innerHTML='<div class="note"><span>'+WM.icon("info",16)+'</span><span><b>Lengkapi profil kamu.</b> '+prof.step+' dari '+prof.of+' langkah selesai.<div class="stepper" style="margin-top:8px;max-width:220px">'+[1,2,3,4,5].map(function(i){return '<i class="'+(i<=prof.step?"on":"")+'"></i>';}).join("")+'</div></span></div>';}
+
+function drawProfKv(){var me=WM.me(),d=pd();
+  var rows=[["Nama lengkap",me.name],["Email",me.email],["No. telepon",d.phone||"–"],["Pekerjaan",d.jobTitle||"–"]];
+  document.getElementById("profKv").innerHTML=rows.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>';}).join("");}
+
+function drawFamily(){var ms=WM.store.get("members"),me=WM.me();
+  document.getElementById("familyBox").innerHTML='<div style="display:flex;gap:12px;align-items:center"><div style="width:44px;height:44px;border-radius:12px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;font-weight:700">KR</div><div><b style="font-size:14px">Keluarga Rizaldi</b><div class="cap">'+ms.length+' anggota · '+WM.roleLabel(me.role)+'</div></div></div>'+
+    '<div class="note" style="margin-top:10px"><span>'+WM.icon("info",15)+'</span><span>Admin (asisten, sopir) bisa mencatat transaksi atas nama keluarga, tapi tidak bisa mengubah pengaturan group atau melihat saldo pribadi anggota.</span></div>';}
+
+function drawMembers(){var ms=WM.store.get("members");document.getElementById("memberCount").textContent=ms.length;
+  document.getElementById("memberList").innerHTML=ms.map(function(m){return '<li>'+WM.avatar(m,36)+'<div><b>'+esc(m.name)+(m.id===WM.meId()?' <span class="muted" style="font-weight:400;font-size:12px">(Kamu)</span>':'')+'</b><small>'+WM.roleLabel(m.role)+(m.email?" · "+esc(m.email):"")+'</small></div></li>';}).join("");}
+
+document.getElementById("editProfile").onclick=function(){var me=WM.me(),d=pd();
+  WM.modal({title:"Edit profil",size:"lg",submit:"Simpan perubahan",
+    body:WM.field({name:"name",label:"Nama lengkap",required:true,value:me.name})+
+      WM.field({name:"email",label:"Email",value:me.email,attrs:"readonly"})+
+      '<div class="two">'+WM.field({name:"phone",label:"No. telepon",optional:true,value:d.phone,placeholder:"+62 8xx xxxx xxxx"})+
+      WM.field({name:"birthDate",label:"Tanggal lahir",type:"date",optional:true,value:d.birthDate})+'</div>'+
+      '<div class="two">'+WM.field({name:"gender",label:"Jenis kelamin",type:"select",optional:true,value:d.gender,options:[["","Belum diisi"],["Laki-laki","Laki-laki"],["Perempuan","Perempuan"]]})+
+      WM.field({name:"jobTitle",label:"Pekerjaan",optional:true,value:d.jobTitle,placeholder:"cth: Software Engineer"})+'</div>'+
+      WM.field({name:"monthlyIncome",label:"Penghasilan bulanan",type:"money",optional:true,value:d.monthlyIncome}),
+    onSubmit:function(f,v){var ms=WM.store.get("members").map(function(m){return m.id===WM.meId()?Object.assign({},m,{name:v.name}):m;});WM.store.set("members",ms);
+      updPd({phone:v.phone,birthDate:v.birthDate,gender:v.gender,jobTitle:v.jobTitle,monthlyIncome:v.monthlyIncome});
+      WM.toast("Profil disimpan");}});};
+
+/* ---------- keamanan ---------- */
+function drawPwFields(){document.getElementById("pwFields").innerHTML=
+  WM.field({name:"currentPw",label:"Password saat ini",type:"password",required:true,placeholder:"••••••••"})+
+  WM.field({name:"newPw",label:"Password baru",type:"password",required:true,placeholder:"Min. 8 karakter"})+
+  WM.field({name:"confirmPw",label:"Konfirmasi password baru",type:"password",required:true,placeholder:"Ulangi password baru"});}
+document.getElementById("togglePw").onclick=function(){var box=document.getElementById("pwForm");box.hidden=!box.hidden;if(!box.hidden)drawPwFields();};
+document.getElementById("pwCancel").onclick=function(){document.getElementById("pwForm").hidden=true;};
+document.getElementById("pwSave").onclick=function(){var box=document.getElementById("pwForm"),nw=box.querySelector('[name="newPw"]'),cf=box.querySelector('[name="confirmPw"]');
+  if(!WM.validate(box))return;
+  if(nw.value.length<8){WM.setError(box,"newPw","Password baru minimal 8 karakter");return;}
+  if(nw.value!==cf.value){WM.setError(box,"confirmPw","Konfirmasi password tidak cocok");return;}
+  box.hidden=true;WM.toast("Password diubah (simulasi)");};
+document.getElementById("openPin").onclick=function(){WM.modal({title:"PIN aplikasi",sub:"6 digit PIN untuk membuka aplikasi cepat di perangkat ini.",submit:"Simpan PIN",
+  body:WM.field({name:"pin",label:"PIN baru",type:"password",required:true,attrs:'inputmode="numeric" maxlength="6"'}),
+  onSubmit:function(f,v){if(!/^\d{6}$/.test(v.pin))return "PIN harus 6 digit angka.";WM.toast("PIN disimpan (simulasi)");}});};
+
+function drawAuthSwitches(){var d=pd();
+  document.getElementById("authSwitches").innerHTML=
+   '<label class="switch"><span><b style="display:block">Konfirmasi transaksi besar</b><small>Minta autentikasi untuk transaksi &gt;Rp 5 jt</small></span><input type="checkbox" id="swBig" '+(d.authPrefs.bigTxnConfirm?"checked":"")+'></label>'+
+   '<label class="switch"><span><b style="display:block">Notifikasi login baru</b><small>Alert jika ada login dari perangkat baru</small></span><input type="checkbox" id="swLogin" '+(d.authPrefs.loginAlert?"checked":"")+'></label>';
+  document.getElementById("swBig").onchange=function(e){updPd({authPrefs:Object.assign({},pd().authPrefs,{bigTxnConfirm:e.target.checked})});WM.toast("Preferensi disimpan");};
+  document.getElementById("swLogin").onchange=function(e){updPd({authPrefs:Object.assign({},pd().authPrefs,{loginAlert:e.target.checked})});WM.toast("Preferensi disimpan");};}
+
+function drawSessions(){var ss=WM.store.get("sessions");
+  document.getElementById("sessionList").innerHTML=ss.map(function(s){return '<div class="session-row"><span class="ic">'+WM.icon(s.device.indexOf("iPhone")>=0?"phone":"more",17)+'</span><span class="body" style="flex:1;min-width:0"><b style="display:block;font-size:13px">'+esc(s.device)+'</b><small style="color:var(--muted);font-size:12px">Aktif sejak '+WM.date(s.since)+', '+s.ip+'</small></span>'+
+    (s.current?'<span class="pill good">Ini perangkatmu</span>':'<button class="btn ghost sm" type="button" data-end="'+s.id+'" style="color:var(--bad)">Akhiri</button>')+'</div>';}).join("");
+  document.querySelectorAll("[data-end]").forEach(function(b){b.onclick=function(){var id=b.dataset.end,old=WM.store.find("sessions",id);WM.store.remove("sessions",id);WM.toast("Sesi diakhiri",{undo:function(){WM.store.add("sessions",old);}});};});}
+
+/* ---------- preferensi ---------- */
+function isDarkNow(){var t=localStorage.getItem("wm-proto-v1:theme");if(t)return JSON.parse(t)==="dark";return matchMedia("(prefers-color-scheme: dark)").matches;}
+function currentThemePref(){var t=localStorage.getItem("wm-proto-v1:theme");return t?JSON.parse(t):"system";}
+function drawTheme(){var cur=currentThemePref();
+  var OPTS=[["light","Terang","sun"],["dark","Gelap","moon"],["system","Ikuti sistem","checkc"]];
+  document.getElementById("themeSeg").innerHTML=OPTS.map(function(o){return '<button type="button" class="currency-tile" role="radio" aria-checked="'+(o[0]===cur)+'" data-theme-v="'+o[0]+'"><span class="flag">'+WM.icon(o[2],18)+'</span><b>'+o[1]+'</b>'+(o[0]===cur?'<span class="ck">✓</span>':"")+'</button>';}).join("");
+  document.querySelectorAll("[data-theme-v]").forEach(function(b){b.onclick=function(){var v=b.dataset.themeV;
+    if(v==="system"){localStorage.removeItem("wm-proto-v1:theme");document.documentElement.removeAttribute("data-theme");}
+    else{localStorage.setItem("wm-proto-v1:theme",JSON.stringify(v));document.documentElement.setAttribute("data-theme",v);}
+    var btn=document.getElementById("wmTheme");if(btn)btn.innerHTML=WM.icon(isDarkNow()?"sun":"moon");
+    window.dispatchEvent(new CustomEvent("wm:theme"));drawTheme();drawHero();}; });}
+
+function drawCurrency(){var cur=pd().currency;
+  document.getElementById("currencyList").innerHTML=CURRENCIES.map(function(c){return '<button type="button" class="currency-tile" role="radio" aria-checked="'+(c[0]===cur)+'" data-cur="'+c[0]+'"><span class="flag">'+c[1]+'</span><span><b>'+c[0]+'</b><small>'+c[2]+'</small></span>'+(c[0]===cur?'<span class="ck">✓</span>':"")+'</button>';}).join("");
+  document.querySelectorAll("[data-cur]").forEach(function(b){b.onclick=function(){updPd({currency:b.dataset.cur});WM.toast("Mata uang tampilan diperbarui");drawCurrency();};});}
+
+var NOTIF_ROWS=[
+ ["Transaksi","notifTxn",[["txnIn","Notif transaksi masuk","Setiap ada dana masuk"],["txnOut","Notif transaksi keluar","Setiap ada pengeluaran"],["txnBig","Transaksi besar (>Rp 5 jt)","Alert khusus"]]],
+ ["Tujuan & anggaran","notifGoal",[["budget80","Anggaran mendekati batas","Alert saat 80% terpakai"],["goalMilestone","Update progres tujuan","Saat milestone tercapai"],["billDue","Jatuh tempo tagihan","3 hari sebelum jatuh tempo"]]],
+ ["Investasi","notifInvest",[["stockPrice","Update harga saham","Perubahan harga signifikan"],["dividend","Dividen masuk","Saat dividen diterima"]]]];
+function drawNotif(){var d=pd();
+  NOTIF_ROWS.forEach(function(sec){document.getElementById(sec[1]).innerHTML=sec[2].map(function(r){return '<label class="switch"><span><b style="display:block">'+r[1]+'</b><small>'+r[2]+'</small></span><input type="checkbox" data-np="'+r[0]+'" '+(d.notifPrefs[r[0]]?"checked":"")+'></label>';}).join("");});
+  document.querySelectorAll("[data-np]").forEach(function(i){i.onchange=function(){var np=Object.assign({},pd().notifPrefs);np[i.dataset.np]=i.checked;updPd({notifPrefs:np});};});}
+
+function drawPriv(){var d=pd();
+  document.getElementById("privBox").innerHTML='<div class="switchbox">'+
+    '<label class="switch"><span><b style="display:block">Sembunyikan dari anggota family</b><small>Anggota keluarga tidak bisa lihat detail saldo</small></span><input type="checkbox" data-pp="hideFromFamily" '+(d.privacyPrefs.hideFromFamily?"checked":"")+'></label>'+
+    '<label class="switch"><span><b style="display:block">Mode privasi saat screenshot</b><small>Sembunyikan angka saat screenshot</small></span><input type="checkbox" data-pp="screenshotProtect" '+(d.privacyPrefs.screenshotProtect?"checked":"")+'></label>'+
+    '<label class="switch"><span><b style="display:block">Kirim data analitik</b><small>Bantu tingkatkan aplikasi (anonim)</small></span><input type="checkbox" data-pp="sendAnalytics" '+(d.privacyPrefs.sendAnalytics?"checked":"")+'></label>'+
+    '<label class="switch"><span><b style="display:block">Personalisasi AI</b><small>AI belajar dari pola keuanganmu</small></span><input type="checkbox" data-pp="aiPersonalization" '+(d.privacyPrefs.aiPersonalization?"checked":"")+'></label></div>';
+  document.querySelectorAll("[data-pp]").forEach(function(i){i.onchange=function(){var pp=Object.assign({},pd().privacyPrefs);pp[i.dataset.pp]=i.checked;updPd({privacyPrefs:pp});};});}
+
+document.getElementById("exportBtn").onclick=function(){var all={};["members","accounts","categories","tx","budgets","goals","investments","assets","liabilities","insurances","profile","profileDetail"].forEach(function(k){all[k]=WM.store.get(k);});
+  WM.download("wealthme-data-export.json",JSON.stringify(all,null,2),"application/json");WM.toast("Data diekspor");};
+document.getElementById("deleteBtn").onclick=function(){WM.confirm({title:"Hapus akun?",text:"Semua data akan dihapus permanen dan tidak bisa dikembalikan.",confirm:"Hapus akun",danger:true}).then(function(ok){
+  if(!ok)return;WM.toast("Akun dihapus (simulasi)");setTimeout(function(){location.href="login.html";},600);});};
+
+/* ---------- bantuan ---------- */
+var FAQS=[
+ ["Bagaimana cara menambah rekening baru?","Buka menu Bank & Account, lalu klik tombol \"+ Tambah\". Pilih bank, lalu masukkan detail rekeningnya."],
+ ["Apakah data saya aman?","WealthMe mengenkripsi semua data sensitif. Kami tidak pernah menyimpan password atau PIN perbankanmu."],
+ ["Bagaimana cara mengubah mata uang tampilan?","Buka Akun → Preferensi → Mata Uang, lalu pilih mata uang yang kamu inginkan."],
+ ["Bagaimana cara mengundang anggota ke keluarga?","Buka IAM Roles, klik \"+ Tambah\". Anak/staff dibuatkan username & password, anggota lain diundang lewat email."]];
+document.getElementById("faqBox").innerHTML=FAQS.map(function(f,i){return '<details'+(i===0?" open":"")+' style="border-bottom:1px solid var(--line);padding:10px 0"><summary style="cursor:pointer;font-weight:600;font-size:13px;list-style:none">'+f[0]+'</summary><p class="cap" style="margin:8px 0 0">'+f[1]+'</p></details>';}).join("");
+document.getElementById("fbText").addEventListener("input",function(e){document.getElementById("fbSend").disabled=!e.target.value.trim();});
+document.getElementById("fbSend").onclick=function(){var v=document.getElementById("fbText").value;location.href="mailto:support@wealthme.id?subject=Feedback%20WealthMe&body="+encodeURIComponent(v);WM.toast("Membuka email…");};
+
+var LINKS=[["panduan.html","book","Panduan fitur lengkap","Semua fitur, dikelompokkan per kategori"],
+  ["ai.html","bot","Tanya AI Advisor","Langsung tanya asisten keuangan AI"],
+  ["mailto:support@wealthme.id","mail","Email","support@wealthme.id · Respons 1x24 jam"],
+  ["tel:080012345678","phone","Telepon","0800-1234-5678 · Sen–Jum 08.00-17.00"],
+  ["https://wa.me/6281123456789","send","WhatsApp","+62 811 2345 6789 · Chat langsung"]];
+document.getElementById("linkList").innerHTML=LINKS.map(function(l){return '<li><a href="'+l[0]+'" style="display:contents;text-decoration:none;color:inherit"'+(l[0].indexOf("http")===0?' target="_blank" rel="noopener"':'')+'><span class="ic">'+WM.icon(l[1],16)+'</span><div><b>'+esc(l[2])+'</b><small>'+esc(l[3])+'</small></div></a></li>';}).join("");
+document.getElementById("legalList").innerHTML=[["legal.html?doc=privasi","shield","Kebijakan privasi"],["legal.html?doc=syarat","file","Syarat & ketentuan"],["legal.html?doc=lisensi","scale","Lisensi open source"]].map(function(l){return '<li><a href="'+l[0]+'" style="display:contents;text-decoration:none;color:inherit"><span class="ic">'+WM.icon(l[1],16)+'</span><div><b>'+l[2]+'</b></div></a></li>';}).join("");
+
+document.getElementById("logoutBtn").onclick=function(){WM.confirm({title:"Keluar dari akun?",text:"Kamu perlu login lagi untuk mengakses WealthMe.",confirm:"Keluar",danger:true}).then(function(ok){if(ok)location.href="login.html";});};
+
+function fillIcons(){document.getElementById("togglePw").querySelector(".ci").innerHTML=WM.icon("lock",17);
+  document.getElementById("openPin").querySelector(".ci").innerHTML=WM.icon("key",17);
+  document.getElementById("exportBtn").querySelector(".ci").innerHTML=WM.icon("download",17);
+  document.getElementById("deleteBtn").insertAdjacentHTML("afterbegin",WM.icon("trash",16));}
+
+drawHero();drawTabs();drawStepper();drawProfKv();drawFamily();drawMembers();drawAuthSwitches();drawSessions();drawTheme();drawCurrency();drawNotif();drawPriv();fillIcons();
+WM.onChange(["members","profile","profileDetail","sessions"],function(){drawHero();drawStepper();drawProfKv();drawFamily();drawMembers();drawSessions();});
+})();
+</script>

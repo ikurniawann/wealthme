@@ -1,0 +1,298 @@
+<title>Aset · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .a-hero{grid-column:1/9;grid-row:1}.a-side{grid-column:9/13;grid-row:1}
+  .a-accounts{grid-column:1/9;grid-row:2}.a-tips{grid-column:9/13;grid-row:2}
+  .a-fisik{grid-column:1/13;grid-row:3}
+}
+[data-page="aset"].priv .money{filter:blur(6px);user-select:none}
+.a-fisik .btiles{display:flex;flex-wrap:wrap}
+.a-fisik .btiles>*{flex:1 1 220px}
+.btile.asset{position:relative;min-height:118px}
+.btile.asset .del{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;border:0;background:var(--card);color:var(--muted);display:grid;place-items:center}
+.btile.asset .del:hover{color:var(--bad);background:var(--ghost)}
+.btile.asset .pv{font-size:16px}
+@media (max-width:900px){.a-fisik .btiles>*{flex-basis:calc(50% - 5px)}}
+.tips{align-content:center}
+</style>
+<main data-page="aset">
+<section class="bento" aria-label="Aset">
+  <article class="card hero dark a-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num money" id="grand"></p><div class="cap" id="grandCap"></div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn" type="button" id="eye"></button><button class="ghost-btn lit" type="button" id="add">+ Aset</button></div>
+          <div class="legend" id="legend"></div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Dana &amp; rekening</small><div class="v money" id="kAcc"></div></div>
+      <div class="kpi"><small>Investasi</small><div class="v money" id="kInv"></div></div>
+      <div class="kpi"><small>Aset fisik</small><div class="v money" id="kFisik"></div></div>
+    </div>
+  </article>
+
+  <article class="card a-side">
+    <div class="head"><div><h2>Investasi</h2><div class="cap" id="invCap"></div></div></div>
+    <ul class="mini-list" id="invList"></ul>
+    <a class="see-all" href="investasi.html">Semua investasi <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+  </article>
+
+  <article class="card a-accounts">
+    <div class="head"><div><h2>Dana &amp; rekening</h2><div class="cap" id="accCap"></div></div></div>
+    <ul class="mini-list" id="accList"></ul>
+    <a class="see-all" href="rekening.html">Semua rekening &amp; dana <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+  </article>
+
+  <article class="card a-fisik" id="fisik">
+    <div class="head"><div><h2>Aset fisik</h2><div class="cap" id="fisikCap">Ketuk kartu untuk ubah</div></div></div>
+    <div class="btiles" id="fisikTiles"></div>
+  </article>
+
+  <article class="card tips a-tips">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"aset"});
+(function(){
+if(!WM.allowed) return;
+var main=document.querySelector('main[data-page="aset"]');
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+var TYPE_LABEL={properti:"Properti",kendaraan:"Kendaraan",elektronik:"Elektronik",perhiasan:"Perhiasan",emas:"Emas",lainnya:"Lainnya"};
+var TYPES=[["properti","Properti"],["kendaraan","Kendaraan"],["elektronik","Elektronik"],["perhiasan","Perhiasan"],["emas","Emas"],["lainnya","Lainnya"]];
+var TYPE_ICON={properti:"home",kendaraan:"car",elektronik:"zap",perhiasan:"sparkle",emas:"gold",lainnya:"more"};
+var DEFAULT_RATE={properti:3,kendaraan:-12,elektronik:-20,perhiasan:2,emas:0,lainnya:0};
+
+/* ---- migrate seed/legacy asset shape to the fields this prototype needs, once ---- */
+function normalize(){
+  var list=WM.store.get("assets")||[],changed=false;
+  list=list.map(function(a){
+    var n=Object.assign({},a);
+    if(n.type==null){n.type=n.kind||"lainnya";changed=true;}
+    if(n.notes==null){n.notes=n.note||"";changed=true;}
+    if(n.acquisitionDate==null){n.acquisitionDate=n.since||WM.today;changed=true;}
+    if(n.valueChangeMode==null){n.valueChangeMode="percent";changed=true;}
+    if(n.valueChangeRatePct===undefined){n.valueChangeRatePct=DEFAULT_RATE[n.type]!=null?DEFAULT_RATE[n.type]:0;changed=true;}
+    if(n.valueChangeAmount===undefined){n.valueChangeAmount=null;changed=true;}
+    if(!n.history){
+      n.history=[];
+      if(n.cost!=null&&n.cost!==n.value)n.history.push({id:WM.uid("h"),date:n.acquisitionDate,value:n.cost,note:"Nilai awal",by:n.owner||WM.meId()});
+      n.history.push({id:WM.uid("h"),date:WM.today,value:n.value,note:"Nilai tercatat",by:n.owner||WM.meId()});
+      changed=true;
+    }
+    if(!n.docs){n.docs=[];changed=true;}
+    return n;
+  });
+  if(changed)WM.store.set("assets",list);
+  return list;
+}
+
+function estimateCurrent(a){
+  var base=+a.value||0,days=(new Date(WM.today)-new Date(a.acquisitionDate))/864e5,years=Math.max(0,days/365.25);
+  if(a.valueChangeMode==="fixed"){var amt=a.valueChangeAmount;if(!amt)return base;return Math.max(Math.round(base+amt*years),0);}
+  var rate=a.valueChangeRatePct;if(!rate)return base;return Math.max(Math.round(base*(1+(rate/100)*years)),0);
+}
+
+/* ---------- privacy eye toggle (per-user localStorage, matches the real app's scoping) ---------- */
+var PRIV_KEY="wm.aset-privacy."+WM.meId();
+function privOn(){try{return localStorage.getItem(PRIV_KEY)==="1";}catch(e){return false;}}
+function setPriv(v){try{localStorage.setItem(PRIV_KEY,v?"1":"0");}catch(e){}main.classList.toggle("priv",v);}
+
+/* ---------- asset trend from real recorded history (no fabricated numbers) ---------- */
+function assetTrend(assets){
+  var perAsset=assets.map(function(a){return (a.history||[]).slice().sort(function(x,y){return x.date<y.date?-1:1;});});
+  var months={};perAsset.forEach(function(h){h.forEach(function(e){months[e.date.slice(0,7)]=true;});});
+  var keys=Object.keys(months).sort();if(keys.length<2)return null;keys=keys.slice(-6);
+  return keys.map(function(mk){
+    var total=0;
+    perAsset.forEach(function(h){var v=h.length?h[0].value:0;h.forEach(function(e){if(e.date.slice(0,7)<=mk)v=e.value;});total+=v||0;});
+    return {label:WM.months[+mk.slice(5,7)-1],v:total};
+  });
+}
+
+/* ---------- form ---------- */
+function assetFormBody(a){
+  a=a||{};var mode=a.valueChangeMode||"percent";
+  return ''+
+   WM.field({name:"name",label:"Nama aset",required:true,value:a.name,placeholder:"misal Rumah Bintaro"})+
+   WM.field({name:"type",label:"Jenis",type:"select",required:true,value:a.type||"properti",options:TYPES})+
+   WM.field({name:"value",label:"Nilai saat ini",type:"money",required:true,value:a.value})+
+   '<div class="field"><label>Perubahan nilai per tahun</label><div class="seg full" data-radio="mode" role="radiogroup" aria-label="Mode perubahan nilai">'+
+     '<button type="button" role="radio" data-v="percent" aria-checked="'+(mode==="percent")+'">Persen</button>'+
+     '<button type="button" role="radio" data-v="fixed" aria-checked="'+(mode==="fixed")+'">Rp tetap</button>'+
+   '</div></div>'+
+   '<div data-mode-panel="percent"'+(mode!=="percent"?" hidden":"")+'>'+WM.field({name:"ratePct",label:"Kenaikan/penurunan per tahun",type:"percent",value:a.valueChangeRatePct!=null?a.valueChangeRatePct:"",optional:true,min:-100,max:100,hint:"Perkiraan default "+TYPE_LABEL[a.type||"properti"]+": "+DEFAULT_RATE[a.type||"properti"]+"%."})+'</div>'+
+   '<div data-mode-panel="fixed"'+(mode!=="fixed"?" hidden":"")+'>'+WM.field({name:"changeAmount",label:"Perubahan nilai per tahun",type:"money",value:a.valueChangeAmount!=null?a.valueChangeAmount:"",optional:true,hint:"Boleh minus untuk penyusutan.",attrs:'data-allow-zero'})+'</div>'+
+   WM.field({name:"acquisitionDate",label:"Tanggal perolehan",type:"date",value:a.acquisitionDate||"",optional:true,max:WM.today,hint:"Kosongkan untuk pakai tanggal aset ini dicatat."})+
+   WM.field({name:"notes",label:"Catatan",value:a.notes||"",optional:true,placeholder:"misal SHM atas nama Christian"})+
+   '<div class="note" id="projNote" hidden>'+WM.icon("calc",16)+'<span id="projText"></span></div>'+
+   '<div class="field"><label>Dokumen <span class="opt">(opsional)</span></label><label class="drop" for="assetDoc">'+WM.icon("upload",22)+'<b>Pilih file bukti kepemilikan</b><span>JPG, PNG, WEBP atau PDF</span></label><input type="file" id="assetDoc" accept=".jpg,.jpeg,.png,.webp,.pdf" style="display:none">'+
+   '<span class="hint" id="docHint">Simulasi: dokumen tidak benar-benar diunggah ke server di prototipe ini.</span></div>';
+}
+function wireAssetForm(d,body,a){
+  a=a||{};
+  WM.radio(body);
+  var group=body.querySelector('[data-radio="mode"]'),typeSel=body.querySelector('[name="type"]'),valueInp=body.querySelector('[name="value"]');
+  function syncPanels(){
+    var v=(group.querySelector('[aria-checked="true"]')||{}).dataset.v||"percent";
+    body.querySelector('[data-mode-panel="percent"]').hidden=v!=="percent";
+    body.querySelector('[data-mode-panel="fixed"]').hidden=v!=="fixed";
+    updateProjection();
+  }
+  function updateProjection(){
+    var base=WM.parseMoney(valueInp.value),mode=(group.querySelector('[aria-checked="true"]')||{}).dataset.v||"percent",proj=null;
+    if(base){
+      if(mode==="percent"){var r=body.querySelector('[name="ratePct"]'),rate=r?parseFloat((r.value||"").replace(",",".")):NaN;if(isFinite(rate)&&rate!==0)proj=Math.max(Math.round(base*(1+(rate/100)*5)),0);}
+      else{var amt=WM.parseMoney(body.querySelector('[name="changeAmount"]').value);if(amt)proj=Math.max(Math.round(base+amt*5),0);}
+    }
+    var note=body.querySelector("#projNote");
+    if(proj!=null&&proj!==base){note.hidden=false;body.querySelector("#projText").innerHTML="Proyeksi 5 tahun: <strong class=\"num\">"+WM.rp(proj)+"</strong> dari nilai, mode perubahan, dan tanggal perolehan.";}
+    else note.hidden=true;
+  }
+  group.addEventListener("change",syncPanels);
+  typeSel.addEventListener("change",function(){
+    var r=body.querySelector('[name="ratePct"]');
+    if(r&&!r.value.trim())r.value=DEFAULT_RATE[typeSel.value];
+    r&&(r.closest(".field").querySelector(".hint").textContent="Perkiraan default "+TYPE_LABEL[typeSel.value]+": "+DEFAULT_RATE[typeSel.value]+"%.");
+    updateProjection();
+  });
+  body.addEventListener("input",updateProjection);
+  var fi=body.querySelector("#assetDoc");
+  fi.addEventListener("change",function(){
+    if(fi.files&&fi.files[0]){WM.toast("Dokumen terlampir (simulasi)");body.querySelector("#docHint").textContent="Terpilih: "+fi.files[0].name+" (simulasi, belum diunggah).";}
+  });
+  syncPanels();
+}
+function openAssetModal(id){
+  var editing=id?WM.store.find("assets",id):null;
+  WM.modal({title:editing?"Ubah aset":"Tambah aset fisik",size:"lg",submit:editing?"Simpan perubahan":"Tambah aset",
+    onOpen:function(d,body){body.innerHTML=assetFormBody(editing);wireAssetForm(d,body,editing);
+      if(editing){var ft=d.querySelector(".sheet-foot");ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+        ft.querySelector("[data-rm]").onclick=function(){d.close();deleteAsset(editing.id);};}
+    },
+    onSubmit:function(f,v,d){
+      var mode=(f.querySelector('[data-radio="mode"] [aria-checked="true"]')||{}).dataset.v||"percent";
+      var rec={name:v.name,type:v.type,value:v.value,
+        valueChangeMode:mode,
+        valueChangeRatePct:mode==="percent"?(v.ratePct!=null&&v.ratePct!==""?v.ratePct:null):null,
+        valueChangeAmount:mode==="fixed"?(v.changeAmount||null):null,
+        acquisitionDate:v.acquisitionDate||WM.today,
+        notes:v.notes||""};
+      var fi=f.querySelector("#assetDoc"),docFile=fi&&fi.files&&fi.files[0];
+      if(editing){
+        var hist=(editing.history||[]).slice();
+        if(editing.value!==rec.value)hist.push({id:WM.uid("h"),date:WM.today,value:rec.value,note:"Diubah lewat form",by:WM.meId()});
+        var docs=(editing.docs||[]).slice();
+        if(docFile)docs.push({id:WM.uid("d"),name:docFile.name,size:docFile.size,mime:docFile.type||"application/octet-stream",date:WM.today});
+        WM.store.update("assets",editing.id,Object.assign({},rec,{history:hist,docs:docs}));
+        WM.toast("Perubahan disimpan");
+      }else{
+        rec.history=[{id:WM.uid("h"),date:rec.acquisitionDate,value:rec.value,note:"Aset ditambahkan",by:WM.meId()}];
+        rec.docs=docFile?[{id:WM.uid("d"),name:docFile.name,size:docFile.size,mime:docFile.type||"application/octet-stream",date:WM.today}]:[];
+        WM.store.add("assets",rec);
+        WM.toast("Aset tersimpan");
+      }
+      draw();
+    }});
+}
+function deleteAsset(id){
+  var a=WM.store.find("assets",id);if(!a)return;
+  WM.store.remove("assets",id);
+  WM.toast("Aset "+a.name+" dihapus",{undo:function(){var arr=WM.store.get("assets");arr.push(a);WM.store.set("assets",arr);}});
+  draw();
+}
+
+/* ---------- render pieces ---------- */
+function accRow(a,isLast){
+  var typeIcon=a.type==="bank"?"landmark":a.type==="cc"?"card":"wallet";
+  var typeLabel={bank:"Bank",cash:"Tunai",ewallet:"E-wallet",cc:"Kartu kredit"}[a.type]||a.type;
+  var owner=a.vis==="private"?WM.member(a.owner).short:"Bersama";
+  return '<li'+(isLast?' style="border-top:0"':'')+'><span class="ic lime">'+WM.icon(typeIcon,16)+'</span><div><b>'+esc(a.name)+'</b><small>'+esc([typeLabel,a.bank,owner].filter(Boolean).join(" · "))+'</small></div><span class="amt num money">'+WM.rp(a.balance)+'</span></li>';
+}
+function invRow(inv,isLast){
+  var lbl={saham:"Saham",reksadana:"Reksadana",emas:"Emas",deposito:"Deposito",kripto:"Kripto"};
+  var icons={saham:"trend",reksadana:"bars",emas:"gold",deposito:"landmark",kripto:"trend"};
+  var name=(inv.ticker?inv.ticker+" · ":"")+inv.name;
+  return '<li'+(isLast?' style="border-top:0"':'')+'><span class="ic lime">'+WM.icon(icons[inv.kind]||"more",16)+'</span><div><b>'+esc(name)+'</b><small>'+esc(lbl[inv.kind]||inv.kind)+'</small></div><span class="amt num money">'+WM.rp(inv.value)+'</span></li>';
+}
+function assetTile(a){
+  var est=estimateCurrent(a),drift=est!==a.value;
+  var hasInfo=a.valueChangeMode==="fixed"?!!a.valueChangeAmount:!!a.valueChangeRatePct;
+  var positive=a.valueChangeMode==="fixed"?(a.valueChangeAmount||0)>=0:(a.valueChangeRatePct||0)>=0;
+  var badge=a.valueChangeMode==="fixed"?((a.valueChangeAmount>=0?"+":"")+WM.rp(a.valueChangeAmount)+"/thn"):((a.valueChangeRatePct>=0?"+":"")+WM.pct(a.valueChangeRatePct)+"/thn");
+  return '<div class="btile asset" data-edit="'+a.id+'">'+
+    '<button type="button" class="del" data-del="'+a.id+'" aria-label="Hapus '+esc(a.name)+'">'+WM.icon("trash",14)+'</button>'+
+    '<span class="tt"><span class="ci">'+WM.icon(TYPE_ICON[a.type]||"more",15)+'</span>'+esc(a.name)+'</span>'+
+    '<span class="pv money" style="color:'+(drift?(est>a.value?"var(--good)":"var(--bad)"):"var(--ink)")+'">'+WM.rp(drift?est:a.value)+'</span>'+
+    '<small>'+(hasInfo?badge+' · ':'')+esc(TYPE_LABEL[a.type]||"Lainnya")+'</small>'+
+  '</div>';
+}
+
+/* ---------- main draw ---------- */
+function draw(){
+  var accounts=WM.visibleAccounts(),investments=WM.store.get("investments"),assets=WM.store.get("assets");
+  var danaAcc=accounts.filter(function(a){return a.type==="cash"||a.type==="ewallet";});
+  var rekAcc=accounts.filter(function(a){return a.type==="bank";});
+  var accTotal=accounts.reduce(function(s,a){return s+a.balance;},0);
+  var invTotal=investments.reduce(function(s,i){return s+i.value;},0);
+  var astTotal=assets.reduce(function(s,a){return s+a.value;},0);
+  var grand=accTotal+invTotal+astTotal;
+
+  document.getElementById("grand").innerHTML='<span class="cur">Rp</span>'+grand.toLocaleString("id-ID");
+  document.getElementById("grandCap").textContent="Total aset per "+WM.date(WM.today,true);
+  document.getElementById("eye").innerHTML=WM.icon(privOn()?"eyeoff":"eye",15)+(privOn()?"Tampilkan":"Sembunyikan");
+  document.getElementById("eye").onclick=function(){setPriv(!privOn());draw();};
+  document.getElementById("add").onclick=function(){openAssetModal();};
+  main.classList.toggle("priv",privOn());
+  document.getElementById("kAcc").textContent=WM.rp(accTotal);
+  document.getElementById("kInv").textContent=WM.rp(invTotal);
+  document.getElementById("kFisik").textContent=WM.rp(astTotal);
+
+  var segs=[["Aset fisik",astTotal,"var(--orange)"],["Investasi",invTotal,"var(--lilac)"],["Rekening",rekAcc.reduce(function(s,a){return s+a.balance;},0),"var(--sky)"],["Dana",danaAcc.reduce(function(s,a){return s+a.balance;},0),"var(--lime)"]].filter(function(s){return s[1]>0;});
+  var box=document.getElementById("chart");
+  if(segs.length){WM.chart.donut(box,{items:segs,center:WM.short(grand),sub:"Total aset"});}
+  else box.innerHTML='<div class="empty"><b>Belum ada aset</b><p>Tambah dana, rekening, investasi atau aset fisik untuk mulai.</p></div>';
+  document.getElementById("legend").innerHTML=segs.map(function(s){return '<span><i style="background:'+s[2]+'"></i>'+s[0]+'</span>';}).join("");
+
+  document.getElementById("invCap").textContent=investments.length+" instrumen";
+  document.getElementById("invList").innerHTML=investments.length?investments.slice(0,5).map(function(i,idx,arr){return invRow(i,idx===arr.length-1);}).join(""):'<li style="border-top:0"><small>Belum ada investasi.</small></li>';
+
+  document.getElementById("accCap").textContent=accounts.length+" akun";
+  document.getElementById("accList").innerHTML=accounts.length?accounts.slice(0,5).map(function(a,idx,arr){return accRow(a,idx===arr.length-1);}).join(""):'<li style="border-top:0"><small>Belum ada dana atau rekening.</small></li>';
+
+  document.getElementById("fisikCap").textContent=(assets.length?assets.length+" aset · ":"")+"Ketuk kartu untuk ubah";
+  document.getElementById("fisikTiles").innerHTML=(assets.length?assets.map(assetTile).join(""):'<div class="empty" style="flex-basis:100%"><b>Belum ada aset fisik</b><p>Tambahkan properti, kendaraan, atau barang berharga lain.</p></div>')+
+    '<button type="button" class="btile add" id="fisikAdd">'+WM.icon("plus",18,2)+'Aset baru</button>';
+  document.getElementById("fisikAdd").onclick=function(){openAssetModal();};
+  document.querySelectorAll("[data-edit]").forEach(function(t){t.addEventListener("click",function(e){if(e.target.closest("[data-del]"))return;openAssetModal(t.dataset.edit);});});
+  document.querySelectorAll("[data-del]").forEach(function(b){b.addEventListener("click",function(e){e.stopPropagation();deleteAsset(b.dataset.del);});});
+
+  var trend=assetTrend(assets),biggest=segs[0];
+  if(biggest){
+    document.getElementById("tipT").textContent=biggest[0]+" porsi terbesar";
+    document.getElementById("tipP").textContent=Math.round(biggest[1]/grand*100)+"% dari total aset keluarga"+(trend?". Nilai aset fisik naik/turun mengikuti riwayat yang kamu catat.":". Catat riwayat nilai aset fisik untuk melihat tren.");
+  }else{
+    document.getElementById("tipT").textContent="Belum ada aset tercatat";
+    document.getElementById("tipP").textContent="Tambah dana, rekening, investasi, atau aset fisik untuk mulai memantau kekayaan keluarga.";
+  }
+  var n=grand?Math.round((biggest?biggest[1]/grand:0)*18):0;
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
+}
+normalize();
+draw();
+WM.onChange(["assets","accounts","investments"],draw);
+WM.onResize(document.getElementById("chart"),draw);
+})();
+</script>

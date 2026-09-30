@@ -1,0 +1,20 @@
+<title>Contoh · WealthMe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>/* page-only rules */</style>
+<main data-page="transaksi">
+  <div class="ph"><div><h1>Contoh</h1></div><div class="acts"><button class="btn primary" type="button" id="add">Tambah</button></div></div>
+  <section class="grid"><div class="card s8"><h2>Riwayat</h2><div class="list" id="list"></div></div><div class="cover s4"><div class="stat"><small>Kekayaan bersih</small><b id="nw"></b></div><div class="chart" id="ch" style="height:160px"></div></div></section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:document.querySelector("main").dataset.page});
+(function(){ if(!WM.allowed) return;
+  function draw(){document.getElementById("list").innerHTML=WM.store.get("tx").slice(0,6).map(WM.txRow).join("");
+    document.getElementById("nw").textContent=WM.short(WM.totals().netWorth);
+    WM.chart.bars(document.getElementById("ch"),{labels:["Jul","Agu","Sep"],series:[{d:[20,24,31],c:"var(--lime)",n:"Masuk"}],hi:2,fmt:function(v){return v+" jt";}});}
+  draw(); WM.onChange(["tx","accounts"],draw); WM.onResize(document.getElementById("ch"),draw);
+  document.getElementById("add").onclick=function(){WM.modal({title:"Contoh form",body:WM.field({name:"nama",label:"Nama",required:true})+WM.field({name:"nominal",label:"Nominal",type:"money",required:true}),onSubmit:function(f,v){WM.toast("Tersimpan "+WM.rp(v.nominal));}});};
+})();
+</script>

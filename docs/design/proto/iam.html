@@ -1,0 +1,265 @@
+<title>IAM Roles · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .iam-hero{grid-column:1/9;grid-row:1}.iam-roles{grid-column:9/13;grid-row:1}
+  .iam-members{grid-column:1/9;grid-row:2/4}.iam-tips{grid-column:9/13;grid-row:2/4}
+}
+.iam-tips .mosaic{margin-top:auto;padding-top:12px;justify-self:start}
+.mem-row{width:100%;text-align:left;border:0;background:none;border-top:1px solid var(--line);padding:12px 0;display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;font:inherit;color:inherit}
+.mem-row:first-child{border-top:0}
+.mem-row:hover{background:var(--card-2);border-radius:12px;margin:0 -8px;padding:12px 8px}
+.mem-row .body{min-width:0}
+.mem-row b{font-size:13px;display:block}
+.mem-row small{color:var(--muted);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mem-row .you{color:var(--muted);font-weight:400}
+.matrix-sec+.matrix-sec{margin-top:14px}
+.matrix-sec h4{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
+.matrix-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)}
+.matrix-row:last-child{border-bottom:0}
+.matrix-row .lbl{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;min-width:0}
+.matrix-row .lbl i{width:8px;height:8px;border-radius:50%;flex:none;background:var(--ghost)}
+.matrix-row .lbl i.view{background:var(--sky)}
+.matrix-row .lbl i.manage{background:var(--good)}
+.lvl-seg{display:inline-flex;background:var(--card-2);border-radius:10px;padding:2px;gap:2px;flex:none}
+.lvl-seg button{border:0;background:transparent;border-radius:8px;padding:0 10px;min-height:32px;font-size:12px;color:var(--muted)}
+.lvl-seg button[aria-checked="true"]{background:var(--card);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+.cred-row{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--card-2);border-radius:12px;padding:10px 12px}
+.cred-row b{font-family:var(--mono);font-size:13px}
+</style>
+<main data-page="iam">
+<section class="bento" aria-label="IAM Roles">
+  <article class="card hero dark iam-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="hTotal"></p><div class="cap">Anggota keluarga</div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn" type="button" id="editHandle"></button><button class="ghost-btn lit" type="button" id="addMember">+ Tambah</button></div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Master</small><div class="v" id="kMaster"></div></div>
+      <div class="kpi"><small>Login terkelola</small><div class="v" id="kManaged"></div></div>
+      <div class="kpi"><small>Akses khusus</small><div class="v" id="kCustom"></div></div>
+    </div>
+  </article>
+
+  <article class="card iam-roles">
+    <div class="head"><div><h2>Role akses</h2><div class="cap">Siap pakai untuk beberapa anggota</div></div></div>
+    <div class="btiles" id="rolesList" style="grid-template-columns:1fr"></div>
+  </article>
+
+  <article class="card iam-members">
+    <div class="head"><div><h2>Anggota</h2><div class="cap">Ketuk untuk atur akses</div></div></div>
+    <div id="memberList"></div>
+  </article>
+
+  <article class="card iam-tips">
+    <div class="head"><div><h2 id="alT"></h2><div class="cap" id="alCap">Akses terbatas</div></div></div>
+    <p id="alP" style="margin:2px 0 12px"></p>
+    <ul class="mini-list" id="limitedList"></ul>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"iam",title:"IAM Roles"});
+(function(){ if(!WM.allowed) return;
+var esc=WM.esc;
+WM.store.ensure("familyHandle","rizaldi");
+WM.store.ensure("accessRoles",[
+ {id:"role-sopir",name:"Sopir",description:"Hanya mencatat transaksi transportasi & BBM.",dataScope:"own",permissions:{transaksi:"manage",quickinput:"manage"}}
+]);
+
+var PAGE_GROUPS=[
+ {h:"Utama",pages:[["beranda","Beranda"],["ringkasan","Ringkasan"],["transaksi","Transaksi"],["notifikasi","Notifikasi"]]},
+ {h:"Perencanaan",pages:[["anggaran","Anggaran"],["laporan","Laporan"],["tujuan","Tujuan Keuangan"]]},
+ {h:"Kekayaan",pages:[["dana","Cash & E-Wallet"],["rekening","Bank & Account"],["investasi","Investasi"],["aset","Aset"],["liabilitas","Liabilitas"],["asuransi","Asuransi"]]},
+ {h:"Kewajiban",pages:[["warisan","Warisan"],["donation","Donasi"],["tax","Tax Center"],["persetujuan","Persetujuan"]]},
+ {h:"Alat",pages:[["splitbill","Split Bill"],["rekonsiliasi","Rekonsiliasi Bank"],["ai","AI Advisor"],["kalkulator","Kalkulator"],["quickinput","Input Cepat"]]},
+ {h:"Pengaturan",pages:[["mastercoa","Master COA"],["masterdata","Setup Master Data"],["iam","IAM Roles"],["panduan","Panduan Fitur"]]}];
+var ALL_PAGES=[];PAGE_GROUPS.forEach(function(g){g.pages.forEach(function(p){ALL_PAGES.push(p[0]);});});
+var LEVELS=[["none","Tidak"],["view","Lihat"],["manage","Kelola"]];
+var SCOPE_LABEL={own:"Hanya milik sendiri",all:"Semua transaksi keluarga"};
+
+(function migrate(){var ms=WM.store.get("members");if(ms.some(function(m){return "username" in m;}))return;
+  var REL={m1:null,m2:"istri",m3:"anak",m4:"anak",m5:null};
+  ms=ms.map(function(m){var managed=m.role==="child"||m.role==="staff";
+    return Object.assign({},m,{username:managed?m.short.toLowerCase().replace(/\s+/g,""):null,managedLogin:managed,relationship:REL[m.id]||null,accessRoleId:null,accessOverrides:{}});});
+  WM.store.set("members",ms);})();
+
+function roleOf(m){return WM.store.get("accessRoles").filter(function(r){return r.id===m.accessRoleId;})[0]||null;}
+function scopeOf(m){if(m.role==="master")return "all";var r=roleOf(m);if(r)return r.dataScope;return (m.role==="child"||m.role==="staff")?"own":"all";}
+function permsOf(m){var base={};ALL_PAGES.forEach(function(p){base[p]="view";});
+  if(m.role==="master")ALL_PAGES.forEach(function(p){base[p]="manage";});
+  var r=roleOf(m);if(r)Object.assign(base,r.permissions);
+  Object.assign(base,m.accessOverrides||{});return base;}
+
+function chart(ms){var box=document.getElementById("chart");
+  var counts=ms.map(function(m){var p=permsOf(m);return ALL_PAGES.filter(function(k){return p[k]==="manage";}).length;});
+  var hi=counts.reduce(function(a,v,i){return v>counts[a]?i:a;},0);
+  WM.chart.bars(box,{labels:ms.map(function(m){return m.short;}),series:[{d:counts,c:"var(--lime)"}],hi:hi,wide:true,fmt:function(v){return v+" halaman";}});}
+
+function memberRow(m){var isMaster=m.role==="master",isSelf=m.id===WM.meId(),role=roleOf(m),overrideN=Object.keys(m.accessOverrides||{}).length,scope=scopeOf(m);
+  return '<button type="button" class="mem-row" data-access="'+m.id+'"'+(isMaster?' disabled style="cursor:default"':'')+'>'+WM.avatar(m,36)+
+    '<span class="body"><b>'+esc(m.name)+(isSelf?' <span class="you">(Kamu)</span>':'')+'</b><small>'+
+    (isMaster?"Akses penuh":(role?esc(role.name):"Bawaan "+WM.roleLabel(m.role))+(overrideN?" · +"+overrideN+" khusus":""))+
+    ' · '+SCOPE_LABEL[scope]+'</small></span>'+
+    '<span class="pill '+(isMaster?"good":"")+'">'+(isMaster?WM.icon("shield",12)+" ":"")+WM.roleLabel(m.role)+'</span></button>';}
+
+function drawMembers(){var ms=WM.store.get("members");
+  document.getElementById("memberList").innerHTML=ms.length?ms.map(memberRow).join(""):'<div class="empty"><b>Belum ada anggota</b></div>';
+  document.querySelectorAll("[data-access]:not([disabled])").forEach(function(b){b.onclick=function(){openAccess(b.dataset.access);};});}
+
+function removeMember(id){var m=WM.store.find("members",id);if(!m)return;
+  WM.store.remove("members",id);
+  WM.toast(m.name+" dihapus dari keluarga",{undo:function(){WM.store.add("members",m);WM.toast("Dikembalikan");}});}
+
+function openAccess(id){var m=WM.store.find("members",id);if(!m)return;
+  var perms=Object.assign({},permsOf(m)),roles=WM.store.get("accessRoles");
+  var roleOptHtml=WM.field({name:"accessRoleId",label:"Role akses",type:"select",value:m.accessRoleId||"",options:[["","Bawaan ("+WM.roleLabel(m.role)+")"]].concat(roles.map(function(r){return [r.id,r.name];}))});
+  var body='<p class="hint" style="margin:0">Pilih role siap pakai, atau ubah level per halaman di bawah untuk pengecualian khusus '+esc(m.name)+'.</p>'+roleOptHtml+'<div id="matrixBox"></div>';
+  var d=WM.modal({title:"Atur akses · "+m.name,size:"lg",body:body,submit:"Simpan akses",
+    onOpen:function(dg,b){renderMatrix(b.querySelector("#matrixBox"),perms,roles.filter(function(r){return r.id===m.accessRoleId;})[0]);
+      b.querySelector('[name="accessRoleId"]').addEventListener("change",function(e){
+        var r=roles.filter(function(x){return x.id===e.target.value;})[0];
+        var base={};ALL_PAGES.forEach(function(p){base[p]="view";});if(r)Object.assign(base,r.permissions);
+        perms=base;renderMatrix(b.querySelector("#matrixBox"),perms,r);});
+      var ft=dg.querySelector(".sheet-foot"),extra="";
+      if(m.managedLogin)extra+='<button class="btn ghost" type="button" data-reset style="flex:none">'+WM.icon("key",15)+' Reset password</button>';
+      extra+='<button class="btn ghost" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",15)+' Hapus</button>';
+      ft.insertAdjacentHTML("afterbegin",extra);
+      var rb=ft.querySelector("[data-reset]");if(rb)rb.onclick=function(){dg.close();openReset(m.id);};
+      ft.querySelector("[data-rm]").onclick=function(){dg.close();removeMember(m.id);};},
+    onSubmit:function(f,v){WM.store.update("members",id,{accessRoleId:v.accessRoleId||null,accessOverrides:perms});WM.toast("Akses "+m.name+" diperbarui");}});
+  function renderMatrix(box,perms,baseline){box.innerHTML=PAGE_GROUPS.map(function(g){
+    return '<div class="matrix-sec"><h4>'+g.h+'</h4>'+g.pages.map(function(p){var lvl=perms[p[0]]||"view";
+      return '<div class="matrix-row"><span class="lbl"><i class="'+lvl+'"></i>'+p[1]+'</span><span class="lvl-seg" data-page="'+p[0]+'">'+
+        LEVELS.map(function(l){return '<button type="button" aria-checked="'+(l[0]===lvl)+'" data-lvl="'+l[0]+'">'+l[1]+'</button>';}).join("")+'</span></div>';}).join("")+'</div>';}).join("");
+    box.querySelectorAll(".lvl-seg").forEach(function(seg){seg.querySelectorAll("button").forEach(function(btn){btn.onclick=function(){
+      perms[seg.dataset.page]=btn.dataset.lvl;renderMatrix(box,perms,baseline);};});});}
+}
+
+function genPassword(){return Math.random().toString(36).slice(2,6)+Math.random().toString(36).slice(2,6);}
+function openReset(id){var m=WM.store.find("members",id);if(!m)return;
+  WM.modal({title:"Reset password · "+m.name,sub:"Password sementara ini berlaku sekali. "+m.name+" wajib membuat password baru saat login berikutnya.",submit:"Buat password baru",
+    body:WM.field({name:"pw",label:"Password baru",type:"text",value:genPassword(),hint:"Bisa diubah manual, minimal 8 karakter."}),
+    onSubmit:function(f,v){if((v.pw||"").length<8)return "Password minimal 8 karakter.";
+      var body='<div class="cred-row"><span>Username</span><b>'+esc(m.username+"@"+WM.store.get("familyHandle"))+'</b></div>'+
+        '<div class="cred-row" style="margin-top:8px"><span>Password baru</span><b>'+esc(v.pw)+'</b></div>'+
+        '<p class="hint" style="margin-top:10px">Password wajib diganti saat '+esc(m.name)+' login berikutnya.</p>';
+      setTimeout(function(){WM.modal({title:"Password diperbarui",body:body,submit:false,cancel:"Selesai",
+        onOpen:function(dg,b){b.insertAdjacentHTML("beforeend",'<button type="button" class="btn dark block" data-copyall style="margin-top:10px">Salin semua</button>');
+          b.querySelector("[data-copyall]").onclick=function(){WM.copy("Username: "+m.username+"@"+WM.store.get("familyHandle")+"\nPassword: "+v.pw,"Kredensial");};}});},10);
+      WM.toast("Password baru dibuat");}});}
+
+function openAddMember(){
+  var body='<div data-radio="role" role="radiogroup" aria-label="Peran sistem" class="tiles" style="grid-template-columns:repeat(2,1fr)">'+
+    '<button type="button" role="radio" class="tile" data-v="spouse" aria-checked="false">Istri (Co-Master)</button>'+
+    '<button type="button" role="radio" class="tile" data-v="child" aria-checked="true">Anak</button>'+
+    '<button type="button" role="radio" class="tile" data-v="staff" aria-checked="false">Staff Operasional</button>'+
+    '<button type="button" role="radio" class="tile" data-v="member" aria-checked="false">Anggota (email)</button></div>'+
+    '<div id="addBody"></div>';
+  WM.modal({title:"Tambah anggota",size:"lg",submit:"Buat akun",body:body,
+    onOpen:function(dg,b){WM.radio(b);var role="child";renderBody(b,role);
+      b.querySelector('[data-radio="role"]').addEventListener("change",function(e){role=e.detail;renderBody(b,role);});},
+    onSubmit:function(f,v){var role=(f.querySelector('[data-radio="role"] [aria-checked="true"]')||{}).dataset.v||"child";
+      if(role==="member"){
+        if(!v.email)return "Email wajib diisi.";
+        var tok=WM.uid("tok");
+        showLink(tok,v.email);
+        return;
+      }
+      if(!v.name)return "Nama wajib diisi.";
+      if(!v.username)return "Username wajib diisi.";
+      if(!v.password||v.password.length<8)return "Password minimal 8 karakter.";
+      var handle=WM.store.get("familyHandle");
+      var m=WM.store.add("members",{name:v.name,short:v.name.split(" ")[0],init:v.name.split(" ").slice(0,2).map(function(w){return w[0];}).join("").toUpperCase(),role:role,bg:"var(--card-2)",fg:"var(--ink)",email:"",phone:"",username:v.username,managedLogin:true,relationship:v.relationship||null,accessRoleId:v.accessRoleId||null,accessOverrides:{}});
+      showCreds(m,v.username+"@"+handle,v.password);
+    }});
+  function renderBody(b,role){var roles=WM.store.get("accessRoles");
+    var box=b.querySelector("#addBody");
+    if(role==="member"){box.innerHTML=WM.field({name:"email",label:"Email",type:"email",required:true,placeholder:"nama@gmail.com",hint:"Link undangan dikirim ke email ini (simulasi)."});return;}
+    box.innerHTML=WM.field({name:"name",label:"Nama",required:true,placeholder:"Nama lengkap"})+
+      '<div class="two">'+WM.field({name:"username",label:"Username",required:true,placeholder:"cth: adit_kecil"})+
+      WM.field({name:"password",label:"Password awal",type:"text",required:true,value:genPassword(),hint:"Wajib diganti saat login pertama."})+'</div>'+
+      (role==="spouse"?'<p class="hint">Istri menjadi Co-Master: akses penuh ke semua data keuangan. Hubungan otomatis terkunci ke "istri". Maksimal 1 istri per keluarga.</p>':
+        WM.field({name:"relationship",label:"Hubungan (opsional)",type:"select",optional:true,options:[["","Tidak diisi"],["anak","Anak"],["asisten","Asisten rumah tangga"],["sopir","Sopir"],["lainnya","Lainnya"]]}))+
+      WM.field({name:"accessRoleId",label:"Hak akses (opsional)",type:"select",optional:true,options:[["","Bawaan (ikuti peran)"]].concat(roles.map(function(r){return [r.id,r.name];}))});}
+  function showLink(tok,email){setTimeout(function(){WM.modal({title:"Undangan dibuat",submit:false,cancel:"Selesai",
+    body:'<p class="hint" style="margin:0">Kirim link ini ke '+esc(email)+' (simulasi, tidak benar-benar terkirim).</p>'+
+      '<div class="cred-row" style="margin-top:10px"><span class="mono" style="font-size:12px;word-break:break-all">join.html?token='+tok+'</span><button class="ibtn" type="button" data-copylink aria-label="Salin link">'+WM.icon("copy",14)+'</button></div>',
+    onOpen:function(dg,b){b.querySelector("[data-copylink]").onclick=function(){WM.copy(location.href.replace(/[^/]*$/,"")+"join.html?token="+tok,"Link undangan");};}});},10);}
+  function showCreds(m,username,password){setTimeout(function(){WM.modal({title:"Akun dibuat",submit:false,cancel:"Selesai",
+    body:'<p class="hint" style="margin:0">Password wajib diganti saat '+esc(m.name)+' login pertama.</p>'+
+      '<div class="cred-row" style="margin-top:10px"><span>Username</span><b>'+esc(username)+'</b></div>'+
+      '<div class="cred-row" style="margin-top:8px"><span>Password</span><b>'+esc(password)+'</b></div>'+
+      '<button type="button" class="btn dark block" data-copyall style="margin-top:10px">Salin semua</button>',
+    onOpen:function(dg,b){b.querySelector("[data-copyall]").onclick=function(){WM.copy("Username: "+username+"\nPassword: "+password,"Kredensial");};}});},10);}
+}
+document.getElementById("addMember").onclick=openAddMember;
+
+function roleTile(r){return '<button type="button" class="btile" data-edit-role="'+r.id+'" style="min-height:auto"><span class="tt">'+esc(r.name)+'<span class="pill '+(r.dataScope==="own"?"warn":"")+'" style="margin-left:auto">'+SCOPE_LABEL[r.dataScope]+'</span></span>'+
+  (r.description?'<small>'+esc(r.description)+'</small>':'')+'<small>'+Object.keys(r.permissions||{}).length+' halaman diatur · '+memberCount(r.id)+' anggota</small></button>';}
+function memberCount(id){return WM.store.get("members").filter(function(m){return m.accessRoleId===id;}).length;}
+function drawRoles(){var roles=WM.store.get("accessRoles");
+  document.getElementById("rolesList").innerHTML=roles.map(roleTile).join("")+
+    '<button type="button" class="btile add" data-add-role>'+WM.icon("plus",18,2)+'Buat role</button>';
+  document.querySelectorAll("[data-edit-role]").forEach(function(b){b.onclick=function(){openRoleForm(WM.store.find("accessRoles",b.dataset.editRole));};});
+  var ar=document.querySelector("[data-add-role]");if(ar)ar.onclick=function(){openRoleForm(null);};}
+
+function openRoleForm(edit){var perms=Object.assign({},edit?edit.permissions:{});
+  var body=WM.field({name:"name",label:"Nama role",required:true,value:edit?edit.name:"",placeholder:"cth: Sopir"})+
+    WM.field({name:"description",label:"Deskripsi (opsional)",optional:true,value:edit?edit.description:"",placeholder:"Untuk apa role ini dipakai"})+
+    WM.field({name:"dataScope",label:"Data yang terlihat",type:"select",required:true,value:edit?edit.dataScope:"own",options:[["own","Hanya milik sendiri"],["all","Semua transaksi keluarga"]]})+
+    '<div id="roleMatrix"></div>';
+  WM.modal({title:edit?"Edit role":"Buat role",size:"lg",submit:edit?"Simpan role":"Buat role",body:body,
+    onOpen:function(dg,b){renderMatrix(b.querySelector("#roleMatrix"));
+      if(!edit)return;var ft=dg.querySelector(".sheet-foot");ft.insertAdjacentHTML("afterbegin",'<button class="btn ghost" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",15)+' Hapus</button>');
+      ft.querySelector("[data-rm]").onclick=function(){dg.close();delRole(edit.id);};},
+    onSubmit:function(f,v){if(!v.name.trim())return "Nama role wajib diisi.";
+      var rec={name:v.name.trim(),description:v.description||"",dataScope:v.dataScope,permissions:perms};
+      if(edit){WM.store.update("accessRoles",edit.id,rec);WM.toast("Role diperbarui");}else{WM.store.add("accessRoles",rec);WM.toast("Role dibuat");}}});
+  function renderMatrix(box){box.innerHTML=PAGE_GROUPS.map(function(g){
+    return '<div class="matrix-sec"><h4>'+g.h+'</h4>'+g.pages.map(function(p){var lvl=perms[p[0]]||"none";
+      return '<div class="matrix-row"><span class="lbl"><i class="'+lvl+'"></i>'+p[1]+'</span><span class="lvl-seg" data-page="'+p[0]+'">'+
+        LEVELS.map(function(l){return '<button type="button" aria-checked="'+(l[0]===lvl)+'" data-lvl="'+l[0]+'">'+l[1]+'</button>';}).join("")+'</span></div>';}).join("")+'</div>';}).join("");
+    box.querySelectorAll(".lvl-seg").forEach(function(seg){seg.querySelectorAll("button").forEach(function(btn){btn.onclick=function(){
+      perms[seg.dataset.page]=btn.dataset.lvl;renderMatrix(box);};});});}
+}
+function delRole(id){var r=WM.store.find("accessRoles",id);if(!r)return;
+  WM.store.remove("accessRoles",id);
+  var ms=WM.store.get("members").map(function(m){return m.accessRoleId===id?Object.assign({},m,{accessRoleId:null}):m;});WM.store.set("members",ms);
+  WM.toast("Role "+r.name+" dihapus",{undo:function(){WM.store.add("accessRoles",r);}});}
+
+document.getElementById("editHandle").onclick=function(){var cur=WM.store.get("familyHandle");
+  WM.modal({title:"Ubah kode keluarga",sub:"Semua login anggota yang kamu buatkan ikut berubah, misalnya budi@"+cur+" menjadi budi@kodebaru.",submit:"Simpan kode",
+    body:WM.field({name:"handle",label:"Kode baru",value:cur,hint:"3–24 karakter: huruf kecil, angka, tanda minus."}),
+    onSubmit:function(f,v){var h=v.handle.trim().toLowerCase();if(!/^[a-z0-9-]{3,24}$/.test(h))return "Format kode tidak valid.";
+      WM.store.set("familyHandle",h);WM.toast("Kode keluarga diubah");}});};
+
+function draw(){var ms=WM.store.get("members");
+  document.getElementById("hTotal").textContent=ms.length;
+  document.getElementById("kMaster").textContent=ms.filter(function(m){return m.role==="master";}).length;
+  document.getElementById("kManaged").textContent=ms.filter(function(m){return m.managedLogin;}).length;
+  var custom=ms.filter(function(m){return Object.keys(m.accessOverrides||{}).length||m.accessRoleId;}).length;
+  document.getElementById("kCustom").textContent=custom;
+  document.getElementById("editHandle").textContent="Kode: "+WM.store.get("familyHandle");
+  chart(ms);drawMembers();drawRoles();
+  var limited=ms.filter(function(m){return scopeOf(m)==="own";}),ownN=limited.length;
+  document.getElementById("alT").textContent=ownN?ownN+" anggota akses terbatas":"Semua anggota akses penuh";
+  document.getElementById("alP").textContent=ownN?"Mereka hanya melihat transaksi milik sendiri.":"Setiap anggota bisa melihat seluruh data keluarga.";
+  document.getElementById("limitedList").innerHTML=limited.length?limited.map(function(m){var role=roleOf(m);return '<li>'+WM.avatar(m,32)+'<div><b>'+esc(m.name)+'</b><small>'+(role?esc(role.name):WM.roleLabel(m.role))+'</small></div></li>';}).join(""):'<li style="border:0"><small>Tidak ada anggota dengan akses terbatas.</small></li>';
+  var pct=ms.length?Math.round((ms.length-ownN)/ms.length*100):100;
+  var n=Math.round(pct/100*18);document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");}
+
+draw();
+WM.onChange(["members","accessRoles","familyHandle"],draw);WM.onResize(document.getElementById("chart"),function(){chart(WM.store.get("members"));});
+})();
+</script>

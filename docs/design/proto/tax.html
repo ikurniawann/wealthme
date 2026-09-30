@@ -1,0 +1,422 @@
+<title>Tax Center · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+.t-hero{grid-column:1/-1}
+.tx-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tx-tbl th{text-align:left;font-size:11px;color:var(--muted);font-weight:600;padding:0 10px 8px 0;border-bottom:1px solid var(--line)}
+.tx-tbl td{padding:8px 10px 8px 0;border-bottom:1px solid var(--line)}
+.tx-tbl tr:last-child td{border-bottom:0}
+.tx-tbl .r{text-align:right}
+.tx-calc{border-radius:14px;background:var(--card-2);padding:16px;text-align:center;margin-top:14px}
+.tx-calc b{display:block;font-size:28px;font-weight:800;color:var(--good);margin-top:4px}
+.tx-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:99px;padding:4px 10px;background:var(--card)}
+.tx-docs{display:flex;flex-direction:column}
+.tx-doc{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+.tx-doc:last-child{border-bottom:0}
+.tx-hist{display:flex;flex-direction:column}
+.tx-hrow{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}
+.tx-hrow:last-child{border-bottom:0}
+</style>
+<main data-page="tax">
+<section class="bento" aria-label="Tax Center" style="margin-bottom:16px">
+  <article class="card hero dark t-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="heroVal"></p><div class="cap" id="heroYear"></div></div>
+        <div class="hero-ctrl"><div class="ctrl-row"><select id="taxYear" class="ghost-btn" style="border:0;background:var(--card-2)"></select></div><span class="tx-badge" id="heroSub"></span></div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Status SPT tahun ini</small><div class="v" id="curStatus"></div></div>
+      <div class="kpi"><small>Pengurang zakat/persepuluhan</small><div class="v" id="dedAmt"></div></div>
+      <div class="kpi"><small>Status SPT tahun lalu</small><div class="v" id="prevStatus"></div></div>
+    </div>
+  </article>
+</section>
+
+<section class="grid">
+  <div class="card s6"><div class="stat"><small id="curYearLbl">Status SPT tahun ini</small><b id="curStatusB">Belum lapor</b></div><button class="btn sm ghost" type="button" id="curMark" style="margin-top:10px" hidden>Tandai sudah lapor</button></div>
+  <div class="card s6"><div class="stat"><small id="prevYearLbl">Status SPT tahun lalu</small><b id="prevStatusB">Belum ada data</b></div><button class="btn sm ghost" type="button" id="prevMark" style="margin-top:10px" hidden>Tandai sudah lapor</button></div>
+</section>
+
+<section class="grid" style="margin-top:16px" id="pph21-calc">
+  <div class="card s8">
+    <div class="head"><h2>Kalkulator PPh 21 Orang Pribadi</h2><span class="cap">Wajib pajak individu, penghasilan neto setahun · perkiraan</span></div>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Penghasilan bruto setahun</label><div class="affix"><span>Rp</span><input id="gross" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field"><label>Iuran pensiun <span class="opt">(opsional)</span></label><div class="affix"><span>Rp</span><input id="pension" inputmode="numeric" placeholder="0"></div></div>
+    </div>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Status pernikahan</label><div class="seg full" data-radio="marital" role="radiogroup"><button type="button" role="radio" data-v="TK" aria-checked="true">TK — Belum menikah</button><button type="button" role="radio" data-v="K" aria-checked="false">K — Menikah</button><button type="button" role="radio" data-v="KI" aria-checked="false">KI — Gabung istri</button></div></div>
+      <div class="field"><label>Jumlah tanggungan (maks 3)</label><div class="seg full" data-radio="dependents" role="radiogroup"><button type="button" role="radio" data-v="0" aria-checked="true">0</button><button type="button" role="radio" data-v="1" aria-checked="false">1</button><button type="button" role="radio" data-v="2" aria-checked="false">2</button><button type="button" role="radio" data-v="3" aria-checked="false">3</button></div></div>
+    </div>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Penghasilan lain neto <span class="opt">(opsional)</span></label><div class="affix"><span>Rp</span><input id="otherNet" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field"><label>Pengurang zakat/persepuluhan</label><div class="affix"><span>Rp</span><input id="zakat" inputmode="numeric" placeholder="0"></div><span class="hint">Terisi otomatis dari donasi tahun ini, bisa diubah.</span></div>
+    </div>
+    <details class="more-opts" style="margin-top:6px"><summary><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg> Penghasilan freelance / bebas (opsional)</summary>
+      <div class="two"><div class="field"><label>Bruto freelance</label><div class="affix"><span>Rp</span><input id="freelance" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field"><label>% Norma (NPPN)</label><div class="affix"><input id="nppn" inputmode="decimal" placeholder="0"><span>%</span></div><span class="hint">Isi persentase norma penghitungan penghasilan neto (NPPN) sesuai profesimu.</span></div></div>
+    </details>
+    <div class="field" style="margin-top:12px;max-width:260px"><label>Biaya jabatan (otomatis)</label><input id="jabatan" disabled value="Rp 0"></div>
+    <div class="acts" style="margin-top:14px;gap:8px">
+      <button class="btn primary" type="button" id="saveTax">Simpan ke catatan pajak</button>
+      <button class="btn" type="button" id="resetTax">Reset</button>
+    </div>
+  </div>
+  <div class="card s4" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="tx-calc" id="pphResult" style="margin-top:0">
+      <small class="muted">Perkiraan PPh 21 setahun</small>
+      <b id="pphTax">Rp 0</b>
+      <div class="cap" id="pphSub" style="margin-top:6px"></div>
+    </div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <h2>Rincian tarif progresif (Pasal 17)</h2>
+    <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Lapisan</th><th>Tarif</th><th class="r">Dasar pengenaan</th><th class="r">Pajak</th></tr></thead><tbody id="bracketBody"></tbody></table></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s12">
+    <div class="head"><h2>TER bulanan &amp; koreksi Desember</h2><span class="cap">Tarif Efektif Rata-rata pemotongan bulanan, dengan koreksi di Desember</span></div>
+    <div class="cap" id="terCat" style="margin-top:8px"></div>
+    <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Bulan</th><th class="r">Bruto</th><th>Tarif</th><th class="r">Pemotongan</th></tr></thead><tbody id="terBody"></tbody></table></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px" id="umkm-section">
+  <div class="card s12">
+    <div class="head"><h2>PPh final UMKM 0,5%</h2><span class="cap">Omzet usaha per bulan, bebas pajak sampai Rp 500 juta/tahun</span></div>
+    <div class="field" style="margin-top:10px;max-width:260px"><label>Tahun pertama terdaftar UMKM <span class="opt">(opsional)</span></label><input id="umkmFirstYear" inputmode="numeric" placeholder="mis. 2021"></div>
+    <div class="tw" style="margin-top:10px"><table class="tx-tbl"><thead><tr><th>Bulan</th><th class="r">Omzet</th><th class="r">Kumulatif</th><th class="r">Dasar kena pajak</th><th class="r">Pajak 0,5%</th></tr></thead><tbody id="umkmBody"></tbody></table></div>
+    <div class="tx-calc" id="umkmResult"><small class="muted">Total PPh final UMKM setahun</small><b id="umkmTax">Rp 0</b><div class="cap" id="umkmNote" style="margin-top:6px"></div></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px" id="pajak-final">
+  <div class="card s8">
+    <div class="head"><h2>Pajak final investasi &amp; penghasilan lain</h2><span class="cap">Bunga deposito, dividen, saham, SBN, kripto, sewa, dan lainnya</span></div>
+    <div class="two" style="margin-top:12px">
+      <div class="field"><label>Jenis penghasilan</label><select id="finInstr"></select></div>
+      <div class="field"><label>Jumlah bruto</label><div class="affix"><span>Rp</span><input id="finAmount" inputmode="numeric" placeholder="0"></div></div>
+    </div>
+    <div class="two" style="margin-top:12px">
+      <div class="field" id="finPrincipalWrap"><label>Pokok simpanan <span class="opt">(untuk cek batas bebas pajak)</span></label><div class="affix"><span>Rp</span><input id="finPrincipal" inputmode="numeric" placeholder="0"></div></div>
+      <div class="field" id="finRateWrap" hidden><label>Tarif <span class="opt">(kamu isi sendiri)</span></label><div class="affix"><input id="finRate" inputmode="decimal" placeholder="0"><span>%</span></div></div>
+    </div>
+    <label class="check" id="finReinvestWrap" hidden style="margin-top:8px"><input type="checkbox" id="finReinvest"><span>Dividen diinvestasikan kembali di Indonesia (bebas pajak)</span></label>
+  </div>
+  <div class="card s4" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="tx-calc" style="margin-top:0"><small class="muted">Perkiraan pajak final</small><b id="finTax">Rp 0</b><div class="cap" id="finNote" style="margin-top:6px"></div></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px">
+  <div class="card s8">
+    <div class="head"><h2>Dokumen pajak</h2><label class="btn ghost sm" style="cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V5m-4 4l4-4 4 4M5 20h14"/></svg> Unggah<input type="file" id="docUpload" hidden></label></div>
+    <div class="cap" style="margin-top:4px">Simulasi — berkas tidak benar-benar diunggah, hanya tercatat di prototipe ini.</div>
+    <div class="tx-docs" id="docList" style="margin-top:8px"></div>
+  </div>
+  <div class="card s4">
+    <div class="head"><h2>Riwayat pajak</h2></div>
+    <div class="tx-hist" id="histList" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<section class="grid" style="margin-top:16px;margin-bottom:8px">
+  <div style="grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px">
+    <a class="btn primary" style="flex:1;min-width:160px" href="https://djponline.pajak.go.id" target="_blank" rel="noopener noreferrer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12l16-8-6 16-3-7z"/></svg> Lapor SPT di DJP Online</a>
+    <button class="btn" style="flex:1;min-width:160px" type="button" id="dlCsv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m-4-4l4 4 4-4M5 20h14"/></svg> Unduh ringkasan (CSV)</button>
+  </div>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"tax",title:"Tax Center"});
+(function(){ if(!WM.allowed) return;
+
+var CUR_YEAR=new Date(WM.today).getFullYear();
+var YEARS=[CUR_YEAR,CUR_YEAR-1,CUR_YEAR-2];
+
+/* ---------- ported tax engine (PP 58/2023, UU HPP Pasal 17, PMK 168/2023) ---------- */
+var PTKP={base:54000000,marriedAddOn:4500000,dependentAddOn:4500000,wifeAddOn:54000000};
+var BIAYA_JABATAN={rate:0.05,capAnnual:6000000};
+var BRACKETS=[[60000000,0.05,"0 – 60 Juta"],[250000000,0.15,"60 – 250 Juta"],[500000000,0.25,"250 – 500 Juta"],[5000000000,0.30,"500 Juta – 5 Miliar"],[null,0.35,"> 5 Miliar"]];
+
+function ptkpFor(marital,dep){var married=marital==="TK"?0:PTKP.marriedAddOn,wife=marital==="KI"?PTKP.wifeAddOn:0;return PTKP.base+married+wife+dep*PTKP.dependentAddOn;}
+function biayaJabatan(gross){return Math.min(gross*BIAYA_JABATAN.rate,BIAYA_JABATAN.capAnnual);}
+function pasal17(pkp){var brackets=[],prev=0,tax=0;BRACKETS.forEach(function(b){if(pkp<=prev)return;var top=b[0]===null||pkp<b[0]?pkp:b[0];var taxable=top-prev;var t=Math.round(taxable*b[1]);brackets.push({label:b[2],rate:b[1],taxable:taxable,tax:t});tax+=t;if(b[0]!==null)prev=b[0];});return {brackets:brackets,tax:tax};}
+
+function computePphOp(inp){
+  var ptkp=ptkpFor(inp.marital,inp.dependents);
+  var bj=biayaJabatan(inp.gross);
+  var pension=Math.min(inp.pension,Math.max(0,inp.gross-bj));
+  var employmentNet=Math.max(0,inp.gross-bj-pension);
+  var freelanceNet=inp.freelanceGross>0?inp.freelanceGross*(inp.nppnPct/100):0;
+  var neto=employmentNet+freelanceNet+inp.otherNet;
+  var zakatApplied=Math.min(inp.zakat,neto);
+  var pkp=Math.floor(Math.max(0,neto-zakatApplied-ptkp)/1000)*1000;
+  var p17=pasal17(pkp);
+  return {ptkp:ptkp,biayaJabatan:bj,pension:pension,freelanceNet:freelanceNet,neto:neto,zakatApplied:zakatApplied,pkp:pkp,brackets:p17.brackets,tax:p17.tax};
+}
+
+/* TER — PP 58/2023 Lampiran, bands verified against docs/research/2026-09-26-ter-verification.md */
+var TER_A=[[5400000,0],[5650000,25],[5950000,50],[6300000,75],[6750000,100],[7500000,125],[8550000,150],[9650000,175],[10050000,200],[10350000,225],[10700000,250],[11050000,300],[11600000,350],[12500000,400],[13750000,500],[15100000,600],[16950000,700],[19750000,800],[24150000,900],[26450000,1000],[28000000,1100],[30050000,1200],[32400000,1300],[35400000,1400],[39100000,1500],[43850000,1600],[47800000,1700],[51400000,1800],[56300000,1900],[62200000,2000],[68600000,2100],[77500000,2200],[89000000,2300],[103000000,2400],[125000000,2500],[157000000,2600],[206000000,2700],[337000000,2800],[454000000,2900],[550000000,3000],[695000000,3100],[910000000,3200],[1400000000,3300],[null,3400]];
+var TER_B=[[6200000,0],[6500000,25],[6850000,50],[7300000,75],[9200000,100],[10750000,150],[11250000,200],[11600000,250],[12600000,300],[13600000,400],[14950000,500],[16400000,600],[18450000,700],[21850000,800],[26000000,900],[27700000,1000],[29350000,1100],[31450000,1200],[33950000,1300],[37100000,1400],[41100000,1500],[45800000,1600],[49500000,1700],[53800000,1800],[58500000,1900],[64000000,2000],[71000000,2100],[80000000,2200],[93000000,2300],[109000000,2400],[129000000,2500],[163000000,2600],[211000000,2700],[374000000,2800],[459000000,2900],[555000000,3000],[704000000,3100],[957000000,3200],[1405000000,3300],[null,3400]];
+var TER_C=[[6600000,0],[6950000,25],[7350000,50],[7800000,75],[8850000,100],[9800000,125],[10950000,150],[11200000,175],[12050000,200],[12950000,300],[14150000,400],[15550000,500],[17050000,600],[19500000,700],[22700000,800],[26600000,900],[28100000,1000],[30100000,1100],[32600000,1200],[35400000,1300],[38900000,1400],[43000000,1500],[47400000,1600],[51200000,1700],[55800000,1800],[60400000,1900],[66700000,2000],[74500000,2100],[83200000,2200],[95600000,2300],[110000000,2400],[134000000,2500],[169000000,2600],[221000000,2700],[390000000,2800],[463000000,2900],[561000000,3000],[709000000,3100],[965000000,3200],[1419000000,3300],[null,3400]];
+var TER_TABLES={A:TER_A,B:TER_B,C:TER_C};
+
+function terCategory(marital,dep){if(marital==="TK")return dep<=1?"A":"B";return dep===0?"A":dep<=2?"B":"C";}
+function terRateBps(cat,monthlyGross){var t=TER_TABLES[cat];for(var i=0;i<t.length;i++){if(t[i][0]===null||monthlyGross<=t[i][0])return t[i][1];}return t[t.length-1][1];}
+
+/* UMKM final 0,5% — PP 55/2022, exemption dihapus batas waktu per PP 20/2026 (22 Apr 2026) */
+var UMKM={rate:0.005,exemption:500000000,ceiling:4800000000,timeLimitYears:7,limitRemovedFrom:2026};
+function umkmYear(monthlyOmzet,firstRegisteredYear,taxYear){
+  var eligible=true;
+  if(taxYear<UMKM.limitRemovedFrom&&firstRegisteredYear&&taxYear>=firstRegisteredYear+UMKM.timeLimitYears)eligible=false;
+  var cumulative=0,totalTax=0,exceeds=false,months=[];
+  monthlyOmzet.forEach(function(omzet,i){var before=cumulative;cumulative+=omzet;if(cumulative>UMKM.ceiling)exceeds=true;
+    var taxable=0,tax=0;
+    if(eligible){taxable=cumulative<=UMKM.exemption?0:(before>=UMKM.exemption?omzet:cumulative-UMKM.exemption);tax=taxable*UMKM.rate;totalTax+=tax;}
+    months.push({month:i+1,omzet:omzet,cumulative:cumulative,taxable:taxable,tax:tax});});
+  return {months:months,totalOmzet:cumulative,totalTax:totalTax,exceedsCeiling:exceeds,eligible:eligible};
+}
+
+/* Final rates (PMK 50/2025, PP 131/2000, UU HPP Ps.4(3), PP 91/2021, PP 34/2017) */
+var FINAL={
+ bunga_deposito:{label:"Bunga deposito",rate:0.20,minPrincipal:7500000},
+ bunga_tabungan:{label:"Bunga tabungan",rate:0.20,minPrincipal:7500000},
+ dividen:{label:"Dividen",rateNotReinvested:0.10,rateReinvested:0,reinvest:true},
+ saham_idx:{label:"Penjualan saham di bursa (IDX)",rate:0.001},
+ kupon_sbn:{label:"Kupon SBN",rate:0.10},
+ reksa_dana:{label:"Reksa dana (redemption)",rate:0},
+ p2p:{label:"Bunga P2P lending",rate:null,userRate:true},
+ kripto_domestik:{label:"Kripto (exchange domestik)",rate:0.0021},
+ kripto_luar:{label:"Kripto (exchange luar negeri)",rate:0.01},
+ emas:{label:"Emas / logam mulia",rate:null,userRate:true},
+ sewa:{label:"Sewa properti",rate:0.10}
+};
+
+/* ---------- state / stores ---------- */
+WM.store.ensure("taxRecords",[]);
+WM.store.ensure("taxDocuments",{});
+
+function radioVal(root,name){var b=root.querySelector('[data-radio="'+name+'"] [aria-checked="true"]');return b?b.dataset.v:null;}
+function setRadio(root,name,v){root.querySelectorAll('[data-radio="'+name+'"] [role="radio"]').forEach(function(b){b.setAttribute("aria-checked",b.dataset.v===v);});}
+
+var main=document.querySelector("main");
+var yearSel=document.getElementById("taxYear");
+YEARS.forEach(function(y){yearSel.insertAdjacentHTML("beforeend",'<option value="'+y+'"'+(y===CUR_YEAR?" selected":"")+'>'+y+'</option>');});
+WM.radio(main);
+
+function zakatDeductibleThisYear(year){
+  return (WM.store.get("donations")||[]).filter(function(d){return d.isTaxDeductible&&new Date(d.donatedAt).getFullYear()===year;}).reduce(function(s,d){return s+d.amount;},0);
+}
+
+var zakatTouched=false;
+
+function currentInput(){
+  return {
+    taxYear:+yearSel.value,
+    gross:WM.parseMoney(document.getElementById("gross").value),
+    marital:radioVal(main,"marital")||"TK",
+    dependents:+(radioVal(main,"dependents")||0),
+    pension:WM.parseMoney(document.getElementById("pension").value),
+    otherNet:WM.parseMoney(document.getElementById("otherNet").value),
+    freelanceGross:WM.parseMoney(document.getElementById("freelance").value),
+    nppnPct:parseFloat((document.getElementById("nppn").value||"0").replace(",","."))||0,
+    zakat:WM.parseMoney(document.getElementById("zakat").value)
+  };
+}
+
+function recalcPph(){
+  var inp=currentInput();
+  document.getElementById("jabatan").value=WM.rp(biayaJabatan(inp.gross));
+  var r=computePphOp(inp);
+  document.getElementById("pphTax").textContent=WM.rp(r.tax);
+  var effRate=inp.gross+inp.freelanceGross>0?(r.tax/(inp.gross+inp.freelanceGross)*100).toFixed(1).replace(".",","):"0";
+  document.getElementById("pphSub").innerHTML="PKP <b>"+WM.rp(r.pkp)+"</b> · tarif efektif <b>"+effRate+"%</b> · PTKP <b>"+WM.rp(r.ptkp)+"</b>";
+  document.getElementById("bracketBody").innerHTML=r.brackets.length?r.brackets.map(function(b){return '<tr><td>'+b.label+'</td><td>'+(b.rate*100).toLocaleString("id-ID")+'%</td><td class="r num">'+WM.rp(b.taxable)+'</td><td class="r num">'+WM.rp(b.tax)+'</td></tr>';}).join(""):'<tr><td colspan="4" class="cap" style="text-align:center">Belum ada PKP kena pajak</td></tr>';
+  document.getElementById("heroVal").innerHTML='<span class="cur">Rp</span>'+r.tax.toLocaleString("id-ID");
+  document.getElementById("heroYear").textContent="Perkiraan pajak tahun "+inp.taxYear;
+  document.getElementById("heroSub").textContent="Perkiraan — cek aturan terbaru DJP untuk angka final";
+  window._pph=r;window._pphInput=inp;
+  var chart=document.getElementById("chart");
+  if(r.brackets.length){chart.innerHTML="";WM.chart.bars(chart,{labels:r.brackets.map(function(b){return b.label.split(" ")[0];}),series:[{d:r.brackets.map(function(b){return b.tax;}),c:"var(--lime)"}],fmt:WM.rp,wide:true});}
+  else chart.innerHTML='<div class="empty"><b>Belum ada PKP</b><p>Isi penghasilan bruto untuk melihat rincian lapisan pajak.</p></div>';
+  recalcTer(inp);
+}
+
+function recalcTer(inp){
+  var cat=terCategory(inp.marital,inp.dependents);
+  document.getElementById("terCat").innerHTML="Kategori TER <b>"+cat+"</b> untuk status "+inp.marital+(inp.dependents?"/"+inp.dependents:"")+
+   " · gunakan gaji bruto bulanan (default = bruto setahun ÷ 12)";
+  var monthly=inp.gross/12,withheldJanNov=0,rows=[];
+  for(var m=1;m<=11;m++){
+    var bps=terRateBps(cat,monthly),wh=Math.round(monthly*bps/10000);withheldJanNov+=wh;
+    rows.push({m:m,gross:monthly,rate:(bps/100).toLocaleString("id-ID")+"%",wh:wh});
+  }
+  var dec=window._pph.tax-withheldJanNov;
+  rows.push({m:12,gross:monthly,rate:"Koreksi",wh:dec});
+  var MON=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+  document.getElementById("terBody").innerHTML=rows.map(function(r){return '<tr><td>'+MON[r.m-1]+'</td><td class="r num">'+WM.rp(r.gross)+'</td><td>'+r.rate+'</td><td class="r num'+(r.wh<0?" neg":"")+'">'+WM.rp(r.wh,r.m===12)+'</td></tr>';}).join("");
+}
+
+document.getElementById("gross").addEventListener("input",function(e){e.target.value=e.target.value===""?"":WM.parseMoney(e.target.value).toLocaleString("id-ID");recalcPph();});
+["pension","otherNet","freelance"].forEach(function(id){document.getElementById(id).addEventListener("input",function(e){e.target.value=e.target.value===""?"":WM.parseMoney(e.target.value).toLocaleString("id-ID");recalcPph();});});
+document.getElementById("nppn").addEventListener("input",recalcPph);
+document.getElementById("zakat").addEventListener("input",function(){zakatTouched=true;var v=document.getElementById("zakat");v.value=v.value===""?"":WM.parseMoney(v.value).toLocaleString("id-ID");recalcPph();});
+main.querySelector('[data-radio="marital"]').addEventListener("change",recalcPph);
+main.querySelector('[data-radio="dependents"]').addEventListener("change",recalcPph);
+yearSel.addEventListener("change",function(){zakatTouched=false;autofillZakat();drawStatus();drawHistory();drawUmkm();recalcPph();});
+
+function autofillZakat(){
+  if(zakatTouched)return;
+  var total=zakatDeductibleThisYear(+yearSel.value);
+  document.getElementById("zakat").value=total>0?total.toLocaleString("id-ID"):"";
+}
+
+function drawStatus(){
+  var recs=WM.store.get("taxRecords")||[];
+  var year=+yearSel.value;
+  var cur=recs.filter(function(r){return r.taxYear===year;})[0];
+  var prev=recs.filter(function(r){return r.taxYear===year-1;})[0];
+  document.getElementById("prevYearLbl").textContent="Status SPT "+(year-1);
+  document.getElementById("curYearLbl").textContent="Status SPT "+year;
+  var LBL={belum_lapor:"Belum lapor",sudah_lapor:"Sudah lapor",terlambat:"Terlambat"};
+  var prevTxt=prev?LBL[prev.sptStatus]:"Belum ada data",curTxt=cur?LBL[cur.sptStatus]:"Belum lapor";
+  document.getElementById("prevStatus").textContent=prevTxt;
+  document.getElementById("curStatus").textContent=curTxt;
+  document.getElementById("prevStatusB").textContent=prevTxt;
+  document.getElementById("curStatusB").textContent=curTxt;
+  document.getElementById("prevMark").hidden=!(prev&&prev.sptStatus==="belum_lapor");
+  document.getElementById("curMark").hidden=!(cur&&cur.sptStatus==="belum_lapor");
+  document.getElementById("prevMark").onclick=function(){WM.store.update("taxRecords",prev.id,{sptStatus:"sudah_lapor"});WM.toast("Ditandai sudah lapor");};
+  document.getElementById("curMark").onclick=function(){if(cur)WM.store.update("taxRecords",cur.id,{sptStatus:"sudah_lapor"});WM.toast("Ditandai sudah lapor");};
+  document.getElementById("dedAmt").textContent=WM.short(cur?cur.zakatDeduction:zakatDeductibleThisYear(year));
+}
+
+document.getElementById("saveTax").addEventListener("click",function(){
+  var inp=window._pphInput,r=window._pph;
+  var html='<div class="tw"><table class="tx-tbl">'+
+   '<tr><td>Penghasilan bruto</td><td class="r num">'+WM.rp(inp.gross)+'</td></tr>'+
+   '<tr><td>PTKP</td><td class="r num">'+WM.rp(r.ptkp)+'</td></tr>'+
+   '<tr><td>Pengurang zakat/persepuluhan</td><td class="r num">'+WM.rp(r.zakatApplied)+'</td></tr>'+
+   '<tr><td><b>Perkiraan pajak</b></td><td class="r num" style="font-weight:800;color:var(--good)">'+WM.rp(r.tax)+'</td></tr>'+
+   '</table></div><div class="note" style="margin-top:10px">'+WM.icon("shield",16)+'<span>Angka disimpan sebagai catatan pribadi, bukan laporan resmi ke DJP.</span></div>';
+  WM.modal({title:"Simpan ke catatan pajak "+inp.taxYear,body:html,submit:"Simpan",
+   onSubmit:function(){
+     var recs=WM.store.get("taxRecords")||[],existing=recs.filter(function(x){return x.taxYear===inp.taxYear;})[0];
+     var rec={taxYear:inp.taxYear,grossIncome:inp.gross,maritalStatus:inp.marital,dependents:inp.dependents,pensionContribution:inp.pension,zakatDeduction:r.zakatApplied,netTax:r.tax,sptStatus:existing?existing.sptStatus:"belum_lapor"};
+     if(existing)WM.store.update("taxRecords",existing.id,rec);else WM.store.add("taxRecords",rec);
+     WM.toast("Tersimpan ke catatan pajak "+inp.taxYear);
+   }});
+});
+document.getElementById("resetTax").addEventListener("click",function(){
+  ["gross","pension","otherNet","freelance","nppn"].forEach(function(id){document.getElementById(id).value="";});
+  setRadio(main,"marital","TK");setRadio(main,"dependents","0");zakatTouched=false;autofillZakat();recalcPph();WM.toast("Kalkulator direset");
+});
+
+/* ---------- UMKM ---------- */
+var umkmOmzet=new Array(12).fill(0);
+function drawUmkm(){
+  var body=document.getElementById("umkmBody"),MON=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+  body.innerHTML=MON.map(function(l,i){return '<tr><td>'+l+'</td><td class="r"><input data-um="'+i+'" inputmode="numeric" style="width:120px;text-align:right;border:1.5px solid var(--line);border-radius:8px;padding:6px 8px;font:inherit;background:var(--card);color:inherit" value="'+(umkmOmzet[i]?umkmOmzet[i].toLocaleString("id-ID"):"")+'" placeholder="0"></td><td class="r num" data-umc="'+i+'">Rp 0</td><td class="r num" data-umt="'+i+'">Rp 0</td><td class="r num" data-umx="'+i+'">Rp 0</td></tr>';}).join("");
+  body.querySelectorAll("[data-um]").forEach(function(inp){inp.addEventListener("input",function(){
+    var i=+inp.dataset.um;umkmOmzet[i]=WM.parseMoney(inp.value);inp.value=umkmOmzet[i]?umkmOmzet[i].toLocaleString("id-ID"):"";recalcUmkm();});});
+  recalcUmkm();
+}
+function recalcUmkm(){
+  var firstYear=parseInt(document.getElementById("umkmFirstYear").value,10)||null;
+  var r=umkmYear(umkmOmzet,firstYear,+yearSel.value);
+  r.months.forEach(function(mo,i){
+    var c=document.querySelector('[data-umc="'+i+'"]'),t=document.querySelector('[data-umt="'+i+'"]'),x=document.querySelector('[data-umx="'+i+'"]');
+    if(c)c.textContent=WM.rp(mo.cumulative);if(t)t.textContent=WM.rp(mo.taxable);if(x)x.textContent=WM.rp(mo.tax);
+  });
+  document.getElementById("umkmTax").textContent=WM.rp(r.totalTax);
+  document.getElementById("umkmNote").textContent=!r.eligible?"Sudah melewati batas 7 tahun sejak "+firstYear+" — tidak lagi memenuhi syarat PPh final 0,5% individu.":r.exceedsCeiling?"Omzet setahun melebihi Rp 4,8 miliar, tidak lagi memenuhi syarat PPh final.":"Bebas pajak sampai Rp 500 juta/tahun, sisanya dikenakan 0,5%.";
+}
+document.getElementById("umkmFirstYear").addEventListener("input",recalcUmkm);
+
+/* ---------- final tax ---------- */
+var finSel=document.getElementById("finInstr");
+Object.keys(FINAL).forEach(function(k){finSel.insertAdjacentHTML("beforeend",'<option value="'+k+'">'+FINAL[k].label+'</option>');});
+function syncFinalFields(){
+  var k=finSel.value,f=FINAL[k];
+  document.getElementById("finPrincipalWrap").hidden=!f.minPrincipal;
+  document.getElementById("finRateWrap").hidden=!f.userRate;
+  document.getElementById("finReinvestWrap").hidden=!f.reinvest;
+  recalcFinal();
+}
+function recalcFinal(){
+  var k=finSel.value,f=FINAL[k],amount=WM.parseMoney(document.getElementById("finAmount").value);
+  var rate=null,note="";
+  if(f.reinvest){rate=document.getElementById("finReinvest").checked?f.rateReinvested:f.rateNotReinvested;}
+  else if(f.userRate){var v=parseFloat((document.getElementById("finRate").value||"").replace(",","."));rate=isNaN(v)?null:v/100;}
+  else rate=f.rate;
+  var principal=WM.parseMoney(document.getElementById("finPrincipal").value);
+  var belowThreshold=f.minPrincipal&&principal>0&&principal<=f.minPrincipal;
+  var tax=rate===null?null:belowThreshold?0:amount*rate;
+  if(rate===null)note="Masukkan tarif untuk jenis penghasilan ini — belum ada tarif baku yang tercatat.";
+  else if(belowThreshold)note="Pokok simpanan di bawah Rp "+f.minPrincipal.toLocaleString("id-ID")+", bunga bebas pajak.";
+  else note="Tarif final "+((rate)*100).toLocaleString("id-ID",{maximumFractionDigits:3})+"%.";
+  document.getElementById("finTax").textContent=tax===null?"—":WM.rp(tax);
+  document.getElementById("finNote").textContent=note;
+}
+finSel.addEventListener("change",syncFinalFields);
+["finAmount","finPrincipal","finRate"].forEach(function(id){document.getElementById(id).addEventListener("input",function(e){if(id!=="finRate"){e.target.value=e.target.value===""?"":WM.parseMoney(e.target.value).toLocaleString("id-ID");}recalcFinal();});});
+document.getElementById("finReinvest").addEventListener("change",recalcFinal);
+syncFinalFields();
+
+/* ---------- documents (simulated) ---------- */
+function docsForYear(){var all=WM.store.get("taxDocuments")||{};return all[yearSel.value]||[];}
+function drawDocs(){
+  var list=docsForYear(),wrap=document.getElementById("docList");
+  wrap.innerHTML=list.length?list.map(function(d){return '<div class="tx-doc" data-id="'+d.id+'">'+WM.icon("file",16)+'<span style="flex:1;min-width:0">'+WM.esc(d.name)+' <span class="cap">· '+Math.max(1,Math.ceil(d.size/1024))+' KB · '+WM.date(d.uploadedAt)+'</span></span><button class="ibtn danger" type="button" data-docdel title="Hapus">'+WM.icon("trash",14)+'</button></div>';}).join(""):'<div class="empty"><span class="ic">'+WM.icon("file",22)+'</span><b>Belum ada dokumen</b><p>Unggah bukti potong, NPWP, atau dokumen pendukung lain.</p></div>';
+}
+document.getElementById("docUpload").addEventListener("change",function(e){
+  var f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+  var all=WM.store.get("taxDocuments")||{},y=yearSel.value;all[y]=all[y]||[];
+  all[y].unshift({id:WM.uid("doc"),name:f.name,size:f.size,uploadedAt:WM.today});
+  WM.store.set("taxDocuments",all);WM.toast("Dokumen tersimpan (simulasi)");
+});
+document.getElementById("docList").addEventListener("click",function(e){
+  if(!e.target.closest("[data-docdel]"))return;var id=e.target.closest("[data-id]").dataset.id;
+  var all=WM.store.get("taxDocuments")||{},y=yearSel.value;all[y]=(all[y]||[]).filter(function(d){return d.id!==id;});
+  WM.store.set("taxDocuments",all);WM.toast("Dokumen dihapus");
+});
+
+/* ---------- history ---------- */
+function drawHistory(){
+  var recs=(WM.store.get("taxRecords")||[]).slice().sort(function(a,b){return b.taxYear-a.taxYear;});
+  var wrap=document.getElementById("histList");
+  var LBL={belum_lapor:["Belum lapor","warn"],sudah_lapor:["Sudah lapor","good"],terlambat:["Terlambat","bad"]};
+  wrap.innerHTML=recs.length?recs.map(function(r){var l=LBL[r.sptStatus]||LBL.belum_lapor;
+    return '<div class="tx-hrow" data-id="'+r.id+'"><span class="dn-ic" style="width:34px;height:34px;border-radius:9px;background:var(--card-2);display:grid;place-items:center">'+WM.icon("file",16)+'</span>'+
+     '<span style="flex:1;min-width:0"><b style="display:block">Tahun pajak '+r.taxYear+'</b><small class="cap">Bruto '+WM.rp(r.grossIncome)+' · Zakat '+WM.rp(r.zakatDeduction)+'</small></span>'+
+     '<span style="text-align:right"><span class="pill '+l[1]+'">'+l[0]+'</span>'+(r.sptStatus==="belum_lapor"?'<button class="btn ghost sm" type="button" data-mark style="display:block;margin-top:4px">Tandai lapor</button>':'')+'</span></div>';}).join(""):'<div class="empty"><span class="ic">'+WM.icon("file",22)+'</span><b>Belum ada catatan pajak</b><p>Simpan hasil kalkulator PPh 21 untuk mulai mencatat riwayat.</p></div>';
+}
+document.getElementById("histList").addEventListener("click",function(e){
+  if(!e.target.closest("[data-mark]"))return;var id=e.target.closest("[data-id]").dataset.id;
+  WM.store.update("taxRecords",id,{sptStatus:"sudah_lapor"});WM.toast("Ditandai sudah lapor");
+});
+
+document.getElementById("dlCsv").addEventListener("click",function(){
+  var recs=WM.store.get("taxRecords")||[];
+  var rows=[["Tahun","Bruto","Zakat/Persepuluhan","Perkiraan Pajak","Status SPT"]].concat(recs.map(function(r){return [r.taxYear,r.grossIncome,r.zakatDeduction,r.netTax,r.sptStatus];}));
+  WM.download("ringkasan-pajak.csv",WM.csv(rows),"text/csv;charset=utf-8");WM.toast("Ringkasan diunduh");
+});
+
+function drawAll(){drawStatus();drawHistory();drawDocs();drawUmkm();}
+autofillZakat();recalcPph();drawAll();
+WM.onChange(["taxRecords","taxDocuments","donations"],function(){drawAll();});
+})();
+</script>

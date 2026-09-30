@@ -1,0 +1,241 @@
+<title>Warisan · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .w-hero{grid-column:1/9;grid-row:1}.w-ben{grid-column:9/13;grid-row:1}
+  .w-list{grid-column:1/9;grid-row:2}.w-tips{grid-column:9/13;grid-row:2}
+}
+.wr-row{border:1.5px solid var(--line);border-radius:16px;padding:12px 14px}
+.wr-row+.wr-row{margin-top:10px}
+.wr-top{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px}
+.wr-ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:none;background:var(--card-2)}
+.wr-meta{min-width:160px;flex:1}
+.wr-meta .nm{font-weight:600;font-size:13px}
+.wr-meta .sub{color:var(--muted);font-size:12px;margin-top:2px}
+.wr-val{text-align:right;flex:none}
+.wr-val b{font-size:16px;font-weight:700}
+.wr-val small{display:block;color:var(--muted);font-size:11px}
+.wr-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px}
+.wr-foot{display:flex;align-items:center;gap:6px;margin-left:auto}
+.wr-alloc{margin-top:9px}
+.wr-alloc .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+.wr-bene{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.wr-bene:first-child{border-top:0}
+.wr-bene .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;flex:none}
+.heir-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.heir-tbl th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;padding:0 6px 6px 0}
+.heir-tbl td{padding:5px 6px 5px 0;vertical-align:top}
+.heir-tbl input{width:100%;min-height:38px;border:1.5px solid var(--line);border-radius:9px;padding:0 9px;background:var(--card);font:inherit;color:inherit}
+.heir-tbl input:focus-visible{outline:2px solid var(--lime);outline-offset:1px}
+.heir-rm{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--bad);display:grid;place-items:center;flex:none}
+.seg-pick{display:flex;background:var(--card-2);border-radius:12px;padding:3px;gap:2px}
+.seg-pick button{flex:1;border:0;background:transparent;border-radius:9px;min-height:38px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg-pick button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.tips{align-content:center}
+</style>
+<main data-page="warisan">
+<section class="bento" aria-label="Warisan">
+  <article class="card hero dark w-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="heroVal"></p><div class="cap">Total nilai warisan tercatat</div></div>
+        <div class="hero-ctrl"><div class="ctrl-row"><button class="ghost-btn lit" type="button" id="add">+ Aset</button></div></div>
+      </div>
+      <div class="chart-wrap" id="donut"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Aset tercatat</small><div class="v" id="kAssets"></div></div>
+      <div class="kpi"><small>Ahli waris</small><div class="v" id="kHeirs"></div></div>
+      <div class="kpi"><small>Teralokasi</small><div class="v" id="kAlloc"></div></div>
+    </div>
+  </article>
+
+  <article class="card w-ben">
+    <div class="head"><div><h2>Ahli waris</h2><div class="cap">Perkiraan bagian per orang</div></div></div>
+    <ul class="mini-list" id="beneList"></ul>
+  </article>
+
+  <article class="card w-list">
+    <div class="head"><div><h2>Daftar aset</h2><div class="cap">Ketuk untuk ubah, sembunyikan dari ahli waris dengan sakelar</div></div></div>
+    <div id="rows" style="margin-top:8px"></div>
+  </article>
+
+  <article class="card tips w-tips">
+    <div><h2 id="tipT"></h2><p id="tipP"></p></div>
+    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"warisan",title:"Warisan"});
+(function(){ if(!WM.allowed) return;
+var esc=WM.esc;
+var ASSET_TYPES=["Properti","Kas & Tabungan","Obligasi/SBN","Saham","Emas","Lainnya"];
+var TYPE_ICON={"Properti":"building","Kas & Tabungan":"wallet","Obligasi/SBN":"scroll","Saham":"trend","Emas":"gold","Lainnya":"more"};
+var DONUT_COLORS=["var(--lime)","#7C6BD1","#3F8F2F","#4AA3C9","#F2A247","#C2462B"];
+var HEIR_CHIP=["good","",""];
+
+WM.store.ensure("warisan",[
+ {id:"iw1",name:"Rumah Bintaro",assetType:"Properti",estimatedValue:850000000,notes:"SHM atas nama Christian",visible:true,linkedAssetId:"s1",
+  heirs:[{id:"h1",name:"Vallencya Rizaldi",relationship:"Istri",sharePercent:50},{id:"h2",name:"Hima Rizaldi",relationship:"Anak",sharePercent:25},{id:"h3",name:"Arka Rizaldi",relationship:"Anak",sharePercent:25}]},
+ {id:"iw2",name:"Toyota Innova 2022",assetType:"Lainnya",estimatedValue:210000000,notes:"",visible:true,linkedAssetId:"s2",
+  heirs:[{id:"h4",name:"Vallencya Rizaldi",relationship:"Istri",sharePercent:100}]},
+ {id:"iw3",name:"Tabungan pendidikan Jago",assetType:"Kas & Tabungan",estimatedValue:18500000,notes:"Disisihkan untuk pendidikan anak",visible:false,linkedAssetId:null,heirs:[]}
+]);
+
+function items(){return WM.store.get("warisan")||[];}
+function initials(n){return (n||"").split(" ").slice(0,2).map(function(w){return (w[0]||"").toUpperCase();}).join("");}
+function heirChip(h,i){var v=HEIR_CHIP[i%HEIR_CHIP.length];return '<span class="pill'+(v?" "+v:"")+'">'+esc(h.name)+' ('+esc(h.relationship)+', '+h.sharePercent+'%)</span>';}
+
+function row(it){
+  var allocated=it.heirs.reduce(function(s,h){return s+(+h.sharePercent||0);},0);
+  var clamped=Math.min(100,allocated),unalloc=Math.max(0,100-allocated),full=allocated>=100;
+  var color=full?"var(--good)":allocated>0?"var(--orange)":"var(--muted)";
+  var linked=it.linkedAssetId?WM.store.find("assets",it.linkedAssetId):null;
+  var meta=[it.notes,linked?'terhubung ke "'+esc(linked.name)+'"':null].filter(Boolean).join(" · ");
+  return '<div class="wr-row" data-id="'+it.id+'">'+
+   '<div class="wr-top"><span class="wr-ic">'+WM.icon(TYPE_ICON[it.assetType]||"more",16)+'</span>'+
+   '<div class="wr-meta"><div class="nm">'+esc(it.name)+' <span class="pill">'+esc(it.assetType)+'</span></div>'+(meta?'<div class="sub">'+meta+'</div>':'')+'</div>'+
+   '<div class="wr-val"><b class="num">'+WM.rp(it.estimatedValue)+'</b><small>Perkiraan</small></div></div>'+
+   '<div class="wr-chips">'+it.heirs.map(heirChip).join("")+
+   '<span class="wr-foot"><label class="switch" style="min-height:auto;gap:6px"><span class="sr">Terlihat untuk ahli waris</span><input type="checkbox" data-vis'+(it.visible?" checked":"")+'></label>'+
+   '<button class="ibtn" type="button" data-edit title="Ubah">'+WM.icon("edit",15)+'</button>'+
+   '<button class="ibtn danger" type="button" data-del title="Hapus">'+WM.icon("trash",15)+'</button></span></div>'+
+   (it.heirs.length?'<div class="wr-alloc"><div class="lbl"><span>Alokasi ahli waris</span><span>'+(full?"Penuh":unalloc+"% belum dialokasikan")+'</span></div><div class="track"><i style="width:'+clamped+'%;background:'+color+'"></i></div></div>':'')+
+   '</div>';
+}
+
+function draw(){
+  var list=items();
+  var total=list.reduce(function(s,i){return s+i.estimatedValue;},0);
+  var heirNames=Array.from(new Set(list.flatMap(function(i){return i.heirs.map(function(h){return h.name;});})));
+
+  var totals={},rel={},unalloc=0,allocPctSum=0,allocWeight=0;
+  list.forEach(function(it){var val=it.estimatedValue,pct=0;
+    it.heirs.forEach(function(h){var p=+h.sharePercent||0;pct+=p;totals[h.name]=(totals[h.name]||0)+val*p/100;rel[h.name]=rel[h.name]||h.relationship;});
+    unalloc+=val*Math.max(0,100-pct)/100;
+    if(val>0){allocPctSum+=Math.min(100,pct)*val;allocWeight+=val;}
+  });
+  var names=Object.keys(totals).filter(function(n){return totals[n]>0;});
+  var allocPct=allocWeight?Math.round(allocPctSum/allocWeight):0;
+
+  document.getElementById("heroVal").innerHTML='<span class="cur">Rp</span>'+total.toLocaleString("id-ID");
+  document.getElementById("kAssets").textContent=list.length;
+  document.getElementById("kHeirs").textContent=heirNames.length;
+  document.getElementById("kAlloc").textContent=allocPct+"%";
+
+  var box=document.getElementById("donut");
+  if(names.length||unalloc>0){
+    var donutItems=names.map(function(n,i){return [n,totals[n],DONUT_COLORS[i%DONUT_COLORS.length]];});
+    if(unalloc>0)donutItems.push(["Belum dialokasikan",unalloc,"var(--ghost)"]);
+    box.innerHTML="";WM.chart.donut(box,{items:donutItems,center:WM.short(total),sub:"total"});
+  }else{
+    box.innerHTML='<div class="empty"><b>Belum ada aset</b><p>Tambah aset untuk mulai mencatat warisan.</p></div>';
+  }
+
+  document.getElementById("beneList").innerHTML=names.length?names.slice(0,5).map(function(n,i){
+    return '<li><span class="ic" style="background:'+DONUT_COLORS[i%DONUT_COLORS.length]+';color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700">'+initials(n)+'</span><div><b>'+esc(n)+'</b><small>'+esc(rel[n]||"")+'</small></div><span class="amt num">'+WM.short(totals[n])+'</span></li>';
+  }).join("")+(unalloc>0?'<li><span class="ic" style="background:var(--card-2);display:grid;place-items:center">'+WM.icon("more",15)+'</span><div><b>Belum dialokasikan</b></div><span class="amt num" style="color:var(--orange)">'+WM.short(unalloc)+'</span></li>':""):'<li style="border:0"><small>Belum ada ahli waris.</small></li>';
+
+  var rowsBox=document.getElementById("rows");
+  if(!list.length){rowsBox.innerHTML='<div class="empty"><span class="ic">'+WM.icon("scroll",24)+'</span><b>Belum ada aset warisan</b><p>Tambahkan properti, tabungan, atau aset lain yang ingin kamu wariskan.</p></div>';}
+  else rowsBox.innerHTML=list.map(row).join("");
+
+  var t=document.getElementById("tipT"),p=document.getElementById("tipP");
+  if(!list.length){t.textContent="Mulai catat warisanmu";p.textContent="Tambah aset pertama untuk melihat alokasi ahli waris.";}
+  else if(allocPct>=100){t.textContent="Semua aset teralokasi";p.textContent="Setiap aset sudah punya pembagian ahli waris yang jelas.";}
+  else{t.textContent=(100-allocPct)+"% nilai belum dialokasikan";p.textContent="Lengkapi bagian ahli waris supaya pembagiannya jelas.";}
+  var n=Math.round(allocPct/100*18);document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
+}
+draw();
+WM.onChange(["warisan","assets"],draw);
+
+document.getElementById("rows").addEventListener("click",function(e){
+  var wrap=e.target.closest("[data-id]");if(!wrap)return;var id=wrap.dataset.id;
+  if(e.target.closest("[data-edit]"))openForm(WM.store.find("warisan",id));
+  else if(e.target.closest("[data-del]"))del(id);
+});
+document.getElementById("rows").addEventListener("change",function(e){
+  if(e.target.matches("[data-vis]")){var id=e.target.closest("[data-id]").dataset.id;WM.store.update("warisan",id,{visible:e.target.checked});WM.toast(e.target.checked?"Terlihat untuk ahli waris":"Disembunyikan dari ahli waris");}
+});
+
+function del(id){var it=WM.store.find("warisan",id),idx=items().findIndex(function(x){return x.id===id;});
+  WM.store.remove("warisan",id);
+  WM.toast("Aset warisan dihapus",{undo:function(){var a=WM.store.get("warisan");a.splice(idx,0,it);WM.store.set("warisan",a);}});}
+
+var hRowSeq=0;
+function heirRow(h){h=h||{id:"nh"+(++hRowSeq),name:"",relationship:"",sharePercent:""};
+  return '<tr data-hid="'+h.id+'"><td><input type="text" data-hname value="'+esc(h.name)+'" placeholder="Nama ahli waris"></td>'+
+   '<td><input type="text" data-hrel value="'+esc(h.relationship)+'" placeholder="Istri, Anak, dll"></td>'+
+   '<td style="width:90px"><input type="text" inputmode="decimal" data-hpct value="'+esc(h.sharePercent)+'" placeholder="0"></td>'+
+   '<td style="width:40px"><button type="button" class="heir-rm" data-hrm aria-label="Hapus ahli waris">'+WM.icon("x",14,2)+'</button></td></tr>';}
+
+function heirEditorHtml(heirs){
+  return '<div class="field"><label>Ahli waris <span class="opt">(opsional)</span></label>'+
+   '<p class="cap" id="heirEmpty"'+(heirs.length?' hidden':'')+'>Belum ada ahli waris ditambahkan.</p>'+
+   '<div class="tw" id="heirTblWrap"'+(heirs.length?'':' hidden')+'><table class="heir-tbl"><thead><tr><th>Nama</th><th>Hubungan</th><th>Bagian (%)</th><th></th></tr></thead><tbody id="heirBody">'+heirs.map(heirRow).join("")+'</tbody></table></div>'+
+   '<button type="button" class="btn ghost sm block" id="heirAdd" style="margin-top:8px;align-self:stretch">'+WM.icon("plus",15)+' Tambah ahli waris</button>'+
+   '<div id="heirAllocWrap" style="margin-top:10px"></div></div>';
+}
+
+function updateHeirAlloc(root){
+  var rows=root.querySelectorAll("#heirBody tr");
+  var total=0;rows.forEach(function(r){total+=parseFloat((r.querySelector("[data-hpct]").value||"0").replace(",","."))||0;});
+  var unalloc=Math.max(0,100-total),full=unalloc<=0;
+  var wrap=root.querySelector("#heirAllocWrap");
+  if(!rows.length){wrap.innerHTML="";return;}
+  wrap.innerHTML='<div class="note"'+(full?"":' class="note warn"')+'>'+WM.icon("pie",16)+'<span>'+(full?"Teralokasi penuh (100%).":Math.min(100,total)+"% teralokasi · "+unalloc+"% belum dialokasikan.")+'</span></div>'+
+   '<div class="track" style="margin-top:8px"><i style="width:'+Math.min(100,total)+'%;background:'+(full?"var(--good)":"var(--orange)")+'"></i></div>';
+}
+
+function openForm(edit){
+  var assets=WM.store.get("assets")||[];
+  var pickMode=edit&&!edit.linkedAssetId?"manual":"asset";
+  var heirs=edit?JSON.parse(JSON.stringify(edit.heirs)):[];
+
+  var pickerField='<div class="field" data-only-asset><label>Aset</label><select id="wrAsset"><option value="">Pilih aset yang sudah tercatat…</option>'+
+    assets.map(function(a){return '<option value="'+a.id+'"'+(edit&&edit.linkedAssetId===a.id?" selected":"")+'>'+esc(a.name)+' ('+WM.rp(a.value)+')</option>';}).join("")+
+    '</select><span class="hint">Nama dan nilai terisi otomatis, bisa kamu ubah.</span></div>';
+
+  var html='<div class="seg-pick" role="tablist" aria-label="Cara menambahkan"><button type="button" role="tab" data-mode="asset" aria-selected="'+(pickMode==="asset")+'">Pilih dari Aset</button><button type="button" role="tab" data-mode="manual" aria-selected="'+(pickMode==="manual")+'">Input manual</button></div>'+
+   pickerField+
+   WM.field({name:"name",label:"Nama",required:true,value:edit?edit.name:""})+
+   '<div class="two">'+WM.field({name:"value",label:"Nilai estimasi",type:"money",required:true,value:edit?edit.estimatedValue:""})+
+   WM.field({name:"assetType",label:"Kategori",type:"select",options:ASSET_TYPES,value:edit?edit.assetType:ASSET_TYPES[0]})+'</div>'+
+   WM.field({name:"notes",label:"Catatan",type:"textarea",optional:true,value:edit?edit.notes:""})+
+   '<label class="switch"><span>Terlihat untuk ahli waris</span><input type="checkbox" id="wrVis"'+(edit?edit.visible:true?" checked":"")+'></label>'+
+   heirEditorHtml(heirs);
+
+  WM.modal({title:edit?"Ubah aset warisan":"Tambah aset warisan",size:"lg",submit:edit?"Simpan perubahan":"Simpan aset",body:html,
+   onOpen:function(dlg,b){
+     function setMode(m){pickMode=m;b.querySelectorAll("[data-mode]").forEach(function(x){x.setAttribute("aria-selected",x.dataset.mode===m);});b.querySelector("[data-only-asset]").hidden=m!=="asset";}
+     b.querySelectorAll("[data-mode]").forEach(function(btn){btn.addEventListener("click",function(){setMode(btn.dataset.mode);});});
+     setMode(pickMode);
+     b.querySelector("#wrAsset").addEventListener("change",function(){var a=WM.store.find("assets",this.value);if(a){b.querySelector('[name="name"]').value=a.name;var mi=b.querySelector('[name="value"]');mi.value=(+a.value).toLocaleString("id-ID");}});
+     if(edit){var ft=dlg.querySelector(".sheet-foot");ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+       ft.querySelector("[data-rm]").onclick=function(){dlg.close();del(edit.id);};}
+     function bindRow(){b.querySelectorAll("#heirBody tr").forEach(function(r){if(r._b)return;r._b=1;
+       r.querySelector("[data-hpct]").addEventListener("input",function(){updateHeirAlloc(b);});
+       r.querySelector("[data-hrm]").addEventListener("click",function(){r.remove();var left=b.querySelectorAll("#heirBody tr").length;b.querySelector("#heirEmpty").hidden=left>0;b.querySelector("#heirTblWrap").hidden=left===0;updateHeirAlloc(b);});});}
+     b.querySelector("#heirAdd").addEventListener("click",function(){b.querySelector("#heirEmpty").hidden=true;b.querySelector("#heirTblWrap").hidden=false;
+       b.querySelector("#heirBody").insertAdjacentHTML("beforeend",heirRow());bindRow();updateHeirAlloc(b);});
+     bindRow();updateHeirAlloc(b);
+   },
+   onSubmit:function(f,v,dlg){
+     var rows=[];dlg.querySelectorAll("#heirBody tr").forEach(function(r){var name=r.querySelector("[data-hname]").value.trim();if(!name)return;
+       rows.push({id:r.dataset.hid,name:name,relationship:r.querySelector("[data-hrel]").value.trim(),sharePercent:parseFloat((r.querySelector("[data-hpct]").value||"0").replace(",","."))||0});});
+     var invalid=rows.filter(function(r){return !r.relationship;});
+     if(invalid.length)return "Isi hubungan untuk setiap ahli waris yang ditambahkan.";
+     var sum=rows.reduce(function(s,r){return s+r.sharePercent;},0);
+     if(sum>100)return "Total bagian ahli waris tidak boleh lebih dari 100%.";
+     var rec={name:v.name,assetType:v.assetType,estimatedValue:v.value,notes:v.notes||"",visible:dlg.querySelector("#wrVis").checked,linkedAssetId:pickMode==="asset"?(dlg.querySelector("#wrAsset").value||null):null,heirs:rows};
+     if(edit){WM.store.update("warisan",edit.id,rec);WM.toast("Perubahan disimpan");}else{WM.store.add("warisan",rec);WM.toast("Aset warisan ditambahkan");}
+   }});
+}
+document.getElementById("add").addEventListener("click",function(){openForm(null);});
+})();
+</script>

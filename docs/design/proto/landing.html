@@ -1,0 +1,152 @@
+<title>Beranda · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+body{padding:0}
+.awrap{min-height:100vh;display:flex;flex-direction:column}
+.acover{background:var(--cover);color:var(--on-cover);padding:22px 20px;position:relative;overflow:hidden;flex:none}
+.acover::before{content:"";position:absolute;inset:auto -70px -140px auto;width:320px;height:320px;border-radius:50%;background:radial-gradient(closest-side,rgba(169,216,76,.18),transparent);pointer-events:none}
+.acover>*{position:relative}
+.abrand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;letter-spacing:-.02em;text-decoration:none;color:inherit}
+.abrand .mark{width:30px;height:30px;border-radius:9px;background:var(--lime);display:grid;place-items:center;color:var(--lime-ink);flex:none}
+.ahl{margin:20px 0 0;font-size:20px;line-height:1.2;letter-spacing:-.03em;font-weight:600;max-width:30ch}
+.ahl em{font-style:normal;color:var(--lime)}
+.afeat{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.afeat li{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--on-cover-2)}
+.afeat svg{flex:none;color:var(--lime);margin-top:1px}
+.anote{margin-top:auto;padding-top:18px;font-size:11px;color:var(--on-cover-2);border-top:1px solid var(--cover-line)}
+.aform{flex:1;display:flex;align-items:flex-start;justify-content:center;padding:26px 16px 40px}
+.acard{width:100%;max-width:400px}
+.aback{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:none;margin-bottom:12px}
+.aback:hover{color:var(--ink)}
+.atitle{margin:2px 0 0;font-size:20px;font-weight:600;letter-spacing:-.02em;text-align:center}
+.asub{margin:4px 0 18px;color:var(--muted);font-size:13px;text-align:center}
+.aseg{display:flex;gap:2px;background:var(--card-2);border-radius:12px;padding:3px;margin-bottom:16px}
+.aseg button{flex:1;border:0;background:transparent;border-radius:9px;padding:0 10px;min-height:38px;font-weight:600;font-size:13px;color:var(--muted)}
+.aseg button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.demo{display:flex;gap:10px;align-items:flex-start;background:var(--lime-soft);border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:14px;color:var(--good)}
+.demo svg{flex:none;margin-top:1px}
+.demo b{display:block;color:var(--ink)}
+.demo code{background:rgba(0,0,0,.08);border-radius:5px;padding:1px 5px;font-family:var(--mono);font-size:12px;color:var(--ink)}
+.quick{display:flex;gap:8px;overflow-x:auto;margin-bottom:14px;scrollbar-width:none;padding-bottom:2px}
+.quick::-webkit-scrollbar{display:none}
+.qm{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--card);border-radius:14px;padding:10px 12px;min-width:76px;font-size:11px;color:var(--muted)}
+.qm:hover{border-color:var(--lime);background:var(--lime-soft)}
+.qm b{color:var(--ink);font-size:12px;font-weight:600}
+.pwrap{position:relative}
+.pwrap input{padding-right:42px!important}
+.peye{position:absolute;right:6px;top:29px;width:32px;height:32px;border-radius:9px;border:0;background:transparent;color:var(--muted);display:grid;place-items:center}
+.peye:hover{background:var(--card-2);color:var(--ink)}
+.pwmeter{display:flex;gap:5px;margin-top:8px}
+.pwmeter i{flex:1;height:5px;border-radius:99px;background:var(--ghost);display:block}
+.pwmeter i.on1{background:var(--bad)}.pwmeter i.on2{background:var(--orange)}.pwmeter i.on3{background:var(--good)}
+.pwmsg{margin-top:5px;font-size:12px;color:var(--muted)}
+.rules{display:flex;flex-direction:column;gap:6px;margin-top:14px}
+.rule{display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+.rule.ok{color:var(--good)}
+.rule i{width:14px;height:14px;border-radius:50%;border:1.5px solid currentColor;display:grid;place-items:center;flex:none}
+.rule.ok i{background:var(--good);border-color:var(--good);color:#fff}
+.afoot{margin-top:16px;text-align:center;font-size:13px;color:var(--muted)}
+.afoot a,.alink{color:var(--good);font-weight:600;text-decoration:underline;text-underline-offset:3px;background:none;border:0;font-size:inherit;cursor:pointer}
+.legallinks{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legallinks a{color:inherit;text-decoration:none}
+.legallinks a:hover{color:var(--ink);text-decoration:underline}
+.divide{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted);font-size:12px}
+.divide::before,.divide::after{content:"";flex:1;height:1px;background:var(--line)}
+.oktick{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:var(--lime-soft);color:var(--good);margin:0 auto 14px}
+.badtick{display:grid;place-items:center;width:56px;height:56px;border-radius:50%;background:color-mix(in srgb,var(--orange) 20%,transparent);color:color-mix(in srgb,var(--orange) 55%,var(--ink));margin:0 auto 14px}
+.warnbox{display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,var(--orange) 14%,var(--card));border-radius:12px;padding:12px 14px;font-size:13px;color:color-mix(in srgb,var(--orange) 65%,var(--ink));margin-bottom:14px}
+.warnbox svg{flex:none;margin-top:1px}
+.identity{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:10px 12px;background:var(--card-2);border-radius:12px}
+.center{text-align:center}
+.emoji64{width:56px;height:56px;border-radius:50%;background:var(--lime-soft);display:grid;place-items:center;font-size:28px;margin:0 auto 14px}
+@media(min-width:960px){
+ .awrap{flex-direction:row;min-height:100vh}
+ .acover{width:42%;min-width:380px;display:flex;flex-direction:column;padding:44px 40px;justify-content:flex-start}
+ .ahl{margin-top:30px;font-size:28px}
+ .aform{width:58%;align-items:center}
+}
+
+body{padding:0}
+.lp{max-width:1160px;margin:0 auto;padding:20px 20px 0}
+.lpnav{display:flex;align-items:center;justify-content:space-between;padding:6px 0 20px}
+.lpnav .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px}
+.lpnav .brand .mark{width:28px;height:28px;border-radius:8px;background:var(--lime);display:grid;place-items:center;color:var(--lime-ink)}
+.lpnav .acts{display:flex;gap:8px}
+.hero{background:var(--cover);color:var(--on-cover);border-radius:26px;padding:52px 28px;position:relative;overflow:hidden;text-align:center}
+.hero::before{content:"";position:absolute;left:50%;top:-120px;transform:translateX(-50%);width:560px;height:340px;border-radius:50%;background:radial-gradient(closest-side,rgba(169,216,76,.22),transparent)}
+.hero>*{position:relative}
+.hero h1{margin:0 auto;max-width:18ch;font-size:clamp(28px,4vw + 1rem,52px);line-height:1.06;letter-spacing:-.04em;font-weight:600}
+.hero h1 em{font-style:normal;color:var(--lime)}
+.hero p{margin:16px auto 0;max-width:46ch;color:var(--on-cover-2);font-size:14px}
+.hero .acts{display:flex;gap:10px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+.hero .acts .btn{min-width:150px}
+.mock{display:flex;gap:12px;justify-content:center;margin-top:38px;flex-wrap:wrap}
+.mockcard{background:var(--cover-2);border:1px solid var(--cover-line);border-radius:16px;padding:14px 16px;text-align:left;min-width:150px}
+.mockcard small{color:var(--on-cover-2);font-size:11px}
+.mockcard b{display:block;font-size:16px;margin-top:3px;font-variant-numeric:tabular-nums}
+.mockcard .chg{margin-top:6px}
+.feat-h{margin:56px 0 18px;text-align:center}
+.feat-h h2{margin:0;font-size:28px;letter-spacing:-.03em;font-weight:600}
+.feat-h p{margin:8px auto 0;max-width:50ch;color:var(--muted);font-size:14px}
+.fcard{display:flex;flex-direction:column;gap:10px}
+.fcard .ic{width:40px;height:40px;border-radius:12px}
+.fcard h3{margin:2px 0 0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.fcard p{margin:0;color:var(--muted);font-size:13px;line-height:1.55}
+.quote{display:flex;flex-direction:column;justify-content:center;gap:12px}
+.quote p{margin:0;font-size:16px;line-height:1.5;font-weight:500}
+.quote .who{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.cta{background:var(--ink);color:var(--card);border-radius:26px;padding:44px 28px;text-align:center;margin:56px 0 0}
+.cta h2{margin:0;font-size:28px;letter-spacing:-.03em}
+.cta p{margin:10px auto 0;max-width:40ch;color:#B9BDAE;font-size:14px}
+.cta .acts{display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap}
+.lpfoot{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between;padding:26px 0 30px;color:var(--muted);font-size:12px}
+.lpfoot .links{display:flex;gap:16px;flex-wrap:wrap}
+.lpfoot a{color:inherit;text-decoration:none}
+.lpfoot a:hover{color:var(--ink)}
+@media(max-width:720px){.hero{padding:38px 18px}.cta{padding:34px 18px}}</style>
+<main data-page="landing">
+<div class="lp">
+  <div class="lpnav">
+    <a class="brand" href="landing.html"><span class="mark" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l4.5 12L12 8l4.5 10L21 6"/></svg></span>WealthMe</a>
+    <div class="acts"><a class="btn ghost" href="login.html">Masuk</a><a class="btn primary" href="register.html">Daftar gratis</a></div>
+  </div>
+
+  <section class="hero enter">
+    <h1>Keuangan <em>satu keluarga</em>, dikelola dari satu tempat.</h1>
+    <p>Transaksi, anggaran, aset, dan utang jalan bareng, dengan akses yang kamu atur sendiri untuk pasangan, anak, dan staf rumah tangga.</p>
+    <div class="acts"><a class="btn primary" href="register.html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg> Mulai gratis</a><a class="btn" href="login.html">Sudah punya akun</a></div>
+    <div class="mock" aria-hidden="true">
+      <div class="mockcard"><small>Kekayaan bersih</small><b>Rp 1,04 M</b><span class="chg up">+2,3%</span></div>
+      <div class="mockcard"><small>Anggaran bulan ini</small><b>78% terpakai</b><span class="pill good">Aman</span></div>
+      <div class="mockcard"><small>Tujuan: Dana darurat</small><b>65% tercapai</b><span class="pill">Jalan terus</span></div>
+    </div>
+  </section>
+
+  <div class="feat-h"><h2>Semua yang keluarga butuh, tanpa spreadsheet</h2><p>Enam hal yang paling sering dipakai keluarga yang sudah pindah dari catatan manual.</p></div>
+  <section class="grid">
+    <div class="card fcard s4 enter"><span class="ic lime" style="display:grid;place-items:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 20c0-2.2 1-4 3-4s3 1.8 3 4"/></svg></span><h3>Satu dompet, seisi keluarga</h3><p>Rekening, kartu, dan e-wallet setiap anggota terlihat di satu tempat, sesuai izin yang kamu atur.</p></div><div class="card fcard s4 enter"><span class="ic " style="display:grid;place-items:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span><h3>Anggaran yang menegur duluan</h3><p>Batas per kategori, dan WealthMe kasih tahu sebelum jebol, bukan sesudah.</p></div><div class="card fcard s4 enter"><span class="ic " style="display:grid;place-items:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></span><h3>Akses bertingkat</h3><p>Anak dan staf punya akses terbatas. Kamu yang tentukan siapa lihat apa.</p></div><div class="card fcard s4 enter"><span class="ic lime" style="display:grid;place-items:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 17l5-5 4 3 7-8M15 7h5v5"/></svg></span><h3>Aset & liabilitas dalam satu peta</h3><p>Properti, investasi, dan cicilan dihitung jadi satu angka kekayaan bersih.</p></div><div class="card fcard s4 enter"><span class="ic " style="display:grid;place-items:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 1112 0v5l2 2H4zM10 20a2 2 0 004 0"/></svg></span><h3>Persetujuan dana searah klik</h3><p>Permintaan dana dari anggota keluarga masuk sebagai notifikasi, tinggal setujui.</p></div><div class="card fcard s4 enter"><span class="ic " style="display:grid;place-items:center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v16M5 8h14M5 8l-3 6a3 3 0 006 0zM19 8l-3 6a3 3 0 006 0z"/></svg></span><h3>Laporan tanpa Excel</h3><p>Arus kas, kategori, dan tren bulanan tersaji otomatis, siap dibaca kapan saja.</p></div>
+  </section>
+
+  <section class="grid" style="margin-top:16px">
+    <div class="cover s7 quote"><span class="pill dark" style="align-self:flex-start">Contoh cerita pengguna</span><p>"Dulu catatan keluarga tersebar di tiga aplikasi. Sekarang saya dan istri lihat angka yang sama, dan anak-anak cuma bisa lihat bagian mereka."</p><div class="who"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="10" r="2.4"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 20c0-2.2 1-4 3-4s3 1.8 3 4"/></svg><span>Ilustrasi pengalaman, bukan testimoni nyata (prototipe).</span></div></div>
+    <div class="card s5" style="display:flex;flex-direction:column;gap:14px;justify-content:center">
+      <div class="row" style="border:0;padding:0"><span class="ic lime"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L4 14h7l-1 7 9-11h-7z"/></svg></span><span><b>Cepat diatur</b><br><small>Tambah rekening pertama setelah daftar, langsung pakai.</small></span></div>
+      <div class="row" style="border:0;padding:0"><span class="ic lime"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2zM4 19V5M8 7h7"/></svg></span><span><b>Bahasa yang dimengerti</b><br><small>Tanpa istilah akuntansi rumit. Kamu tetap paham.</small></span></div>
+    </div>
+  </section>
+
+  <section class="cta enter"><h2>Siap rapikan keuangan keluarga?</h2><p>Daftar dalam satu menit. Tidak ada rekening yang dibuat otomatis, kamu yang tentukan sendiri.</p><div class="acts"><a class="btn primary" href="register.html">Daftar sekarang</a><a class="btn dark" href="login.html">Masuk</a></div></section>
+
+  <div class="lpfoot">
+    <span>© 2026 WealthMe. Prototipe tampilan, bukan produk final.</span>
+    <div class="links"><a href="legal.html?doc=privasi">Kebijakan Privasi</a><a href="legal.html?doc=syarat">Syarat &amp; Ketentuan</a><a href="legal.html?doc=lisensi">Lisensi Open Source</a></div>
+  </div>
+</div>
+</main>
+<script src="wm.js"></script>
+<script>
+/* static marketing page: no store-driven state */
+</script>

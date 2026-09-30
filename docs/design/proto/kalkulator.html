@@ -1,0 +1,261 @@
+<title>Kalkulator · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .k-picker{grid-column:1/13;grid-row:1}
+  .k-form{grid-column:1/9;grid-row:2}
+  .k-hero{grid-column:9/13;grid-row:2}
+}
+.k-tiles{margin-top:12px}
+.k-tiles .btile{min-height:56px;flex-direction:row;align-items:center;gap:10px;padding:0 16px}
+.k-tiles .btile .tt{font-size:13px}
+.k-tiles .btile[aria-pressed="true"]{background:var(--lime);color:var(--lime-ink)}
+.k-tiles .btile[aria-pressed="true"] .ci{background:rgba(0,0,0,.12)}
+.k-hero{min-height:0;display:flex;flex-direction:column;justify-content:center;padding:28px}
+.k-hero .cap{color:var(--on-cover-2,var(--muted))}
+.k-hero .k-block{margin-top:18px}
+.k-hero .k-warn{margin-top:18px}
+.k-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.k-row:last-child{border-bottom:0}
+.k-row b{font-weight:700;font-variant-numeric:tabular-nums}
+.k-block{margin-top:16px}
+.k-warn{display:flex;gap:8px;align-items:flex-start;background:var(--card-2);border-radius:12px;padding:11px 13px;font-size:12px;margin-top:14px}
+.k-warn svg{flex:none;margin-top:1px;color:var(--orange)}
+.k-chart{height:150px;margin-top:4px}
+.k-people{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.k-person{display:flex;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:11px;padding:9px 13px;font-size:13px}
+.k-person b{font-weight:700}
+.k-mini{border-radius:14px;background:var(--card-2);padding:16px;text-align:center;margin-top:14px}
+.k-mini b{display:block;font-size:20px;font-weight:800;margin-top:4px}
+@media (max-width:900px){.k-tiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+<main data-page="kalkulator">
+<section class="bento" aria-label="Kalkulator">
+  <article class="card k-picker">
+    <div class="head"><div><h2>Kalkulator</h2><div class="cap">Pilih yang kamu butuhkan, hasil muncul otomatis</div></div></div>
+    <div class="btiles k-tiles" id="calcTiles" role="tablist" aria-label="Pilih kalkulator"></div>
+  </article>
+
+  <article class="card k-form" id="calcForm"></article>
+
+  <article class="card dark k-hero" id="calcHero"></article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"kalkulator",title:"Kalkulator"});
+(function(){ if(!WM.allowed) return;
+
+var GOLD_PRICE=1100000, NISAB_GRAMS=85;
+var PTKP_DEFAULT=54000000, BJ_RATE=0.05, BJ_CAP=6000000, PKP_UNIT=1000;
+var BRACKETS=[
+ {label:"0 – 60 Juta",upTo:60000000,rate:0.05},
+ {label:"60 – 250 Juta",upTo:250000000,rate:0.15},
+ {label:"250 – 500 Juta",upTo:500000000,rate:0.25},
+ {label:"500 Juta – 5 Miliar",upTo:5000000000,rate:0.30},
+ {label:"> 5 Miliar",upTo:null,rate:0.35}];
+var GROUP_NAMES=["Andi","Budi","Citra","Dani","Eka","Fani","Gilang","Hana","Indra","Joko"];
+
+function n(v){v=String(v==null?"":v).replace(",",".");var x=parseFloat(v);return isNaN(x)?0:x;}
+function row(l,v,cls){return '<div class="k-row"><span>'+l+'</span><b'+(cls?' class="'+cls+'"':'')+'>'+v+'</b></div>';}
+function hero(cur,val,cap){return '<p class="big num"><span class="cur">'+(cur||"")+'</span>'+val+'</p><div class="cap">'+cap+'</div>';}
+
+function computePph21(gross,zakatPaid){
+  var biayaJabatan=Math.min(gross*BJ_RATE,BJ_CAP);
+  var pkpRaw=gross-biayaJabatan-PTKP_DEFAULT-zakatPaid;
+  var pkp=Math.floor(Math.max(0,pkpRaw)/PKP_UNIT)*PKP_UNIT;
+  var remaining=pkp,prev=0,breakdown=[];
+  BRACKETS.forEach(function(b){if(remaining<=0)return;var lim=b.upTo==null?Infinity:b.upTo;var taxable=lim===Infinity?remaining:Math.min(remaining,lim-prev);breakdown.push({label:b.label,rate:b.rate,taxable:taxable,tax:taxable*b.rate});remaining-=taxable;prev=lim;});
+  var totalTax=Math.round(breakdown.reduce(function(s,b){return s+b.tax;},0));
+  return {biayaJabatan:biayaJabatan,ptkp:PTKP_DEFAULT,pkp:pkp,breakdown:breakdown,totalTax:totalTax,effectiveRate:gross>0?totalTax/gross:0};
+}
+function computeRetirement(targetAmount,years,annualRate){
+  var r=annualRate/12,ncnt=years*12,factor=Math.pow(1+r,ncnt);
+  var remaining=Math.max(0,targetAmount);
+  var mc=ncnt<=0?0:(r===0?remaining/ncnt:(remaining*r)/(factor-1));
+  var totalContrib=mc*ncnt,projected=r===0?mc*ncnt:(mc*(factor-1))/r;
+  return {monthlyContribution:mc,totalContributions:totalContrib,projectedValue:projected};
+}
+
+var pphResult=null;
+
+var CALCS=[
+{id:"zakat",label:"Zakat Maal",icon:"heart",
+ form:function(){return '<h2>Zakat Maal</h2><p class="cap">Nisab otomatis dari harga emas 85 gram.</p>'+
+  '<div class="form" style="margin-top:14px">'+
+   '<div class="two">'+WM.field({name:"cash",label:"Uang tunai & tabungan",type:"money",value:50000000})+WM.field({name:"investments",label:"Investasi",type:"money",value:30000000})+'</div>'+
+   '<div class="two">'+WM.field({name:"gold",label:"Emas (Rp)",type:"money",value:0})+WM.field({name:"liabilities",label:"Utang jatuh tempo",type:"money",value:0})+'</div>'+
+   '<label class="check"><input type="checkbox" id="zkHaul"><span>Sudah genap 1 tahun (haul) memiliki harta ini</span></label>'+
+  '</div>';},
+ compute:function(f){
+  var cash=WM.parseMoney(f.querySelector('[name="cash"]').value),inv=WM.parseMoney(f.querySelector('[name="investments"]').value),
+      gold=WM.parseMoney(f.querySelector('[name="gold"]').value),liab=WM.parseMoney(f.querySelector('[name="liabilities"]').value),
+      haul=f.querySelector("#zkHaul").checked;
+  var nisab=NISAB_GRAMS*GOLD_PRICE,zakatable=Math.max(0,cash+inv+gold-liab),meets=zakatable>=nisab,ob=meets&&haul,zakat=meets?zakatable*0.025:0;
+  var label=!meets?"Belum wajib zakat":ob?"Wajib zakat (sudah haul)":"Perkiraan zakat";
+  return hero("Rp",Math.round(zakat).toLocaleString("id-ID"),label)+
+   '<p class="cap" style="margin-top:6px">'+(!meets?"Harta di bawah nisab "+WM.rp(nisab)+".":!ob?"Sudah capai nisab, tapi haul belum dicentang.":"Sudah capai nisab dan genap 1 tahun, zakat 2,5%.")+'</p>'+
+   '<div class="k-block">'+row("Harta kena zakat",WM.rp(zakatable))+row("Nisab (85 gram emas)",WM.rp(nisab))+'</div>';
+ }},
+{id:"pph21",label:"PPh 21",icon:"file",
+ form:function(){return '<div class="head"><div><h2>PPh 21</h2><p class="cap">PTKP TK/0, biaya jabatan 5% (maks Rp 6 juta/tahun).</p></div><button class="link" type="button" id="pphBracketBtn">Rincian tarif</button></div>'+
+  '<div class="form" style="margin-top:14px">'+
+   '<div class="two">'+WM.field({name:"gross",label:"Penghasilan bruto per tahun",type:"money",value:120000000})+WM.field({name:"zakat",label:"Zakat/pajak yang sudah dibayar",type:"money",value:0,optional:true})+'</div>'+
+  '</div>';},
+ compute:function(f){
+  var gross=WM.parseMoney(f.querySelector('[name="gross"]').value),zakatPaid=WM.parseMoney(f.querySelector('[name="zakat"]').value);
+  pphResult=computePph21(gross,zakatPaid);
+  return hero("Rp",Math.round(pphResult.totalTax).toLocaleString("id-ID"),"Estimasi PPh 21 setahun")+
+   '<p class="cap" style="margin-top:6px">PKP '+WM.rp(pphResult.pkp)+' · tarif efektif '+(pphResult.effectiveRate*100).toFixed(2).replace(".",",")+'%</p>'+
+   '<div class="k-block">'+row("Biaya jabatan","−"+WM.rp(pphResult.biayaJabatan))+row("PTKP (TK/0)","−"+WM.rp(pphResult.ptkp))+(zakatPaid>0?row("Zakat/pajak dibayar","−"+WM.rp(zakatPaid)):"")+'</div>';
+ },
+ after:function(f){
+  f.querySelector("#pphBracketBtn").onclick=function(){
+   var body;
+   if(!pphResult||!pphResult.breakdown.length){body='<p class="muted" style="margin:0">Isi data dulu untuk melihat rincian per lapisan tarif.</p>';}
+   else{
+    body='<div class="tw"><table class="tbl"><thead><tr><th>Lapisan</th><th>Tarif</th><th class="r">Kena pajak</th><th class="r">Pajak</th></tr></thead><tbody>'+
+     pphResult.breakdown.map(function(b){return '<tr><td>'+b.label+'</td><td class="mono">'+(b.rate*100).toFixed(0)+'%</td><td class="mono r">'+WM.rp(b.taxable)+'</td><td class="mono r" style="font-weight:700">'+WM.rp(b.tax)+'</td></tr>';}).join("")+
+     '</tbody></table></div><div style="display:flex;justify-content:space-between;border-top:1.5px solid var(--ink);margin-top:10px;padding-top:10px;font-weight:700"><span>Total pajak</span><span class="mono">'+WM.rp(pphResult.totalTax)+'</span></div>';
+   }
+   WM.modal({title:"Rincian tarif PPh 21",sub:"Progresif per lapisan penghasilan kena pajak (UU HPP Pasal 17).",body:body,submit:false,cancel:"Tutup"});
+  };
+ }},
+{id:"investasi",label:"Investasi",icon:"chart",
+ form:function(){return '<h2>Investasi Berkala</h2>'+
+  '<div class="form" style="margin-top:14px">'+
+   '<div class="two">'+WM.field({name:"modal",label:"Modal awal",type:"money",value:50000000})+WM.field({name:"monthly",label:"Setoran per bulan",type:"money",value:2000000})+'</div>'+
+   '<div class="two">'+WM.field({name:"years",label:"Jangka waktu (tahun)",type:"number",value:10,min:1,max:50})+WM.field({name:"rate",label:"Imbal hasil per tahun (%)",type:"number",value:12,min:0,max:100,hint:"Perkiraan, bukan jaminan hasil."})+'</div>'+
+  '</div>';},
+ compute:function(f){
+  var modal=WM.parseMoney(f.querySelector('[name="modal"]').value),monthly=WM.parseMoney(f.querySelector('[name="monthly"]').value),
+      years=n(f.querySelector('[name="years"]').value),rate=n(f.querySelector('[name="rate"]').value);
+  var r=rate/100/12,ncnt=years*12,factor=Math.pow(1+r,ncnt);
+  var fv=r===0?modal+monthly*ncnt:modal*factor+(monthly*(factor-1))/r;
+  var totalModal=modal+monthly*ncnt,profit=fv-totalModal;
+  var months=Math.max(1,ncnt),series=[modal],value=modal,labels=["Thn 0"];
+  for(var m=1;m<=months;m++){value=value*(1+r)+monthly;if(m%12===0){series.push(Math.round(value));labels.push("Thn "+(m/12));}}
+  window._invChartData={labels:labels,series:series};
+  return hero("Rp",Math.round(fv).toLocaleString("id-ID"),"Perkiraan nilai akhir")+
+   '<div class="chart k-chart" id="invChart"></div>'+
+   '<div class="k-block">'+row("Total setoran",WM.rp(totalModal))+row("Pertumbuhan","+"+WM.rp(profit))+'</div>';
+ },
+ after:function(f,hostEl){
+  var box=hostEl.querySelector("#invChart");
+  if(box&&window._invChartData) WM.chart.area(box,{labels:window._invChartData.labels,a:window._invChartData.series,fmt:WM.short});
+ }},
+{id:"kredit",label:"Kredit / KPR",icon:"home",
+ form:function(){return '<h2>Kredit / KPR</h2>'+
+  '<div class="form" style="margin-top:14px">'+
+   '<div class="two">'+WM.field({name:"harga",label:"Harga properti",type:"money",value:1500000000})+
+    '<div class="field" data-field="dp"><label>Uang muka (DP)</label><div class="affix"><span>Rp</span><input name="dp" data-money inputmode="numeric" value="300.000.000"></div><span class="hint" id="dpPct"></span></div></div>'+
+   '<div class="two">'+WM.field({name:"bunga",label:"Bunga per tahun (%)",type:"number",value:9.5,min:0,max:50})+WM.field({name:"tenor",label:"Tenor (tahun)",type:"number",value:15,min:1,max:30})+'</div>'+
+  '</div>';},
+ compute:function(f){
+  var harga=WM.parseMoney(f.querySelector('[name="harga"]').value),dp=WM.parseMoney(f.querySelector('[name="dp"]').value),
+      bunga=n(f.querySelector('[name="bunga"]').value),tenor=n(f.querySelector('[name="tenor"]').value);
+  var pokok=Math.max(0,harga-dp),r=bunga/100/12,ncnt=Math.max(1,tenor)*12,factor=Math.pow(1+r,ncnt);
+  var cicilan=r===0?pokok/ncnt:(pokok*r*factor)/(factor-1),total=cicilan*ncnt,bungaTotal=total-pokok,dpPct=harga>0?dp/harga*100:0;
+  var dpEl=f.querySelector("#dpPct");if(dpEl)dpEl.textContent=dpPct.toFixed(1).replace(".",",")+"% dari harga properti";
+  return hero("Rp",Math.round(cicilan).toLocaleString("id-ID"),"Cicilan per bulan")+
+   '<div class="k-block">'+row("Pokok pinjaman",WM.rp(pokok))+row("Total bunga",WM.rp(bungaTotal))+row("Total pembayaran",WM.rp(total))+row("Jumlah cicilan",ncnt.toLocaleString("id-ID")+" kali")+'</div>'+
+   '<div class="k-warn">'+WM.icon("alert",16)+'<span>Rasio cicilan disarankan maksimal 30% penghasilan. Penghasilan minimum sekitar <b>'+WM.rp(cicilan/0.3)+'</b>/bulan.</span></div>';
+ }},
+{id:"pensiun",label:"Pensiun",icon:"target",
+ form:function(){return '<h2>Dana Pensiun</h2>'+
+  '<div class="form" style="margin-top:14px">'+
+   '<div class="two">'+WM.field({name:"now",label:"Usia sekarang",type:"number",value:30})+WM.field({name:"retire",label:"Usia pensiun",type:"number",value:55})+'</div>'+
+   '<div class="two">'+WM.field({name:"monthly",label:"Pengeluaran bulanan saat ini",type:"money",value:10000000})+WM.field({name:"ret",label:"Imbal hasil investasi (%/tahun)",type:"number",value:10})+'</div>'+
+  '</div>';},
+ compute:function(f){
+  var now=n(f.querySelector('[name="now"]').value),retire=n(f.querySelector('[name="retire"]').value),
+      monthly=WM.parseMoney(f.querySelector('[name="monthly"]').value),ret=n(f.querySelector('[name="ret"]').value);
+  var years=retire-now;
+  if(!isFinite(years)||years<1){
+   return hero("","–","Belum bisa dihitung")+'<p class="cap" style="margin-top:6px">Usia pensiun harus lebih besar dari usia sekarang, minimal 1 tahun.</p>';
+  }
+  var target=monthly*12*20,res=computeRetirement(target,years,ret/100);
+  return hero("Rp",Math.round(res.projectedValue).toLocaleString("id-ID"),"Perkiraan nilai dana pensiun")+
+   '<div class="k-block">'+row("Setoran per bulan",WM.rp(res.monthlyContribution))+row("Total setoran",WM.rp(res.totalContributions))+'</div>'+
+   '<p class="cap" style="margin-top:6px">Target dihitung dari 20× pengeluaran tahunan saat ini.</p>';
+ }},
+{id:"tabungan",label:"Tabungan",icon:"wallet",
+ form:function(){return '<h2>Target Tabungan</h2>'+
+  '<div class="form" style="margin-top:14px">'+
+   '<div class="two">'+WM.field({name:"target",label:"Target tabungan",type:"money",value:100000000})+WM.field({name:"current",label:"Saldo saat ini",type:"money",value:10000000})+'</div>'+
+   '<div class="two">'+WM.field({name:"bunga",label:"Bunga per tahun (%)",type:"number",value:4})+WM.field({name:"setor",label:"Setoran per bulan",type:"money",value:3000000})+'</div>'+
+  '</div>';},
+ compute:function(f){
+  var target=WM.parseMoney(f.querySelector('[name="target"]').value),current=WM.parseMoney(f.querySelector('[name="current"]').value),
+      bunga=n(f.querySelector('[name="bunga"]').value),setor=WM.parseMoney(f.querySelector('[name="setor"]').value);
+  var r=bunga/100/12,saldo=current,months=0,unreachable=false;
+  while(saldo<target&&months<600){saldo=saldo*(1+r)+setor;months++;}
+  unreachable=saldo<target;
+  var errMsg="Target tidak akan tercapai dengan setoran ini, naikkan setoran atau bunga per tahun.";
+  var errField=f.querySelector('[data-field="setor"] .err');
+  if(errField)errField.textContent=unreachable?errMsg:"";
+  if(unreachable) return hero("","–","Belum tercapai")+'<p class="cap" style="margin-top:6px">'+errMsg+'</p>';
+  var d=new Date();d.setMonth(d.getMonth()+months);
+  var label=WM.monthsLong[d.getMonth()]+" "+d.getFullYear();
+  return hero("","±"+months.toLocaleString("id-ID")+" bulan","Perkiraan waktu tercapai")+
+   '<p class="cap" style="margin-top:6px">Target tercapai sekitar <strong style="color:var(--ink)">'+label+'</strong>.</p>';
+ }},
+{id:"splitgroup",label:"Split Group",icon:"split",
+ form:function(){return '<h2>Split Group</h2><p class="cap">Bagi tagihan rata ke semua orang, lalu buat Split Bill sungguhan.</p>'+
+  '<div class="form" style="margin-top:14px">'+
+   '<div class="two">'+WM.field({name:"total",label:"Total tagihan",type:"money",value:1250000})+
+    '<div class="field" data-field="people"><label>Jumlah orang</label><input name="people" data-num inputmode="numeric" value="5"><span class="err" aria-live="polite"></span></div></div>'+
+   '<div class="two">'+WM.field({name:"tax",label:"Pajak & service (%)",type:"number",value:10})+WM.field({name:"tip",label:"Tip tambahan (%)",type:"number",value:0,optional:true})+'</div>'+
+   '<button class="btn primary block" type="button" id="spBtn">Buat Split Bill</button>'+
+  '</div>';},
+ compute:function(f){
+  var total=WM.parseMoney(f.querySelector('[name="total"]').value),peopleRaw=n(f.querySelector('[name="people"]').value),
+      tax=n(f.querySelector('[name="tax"]').value),tip=n(f.querySelector('[name="tip"]').value);
+  var invalid=!(peopleRaw>0),errField=f.querySelector('[data-field="people"] .err'),btn=f.querySelector("#spBtn");
+  if(errField)errField.textContent=invalid?"Jumlah orang harus lebih dari 0.":"";
+  if(btn)btn.disabled=invalid;
+  if(invalid) return hero("","–","Belum bisa dibagi")+'<p class="cap" style="margin-top:6px">Isi jumlah orang lebih dari 0.</p>';
+  var people=peopleRaw,grand=total+(total*tax)/100+(total*tip)/100,per=Math.round(grand/people),count=Math.min(people,10);
+  var people_html="";for(var i=0;i<count;i++){people_html+='<div class="k-person"><span>'+GROUP_NAMES[i]+'</span><b>'+WM.rp(per)+'</b></div>';}
+  return hero("Rp",per.toLocaleString("id-ID"),"Per orang")+
+   '<p class="cap" style="margin-top:6px">Total dengan pajak & tip '+WM.rp(grand)+'</p>'+
+   '<div class="k-people">'+people_html+'</div>';
+ },
+ after:function(f){
+  var btn=f.querySelector("#spBtn");
+  if(btn)btn.onclick=function(){var peopleRaw=n(f.querySelector('[name="people"]').value);if(!(peopleRaw>0))return;location.href="splitbill.html";};
+ }}
+];
+
+var formEl=document.getElementById("calcForm"),heroEl=document.getElementById("calcHero"),active="investasi";
+
+document.getElementById("calcTiles").innerHTML=CALCS.map(function(c){return '<button type="button" class="btile" role="tab" aria-selected="'+(c.id===active)+'" aria-pressed="'+(c.id===active)+'" data-id="'+c.id+'"><span class="tt"><span class="ci">'+WM.icon(c.icon,15)+'</span>'+c.label+'</span></button>';}).join("");
+
+function calc(id){var i;for(i=0;i<CALCS.length;i++)if(CALCS[i].id===id)return CALCS[i];return CALCS[0];}
+
+function renderForm(){
+  var c=calc(active);
+  formEl.innerHTML=c.form();
+  WM.wire(formEl);
+  formEl.addEventListener("input",recompute);
+  formEl.addEventListener("change",recompute);
+  recompute();
+}
+function recompute(){
+  var c=calc(active);
+  heroEl.innerHTML=c.compute(formEl);
+  if(c.after)c.after(formEl,heroEl);
+}
+
+document.getElementById("calcTiles").addEventListener("click",function(e){
+  var b=e.target.closest("[data-id]");if(!b)return;
+  active=b.dataset.id;
+  document.querySelectorAll("#calcTiles [data-id]").forEach(function(x){var on=x===b;x.setAttribute("aria-selected",on);x.setAttribute("aria-pressed",on);});
+  renderForm();
+});
+renderForm();
+})();
+</script>

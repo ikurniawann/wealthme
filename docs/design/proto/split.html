@@ -1,0 +1,85 @@
+<title>Bagian kamu · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+body{padding:16px;display:flex;min-height:100vh;align-items:center;justify-content:center;background:var(--bg)}
+.wrap{width:min(420px,100%)}
+.brandmini{display:flex;align-items:center;gap:8px;justify-content:center;font-weight:700;font-size:16px;letter-spacing:-.02em;margin-bottom:18px;color:var(--muted)}
+.brandmini span{width:24px;height:24px;border-radius:8px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;flex:none}
+.shareCard{border-radius:20px;padding:30px 24px;text-align:center}
+.pav-lg{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;font-size:20px;font-weight:700;color:#fff;margin:0 auto 14px}
+.shareCard h1{font-size:20px;margin:0 0 4px;letter-spacing:-.02em}
+.shareCard .cap{margin:0 0 16px}
+.payout-box{background:var(--card-2);border-radius:14px;padding:14px;text-align:left;margin:16px 0;font-size:13px}
+.payout-box .kv{margin-top:6px}
+.icwrap{width:56px;height:56px;border-radius:50%;background:var(--card-2);display:grid;place-items:center;margin:0 auto 14px;color:var(--muted)}
+.icwrap.good{background:var(--lime-soft);color:var(--lime)}
+.icwrap.bad{background:rgba(255,255,255,.08);color:#f3a6a6}
+.foot-note{margin-top:16px;color:var(--muted);font-size:12px;text-align:center}
+</style>
+<main>
+  <div class="wrap">
+    <div class="brandmini"><span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l4.5 12L12 8l4.5 10L21 6"/></svg></span>WealthMe</div>
+    <div class="card dark shareCard" id="card"></div>
+    <p class="foot-note" id="footNote"></p>
+  </div>
+</main>
+<script src="wm.js"></script>
+<script>
+(function(){
+  var GRAD=["linear-gradient(135deg,#10B981,#06B6D4)","linear-gradient(135deg,#F59E0B,#FBBF24)","linear-gradient(135deg,#6366F1,#8B5CF6)","linear-gradient(135deg,#EC4899,#F43F5E)","linear-gradient(135deg,#3F8F2F,#9CCB3B)"];
+  function initials(n){return (n||"?").trim().slice(0,1).toUpperCase();}
+  var token=new URLSearchParams(location.search).get("t");
+  var card=document.getElementById("card"),foot=document.getElementById("footNote");
+  foot.textContent="Halaman ini bisa dibuka siapa saja yang punya tautannya, tanpa perlu login.";
+
+  var bills=WM.store.get("splitBills")||[];
+  var found=null;
+  bills.forEach(function(b){b.participants.forEach(function(p){if(p.shareToken===token){found={bill:b,p:p};}});});
+
+  if(!token || !found){
+    card.innerHTML='<div class="icwrap bad">'+WM.icon("alert",24)+'</div><h1>Tautan tidak ditemukan</h1><p class="cap">Link ini mungkin salah ketik atau sudah tidak berlaku. Minta pengirim untuk membagikan ulang.</p>';
+    return;
+  }
+
+  render();
+
+  function render(){
+    var b=found.bill,p=found.p;
+    if(b.revokedAt){
+      card.innerHTML='<div class="icwrap bad">'+WM.icon("lock",24)+'</div><h1>Tautan sudah dicabut</h1><p class="cap">Pembuat split "'+WM.esc(b.title)+'" menutup tautan ini. Hubungi mereka langsung kalau masih ada yang perlu dibereskan.</p>';
+      return;
+    }
+    if(p.status==="paid"){
+      card.innerHTML='<div class="icwrap good">'+WM.icon("checkc",24)+'</div><h1>Sudah lunas</h1><p class="cap">Pembayaranmu untuk "'+WM.esc(b.title)+'" sudah dikonfirmasi. Terima kasih!</p>'+
+        '<p class="big num" style="margin:0">'+WM.rp(p.amountOwed)+'</p>';
+      return;
+    }
+    var accName="",instr=b.payoutInstructions||"";
+    if(b.payoutAccountId){var a=WM.account(b.payoutAccountId);if(a)accName=a.bank+" · "+a.name;}
+    card.innerHTML=
+      '<span class="pav-lg" style="background:'+GRAD[Math.abs(hash(p.id))%GRAD.length]+'">'+initials(p.name)+'</span>'+
+      '<h1>'+WM.esc(b.title)+'</h1><p class="cap">Bagian kamu, '+WM.esc(p.name)+'</p>'+
+      '<p class="big num" style="margin:0"><span class="cur">Rp</span>'+p.amountOwed.toLocaleString("id-ID")+'</p>'+
+      (accName?('<div class="payout-box"><div class="cap" style="font-weight:600;color:var(--ink)">Cara bayar</div><div class="kv"><span class="muted">Rekening tujuan</span><b>'+WM.esc(accName)+'</b></div>'+(instr?'<div style="margin-top:6px;color:var(--muted)">'+WM.esc(instr)+'</div>':'')+'</div>')
+       : '<div class="note warn" style="margin-top:14px;text-align:left">'+WM.icon("alert",16)+' Pembuat split belum mengisi rekening tujuan. Tunggu update dari mereka sebelum transfer.</div>')+
+      (p.status==="claimed"
+        ? '<div class="pill warn" style="margin-top:12px">Menunggu konfirmasi pembuat split</div>'
+        : '<button class="ghost-btn lit" type="button" id="btnClaim" style="margin-top:16px;width:100%;justify-content:center;min-height:44px">Saya sudah bayar</button>');
+    var btn=document.getElementById("btnClaim");
+    if(btn)btn.onclick=function(){
+      btn.disabled=true;
+      var fresh=WM.store.find("splitBills",b.id);
+      fresh.participants=fresh.participants.map(function(x){return x.id===p.id?Object.assign({},x,{status:"claimed"}):x;});
+      WM.store.update("splitBills",b.id,{participants:fresh.participants});
+      found.bill=WM.store.find("splitBills",b.id);
+      found.p=found.bill.participants.filter(function(x){return x.id===p.id;})[0];
+      WM.toast("Ditandai sudah bayar. Menunggu konfirmasi pembuat split (simulasi).");
+      render();
+    };
+  }
+  function hash(s){var h=0;for(var i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))|0;return h;}
+})();
+</script>

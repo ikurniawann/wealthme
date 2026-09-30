@@ -1,0 +1,167 @@
+<title>Setup Master Data · WealthMe</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="wm.css">
+<style>
+@media (min-width:1181px){
+  .md-hero{grid-column:1/9;grid-row:1}.md-coa{grid-column:9/13;grid-row:1}
+  .md-cats{grid-column:1/13;grid-row:2}.md-ref{grid-column:1/13;grid-row:3}
+}
+.md-ref{display:flex;flex-direction:column}
+.md-ref .md-ref-sec{flex:1}
+@media (min-width:1181px){.md-ref{flex-direction:row;gap:20px}.md-ref-sec+.md-ref-sec{margin-top:0;padding-top:0;border-top:0;border-left:1px solid var(--line);padding-left:20px}}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:6px 8px 6px 10px;font-size:13px;max-width:100%}
+.chip .ci{width:24px;height:24px;border-radius:8px;background:var(--card-2);display:grid;place-items:center;flex:none;color:var(--muted)}
+.chip .code{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.chip .x{width:22px;height:22px;border-radius:50%;border:0;background:var(--card-2);color:var(--muted);display:grid;place-items:center;flex:none}
+.chip .x:hover{background:var(--ghost);color:var(--bad)}
+.chip .edit{width:22px;height:22px;border-radius:50%;border:0;background:transparent;color:var(--muted);display:grid;place-items:center;flex:none}
+.chip .edit:hover{color:var(--ink);background:var(--card-2)}
+.chips-wrap{display:flex;flex-wrap:wrap;gap:8px}
+.icon-pick{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.icon-pick button{border:1.5px solid var(--line);background:var(--card);border-radius:12px;height:40px;display:grid;place-items:center;color:var(--muted)}
+.icon-pick button[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft);color:var(--ink)}
+.md-ref-sec+.md-ref-sec{margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.md-ref-sec .head{margin-bottom:8px}
+</style>
+<main data-page="masterdata">
+<section class="bento" aria-label="Setup Master Data">
+  <article class="card hero dark md-hero">
+    <div class="chart-side">
+      <div class="head">
+        <div><p class="big num" id="hTotal"></p><div class="cap">Kategori tersimpan</div></div>
+        <div class="hero-ctrl">
+          <div class="ctrl-row"><button class="ghost-btn lit" type="button" id="addCat" hidden>+ Kategori</button></div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><small>Pemasukan</small><div class="v" id="kIn"></div></div>
+      <div class="kpi"><small>Pengeluaran</small><div class="v" id="kOut"></div></div>
+      <div class="kpi"><small>Terhubung COA</small><div class="v" id="kCoa"></div></div>
+    </div>
+  </article>
+
+  <article class="card md-coa">
+    <div class="head"><div><h2>Akun COA</h2><div class="cap" id="coaTotal"></div></div></div>
+    <ul class="mini-list" id="coaGroups" style="margin-top:4px"></ul>
+    <a class="see-all" href="mastercoa.html">Kelola Master COA <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
+  </article>
+
+  <article class="card md-cats">
+    <div class="head"><div><h2>Kategori</h2><div class="cap">Transaksi, anggaran &amp; laporan</div></div></div>
+    <div class="chips-wrap" id="catChips"></div>
+    <div class="empty" id="catEmpty" hidden><b>Belum ada kategori</b></div>
+  </article>
+
+  <article class="card md-ref">
+    <div class="md-ref-sec" data-refgroup="bank">
+      <div class="head"><div><h2>Bank</h2></div><button class="btn ghost sm" type="button" data-add="bank" hidden>+ Tambah</button></div>
+      <div class="chips-wrap" data-chips></div>
+      <div class="empty" data-empty hidden><b>Belum ada data</b></div>
+    </div>
+    <div class="md-ref-sec" data-refgroup="ewallet">
+      <div class="head"><div><h2>E-Wallet</h2></div><button class="btn ghost sm" type="button" data-add="ewallet" hidden>+ Tambah</button></div>
+      <div class="chips-wrap" data-chips></div>
+      <div class="empty" data-empty hidden><b>Belum ada data</b></div>
+    </div>
+    <div class="md-ref-sec" data-refgroup="lembaga">
+      <div class="head"><div><h2>Lembaga Donasi</h2></div><button class="btn ghost sm" type="button" data-add="lembaga" hidden>+ Tambah</button></div>
+      <div class="chips-wrap" data-chips></div>
+      <div class="empty" data-empty hidden><b>Belum ada data</b></div>
+    </div>
+  </article>
+</section>
+</main>
+<script src="wm.js"></script>
+<script>
+WM.shell({page:"masterdata",title:"Setup Master Data"});
+(function(){ if(!WM.allowed) return;
+var canManage=WM.isOwner();
+document.getElementById("addCat").hidden=!canManage;
+
+WM.store.ensure("refItems",[
+ {id:"rb1",group:"bank",label:"BCA",isSystem:true},{id:"rb2",group:"bank",label:"Mandiri",isSystem:true},{id:"rb3",group:"bank",label:"BRI",isSystem:true},{id:"rb4",group:"bank",label:"BNI",isSystem:true},{id:"rb5",group:"bank",label:"Jago",isSystem:true},
+ {id:"rw1",group:"ewallet",label:"GoPay",isSystem:true},{id:"rw2",group:"ewallet",label:"OVO",isSystem:true},{id:"rw3",group:"ewallet",label:"DANA",isSystem:true},{id:"rw4",group:"ewallet",label:"ShopeePay",isSystem:true},
+ {id:"rl1",group:"lembaga",label:"Baznas",isSystem:true},{id:"rl2",group:"lembaga",label:"Dompet Dhuafa",isSystem:true},{id:"rl3",group:"lembaga",label:"Rumah Zakat",isSystem:true}]);
+
+var ICONS=["food","car","home","bag","health","school","heart","more","wallet","gift","trend","gold","phone","receipt","briefcase","landmark"];
+var COA_GROUP_LABEL=[null,"Pendapatan","Beban","Alokasi","Piutang","Utang","Pajak"];
+
+function coaOptions(kind){var coa=WM.store.get("coa")||[];var want=kind==="in"?"INCOME":"EXPENSE";
+  return [["","Otomatis (sesuai tipe)"]].concat(coa.filter(function(a){return a.direction===want;}).map(function(a){return [a.id,a.code+" — "+a.name];}));}
+
+function catChip(c){var acc=(WM.store.get("coa")||[]).filter(function(a){return a.id===c.coaAccountId;})[0];
+  return '<span class="chip"><span class="ci">'+WM.icon(c.icon,15)+'</span><b>'+WM.esc(c.name)+'</b>'+
+    '<span class="pill '+(c.kind==="in"?"good":"")+'" style="padding:2px 8px">'+(c.kind==="in"?"Masuk":"Keluar")+'</span>'+
+    (acc?'<span class="code">'+WM.esc(acc.code)+'</span>':'')+
+    (c.isPrivate?'<span class="pill dark" style="padding:2px 8px">Privat</span>':'')+
+    (canManage?'<button class="edit" type="button" data-cat-edit="'+c.id+'" aria-label="Edit '+WM.esc(c.name)+'">'+WM.icon("edit",13)+'</button><button class="x" type="button" data-cat-del="'+c.id+'" aria-label="Hapus '+WM.esc(c.name)+'">'+WM.icon("x",13,2.4)+'</button>':'')+'</span>';}
+
+function drawCats(){var cats=WM.store.get("categories");document.getElementById("catEmpty").hidden=cats.length>0;
+  document.getElementById("catChips").innerHTML=cats.map(catChip).join("");
+  document.querySelectorAll("[data-cat-edit]").forEach(function(b){b.onclick=function(){openCat(b.dataset.catEdit);};});
+  document.querySelectorAll("[data-cat-del]").forEach(function(b){b.onclick=function(){delCat(b.dataset.catDel);};});}
+
+function iconPick(sel){return '<div class="field"><label>Ikon</label><div class="icon-pick" data-radio="icon" role="radiogroup" aria-label="Ikon kategori">'+
+  ICONS.map(function(i){return '<button type="button" role="radio" data-v="'+i+'" aria-checked="'+(i===sel)+'">'+WM.icon(i,17)+'</button>';}).join("")+'</div></div>';}
+
+function openCat(editId){var c=editId?WM.store.find("categories",editId):{kind:"out",icon:"more",isPrivate:false};
+  var html=WM.field({name:"name",label:"Nama kategori",required:true,value:c.name||"",placeholder:"cth: Hobi"})+
+    iconPick(c.icon)+
+    '<div class="two">'+WM.field({name:"kind",label:"Tipe",type:"select",required:true,value:c.kind,options:[["out","Pengeluaran"],["in","Pemasukan"]]})+
+    WM.field({name:"coaAccountId",label:"Akun COA",type:"select",value:c.coaAccountId||"",options:coaOptions(c.kind)})+'</div>'+
+    '<label class="switch">Kategori privat<input type="checkbox" name="isPrivate" '+(c.isPrivate?"checked":"")+'><span></span></label>'+
+    '<p class="hint" style="margin:-8px 0 0">Transaksi kategori privat hanya terlihat olehmu, dan tidak dikirim ke AI Advisor.</p>';
+  WM.modal({title:editId?"Ubah kategori":"Tambah kategori",body:html,submit:editId?"Simpan":"Tambah",
+    onOpen:function(d,b){WM.radio(b);var kindSel=b.querySelector('[name="kind"]'),coaSel=b.querySelector('[name="coaAccountId"]');
+      kindSel.addEventListener("change",function(){var opts=coaOptions(kindSel.value);coaSel.innerHTML=opts.map(function(o){return '<option value="'+o[0]+'">'+o[1]+'</option>';}).join("");});
+      if(!editId||!canManage)return;var ft=d.querySelector(".sheet-foot");ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-rm style="color:var(--bad);flex:none">'+WM.icon("trash",16)+'Hapus</button>');
+      ft.querySelector("[data-rm]").onclick=function(){d.close();delCat(editId);};},
+    onSubmit:function(f,v){var icon=(f.querySelector('[data-radio="icon"] [aria-checked="true"]')||{}).dataset;icon=icon?icon.v:"more";
+      var rec={name:v.name,kind:v.kind,icon:icon,coaAccountId:v.coaAccountId||null,isPrivate:!!v.isPrivate};
+      if(editId){WM.store.update("categories",editId,rec);WM.toast("Kategori disimpan");}else{WM.store.add("categories",rec);WM.toast("Kategori ditambahkan");}}});}
+
+function delCat(id){var c=WM.store.find("categories",id);if(!c)return;
+  var used=WM.store.get("tx").some(function(t){return t.cat===id;});
+  WM.store.remove("categories",id);
+  WM.toast(used?"Kategori "+c.name+" dihapus (masih dipakai transaksi lama)":"Kategori "+c.name+" dihapus",{undo:function(){WM.store.add("categories",c);}});}
+
+document.getElementById("addCat").onclick=function(){openCat(null);};
+
+function drawRef(){document.querySelectorAll("[data-refgroup]").forEach(function(card){
+  var g=card.dataset.refgroup,items=WM.store.get("refItems").filter(function(x){return x.group===g;});
+  card.querySelector("[data-empty]").hidden=items.length>0;
+  card.querySelector("[data-chips]").innerHTML=items.map(function(it){return '<span class="chip"><b>'+WM.esc(it.label)+'</b>'+
+    (it.isSystem?'<span class="pill" style="padding:2px 8px">Bawaan</span>':'')+
+    (!it.isSystem&&canManage?'<button class="x" type="button" data-ref-del="'+it.id+'" aria-label="Hapus '+WM.esc(it.label)+'">'+WM.icon("x",13,2.4)+'</button>':'')+'</span>';}).join("");});
+  document.querySelectorAll("[data-add]").forEach(function(b){b.hidden=!canManage;});
+  document.querySelectorAll("[data-ref-del]").forEach(function(b){b.onclick=function(){delRef(b.dataset.refDel);};});}
+
+function delRef(id){var it=WM.store.find("refItems",id);if(!it)return;
+  WM.store.remove("refItems",id);WM.toast(it.label+" dihapus",{undo:function(){WM.store.add("refItems",it);}});}
+
+document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){var g=b.dataset.add,label={bank:"Bank",ewallet:"E-Wallet",lembaga:"Lembaga Donasi"}[g];
+  WM.modal({title:"Tambah "+label,body:WM.field({name:"nama",label:"Nama",required:true,placeholder:"cth: "+(g==="bank"?"Seabank":g==="ewallet"?"LinkAja":"Yatim Mandiri")}),submit:"Tambah",
+    onSubmit:function(f,v){WM.store.add("refItems",{group:g,label:v.nama,isSystem:false});WM.toast("Item ditambahkan");}});};});
+
+function chart(){var cats=WM.store.get("categories"),box=document.getElementById("chart");
+  var inN=cats.filter(function(c){return c.kind==="in";}).length,outN=cats.filter(function(c){return c.kind==="out";}).length;
+  WM.chart.bars(box,{labels:["Masuk","Keluar"],series:[{d:[inN,outN],c:"var(--lime)"}],hi:outN>=inN?1:0,wide:true});}
+
+function draw(){var cats=WM.store.get("categories"),coa=WM.store.get("coa")||[];
+  document.getElementById("hTotal").textContent=cats.length;
+  document.getElementById("kIn").textContent=cats.filter(function(c){return c.kind==="in";}).length;
+  document.getElementById("kOut").textContent=cats.filter(function(c){return c.kind==="out";}).length;
+  document.getElementById("kCoa").textContent=cats.filter(function(c){return c.coaAccountId;}).length+"/"+cats.length;
+  document.getElementById("coaTotal").textContent=coa.length+" akun · 6 grup akuntansi";
+  document.getElementById("coaGroups").innerHTML=[1,2,3,4,5,6].map(function(g){var n=coa.filter(function(a){return a.groupNum===g;}).length;
+    return '<li><span class="ic" style="display:grid;place-items:center;color:var(--muted)">'+g+'</span><div><b>'+COA_GROUP_LABEL[g]+'</b><small>'+n+' akun</small></div></li>';}).join("");
+  chart();drawCats();drawRef();}
+
+draw();
+WM.onChange(["categories","refItems","coa"],draw);WM.onResize(document.getElementById("chart"),chart);
+})();
+</script>
