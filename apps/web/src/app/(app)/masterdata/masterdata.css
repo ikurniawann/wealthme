@@ -1,0 +1,74 @@
+/* Master Data (bento v2, docs/design/proto/masterdata.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .md-grid > .md-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .md-grid > .md-coa {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .md-grid > .md-cats,
+    .md-grid > .md-ref,
+    .md-grid > .md-foot {
+      grid-column: 1 / 13;
+    }
+  }
+  .md-grid > * {
+    min-width: 0;
+  }
+  .md-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .md-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    background: var(--wm-card-2);
+    font-size: var(--wm-type-12);
+    color: var(--wm-ink);
+  }
+  .md-code {
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+  .md-x {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 999px;
+    color: var(--wm-muted);
+  }
+  .md-x:hover {
+    color: var(--wm-ink);
+  }
+  .md-ref-sec + .md-ref-sec {
+    margin-top: 16px;
+  }
+  .md-ref-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .md-ref-head h3 {
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    color: var(--wm-ink);
+  }
+  .md-empty,
+  .md-hint,
+  .md-foot {
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+  .md-hint {
+    margin-top: 12px;
+  }
+}

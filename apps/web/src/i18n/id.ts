@@ -2620,6 +2620,16 @@ export const id = {
     },
   },
   masterdata: {
+    v2: {
+      heroCap: "Kategori tersimpan",
+      kpiIn: "Pemasukan",
+      kpiOut: "Pengeluaran",
+      kpiCoa: "Terhubung COA",
+      coaTitle: "Akun COA",
+      coaCaption: "Kategori yang sudah punya akun COA",
+      catCaption: "Transaksi, anggaran & laporan",
+      refTitle: "Daftar rujukan",
+    },
     pageTitle: "Setup Master Data",
     pageSubtitle:
       "Kelola data referensi yang dipakai di seluruh aplikasi. Semua daftar di halaman ini bisa kamu tambah dan hapus sendiri.",

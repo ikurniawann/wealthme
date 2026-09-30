@@ -2537,6 +2537,16 @@ export type I18nDictionary = {
    * `toastItemProtected` for the seeded-default delete guard).
    */
   masterdata: {
+    v2: {
+      heroCap: string;
+      kpiIn: string;
+      kpiOut: string;
+      kpiCoa: string;
+      coaTitle: string;
+      coaCaption: string;
+      catCaption: string;
+      refTitle: string;
+    };
     pageTitle: string;
     pageSubtitle: string;
     masterCoaButton: string;

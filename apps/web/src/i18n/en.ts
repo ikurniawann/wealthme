@@ -2574,6 +2574,16 @@ export const en = {
     },
   },
   masterdata: {
+    v2: {
+      heroCap: "Saved categories",
+      kpiIn: "Income",
+      kpiOut: "Expenses",
+      kpiCoa: "Linked to COA",
+      coaTitle: "COA accounts",
+      coaCaption: "Categories that have a COA account",
+      catCaption: "Transactions, budgets & reports",
+      refTitle: "Reference lists",
+    },
     pageTitle: "Master Data Setup",
     pageSubtitle:
       "Manage the reference data used across the app. Every list on this page can be added to and deleted by you.",
