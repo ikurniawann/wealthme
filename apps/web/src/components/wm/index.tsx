@@ -52,6 +52,7 @@ export {
   type CardSkin,
 } from "./account-card";
 export { DetailPanel } from "./detail-panel";
+export { CardSkinPanel, type CardSkinPreview } from "./card-skin-panel";
 export { FinancialDialog } from "./financial-dialog";
 export { showUndoToast } from "./undo-toast";
 
