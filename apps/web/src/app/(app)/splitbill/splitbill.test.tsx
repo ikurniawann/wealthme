@@ -249,7 +249,9 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     const user = userEvent.setup();
     render(<SplitBillPage />);
 
-    await user.click(await screen.findByRole("button", { name: /detail/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /makan di sushi tei/i }),
+    );
     await user.click(
       await screen.findByRole("button", {
         name: /konfirmasi & catat pemasukan/i,
@@ -281,7 +283,9 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     const user = userEvent.setup();
     render(<SplitBillPage />);
 
-    await user.click(await screen.findByRole("button", { name: /detail/i }));
+    await user.click(
+      await screen.findByRole("button", { name: /makan di sushi tei/i }),
+    );
     await user.click(
       await screen.findByRole("button", { name: /cabut semua link/i }),
     );

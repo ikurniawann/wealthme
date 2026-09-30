@@ -7,7 +7,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   SectionCard,
-  ProgressBar,
+  ARow,
   StatusBadge,
   BentoGrid,
   BentoHero,
@@ -609,11 +609,7 @@ export default function SplitBillPage() {
       )}
 
       {/* Active splits */}
-      <SectionCard
-        className="sb-active"
-        title={t.splitbill.activeSplitsTitle}
-        bodyClassName="space-y-2.5"
-      >
+      <SectionCard className="sb-active" title={t.splitbill.activeSplitsTitle}>
         {isLoading && (
           <div className="space-y-2.5">
             {[1, 2, 3].map((i) => (
@@ -638,7 +634,6 @@ export default function SplitBillPage() {
             const paidCount = split.participants.filter(
               (p) => p.status === "paid",
             ).length;
-            const barColor = pct >= 75 ? "var(--success)" : "var(--warning)";
             // Prototype's row-level status badge — priority order matches
             // its urgency: a missing payout account blocks confirmation
             // outright, so it outranks "still collecting".
@@ -655,79 +650,55 @@ export default function SplitBillPage() {
                 {t.splitbill.badgeUnpaid}
               </StatusBadge>
             );
+            const initials = split.title
+              .split(" ")
+              .slice(0, 2)
+              .map((w) => w[0]?.toUpperCase() ?? "")
+              .join("");
+            const createdOn = new Date(split.createdAt).toLocaleDateString(
+              locale === "en" ? "en-US" : "id-ID",
+              {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                timeZone: "UTC",
+              },
+            );
+            const perPerson =
+              split.participants.length > 0
+                ? `${money.format(
+                    Math.round(
+                      Number(BigInt(split.totalAmount)) /
+                        split.participants.length,
+                    ),
+                  )}${t.splitbill.perOrgSuffix}`
+                : null;
             return (
-              <div key={split.id} className="rounded-[10px] border p-3.5">
-                <div className="mb-3 flex flex-wrap items-start gap-3">
-                  <div className="min-w-[180px] flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[14px] font-bold">
-                        {split.title}
-                      </span>
-                      {rowBadge}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {split.participants.length}
-                      {t.splitbill.peopleCountSuffix}
-                      {" · "}
-                      {split.participants.length > 0 && (
-                        <span className="mono">
-                          {money.format(
-                            Math.round(
-                              Number(BigInt(split.totalAmount)) /
-                                split.participants.length,
-                            ),
-                          )}
-                          {t.splitbill.perOrgSuffix}
-                        </span>
-                      )}
-                      {" · "}
-                      {t.splitbill.createdOnPrefix}
-                      {/* Batch 5 item 5 — no explicit `timeZone` means this
-                          resolves the runtime's local zone, which differs
-                          between the Node SSR pass and the browser: a real
-                          hydration-mismatch source. Pinning `timeZone: "UTC"`
-                          matches the fix in `money-format.ts`'s
-                          `formatRateDate` and `asuransi/page.tsx`'s
-                          `formatLocaleDate`. */}
-                      {new Date(split.createdAt).toLocaleDateString(
-                        locale === "en" ? "en-US" : "id-ID",
-                        {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                          timeZone: "UTC",
-                        },
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[15px] font-extrabold">
-                      {money.format(Number(BigInt(split.totalAmount)))}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">
-                      <span className="font-bold" style={{ color: barColor }}>
-                        {paidCount}
-                      </span>
-                      {t.splitbill.paidOfMidText}
-                      {split.participants.length}
-                      {t.splitbill.paidStatusSuffix.replace(" · ", "")}
-                    </div>
-                  </div>
-                </div>
-                <ProgressBar value={pct} color={barColor} className="mb-2" />
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[12px] text-muted-foreground">
-                    {money.format(computePaidAmount(split))}
-                    {t.splitbill.collectedSuffix}
+              <ARow
+                key={split.id}
+                badge={initials}
+                title={
+                  <>
+                    {split.title} {rowBadge}
+                  </>
+                }
+                meta={[
+                  `${split.participants.length}${t.splitbill.peopleCountSuffix}`,
+                  perPerson,
+                  `${t.splitbill.createdOnPrefix}${createdOn}`,
+                  `${paidCount}${t.splitbill.paidOfMidText}${split.participants.length}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+                share={pct}
+                amount={
+                  <span className="wm-money">
+                    {money.format(Number(BigInt(split.totalAmount)))}
                   </span>
-                  <button
-                    onClick={() => setSelectedSplit(split)}
-                    className="inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-md bg-accent px-3.5 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-accent/70"
-                  >
-                    <Share2 className="size-3.5" /> {t.splitbill.detailButton}
-                  </button>
-                </div>
-              </div>
+                }
+                amountSub={`${money.format(computePaidAmount(split))}${t.splitbill.collectedSuffix}`}
+                onClick={() => setSelectedSplit(split)}
+              />
             );
           })}
       </SectionCard>
