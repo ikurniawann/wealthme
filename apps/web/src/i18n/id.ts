@@ -2113,7 +2113,6 @@ export const id = {
       detailKpiChange: "Sejak dicatat",
       detailDocCount: "file",
       detailHistCaption: "Terbaru di atas",
-      tileProjection: "dari",
     },
     tabs: {
       semua: "Semua",

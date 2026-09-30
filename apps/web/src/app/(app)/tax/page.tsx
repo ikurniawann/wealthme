@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -19,7 +18,15 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { HeroCard, SectionCard, StatusBadge } from "@/components/wm";
+import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  HeroKpi,
+  SectionCard,
+  StatusBadge,
+} from "@/components/wm";
+import "./tax.css";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah, parseRupiah, formatNumber } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -459,122 +466,102 @@ function TaxPageContent() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Hero */}
-      <HeroCard className="gradient-wealth">
-        <div className="mb-1.5 flex items-center gap-2 text-xs opacity-85">
-          <FileText className="size-3.5" /> {t.tax.heroLabelPrefix}
-          {CURRENT_YEAR}
-        </div>
-        <div className="text-[30px] font-black tracking-[-1px]">
-          {currentRecord ? (
-            formatRupiah(Number(currentRecord.netTax))
-          ) : isPph21Error ? (
-            <span className="text-[16px] font-semibold">
-              {t.tax.calcErrorLabel}
-            </span>
-          ) : hasPph21Result ? (
-            formatRupiah(tax)
-          ) : (
-            <span className="text-[16px] font-semibold opacity-85">
-              {t.tax.calculatingLabel}
-            </span>
-          )}
-        </div>
-        <div className="mt-1.5 text-xs opacity-85">{t.tax.heroSubtitle}</div>
-        {/* Task 10 carry (Task 9 review) — `.hero > *` (design-system.css,
-            protected) forces `position: relative` on every direct child,
-            which won the specificity tie against Tailwind's `.absolute` by
-            source order and put this decorative glyph back in normal flow
-            (clipped by `.hero`'s `overflow: hidden` instead of intentionally
-            peeking past the corner). The inline style wins over both classes
-            without touching the protected sheet. */}
-        <div
-          className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]"
-          style={{ position: "absolute" }}
-        >
-          🧾
-        </div>
-      </HeroCard>
-
-      {/* Polish batch 7b (item 1) — ONE "Perkiraan" badge at page top instead
-          of repeating "perkiraan — cek aturan terbaru DJP" per calculator
-          section; per-rule detail (legal basis, source link, note) still
-          lives in this badge's own popover. */}
-      {allTaxRules.length > 0 && (
-        <div className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
-          <TaxRuleBadge rules={allTaxRules} />
-        </div>
-      )}
-
-      {/* Status SPT */}
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        <Card className="gap-0 p-4">
-          <div className="mb-1 text-[10.5px] text-muted-foreground">
-            {t.tax.prevYearStatusLabelPrefix}
-            {CURRENT_YEAR - 1}
-          </div>
-          {prevRecord ? (
+    <div className="space-y-4" data-page="tax">
+      <BentoGrid className="tx-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.tax}</h1>
+        <BentoHero
+          className="tx-hero"
+          currency={null}
+          value={
+            currentRecord ? (
+              <span className="wm-money">
+                {formatRupiah(Number(currentRecord.netTax))}
+              </span>
+            ) : isPph21Error ? (
+              t.tax.calcErrorLabel
+            ) : hasPph21Result ? (
+              <span className="wm-money">{formatRupiah(tax)}</span>
+            ) : (
+              t.tax.calculatingLabel
+            )
+          }
+          caption={`${t.tax.heroLabelPrefix}${CURRENT_YEAR} · ${t.tax.heroSubtitle}`}
+          controls={
+            allTaxRules.length > 0 ? <TaxRuleBadge rules={allTaxRules} /> : null
+          }
+          kpis={
             <>
-              <div
-                className={`text-[16px] font-extrabold ${SPT_STATUS_CLASS[prevRecord.sptStatus as SptStatus]}`}
-              >
-                {t.tax.sptStatusLabels[prevRecord.sptStatus as SptStatus]}
-              </div>
-              {prevRecord.sptStatus === "belum_lapor" &&
-                renderMarkReportedButton(prevRecord.id)}
+              <HeroKpi
+                label={`${t.tax.sptYearLabelPrefix}${CURRENT_YEAR}`}
+                value={
+                  currentRecord
+                    ? t.tax.sptStatusLabels[
+                        currentRecord.sptStatus as SptStatus
+                      ]
+                    : t.tax.sptStatusLabels.belum_lapor
+                }
+              />
+              <HeroKpi
+                label={t.tax.perpuluhanDeductionTitle}
+                value={
+                  <span className="wm-money">
+                    {currentRecord
+                      ? formatRupiah(Number(currentRecord.zakatDeduction))
+                      : t.tax.zakatDeductionDash}
+                  </span>
+                }
+              />
+              <HeroKpi
+                label={`${t.tax.prevYearStatusLabelPrefix}${CURRENT_YEAR - 1}`}
+                value={
+                  prevRecord
+                    ? t.tax.sptStatusLabels[prevRecord.sptStatus as SptStatus]
+                    : t.tax.noDataLabel
+                }
+              />
             </>
-          ) : (
-            <div className="text-[16px] font-extrabold text-muted-foreground">
-              {t.tax.noDataLabel}
-            </div>
-          )}
-        </Card>
-        <Card className="gap-0 p-4">
-          <div className="mb-1 text-[10.5px] text-muted-foreground">
-            {t.tax.sptYearLabelPrefix}
-            {CURRENT_YEAR}
-          </div>
+          }
+        />
+        <BentoCard
+          className="tx-cur"
+          title={`${t.tax.sptYearLabelPrefix}${CURRENT_YEAR}`}
+          caption={`${t.tax.deadlinePrefix}${CURRENT_YEAR + 1}`}
+        >
           {currentRecord ? (
             <>
-              <div
-                className={`text-[16px] font-extrabold ${SPT_STATUS_CLASS[currentRecord.sptStatus as SptStatus]}`}
+              <b
+                className={`tx-stat ${SPT_STATUS_CLASS[currentRecord.sptStatus as SptStatus]}`}
               >
                 {t.tax.sptStatusLabels[currentRecord.sptStatus as SptStatus]}
-              </div>
-              <div className="text-[10.5px] text-muted-foreground">
-                {t.tax.deadlinePrefix}
-                {CURRENT_YEAR + 1}
-              </div>
+              </b>
               {currentRecord.sptStatus === "belum_lapor" &&
                 renderMarkReportedButton(currentRecord.id)}
             </>
           ) : (
-            <>
-              <div className="text-[16px] font-extrabold text-warning">
-                {t.tax.sptStatusLabels.belum_lapor}
-              </div>
-              <div className="text-[10.5px] text-muted-foreground">
-                {t.tax.deadlinePrefix}
-                {CURRENT_YEAR + 1}
-              </div>
-            </>
+            <b className="tx-stat text-warning">
+              {t.tax.sptStatusLabels.belum_lapor}
+            </b>
           )}
-        </Card>
-        <Card className="gap-0 p-4">
-          <div className="mb-1 text-[10.5px] text-muted-foreground">
-            {t.tax.perpuluhanDeductionTitle}
-          </div>
-          <div className="text-[16px] font-extrabold text-primary">
-            {currentRecord
-              ? formatRupiah(Number(currentRecord.zakatDeduction))
-              : t.tax.zakatDeductionDash}
-          </div>
-          <div className="text-[10.5px] text-muted-foreground">
-            {t.tax.perpuluhanDeductionDesc}
-          </div>
-        </Card>
-      </div>
+        </BentoCard>
+        <BentoCard
+          className="tx-prev"
+          title={`${t.tax.prevYearStatusLabelPrefix}${CURRENT_YEAR - 1}`}
+        >
+          {prevRecord ? (
+            <>
+              <b
+                className={`tx-stat ${SPT_STATUS_CLASS[prevRecord.sptStatus as SptStatus]}`}
+              >
+                {t.tax.sptStatusLabels[prevRecord.sptStatus as SptStatus]}
+              </b>
+              {prevRecord.sptStatus === "belum_lapor" &&
+                renderMarkReportedButton(prevRecord.id)}
+            </>
+          ) : (
+            <b className="tx-stat text-muted-foreground">{t.tax.noDataLabel}</b>
+          )}
+        </BentoCard>
+      </BentoGrid>
 
       {/* Ringkasan pajak tahunan — the page's one "answer" block (Task 10,
           sub-plan L), directly after the SPT-status trio. */}

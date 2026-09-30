@@ -2075,7 +2075,6 @@ export type I18nDictionary = {
       detailKpiChange: string;
       detailDocCount: string;
       detailHistCaption: string;
-      tileProjection: string;
     };
     tabs: Record<AsetTabId, string>;
     assetTypeLabels: Record<AsetTypeId, string>;

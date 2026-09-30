@@ -2071,7 +2071,6 @@ export const en = {
       detailKpiChange: "Since first entry",
       detailDocCount: "files",
       detailHistCaption: "Newest first",
-      tileProjection: "from",
     },
     tabs: {
       semua: "All",
