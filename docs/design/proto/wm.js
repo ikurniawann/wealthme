@@ -2864,65 +2864,203 @@
       can = WM.canModifyTx(t),
       by = WM.member(t.by),
       mem = WM.member(t.member);
-    var sign = t.type === "in" ? 1 : -1,
-      body =
-        '<div style="display:flex;align-items:center;gap:14px"><span class="ic ' +
-        (t.type === "in" ? "lime" : "") +
-        '" style="width:52px;height:52px;border-radius:16px">' +
-        WM.icon(t.type === "tf" ? "swap" : c.icon, 22) +
-        '</span><div><div class="big num ' +
-        (t.type === "in" ? "pos" : "") +
-        '">' +
-        (t.type === "tf" ? WM.rp(t.amount) : WM.rp(sign * t.amount, true)) +
-        '</div><div class="muted">' +
-        esc(t.note || c.name) +
-        "</div></div></div>" +
-        '<dl class="kv"><dt>Jenis</dt><dd>' +
-        { in: "Pemasukan", out: "Pengeluaran", tf: "Transfer" }[t.type] +
-        "</dd>" +
-        (t.type !== "tf"
-          ? "<dt>Kategori</dt><dd>" + esc(c.name) + "</dd>"
-          : "") +
-        "<dt>" +
-        (t.type === "tf" ? "Dari" : "Rekening") +
-        "</dt><dd>" +
-        esc(a ? a.bank + " · " + a.name : "–") +
-        (a && a.vis === "private" ? ' <span class="pill">Pribadi</span>' : "") +
-        "</dd>" +
-        (to
-          ? "<dt>Ke</dt><dd>" + esc(to.bank + " · " + to.name) + "</dd>"
-          : "") +
-        (t.fx
-          ? "<dt>Nominal asli</dt><dd>" +
-            t.fx.cur +
-            " " +
-            (+t.fx.orig).toLocaleString("id-ID") +
-            " · kurs " +
-            (+t.fx.rate).toLocaleString("id-ID") +
-            "</dd>"
-          : "") +
-        "<dt>Tanggal</dt><dd>" +
-        WM.date(t.date, true) +
-        "</dd><dt>Untuk</dt><dd>" +
-        esc(mem.short) +
-        "</dd><dt>Dicatat oleh</dt><dd>" +
-        esc(by.short) +
-        "</dd></dl>" +
-        (can
-          ? ""
-          : '<div class="note">' +
-            WM.icon("lock", 16) +
-            "<span>Hanya " +
-            esc(by.short) +
-            " yang mencatat, atau pemilik rekening pribadi, yang bisa mengubah transaksi ini. Kamu bisa melihatnya saja.</span></div>");
-    var d = WM.modal({
+    var inn = t.type === "in",
+      kind = { in: "Pemasukan", out: "Pengeluaran", tf: "Transfer" }[t.type];
+    var d0 = new Date(t.date + "T00:00:00"),
+      hari = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"][
+        d0.getDay()
+      ];
+    var ym = t.date.slice(0, 7),
+      same = WM.store.get("tx").filter(function (x) {
+        return (
+          x.id !== t.id &&
+          x.type === t.type &&
+          (t.type === "tf" ? true : x.cat === t.cat)
+        );
+      });
+    var monthSum =
+      same
+        .filter(function (x) {
+          return x.date.slice(0, 7) === ym;
+        })
+        .reduce(function (s2, x) {
+          return s2 + x.amount;
+        }, 0) + t.amount;
+    var bud =
+      t.type === "out" &&
+      WM.store.get("budgets").filter(function (x) {
+        return x.cat === t.cat;
+      })[0];
+    function accChip(x, lbl) {
+      return x
+        ? '<div class="td-acc"><small>' +
+            lbl +
+            "</small><b>" +
+            esc(x.bank) +
+            "</b><span>" +
+            esc(x.name) +
+            (x.no ? " · " + x.no : "") +
+            "</span>" +
+            (x.vis === "private" ? '<i class="pill">Pribadi</i>' : "") +
+            "</div>"
+        : "";
+    }
+    var body =
+      '<div class="card dark td-hero"><span class="td-ic">' +
+      WM.icon(t.type === "tf" ? "swap" : c.icon, 22) +
+      '</span><div class="td-amt num">' +
+      (t.type === "tf" ? "" : inn ? "+" : "−") +
+      "Rp " +
+      t.amount.toLocaleString("id-ID") +
+      "</div>" +
+      '<div class="td-note">' +
+      esc(t.note || c.name) +
+      '</div><div class="td-tags"><span>' +
+      kind +
+      "</span><span>" +
+      hari +
+      ", " +
+      WM.date(t.date, true) +
+      "</span>" +
+      (t.fx
+        ? "<span>" +
+          t.fx.cur +
+          " " +
+          (+t.fx.orig).toLocaleString("id-ID") +
+          "</span>"
+        : "") +
+      "</div></div>" +
+      '<div class="td-flow">' +
+      accChip(a, t.type === "in" ? "Masuk ke" : "Dari") +
+      '<span class="td-arrow">' +
+      WM.icon("chev", 16, 2.2) +
+      "</span>" +
+      (to
+        ? accChip(to, "Ke")
+        : '<div class="td-acc"><small>' +
+          (inn ? "Sumber" : "Kategori") +
+          "</small><b>" +
+          esc(c.name) +
+          "</b><span>" +
+          (inn ? "Pemasukan" : "Pengeluaran") +
+          "</span></div>") +
+      "</div>" +
+      '<dl class="kv"><dt>Untuk</dt><dd>' +
+      WM.avatar(mem, 22) +
+      " " +
+      esc(mem.short) +
+      "</dd><dt>Dicatat oleh</dt><dd>" +
+      esc(by.short) +
+      " · " +
+      WM.roleLabel(by.role) +
+      "</dd>" +
+      (t.fx
+        ? "<dt>Kurs</dt><dd>1 " +
+          t.fx.cur +
+          " = Rp " +
+          (+t.fx.rate).toLocaleString("id-ID") +
+          "</dd>"
+        : "") +
+      '<dt>No. referensi</dt><dd class="mono" style="font-size:12px">' +
+      esc(t.id.toUpperCase()) +
+      "</dd></dl>" +
+      (t.type !== "tf"
+        ? '<div class="td-ctx"><div class="head"><div><b>' +
+          esc(c.name) +
+          " bulan ini</b><small>" +
+          (same.filter(function (x) {
+            return x.date.slice(0, 7) === ym;
+          }).length +
+            1) +
+          ' transaksi</small></div><b class="num">' +
+          WM.short(monthSum) +
+          "</b></div>" +
+          (bud
+            ? '<div class="track" style="margin-top:10px"><i class="' +
+              (monthSum > bud.limit
+                ? "fill-bad"
+                : monthSum / bud.limit > 0.8
+                  ? "fill-orange"
+                  : "fill-lime") +
+              '" style="width:' +
+              Math.min(100, (monthSum / bud.limit) * 100) +
+              '%"></i></div><small>' +
+              Math.round((monthSum / bud.limit) * 100) +
+              "% dari anggaran " +
+              WM.short(bud.limit) +
+              "</small>"
+            : "") +
+          "</div>"
+        : "") +
+      (same.length
+        ? '<div><div class="flabel"><span>Transaksi serupa</span></div><ul class="mini-list" style="margin:0">' +
+          same
+            .slice(0, 3)
+            .map(function (x) {
+              return (
+                '<li data-tx="' +
+                x.id +
+                '" style="cursor:pointer"><span class="ic">' +
+                WM.icon(x.type === "tf" ? "swap" : WM.cat(x.cat).icon, 16) +
+                "</span><div><b>" +
+                esc(x.note || WM.cat(x.cat).name) +
+                "</b><small>" +
+                WM.date(x.date) +
+                '</small></div><span class="amt">' +
+                WM.short(x.amount) +
+                "</span></li>"
+              );
+            })
+            .join("") +
+          "</ul></div>"
+        : "") +
+      (can
+        ? ""
+        : '<div class="note">' +
+          WM.icon("lock", 16) +
+          "<span>Hanya " +
+          esc(by.short) +
+          " atau pemilik rekening pribadi yang bisa mengubah ini.</span></div>");
+    WM.modal({
       title: "Detail transaksi",
       body: body,
       submit: false,
       cancel: "Tutup",
       onOpen: function (d) {
-        if (!can) return;
         var foot = d.querySelector(".sheet-foot");
+        foot.insertAdjacentHTML(
+          "afterbegin",
+          '<button class="btn" type="button" data-dup>' +
+            WM.icon("copy", 16) +
+            "Duplikat</button>" +
+            (t.type === "out"
+              ? '<a class="btn" href="splitbill.html">' +
+                WM.icon("split", 16) +
+                "Split</a>"
+              : ""),
+        );
+        foot.querySelector("[data-dup]").onclick = function () {
+          d.close();
+          WM.openTx(null, {
+            type: t.type,
+            amount: t.amount,
+            acc: t.acc,
+            to: t.to,
+            cat: t.cat,
+            note: t.note,
+            member: t.member,
+          });
+        };
+        d.querySelectorAll(".mini-list [data-tx]").forEach(function (li) {
+          li.addEventListener("click", function (e) {
+            e.preventDefault();
+            d.close();
+            setTimeout(function () {
+              WM.openTxDetail(li.dataset.tx);
+            }, 60);
+          });
+        });
+        if (!can) return;
         foot.insertAdjacentHTML(
           "beforeend",
           '<button class="btn" type="button" data-del style="color:var(--bad)">' +
