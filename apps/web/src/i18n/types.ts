@@ -1330,6 +1330,23 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A4 — `/asuransi` (insurance policies) page copy. */
   asuransi: {
+    v2: {
+      heroCaption: string;
+      kpiActive: string;
+      kpiCoverage: string;
+      kpiRenew: string;
+      chartAria: string;
+      legendPremium: string;
+      allocCaption: string;
+      gridTitle: string;
+      gridCount: string;
+      benCaption: string;
+      tipOkTitle: string;
+      tipOkBody: string;
+      tipEmptyTitle: string;
+      tipEmptyBody: string;
+      tipSoonSuffix: string;
+    };
     activePoliciesSuffix: string;
     totalPremiumPrefix: string;
     errorLoad: string;

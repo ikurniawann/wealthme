@@ -1330,6 +1330,25 @@ export const id = {
     },
   },
   asuransi: {
+    v2: {
+      heroCaption: "Premi bulan ini",
+      kpiActive: "Polis aktif",
+      kpiCoverage: "Pertanggungan",
+      kpiRenew: "Perpanjangan terdekat",
+      chartAria: "Estimasi premi 6 bulan terakhir",
+      legendPremium: "Premi (estimasi)",
+      allocCaption: "total pertanggungan aktif",
+      gridTitle: "Polis",
+      gridCount: "polis",
+      benCaption: "penerima manfaat di semua polis",
+      tipOkTitle: "Tidak ada perpanjangan dalam 30 hari",
+      tipOkBody:
+        "Semua polis aktifmu masih aman. Kami ingatkan saat jatuh tempo mendekat.",
+      tipEmptyTitle: "Belum ada polis",
+      tipEmptyBody:
+        "Tambahkan polis pertamamu untuk memantau premi dan pertanggungan.",
+      tipSoonSuffix: " segera jatuh tempo",
+    },
     activePoliciesSuffix: "Polis Aktif",
     totalPremiumPrefix: "Total premi:",
     errorLoad: "Gagal memuat data asuransi. Silakan refresh halaman.",
