@@ -1633,51 +1633,10 @@
         title: "Semua menu",
         size: "sm",
         body:
-          '<button type="button" class="search" data-msearch style="max-width:none;width:100%;box-shadow:none;background:var(--card-2)">' +
+          '<button type="button" class="search" data-msearch style="max-width:none;width:100%;box-shadow:none;background:var(--card-2);flex:none;min-height:46px">' +
           WM.icon("search", 16, 2) +
           "<span>Cari halaman, transaksi…</span></button>" +
-          '<div class="hubgrid">' +
-          hubs
-            .map(function (h) {
-              var on =
-                h[0] === page ||
-                h[4].some(function (x) {
-                  return x[0] === page;
-                });
-              return (
-                '<div class="hub' +
-                (on ? " on" : "") +
-                '"><a class="hub-main" href="' +
-                h[1] +
-                '"><span class="ic">' +
-                WM.icon(h[3], 18) +
-                "</span><b>" +
-                h[2] +
-                "</b></a>" +
-                (h[4].length
-                  ? '<div class="hub-subs">' +
-                    h[4]
-                      .map(function (x) {
-                        return (
-                          '<a href="' +
-                          x[1] +
-                          '"' +
-                          (x[0] === page ? ' aria-current="page"' : "") +
-                          ">" +
-                          x[2] +
-                          "</a>"
-                        );
-                      })
-                      .join("") +
-                    "</div>"
-                  : "") +
-                "</div>"
-              );
-            })
-            .join("") +
-          '<div class="hub"><a class="hub-main" href="akun.html"><span class="ic">' +
-          WM.icon("user", 18) +
-          "</span><b>Akun</b></a></div></div>",
+          launcher(hubs, page),
         onOpen: function (dd, body) {
           body.querySelector("[data-msearch]").onclick = function () {
             dd.close();
@@ -1691,6 +1650,78 @@
     document.querySelectorAll("[data-wm-menu]").forEach(function (b) {
       b.addEventListener("click", openMenu);
     });
+  }
+
+  var SUBICON = {
+    rekening: "landmark",
+    dana: "wallet",
+    transaksi: "swap",
+    rekonsiliasi: "compare",
+    quickinput: "zap",
+    splitbill: "split",
+    ringkasan: "pie",
+    laporan: "chart",
+    anggaran: "clipboard",
+    tujuan: "target",
+    investasi: "trend",
+    aset: "briefcase",
+    liabilitas: "receipt",
+    asuransi: "shield",
+    tax: "file",
+    donation: "heart",
+    warisan: "scroll",
+    masterdata: "db",
+    mastercoa: "book",
+    iam: "key",
+  };
+  function launcher(hubs, page) {
+    var loose = [],
+      secs = [];
+    hubs.forEach(function (h) {
+      if (h[4].length)
+        secs.push([
+          h[2],
+          h[4].map(function (x) {
+            return [x[0], x[1], x[2], SUBICON[x[0]] || h[3]];
+          }),
+        ]);
+      else loose.push(h);
+    });
+    var main = [
+      ["beranda", "index.html", "Beranda", "grid"],
+      ["notifikasi", "notifikasi.html", "Notifikasi", "bell"],
+      ["akun", "akun.html", "Akun", "user"],
+    ].concat(
+      loose.filter(function (h) {
+        return h[0] !== "beranda";
+      }),
+    );
+    secs.unshift(["Utama", main]);
+    return secs
+      .map(function (sc) {
+        return (
+          '<section class="lsec"><h3>' +
+          sc[0] +
+          '</h3><div class="lgrid">' +
+          sc[1]
+            .map(function (i) {
+              return (
+                '<a class="lapp" href="' +
+                i[1] +
+                '"' +
+                (i[0] === page ? ' aria-current="page"' : "") +
+                "><span>" +
+                WM.icon(i[3], 20) +
+                "</span>" +
+                i[2] +
+                "</a>"
+              );
+            })
+            .join("") +
+          "</div></section>"
+        );
+      })
+      .join("");
   }
 
   /* ---------- popover ---------- */
