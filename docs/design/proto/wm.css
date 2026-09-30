@@ -4109,3 +4109,10 @@ dialog.sheet .sheet-head {
   color: #f3f3f1;
   border-color: rgba(255, 255, 255, 0.08);
 }
+svg text:not([style*="fill"]) {
+  fill: var(--ctext);
+}
+.card.dark,
+.cover {
+  --ctext: rgba(238, 240, 232, 0.62);
+}
