@@ -85,69 +85,105 @@ export function AllocationCard({
           {isLoading ? t.common.loading : t.common.noData}
         </div>
       ) : (
-        <div className="allocation-card__body">
-          <div className="allocation-card__donut [&_.apexcharts-legend]:hidden!">
-            <DonutChart
-              segments={segments}
-              centerLabel={t.beranda.donutCenterLabel}
-              height={188}
-              ariaLabel={donutAriaLabel}
-              money={money}
-            />
-          </div>
-          <div
-            className="allocation-card__list"
-            aria-label={t.beranda.wealthBreakdown}
-            // Batch 2 (#4) — the shared 3-column grid (design-system.css,
-            // protected) reads fine with 2-3 short labels but truncates
-            // every label to ~5 characters once 4+ real allocation items
-            // are present (confirmed on the live 1440px screenshot: "Tuna",
-            // "Reke", "Invest", "AsetF"). The `title` tooltips above are the
-            // correctness fix; this inline override is the secondary
-            // "make it not look broken by default" call the brief allows.
-            style={
-              breakdown.length > 3
-                ? { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }
-                : undefined
+        <>
+          <style>{`
+            .allocation-card__donut .apexcharts-pie-area {
+              stroke: var(--card);
+              stroke-width: 2;
+              transition: filter 0.14s ease;
             }
-          >
-            {breakdown.map((item) => (
-              <div className="allocation-row" key={item.label}>
-                <div className="allocation-row__top">
-                  <span className="allocation-row__label" title={item.label}>
+            .allocation-card__donut .apexcharts-pie-area:hover {
+              filter: brightness(1.08);
+              cursor: pointer;
+            }
+            .allocation-card__donut {
+              background: radial-gradient(
+                circle,
+                transparent 54%,
+                color-mix(in oklab, var(--border) 55%, transparent) 55%,
+                color-mix(in oklab, var(--border) 55%, transparent) 56%,
+                transparent 57%
+              );
+            }
+            .allocation-row {
+              transition: border-color 0.14s ease, transform 0.14s ease;
+            }
+            .allocation-row:hover {
+              border-color: color-mix(in oklab, var(--row-color, var(--primary)) 35%, var(--border));
+              transform: translateY(-1px);
+            }
+            .allocation-row__dot {
+              box-shadow:
+                0 0 0 2px color-mix(in oklab, var(--card) 82%, transparent),
+                0 0 0 2px color-mix(in oklab, var(--row-color, var(--primary)) 45%, transparent);
+            }
+            .allocation-row__meta {
+              border-top: 1px solid color-mix(in oklab, var(--border) 55%, transparent);
+              padding-top: 4px;
+              margin-top: 1px;
+            }
+          `}</style>
+          <div className="allocation-card__body">
+            <div className="allocation-card__donut [&_.apexcharts-legend]:hidden!">
+              <DonutChart
+                segments={segments}
+                centerLabel={t.beranda.donutCenterLabel}
+                height={188}
+                ariaLabel={donutAriaLabel}
+                money={money}
+              />
+            </div>
+            <div
+              className="allocation-card__list"
+              aria-label={t.beranda.wealthBreakdown}
+              style={
+                breakdown.length > 3
+                  ? { gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }
+                  : undefined
+              }
+            >
+              {breakdown.map((item) => (
+                <div
+                  className="allocation-row"
+                  key={item.label}
+                  style={{ "--row-color": item.color } as React.CSSProperties}
+                >
+                  <div className="allocation-row__top">
+                    <span className="allocation-row__label" title={item.label}>
+                      <span
+                        className="allocation-row__dot"
+                        style={{ backgroundColor: item.color }}
+                        aria-hidden="true"
+                      />
+                      {item.label}
+                    </span>
                     <span
-                      className="allocation-row__dot"
-                      style={{ backgroundColor: item.color }}
-                      aria-hidden="true"
+                      className="allocation-row__value"
+                      title={money.format(item.amount)}
+                    >
+                      {money.formatCompact(item.amount)}
+                    </span>
+                  </div>
+                  <div className="allocation-row__meta">
+                    <span>{item.percent}%</span>
+                    <span title={money.format(item.amount)}>
+                      {money.format(item.amount)}
+                    </span>
+                  </div>
+                  <span className="allocation-row__track" aria-hidden="true">
+                    <span
+                      className="allocation-row__bar"
+                      style={{
+                        width: `${Math.min(100, Math.max(0, item.percent))}%`,
+                        backgroundColor: item.color,
+                      }}
                     />
-                    {item.label}
-                  </span>
-                  <span
-                    className="allocation-row__value"
-                    title={money.format(item.amount)}
-                  >
-                    {money.formatCompact(item.amount)}
                   </span>
                 </div>
-                <div className="allocation-row__meta">
-                  <span>{item.percent}%</span>
-                  <span title={money.format(item.amount)}>
-                    {money.format(item.amount)}
-                  </span>
-                </div>
-                <span className="allocation-row__track" aria-hidden="true">
-                  <span
-                    className="allocation-row__bar"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, item.percent))}%`,
-                      backgroundColor: item.color,
-                    }}
-                  />
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        </>
       )}
     </SectionCard>
   );

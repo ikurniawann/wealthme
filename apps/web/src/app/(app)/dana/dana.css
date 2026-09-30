@@ -1,0 +1,43 @@
+/* Cash & E-Wallet (bento v2, docs/design/proto/dana.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .dn-grid > .dn-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .dn-grid > .dn-comp {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .dn-grid > .dn-cash {
+      grid-column: 1 / 5;
+      grid-row: 2;
+    }
+    .dn-grid > .dn-ew {
+      grid-column: 5 / 9;
+      grid-row: 2;
+    }
+    .dn-grid > .dn-tip {
+      grid-column: 9 / 13;
+      grid-row: 2;
+    }
+  }
+  .dn-grid > * {
+    min-width: 0;
+    margin: 0 !important;
+  }
+  .dn-grid > .dn-full {
+    grid-column: 1 / -1;
+  }
+  .dn-hero .wm-ghost-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .dn-hero .wm-kpi .wm-cap {
+    display: block;
+    margin-top: 2px;
+  }
+  .dn-tip {
+    align-content: start;
+  }
+}

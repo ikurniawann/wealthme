@@ -13,7 +13,22 @@ import { apiFetch } from "@/lib/api-client";
 import { parseRupiah } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { buildGoalBody } from "@/lib/goals-utils";
-import { SectionCard, CardLink } from "@/components/wm";
+import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  BentoTile,
+  BentoTiles,
+  GhostButton,
+  HeroKpi,
+  MiniList,
+  MiniRow,
+  SeeAll,
+  TipsCard,
+} from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { categoryIcon } from "@/components/shell/tx-pickers";
+import "./quickinput.css";
 import { queryKeys } from "@/lib/query-keys";
 import {
   isMasterOrCoMaster,
@@ -31,6 +46,7 @@ import {
   Scroll,
   ShieldCheck,
   Target,
+  Plus,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
@@ -328,7 +344,7 @@ export default function QuickInputPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { setTxnOpen } = useShell();
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const money = useMoney();
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
@@ -362,6 +378,23 @@ export default function QuickInputPage() {
     enabled: Boolean(familyGroupId) && Boolean(token) && isAllowed,
   });
   const recentTransactions = recentResponse?.data;
+  // Hero chart: the last 7 days of entries (a real per-day count).
+  const [weekFrom] = useState(() =>
+    new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10),
+  );
+  const { data: weekResponse } = useQuery<TransactionListResponse>({
+    queryKey: [
+      ...queryKeys.transactions.all(familyGroupId ?? ""),
+      "quickinput-week",
+      weekFrom,
+    ],
+    queryFn: () =>
+      apiFetch<TransactionListResponse>(
+        `/family-groups/${familyGroupId}/transactions?from=${weekFrom}&limit=100`,
+        { token },
+      ),
+    enabled: Boolean(familyGroupId) && Boolean(token) && isAllowed,
+  });
 
   const handleClick = (card: QuickCard) => {
     if (card.action === "crud") {
@@ -418,88 +451,156 @@ export default function QuickInputPage() {
     );
   }
 
+  const v2 = t.quickinput.v2;
+  const recent = recentTransactions ?? [];
+  const week = weekResponse?.data ?? [];
+  const now = new Date();
+  const dayKey = (d: Date) =>
+    `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  const days = Array.from(
+    { length: 7 },
+    (_, index) =>
+      new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6 + index),
+  );
+  const counts = days.map(
+    (d) =>
+      week.filter((tx) => dayKey(new Date(tx.occurredAt)) === dayKey(d)).length,
+  );
+  const lastAt = recent[0]?.createdAt;
+  const lastLabel = lastAt
+    ? new Date(lastAt).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+        day: "numeric",
+        month: "short",
+      })
+    : v2.never;
+
   return (
-    <div className="space-y-4">
-      <section aria-labelledby="quickinput-heading" className="mb-1">
-        <h1
-          id="quickinput-heading"
-          className="text-[17px] font-extrabold tracking-tight"
-        >
-          {t.quickinput.pageTitle}
-        </h1>
-      </section>
+    <BentoGrid className="qi-grid">
+      <h1 className="sr-only">{t.quickinput.pageTitle}</h1>
+      <BentoHero
+        className="qi-hero"
+        currency={null}
+        value={String(QUICK_CARDS.length)}
+        caption={v2.shortcuts}
+        controls={
+          <GhostButton lit onClick={() => setTxnOpen(true)}>
+            <Plus aria-hidden="true" /> {v2.addTx}
+          </GhostButton>
+        }
+        chart={
+          <HatchedBarChart
+            labels={days.map((d) =>
+              d.toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+                weekday: "short",
+              }),
+            )}
+            series={[
+              { name: v2.countUnit, data: counts, color: "var(--wm-lime)" },
+            ]}
+            highlight={6}
+            format={(n) => `${n} ${v2.countUnit}`}
+            axis={(n) => String(Math.round(n))}
+            wide
+            ariaLabel={v2.chartAria}
+          />
+        }
+        kpis={
+          <>
+            <HeroKpi label={v2.today} value={String(counts[6])} />
+            <HeroKpi
+              label={v2.week}
+              value={String(weekResponse?.meta.total ?? week.length)}
+            />
+            <HeroKpi label={v2.last} value={lastLabel} />
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {QUICK_CARDS.map((card) => (
-          <button
-            key={card.id}
-            type="button"
-            onClick={() => handleClick(card)}
-            className="cursor-pointer rounded-[14px] border bg-card p-[18px] text-center transition-all duration-150 hover:-translate-y-[3px] hover:border-primary hover:shadow-[0_8px_24px_rgba(79,70,229,.14)]"
-          >
-            <div
-              className="mx-auto mb-3 flex size-12 items-center justify-center rounded-[14px]"
-              style={{ background: card.iconBg, color: card.iconColor }}
-            >
-              <card.icon className="size-[21px]" />
-            </div>
-            <div className="text-[13.5px] font-bold">
-              {t.quickinput.cards[card.id].name}
-            </div>
-            <div className="mt-[3px] text-[11px] leading-[1.4] text-muted-foreground">
-              {t.quickinput.cards[card.id].desc}
-            </div>
-          </button>
-        ))}
-      </div>
+      <BentoCard
+        className="qi-recent"
+        title={t.quickinput.recentEntriesTitle}
+        caption={v2.recentCap}
+      >
+        {recent.length === 0 ? (
+          <p className="wm-cap mt-4">{t.quickinput.emptyRecent}</p>
+        ) : (
+          <MiniList label={t.quickinput.recentEntriesTitle}>
+            {recent.map((tx) => {
+              const Icon = categoryIcon(tx.categoryName ?? "");
+              const inflow = tx.type === "income";
+              return (
+                <MiniRow
+                  key={tx.id}
+                  icon={<Icon aria-hidden="true" />}
+                  title={tx.description ?? tx.categoryName ?? "—"}
+                  meta={tx.accountName ?? "—"}
+                  amount={
+                    <span className={inflow ? "wm-pos" : undefined}>
+                      {tx.type === "transfer" ? "" : inflow ? "+" : "−"}
+                      {money
+                        .formatCompact(parseFloat(tx.amount))
+                        .replace("Rp ", "")}
+                    </span>
+                  }
+                  onClick={() => router.push("/transaksi")}
+                />
+              );
+            })}
+          </MiniList>
+        )}
+        <SeeAll href="/transaksi">{t.quickinput.viewAllLink}</SeeAll>
+      </BentoCard>
 
-      {recentTransactions && (
-        <SectionCard
-          title={t.quickinput.recentEntriesTitle}
-          action={
-            <CardLink
-              onClick={() => router.push("/transaksi")}
-              className="no-underline hover:no-underline"
-            >
-              {t.quickinput.viewAllLink}
-            </CardLink>
-          }
-          bodyClassName="-my-3"
-        >
-          {recentTransactions.length === 0 && (
-            <p className="py-3 text-[13.5px] text-muted-foreground">
-              {t.quickinput.emptyRecent}
-            </p>
-          )}
-          {recentTransactions.map((tx, i) => (
-            <div
-              key={tx.id}
-              className={`flex items-center gap-3 py-3 ${i < recentTransactions.length - 1 ? "border-b" : ""}`}
-            >
-              <div className="flex-1">
-                <div className="text-[13.5px] font-semibold">
-                  {tx.description ?? tx.categoryName ?? "—"}
-                </div>
-                <div className="text-[11.5px] text-muted-foreground">
-                  {tx.accountName ?? "—"}
-                </div>
-              </div>
-              <div
-                className={`text-[13.5px] font-bold ${tx.type === "expense" ? "text-destructive" : "text-success"}`}
-              >
-                {tx.type === "expense" ? "−" : "+"}
-                {money.format(parseFloat(tx.amount))}
-              </div>
-            </div>
+      <BentoCard
+        className="qi-shortcuts"
+        title={v2.recordTitle}
+        caption={v2.recordCap}
+      >
+        <BentoTiles className="qi-tiles">
+          {QUICK_CARDS.map((card) => (
+            <BentoTile
+              key={card.id}
+              onClick={() => handleClick(card)}
+              icon={<card.icon aria-hidden="true" />}
+              title={t.quickinput.cards[card.id].name}
+              foot={t.quickinput.cards[card.id].desc}
+            />
           ))}
-        </SectionCard>
-      )}
+        </BentoTiles>
+      </BentoCard>
+
+      <TipsCard
+        className="qi-tip"
+        title={v2.tipTitle}
+        mosaic={[
+          "",
+          "b",
+          "a",
+          "",
+          "b",
+          "a",
+          "b",
+          "a",
+          "a",
+          "",
+          "c",
+          "a",
+          "",
+          "b",
+          "a",
+          "a",
+          "b",
+          "a",
+        ]}
+      >
+        {v2.tipBody}
+      </TipsCard>
 
       <CrudModal
         state={crud}
         onClose={() => setCrud(null)}
         onSubmit={handleSubmit}
       />
-    </div>
+    </BentoGrid>
   );
 }

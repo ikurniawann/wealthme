@@ -4,6 +4,7 @@
  * already used by rekening.test.tsx in this same directory.
  */
 
+import { ShellProvider } from "../../../components/shell/shell-context";
 import type { ReactElement } from "react";
 import { render as rtlRender, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -70,7 +71,9 @@ function render(ui: ReactElement) {
   return rtlRender(ui, {
     wrapper: ({ children }) => (
       <QueryClientProvider client={queryClient}>
-        <DisplayCurrencyProvider>{children}</DisplayCurrencyProvider>
+        <DisplayCurrencyProvider>
+          <ShellProvider>{children}</ShellProvider>
+        </DisplayCurrencyProvider>
       </QueryClientProvider>
     ),
   });

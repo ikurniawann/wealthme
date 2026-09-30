@@ -8,7 +8,7 @@
  *
  *   1. `.page-lead`                       → `RingkasanPageLead`
  *   2. `.bento-grid` hero + 3 stats       → `HeroStatsSection`
- *   3. `.bento-grid` trend + composition  → `TrendCompositionSection`
+ *   3. composition stack beside the hero → `CompositionBento`
  *   4. "Rincian Aset vs Liabilitas" table → `BreakdownTableSection`
  *   5. `.grid.grid--3.equal-grid` band    → `CashflowCard` / `TopExpensesCard`
  *                                            / `HealthScoreCard`
@@ -22,6 +22,7 @@
  */
 
 import { useState } from "react";
+import "./ringkasan.css";
 
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
@@ -34,7 +35,7 @@ import { HeroStatsSection } from "./_components/hero-stats-section";
 import { LiabilityBreakdownCard } from "./_components/liability-breakdown-card";
 import { RingkasanPageLead } from "./_components/page-lead";
 import { TopExpensesCard } from "./_components/top-expenses-card";
-import { TrendCompositionSection } from "./_components/trend-composition-section";
+import { CompositionBento } from "./_components/trend-composition-section";
 import { useRingkasanPrivacy } from "./_components/use-ringkasan-privacy";
 import {
   useRingkasanData,
@@ -100,7 +101,17 @@ export default function RingkasanPage() {
         onTogglePrivacy={togglePrivacy}
       />
 
-      <HeroStatsSection data={data} displayCurrency={displayCurrency} />
+      <div className="rk2-top">
+        <HeroStatsSection data={data} displayCurrency={displayCurrency} />
+        {/* EPIC-021 Group F (#6) — consolidated IDR + USD + gram-emas total. */}
+        <div className="rk2-side">
+          <CompositionBento data={data} />
+          <ConsolidatedTotalCard
+            netWorthIdr={data.netWorth}
+            isLoading={data.isLoading}
+          />
+        </div>
+      </div>
 
       {noteCurrency && (
         <div className="t-xs t-muted">
@@ -109,17 +120,6 @@ export default function RingkasanPage() {
           {t.ringkasan.indicativeFxNoteSuffix}
         </div>
       )}
-
-      {/* EPIC-021 Group F (#6) — consolidated total shown simultaneously in
-          IDR + USD + gram-emas (Open Design Decision #6). Not in the
-          prototype; renders on the prototype's own `.card` surface via
-          SectionCard, directly under the headline figures it restates. */}
-      <ConsolidatedTotalCard
-        netWorthIdr={data.netWorth}
-        isLoading={data.isLoading}
-      />
-
-      <TrendCompositionSection data={data} trendRange={trendRange} />
 
       <BreakdownTableSection data={data} />
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { ShellLoading } from "@/components/shell/shell-loading";
+
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -74,21 +76,7 @@ export function ForcePasswordChangeGuard({
   const mustChangePassword = data?.mustChangePassword === true;
 
   if (isCheckPending || mustChangePassword) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2.5 text-muted-foreground">
-          <div className="flex size-9 items-center justify-center rounded-[10px]">
-            {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
-            <img
-              src="/brand/wealthme-mark.png"
-              alt=""
-              className="size-full object-contain"
-            />
-          </div>
-          <span className="text-sm font-semibold">{t.shell.loading}</span>
-        </div>
-      </div>
-    );
+    return <ShellLoading />;
   }
 
   return <>{children}</>;

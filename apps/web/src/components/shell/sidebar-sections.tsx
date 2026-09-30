@@ -1,191 +1,272 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowUpDown,
+  BookOpen,
+  Calculator,
+  CircleCheck,
+  ClipboardList,
+  Landmark,
+  Settings,
+  Shield,
+  Sparkles,
+  TrendingUp,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
-import { NAV_SECTIONS, isNavItemVisibleForAccess } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import {
+  NAV_SECTIONS,
+  isNavItemVisibleForAccess,
+  type NavItem,
+  type NavItemId,
+} from "@/lib/nav";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
-import { NavBadge, SidebarNavItem } from "./sidebar-nav-item";
+import type { I18nDictionary } from "@/i18n/types";
+import type { AllowanceRequestDto } from "@wealthme/contracts";
 
 /**
- * EPIC-026 shell migration — prototype `.sidebar__nav` / `.sidebar__section-header`.
- * Shared by the fixed desktop sidebar and the mobile nav sheet, which render
- * the same nav content (the sidebar itself is `display:none` below 768px).
- */
-const GROUPS_STORAGE_KEY = "wm.sidebarGroups";
-const GROUPS_EVENT = "wm:sidebar-groups";
-
-/**
- * EPIC-032 Task 2 — which collapsible groups the user has closed, read
- * through `useSyncExternalStore` so the server render (nothing closed) and
- * the client hydrate from one snapshot and later toggles re-render without
- * a setState-in-effect.
- */
-function subscribeGroups(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  window.addEventListener(GROUPS_EVENT, onChange);
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(GROUPS_EVENT, onChange);
-  };
-}
-function readClosedGroupsRaw(): string {
-  try {
-    return window.localStorage.getItem(GROUPS_STORAGE_KEY) ?? "[]";
-  } catch {
-    return "[]";
-  }
-}
-function writeClosedGroups(next: Set<string>) {
-  try {
-    window.localStorage.setItem(GROUPS_STORAGE_KEY, JSON.stringify([...next]));
-  } catch {
-    /* storage may be unavailable (private mode); the toggle just won't persist */
-  }
-  window.dispatchEvent(new Event(GROUPS_EVENT));
-}
-
-/**
- * Batch 5 item 1 — a strict `pathname === href` match never fires on a
- * dynamic sub-route (`/aset/123` never equals `/aset`), so the nav item
- * loses its own highlight there. First-segment matching, consistent with
- * `nav.ts`'s `isRouteAllowedForRole`/`isRouteAllowedForAccess`. No `href`
- * in `NAV_SECTIONS` is a bare prefix of another (all distinct single
- * segments), so the trailing-slash guard can't false-positive across items.
+ * Batch 5 item 1 — first-segment matching so `/aset/123` still highlights
+ * Aset (a strict `===` never fires on a dynamic sub-route).
  */
 export function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/**
- * A4 (revisi-2) — "click the logo to go Home, no separate Home button": the
- * logo in `SidebarBrand` now links to `/beranda`, so the desktop sidebar and
- * the mobile nav sheet (both render `SidebarSections`) drop their own
- * `beranda` item to avoid the duplicate. The mobile bottom-nav's Beranda tab
- * is a separate component (`mobile-bars.tsx`) and is untouched.
- */
+/** The logo links home, so lists that sit beside it drop their own Beranda entry. */
 export function excludeBrandDuplicate<T extends { id: string }>(
   items: readonly T[],
 ): T[] {
   return items.filter((item) => item.id !== "beranda");
 }
 
-export function SidebarSections({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const closedRaw = useSyncExternalStore(
-    subscribeGroups,
-    readClosedGroupsRaw,
-    () => "[]",
+/* ───────────── hub model (bento v2, docs/design/proto/wm.js `WM.NAV`) ───────────── */
+
+type HubLabelKey = "accounts" | "cashflow" | "wealth" | "taxZakat" | "settings";
+
+type HubDef = {
+  /** Nav item whose route the hub opens (also its access gate). */
+  id: NavItemId;
+  icon: LucideIcon;
+  /** Override for the hub label; defaults to the item's own nav label. */
+  labelKey?: HubLabelKey;
+  children: NavItemId[];
+};
+
+export const PRIMARY_HUBS: readonly HubDef[] = [
+  {
+    id: "rekening",
+    icon: Landmark,
+    labelKey: "accounts",
+    children: ["rekening", "dana"],
+  },
+  {
+    id: "transaksi",
+    icon: ArrowUpDown,
+    children: ["transaksi", "rekonsiliasi", "quickinput", "splitbill"],
+  },
+  {
+    id: "ringkasan",
+    icon: Wallet,
+    labelKey: "cashflow",
+    children: ["ringkasan", "laporan"],
+  },
+  { id: "anggaran", icon: ClipboardList, children: ["anggaran", "tujuan"] },
+  {
+    id: "investasi",
+    icon: TrendingUp,
+    labelKey: "wealth",
+    children: ["investasi", "aset", "liabilitas", "asuransi"],
+  },
+  {
+    id: "tax",
+    icon: Shield,
+    labelKey: "taxZakat",
+    children: ["tax", "donation", "warisan"],
+  },
+  { id: "persetujuan", icon: CircleCheck, children: [] },
+];
+
+export const SECONDARY_HUBS: readonly HubDef[] = [
+  { id: "ai", icon: Sparkles, children: [] },
+  { id: "kalkulator", icon: Calculator, children: [] },
+  {
+    id: "masterdata",
+    icon: Settings,
+    labelKey: "settings",
+    children: ["masterdata", "mastercoa", "iam"],
+  },
+  { id: "panduan", icon: BookOpen, children: [] },
+];
+
+const NAV_ITEMS = new Map<NavItemId, NavItem>(
+  NAV_SECTIONS.flatMap((section) => section.items).map((item) => [
+    item.id,
+    item,
+  ]),
+);
+
+export type Hub = {
+  id: NavItemId;
+  icon: LucideIcon;
+  labelKey?: HubLabelKey;
+  href: string;
+  /** Visible sub-pages; empty for single-page hubs. */
+  children: NavItem[];
+};
+
+type Access = Parameters<typeof isNavItemVisibleForAccess>[1];
+
+/**
+ * Resolve hubs against the member's effective access: a hub shows when its own
+ * page or any sub-page is visible, and opens the first visible page. Pure so
+ * the role gating is unit-testable without rendering the shell.
+ */
+export function buildHubs(defs: readonly HubDef[], access: Access): Hub[] {
+  return defs.flatMap((def) => {
+    const item = NAV_ITEMS.get(def.id);
+    if (!item) return [];
+    const children = def.children
+      .map((id) => NAV_ITEMS.get(id))
+      .filter((child): child is NavItem =>
+        Boolean(child && isNavItemVisibleForAccess(child, access)),
+      );
+    const selfVisible = isNavItemVisibleForAccess(item, access);
+    if (!selfVisible && children.length === 0) return [];
+    return [
+      {
+        id: def.id,
+        icon: def.icon,
+        labelKey: def.labelKey,
+        href: selfVisible ? item.href : children[0].href,
+        children,
+      },
+    ];
+  });
+}
+
+export function hubLabel(
+  hub: Pick<Hub, "id" | "labelKey">,
+  t: I18nDictionary,
+): string {
+  return hub.labelKey
+    ? t.shell.hubs[hub.labelKey]
+    : t.shell.navSections[hub.id];
+}
+
+export function isHubActive(hub: Hub, pathname: string): boolean {
+  return (
+    isNavItemActive(pathname, hub.href) ||
+    hub.children.some((child) => isNavItemActive(pathname, child.href))
   );
-  const closedGroups = useMemo(() => {
-    try {
-      return new Set(JSON.parse(closedRaw) as string[]);
-    } catch {
-      return new Set<string>();
-    }
-  }, [closedRaw]);
-  function toggleGroup(key: string) {
-    const next = new Set(closedGroups);
-    if (next.has(key)) next.delete(key);
-    else next.add(key);
-    writeClosedGroups(next);
-  }
-  const { t } = useLocale();
+}
+
+/** Both hub lists resolved for the signed-in member. */
+export function useHubs() {
+  const { access } = useMyAccess();
+  return {
+    primary: buildHubs(PRIMARY_HUBS, access),
+    secondary: buildHubs(SECONDARY_HUBS, access),
+  };
+}
+
+/** Pending approvals for the Persetujuan badge, fetched only when that hub is visible. */
+function usePendingApprovals(enabled: boolean) {
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
-  // EPIC-030 — the menu shows exactly the pages the Master granted this
-  // member (custom role + overrides); IAM itself is Master-only.
-  const { access } = useMyAccess();
-
-  const { data: unreadData } = useQuery<{ count: number }>({
-    queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
+  const { data } = useQuery<AllowanceRequestDto[]>({
+    queryKey: queryKeys.allowanceRequests.all(familyGroupId ?? ""),
     queryFn: ({ signal }) =>
-      apiFetch<{ count: number }>(
-        `/family-groups/${familyGroupId}/notifications/unread-count`,
+      apiFetch<AllowanceRequestDto[]>(
+        `/family-groups/${familyGroupId}/allowance-requests`,
         { token, signal },
       ),
-    enabled: Boolean(familyGroupId) && Boolean(token),
-    refetchInterval: 30_000,
+    enabled: enabled && Boolean(familyGroupId && token),
+    staleTime: 60_000,
   });
+  return (data ?? []).filter((request) => request.status === "pending").length;
+}
 
-  const unreadCount = unreadData?.count ?? 0;
-
+function HubList({
+  hubs,
+  pathname,
+  pending,
+  t,
+}: {
+  hubs: Hub[];
+  pathname: string;
+  pending: number;
+  t: I18nDictionary;
+}) {
   return (
-    <nav
-      className="sidebar__nav hide-scrollbar"
-      aria-label={t.shell.navMenuTitle}
-    >
-      {NAV_SECTIONS.map((section, si) => {
-        const visibleItems = excludeBrandDuplicate(section.items).filter(
-          (item) => isNavItemVisibleForAccess(item, access),
-        );
-        if (visibleItems.length === 0) return null;
-        const key = section.headerKey;
-        // The group holding the current page never hides it.
-        const holdsActive = visibleItems.some((item) =>
-          isNavItemActive(pathname, item.href),
-        );
-        const isOpen = !key || holdsActive || !closedGroups.has(key);
+    <nav className="wm-nav" aria-label={t.shell.navMenuTitle}>
+      {hubs.map((hub) => {
+        const active = isHubActive(hub, pathname);
+        const label = hubLabel(hub, t);
+        const Icon = hub.icon;
+        const leaf = hub.children.length === 0;
         return (
-          <div key={si} className="sidebar__group" data-open={isOpen}>
-            {key && (
-              <button
-                type="button"
-                className="sidebar__section-header sidebar__group-toggle"
-                aria-expanded={isOpen}
-                aria-controls={`sidebar-group-${key}`}
-                onClick={() => toggleGroup(key)}
-              >
-                <span>{t.shell.navSectionHeaders[key]}</span>
-                <ChevronDown
-                  className="sidebar__group-chevron"
-                  aria-hidden="true"
-                />
-              </button>
-            )}
-            <div
-              id={key ? `sidebar-group-${key}` : undefined}
-              className="sidebar__group-items"
-              hidden={!isOpen}
+          <div key={hub.id}>
+            <Link
+              href={hub.href}
+              title={label}
+              className="wm-nav-link"
+              aria-current={active && leaf ? "page" : undefined}
+              data-open={active && !leaf ? "true" : undefined}
             >
-              {visibleItems.map((item) => {
-                const label = t.shell.navSections[item.id];
-
-                // The prototype's NAV is flat — every entry, Laporan included,
-                // is a plain `.nav-item` with no expandable sub-list (verified
-                // in docs/prototype/assets/shell.js: zero children/sub keys).
-                // `item.children` still describes the report tabs for the
-                // in-page tab strip on /laporan; it just no longer renders a
-                // sidebar dropdown.
-                const badge =
-                  item.id === "notifikasi" && unreadCount > 0 ? (
-                    <NavBadge text={String(unreadCount)} variant="danger" />
-                  ) : item.badge && item.badgeVariant ? (
-                    <NavBadge text={item.badge} variant={item.badgeVariant} />
-                  ) : undefined;
-
-                return (
-                  <SidebarNavItem
-                    key={item.id}
-                    href={item.href}
-                    icon={item.icon}
-                    label={label}
-                    active={isNavItemActive(pathname, item.href)}
-                    badge={badge}
-                    onNavigate={onNavigate}
-                  />
-                );
-              })}
-            </div>
+              <Icon aria-hidden="true" />
+              <span className="wm-nav-lbl">{label}</span>
+              {hub.id === "persetujuan" && pending > 0 && (
+                <span className="wm-badge">{pending}</span>
+              )}
+            </Link>
+            {active && !leaf && (
+              <div className="wm-sub">
+                {hub.children.map((child) => (
+                  <Link
+                    key={child.id}
+                    href={child.href}
+                    className="wm-nav-link"
+                    aria-current={
+                      isNavItemActive(pathname, child.href) ? "page" : undefined
+                    }
+                  >
+                    {t.shell.navSections[child.id]}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         );
       })}
     </nav>
+  );
+}
+
+/** Hub sidebar body: primary hubs | separator | tools. The active hub unfolds its sub-pages. */
+export function SidebarSections() {
+  const pathname = usePathname();
+  const { t } = useLocale();
+  const { primary, secondary } = useHubs();
+  const pending = usePendingApprovals(
+    primary.some((hub) => hub.id === "persetujuan"),
+  );
+  return (
+    <>
+      <HubList hubs={primary} pathname={pathname} pending={pending} t={t} />
+      {secondary.length > 0 && (
+        <>
+          <div className="wm-sep" role="separator" />
+          <HubList hubs={secondary} pathname={pathname} pending={0} t={t} />
+        </>
+      )}
+    </>
   );
 }

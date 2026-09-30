@@ -7,10 +7,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   SectionCard,
-  SummaryCard,
   ProgressBar,
   StatusBadge,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HatchedBar,
+  HeroKpi,
+  TipsCard,
 } from "@/components/wm";
+import "./splitbill.css";
 import {
   Dialog,
   DialogBody,
@@ -524,65 +530,73 @@ export default function SplitBillPage() {
     .filter((p) => p.status === "pending").length;
 
   return (
-    <div className="space-y-4">
-      {/* Header — the page had only the subtitle, which read as an orphan
-          sentence with no heading above it. */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div>
-          <h1 className="text-[17px] font-extrabold tracking-tight">
-            {t.splitbill.pageTitle}
-          </h1>
-          <div className="mt-1 text-[13px] text-muted-foreground">
-            {t.splitbill.headerDesc}
-          </div>
-        </div>
-        <Button
-          onClick={() => setCreateOpen(true)}
-          disabled={!familyGroupId}
-          className="h-auto px-[18px] py-2.5"
-        >
-          <Plus className="size-4" /> {t.splitbill.createButton}
-        </Button>
-      </div>
-
-      {/* Stats — EPIC-025 N3-E5: prototype's `.auto-grid--metrics` of
-          `.card.stat` (translation table: `.stat` → `SummaryCard`). Values
-          are the same derived numbers the old inline cards rendered. */}
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        {/* `activeSplits.length` is a neutral fact, not a good/bad trend —
-            SummaryCard's `caption` slot renders it without the `delta`
-            slot's success/danger color, so all three cards share one
-            component (see components/wm/stat.tsx). */}
-        <SummaryCard
-          icon={<span aria-hidden="true">🧾</span>}
-          iconBg="var(--accent)"
-          iconColor="var(--primary)"
-          label={t.splitbill.totalDitalanginLabel}
-          amount={money.format(totalDitalangin)}
-          caption={`${activeSplits.length}${t.splitbill.activeSplitsSuffix}`}
-        />
-        <SummaryCard
-          icon={<span aria-hidden="true">✅</span>}
-          iconBg="var(--success-soft)"
-          iconColor="var(--success)"
-          label={t.splitbill.sudahDibayarLabel}
-          amount={money.format(totalTerkumpul)}
-          delta={`${
-            totalDitalangin > 0
-              ? Math.round((totalTerkumpul / totalDitalangin) * 100)
-              : 0
-          }${t.splitbill.pctCollectedSuffix}`}
-          deltaUp
-        />
-        <SummaryCard
-          icon={<span aria-hidden="true">⏳</span>}
-          iconBg="var(--warning-soft)"
-          iconColor="var(--warning)"
-          label={t.splitbill.belumDibayarLabel}
-          amount={money.format(totalBelum)}
-          delta={`${belumBayarCount}${t.splitbill.peopleUnpaidSuffix}`}
-        />
-      </div>
+    <BentoGrid className="sb-grid">
+      <h1 className="sr-only">{t.splitbill.pageTitle}</h1>
+      <BentoHero
+        className="sb-hero"
+        currency={null}
+        value={money.format(totalBelum).replace(/,00$/, "")}
+        caption={`${t.splitbill.belumDibayarLabel} · ${belumBayarCount}${t.splitbill.peopleUnpaidSuffix}`}
+        controls={
+          <GhostButton
+            lit
+            onClick={() => setCreateOpen(true)}
+            disabled={!familyGroupId}
+          >
+            <Plus aria-hidden="true" /> {t.splitbill.createButton}
+          </GhostButton>
+        }
+        chart={
+          activeSplits.length > 0 ? (
+            <div
+              className="sb-bars"
+              role="img"
+              aria-label={activeSplits
+                .slice(0, 5)
+                .map((split) => `${split.title} ${computePct(split)}%`)
+                .join(", ")}
+            >
+              {activeSplits.slice(0, 5).map((split) => {
+                const pct = computePct(split);
+                return (
+                  <div key={split.id} className="sb-bar-row">
+                    <span
+                      className="sb-bar-lbl"
+                      data-label={split.title}
+                      aria-hidden="true"
+                    />
+                    <HatchedBar value={pct} label={`${split.title} ${pct}%`} />
+                    <b className="wm-num">{pct}%</b>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="wm-cap">{t.splitbill.headerDesc}</p>
+          )
+        }
+        kpis={
+          <>
+            <HeroKpi
+              label={t.splitbill.totalDitalanginLabel}
+              value={money.format(totalDitalangin).replace(/,00$/, "")}
+              short={money.formatCompact(totalDitalangin)}
+            />
+            <HeroKpi
+              label={t.splitbill.sudahDibayarLabel}
+              value={money.format(totalTerkumpul).replace(/,00$/, "")}
+              short={money.formatCompact(totalTerkumpul)}
+              delta={
+                <small className="wm-cap">{`${totalDitalangin > 0 ? Math.round((totalTerkumpul / totalDitalangin) * 100) : 0}${t.splitbill.pctCollectedSuffix}`}</small>
+              }
+            />
+            <HeroKpi
+              label={t.splitbill.activeSplitsTitle}
+              value={String(activeSplits.length)}
+            />
+          </>
+        }
+      />
 
       {/* Error state */}
       {isError && (
@@ -596,6 +610,7 @@ export default function SplitBillPage() {
 
       {/* Active splits */}
       <SectionCard
+        className="sb-active"
         title={t.splitbill.activeSplitsTitle}
         bodyClassName="space-y-2.5"
       >
@@ -721,12 +736,32 @@ export default function SplitBillPage() {
           `.notice--info` (translation table: Cards → `SectionCard`, Notices
           → inline Tailwind `notice--info` mapping). Same copy as before,
           just the card/notice chrome instead of a bespoke accent banner. */}
-      <SectionCard title={t.splitbill.insightTitle}>
-        <div className="flex items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
-          <Link2 className="size-4 shrink-0" aria-hidden="true" />
-          <span>{t.splitbill.insightDesc}</span>
-        </div>
-      </SectionCard>
+      <TipsCard
+        className="sb-tip"
+        title={t.splitbill.insightTitle}
+        mosaic={[
+          "",
+          "b",
+          "a",
+          "",
+          "b",
+          "a",
+          "b",
+          "a",
+          "a",
+          "",
+          "c",
+          "a",
+          "",
+          "b",
+          "a",
+          "a",
+          "b",
+          "a",
+        ]}
+      >
+        {t.splitbill.insightDesc}
+      </TipsCard>
 
       {/* Create modal */}
       <Dialog
@@ -1246,6 +1281,6 @@ export default function SplitBillPage() {
           }
         }}
       />
-    </div>
+    </BentoGrid>
   );
 }

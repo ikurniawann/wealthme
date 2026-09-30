@@ -221,6 +221,24 @@ function render(ui: ReactElement) {
   return { ...result, queryClient };
 }
 
+/**
+ * Bento v2: Akun / Kategori are tile radiogroups, the card picker is still a
+ * <select>. `pick` chooses an option on either by its value.
+ */
+async function pick(
+  user: {
+    selectOptions: (el: Element, v: string) => Promise<void>;
+    click: (el: Element) => Promise<void>;
+  },
+  el: Element,
+  value: string,
+) {
+  if (el.tagName === "SELECT") return user.selectOptions(el, value);
+  const tile = el.querySelector(`[data-value="${value}"]`);
+  if (!tile) throw new Error(`no tile with value ${value}`);
+  return user.click(tile);
+}
+
 describe("TransactionDialog, tab-strip scrolls at tablet/desktop, wraps below 400px (batch-3, revised batch-8 item 1)", () => {
   it("the type-switch tablist scrolls horizontally by default and wraps only under the 400px breakpoint", async () => {
     render(<TransactionDialog />);
@@ -283,16 +301,22 @@ describe("TransactionDialog, polish-j batch 7a item 6 (subtitle, pairing, Lampir
     ).not.toBeInTheDocument();
   });
 
-  it("pairs Akun and Kategori as same-shape controls in one row, like Tanggal/Deskripsi", async () => {
+  it("shows Akun and Kategori as prototype tile pickers, one choice at a time", async () => {
+    const user = userEvent.setup();
     render(<TransactionDialog />);
-    const accountSelect = await screen.findByRole("combobox", {
-      name: "Akun",
-    });
-    const categorySelect = screen.getByRole("combobox", { name: "Kategori" });
-    expect(accountSelect.closest(".field-row")).not.toBeNull();
-    expect(accountSelect.closest(".field-row")).toBe(
-      categorySelect.closest(".field-row"),
+    const accounts = await screen.findByRole("radiogroup", { name: "Akun" });
+    const categories = screen.getByRole("radiogroup", { name: "Kategori" });
+    expect(within(accounts).getAllByRole("radio").length).toBeGreaterThan(0);
+    const first = within(accounts).getAllByRole("radio")[0];
+    await user.click(first);
+    expect(first).toHaveAttribute("aria-checked", "true");
+    expect(accounts).toHaveAttribute(
+      "data-value",
+      first.getAttribute("data-value"),
     );
+    expect(
+      within(categories).queryAllByRole("radio", { checked: true }),
+    ).toHaveLength(0);
   });
 
   it("collapses Lampiran under a disclosure that is closed by default and opens on click", async () => {
@@ -348,7 +372,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     const cardSelect = await screen.findByRole("combobox", {
       name: "Kartu Kredit",
     });
-    await user.selectOptions(cardSelect, "liab-card-1");
+    await pick(user, cardSelect, "liab-card-1");
 
     await user.click(screen.getByRole("button", { name: "Simpan" }));
 
@@ -388,7 +412,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     const cardSelect = await screen.findByRole("combobox", {
       name: "Kartu Kredit",
     });
-    await user.selectOptions(cardSelect, "liab-card-1");
+    await pick(user, cardSelect, "liab-card-1");
     await user.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
@@ -408,10 +432,10 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     // The prototype opens on Expense by default.
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
     await user.type(screen.getByPlaceholderText("250.000"), "50000");
-    const accountSelect = await screen.findByRole("combobox", {
+    const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
-    await user.selectOptions(accountSelect, "acc-1");
+    await pick(user, accountSelect, "acc-1");
     await user.click(screen.getByRole("button", { name: "Simpan" }));
 
     await waitFor(() => {
@@ -430,8 +454,9 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
     await user.type(screen.getByPlaceholderText("250.000"), "50000");
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: "Akun" }),
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Akun" }),
       "acc-1",
     );
 
@@ -476,7 +501,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
 
     expect(screen.queryByText("Kategori")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("combobox", { name: "Kategori" }),
+      screen.queryByRole("radiogroup", { name: "Kategori" }),
     ).not.toBeInTheDocument();
   });
 });
@@ -531,10 +556,10 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
     await user.type(screen.getByPlaceholderText("250.000"), "50000");
-    const accountSelect = await screen.findByRole("combobox", {
+    const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
-    await user.selectOptions(accountSelect, "acc-1");
+    await pick(user, accountSelect, "acc-1");
 
     const file = makeFile("struk.jpg", "image/jpeg", 1024);
     const fileInput = screen.getByTestId("attachment-file-input");
@@ -567,10 +592,10 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     render(<TransactionDialog />);
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    const accountSelect = await screen.findByRole("combobox", {
+    const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
-    await user.selectOptions(accountSelect, "acc-1");
+    await pick(user, accountSelect, "acc-1");
 
     await user.type(
       screen.getByLabelText(mockDictionary.shell.transactionDialog.amountLabel),
@@ -598,12 +623,13 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     render(<TransactionDialog />);
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    const accountSelect = await screen.findByRole("combobox", {
+    const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
-    await user.selectOptions(accountSelect, "acc-1");
+    await pick(user, accountSelect, "acc-1");
 
-    await user.selectOptions(
+    await pick(
+      user,
       screen.getByLabelText(mockDictionary.money.currencyLabel),
       "USD",
     );
@@ -642,10 +668,10 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
     await user.type(screen.getByPlaceholderText("250.000"), "50000");
-    const accountSelect = await screen.findByRole("combobox", {
+    const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
-    await user.selectOptions(accountSelect, "acc-1");
+    await pick(user, accountSelect, "acc-1");
 
     const file = makeFile("struk.jpg", "image/jpeg", 1024);
     selectFile(screen.getByTestId("attachment-file-input"), file);
@@ -1036,8 +1062,8 @@ describe("TransactionDialog, receipt scan (EPIC-027 B1-B4)", () => {
     ).toBe(false);
     expect(screen.getByPlaceholderText("250.000")).toHaveValue("58.000");
     expect(
-      await screen.findByRole("combobox", { name: "Kategori" }),
-    ).toHaveValue("cat-1");
+      await screen.findByRole("radiogroup", { name: "Kategori" }),
+    ).toHaveAttribute("data-value", "cat-1");
     const expectedDate = isoToDateInputValue(SCAN_RESULT.occurredAt, "");
     expect(
       screen.getByLabelText(mockDictionary.shell.transactionDialog.dateLabel),
@@ -1072,8 +1098,8 @@ describe("TransactionDialog, receipt scan (EPIC-027 B1-B4)", () => {
     );
 
     expect(
-      await screen.findByRole("combobox", { name: "Kategori" }),
-    ).toHaveValue("");
+      await screen.findByRole("radiogroup", { name: "Kategori" }),
+    ).toHaveAttribute("data-value", "");
 
     fetchSpy.mockRestore();
   });
@@ -1119,8 +1145,9 @@ describe("TransactionDialog, receipt scan (EPIC-027 B1-B4)", () => {
     // The captured JPEG is queued on the ORDINARY attachment field.
     expect(await screen.findByText(/struk-\d+\.jpg/)).toBeInTheDocument();
 
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: "Akun" }),
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Akun" }),
       "acc-1",
     );
     await user.click(screen.getByRole("button", { name: "Simpan" }));
@@ -1636,8 +1663,8 @@ describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
     expect(created()).toBe(false);
     expect(screen.getByPlaceholderText("250.000")).toHaveValue("58.000");
     expect(
-      await screen.findByRole("combobox", { name: "Kategori" }),
-    ).toHaveValue("cat-1");
+      await screen.findByRole("radiogroup", { name: "Kategori" }),
+    ).toHaveAttribute("data-value", "cat-1");
     expect(screen.getByLabelText(dict.dateLabel)).toHaveAttribute(
       "data-value",
       isoToDateInputValue(SCAN_RESULT.occurredAt, ""),
@@ -1661,8 +1688,8 @@ describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
     ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: dict.scanUse }));
     expect(
-      await screen.findByRole("combobox", { name: "Kategori" }),
-    ).toHaveValue("");
+      await screen.findByRole("radiogroup", { name: "Kategori" }),
+    ).toHaveAttribute("data-value", "");
 
     fetchSpy.mockRestore();
   });
@@ -1679,8 +1706,9 @@ describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
     // Queued on the ORDINARY attachment field, as a JPEG.
     expect(await screen.findByText(/struk-\d+\.jpg/)).toBeInTheDocument();
 
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: "Akun" }),
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Akun" }),
       "acc-1",
     );
     await user.click(screen.getByRole("button", { name: "Simpan" }));
@@ -1733,8 +1761,9 @@ describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
     await openScanView(user);
     pickFile("struk.png", "image/png");
     await user.click(await screen.findByRole("button", { name: dict.scanUse }));
-    await user.selectOptions(
-      await screen.findByRole("combobox", { name: "Akun" }),
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Akun" }),
       "acc-1",
     );
     await user.click(screen.getByRole("button", { name: "Simpan" }));

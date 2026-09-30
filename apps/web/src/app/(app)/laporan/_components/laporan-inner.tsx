@@ -1,14 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ChevronLeft,
-  ChevronRight,
-  FileSpreadsheet,
-  FileText,
-  Info,
-} from "lucide-react";
+import { Download, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,11 +10,13 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
-import { REPORT_TABS } from "@/lib/nav";
+import { REPORT_TABS, type ReportTabId } from "@/lib/nav";
+import { useMoney } from "@/hooks/use-money";
+import { coverFor } from "./report-cover";
+import { REPORT_ICONS } from "./report-icons";
 import {
   getPeriodDateRange,
   getYearDateRange,
-  REPORT_TIMEZONE_LABEL,
   resolvePreset,
   type ReportPeriodSelection,
   type ReportRangePreset,
@@ -33,7 +29,7 @@ import {
   useControlledMoneyField,
   withFxInputs,
 } from "@/components/money";
-import { InfoTip } from "@/components/wm";
+
 import type {
   FxCurrencyCode,
   InvestmentDto,
@@ -43,10 +39,7 @@ import { useExportJob, ExportSection } from "./export-section";
 import { useLaporanReportQueries } from "./use-laporan-report-queries";
 import { InvestmentDialogs } from "./investment-dialogs";
 import { RangePresetSelect } from "./period-filter";
-import {
-  DateRangeFilterField,
-  formatDateRangeLabel,
-} from "@/components/wm/date-range-field";
+import { formatDateRangeLabel } from "@/components/wm/date-range-field";
 import { RingkasanSection } from "./sections/ringkasan-section";
 import { HarianSection } from "./sections/harian-section";
 import { BulananSection } from "./sections/bulanan-section";
@@ -65,6 +58,15 @@ import { PerfSection } from "./sections/perf-section";
 import { PajakSection } from "./sections/pajak-section";
 import { CoaSection } from "./sections/coa-section";
 import { REPORT_GROUPS, getReportGroupForTab } from "./report-groups";
+
+/** "1 Sep" / "30 Sep 2026" for the cover's period caption. */
+function fmtDay(iso: string, locale: string) {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Jakarta",
+  });
+}
 
 /* ───────────────────────── Page shell ───────────────────────── */
 
@@ -100,7 +102,7 @@ export function LaporanInner() {
   // selects and `presetRange` was null, so every trend query silently fell
   // back to the month anchor instead of an explicit range.
   const [rangePreset, setRangePreset] =
-    useState<ReportRangePreset>("thisMonth");
+    useState<ReportRangePreset>("last6Months");
   // EPIC-023 Task B retry (MEDIUM) — the "to-date" presets (This Month/
   // Year, Last N Months) end at `now`, frozen at the moment `resolvePreset`
   // last ran. Recompute it when the tab regains focus/visibility so a long-
@@ -133,6 +135,28 @@ export function LaporanInner() {
     from: string;
     to: string;
   } | null>(null);
+
+  // Bento v2 filter (prototype laporan.html): Tahun + Bulan pick one whole
+  // calendar month (applied as a custom range); Rentang picks a preset.
+  const filterYear = customRange
+    ? Number(customRange.from.slice(0, 4))
+    : new Date().getFullYear();
+  const filterMonth = customRange
+    ? Number(customRange.from.slice(5, 7))
+    : new Date().getMonth() + 1;
+  const filterYears = Array.from(
+    { length: 6 },
+    (_, k) => new Date().getFullYear() - k,
+  );
+  function pickMonth(year: number, month: number) {
+    const mm = String(month).padStart(2, "0");
+    const last = new Date(year, month, 0).getDate();
+    setCustomRange({
+      from: `${year}-${mm}-01`,
+      to: `${year}-${mm}-${String(last).padStart(2, "0")}`,
+    });
+    setRangePreset("custom");
+  }
 
   const presetRange = useMemo(() => {
     if (rangePreset !== "custom") return resolvePreset(rangePreset);
@@ -407,23 +431,40 @@ export function LaporanInner() {
     endDate: rangeEnd,
   });
 
-  // EPIC-025 N3-J1 (gap 4) — pill tab strip with scroll arrows.
-  const tabsScrollRef = useRef<HTMLDivElement>(null);
-  function scrollReportTabs(direction: number) {
-    const el = tabsScrollRef.current;
-    if (!el) return;
-    const amount = Math.max(280, Math.round(el.clientWidth * 0.72));
-    el.scrollBy({ left: direction * amount, behavior: "smooth" });
-  }
   const activeGroup = getReportGroupForTab(tab);
+  const [findReport, setFindReport] = useState("");
+  const findNeedle = findReport.trim().toLowerCase();
+  const moneyFmt = useMoney();
+  const cover = coverFor(
+    tab as ReportTabId,
+    {
+      summary,
+      yearly: yearlySummary,
+      bank: bankReport,
+      detail: detailReport,
+      pnl,
+      balance: balanceSheet,
+      cashflow,
+      invSummary,
+      pph21,
+    },
+    t,
+    moneyFmt.formatCompact,
+  );
+  const periodCaption =
+    rangeStart && rangeEnd
+      ? `${fmtDay(rangeStart, locale)} – ${fmtDay(rangeEnd, locale)}`
+      : "";
   const visibleReportTabs = REPORT_TABS.filter((item) =>
     activeGroup.tabs.includes(item.id),
   );
   const groupTabIndex = visibleReportTabs.findIndex((item) => item.id === tab);
   function handleTabKeyDown(e: React.KeyboardEvent<HTMLButtonElement>) {
-    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const fwd = e.key === "ArrowRight" || e.key === "ArrowDown";
+    const back = e.key === "ArrowLeft" || e.key === "ArrowUp";
+    if (!fwd && !back) return;
     e.preventDefault();
-    const delta = e.key === "ArrowRight" ? 1 : -1;
+    const delta = fwd ? 1 : -1;
     const next =
       visibleReportTabs[
         (groupTabIndex + delta + visibleReportTabs.length) %
@@ -576,47 +617,7 @@ export function LaporanInner() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Page lead — prototype's `.page-lead` (gap 1): H1 + subtitle with an
-          accent underline, and header export buttons that trigger the SAME
-          real job as the detailed export card below the tabs (`exportJob`,
-          shared with `ExportSection`) — never a second, dead control. */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="border-l-4 border-primary pl-3 text-[20px] font-extrabold tracking-tight sm:text-[22px]">
-            {t.laporan.header.title}
-          </h1>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            type="button"
-            onClick={() => void exportJob.startExport("excel")}
-            disabled={!!exportJob.isActive || exportJob.isSubmitting}
-            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <FileSpreadsheet className="size-3.5" />
-            {t.laporan.header.exportExcelButton}
-          </button>
-          <button
-            type="button"
-            // G7 — the server pdf-lib export ("masih jelek banget") is
-            // replaced here by the print-optimized HTML report; the job
-            // itself (exportJob.startExport("pdf")) stays wired below in
-            // ExportSection for API-parity/detailed exports.
-            onClick={() =>
-              window.open(
-                `/laporan/cetak?months=6&endDate=${wibDateOf(summaryAnchorEnd)}`,
-                "_blank",
-              )
-            }
-            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent"
-          >
-            <FileText className="size-3.5" />
-            {t.laporan.header.exportPdfButton}
-          </button>
-        </div>
-      </div>
-
+    <div className="lp-page">
       {/* Filter Laporan card (gap 2) — wraps the existing preset/period
           selectors; logic is unchanged, only the presentation moved into a
           proper card matching the prototype. */}
@@ -627,47 +628,56 @@ export function LaporanInner() {
           date-range picker. The app previously rendered a bespoke Tailwind box
           whose second field was three year/month/day selects that only
           appeared once "Custom" was chosen, i.e. four controls instead of two. */}
-      <section className="card report-filter-card">
-        <div className="card__header">
-          <h2 className="card__title">{t.laporan.filterCard.title}</h2>
-          <span className="card__action t-xs t-muted">
-            {t.laporan.filterCard.appliesAllTabsCaption}
+      <section className="wm-card lp-filter">
+        <div className="wm-card-head">
+          <div>
+            <h2>{t.laporan.v2.filterTitle}</h2>
+            <p className="wm-cap">{t.laporan.v2.filterCap}</p>
+          </div>
+          <span className="wm-cap">
+            {REPORT_TABS.length} {t.laporan.v2.reportsTitle.toLowerCase()}
           </span>
         </div>
-        <div className="card__body" style={{ paddingTop: 16 }}>
-          <div className="bento-filter">
-            <div className="field" style={{ minWidth: 210 }}>
-              <span className="label">{t.laporan.filterCard.periodeLabel}</span>
+        <div>
+          <div className="lp-filter-row">
+            <label className="lp-f">
+              <span>{t.laporan.periodFilter.yearAriaLabel}</span>
+              <select
+                className="select"
+                value={filterYear}
+                onChange={(e) => pickMonth(Number(e.target.value), filterMonth)}
+              >
+                {filterYears.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="lp-f">
+              <span>{t.laporan.periodFilter.monthAriaLabel}</span>
+              <select
+                className="select"
+                value={filterMonth}
+                onChange={(e) => pickMonth(filterYear, Number(e.target.value))}
+              >
+                {Array.from({ length: 12 }, (_, m) => (
+                  <option key={m} value={m + 1}>
+                    {new Date(2000, m, 1).toLocaleDateString(
+                      locale === "en" ? "en-US" : "id-ID",
+                      { month: "long" },
+                    )}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="lp-f">
+              <span>{t.laporan.v2.rangeLabel}</span>
               <RangePresetSelect
                 preset={rangePreset}
                 onChange={setRangePreset}
               />
-            </div>
-            <DateRangeFilterField
-              label={t.laporan.filterCard.dateRangeLabel}
-              /* wibDateOf, never `.slice(0,10)`: these bounds are WIB-pinned,
-                 so slicing the ISO instant would show the previous UTC day
-                 (1 Aug 00:00 WIB is 31 Jul 17:00 UTC). */
-              from={wibDateOf(rangeStart)}
-              to={wibDateOf(rangeEnd)}
-              locale={locale}
-              cancelLabel={t.common.cancel}
-              applyLabel={t.common.save}
-              onApply={(from, to) => {
-                setCustomRange({ from, to });
-                setRangePreset("custom");
-              }}
-            />
-            <div className="bento-filter__actions" />
-          </div>
-
-          {/* EPIC-022 B7 — report boundaries are pinned to WIB (never the
-              viewer's local offset); disclose the pin instead of leaving it
-              silent. Not in the prototype, deliberately kept. */}
-          <div className="t-xs t-muted" style={{ marginTop: 8 }}>
-            {t.laporan.periodFilter.timezoneNotePrefix}
-            {REPORT_TIMEZONE_LABEL}
-            {t.laporan.periodFilter.timezoneNoteSuffix}
+            </label>
           </div>
 
           {/* EPIC-023 Task B retry (HIGH) — rfamily (roster + net worth) and
@@ -681,122 +691,170 @@ export function LaporanInner() {
               {t.laporan.periodFilter.periodNotApplicableNote}
             </div>
           )}
-
-          {/* Cash-basis disclosure callout (gap 3) — active period rendered
-            from the real `periodLabel` derivation above, not a static
-            string. Polish batch 8 item 10 — the full explanation ran 4
-            lines at 390px; keep one line (title + active period) and move
-            the "why" into the InfoTip popover instead. */}
-          <div
-            className="notice notice--info items-center"
-            style={{ marginTop: 14 }}
-          >
-            <Info className="size-4 shrink-0" />
-            <span className="flex-1">
-              <strong>{t.laporan.cashBasisNotice.title}</strong>{" "}
-              {t.laporan.cashBasisNotice.activePeriodPrefix}{" "}
-              <span className="mono">{periodLabel}</span>.
-            </span>
-            <InfoTip label={t.laporan.cashBasisNotice.title}>
-              {t.laporan.cashBasisNotice.body}
-            </InfoTip>
-          </div>
         </div>
       </section>
 
-      {/* Report categories keep all 17 destinations discoverable without
-          placing every report in one horizontal strip. */}
-      <div className="space-y-2">
-        <div
-          role="group"
-          aria-label={t.laporan.tabStrip.groupAriaLabel}
-          className="grid grid-cols-2 gap-1.5 sm:grid-cols-5"
+      {/* Phones: one picker instead of the index. */}
+      <label className="lp-picker">
+        <span className="wm-cap">
+          {t.laporan.tabStrip.groups[activeGroup.id]}
+        </span>
+        <select
+          value={tab}
+          onChange={(e) => go(e.target.value)}
+          aria-label={t.laporan.v2.reportsTitle}
         >
-          {REPORT_GROUPS.map((group) => {
-            const active = activeGroup.id === group.id;
-            return (
-              <button
-                key={group.id}
-                type="button"
-                aria-pressed={active}
-                onClick={() => go(group.tabs[0])}
-                className={
-                  "min-h-11 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors " +
-                  (active
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-secondary text-muted-foreground hover:bg-accent")
-                }
-              >
-                {t.laporan.tabStrip.groups[group.id]}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => scrollReportTabs(-1)}
-            aria-label={t.laporan.tabStrip.scrollLeftAriaLabel}
-            className="size-11 shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronLeft className="size-4" />
-          </button>
+          {REPORT_GROUPS.map((group) => (
+            <optgroup
+              key={group.id}
+              label={t.laporan.tabStrip.groups[group.id]}
+            >
+              {group.tabs.map((id) => (
+                <option key={id} value={id}>
+                  {t.shell.reportTabs[id]}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </label>
+
+      <div className="lp-layout">
+        <nav className="lp-idx" aria-label={t.laporan.v2.reportsTitle}>
+          <div className="lp-idx-h">
+            <h2>{t.laporan.v2.reportsTitle}</h2>
+            <span className="wm-num">{REPORT_TABS.length}</span>
+          </div>
+          <label className="lp-find">
+            <Search className="size-4 shrink-0" aria-hidden="true" />
+            <input
+              type="search"
+              value={findReport}
+              onChange={(e) => setFindReport(e.target.value)}
+              placeholder={t.laporan.v2.findReport}
+              aria-label={t.laporan.v2.findReport}
+            />
+          </label>
           <div
-            ref={tabsScrollRef}
             role="tablist"
+            aria-orientation="vertical"
             aria-label={t.laporan.tabStrip.ariaLabel}
-            className="hide-scrollbar flex flex-1 gap-1.5 overflow-x-auto scroll-smooth"
           >
-            {visibleReportTabs.map((tabItem) => {
-              const active = tabItem.id === tab;
+            {REPORT_GROUPS.map((group) => {
+              const items = group.tabs.filter(
+                (id) =>
+                  !findNeedle ||
+                  t.shell.reportTabs[id].toLowerCase().includes(findNeedle),
+              );
+              if (items.length === 0) return null;
               return (
-                <button
-                  key={tabItem.id}
-                  id={`laporan-tab-${tabItem.id}`}
-                  role="tab"
-                  aria-selected={active}
-                  aria-controls="laporan-panel"
-                  tabIndex={active ? 0 : -1}
-                  onClick={() => go(tabItem.id)}
-                  onKeyDown={handleTabKeyDown}
-                  className={
-                    "min-h-11 shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold whitespace-nowrap transition-colors " +
-                    (active
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground hover:bg-accent")
-                  }
-                >
-                  {t.shell.reportTabs[tabItem.id]}
-                </button>
+                <div key={group.id} className="lp-grp" role="presentation">
+                  <h3 role="presentation">
+                    {t.laporan.tabStrip.groups[group.id]}
+                  </h3>
+                  {items.map((id) => {
+                    const Icon = REPORT_ICONS[id];
+                    const active = id === tab;
+                    return (
+                      <button
+                        key={id}
+                        id={`laporan-tab-${id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={active}
+                        aria-controls="laporan-panel"
+                        tabIndex={active ? 0 : -1}
+                        className="lp-rep"
+                        onClick={() => go(id)}
+                        onKeyDown={handleTabKeyDown}
+                      >
+                        <i aria-hidden="true">
+                          <Icon />
+                        </i>
+                        {t.shell.reportTabs[id]}
+                      </button>
+                    );
+                  })}
+                </div>
               );
             })}
+            {REPORT_GROUPS.every((g) =>
+              g.tabs.every(
+                (id) =>
+                  findNeedle &&
+                  !t.shell.reportTabs[id].toLowerCase().includes(findNeedle),
+              ),
+            ) && <p className="wm-cap px-2 py-4">{t.laporan.v2.noReport}</p>}
           </div>
-          <button
-            type="button"
-            onClick={() => scrollReportTabs(1)}
-            aria-label={t.laporan.tabStrip.scrollRightAriaLabel}
-            className="size-11 shrink-0 rounded-full border bg-card p-1.5 text-muted-foreground transition-colors hover:text-foreground"
+        </nav>
+
+        <div className="lp-main">
+          <section className="wm-card wm-dark lp-cover">
+            <div className="lp-c-top">
+              <p className="lp-crumb">
+                {t.laporan.tabStrip.groups[activeGroup.id]}{" "}
+                <span aria-hidden="true">/</span>{" "}
+                <b>
+                  {t.shell.reportTabs[tab as ReportTabId] ??
+                    t.laporan.header.title}
+                </b>
+                {periodCaption && (
+                  <>
+                    {" "}
+                    <span aria-hidden="true">·</span> {periodCaption}
+                  </>
+                )}
+              </p>
+              <div className="lp-c-acts">
+                <button
+                  type="button"
+                  className="lp-cbtn"
+                  onClick={() => void exportJob.startExport("excel")}
+                  disabled={!!exportJob.isActive || exportJob.isSubmitting}
+                >
+                  <Download aria-hidden="true" />{" "}
+                  {t.laporan.header.exportExcelButton}
+                </button>
+                <button
+                  type="button"
+                  className="lp-cbtn"
+                  data-lit="true"
+                  onClick={() =>
+                    window.open(
+                      `/laporan/cetak?months=6&endDate=${wibDateOf(summaryAnchorEnd)}`,
+                      "_blank",
+                    )
+                  }
+                >
+                  <Download aria-hidden="true" /> {t.laporan.v2.printPdf}
+                </button>
+              </div>
+            </div>
+            <h1 className="lp-headline">{cover.headline}</h1>
+            {cover.legend.length > 0 && (
+              <div className="lp-leg">
+                {cover.legend.map((item) => (
+                  <span key={item.label}>
+                    <i style={{ background: item.color }} />
+                    {item.label} <b>{item.value}</b>
+                  </span>
+                ))}
+              </div>
+            )}
+          </section>
+          {/* Export (detailed card — report type, status, download) */}
+          {familyGroupId && <ExportSection exportJob={exportJob} />}
+
+          {/* Active section */}
+          <div
+            id="laporan-panel"
+            role="tabpanel"
+            aria-labelledby={`laporan-tab-${tab}`}
           >
-            <ChevronRight className="size-4" />
-          </button>
-          <span className="mono shrink-0 text-[11px] text-muted-foreground">
-            {groupTabIndex + 1}/{visibleReportTabs.length}
-          </span>
+            {renderSection()}
+          </div>
         </div>
       </div>
-
-      {/* Export (detailed card — report type, status, download) */}
-      {familyGroupId && <ExportSection exportJob={exportJob} />}
-
-      {/* Active section */}
-      <div
-        id="laporan-panel"
-        role="tabpanel"
-        aria-labelledby={`laporan-tab-${tab}`}
-      >
-        {renderSection()}
-      </div>
-
       <InvestmentDialogs
         showAddInv={showAddInv}
         editingInv={editingInv}

@@ -93,6 +93,14 @@ export type AllocationItem = {
   apiColor: string;
 };
 
+/** The fields of `/members` the Beranda family row reads. */
+export type BerandaMember = {
+  id: string;
+  userId: string;
+  role: string;
+  name: string;
+};
+
 export function useBerandaData(period: BerandaPeriod) {
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId ?? null;
@@ -205,14 +213,13 @@ export function useBerandaData(period: BerandaPeriod) {
   });
 
   const { data: setupMembers, isSuccess: isSetupMembersReady } = useQuery<
-    { id: string; role: string }[]
+    BerandaMember[]
   >({
     queryKey: queryKeys.familyGroups.members(familyGroupId ?? ""),
     queryFn: () =>
-      apiFetch<{ id: string; role: string }[]>(
-        `/family-groups/${familyGroupId}/members`,
-        { token },
-      ),
+      apiFetch<BerandaMember[]>(`/family-groups/${familyGroupId}/members`, {
+        token,
+      }),
     enabled,
     staleTime: 60_000,
   });
@@ -335,5 +342,11 @@ export function useBerandaData(period: BerandaPeriod) {
     isGoalsLoading,
     setupChecklist,
     isSetupChecklistReady,
+    accounts: setupAccounts ?? [],
+    isAccountsLoading: !isSetupAccountsReady,
+    members: (setupMembers ?? []).filter(
+      (member) => member.role !== "admin_staff",
+    ),
+    liabilities: liabilities ?? [],
   };
 }

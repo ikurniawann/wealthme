@@ -1,0 +1,70 @@
+/* Split Bill (bento v2, docs/design/proto/splitbill.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .sb-grid > .sb-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .sb-grid > .sb-tip {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .sb-grid > .sb-active {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+    .sb-grid > [role="alert"] {
+      grid-column: 1 / -1;
+    }
+  }
+  .sb-grid > * {
+    min-width: 0;
+  }
+  .sb-hero .wm-ghost-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .sb-hero .wm-chart-wrap {
+    min-height: 0;
+    margin-top: 22px;
+  }
+  .sb-hero .wm-kpi .wm-cap {
+    display: block;
+    margin-top: 2px;
+  }
+  .sb-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .sb-bar-row {
+    display: grid;
+    grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 14px;
+    font-size: var(--wm-type-13);
+  }
+  /* label drawn by CSS so the title is not duplicated in page text (the list owns it) */
+  .sb-bar-lbl {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .sb-bar-lbl::before {
+    content: attr(data-label);
+  }
+  .sb-bar-row .wm-bar {
+    height: 16px;
+    margin: 0;
+  }
+  .sb-bar-row b {
+    text-align: right;
+    font-weight: 600;
+  }
+  @media (max-width: 720px) {
+    .sb-bar-row {
+      grid-template-columns: minmax(0, 90px) minmax(0, 1fr) 38px;
+      gap: 10px;
+    }
+  }
+}

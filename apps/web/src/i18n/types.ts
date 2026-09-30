@@ -446,6 +446,10 @@ export type I18nDictionary = {
     latest: string;
     viewDetail: string;
     total: string;
+    // Bento v2 shared actions.
+    undo: string;
+    close: string;
+    optional: string;
     savingsRate: string;
     income2: string;
     expense2: string;
@@ -466,6 +470,79 @@ export type I18nDictionary = {
     };
   };
   beranda: {
+    // Bento v2 Beranda.
+    v2: {
+      heroCaption: string;
+      heroNegative: string;
+      chartMode: string;
+      chartCashflow: string;
+      chartWealth: string;
+      cashflowAria: string;
+      income: string;
+      expense: string;
+      saved: string;
+      vsLastMonth: string;
+      accountsTitle: string;
+      accountsCap: string;
+      addAccount: string;
+      noAccounts: string;
+      accountsScroll: string;
+      actRecord: string;
+      actHistory: string;
+      actBudget: string;
+      actReport: string;
+      membersTitle: string;
+      manageMembers: string;
+      you: string;
+      limitTitle: string;
+      limitCap: string;
+      limitEdit: string;
+      limitSpent: string;
+      limitAria: string;
+      noBudget: string;
+      makeBudget: string;
+      calmTitle: string;
+      calmBody: string;
+      approvalsTitle: string;
+      dueTitle: string;
+      openApprovals: string;
+      openLiabilities: string;
+      allocationTitle: string;
+      allocationCap: string;
+      noAllocation: string;
+      healthTitle: string;
+      healthCap: string;
+      savedShare: string;
+      healthNote: string;
+      goalsTitle: string;
+      addGoal: string;
+      goalLeft: string;
+      goalDone: string;
+      historyTitle: string;
+      seeAllHistory: string;
+      seeAll: string;
+      detail: string;
+      mExpense: string;
+      mLastTx: string;
+      range7: string;
+      range30: string;
+      rangeAria: string;
+      chartBars: string;
+      chartLine: string;
+      savings: string;
+      flowAria: string;
+      spendTitle: string;
+      spendCap: string;
+      noSpend: string;
+      days30: string;
+      health30Note: string;
+      today: string;
+      partial: string;
+      uncategorized: string;
+      mStats: string;
+      prevAccount: string;
+      nextAccount: string;
+    };
     setupChecklist: {
       title: string;
       nextStep: string;
@@ -556,6 +633,32 @@ export type I18nDictionary = {
     logout: string;
     navSectionHeaders: Record<NavSectionHeaderKey, string>;
     navSections: Record<NavItemId, string>;
+    hubs: {
+      accounts: string;
+      cashflow: string;
+      wealth: string;
+      taxZakat: string;
+      settings: string;
+      menu: string;
+    };
+    // Bento v2 shell: phone greeting + title, launcher, topbar controls.
+    v2: {
+      greetingMorning: string;
+      greetingAfternoon: string;
+      greetingEvening: string;
+      greetingNight: string;
+      homeTitle: string;
+      searchShort: string;
+      allMenu: string;
+      launcherMain: string;
+      toggleTheme: string;
+      account: string;
+      language: string;
+      accountMenu: string;
+      notificationsUnread: string;
+      noResults: string;
+      pagesGroup: string;
+    };
     reportTabs: Record<ReportTabId, string>;
     pageTitles: Record<PageTitleId, string>;
     mobileNav: Record<MobileNavId, string>;
@@ -1555,6 +1658,21 @@ export type I18nDictionary = {
    * name/desc resolves from here, keyed by the stable `QuickInputCardId`.
    */
   quickinput: {
+    v2: {
+      shortcuts: string;
+      addTx: string;
+      today: string;
+      week: string;
+      last: string;
+      never: string;
+      recordTitle: string;
+      recordCap: string;
+      recentCap: string;
+      tipTitle: string;
+      tipBody: string;
+      chartAria: string;
+      countUnit: string;
+    };
     pageTitle: string;
     pageSubtitle: string;
     cards: Record<QuickInputCardId, { name: string; desc: string }>;
@@ -2411,6 +2529,10 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/dana` (cash & e-wallet) page copy. */
   dana: {
+    v2: {
+      connected: string;
+      perInstrument: string;
+    };
     totalLabel: string;
     loadingLabel: string;
     accountsConnectedSuffix: string;
@@ -2915,6 +3037,31 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
+    v2: {
+      cardsTitle: string;
+      record: string;
+      reconcile: string;
+      mutations: string;
+      customize: string;
+      resetLook: string;
+      done: string;
+      colour: string;
+      pattern: string;
+      deviceNote: string;
+      skins: Record<
+        | "lime"
+        | "forest"
+        | "midnight"
+        | "graphite"
+        | "sand"
+        | "sky"
+        | "lilac"
+        | "coral",
+        string
+      >;
+      patterns: Record<"hatch" | "dots" | "waves" | "plain", string>;
+      allTitle: string;
+    };
     typeLabels: Record<RekeningAccountTypeId, string>;
     balanceLabel: string;
     activeBadge: string;
@@ -3311,6 +3458,26 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/transaksi` (transactions list) page copy. */
   transaksi: {
+    // Bento v2 Transaksi.
+    v2: {
+      surplus: string;
+      deficit: string;
+      allTime: string;
+      exportCsv: string;
+      record: string;
+      txCount: string;
+      filterTitle: string;
+      reset: string;
+      searchPlaceholder: string;
+      history: string;
+      today: string;
+      yesterday: string;
+      chartAria: string;
+      typeAria: string;
+      exportEmpty: string;
+      exported: string;
+      filtersToggle: string;
+    };
     typeLabels: Record<TransaksiTypeId, string>;
     filterLabels: Record<TransaksiFilterId, string>;
     sortLabels: Record<TransaksiSortId, string>;
@@ -3607,6 +3774,16 @@ export type I18nDictionary = {
    * page — proper nouns, same convention as `donation`'s `LEMBAGA_OPTIONS`.
    */
   rekonsiliasi: {
+    v2: {
+      matchRate: string;
+      docsCaption: string;
+      ok: string;
+      review: string;
+      err: string;
+      stepOf: string;
+      matchedSum: string;
+      compAria: string;
+    };
     headerTitle: string;
     headerSubtitle: string;
     uploadMutasiButton: string;
@@ -3904,6 +4081,41 @@ export type I18nDictionary = {
    * same convention as `aset`'s separate `invTypeLabels`.
    */
   laporan: {
+    v2: {
+      rangeLabel: string;
+      filterTitle: string;
+      filterCap: string;
+      reportsTitle: string;
+      findReport: string;
+      noReport: string;
+      csv: string;
+      printPdf: string;
+      income: string;
+      expense: string;
+      net: string;
+      saved: string;
+      assets: string;
+      liabilities: string;
+      txCount: string;
+      accounts: string;
+      closing: string;
+      cost: string;
+      value: string;
+      gain: string;
+      pkp: string;
+      tax: string;
+      hSaved: string;
+      hDeficit: string;
+      hSpend: string;
+      hBank: string;
+      hDetail: string;
+      hProfit: string;
+      hNetWorth: string;
+      hCash: string;
+      hInv: string;
+      hTax: string;
+      hDefault: string;
+    };
     subtitle: string;
     months: [
       string,

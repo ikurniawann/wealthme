@@ -14,6 +14,7 @@ import {
   HeartHandshake,
   HelpCircle,
   Home,
+  LayoutGrid,
   Landmark,
   LineChart,
   PieChart,
@@ -370,7 +371,7 @@ export type MobileNavItem = {
 };
 
 export const MOBILE_NAV: MobileNavItem[] = [
-  { id: "beranda", href: "/beranda", icon: Home },
+  { id: "beranda", href: "/beranda", icon: LayoutGrid },
   { id: "transaksi", href: "/transaksi", icon: ArrowUpDown },
   { id: "laporan", href: "/laporan", icon: LineChart },
   { id: "akun", href: "/akun", icon: User },

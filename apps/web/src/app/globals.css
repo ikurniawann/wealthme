@@ -10,6 +10,8 @@
  * See that file's header for the full rationale.
  */
 @import "./design-system.css";
+/* Bento v2 (UI revamp): shell, bento kit, dialogs. Loaded last so it wins over the legacy layer. */
+@import "./bento.css";
 
 /* next-themes toggles `.dark` on <html>; make the dark: variant class-based. */
 @custom-variant dark (&:is(.dark *));
@@ -66,152 +68,173 @@
 }
 
 :root {
-  --radius: 0.875rem; /* 14px — matches WealthMe --radius */
+  --radius: 18px;
+  /* One type scale for the whole app (bento v2): 11 · 12 · 13 · 14 · 16 · 20 · 28 · 40 · 52. */
+  --wm-type-11: 11px;
+  --wm-type-12: 12px;
+  --wm-type-13: 13px;
+  --wm-type-14: 14px;
+  --wm-type-16: 16px;
+  --wm-type-20: 20px;
+  --wm-type-28: 28px;
+  --wm-type-40: 40px;
+  --wm-type-52: 52px;
 
-  /*
-   * BRAND PALETTE — teal / navy / gold.
-   *
-   * Ported verbatim from `docs/prototype/assets/tokens.css`, the owner-approved
-   * (2026-08-11) prototype palette. That file's own header called this port out
-   * as a required follow-up step: "If approved, this palette still needs to be
-   * ported back into globals.css itself before it becomes the real standard;
-   * until then the prototype and production tokens diverge on purpose."
-   * EPIC-025 (the N3 prototype port) never did it — its Ground Truth wrongly
-   * asserted "colors already match" and made a zero-diff `globals.css` a hard
-   * success criterion, which guaranteed the app kept shipping the old indigo
-   * brand under a prototype-shaped layout. This is that missing port.
-   *
-   * Owner-provided swatches: navy #0A3A52, teal #167A6D / #2CA8A0, light teal
-   * #65C3B5, gold #D9A441. --primary stays the DARKER teal in both light and
-   * dark mode rather than brightening on dark — the mid teal (#2CA8A0) drops
-   * white-text contrast to ~2.9:1, below the 4.5:1 minimum.
-   *
-   * Neutrals keep this file's existing color-mix mechanism (base hex tinted
-   * toward --primary) so the `[data-theme]` presets below still retint the
-   * whole surface, not just buttons. Only the BASE hexes changed — from the
-   * old cool slate greys to the prototype's warmer, faintly-green greys.
-   */
-  --primary: #126f64;
-  --primary-foreground: #ffffff;
-  --primary-soft: #ddf3ef;
-  --primary-strong: #0a3a52;
+  /* Bento v2 surfaces (docs/design/proto/wm.css). The shadcn tokens below map onto these. */
+  --wm-bg: #ecede8;
+  --wm-card: #ffffff;
+  --wm-card-2: #f4f5f1;
+  --wm-ghost: #e6e8e1;
+  --wm-ink: #15170f;
+  --wm-muted: #666d5f;
+  --wm-line: #e2e4dc;
+  --wm-lime: #9ccb3b;
+  --wm-lime-ink: #1f2a07;
+  --wm-lime-soft: #e4f1c4;
+  --wm-yellow: #efdc4e;
+  --wm-orange: #f2a247;
+  --wm-good: #3f8f2f;
+  --wm-bad: #c2462b;
+  --wm-sky: #8fb7e0;
+  --wm-lilac: #c8a2de;
+  --wm-rose: #e6a6a0;
+  --wm-gold: #e9c77b;
+  --wm-shadow:
+    0 1px 2px rgb(30 40 10 / 0.04), 0 6px 18px -8px rgb(30 40 10 / 0.1);
+  /* Hero surfaces: deep forest green in light mode, neutral near-black in dark mode. */
+  --wm-cover-start: #1a4b3b;
+  --wm-cover-mid: #11382c;
+  --wm-cover-end: #0c2b22;
+  --wm-cover-glow: rgb(169 216 76 / 0.2);
+  --wm-dock: #0f3327;
+  /* Chart ink, re-pointed inside dark cards so one chart renders on both surfaces. */
+  --ctext: var(--wm-muted);
+  --cgrid: var(--wm-line);
+  --cghost: var(--wm-ghost);
+  --cstrong: var(--wm-ink);
+  --cbg: var(--wm-card);
 
-  --background: color-mix(in oklab, #f6f8f6 96%, var(--primary));
-  --foreground: #10202a;
-  --card: #fffefb;
-  --card-foreground: #10202a;
-  --popover: #fffefb;
-  --popover-foreground: #10202a;
+  /* Approved WealthMe bento palette: warm neutral surfaces, lime action accent. */
+  --primary: #9ccb3b;
+  --primary-foreground: #1f2a07;
+  --primary-soft: #e4f1c4;
+  --primary-strong: #1a4b3b;
 
-  --secondary: color-mix(in oklab, #edf3f0 94%, var(--primary));
-  --secondary-foreground: #10202a;
-  --muted: color-mix(in oklab, #eef3f1 94%, var(--primary));
-  --muted-foreground: #607279;
-  --accent: #ddf3ef;
-  --accent-foreground: #0f655c;
+  --background: #ecede8;
+  --foreground: #15170f;
+  --card: #ffffff;
+  --card-foreground: #15170f;
+  --popover: #ffffff;
+  --popover-foreground: #15170f;
 
-  --destructive: #ef4444;
+  --secondary: #f4f5f1;
+  --secondary-foreground: #15170f;
+  --muted: #f4f5f1;
+  --muted-foreground: #666d5f;
+  --accent: #e4f1c4;
+  --accent-foreground: #1f2a07;
+
+  --destructive: #c2462b;
   --destructive-foreground: #ffffff;
 
-  --success: #0f9f73;
+  --success: #3f8f2f;
   --success-foreground: #ffffff;
-  --success-soft: #dcfce7;
+  --success-soft: #e4f1c4;
   --warning: #b7791f;
   --warning-foreground: #ffffff;
   --warning-soft: #fef9c3;
-  /* NOTE: `--brand-purple` keeps its token NAME for compatibility (it is used
-     across ~20 page files) but now carries the prototype's GOLD accent — the
-     third brand hue in the approved palette. Renaming the token is a separate
-     mechanical refactor, deliberately not bundled into this palette swap. */
-  --brand-purple: #c98f24;
+  /* Legacy token name retained for component compatibility; it carries lime. */
+  --brand-purple: #9ccb3b;
   --brand-purple-soft: #f8edd8;
   --brand-cyan: #2ca8a0;
   --brand-orange: #f97316;
 
-  --border: color-mix(in oklab, #dbe5e1 92%, var(--primary));
-  --input: color-mix(in oklab, #dbe5e1 92%, var(--primary));
-  --ring: #126f64;
+  --border: #e2e4dc;
+  --input: #e2e4dc;
+  --ring: #9ccb3b;
 
-  --chart-1: #126f64;
-  --chart-2: #0f9f73;
-  --chart-3: #c98f24;
-  --chart-4: #2ca8a0;
-  --chart-5: #0a3a52;
+  --chart-1: #9ccb3b;
+  --chart-2: #3f8f2f;
+  --chart-3: #efdc4e;
+  --chart-4: #f2a247;
+  --chart-5: #8fb7e0;
 
-  /*
-   * Layout + elevation constants from `docs/prototype/assets/tokens.css`.
-   * `design-system.css` references all four (`.sidebar` width, `.topbar`
-   * height, `.main` offset, the mobile safe-area header, and every card
-   * shadow); the initial design-system port brought the component rules
-   * across but not these tokens, so those declarations were resolving to
-   * nothing. --sidebar-w is overridden at runtime (72px) by the sidebar
-   * collapse toggle — see components/shell/use-sidebar-collapse.ts.
-   */
-  --shadow-card:
-    0 1px 2px 0 rgb(16 32 42 / 0.05), 0 8px 24px -20px rgb(10 58 82 / 0.36);
-  --shadow-pop: 0 18px 42px -18px rgb(10 58 82 / 0.35);
+  /* Layout + elevation constants used by design-system.css. */
+  --shadow-card: var(--wm-shadow);
+  --shadow-pop: 0 24px 60px -20px rgb(20 30 5 / 0.4);
   --sidebar-w: 248px;
   --topbar-h: 60px;
 }
 
 .dark {
-  /*
-   * Neutral surfaces are tinted toward the active --primary via color-mix so the
-   * overall "mood" follows the selected color preset (not just buttons/accents).
-   * Each preset overrides --primary in its own block; because these neutrals
-   * reference var(--primary), they retint automatically — no per-preset neutral
-   * declarations needed. The slate hex below is the original untinted value.
-   */
+  /* Dark mode: neutral near-black, no green tint, lime only as the accent. */
+  --wm-bg: #09090a;
+  --wm-card: #131314;
+  --wm-card-2: #1a1a1c;
+  --wm-ghost: #242426;
+  --wm-ink: #f3f3f1;
+  --wm-muted: #8e8e8b;
+  --wm-line: rgb(255 255 255 / 0.07);
+  --wm-lime: #c6e48c;
+  --wm-lime-ink: #10160a;
+  --wm-lime-soft: rgb(198 228 140 / 0.12);
+  --wm-yellow: #e2d78a;
+  --wm-orange: #e9a56a;
+  --wm-good: #aed97a;
+  --wm-bad: #f07a63;
+  --wm-shadow: none;
+  --wm-cover-start: #1b1b1d;
+  --wm-cover-mid: #161617;
+  --wm-cover-end: #121213;
+  --wm-cover-glow: rgb(198 228 140 / 0.05);
+  --wm-dock: #161617;
+  --cghost: #2a2a2c;
   /* Dark-mode half of the approved prototype palette (see :root above). */
-  --primary: #5fb7ad;
-  --primary-foreground: #03231f;
-  --primary-soft: #182a2d;
-  --primary-strong: #8fd8cf;
+  --primary: #c6e48c;
+  --primary-foreground: #10160a;
+  --primary-soft: rgb(198 228 140 / 0.12);
+  --primary-strong: #c6e48c;
 
-  --background: color-mix(in oklab, #0b0f14 92%, var(--primary));
-  --foreground: #eef3f5;
-  --card: color-mix(in oklab, #121820 91%, var(--primary));
-  --card-foreground: #eef3f5;
-  --popover: color-mix(in oklab, #151c25 91%, var(--primary));
-  --popover-foreground: #eef3f5;
+  --background: #09090a;
+  --foreground: #f3f3f1;
+  --card: #131314;
+  --card-foreground: #f3f3f1;
+  --popover: #131314;
+  --popover-foreground: #f3f3f1;
 
-  --secondary: color-mix(in oklab, #1a222c 88%, var(--primary));
-  --secondary-foreground: #eef3f5;
-  --muted: color-mix(in oklab, #171f28 88%, var(--primary));
-  --muted-foreground: #a7b2bc;
-  --accent: #1a272d;
-  --accent-foreground: #91d8cf;
+  --secondary: #1a1a1c;
+  --secondary-foreground: #f3f3f1;
+  --muted: #1a1a1c;
+  --muted-foreground: #8e8e8b;
+  --accent: #242426;
+  --accent-foreground: #f3f3f1;
 
-  --destructive: #f87171;
+  --destructive: #f07a63;
   --destructive-foreground: #ffffff;
 
-  --success: #6ad39f;
+  --success: #aed97a;
   --success-foreground: #052e1b;
-  --success-soft: #173526;
+  --success-soft: rgb(174 217 122 / 0.12);
   --warning: #e8b85a;
   --warning-foreground: #2a1a03;
   --warning-soft: #4a3514;
-  --brand-purple: #e8b85a; /* gold — see the token-name note in :root */
-  --brand-purple-soft: #3a2e17;
-  --brand-cyan: #5fb7ad;
+  --brand-purple: #c6e48c;
+  --brand-purple-soft: rgb(198 228 140 / 0.12);
+  --brand-cyan: #c6e48c;
   --brand-orange: #fb923c;
 
-  --border: color-mix(in oklab, #283440 84%, var(--primary));
-  --input: color-mix(in oklab, #303d4a 84%, var(--primary));
-  --ring: #5fb7ad;
+  --border: rgb(255 255 255 / 0.07);
+  --input: rgb(255 255 255 / 0.07);
+  --ring: #c6e48c;
 
-  --chart-1: #5fb7ad;
-  --chart-2: #6ad39f;
-  --chart-3: #d9a441;
-  --chart-4: #2ca8a0;
-  --chart-5: #8fb8d9;
+  --chart-1: #c6e48c;
+  --chart-2: #aed97a;
+  --chart-3: #e2d78a;
+  --chart-4: #e9a56a;
+  --chart-5: #8e8e8b;
 
-  /* Dark half of the prototype's elevation tokens (see :root). Deeper and
-     softer than the light values — a light-mode shadow reads as a grey
-     halo on a dark surface. --sidebar-w/--topbar-h are theme-independent
-     and are not repeated here. */
-  --shadow-card:
-    0 1px 2px 0 rgb(0 0 0 / 0.36), 0 14px 32px -26px rgb(0 0 0 / 0.8);
+  /* Dark mode separates surfaces with 1px borders, not shadows. */
+  --shadow-card: none;
   --shadow-pop: 0 22px 52px -20px rgb(0 0 0 / 0.78);
 }
 

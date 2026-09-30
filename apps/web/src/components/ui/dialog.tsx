@@ -124,6 +124,63 @@ function DialogContent({
   );
 }
 
+/**
+ * Bento v2 — the add-transaction dialog and confirms are the only popups that
+ * stay centred on desktop (everything else is a side panel); on phones they
+ * are a bottom sheet like every other dialog.
+ * Utilities, not CSS, because DialogContent's own positioning utilities would
+ * otherwise win over the components layer.
+ */
+function CenteredDialogContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogContent>) {
+  return (
+    <DialogContent
+      className={cn(
+        "top-1/2 bottom-auto -translate-y-1/2 w-[min(480px,calc(100%-24px))] max-h-[85dvh] rounded-[22px] max-[720px]:top-auto max-[720px]:bottom-0 max-[720px]:translate-y-0 max-[720px]:w-full max-[720px]:max-h-[92dvh] max-[720px]:rounded-b-none",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+/**
+ * Bento v2 panel popup. `side`: right-hand panel on desktop for detail views
+ * and long forms. `sheet`: small centred panel (the phone launcher, pickers).
+ * Both become a bottom sheet at <= 720px. Geometry lives in bento.css
+ * (`.wm-panel--*`), so no positioning utilities are applied here.
+ */
+function PanelContent({
+  className,
+  children,
+  variant = "side",
+  size = "md",
+  ...props
+}: DialogPrimitive.Popup.Props & {
+  variant?: "side" | "sheet";
+  size?: "md" | "lg";
+}) {
+  return (
+    <DialogPortal>
+      <DialogOverlay className="wm-overlay bg-[rgb(14_18_8_/_0.42)] supports-backdrop-filter:backdrop-blur-[3px]" />
+      <DialogPrimitive.Popup
+        data-slot="panel-content"
+        className={cn(
+          "dialog wm-panel",
+          variant === "side" ? "wm-panel--side" : "wm-panel--sheet",
+          size === "lg" && "wm-panel--lg",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </DialogPrimitive.Popup>
+    </DialogPortal>
+  );
+}
+
 // The prototype puts `.dialog__title` / `.dialog__desc` directly inside
 // `.dialog` and spaces them with margins, so this wrapper stays a plain block —
 // a flex/grid container here would collapse `.dialog__desc`'s `margin-top`.
@@ -197,6 +254,7 @@ export {
   Dialog,
   DialogBody,
   DialogClose,
+  CenteredDialogContent,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -205,4 +263,5 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  PanelContent,
 };

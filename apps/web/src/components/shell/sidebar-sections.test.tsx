@@ -59,3 +59,79 @@ describe("excludeBrandDuplicate", () => {
     expect(excludeBrandDuplicate(items)).toEqual(items);
   });
 });
+
+describe("buildHubs (bento v2 hub sidebar)", () => {
+  // Required lazily so the auth-client mock above is in place first.
+  const { resolveEffectiveAccess } = jest.requireActual(
+    "@wealthme/contracts",
+  ) as typeof import("@wealthme/contracts");
+  const { PRIMARY_HUBS, SECONDARY_HUBS, buildHubs, isHubActive } =
+    jest.requireActual(
+      "./sidebar-sections",
+    ) as typeof import("./sidebar-sections");
+
+  test("a Master sees every hub, each with its full sub-page list", () => {
+    const access = resolveEffectiveAccess({ role: "owner" });
+    const primary = buildHubs(PRIMARY_HUBS, access);
+    expect(primary.map((h) => h.id)).toEqual([
+      "rekening",
+      "transaksi",
+      "ringkasan",
+      "anggaran",
+      "investasi",
+      "tax",
+      "persetujuan",
+    ]);
+    expect(
+      primary.find((h) => h.id === "transaksi")?.children.map((c) => c.id),
+    ).toEqual(["transaksi", "rekonsiliasi", "quickinput", "splitbill"]);
+    expect(
+      buildHubs(SECONDARY_HUBS, access)
+        .find((h) => h.id === "masterdata")
+        ?.children.map((c) => c.id),
+    ).toContain("iam");
+  });
+
+  test("a dependant only gets the hubs their allowlist reaches, never IAM or quick input", () => {
+    const access = resolveEffectiveAccess({ role: "dependant" });
+    const hubs = [
+      ...buildHubs(PRIMARY_HUBS, access),
+      ...buildHubs(SECONDARY_HUBS, access),
+    ];
+    const ids = hubs.flatMap((h) => [h.id, ...h.children.map((c) => c.id)]);
+    expect(ids).not.toContain("iam");
+    expect(ids).not.toContain("quickinput");
+    expect(ids).not.toContain("beranda");
+    // Warisan is granted but Pajak is not: the hub still shows and opens Warisan.
+    const tax = hubs.find((h) => h.id === "tax");
+    expect(tax?.href).toBe("/warisan");
+    expect(tax?.children.map((c) => c.id)).toEqual(["warisan"]);
+  });
+
+  test("no active membership means no hubs at all", () => {
+    expect(buildHubs(PRIMARY_HUBS, null)).toEqual([]);
+  });
+
+  test("a hub is active on any of its sub-pages, including dynamic detail routes", () => {
+    const access = resolveEffectiveAccess({ role: "owner" });
+    const wealth = buildHubs(PRIMARY_HUBS, access).find(
+      (h) => h.id === "investasi",
+    )!;
+    expect(isHubActive(wealth, "/aset/123")).toBe(true);
+    expect(isHubActive(wealth, "/anggaran")).toBe(false);
+  });
+});
+
+describe("resolveRail (sidebar collapse)", () => {
+  const { resolveRail } = jest.requireActual(
+    "./use-sidebar-rail",
+  ) as typeof import("./use-sidebar-rail");
+  test("the member's choice wins over the width default", () => {
+    expect(resolveRail("collapsed", false)).toBe(true);
+    expect(resolveRail("expanded", true)).toBe(false);
+  });
+  test("auto follows the 901-1439px rail default", () => {
+    expect(resolveRail("auto", true)).toBe(true);
+    expect(resolveRail("auto", false)).toBe(false);
+  });
+});
