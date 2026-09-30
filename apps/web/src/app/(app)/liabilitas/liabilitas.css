@@ -1,0 +1,143 @@
+/* Liabilitas (bento v2, docs/design/proto/liabilitas.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .li-grid > .li-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .li-grid > .li-risk {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .li-grid > .li-list {
+      grid-column: 1 / 9;
+      grid-row: 2;
+    }
+    .li-grid > .li-tips {
+      grid-column: 9 / 13;
+      grid-row: 2;
+    }
+    .li-grid > .li-proj {
+      grid-column: 1 / 13;
+      grid-row: 3;
+    }
+  }
+  .li-grid > * {
+    min-width: 0;
+  }
+  .li-plot {
+    position: relative;
+    min-height: 200px;
+  }
+  .li-legend {
+    display: inline-flex;
+    gap: 12px;
+    font-size: var(--wm-type-12);
+  }
+  .li-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .li-legend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .li-dot-paid {
+    background: var(--wm-lime);
+  }
+  .li-dot-total {
+    background: var(--wm-ghost, rgb(255 255 255 / 0.35));
+  }
+  .li-empty,
+  .li-error {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+  }
+  .li-error {
+    color: var(--wm-bad);
+  }
+  .li-dta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 8px 0;
+    font-size: var(--wm-type-40);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .li-dta span {
+    font-size: var(--wm-type-13);
+    font-weight: 600;
+  }
+  .li-risknote {
+    margin-top: 10px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+  }
+  .li-tilewrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .li-status {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+  .li-remaining {
+    font-variant-numeric: tabular-nums;
+  }
+  .li-progress,
+  .li-late {
+    display: block;
+    margin-top: 6px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-11);
+  }
+  .li-late {
+    color: var(--wm-bad);
+  }
+  .li-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .li-foot button,
+  .li-paid {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--wm-line, rgb(0 0 0 / 0.1));
+    background: none;
+    color: inherit;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .li-foot .li-del {
+    color: var(--wm-bad);
+  }
+  .li-foot .li-pay {
+    margin-left: auto;
+    background: var(--wm-lime);
+    color: #0b1a0b;
+    border-color: transparent;
+  }
+  .li-paid {
+    margin-left: auto;
+    border-color: transparent;
+    color: var(--wm-muted);
+    cursor: default;
+  }
+  .li-disclaimer {
+    margin-top: 8px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-11);
+  }
+}

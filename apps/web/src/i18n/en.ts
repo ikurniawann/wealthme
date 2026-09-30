@@ -2182,6 +2182,32 @@ export const en = {
     ownerUnknownLabel: "Unknown",
   },
   liabilitas: {
+    v2: {
+      heroCaption: "Family liabilities remaining",
+      kpiLoan: "Mortgage & loans",
+      kpiCard: "Credit cards",
+      kpiMonthly: "Installments this month",
+      legendPaid: "Paid",
+      legendTotal: "Total",
+      chartAria: "Paid versus total debt by type",
+      chartEmpty:
+        "No liabilities yet. Add a mortgage, credit card or loan to start tracking.",
+      riskTitle: "Debt ratio",
+      riskCaption: "Against total assets",
+      riskHealthy:
+        "Remaining liabilities are healthy relative to family assets.",
+      riskWarn: "Remaining liabilities are near or above the safe share.",
+      gridTitle: "Liabilities",
+      gridCount: "liabilities",
+      detailLabel: "Detail",
+      tipOverdueSuffix: " is overdue",
+      tipSoonSuffix: " is due soon",
+      tipInstallment: "Installment",
+      tipOkTitle: "All liabilities are on track",
+      tipOkBody: "No installment is due soon.",
+      tipEmptyTitle: "No liabilities yet",
+      tipEmptyBody: "Add a mortgage, credit card or loan to start tracking it.",
+    },
     fieldGroups: {
       identity: "Identity",
       amount: "Amount",

@@ -2181,6 +2181,30 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
+    v2: {
+      heroCaption: string;
+      kpiLoan: string;
+      kpiCard: string;
+      kpiMonthly: string;
+      legendPaid: string;
+      legendTotal: string;
+      chartAria: string;
+      chartEmpty: string;
+      riskTitle: string;
+      riskCaption: string;
+      riskHealthy: string;
+      riskWarn: string;
+      gridTitle: string;
+      gridCount: string;
+      detailLabel: string;
+      tipOverdueSuffix: string;
+      tipSoonSuffix: string;
+      tipInstallment: string;
+      tipOkTitle: string;
+      tipOkBody: string;
+      tipEmptyTitle: string;
+      tipEmptyBody: string;
+    };
     fieldGroups: {
       identity: string;
       amount: string;

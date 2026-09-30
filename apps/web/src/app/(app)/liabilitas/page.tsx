@@ -39,7 +39,6 @@ import {
 } from "@/components/money";
 import type { MoneyField } from "@/components/money";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -51,14 +50,21 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { ConfirmDeleteDialog } from "@/components/crud";
 import {
-  AnimatedProgress,
-  CountUpRupiah,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  BentoTile,
+  BentoTiles,
   DateField,
-  IconChip,
-  Rise,
-  SectionCard,
+  GhostButton,
+  HeroKpi,
+  Segmented,
   StatusBadge,
+  TipsCard,
+  Track,
 } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import "./liabilitas.css";
 import { TrendChart } from "@/components/charts/apex-presets";
 
 import {
@@ -256,15 +262,6 @@ function scheduleRowDueDate(startDate: Date, period: number): Date {
   return new Date(targetYear, targetMonthIndex, day);
 }
 
-// Prototype's "Cicilan Bulan Ini" sub-line ("Jatuh tempo terdekat 12
-// Agustus") spells the month out in full, unlike the card badges' short form.
-function formatLocaleDateFullMonth(iso: string, locale: Locale): string {
-  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
-    day: "numeric",
-    month: "long",
-  });
-}
-
 // Prototype's payoff-projection x-axis uses real month labels (Agu Sep Okt
 // …), not a relative "+1 … +6" — the 6 calendar months following today,
 // matching `projectRemainingBalance`'s own month-by-month roll-forward.
@@ -332,30 +329,6 @@ function getDueDateStatus(
 function Bone({ className }: { className?: string }) {
   return (
     <div className={`animate-pulse rounded bg-muted ${className ?? ""}`} />
-  );
-}
-
-function LiabilityCardSkeleton() {
-  return (
-    <Card className="gap-0 p-[18px]">
-      <div className="mb-3.5 flex items-center gap-2.5">
-        <Bone className="size-[38px] rounded-[10px]" />
-        <div className="flex-1 space-y-1.5">
-          <Bone className="h-3.5 w-40" />
-          <Bone className="h-2.5 w-28" />
-        </div>
-        <Bone className="h-5 w-24 rounded-full" />
-      </div>
-      <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="space-y-1">
-            <Bone className="h-2.5 w-20" />
-            <Bone className="h-3.5 w-24" />
-          </div>
-        ))}
-      </div>
-      <Bone className="h-2 w-full rounded-full" />
-    </Card>
   );
 }
 
@@ -901,69 +874,7 @@ function LiabilityModal({
 // Page-local (not the shared `CardSideActions` in components/crud, which
 // /asuransi also uses and stays untouched) so only this page's layout
 // changes from the icon-only vertical column to a labelled bottom row.
-function LiabilityCardActionBar({
-  onDetail,
-  onEdit,
-  onDelete,
-  onPay,
-  payDisabled,
-  payDisabledLabel,
-}: {
-  onDetail: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
-  onPay: () => void;
-  payDisabled: boolean;
-  payDisabledLabel: string;
-}) {
-  return (
-    <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3.5">
-      <button
-        type="button"
-        onClick={onDetail}
-        className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-secondary"
-      >
-        <FileText className="size-3.5" /> Detail
-      </button>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-secondary"
-      >
-        <Pencil className="size-3.5" /> Edit
-      </button>
-      <button
-        type="button"
-        onClick={onDelete}
-        className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-destructive transition-colors hover:bg-destructive/10"
-      >
-        <Trash2 className="size-3.5" /> Hapus
-      </button>
-      <span className="flex-1" />
-      {/* Polish batch 7b item 5 — this used to be a disabled `<button>`
-          showing "Sudah dibayar periode ini" on every already-paid card;
-          a disabled control implies an action that failed or is blocked,
-          not a settled status. It's now a quiet status badge instead. */}
-      {payDisabled ? (
-        <span className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-medium text-muted-foreground">
-          <CheckCircle2 className="size-3.5" /> {payDisabledLabel}
-        </span>
-      ) : (
-        <button
-          type="button"
-          onClick={onPay}
-          className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Banknote className="size-3.5" /> Bayar
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── Liability Card ─────────────────────────────────────────────────────────────
-
-interface LiabilityCardProps {
+interface LiabilityTileProps {
   item: LiabilityDto;
   onDetail: () => void;
   onEdit: () => void;
@@ -971,19 +882,16 @@ interface LiabilityCardProps {
   onDelete: () => void;
 }
 
-function LiabilityCard({
+function LiabilityTile({
   item,
   onDetail,
   onEdit,
   onPay,
   onDelete,
-}: LiabilityCardProps) {
+}: LiabilityTileProps) {
   const { t, locale } = useLocale();
   const money = useMoney();
   const isCreditCard = item.type === "kartu_kredit";
-  // E2E round 1 bug 2 — `dueDate` is the legacy manual field the KPR form
-  // never sets; `nextDueDate` (same anchor rule as the amortisation
-  // schedule) is the real "next due" value when present.
   const nextDue = item.nextDueDate ?? item.dueDate;
   const status = getDueDateStatus(
     nextDue,
@@ -991,151 +899,77 @@ function LiabilityCard({
     t,
     locale,
   );
-
-  const totalDebt = item.totalDebt ? Number(BigInt(item.totalDebt)) : 0;
   const remaining = item.remainingBalance
     ? Number(BigInt(item.remainingBalance))
     : 0;
-  const minimumPayment = installmentDue(item);
-
-  const progressValue = isCreditCard
-    ? 100 - item.paymentRatio
-    : item.paymentRatio;
-  const progressColor =
-    progressValue >= 80
-      ? "var(--destructive)"
-      : progressValue >= 50
-        ? "var(--warning)"
-        : "var(--success)";
+  const installment = installmentDue(item);
+  const progress = isCreditCard ? 100 - item.paymentRatio : item.paymentRatio;
+  const fill = progress >= 80 ? "lime" : progress >= 50 ? "orange" : "bad";
+  const Icon = (LIABILITY_TYPE_ICON[item.type] ?? { icon: CreditCard }).icon;
+  const typeLabel =
+    t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type;
+  const isOverdue = status.variant === "danger" && !item.paidThisPeriod;
   const progressLabel = isCreditCard
     ? t.liabilitas.progressUsageLabel
     : t.liabilitas.progressPayoffLabel;
 
-  const iconCfg = LIABILITY_TYPE_ICON[item.type] ?? {
-    icon: CreditCard,
-    chip: "bg-red-100 text-red-600",
-  };
-  const typeLabel =
-    t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type;
-  // Overdue = a real installment past its due date and not yet paid this
-  // period. No `denda`/late-fee field exists on LiabilityDto, so this warns
-  // honestly without inventing a penalty amount (unlike the prototype's
-  // static mock figure).
-  const isOverdue = status.variant === "danger" && !item.paidThisPeriod;
-
   return (
-    <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-      <Card className="gap-0 p-[18px]">
-        <div className="min-w-0 flex-1">
-          <div className="mb-3.5 flex items-center gap-2.5">
-            <IconChip
-              icon={iconCfg.icon}
-              className={iconCfg.chip}
-              size={38}
-              rounded="rounded-[10px]"
-            />
-            <div>
-              <div className="text-[14px] font-bold">{item.name}</div>
-              <div className="text-[11.5px] text-muted-foreground">
-                {item.institution
-                  ? `${item.institution} · ${typeLabel}`
-                  : typeLabel}
-              </div>
-            </div>
-            <div className="ml-auto">
-              <StatusBadge variant={status.variant}>{status.text}</StatusBadge>
-            </div>
-          </div>
-
-          <div className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
-            <div>
-              <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {isCreditCard
-                  ? t.liabilitas.ccCurrentBillLabel
-                  : t.liabilitas.loanRemainingPrincipalLabel}
-              </div>
-              <div
-                className="text-[13.5px] font-bold"
-                style={{ color: "var(--destructive)" }}
-              >
-                {money.format(remaining)}
-              </div>
-            </div>
-            <div>
-              <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {isCreditCard
-                  ? t.liabilitas.ccLimitLabel
-                  : t.liabilitas.loanTotalLabel}
-              </div>
-              <div className="text-[13.5px] font-bold">
-                {money.format(totalDebt)}
-              </div>
-            </div>
-            {minimumPayment > 0 && (
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {isCreditCard
-                    ? t.liabilitas.ccMinPaymentLabel
-                    : t.liabilitas.loanInstallmentLabel}
-                </div>
-                <div className="text-[13.5px] font-bold">
-                  {money.format(minimumPayment)}
-                </div>
-              </div>
-            )}
-            {parseFloat(item.interestRate) > 0 && (
-              <div>
-                <div className="mb-[3px] text-[11px] text-muted-foreground">
-                  {isCreditCard
-                    ? t.liabilitas.ccInterestMonthlyLabel
-                    : t.liabilitas.loanInterestYearlyLabel}
-                </div>
-                <div
-                  className="text-[13.5px] font-bold"
-                  style={{ color: "var(--destructive)" }}
-                >
-                  {item.interestRate}%
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="text-[11.5px] font-semibold">
-                {progressLabel}
-              </span>
-              <span
-                className="text-[12px] font-bold"
-                style={{ color: progressColor }}
-              >
-                {progressValue}%
-              </span>
-            </div>
-            <AnimatedProgress value={progressValue} color={progressColor} />
-          </div>
-        </div>
-
+    <div className="li-tilewrap">
+      <BentoTile
+        onClick={onDetail}
+        icon={<Icon aria-hidden="true" />}
+        title={item.name}
+        value={
+          <span className="wm-money li-remaining">
+            {money.format(remaining)}
+          </span>
+        }
+        foot={
+          <>
+            {installment > 0
+              ? `${money.formatCompact(installment)}/bln`
+              : typeLabel}
+            {item.institution ? ` · ${item.institution}` : ""}
+          </>
+        }
+      >
+        <Track value={progress} fill={fill} />
+        <small className="li-progress">
+          {progressLabel} {progress}%
+        </small>
         {isOverdue && (
-          <div className="mt-3.5 flex items-start gap-2 rounded-[10px] border border-destructive/30 bg-destructive/5 p-3 text-[12px] text-destructive">
-            <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-            <span>
-              {t.liabilitas.overdueWarningPrefix}
-              {nextDue ? formatLocaleDate(nextDue, locale) : ""}
-              {t.liabilitas.overdueWarningSuffix}
-            </span>
-          </div>
+          <small className="li-late">
+            <TriangleAlert className="size-3" aria-hidden="true" />{" "}
+            {t.liabilitas.overdueWarningPrefix}
+            {nextDue ? formatLocaleDate(nextDue, locale) : ""}
+            {t.liabilitas.overdueWarningSuffix}
+          </small>
         )}
-
-        <LiabilityCardActionBar
-          onDetail={onDetail}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          onPay={onPay}
-          payDisabled={item.paidThisPeriod}
-          payDisabledLabel={t.liabilitas.payAlreadyPaidTooltip}
-        />
-      </Card>
+      </BentoTile>
+      <span className="li-status">
+        <StatusBadge variant={status.variant}>{status.text}</StatusBadge>
+      </span>
+      <div className="li-foot">
+        <button type="button" onClick={onDetail}>
+          <FileText className="size-3.5" aria-hidden="true" /> Detail
+        </button>
+        <button type="button" onClick={onEdit}>
+          <Pencil className="size-3.5" aria-hidden="true" /> Edit
+        </button>
+        <button type="button" className="li-del" onClick={onDelete}>
+          <Trash2 className="size-3.5" aria-hidden="true" /> Hapus
+        </button>
+        {item.paidThisPeriod ? (
+          <span className="li-paid">
+            <CheckCircle2 className="size-3.5" aria-hidden="true" />{" "}
+            {t.liabilitas.payAlreadyPaidTooltip}
+          </span>
+        ) : (
+          <button type="button" className="li-pay" onClick={onPay}>
+            <Banknote className="size-3.5" aria-hidden="true" /> Bayar
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1952,10 +1786,6 @@ export default function LiabilitasPage() {
   );
   // E2E round 1 bug 2 — prefer the real `nextDueDate` over the legacy
   // manual `dueDate` field, same as everywhere else on this page.
-  const nearestDueDate = (liabilities ?? [])
-    .map((l) => l.nextDueDate ?? l.dueDate)
-    .filter((d): d is string => Boolean(d))
-    .sort()[0];
 
   const filteredLiabilities = (liabilities ?? []).filter(
     (l) => activeTypeFilter === "semua" || l.type === activeTypeFilter,
@@ -1985,180 +1815,279 @@ export default function LiabilitasPage() {
     projectionSchedules.byId,
   );
 
+  const loanRemaining = (liabilities ?? []).reduce(
+    (sum, l) =>
+      l.type === "kartu_kredit"
+        ? sum
+        : sum + (l.remainingBalance ? BigInt(l.remainingBalance) : BigInt(0)),
+    BigInt(0),
+  );
+  const cardRemaining = totalRemaining - loanRemaining;
+  const typeGroups = LIABILITY_TYPES.map((type) => {
+    const items = (liabilities ?? []).filter((l) => l.type === type);
+    const total = items.reduce(
+      (sum, l) => sum + (l.totalDebt ? Number(BigInt(l.totalDebt)) : 0),
+      0,
+    );
+    const left = items.reduce(
+      (sum, l) =>
+        sum + (l.remainingBalance ? Number(BigInt(l.remainingBalance)) : 0),
+      0,
+    );
+    return {
+      label: t.liabilitas.typeLabels[type],
+      total,
+      paid: Math.max(0, total - left),
+    };
+  }).filter((g) => g.total > 0);
+
+  const worstDue = (liabilities ?? [])
+    .map((l) => ({
+      item: l,
+      due: l.nextDueDate ?? l.dueDate,
+      status: getDueDateStatus(
+        l.nextDueDate ?? l.dueDate,
+        l.nextDueDate ? l.currentInstallmentLate : null,
+        t,
+        locale,
+      ),
+    }))
+    .filter((x) => x.status.variant !== "success")
+    .sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"))[0];
+  const tipTitle = worstDue
+    ? `${worstDue.item.name}${worstDue.status.variant === "danger" ? t.liabilitas.v2.tipOverdueSuffix : t.liabilitas.v2.tipSoonSuffix}`
+    : (liabilities ?? []).length > 0
+      ? t.liabilitas.v2.tipOkTitle
+      : t.liabilitas.v2.tipEmptyTitle;
+  const tipBody = worstDue
+    ? `${t.liabilitas.v2.tipInstallment} ${money.format(installmentDue(worstDue.item))} · ${worstDue.status.text}.`
+    : (liabilities ?? []).length > 0
+      ? t.liabilitas.v2.tipOkBody
+      : t.liabilitas.v2.tipEmptyBody;
+  const dtaFilled = Math.round((Math.min(100, dtaRatio ?? 0) / 100) * 18);
+  const tipsMosaic = Array.from({ length: 18 }, (_, i) =>
+    i < dtaFilled
+      ? (dtaRatio ?? 0) >= 70
+        ? "o"
+        : i > dtaFilled - 4
+          ? "c"
+          : "a"
+      : i % 5 === 0
+        ? "b"
+        : "",
+  ) as ("a" | "b" | "c" | "o" | "")[];
+
   return (
-    <div className="space-y-4">
-      {/* Polish batch 7b item 5 — was `grid-cols-1` (3 full-width stacked
-          cards) on mobile, pushing the liability list well below the fold;
-          2-up at 390, 3-up from `sm` up. */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3.5">
-        <div className="rounded-[14px] border border-[#FECACA] bg-[#FEE2E2] p-3 sm:p-4">
-          <div className="mb-1 text-[11px] text-[#B91C1C]">
-            {t.liabilitas.totalLiabilitiesLabel}
-          </div>
-          {isLoading ? (
-            <div className="animate-pulse h-7 w-36 rounded bg-red-200" />
-          ) : (
-            <div className="mono text-[18px] font-black text-destructive sm:text-[22px]">
-              <CountUpRupiah
-                value={Number(totalRemaining)}
-                format={money.format}
-              />
-            </div>
-          )}
-          <div className="text-[11px] text-[#B91C1C]">
-            {t.liabilitas.remainingActiveSuffix}
-            {!isLoading &&
-              ` · ${(liabilities ?? []).length}${t.liabilitas.remainingActiveCountSuffix}`}
-          </div>
-        </div>
-        <div className="rounded-[14px] border bg-card p-3 sm:p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">
-            {t.liabilitas.dtaRatioLabel}
-          </div>
-          {isNetWorthLoading ? (
-            <div className="animate-pulse h-7 w-20 rounded bg-muted" />
-          ) : (
-            <div
-              className="text-[18px] font-black sm:text-[22px]"
-              style={{ color: dtaRisk.color }}
-            >
-              {dtaDisplay}
-            </div>
-          )}
-          <div
-            className="text-[11px] font-medium"
-            style={{ color: dtaRisk.color }}
-          >
-            {dtaRisk.label}
-          </div>
-        </div>
-        <div className="col-span-2 rounded-[14px] border bg-card p-3 sm:col-span-1 sm:p-4">
-          <div className="mb-1 text-[11px] text-muted-foreground">
-            {t.liabilitas.monthlyInstallmentLabel}
-          </div>
-          {isLoading ? (
-            <div className="animate-pulse h-7 w-32 rounded bg-muted" />
-          ) : (
-            <div className="mono text-[18px] font-black sm:text-[22px]">
-              {money.format(Number(totalMinimumPayment))}
-            </div>
-          )}
-          <div className="text-[11px] text-muted-foreground">
-            {nearestDueDate
-              ? `${t.liabilitas.statusDuePrefix}${formatLocaleDateFullMonth(nearestDueDate, locale)}`
-              : t.liabilitas.monthlyInstallmentSuffix}
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div
-          role="group"
-          aria-label={t.liabilitas.fieldTypeLabel}
-          className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
-        >
-          <button
-            type="button"
-            aria-pressed={activeTypeFilter === "semua"}
-            onClick={() => setActiveTypeFilter("semua")}
-            className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
-              activeTypeFilter === "semua"
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-accent"
-            }`}
-          >
-            {t.liabilitas.filterAllLabel}
-          </button>
-          {LIABILITY_TYPES.map((liabilityType) => (
-            <button
-              key={liabilityType}
-              type="button"
-              aria-pressed={activeTypeFilter === liabilityType}
-              onClick={() => setActiveTypeFilter(liabilityType)}
-              className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
-                activeTypeFilter === liabilityType
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent"
-              }`}
-            >
-              {t.liabilitas.typeLabels[liabilityType]}
-            </button>
-          ))}
-        </div>
-        <Button
-          type="button"
-          onClick={() => setShowAddModal(true)}
-          disabled={!familyGroupId || !token}
-          className="h-auto shrink-0 px-[14px] py-2"
-        >
-          <Plus className="size-4" /> {t.liabilitas.addButton}
-        </Button>
-      </div>
-
-      {isError && (
-        <div
-          role="alert"
-          className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
-        >
-          {t.liabilitas.errorLoad}
-        </div>
-      )}
-
-      {isLoading ? (
-        <>
-          <LiabilityCardSkeleton />
-          <LiabilityCardSkeleton />
-        </>
-      ) : filteredLiabilities.length === 0 ? (
-        <div className="rounded-[14px] border bg-card px-4 py-10 text-center text-[13px] text-muted-foreground">
-          {t.liabilitas.emptyState}
-        </div>
-      ) : (
-        filteredLiabilities.map((item, i) => (
-          <Rise key={item.id} index={i}>
-            <LiabilityCard
-              item={item}
-              onDetail={() => setDetailItem(item)}
-              onEdit={() => setEditingItem(item)}
-              onPay={() => openPayDialog(item)}
-              onDelete={() => setDeleteTarget(item)}
-            />
-          </Rise>
-        ))
-      )}
-
-      {!isLoading && scheduledLiabilities.length > 0 && (
-        <SectionCard title={t.liabilitas.payoffProjectionTitle}>
-          {projectionSchedules.isError ? (
-            <p className="notice notice--danger" role="alert">
-              <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
-              <span>{t.liabilitas.payoffProjectionError}</span>
-            </p>
-          ) : projectionSchedules.isPending ? (
-            <div role="status" aria-live="polite">
-              <span className="sr-only">
-                {t.liabilitas.amortisationScheduleLoading}
+    <div data-page="liabilitas" className="li-page">
+      <BentoGrid className="li-grid">
+        <h1 className="sr-only">Liabilitas</h1>
+        <BentoHero
+          className="li-hero"
+          currency={null}
+          value={
+            isLoading ? (
+              "…"
+            ) : (
+              <span className="wm-money">
+                {money.format(Number(totalRemaining))}
               </span>
-              <Bone className="h-[220px] w-full" />
+            )
+          }
+          caption={t.liabilitas.v2.heroCaption}
+          controls={
+            <>
+              <GhostButton
+                lit
+                onClick={() => setShowAddModal(true)}
+                disabled={!familyGroupId || !token}
+              >
+                <Plus className="size-4" aria-hidden="true" />{" "}
+                {t.liabilitas.addButton}
+              </GhostButton>
+              <span className="li-legend" aria-hidden="true">
+                <span>
+                  <i className="li-dot-paid" />
+                  {t.liabilitas.v2.legendPaid}
+                </span>
+                <span>
+                  <i className="li-dot-total" />
+                  {t.liabilitas.v2.legendTotal}
+                </span>
+              </span>
+            </>
+          }
+          chart={
+            <div className="li-plot">
+              {isLoading ? null : typeGroups.length === 0 ? (
+                <p className="li-empty">{t.liabilitas.v2.chartEmpty}</p>
+              ) : (
+                <HatchedBarChart
+                  labels={typeGroups.map((g) => g.label)}
+                  series={[
+                    {
+                      name: t.liabilitas.v2.legendTotal,
+                      data: typeGroups.map((g) => g.total),
+                      color: "var(--wm-ghost)",
+                    },
+                    {
+                      name: t.liabilitas.v2.legendPaid,
+                      data: typeGroups.map((g) => g.paid),
+                      color: "var(--wm-lime)",
+                    },
+                  ]}
+                  format={money.formatCompact}
+                  wide
+                  ariaLabel={t.liabilitas.v2.chartAria}
+                />
+              )}
             </div>
-          ) : (
-            <TrendChart
-              categories={payoffProjectionMonths}
-              series={[
-                {
-                  name: t.liabilitas.payoffProjectionSeriesLabel,
-                  data: payoffProjectionSeries,
-                },
-              ]}
-              ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${money.format(Number(totalRemaining))} → ${money.format(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
-              money={money}
-            />
-          )}
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            {t.liabilitas.amortisationDisclaimer}
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.liabilitas.v2.kpiLoan}
+                value={
+                  <span className="wm-money">
+                    {money.format(Number(loanRemaining))}
+                  </span>
+                }
+              />
+              <HeroKpi
+                label={t.liabilitas.v2.kpiCard}
+                value={
+                  <span className="wm-money">
+                    {money.format(Number(cardRemaining))}
+                  </span>
+                }
+              />
+              <HeroKpi
+                label={t.liabilitas.v2.kpiMonthly}
+                value={
+                  <span className="wm-money">
+                    {money.format(Number(totalMinimumPayment))}
+                  </span>
+                }
+              />
+            </>
+          }
+        />
+
+        <BentoCard
+          className="li-risk"
+          title={t.liabilitas.v2.riskTitle}
+          caption={t.liabilitas.v2.riskCaption}
+        >
+          <p className="li-dta" style={{ color: dtaRisk.color }}>
+            {isNetWorthLoading ? "…" : dtaDisplay}
+            <span>{dtaRisk.label}</span>
           </p>
-        </SectionCard>
-      )}
+          <Track
+            value={Math.min(100, dtaRatio ?? 0)}
+            fill={
+              (dtaRatio ?? 0) >= 70
+                ? "bad"
+                : (dtaRatio ?? 0) >= 50
+                  ? "orange"
+                  : "lime"
+            }
+            className="li-riskbar"
+          />
+          <p className="li-risknote">
+            {dtaRatio === null
+              ? ""
+              : dtaRatio < 50
+                ? t.liabilitas.v2.riskHealthy
+                : t.liabilitas.v2.riskWarn}
+          </p>
+        </BentoCard>
+
+        <BentoCard
+          className="li-list"
+          title={t.liabilitas.v2.gridTitle}
+          caption={`${filteredLiabilities.length} ${t.liabilitas.v2.gridCount}`}
+          action={
+            <Segmented
+              label={t.liabilitas.fieldTypeLabel}
+              value={activeTypeFilter}
+              onChange={setActiveTypeFilter}
+              options={[
+                { value: "semua", label: t.liabilitas.filterAllLabel },
+                ...LIABILITY_TYPES.map((type) => ({
+                  value: type,
+                  label: t.liabilitas.typeLabels[type],
+                })),
+              ]}
+            />
+          }
+        >
+          {isError && (
+            <p role="alert" className="li-error">
+              {t.liabilitas.errorLoad}
+            </p>
+          )}
+          {isLoading ? (
+            <BentoTiles>
+              <Bone className="h-[150px] w-full" />
+              <Bone className="h-[150px] w-full" />
+            </BentoTiles>
+          ) : filteredLiabilities.length === 0 ? (
+            <p className="li-empty">{t.liabilitas.emptyState}</p>
+          ) : (
+            <BentoTiles>
+              {filteredLiabilities.map((item) => (
+                <LiabilityTile
+                  key={item.id}
+                  item={item}
+                  onDetail={() => setDetailItem(item)}
+                  onEdit={() => setEditingItem(item)}
+                  onPay={() => openPayDialog(item)}
+                  onDelete={() => setDeleteTarget(item)}
+                />
+              ))}
+            </BentoTiles>
+          )}
+        </BentoCard>
+
+        <TipsCard className="li-tips" title={tipTitle} mosaic={tipsMosaic}>
+          {tipBody}
+        </TipsCard>
+
+        {!isLoading && scheduledLiabilities.length > 0 && (
+          <BentoCard
+            className="li-proj"
+            title={t.liabilitas.payoffProjectionTitle}
+          >
+            {projectionSchedules.isError ? (
+              <p className="notice notice--danger" role="alert">
+                <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+                <span>{t.liabilitas.payoffProjectionError}</span>
+              </p>
+            ) : projectionSchedules.isPending ? (
+              <div role="status" aria-live="polite">
+                <span className="sr-only">
+                  {t.liabilitas.amortisationScheduleLoading}
+                </span>
+                <Bone className="h-[220px] w-full" />
+              </div>
+            ) : (
+              <TrendChart
+                categories={payoffProjectionMonths}
+                series={[
+                  {
+                    name: t.liabilitas.payoffProjectionSeriesLabel,
+                    data: payoffProjectionSeries,
+                  },
+                ]}
+                ariaLabel={`${t.liabilitas.payoffProjectionTitle}: ${money.format(Number(totalRemaining))} → ${money.format(payoffProjectionSeries[payoffProjectionSeries.length - 1] ?? 0)}`}
+                money={money}
+              />
+            )}
+            <p className="li-disclaimer">
+              {t.liabilitas.amortisationDisclaimer}
+            </p>
+          </BentoCard>
+        )}
+      </BentoGrid>
 
       {showAddModal && familyGroupId && (
         <LiabilityModal

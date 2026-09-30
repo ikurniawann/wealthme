@@ -2223,6 +2223,32 @@ export const id = {
     ownerUnknownLabel: "Tidak diketahui",
   },
   liabilitas: {
+    v2: {
+      heroCaption: "Sisa liabilitas keluarga",
+      kpiLoan: "KPR & pinjaman",
+      kpiCard: "Kartu kredit",
+      kpiMonthly: "Cicilan bulan ini",
+      legendPaid: "Dibayar",
+      legendTotal: "Total",
+      chartAria: "Terbayar dibanding total utang per jenis",
+      chartEmpty:
+        "Belum ada liabilitas. Tambah KPR, kartu kredit, atau pinjaman untuk mulai memantau.",
+      riskTitle: "Rasio utang",
+      riskCaption: "Terhadap total aset",
+      riskHealthy: "Sisa liabilitas masih sehat dibanding aset keluarga.",
+      riskWarn: "Sisa liabilitas mendekati atau melebihi porsi aman.",
+      gridTitle: "Liabilitas",
+      gridCount: "liabilitas",
+      detailLabel: "Detail",
+      tipOverdueSuffix: " sudah jatuh tempo",
+      tipSoonSuffix: " segera jatuh tempo",
+      tipInstallment: "Cicilan",
+      tipOkTitle: "Semua liabilitas berjalan lancar",
+      tipOkBody: "Tidak ada cicilan yang jatuh tempo dalam waktu dekat.",
+      tipEmptyTitle: "Belum ada liabilitas",
+      tipEmptyBody:
+        "Tambah KPR, kartu kredit, atau pinjaman untuk mulai melacaknya.",
+    },
     fieldGroups: {
       identity: "Identitas",
       amount: "Nominal",
