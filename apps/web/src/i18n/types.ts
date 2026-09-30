@@ -3355,6 +3355,15 @@ export type I18nDictionary = {
    * `LEMBAGA_OPTIONS`.
    */
   warisan: {
+    v2: {
+      legendValue: string;
+      chartAria: string;
+      kpiAssets: string;
+      kpiHeirs: string;
+      kpiAlloc: string;
+      benCaption: string;
+      benEmpty: string;
+    };
     heroTitle: string;
     assetsRegisteredSuffix: string;
     heirsMidDot: string;

@@ -7,7 +7,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
@@ -17,11 +16,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  HeroCard,
-  SectionCard,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
+  MiniList,
+  MiniRow,
   StatusBadge,
   ProgressBar,
+  TipsCard,
 } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import "./warisan.css";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
 import {
   MoneyInput,
@@ -29,10 +36,6 @@ import {
   moneyDigits,
   withFxInputs,
 } from "@/components/money";
-// EPIC-025 N3-E3 — J3 FOLD: beneficiary-allocation donut, derived from the
-// already-fetched inheritance-assets list — no new backend endpoint.
-import { DonutChart } from "@/components/charts/apex-presets";
-import type { DonutSegment } from "@/components/charts/donut";
 import { useLocale } from "@/hooks/use-locale";
 import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
@@ -908,23 +911,6 @@ export default function WarisanPage() {
     "var(--warning)",
     "var(--brand-orange)",
   ];
-  const heirAllocationSegments: DonutSegment[] = Array.from(
-    heirAllocationTotals.entries(),
-  )
-    .filter(([, value]) => value > 0)
-    .map(([label, value], i) => ({
-      label,
-      value,
-      color: HEIR_DONUT_COLORS[i % HEIR_DONUT_COLORS.length]!,
-    }));
-  if (unallocatedTotal > 0) {
-    heirAllocationSegments.push({
-      label: t.warisan.heirAllocationUnallocatedLabel,
-      value: unallocatedTotal,
-      color: "var(--muted-foreground)",
-    });
-  }
-
   // EPIC-025 N3 restructure — avatar-row beneficiary list rendered under the
   // donut (prototype parity), built from the same totals above. Colors cycle
   // through the identical palette so a heir's avatar always matches its
@@ -943,77 +929,125 @@ export default function WarisanPage() {
         .join(""),
     }));
 
+  const allocatedPct =
+    Number(totalValue) > 0
+      ? Math.round(
+          ((Number(totalValue) - unallocatedTotal) / Number(totalValue)) * 100,
+        )
+      : 0;
+  const topAssets = [...assets]
+    .sort((x, y) => Number(BigInt(y.estimatedValue) - BigInt(x.estimatedValue)))
+    .slice(0, 6);
+  const tipsMosaic = Array.from({ length: 18 }, (_, i) =>
+    i < Math.round((allocatedPct / 100) * 18) ? (i % 4 === 0 ? "b" : "a") : "",
+  ) as ("a" | "b" | "c" | "o" | "")[];
+
   return (
-    <div className="space-y-4">
-      {/* Hero — EPIC-026 Wave 4: prototype uses `gradient-emerald` with a
-          plain `hero__label` + mono `hero__value` (warisan.html:15); the
-          previous gradient-wealth + 🏛️ watermark were app inventions. */}
-      <HeroCard className="gradient-emerald">
-        <div className="text-[12.5px] font-semibold opacity-85">
-          {t.warisan.heroTitle}
-        </div>
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="mono mt-1 text-[30px] font-extrabold tracking-[-0.03em]">
-              {money.format(Number(totalValue))}
-            </div>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <StatusBadge
-                variant="gray"
-                className="bg-white/20 text-white dark:text-white"
-              >
-                {assets.length}
-                {t.warisan.assetsRegisteredSuffix}
-              </StatusBadge>
-              {heirNames.length > 0 && (
-                <span className="text-[12px] opacity-85">
-                  {t.warisan.heirsMidDot}
-                  {heirNames.length}
-                  {t.warisan.heirsSuffix}
-                </span>
+    <div className="space-y-4" data-page="warisan">
+      <BentoGrid className="wr-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.warisan}</h1>
+        <BentoHero
+          className="wr-hero"
+          currency={null}
+          value={
+            <span className="wm-money">{money.format(Number(totalValue))}</span>
+          }
+          caption={t.warisan.heroTitle}
+          controls={
+            <GhostButton lit onClick={() => setOpen(true)}>
+              <Plus className="size-4" aria-hidden="true" />{" "}
+              {t.warisan.addAssetButton}
+            </GhostButton>
+          }
+          chart={
+            <div className="wr-plot">
+              {topAssets.length > 0 ? (
+                <HatchedBarChart
+                  labels={topAssets.map((a) => a.name)}
+                  series={[
+                    {
+                      name: t.warisan.v2.legendValue,
+                      data: topAssets.map((a) =>
+                        Number(BigInt(a.estimatedValue)),
+                      ),
+                      color: "var(--wm-lime)",
+                    },
+                  ]}
+                  format={money.formatCompact}
+                  wide
+                  ariaLabel={t.warisan.v2.chartAria}
+                />
+              ) : (
+                <p className="wr-empty">{t.warisan.emptyState}</p>
               )}
             </div>
-          </div>
-          <Button
-            onClick={() => setOpen(true)}
-            variant="outline"
-            className="h-auto shrink-0 border-white/30 bg-white/15 px-4 py-[9px] text-white hover:bg-white/25 hover:text-white"
-          >
-            <Plus className="size-4" /> {t.warisan.addAssetButton}
-          </Button>
-        </div>
-      </HeroCard>
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.warisan.v2.kpiAssets}
+                value={String(assets.length)}
+              />
+              <HeroKpi
+                label={t.warisan.v2.kpiHeirs}
+                value={String(heirNames.length)}
+              />
+              <HeroKpi
+                label={t.warisan.v2.kpiAlloc}
+                value={`${allocatedPct}%`}
+              />
+            </>
+          }
+        />
 
-      {isLoading && (
-        <Card className="gap-0 p-5">
-          <AssetSkeleton />
-        </Card>
-      )}
+        <BentoCard
+          className="wr-ben"
+          title={t.warisan.heirAllocationChartTitle}
+          caption={t.warisan.v2.benCaption}
+        >
+          {heirBeneficiaryRows.length === 0 ? (
+            <p className="wr-empty">{t.warisan.v2.benEmpty}</p>
+          ) : (
+            <MiniList label={t.warisan.heirAllocationChartTitle}>
+              {heirBeneficiaryRows.map((row) => (
+                <MiniRow
+                  key={row.name}
+                  icon={row.initials}
+                  title={row.name}
+                  meta={row.relationship || undefined}
+                  amount={
+                    <span className="wm-money">
+                      {money.format(Math.round(row.value))}
+                    </span>
+                  }
+                />
+              ))}
+              {unallocatedTotal > 0 && (
+                <MiniRow
+                  icon="?"
+                  title={t.warisan.heirAllocationUnallocatedLabel}
+                  amount={
+                    <span className="wm-money">
+                      {money.format(Math.round(unallocatedTotal))}
+                    </span>
+                  }
+                />
+              )}
+            </MiniList>
+          )}
+        </BentoCard>
 
-      {!isLoading && assets.length === 0 && (
-        <Card className="gap-0 p-5">
-          <div className="py-8 text-center text-[13px] text-muted-foreground">
-            {t.warisan.emptyState}
-          </div>
-        </Card>
-      )}
-
-      {/* EPIC-025 N3 restructure — 2-col layout: the asset list on the
-          left, allocation donut + notes card in a right rail.
-          EPIC-026 Wave 4 — prototype's `grid--sidebar` is 2fr/1fr
-          (app.css:748), not 1fr/360px. */}
-      {!isLoading && assets.length > 0 && (
-        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <Card className="gap-0 p-5">
-            <div className="mb-3.5 flex flex-wrap items-center justify-between gap-2">
-              <div className="text-[13.5px] font-bold text-muted-foreground">
-                {t.warisan.assetListCardTitle}
-              </div>
-              <span className="text-[11px] text-muted-foreground">
-                {t.warisan.visibleToAllHeirsCaption}
-              </span>
-            </div>
-            <div className="space-y-3">
+        <BentoCard
+          className="wr-list"
+          title={t.warisan.assetListCardTitle}
+          caption={t.warisan.visibleToAllHeirsCaption}
+        >
+          {isLoading ? (
+            <AssetSkeleton />
+          ) : assets.length === 0 ? (
+            <p className="wr-empty">{t.warisan.emptyState}</p>
+          ) : (
+            <div className="wr-rows">
               {assets.map((item) => (
                 <AssetCard
                   key={item.id}
@@ -1034,79 +1068,17 @@ export default function WarisanPage() {
                 />
               ))}
             </div>
-          </Card>
+          )}
+        </BentoCard>
 
-          <div className="space-y-3.5">
-            {/* EPIC-025 N3-E3 — beneficiary-allocation donut. Section is
-                hidden when there is nothing to allocate yet (Honest UI). */}
-            {heirAllocationSegments.length > 0 && (
-              <SectionCard title={t.warisan.heirAllocationChartTitle}>
-                <DonutChart
-                  segments={heirAllocationSegments}
-                  centerLabel={t.warisan.heroTitle}
-                  ariaLabel={`${t.warisan.heirAllocationChartTitle}: ${heirAllocationSegments
-                    .map(
-                      (s) => `${s.label} ${money.format(Math.round(s.value))}`,
-                    )
-                    .join(", ")}`}
-                  money={money}
-                />
-                <div className="mt-1.5 space-y-0.5">
-                  {heirBeneficiaryRows.map((row) => (
-                    <div
-                      key={row.name}
-                      className="flex items-center gap-2.5 py-1.5"
-                    >
-                      <div
-                        className="flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white"
-                        style={{ background: row.color }}
-                      >
-                        {row.initials}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[12.5px] font-semibold">
-                          {row.name}
-                        </div>
-                        {row.relationship && (
-                          <div className="truncate text-[11px] text-muted-foreground">
-                            {row.relationship}
-                          </div>
-                        )}
-                      </div>
-                      <span className="mono shrink-0 text-[12px] font-bold">
-                        {money.format(Math.round(row.value))}
-                      </span>
-                    </div>
-                  ))}
-                  {unallocatedTotal > 0 && (
-                    <div className="flex items-center gap-2.5 py-1.5">
-                      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-bold text-muted-foreground">
-                        ?
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[12.5px] font-semibold">
-                          {t.warisan.heirAllocationUnallocatedLabel}
-                        </div>
-                      </div>
-                      <span className="mono shrink-0 text-[12px] font-bold text-warning">
-                        {money.format(Math.round(unallocatedTotal))}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </SectionCard>
-            )}
-
-            {/* Notes card */}
-            <SectionCard title={t.warisan.insightTitle}>
-              <div className="flex items-start gap-2.5 rounded-[11px] border border-primary/20 bg-accent p-3 text-[12px] text-muted-foreground">
-                <span className="text-[16px]">🛡️</span>
-                <span>{t.warisan.insightDesc}</span>
-              </div>
-            </SectionCard>
-          </div>
-        </div>
-      )}
+        <TipsCard
+          className="wr-tips"
+          title={t.warisan.insightTitle}
+          mosaic={tipsMosaic}
+        >
+          {t.warisan.insightDesc}
+        </TipsCard>
+      </BentoGrid>
 
       {/* Confirm delete — prototype `dlg-hapus-warisan` (warisan.html:359):
           `dialog--sm`, its own body copy, Batal + destructive "Ya, Hapus". */}

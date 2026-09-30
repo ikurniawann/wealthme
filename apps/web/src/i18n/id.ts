@@ -3553,6 +3553,15 @@ export const id = {
       "Hanya zakat/persepuluhan ke lembaga resmi (PP 60/2010).",
   },
   warisan: {
+    v2: {
+      legendValue: "Nilai estimasi",
+      chartAria: "Nilai aset warisan terbesar",
+      kpiAssets: "Aset tercatat",
+      kpiHeirs: "Ahli waris",
+      kpiAlloc: "Teralokasi",
+      benCaption: "Perkiraan bagian per orang",
+      benEmpty: "Belum ada ahli waris. Tambahkan saat mencatat aset.",
+    },
     heroTitle: "Total Nilai Warisan",
     assetsRegisteredSuffix: " aset terdaftar",
     heirsMidDot: " · ",

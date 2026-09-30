@@ -3492,6 +3492,15 @@ export const en = {
       "Zakat/tithe to a registered institution only (PP 60/2010).",
   },
   warisan: {
+    v2: {
+      legendValue: "Estimated value",
+      chartAria: "Largest estate assets by value",
+      kpiAssets: "Assets recorded",
+      kpiHeirs: "Heirs",
+      kpiAlloc: "Allocated",
+      benCaption: "Estimated share per person",
+      benEmpty: "No heirs yet. Add them when recording an asset.",
+    },
     heroTitle: "Total Inheritance Value",
     assetsRegisteredSuffix: " assets registered",
     heirsMidDot: " · ",
