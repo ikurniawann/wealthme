@@ -4034,3 +4034,78 @@ svg text {
 .search kbd {
   flex: none;
 }
+/* light mode: hero surfaces in deep forest green (reference: venzer), not pure black */
+.card.dark,
+.cover,
+.mh-card {
+  background:
+    radial-gradient(
+      90% 90% at 100% 100%,
+      rgba(169, 216, 76, 0.2),
+      transparent 60%
+    ),
+    linear-gradient(160deg, #1a4b3b 0%, #11382c 55%, #0c2b22 100%);
+}
+.card.dark {
+  --card: #113a2d;
+  --card-2: #184636;
+  --ghost: rgba(238, 240, 232, 0.14);
+  --line: rgba(238, 240, 232, 0.12);
+}
+dialog.sheet .sheet-head {
+  background:
+    radial-gradient(
+      90% 140% at 100% 0%,
+      rgba(169, 216, 76, 0.26),
+      transparent 60%
+    ),
+    linear-gradient(160deg, #1a4b3b 0%, #0f3327 100%);
+}
+.card.dark::before,
+.cover::before {
+  opacity: 0.9;
+}
+.mnav {
+  background: #0f3327;
+}
+.mnav a[aria-current="page"],
+.mnav button[data-wm-menu][aria-current="page"] {
+  box-shadow:
+    0 0 0 4px #0f3327,
+    0 8px 18px -6px rgba(0, 0, 0, 0.5);
+}
+.fai {
+  background: #0f3327;
+}
+.sheet-foot .btn.primary {
+  background: #11382c;
+  border-color: #11382c;
+}
+.pcard.dark {
+  background: #11382c;
+}
+.btn.dark {
+  background: #11382c;
+  border-color: #11382c;
+}
+:root[data-theme="dark"] .btn.dark,
+:root[data-theme="dark"] .pcard.dark {
+  background: #f3f3f1;
+  border-color: #f3f3f1;
+  color: #111;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .btn.dark {
+    background: #f3f3f1;
+    border-color: #f3f3f1;
+    color: #111;
+  }
+  :root:not([data-theme="light"]) .pcard.dark {
+    background: #0e0e0f;
+  }
+}
+:root[data-theme="dark"] .pcard.dark {
+  background: #0e0e0f;
+  color: #f3f3f1;
+  border-color: rgba(255, 255, 255, 0.08);
+}
