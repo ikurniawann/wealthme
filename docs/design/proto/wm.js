@@ -3511,88 +3511,69 @@
       });
     },
     /* donut(box,{items:[[label,value,color]],center:"text",sub:"text"}) */
+    /* Composition stack (replaces the old donut; same call signature):
+       headline value, one hatched segmented bar, then a ranked share list. */
     donut: function (box, o) {
-      var f = frame(box),
-        cx = f.W / 2,
-        cy = f.H / 2,
-        R = Math.min(f.W, f.H) / 2 - 6,
-        r = R * 0.68,
-        tot = o.items.reduce(function (s, i) {
-          return s + i[1];
-        }, 0),
-        a0 = -Math.PI / 2;
-      o.items.forEach(function (it) {
-        var a1 = a0 + (it[1] / tot) * Math.PI * 2 - 0.02,
-          large = a1 - a0 > Math.PI ? 1 : 0;
-        var d =
-          "M" +
-          (cx + R * Math.cos(a0)) +
-          " " +
-          (cy + R * Math.sin(a0)) +
-          "A" +
-          R +
-          " " +
-          R +
-          " 0 " +
-          large +
-          " 1 " +
-          (cx + R * Math.cos(a1)) +
-          " " +
-          (cy + R * Math.sin(a1)) +
-          "L" +
-          (cx + r * Math.cos(a1)) +
-          " " +
-          (cy + r * Math.sin(a1)) +
-          "A" +
-          r +
-          " " +
-          r +
-          " 0 " +
-          large +
-          " 0 " +
-          (cx + r * Math.cos(a0)) +
-          " " +
-          (cy + r * Math.sin(a0)) +
-          "Z";
-        var p = mk("path", { d: d, fill: col(f, it[2]) });
-        p.appendChild(
-          mk("title", {}, it[0] + ": " + Math.round((it[1] / tot) * 100) + "%"),
-        );
-        f.svg.appendChild(p);
-        a0 = a1 + 0.02;
-      });
-      if (o.center) {
-        f.svg.appendChild(
-          mk(
-            "text",
-            {
-              x: cx,
-              y: cy + (o.sub ? 2 : 6),
-              "text-anchor": "middle",
-              style:
-                "fill:" +
-                cv(box, "--cstrong") +
-                ";font-family:var(--font);font-size:" +
-                Math.round(
-                  Math.min(
-                    R * 0.28,
-                    (r * 1.7) / Math.max(4, String(o.center).length * 0.62),
-                  ),
-                ) +
-                "px;font-weight:600",
-            },
-            o.center,
-          ),
-        );
-        if (o.sub)
-          f.svg.appendChild(
-            mk(
-              "text",
-              { x: cx, y: cy + R * 0.28, "text-anchor": "middle" },
-              o.sub,
-            ),
-          );
+      var items = o.items
+          .filter(function (i) {
+            return i[1] > 0;
+          })
+          .sort(function (x, y) {
+            return y[1] - x[1];
+          }),
+        tot =
+          items.reduce(function (s2, i) {
+            return s2 + i[1];
+          }, 0) || 1;
+      function val(v) {
+        return Math.abs(v) >= 1000 ? WM.short(v) : v.toLocaleString("id-ID");
       }
+      box.style.height = "auto";
+      box.innerHTML =
+        '<div class="cstack">' +
+        (o.center
+          ? '<div class="cs-head"><b>' +
+            esc(o.center) +
+            "</b>" +
+            (o.sub ? "<small>" + esc(o.sub) + "</small>" : "") +
+            "</div>"
+          : "") +
+        '<div class="cs-bar" role="img" aria-label="Komposisi">' +
+        items
+          .map(function (i, k) {
+            return (
+              '<i style="flex:' +
+              i[1] +
+              ";--c:" +
+              i[2] +
+              ";animation-delay:" +
+              k * 60 +
+              'ms" title="' +
+              esc(i[0]) +
+              " " +
+              Math.round((i[1] / tot) * 100) +
+              '%"></i>'
+            );
+          })
+          .join("") +
+        '</div><div class="cs-list">' +
+        items
+          .map(function (i) {
+            var pc = (i[1] / tot) * 100;
+            return (
+              '<div class="cs-row"><span class="cs-dot" style="background:' +
+              i[2] +
+              '"></span><span class="cs-l">' +
+              esc(i[0]) +
+              '</span><span class="cs-v">' +
+              val(i[1]) +
+              '</span><span class="cs-p">' +
+              (pc < 1 ? "<1" : Math.round(pc)) +
+              "%</span></div>"
+            );
+          })
+          .join("") +
+        "</div></div>";
     },
   };
   WM.strip = function (items) {

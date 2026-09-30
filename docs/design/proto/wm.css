@@ -3247,3 +3247,100 @@ kbd {
 .big {
   overflow-wrap: anywhere;
 }
+/* composition stack (replaces donut charts) */
+.chart:has(.cstack),
+.chart-wrap:has(.cstack) {
+  min-height: 0;
+}
+.cstack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+.cs-head b {
+  display: block;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  color: var(--cstrong);
+  font-variant-numeric: tabular-nums;
+}
+.cs-head small {
+  display: block;
+  color: var(--ctext);
+  font-size: 12.5px;
+  margin-top: 2px;
+}
+.cs-bar {
+  display: flex;
+  gap: 3px;
+  height: 30px;
+}
+.cs-bar i {
+  border-radius: 9px;
+  min-width: 6px;
+  background: var(--c);
+  background-image: repeating-linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.24) 0 2px,
+    transparent 2px 8px
+  );
+  transform-origin: left;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cs-bar i {
+    animation: csgrow 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+@keyframes csgrow {
+  from {
+    transform: scaleX(0);
+  }
+}
+.cs-list {
+  display: flex;
+  flex-direction: column;
+}
+.cs-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 44px;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--cgrid);
+  font-size: 13px;
+  color: var(--cstrong);
+}
+.cs-row:first-child {
+  border-top: 0;
+}
+.cs-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+.cs-l {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cs-v {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.cs-p {
+  text-align: right;
+  color: var(--ctext);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+:has(> .cstack) {
+  width: 100% !important;
+  max-width: none !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  aspect-ratio: auto !important;
+}
