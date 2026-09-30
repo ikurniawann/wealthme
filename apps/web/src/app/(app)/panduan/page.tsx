@@ -28,13 +28,12 @@ import {
   KeyRound,
   EyeOff,
   ShieldCheck,
-  LifeBuoy,
   Mail,
   MessageCircle,
   Phone,
   type LucideIcon,
 } from "lucide-react";
-import { SectionCard, IconChip, Rise } from "@/components/wm";
+import { BentoCard, BentoGrid, Rise, Segmented } from "@/components/wm";
 import {
   Accordion,
   AccordionItem,
@@ -43,8 +42,10 @@ import {
 } from "@/components/ui/accordion";
 import { useLocale } from "@/hooks/use-locale";
 
+import "./panduan.css";
+
 // EPIC-025 N3 prototype structural port (docs/prototype/pages/panduan.html)
-// — structural data only (icon, chip color class, href, stable id); every
+// — structural data only (icon, href, stable id); every
 // title/subtitle/desc string resolves from `t.panduan.features` /
 // `t.panduan.groups` at render time, mirroring the split `lib/nav.ts`
 // established (Task A1). Replaces the old 9-journey layout with the
@@ -91,113 +92,92 @@ type GroupId =
 
 type FeatureMeta = {
   icon: LucideIcon;
-  chip: string;
   href?: string;
 };
 
 const FEATURES: Record<FeatureId, FeatureMeta> = {
-  beranda: { icon: Home, chip: "bg-blue-100 text-blue-600", href: "/beranda" },
+  beranda: { icon: Home, href: "/beranda" },
   ringkasan: {
     icon: PieChart,
-    chip: "bg-violet-100 text-violet-600",
     href: "/ringkasan",
   },
   rekening: {
     icon: Landmark,
-    chip: "bg-blue-100 text-blue-600",
     href: "/rekening",
   },
-  dana: { icon: Wallet, chip: "bg-green-100 text-green-600", href: "/dana" },
+  dana: { icon: Wallet, href: "/dana" },
   masterdata: {
     icon: Database,
-    chip: "bg-gray-100 text-gray-600",
     href: "/masterdata",
   },
   addTransactionButton: {
     icon: Plus,
-    chip: "bg-indigo-100 text-indigo-600",
   },
   transaksi: {
     icon: ArrowUpDown,
-    chip: "bg-indigo-100 text-indigo-600",
     href: "/transaksi",
   },
   quickinput: {
     icon: Zap,
-    chip: "bg-amber-100 text-amber-600",
     href: "/quickinput",
   },
-  search: { icon: Search, chip: "bg-slate-100 text-slate-600" },
+  search: { icon: Search },
   rekonsiliasi: {
     icon: GitCompare,
-    chip: "bg-sky-100 text-sky-600",
     href: "/rekonsiliasi",
   },
   splitbill: {
     icon: Receipt,
-    chip: "bg-amber-100 text-amber-600",
     href: "/splitbill",
   },
   anggaran: {
     icon: ClipboardList,
-    chip: "bg-indigo-100 text-indigo-600",
     href: "/anggaran",
   },
   tujuan: {
     icon: Target,
-    chip: "bg-cyan-100 text-cyan-600",
     href: "/tujuan",
   },
   kalkulator: {
     icon: Calculator,
-    chip: "bg-emerald-100 text-emerald-600",
     href: "/kalkulator",
   },
   laporan: {
     icon: LineChart,
-    chip: "bg-indigo-100 text-indigo-600",
     href: "/laporan",
   },
   tax: {
     icon: FileText,
-    chip: "bg-emerald-100 text-emerald-600",
     href: "/tax",
   },
   mastercoa: {
     icon: BookOpen,
-    chip: "bg-blue-100 text-blue-600",
     href: "/mastercoa",
   },
-  ai: { icon: Bot, chip: "bg-slate-100 text-slate-600", href: "/ai" },
-  akun: { icon: Users, chip: "bg-blue-100 text-blue-600", href: "/akun" },
+  ai: { icon: Bot, href: "/ai" },
+  akun: { icon: Users, href: "/akun" },
   persetujuan: {
     icon: CheckCheck,
-    chip: "bg-amber-100 text-amber-600",
     href: "/persetujuan",
   },
   donation: {
     icon: HeartHandshake,
-    chip: "bg-green-100 text-green-600",
     href: "/donation",
   },
   warisan: {
     icon: Scroll,
-    chip: "bg-violet-100 text-violet-600",
     href: "/warisan",
   },
   passwordLogin: {
     icon: KeyRound,
-    chip: "bg-blue-100 text-blue-600",
     href: "/akun",
   },
   privateCategories: {
     icon: EyeOff,
-    chip: "bg-violet-100 text-violet-600",
     href: "/masterdata",
   },
   apiKeyAi: {
     icon: ShieldCheck,
-    chip: "bg-slate-100 text-slate-600",
     href: "/ai",
   },
 };
@@ -265,11 +245,13 @@ function TopicCard({
   const Icon = feature.icon;
   const content = (
     <>
-      <IconChip icon={Icon} className={feature.chip} rounded="rounded-[10px]" />
-      <div className="mt-2.5 text-[13px] font-bold">{title}</div>
-      <div className="mt-[3px] text-[12px] leading-relaxed text-muted-foreground">
-        {desc}
-      </div>
+      <span className="pd-ic" aria-hidden="true">
+        <Icon size={17} />
+      </span>
+      <span>
+        <b>{title}</b>
+        <p>{desc}</p>
+      </span>
     </>
   );
 
@@ -278,17 +260,46 @@ function TopicCard({
       <button
         type="button"
         onClick={() => onNavigate(feature.href as string)}
-        className="block cursor-pointer rounded-xl border bg-background p-3.5 text-left transition-colors hover:border-primary hover:bg-card"
+        className="pd-item pd-link"
       >
         {content}
       </button>
     );
   }
 
+  return <div className="pd-item">{content}</div>;
+}
+
+function ContactTile({
+  href,
+  external,
+  icon: Icon,
+  title,
+  value,
+  desc,
+}: {
+  href: string;
+  external?: boolean;
+  icon: LucideIcon;
+  title: string;
+  value: string;
+  desc: string;
+}) {
   return (
-    <div className="block rounded-xl border bg-background p-3.5 text-left">
-      {content}
-    </div>
+    <a
+      className="pd-tile"
+      href={href}
+      {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+    >
+      <span className="pd-tile-tt">
+        <span className="pd-ic" aria-hidden="true">
+          <Icon size={16} />
+        </span>
+        {title}
+      </span>
+      <span className="pd-tile-v">{value}</span>
+      <small>{desc}</small>
+    </a>
   );
 }
 
@@ -314,232 +325,158 @@ export default function PanduanPage() {
   }, [q, area, t]);
 
   const shownCount = visibleGroups.reduce((sum, g) => sum + g.items.length, 0);
+  const v2 = t.panduan.v2;
 
   return (
-    <div className="space-y-4">
-      <section aria-labelledby="panduan-heading" className="mb-1">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1
-              id="panduan-heading"
-              className="text-[17px] font-extrabold tracking-tight"
-            >
-              {t.panduan.pageTitle}
-            </h1>
+    <div className="space-y-4" data-page="panduan">
+      <BentoGrid className="pd-grid">
+        <h1 className="sr-only">{t.panduan.pageTitle}</h1>
+        <section className="wm-card wm-dark pd-hero">
+          <div className="pd-top">
+            <div>
+              <p className="wm-big pd-title">{v2.heroTitle}</p>
+              <p className="wm-cap">
+                {shownCount > 0 ? (
+                  <>
+                    {t.panduan.searchResultPrefix}
+                    {shownCount}
+                    {t.panduan.searchResultMid}
+                    {TOTAL_TOPICS}
+                    {t.panduan.searchResultSuffix}
+                  </>
+                ) : (
+                  t.panduan.searchNoResultsFiltered
+                )}
+              </p>
+            </div>
+            <label className="pd-search">
+              <Search size={16} aria-hidden="true" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={t.panduan.searchPlaceholder}
+                aria-label={t.panduan.searchLabel}
+              />
+            </label>
           </div>
-          <a
-            href="#panduan-bantuan"
-            className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-primary/90"
-          >
-            <LifeBuoy className="size-3.5" /> {t.panduan.contactHeaderButton}
-          </a>
-        </div>
-      </section>
-
-      <SectionCard>
-        <label className="block">
-          <span className="mb-1.5 block text-[12.5px] font-semibold">
-            {t.panduan.searchLabel}
-          </span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t.panduan.searchPlaceholder}
-            aria-label={t.panduan.searchLabel}
-            className="w-full rounded-md border bg-background px-3.5 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card"
+          <Segmented
+            className="pd-tabs"
+            label={v2.tabsLabel}
+            value={area}
+            onChange={setArea}
+            options={[
+              { value: "all" as const, label: t.panduan.areaLabels.all },
+              ...AREA_IDS.map((id) => ({
+                value: id,
+                label: t.panduan.areaLabels[id],
+              })),
+            ]}
           />
-        </label>
+        </section>
 
-        <div className="mt-3 flex flex-wrap gap-1.5" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={area === "all"}
-            onClick={() => setArea("all")}
-            className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-              area === "all"
-                ? "bg-primary text-white"
-                : "bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground"
-            }`}
-          >
-            {t.panduan.areaLabels.all}
-          </button>
-          {AREA_IDS.map((id) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={area === id}
-              onClick={() => setArea(id)}
-              className={`rounded-full px-3 py-1 text-[12px] font-medium transition-colors ${
-                area === id
-                  ? "bg-primary text-white"
-                  : "bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground"
-              }`}
-            >
-              {t.panduan.areaLabels[id]}
-            </button>
-          ))}
-        </div>
+        <BentoCard className="pd-list">
+          <div className="pd-groups">
+            {visibleGroups.map((group, gi) => {
+              const groupText = t.panduan.groups[group.id];
+              return (
+                <Rise key={group.id} index={gi}>
+                  <div className="pd-group">
+                    <h2>{groupText.title}</h2>
+                    <p className="pd-tag">{groupText.tagline}</p>
+                    <div className="pd-items">
+                      {group.items.map((id) => {
+                        const text = t.panduan.features[id];
+                        return (
+                          <TopicCard
+                            key={id}
+                            feature={FEATURES[id]}
+                            title={text.title}
+                            desc={text.desc}
+                            onNavigate={(href) => router.push(href)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                </Rise>
+              );
+            })}
+            {visibleGroups.length === 0 && (
+              <p className="pd-empty">
+                <b>{v2.emptyTitle}</b>
+                {t.panduan.searchNoResultsFiltered}
+              </p>
+            )}
+          </div>
+        </BentoCard>
 
-        <div className="mt-2.5 text-[12px] text-muted-foreground">
-          {shownCount > 0 ? (
-            <>
-              {t.panduan.searchResultPrefix}
-              {shownCount}
-              {t.panduan.searchResultMid}
-              {TOTAL_TOPICS}
-              {t.panduan.searchResultSuffix}
-            </>
-          ) : (
-            t.panduan.searchNoResultsFiltered
-          )}
-        </div>
-      </SectionCard>
+        <BentoCard className="pd-faq" title={t.panduan.faqSectionTitle}>
+          <Accordion>
+            {FAQ_ORDER.map((key) => {
+              const item = t.panduan.faq[key];
+              const href =
+                key in FAQ_LINK_HREFS
+                  ? FAQ_LINK_HREFS[key as keyof typeof FAQ_LINK_HREFS]
+                  : undefined;
+              return (
+                <AccordionItem key={key} value={key}>
+                  <AccordionTrigger className="text-[14px] font-semibold text-foreground">
+                    {item.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="pd-answer">
+                    {item.before}
+                    {"strong" in item && item.strong && (
+                      <strong>{item.strong}</strong>
+                    )}
+                    {"linkLabel" in item && item.linkLabel && href && (
+                      <button
+                        type="button"
+                        onClick={() => router.push(href)}
+                        className="pd-link-inline"
+                      >
+                        {item.linkLabel}
+                      </button>
+                    )}
+                    {item.after}
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        </BentoCard>
 
-      {visibleGroups.map((group, gi) => {
-        const groupText = t.panduan.groups[group.id];
-        return (
-          <Rise key={group.id} index={gi}>
-            <SectionCard
-              title={groupText.title}
-              action={
-                <span className="text-[12px] text-muted-foreground">
-                  {groupText.tagline}
-                </span>
-              }
-            >
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {group.items.map((id) => {
-                  const text = t.panduan.features[id];
-                  return (
-                    <TopicCard
-                      key={id}
-                      feature={FEATURES[id]}
-                      title={text.title}
-                      desc={text.desc}
-                      onNavigate={(href) => router.push(href)}
-                    />
-                  );
-                })}
-              </div>
-            </SectionCard>
-          </Rise>
-        );
-      })}
-
-      {/* FAQ — EPIC-025 N3 prototype structural port. Static documentation
-          copy ported verbatim from docs/prototype/pages/panduan.html. */}
-      <SectionCard title={t.panduan.faqSectionTitle}>
-        <Accordion>
-          {FAQ_ORDER.map((key) => {
-            const item = t.panduan.faq[key];
-            const href =
-              key in FAQ_LINK_HREFS
-                ? FAQ_LINK_HREFS[key as keyof typeof FAQ_LINK_HREFS]
-                : undefined;
-            return (
-              <AccordionItem key={key} value={key}>
-                <AccordionTrigger className="text-[13px] font-semibold text-foreground">
-                  {item.q}
-                </AccordionTrigger>
-                <AccordionContent className="text-[12.5px] leading-relaxed text-muted-foreground">
-                  {item.before}
-                  {"strong" in item && item.strong && (
-                    <strong>{item.strong}</strong>
-                  )}
-                  {"linkLabel" in item && item.linkLabel && href && (
-                    <button
-                      type="button"
-                      onClick={() => router.push(href)}
-                      className="font-semibold text-primary hover:underline"
-                    >
-                      {item.linkLabel}
-                    </button>
-                  )}
-                  {item.after}
-                </AccordionContent>
-              </AccordionItem>
-            );
-          })}
-        </Accordion>
-      </SectionCard>
-
-      {/* Contact support — EPIC-025 N3. Reuses the real support channels
-          already shipped on `/akun` (t.akun.hubungi / SUPPORT_EMAIL etc. in
-          app/(app)/akun/page.tsx), not the prototype's placeholder contact
-          details, since publishing a different "real-looking" support
-          channel here would be dishonest. */}
-      <SectionCard
-        title={
-          <h2 id="panduan-bantuan" className="scroll-mt-20">
-            {t.panduan.contact.title}
-          </h2>
-        }
-      >
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <a
-            href="mailto:support@wealthme.id?subject=Bantuan%20WealthMe"
-            className="block rounded-xl border bg-background p-3.5 text-left transition-colors hover:border-primary hover:bg-card"
-          >
-            <IconChip
+        <BentoCard
+          className="pd-contact"
+          title={<span id="panduan-bantuan">{t.panduan.contact.title}</span>}
+          caption={v2.contactCaption}
+        >
+          <div className="pd-tiles">
+            <ContactTile
+              href="mailto:support@wealthme.id?subject=Bantuan%20WealthMe"
               icon={Mail}
-              className="bg-blue-100 text-blue-600"
-              rounded="rounded-[10px]"
+              title={t.panduan.contact.emailTitle}
+              value={t.panduan.contact.emailValue}
+              desc={t.panduan.contact.emailDesc}
             />
-            <div className="mt-2.5 text-[13px] font-bold">
-              {t.panduan.contact.emailTitle}
-            </div>
-            <div className="mt-[3px] font-mono text-[12px] text-muted-foreground">
-              {t.panduan.contact.emailValue}
-            </div>
-            <div className="text-[12px] leading-relaxed text-muted-foreground">
-              {t.panduan.contact.emailDesc}
-            </div>
-          </a>
-          <a
-            href="https://wa.me/6281123456789"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block rounded-xl border bg-background p-3.5 text-left transition-colors hover:border-primary hover:bg-card"
-          >
-            <IconChip
+            <ContactTile
+              href="https://wa.me/6281123456789"
+              external
               icon={MessageCircle}
-              className="bg-green-100 text-green-600"
-              rounded="rounded-[10px]"
+              title={t.panduan.contact.whatsappTitle}
+              value={t.panduan.contact.whatsappValue}
+              desc={t.panduan.contact.whatsappDesc}
             />
-            <div className="mt-2.5 text-[13px] font-bold">
-              {t.panduan.contact.whatsappTitle}
-            </div>
-            <div className="mt-[3px] font-mono text-[12px] text-muted-foreground">
-              {t.panduan.contact.whatsappValue}
-            </div>
-            <div className="text-[12px] leading-relaxed text-muted-foreground">
-              {t.panduan.contact.whatsappDesc}
-            </div>
-          </a>
-          <a
-            href="tel:080012345678"
-            className="block rounded-xl border bg-background p-3.5 text-left transition-colors hover:border-primary hover:bg-card"
-          >
-            <IconChip
+            <ContactTile
+              href="tel:080012345678"
               icon={Phone}
-              className="bg-amber-100 text-amber-600"
-              rounded="rounded-[10px]"
+              title={t.panduan.contact.phoneTitle}
+              value={t.panduan.contact.phoneValue}
+              desc={t.panduan.contact.phoneDesc}
             />
-            <div className="mt-2.5 text-[13px] font-bold">
-              {t.panduan.contact.phoneTitle}
-            </div>
-            <div className="mt-[3px] font-mono text-[12px] text-muted-foreground">
-              {t.panduan.contact.phoneValue}
-            </div>
-            <div className="text-[12px] leading-relaxed text-muted-foreground">
-              {t.panduan.contact.phoneDesc}
-            </div>
-          </a>
-        </div>
-      </SectionCard>
+          </div>
+        </BentoCard>
+      </BentoGrid>
     </div>
   );
 }

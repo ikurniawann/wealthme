@@ -1288,6 +1288,12 @@ export type I18nDictionary = {
    * desc string resolves from here, keyed by the stable journey/feature ids.
    */
   panduan: {
+    v2: {
+      heroTitle: string;
+      tabsLabel: string;
+      contactCaption: string;
+      emptyTitle: string;
+    };
     pageTitle: string;
     pageSubtitle: string;
     openLink: string;

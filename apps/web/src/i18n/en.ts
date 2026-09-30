@@ -1052,6 +1052,12 @@ export const en = {
       "Funds are really transferred from this account to the destination account.",
   },
   panduan: {
+    v2: {
+      heroTitle: "Search guides or explore features",
+      tabsLabel: "Feature groups",
+      contactCaption: "Our team is ready to help",
+      emptyTitle: "Nothing found",
+    },
     pageTitle: "WealthMe Feature Guide",
     pageSubtitle:
       "Every feature, grouped by usage flow, explore based on what you need.",

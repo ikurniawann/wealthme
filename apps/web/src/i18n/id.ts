@@ -1059,6 +1059,12 @@ export const id = {
       "Dana ditransfer sungguhan dari rekening ini ke rekening tujuan.",
   },
   panduan: {
+    v2: {
+      heroTitle: "Cari panduan atau jelajahi fitur",
+      tabsLabel: "Kelompok fitur",
+      contactCaption: "Tim kami siap membantu langsung",
+      emptyTitle: "Tidak ditemukan",
+    },
     pageTitle: "Panduan Fitur WealthMe",
     pageSubtitle:
       "Semua fitur, dikelompokkan berdasarkan alur pemakaian, jelajahi sesuai kebutuhanmu.",
