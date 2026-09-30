@@ -29,6 +29,25 @@
 .pag{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .pag .cap{color:var(--muted);font-size:12px}
 .pag .pbtns{display:flex;gap:6px}
+
+#txList{list-style:none;margin:8px 0 0;padding:0}
+.tx li.rw-day,#txList li.rw-day{display:flex!important;grid-template-columns:none;border-top:0}
+.rw-day{display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:1;background:var(--card);padding:16px 2px 8px;font-size:13px;font-weight:600;border-bottom:1px solid var(--line)}
+.rw-day .rw-net{font-size:13px;font-variant-numeric:tabular-nums}
+.tx li.rw,.rw{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 8px;border-radius:14px;cursor:pointer;transition:background .15s}
+.rw:hover{background:var(--card-2)}
+.rw+.rw{border-top:1px solid var(--line)}
+.rw-ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;color:var(--cc);background:color-mix(in srgb,var(--cc) 14%,transparent)}
+.rw-main b{display:block;font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rw-tags{display:flex;align-items:center;gap:6px;margin-top:5px;flex-wrap:wrap}
+.rw-cat{font-size:11px;font-weight:600;border-radius:99px;padding:2px 8px;color:var(--cc);background:color-mix(in srgb,var(--cc) 12%,transparent)}
+.rw-acc{font-size:12px;color:var(--muted)}
+.rw-tags .avatar{border-radius:50%}
+.rw-amt{text-align:right;font-size:16px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.rw-amt small{display:block;font-size:11px;font-weight:500;color:var(--muted);letter-spacing:0}
+.rw-in .rw-amt{color:var(--good)}
+.rw-tf .rw-amt{color:var(--muted)}
+@media (max-width:720px){.rw{grid-template-columns:40px minmax(0,1fr) auto;gap:10px;padding:10px 4px}.rw-ic{width:40px;height:40px}.rw-amt{font-size:14px}.rw-acc{display:none}}
 </style>
 <main data-page="transaksi">
 <section class="bento" aria-label="Transaksi">
@@ -170,13 +189,20 @@ WM.shell({page:document.querySelector("main").dataset.page});
     }).sort(function(x,y){var d=x.date<y.date?-1:x.date>y.date?1:0;return state.sort==="old"?d:-d;});
   }
 
+  var CATC={"c-makan":"#E9A23B","c-transport":"#5B8DEF","c-rumah":"#8B6FD6","c-belanja":"#E0628A","c-kesehatan":"#E5594F","c-pendidikan":"#2FA7A0","c-zakat":"#C08A2E","c-gaji":"#7FB33A","c-bonus":"#7FB33A","c-invest":"#3E9C6A"};
   function rowHtml(t){
-    var c=WM.cat(t.cat),a=WM.account(t.acc),to=t.to&&WM.account(t.to),inn=t.type==="in";
-    var sub=t.type==="tf"?(a?a.bank:"–")+" → "+(to?to.bank:"–"):WM.date(t.date).replace(" 2026","")+" · "+(a?a.bank:"–");
-    return '<li data-tx="'+t.id+'"><span class="ic" style="background:'+(inn?"var(--lime-soft)":"var(--card-2)")+'">'+WM.icon(t.type==="tf"?"swap":c.icon,16)+'</span>'+
-      '<div><b>'+WM.esc(t.note||(t.type==="tf"?"Transfer":c.name))+'</b><small>'+WM.esc(sub)+'</small></div>'+
-      '<div class="amt num'+(inn?" in":"")+'">'+(t.type==="tf"?WM.rp(t.amount):WM.rp(inn?t.amount:-t.amount,true))+'</div></li>';
+    var c=WM.cat(t.cat),a=WM.account(t.acc),to=t.to&&WM.account(t.to),inn=t.type==="in",tf=t.type==="tf",m=WM.member(t.member);
+    var col=tf?"var(--muted)":(CATC[t.cat]||"var(--muted)");
+    return '<li data-tx="'+t.id+'" class="rw'+(inn?" rw-in":tf?" rw-tf":"")+'"><span class="rw-ic" style="--cc:'+col+'">'+WM.icon(tf?"swap":c.icon,18)+'</span>'+
+      '<div class="rw-main"><b>'+WM.esc(t.note||(tf?"Transfer":c.name))+'</b><span class="rw-tags"><span class="rw-cat" style="--cc:'+col+'">'+(tf?"Transfer":WM.esc(c.name))+'</span>'+
+      '<span class="rw-acc">'+WM.esc(a?a.bank:"–")+(tf?" → "+WM.esc(to?to.bank:"–"):"")+'</span>'+WM.avatar(m,20)+'</span></div>'+
+      '<div class="rw-amt num">'+(tf?"":inn?"+":"−")+'Rp '+t.amount.toLocaleString("id-ID")+'<small>'+(tf?"pindah saldo":inn?"masuk":"keluar")+'</small></div></li>';
   }
+  function groupedHtml(list){var out="",cur=null,bucket=[];
+    function flush(){if(!bucket.length)return;var net=bucket.reduce(function(s2,t){return s2+(t.type==="in"?t.amount:t.type==="out"?-t.amount:0);},0);
+      out+='<li class="rw-day"><span>'+WM.dayLabel(cur)+'</span><span class="rw-net '+(net>=0?"pos":"neg")+'">'+(net>=0?"+":"−")+WM.short(Math.abs(net)).replace("Rp ","Rp ")+'</span></li>'+bucket.map(rowHtml).join("");bucket=[];}
+    list.forEach(function(t){if(t.date!==cur){flush();cur=t.date;}bucket.push(t);});flush();return out;}
+
 
   function draw(){
     drawFilterOptions();
@@ -208,7 +234,7 @@ WM.shell({page:document.querySelector("main").dataset.page});
     var start=(page-1)*PAGE_SIZE,paged=list.slice(start,start+PAGE_SIZE);
 
     document.getElementById("listCap").textContent=totalRows+" transaksi";
-    document.getElementById("txList").innerHTML=paged.map(rowHtml).join("");
+    document.getElementById("txList").innerHTML=groupedHtml(paged);
     var empty=document.getElementById("emptyState");
     var showEmpty=totalRows===0;
     document.getElementById("txList").hidden=showEmpty;empty.hidden=!showEmpty;
