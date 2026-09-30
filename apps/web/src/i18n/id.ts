@@ -2070,6 +2070,27 @@ export const id = {
     historyFilterEmpty: "Tidak ada transaksi pada rentang tanggal ini.",
   },
   aset: {
+    v2: {
+      kpiAcc: "Dana & rekening",
+      kpiInv: "Investasi",
+      kpiFisik: "Aset fisik",
+      accTitle: "Dana & rekening",
+      invSeeAll: "Semua investasi",
+      accSeeAll: "Semua rekening & dana",
+      instrumentSuffix: "instrumen",
+      accountSuffix: "akun",
+      fisikCaption: "Ketuk kartu untuk ubah",
+      fisikNew: "Aset baru",
+      eyeHide: "Sembunyikan",
+      eyeShow: "Tampilkan",
+      tipTitle: "Total pakai nilai tercatat",
+      tipBody:
+        "Perkiraan kenaikan atau penyusutan per tahun dihitung terpisah dan tidak mengubah total sampai kamu memakainya.",
+      trendAria: "Tren total aset per bulan",
+      compAria: "Komposisi aset",
+      trendLegend: "Total aset",
+      tileProjection: "dari",
+    },
     tabs: {
       semua: "Semua",
       dana: "Cash & E-Wallet",

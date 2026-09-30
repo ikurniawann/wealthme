@@ -2035,6 +2035,26 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
+    v2: {
+      kpiAcc: string;
+      kpiInv: string;
+      kpiFisik: string;
+      accTitle: string;
+      invSeeAll: string;
+      accSeeAll: string;
+      instrumentSuffix: string;
+      accountSuffix: string;
+      fisikCaption: string;
+      fisikNew: string;
+      eyeHide: string;
+      eyeShow: string;
+      tipTitle: string;
+      tipBody: string;
+      trendAria: string;
+      compAria: string;
+      trendLegend: string;
+      tileProjection: string;
+    };
     tabs: Record<AsetTabId, string>;
     assetTypeLabels: Record<AsetTypeId, string>;
     accountTypeLabels: Record<AsetAccountTypeId, string>;

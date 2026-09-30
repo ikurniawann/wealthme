@@ -2029,6 +2029,27 @@ export const en = {
     historyFilterEmpty: "No transactions in this date range.",
   },
   aset: {
+    v2: {
+      kpiAcc: "Funds & accounts",
+      kpiInv: "Investments",
+      kpiFisik: "Physical assets",
+      accTitle: "Funds & accounts",
+      invSeeAll: "All investments",
+      accSeeAll: "All accounts & funds",
+      instrumentSuffix: "instruments",
+      accountSuffix: "accounts",
+      fisikCaption: "Tap a card to edit",
+      fisikNew: "New asset",
+      eyeHide: "Hide",
+      eyeShow: "Show",
+      tipTitle: "Totals use recorded value",
+      tipBody:
+        "The yearly rise or depreciation estimate is computed separately and does not change totals until you adopt it.",
+      trendAria: "Monthly total assets trend",
+      compAria: "Asset composition",
+      trendLegend: "Total assets",
+      tileProjection: "from",
+    },
     tabs: {
       semua: "All",
       dana: "Cash & E-Wallet",
