@@ -1,0 +1,13 @@
+/* Master COA (bento v2, docs/design/proto/mastercoa.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .mc-grid > .mc-hero,
+    .mc-grid > .mc-guide,
+    .mc-grid > .mc-list {
+      grid-column: 1 / 13;
+    }
+  }
+  .mc-grid > * {
+    min-width: 0;
+  }
+}

@@ -2639,6 +2639,7 @@ export const en = {
       "are WealthMe's starter data, you can still delete or replace them if your family doesn't use them. Changes save to the server immediately and apply to every family member.",
   },
   mastercoa: {
+    v2: { heroCap: "Active COA accounts" },
     groupLabels: {
       1: "Income",
       2: "Expense",

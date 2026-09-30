@@ -2685,6 +2685,7 @@ export const id = {
       "adalah isian awal dari WealthMe, tetap bisa kamu hapus atau ganti kalau tidak dipakai keluargamu. Perubahan langsung tersimpan ke server dan berlaku untuk seluruh anggota keluarga.",
   },
   mastercoa: {
+    v2: { heroCap: "Akun COA aktif" },
     groupLabels: {
       1: "Income",
       2: "Expense",

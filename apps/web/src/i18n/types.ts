@@ -2594,6 +2594,7 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/mastercoa` (chart of accounts) page copy. */
   mastercoa: {
+    v2: { heroCap: string };
     groupLabels: Record<MasterCoaGroupNum, string>;
     directionLabels: Record<MasterCoaDirectionId, string>;
     budgetTypeLabels: Record<MasterCoaBudgetTypeId, string>;
