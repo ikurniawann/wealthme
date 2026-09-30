@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Info } from "lucide-react";
+import { ArrowLeft, Info } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@/lib/auth-client";
-import { SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthField, type AuthReveal } from "@/components/auth/auth-fields";
 import { LegalLinks } from "@/components/auth/legal-links";
 
 // EPIC-026 Wave 7 — markup rebuilt from docs/prototype/pages/register.html
@@ -18,22 +19,9 @@ import { LegalLinks } from "@/components/auth/legal-links";
 // "Anggota keluarga tidak mendaftar sendiri" footer (accurate — the family
 // head creates member accounts directly). Registration logic is untouched.
 
-const INPUT_CLASS =
-  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20";
-const LABEL_CLASS = "mb-[5px] block text-[12.5px] font-semibold";
-const ERROR_CLASS = "mt-[5px] text-[11.5px] font-semibold text-destructive";
-
-// EPIC-025 N3-H2 — password-strength meter ported from
-// docs/prototype/pages/register.html. Pure client-side UI, no backend
-// involved.
-type StrengthLevel = { label: string; colorClass: string; fill: number };
-
-const STRENGTH_LEVELS: StrengthLevel[] = [
-  { label: "Sangat lemah", colorClass: "bg-destructive", fill: 1 },
-  { label: "Lemah", colorClass: "bg-destructive", fill: 2 },
-  { label: "Cukup", colorClass: "bg-warning", fill: 3 },
-  { label: "Kuat", colorClass: "bg-success", fill: 4 },
-];
+// EPIC-025 N3-H2 — password-strength meter ported from the prototype.
+// Pure client-side UI, no backend involved.
+const STRENGTH_LABELS = ["Sangat lemah", "Lemah", "Cukup", "Kuat"] as const;
 
 function scorePassword(value: string): number {
   let score = 0;
@@ -46,30 +34,27 @@ function scorePassword(value: string): number {
 
 function PasswordStrengthMeter({ password }: { password: string }) {
   if (!password) return null;
-  const level = STRENGTH_LEVELS[scorePassword(password) - 1];
+  const score = scorePassword(password);
+  const tone = score <= 2 ? "1" : score === 3 ? "2" : "3";
   return (
     <div aria-hidden="true">
-      <div className="mt-2 flex gap-[5px]">
-        {STRENGTH_LEVELS.map((_, i) => (
-          <span
-            key={i}
-            className={`h-[5px] flex-1 rounded-full ${
-              i < level.fill ? level.colorClass : "bg-secondary"
-            }`}
-          />
+      <div className="au-meter">
+        {STRENGTH_LABELS.map((label, i) => (
+          <i key={label} data-on={i < score ? tone : undefined} />
         ))}
       </div>
-      <div className="mt-[5px] text-[11.5px] text-muted-foreground">
-        Kekuatan password: <strong>{level.label}</strong> · {password.length}{" "}
-        karakter
-      </div>
+      <p className="au-hint" style={{ marginTop: 5 }}>
+        Kekuatan password: <strong>{STRENGTH_LABELS[score - 1]}</strong> ·{" "}
+        {password.length} karakter
+      </p>
     </div>
   );
 }
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { locale, setLocale } = useLocale();
+  const { locale, setLocale, t } = useLocale();
+  const v2 = t.register.v2;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -147,268 +132,143 @@ export default function RegisterPage() {
     }
   };
 
+  const reveal = (
+    show: boolean,
+    set: (fn: (s: boolean) => boolean) => void,
+  ): AuthReveal => ({
+    show,
+    onToggle: () => set((s) => !s),
+    showLabel: "Tampilkan password",
+    hideLabel: "Sembunyikan password",
+  });
+  const clear = (key: string) => {
+    if (errors[key]) setErrors({ ...errors, [key]: "" });
+  };
+
   return (
-    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
-      <div className="w-full max-w-[420px]">
-        <div className="mb-[18px] flex items-center justify-center gap-2.5">
-          <div className="grid size-[34px] place-items-center rounded-[9px]">
-            {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
-            <img
-              src="/brand/wealthme-mark.png"
-              alt=""
-              className="size-full object-contain"
-            />
-          </div>
-          <div className="text-[18px] font-extrabold tracking-tight">
-            WealthMe
-          </div>
-        </div>
+    <AuthShell
+      cover={{
+        headline: (
+          <>
+            {v2.coverPre}
+            <em>{v2.coverEm}</em>
+            {v2.coverPost}
+          </>
+        ),
+        features: v2.features,
+      }}
+    >
+      <Link href="/login" className="au-back">
+        <ArrowLeft size={14} aria-hidden="true" /> Kembali ke Masuk
+      </Link>
+      <h1 className="au-title">Buat Akun Baru</h1>
+      <p className="au-sub">Mulai kelola keuangan Anda hari ini</p>
 
-        <SectionCard>
-          <Link
-            href="/login"
-            className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
-          >
-            ← Kembali ke Masuk
-          </Link>
-
-          <h1 className="mt-3.5 text-center text-[16px] font-extrabold">
-            Buat Akun Baru
-          </h1>
-          <p className="mt-1 mb-4 text-center text-[11.5px] text-muted-foreground">
-            Mulai kelola keuangan Anda hari ini
-          </p>
-
-          {/* Language choice — persists via setLocale() and applies
-              app-wide. EPIC-022 Group G (G3) — text label, not a flag
-              emoji: 🇮🇩/🇬🇧 render as tofu boxes on systems without an
-              emoji-flag font. */}
-          <div
-            role="tablist"
-            className="mx-auto mb-4 flex w-fit gap-0.5 rounded-[10px] bg-secondary p-[3px]"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={locale === "id"}
-              onClick={() => setLocale("id")}
-              className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                locale === "id"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              ID Indonesia
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={locale === "en"}
-              onClick={() => setLocale("en")}
-              className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                locale === "en"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              EN English
-            </button>
-          </div>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void doRegister();
-            }}
-          >
-            <div>
-              <label htmlFor="name" className={LABEL_CLASS}>
-                Nama Lengkap
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (errors.name) setErrors({ ...errors, name: "" });
-                }}
-                placeholder="cth: Budi Santoso"
-                aria-invalid={!!errors.name}
-                aria-describedby={errors.name ? "name-error" : undefined}
-                className={INPUT_CLASS}
-              />
-              {errors.name && (
-                <p id="name-error" role="alert" className={ERROR_CLASS}>
-                  {errors.name}
-                </p>
-              )}
-            </div>
-
-            <div className="mt-3">
-              <label htmlFor="email" className={LABEL_CLASS}>
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errors.email) setErrors({ ...errors, email: "" });
-                }}
-                placeholder="user@example.com"
-                aria-invalid={!!errors.email}
-                aria-describedby={errors.email ? "email-error" : undefined}
-                className={INPUT_CLASS}
-              />
-              {errors.email && (
-                <p id="email-error" role="alert" className={ERROR_CLASS}>
-                  {errors.email}
-                </p>
-              )}
-            </div>
-
-            <div className="mt-3">
-              <label htmlFor="password" className={LABEL_CLASS}>
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (errors.password) setErrors({ ...errors, password: "" });
-                  }}
-                  placeholder="Min. 8 karakter"
-                  aria-invalid={!!errors.password}
-                  aria-describedby={
-                    errors.password ? "password-error" : undefined
-                  }
-                  className={`${INPUT_CLASS} pr-10`}
-                />
-                <button
-                  type="button"
-                  aria-label={
-                    showPassword ? "Sembunyikan password" : "Tampilkan password"
-                  }
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword((s) => !s)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary"
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-3.5" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
-                </button>
-              </div>
-              <PasswordStrengthMeter password={password} />
-              {errors.password && (
-                <p id="password-error" role="alert" className={ERROR_CLASS}>
-                  {errors.password}
-                </p>
-              )}
-            </div>
-
-            <div className="mt-3">
-              <label htmlFor="confirmPassword" className={LABEL_CLASS}>
-                Konfirmasi Password
-              </label>
-              <div className="relative">
-                <input
-                  id="confirmPassword"
-                  type={showConfirm ? "text" : "password"}
-                  value={confirmPassword}
-                  onChange={(e) => {
-                    setConfirmPassword(e.target.value);
-                    if (errors.confirmPassword)
-                      setErrors({ ...errors, confirmPassword: "" });
-                  }}
-                  placeholder="Ulangi password Anda"
-                  aria-invalid={!!errors.confirmPassword}
-                  aria-describedby={
-                    errors.confirmPassword ? "confirmPassword-error" : undefined
-                  }
-                  className={`${INPUT_CLASS} pr-10`}
-                />
-                <button
-                  type="button"
-                  aria-label={
-                    showConfirm ? "Sembunyikan password" : "Tampilkan password"
-                  }
-                  aria-pressed={showConfirm}
-                  onClick={() => setShowConfirm((s) => !s)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary"
-                >
-                  {showConfirm ? (
-                    <EyeOff className="size-3.5" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
-                </button>
-              </div>
-              {errors.confirmPassword && (
-                <p
-                  id="confirmPassword-error"
-                  role="alert"
-                  className={ERROR_CLASS}
-                >
-                  {errors.confirmPassword}
-                </p>
-              )}
-            </div>
-
-            {/* EPIC-024 item 11 — no auto-created "Akun Utama" anymore;
-                the prototype records this real behavior. Polish batch 7b
-                item 7 — shortened from a 5-line explanation to one line. */}
-            <div className="mt-3.5 flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
-              <Info className="mt-0.5 size-4 shrink-0" />
-              <span>Rekening pertama kamu tambahkan setelah daftar.</span>
-            </div>
-
-            {/* EPIC-025 N3-H2 (J1) — the prototype's consent checkbox is cut:
-                nothing records it, so it would be a dead control. */}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="mt-4 flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "Membuat Akun…" : "Daftar"}
-            </button>
-          </form>
-
-          <div className="mt-4 text-center text-[11.5px] text-muted-foreground">
-            Sudah punya akun?{" "}
-            <Link
-              href="/login"
-              className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
-            >
-              Masuk Sekarang
-            </Link>
-          </div>
-        </SectionCard>
-        <LegalLinks />
-
-        <div className="mt-3.5 text-center text-[11.5px] text-muted-foreground">
-          Anggota keluarga didaftarkan oleh kepala keluarga.
-        </div>
-
-        {/* Hardening batch G2 — link the draft legal pages from the
-            register footer, per the coming-soon inventory decision. */}
-        <div className="mt-3 flex justify-center gap-3 text-[11.5px] text-muted-foreground">
-          <Link href="/legal/privasi" className="hover:text-foreground">
-            Kebijakan Privasi
-          </Link>
-          <span aria-hidden="true">·</span>
-          <Link href="/legal/syarat" className="hover:text-foreground">
-            Syarat &amp; Ketentuan
-          </Link>
-        </div>
+      {/* Language choice — persists via setLocale() and applies app-wide.
+          Text label, not a flag emoji (tofu boxes without an emoji font). */}
+      <div role="tablist" className="au-seg" data-compact="true">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={locale === "id"}
+          onClick={() => setLocale("id")}
+        >
+          ID Indonesia
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={locale === "en"}
+          onClick={() => setLocale("en")}
+        >
+          EN English
+        </button>
       </div>
-    </div>
+
+      <form
+        className="au-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void doRegister();
+        }}
+      >
+        <AuthField
+          id="name"
+          label="Nama Lengkap"
+          value={name}
+          onChange={(e) => {
+            setName(e.target.value);
+            clear("name");
+          }}
+          placeholder="cth: Budi Santoso"
+          error={errors.name}
+        />
+        <AuthField
+          id="email"
+          label="Email"
+          type="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clear("email");
+          }}
+          placeholder="user@example.com"
+          error={errors.email}
+        />
+        <AuthField
+          id="password"
+          label="Password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            clear("password");
+          }}
+          placeholder="Min. 8 karakter"
+          error={errors.password}
+          reveal={reveal(showPassword, setShowPassword)}
+        >
+          <PasswordStrengthMeter password={password} />
+        </AuthField>
+        <AuthField
+          id="confirmPassword"
+          label="Konfirmasi Password"
+          value={confirmPassword}
+          onChange={(e) => {
+            setConfirmPassword(e.target.value);
+            clear("confirmPassword");
+          }}
+          placeholder="Ulangi password Anda"
+          error={errors.confirmPassword}
+          reveal={reveal(showConfirm, setShowConfirm)}
+        />
+
+        {/* EPIC-024 item 11 — no auto-created "Akun Utama" anymore. */}
+        <div className="au-info">
+          <Info size={16} aria-hidden="true" />
+          <div>Rekening pertama kamu tambahkan setelah daftar.</div>
+        </div>
+
+        {/* EPIC-025 N3-H2 (J1) — consent checkbox cut: nothing records it. */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="au-btn"
+          data-variant="primary"
+        >
+          {loading ? "Membuat Akun…" : "Daftar"}
+        </button>
+      </form>
+
+      <p className="au-foot">
+        Sudah punya akun?{" "}
+        <Link className="au-link" href="/login">
+          Masuk Sekarang
+        </Link>
+      </p>
+      <p className="au-foot" style={{ marginTop: 4 }}>
+        Anggota keluarga didaftarkan oleh kepala keluarga.
+      </p>
+      <LegalLinks />
+    </AuthShell>
   );
 }
