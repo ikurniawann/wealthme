@@ -815,6 +815,27 @@ export type I18nDictionary = {
    * per role are here; the rest of the page's copy predates i18n and is
    * out of this batch's scope.
    */
+  iam: {
+    v2: {
+      heroCap: string;
+      addBtn: string;
+      kpiMaster: string;
+      kpiManaged: string;
+      kpiCustom: string;
+      stepsTitle: string;
+      stepsCaption: string;
+      step1Title: string;
+      step1Text: string;
+      step2Title: string;
+      step2Text: string;
+      step3Title: string;
+      step3Text: string;
+      tabsLabel: string;
+      tabMembers: string;
+      tabRoles: string;
+      tabsNote: string;
+    };
+  };
   aksesSaya: {
     v2: {
       heroDesc: string;

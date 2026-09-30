@@ -13,7 +13,16 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { StatusBadge } from "@/components/wm";
+import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
+  IconChip,
+  StatusBadge,
+} from "@/components/wm";
+import "./iam.css";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
@@ -49,21 +58,9 @@ import { RolesTab } from "./_components/roles-tab";
 type Tab = "members" | "roles";
 
 const HOW_IT_WORKS = [
-  {
-    icon: ShieldCheck,
-    title: "Buat role",
-    text: "Kumpulan halaman yang boleh dibuka (Lihat / Kelola) dan data siapa yang terlihat.",
-  },
-  {
-    icon: UserCog,
-    title: "Pasang ke anggota",
-    text: "Lewat tombol Atur Akses. Tanpa role, anggota memakai akses bawaan tipenya.",
-  },
-  {
-    icon: SlidersHorizontal,
-    title: "Pengecualian (opsional)",
-    text: "Buka atau tutup halaman tertentu hanya untuk satu anggota.",
-  },
+  { icon: ShieldCheck, key: "step1Title", text: "step1Text" },
+  { icon: UserCog, key: "step2Title", text: "step2Text" },
+  { icon: SlidersHorizontal, key: "step3Title", text: "step3Text" },
 ] as const;
 
 export default function IamRolesPage() {
@@ -183,162 +180,161 @@ export default function IamRolesPage() {
     (m) => m.role !== "owner",
   ).length;
 
+  const v2 = t.iam.v2;
+  const managedCount = (members ?? []).filter((m) => m.managedLogin).length;
+  const customCount = (members ?? []).filter(
+    (m) => m.accessRoleId || m.accessOverrides,
+  ).length;
+
   return (
-    <div className="page stack">
-      <section className="hero gradient-profile">
-        <div className="row row--between row--wrap">
-          <div>
-            <div className="hero__label">Master Account</div>
-            <h1 className="hero__value">IAM Roles</h1>
-            <p className="text-white/80">
-              Atur halaman apa saja yang boleh dibuka setiap anggota, dan data
-              siapa yang mereka lihat.
-            </p>
-          </div>
-          <button
-            className="btn bg-white text-slate-900 hover:bg-white/90"
-            type="button"
-            onClick={() => setAddOpen(true)}
-          >
-            <Plus size={16} aria-hidden="true" />
-            Tambah Anggota
-          </button>
-        </div>
-      </section>
+    <BentoGrid className="iam-grid">
+      <BentoHero
+        className="iam-hero"
+        valueAs="h1"
+        currency={null}
+        value={memberCount}
+        caption={v2.heroCap}
+        controls={
+          <GhostButton lit onClick={() => setAddOpen(true)}>
+            <Plus size={14} aria-hidden="true" />
+            {v2.addBtn}
+          </GhostButton>
+        }
+        kpis={
+          <>
+            <HeroKpi label={v2.kpiMaster} value={1} />
+            <HeroKpi label={v2.kpiManaged} value={managedCount} />
+            <HeroKpi label={v2.kpiCustom} value={customCount} />
+          </>
+        }
+      />
 
-      <ol className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        {HOW_IT_WORKS.map((step, i) => {
-          const Icon = step.icon;
-          return (
-            <li key={step.title} className="card">
-              <div
-                className="card__body row"
-                style={{ alignItems: "flex-start", gap: 10 }}
-              >
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-extrabold text-primary">
-                  {i + 1}
-                </span>
+      <BentoCard
+        className="iam-steps"
+        title={v2.stepsTitle}
+        caption={v2.stepsCaption}
+      >
+        <ol className="iam-step-list">
+          {HOW_IT_WORKS.map((step, i) => {
+            const Icon = step.icon;
+            return (
+              <li key={step.key} className="iam-step">
+                <IconChip icon={Icon} />
                 <div>
-                  <div className="row" style={{ gap: 6 }}>
-                    <Icon
-                      size={14}
-                      aria-hidden="true"
-                      className="text-primary"
-                    />
-                    <span className="text-[13px] font-bold">{step.title}</span>
-                  </div>
-                  <p className="text-[12px] text-muted-foreground">
-                    {step.text}
-                  </p>
+                  <b>
+                    {i + 1}. {v2[step.key]}
+                  </b>
+                  <p>{v2[step.text]}</p>
                 </div>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+              </li>
+            );
+          })}
+        </ol>
+      </BentoCard>
 
-      <div className="row row--between row--wrap">
-        <div className="segmented" role="tablist" aria-label="Bagian IAM">
-          <button
-            type="button"
-            role="tab"
-            className="segmented__item"
-            aria-selected={tab === "members"}
-            onClick={() => setTab("members")}
-          >
-            Anggota ({memberCount})
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className="segmented__item"
-            aria-selected={tab === "roles"}
-            onClick={() => setTab("roles")}
-          >
-            Role Akses ({roleCount})
-          </button>
+      <div className="iam-main">
+        <div className="iam-tabbar">
+          <div className="segmented" role="tablist" aria-label={v2.tabsLabel}>
+            <button
+              type="button"
+              role="tab"
+              className="segmented__item"
+              aria-selected={tab === "members"}
+              onClick={() => setTab("members")}
+            >
+              {v2.tabMembers} ({memberCount})
+            </button>
+            <button
+              type="button"
+              role="tab"
+              className="segmented__item"
+              aria-selected={tab === "roles"}
+              onClick={() => setTab("roles")}
+            >
+              {v2.tabRoles} ({roleCount})
+            </button>
+          </div>
+          <p className="iam-note">
+            {v2.tabsNote.replace("{n}", String(restrictedCount))}
+          </p>
         </div>
-        <p className="t-xs t-muted">
-          Master selalu punya akses penuh, {restrictedCount} anggota diatur
-          aksesnya
-        </p>
-      </div>
 
-      {tab === "members" && (
-        <FamilyHandleCard familyGroupId={familyGroupId} token={token} />
-      )}
+        {tab === "members" && (
+          <FamilyHandleCard familyGroupId={familyGroupId} token={token} />
+        )}
 
-      {tab === "members" ? (
-        <MembersTab
-          members={members}
-          isLoading={membersLoading}
-          roles={roles ?? []}
-          currentUserId={session?.userId}
-          onEditAccess={setEditingAccess}
-          onResetPassword={setResettingPassword}
-          onEditEmail={setEditingEmail}
-          onRemove={setRemoving}
-        />
-      ) : (
-        <RolesTab
-          roles={roles}
-          isLoading={rolesLoading}
-          onCreate={() => setEditingRole("new")}
-          onEdit={setEditingRole}
-          onDelete={setDeletingRole}
-        />
-      )}
+        {tab === "members" ? (
+          <MembersTab
+            members={members}
+            isLoading={membersLoading}
+            roles={roles ?? []}
+            currentUserId={session?.userId}
+            onEditAccess={setEditingAccess}
+            onResetPassword={setResettingPassword}
+            onEditEmail={setEditingEmail}
+            onRemove={setRemoving}
+          />
+        ) : (
+          <RolesTab
+            roles={roles}
+            isLoading={rolesLoading}
+            onCreate={() => setEditingRole("new")}
+            onEdit={setEditingRole}
+            onDelete={setDeletingRole}
+          />
+        )}
 
-      {tab === "members" && (removedMembers ?? []).length > 0 && (
-        <section className="card">
-          <div className="card__header">
-            <div>
-              <h2>Anggota Nonaktif</h2>
-              <p className="text-muted-foreground">
-                Sudah dihapus dari keluarga dan tidak bisa login. Data dan
-                transaksi mereka tetap tersimpan.
-              </p>
+        {tab === "members" && (removedMembers ?? []).length > 0 && (
+          <section className="card">
+            <div className="card__header">
+              <div>
+                <h2>Anggota Nonaktif</h2>
+                <p className="text-muted-foreground">
+                  Sudah dihapus dari keluarga dan tidak bisa login. Data dan
+                  transaksi mereka tetap tersimpan.
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="card__body">
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Nama</th>
-                    <th>Tipe sebelumnya</th>
-                    <th style={{ textAlign: "right" }}>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(removedMembers ?? []).map((m) => (
-                    <tr key={m.id}>
-                      <td className="font-semibold">{m.name}</td>
-                      <td>
-                        <StatusBadge variant="gray">
-                          {t.common.roleLabels[
-                            m.role as keyof typeof t.common.roleLabels
-                          ] ?? m.role}
-                        </StatusBadge>
-                      </td>
-                      <td style={{ textAlign: "right" }}>
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          disabled={restoreMember.isPending}
-                          onClick={() => restoreMember.mutate(m)}
-                        >
-                          Aktifkan Kembali
-                        </button>
-                      </td>
+            <div className="card__body">
+              <div className="table-wrap">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Nama</th>
+                      <th>Tipe sebelumnya</th>
+                      <th style={{ textAlign: "right" }}>Aksi</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {(removedMembers ?? []).map((m) => (
+                      <tr key={m.id}>
+                        <td className="font-semibold">{m.name}</td>
+                        <td>
+                          <StatusBadge variant="gray">
+                            {t.common.roleLabels[
+                              m.role as keyof typeof t.common.roleLabels
+                            ] ?? m.role}
+                          </StatusBadge>
+                        </td>
+                        <td style={{ textAlign: "right" }}>
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            disabled={restoreMember.isPending}
+                            onClick={() => restoreMember.mutate(m)}
+                          >
+                            Aktifkan Kembali
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        )}
+      </div>
 
       <AddMemberDialog
         open={addOpen}
@@ -451,6 +447,6 @@ export default function IamRolesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </BentoGrid>
   );
 }

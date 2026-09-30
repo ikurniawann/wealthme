@@ -524,6 +524,30 @@ export const en = {
       typeToSearchHint: "Type at least 2 characters to search",
     },
   },
+  iam: {
+    v2: {
+      heroCap: "Family members",
+      addBtn: "Add",
+      kpiMaster: "Master",
+      kpiManaged: "Members with a role",
+      kpiCustom: "Custom access",
+      stepsTitle: "How it works",
+      stepsCaption: "Three steps to set access",
+      step1Title: "Create a role",
+      step1Text:
+        "A set of pages that can be opened (View / Manage) and whose data is visible.",
+      step2Title: "Assign to members",
+      step2Text:
+        "Via the Set Access button. Without a role, members use their type's default access.",
+      step3Title: "Exceptions (optional)",
+      step3Text: "Open or close specific pages for a single member only.",
+      tabsLabel: "IAM sections",
+      tabMembers: "Members",
+      tabRoles: "Access roles",
+      tabsNote:
+        "Master always has full access, {n} members have managed access",
+    },
+  },
   aksesSaya: {
     v2: {
       heroDesc: "See which data you can access in your family's WealthMe.",

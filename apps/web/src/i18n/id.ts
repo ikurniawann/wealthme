@@ -531,6 +531,29 @@ export const id = {
       typeToSearchHint: "Ketik minimal 2 karakter untuk mencari",
     },
   },
+  iam: {
+    v2: {
+      heroCap: "Anggota keluarga",
+      addBtn: "Tambah",
+      kpiMaster: "Master",
+      kpiManaged: "Anggota dengan role",
+      kpiCustom: "Akses khusus",
+      stepsTitle: "Cara kerja",
+      stepsCaption: "Tiga langkah atur akses",
+      step1Title: "Buat role",
+      step1Text:
+        "Kumpulan halaman yang boleh dibuka (Lihat / Kelola) dan data siapa yang terlihat.",
+      step2Title: "Pasang ke anggota",
+      step2Text:
+        "Lewat tombol Atur Akses. Tanpa role, anggota memakai akses bawaan tipenya.",
+      step3Title: "Pengecualian (opsional)",
+      step3Text: "Buka atau tutup halaman tertentu hanya untuk satu anggota.",
+      tabsLabel: "Bagian IAM",
+      tabMembers: "Anggota",
+      tabRoles: "Role Akses",
+      tabsNote: "Master selalu punya akses penuh, {n} anggota diatur aksesnya",
+    },
+  },
   aksesSaya: {
     v2: {
       heroDesc:
