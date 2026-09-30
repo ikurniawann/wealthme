@@ -3347,6 +3347,28 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {
+    v2: {
+      leftCap: string;
+      overCap: string;
+      legendSpent: string;
+      legendLimit: string;
+      kpiLimit: string;
+      kpiSpent: string;
+      kpiSafe: string;
+      ofLimit: string;
+      sortLabel: string;
+      sortUsed: string;
+      sortLeft: string;
+      tilesCaption: string;
+      addTile: string;
+      obCaptionUnpaid: string;
+      obCaptionAllPaid: string;
+      seeAllObligations: string;
+      alertOkTitle: string;
+      alertOkBody: string;
+      alertSeeTx: string;
+      chartEmpty: string;
+    };
     budgetTypeLabels: Record<AnggaranBudgetTypeId, string>;
     periodLabels: Record<AnggaranPeriodId, string>;
     amountsMidDari: string;
