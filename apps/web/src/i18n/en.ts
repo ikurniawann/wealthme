@@ -1687,6 +1687,16 @@ export const en = {
       "This page is for the family's owner/co-master only. You don't have access.",
   },
   ai: {
+    v2: {
+      heroCap: "Ask about your budget, goals, or family spending.",
+      chipsLabel: "Popular questions",
+      emptyBody: "Ask about your budget, goals, or this month's spending.",
+      inputLabel: "Write a message",
+      dataReadCap: "What the AI reads to answer you",
+      summaryCap: "This month",
+      changeKey: "Change",
+      historyCap: "Saved conversations",
+    },
     bannerTitle: "WealthMe AI Advisor",
     bannerSubtitle:
       "Personal financial analysis based on real data, using your own API key.",

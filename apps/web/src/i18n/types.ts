@@ -1703,6 +1703,16 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A4 — `/ai` (AI Advisor chat) page copy. */
   ai: {
+    v2: {
+      heroCap: string;
+      chipsLabel: string;
+      emptyBody: string;
+      inputLabel: string;
+      dataReadCap: string;
+      summaryCap: string;
+      changeKey: string;
+      historyCap: string;
+    };
     bannerTitle: string;
     bannerSubtitle: string;
     popularQuestionsLabel: string;

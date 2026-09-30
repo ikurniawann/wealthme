@@ -1730,6 +1730,16 @@ export const id = {
       "Halaman ini hanya untuk master/co-master keluarga. Kamu tidak memiliki akses.",
   },
   ai: {
+    v2: {
+      heroCap: "Tanya soal anggaran, tujuan, atau pengeluaran keluargamu.",
+      chipsLabel: "Pertanyaan populer",
+      emptyBody: "Tanya soal anggaran, tujuan, atau pengeluaran bulan ini.",
+      inputLabel: "Tulis pesan",
+      dataReadCap: "Yang dibaca AI untuk menjawabmu",
+      summaryCap: "Bulan ini",
+      changeKey: "Ubah",
+      historyCap: "Percakapan tersimpan",
+    },
     bannerTitle: "WealthMe AI Advisor",
     bannerSubtitle:
       "Analisa keuangan personal berdasarkan data nyata, memakai API key kamu sendiri.",
