@@ -1,82 +1,54 @@
 "use client";
 
-import { Suspense, useEffect, useMemo } from "react";
-import type { CSSProperties } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useLocale } from "@/hooks/use-locale";
 import { AiChatProvider } from "@/components/providers/ai-chat-provider";
 import { ShellProvider } from "./shell-context";
 import { SidebarNav } from "./sidebar";
+import { ShellLoading } from "./shell-loading";
 import { Topbar } from "./topbar";
+import { PageGreeting } from "./page-greeting";
 import { MobileNav } from "./mobile-bars";
 import { SearchDialog } from "./search-dialog";
 import { TransactionDialog } from "./transaction-dialog";
 import { FloatingAiLauncher } from "./floating-ai-launcher";
+import { useSidebarRail } from "./use-sidebar-rail";
 import { Walkthrough } from "@/components/onboarding/walkthrough";
-import {
-  SIDEBAR_WIDTH_COLLAPSED,
-  SIDEBAR_WIDTH_EXPANDED,
-  TOPBAR_HEIGHT,
-  useSidebarCollapse,
-} from "./use-sidebar-collapse";
 
+/**
+ * Bento v2 shell (`.wm-app`): hub sidebar | topbar + phone greeting + page.
+ * The sidebar → icon rail → pill dock progression is pure CSS (bento.css).
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, ready } = useAuth();
   const router = useRouter();
   const { t } = useLocale();
-  const { collapsed, toggle } = useSidebarCollapse();
-
-  // The same two custom properties the hook mirrors onto <html>, applied
-  // in-tree so the very first paint of the shell is already correctly sized
-  // (an effect-only write can land after the browser has painted).
-  const shellVars = useMemo(
-    () =>
-      ({
-        "--sidebar-w": collapsed
-          ? SIDEBAR_WIDTH_COLLAPSED
-          : SIDEBAR_WIDTH_EXPANDED,
-        "--topbar-h": TOPBAR_HEIGHT,
-      }) as CSSProperties,
-    [collapsed],
-  );
+  const { rail, toggle } = useSidebarRail();
 
   useEffect(() => {
     if (ready && !isAuthenticated) router.replace("/login");
   }, [ready, isAuthenticated, router]);
 
   if (!ready || !isAuthenticated) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex items-center gap-2.5 text-muted-foreground">
-          <div className="sidebar__logo">
-            {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
-            <img
-              src="/brand/wealthme-mark.png"
-              alt=""
-              className="size-full object-contain"
-            />
-          </div>
-          <span className="t-md t-bold">{t.shell.loading}</span>
-        </div>
-      </div>
-    );
+    return <ShellLoading />;
   }
 
   return (
     <ShellProvider>
-      {/* A1 (revisi-2) — wraps `children` too (not just the launcher below):
-          the /ai page and the floating launcher must read/write the SAME
-          conversation, so the provider has to sit above both. */}
+      {/* A1 (revisi-2) — wraps `children` too: the /ai page and the floating
+          launcher must read/write the SAME conversation. */}
       <AiChatProvider>
-        <div className="app" style={shellVars}>
+        <div className="wm-app" data-rail={rail || undefined}>
           <Suspense fallback={null}>
-            <SidebarNav collapsed={collapsed} onToggleCollapse={toggle} />
+            <SidebarNav rail={rail} onToggle={toggle} />
           </Suspense>
 
-          <div className="main">
+          <div className="wm-main">
             <Suspense fallback={null}>
               <Topbar />
+              <PageGreeting />
             </Suspense>
             <main className="page" id="main-content">
               {children}

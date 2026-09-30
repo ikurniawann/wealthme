@@ -1,0 +1,31 @@
+@layer components {
+  .rk2-top {
+    display: grid;
+    grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+    gap: 16px;
+    align-items: stretch;
+  }
+  .rk2-top > * {
+    min-width: 0;
+    grid-column: auto !important;
+  }
+  .rk2-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .rk2-side > * {
+    margin: 0 !important;
+  }
+  @media (max-width: 1180px) {
+    .rk2-top {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+@layer utilities {
+  /* narrow side slot: IDR / USD / gram stack as rows instead of three cramped columns */
+  .rk2-side .sm\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+}

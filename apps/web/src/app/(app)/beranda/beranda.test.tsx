@@ -51,6 +51,7 @@ jest.mock("../../../hooks/use-currency-preference", () => ({
 }));
 
 import { BerandaPage } from "./page";
+import { ShellProvider } from "../../../components/shell/shell-context";
 
 // BerandaPage also calls useSession() (auth-compat) and several useQuery()
 // calls directly — all of which need a QueryClientProvider ancestor that
@@ -61,7 +62,9 @@ const queryClient = new QueryClient({
 
 function Providers({ children }: { children: ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <ShellProvider>{children}</ShellProvider>
+    </QueryClientProvider>
   );
 }
 

@@ -10,6 +10,7 @@
  * per-type negative-balance allowance still applies on a partial update.
  */
 
+import { ShellProvider } from "../../../components/shell/shell-context";
 import type { ReactElement, ReactNode } from "react";
 import { resolveEffectiveAccess } from "@wealthme/contracts";
 import {
@@ -106,7 +107,9 @@ const queryClient = new QueryClient({
 
 function Providers({ children }: { children: ReactNode }) {
   return (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <ShellProvider>{children}</ShellProvider>
+    </QueryClientProvider>
   );
 }
 

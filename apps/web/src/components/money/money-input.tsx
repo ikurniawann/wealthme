@@ -74,7 +74,7 @@ export function MoneyInput({
   );
 }
 
-function MoneyHint({ field }: { field: MoneyField }) {
+export function MoneyHint({ field }: { field: MoneyField }) {
   const { t, locale } = useLocale();
   const pref = useCurrencyPreference();
   const { resolved, currency, rates } = field;

@@ -16,17 +16,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogBody,
-  DialogContent,
+  CenteredDialogContent,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
+import {
+  formatAmountInput,
+  formatRupiah,
+  formatRupiahCompact,
+  parseRupiah,
+} from "@/lib/format";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { DateField } from "@/components/wm";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
+import {
+  AmountHero,
+  categoryIcon,
+  ChoiceTiles,
+  type Choice,
+} from "./tx-pickers";
 import { useAiKeyStatus } from "@/hooks/use-ai-key";
 import {
   isCameraSupported,
@@ -53,12 +64,7 @@ import {
   ATTACHMENT_MAX_FILE_BYTES,
   type FxInput,
 } from "@wealthme/contracts";
-import {
-  MoneyInput,
-  moneyIdr,
-  useMoneyField,
-  withFxInputs,
-} from "@/components/money";
+import { moneyIdr, useMoneyField, withFxInputs } from "@/components/money";
 import { useShell } from "./shell-context";
 
 // EPIC-023 Task E3/E4 (D12/D13) — reviewed foundation exception (this file
@@ -86,7 +92,12 @@ const CATEGORY_KIND_BY_TAB: Record<TabKind, "income" | "expense"> = {
 };
 
 type MeResponse = { familyGroupId: string | null };
-type AccountDto = { id: string; name: string; institution: string | null };
+type AccountDto = {
+  id: string;
+  name: string;
+  institution: string | null;
+  balance?: string;
+};
 type CategoryDto = {
   id: string;
   name: string;
@@ -349,6 +360,22 @@ export function TransactionDialog() {
   const relevantCategories = categories.filter(
     (c) => c.kind === CATEGORY_KIND_BY_TAB[tabKind] || c.kind === "both",
   );
+  // Bento v2 tile pickers (prototype `.tx` dialog): accounts as small cards
+  // with balance, categories as icon tiles.
+  const accountChoices: Choice[] = accounts.map((a) => ({
+    value: a.id,
+    name: a.institution ? `${a.name} — ${a.institution}` : a.name,
+    caption: a.name,
+    label: a.institution ?? a.name,
+    sub:
+      a.balance !== undefined
+        ? formatRupiahCompact(Number(a.balance))
+        : undefined,
+  }));
+  const categoryChoices: Choice[] = relevantCategories.map((c) => {
+    const Icon = categoryIcon(c.name);
+    return { value: c.id, name: c.name, label: c.name, icon: <Icon /> };
+  });
   // EPIC-027 B3 (D13) — the review screen shows the family category the
   // SERVER matched, resolved to its own name/icon. A null `categoryId` is
   // never re-guessed from `categoryHint` here; that matching already ran.
@@ -837,14 +864,13 @@ export function TransactionDialog() {
 
   return (
     <Dialog open={txnOpen} onOpenChange={handleOpenChange}>
-      {/* EPIC-022 Group G (G1) — `dvh`, not `vh`: this override fully
-          replaces the DialogContent default via tailwind-merge, so it must
-          carry the same dynamic-viewport unit or it silently reintroduces
-          the bug (see components/ui/dialog.tsx). No reason for this
-          global, frequently-opened dialog to be exempt from the fix. */}
-      <DialogContent
+      <CenteredDialogContent
         showCloseButton={view === "form"}
-        className={view === "form" ? undefined : "overflow-x-hidden p-0"}
+        className={
+          view === "form"
+            ? "min-[721px]:w-[min(560px,calc(100%-24px))]"
+            : "overflow-x-hidden p-0"
+        }
       >
         {view === "form" && (
           <>
@@ -892,16 +918,12 @@ export function TransactionDialog() {
                   </button>
                 ))}
               </div>
-              <Field
+              <AmountHero
+                field={amountField}
+                id={amountFieldId}
                 label={t.shell.transactionDialog.amountLabel}
-                htmlFor={amountFieldId}
-              >
-                <MoneyInput
-                  field={amountField}
-                  id={amountFieldId}
-                  placeholder="250.000"
-                />
-              </Field>
+                placeholder="250.000"
+              />
 
               {tabKind === "card" ? (
                 <Field
@@ -926,58 +948,35 @@ export function TransactionDialog() {
                 </Field>
               ) : tabKind === "transfer" ? (
                 <>
-                  <Field
+                  <TileField
                     label={t.shell.transactionDialog.sourceAccountLabel}
-                    htmlFor={sourceAccountFieldId}
                   >
-                    <select
-                      id={sourceAccountFieldId}
-                      className="select"
+                    <ChoiceTiles
+                      variant="account"
+                      label={t.shell.transactionDialog.sourceAccountLabel}
                       value={accountId}
-                      onChange={(e) => {
-                        const nextAccountId = e.target.value;
+                      choices={accountChoices}
+                      empty={t.shell.transactionDialog.sourceAccountPlaceholder}
+                      onChange={(nextAccountId) => {
                         setAccountId(nextAccountId);
-                        // Keep source/destination mutually exclusive: dropping
-                        // the now-invalid destination avoids a stale option
-                        // hidden by the destination select's own filter.
+                        // Keep source/destination mutually exclusive.
                         if (toAccountId === nextAccountId) setToAccountId("");
                       }}
-                    >
-                      <option value="">
-                        {t.shell.transactionDialog.sourceAccountPlaceholder}
-                      </option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                          {a.institution ? ` — ${a.institution}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
+                    />
+                  </TileField>
 
-                  <Field
-                    label={t.shell.transactionDialog.destAccountLabel}
-                    htmlFor={destAccountFieldId}
-                  >
-                    <select
-                      id={destAccountFieldId}
-                      className="select"
+                  <TileField label={t.shell.transactionDialog.destAccountLabel}>
+                    <ChoiceTiles
+                      variant="account"
+                      label={t.shell.transactionDialog.destAccountLabel}
                       value={toAccountId}
-                      onChange={(e) => setToAccountId(e.target.value)}
-                    >
-                      <option value="">
-                        {t.shell.transactionDialog.destAccountPlaceholder}
-                      </option>
-                      {accounts
-                        .filter((a) => a.id !== accountId)
-                        .map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.name}
-                            {a.institution ? ` — ${a.institution}` : ""}
-                          </option>
-                        ))}
-                    </select>
-                  </Field>
+                      choices={accountChoices.filter(
+                        (choice) => choice.value !== accountId,
+                      )}
+                      empty={t.shell.transactionDialog.destAccountPlaceholder}
+                      onChange={setToAccountId}
+                    />
+                  </TileField>
 
                   <Field
                     label={
@@ -1008,55 +1007,30 @@ export function TransactionDialog() {
                   </Field>
                 </>
               ) : (
-                // polish-j batch 7a item 6 — Akun and Kategori are both
-                // <select>s, so they now pair 2-up like Tanggal/Deskripsi
-                // below, instead of each stacking full-width.
-                <div className="field-row">
-                  <Field
-                    label={t.shell.transactionDialog.accountLabel}
-                    htmlFor={accountFieldId}
-                    className="!mt-0"
-                  >
-                    <select
-                      id={accountFieldId}
-                      className="select"
+                <>
+                  <TileField label={t.shell.transactionDialog.accountLabel}>
+                    <ChoiceTiles
+                      variant="account"
+                      label={t.shell.transactionDialog.accountLabel}
                       value={accountId}
-                      onChange={(e) => setAccountId(e.target.value)}
-                    >
-                      <option value="">
-                        {t.shell.transactionDialog.accountPlaceholder}
-                      </option>
-                      {accounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.name}
-                          {a.institution ? ` — ${a.institution}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                  <Field
-                    label={t.shell.transactionDialog.categoryLabel}
-                    htmlFor={categoryFieldId}
-                    className="!mt-0"
-                  >
-                    <select
-                      id={categoryFieldId}
-                      className="select"
+                      choices={accountChoices}
+                      empty={t.shell.transactionDialog.accountPlaceholder}
+                      onChange={setAccountId}
+                    />
+                  </TileField>
+                  <TileField label={t.shell.transactionDialog.categoryLabel}>
+                    <ChoiceTiles
+                      variant="category"
+                      limit={7}
+                      moreLabel={t.common.viewAll}
+                      label={t.shell.transactionDialog.categoryLabel}
                       value={categoryId}
-                      onChange={(e) => setCategoryId(e.target.value)}
-                    >
-                      <option value="">
-                        {t.shell.transactionDialog.categoryPlaceholder}
-                      </option>
-                      {relevantCategories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.icon ? `${c.icon} ` : ""}
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
+                      choices={categoryChoices}
+                      empty={t.shell.transactionDialog.categoryPlaceholder}
+                      onChange={setCategoryId}
+                    />
+                  </TileField>
+                </>
               )}
 
               {/* EPIC-023 Task E4 (D13) — reviewed foundation exception (see
@@ -1070,27 +1044,18 @@ export function TransactionDialog() {
                 "Akun" concept, so its Kategori field stays standalone
                 rather than pairing into a field-row. */}
               {tabKind === "card" && (
-                <Field
-                  label={t.shell.transactionDialog.categoryLabel}
-                  htmlFor={categoryFieldId}
-                >
-                  <select
-                    id={categoryFieldId}
-                    className="select"
+                <TileField label={t.shell.transactionDialog.categoryLabel}>
+                  <ChoiceTiles
+                    variant="category"
+                    limit={7}
+                    moreLabel={t.common.viewAll}
+                    label={t.shell.transactionDialog.categoryLabel}
                     value={categoryId}
-                    onChange={(e) => setCategoryId(e.target.value)}
-                  >
-                    <option value="">
-                      {t.shell.transactionDialog.categoryPlaceholder}
-                    </option>
-                    {relevantCategories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.icon ? `${c.icon} ` : ""}
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
+                    choices={categoryChoices}
+                    empty={t.shell.transactionDialog.categoryPlaceholder}
+                    onChange={setCategoryId}
+                  />
+                </TileField>
               )}
 
               {/* Prototype pairs Tanggal and Deskripsi 2-up in a
@@ -1148,7 +1113,7 @@ export function TransactionDialog() {
                   label={t.shell.transactionDialog.attachmentLabel}
                 >
                   <div className="field mt-0">
-                    <div className="row row--wrap gap-2">
+                    <div className="tx-attach">
                       <label
                         htmlFor={attachmentFieldId}
                         className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
@@ -1495,7 +1460,7 @@ export function TransactionDialog() {
             </div>
           </div>
         )}
-      </DialogContent>
+      </CenteredDialogContent>
     </Dialog>
   );
 }
@@ -1503,6 +1468,24 @@ export function TransactionDialog() {
 // EPIC-023 Task E retry (HIGH 3) — `htmlFor` is now required so every
 // caller must pair the label with the id it puts on its actual control
 // (see the `uid`-derived field ids above). No more silent bare labels.
+/** Label + control block for the tile pickers (a radiogroup names itself). */
+function TileField({
+  label,
+  children,
+}: {
+  label: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="field tx-tile-field">
+      <span className="label" aria-hidden="true">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 function Field({
   label,
   htmlFor,

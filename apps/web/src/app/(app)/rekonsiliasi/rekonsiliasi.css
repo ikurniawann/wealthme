@@ -1,0 +1,105 @@
+/* Rekonsiliasi hero (bento v2): the 4-step flow as a progress track + match composition. */
+@layer components {
+  .rk-hero .wm-chart-wrap {
+    display: flex;
+    align-items: flex-end;
+    min-height: 0;
+    margin-top: 28px;
+  }
+  .rk-hero .wm-ghost-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .rk-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+  }
+  .rk-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .rk-steps li {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    padding: 14px;
+    border: 1px solid var(--wm-line);
+    border-radius: 16px;
+    background: rgb(255 255 255 / 0.04);
+  }
+  .rk-steps li[data-state="active"] {
+    border-color: var(--wm-lime);
+    background: color-mix(in srgb, var(--wm-lime) 14%, transparent);
+  }
+  .rk-steps b {
+    overflow: hidden;
+    font-size: var(--wm-type-14);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .rk-steps small {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+  }
+  .rk-step-dot {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    margin-bottom: 6px;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 0.1);
+    font-size: var(--wm-type-12);
+    font-weight: 700;
+  }
+  .rk-steps li[data-state="active"] .rk-step-dot,
+  .rk-steps li[data-state="done"] .rk-step-dot {
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+  }
+  .rk-step-dot svg {
+    width: 14px;
+    height: 14px;
+  }
+  .rk-comp {
+    display: flex;
+    gap: 3px;
+    height: 26px;
+  }
+  .rk-comp i {
+    min-width: 6px;
+    border-radius: 8px;
+    background-image: repeating-linear-gradient(
+      135deg,
+      rgb(255 255 255 / 0.24) 0 2px,
+      transparent 2px 8px
+    );
+  }
+  .rk-comp i[data-k="ok"] {
+    background-color: var(--wm-lime);
+  }
+  .rk-comp i[data-k="warn"] {
+    background-color: var(--wm-orange);
+  }
+  .rk-comp i[data-k="err"] {
+    background-color: var(--wm-bad);
+  }
+  @media (max-width: 720px) {
+    .rk-steps {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .rk-steps li {
+      padding: 10px;
+      text-align: left;
+    }
+  }
+}

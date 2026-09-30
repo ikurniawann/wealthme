@@ -1,5 +1,7 @@
 "use client";
 
+import "./laporan.css";
+
 import { Suspense } from "react";
 import { LaporanInner } from "./_components/laporan-inner";
 

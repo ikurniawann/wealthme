@@ -156,8 +156,12 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
 
     // Assert — both cash accounts render (proves plurality, not a single
     // fixed "Kas Tunai" row), each with its own edit/delete controls.
-    expect(await screen.findByText("Kas Tunai")).toBeInTheDocument();
-    expect(screen.getByText("Dompet Kerja")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Dompet Kerja", { ignore: "svg *, script, style" }),
+    ).toBeInTheDocument();
     // "GoPay" renders twice for this row (name + institution subtitle).
     expect(screen.getAllByText("GoPay").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(3);
@@ -169,7 +173,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     mockApiFetch.mockResolvedValue([buildAccount()]);
     const user = userEvent.setup();
     render(<DanaPage />);
-    await screen.findByText("Kas Tunai");
+    await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" });
 
     // Act — the cash section's own "+ Tambah" (not the E-Wallet one).
     const addButtons = screen.getAllByText("+ Tambah");
@@ -250,7 +254,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     ]);
     const user = userEvent.setup();
     render(<DanaPage />);
-    await screen.findByText("Kas Tunai");
+    await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" });
 
     mockApiFetch.mockResolvedValueOnce({ id: "acc-1" }); // PATCH response
     mockApiFetch.mockResolvedValueOnce([
@@ -319,7 +323,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     ]);
     const user = userEvent.setup();
     render(<DanaPage />);
-    await screen.findByText("Kas Tunai");
+    await screen.findByText("Kas Tunai", { ignore: "svg *, script, style" });
 
     mockApiFetch.mockResolvedValueOnce({ id: "acc-1" }); // PATCH response
     mockApiFetch.mockResolvedValueOnce([

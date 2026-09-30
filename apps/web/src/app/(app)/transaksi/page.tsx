@@ -20,9 +20,11 @@ import {
   ImagePlus,
   Lock,
   Pencil,
+  Search,
   Sparkles,
   Tag,
   Trash2,
+  XIcon,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,10 +33,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogBody,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
 import { useShell } from "@/components/shell/shell-context";
 import { parseRupiah } from "@/lib/format";
@@ -49,11 +53,19 @@ import { PpnHint } from "@/components/tax/ppn-hint";
 
 import {
   SectionCard,
-  CardLink,
   StatusBadge,
   IconChip,
   DateField,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
+  PillButton,
 } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { CategoryIcon } from "@/components/shell/tx-pickers";
+import "./transaksi.css";
 import {
   DateRangeFilterField,
   formatMonthYear,
@@ -592,10 +604,10 @@ function DetailRow({
   mono?: boolean;
 }) {
   return (
-    <tr>
-      <td className="t-xs t-muted">{label}</td>
-      <td className={cn("t-sm t-bold text-right", mono && "mono")}>{value}</td>
-    </tr>
+    <div className="tx-kv-row">
+      <dt>{label}</dt>
+      <dd className={cn(mono && "wm-num")}>{value}</dd>
+    </div>
   );
 }
 
@@ -861,63 +873,51 @@ export function TransactionDetailDialog({
       {/* EPIC-026 Wave 8 — #dlg-tx-detail is the prototype's DEFAULT 480px
           `.dialog` (only #dlg-tx-delete carries `dialog--sm`), so no width
           modifier here. */}
-      <DialogContent>
-        <DialogTitle>{t.transaksi.detailDialogTitle}</DialogTitle>
-        {/* Prototype `.dialog__desc` (transaksi.html:437); amount is
-            `t-xl t-black mono`. */}
-        <DialogDescription>{t.transaksi.detailDialogDesc}</DialogDescription>
-        <DialogBody>
-          <div className="row row--between mb-3">
-            <span
-              className={cn(
-                "badge",
-                isIncome ? "badge--success" : "badge--danger",
-              )}
-            >
-              {typeLabel}
-            </span>
-            <span
-              className={cn(
-                "t-xl t-black mono",
-                isIncome ? "t-success" : "t-danger",
-              )}
-            >
-              {amountStr}
-            </span>
+      {/* Bento v2: detail views open as a right side panel (bottom sheet on phones). */}
+      <PanelContent variant="side">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {t.transaksi.detailDialogTitle}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.transaksi.detailDialogDesc}
+            </DialogDescription>
           </div>
-          <div className="table-wrap">
-            <table className="table min-w-0">
-              <tbody>
-                <DetailRow
-                  label={t.transaksi.detailCategoryLabel}
-                  value={tx.categoryName ?? "—"}
-                />
-                <DetailRow
-                  label={t.transaksi.detailAccountLabel}
-                  value={tx.accountName ?? "—"}
-                />
-                <DetailRow
-                  label={t.transaksi.detailDateTimeLabel}
-                  value={formatDetailDateTime(tx.occurredAt, locale)}
-                  mono
-                />
-                <DetailRow
-                  label={t.transaksi.fieldDescLabel}
-                  value={tx.description ?? "—"}
-                />
-                <DetailRow
-                  label={t.transaksi.detailCreatedAtLabel}
-                  value={formatDetailDateTime(tx.createdAt, locale)}
-                  mono
-                />
-              </tbody>
-            </table>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <XIcon aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <div className="wm-panel-body">
+          <div className="tx-detail-hero" data-type={tx.type}>
+            <span className="tx-detail-badge">{typeLabel}</span>
+            <span className="tx-detail-amt wm-num">{amountStr}</span>
           </div>
-          {isEditLocked && (
-            <p className="pt-2 text-[11.5px] text-muted-foreground">
-              {editLockTooltip}
-            </p>
-          )}
+          <dl className="tx-kv">
+            <DetailRow
+              label={t.transaksi.detailCategoryLabel}
+              value={tx.categoryName ?? "—"}
+            />
+            <DetailRow
+              label={t.transaksi.detailAccountLabel}
+              value={tx.accountName ?? "—"}
+            />
+            <DetailRow
+              label={t.transaksi.detailDateTimeLabel}
+              value={formatDetailDateTime(tx.occurredAt, locale)}
+              mono
+            />
+            <DetailRow
+              label={t.transaksi.fieldDescLabel}
+              value={tx.description ?? "—"}
+            />
+            <DetailRow
+              label={t.transaksi.detailCreatedAtLabel}
+              value={formatDetailDateTime(tx.createdAt, locale)}
+              mono
+            />
+          </dl>
+          {isEditLocked && <p className="wm-cap">{editLockTooltip}</p>}
           {tx.type === "expense" && (
             <PpnHint amount={tx.amount} occurredAt={tx.occurredAt} />
           )}
@@ -933,32 +933,27 @@ export function TransactionDetailDialog({
               canModify={tx.canModify !== false}
             />
           )}
-        </DialogBody>
-        {/* Prototype `.dialog__footer` — `btn btn--outline` Edit then
-            `btn btn--destructive` Hapus (transaksi.html:527-534). */}
-        <DialogFooter>
-          <button
-            type="button"
+        </div>
+        <div className="wm-panel-foot">
+          <PillButton
             onClick={onEdit}
             disabled={isEditLocked}
             title={isEditLocked ? editLockTooltip : undefined}
-            className="btn btn--outline"
           >
             <Pencil className="size-3.5" aria-hidden="true" />
             {t.transaksi.detailEditButton}
-          </button>
-          <button
-            type="button"
+          </PillButton>
+          <PillButton
+            variant="danger"
             onClick={onDelete}
             disabled={isEditLocked}
             title={isEditLocked ? editLockTooltip : undefined}
-            className="btn btn--destructive"
           >
             <Trash2 className="size-3.5" aria-hidden="true" />
             {t.transaksi.detailDeleteButton}
-          </button>
-        </DialogFooter>
-      </DialogContent>
+          </PillButton>
+        </div>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -1091,6 +1086,186 @@ export function EditTransactionDialog({
   );
 }
 
+/* ───────────── bento v2 ───────────── */
+
+/** Axis ticks without the currency: "25 jt", "1,5 M". */
+function compactAxis(value: number): string {
+  const abs = Math.abs(value);
+  const trim = (n: number) =>
+    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+  const sign = value < 0 ? "-" : "";
+  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
+  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
+  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
+  return `${sign}${Math.round(abs)}`;
+}
+
+/**
+ * Hero chart buckets over the same (type-filtered) rows as the list: weekly
+ * when the chosen range is a month or less, otherwise monthly (the last six
+ * months when no range is set). `peak` is the busiest bucket, highlighted.
+ */
+export function bucketFlow(
+  rows: readonly Pick<TransactionDto, "amount" | "type" | "occurredAt">[],
+  from: string,
+  to: string,
+  locale: Locale,
+  now = new Date(),
+) {
+  const tag = locale === "en" ? "en-US" : "id-ID";
+  const day = (iso: string) => new Date(`${iso.slice(0, 10)}T00:00:00`);
+  const start = from
+    ? day(from)
+    : new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const end = to ? day(to) : now;
+  const spanDays =
+    Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1;
+  type Bucket = {
+    label: string;
+    from: Date;
+    to: Date;
+    income: number;
+    expense: number;
+  };
+  const buckets: Bucket[] = [];
+  if (from && spanDays <= 35) {
+    for (
+      let d = new Date(start);
+      d <= end;
+      d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7)
+    ) {
+      const last = new Date(
+        Math.min(
+          end.getTime(),
+          new Date(d.getFullYear(), d.getMonth(), d.getDate() + 6).getTime(),
+        ),
+      );
+      buckets.push({
+        label: `${d.getDate()}–${last.getDate()}`,
+        from: d,
+        to: last,
+        income: 0,
+        expense: 0,
+      });
+    }
+  } else {
+    for (
+      let d = new Date(start.getFullYear(), start.getMonth(), 1);
+      d <= end;
+      d = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    ) {
+      buckets.push({
+        label: d.toLocaleDateString(tag, { month: "short" }),
+        from: d,
+        to: new Date(d.getFullYear(), d.getMonth() + 1, 0),
+        income: 0,
+        expense: 0,
+      });
+    }
+  }
+  for (const tx of rows) {
+    const at = day(tx.occurredAt);
+    const bucket = buckets.find((b) => at >= b.from && at <= b.to);
+    if (!bucket) continue;
+    const amount = Math.abs(parseFloat(tx.amount));
+    if (tx.type === "income") bucket.income += amount;
+    else if (tx.type === "expense") bucket.expense += amount;
+  }
+  let peak = buckets.length - 1;
+  buckets.forEach((b, i) => {
+    if (
+      b.income + b.expense >
+      (buckets[peak]?.income ?? 0) + (buckets[peak]?.expense ?? 0)
+    )
+      peak = i;
+  });
+  return {
+    labels: buckets.map((b) => b.label),
+    income: buckets.map((b) => b.income),
+    expense: buckets.map((b) => b.expense),
+    peak: Math.max(0, peak),
+  };
+}
+
+/**
+ * Bento v2 history row (prototype `transaksi.html`): category icon, title,
+ * "Kategori · Rekening" (or the transfer route), signed amount. Tap opens the
+ * detail panel, where Ubah / Hapus live (with the same edit-rights and
+ * obligation locks as before); no per-row icon buttons.
+ */
+export function HistoryRow({
+  tx,
+  onDeleteClick,
+  onEditClick,
+  familyGroupId,
+  token,
+}: {
+  tx: TransactionDto;
+  onDeleteClick: () => void;
+  onEditClick: () => void;
+  familyGroupId?: string;
+  token?: string;
+}) {
+  const { t } = useLocale();
+  const money = useMoney();
+  const [open, setOpen] = useState(false);
+  const typeLabels: Record<string, string> = t.transaksi.typeLabels;
+  const amount = parseFloat(tx.amount);
+  const isIncome = tx.type === "income";
+  const isTransfer = tx.type === "transfer";
+  const plain = money.format(amount).replace(/,00$/, "");
+  const amountStr = isTransfer ? plain : (isIncome ? "+" : "−") + plain;
+  const withRoute = isTransfer && !!tx.toAccountName;
+  const title = withRoute
+    ? (tx.description ?? typeLabels.transfer)
+    : (tx.description ?? tx.categoryName ?? tx.accountName ?? "—");
+  const meta = withRoute
+    ? `${typeLabels.transfer} · ${tx.accountName ?? "—"} → ${tx.toAccountName}`
+    : [tx.categoryName ?? typeLabels[tx.type], tx.accountName]
+        .filter(Boolean)
+        .join(" · ");
+  const icon = isTransfer ? (
+    <ArrowLeftRight />
+  ) : (
+    <CategoryIcon name={tx.categoryName ?? ""} />
+  );
+  return (
+    <>
+      <button
+        type="button"
+        className="tx-row"
+        data-type={tx.type}
+        onClick={() => setOpen(true)}
+        aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabels[tx.type] ?? tx.type} ${title}, ${amountStr}`}
+      >
+        <span className="tx-row-ic" aria-hidden="true">
+          {icon}
+        </span>
+        <span className="min-w-0">
+          <b>{title}</b>
+          <small>{meta}</small>
+        </span>
+        <span className="tx-row-amt wm-num">{amountStr}</span>
+      </button>
+      <TransactionDetailDialog
+        tx={tx}
+        open={open}
+        familyGroupId={familyGroupId}
+        token={token}
+        onClose={() => setOpen(false)}
+        onEdit={() => {
+          setOpen(false);
+          onEditClick();
+        }}
+        onDelete={() => {
+          setOpen(false);
+          onDeleteClick();
+        }}
+      />
+    </>
+  );
+}
+
 export default function TransaksiPage() {
   // useSearchParams needs a Suspense boundary for prerender (EPIC-021 #24)
   return (
@@ -1116,6 +1291,11 @@ function TransaksiPageInner() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
+  const [query, setQuery] = useState("");
+  const [[todayIso, yesterdayIso]] = useState(() => [
+    new Date().toISOString().slice(0, 10),
+    new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
+  ]);
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const { setTxnOpen } = useShell();
@@ -1365,103 +1545,232 @@ function TransaksiPageInner() {
       ? Math.round((categorizedCount / transactions.length) * 100)
       : 0;
 
+  const v2 = t.transaksi.v2;
+  /** Whole-rupiah display: the ",00" adds nothing on a summary figure. */
+  const whole = (n: number) => money.format(n).replace(/,00$/, "");
+  const needle = query.trim().toLowerCase();
+  const visible = needle
+    ? sorted.filter((tx) =>
+        [tx.description, tx.categoryName, tx.accountName, tx.toAccountName]
+          .filter(Boolean)
+          .some((field) => field!.toLowerCase().includes(needle)),
+      )
+    : sorted;
+  const visiblePages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const visiblePage = Math.min(page, visiblePages);
+  const visibleRows = visible.slice(
+    (visiblePage - 1) * PAGE_SIZE,
+    visiblePage * PAGE_SIZE,
+  );
+  const flow = bucketFlow(filtered, dateFrom, dateTo, locale);
+  const periodLabel =
+    dateFrom || dateTo
+      ? [
+          dateFrom && formatShortDate(dateFrom, locale),
+          dateTo && formatShortDate(dateTo, locale),
+        ]
+          .filter(Boolean)
+          .join(" – ")
+      : v2.allTime;
+
+  const exportCsv = () => {
+    if (visible.length === 0) {
+      toast(v2.exportEmpty);
+      return;
+    }
+    const rows = [
+      [
+        "Tanggal",
+        "Jenis",
+        "Deskripsi",
+        "Kategori",
+        "Rekening",
+        "Ke rekening",
+        "Jumlah",
+      ],
+      ...visible.map((tx) => [
+        tx.occurredAt.slice(0, 10),
+        t.transaksi.typeLabels[
+          tx.type as keyof typeof t.transaksi.typeLabels
+        ] ?? tx.type,
+        tx.description ?? "",
+        tx.categoryName ?? "",
+        tx.accountName ?? "",
+        tx.toAccountName ?? "",
+        tx.amount,
+      ]),
+    ];
+    const csv = rows
+      .map((row) =>
+        row.map((cell) => `"${String(cell).replaceAll('"', '""')}"`).join(","),
+      )
+      .join("\n");
+    const url = URL.createObjectURL(
+      new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `transaksi-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(v2.exported.replace("{n}", String(visible.length)));
+  };
+
+  // Day groups over the visible page: header with the day's net, then its rows.
+  const today = todayIso;
+  const yesterday = yesterdayIso;
+  const groups: { day: string; rows: TransactionDto[]; net: number }[] = [];
+  for (const tx of visibleRows) {
+    const day = tx.occurredAt.slice(0, 10);
+    let group = groups[groups.length - 1];
+    if (!group || group.day !== day) {
+      group = { day, rows: [], net: 0 };
+      groups.push(group);
+    }
+    group.rows.push(tx);
+    const amount = parseFloat(tx.amount);
+    if (tx.type === "income") group.net += amount;
+    else if (tx.type === "expense") group.net -= amount;
+  }
+  const dayLabel = (day: string) =>
+    day === today
+      ? v2.today
+      : day === yesterday
+        ? v2.yesterday
+        : formatFullDate(day, locale);
+
   return (
-    <div className="space-y-4">
-      {/* Header bar — EPIC-026 Wave 4: prototype `page-lead` has an h1
-          title above the sub line (transaksi.html:21), not the sub line
-          alone. The prototype's "Ekspor" button stays CUT (toast stub, no
-          export endpoint — J1 defect class). */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div className="min-w-[180px]">
-          <h1 className="text-[17px] font-extrabold tracking-tight">
-            Transaksi
-          </h1>
-          <div className="mt-1 text-[12.5px] text-muted-foreground">
-            {t.transaksi.headerDesc}
-          </div>
-        </div>
-        {filterAccountName && (
+    <div className="flex flex-col gap-4">
+      <BentoGrid className="tx-grid">
+        <BentoHero
+          className="tx-hero"
+          valueAs="h1"
+          currency={isLoading ? null : netBalance < 0 ? "−Rp" : "Rp"}
+          value={
+            isLoading ? "…" : whole(Math.abs(netBalance)).replace(/^[^\d]*/, "")
+          }
+          caption={`${netBalance >= 0 ? v2.surplus : v2.deficit} · ${periodLabel}`}
+          controls={
+            <>
+              <GhostButton onClick={exportCsv}>{v2.exportCsv}</GhostButton>
+              <GhostButton lit onClick={() => setTxnOpen(true)}>
+                <Plus aria-hidden="true" /> {v2.record}
+              </GhostButton>
+            </>
+          }
+          chart={
+            flow.labels.length > 0 ? (
+              <HatchedBarChart
+                labels={flow.labels}
+                series={[
+                  {
+                    name: t.transaksi.totalIncomeLabel,
+                    data: flow.income,
+                    color: "var(--wm-lime)",
+                  },
+                  {
+                    name: t.transaksi.totalExpenseLabel,
+                    data: flow.expense,
+                    color: "var(--wm-orange)",
+                  },
+                ]}
+                highlight={flow.peak}
+                format={money.formatCompact}
+                axis={compactAxis}
+                ariaLabel={v2.chartAria}
+              />
+            ) : null
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.transaksi.totalIncomeLabel}
+                value={isLoading ? "…" : whole(totalIncome)}
+                short={money.formatCompact(totalIncome)}
+                delta={<small className="wm-cap">{incomeSubtext}</small>}
+              />
+              <HeroKpi
+                label={t.transaksi.totalExpenseLabel}
+                value={isLoading ? "…" : whole(totalExpense)}
+                short={money.formatCompact(totalExpense)}
+                delta={<small className="wm-cap">{expenseSubtext}</small>}
+              />
+              <HeroKpi
+                label={v2.txCount}
+                value={isLoading ? "…" : String(visible.length)}
+                delta={
+                  !isLoading && transactions.length > 0 ? (
+                    <small className="wm-cap">{`${categorizedPct}${t.transaksi.insightCategorizedValueSuffix}`}</small>
+                  ) : undefined
+                }
+              />
+            </>
+          }
+        />
+
+        <div className="tx-filters-wrap">
           <button
             type="button"
-            onClick={() => router.replace("/transaksi")}
-            className="flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-[12px] font-semibold text-primary"
-            aria-label={`${t.transaksi.removeAccountFilterAriaLabelPrefix}${filterAccountName}`}
+            aria-controls="transaction-filters"
+            aria-expanded={mobileFiltersOpen}
+            onClick={() => setMobileFiltersOpen((open) => !open)}
+            className="tx-filters-toggle"
           >
-            {t.transaksi.accountFilterPrefix}
-            {filterAccountName}
-            {t.transaksi.accountFilterSuffix}
+            <Filter className="size-4" aria-hidden="true" />
+            {v2.filtersToggle.replace(
+              "{count}",
+              String(activeFilterCount + (needle ? 1 : 0)),
+            )}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => setTxnOpen(true)}
-          className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[13px] font-semibold text-primary-foreground"
-        >
-          <Plus className="size-3.5" /> {t.transaksi.addTransactionButton}
-        </button>
-      </div>
-
-      {/* Insight pill row — prototype's `.value-strip`. Only the honestly
-          derivable pill is rendered; see `InsightPill`'s own doc comment for
-          the two prototype pills deliberately omitted instead of faked. */}
-      {!isLoading && transactions.length > 0 && (
-        <div className="flex flex-wrap gap-2.5">
-          <InsightPill
-            icon={<Sparkles className="size-4" />}
-            label={t.transaksi.insightCategorizedLabel}
-            value={`${categorizedPct}${t.transaksi.insightCategorizedValueSuffix}`}
-          />
-        </div>
-      )}
-
-      {/* Filter card — prototype's `.card.transaction-filter-section`
-          (translation table: `.card` → `SectionCard`). Rentang Tanggal/
-          Akun/Kategori below are real controls wired to the API's own
-          `from`/`to`/`categoryId`/`accountId` query params — see the
-          `data` query above. */}
-      <div>
-        <button
-          type="button"
-          aria-controls="transaction-filters"
-          aria-expanded={mobileFiltersOpen}
-          onClick={() => setMobileFiltersOpen((open) => !open)}
-          className="mb-2 flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border bg-card px-4 text-sm font-semibold text-foreground md:hidden"
-        >
-          <Filter className="size-4" aria-hidden="true" />
-          {t.transaksi.mobileFilterToggleTemplate.replace(
-            "{count}",
-            String(activeFilterCount),
-          )}
-        </button>
-        <div
-          id="transaction-filters"
-          className={mobileFiltersOpen ? "block" : "hidden md:block"}
-        >
-          <SectionCard
-            title={
-              <span className="inline-flex items-center gap-1.5">
-                <Filter className="size-3.5" />
-                {t.transaksi.filterCardTitle}
-              </span>
-            }
+          <BentoCard
+            className="tx-filters"
+            title={v2.filterTitle}
             action={
-              <div className="flex items-center gap-2.5">
-                {!isLoading && (
-                  <StatusBadge variant="gray">
-                    {sorted.length}
-                    {t.transaksi.transactionsCountSuffix}
-                  </StatusBadge>
-                )}
-                <CardLink
-                  onClick={handleResetFilters}
-                  className="min-h-11 px-2"
-                >
-                  {t.transaksi.resetFilterButton}
-                </CardLink>
-              </div>
+              <button
+                type="button"
+                className="tx-reset"
+                onClick={() => {
+                  handleResetFilters();
+                  setQuery("");
+                }}
+              >
+                {v2.reset}
+              </button>
             }
           >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div
+              id="transaction-filters"
+              className="tx-filter-body"
+              data-open={mobileFiltersOpen || undefined}
+            >
+              <label className="tx-search">
+                <Search className="size-4 shrink-0" aria-hidden="true" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  placeholder={v2.searchPlaceholder}
+                  aria-label={v2.searchPlaceholder}
+                />
+              </label>
+              <div className="tx-types" role="group" aria-label={v2.typeAria}>
+                {FILTER_VALUES.map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={filter === value}
+                    onClick={() => {
+                      setFilter(value);
+                      setPage(1);
+                    }}
+                  >
+                    {t.transaksi.filterLabels[value]}
+                  </button>
+                ))}
+              </div>
               <DateRangeFilterField
                 from={dateFrom}
                 to={dateTo}
@@ -1475,10 +1784,8 @@ function TransaksiPageInner() {
                   setPage(1);
                 }}
               />
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                  {t.transaksi.accountFilterFieldLabel}
-                </span>
+              <label className="tx-field">
+                <span>{t.transaksi.accountFilterFieldLabel}</span>
                 <select
                   value={accountId ?? ""}
                   onChange={handleAccountFilterChange}
@@ -1492,10 +1799,8 @@ function TransaksiPageInner() {
                   ))}
                 </select>
               </label>
-              <label className="block">
-                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                  {t.transaksi.categoryFilterFieldLabel}
-                </span>
+              <label className="tx-field">
+                <span>{t.transaksi.categoryFilterFieldLabel}</span>
                 <select
                   value={categoryFilter}
                   onChange={(e) => {
@@ -1512,51 +1817,15 @@ function TransaksiPageInner() {
                   ))}
                 </select>
               </label>
-            </div>
-
-            <div className="mt-3.5 flex flex-wrap items-center justify-between gap-2">
-              <div
-                role="group"
-                aria-label={t.transaksi.filterCardTitle}
-                className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto"
-              >
-                {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered
-                `bg-card` idle, primary fill selected (app.css:2308,
-                2492). */}
-                {FILTER_VALUES.map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => {
-                      setFilter(value);
-                      setPage(1);
-                    }}
-                    aria-pressed={filter === value}
-                    className={
-                      "min-h-11 whitespace-nowrap rounded-full border px-[13px] py-[7px] text-[12.5px] font-semibold transition-colors " +
-                      (filter === value
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-card text-muted-foreground hover:bg-secondary/70")
-                    }
-                  >
-                    {t.transaksi.filterLabels[value]}
-                  </button>
-                ))}
-              </div>
-
-              {/* Sort control mirrors the prototype: a small label followed by the
-              normal design-system select, with no custom text offset. */}
-              <label className="row transaction-filter-sort gap-[7px]">
-                <span className="t-xs t-muted whitespace-nowrap">
-                  {t.transaksi.sortByLabel}
-                </span>
+              <label className="tx-field">
+                <span>{t.transaksi.sortByLabel}</span>
                 <select
                   value={sortOrder}
                   onChange={(e) => {
                     setSortOrder(e.target.value as SortOrder);
                     setPage(1);
                   }}
-                  className="select !w-auto min-h-11 min-w-[118px] py-1.5"
+                  className="select"
                   aria-label={t.transaksi.sortAriaLabel}
                 >
                   {SORT_VALUES.map((value) => (
@@ -1566,175 +1835,107 @@ function TransaksiPageInner() {
                   ))}
                 </select>
               </label>
+              {filterAccountName && (
+                <button
+                  type="button"
+                  onClick={() => router.replace("/transaksi")}
+                  className="wm-chip"
+                  aria-pressed="true"
+                  aria-label={`${t.transaksi.removeAccountFilterAriaLabelPrefix}${filterAccountName}`}
+                >
+                  {t.transaksi.accountFilterPrefix}
+                  {filterAccountName}
+                  {t.transaksi.accountFilterSuffix}
+                </button>
+              )}
             </div>
-          </SectionCard>
+          </BentoCard>
         </div>
-      </div>
 
-      {/* One compact surface keeps the three real server totals together on phones. */}
-      <TransactionSummary
-        ariaLabel={t.transaksi.summaryGroupLabel}
-        items={[
-          {
-            label: t.transaksi.totalIncomeLabel,
-            value: isLoading ? "…" : money.format(totalIncome),
-            valueClassName: "text-success",
-            detail: incomeSubtext,
-          },
-          {
-            label: t.transaksi.totalExpenseLabel,
-            value: isLoading ? "…" : money.format(totalExpense),
-            valueClassName: "text-destructive",
-            detail: expenseSubtext,
-          },
-          {
-            label: t.transaksi.differenceLabel,
-            value: isLoading ? "…" : money.format(netBalance),
-            valueClassName:
-              netBalance >= 0 ? "text-success" : "text-destructive",
-            detail: isLoading
-              ? undefined
-              : `${netBalance >= 0 ? t.transaksi.surplusLabel : t.transaksi.deficitLabel} ${Math.abs(netPct)}${t.transaksi.ofIncomeSuffix}`,
-            detailClassName:
-              netBalance >= 0 ? "text-success" : "text-destructive",
-          },
-        ]}
-      />
-
-      {/* Error state */}
-      {isError && (
-        <div
-          role="alert"
-          className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
+        <BentoCard
+          className="tx-history"
+          title={v2.history}
+          action={
+            !isLoading ? (
+              <span className="wm-cap">{`${visible.length}${t.transaksi.transactionsCountSuffix}`}</span>
+            ) : undefined
+          }
         >
-          {t.transaksi.errorLoad}
-        </div>
-      )}
-
-      {/* Transaction table — prototype's `.card.transaction-table-section`
-          `.table.table--transactions` (translation table: `.card` →
-          `SectionCard`). Wrapped for horizontal scroll on mobile per
-          WM_CONVENTIONS.md's table responsiveness rule. */}
-      <SectionCard
-        title={t.transaksi.listSectionTitle}
-        action={
-          <span className="text-[11.5px] text-muted-foreground">
-            {t.transaksi.listSectionHint}
-          </span>
-        }
-        bodyClassName="pt-0"
-      >
-        {isLoading && (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">
-            {t.transaksi.loadingLabel}
-          </div>
-        )}
-
-        {truncated && (
-          <div className="mb-3 rounded-lg border border-amber-400/40 bg-amber-50 px-3.5 py-2.5 text-[12px] text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
-            {t.transaksi.listTruncatedNote
-              .replace("{shown}", String(transactions.length))
-              .replace("{total}", String(data?.meta?.total ?? 0))}
-          </div>
-        )}
-        {!isLoading && sorted.length > 0 && (
-          <>
-            {/* UI/UX parity fix (docs/uiux-beda audit) — the prototype's
-                `.table--transactions` has its own `@media (max-width: 640px)`
-                CSS transform turning each cell into a labeled stacked row
-                (Tanggal/Kategori/Akun/Jumlah/Opsi all visible, no
-                scrolling); a bare overflow-x-auto table hides those columns
-                behind a horizontal scroll on phones instead. `TxRow` above
-                is that exact stacked-card shape, already built and covered
-                by txrow-detail.test.tsx — reused here for the mobile list
-                instead of porting the prototype's ::before-label CSS. */}
-            <div className="flex flex-col gap-2 sm:hidden">
-              {pagedTransactions.map((tx) => (
-                <TxRow
-                  key={tx.id}
-                  tx={tx}
-                  familyGroupId={familyGroupId}
-                  token={token}
-                  onDeleteClick={() => setDeleteTarget(tx.id)}
-                  onEditClick={() => setEditTarget(tx)}
-                />
-              ))}
+          {isError && (
+            <div role="alert" className="tx-note" data-tone="bad">
+              {t.transaksi.errorLoad}
             </div>
-            <div className="hidden w-full overflow-x-auto sm:block">
-              <table className="w-full min-w-[720px] text-left">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                      {t.transaksi.tableColDate}
-                    </th>
-                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                      {t.transaksi.tableColDesc}
-                    </th>
-                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                      {t.transaksi.tableColCategory}
-                    </th>
-                    <th className="px-3 py-2 text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                      {t.transaksi.tableColAccount}
-                    </th>
-                    <th className="px-3 py-2 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                      {t.transaksi.tableColAmount}
-                    </th>
-                    <th className="px-3 py-2 text-right text-[11px] font-bold tracking-wide text-muted-foreground uppercase">
-                      {t.transaksi.tableColOptions}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pagedTransactions.map((tx) => (
-                    <TxTableRow
-                      key={tx.id}
-                      tx={tx}
-                      familyGroupId={familyGroupId}
-                      token={token}
-                      onDeleteClick={() => setDeleteTarget(tx.id)}
-                      onEditClick={() => setEditTarget(tx)}
-                    />
-                  ))}
-                </tbody>
-              </table>
+          )}
+          {isLoading && (
+            <p className="wm-cap py-6 text-center">
+              {t.transaksi.loadingLabel}
+            </p>
+          )}
+          {truncated && (
+            <div className="tx-note" data-tone="warn">
+              {t.transaksi.listTruncatedNote
+                .replace("{shown}", String(transactions.length))
+                .replace("{total}", String(data?.meta?.total ?? 0))}
             </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-3">
-              <span className="text-[11.5px] text-muted-foreground">
+          )}
+          {!isLoading &&
+            groups.map((group) => (
+              <section
+                key={group.day}
+                className="tx-day"
+                aria-label={dayLabel(group.day)}
+              >
+                <header>
+                  <span>{dayLabel(group.day)}</span>
+                  <span className={"wm-num " + (group.net > 0 ? "wm-pos" : "")}>
+                    {group.net > 0 ? "+" : group.net < 0 ? "−" : ""}
+                    {money.formatCompact(Math.abs(group.net))}
+                  </span>
+                </header>
+                {group.rows.map((tx) => (
+                  <HistoryRow
+                    key={tx.id}
+                    tx={tx}
+                    familyGroupId={familyGroupId}
+                    token={token}
+                    onDeleteClick={() => setDeleteTarget(tx.id)}
+                    onEditClick={() => setEditTarget(tx)}
+                  />
+                ))}
+              </section>
+            ))}
+          {!isLoading && visible.length === 0 && !isError && (
+            <p className="wm-cap py-6 text-center">
+              {t.transaksi.emptyFiltered}
+            </p>
+          )}
+          {!isLoading && visible.length > 0 && (
+            <footer className="tx-pager">
+              <span className="wm-cap">
                 {t.transaksi.paginationShowingLabel}
-                {pagedTransactions.length}
+                {visibleRows.length}
                 {t.transaksi.paginationOfMid}
-                {sorted.length}
+                {visible.length}
                 {t.transaksi.transactionsCountSuffix}
               </span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  disabled={currentPage <= 1}
+              <div>
+                <PillButton
+                  disabled={visiblePage <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="rounded-md border px-3 py-1.5 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   {t.transaksi.paginationPrevButton}
-                </button>
-                <button
-                  type="button"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  className="rounded-md border px-3 py-1.5 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                </PillButton>
+                <PillButton
+                  disabled={visiblePage >= visiblePages}
+                  onClick={() => setPage((p) => Math.min(visiblePages, p + 1))}
                 >
                   {t.transaksi.paginationNextButton}
-                </button>
+                </PillButton>
               </div>
-            </div>
-          </>
-        )}
-
-        {!isLoading && sorted.length === 0 && !isError && (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">
-            {t.transaksi.emptyFiltered}
-          </div>
-        )}
-      </SectionCard>
+            </footer>
+          )}
+        </BentoCard>
+      </BentoGrid>
 
       <EditTransactionDialog
         key={editTarget?.id ?? "edit-none"}

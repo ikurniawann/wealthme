@@ -12,6 +12,48 @@ export { StatusBadge, type StatusBadgeVariant } from "./badge";
 export { ProgressBar } from "./progress-bar";
 export { SummaryCard, MoneyStat } from "./stat";
 export { HeroCard, HeroLabel, HeroValue } from "./hero-card";
+// Bento v2 kit (UI revamp) — see src/app/bento.css.
+export {
+  accountTone,
+  AddTile,
+  type CardTone,
+  ARow,
+  BentoCard,
+  BentoGrid,
+  BentoTile,
+  BentoTiles,
+  ChipPicker,
+  CompositionStack,
+  Delta,
+  GhostButton,
+  HatchedBar,
+  BentoHero,
+  HeroKpi,
+  InlineEditor,
+  MiniList,
+  MiniRow,
+  MoneyInput,
+  PillButton,
+  SeeAll,
+  Segmented,
+  TipsCard,
+  Track,
+  type CompositionItem,
+} from "./bento";
+export { GoalIcon, goalIconKind, type GoalIconKind } from "./goal-icon";
+export {
+  AccountCard,
+  CARD_PATTERNS,
+  CARD_SKINS,
+  defaultLook,
+  useCardLooks,
+  type CardLook,
+  type CardPattern,
+  type CardSkin,
+} from "./account-card";
+export { DetailPanel } from "./detail-panel";
+export { FinancialDialog } from "./financial-dialog";
+export { showUndoToast } from "./undo-toast";
 
 // Design-system enhancement layer (EPIC-013)
 export * from "./motion";

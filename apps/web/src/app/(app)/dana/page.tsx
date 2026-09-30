@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Info, HandCoins } from "lucide-react";
+import { Plus, HandCoins } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,9 +12,19 @@ import { useFamilyMembers } from "@/hooks/use-family-members";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import type { Locale } from "@/i18n";
-import { SectionCard, HeroCard, CardLink, SummaryCard } from "@/components/wm";
-import { Button } from "@/components/ui/button";
-import { DonutChart } from "@/components/charts/apex-presets";
+import {
+  SectionCard,
+  CardLink,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  CompositionStack,
+  GhostButton,
+  HeroKpi,
+  TipsCard,
+} from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import "./dana.css";
 import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -261,6 +271,18 @@ function MutationRow({
       </td>
     </tr>
   );
+}
+
+/** Axis ticks: "20 jt", "500 rb". */
+function axisJt(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "−" : "";
+  const trim = (n: number) =>
+    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
+  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
+  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
+  return `${sign}${Math.round(abs)}`;
 }
 
 export default function DanaPage() {
@@ -521,125 +543,149 @@ export default function DanaPage() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Prototype structural port (EPIC-025 N3 audit) — page-lead header:
-          title, subtitle, and the two header add actions. Wired to the
-          SAME openAdd() the section "+ Tambah" links already use — no new
-          add flow. */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="min-w-[220px] flex-1">
-          <h1 className="text-[17px] font-extrabold tracking-tight">
-            {t.shell.pageTitles.dana}
-          </h1>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => openAdd("cash")}
-          >
-            <Plus className="size-3.5" /> {t.dana.addCashHeaderButton}
-          </Button>
-          <Button type="button" size="sm" onClick={() => openAdd("ewallet")}>
-            <Plus className="size-3.5" /> {t.dana.addEwalletHeaderButton}
-          </Button>
-        </div>
-      </div>
-
-      <HeroCard className="gradient-emerald">
-        <div className="mb-1 text-xs opacity-80">{t.dana.totalLabel}</div>
-        <div className="text-[28px] font-black">
-          {isLoading
+    <BentoGrid className="dn-grid">
+      <h1 className="sr-only">{t.shell.pageTitles.dana}</h1>
+      <BentoHero
+        className="dn-hero"
+        currency={null}
+        value={
+          isLoading
             ? t.dana.loadingLabel
             : isError
               ? "—"
-              : money.format(totalBalance)}
-        </div>
-        {!isLoading && !isError && (
-          <div className="mt-1.5 text-xs text-[#86EFAC]">
-            {danaAccounts.length}
-            {t.dana.accountsConnectedSuffix}
-          </div>
-        )}
-      </HeroCard>
+              : money.format(totalBalance).replace(/,00$/, "")
+        }
+        caption={`${t.dana.totalLabel} · ${danaAccounts.length}${t.dana.accountsConnectedSuffix}`}
+        controls={
+          <>
+            <GhostButton onClick={() => openAdd("cash")}>
+              <Plus aria-hidden="true" /> {t.dana.addCashHeaderButton}
+            </GhostButton>
+            <GhostButton lit onClick={() => openAdd("ewallet")}>
+              <Plus aria-hidden="true" /> {t.dana.addEwalletHeaderButton}
+            </GhostButton>
+          </>
+        }
+        chart={
+          danaAccounts.length > 0 ? (
+            <HatchedBarChart
+              labels={danaAccounts.map((a) => a.institution || a.name)}
+              series={[
+                {
+                  name: t.dana.totalLabel,
+                  data: danaAccounts.map((a) => parseFloat(a.balance)),
+                  color: "var(--wm-lime)",
+                },
+              ]}
+              highlight={danaAccounts.reduce(
+                (m, a, k, arr) =>
+                  parseFloat(a.balance) > parseFloat(arr[m].balance) ? k : m,
+                0,
+              )}
+              format={money.formatCompact}
+              axis={axisJt}
+              wide
+              ariaLabel={t.dana.compositionTitle}
+            />
+          ) : null
+        }
+        kpis={
+          <>
+            <HeroKpi
+              label={t.dana.cashStatLabel}
+              value={money.formatCompact(
+                cashItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
+              )}
+              delta={
+                <small className="wm-cap">{`${cashItems.length}${t.dana.cashCountSuffix}`}</small>
+              }
+            />
+            <HeroKpi
+              label={t.dana.ewalletStatLabel}
+              value={money.formatCompact(
+                ewalletItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
+              )}
+              delta={
+                <small className="wm-cap">{`${ewalletItems.length}${t.dana.ewalletCountSuffix}`}</small>
+              }
+            />
+            <HeroKpi
+              label={t.dana.v2.connected}
+              value={String(danaAccounts.length)}
+            />
+          </>
+        }
+      />
 
       {isError && (
         <div
           role="alert"
-          className="rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
+          className="dn-full rounded-lg border border-destructive bg-destructive/5 px-4 py-2.5 text-[13px] text-destructive"
         >
           <span className="font-semibold">{t.dana.errorPrefixLabel}</span>
           {t.dana.errorLoadBody}
         </div>
       )}
 
-      {/* Prototype structural port (EPIC-025 N3-B3, extended by the N3
-          audit) — the prototype's cash-summary-grid: two stacked stat
-          cards in a left column beside a "Komposisi" donut in the right
-          column. The hero's own category-trend line chart and its "↑ N%
-          dari bulan lalu" delta are still NOT ported: this page fetches
-          account balances, not a balance history/trend series, so there is
-          no real number to show — fabricating one would violate the
-          Honest UI mandate. The donut IS derivable (per-account balances,
-          already fetched above), so it's ported. */}
-      {!isLoading && danaAccounts.length > 0 && (
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-          <div className="grid grid-cols-1 gap-3.5 md:col-span-2">
-            <SummaryCard
-              icon="👛"
-              iconBg="var(--accent)"
-              label={t.dana.cashStatLabel}
-              amount={money.format(
-                cashItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
-              )}
-              delta={`${cashItems.length}${t.dana.cashCountSuffix}`}
-              deltaUp
-            />
-            <SummaryCard
-              icon="💳"
-              iconBg="var(--success-soft)"
-              iconColor="var(--success)"
-              label={t.dana.ewalletStatLabel}
-              amount={money.format(
-                ewalletItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
-              )}
-              delta={`${ewalletItems.length}${t.dana.ewalletCountSuffix}`}
-              deltaUp
+      <BentoCard
+        className="dn-comp"
+        title={t.dana.compositionTitle}
+        caption={t.dana.v2.perInstrument}
+      >
+        {compositionSegments.length > 0 ? (
+          <div className="mt-3">
+            <CompositionStack
+              label={t.dana.compositionTitle}
+              center={money.formatCompact(totalBalance)}
+              sub={t.dana.compositionTotalLabel}
+              format={money.formatCompact}
+              items={compositionSegments.map((seg) => ({
+                label: seg.label,
+                value: seg.value,
+                color: seg.color,
+              }))}
             />
           </div>
-          {compositionSegments.length > 0 && (
-            <SectionCard title={t.dana.compositionTitle} bodyClassName="pt-0">
-              <DonutChart
-                segments={compositionSegments}
-                centerLabel={t.dana.compositionTotalLabel}
-                ariaLabel={`${t.dana.compositionTitle}: ${compositionSegments
-                  .map((s) => `${s.label} ${money.format(s.value)}`)
-                  .join(", ")}`}
-                money={money}
-              />
-            </SectionCard>
-          )}
-        </div>
-      )}
+        ) : (
+          <p className="wm-cap mt-4">{t.dana.emptyEwallet}</p>
+        )}
+      </BentoCard>
 
-      {/* Prototype structural port — info callout (real, static copy; no
-          derived numbers). */}
-      <div className="flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
-        <Info className="mt-0.5 size-4 shrink-0" />
-        <span>
-          <strong>{t.dana.infoNoticeBold}</strong>
-          {t.dana.infoNoticeBody}
-          <a href="/rekening" className="font-bold text-primary">
-            {t.dana.infoNoticeLinkLabel}
-          </a>
-          {t.dana.infoNoticeSuffix}
-        </span>
-      </div>
+      <TipsCard
+        className="dn-tip"
+        title={t.dana.infoNoticeBold}
+        mosaic={[
+          "",
+          "b",
+          "a",
+          "",
+          "b",
+          "a",
+          "b",
+          "a",
+          "a",
+          "",
+          "c",
+          "a",
+          "",
+          "b",
+          "a",
+          "a",
+          "b",
+          "a",
+        ]}
+      >
+        {t.dana.infoNoticeBody}
+        <a href="/rekening" className="font-bold">
+          {t.dana.infoNoticeLinkLabel}
+        </a>
+        {t.dana.infoNoticeSuffix}
+      </TipsCard>
 
       {/* EPIC-021 #3 — Kas Tunai is now a real, plural account list (Add/Edit/
           Delete), not a single read-only "Kas Tunai" row. */}
       <SectionCard
+        className="dn-cash"
         title={t.dana.cashSectionTitle}
         action={
           <CardLink
@@ -678,6 +724,7 @@ export default function DanaPage() {
       </SectionCard>
 
       <SectionCard
+        className="dn-ew"
         title={t.dana.ewalletSectionTitle}
         action={
           <CardLink
@@ -720,6 +767,7 @@ export default function DanaPage() {
           placeholder rows). */}
       {recentDanaTransactions.length > 0 && (
         <SectionCard
+          className="dn-full"
           title={t.dana.mutationsSectionTitle}
           action={
             <a
@@ -783,6 +831,6 @@ export default function DanaPage() {
         onClose={() => setDeleting(null)}
         onConfirm={handleDeleteConfirm}
       />
-    </div>
+    </BentoGrid>
   );
 }

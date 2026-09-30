@@ -1,0 +1,42 @@
+import {
+  ArrowLeftRight,
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  CalendarRange,
+  FileText,
+  Landmark,
+  LayoutDashboard,
+  LineChart,
+  List,
+  PieChart,
+  Receipt,
+  Scale,
+  TrendingUp,
+  Users,
+  Wallet,
+  Waves,
+  type LucideIcon,
+} from "lucide-react";
+import type { ReportTabId } from "@/lib/nav";
+
+/** One line icon per report in the Laporan index (docs/design/proto/laporan.html). */
+export const REPORT_ICONS: Record<ReportTabId, LucideIcon> = {
+  rsum: LayoutDashboard,
+  rharian: CalendarDays,
+  rbulanan: CalendarRange,
+  rtahunan: BarChart3,
+  rfamily: Users,
+  rbank: Landmark,
+  rdetail: List,
+  raliran: Waves,
+  rpnl: Receipt,
+  rcashflow: ArrowLeftRight,
+  rkas: Wallet,
+  rinv: PieChart,
+  rperf: TrendingUp,
+  rbalance: Scale,
+  rasl: LineChart,
+  rpajak: FileText,
+  rcoa: BookOpen,
+};

@@ -596,7 +596,7 @@ function BeneficiaryEditor({
             <div
               className="progress__bar"
               style={{
-                width: `${allocated}%`,
+                transform: `scaleX(${Math.min(100, Math.max(0, allocated)) / 100})`,
                 background:
                   unallocated <= 0 ? "var(--success)" : "var(--warning)",
               }}

@@ -30,3 +30,43 @@ describe("isMobileNavItemActive", () => {
     expect(isMobileNavItemActive("/asetx", "/aset")).toBe(false);
   });
 });
+
+describe("dockSlots (bento v2 pill dock)", () => {
+  const { resolveEffectiveAccess } = jest.requireActual(
+    "@wealthme/contracts",
+  ) as typeof import("@wealthme/contracts");
+  const { mobileNavForAccess } = jest.requireActual(
+    "../../lib/nav",
+  ) as typeof import("../../lib/nav");
+  const { dockSlots } = jest.requireActual(
+    "./mobile-bars",
+  ) as typeof import("./mobile-bars");
+  const shape = (slots: ReturnType<typeof dockSlots>) =>
+    slots.map((s) => (s.kind === "link" ? s.item.id : s.kind));
+
+  test("a Master gets Beranda, Transaksi, +, Laporan, Menu", () => {
+    const items = mobileNavForAccess(resolveEffectiveAccess({ role: "owner" }));
+    expect(shape(dockSlots(items, true))).toEqual([
+      "beranda",
+      "transaksi",
+      "add",
+      "laporan",
+      "menu",
+    ]);
+  });
+
+  test("Akun never takes a dock slot (it lives behind the avatar and launcher)", () => {
+    const items = mobileNavForAccess(null);
+    expect(shape(dockSlots(items, false))).not.toContain("akun");
+  });
+
+  test("the + is dropped for members who may not record a transaction", () => {
+    const items = mobileNavForAccess(resolveEffectiveAccess({ role: "owner" }));
+    expect(shape(dockSlots(items, false))).toEqual([
+      "beranda",
+      "transaksi",
+      "laporan",
+      "menu",
+    ]);
+  });
+});

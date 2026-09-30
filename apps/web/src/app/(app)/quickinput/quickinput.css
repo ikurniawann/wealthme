@@ -1,0 +1,65 @@
+/* Input Cepat (bento v2, docs/design/proto/quickinput.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .qi-grid > .qi-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .qi-grid > .qi-recent {
+      grid-column: 9 / 13;
+      grid-row: 1 / 3;
+    }
+    .qi-grid > .qi-shortcuts {
+      grid-column: 1 / 9;
+      grid-row: 2 / 4;
+    }
+    .qi-grid > .qi-tip {
+      grid-column: 9 / 13;
+      grid-row: 3;
+    }
+  }
+  .qi-hero .wm-ghost-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+  .qi-hero .wm-chart-wrap {
+    min-height: 200px;
+  }
+  .qi-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .qi-tiles .wm-btile {
+    min-height: 112px;
+  }
+  .qi-tiles .wm-btile small {
+    margin-top: auto;
+  }
+  .qi-tiles .wm-btile-tt {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: var(--wm-type-14);
+    font-weight: 600;
+  }
+  .qi-tiles .wm-ci {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: var(--wm-lime-soft);
+    color: var(--wm-ink);
+  }
+  .qi-tiles .wm-ci svg {
+    width: 18px;
+    height: 18px;
+  }
+  @media (max-width: 900px) {
+    .qi-tiles {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    .qi-tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}

@@ -3,152 +3,84 @@
 import { useState } from "react";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
-import { BerandaHero } from "./_components/hero-card";
-import { WealthSnapshot } from "./_components/wealth-snapshot";
-import { StatCards } from "./_components/stat-cards";
-import { CashflowCard } from "./_components/cashflow-card";
-import { AllocationCard } from "./_components/allocation-card";
-import { RecentActivity } from "./_components/recent-activity";
-import { BudgetCard } from "./_components/budget-card";
-import { AttentionCard } from "./_components/attention-card";
-import { GoalsCard } from "./_components/goals-card";
-import { SetupChecklistCard } from "./_components/setup-checklist-card";
+import { BentoGrid } from "@/components/wm";
+import {
+  AttentionTips,
+  BerandaHeroCard,
+  GoalsBento,
+  HealthBento,
+  HistoryBento,
+  SpendingBento,
+  LimitCard,
+  WalletCard,
+} from "./_components/bento-sections";
+import { MobileHome } from "./_components/mobile-home";
 import {
   useBerandaData,
   useMoneyFormatters,
   type BerandaPeriod,
 } from "./_components/use-beranda-data";
+import "./_components/beranda.css";
 
 /**
- * EPIC-026 Wave 8 — `/beranda` rebuilt 1:1 against
- * `docs/prototype/pages/beranda.html`'s `.bento-dashboard`.
- *
- * Section order matches the prototype exactly: hero (7) · composition
- * snapshot (5) · four stat tiles (3 each) · cashflow chart (7) · allocation
- * donut (5) · recent transactions (7) · side column with budget + needs
- * attention (5) · goals (full width). All spans come from `design-system.css`;
- * this file owns composition only — the sections live in `_components/`.
+ * Bento v2 Beranda (docs/design/proto/index.html). Desktop: dark hero with
+ * the real six-month cash flow (or net-worth history) and a KPI column,
+ * wallet, monthly limit, the one attention card, allocation, savings health,
+ * goals and history. Phones (<= 720px) get the dedicated `MobileHome`. The
+ * greeting and page title live in the shell (`PageGreeting`).
  */
 function BerandaPage() {
   const { data: session } = useSession();
   const { t } = useLocale();
-  const [period, setPeriod] = useState<BerandaPeriod>("6M");
-  const [dismissedSetup, setDismissedSetup] = useState(false);
+  const [period] = useState<BerandaPeriod>("6M");
 
   const fmt = useMoneyFormatters();
   const data = useBerandaData(period);
 
   if (data.isError) {
-    return (
-      <div className="t-md t-muted flex items-center justify-center py-16">
-        {t.beranda.loadError}
-      </div>
-    );
+    return <p className="wm-cap py-16 text-center">{t.beranda.loadError}</p>;
   }
 
-  const firstName = session?.user?.name?.split(" ")[0] ?? "Kamu";
-  const greetingKey = getGreetingKey(new Date().getHours());
-
   return (
-    <div className="stack gap-3.5">
-      <div className="section-title">
-        {t.greeting[greetingKey]}, {firstName}
-      </div>
+    <div className="flex flex-col gap-4">
+      <MobileHome
+        netWorth={data.netWorth}
+        accounts={data.accounts}
+        members={data.members}
+        currentMonth={data.currentMonth}
+        cashflow={data.cashflow}
+        transactions={data.recentTransactions}
+        goals={data.goals}
+        fmt={fmt}
+      />
 
-      {data.isSetupChecklistReady &&
-        !(data.setupChecklist.complete && dismissedSetup) && (
-          <SetupChecklistCard
-            {...data.setupChecklist}
-            onDismiss={() => setDismissedSetup(true)}
+      <section aria-label={t.beranda.title}>
+        <BentoGrid className="beranda-grid">
+          <BerandaHeroCard
+            netWorth={data.netWorth}
+            currentMonth={data.currentMonth}
+            cashflow={data.cashflow}
+            fmt={fmt}
           />
-        )}
-
-      <section
-        className="bento-dashboard bento-dashboard--ordered"
-        aria-label={t.beranda.title}
-      >
-        <BerandaHero
-          isLoading={data.isLoading}
-          netWorth={data.netWorth}
-          assetsTotal={data.assetsTotal}
-          totalLiabilities={data.totalLiabilities}
-          currentMonth={data.currentMonth}
-          historyPoints={data.historyPoints}
-          isHistoryLoading={data.isHistoryLoading}
-          period={period}
-          onPeriodChange={setPeriod}
-          fmt={fmt}
-        />
-
-        <WealthSnapshot
-          isLoading={data.isLoading}
-          liquidTotal={data.liquidTotal}
-          nonLiquidTotal={data.nonLiquidTotal}
-          liquidPct={data.liquidPct}
-          nonLiquidPct={data.nonLiquidPct}
-          fmt={fmt}
-        />
-
-        <StatCards
-          hasData={Boolean(data.summary)}
-          cashEwalletTotal={data.cashEwalletTotal}
-          bankTotal={data.bankTotal}
-          investasiTotal={data.investasiTotal}
-          totalLiabilities={data.totalLiabilities}
-          fmt={fmt}
-        />
-
-        <CashflowCard
-          isLoading={data.isLoading}
-          cashflow={data.cashflow}
-          currentMonth={data.currentMonth}
-          fmt={fmt}
-        />
-
-        <AllocationCard
-          isLoading={data.isLoading}
-          allocation={data.allocation}
-        />
-
-        <RecentActivity
-          isLoading={data.isLoading}
-          transactions={data.recentTransactions}
-          fmt={fmt}
-        />
-
-        <div className="bento-side">
-          <BudgetCard
-            isLoading={data.isBudgetsLoading}
-            budgets={data.budgets}
+          <WalletCard
+            accounts={data.accounts}
+            members={data.members}
+            selfUserId={session?.userId}
+            fmt={fmt}
           />
-          <AttentionCard
-            isLoading={data.isLoading}
+          <LimitCard budgets={data.budgets} fmt={fmt} />
+          <AttentionTips
             pendingApprovalsCount={data.pendingApprovalsCount}
             nearestDueLiability={data.nearestDueLiability}
           />
-        </div>
-
-        <GoalsCard
-          isLoading={data.isGoalsLoading}
-          goals={data.goals}
-          fmt={fmt}
-        />
+          <SpendingBento fmt={fmt} />
+          <HealthBento fmt={fmt} />
+          <GoalsBento goals={data.goals} fmt={fmt} />
+          <HistoryBento fmt={fmt} />
+        </BentoGrid>
       </section>
-
-      {/* EPIC-026 Wave 3 — the AI insight banner was removed: the prototype's
-          bento-dashboard ends at `.bento-goals`, and the banner's "insight"
-          was static i18n copy, not real analysis. */}
     </div>
   );
-}
-
-function getGreetingKey(
-  h: number,
-): "morning" | "afternoon" | "afternoon2" | "evening" {
-  if (h < 11) return "morning";
-  if (h < 15) return "afternoon";
-  if (h < 18) return "afternoon2";
-  return "evening";
 }
 
 export default BerandaPage;

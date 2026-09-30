@@ -79,13 +79,19 @@ export function BudgetCard({
             <div className="row row--between">
               <span className="t-sm t-bold">{b.categoryName}</span>
               <span className="t-xs t-muted mono">
-                {formatBudgetRow(b.spentAmount, b.limitAmount, money.formatCompact)}
+                {formatBudgetRow(
+                  b.spentAmount,
+                  b.limitAmount,
+                  money.formatCompact,
+                )}
               </span>
             </div>
             <div className="progress mt-1.5">
               <div
                 className={`progress__bar${budgetBarModifier(b)}`}
-                style={{ width: `${Math.min(100, b.usagePercent)}%` }}
+                style={{
+                  transform: `scaleX(${Math.min(100, Math.max(0, b.usagePercent)) / 100})`,
+                }}
               />
             </div>
             {b.isOverBudget && (

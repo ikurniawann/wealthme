@@ -193,22 +193,24 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     ).toBeNull();
   });
 
-  it("batch 1 — the Total Ditalangin stat card renders through the shared SummaryCard, with a neutral (non-colored) caption", async () => {
+  it("bento v2 — the hero shows what is still unpaid and the three real totals as KPIs", async () => {
     mockApiFetchDefault();
     render(<SplitBillPage />);
 
-    await screen.findByText("Makan di Sushi Tei");
-
+    await screen.findAllByText("Makan di Sushi Tei");
     expect(
       screen.getByText(idDict.splitbill.totalDitalanginLabel),
     ).toBeInTheDocument();
-    const caption = screen.getByText(`1${idDict.splitbill.activeSplitsSuffix}`);
-    expect(caption).toHaveClass("stat__delta");
-    expect(caption).toHaveClass("stat__delta--neutral");
-    expect(caption).not.toHaveClass("t-success");
-    expect(caption).not.toHaveClass("t-danger");
-    // All three cards now share the `.card.stat` shell — no hand-rolled markup.
-    expect(document.querySelectorAll(".card.stat")).toHaveLength(3);
+    expect(
+      screen.getByText(idDict.splitbill.sudahDibayarLabel),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: idDict.splitbill.pageTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(document.querySelectorAll(".wm-kpi")).toHaveLength(3);
   });
 
   it("polish-j batch 7a item 12 — the create dialog's footer sticks to the bottom on desktop widths too", async () => {

@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 
 import { ProgressBar, StatusBadge, CardLink } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
+import { BentoCard, CompositionStack, GhostButton } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { formatPercent1, type RingkasanData } from "./use-ringkasan-data";
 import type { TrendRangeKey } from "./use-ringkasan-data";
@@ -163,5 +164,41 @@ export function TrendCompositionSection({
         </div>
       </article>
     </section>
+  );
+}
+
+/** Bento v2: asset composition as a composition stack (no donut), beside the hero. */
+export function CompositionBento({ data }: { data: RingkasanData }) {
+  const { t } = useLocale();
+  const router = useRouter();
+  const { isLoading, donutSegments, money, totalAssets } = data;
+  return (
+    <BentoCard
+      className="rk2-comp private-scope"
+      title={t.ringkasan.compositionTitle}
+      action={
+        <GhostButton onClick={() => router.push("/aset")}>
+          {t.common.viewDetail}
+        </GhostButton>
+      }
+    >
+      {isLoading ? null : donutSegments.length === 0 ? (
+        <p className="wm-cap mt-4">{t.ringkasan.emptyComposition}</p>
+      ) : (
+        <div className="mt-3 private">
+          <CompositionStack
+            label={t.ringkasan.compositionTitle}
+            center={money(totalAssets)}
+            sub={t.ringkasan.totalAssetsLabel}
+            format={money}
+            items={donutSegments.map((seg) => ({
+              label: seg.label,
+              value: seg.value,
+              color: seg.color,
+            }))}
+          />
+        </div>
+      )}
+    </BentoCard>
   );
 }

@@ -45,7 +45,11 @@ import {
   ProgressBar,
   CardLink,
   InfoTip,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
 } from "@/components/wm";
+import "./rekonsiliasi.css";
 import { useLocale } from "@/hooks/use-locale";
 // EPIC-029 group 4 — client-side unlock of a password-protected statement.
 // Only the taxonomy/orchestration module is imported statically; both
@@ -244,69 +248,6 @@ const SUPPORTED_BANKS = [
 ] as const;
 
 type MatchStatus = "ok" | "warn" | "err";
-
-/* ─────────────────────────── Step cards ─────────────────────────── */
-
-/** Restructure (prototype parity) — bordered numbered step cards with a
- * status badge (Selesai / Sedang berjalan / Menunggu) and an outlined
- * active card, replacing the plain circles-and-lines stepper. Purely a
- * navigation/visual change — `step` state and the 4-step flow are
- * unchanged. */
-function StepCards({ step }: { step: number }) {
-  const { t } = useLocale();
-  return (
-    <div className="mb-5 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
-      {STEP_NUMS.map((num) => {
-        const done = step > num;
-        const active = step === num;
-        const s = t.rekonsiliasi.steps[num];
-        const statusLabel = done
-          ? t.rekonsiliasi.stepStatusDone
-          : active
-            ? t.rekonsiliasi.stepStatusActive
-            : t.rekonsiliasi.stepStatusPending;
-        return (
-          <div
-            key={num}
-            className={[
-              "rounded-[14px] border-2 bg-card p-3.5 transition-colors",
-              active ? "border-primary" : "border-transparent",
-            ].join(" ")}
-          >
-            <div className="mb-2 flex items-center justify-between">
-              <div
-                className={[
-                  "flex size-7 items-center justify-center rounded-full text-[12px] font-bold",
-                  done
-                    ? "bg-success text-white"
-                    : active
-                      ? "bg-primary text-white"
-                      : "bg-muted text-muted-foreground",
-                ].join(" ")}
-              >
-                {done ? <Check className="size-[14px]" /> : num}
-              </div>
-              <span
-                className={[
-                  "rounded-full px-2 py-0.5 text-[10px] font-bold",
-                  done
-                    ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
-                    : active
-                      ? "bg-accent text-primary-strong"
-                      : "bg-muted text-muted-foreground",
-                ].join(" ")}
-              >
-                {statusLabel}
-              </span>
-            </div>
-            <div className="text-[13.5px] font-extrabold">{s.label}</div>
-            <div className="text-[11px] text-muted-foreground">{s.sub}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function entryStatus(reconStatus: string): MatchStatus {
   if (reconStatus === "matched") return "ok";
@@ -2044,44 +1985,110 @@ export default function RekonsiliasiPage() {
 
   return (
     <div>
-      {/* Restructure (prototype parity) — page header with title/subtitle
-          and the two header actions from the prototype. "Kelola Template"
-          is gated the same as its existing bank-picker CardLink
-          (owner/admin_staff/spouse — casl-ability.factory.ts's
-          ReconciliationTemplate subject); "Upload Mutasi" jumps to Step 1
-          and opens the real file picker. */}
-      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="mb-1 text-[19px] font-extrabold">
-            {t.rekonsiliasi.headerTitle}
-          </div>
-          <div className="h-[3px] w-9 rounded-full bg-primary" />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {canManageTemplates && (
-            <button
-              type="button"
-              onClick={() => setTemplateManagerOpen(true)}
-              className="rounded-lg border px-3.5 py-2 text-[12.5px] font-bold transition-colors hover:bg-accent"
+      {/* Bento v2 hero: the match rate once entries are matched (else the
+          number of uploaded statements), the 4-step flow as a progress track
+          plus the match composition, and the real Cocok / Ditinjau / Belum
+          counts. Same two header actions and gates as before. */}
+      <BentoHero
+        className="rk-hero mb-4"
+        valueAs="h1"
+        currency={null}
+        value={
+          totalEntriesCount > 0
+            ? `${matchedPctDisplay}%`
+            : String(syncsQuery.data?.length ?? 0)
+        }
+        caption={
+          totalEntriesCount > 0
+            ? `${t.rekonsiliasi.v2.matchRate} · ${t.rekonsiliasi.v2.matchedSum.replace("{amount}", money.format(matchedAmountSum))}`
+            : t.rekonsiliasi.v2.docsCaption
+        }
+        controls={
+          <>
+            {canManageTemplates && (
+              <GhostButton onClick={() => setTemplateManagerOpen(true)}>
+                {t.rekonsiliasi.manageTemplatesLink}
+              </GhostButton>
+            )}
+            <GhostButton
+              lit
+              onClick={() => {
+                goto(1);
+                handleUploadAreaClick();
+              }}
             >
-              {t.rekonsiliasi.manageTemplatesLink}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              goto(1);
-              handleUploadAreaClick();
-            }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-[12.5px] font-bold text-white transition-opacity hover:opacity-90"
-          >
-            <ArrowUpFromLine className="size-3.5" />
-            {t.rekonsiliasi.uploadMutasiButton}
-          </button>
-        </div>
-      </div>
-
-      <StepCards step={step} />
+              <ArrowUpFromLine aria-hidden="true" />
+              {t.rekonsiliasi.uploadMutasiButton}
+            </GhostButton>
+          </>
+        }
+        chart={
+          <div className="rk-flow">
+            <ol
+              className="rk-steps"
+              aria-label={t.rekonsiliasi.v2.stepOf.replace("{n}", String(step))}
+            >
+              {STEP_NUMS.map((num) => {
+                const s = t.rekonsiliasi.steps[num];
+                const state =
+                  step > num ? "done" : step === num ? "active" : "todo";
+                return (
+                  <li
+                    key={num}
+                    data-state={state}
+                    aria-current={state === "active" ? "step" : undefined}
+                  >
+                    <span className="rk-step-dot">
+                      {state === "done" ? <Check aria-hidden="true" /> : num}
+                    </span>
+                    <b>{s.label}</b>
+                    <small>
+                      {state === "done"
+                        ? t.rekonsiliasi.stepStatusDone
+                        : state === "active"
+                          ? t.rekonsiliasi.stepStatusActive
+                          : t.rekonsiliasi.stepStatusPending}
+                    </small>
+                  </li>
+                );
+              })}
+            </ol>
+            {totalEntriesCount > 0 && (
+              <div
+                className="rk-comp"
+                role="img"
+                aria-label={t.rekonsiliasi.v2.compAria}
+              >
+                {matchedPct > 0 && (
+                  <i data-k="ok" style={{ flex: matchedPct }} />
+                )}
+                {suggestedPct > 0 && (
+                  <i data-k="warn" style={{ flex: suggestedPct }} />
+                )}
+                {unmatchedPct > 0 && (
+                  <i data-k="err" style={{ flex: unmatchedPct }} />
+                )}
+              </div>
+            )}
+          </div>
+        }
+        kpis={
+          <>
+            <HeroKpi
+              label={t.rekonsiliasi.v2.ok}
+              value={totalEntriesCount > 0 ? String(matchedCount) : "—"}
+            />
+            <HeroKpi
+              label={t.rekonsiliasi.v2.review}
+              value={totalEntriesCount > 0 ? String(suggestedCount) : "—"}
+            />
+            <HeroKpi
+              label={t.rekonsiliasi.v2.err}
+              value={totalEntriesCount > 0 ? String(unmatchedCount) : "—"}
+            />
+          </>
+        }
+      />
 
       {/* EPIC-023 Task G retry (HIGH five-reviewer finding) — a partial
           import must stay visible past the upload toast: every skipped row
@@ -2568,25 +2575,8 @@ export default function RekonsiliasiPage() {
             </button>
           </div>
 
-          {/* Right rail — supported banks quick reference + tips card,
-              matching the prototype's 2-column layout. */}
+          {/* Right rail — tips (the bank picker lives in the main column). */}
           <div className="space-y-4">
-            <SectionCard title={t.rekonsiliasi.supportedBanksTitle}>
-              <div className="flex flex-wrap gap-1.5">
-                {SUPPORTED_BANKS.map((b) => (
-                  <span
-                    key={b.code}
-                    className="rounded-full border bg-card px-2.5 py-1 text-[11px] font-semibold"
-                  >
-                    {b.name}
-                  </span>
-                ))}
-              </div>
-              <div className="mt-2.5 text-[11px] text-muted-foreground">
-                {t.rekonsiliasi.bankPickerHint}
-              </div>
-            </SectionCard>
-
             {showTips && (
               <div className="relative rounded-[14px] border border-amber-300 bg-amber-50 px-4 py-3.5 dark:border-amber-900 dark:bg-amber-950/30">
                 <button
@@ -2706,127 +2696,8 @@ export default function RekonsiliasiPage() {
           });
           return (
             <div className="space-y-4">
-              {/* EPIC-026 Wave 5 (prototype parity) — the prototype's
-                  summary section: three `.card stat` cards (icon chip +
-                  label + mono count + delta line) beside a "Komposisi
-                  Hasil" card whose composition is a stacked BAR + legend
-                  — not a chart (see the import-side note: this page has no
-                  chart mount in the prototype). Delta lines are real: the
-                  matched Rp sum is computed from the same entries the
-                  table shows, at the same display scale. */}
-              <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
-                <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-                  <div className="rounded-[14px] border bg-card p-4">
-                    <div className="mb-2 flex size-9 items-center justify-center rounded-[10px] bg-success-soft text-[16px]">
-                      ✅
-                    </div>
-                    <div className="text-[11.5px] font-bold text-muted-foreground">
-                      {t.rekonsiliasi.matchedSummaryLabel}
-                    </div>
-                    <div className="mono text-[20px] font-extrabold">
-                      {matchedCount}
-                    </div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-success">
-                      {money.format(matchedAmountSum)} tercocokkan
-                    </div>
-                  </div>
-                  <div className="rounded-[14px] border bg-card p-4">
-                    <div className="mb-2 flex size-9 items-center justify-center rounded-[10px] bg-warning-soft text-[16px]">
-                      ⚠️
-                    </div>
-                    <div className="text-[11.5px] font-bold text-muted-foreground">
-                      {t.rekonsiliasi.needsReviewSummaryLabel}
-                    </div>
-                    <div className="mono text-[20px] font-extrabold">
-                      {suggestedCount}
-                    </div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-warning">
-                      Tersarankan, menunggu konfirmasi
-                    </div>
-                  </div>
-                  <div className="rounded-[14px] border bg-card p-4">
-                    <div className="mb-2 flex size-9 items-center justify-center rounded-[10px] bg-destructive/10 text-[16px]">
-                      ❌
-                    </div>
-                    <div className="text-[11.5px] font-bold text-muted-foreground">
-                      {t.rekonsiliasi.notMatchedSummaryLabel}
-                    </div>
-                    <div className="mono text-[20px] font-extrabold">
-                      {unmatchedCount}
-                    </div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-destructive">
-                      Belum ada transaksi padanan
-                    </div>
-                  </div>
-                </div>
-
-                <SectionCard
-                  title={t.rekonsiliasi.compositionTitle}
-                  action={
-                    <StatusBadge variant="gray">
-                      {entries.length}
-                      {t.rekonsiliasi.matchResultsFooterSuffix}
-                    </StatusBadge>
-                  }
-                >
-                  <div className="mb-2 flex items-center justify-between text-[11.5px]">
-                    <span className="text-muted-foreground">
-                      Cocok otomatis
-                    </span>
-                    <strong className="mono text-[13px]">
-                      {matchedPctDisplay}%
-                    </strong>
-                  </div>
-                  <div
-                    role="img"
-                    aria-label={`${matchedCount} baris cocok, ${suggestedCount} perlu review, dan ${unmatchedCount} tidak cocok dari total ${entries.length} baris`}
-                    className="flex h-3 w-full overflow-hidden rounded-full bg-muted"
-                  >
-                    {matchedCount > 0 && (
-                      <span
-                        className="h-full bg-success"
-                        style={{ width: `${matchedPct}%` }}
-                      />
-                    )}
-                    {suggestedCount > 0 && (
-                      <span
-                        className="h-full bg-warning"
-                        style={{ width: `${suggestedPct}%` }}
-                      />
-                    )}
-                    {unmatchedCount > 0 && (
-                      <span
-                        className="h-full bg-destructive"
-                        style={{ width: `${unmatchedPct}%` }}
-                      />
-                    )}
-                  </div>
-                  <div className="mt-3 space-y-1.5 text-[12px]">
-                    <div className="flex items-center gap-2">
-                      <span className="size-2 shrink-0 rounded-full bg-success" />
-                      <span className="flex-1 text-muted-foreground">
-                        {t.rekonsiliasi.matchedSummaryLabel}
-                      </span>
-                      <strong className="mono">{matchedCount}</strong>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="size-2 shrink-0 rounded-full bg-warning" />
-                      <span className="flex-1 text-muted-foreground">
-                        {t.rekonsiliasi.needsReviewSummaryLabel}
-                      </span>
-                      <strong className="mono">{suggestedCount}</strong>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="size-2 shrink-0 rounded-full bg-destructive" />
-                      <span className="flex-1 text-muted-foreground">
-                        {t.rekonsiliasi.notMatchedSummaryLabel}
-                      </span>
-                      <strong className="mono">{unmatchedCount}</strong>
-                    </div>
-                  </div>
-                </SectionCard>
-              </div>
-
+              {/* The summary (Cocok / Perlu ditinjau / Belum cocok, the
+                  composition and the matched total) now lives in the hero. */}
               <SectionCard
                 title={t.rekonsiliasi.matchResultsTitle}
                 action={

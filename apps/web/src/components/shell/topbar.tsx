@@ -1,50 +1,158 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, Bell, LogOut, Plus, Search } from "lucide-react";
-import { useSession } from "@/lib/auth-compat";
+import { useTheme } from "next-themes";
+import {
+  ArrowLeft,
+  Languages,
+  LogOut,
+  Moon,
+  Plus,
+  Search,
+  Sun,
+  User,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { canRecordTransaction, isPageTitleId } from "@/lib/nav";
-import { useAuth } from "@/components/providers/auth-provider";
+import { useSession } from "@/lib/auth-compat";
+import { canRecordTransaction } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
-import type { I18nDictionary } from "@/i18n/types";
-import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useMyRole } from "@/hooks/use-my-role";
 import { useAppBack } from "@/hooks/use-app-back";
-import { NavSheet } from "./nav-sheet";
-import { ThemePicker } from "./theme-picker";
-import { ThemeToggle } from "./theme-toggle";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useShell } from "./shell-context";
+import { NotificationsPopover } from "./notifications-popover";
+import { POP_CLASS, POP_ITEM_CLASS } from "./pop-classes";
 
-function usePageTitle(t: I18nDictionary): string {
-  const pathname = usePathname();
-  const seg = pathname.split("/")[1] || "beranda";
-  return isPageTitleId(seg) ? t.shell.pageTitles[seg] : "WealthMe";
+/** Two-letter initials from a display name, matching the prototype avatar. */
+export function initialsOf(name: string | undefined): string {
+  if (!name) return "?";
+  return (
+    name
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((word) => word[0]?.toUpperCase() ?? "")
+      .join("") || "?"
+  );
+}
+
+function ThemeButton() {
+  const { resolvedTheme, setTheme } = useTheme();
+  const { t } = useLocale();
+  const [mounted, setMounted] = useState(false);
+  // Resolve the theme only after mount; the icon stays neutral during SSR.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted && resolvedTheme === "dark";
+  return (
+    <button
+      type="button"
+      className="wm-icon-btn wm-theme"
+      aria-label={t.shell.v2.toggleTheme}
+      title={t.shell.v2.toggleTheme}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+    >
+      {isDark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}
+    </button>
+  );
+}
+
+/** Member button + menu. `placement="side"` is the sidebar-foot version (opens upward). */
+export function MeMenu({ placement = "top" }: { placement?: "top" | "side" }) {
+  const { data: session } = useSession();
+  const { myRole } = useMyRole();
+  const { locale, toggle, t } = useLocale();
+  const { logout } = useAuth();
+  const router = useRouter();
+  const name = session?.user.name;
+  const roleLabel = myRole
+    ? t.common.roleLabels[myRole as keyof typeof t.common.roleLabels]
+    : undefined;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className={
+          placement === "side" ? "wm-me wm-me--side" : "wm-me wm-me--top"
+        }
+        aria-label={`${t.shell.v2.accountMenu}: ${name ?? ""}`}
+      >
+        <span className="wm-avatar" aria-hidden="true">
+          {initialsOf(name)}
+        </span>
+        <div>
+          <b>{name ?? "WealthMe"}</b>
+          {roleLabel && <small>{roleLabel}</small>}
+        </div>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        side={placement === "side" ? "top" : "bottom"}
+        align={placement === "side" ? "start" : "end"}
+        sideOffset={8}
+        className={`${POP_CLASS} w-[min(260px,calc(100vw-24px))]`}
+      >
+        <DropdownMenuItem
+          className={POP_ITEM_CLASS}
+          onClick={() => router.push("/akun")}
+        >
+          <User aria-hidden="true" />
+          {t.shell.v2.account}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          className={POP_ITEM_CLASS}
+          closeOnClick={false}
+          onClick={toggle}
+        >
+          <Languages aria-hidden="true" />
+          {t.shell.v2.language}
+          <span className="ml-auto text-[12px] font-semibold text-[var(--wm-muted)]">
+            {locale.toUpperCase()}
+          </span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="wm-pop-sep" />
+        <DropdownMenuItem
+          className={POP_ITEM_CLASS}
+          onClick={() => {
+            logout();
+            router.push("/login");
+          }}
+        >
+          <LogOut aria-hidden="true" />
+          {t.shell.logout}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 /**
- * EPIC-026 shell migration — the prototype's single `.topbar`, which serves
- * every breakpoint: `design-system.css` reveals `.topbar__menu-btn` and
- * shrinks `.topbar__search` to an icon below 768px. This replaces the app's
- * previous split desktop-Topbar / mobile-MobileHeader pair; every control from
- * both is present here.
+ * Bento v2 topbar (`.wm-top`): search pill with Ctrl K, theme, notifications,
+ * the member button (account, language, sign out) and the primary add button.
+ * On phones it collapses to brand · bell · avatar (bento.css); a back button
+ * appears only on nested routes such as `/aset/123`.
  */
 export function Topbar() {
   const { access } = useMyAccess();
   const { t } = useLocale();
-  const title = usePageTitle(t);
   const pathname = usePathname();
   const { setSearchOpen, setTxnOpen } = useShell();
-  const { logout } = useAuth();
-  const router = useRouter();
   const { goBack } = useAppBack();
-  const showBackButton = pathname !== "/beranda";
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
+  const nested = pathname.split("/").filter(Boolean).length > 1;
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
@@ -57,75 +165,50 @@ export function Topbar() {
     refetchInterval: 30_000,
   });
 
-  const hasUnread = (unreadData?.count ?? 0) > 0;
-
-  const handleLogout = () => {
-    logout();
-    router.push("/login");
-  };
-
   return (
-    <header className="topbar">
-      <NavSheet />
-      {showBackButton && (
+    <header className="wm-top">
+      <Link href="/beranda" className="wm-mbrand">
+        WealthMe
+      </Link>
+      {nested && (
         <button
           type="button"
           onClick={goBack}
           aria-label={t.common.back}
           title={t.common.back}
-          className="btn btn--ghost btn--icon btn--sm"
+          className="wm-icon-btn"
         >
-          <ArrowLeft className="size-[17px]" aria-hidden="true" />
+          <ArrowLeft aria-hidden="true" />
         </button>
       )}
-      <div className="topbar__title min-w-0 shrink truncate whitespace-nowrap">
-        {title}
-      </div>
-      <div className="topbar__spacer" />
       <button
         type="button"
+        className="wm-search"
         onClick={() => setSearchOpen(true)}
         aria-label={t.shell.search}
-        className="topbar__search min-w-0 max-lg:!w-auto max-lg:!min-w-0 max-lg:flex-none"
       >
-        <Search className="size-[15px] shrink-0" aria-hidden="true" />
-        <span className="min-w-0 flex-1 truncate whitespace-nowrap text-left max-lg:!hidden">
-          {t.shell.searchPlaceholder}
-        </span>
-        <span className="kbd shrink-0 max-lg:hidden">⌘K</span>
+        <Search
+          className="size-4 shrink-0"
+          aria-hidden="true"
+          strokeWidth={2}
+        />
+        <span>{t.shell.v2.searchShort}</span>
+        <kbd className="wm-kbd">Ctrl K</kbd>
       </button>
+      <span className="wm-spacer" />
+      <ThemeButton />
+      <NotificationsPopover unreadCount={unreadData?.count ?? 0} />
+      <MeMenu />
       {canRecordTransaction(access) && (
         <button
           type="button"
+          className="wm-add"
           onClick={() => setTxnOpen(true)}
-          className="btn btn--primary btn--sm topbar__txn"
-          aria-label={t.shell.addTransaction}
         >
-          <Plus className="size-[15px] shrink-0" aria-hidden="true" />
-          <span className="max-lg:!hidden">{t.shell.addTransaction}</span>
+          <Plus aria-hidden="true" strokeWidth={2.4} />
+          <span>{t.shell.addTransaction}</span>
         </button>
       )}
-      <LocaleSwitcher />
-      <ThemeToggle />
-      <Link
-        href="/notifikasi"
-        aria-label={t.shell.notifications}
-        className="btn btn--ghost btn--icon btn--sm relative"
-      >
-        <Bell className="size-[17px]" aria-hidden="true" />
-        {hasUnread && (
-          <span className="absolute top-1 right-1 size-[7px] rounded-full border-2 border-card bg-destructive" />
-        )}
-      </Link>
-      <ThemePicker />
-      <button
-        type="button"
-        onClick={handleLogout}
-        aria-label={t.shell.logout}
-        className="btn btn--ghost btn--icon btn--sm"
-      >
-        <LogOut className="size-[17px]" aria-hidden="true" />
-      </button>
     </header>
   );
 }

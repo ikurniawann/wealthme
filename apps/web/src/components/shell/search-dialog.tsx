@@ -30,6 +30,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
 import { useShell } from "./shell-context";
+import { hubLabel, useHubs } from "./sidebar-sections";
 
 import type { SearchResponseDto } from "@wealthme/contracts";
 
@@ -94,6 +95,27 @@ export function SearchDialog() {
     return () => document.removeEventListener("keydown", handler);
   }, [setSearchOpen]);
 
+  const { primary, secondary } = useHubs();
+  const allPages = [...primary, ...secondary].flatMap((hub) => {
+    const group = hubLabel(hub, t);
+    const self = { href: hub.href, label: group, icon: hub.icon, group: "" };
+    const subs = hub.children
+      .filter((child) => child.href !== hub.href)
+      .map((child) => ({
+        href: child.href,
+        label: t.shell.navSections[child.id],
+        icon: child.icon,
+        group,
+      }));
+    return [self, ...subs];
+  });
+  allPages.unshift({
+    href: "/beranda",
+    label: t.shell.navSections.beranda,
+    icon: Home,
+    group: "",
+  });
+
   const go = (href: string) => {
     setSearchOpen(false);
     router.push(href);
@@ -103,69 +125,81 @@ export function SearchDialog() {
   const meetsMinLength = trimmedQuery.length >= 2;
   const apiResults = searchData?.results ?? [];
   const showApi = meetsMinLength && apiResults.length > 0;
+  // Pages match instantly on any query (no debounce, no API): the hub model is
+  // already access-filtered, so a member only ever finds pages they may open.
+  const needle = trimmedQuery.toLowerCase();
+  const pages = allPages
+    .filter((page) => !needle || page.label.toLowerCase().includes(needle))
+    .slice(0, needle ? 8 : 6);
   // Only declare "no results" once the debounce has settled on the current
   // query — avoids a flash of the empty state mid-keystroke.
   const showNoResults =
-    meetsMinLength && debouncedQuery === trimmedQuery && !showApi;
-  const showHint = !meetsMinLength;
+    meetsMinLength &&
+    debouncedQuery === trimmedQuery &&
+    !showApi &&
+    pages.length === 0;
 
   return (
     <Dialog open={searchOpen} onOpenChange={handleOpenChange}>
-      {/* EPIC-022 Group G (G1) — `overflow-y-auto`, not `overflow-hidden`:
-          this dialog now inherits DialogContent's `max-h-[85dvh]` default
-          uncontested (no max-h override here), so a hard `overflow-hidden`
-          would silently clip content past that cap with no scroll escape —
-          tailwind-merge's `overflow` group lets this class fully replace the
-          base `overflow-y-auto`. The inner result list already self-limits
-          at `max-h-[60vh]` below, so in practice this outer scroll rarely
-          engages; it exists as a safety net if the header row or result
-          list ever grows (long query text wraps, a future extra row) past
-          the 85dvh cap on a short viewport. `overflow-y-auto` still clips
-          children to the `rounded-xl` corners exactly like `overflow-hidden`
-          did — it only adds the scroll affordance when actually needed. */}
       <DialogContent
         showCloseButton={false}
-        className="top-[12%] bottom-auto translate-y-0 p-0 min-[769px]:top-[12%] min-[769px]:translate-y-0 min-[769px]:w-[min(520px,calc(100%-2rem))]"
+        className="top-[12vh] bottom-auto translate-y-0 w-[min(620px,calc(100%-24px))] max-h-[72dvh] overflow-hidden rounded-[22px] p-0 min-[769px]:top-[12vh] min-[769px]:translate-y-0 min-[769px]:w-[min(620px,calc(100%-24px))]"
       >
         <DialogTitle className="sr-only">
           {t.shell.searchDialog.dialogTitle}
         </DialogTitle>
-        <div className="flex items-center gap-2.5 border-b px-4 py-3.5">
-          <Search className="size-[15px] text-muted-foreground" />
+        <div className="wm-pal-in">
+          <Search className="size-[18px] shrink-0" aria-hidden="true" />
           <input
             autoFocus
             aria-label={t.shell.searchDialog.ariaLabel}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={t.shell.searchDialog.placeholder}
-            className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+            placeholder={t.shell.v2.searchShort}
           />
+          <kbd className="wm-kbd">Esc</kbd>
         </div>
-        {/* Same dynamic-viewport reasoning as the DialogContent override
-            above — `dvh` so this inner cap tracks the visible viewport on a
-            real mobile browser, not the full layout viewport. */}
-        <div className="max-h-[60dvh] overflow-y-auto py-2">
+        <div className="wm-pal-list max-h-[60dvh]">
+          {pages.length > 0 && (
+            <>
+              <h4>{t.shell.v2.pagesGroup}</h4>
+              {pages.map((page) => {
+                const Icon = page.icon;
+                return (
+                  <button
+                    key={page.href}
+                    type="button"
+                    className="wm-pal-item"
+                    onClick={() => go(page.href)}
+                  >
+                    <span className="wm-ic">
+                      <Icon aria-hidden="true" />
+                    </span>
+                    {page.label}
+                    {page.group && <small>{page.group}</small>}
+                  </button>
+                );
+              })}
+            </>
+          )}
           {showApi && (
             <>
-              <div className="px-[18px] pt-1 pb-1.5 text-[10.5px] font-bold uppercase tracking-[0.8px] text-muted-foreground">
-                {t.shell.searchDialog.financialResultsHeader}
-              </div>
+              <h4>{t.shell.searchDialog.financialResultsHeader}</h4>
               {apiResults.map((d) => {
                 const Icon = ICONS[d.icon] ?? Home;
                 return (
                   <button
                     key={d.id}
+                    type="button"
+                    className="wm-pal-item"
                     onClick={() => go(d.href)}
-                    className="flex w-full items-center gap-3 px-[18px] py-2.5 text-left transition-colors hover:bg-secondary"
                   >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
-                      <Icon className="size-[15px] text-muted-foreground" />
+                    <span className="wm-ic">
+                      <Icon aria-hidden="true" />
                     </span>
-                    <span>
-                      <span className="block text-[13px] font-semibold">
-                        {d.label}
-                      </span>
-                      <span className="block text-[11px] text-muted-foreground">
+                    <span className="min-w-0">
+                      <span className="block truncate">{d.label}</span>
+                      <span className="block truncate text-[12px] text-[var(--wm-muted)]">
                         {d.sub}
                       </span>
                     </span>
@@ -174,16 +208,15 @@ export function SearchDialog() {
               })}
             </>
           )}
-          {showHint && (
-            <div className="px-7 py-7 text-center text-[13px] text-muted-foreground">
-              {t.shell.searchDialog.typeToSearchHint}
-            </div>
-          )}
           {showNoResults && (
-            <div className="px-7 py-7 text-center text-[13px] text-muted-foreground">
-              {t.shell.searchDialog.noResultsFor} &ldquo;
-              <strong>{query}</strong>&rdquo;
-            </div>
+            <p className="wm-pal-empty">
+              {t.shell.v2.noResults}: &ldquo;<strong>{query}</strong>&rdquo;
+            </p>
+          )}
+          {!meetsMinLength && pages.length === 0 && (
+            <p className="wm-pal-empty">
+              {t.shell.searchDialog.typeToSearchHint}
+            </p>
           )}
         </div>
       </DialogContent>

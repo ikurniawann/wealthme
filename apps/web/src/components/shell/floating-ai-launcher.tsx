@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Bot, ExternalLink, Send, X } from "lucide-react";
+import { ExternalLink, Send, Sparkles, X } from "lucide-react";
 import { isNavItemVisibleForAccess } from "@/lib/nav";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
@@ -52,7 +52,7 @@ export function FloatingAiLauncher() {
         <div
           role="dialog"
           aria-label={t.ai.floatingLauncher.panelTitle}
-          className="fixed right-4 bottom-[144px] z-[60] flex max-h-[min(70dvh,520px)] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-[14px] border bg-card shadow-lg md:bottom-[84px]"
+          className="fixed right-[22px] bottom-[88px] z-[60] flex max-h-[min(70dvh,520px)] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-[18px] border bg-card shadow-lg"
         >
           <div className="flex items-center justify-between gap-2 border-b px-3.5 py-2.5">
             <div className="flex items-center gap-2 text-[13px] font-bold">
@@ -189,13 +189,15 @@ export function FloatingAiLauncher() {
             : t.ai.floatingLauncher.openAriaLabel
         }
         aria-expanded={launcherOpen}
-        className="fixed right-4 bottom-[84px] z-[60] flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105 md:bottom-6"
+        className="wm-fai"
       >
-        {launcherOpen ? (
-          <X className="size-5" aria-hidden="true" />
-        ) : (
-          <Bot className="size-5" aria-hidden="true" />
-        )}
+        <i>
+          {launcherOpen ? (
+            <X className="size-[18px]" aria-hidden="true" />
+          ) : (
+            <Sparkles className="size-[18px]" aria-hidden="true" />
+          )}
+        </i>
       </button>
     </>
   );

@@ -21,7 +21,7 @@ export function ProgressBar({
       <div
         className="progress__bar"
         style={{
-          width: `${Math.min(100, Math.max(0, value))}%`,
+          transform: `scaleX(${Math.min(100, Math.max(0, value)) / 100})`,
           background: color,
         }}
       />

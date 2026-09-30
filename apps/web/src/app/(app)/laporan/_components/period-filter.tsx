@@ -86,14 +86,13 @@ export function PeriodFilter({
  * year/month/day `PeriodFilter` above; picking "Custom" hands control back
  * to it (see `LaporanInner`'s `rangeStart`/`rangeEnd` derivation).
  */
+// Bento v2: the prototype's six options (docs/design/proto/laporan.html PRESETS).
 const RANGE_PRESET_IDS: ReportRangePreset[] = [
   "thisMonth",
-  "lastMonth",
   "last3Months",
   "last6Months",
   "last12Months",
   "thisYear",
-  "lastYear",
   "custom",
 ];
 

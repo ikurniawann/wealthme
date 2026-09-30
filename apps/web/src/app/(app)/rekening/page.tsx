@@ -7,17 +7,35 @@ import {
   EllipsisVertical,
   HandCoins,
   Landmark,
-  Users,
-  User,
   List,
+  Palette,
+  GitCompare,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { StatusBadge, SummaryCard, InfoTip } from "@/components/wm";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import {
+  InfoTip,
+  AccountCard,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  CARD_PATTERNS,
+  CARD_SKINS,
+  DetailPanel,
+  GhostButton,
+  HeroKpi,
+  PillButton,
+  useCardLooks,
+  type CardLook,
+  type CardSkin,
+} from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { useShell } from "@/components/shell/shell-context";
+import Link from "next/link";
+import "./rekening.css";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,12 +43,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  CrudModal,
-  ConfirmDeleteDialog,
-  RowActions,
-  withCrudFx,
-} from "@/components/crud";
+import { CrudModal, ConfirmDeleteDialog, withCrudFx } from "@/components/crud";
 import type { CrudModalState } from "@/components/crud";
 import { AccountTaxNotice } from "@/components/tax/account-tax-notice";
 import { useLocale } from "@/hooks/use-locale";
@@ -95,6 +108,18 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 // like iv (12B/24 hex) + authTag (16B/32 hex) + ciphertext) and hides it — a
 // real masked number ("···9010") never matches this shape.
 const UNDECRYPTED_BLOB_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/i;
+/** Axis ticks: "200 jt" / "1,5 M", no currency or decimals. */
+function axisJt(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "−" : "";
+  const trim = (n: number) =>
+    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
+  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
+  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
+  return `${sign}${Math.round(abs)}`;
+}
+
 function safeMaskedNumber(value: string | null | undefined): string | null {
   if (!value) return null;
   return UNDECRYPTED_BLOB_RE.test(value) ? null : value;
@@ -230,6 +255,112 @@ function toCardData(
 }
 
 // ---------------------------------------------------------------------------
+// Card skin panel (bento v2 side panel)
+// ---------------------------------------------------------------------------
+
+const SKIN_SWATCH: Record<CardSkin, string> = {
+  lime: "#9ccb3b",
+  forest: "linear-gradient(150deg, #1a4b3b, #0c2b22)",
+  midnight: "linear-gradient(150deg, #1f2533, #0d1017)",
+  graphite: "linear-gradient(150deg, #3a3b36, #1c1d19)",
+  sand: "#efdc4e",
+  sky: "linear-gradient(150deg, #bfd8ef, #8fb7e0)",
+  lilac: "linear-gradient(150deg, #e3cdef, #c8a2de)",
+  coral: "linear-gradient(150deg, #f6b69a, #f2a247)",
+};
+
+function CardSkinPanel({
+  account,
+  look,
+  onChange,
+  onReset,
+  onClose,
+}: {
+  account: AccountCard | null;
+  look: CardLook | null;
+  onChange: (look: CardLook) => void;
+  onReset: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useLocale();
+  const money = useMoney();
+  const v2 = t.rekening.v2;
+  if (!account || !look)
+    return (
+      <DetailPanel open={false} onOpenChange={() => {}} title="">
+        {null}
+      </DetailPanel>
+    );
+  return (
+    <DetailPanel
+      open
+      onOpenChange={(open) => !open && onClose()}
+      title={v2.customize}
+      description={account.name}
+      footer={
+        <>
+          <PillButton onClick={onReset}>{v2.resetLook}</PillButton>
+          <PillButton variant="primary" onClick={onClose}>
+            {v2.done}
+          </PillButton>
+        </>
+      }
+    >
+      <AccountCard
+        look={look}
+        className="rk-preview"
+        bank={account.institution ?? account.logo}
+        name={account.name}
+        number={account.rawMaskedNumber}
+        holder={account.type}
+        balance={money.format(account.rawBalance).replace(/,00$/, "")}
+      />
+      <div className="wm-field">
+        <span className="wm-flabel">{v2.colour}</span>
+        <div role="radiogroup" aria-label={v2.colour} className="rk-swatches">
+          {CARD_SKINS.map((skin) => (
+            <button
+              key={skin}
+              type="button"
+              role="radio"
+              aria-checked={look.skin === skin}
+              aria-label={v2.skins[skin]}
+              title={v2.skins[skin]}
+              className="rk-swatch"
+              style={{ background: SKIN_SWATCH[skin] }}
+              onClick={() => onChange({ ...look, skin })}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="wm-field">
+        <span className="wm-flabel">{v2.pattern}</span>
+        <div role="radiogroup" aria-label={v2.pattern} className="rk-patterns">
+          {CARD_PATTERNS.map((pattern) => (
+            <button
+              key={pattern}
+              type="button"
+              role="radio"
+              aria-checked={look.pattern === pattern}
+              onClick={() => onChange({ ...look, pattern })}
+            >
+              <span
+                className="wm-plate rk-pattern-dot"
+                data-skin={look.skin}
+                data-pattern={pattern}
+                aria-hidden="true"
+              />
+              {v2.patterns[pattern]}
+            </button>
+          ))}
+        </div>
+      </div>
+      <p className="wm-cap">{v2.deviceNote}</p>
+    </DetailPanel>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AccountCardItem
 // ---------------------------------------------------------------------------
 
@@ -241,6 +372,8 @@ interface AccountCardItemProps {
   onMintaDana: () => void;
   /** EPIC-033 R5 — members ask for money FROM a family-shared account. */
   canRequest: boolean;
+  onCustomize: (account: AccountCard) => void;
+  look: CardLook;
   canManage: boolean;
 }
 
@@ -250,76 +383,97 @@ function AccountCardItem({
   onEdit,
   onDelete,
   onMintaDana,
+  onCustomize,
+  look,
   canRequest,
   canManage,
 }: AccountCardItemProps) {
   const router = useRouter();
   const { t } = useLocale();
   const money = useMoney();
+  const goMutasi = () =>
+    router.push(`/transaksi?accountId=${encodeURIComponent(account.id)}`);
+  const ownerBadge = !account.ownerUserId ? (
+    <span className="wm-plate-badge">{t.rekening.filterSharedLabel}</span>
+  ) : isMine ? (
+    <span className="wm-plate-badge">{t.rekening.ownerMineBadge}</span>
+  ) : (
+    <span className="wm-plate-badge">
+      {t.rekening.ownerBadgePrefix}
+      {account.ownerName ?? t.rekening.ownerUnknownLabel}
+    </span>
+  );
   return (
-    <Card
-      className={`gap-0 space-y-3.5 p-5 transition-shadow hover:shadow-md ${
-        isMine ? "border-primary/40 ring-1 ring-primary/15" : ""
-      }`}
-    >
-      {/* Header row: brand badge · name + number · status badge · kebab menu */}
-      <div className="flex items-center gap-3">
-        {/* Bank-branded badge — brand color + short label, or type-color + initials fallback */}
-        <div
-          className="flex h-9 w-12 shrink-0 items-center justify-center rounded-md text-[11px] font-extrabold tracking-tight text-white"
-          style={{ background: account.logoBg }}
-        >
-          {account.logo}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-bold">{account.name}</div>
-          {/* Masked account number — already mono-styled */}
-          <div className="mono text-[12px] text-muted-foreground">
-            {account.number}
-          </div>
-        </div>
-
-        {/*
-          Hardening batch G1 (P1 honesty) — the "Aktif" badge was always
-          shown even though no status field exists on AccountDto, an
-          always-true fake state. Removed rather than faked; if the API adds
-          a real status/isPrimary field, render a badge from it here.
-        */}
-        {account.isPrivate && (
-          <span title={t.rekening.privateBadgeTooltip}>
-            <StatusBadge variant="purple">
-              {t.rekening.privateBadge}
-            </StatusBadge>
+    <article className="rk-card" data-mine={isMine || undefined}>
+      <AccountCard
+        look={look}
+        bank={account.institution ?? account.logo}
+        name={account.name}
+        number={
+          account.rawMaskedNumber
+            ? `**** ${account.rawMaskedNumber.replace(/^[·•.\s]+/, "")}`
+            : null
+        }
+        holder={account.type}
+        balance={money.format(account.rawBalance).replace(/,00$/, "")}
+        badge={
+          <span className="rk-card-badges">
+            {account.isPrivate && (
+              <span
+                className="wm-plate-badge"
+                title={t.rekening.privateBadgeTooltip}
+              >
+                {t.rekening.privateBadge}
+              </span>
+            )}
+            {ownerBadge}
           </span>
+        }
+      />
+      <div className="rk-card-acts">
+        <button
+          type="button"
+          aria-label={t.rekening.viewMutationAriaLabel}
+          className="rk-card-btn"
+          onClick={goMutasi}
+        >
+          <List aria-hidden="true" /> {t.rekening.mutasiFooterButton}
+        </button>
+        {canRequest && (
+          <button
+            type="button"
+            aria-label={t.rekening.mintaDanaButtonLabel}
+            className="rk-card-btn"
+            data-lit="true"
+            onClick={onMintaDana}
+          >
+            <HandCoins aria-hidden="true" /> {t.rekening.mintaDanaButtonLabel}
+          </button>
         )}
-
-        {/* Kebab menu: Edit + Hapus folded out of the main action row */}
+        <button
+          type="button"
+          className="rk-card-icon"
+          aria-label={t.rekening.v2.customize}
+          title={t.rekening.v2.customize}
+          onClick={() => onCustomize(account)}
+        >
+          <Palette aria-hidden="true" />
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t.rekening.optionsAriaLabel}
-            render={
-              <button
-                type="button"
-                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              />
-            }
+            render={<button type="button" className="rk-card-icon" />}
           >
-            <EllipsisVertical className="size-4" aria-hidden="true" />
+            <EllipsisVertical aria-hidden="true" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="min-w-[120px]">
-            <DropdownMenuItem
-              onClick={() =>
-                router.push(
-                  `/transaksi?accountId=${encodeURIComponent(account.id)}`,
-                )
-              }
-            >
+          <DropdownMenuContent align="end" className="min-w-[160px]">
+            <DropdownMenuItem onClick={goMutasi}>
               {t.rekening.viewMutationMenuItem}
             </DropdownMenuItem>
-            {/* F3 — CASL grants "manage Account" only to owner/spouse; every
-                other role (including the account's own "isMine" owner, if a
-                plain member) gets 403 on edit/delete. */}
+            <DropdownMenuItem onClick={() => onCustomize(account)}>
+              {t.rekening.v2.customize}
+            </DropdownMenuItem>
+            {/* F3 — CASL grants "manage Account" only to owner/spouse. */}
             {canManage && (
               <>
                 <DropdownMenuItem onClick={() => onEdit(account)}>
@@ -334,78 +488,7 @@ function AccountCardItem({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      {/* Balance block */}
-      <div>
-        <div className="text-[11px] text-muted-foreground">
-          {account.balanceLabel}
-        </div>
-        <div className="text-[22px] font-black">
-          {money.format(account.rawBalance)}
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
-          <span>{account.type}</span>
-          {/* EPIC-019 Task A — per-member ownership badge. Family-shared
-              (ownerUserId null) accounts are labelled "Bersama" so it is
-              clear who they belong to — restricted members can now see them
-              (read-only). */}
-          {!account.ownerUserId && (
-            <StatusBadge variant="purple" className="text-[10px]">
-              {t.rekening.filterSharedLabel}
-            </StatusBadge>
-          )}
-          {account.ownerUserId &&
-            (isMine ? (
-              <StatusBadge variant="info" className="text-[10px]">
-                {t.rekening.ownerMineBadge}
-              </StatusBadge>
-            ) : (
-              <StatusBadge variant="gray" className="text-[10px]">
-                {t.rekening.ownerBadgePrefix}
-                {account.ownerName ?? t.rekening.ownerUnknownLabel}
-              </StatusBadge>
-            ))}
-        </div>
-      </div>
-
-      {/* Prototype structural port (EPIC-025 N3 audit) — footer row: a
-          "Mutasi" action (routes to the real transactions page; Transfer/Top
-          Up stay out until a backend transfer endpoint exists — no fake
-          actions) plus edit/delete icon buttons (same `RowActions` used by
-          every other list row in the app), replacing the old full-width
-          "Lihat Mutasi" button. The kebab menu above keeps its own
-          Edit/Hapus entries too — same redundancy as the prototype (a kebab
-          AND footer icon actions both open the same flows). */}
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          aria-label={t.rekening.viewMutationAriaLabel}
-          className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-md border bg-background py-2 text-[12px] font-semibold transition-colors hover:bg-accent"
-          onClick={() =>
-            router.push(
-              `/transaksi?accountId=${encodeURIComponent(account.id)}`,
-            )
-          }
-        >
-          <List className="size-3.5" /> {t.rekening.mutasiFooterButton}
-        </button>
-        {canManage && (
-          <RowActions onEdit={() => onEdit(account)} onDelete={onDelete} />
-        )}
-      </div>
-      {/* EPIC-033 R5 — a member requests funding FROM this family-shared
-          account into one of their own; the Master approves on /persetujuan. */}
-      {canRequest && (
-        <button
-          type="button"
-          aria-label={t.rekening.mintaDanaButtonLabel}
-          className="flex cursor-pointer items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-[12px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          onClick={onMintaDana}
-        >
-          <HandCoins className="size-3.5" /> {t.rekening.mintaDanaButtonLabel}
-        </button>
-      )}
-    </Card>
+    </article>
   );
 }
 
@@ -706,153 +789,171 @@ export default function RekeningPage() {
   // Prototype structural port — header "Minta Dana" action. Reuses the
   // EPIC-033 R5 — every account the member owns (bank, cash, e-wallet) is a
   // valid destination for a fund request.
+  const { setTxnOpen } = useShell();
+  const { lookFor, setLook } = useCardLooks();
+  const [customizing, setCustomizing] = useState<AccountCard | null>(null);
   const myAccounts = (accounts ?? []).filter(
     (a) => !!myUserId && a.ownerUserId === myUserId,
   );
 
   return (
-    <div className="space-y-4">
-      {/* Prototype structural port (EPIC-025 N3 audit) — page-lead header:
-          title, subtitle (accounts count + total, already computed above),
-          and the header actions. */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="min-w-[220px] flex-1">
-          <h1 className="text-[17px] font-extrabold tracking-tight">
-            {t.shell.pageTitles.rekening}
-          </h1>
-          <p className="mt-1 text-[12.5px] text-muted-foreground">
-            {isLoading
-              ? t.rekening.loadingLabel
-              : `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}, ${t.rekening.totalPrefix}${money.format(totalBalance)}`}
-            {!isLoading && accounts && fxRates?.rates["USD"] != null && (
-              <span className="ml-1 text-muted-foreground/70">
-                {`${t.rekening.approxUsdPrefix}${formatUsd(totalBalance * fxRates.rates["USD"])}`}
-              </span>
-            )}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {canManage && (
-            <Button type="button" onClick={openAdd}>
-              <Plus className="size-4" /> {t.rekening.addButton}
-            </Button>
+    <div className="flex flex-col gap-4">
+      <BentoGrid className="rk-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.rekening}</h1>
+        <BentoHero
+          className="rk-hero"
+          currency={null}
+          value={
+            isLoading ? "…" : money.format(totalBalance).replace(/,00$/, "")
+          }
+          caption={
+            <>
+              {`${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}`}
+              {!isLoading &&
+                fxRates?.rates["USD"] != null &&
+                ` · ${t.rekening.approxUsdPrefix}${formatUsd(totalBalance * fxRates.rates["USD"])}`}
+            </>
+          }
+          controls={
+            <>
+              <div
+                role="tablist"
+                aria-label={t.rekening.filterGroupLabel}
+                className="wm-seg"
+              >
+                {(
+                  [
+                    ["all", t.rekening.filterAllLabel],
+                    ["mine", t.rekening.filterMineLabel],
+                    ["shared", t.rekening.filterSharedLabel],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="tab"
+                    aria-selected={ownerFilter === value}
+                    onClick={() => setOwnerFilter(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {canManage && (
+                <GhostButton lit onClick={openAdd}>
+                  <Plus aria-hidden="true" /> {t.rekening.addButton}
+                </GhostButton>
+              )}
+              <InfoTip label={t.rekening.filterNoteText}>
+                {t.rekening.filterNoteText}
+              </InfoTip>
+            </>
+          }
+          chart={
+            visibleAccounts.length > 0 ? (
+              <HatchedBarChart
+                labels={visibleAccounts.map((a) => a.institution || a.name)}
+                series={[
+                  {
+                    name: t.rekening.balanceLabel,
+                    data: visibleAccounts.map((a) => parseFloat(a.balance)),
+                    color: "var(--wm-lime)",
+                  },
+                ]}
+                highlight={visibleAccounts.reduce(
+                  (m, a, i, arr) =>
+                    parseFloat(a.balance) > parseFloat(arr[m].balance) ? i : m,
+                  0,
+                )}
+                format={money.formatCompact}
+                axis={axisJt}
+                wide
+                ariaLabel={t.rekening.statBankBalanceLabel}
+              />
+            ) : null
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.rekening.statBankBalanceLabel}
+                value={money.format(totalBalance).replace(/,00$/, "")}
+                short={money.formatCompact(totalBalance)}
+              />
+              <HeroKpi
+                label={t.rekening.statSharedLabel}
+                value={money.format(sharedBalance).replace(/,00$/, "")}
+                short={money.formatCompact(sharedBalance)}
+                delta={
+                  <small className="wm-cap">{`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}</small>
+                }
+              />
+              <HeroKpi
+                label={t.rekening.statOwnedLabel}
+                value={money.format(ownedBalance).replace(/,00$/, "")}
+                short={money.formatCompact(ownedBalance)}
+                delta={
+                  <small className="wm-cap">{`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}</small>
+                }
+              />
+            </>
+          }
+        />
+        <BentoCard
+          className="rk-deck"
+          title={t.rekening.v2.cardsTitle}
+          caption={`${visibleAccounts.length}${t.rekening.accountsConnectedSuffix}`}
+        >
+          {visibleAccounts.length > 0 && (
+            <div className="wm-pcards rk-pcards">
+              {visibleAccounts.map((account) => (
+                <AccountCard
+                  key={account.id}
+                  decorative
+                  className="rk-deck-card"
+                  look={lookFor(account.id, account.type)}
+                  bank={account.institution ?? account.name}
+                  name={account.name}
+                  number={safeMaskedNumber(account.maskedNumber)}
+                  holder={
+                    account.isPrivate
+                      ? t.rekening.privateBadge
+                      : (account.ownerName ?? "")
+                  }
+                  balance={money.formatCompact(parseFloat(account.balance))}
+                />
+              ))}
+            </div>
           )}
-        </div>
-      </div>
-
-      {/* N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
-          Rekening Bersama / Milik Anggota, all derived from the already-
-          fetched accounts list above. The prototype's balance-trend
-          sparkline is CUT per the epic's J3 decision table (no balance
-          history stored). Muted count sub-text is composed INTO `amount`
-          (not passed as `delta`) so it never inherits SummaryCard's forced
-          success/destructive delta coloring — these are neutral counts, not
-          a trend, and the prototype renders them muted/gray, not red. */}
-      {!isLoading && !isError && scopedAccounts.length > 0 && (
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-          <SummaryCard
-            icon={<Landmark className="size-4" />}
-            iconBg="var(--accent)"
-            iconColor="var(--accent-foreground)"
-            label={t.rekening.statBankBalanceLabel}
-            amount={money.format(totalBalance)}
-          />
-          <SummaryCard
-            icon={<Users className="size-4" />}
-            iconBg="var(--brand-purple-soft)"
-            iconColor="var(--brand-purple)"
-            label={t.rekening.statSharedLabel}
-            amount={
-              <>
-                {money.format(sharedBalance)}
-                <span className="mt-[3px] block text-[10.5px] font-medium text-muted-foreground">
-                  {`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}
+          <div className="rk-qa">
+            <button type="button" onClick={() => setTxnOpen(true)}>
+              <span>
+                <Plus aria-hidden="true" />
+              </span>
+              {t.rekening.v2.record}
+            </button>
+            <Link href="/rekonsiliasi">
+              <span>
+                <GitCompare aria-hidden="true" />
+              </span>
+              {t.rekening.v2.reconcile}
+            </Link>
+            <Link href="/transaksi">
+              <span>
+                <History aria-hidden="true" />
+              </span>
+              {t.rekening.v2.mutations}
+            </Link>
+            {canManage && (
+              <button type="button" onClick={openAdd}>
+                <span>
+                  <Landmark aria-hidden="true" />
                 </span>
-              </>
-            }
-          />
-          <SummaryCard
-            icon={<User className="size-4" />}
-            iconBg="var(--success-soft)"
-            iconColor="var(--success)"
-            label={t.rekening.statOwnedLabel}
-            amount={
-              <>
-                {money.format(ownedBalance)}
-                <span className="mt-[3px] block text-[10.5px] font-medium text-muted-foreground">
-                  {`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}
-                </span>
-              </>
-            }
-          />
-        </div>
-      )}
-
-      {/* EPIC-019 Task A — ownership filter tabs ("Milik saya" originally;
-          N3-D3 adds "Bersama" per the prototype's 3-tab filter). Restyled
-          (N3 audit) to the epic's translation-table mapping for `.tabs`/
-          `.tab` — role="tablist"/"tab" + aria-selected, same logic. Only
-          meaningful once at least one account has an owner; still rendered
-          on shared-only demo data so the page matches the prototype controls. */}
-      {!isLoading && (
-        <div className="flex min-w-0 items-center gap-2">
-          <div
-            role="tablist"
-            aria-label={t.rekening.filterGroupLabel}
-            className="hide-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={ownerFilter === "all"}
-              onClick={() => setOwnerFilter("all")}
-              className={`shrink-0 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                ownerFilter === "all"
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:border-primary/50"
-              }`}
-            >
-              {t.rekening.filterAllLabel}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={ownerFilter === "mine"}
-              onClick={() => setOwnerFilter("mine")}
-              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                ownerFilter === "mine"
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:border-primary/50"
-              }`}
-            >
-              <User className="size-3" /> {t.rekening.filterMineLabel}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={ownerFilter === "shared"}
-              onClick={() => setOwnerFilter("shared")}
-              className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                ownerFilter === "shared"
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "bg-card text-muted-foreground hover:border-primary/50"
-              }`}
-            >
-              <Users className="size-3" /> {t.rekening.filterSharedLabel}
-            </button>
+                {t.rekening.addButton}
+              </button>
+            )}
           </div>
-          {/* polish-j batch 7a item 11 — the negative-balance rule used to
-              sit as always-visible text; it's context, not something every
-              visitor needs to read, so it's an info affordance.
-              Hardening batch G3 (P1) — a hover-only Tooltip hidden below
-              `md:` meant phone users (the older-user persona this note is
-              for) could never read it. InfoTip is a tap-opening popover, so
-              it's shown at every width now. */}
-          <InfoTip label={t.rekening.filterNoteText}>
-            {t.rekening.filterNoteText}
-          </InfoTip>
-        </div>
-      )}
+        </BentoCard>
+      </BentoGrid>
 
       {isError && (
         <div
@@ -888,7 +989,8 @@ export default function RekeningPage() {
       {/* N3-D3 (prototype rekening.html "auto-grid--cards") — a responsive
           card grid instead of a single stacked column, plus (N3 audit) a
           dashed "add account" card at the end of the grid. */}
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+      <h2 className="rk-list-title">{t.rekening.v2.allTitle}</h2>
+      <div className="rk-wall">
         {visibleAccounts.map((account) => {
           const card = toCardData(account, t);
           return (
@@ -901,27 +1003,16 @@ export default function RekeningPage() {
               onMintaDana={() => setRequesting(account)}
               canRequest={!isMasterLike && account.ownerUserId === null}
               canManage={!!canManage}
+              look={lookFor(account.id, account.type)}
+              onCustomize={setCustomizing}
             />
           );
         })}
         {!isLoading && !isError && canManage && (
-          <button
-            type="button"
-            onClick={openAdd}
-            className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center transition-colors hover:border-primary/50 hover:bg-accent/30"
-          >
-            <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-              <Landmark className="size-5" />
-            </span>
-            <span className="text-[13px] font-bold">
-              {t.rekening.addCardTitle}
-            </span>
-            <span className="text-[11.5px] text-muted-foreground">
-              {t.rekening.addCardSubtitle}
-            </span>
-            <span className="mt-1 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground">
-              <Plus className="size-3.5" /> {t.rekening.addCardButton}
-            </span>
+          <button type="button" onClick={openAdd} className="rk-add">
+            <Plus aria-hidden="true" />
+            {t.rekening.addCardTitle}
+            <small className="wm-cap">{t.rekening.addCardSubtitle}</small>
           </button>
         )}
       </div>
@@ -951,6 +1042,13 @@ export default function RekeningPage() {
         familyGroupId={familyGroupId ?? null}
         token={token}
         onClose={() => setRequesting(null)}
+      />
+      <CardSkinPanel
+        account={customizing}
+        look={customizing ? lookFor(customizing.id, customizing.rawType) : null}
+        onChange={(look) => customizing && setLook(customizing.id, look)}
+        onReset={() => customizing && setLook(customizing.id, null)}
+        onClose={() => setCustomizing(null)}
       />
       <AccountTaxNotice />
     </div>
