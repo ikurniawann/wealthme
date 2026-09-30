@@ -2591,6 +2591,20 @@ export type I18nDictionary = {
    * `title`/`body`/`icon` come from the API (real user-facing content set at
    * creation time) and stay untranslated in the page. */
   notifikasi: {
+    v2: {
+      heroCap: string;
+      kpiTotal: string;
+      kpiApproval: string;
+      kpiBill: string;
+      filterLabel: string;
+      filterTransaksi: string;
+      filterAnggaran: string;
+      filterPersetujuan: string;
+      filterTempo: string;
+      filterSistem: string;
+      emptyFilter: string;
+      compAria: string;
+    };
     title: string;
     newCountSuffix: string;
     subtitlePrefix: string;

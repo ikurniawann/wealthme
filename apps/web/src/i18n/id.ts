@@ -2751,6 +2751,21 @@ export const id = {
     },
   },
   notifikasi: {
+    v2: {
+      heroCap: "notifikasi belum dibaca",
+      kpiTotal: "Total notifikasi",
+      kpiApproval: "Persetujuan",
+      kpiBill: "Jatuh tempo",
+      filterLabel: "Filter notifikasi",
+      filterTransaksi: "Transaksi",
+      filterAnggaran: "Anggaran",
+      filterPersetujuan: "Persetujuan",
+      filterTempo: "Jatuh Tempo",
+      filterSistem: "Sistem",
+      emptyFilter:
+        "Tidak ada notifikasi di filter ini. Coba pilih filter lain.",
+      compAria: "Komposisi notifikasi per kategori",
+    },
     title: "Notifikasi",
     newCountSuffix: " Baru",
     // N3-B2 (prototype notifikasi.html page-lead subtitle) — prefix/suffix
