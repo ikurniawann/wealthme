@@ -14,9 +14,9 @@
 .wr-ic{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:none;background:var(--card-2)}
 .wr-meta{min-width:160px;flex:1}
 .wr-meta .nm{font-weight:600;font-size:13px}
-.wr-meta .sub{color:var(--muted);font-size:11.5px;margin-top:2px}
+.wr-meta .sub{color:var(--muted);font-size:12px;margin-top:2px}
 .wr-val{text-align:right;flex:none}
-.wr-val b{font-size:15px;font-weight:700}
+.wr-val b{font-size:16px;font-weight:700}
 .wr-val small{display:block;color:var(--muted);font-size:11px}
 .wr-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:9px}
 .wr-foot{display:flex;align-items:center;gap:6px;margin-left:auto}
@@ -24,15 +24,15 @@
 .wr-alloc .lbl{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
 .wr-bene{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
 .wr-bene:first-child{border-top:0}
-.wr-bene .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:10px;font-weight:700;flex:none}
-.heir-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.wr-bene .av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:11px;font-weight:700;flex:none}
+.heir-tbl{width:100%;border-collapse:collapse;font-size:13px}
 .heir-tbl th{text-align:left;color:var(--muted);font-weight:600;font-size:11px;padding:0 6px 6px 0}
 .heir-tbl td{padding:5px 6px 5px 0;vertical-align:top}
 .heir-tbl input{width:100%;min-height:38px;border:1.5px solid var(--line);border-radius:9px;padding:0 9px;background:var(--card);font:inherit;color:inherit}
 .heir-tbl input:focus-visible{outline:2px solid var(--lime);outline-offset:1px}
 .heir-rm{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--card);color:var(--bad);display:grid;place-items:center;flex:none}
 .seg-pick{display:flex;background:var(--card-2);border-radius:12px;padding:3px;gap:2px}
-.seg-pick button{flex:1;border:0;background:transparent;border-radius:9px;min-height:38px;font-size:12.5px;font-weight:600;color:var(--muted)}
+.seg-pick button{flex:1;border:0;background:transparent;border-radius:9px;min-height:38px;font-size:13px;font-weight:600;color:var(--muted)}
 .seg-pick button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .tips{align-content:center}
 </style>
@@ -138,7 +138,7 @@ function draw(){
   }
 
   document.getElementById("beneList").innerHTML=names.length?names.slice(0,5).map(function(n,i){
-    return '<li><span class="ic" style="background:'+DONUT_COLORS[i%DONUT_COLORS.length]+';color:#fff;display:grid;place-items:center;font-size:10.5px;font-weight:700">'+initials(n)+'</span><div><b>'+esc(n)+'</b><small>'+esc(rel[n]||"")+'</small></div><span class="amt num">'+WM.short(totals[n])+'</span></li>';
+    return '<li><span class="ic" style="background:'+DONUT_COLORS[i%DONUT_COLORS.length]+';color:#fff;display:grid;place-items:center;font-size:11px;font-weight:700">'+initials(n)+'</span><div><b>'+esc(n)+'</b><small>'+esc(rel[n]||"")+'</small></div><span class="amt num">'+WM.short(totals[n])+'</span></li>';
   }).join("")+(unalloc>0?'<li><span class="ic" style="background:var(--card-2);display:grid;place-items:center">'+WM.icon("more",15)+'</span><div><b>Belum dialokasikan</b></div><span class="amt num" style="color:var(--orange)">'+WM.short(unalloc)+'</span></li>':""):'<li style="border:0"><small>Belum ada ahli waris.</small></li>';
 
   var rowsBox=document.getElementById("rows");

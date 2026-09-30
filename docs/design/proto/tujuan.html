@@ -12,7 +12,7 @@
   .t-tips .mosaic{flex:1;grid-template-columns:repeat(9,1fr);grid-auto-rows:1fr;justify-self:stretch;width:100%;margin-top:14px}
   .t-tips .mosaic i{width:auto;height:auto;border-radius:5px}
 }
-.t-tips h2{font-size:17px}
+.t-tips h2{font-size:16px}
 @media (max-width:720px){.t-tips .mosaic{display:none}}
 .t-side .mini-list b{font-weight:600}
 .t-side .mini-list li{align-items:flex-start;padding:10px 0}
@@ -161,7 +161,7 @@ function openContribDialog(id,withdraw){var g=WM.store.find("goals",id),accs=WM.
     WM.field({name:"amount",label:"Nominal",type:"money",required:true})+
     WM.field({name:"acc",label:withdraw?"Rekening tujuan dana":"Rekening sumber",type:"select",optional:true,options:accs.map(function(a){return [a.id,a.bank+" · "+a.name];})})+
     WM.field({name:"date",label:"Tanggal",type:"date",required:true,value:WM.today,attrs:'max="'+WM.today+'"'})+
-    (contribs.length?'<div class="divider"></div><b style="font-size:12.5px">Riwayat setoran</b><ul class="mini-list" style="margin-top:4px">'+contribs.slice(0,5).map(function(c){return '<li style="grid-template-columns:1fr auto;padding:8px 0"><small>'+WM.date(c.date)+(c.acc&&WM.account(c.acc)?" · "+WM.account(c.acc).bank:"")+'</small><span class="amt num">'+WM.rp(c.amount,true)+'</span></li>';}).join("")+'</ul>':"");
+    (contribs.length?'<div class="divider"></div><b style="font-size:13px">Riwayat setoran</b><ul class="mini-list" style="margin-top:4px">'+contribs.slice(0,5).map(function(c){return '<li style="grid-template-columns:1fr auto;padding:8px 0"><small>'+WM.date(c.date)+(c.acc&&WM.account(c.acc)?" · "+WM.account(c.acc).bank:"")+'</small><span class="amt num">'+WM.rp(c.amount,true)+'</span></li>';}).join("")+'</ul>':"");
   WM.modal({title:(withdraw?"Tarik dana dari ":"Setor ke ")+esc(g.name),body:html,submit:withdraw?"Tarik dana":"Setor",
     onOpen:function(d,body){if(withdraw)return;var ft=d.querySelector(".sheet-foot");
       ft.insertAdjacentHTML("afterbegin",'<button class="btn" type="button" data-wd style="flex:none">'+WM.icon("wallet",16)+'Tarik</button><button class="btn" type="button" data-ed style="flex:none">'+WM.icon("edit",16)+'Ubah</button>');

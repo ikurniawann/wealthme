@@ -16,8 +16,8 @@
 .mc-groups .mini-list li[aria-current="true"] .ic{background:var(--card)}
 .mc-guide-list{display:grid;gap:10px}
 .gcard{background:var(--card-2);border-radius:14px;padding:14px}
-.gcard b{display:block;font-size:13.5px;margin-bottom:4px}
-.gcard p{margin:0 0 6px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.gcard b{display:block;font-size:14px;margin-bottom:4px}
+.gcard p{margin:0 0 6px;color:var(--muted);font-size:13px;line-height:1.5}
 .gcard em{font-style:normal;color:var(--ink);font-size:12px;display:block;background:var(--card);border-radius:10px;padding:8px 10px;line-height:1.45}
 .mc-tt{font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px}
 .mc-tt.in{background:var(--lime-soft);color:var(--good)}
@@ -141,7 +141,7 @@ function draw(){
   document.getElementById("catsTitle").textContent=active===0?"Semua akun":active+" · "+GROUP[active].label;
   document.getElementById("emptyState").hidden=filtered.length>0;
   document.getElementById("tiles").innerHTML=filtered.map(function(a){var bt=btLabel(a.budgetType);
-    return '<button type="button" class="btile" data-edit="'+a.id+'" aria-label="'+esc(a.name)+', ubah"><span class="tt"><span class="code">'+esc(a.code)+'</span></span><span class="pv" style="font-size:15px">'+esc(a.name)+'</span><small>'+dirBadge(a.direction)+(bt?' · '+bt:'')+'</small></button>';}).join("")+
+    return '<button type="button" class="btile" data-edit="'+a.id+'" aria-label="'+esc(a.name)+', ubah"><span class="tt"><span class="code">'+esc(a.code)+'</span></span><span class="pv" style="font-size:16px">'+esc(a.name)+'</span><small>'+dirBadge(a.direction)+(bt?' · '+bt:'')+'</small></button>';}).join("")+
     (canManage?'<button type="button" class="btile add" data-add>'+WM.icon("plus",18,2)+'Akun baru</button>':"");
   document.querySelectorAll("#tiles [data-edit]").forEach(function(b){b.onclick=function(){openForm(b.dataset.edit);};});
   document.querySelectorAll("#tiles [data-add]").forEach(function(b){b.onclick=function(){openForm(null);};});

@@ -18,7 +18,7 @@
 .pol-pay{border:0;border-radius:99px;background:var(--lime);color:var(--lime-ink);font-weight:600;font-size:12px;min-height:32px;padding:0 12px;margin-left:auto}
 .pol-pay:disabled{background:var(--card-2);color:var(--muted);opacity:1}
 .pol-detail{border:0;background:var(--card);border-radius:99px;font-size:12px;font-weight:500;min-height:32px;padding:0 12px;color:var(--muted)}
-.alloc-note{display:flex;align-items:center;gap:8px;background:var(--card-2);border-radius:12px;padding:10px 12px;font-size:12.5px;margin-bottom:10px}
+.alloc-note{display:flex;align-items:center;gap:8px;background:var(--card-2);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:10px}
 .ben-row{border:1.5px solid var(--line);border-radius:14px;padding:12px}
 .ben-row+.ben-row{margin-top:10px}
 .ben-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
@@ -209,8 +209,8 @@ function policyTile(p){
   var days=daysUntil(p.renewalDate);
   var canPay=p.status==="aktif"&&!p.paidThisPeriod;
   return '<div class="btile pol-tile" data-id="'+p.id+'">'+
-    '<span class="tt" data-detail="'+p.id+'" role="button" tabindex="0"><span><span class="ci">'+WM.icon(TYPE_ICON[p.type],15)+'</span>'+esc(p.name)+'</span><span class="pill '+STATUS_PILL[p.status]+'" style="font-size:10.5px">'+STATUS_LABEL[p.status]+'</span></span>'+
-    '<span class="pv money" data-detail="'+p.id+'">'+WM.rp(p.premium)+'<span style="font-weight:400;color:var(--muted);font-size:11.5px">'+PERIOD_LABEL[p.period]+'</span></span>'+
+    '<span class="tt" data-detail="'+p.id+'" role="button" tabindex="0"><span><span class="ci">'+WM.icon(TYPE_ICON[p.type],15)+'</span>'+esc(p.name)+'</span><span class="pill '+STATUS_PILL[p.status]+'" style="font-size:11px">'+STATUS_LABEL[p.status]+'</span></span>'+
+    '<span class="pv money" data-detail="'+p.id+'">'+WM.rp(p.premium)+'<span style="font-weight:400;color:var(--muted);font-size:12px">'+PERIOD_LABEL[p.period]+'</span></span>'+
     '<small data-detail="'+p.id+'">'+(p.coverage?"Pertanggungan "+WM.short(p.coverage)+" · ":"")+(p.provider||TYPE_LABEL[p.type])+'</small>'+
     (p.renewalDate?'<small data-detail="'+p.id+'">'+(days!=null?daysLabel(days)+" · ":"")+WM.date(p.renewalDate,true)+'</small>':'')+
     '<div class="foot"><button type="button" class="pol-detail" data-detail="'+p.id+'">Detail</button>'+

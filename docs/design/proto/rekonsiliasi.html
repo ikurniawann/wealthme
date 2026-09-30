@@ -15,12 +15,12 @@
 .rk-bank[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
 .rk-bank i{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff}
 .rk-demo{display:flex;flex-direction:column;gap:8px;margin-top:12px}
-.rk-demo button{display:flex;align-items:center;gap:10px;text-align:left;border:1.5px dashed var(--line);border-radius:13px;padding:11px 13px;background:var(--card);font-size:12.5px;min-height:44px}
+.rk-demo button{display:flex;align-items:center;gap:10px;text-align:left;border:1.5px dashed var(--line);border-radius:13px;padding:11px 13px;background:var(--card);font-size:13px;min-height:44px}
 .rk-demo button:hover{border-color:var(--lime);background:var(--lime-soft)}
-.rk-demo small{display:block;color:var(--muted);font-size:11.5px;font-weight:400}
+.rk-demo small{display:block;color:var(--muted);font-size:12px;font-weight:400}
 .rk-row-tx{display:flex;align-items:center;gap:8px;font-size:12px}
 .rk-row-tx .ic{width:28px;height:28px;border-radius:9px}
-.rk-empty-mini{padding:22px 14px;text-align:center;color:var(--muted);font-size:12.5px}
+.rk-empty-mini{padding:22px 14px;text-align:center;color:var(--muted);font-size:13px}
 @media (max-width:640px){.rk-bank{flex:1 1 100%}}
 </style>
 <main data-page="rekonsiliasi">
@@ -285,10 +285,10 @@ function openEntryDetail(impId,entryId){
   var tx=(e.matchedTxId||e.suggestedTxId)?WM.store.find("tx",e.matchedTxId||e.suggestedTxId):null;
   var body='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'+
     '<span class="pill '+(status==="ok"?"good":status==="warn"?"warn":"bad")+'">'+statusLabel+'</span>'+
-    '<b class="num" style="font-size:17px;color:'+(e.amount<0?"var(--bad)":"var(--good)")+'">'+fmtAmt(e.amount)+'</b></div>'+
+    '<b class="num" style="font-size:16px;color:'+(e.amount<0?"var(--bad)":"var(--good)")+'">'+fmtAmt(e.amount)+'</b></div>'+
     '<dl class="kv"><dt>Tanggal</dt><dd>'+WM.date(e.date,true)+'</dd><dt>Keterangan bank</dt><dd>'+WM.esc(e.description)+'</dd></dl>';
   if(tx){
-    body+='<div class="divider"></div><b style="font-size:12.5px">Transaksi WealthMe'+(e.reconStatus==="matched"?" tercocok":" tersarankan")+'</b>'+
+    body+='<div class="divider"></div><b style="font-size:13px">Transaksi WealthMe'+(e.reconStatus==="matched"?" tercocok":" tersarankan")+'</b>'+
       '<dl class="kv" style="margin-top:6px"><dt>Catatan</dt><dd>'+WM.esc(tx.note||WM.cat(tx.cat).name)+'</dd><dt>Jumlah</dt><dd>'+WM.rp(tx.amount)+'</dd><dt>Rekening</dt><dd>'+WM.esc((WM.account(tx.acc)||{}).bank||"–")+'</dd><dt>Tanggal</dt><dd>'+WM.date(tx.date,true)+'</dd></dl>';
   }else{
     body+='<div class="note" style="margin-top:12px">'+WM.icon("info",16)+'<span>Belum ada transaksi WealthMe yang cocok untuk baris ini.</span></div>';

@@ -306,7 +306,7 @@ function liaTile(li){
   var tone=progress>=80?"lime":progress>=50?"orange":"bad";
   var paid=paidThisPeriod(li),late=status.variant==="bad"&&!paid;
   return '<div class="btile lia-tile" data-id="'+li.id+'">'+
-    '<span class="tt" data-detail="'+li.id+'" role="button" tabindex="0"><span><span class="ci">'+WM.icon(TYPE_ICON[li.type],15)+'</span>'+esc(li.name)+'</span><span class="pill '+status.variant+'" style="font-size:10.5px">'+status.text+'</span></span>'+
+    '<span class="tt" data-detail="'+li.id+'" role="button" tabindex="0"><span><span class="ci">'+WM.icon(TYPE_ICON[li.type],15)+'</span>'+esc(li.name)+'</span><span class="pill '+status.variant+'" style="font-size:11px">'+status.text+'</span></span>'+
     '<span class="pv money" data-detail="'+li.id+'" style="color:var(--bad)">'+WM.rp(remaining)+'</span>'+
     '<span class="track"><i class="fill-'+tone+'" style="width:'+progress+'%"></i></span>'+
     '<small data-detail="'+li.id+'">'+(inst>0?WM.short(inst)+"/bln":TYPE_LABEL[li.type])+(li.institution?" · "+esc(li.institution):"")+'</small>'+
@@ -350,7 +350,7 @@ function kprPeriodsHTML(kprState){
   var isSyariah=kprState.scheme==="syariah_murabahah"||kprState.scheme==="syariah_mmq";
   var rateLabel=isSyariah?"Margin/tahun (%)":"Bunga/tahun (%)";
   return '<fieldset class="field" style="border:0;padding:0;margin:0">'+
-    '<legend class="label" style="font-size:12.5px;color:var(--muted);font-weight:500;margin-bottom:6px">Rencana suku bunga KPR</legend>'+
+    '<legend class="label" style="font-size:13px;color:var(--muted);font-weight:500;margin-bottom:6px">Rencana suku bunga KPR</legend>'+
     '<div class="field"><label class="label" for="kprPreset">Skema KPR</label><select class="select" id="kprPreset">'+KPR_PRESETS.map(function(p){return '<option value="'+p.id+'"'+(p.id===kprState.presetId?" selected":"")+'>'+p.label+'</option>';}).join("")+'</select></div>'+
     (kprState.periods.some(function(p){return p.source==="official";})?'<div class="note" style="margin-top:8px">'+WM.icon("info",15)+'<span>Tarif resmi (FLPP 2026) — angka pemerintah, bukan penawaran bank kamu.</span></div>':'')+
     (kprState.periods.some(function(p){return p.source==="example";})?'<div class="note warn" style="margin-top:8px">'+WM.icon("alert",15)+'<span>Contoh pasar, bukan penawaran bank kamu — ubah tiap angka sesuai akad aslimu.</span></div>':'')+
@@ -518,9 +518,9 @@ function openDetail(id){
   '<div class="two"><div><div class="hint">Jatuh tempo berikutnya</div><b>'+(nextDueISO(li)?WM.date(nextDueISO(li)):"—")+'</b></div>'+
   '<div><div class="hint">Metode bunga</div><b>'+METHOD_LABEL[li.interestMethod]+'</b></div></div>'+
   '<div class="card soft" style="padding:14px;border-radius:14px">'+
-    '<div style="font-weight:700;font-size:12.5px;margin-bottom:8px">Ringkasan amortisasi</div>'+
+    '<div style="font-weight:700;font-size:13px;margin-bottom:8px">Ringkasan amortisasi</div>'+
     (first?('<div class="two"><div><div class="hint">Pokok bulan ini</div><b class="num">'+WM.rp(first.principal)+'</b></div><div><div class="hint">Bunga bulan ini</div><b class="num" style="color:var(--bad)">'+WM.rp(first.interest)+'</b></div></div>'+
-    '<div class="'+(paysOff?"":"note bad")+'" style="margin-top:8px;'+(paysOff?"color:var(--good);font-size:12.5px;font-weight:600":"")+'">'+(paysOff?"Perkiraan lunas dalam "+rows.length+" cicilan lagi.":"Cicilan saat ini belum menutup bunga berjalan — sisa pokok tidak akan turun.")+'</div>'+
+    '<div class="'+(paysOff?"":"note bad")+'" style="margin-top:8px;'+(paysOff?"color:var(--good);font-size:13px;font-weight:600":"")+'">'+(paysOff?"Perkiraan lunas dalam "+rows.length+" cicilan lagi.":"Cicilan saat ini belum menutup bunga berjalan — sisa pokok tidak akan turun.")+'</div>'+
     '<div class="sched-hd" style="margin-top:12px"><span style="font-weight:700;font-size:13px">Jadwal cicilan ('+rows.length+')</span><span class="hint">Geser untuk lihat semua</span></div>'+
     '<div class="tw" style="max-height:280px;overflow-y:auto"><table class="tbl"><thead><tr><th>#</th><th>Tanggal</th><th>Bunga</th><th class="r">Cicilan</th><th class="r">Pokok</th><th class="r">Bunga</th><th class="r">Sisa</th></tr></thead><tbody>'+
     rows.map(function(r){var dt=li.startDate?dueDateForPeriod(li.startDate,r.period):null;
@@ -547,7 +547,7 @@ function openDetail(id){
 
 function floatingPanelHTML(li){
   var rates=li.floatingRates||[];
-  return '<section class="card soft" style="padding:14px;border-radius:14px" id="floatingPanel"><div style="font-weight:700;font-size:12.5px">Riwayat bunga mengambang</div>'+
+  return '<section class="card soft" style="padding:14px;border-radius:14px" id="floatingPanel"><div style="font-weight:700;font-size:13px">Riwayat bunga mengambang</div>'+
     '<div class="hint" style="margin:0 0 8px">Catatan manual kamu, bukan feed suku bunga bank langsung.</div>'+
     (rates.length?'<ul style="list-style:none;margin:0;padding:0">'+rates.map(function(r){return '<li class="fh-row"><span><b class="mono">'+r.ratePercent+'%</b> · '+WM.date(r.effectiveDate)+'</span><button type="button" class="ibtn" data-rmfr="'+r.id+'" aria-label="Hapus">'+WM.icon("trash",14)+'</button></li>';}).join("")+'</ul>':'<div class="hint">Belum ada catatan perubahan bunga.</div>')+
     '<div class="two" style="margin-top:8px"><div class="field" style="margin:0">'+WM.field({name:"frDate",label:"Berlaku sejak",type:"date"})+'</div><div class="field" style="margin:0">'+WM.field({name:"frRate",label:"Bunga baru (%)"})+'</div></div>'+
@@ -570,7 +570,7 @@ function wireFloatingPanel(b,li){
 
 var PREPAY_MODES=[["reduce_tenor","Percepat lunas"],["reduce_installment","Perkecil cicilan"],["full","Lunasi semua"]];
 function prepayPanelHTML(li){
-  return '<section class="card soft" style="padding:14px;border-radius:14px" id="prepayPanel"><div style="font-weight:700;font-size:12.5px">Simulasi pelunasan dipercepat</div>'+
+  return '<section class="card soft" style="padding:14px;border-radius:14px" id="prepayPanel"><div style="font-weight:700;font-size:13px">Simulasi pelunasan dipercepat</div>'+
     '<div class="note" style="margin:6px 0">Ini simulasi saja — belum tercatat sampai kamu pilih rekening dan konfirmasi di bawah.</div>'+
     '<div class="seg full" data-radio="ppmode" role="radiogroup" aria-label="Mode pelunasan">'+PREPAY_MODES.map(function(m,i){return '<button type="button" role="radio" data-v="'+m[0]+'" aria-checked="'+(i===0)+'">'+m[1]+'</button>';}).join("")+'</div>'+
     '<div class="two" style="margin-top:8px"><div class="field" style="margin:0" id="ppAmtWrap">'+WM.field({name:"ppAmount",label:"Nominal pelunasan (Rp)",type:"money"})+'</div>'+

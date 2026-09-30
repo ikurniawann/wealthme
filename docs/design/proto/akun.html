@@ -10,18 +10,18 @@
 .set-tile{border:0;background:var(--card-2);border-radius:16px;padding:14px;text-align:left;display:flex;flex-direction:column;gap:10px;min-height:88px}
 .set-tile:hover{background:var(--ghost)}
 .set-tile .ci{width:32px;height:32px;border-radius:10px;background:var(--card);display:grid;place-items:center}
-.set-tile b{font-size:12.5px;font-weight:600}
+.set-tile b{font-size:13px;font-weight:600}
 .set-tile small{color:var(--muted);font-size:11px}
 .currency-tile{display:flex;align-items:center;gap:10px;width:100%;border:1.5px solid var(--line);background:var(--card);border-radius:13px;padding:11px 13px;text-align:left;margin-bottom:8px}
 .currency-tile[aria-checked="true"]{border-color:var(--lime);background:var(--lime-soft)}
 .currency-tile .flag{font-size:20px}
-.currency-tile b{display:block;font-size:12.5px}
+.currency-tile b{display:block;font-size:13px}
 .currency-tile small{color:var(--muted);font-size:11px}
 .currency-tile .ck{margin-left:auto;color:var(--good);font-weight:700}
 .session-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .session-row:first-child{border-top:0}
 .tentang-hero{text-align:center;padding:10px 0}
-.tentang-hero .mark{width:52px;height:52px;border-radius:16px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-size:22px;font-weight:800;margin:0 auto 8px}
+.tentang-hero .mark{width:52px;height:52px;border-radius:16px;background:var(--ink);color:var(--card);display:grid;place-items:center;font-size:20px;font-weight:800;margin:0 auto 8px}
 .qtabs{max-width:420px}
 </style>
 <main data-page="akun">
@@ -131,12 +131,12 @@
         <ul class="mini-list" id="linkList"></ul>
       </div>
       <div class="set-sec" style="margin-top:16px">
-        <b style="font-size:12.5px">Kirim feedback</b>
+        <b style="font-size:13px">Kirim feedback</b>
         <textarea class="textarea" id="fbText" rows="3" placeholder="Ceritakan pengalamanmu atau laporkan bug…" style="margin-top:8px"></textarea>
         <button class="btn primary block" type="button" id="fbSend" disabled style="margin-top:8px">Kirim feedback</button>
       </div>
       <div class="set-sec" style="margin-top:16px">
-        <div class="tentang-hero"><div class="mark">W</div><div style="font-weight:700;font-size:15px">WealthMe</div><p class="cap">Personal Wealth Operating System · v1.0.0</p></div>
+        <div class="tentang-hero"><div class="mark">W</div><div style="font-weight:700;font-size:16px">WealthMe</div><p class="cap">Personal Wealth Operating System · v1.0.0</p></div>
         <ul class="mini-list" id="legalList"></ul>
       </div>
     </div>
@@ -192,11 +192,11 @@ function drawProfKv(){var me=WM.me(),d=pd();
   document.getElementById("profKv").innerHTML=rows.map(function(r){return '<dt>'+r[0]+'</dt><dd>'+esc(r[1])+'</dd>';}).join("");}
 
 function drawFamily(){var ms=WM.store.get("members"),me=WM.me();
-  document.getElementById("familyBox").innerHTML='<div style="display:flex;gap:12px;align-items:center"><div style="width:44px;height:44px;border-radius:12px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;font-weight:700">KR</div><div><b style="font-size:13.5px">Keluarga Rizaldi</b><div class="cap">'+ms.length+' anggota · '+WM.roleLabel(me.role)+'</div></div></div>'+
+  document.getElementById("familyBox").innerHTML='<div style="display:flex;gap:12px;align-items:center"><div style="width:44px;height:44px;border-radius:12px;background:var(--lime);color:var(--lime-ink);display:grid;place-items:center;font-weight:700">KR</div><div><b style="font-size:14px">Keluarga Rizaldi</b><div class="cap">'+ms.length+' anggota · '+WM.roleLabel(me.role)+'</div></div></div>'+
     '<div class="note" style="margin-top:10px"><span>'+WM.icon("info",15)+'</span><span>Admin (asisten, sopir) bisa mencatat transaksi atas nama keluarga, tapi tidak bisa mengubah pengaturan group atau melihat saldo pribadi anggota.</span></div>';}
 
 function drawMembers(){var ms=WM.store.get("members");document.getElementById("memberCount").textContent=ms.length;
-  document.getElementById("memberList").innerHTML=ms.map(function(m){return '<li>'+WM.avatar(m,36)+'<div><b>'+esc(m.name)+(m.id===WM.meId()?' <span class="muted" style="font-weight:400;font-size:11.5px">(Kamu)</span>':'')+'</b><small>'+WM.roleLabel(m.role)+(m.email?" · "+esc(m.email):"")+'</small></div></li>';}).join("");}
+  document.getElementById("memberList").innerHTML=ms.map(function(m){return '<li>'+WM.avatar(m,36)+'<div><b>'+esc(m.name)+(m.id===WM.meId()?' <span class="muted" style="font-weight:400;font-size:12px">(Kamu)</span>':'')+'</b><small>'+WM.roleLabel(m.role)+(m.email?" · "+esc(m.email):"")+'</small></div></li>';}).join("");}
 
 document.getElementById("editProfile").onclick=function(){var me=WM.me(),d=pd();
   WM.modal({title:"Edit profil",size:"lg",submit:"Simpan perubahan",
@@ -235,7 +235,7 @@ function drawAuthSwitches(){var d=pd();
   document.getElementById("swLogin").onchange=function(e){updPd({authPrefs:Object.assign({},pd().authPrefs,{loginAlert:e.target.checked})});WM.toast("Preferensi disimpan");};}
 
 function drawSessions(){var ss=WM.store.get("sessions");
-  document.getElementById("sessionList").innerHTML=ss.map(function(s){return '<div class="session-row"><span class="ic">'+WM.icon(s.device.indexOf("iPhone")>=0?"phone":"more",17)+'</span><span class="body" style="flex:1;min-width:0"><b style="display:block;font-size:13px">'+esc(s.device)+'</b><small style="color:var(--muted);font-size:11.5px">Aktif sejak '+WM.date(s.since)+', '+s.ip+'</small></span>'+
+  document.getElementById("sessionList").innerHTML=ss.map(function(s){return '<div class="session-row"><span class="ic">'+WM.icon(s.device.indexOf("iPhone")>=0?"phone":"more",17)+'</span><span class="body" style="flex:1;min-width:0"><b style="display:block;font-size:13px">'+esc(s.device)+'</b><small style="color:var(--muted);font-size:12px">Aktif sejak '+WM.date(s.since)+', '+s.ip+'</small></span>'+
     (s.current?'<span class="pill good">Ini perangkatmu</span>':'<button class="btn ghost sm" type="button" data-end="'+s.id+'" style="color:var(--bad)">Akhiri</button>')+'</div>';}).join("");
   document.querySelectorAll("[data-end]").forEach(function(b){b.onclick=function(){var id=b.dataset.end,old=WM.store.find("sessions",id);WM.store.remove("sessions",id);WM.toast("Sesi diakhiri",{undo:function(){WM.store.add("sessions",old);}});};});}
 
@@ -261,7 +261,7 @@ var NOTIF_ROWS=[
  ["Tujuan & anggaran",[["budget80","Anggaran mendekati batas","Alert saat 80% terpakai"],["goalMilestone","Update progres tujuan","Saat milestone tercapai"],["billDue","Jatuh tempo tagihan","3 hari sebelum jatuh tempo"]]],
  ["Investasi",[["stockPrice","Update harga saham","Perubahan harga signifikan"],["dividend","Dividen masuk","Saat dividen diterima"]]]];
 function drawNotif(){var d=pd();
-  document.getElementById("notifBox").innerHTML=NOTIF_ROWS.map(function(sec){return '<div style="margin-bottom:10px"><b style="font-size:11.5px;color:var(--muted)">'+sec[0]+'</b><div class="switchbox" style="margin-top:4px">'+sec[1].map(function(r){return '<label class="switch"><span><b style="display:block">'+r[1]+'</b><small>'+r[2]+'</small></span><input type="checkbox" data-np="'+r[0]+'" '+(d.notifPrefs[r[0]]?"checked":"")+'></label>';}).join("")+'</div></div>';}).join("");
+  document.getElementById("notifBox").innerHTML=NOTIF_ROWS.map(function(sec){return '<div style="margin-bottom:10px"><b style="font-size:12px;color:var(--muted)">'+sec[0]+'</b><div class="switchbox" style="margin-top:4px">'+sec[1].map(function(r){return '<label class="switch"><span><b style="display:block">'+r[1]+'</b><small>'+r[2]+'</small></span><input type="checkbox" data-np="'+r[0]+'" '+(d.notifPrefs[r[0]]?"checked":"")+'></label>';}).join("")+'</div></div>';}).join("");
   document.querySelectorAll("[data-np]").forEach(function(i){i.onchange=function(){var np=Object.assign({},pd().notifPrefs);np[i.dataset.np]=i.checked;updPd({notifPrefs:np});};});}
 
 function drawPriv(){var d=pd();

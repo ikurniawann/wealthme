@@ -2755,7 +2755,7 @@
               body:
                 '<label class="drop">' +
                 WM.icon("camera", 26) +
-                '<b>Foto atau pilih struk</b><span>JPG, PNG atau PDF. Maks 5 MB.</span><input type="file" accept="image/*,application/pdf" hidden></label><p class="muted" style="margin:0;font-size:12.5px">Di prototipe, hasil scan diisi dengan contoh struk Indomaret Rp 86.500.</p>',
+                '<b>Foto atau pilih struk</b><span>JPG, PNG atau PDF. Maks 5 MB.</span><input type="file" accept="image/*,application/pdf" hidden></label><p class="muted" style="margin:0;font-size:13px">Di prototipe, hasil scan diisi dengan contoh struk Indomaret Rp 86.500.</p>',
               submit: "Pakai hasil scan",
               onSubmit: function () {
                 amt.value = (86500).toLocaleString("id-ID");
@@ -3503,7 +3503,7 @@
               x: x + bw / 2,
               y: f.H - 6,
               "text-anchor": "middle",
-              style: f.c ? "font-size:9.5px" : null,
+              style: f.c ? "font-size:11px" : null,
             },
             f.c ? p.s || p.l : p.l,
           ),

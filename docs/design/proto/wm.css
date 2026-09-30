@@ -192,7 +192,7 @@ h3 {
   align-items: center;
   gap: 10px;
   font-weight: 700;
-  font-size: 17px;
+  font-size: 16px;
   letter-spacing: -0.02em;
   padding: 4px 8px 14px;
   text-decoration: none;
@@ -222,7 +222,7 @@ h3 {
   color: var(--muted);
   font-weight: 500;
   min-height: 40px;
-  font-size: 13.5px;
+  font-size: 14px;
   transition:
     background 0.15s,
     color 0.15s;
@@ -320,13 +320,13 @@ h3 {
 }
 .promo h3 {
   margin: 0;
-  font-size: 14.5px;
+  font-size: 14px;
   letter-spacing: -0.01em;
 }
 .promo p {
   margin: 0;
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .steps {
   display: flex;
@@ -361,7 +361,7 @@ h3 {
   box-shadow: var(--shadow);
   border: 0;
   text-align: left;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .search kbd {
   margin-left: auto;
@@ -519,7 +519,7 @@ h3 {
   height: 52px;
   box-shadow: 0 14px 32px -12px rgba(20, 30, 5, 0.55);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 14px;
   text-decoration: none;
 }
 .fai {
@@ -548,7 +548,7 @@ h3 {
 }
 .ph h1 {
   margin: 0;
-  font-size: 32px;
+  font-size: 28px;
   letter-spacing: -0.04em;
   line-height: 1.08;
   font-weight: 600;
@@ -556,7 +556,7 @@ h3 {
 .ph p {
   margin: 6px 0 0;
   color: var(--muted);
-  font-size: 13.5px;
+  font-size: 14px;
   max-width: 60ch;
 }
 .ph .acts {
@@ -627,7 +627,7 @@ h3 {
 }
 .card .cap {
   color: var(--muted);
-  font-size: 12.5px;
+  font-size: 13px;
   margin-top: 2px;
 }
 .head {
@@ -692,7 +692,7 @@ h3 {
   color: var(--lime);
 }
 .big {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 600;
   letter-spacing: -0.035em;
   line-height: 1.05;
@@ -742,7 +742,7 @@ h3 {
   min-height: 44px;
   padding: 0 16px;
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 14px;
   text-decoration: none;
   white-space: nowrap;
   transition:
@@ -795,7 +795,7 @@ h3 {
 .btn.sm {
   min-height: 36px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 13px;
   border-radius: 10px;
 }
 .btn.block {
@@ -884,7 +884,7 @@ h3 {
   background: transparent;
   border-radius: 9px;
   padding: 0 12px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
   min-height: 34px;
   white-space: nowrap;
@@ -937,7 +937,7 @@ h3 {
   background: var(--card);
   color: var(--muted);
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 14px;
   box-shadow: var(--shadow);
 }
 .tabs button[aria-selected="true"] {
@@ -955,7 +955,7 @@ h3 {
   border-radius: 99px;
   padding: 0 14px;
   min-height: 36px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
 }
 .chips-f button[aria-pressed="true"] {
@@ -968,7 +968,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   border-radius: 99px;
   padding: 3px 9px;
@@ -1022,7 +1022,7 @@ h3 {
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .row:last-child {
   border-bottom: 0;
@@ -1093,7 +1093,7 @@ a.row {
 .tbl {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .tbl th {
   text-align: left;
@@ -1172,7 +1172,7 @@ a.row {
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px 16px;
-  font-size: 13.5px;
+  font-size: 14px;
   margin: 0;
 }
 .kv dt {
@@ -1201,7 +1201,7 @@ a.row {
 }
 .empty b {
   color: var(--ink);
-  font-size: 15px;
+  font-size: 16px;
 }
 .empty p {
   margin: 0;
@@ -1245,7 +1245,7 @@ a.row {
 }
 .field > label,
 .flabel {
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--muted);
   font-weight: 500;
   display: flex;
@@ -1378,7 +1378,7 @@ a.row {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 13.5px;
+  font-size: 14px;
   cursor: pointer;
   min-height: 24px;
 }
@@ -1394,7 +1394,7 @@ a.row {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   cursor: pointer;
   min-height: 44px;
 }
@@ -1453,7 +1453,7 @@ a.row {
 }
 .tile small {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .tile:hover {
   border-color: var(--muted);
@@ -1563,7 +1563,7 @@ dialog.sheet::backdrop {
 }
 .sheet-head h2 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   letter-spacing: -0.02em;
 }
 .sheet-head p {
@@ -1610,7 +1610,7 @@ dialog.sheet::backdrop {
   flex-basis: 100%;
   order: -1;
   color: var(--bad);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .sheet-foot {
   flex-wrap: wrap;
@@ -1661,7 +1661,7 @@ dialog.sheet::backdrop {
   padding: 10px 12px;
   min-height: 44px;
   text-align: left;
-  font-size: 13.5px;
+  font-size: 14px;
   text-decoration: none;
 }
 .pop .mi:hover,
@@ -1769,7 +1769,7 @@ dialog.sheet::backdrop {
   border: 0;
   background: none;
   text-align: left;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .pal-list a[aria-selected="true"],
 .pal-list a:hover,
@@ -1808,7 +1808,7 @@ dialog.sheet::backdrop {
   font-size: 12px;
 }
 .acc b {
-  font-size: 15.5px;
+  font-size: 16px;
   letter-spacing: -0.01em;
 }
 .acc .num {
@@ -1883,7 +1883,7 @@ dialog.sheet::backdrop {
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  font-size: 12.5px;
+  font-size: 13px;
   border: 2px solid transparent;
 }
 .member[aria-checked="true"] .avatar {
@@ -1948,7 +1948,7 @@ dialog.sheet::backdrop {
   background: var(--card-2);
   border-radius: 12px;
   padding: 10px 12px;
-  font-size: 12.5px;
+  font-size: 13px;
 }
 .budget-hint .track {
   flex: 1;
@@ -1975,14 +1975,14 @@ dialog.sheet::backdrop {
 }
 .chart svg text {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   fill: var(--ctext);
 }
 .legend {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 18px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ctext);
 }
 .legend span {
@@ -2323,7 +2323,7 @@ dialog.sheet::backdrop {
   padding: 0 26px 0 11px;
   height: 34px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--ink);
 }
 .hero {
@@ -2382,7 +2382,7 @@ dialog.sheet::backdrop {
   font-variant-numeric: tabular-nums;
 }
 .delta {
-  font-size: 11.5px;
+  font-size: 12px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -2412,7 +2412,7 @@ dialog.sheet::backdrop {
 }
 .chart-wrap svg text {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11px;
   fill: var(--muted);
 }
 .mid {
@@ -2522,7 +2522,7 @@ dialog.sheet::backdrop {
   background: var(--ghost);
 }
 .group-label {
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--muted);
   margin: 12px 0 2px;
 }
@@ -2559,7 +2559,7 @@ dialog.sheet::backdrop {
 }
 .mini-list small {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
   display: block;
   white-space: nowrap;
   overflow: hidden;
@@ -2614,7 +2614,7 @@ dialog.sheet::backdrop {
   flex: none;
 }
 .btile .pv {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
@@ -2626,7 +2626,7 @@ dialog.sheet::backdrop {
 }
 .btile small {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 .btile.add {
@@ -2669,7 +2669,7 @@ dialog.sheet::backdrop {
     align-items: flex-start;
   }
   .big {
-    font-size: 30px;
+    font-size: 28px;
   }
   .hero .chart-side {
     padding: 18px 18px 8px;
@@ -2679,14 +2679,14 @@ dialog.sheet::backdrop {
     gap: 8px;
   }
   .kpi .v {
-    font-size: 15px;
+    font-size: 16px;
   }
   .kpi .v[data-short] {
     font-size: 0;
   }
   .kpi .v[data-short]::after {
     content: attr(data-short);
-    font-size: 15px;
+    font-size: 16px;
   }
   .kpi small {
     font-size: 11px;
@@ -2867,7 +2867,7 @@ kbd {
   }
   .mbrand {
     display: flex !important;
-    font-size: 19px;
+    font-size: 20px;
     font-weight: 600;
     letter-spacing: -0.03em;
   }
@@ -2896,7 +2896,7 @@ kbd {
   }
   .mtitle-h {
     margin: 2px 0 0;
-    font-size: 34px;
+    font-size: 40px;
     line-height: 1.08;
     letter-spacing: -0.045em;
     font-weight: 500;
@@ -2933,7 +2933,7 @@ kbd {
     text-align: center;
   }
   .hero.dark .big {
-    font-size: 34px;
+    font-size: 40px;
     margin-top: 4px;
   }
   .hero.dark .hero-ctrl {
@@ -3101,7 +3101,7 @@ kbd {
   align-items: center;
   gap: 6px;
   text-decoration: none;
-  font-size: 11.5px;
+  font-size: 12px;
   text-align: center;
   line-height: 1.2;
   min-height: 76px;
@@ -3144,7 +3144,7 @@ kbd {
   place-items: center;
 }
 .td-amt {
-  font-size: 32px;
+  font-size: 28px;
   font-weight: 600;
   letter-spacing: -0.04em;
   margin-top: 6px;
@@ -3161,7 +3161,7 @@ kbd {
   margin-top: 6px;
 }
 .td-tags span {
-  font-size: 11.5px;
+  font-size: 12px;
   border: 1px solid var(--line);
   border-radius: 99px;
   padding: 3px 10px;
@@ -3184,10 +3184,10 @@ kbd {
 }
 .td-acc small {
   color: var(--muted);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 .td-acc b {
-  font-size: 15px;
+  font-size: 16px;
 }
 .td-acc span {
   font-size: 12px;
@@ -3201,7 +3201,7 @@ kbd {
   top: 10px;
   right: 10px;
   font-style: normal;
-  font-size: 10px;
+  font-size: 11px;
 }
 .td-arrow {
   display: grid;
@@ -3214,7 +3214,7 @@ kbd {
   padding: 14px;
 }
 .td-ctx b {
-  font-size: 13.5px;
+  font-size: 14px;
 }
 .td-ctx small {
   display: block;
@@ -3269,7 +3269,7 @@ kbd {
 .cs-head small {
   display: block;
   color: var(--ctext);
-  font-size: 12.5px;
+  font-size: 13px;
   margin-top: 2px;
 }
 .cs-bar {
@@ -3367,14 +3367,14 @@ dialog.sheet.side .sheet-head {
   padding: 28px 26px 24px;
 }
 dialog.sheet .sheet-head h2 {
-  font-size: 26px;
+  font-size: 28px;
   letter-spacing: -0.035em;
   line-height: 1.1;
   font-weight: 600;
   color: #eef0e8;
 }
 dialog.sheet.sm .sheet-head h2 {
-  font-size: 21px;
+  font-size: 20px;
 }
 dialog.sheet .sheet-head p {
   color: #a3aa95;
@@ -3421,7 +3421,7 @@ dialog.sheet.side .sheet-body {
   border-radius: 16px;
   min-height: 54px;
   padding: 12px 16px;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 500;
   transition:
     border-color 0.15s,
@@ -3474,7 +3474,7 @@ dialog.sheet.side .sheet-body {
   color: var(--card);
   border-radius: 10px;
   padding: 6px 10px;
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 700;
 }
 .sheet .affix > span:last-child:not(:first-child) {
@@ -3483,7 +3483,7 @@ dialog.sheet.side .sheet-body {
   padding-right: 8px;
 }
 .sheet .field .affix input {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
@@ -3528,7 +3528,7 @@ dialog.sheet.side .sheet-body {
   border-bottom-width: 3px;
 }
 .sheet .amount input {
-  font-size: 42px;
+  font-size: 40px;
 }
 .sheet .seg.full {
   background: var(--card-2);
@@ -3568,7 +3568,7 @@ dialog.sheet.side .sheet-foot {
 .sheet-foot .btn {
   min-height: 54px;
   border-radius: 99px;
-  font-size: 14.5px;
+  font-size: 14px;
 }
 .sheet-foot .btn:not(.primary):not(.danger):not(.dark) {
   background: transparent;
@@ -3618,7 +3618,7 @@ dialog.sheet.side .sheet-foot {
     background: rgba(238, 240, 232, 0.3);
   }
   dialog.sheet .sheet-head h2 {
-    font-size: 22px;
+    font-size: 20px;
   }
   dialog.sheet .sheet-body {
     padding: 18px 18px 16px;
@@ -3633,7 +3633,7 @@ dialog.sheet.side .sheet-foot {
   box-shadow: none !important;
   min-height: 0 !important;
   padding: 0 !important;
-  font-size: 42px !important;
+  font-size: 40px !important;
   font-weight: 600 !important;
   letter-spacing: -0.035em;
 }
@@ -3646,4 +3646,59 @@ dialog.sheet.side .sheet-foot {
 }
 .sheet-body > * {
   flex-shrink: 0;
+}
+/* typography: one family, one scale (11 · 12 · 13 · 14 · 16 · 20 · 28 · 40 · 52) */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+body {
+  font-size: 14px;
+  line-height: 1.5;
+}
+h1,
+h2,
+h3,
+.big,
+.mid,
+.pv,
+.headline,
+.kpi .v,
+.stat b,
+.mtitle-h {
+  font-family: var(--font);
+  letter-spacing: -0.025em;
+}
+.card h2 {
+  font-size: 16px;
+  font-weight: 600;
+}
+.cap,
+.card .cap {
+  font-size: 12px;
+}
+.row,
+.mini-list b,
+.tbl td {
+  font-size: 14px;
+}
+.row small,
+.mini-list small,
+.tbl th {
+  font-size: 12px;
+}
+.num,
+.amt,
+.kpi .v,
+.big,
+.mid,
+.pv {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.mono {
+  font-family: var(--mono);
+  font-size: 12px;
 }

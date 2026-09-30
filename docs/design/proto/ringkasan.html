@@ -11,23 +11,23 @@
   .r-breakdown{grid-column:1/13;grid-row:4}
 }
 .is-private .private{filter:blur(7px);user-select:none}
-.r-hero .multicur{color:var(--muted);font-size:12.5px;margin-top:4px}
+.r-hero .multicur{color:var(--muted);font-size:13px;margin-top:4px}
 .r-hero .sel{border:0;background:var(--card-2)}
 .r-hero .big{font-size:52px;letter-spacing:-.035em}
 .r-hero .chart-wrap svg,.r-cash .chart-wrap svg{filter:saturate(1.2)}
-#hMonthDelta.chg{margin-top:6px;font-size:12.5px}
+#hMonthDelta.chg{margin-top:6px;font-size:13px}
 .r-comp{border:1.5px solid var(--lime)}
-.r-comp h2{font-size:19px}
+.r-comp h2{font-size:20px}
 .r-health,.r-liab{opacity:.94}
-.r-health h2,.r-liab h2{font-size:14.5px;color:var(--muted);font-weight:600}
+.r-health h2,.r-liab h2{font-size:14px;color:var(--muted);font-weight:600}
 .r-breakdown li.net{background:var(--lime-soft);border-radius:12px;padding:12px 10px;margin-top:8px}
-.r-breakdown li.net b{font-size:15px}
-.r-breakdown li.net .v{font-size:18px;font-weight:800;color:var(--good)}
+.r-breakdown li.net b{font-size:16px}
+.r-breakdown li.net .v{font-size:20px;font-weight:800;color:var(--good)}
 #customRange{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-top:10px}
 #customRange .field{min-width:140px}
 .hbars{display:flex;flex-direction:column;gap:10px}
 .hbars .hb-row{display:flex;flex-direction:column;gap:5px}
-.hbars .hb-top{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.hbars .hb-top{display:flex;justify-content:space-between;gap:10px;font-size:13px}
 .hbars .hb-top b{font-weight:500}
 .hbars .hb-top span{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
 .health-body{display:flex;align-items:center;gap:24px;margin-top:8px;flex-wrap:wrap}
@@ -44,7 +44,7 @@
 .r-breakdown li .p{color:var(--muted);font-size:12px;min-width:38px;text-align:right}
 .r-breakdown li .v{font-weight:600;min-width:100px;text-align:right}
 .r-breakdown li.tot{background:var(--card-2);border-radius:10px;padding:9px 8px;border-top:0;margin-top:4px}
-.r-breakdown li.net b{font-weight:700}.r-breakdown li.net .v{color:var(--good);font-size:14.5px}
+.r-breakdown li.net b{font-weight:700}.r-breakdown li.net .v{color:var(--good);font-size:14px}
 @media (max-width:520px){.r-breakdown li .p{display:none}}
 </style>
 <main data-page="ringkasan">
@@ -226,7 +226,7 @@ function drawBreakdown(d){
   html+=d.liabilities.map(function(l){return '<li class="private"><b>'+WM.esc(l.name)+'</b><span class="p num">'+(d.totalLiabilities>0?WM.pct(l.outstanding/d.totalLiabilities*100,1):"–")+'</span><span class="v num" style="color:var(--bad)">'+moneyFull(l.outstanding)+'</span></li>';}).join("");
   if(d.liabilities.length)html+='<li class="tot private"><b>Total liabilitas</b><span class="p num">100%</span><span class="v num" style="color:var(--bad)">'+moneyFull(d.totalLiabilities)+'</span></li>';
   html+='<li class="net private"><b>Kekayaan bersih</b><span class="p"></span><span class="v num">'+moneyFull(d.netWorth)+'</span></li>';
-  if(!rows.length&&!d.liabilities.length)html='<li><b>Belum ada data</b><p style="grid-column:1/-1;color:var(--muted);font-size:12.5px;margin:4px 0 0">Tambah rekening, aset atau liabilitas untuk melihat rinciannya.</p></li>';
+  if(!rows.length&&!d.liabilities.length)html='<li><b>Belum ada data</b><p style="grid-column:1/-1;color:var(--muted);font-size:13px;margin:4px 0 0">Tambah rekening, aset atau liabilitas untuk melihat rinciannya.</p></li>';
   $("breakdownList").innerHTML=html;
 }
 

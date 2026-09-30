@@ -14,7 +14,7 @@
 .mem-row:hover{background:var(--card-2);border-radius:12px;margin:0 -8px;padding:12px 8px}
 .mem-row .body{min-width:0}
 .mem-row b{font-size:13px;display:block}
-.mem-row small{color:var(--muted);font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mem-row small{color:var(--muted);font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mem-row .you{color:var(--muted);font-weight:400}
 .matrix-sec+.matrix-sec{margin-top:14px}
 .matrix-sec h4{margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted)}
@@ -194,7 +194,7 @@ function openAddMember(){
       WM.field({name:"accessRoleId",label:"Hak akses (opsional)",type:"select",optional:true,options:[["","Bawaan (ikuti peran)"]].concat(roles.map(function(r){return [r.id,r.name];}))});}
   function showLink(tok,email){setTimeout(function(){WM.modal({title:"Undangan dibuat",submit:false,cancel:"Selesai",
     body:'<p class="hint" style="margin:0">Kirim link ini ke '+esc(email)+' (simulasi, tidak benar-benar terkirim).</p>'+
-      '<div class="cred-row" style="margin-top:10px"><span class="mono" style="font-size:11.5px;word-break:break-all">join.html?token='+tok+'</span><button class="ibtn" type="button" data-copylink aria-label="Salin link">'+WM.icon("copy",14)+'</button></div>',
+      '<div class="cred-row" style="margin-top:10px"><span class="mono" style="font-size:12px;word-break:break-all">join.html?token='+tok+'</span><button class="ibtn" type="button" data-copylink aria-label="Salin link">'+WM.icon("copy",14)+'</button></div>',
     onOpen:function(dg,b){b.querySelector("[data-copylink]").onclick=function(){WM.copy(location.href.replace(/[^/]*$/,"")+"join.html?token="+tok,"Link undangan");};}});},10);}
   function showCreds(m,username,password){setTimeout(function(){WM.modal({title:"Akun dibuat",submit:false,cancel:"Selesai",
     body:'<p class="hint" style="margin:0">Password wajib diganti saat '+esc(m.name)+' login pertama.</p>'+

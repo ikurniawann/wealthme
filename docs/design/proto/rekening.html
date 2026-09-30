@@ -14,7 +14,7 @@
 .chipsvg{width:34px;height:26px}
 .pcard .no{font-size:14px;letter-spacing:.08em}
 .pcard .bt{display:flex;justify-content:space-between;font-size:12px;gap:8px}.pcard .bt .num{font-weight:600}
-.pcard .priv{font-size:10.5px;font-weight:600;border-radius:99px;padding:2px 8px;background:rgba(0,0,0,.08)}
+.pcard .priv{font-size:11px;font-weight:600;border-radius:99px;padding:2px 8px;background:rgba(0,0,0,.08)}
 .deck{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-top:14px}
 .deck::-webkit-scrollbar{display:none}
 .dots{display:flex;justify-content:center;gap:5px;margin-top:10px}.dots i{width:6px;height:6px;border-radius:50%;background:var(--ghost)}.dots i.on{width:16px;border-radius:3px;background:var(--ink)}
@@ -25,11 +25,11 @@
 .arow{display:grid;grid-template-columns:44px minmax(0,1fr) 150px auto;gap:14px;align-items:center;padding:13px 4px;border-top:1px solid var(--line);cursor:pointer;border-radius:12px;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;font:inherit;color:inherit}
 .arow:first-child{border-top:0}.arow:hover{background:var(--card-2)}
 .arow .bk{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-weight:700;font-style:italic;font-size:12px}
-.arow b{display:block;font-weight:500;font-size:13.5px}.arow small{color:var(--muted);font-size:12px}
+.arow b{display:block;font-weight:500;font-size:14px}.arow small{color:var(--muted);font-size:12px}
 .arow .amt{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
 #cc .pcard{max-width:300px;margin:0 auto}
 .arow .track{width:100%}
-.cc-meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:8px}
+.cc-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted);margin-top:8px}
 @media (max-width:720px){.arow{grid-template-columns:40px minmax(0,1fr) auto}.arow .track{display:none}}
 </style>
 <main data-page="rekening">
@@ -146,7 +146,7 @@ function openDetail(id){
    '<dt>Pemilik</dt><dd>'+esc(a.owner?WM.member(a.owner).short:"Bersama")+(a.vis==="private"?' <span class="pill">Privat</span>':'')+'</dd>'+
    '<dt>Saldo</dt><dd class="num">'+WM.rp(a.balance)+'</dd></dl>'+
    '<div class="divider"></div><b style="font-size:13px">Mutasi terakhir</b>'+
-   (tx.length?'<div class="list">'+tx.map(WM.txRow).join("")+'</div>':'<p class="muted" style="font-size:12.5px;margin:6px 0 0">Belum ada mutasi di rekening ini.</p>')+
+   (tx.length?'<div class="list">'+tx.map(WM.txRow).join("")+'</div>':'<p class="muted" style="font-size:13px;margin:6px 0 0">Belum ada mutasi di rekening ini.</p>')+
    '<a class="more" href="rekonsiliasi.html" style="margin-top:10px">'+WM.icon("compare",14,2.2)+' Rekonsiliasi saldo bank</a>';
   WM.modal({title:a.name,sub:a.bank+" · "+maskNo(a.no),body:body,submit:false,cancel:"Tutup",
     onOpen:function(d){if(!WM.isOwner())return;var foot=d.querySelector(".sheet-foot");
