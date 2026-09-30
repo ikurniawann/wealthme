@@ -1256,6 +1256,28 @@ export type I18nDictionary = {
    * adds what's new to the dedicated page (tabs, history, owner gate).
    */
   persetujuan: {
+    v2: {
+      heroCap: string;
+      chip: string;
+      chartTitle: string;
+      chartEmpty: string;
+      kpiPending: string;
+      kpiApproved: string;
+      kpiRejected: string;
+      sideTitle: string;
+      sideCaption: string;
+      sideEmpty: string;
+      seeHistory: string;
+      mainTitle: string;
+      riwayatTitle: string;
+      colRequester: string;
+      colAccount: string;
+      colStatus: string;
+      colDate: string;
+      colAmount: string;
+      tipsTitle: string;
+      tipsBody: string;
+    };
     pageDesc: string;
     tabPending: string;
     tabRiwayat: string;
