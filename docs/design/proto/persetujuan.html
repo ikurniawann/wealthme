@@ -48,7 +48,10 @@
 
   <article class="card p-side">
     <div class="head"><div><h2>Pemohon aktif</h2><div class="cap">Menunggu keputusanmu</div></div></div>
+    <p class="mid" id="pAvg"></p>
+    <div class="cap" id="pAvgCap">Rata-rata per permintaan</div>
     <ul class="mini-list" id="reqList"></ul>
+    <button class="see-all" type="button" id="toRiwayat">Lihat riwayat keputusan</button>
   </article>
 
   <article class="card p-main">
@@ -81,6 +84,8 @@ function drawHero(){
   document.getElementById("heroVal").innerHTML='<span class="cur">Rp</span>'+pt.toLocaleString("id-ID");
   document.getElementById("heroCount").textContent=p.length+" permintaan";
   document.getElementById("kPend").textContent=p.length;
+  document.getElementById("pAvg").textContent=p.length?WM.rp(Math.round(pt/p.length)):"Rp 0";
+  document.getElementById("pAvgCap").textContent=p.length?"Rata-rata per permintaan":"Tidak ada yang menunggu";
 
   var appr=requests().filter(function(r){return r.status==="approved"&&isThisMonth(r.decidedAt);}),at=appr.reduce(function(s,r){return s+r.amount;},0);
   document.getElementById("kAppr").textContent=WM.short(at);
@@ -138,10 +143,12 @@ function draw(){drawHero();drawPending();drawRiwayat();drawTips();}
 draw();
 WM.onChange(["requests","accounts","tx"],draw);
 
-document.querySelectorAll('[data-tab]').forEach(function(b){b.addEventListener("click",function(){
-  tab=b.dataset.tab;document.querySelectorAll('[data-tab]').forEach(function(x){x.setAttribute("aria-pressed",x===b);});
+function selectTab(name){
+  tab=name;document.querySelectorAll('[data-tab]').forEach(function(x){x.setAttribute("aria-pressed",x.dataset.tab===name);});
   document.getElementById("panelPending").hidden=tab!=="pending";document.getElementById("panelRiwayat").hidden=tab!=="riwayat";
-});});
+}
+document.querySelectorAll('[data-tab]').forEach(function(b){b.addEventListener("click",function(){selectTab(b.dataset.tab);});});
+document.getElementById("toRiwayat").addEventListener("click",function(){selectTab("riwayat");document.querySelector(".p-main").scrollIntoView({behavior:"smooth",block:"nearest"});});
 
 document.getElementById("panelPending").addEventListener("click",function(e){
   var card=e.target.closest("[data-id]");if(!card)return;var id=card.dataset.id,r=WM.store.find("requests",id);

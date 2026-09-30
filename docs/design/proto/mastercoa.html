@@ -5,9 +5,11 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .mc-hero{grid-column:1/9;grid-row:1}.mc-groups{grid-column:9/13;grid-row:1/3}
-  .mc-cats{grid-column:1/9;grid-row:2/4}.mc-tips{grid-column:9/13;grid-row:3}
+  .mc-hero{grid-column:1/9;grid-row:1}.mc-groups{grid-column:9/13;grid-row:1}
+  .mc-cats{grid-column:1/9;grid-row:2/4}.mc-tips{grid-column:9/13;grid-row:2/4}
 }
+.mc-tips .mosaic{margin-top:auto;padding-top:12px;justify-self:start}
+.mc-tips #emptyList{flex:none}
 .mc-groups .mini-list li{cursor:pointer}
 .mc-groups .mini-list li[aria-current="true"]{background:var(--card-2);border-radius:12px;margin:0 -8px;padding:11px 8px}
 .mc-groups .mini-list .ic{background:var(--card-2)}
@@ -52,8 +54,10 @@
     <div class="empty" id="emptyState" hidden><b>Belum ada akun di grup ini</b><p>Coba pilih grup lain atau tambah akun baru.</p></div>
   </article>
 
-  <article class="card tips mc-tips">
-    <div><h2 id="alT"></h2><p id="alP"></p></div>
+  <article class="card mc-tips">
+    <div class="head"><div><h2 id="alT"></h2><div class="cap" id="alCap">Perlu ditinjau</div></div></div>
+    <p id="alP" style="margin:2px 0 12px"></p>
+    <ul class="mini-list" id="emptyList"></ul>
     <div class="mosaic" aria-hidden="true" id="mosaic"></div>
   </article>
 </section>
@@ -144,7 +148,8 @@ function draw(){
 
   var pct=cats.length?Math.round(linked/cats.length*100):0;
   document.getElementById("alT").textContent=emptyItems.length?emptyItems.length+" akun COA belum terhubung":"Semua akun COA terhubung";
-  document.getElementById("alP").textContent=emptyItems.length?"Cek "+emptyItems.slice(0,3).map(function(a){return a.name;}).join(", ")+(emptyItems.length>3?", dan lainnya.":".")+" dari Setup Master Data.":"Semua akun COA sudah dipakai minimal satu kategori.";
+  document.getElementById("alP").textContent=emptyItems.length?"Hubungkan akun ini ke kategori dari Setup Master Data.":"Semua akun COA sudah dipakai minimal satu kategori.";
+  document.getElementById("emptyList").innerHTML=emptyItems.length?emptyItems.map(function(a){return '<li><span class="ic">'+WM.icon("db",16)+'</span><div><b>'+esc(a.name)+'</b><small>'+esc(a.code)+' · '+esc(GROUP[a.groupNum].label)+'</small></div></li>';}).join(""):'<li style="border:0"><small>Tidak ada akun yang perlu ditinjau.</small></li>';
   var n=Math.round(pct/100*18);document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
 }
 

@@ -119,7 +119,12 @@ reg(0,{id:"rsum",n:"Ringkasan",per:"r",
    var items=Object.keys(byCat).map(function(k){return [WM.cat(k).name,byCat[k]];}).sort(function(a,b){return b[1]-a[1];});
    var s=sumIn(CUR)-sumOut(CUR),ps=sumIn(PREV)-sumOut(PREV),ds=ps?Math.round((s-ps)/Math.abs(ps)*100):0,di=sumIn(PREV)?Math.round((sumIn(CUR)-sumIn(PREV))/sumIn(PREV)*100):0,de=sumOut(PREV)?Math.round((sumOut(CUR)-sumOut(PREV))/sumOut(PREV)*100):0;
    return card("s7","Ke mana uangnya",items.length?barRows(items):'<p class="muted">Belum ada pengeluaran bulan ini.</p>')+
-     card("s5","Dibanding bulan lalu",listRows([["Pemasukan",WM.rp(sumIn(CUR)),"var(--lime)"],["Pengeluaran",WM.rp(sumOut(CUR)),"var(--orange)"],["Ditabung",WM.rp(s),"var(--good)"]])+'<div class="rowline" style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap">'+chg(di)+chg(-de)+chg(ds)+'</div>');},
+     card("s5","Dibanding bulan lalu",
+       '<p class="cap" style="margin:0 0 2px">'+mLabel(CUR)+' vs '+mLabel(PREV)+'</p>'+
+       listRows([["Pemasukan",WM.rp(sumIn(CUR)),"var(--lime)",mLabel(PREV)+": "+WM.rp(sumIn(PREV))],
+         ["Pengeluaran",WM.rp(sumOut(CUR)),"var(--orange)",mLabel(PREV)+": "+WM.rp(sumOut(PREV))],
+         ["Ditabung",WM.rp(s),"var(--good)",mLabel(PREV)+": "+WM.rp(ps)]])+
+       '<div class="rowline" style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">'+chg(di)+chg(-de)+chg(ds)+'</div>');},
  csv:function(){var s=sumIn(CUR)-sumOut(CUR),rows=[["Pos","Nilai"],["Pemasukan",sumIn(CUR)],["Pengeluaran",sumOut(CUR)],["Ditabung",s]];return rows;}});
 
 reg(0,{id:"rharian",n:"Harian",per:"m",

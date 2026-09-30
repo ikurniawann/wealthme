@@ -3184,7 +3184,7 @@
         mk(
           "text",
           { x: L - 8, y: y(t) + 3.5, "text-anchor": "end" },
-          fmt ? fmt(t) : Math.round(t),
+          typeof fmt === "function" ? fmt(t) : Math.round(t),
         ),
       );
     });

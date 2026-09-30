@@ -5,16 +5,19 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .a-hero{grid-column:1/9;grid-row:1}.a-side{grid-column:9/13;grid-row:1/3}
-  .a-accounts{grid-column:1/9;grid-row:2}.a-fisik{grid-column:1/13;grid-row:3}.a-tips{grid-column:1/13;grid-row:4}
+  .a-hero{grid-column:1/9;grid-row:1}.a-side{grid-column:9/13;grid-row:1}
+  .a-accounts{grid-column:1/9;grid-row:2}.a-tips{grid-column:9/13;grid-row:2}
+  .a-fisik{grid-column:1/13;grid-row:3}
 }
 [data-page="aset"].priv .money{filter:blur(6px);user-select:none}
-.a-fisik .btiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+.a-fisik .btiles{display:flex;flex-wrap:wrap}
+.a-fisik .btiles>*{flex:1 1 220px}
 .btile.asset{position:relative;min-height:118px}
 .btile.asset .del{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:8px;border:0;background:var(--card);color:var(--muted);display:grid;place-items:center}
 .btile.asset .del:hover{color:var(--bad);background:var(--ghost)}
 .btile.asset .pv{font-size:16px}
-@media (max-width:900px){.a-fisik .btiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:900px){.a-fisik .btiles>*{flex-basis:calc(50% - 5px)}}
+.tips{align-content:center}
 </style>
 <main data-page="aset">
 <section class="bento" aria-label="Aset">
@@ -270,7 +273,7 @@ function draw(){
   document.getElementById("accList").innerHTML=accounts.length?accounts.slice(0,5).map(function(a,idx,arr){return accRow(a,idx===arr.length-1);}).join(""):'<li style="border-top:0"><small>Belum ada dana atau rekening.</small></li>';
 
   document.getElementById("fisikCap").textContent=(assets.length?assets.length+" aset · ":"")+"Ketuk kartu untuk ubah";
-  document.getElementById("fisikTiles").innerHTML=(assets.length?assets.map(assetTile).join(""):'<div class="empty" style="grid-column:1/-1"><b>Belum ada aset fisik</b><p>Tambahkan properti, kendaraan, atau barang berharga lain.</p></div>')+
+  document.getElementById("fisikTiles").innerHTML=(assets.length?assets.map(assetTile).join(""):'<div class="empty" style="flex-basis:100%"><b>Belum ada aset fisik</b><p>Tambahkan properti, kendaraan, atau barang berharga lain.</p></div>')+
     '<button type="button" class="btile add" id="fisikAdd">'+WM.icon("plus",18,2)+'Aset baru</button>';
   document.getElementById("fisikAdd").onclick=function(){openAssetModal();};
   document.querySelectorAll("[data-edit]").forEach(function(t){t.addEventListener("click",function(e){if(e.target.closest("[data-del]"))return;openAssetModal(t.dataset.edit);});});

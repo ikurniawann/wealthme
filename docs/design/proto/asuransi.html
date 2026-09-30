@@ -5,10 +5,12 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .i-hero{grid-column:1/9;grid-row:1}.i-side{grid-column:9/13;grid-row:1/3}
-  .i-grid{grid-column:1/9;grid-row:2/4}.i-tips{grid-column:9/13;grid-row:3}.i-ben{grid-column:1/13;grid-row:4}
+  .i-hero{grid-column:1/9;grid-row:1}.i-side{grid-column:9/13;grid-row:1}
+  .i-grid{grid-column:1/9;grid-row:2}.i-tips{grid-column:9/13;grid-row:2}.i-ben{grid-column:1/13;grid-row:3}
+  .i-side{justify-content:center}
 }
-.i-grid .btiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+.i-grid .btiles{display:flex;flex-wrap:wrap}
+.pol-tile{flex:1 1 300px}
 .pol-tile{min-height:auto;gap:6px}
 .pol-tile .tt{justify-content:space-between}
 .pol-tile .pv{margin-top:4px;font-size:20px}
@@ -21,7 +23,8 @@
 .ben-row+.ben-row{margin-top:10px}
 .ben-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
 .ben-head label{font-size:12px;font-weight:600;color:var(--muted)}
-@media (max-width:900px){.i-grid .btiles{grid-template-columns:1fr}}
+@media (max-width:900px){.i-grid .btiles{flex-direction:column}.pol-tile{flex-basis:auto}}
+.tips{align-content:center}
 </style>
 <main data-page="asuransi">
 <section class="bento" aria-label="Asuransi">
@@ -45,7 +48,7 @@
 
   <article class="card i-side">
     <div class="head"><div><h2>Alokasi pertanggungan</h2><div class="cap" id="donutCap"></div></div></div>
-    <div class="chart" id="donutChart" style="height:160px;margin-top:8px"></div>
+    <div class="chart" id="donutChart" style="flex:1;min-height:160px;margin-top:8px"></div>
   </article>
 
   <article class="card i-grid">

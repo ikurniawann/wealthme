@@ -5,7 +5,8 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){.n-hero{grid-column:1/13;grid-row:1}.n-list{grid-column:1/13;grid-row:2}}
-.n-hero .chart-side{min-height:0}
+.n-hero .comp-legend{margin-top:14px;flex-wrap:wrap}
+.n-hero .comp-legend span b{color:var(--ink);font-weight:600;margin-left:2px}
 .nf-group+.nf-group{margin-top:16px}
 .nf-group h2{margin:0 0 4px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
 .nf-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:flex-start;padding:13px 4px;border-bottom:1px solid var(--line);border-radius:12px;text-align:left;width:100%;background:none;border-left:0;border-right:0;border-top:0}
@@ -29,6 +30,8 @@
         <div><p class="big num" id="hUnread"></p><div class="cap">notifikasi belum dibaca</div></div>
         <div class="hero-ctrl"><div class="ctrl-row"><button class="ghost-btn lit" type="button" id="nfAll">Tandai semua dibaca</button></div></div>
       </div>
+      <div id="composStrip" style="margin-top:16px"></div>
+      <div class="legend comp-legend" id="composLegend"></div>
     </div>
     <div class="kpis">
       <div class="kpi"><small>Total notifikasi</small><div class="v" id="kTotal"></div></div>
@@ -96,6 +99,17 @@ function draw(){
 
   var unreadTotal=all.filter(function(n){return !n.read;}).length;
   document.getElementById("hUnread").textContent=unreadTotal;
+
+  var CAT_COLOR={transaksi:"var(--lime)",anggaran:"var(--orange)",persetujuan:"var(--sky)",tempo:"var(--bad)",sistem:"var(--muted)"};
+  var CAT_LABEL={transaksi:"Transaksi",anggaran:"Anggaran",persetujuan:"Persetujuan",tempo:"Jatuh tempo",sistem:"Sistem"};
+  var byCat={};all.forEach(function(n){var c=classify(n);byCat[c]=(byCat[c]||0)+1;});
+  var catKeys=Object.keys(CAT_LABEL).filter(function(k){return byCat[k]>0;});
+  var compBox=document.getElementById("composStrip"),compLeg=document.getElementById("composLegend");
+  if(!catKeys.length){compBox.innerHTML="";compLeg.innerHTML="";}
+  else{
+    compBox.innerHTML=WM.strip(catKeys.map(function(k){return [CAT_LABEL[k]+": "+byCat[k],byCat[k],CAT_COLOR[k]];}));
+    compLeg.innerHTML=WM.legend(catKeys.map(function(k){return [CAT_LABEL[k],CAT_COLOR[k],byCat[k]];}));
+  }
   var setKpi=function(id,n){var e=document.getElementById(id);e.textContent=n;e.dataset.short=n;};
   setKpi("kTotal",all.length);
   setKpi("kApproval",all.filter(function(n){return classify(n)==="persetujuan";}).length);

@@ -5,9 +5,12 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .md-hero{grid-column:1/9;grid-row:1}.md-coa{grid-column:9/13;grid-row:1/3}
-  .md-cats{grid-column:1/9;grid-row:2/4}.md-ref{grid-column:9/13;grid-row:3}
+  .md-hero{grid-column:1/9;grid-row:1}.md-coa{grid-column:9/13;grid-row:1}
+  .md-cats{grid-column:1/13;grid-row:2}.md-ref{grid-column:1/13;grid-row:3}
 }
+.md-ref{display:flex;flex-direction:column}
+.md-ref .md-ref-sec{flex:1}
+@media (min-width:1181px){.md-ref{flex-direction:row;gap:20px}.md-ref-sec+.md-ref-sec{margin-top:0;padding-top:0;border-top:0;border-left:1px solid var(--line);padding-left:20px}}
 .chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:6px 8px 6px 10px;font-size:12.5px;max-width:100%}
 .chip .ci{width:24px;height:24px;border-radius:8px;background:var(--card-2);display:grid;place-items:center;flex:none;color:var(--muted)}
 .chip .code{font-family:var(--mono);font-size:11px;color:var(--muted)}
@@ -42,9 +45,8 @@
   </article>
 
   <article class="card md-coa">
-    <div class="head"><div><h2>Akun COA</h2><div class="cap">Struktur laporan</div></div></div>
-    <p class="mid" style="font-size:20px" id="coaTotal"></p>
-    <p class="cap" style="margin:2px 0 0">6 grup akuntansi keluarga.</p>
+    <div class="head"><div><h2>Akun COA</h2><div class="cap" id="coaTotal"></div></div></div>
+    <ul class="mini-list" id="coaGroups" style="margin-top:4px"></ul>
     <a class="see-all" href="mastercoa.html">Kelola Master COA <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a>
   </article>
 
@@ -54,7 +56,7 @@
     <div class="empty" id="catEmpty" hidden><b>Belum ada kategori</b></div>
   </article>
 
-  <article class="card tips md-ref">
+  <article class="card md-ref">
     <div class="md-ref-sec" data-refgroup="bank">
       <div class="head"><div><h2>Bank</h2></div><button class="btn ghost sm" type="button" data-add="bank" hidden>+ Tambah</button></div>
       <div class="chips-wrap" data-chips></div>
@@ -86,6 +88,7 @@ WM.store.ensure("refItems",[
  {id:"rl1",group:"lembaga",label:"Baznas",isSystem:true},{id:"rl2",group:"lembaga",label:"Dompet Dhuafa",isSystem:true},{id:"rl3",group:"lembaga",label:"Rumah Zakat",isSystem:true}]);
 
 var ICONS=["food","car","home","bag","health","school","heart","more","wallet","gift","trend","gold","phone","receipt","briefcase","landmark"];
+var COA_GROUP_LABEL=[null,"Pendapatan","Beban","Alokasi","Piutang","Utang","Pajak"];
 
 function coaOptions(kind){var coa=WM.store.get("coa")||[];var want=kind==="in"?"INCOME":"EXPENSE";
   return [["","Otomatis (sesuai tipe)"]].concat(coa.filter(function(a){return a.direction===want;}).map(function(a){return [a.id,a.code+" — "+a.name];}));}
@@ -153,7 +156,9 @@ function draw(){var cats=WM.store.get("categories"),coa=WM.store.get("coa")||[];
   document.getElementById("kIn").textContent=cats.filter(function(c){return c.kind==="in";}).length;
   document.getElementById("kOut").textContent=cats.filter(function(c){return c.kind==="out";}).length;
   document.getElementById("kCoa").textContent=cats.filter(function(c){return c.coaAccountId;}).length+"/"+cats.length;
-  document.getElementById("coaTotal").textContent=coa.length+" akun";
+  document.getElementById("coaTotal").textContent=coa.length+" akun · 6 grup akuntansi";
+  document.getElementById("coaGroups").innerHTML=[1,2,3,4,5,6].map(function(g){var n=coa.filter(function(a){return a.groupNum===g;}).length;
+    return '<li><span class="ic" style="display:grid;place-items:center;color:var(--muted)">'+g+'</span><div><b>'+COA_GROUP_LABEL[g]+'</b><small>'+n+' akun</small></div></li>';}).join("");
   chart();drawCats();drawRef();}
 
 draw();

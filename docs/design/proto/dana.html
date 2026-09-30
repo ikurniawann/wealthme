@@ -5,20 +5,34 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .d-hero{grid-column:1/9;grid-row:1}.d-donut{grid-column:9/13;grid-row:1/3}
-  .d-cash{grid-column:1/5;grid-row:2}.d-ew{grid-column:5/9;grid-row:2}
-  .d-mut{grid-column:1/9;grid-row:3}.d-tip{grid-column:9/13;grid-row:3}
+  .d-hero{grid-column:1/9;grid-row:1}.d-donut{grid-column:9/13;grid-row:1}
+  .d-cash{grid-column:1/5;grid-row:2}.d-ew{grid-column:5/9;grid-row:2}.d-tip{grid-column:9/13;grid-row:2}
+  .d-mut{grid-column:1/13;grid-row:3}
 }
-.wrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.wrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer;border-radius:10px}
 .wrow:first-child{border-top:0}
-.wrow .ic{width:34px;height:34px;border-radius:10px;flex:none;font-weight:700;color:#fff;display:grid;place-items:center;font-size:13px}
-.wrow .body{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+.wrow:hover{background:var(--card-2)}
+.wrow .ic{width:38px;height:38px;border-radius:11px;flex:none;font-weight:700;color:#fff;display:grid;place-items:center;font-size:13px}
+.wrow .body{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
 .wrow .top{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.wrow .top b{font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.wrow .top .amt{flex:none;font-weight:600;font-size:13px}
+.wrow .top b{font-size:12.5px;font-weight:500;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.wrow .top .amt{flex:none;font-weight:700;font-size:17px;letter-spacing:-.01em;color:var(--ink)}
+.wrow .top .amt.neg{color:var(--bad)}
 .wrow small{color:var(--muted);font-size:11.5px}
 .badge-own{font-size:10px;font-weight:600;background:var(--card-2);color:var(--muted);border-radius:99px;padding:2px 7px;flex:none}
 .badge-own.me{background:var(--lime-soft);color:var(--good)}
+.d-hero .strip{height:26px;border-radius:9px}
+.d-hero .strip-legend{margin-top:12px;flex-wrap:wrap;gap:12px 16px}
+.d-hero .big{font-size:52px;letter-spacing:-.035em}
+.hbars{display:flex;flex-direction:column;gap:12px}
+.hbars .hb-row{display:flex;flex-direction:column;gap:5px}
+.hbars .hb-top{display:flex;justify-content:space-between;gap:10px;font-size:12.5px}
+.hbars .hb-top b{font-weight:500}
+.hbars .hb-top span{font-variant-numeric:tabular-nums;white-space:nowrap;color:var(--muted)}
+.d-tip{display:flex;flex-direction:column}
+.d-tip .tip-head{flex:none}
+.d-tip .mosaic{flex:1;grid-template-columns:repeat(9,1fr);grid-auto-rows:1fr;justify-self:stretch;width:100%;margin-top:14px}
+.d-tip .mosaic i{width:auto;height:auto;border-radius:5px}
 </style>
 <main data-page="dana">
 <section class="bento" aria-label="Cash & E-Wallet">
@@ -28,7 +42,7 @@
         <div><p class="big num" id="hTotal"></p><div class="cap" id="hCap"></div></div>
         <div class="hero-ctrl">
           <div class="ctrl-row"><button class="ghost-btn" type="button" id="addCash">+ Kas</button><button class="ghost-btn lit" type="button" id="addEwallet">+ E-wallet</button></div>
-          <div class="legend"><span><i style="background:var(--lime)"></i>E-wallet</span><span><i style="background:var(--ghost)"></i>Tunai</span></div>
+          <div class="legend" id="heroLegend"></div>
         </div>
       </div>
       <div class="chart-wrap" id="chart"></div>
@@ -42,8 +56,8 @@
 
   <article class="card d-donut">
     <div class="head"><div><h2>Komposisi</h2><div class="cap">Per instrumen</div></div></div>
-    <div style="display:flex;align-items:center;justify-content:center;min-height:170px;margin-top:6px"><div class="chart" id="donut" style="width:170px;height:170px"></div></div>
-    <div class="legend" id="legend" style="margin-top:6px"></div>
+    <div style="display:flex;align-items:center;justify-content:center;min-height:190px;margin-top:6px"><div class="chart" id="donut" style="width:190px;height:190px"></div></div>
+    <div class="hbars" id="legend" style="margin-top:16px"></div>
   </article>
 
   <article class="card d-cash">
@@ -61,7 +75,7 @@
   </article>
 
   <article class="card tips d-tip">
-    <div><h2>Kartu & bank di tempat lain</h2><p>Kartu kredit dan rekening bank dikelola di Bank &amp; Account. Halaman ini khusus kas tunai dan e-wallet.</p><a class="more" href="rekening.html">Buka Bank &amp; Account <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
+    <div class="tip-head"><h2>Kartu & bank di tempat lain</h2><p>Kartu kredit dan rekening bank dikelola di Bank &amp; Account. Halaman ini khusus kas tunai dan e-wallet.</p><a class="more" href="rekening.html">Buka Bank &amp; Account <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
     <div class="mosaic" aria-hidden="true" id="mosaic"></div>
   </article>
 </section>
@@ -71,19 +85,21 @@
 WM.shell({page:"dana",title:"Cash & E-Wallet"});
 (function(){ if(!WM.allowed) return;
 var esc=WM.esc;
-var EWALLET_BRANDS=[["gopay","#00AAD2"],["ovo","#4C2A86"],["dana","#118EEA"],["shopeepay","#EE4D2D"],["linkaja","#E62129"]];
+var EWALLET_BRANDS=[["gopay","#00AA5B"],["ovo","#4C2A86"],["dana","#118EEA"],["shopeepay","#EE4D2D"],["linkaja","#E62129"]];
+var TUNAI_COLOR="#B8860B";
 function ewalletBg(a){var h=((a.bank||a.name||"")+"").toLowerCase();for(var i=0;i<EWALLET_BRANDS.length;i++)if(h.indexOf(EWALLET_BRANDS[i][0])>=0)return EWALLET_BRANDS[i][1];return "var(--good)";}
+function walletColor(a){return a.type==="cash"?TUNAI_COLOR:ewalletBg(a);}
 function danaAccounts(){return WM.visibleAccounts().filter(function(a){return a.type==="cash"||a.type==="ewallet";});}
 function ownerLabel(a){return a.owner?WM.member(a.owner).short:"Bersama";}
 function ownerBadge(a){var mine=a.owner===WM.meId();return '<span class="badge-own'+(mine?" me":"")+'">'+(a.owner?esc(ownerLabel(a)):"Bersama")+'</span>';}
 function memberOptions(){var me=WM.me(),ms=WM.store.get("members");if(!WM.isOwner())return [[me.id,me.short]];
   return [["","Keluarga (bersama)"]].concat(ms.map(function(m){return [m.id,m.short];}));}
 
-function walletRow(a){var isE=a.type==="ewallet",bg=isE?ewalletBg(a):"var(--muted)";
+function walletRow(a){var isE=a.type==="ewallet",bg=walletColor(a);
   var sub=a.no?esc(a.no):(a.updated?"Diperbarui "+WM.date(a.updated):"");
   return '<div class="wrow" data-acc="'+a.id+'"><span class="ic" style="background:'+bg+'">'+(isE?WM.icon("phone",16):WM.icon("cash",16))+'</span>'+
-   '<div class="body"><div class="top"><b>'+esc(a.name)+'</b><span class="amt'+(a.balance<0?" neg":"")+' num">'+WM.rp(a.balance)+'</span></div>'+
-   '<div class="top"><small>'+sub+'</small>'+ownerBadge(a)+'</div></div></div>';}
+   '<div class="body"><div class="top"><b>'+esc(a.name)+'</b>'+ownerBadge(a)+'</div>'+
+   '<div class="top"><span class="amt'+(a.balance<0?" neg":"")+' num">'+WM.rp(a.balance)+'</span><small>'+sub+'</small></div></div></div>';}
 
 function draw(){
   var accs=danaAccounts(),cash=accs.filter(function(a){return a.type==="cash";}),ew=accs.filter(function(a){return a.type==="ewallet";});
@@ -96,13 +112,16 @@ function draw(){
   document.getElementById("cashList").innerHTML=cash.length?cash.map(walletRow).join(""):'<div class="empty" style="padding:20px 10px"><b>Belum ada kas tunai</b><p>Tambahkan dompet rumah atau kas kerja.</p></div>';
   document.getElementById("ewalletList").innerHTML=ew.length?ew.map(walletRow).join(""):'<div class="empty" style="padding:20px 10px"><b>Belum ada e-wallet</b><p>Tambahkan GoPay, OVO, atau lainnya.</p></div>';
 
-  hero2Bar(document.getElementById("chart"),[["Tunai",cashT],["E-wallet",ewT]]);
+  var ids0={};accs.forEach(function(a){ids0[a.id]=1;});
+  drawTrend(ids0,total);
+  document.getElementById("heroLegend").innerHTML=accs.length?WM.legend(accs.map(function(a){return [a.name,walletColor(a)];})):"";
 
   var dsegs=ew.map(function(a){return [a.name,a.balance,ewalletBg(a)];}).filter(function(s){return s[1]>0;});
-  if(cashT>0)dsegs.push(["Tunai",cashT,"var(--good)"]);
+  if(cashT>0)dsegs.push(["Tunai",cashT,TUNAI_COLOR]);
   var dw=document.getElementById("donut");
   if(dsegs.length){WM.chart.donut(dw,{items:dsegs,center:WM.short(total),sub:"Total"});
-    document.getElementById("legend").innerHTML=WM.legend(dsegs.map(function(s){return [s[0],s[2],WM.short(s[1])];}));}
+    document.getElementById("legend").innerHTML=dsegs.map(function(s){var pct=total>0?s[1]/total*100:0;
+      return '<div class="hb-row"><div class="hb-top"><b>'+esc(s[0])+'</b><span class="num">'+WM.short(s[1])+' · '+WM.pct(pct,1)+'</span></div><div class="track"><i style="width:'+pct+'%;background:'+s[2]+'"></i></div></div>';}).join("");}
   else{dw.innerHTML="";document.getElementById("legend").innerHTML="";
     dw.parentElement.insertAdjacentHTML("beforeend",'<div class="empty" style="padding:0"><b>Belum ada saldo</b><p>Komposisi muncul setelah ada saldo.</p></div>');}
 
@@ -116,28 +135,31 @@ function draw(){
   else mc.hidden=true;
 
   root.querySelectorAll("[data-acc]").forEach(function(row){row.onclick=function(){openRowActions(WM.account(row.dataset.acc));};});
-  var pct=total>0?Math.round(ewT/total*100):0,n=Math.round(pct/100*18);
-  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
+  var pct=total>0?Math.round(ewT/total*100):0;
+  var cells=45,ncell=Math.round(pct/100*cells);
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:cells}).map(function(_,i){return '<i class="'+(i<ncell?"a":i%5===0?"b":"")+'"></i>';}).join("");
 }
 var root=document;
 
-/* two-bar mini chart: tunai vs e-wallet, ghost/lime hatched */
-function hero2Bar(box,rows){var css=getComputedStyle(box),v=function(n){return css.getPropertyValue(n).trim();};
-  var NS="http://www.w3.org/2000/svg",mk=function(t,a,x){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);if(x!=null)e.textContent=x;return e;};
-  var W=Math.max(260,box.clientWidth),H=Math.max(180,box.clientHeight),c=W<480,L=c?2:42,T=34,B=26,svg=mk("svg",{viewBox:"0 0 "+W+" "+H,role:"img","aria-label":"Tunai dibanding e-wallet"});
-  var max=Math.max.apply(null,rows.map(function(r){return r[1];}))||1,top=Math.ceil(max/1e6)*1e6||1e6,y=function(x){return T+(top-x)/top*(H-T-B);};
-  var defs=mk("defs",{});["lime"].forEach(function(n){var p=mk("pattern",{id:"ph-"+n,width:8,height:8,patternUnits:"userSpaceOnUse",patternTransform:"rotate(45)"});p.appendChild(mk("rect",{width:8,height:8,fill:v("--"+n)}));p.appendChild(mk("rect",{width:2,height:8,fill:"rgba(255,255,255,.28)"}));defs.appendChild(p);});svg.appendChild(defs);
-  if(!c)[0,top/2,top].forEach(function(t){svg.appendChild(mk("line",{x1:L,x2:W,y1:y(t),y2:y(t),stroke:v("--line"),"stroke-dasharray":t?"3 4":"0"}));svg.appendChild(mk("text",{x:L-8,y:y(t)+3.5,"text-anchor":"end"},Math.round(t/1e6)+" jt"));});
-  var band=(W-L)/rows.length,bw=Math.min(90,band*.5);
-  rows.forEach(function(r,i){var x=L+band*i+band/2-bw/2,on=r[0]==="E-wallet";
-    var g=mk("g",{class:"gb",style:"animation-delay:"+(i*40)+"ms"});
-    g.appendChild(mk("rect",{x:x,y:y(r[1]),width:bw,height:Math.max(3,y(0)-y(r[1])),rx:8,fill:on?"url(#ph-lime)":v("--ghost")}));
-    g.appendChild(mk("title",{},r[0]+": "+WM.rp(r[1])));svg.appendChild(g);
-    svg.appendChild(mk("text",{x:x+bw/2,y:H-8,"text-anchor":"middle",style:on?"fill:"+v("--ink")+";font-weight:500":""},r[0]));
-    var tx=WM.short(r[1]),pw=64,px=Math.max(0,Math.min(W-pw,x+bw/2-pw/2)),py=y(r[1])-28;
-    g.appendChild(mk("rect",{x:px,y:py,width:pw,height:22,rx:11,fill:on?v("--ink"):v("--card-2")}));
-    g.appendChild(mk("text",{x:px+pw/2,y:py+15,"text-anchor":"middle",style:"fill:"+(on?v("--card"):v("--muted"))+";font-family:var(--font);font-size:11px;font-weight:600"},tx));});
-  box.innerHTML="";box.appendChild(svg);}
+/* balance trend: reconstruct end-of-week totals for the last 8 weeks from real tx history,
+   walking backward from the current total (same technique as ringkasan's net-worth trend) */
+var TREND_LABELS=["8mgu","7mgu","6mgu","5mgu","4mgu","3mgu","2mgu","Minggu ini"];
+function txDelta(t,ids){
+  if(t.type==="tf"){var toIn=!!ids[t.to],fromIn=!!ids[t.acc];
+    if(toIn&&fromIn)return 0; if(toIn)return t.amount; if(fromIn)return -t.amount; return 0;}
+  if(!ids[t.acc])return 0;
+  return t.type==="in"?t.amount:-t.amount;
+}
+function drawTrend(ids,total){
+  var weeks=8,buckets=new Array(weeks).fill(0),today=new Date(WM.today+"T00:00:00");
+  WM.store.get("tx").forEach(function(t){var d=txDelta(t,ids);if(!d)return;
+    var dt=new Date(t.date+"T00:00:00"),diff=Math.floor((today-dt)/864e5),wk=Math.floor(diff/7);
+    if(wk>=0&&wk<weeks)buckets[weeks-1-wk]+=d;});
+  var vals=new Array(weeks);vals[weeks-1]=total;
+  for(var i=weeks-1;i>0;i--)vals[i-1]=vals[i]-buckets[i];
+  var box=document.getElementById("chart");
+  WM.chart.area(box,{labels:TREND_LABELS,a:vals,fmt:WM.short,axis:WM.short,floor:Math.min(0,Math.min.apply(null,vals))});
+}
 
 function openForm(edit,typeHint){
   var isEwallet=edit?edit.type==="ewallet":typeHint==="ewallet",me=WM.me(),opts=memberOptions();
@@ -173,7 +195,7 @@ function openMinta(source){var mine=WM.store.get("accounts").filter(function(a){
       WM.store.add("requests",{member:WM.meId(),amount:v.amount,reason:v.reason||"Minta dana",date:WM.today,status:"pending",acc:v.target});
       WM.toast("Permintaan dana terkirim, menunggu persetujuan");}});}
 function openRowActions(a){
-  if(WM.isOwner()){openForm(a);return;}
+  if(WM.isOwner()||a.owner===WM.meId()){openForm(a);return;}
   if(!a.owner){openMinta(a);return;}
 }
 

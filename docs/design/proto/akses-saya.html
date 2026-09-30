@@ -6,7 +6,7 @@
 <style>
 @media (min-width:1181px){
   .as-hero{grid-column:1/9;grid-row:1}.as-acc{grid-column:9/13;grid-row:1/3}
-  .as-act{grid-column:1/9;grid-row:2/4}.as-tips{grid-column:9/13;grid-row:3}
+  .as-act{grid-column:1/9;grid-row:2/4}
   .as-tx{grid-column:1/13;grid-row:4}
 }
 </style>
@@ -31,6 +31,7 @@
     <div class="head"><div><h2>Rekening kamu</h2></div></div>
     <ul class="mini-list" id="asAccList"></ul>
     <div class="empty" id="asAccEmpty" hidden><b>Belum ditugaskan</b><p>Minta Master menugaskan rekening dari IAM Roles.</p></div>
+    <div class="note" style="margin-top:auto"><span id="asTipIcon"></span><span>Butuh akses lebih? Minta Master menugaskan rekening atau mengubah role kamu di IAM Roles.</span></div>
   </article>
 
   <article class="card as-act">
@@ -39,11 +40,6 @@
     <div class="head" style="margin-top:16px"><div><h2>Pengajuanmu</h2></div></div>
     <ul class="mini-list" id="asReqList"></ul>
     <p class="empty muted" id="asReqEmpty" hidden style="padding:10px 0">Belum ada pengajuan.</p>
-  </article>
-
-  <article class="card tips as-tips">
-    <div><h2>Butuh akses lebih?</h2><p>Minta Master menugaskan rekening atau mengubah role kamu di IAM Roles.</p></div>
-    <div class="mosaic" aria-hidden="true" id="mosaic"></div>
   </article>
 
   <article class="card as-tx">
@@ -58,6 +54,7 @@
 WM.shell({page:"akses-saya",title:"Akses Saya"});
 (function(){ if(!WM.allowed) return;
 var esc=WM.esc;
+document.getElementById("asTipIcon").innerHTML=WM.icon("info",15);
 WM.store.ensure("requests",[]);
 var me=WM.me(),unlocked=WM.isOwner();
 
@@ -90,8 +87,6 @@ function draw(){
   document.querySelectorAll("#asTxList [data-tx]").forEach(function(li){li.onclick=function(){WM.openTxDetail(li.dataset.tx);};});
   document.getElementById("asTxEmpty").hidden=tx.length>0;
 
-  var pct=unlocked?100:Math.min(100,accs.length*34);var n=Math.round(pct/100*18);
-  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
   chart();
 }
 

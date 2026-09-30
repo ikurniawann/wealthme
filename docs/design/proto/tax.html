@@ -44,7 +44,7 @@
 </section>
 
 <section class="grid" style="margin-top:16px" id="pph21-calc">
-  <div class="card s12">
+  <div class="card s8">
     <div class="head"><h2>Kalkulator PPh 21 Orang Pribadi</h2><span class="cap">Wajib pajak individu, penghasilan neto setahun · perkiraan</span></div>
     <div class="two" style="margin-top:12px">
       <div class="field"><label>Penghasilan bruto setahun</label><div class="affix"><span>Rp</span><input id="gross" inputmode="numeric" placeholder="0"></div></div>
@@ -63,14 +63,16 @@
       <div class="field"><label>% Norma (NPPN)</label><div class="affix"><input id="nppn" inputmode="decimal" placeholder="0"><span>%</span></div><span class="hint">Isi persentase norma penghitungan penghasilan neto (NPPN) sesuai profesimu.</span></div></div>
     </details>
     <div class="field" style="margin-top:12px;max-width:260px"><label>Biaya jabatan (otomatis)</label><input id="jabatan" disabled value="Rp 0"></div>
-    <div class="tx-calc" id="pphResult">
-      <small class="muted">Perkiraan PPh 21 setahun</small>
-      <b id="pphTax">Rp 0</b>
-      <div class="cap" id="pphSub" style="margin-top:6px"></div>
-    </div>
     <div class="acts" style="margin-top:14px;gap:8px">
       <button class="btn primary" type="button" id="saveTax">Simpan ke catatan pajak</button>
       <button class="btn" type="button" id="resetTax">Reset</button>
+    </div>
+  </div>
+  <div class="card s4" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="tx-calc" id="pphResult" style="margin-top:0">
+      <small class="muted">Perkiraan PPh 21 setahun</small>
+      <b id="pphTax">Rp 0</b>
+      <div class="cap" id="pphSub" style="margin-top:6px"></div>
     </div>
   </div>
 </section>
@@ -100,7 +102,7 @@
 </section>
 
 <section class="grid" style="margin-top:16px" id="pajak-final">
-  <div class="card s12">
+  <div class="card s8">
     <div class="head"><h2>Pajak final investasi &amp; penghasilan lain</h2><span class="cap">Bunga deposito, dividen, saham, SBN, kripto, sewa, dan lainnya</span></div>
     <div class="two" style="margin-top:12px">
       <div class="field"><label>Jenis penghasilan</label><select id="finInstr"></select></div>
@@ -111,17 +113,19 @@
       <div class="field" id="finRateWrap" hidden><label>Tarif <span class="opt">(kamu isi sendiri)</span></label><div class="affix"><input id="finRate" inputmode="decimal" placeholder="0"><span>%</span></div></div>
     </div>
     <label class="check" id="finReinvestWrap" hidden style="margin-top:8px"><input type="checkbox" id="finReinvest"><span>Dividen diinvestasikan kembali di Indonesia (bebas pajak)</span></label>
-    <div class="tx-calc"><small class="muted">Perkiraan pajak final</small><b id="finTax">Rp 0</b><div class="cap" id="finNote" style="margin-top:6px"></div></div>
+  </div>
+  <div class="card s4" style="display:flex;flex-direction:column;justify-content:center">
+    <div class="tx-calc" style="margin-top:0"><small class="muted">Perkiraan pajak final</small><b id="finTax">Rp 0</b><div class="cap" id="finNote" style="margin-top:6px"></div></div>
   </div>
 </section>
 
 <section class="grid" style="margin-top:16px">
-  <div class="card s7">
+  <div class="card s8">
     <div class="head"><h2>Dokumen pajak</h2><label class="btn ghost sm" style="cursor:pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V5m-4 4l4-4 4 4M5 20h14"/></svg> Unggah<input type="file" id="docUpload" hidden></label></div>
     <div class="cap" style="margin-top:4px">Simulasi — berkas tidak benar-benar diunggah, hanya tercatat di prototipe ini.</div>
     <div class="tx-docs" id="docList" style="margin-top:8px"></div>
   </div>
-  <div class="card s5">
+  <div class="card s4">
     <div class="head"><h2>Riwayat pajak</h2></div>
     <div class="tx-hist" id="histList" style="margin-top:8px"></div>
   </div>

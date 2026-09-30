@@ -5,9 +5,10 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .iam-hero{grid-column:1/9;grid-row:1}.iam-roles{grid-column:9/13;grid-row:1/3}
-  .iam-members{grid-column:1/9;grid-row:2/4}.iam-tips{grid-column:9/13;grid-row:3}
+  .iam-hero{grid-column:1/9;grid-row:1}.iam-roles{grid-column:9/13;grid-row:1}
+  .iam-members{grid-column:1/9;grid-row:2/4}.iam-tips{grid-column:9/13;grid-row:2/4}
 }
+.iam-tips .mosaic{margin-top:auto;padding-top:12px;justify-self:start}
 .mem-row{width:100%;text-align:left;border:0;background:none;border-top:1px solid var(--line);padding:12px 0;display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;font:inherit;color:inherit}
 .mem-row:first-child{border-top:0}
 .mem-row:hover{background:var(--card-2);border-radius:12px;margin:0 -8px;padding:12px 8px}
@@ -58,8 +59,10 @@
     <div id="memberList"></div>
   </article>
 
-  <article class="card tips iam-tips">
-    <div><h2 id="alT"></h2><p id="alP"></p></div>
+  <article class="card iam-tips">
+    <div class="head"><div><h2 id="alT"></h2><div class="cap" id="alCap">Akses terbatas</div></div></div>
+    <p id="alP" style="margin:2px 0 12px"></p>
+    <ul class="mini-list" id="limitedList"></ul>
     <div class="mosaic" aria-hidden="true" id="mosaic"></div>
   </article>
 </section>
@@ -99,8 +102,9 @@ function permsOf(m){var base={};ALL_PAGES.forEach(function(p){base[p]="view";});
   Object.assign(base,m.accessOverrides||{});return base;}
 
 function chart(ms){var box=document.getElementById("chart");
-  var scopes={own:0,all:0};ms.forEach(function(m){scopes[scopeOf(m)]++;});
-  WM.chart.bars(box,{labels:["Semua data","Hanya sendiri"],series:[{d:[scopes.all,scopes.own],c:"var(--lime)"}],hi:0,wide:true});}
+  var counts=ms.map(function(m){var p=permsOf(m);return ALL_PAGES.filter(function(k){return p[k]==="manage";}).length;});
+  var hi=counts.reduce(function(a,v,i){return v>counts[a]?i:a;},0);
+  WM.chart.bars(box,{labels:ms.map(function(m){return m.short;}),series:[{d:counts,c:"var(--lime)"}],hi:hi,wide:true,fmt:function(v){return v+" halaman";}});}
 
 function memberRow(m){var isMaster=m.role==="master",isSelf=m.id===WM.meId(),role=roleOf(m),overrideN=Object.keys(m.accessOverrides||{}).length,scope=scopeOf(m);
   return '<button type="button" class="mem-row" data-access="'+m.id+'"'+(isMaster?' disabled style="cursor:default"':'')+'>'+WM.avatar(m,36)+
@@ -248,9 +252,10 @@ function draw(){var ms=WM.store.get("members");
   document.getElementById("kCustom").textContent=custom;
   document.getElementById("editHandle").textContent="Kode: "+WM.store.get("familyHandle");
   chart(ms);drawMembers();drawRoles();
-  var ownN=ms.filter(function(m){return scopeOf(m)==="own";}).length;
+  var limited=ms.filter(function(m){return scopeOf(m)==="own";}),ownN=limited.length;
   document.getElementById("alT").textContent=ownN?ownN+" anggota akses terbatas":"Semua anggota akses penuh";
   document.getElementById("alP").textContent=ownN?"Mereka hanya melihat transaksi milik sendiri.":"Setiap anggota bisa melihat seluruh data keluarga.";
+  document.getElementById("limitedList").innerHTML=limited.length?limited.map(function(m){var role=roleOf(m);return '<li>'+WM.avatar(m,32)+'<div><b>'+esc(m.name)+'</b><small>'+(role?esc(role.name):WM.roleLabel(m.role))+'</small></div></li>';}).join(""):'<li style="border:0"><small>Tidak ada anggota dengan akses terbatas.</small></li>';
   var pct=ms.length?Math.round((ms.length-ownN)/ms.length*100):100;
   var n=Math.round(pct/100*18);document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");}
 

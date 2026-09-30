@@ -5,19 +5,21 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .l-hero{grid-column:1/9;grid-row:1}.l-risk{grid-column:9/13;grid-row:1/3}
-  .l-grid{grid-column:1/9;grid-row:2/4}.l-tips{grid-column:9/13;grid-row:3}
+  .l-hero{grid-column:1/9;grid-row:1}.l-risk{grid-column:9/13;grid-row:1}
+  .l-grid{grid-column:1/9;grid-row:2}.l-tips{grid-column:9/13;grid-row:2}
 }
 .riskbar{height:8px;border-radius:4px;background:var(--ghost);overflow:hidden;margin-top:10px;display:flex}
 .riskbar i{display:block;height:100%}
-.l-grid .btiles{grid-template-columns:repeat(2,minmax(0,1fr))}
-.lia-tile{min-height:auto;gap:6px}
+@media (min-width:1181px){.l-risk{justify-content:center}}
+.l-grid .btiles{display:flex;flex-wrap:wrap}
+.lia-tile{min-height:auto;gap:6px;flex:1 1 300px}
 .lia-tile .tt{justify-content:space-between}
 .lia-tile .pv{margin-top:4px;font-size:20px}
 .lia-tile .foot{display:flex;align-items:center;gap:8px;margin-top:6px}
 .lia-pay{border:0;border-radius:99px;background:var(--lime);color:var(--lime-ink);font-weight:600;font-size:12px;min-height:32px;padding:0 12px;margin-left:auto}
 .lia-detail{border:0;background:var(--card);border-radius:99px;font-size:12px;font-weight:500;min-height:32px;padding:0 12px;color:var(--muted)}
-@media (max-width:900px){.l-grid .btiles{grid-template-columns:1fr}}
+@media (max-width:900px){.l-grid .btiles{flex-direction:column}.lia-tile{flex-basis:auto}}
+.tips{align-content:center}
 </style>
 <main data-page="liabilitas">
 <section class="bento" aria-label="Liabilitas">

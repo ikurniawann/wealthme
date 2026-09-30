@@ -5,12 +5,18 @@
 <link rel="stylesheet" href="wm.css">
 <style>
 @media (min-width:1181px){
-  .t-hero{grid-column:1/9;grid-row:1}.t-side{grid-column:9/13;grid-row:1/3}
-  .t-tiles{grid-column:1/9;grid-row:2/4}.t-tips{grid-column:9/13;grid-row:3}
+  .t-hero{grid-column:1/9;grid-row:1}.t-side{grid-column:9/13;grid-row:1}
+  .t-tiles{grid-column:1/9;grid-row:2/4}.t-tips{grid-column:9/13;grid-row:2/4}
+  .t-tips{display:flex;flex-direction:column}
+  .t-tips .tip-head{flex:none}
+  .t-tips .mosaic{flex:1;grid-template-columns:repeat(9,1fr);grid-auto-rows:1fr;justify-self:stretch;width:100%;margin-top:14px}
+  .t-tips .mosaic i{width:auto;height:auto;border-radius:5px}
 }
 .t-tips h2{font-size:17px}
 @media (max-width:720px){.t-tips .mosaic{display:none}}
 .t-side .mini-list b{font-weight:600}
+.t-side .mini-list li{align-items:flex-start;padding:10px 0}
+.t-side .mini-list .track{margin-top:6px}
 </style>
 <main data-page="tujuan">
 <section class="bento" aria-label="Tujuan Keuangan">
@@ -43,7 +49,7 @@
   </article>
 
   <article class="card tips t-tips">
-    <div><h2 id="alT"></h2><p id="alP"></p><a class="more" id="alA" href="transaksi.html">Lihat transaksinya <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
+    <div class="tip-head"><h2 id="alT"></h2><p id="alP"></p><a class="more" id="alA" href="transaksi.html">Lihat transaksinya <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
     <div class="mosaic" aria-hidden="true" id="mosaic"></div>
   </article>
 </section>
@@ -103,8 +109,10 @@ function draw(){
 
   var attn=goals.filter(function(g){var s=statusOf(g);return s==="needs_boost"||s==="at_risk";}).sort(function(a,b){var sa=statusOf(a)==="at_risk"?0:1,sb=statusOf(b)==="at_risk"?0:1;return sa-sb;});
   document.getElementById("sideCap").textContent=attn.length?attn.length+" perlu didorong":"Semua sesuai rencana";
-  document.getElementById("sideList").innerHTML=attn.slice(0,5).map(function(g){var st=STATUS[statusOf(g)],pct=g.target>0?Math.round(g.saved/g.target*100):0;
-    return '<li style="cursor:pointer" data-contrib="'+g.id+'"><span class="ic" style="background:var(--card-2)">'+WM.icon(g.icon||"target",16)+'</span><div><b>'+esc(g.name)+'</b><small>'+pct+'% · '+st.label+'</small></div><div class="amt num">'+WM.short(Math.max(0,g.target-g.saved))+'</div></li>';}).join("")||'<li style="border:0"><small>Tidak ada tujuan yang perlu perhatian.</small></li>';
+  var rest=goals.filter(function(g){return attn.indexOf(g)===-1;}).sort(function(a,b){var pa=a.target>0?a.saved/a.target:0,pb=b.target>0?b.saved/b.target:0;return pb-pa;});
+  var sideShow=attn.concat(rest).slice(0,5);
+  document.getElementById("sideList").innerHTML=sideShow.map(function(g){var st=STATUS[statusOf(g)],pct=g.target>0?Math.round(g.saved/g.target*100):0;
+    return '<li style="cursor:pointer" data-contrib="'+g.id+'"><span class="ic" style="background:var(--card-2)">'+WM.icon(g.icon||"target",16)+'</span><div><b>'+esc(g.name)+'</b><small>'+pct+'% · '+st.label+'</small><div class="track"><i class="fill-'+tone(g)+'" style="width:'+Math.min(100,pct)+'%"></i></div></div><div class="amt num">'+WM.short(Math.max(0,g.target-g.saved))+'</div></li>';}).join("")||'<li style="border:0"><small>Belum ada tujuan.</small></li>';
 
   var list=goals.slice().sort(function(a,b){var pa=a.target>0?a.saved/a.target:0,pb=b.target>0?b.saved/b.target:0;return pa-pb;});
   document.getElementById("tiles").innerHTML=list.map(function(g){var t=tone(g),pct=g.target>0?Math.round(g.saved/g.target*100):0,remain=Math.max(0,g.target-g.saved);
@@ -116,8 +124,8 @@ function draw(){
   var need=worst?monthlyNeeded(worst):null;
   document.getElementById("alT").textContent=worst?esc(worst.name)+(statusOf(worst)==="at_risk"?" berisiko meleset":" perlu didorong"):"Semua tujuan sesuai rencana";
   document.getElementById("alP").textContent=worst?(need?"Nabung ≈ "+WM.rp(need)+"/bulan untuk kejar targetnya.":"Sisa "+WM.rp(Math.max(0,worst.target-worst.saved))+" lagi."):"Terus konsisten menabung.";
-  var pct=totalTarget?Math.round(totalSaved/totalTarget*100):0,n=Math.round(pct/100*18);
-  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:18}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
+  var pct=totalTarget?Math.round(totalSaved/totalTarget*100):0,cells=45,n=Math.round(pct/100*cells);
+  document.getElementById("mosaic").innerHTML=Array.apply(null,{length:cells}).map(function(_,i){return '<i class="'+(i<n?"a":i%5===0?"b":"")+'"></i>';}).join("");
 }
 
 function iconGrid(sel){return ICONS.map(function(k){return '<button type="button" class="ctile" role="radio" data-v="'+k+'" aria-checked="'+(k===sel)+'"><span class="ci">'+WM.icon(k,18)+'</span></button>';}).join("");}

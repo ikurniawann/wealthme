@@ -163,9 +163,10 @@ var CURRENCIES=[["IDR","Rp","Rupiah Indonesia"],["USD","$","US Dollar"],["SGD","
 function pd(){return WM.store.get("profileDetail");}
 function updPd(patch){WM.store.set("profileDetail",Object.assign({},pd(),patch));}
 
-function chart(){var prof=WM.store.get("profile")||{step:5,of:5},box=document.getElementById("chart");
-  var d=[1,2,3,4,5].map(function(i){return i<=prof.step?1:0;});
-  WM.chart.bars(box,{labels:["1","2","3","4","5"],series:[{d:d,c:"var(--lime)"}],hi:Math.max(0,prof.step-1),wide:true});}
+function chart(){var d=pd(),box=document.getElementById("chart");
+  var counts=NOTIF_ROWS.map(function(sec){return sec[1].filter(function(r){return d.notifPrefs[r[0]];}).length;});
+  var hi=counts.reduce(function(a,v,i){return v>counts[a]?i:a;},0);
+  WM.chart.bars(box,{labels:NOTIF_ROWS.map(function(s){return s[0];}),series:[{d:counts,c:"var(--lime)"}],hi:hi,wide:true,fmt:function(v){return v+" notifikasi aktif";}});}
 
 function drawHero(){var me=WM.me(),prof=WM.store.get("profile")||{step:5,of:5};
   document.getElementById("heroAv").textContent=me.init;
