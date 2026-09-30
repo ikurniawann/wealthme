@@ -4949,6 +4949,53 @@ export const id = {
       toastExportCreateFailed: "Gagal membuat ekspor.",
     },
   },
+  login: {
+    v2: {
+      coverPre: "Kelola keuangan ",
+      coverEm: "satu keluarga",
+      coverPost: ", dari satu akun.",
+      features: [
+        "Satu tempat untuk seluruh keuangan keluarga.",
+        "Anggota anak & staf punya akses terbatas, kamu yang atur.",
+        "Anggaran, tujuan, dan laporan otomatis terhubung.",
+      ],
+    },
+  },
+  register: {
+    v2: {
+      coverPre: "Mulai catat ",
+      coverEm: "kekayaanmu",
+      coverPost: " hari ini.",
+      features: [
+        "Bikin akun, lalu tambahkan rekening pertamamu sendiri.",
+        "Rekening tidak dibuat otomatis. Semua kamu yang atur.",
+        "Undang pasangan, anak atau staf belakangan, kapan saja.",
+      ],
+    },
+  },
+  lupaPassword: {
+    v2: {
+      coverPre: "Lupa password bukan ",
+      coverEm: "akhir cerita",
+      coverPost: ".",
+      features: [
+        "Link reset dikirim ke email yang terdaftar.",
+        "Link berlaku 60 menit demi keamanan akunmu.",
+        "Akun username? Minta Master keluarga mengganti dari IAM Roles.",
+      ],
+    },
+  },
+  resetPassword: {
+    v2: {
+      coverPre: "Setel ",
+      coverEm: "password baru",
+      coverPost: " untuk akunmu.",
+      features: [
+        "Password baru langsung aktif untuk masuk berikutnya.",
+        "Minimal 8 karakter, dan harus sama dengan konfirmasi.",
+      ],
+    },
+  },
   forcePasswordChange: {
     title: "Ganti Password kamu",
     subtitle:

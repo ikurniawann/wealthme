@@ -4875,6 +4875,53 @@ export const en = {
       toastExportCreateFailed: "Failed to create export.",
     },
   },
+  login: {
+    v2: {
+      coverPre: "Run your family's money ",
+      coverEm: "from one place",
+      coverPost: ", with one account.",
+      features: [
+        "One place for the whole family's finances.",
+        "Kids and staff get limited access, you decide.",
+        "Budgets, goals and reports connect automatically.",
+      ],
+    },
+  },
+  register: {
+    v2: {
+      coverPre: "Start tracking ",
+      coverEm: "your wealth",
+      coverPost: " today.",
+      features: [
+        "Create an account, then add your first account yourself.",
+        "Accounts are never created for you. You stay in control.",
+        "Invite a partner, kids or staff later, any time.",
+      ],
+    },
+  },
+  lupaPassword: {
+    v2: {
+      coverPre: "Forgot your password? It is ",
+      coverEm: "not the end",
+      coverPost: ".",
+      features: [
+        "The reset link goes to your registered email.",
+        "The link is valid for 60 minutes to keep your account safe.",
+        "Username account? Ask the family Master to reset it from IAM Roles.",
+      ],
+    },
+  },
+  resetPassword: {
+    v2: {
+      coverPre: "Set a ",
+      coverEm: "new password",
+      coverPost: " for your account.",
+      features: [
+        "Your new password works on your next sign-in.",
+        "At least 8 characters, and it must match the confirmation.",
+      ],
+    },
+  },
   forcePasswordChange: {
     title: "Change Your Password",
     subtitle:

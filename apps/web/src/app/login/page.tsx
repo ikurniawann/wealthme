@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Eye, EyeOff, Info, LogIn } from "lucide-react";
+import { Info, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { isFamilyLoginId } from "@wealthme/contracts";
 import { authClient } from "@/lib/auth-client";
-import { SectionCard } from "@/components/wm";
+import { useLocale } from "@/hooks/use-locale";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthField } from "@/components/auth/auth-fields";
 import { LegalLinks } from "@/components/auth/legal-links";
 
 // EPIC-026 Wave 7 — markup rebuilt from docs/prototype/pages/login.html
@@ -32,32 +34,9 @@ import { LegalLinks } from "@/components/auth/legal-links";
 // after any full page load.
 type UsernameSignInResponse = { token: string };
 
-const INPUT_CLASS =
-  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20 pointer-coarse:min-h-11";
-const LABEL_CLASS = "mb-[5px] block text-[12.5px] font-semibold";
-const BTN_PRIMARY_BLOCK =
-  "flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11";
-const BTN_OUTLINE_BLOCK =
-  "flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-11";
-
-function AuthBrand() {
-  return (
-    <div className="mb-[18px] flex items-center justify-center gap-2.5">
-      <div className="grid size-[34px] place-items-center rounded-[9px]">
-        {/* eslint-disable-next-line @next/next/no-img-element -- fixed small brand mark, no responsive srcset needed */}
-        <img
-          src="/brand/wealthme-mark.png"
-          alt=""
-          className="size-full object-contain"
-        />
-      </div>
-      <div className="text-[18px] font-extrabold tracking-tight">WealthMe</div>
-    </div>
-  );
-}
-
 export default function LoginPage() {
   const router = useRouter();
+  const v2 = useLocale().t.login.v2;
   const [mode, setMode] = useState<"email" | "username">("email");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -140,232 +119,158 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
-      <div className="w-full max-w-[420px]">
-        <AuthBrand />
+    <AuthShell
+      cover={{
+        headline: (
+          <>
+            {v2.coverPre}
+            <em>{v2.coverEm}</em>
+            {v2.coverPost}
+          </>
+        ),
+        features: v2.features,
+      }}
+    >
+      <h1 className="au-title">Selamat Datang Kembali</h1>
+      <p className="au-sub">Masuk ke Personal Wealth OS kamu</p>
 
-        <SectionCard>
-          <h1 className="text-center text-[16px] font-extrabold">
-            Selamat Datang Kembali
-          </h1>
-          <p className="mt-1 mb-4 text-center text-[11.5px] text-muted-foreground">
-            Masuk ke Personal Wealth OS kamu
-          </p>
-
-          {process.env.NODE_ENV !== "production" && (
-            <div className="mb-3.5 flex items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
-              <Info className="size-4 shrink-0" />
-              <div>
-                <strong className="block">Demo Account tersedia</strong>
-                Gunakan <code>demo@wealthme.id</code> / <code>demo1234</code>{" "}
-                untuk masuk.
-              </div>
-            </div>
-          )}
-
-          {/* EPIC-023 D1/D6 — a dependant/operational member has no email
-              and signs in by username instead. */}
-          <div
-            role="tablist"
-            className="mb-3.5 flex w-full gap-0.5 rounded-[10px] bg-secondary p-[3px]"
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "email"}
-              onClick={() => {
-                setMode("email");
-                setError("");
-              }}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors pointer-coarse:min-h-11 ${
-                mode === "email"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Email
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "username"}
-              onClick={() => {
-                setMode("username");
-                setError("");
-              }}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors pointer-coarse:min-h-11 ${
-                mode === "username"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              Username
-            </button>
+      {process.env.NODE_ENV !== "production" && (
+        <div className="au-info" style={{ marginBottom: 14 }}>
+          <Info size={16} />
+          <div>
+            <b>Demo Account tersedia</b>
+            Gunakan <code>demo@wealthme.id</code> / <code>demo1234</code> untuk
+            masuk.
           </div>
+        </div>
+      )}
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void (mode === "email" ? doLogin() : doUsernameLogin());
+      {/* EPIC-023 D1/D6 — a dependant/operational member has no email
+          and signs in by username instead. */}
+      <div role="tablist" className="au-seg">
+        {(["email", "username"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={mode === m}
+            onClick={() => {
+              setMode(m);
+              setError("");
             }}
           >
-            {mode === "email" ? (
-              <div>
-                <label htmlFor="email" className={LABEL_CLASS}>
-                  Email
-                </label>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    if (error) setError("");
-                  }}
-                  className={INPUT_CLASS}
-                />
-                <div className="mt-[5px] text-[11.5px] text-muted-foreground">
-                  Anggota yang dibuatkan akun oleh Master bisa masuk dengan
-                  username keluarga, misalnya <em>budi@arsandi</em>.
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="username" className={LABEL_CLASS}>
-                  Username
-                </label>
-                <input
-                  id="username"
-                  type="text"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  autoComplete="username"
-                  placeholder="nama@kodekeluarga"
-                  aria-describedby="username-hint"
-                  value={username}
-                  onChange={(e) => {
-                    setUsername(e.target.value);
-                    if (error) setError("");
-                  }}
-                  className={INPUT_CLASS}
-                />
-                <div
-                  id="username-hint"
-                  className="mt-[5px] text-[11.5px] text-muted-foreground"
-                >
-                  Contoh: <em>budi@arsandi</em>. Username &amp; kode keluarga
-                  didapat dari Master keluarga Anda.
-                </div>
-              </div>
-            )}
-
-            <div className="mt-3">
-              <label htmlFor="password" className={LABEL_CLASS}>
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={show ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    if (error) setError("");
-                  }}
-                  className={`${INPUT_CLASS} pr-10`}
-                />
-                <button
-                  type="button"
-                  aria-label={
-                    show ? "Sembunyikan password" : "Tampilkan password"
-                  }
-                  aria-pressed={show}
-                  onClick={() => setShow((s) => !s)}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-primary pointer-coarse:size-11"
-                >
-                  {show ? (
-                    <EyeOff className="size-3.5" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {error && (
-              <p
-                id="login-error"
-                role="alert"
-                className="mt-[5px] text-[11.5px] font-semibold text-destructive"
-              >
-                {error}
-              </p>
-            )}
-
-            {/* EPIC-025 N3-H1 (J1) — the "Ingat saya" checkbox was purely
-                decorative (no session-persistence logic reads it) — cut per
-                the honest-UI mandate instead of shipping a dead control.
-                Password-reset is email-based — not applicable to a
-                username-only dependant/operational account, so it only
-                shows in email mode. */}
-            {mode === "email" && (
-              <div className="mt-3.5 flex items-center justify-end">
-                <Link
-                  href="/lupa-password"
-                  className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
-                >
-                  Lupa password?
-                </Link>
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className={`${BTN_PRIMARY_BLOCK} mt-4`}
-            >
-              <LogIn className="size-4" /> {loading ? "Memuat…" : "Masuk"}
-            </button>
-          </form>
-
-          {/* Google sign-in and self-registration only apply to an email
-              account — a dependant/operational username account is created
-              by the family head (POST .../members/dependant), never
-              self-registered. */}
-          {mode === "email" && (
-            <>
-              <div className="my-4 flex items-center gap-2.5">
-                <span className="h-px flex-1 bg-border" />
-                <span className="text-[11.5px] text-muted-foreground">
-                  atau masuk dengan
-                </span>
-                <span className="h-px flex-1 bg-border" />
-              </div>
-
-              <button
-                type="button"
-                onClick={doGoogleLogin}
-                className={BTN_OUTLINE_BLOCK}
-              >
-                Google
-              </button>
-
-              <div className="mt-4 text-center text-[11.5px] text-muted-foreground">
-                Belum punya akun?{" "}
-                <Link
-                  href="/register"
-                  className="text-[12.5px] font-bold text-primary transition-colors hover:text-primary-strong"
-                >
-                  Daftar Sekarang
-                </Link>
-              </div>
-            </>
-          )}
-        </SectionCard>
-        <LegalLinks />
+            {m === "email" ? "Email" : "Username"}
+          </button>
+        ))}
       </div>
-    </div>
+
+      <form
+        className="au-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void (mode === "email" ? doLogin() : doUsernameLogin());
+        }}
+      >
+        {mode === "email" ? (
+          <AuthField
+            id="email"
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (error) setError("");
+            }}
+            hint={
+              <>
+                Anggota yang dibuatkan akun oleh Master bisa masuk dengan
+                username keluarga, misalnya <em>budi@arsandi</em>.
+              </>
+            }
+          />
+        ) : (
+          <AuthField
+            id="username"
+            label="Username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="username"
+            placeholder="nama@kodekeluarga"
+            aria-describedby="username-hint"
+            value={username}
+            onChange={(e) => {
+              setUsername(e.target.value);
+              if (error) setError("");
+            }}
+            hint={
+              <span id="username-hint">
+                Contoh: <em>budi@arsandi</em>. Username &amp; kode keluarga
+                didapat dari Master keluarga Anda.
+              </span>
+            }
+          />
+        )}
+
+        <AuthField
+          id="password"
+          label="Password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            if (error) setError("");
+          }}
+          reveal={{
+            show,
+            onToggle: () => setShow((s) => !s),
+            showLabel: "Tampilkan password",
+            hideLabel: "Sembunyikan password",
+          }}
+        />
+
+        {error && (
+          <p id="login-error" role="alert" className="au-err">
+            {error}
+          </p>
+        )}
+
+        {/* EPIC-025 N3-H1 (J1) — "Ingat saya" cut: it was decorative.
+            Password reset is email-based, so the link is email mode only. */}
+        {mode === "email" && (
+          <div style={{ textAlign: "right" }}>
+            <Link className="au-link" href="/lupa-password">
+              Lupa password?
+            </Link>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="au-btn"
+          data-variant="primary"
+        >
+          <LogIn size={16} /> {loading ? "Memuat…" : "Masuk"}
+        </button>
+      </form>
+
+      {/* Google and self-registration only apply to email accounts. */}
+      {mode === "email" && (
+        <>
+          <div className="au-divide">atau masuk dengan</div>
+          <button type="button" onClick={doGoogleLogin} className="au-btn">
+            Google
+          </button>
+          <p className="au-foot">
+            Belum punya akun?{" "}
+            <Link className="au-link" href="/register">
+              Daftar Sekarang
+            </Link>
+          </p>
+        </>
+      )}
+      <LegalLinks />
+    </AuthShell>
   );
 }

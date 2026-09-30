@@ -4756,6 +4756,38 @@ export type I18nDictionary = {
   };
   // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — forced first-login password
   // change for a head-created dependant/operational member.
+  login: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
+  register: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
+  lupaPassword: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
+  resetPassword: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
   forcePasswordChange: {
     title: string;
     subtitle: string;
