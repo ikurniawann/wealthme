@@ -4,59 +4,63 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
 <link rel="stylesheet" href="wm.css">
 <style>
-@media (min-width:1181px){
-  .r-hero{grid-column:1/9;grid-row:1}.r-side{grid-column:9/13;grid-row:1/3}
-  .r-grid{grid-column:1/9;grid-row:2}.r-cc{grid-column:1/13;grid-row:3}
-}
-.pcard{flex:none;width:78%;max-width:260px;aspect-ratio:1.586;border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;justify-content:space-between;position:relative;overflow:hidden;cursor:pointer;border:0;text-align:left;font:inherit;color:inherit}
+@media (min-width:1181px){.a-hero{grid-column:1/9;grid-row:1}.a-cards{grid-column:9/13;grid-row:1}.a-list{grid-column:1/9;grid-row:2}.a-cc{grid-column:9/13;grid-row:2}}
+.pcard{flex:none;width:100%;aspect-ratio:1.586;border-radius:18px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;scroll-snap-align:center;position:relative;overflow:hidden;border:0;text-align:left;font:inherit;cursor:pointer}
 .pcard.lime{background:var(--lime);color:var(--lime-ink);background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.13) 0 2px,transparent 2px 9px)}
 .pcard.soft{background:linear-gradient(135deg,var(--card-2),var(--ghost));color:var(--ink)}
-.pcard.dark{background:var(--ink);color:var(--card)}
-.pcard .t{display:flex;justify-content:space-between;align-items:flex-start;font-size:11.5px}
-.pcard .t b{font-size:15px;font-style:italic;font-weight:700;letter-spacing:.02em}
-.pcard .chipsvg{width:34px;height:26px;margin-top:4px;flex:none}
-.pcard .no{font-size:13px;letter-spacing:.08em;margin-top:auto}
-.pcard .bt{display:flex;justify-content:space-between;align-items:flex-end;gap:8px;font-size:11.5px;margin-top:6px;white-space:nowrap}
-.pcard .bt span:first-child{overflow:hidden;text-overflow:ellipsis;min-width:0}
-.pcard .bt .num{font-weight:600}
-.pcard .priv{font-size:9px;font-weight:700;background:rgba(0,0,0,.12);border-radius:99px;padding:2px 7px;align-self:flex-start;margin-top:3px}
-.pcard.lime .priv,.pcard.dark .priv{background:rgba(255,255,255,.22)}
-.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-top:14px}
-.r-hero .addtile{border:1.5px dashed var(--line);border-radius:16px;min-height:150px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted);background:transparent}
-.r-hero .addtile:hover{border-color:var(--lime);color:var(--ink)}
-.ccdeck{display:flex;gap:12px;overflow-x:auto;padding:4px 2px 8px;scroll-snap-type:x proximity;scrollbar-width:none}
-.ccdeck::-webkit-scrollbar{display:none}
-.ccdeck .pcard{width:230px;scroll-snap-align:start}
+.pcard.dark{background:#15170F;color:#EEF0E8}
+.pcard .t{display:flex;justify-content:space-between;align-items:flex-start;font-size:12px}
+.pcard .t b{font-size:16px;font-style:italic;font-weight:700}
+.chipsvg{width:34px;height:26px}
+.pcard .no{font-size:14px;letter-spacing:.08em}
+.pcard .bt{display:flex;justify-content:space-between;font-size:12px;gap:8px}.pcard .bt .num{font-weight:600}
+.pcard .priv{font-size:10.5px;font-weight:600;border-radius:99px;padding:2px 8px;background:rgba(0,0,0,.08)}
+.deck{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-top:14px}
+.deck::-webkit-scrollbar{display:none}
+.dots{display:flex;justify-content:center;gap:5px;margin-top:10px}.dots i{width:6px;height:6px;border-radius:50%;background:var(--ghost)}.dots i.on{width:16px;border-radius:3px;background:var(--ink)}
+.qa{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.qa button,.qa a{display:flex;flex-direction:column;align-items:center;gap:7px;font-size:12px;border:0;background:none;text-decoration:none;color:var(--ink)}
+.qa span{width:48px;height:48px;border-radius:15px;border:1px solid var(--line);display:grid;place-items:center}
+.qa button:hover span,.qa a:hover span{background:var(--card-2)}
+.arow{display:grid;grid-template-columns:44px minmax(0,1fr) 150px auto;gap:14px;align-items:center;padding:13px 4px;border-top:1px solid var(--line);cursor:pointer;border-radius:12px;width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;font:inherit;color:inherit}
+.arow:first-child{border-top:0}.arow:hover{background:var(--card-2)}
+.arow .bk{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;font-weight:700;font-style:italic;font-size:12px}
+.arow b{display:block;font-weight:500;font-size:13.5px}.arow small{color:var(--muted);font-size:12px}
+.arow .amt{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+#cc .pcard{max-width:300px;margin:0 auto}
+.arow .track{width:100%}
+.cc-meta{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:8px}
+@media (max-width:720px){.arow{grid-template-columns:40px minmax(0,1fr) auto}.arow .track{display:none}}
 </style>
 <main data-page="rekening">
-<section class="bento" aria-label="Bank & Account">
-  <article class="card hero dark r-hero">
+<section class="bento">
+  <article class="card hero dark a-hero">
     <div class="chart-side">
       <div class="head">
         <div><p class="big num" id="hTotal"></p><div class="cap" id="hCap"></div></div>
-        <div class="hero-ctrl">
-          <div class="ctrl-row"><button class="ghost-btn lit" type="button" id="addTop">+ Rekening</button></div>
-        </div>
+        <div class="hero-ctrl"><div class="ctrl-row"><div class="seg" role="group" aria-label="Filter" id="filterSeg"><button type="button" aria-pressed="true" data-f="all">Semua</button><button type="button" aria-pressed="false" data-f="shared">Bersama</button><button type="button" aria-pressed="false" data-f="private">Pribadi</button></div><button class="ghost-btn lit" type="button" id="addTop">+ Rekening</button></div></div>
       </div>
-      <div class="pgrid" id="bankGrid"></div>
-      <div class="empty" id="bankEmpty" hidden><b>Belum ada rekening bank</b><p>Tambahkan rekening pertama keluarga.</p></div>
+      <div class="chart-wrap" id="chart"></div>
     </div>
     <div class="kpis">
-      <div class="kpi"><small>Saldo bank</small><div class="v" id="kBank"></div></div>
+      <div class="kpi"><small>Rekening bank</small><div class="v" id="kN"></div><div class="delta"><em id="kNn"></em></div></div>
       <div class="kpi"><small>Bersama</small><div class="v" id="kShared"></div><div class="delta"><em id="kSharedN"></em></div></div>
-      <div class="kpi"><small>Milik anggota</small><div class="v" id="kOwn"></div><div class="delta"><em id="kOwnN"></em></div></div>
+      <div class="kpi"><small>Pribadi</small><div class="v" id="kPriv"></div><div class="delta"><em id="kPrivN"></em></div></div>
     </div>
   </article>
-
-  <article class="card r-side">
-    <div class="head"><div><h2>Rekening</h2><div class="cap">Ketuk kartu untuk detail</div></div></div>
-    <div class="seg" role="tablist" aria-label="Filter kepemilikan" id="filterSeg" style="margin-top:8px"><button role="tab" aria-selected="true" data-f="all" type="button">Semua</button><button role="tab" aria-selected="false" data-f="mine" type="button">Saya</button><button role="tab" aria-selected="false" data-f="shared" type="button">Bersama</button></div>
-    <ul class="mini-list" id="sideList"></ul>
+  <article class="card a-cards">
+    <div class="head"><div><h2>Kartu</h2><div class="cap" id="cardCap"></div></div></div>
+    <div class="deck" id="deck" tabindex="0" aria-label="Kartu rekening, geser"></div>
+    <div class="dots" id="dots"></div>
+    <div class="qa"><button type="button" id="qCatat"><span></span>Catat</button><button type="button" id="qTf"><span></span>Transfer</button><a href="rekonsiliasi.html"><span></span>Rekonsiliasi</a><button type="button" id="qMut"><span></span>Mutasi</button></div>
   </article>
-
-  <article class="card tips r-cc" id="ccSection">
-    <div><h2>Kartu Kredit</h2><p>Dikelola sebagai kewajiban, ditampilkan di sini agar terlihat utuh.</p><a class="more" href="liabilitas.html">Kelola di Liabilitas <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg></a></div>
-    <div class="ccdeck" id="ccDeck" aria-label="Kartu kredit"></div>
+  <article class="card a-list">
+    <div class="head"><div><h2>Semua rekening</h2><div class="cap">Porsi dari total saldo</div></div></div>
+    <div id="rows" style="margin-top:8px"></div>
+  </article>
+  <article class="card a-cc" id="ccSection">
+    <div class="head"><div><h2>Kartu kredit</h2><div class="cap">Dicatat sebagai kewajiban</div></div><a class="ghost-btn" href="liabilitas.html">Liabilitas</a></div>
+    <div id="cc"></div>
   </article>
 </section>
 </main>
@@ -64,8 +68,7 @@
 <script>
 WM.shell({page:"rekening",title:"Bank & Account"});
 (function(){ if(!WM.allowed) return;
-var esc=WM.esc;
-var filter="all";
+var esc=WM.esc,filter="all",cur=0;
 var chip='<svg class="chipsvg" viewBox="0 0 34 26" aria-hidden="true"><rect x=".5" y=".5" width="33" height="25" rx="5" fill="#E9C77B" stroke="rgba(0,0,0,.18)"/><path d="M11 1v24M23 1v24M1 9h10M1 17h10M23 9h10M23 17h10M11 13h12" stroke="rgba(0,0,0,.22)" fill="none"/></svg>';
 
 function bankAccounts(){return WM.visibleAccounts().filter(function(a){return a.type==="bank";});}
@@ -89,33 +92,30 @@ function ccCardHTML(a){
    '<div class="bt"><span>'+esc(a.owner?WM.member(a.owner).short:"Bersama")+'</span><span class="num">Tagihan '+WM.rp(-a.balance)+'</span></div></button>';
 }
 
+var BANKTONE={BCA:["#1D4E9E","#fff"],BRI:["#0B5CAD","#fff"],Mandiri:["#F2B81C","#1E2A5A"],Jago:["#F5A623","#1B1B1B"],BNI:["#F26522","#fff"]};
 function draw(){
-  var all=bankAccounts();
-  var vis=all.filter(function(a){if(filter==="mine")return a.owner===WM.meId();if(filter==="shared")return !a.owner;return true;});
-  var total=all.reduce(function(s,a){return s+a.balance;},0),shared=all.filter(function(a){return !a.owner;}),owned=all.filter(function(a){return a.owner;});
-  var sharedSum=shared.reduce(function(s,a){return s+a.balance;},0);
-  document.getElementById("hTotal").innerHTML='<span class="cur">Rp</span>'+total.toLocaleString("id-ID");
-  document.getElementById("hCap").textContent=all.length+" rekening terhubung";
-  document.getElementById("kBank").textContent=WM.short(total);
-  document.getElementById("kShared").textContent=WM.short(sharedSum);
-  document.getElementById("kSharedN").textContent=shared.length+" rekening";
-  document.getElementById("kOwn").textContent=WM.short(total-sharedSum);
-  document.getElementById("kOwnN").textContent=owned.length+" rekening";
-  var grid=document.getElementById("bankGrid");
-  grid.innerHTML=vis.map(bankCardHTML).join("")+(WM.isOwner()?'<button type="button" class="addtile" id="addTile">'+WM.icon("landmark",22)+'<b style="font-size:13px">Tambah rekening</b></button>':"");
-  document.getElementById("bankEmpty").hidden=vis.length>0;
-  grid.querySelectorAll("[data-acc]").forEach(function(b){b.onclick=function(){openDetail(b.dataset.acc);};});
-  var at=document.getElementById("addTile");if(at)at.onclick=function(){openForm(null);};
-
-  document.getElementById("sideList").innerHTML=vis.slice(0,6).map(function(a){return '<li style="cursor:pointer" data-side="'+a.id+'"><span class="ic" style="background:var(--card-2)">'+WM.icon("landmark",16)+'</span><div><b>'+esc(a.name)+'</b><small>'+esc(a.bank)+' · '+esc(a.owner?WM.member(a.owner).short:"Bersama")+'</small></div><div class="amt num">'+WM.short(a.balance)+'</div></li>';}).join("")||'<li style="border:0"><small>Belum ada rekening.</small></li>';
-  document.querySelectorAll("[data-side]").forEach(function(li){li.onclick=function(){openDetail(li.dataset.side);};});
-
-  var ccs=ccAccounts();
-  document.getElementById("ccSection").hidden=!ccs.length;
-  document.getElementById("ccDeck").innerHTML=ccs.map(ccCardHTML).join("");
-  document.getElementById("ccDeck").querySelectorAll("[data-cc]").forEach(function(b){b.onclick=function(){openCcInfo(WM.account(b.dataset.cc));};});
+  var all=bankAccounts(),vis=all.filter(function(a){return filter==="all"||a.vis===filter;});
+  var total=all.reduce(function(s,a){return s+a.balance;},0),sh=all.filter(function(a){return a.vis==="shared";}),pr=all.filter(function(a){return a.vis==="private";});
+  var sum=function(l){return l.reduce(function(s,a){return s+a.balance;},0);},vt=sum(vis);
+  document.getElementById("hTotal").innerHTML='<span class="cur">Rp</span>'+vt.toLocaleString("id-ID");
+  document.getElementById("hCap").textContent=filter==="all"?"Total saldo semua rekening bank":filter==="shared"?"Saldo rekening bersama":"Saldo rekening pribadi";
+  var set=function(id,v,s){var e=document.getElementById(id);e.textContent=v;if(s)e.dataset.short=s;};
+  set("kN",String(all.length),String(all.length));set("kNn",WM.short(total));set("kShared",WM.rp(sum(sh)),WM.short(sum(sh)));set("kSharedN",sh.length+" rekening");set("kPriv",WM.rp(sum(pr)),WM.short(sum(pr)));set("kPrivN",pr.length+" rekening");
+  var box=document.getElementById("chart");
+  if(vis.length)WM.chart.bars(box,{labels:vis.map(function(a){return a.bank;}),series:[{d:vis.map(function(a){return a.balance/1e6;}),c:"var(--lime)",n:"Saldo"}],hi:vis.reduce(function(m,a,i){return a.balance>vis[m].balance?i:m;},0),wide:true,fmt:function(v){return WM.short(v*1e6);},axis:function(t){return Math.round(t)+" jt";}});
+  else box.innerHTML='<div class="empty"><b>Belum ada rekening di sini</b></div>';
+  document.getElementById("cardCap").textContent=vis.length+" kartu, geser untuk lihat";
+  var deck=document.getElementById("deck");deck.innerHTML=vis.map(bankCardHTML).join("")||'<div class="empty"><b>Tidak ada kartu</b></div>';
+  deck.querySelectorAll("[data-acc]").forEach(function(b){b.onclick=function(){openDetail(b.dataset.acc);};});
+  function dots(){cur=Math.round(deck.scrollLeft/Math.max(1,deck.clientWidth));document.getElementById("dots").innerHTML=vis.map(function(_,i){return '<i class="'+(i===cur?"on":"")+'"></i>';}).join("");}deck.onscroll=dots;dots();
+  document.getElementById("qMut").onclick=function(){if(vis[cur])openDetail(vis[cur].id);};
+  document.getElementById("rows").innerHTML=vis.slice().sort(function(a,b){return b.balance-a.balance;}).map(function(a){var t=BANKTONE[a.bank]||["var(--card-2)","var(--ink)"],p=total?a.balance/total*100:0;
+    return '<button type="button" class="arow" data-acc="'+a.id+'"><span class="bk" style="background:'+t[0]+';color:'+t[1]+'">'+esc(a.bank.slice(0,4))+'</span><span><b>'+esc(a.name)+(a.vis==="private"?' <span class="pill">Pribadi</span>':'')+'</b><small>'+esc(WM.member(a.owner).short)+' · '+maskNo(a.no)+'</small></span><span class="track"><i class="fill-lime" style="width:'+p+'%"></i></span><span class="amt">'+WM.short(a.balance)+'<small style="display:block;font-weight:400">'+Math.round(p)+'%</small></span></button>';}).join("")||'<div class="empty"><b>Belum ada rekening</b></div>';
+  document.querySelectorAll("#rows [data-acc]").forEach(function(b){b.onclick=function(){openDetail(b.dataset.acc);};});
+  var ccs=ccAccounts();document.getElementById("ccSection").hidden=!ccs.length;
+  document.getElementById("cc").innerHTML=ccs.map(function(a){var lim=a.limit||0,used=-a.balance,p=lim?used/lim*100:0;return '<div style="margin-top:14px">'+ccCardHTML(a)+'<div class="track" style="margin-top:14px"><i class="'+(p>80?"fill-bad":p>50?"fill-orange":"fill-lime")+'" style="width:'+Math.min(100,p)+'%"></i></div><div class="cc-meta"><span>Terpakai '+WM.short(used)+'</span><span>Limit '+(lim?WM.short(lim):"–")+'</span></div></div>';}).join("");
+  document.querySelectorAll("#cc [data-cc]").forEach(function(b){b.onclick=function(){openCcInfo(WM.account(b.dataset.cc));};});
 }
-
 function openForm(edit){
   var opts=memberOptions();
   var body=WM.field({name:"bank",label:"Nama Bank",type:"select",required:true,options:["BCA","Mandiri","BRI","BNI","CIMB","OCBC","Bank Lainnya"],value:edit?edit.bank:""})+
@@ -161,11 +161,10 @@ function openCcInfo(a){
    '<div class="note" style="margin-top:12px">'+WM.icon("info",16)+'<span>Kartu kredit dicatat sebagai kewajiban. Cicilan, limit dan tanggal cetak tagihan ada di halaman Liabilitas.</span></div>'+
    '<a class="btn block" style="margin-top:12px" href="liabilitas.html">Buka di Liabilitas</a>'});
 }
-
-document.getElementById("filterSeg").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;
-  this.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-selected",x===b);});filter=b.dataset.f;draw();});
-if(!WM.isOwner())document.getElementById("addTop").hidden=true;
-document.getElementById("addTop").onclick=function(){openForm(null);};
-draw();WM.onChange(["accounts","tx"],draw);
+document.getElementById("filterSeg").addEventListener("click",function(e){var b=e.target.closest("button");if(!b)return;this.querySelectorAll("button").forEach(function(x){x.setAttribute("aria-pressed",x===b);});filter=b.dataset.f;draw();});
+var add=document.getElementById("addTop");if(!WM.isOwner())add.hidden=true;add.onclick=function(){openForm(null);};
+document.getElementById("qCatat").onclick=function(){WM.openTx();};document.getElementById("qTf").onclick=function(){WM.openTx(null,{type:"tf"});};
+document.querySelectorAll(".qa span").forEach(function(s,i){s.innerHTML=WM.icon(["plus","swap","compare","file"][i],18);});
+draw();WM.onChange(["accounts","tx"],draw);WM.onResize(document.getElementById("chart"),draw);
 })();
 </script>
