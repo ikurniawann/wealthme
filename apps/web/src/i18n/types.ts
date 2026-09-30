@@ -1793,6 +1793,19 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
+    v2: {
+      allocTitle: string;
+      listTitle: string;
+      allocCaption: string;
+      legendCost: string;
+      legendValue: string;
+      chartEmpty: string;
+      filterLabel: string;
+      chartAria: string;
+      heroCapSuffix: string;
+      rowCapital: string;
+      noteDividends: string;
+    };
     goldPricePerGramTooHigh: string;
     typeLabels: Record<InvestasiTypeId, string>;
     errorLoad: string;

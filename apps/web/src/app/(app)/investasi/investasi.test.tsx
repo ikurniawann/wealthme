@@ -219,7 +219,7 @@ describe("InvestasiPage — role gating (F3)", () => {
       screen.queryByRole("button", { name: /Catat Investasi/i }),
     ).not.toBeInTheDocument();
 
-    const row = screen.getByText("Emas Batangan").closest("tr");
+    const row = screen.getByText("Emas Batangan").closest("li");
     expect(row).not.toBeNull();
     expect(
       within(row as HTMLElement).queryByRole("button", { name: "Edit" }),
@@ -238,7 +238,7 @@ describe("InvestasiPage — role gating (F3)", () => {
       screen.getByRole("button", { name: /Catat Investasi/i }),
     ).toBeInTheDocument();
 
-    const row = screen.getByText("Emas Batangan").closest("tr");
+    const row = screen.getByText("Emas Batangan").closest("li");
     expect(row).not.toBeNull();
     expect(
       within(row as HTMLElement).getByRole("button", { name: "Edit" }),
@@ -270,7 +270,7 @@ describe("InvestasiPage — B6: never shows a simulated price as live", () => {
     });
     render(<InvestasiPage />);
 
-    const row = (await screen.findByText("QQ Corp")).closest("tr");
+    const row = (await screen.findByText("QQ Corp")).closest("li");
     expect(row).not.toBeNull();
     expect(
       within(row as HTMLElement).getByText(
@@ -311,7 +311,10 @@ describe("InvestasiPage — B6: never shows a simulated price as live", () => {
     });
     render(<InvestasiPage />);
 
-    const row = (await screen.findByText("Bitcoin")).closest("tr");
+    // One-word names also label the hero chart's bar, so pick the list row.
+    const row = (await screen.findAllByText("Bitcoin"))
+      .map((el) => el.closest("li"))
+      .find((li) => li !== null);
     expect(row).not.toBeNull();
     expect(
       within(row as HTMLElement).getByText(idDict.investasi.priceLiveBadge),
@@ -541,7 +544,7 @@ describe("InvestasiPage — Beli/Jual Lot⇄Lembar toggle (Revisi D item 8)", ()
     holdingName: string,
   ) {
     const row = (await screen.findByText(holdingName)).closest(
-      "tr",
+      "li",
     ) as HTMLElement;
     await user.click(within(row).getByRole("button", { name: "Lihat Detail" }));
     await user.click(
@@ -1006,7 +1009,7 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     render(<InvestasiPage />);
 
     const row = (await screen.findByText("Emas Batangan")).closest(
-      "tr",
+      "li",
     ) as HTMLElement;
     await user.click(within(row).getByRole("button", { name: "Edit" }));
 
@@ -1021,7 +1024,7 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     render(<InvestasiPage />);
 
     const row = (await screen.findByText("Emas Batangan")).closest(
-      "tr",
+      "li",
     ) as HTMLElement;
     await user.click(within(row).getByRole("button", { name: "Lihat Detail" }));
     await user.click(
@@ -1059,7 +1062,7 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     render(<InvestasiPage />);
 
     const row = (await screen.findByText("Emas Batangan")).closest(
-      "tr",
+      "li",
     ) as HTMLElement;
     await user.click(within(row).getByRole("button", { name: "Lihat Detail" }));
     await user.click(
@@ -1099,9 +1102,7 @@ describe("InvestasiPage — allocation donut renders once (Batch 5 item 2)", () 
     // DonutChart twice: once beside the "Nilai Portofolio 6 Bulan" trend
     // chart, once again on its own further down the page.
     await screen.findByText("Emas Batangan");
-    expect(screen.getAllByText(idDict.investasi.allocationTitle)).toHaveLength(
-      1,
-    );
+    expect(screen.getAllByText(idDict.investasi.v2.allocTitle)).toHaveLength(1);
   });
 });
 
@@ -1121,7 +1122,7 @@ describe("InvestasiPage — hardening G1 (P0 honesty): no fabricated portfolio t
     render(<InvestasiPage />);
 
     const row = (await screen.findByText("Emas Batangan")).closest(
-      "tr",
+      "li",
     ) as HTMLElement;
     await userEvent.click(
       within(row).getByRole("button", { name: "Lihat Detail" }),

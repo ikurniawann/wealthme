@@ -1823,6 +1823,19 @@ export const id = {
     },
   },
   investasi: {
+    v2: {
+      allocTitle: "Kepemilikan",
+      listTitle: "Portofolio",
+      allocCaption: "Porsi per jenis instrumen",
+      legendCost: "Modal",
+      legendValue: "Nilai",
+      chartEmpty: "Belum ada investasi untuk digambar.",
+      filterLabel: "Filter jenis investasi",
+      chartAria: "Modal dan nilai saat ini per investasi",
+      heroCapSuffix: "posisi tercatat",
+      rowCapital: "Modal",
+      noteDividends: "Dividen & bunga tercatat di Transaksi",
+    },
     goldPricePerGramTooHigh:
       "Harga emas diisi per gram, bukan per kg. Contoh: 2.597.000.",
     typeLabels: {

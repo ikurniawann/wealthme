@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import "./investasi.css";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -13,22 +14,24 @@ import {
   PencilLine,
   Plus,
   RefreshCw,
-  TrendingUp,
   Zap,
 } from "lucide-react";
 
 import {
-  SectionCard,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  CompositionStack,
+  type CompositionItem,
+  Delta,
+  GhostButton,
+  HeroKpi,
+  Segmented,
   StatusBadge,
-  IconChip,
-  CountUpRupiah,
-  Rise,
   DateField,
 } from "@/components/wm";
-import { DonutChart } from "@/components/charts/apex-presets";
-import type { DonutSegment } from "@/components/charts/donut";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { DateRangeFilterField } from "@/components/wm/date-range-field";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -555,25 +558,14 @@ function SkeletonBlock({ className }: { className?: string }) {
   );
 }
 
-function SummaryCardSkeleton() {
-  return (
-    <Card className="gap-0 p-5">
-      <SkeletonBlock className="mb-1 h-3 w-28" />
-      <SkeletonBlock className="h-7 w-40" />
-      <SkeletonBlock className="mt-1 h-3 w-36" />
-    </Card>
-  );
-}
-
 function HoldingRowSkeleton() {
   return (
-    <tr className="border-b last:border-0">
-      {Array.from({ length: 8 }).map((_, i) => (
-        <td key={`skeleton-${i}`} className="py-3 pr-3">
-          <SkeletonBlock className="h-4 w-20" />
-        </td>
-      ))}
-    </tr>
+    <li className="iv-row" aria-hidden="true">
+      <SkeletonBlock className="size-9 rounded-full" />
+      <SkeletonBlock className="h-4 w-40" />
+      <SkeletonBlock className="h-4 w-24" />
+      <SkeletonBlock className="h-4 w-28" />
+    </li>
   );
 }
 
@@ -1814,7 +1806,7 @@ export default function InvestasiPage() {
       (allocationByType.get(label) ?? 0) + parseFloat(h.currentValue ?? "0"),
     );
   }
-  const allocationSegments: DonutSegment[] = (holdings ?? [])
+  const allocationSegments: CompositionItem[] = (holdings ?? [])
     .reduce<{ type: string; label: string }[]>((acc, h) => {
       if (acc.some((a) => a.type === h.type)) return acc;
       return [
@@ -1838,48 +1830,343 @@ export default function InvestasiPage() {
     AUTOMATED_PRICE_TYPES.includes(h.type as InvestmentType),
   ).length;
 
+  const positionCount = filteredHoldings.length;
+  const totalValueNum = parseFloat(summary?.totalCurrentValue ?? "0");
+  const returnUp = (summary?.totalReturnPct ?? 0) >= 0;
+  const todayUp = (summary?.todayReturnPct ?? 0) >= 0;
+  const mosaicLive =
+    (holdings?.length ?? 0) === 0
+      ? 0
+      : Math.round((livePositionsCount / (holdings?.length ?? 1)) * 45);
+  const mosaic = Array.from({ length: 45 }, (_, i) =>
+    i < mosaicLive ? ("a" as const) : ("b" as const),
+  );
+  const formulaText =
+    summary?.totalReturnRp != null && summary.totalCostBasis != null
+      ? t.investasi.returnFormulaLabel
+          .replace(
+            "{returnRp}",
+            money.format(Math.abs(parseFloat(summary.totalReturnRp))),
+          )
+          .replace(
+            "{costBasis}",
+            money.format(parseFloat(summary.totalCostBasis)),
+          )
+      : null;
+
   return (
-    <div className="space-y-4">
-      {/* EPIC-025 N3 audit (structural port) — page-lead header: title +
-          subtitle, "Perbarui Harga" (real manual refresh — invalidates the
-          same live-price queries the socket.io listener above invalidates,
-          not just a toast with no effect) and "Catat Investasi" (the SAME
-          openAdd flow the table used to expose as a header link). Gap #2:
-          the prototype orders stat cards → info callout → filter pills →
-          table; the old layout put the filter pills first. */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="min-w-[220px] flex-1">
-          <h1 className="text-[17px] font-extrabold tracking-tight">
-            {t.shell.pageTitles.investasi}
-          </h1>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={!familyGroupId}
-            onClick={() => {
-              if (!familyGroupId) return;
-              void queryClient.invalidateQueries({
-                queryKey: queryKeys.investments.all(familyGroupId),
-              });
-              void queryClient.invalidateQueries({
-                queryKey: queryKeys.investments.summary(familyGroupId),
-              });
-              toast.success(t.investasi.refreshPriceToast);
-            }}
+    <>
+      <BentoGrid className="iv-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.investasi}</h1>
+
+        <BentoHero
+          className="iv-hero"
+          currency={null}
+          value={
+            isLoading
+              ? "…"
+              : summary?.totalCurrentValue != null
+                ? money.format(totalValueNum).replace(/,00$/, "")
+                : "—"
+          }
+          caption={
+            isLoading
+              ? "…"
+              : `${holdings?.length ?? 0} ${t.investasi.v2.heroCapSuffix}`
+          }
+          controls={
+            <>
+              <GhostButton
+                disabled={!familyGroupId}
+                onClick={() => {
+                  if (!familyGroupId) return;
+                  void queryClient.invalidateQueries({
+                    queryKey: queryKeys.investments.all(familyGroupId),
+                  });
+                  void queryClient.invalidateQueries({
+                    queryKey: queryKeys.investments.summary(familyGroupId),
+                  });
+                  toast.success(t.investasi.refreshPriceToast);
+                }}
+              >
+                <RefreshCw aria-hidden="true" />{" "}
+                {t.investasi.refreshPriceButton}
+              </GhostButton>
+              {canManage && (
+                <GhostButton lit onClick={() => setModalOpen(true)}>
+                  <Plus aria-hidden="true" />{" "}
+                  {t.investasi.addInvestmentHeaderButton}
+                </GhostButton>
+              )}
+            </>
+          }
+          chart={
+            <div className="iv-chartcol">
+              <Segmented
+                className="iv-filters"
+                label={t.investasi.v2.filterLabel}
+                value={activeFilter}
+                onChange={setActiveFilter}
+                options={FILTER_TAB_IDS.map((id) => ({
+                  value: id,
+                  label:
+                    id === "semua"
+                      ? t.investasi.filterAllLabel
+                      : t.investasi.typeLabels[id],
+                }))}
+              />
+              <div className="iv-plot">
+                {filteredHoldings.length > 0 ? (
+                  <HatchedBarChart
+                    labels={filteredHoldings.map(
+                      (h) => h.name.split(" ")[0] ?? h.name,
+                    )}
+                    series={[
+                      {
+                        name: t.investasi.v2.legendCost,
+                        data: filteredHoldings.map(
+                          (h) =>
+                            parseFloat(h.costBasisPerUnit) *
+                            parseFloat(h.quantity),
+                        ),
+                        color: "var(--wm-ghost)",
+                      },
+                      {
+                        name: t.investasi.v2.legendValue,
+                        data: filteredHoldings.map((h) =>
+                          parseFloat(h.currentValue ?? "0"),
+                        ),
+                        color: "var(--wm-lime)",
+                      },
+                    ]}
+                    format={money.formatCompact}
+                    wide
+                    ariaLabel={t.investasi.v2.chartAria}
+                  />
+                ) : (
+                  <p className="wm-cap">{t.investasi.v2.chartEmpty}</p>
+                )}
+              </div>
+            </div>
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.investasi.totalValueLabel}
+                value={
+                  summary?.totalCurrentValue != null
+                    ? money.format(totalValueNum)
+                    : "—"
+                }
+                delta={
+                  <span className="wm-cap">
+                    {t.investasi.capitalInvestedPrefix}{" "}
+                    {formatDecimalRupiah(summary?.totalCostBasis ?? null)}
+                  </span>
+                }
+              />
+              <HeroKpi
+                label={t.investasi.totalReturnSuffix}
+                value={formatDecimalRupiah(summary?.totalReturnRp ?? null)}
+                delta={
+                  <span className="iv-kdelta">
+                    <Delta
+                      dir={returnUp ? "up" : "down"}
+                      value={formatReturnPct(summary?.totalReturnPct ?? null)}
+                    />
+                    {formulaText && (
+                      <Tooltip>
+                        <TooltipTrigger
+                          aria-label={formulaText}
+                          className="iv-info"
+                        >
+                          <Info className="size-3.5" />
+                        </TooltipTrigger>
+                        <TooltipContent>{formulaText}</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </span>
+                }
+              />
+              <HeroKpi
+                label={t.investasi.todayReturnLabel}
+                value={formatDecimalRupiah(summary?.todayReturnRp ?? null)}
+                delta={
+                  <span className="iv-kdelta">
+                    <Delta
+                      dir={todayUp ? "up" : "down"}
+                      value={formatReturnPct(summary?.todayReturnPct ?? null)}
+                    />
+                    <span className="wm-cap">
+                      {t.investasi.livePositionsOnlyPrefix} {livePositionsCount}{" "}
+                      {t.investasi.livePositionsSuffix}
+                    </span>
+                  </span>
+                }
+              />
+            </>
+          }
+        />
+
+        {!isLoading && allocationSegments.length > 0 && (
+          <BentoCard
+            className="iv-comp"
+            title={t.investasi.v2.allocTitle}
+            caption={t.investasi.v2.allocCaption}
           >
-            <RefreshCw className="size-3.5" /> {t.investasi.refreshPriceButton}
-          </Button>
-          {canManage && (
-            <Button type="button" size="sm" onClick={() => setModalOpen(true)}>
-              <Plus className="size-3.5" />{" "}
-              {t.investasi.addInvestmentHeaderButton}
-            </Button>
+            <CompositionStack
+              label={t.investasi.allocationTitle}
+              center={money.formatCompact(totalValueNum)}
+              sub={t.investasi.totalValueLabel}
+              format={money.formatCompact}
+              items={allocationSegments}
+            />
+          </BentoCard>
+        )}
+
+        <BentoCard
+          className="iv-list"
+          title={t.investasi.v2.listTitle}
+          caption={`${positionCount} ${t.investasi.positionsCountSuffix}`}
+        >
+          {!isLoading && isPageError && (
+            <p className="iv-state iv-state-bad" role="alert">
+              {t.investasi.errorLoad}
+            </p>
           )}
+          <ul className="iv-rows">
+            {isLoading &&
+              Array.from({ length: 3 }).map((_, i) => (
+                <HoldingRowSkeleton key={`row-skeleton-${i}`} />
+              ))}
+
+            {!isLoading && !holdingsError && filteredHoldings.length === 0 && (
+              <li className="iv-state">
+                {t.investasi.emptyState}{" "}
+                {(holdings?.length ?? 0) === 0 && canManage && (
+                  <button
+                    type="button"
+                    className="iv-link"
+                    onClick={() => setModalOpen(true)}
+                  >
+                    {t.investasi.emptyStateCta}
+                  </button>
+                )}
+              </li>
+            )}
+
+            {filteredHoldings.map((h) => {
+              const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
+              const label = investmentClassLabel(t, h.type);
+              const logoBg = TYPE_LOGO_BG[h.type] ?? "#6B7280";
+              const totalCost =
+                parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
+              const isUp = parseFloat(h.returnRp ?? "0") >= 0;
+
+              return (
+                <li key={h.id} className="iv-row">
+                  <span
+                    className="iv-logo"
+                    style={{ background: logoBg }}
+                    aria-hidden="true"
+                  >
+                    {toLogoText(
+                      AUTOMATED_PRICE_TYPES.includes(h.type as InvestmentType)
+                        ? h.ticker
+                        : h.name,
+                    )}
+                  </span>
+                  <div className="iv-id">
+                    <div className="iv-name">
+                      <b>{h.name}</b>
+                      <StatusBadge variant={variant}>{label}</StatusBadge>
+                      {h.automatedPriceUnmapped && (
+                        <StatusBadge variant="warning">
+                          {t.investasi.automatedUnmappedBadge}
+                        </StatusBadge>
+                      )}
+                    </div>
+                    <small>{formatInstrumentSubline(h, t, locale)}</small>
+                    <button
+                      type="button"
+                      className="iv-link"
+                      onClick={() => setDetailHolding(h)}
+                    >
+                      {t.investasi.detailToggleShow}
+                    </button>
+                  </div>
+                  <div className="iv-src">
+                    <span className="mono">
+                      {formatQuantityCell(h, t, money.format)}
+                    </span>
+                    {formatPriceSourceCell(h, t, locale, money.format)}
+                  </div>
+                  <div className={`iv-val ${isUp ? "is-up" : "is-down"}`}>
+                    <b className="mono">
+                      {formatDecimalRupiah(h.currentValue)}
+                    </b>
+                    <small className="mono">
+                      {formatDecimalRupiah(h.returnRp)} ·{" "}
+                      {formatReturnPct(h.returnPct)}
+                    </small>
+                    <small className="iv-cost mono">
+                      {t.investasi.v2.rowCapital} {money.format(totalCost)}
+                    </small>
+                  </div>
+                  {canManage && (
+                    <div className="iv-act">
+                      <RowActions
+                        onEdit={() => {
+                          setEditingHolding(h);
+                          setModalOpen(true);
+                        }}
+                        onDelete={() => setDeletingHolding(h)}
+                      />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </BentoCard>
+
+        <section className="wm-card wm-tips iv-note">
+          <div>
+            <h2>
+              <Info className="size-4" aria-hidden="true" />{" "}
+              <strong>{t.investasi.pricingSourceNoticeTitle}</strong>
+            </h2>
+            {holdingsUpdatedAt > 0 && (
+              <p>
+                {t.investasi.pricingSourceLastSyncedPrefix}{" "}
+                <span className="mono">
+                  {formatLocaleDateTime(
+                    new Date(holdingsUpdatedAt).toISOString(),
+                    locale,
+                  )}
+                </span>
+                .
+              </p>
+            )}
+            <details className="iv-more">
+              <summary>{t.investasi.pricingSourceMoreLabel}</summary>
+              <p>{t.investasi.pricingSourceNoticeBody}</p>
+            </details>
+            <Link className="iv-link" href="/transaksi">
+              {t.investasi.v2.noteDividends}
+            </Link>
+          </div>
+          <div className="wm-mosaic" aria-hidden="true">
+            {mosaic.map((cell, index) => (
+              <i key={index} data-v={cell} />
+            ))}
+          </div>
+        </section>
+
+        <div className="iv-tax">
+          <InvestmentTaxCard />
         </div>
-      </div>
+      </BentoGrid>
 
       {familyGroupId && token && (
         <AddInvestmentModal
@@ -2192,586 +2479,6 @@ export default function InvestasiPage() {
           )}
         </DialogContent>
       </Dialog>
-
-      {!isLoading && isPageError && (
-        <div className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
-          {t.investasi.errorLoad}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-3">
-        {isLoading ? (
-          <>
-            <SummaryCardSkeleton />
-            <SummaryCardSkeleton />
-            <SummaryCardSkeleton />
-          </>
-        ) : (
-          <>
-            <Rise index={0}>
-              <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-                <Card className="gap-0 p-5">
-                  <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-                    <IconChip
-                      icon={TrendingUp}
-                      className="bg-violet-100 text-violet-600"
-                      size={34}
-                      rounded="rounded-full"
-                    />
-                    {t.investasi.totalValueLabel}
-                  </div>
-                  <div className="mono text-[24px] font-black text-primary">
-                    {summary?.totalCurrentValue != null ? (
-                      <CountUpRupiah
-                        value={parseFloat(summary.totalCurrentValue)}
-                        format={money.format}
-                      />
-                    ) : (
-                      "—"
-                    )}
-                  </div>
-                  <div className="mt-1 text-[12px] text-muted-foreground">
-                    {t.investasi.capitalInvestedPrefix}{" "}
-                    <span className="mono">
-                      {formatDecimalRupiah(summary?.totalCostBasis ?? null)}
-                    </span>
-                  </div>
-                </Card>
-              </div>
-            </Rise>
-            <Rise index={1}>
-              <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-                <Card className="gap-0 p-5">
-                  <div className="mb-1 text-[11px] text-muted-foreground">
-                    {t.investasi.totalReturnSuffix}
-                  </div>
-                  <div
-                    className={`mono text-[24px] font-black ${
-                      (summary?.totalReturnPct ?? 0) >= 0
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {formatDecimalRupiah(summary?.totalReturnRp ?? null)}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <StatusBadge
-                      variant={
-                        (summary?.totalReturnPct ?? 0) >= 0
-                          ? "success"
-                          : "danger"
-                      }
-                    >
-                      {(summary?.totalReturnPct ?? 0) >= 0 ? "▲" : "▼"}{" "}
-                      {formatReturnPct(summary?.totalReturnPct ?? null)}
-                    </StatusBadge>
-                    {/* Gap #3 — formula, computed from the real summary DTO
-                        (never a static/invented figure). Polish batch 7b
-                        item 3 — was an always-visible text line; now an
-                        info tooltip beside the badge. */}
-                    {summary?.totalReturnRp != null &&
-                      summary.totalCostBasis != null && (
-                        <Tooltip>
-                          <TooltipTrigger
-                            aria-label={t.investasi.returnFormulaLabel
-                              .replace(
-                                "{returnRp}",
-                                money.format(
-                                  Math.abs(parseFloat(summary.totalReturnRp)),
-                                ),
-                              )
-                              .replace(
-                                "{costBasis}",
-                                money.format(
-                                  parseFloat(summary.totalCostBasis),
-                                ),
-                              )}
-                            className="text-muted-foreground"
-                          >
-                            <Info className="size-3.5" />
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {t.investasi.returnFormulaLabel
-                              .replace(
-                                "{returnRp}",
-                                money.format(
-                                  Math.abs(parseFloat(summary.totalReturnRp)),
-                                ),
-                              )
-                              .replace(
-                                "{costBasis}",
-                                money.format(
-                                  parseFloat(summary.totalCostBasis),
-                                ),
-                              )}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                  </div>
-                </Card>
-              </div>
-            </Rise>
-            <Rise index={2}>
-              <div className="transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-                <Card className="gap-0 p-5">
-                  <div className="mb-1 text-[11px] text-muted-foreground">
-                    {t.investasi.todayReturnLabel}
-                  </div>
-                  <div
-                    className={`mono text-[24px] font-black ${
-                      (summary?.todayReturnPct ?? 0) >= 0
-                        ? "text-success"
-                        : "text-destructive"
-                    }`}
-                  >
-                    {formatDecimalRupiah(summary?.todayReturnRp ?? null)}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                    <StatusBadge
-                      variant={
-                        (summary?.todayReturnPct ?? 0) >= 0
-                          ? "success"
-                          : "danger"
-                      }
-                    >
-                      {formatReturnPct(summary?.todayReturnPct ?? null)}
-                    </StatusBadge>
-                    <span className="text-[11px] text-muted-foreground">
-                      {t.investasi.livePositionsOnlyPrefix} {livePositionsCount}{" "}
-                      {t.investasi.livePositionsSuffix}
-                    </span>
-                  </div>
-                </Card>
-              </div>
-            </Rise>
-          </>
-        )}
-      </div>
-
-      {/* EPIC-024 #6/#7 pricing-source explainer, extended by the N3 audit
-          (gap #9) with a real "Terakhir sinkron" line sourced from
-          react-query's own `dataUpdatedAt` for the holdings fetch — never a
-          static/invented timestamp. Polish batch 7b item 3 — one line +
-          "Selengkapnya" disclosure instead of the full multi-sentence
-          paragraph always shown. */}
-      <div className="flex items-start gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
-        <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <div className="min-w-0">
-          <span>
-            <strong>{t.investasi.pricingSourceNoticeTitle}</strong>
-            {holdingsUpdatedAt > 0 && (
-              <>
-                {" "}
-                {t.investasi.pricingSourceLastSyncedPrefix}{" "}
-                <span className="mono">
-                  {formatLocaleDateTime(
-                    new Date(holdingsUpdatedAt).toISOString(),
-                    locale,
-                  )}
-                </span>
-                .
-              </>
-            )}
-          </span>
-          <details className="mt-1">
-            <summary className="cursor-pointer list-none text-[12px] font-semibold text-primary hover:underline">
-              {t.investasi.pricingSourceMoreLabel}
-            </summary>
-            <p className="mt-1 text-[11.5px]">
-              {t.investasi.pricingSourceNoticeBody}
-            </p>
-          </details>
-        </div>
-      </div>
-
-      {/* EPIC-021 #19: filter tabs by type. Gap #2 — moved below the info
-          callout (prototype order: stats → callout → pills → table).
-          Polish batch 8 item 5 — the "Baru" badge on the deposito pill
-          was purely decorative (deposito has been a real, non-new type
-          since EPIC-024 C2/C3); dropped per the no-decorative-pill rule. */}
-      <div className="hide-scrollbar scroll-fade-x flex gap-2 overflow-x-auto max-[399px]:flex-wrap max-[399px]:overflow-visible max-[399px]:[mask-image:none] max-[399px]:[-webkit-mask-image:none]">
-        {FILTER_TAB_IDS.map((id) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActiveFilter(id)}
-            className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
-              activeFilter === id
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-accent"
-            }`}
-          >
-            {id === "semua"
-              ? t.investasi.filterAllLabel
-              : t.investasi.typeLabels[id]}
-          </button>
-        ))}
-      </div>
-
-      {/* Batch 5 item 2 — this was the ONLY instance of the allocation
-          donut prior to this fix; a second, visually narrower copy further
-          down the page rendered the same `allocationSegments` again
-          whenever both conditions were true (near-always, since both derive
-          from the same holdings/summary data). Removed the duplicate rather
-          than repurposing it (no other planned content for it) and widened
-          this guard so the donut still renders alone when there's no trend
-          series to share the row with. */}
-      {/* Task 11 (sub-plan L) — the year's final-tax estimate on holdings,
-          right before the allocation/portfolio section per the task brief's
-          anchor (exact SectionCard title has since drifted; this is the
-          section that renders `t.investasi.allocationTitle`). */}
-      <InvestmentTaxCard />
-
-      {/* Hardening batch G1 (P0 honesty) — this section used to also render
-          a "Nilai Portofolio 6 Bulan" line chart plotting today's total ×
-          [0.88…1] against hardcoded months, a fabricated rising trend. No
-          real portfolio-value-over-time endpoint exists yet (only real
-          per-holding price history, used in the detail dialog's
-          RealSparkline above); removed rather than faked, per dana's own
-          "refuse to invent trends" precedent. */}
-      {!isLoading && allocationSegments.length > 0 && (
-        <SectionCard
-          title="Kepemilikan"
-          action={
-            <span className="text-[12px] text-muted-foreground">
-              {filteredHoldings.length} {t.investasi.positionsCountSuffix}
-            </span>
-          }
-        >
-          <div className="max-w-[360px]">
-            <div className="min-w-0 rounded-[10px] border p-3">
-              <div className="mb-2 text-[13px] font-semibold text-muted-foreground">
-                {t.investasi.allocationTitle}
-              </div>
-              <DonutChart
-                segments={allocationSegments}
-                centerLabel={t.investasi.totalValueLabel}
-                height={220}
-                ariaLabel={`${t.investasi.allocationTitle}: ${allocationSegments
-                  .map(
-                    (s) => `${s.label} ${formatDecimalRupiah(String(s.value))}`,
-                  )
-                  .join(", ")}`}
-                money={money}
-              />
-            </div>
-          </div>
-        </SectionCard>
-      )}
-
-      <SectionCard
-        title={t.investasi.portfolioSectionTitle}
-        action={
-          <span className="text-[12px] text-muted-foreground">
-            {filteredHoldings.length} {t.investasi.positionsCountSuffix}
-          </span>
-        }
-      >
-        <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[580px] border-collapse text-[12.5px]">
-            <thead>
-              <tr className="border-b text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tableName}
-                </th>
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tableType}
-                </th>
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tableQuantity}
-                </th>
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tablePriceSource}
-                </th>
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tableCapital}
-                </th>
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tableValue}
-                </th>
-                <th className="py-2.5 pr-3 font-semibold">
-                  {t.investasi.tableReturn}
-                </th>
-                <th className="py-2.5 font-semibold">
-                  {t.investasi.tableAction}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading &&
-                Array.from({ length: 3 }).map((_, i) => (
-                  <HoldingRowSkeleton key={`row-skeleton-${i}`} />
-                ))}
-
-              {!isLoading &&
-                !holdingsError &&
-                filteredHoldings.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={8}
-                      className="py-8 text-center text-[13px] text-muted-foreground"
-                    >
-                      {t.investasi.emptyState}{" "}
-                      {(holdings?.length ?? 0) === 0 && canManage && (
-                        <button
-                          type="button"
-                          className="font-semibold text-primary"
-                          onClick={() => setModalOpen(true)}
-                        >
-                          {t.investasi.emptyStateCta}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                )}
-
-              {filteredHoldings.map((h) => {
-                const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
-                const label = investmentClassLabel(t, h.type);
-                const logoBg = TYPE_LOGO_BG[h.type] ?? "#6B7280";
-                const totalCost =
-                  parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
-                const isUp = parseFloat(h.returnRp ?? "0") >= 0;
-                const isExpanded = false;
-                // EPIC-023 Task G retry (MEDIUM finding) — an unrecognised
-                // source (a future real provider not yet in
-                // PRICE_SOURCE_LABEL_KEYS) must render its own raw name, not
-                // fall back to "Simulated" and imply it's fake.
-                const priceSourceLabelKey =
-                  PRICE_SOURCE_LABEL_KEYS[
-                    h.latestPriceSource as keyof typeof PRICE_SOURCE_LABEL_KEYS
-                  ];
-                const priceSourceLabel = priceSourceLabelKey
-                  ? t.investasi.sourceLabels[priceSourceLabelKey]
-                  : h.latestPriceSource;
-
-                return (
-                  <Fragment key={h.id}>
-                    {/* Hardening batch G6 — a 70ms/row stagger meant 20
-                        rows kept settling for ~1.9s after mount; no
-                        per-row stagger on data tables. */}
-                    <tr className="border-b last:border-0">
-                      <td className="py-3 pr-3">
-                        <div className="flex items-center gap-2.5">
-                          <div
-                            className="flex size-8 items-center justify-center rounded-full text-[10px] font-extrabold text-white"
-                            style={{ background: logoBg }}
-                          >
-                            {/* E2E round-2 B1 — a non-market holding's
-                                ticker may be a derived internal code, not
-                                a real one; the avatar reads from the name
-                                instead so nothing looks like a fabricated
-                                ticker. */}
-                            {toLogoText(
-                              AUTOMATED_PRICE_TYPES.includes(
-                                h.type as InvestmentType,
-                              )
-                                ? h.ticker
-                                : h.name,
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-1.5 font-semibold">
-                              {h.name}
-                              {/* EPIC-024 C1 (D8) — permanent "no automated
-                                  route for this ticker" state; distinct
-                                  from a transient refresh failure. */}
-                              {h.automatedPriceUnmapped && (
-                                <StatusBadge variant="warning">
-                                  {t.investasi.automatedUnmappedBadge}
-                                </StatusBadge>
-                              )}
-                            </div>
-                            {/* Gap #6 — ticker + purchase date (coupon/
-                                maturity for obligasi/deposito), derived from
-                                the real purchasedAt/interestRatePct/
-                                maturityDate fields. */}
-                            <div className="text-[11px] text-muted-foreground">
-                              {formatInstrumentSubline(h, t, locale)}
-                            </div>
-                            <button
-                              type="button"
-                              className="mt-0.5 text-[10.5px] font-semibold text-primary"
-                              onClick={() => setDetailHolding(h)}
-                            >
-                              {t.investasi.detailToggleShow}
-                            </button>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 pr-3">
-                        <StatusBadge variant={variant}>{label}</StatusBadge>
-                      </td>
-                      {/* Gap #5 — restored "Jumlah" column. */}
-                      <td className="mono py-3 pr-3 text-[11.5px] whitespace-nowrap">
-                        {formatQuantityCell(h, t, money.format)}
-                      </td>
-                      {/* Gap #6 — restored "Harga / Sumber" column with
-                          per-row price-source badges. */}
-                      <td className="py-3 pr-3 text-[11.5px] whitespace-nowrap">
-                        {formatPriceSourceCell(h, t, locale, money.format)}
-                      </td>
-                      <td className="mono py-3 pr-3 whitespace-nowrap">
-                        {money.format(totalCost)}
-                      </td>
-                      <td className="mono py-3 pr-3 font-extrabold whitespace-nowrap">
-                        {formatDecimalRupiah(h.currentValue)}
-                      </td>
-                      {/* Gap #5 — merged Return-Rp + Return-% back into one
-                          "Untung / Rugi" column, matching the prototype. */}
-                      <td
-                        className={`mono py-3 pr-3 whitespace-nowrap ${
-                          isUp ? "text-success" : "text-destructive"
-                        }`}
-                      >
-                        <div className="font-semibold">
-                          {formatDecimalRupiah(h.returnRp)}
-                        </div>
-                        <div className="text-[11px]">
-                          {formatReturnPct(h.returnPct)}
-                        </div>
-                      </td>
-                      <td className="py-3">
-                        {/* F3 — CASL grants "manage Investment" only to
-                            owner/spouse/member; admin_staff is read-only. */}
-                        {canManage && (
-                          <RowActions
-                            onEdit={() => {
-                              setEditingHolding(h);
-                              setModalOpen(true);
-                            }}
-                            onDelete={() => setDeletingHolding(h)}
-                          />
-                        )}
-                      </td>
-                    </tr>
-                    {isExpanded && (
-                      <tr className="border-b bg-muted/30 last:border-0">
-                        <td colSpan={8} className="px-3 py-3 text-[12px]">
-                          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                            <div>
-                              <div className="text-muted-foreground">
-                                {t.investasi.detailLatestPriceLabel}
-                              </div>
-                              <div className="mono font-semibold">
-                                {formatDecimalRupiah(h.currentPrice)}
-                              </div>
-                            </div>
-                            {/* EPIC-023 G1 (D15) — honesty bar: every
-                                automated price states its source and delay;
-                                every manual price states its entry date. */}
-                            {h.currentPrice === null ? (
-                              <div className="col-span-2 text-muted-foreground">
-                                {h.automatedPriceSimulated
-                                  ? t.investasi.priceSimulatedNote
-                                  : h.automatedPriceUnmapped
-                                    ? t.investasi.automatedUnmappedNote
-                                    : isManualPriceType(
-                                          h.type as InvestmentType,
-                                        )
-                                      ? t.investasi.detailNoManualPrice
-                                      : t.investasi.detailPriceUnavailable}
-                              </div>
-                            ) : h.latestPriceSource === "manual" ? (
-                              <div className="col-span-2">
-                                <div className="text-muted-foreground">
-                                  {t.investasi.detailSourceLabel}
-                                </div>
-                                <div className="font-semibold">
-                                  {t.investasi.detailManualLabelPrefix}
-                                  {formatManualDate(
-                                    h.latestPriceAsOf ??
-                                      h.latestPriceRecordedAt ??
-                                      new Date().toISOString(),
-                                    locale,
-                                  )}
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <div>
-                                  <div className="text-muted-foreground">
-                                    {t.investasi.detailRecordedAtLabel}
-                                  </div>
-                                  <div className="font-semibold">
-                                    {/* EPIC-023 Task G retry (MEDIUM finding)
-                                        — the provider's own quote time
-                                        (latestPriceAsOf), not the row's DB
-                                        write time. */}
-                                    {(h.latestPriceAsOf ??
-                                    h.latestPriceRecordedAt)
-                                      ? formatLocaleDateTime(
-                                          h.latestPriceAsOf ??
-                                            h.latestPriceRecordedAt ??
-                                            "",
-                                          locale,
-                                        )
-                                      : "—"}
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-muted-foreground">
-                                    {t.investasi.detailSourceLabel}
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-1.5 font-semibold">
-                                    {priceSourceLabel}
-                                    {h.latestPriceDelayed && (
-                                      <StatusBadge variant="warning">
-                                        {t.investasi.detailDelayedLabel}
-                                      </StatusBadge>
-                                    )}
-                                    {/* EPIC-023 Task G retry (MEDIUM finding)
-                                        — a refresh WAS attempted this
-                                        request and failed: the price above
-                                        is retained/stale, not fresh. */}
-                                    {h.priceRefreshFailed && (
-                                      <StatusBadge variant="warning">
-                                        {t.investasi.detailRefreshFailedLabel}
-                                      </StatusBadge>
-                                    )}
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                            {h.interestRatePct ? (
-                              <>
-                                <div>
-                                  <div className="text-muted-foreground">
-                                    {t.investasi.detailInterestRateLabel}
-                                  </div>
-                                  <div className="font-semibold">
-                                    {h.interestRatePct}%
-                                  </div>
-                                </div>
-                                <div>
-                                  <div className="text-muted-foreground">
-                                    {t.investasi.detailProjectedYieldLabel}
-                                  </div>
-                                  <div className="mono font-semibold">
-                                    {formatDecimalRupiah(
-                                      h.projectedAnnualYield,
-                                    )}
-                                  </div>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="col-span-2 text-muted-foreground">
-                                {INTEREST_BEARING_TYPES.includes(h.type)
-                                  ? t.investasi.detailNoRateSet
-                                  : t.investasi.detailNoInterestRate}
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </SectionCard>
-    </div>
+    </>
   );
 }

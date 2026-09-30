@@ -1781,6 +1781,19 @@ export const en = {
     },
   },
   investasi: {
+    v2: {
+      allocTitle: "Holdings",
+      listTitle: "Portfolio",
+      allocCaption: "Share by instrument type",
+      legendCost: "Cost",
+      legendValue: "Value",
+      chartEmpty: "No investments to chart yet.",
+      filterLabel: "Filter by investment type",
+      chartAria: "Cost and current value per investment",
+      heroCapSuffix: "positions recorded",
+      rowCapital: "Cost",
+      noteDividends: "Dividends & interest are recorded in Transactions",
+    },
     goldPricePerGramTooHigh:
       "Enter the gold price per gram, not per kg. Example: 2,597,000.",
     typeLabels: {
