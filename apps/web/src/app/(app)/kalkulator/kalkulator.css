@@ -1,0 +1,31 @@
+/* Kalkulator (bento v2, docs/design/proto/kalkulator.html) */
+@layer components {
+  .kl-grid > * {
+    min-width: 0;
+  }
+  .kl-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .kl-tile {
+    min-height: 56px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    border-radius: var(--wm-radius-md, 14px);
+    background: var(--wm-card-2, var(--secondary));
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      color 0.15s;
+  }
+  .kl-tile[aria-pressed="true"] {
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink, #10140a);
+  }
+}
