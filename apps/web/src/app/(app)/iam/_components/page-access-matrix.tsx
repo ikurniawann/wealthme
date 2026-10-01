@@ -7,6 +7,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { cn } from "@/lib/utils";
 
 import { LEVEL_HINT, LEVEL_OPTIONS, PAGE_GROUPS } from "./access-shared";
+import "../iam.css";
 
 type PageAccessMatrixProps = {
   value: Record<AccessPage, AccessLevel>;
@@ -43,26 +44,23 @@ export function PageAccessMatrix({
     pages.forEach((p) => onChange(p, level));
 
   return (
-    <div className="stack" style={{ gap: 14 }}>
+    <div className="pam">
       {PAGE_GROUPS.map((group) => {
         const title = group.headerKey
           ? t.shell.navSectionHeaders[group.headerKey]
           : "Umum";
         return (
-          <section key={title} aria-label={title}>
-            <div className="row row--between mb-1.5">
-              <h4 className="text-[11.5px] font-bold uppercase tracking-wide text-muted-foreground">
-                {title}
-              </h4>
+          <section key={title} aria-label={title} className="pam-group">
+            <div className="pam-head">
+              <h4>{title}</h4>
               {!disabled && (
-                <div className="row" style={{ gap: 4 }}>
-                  <span className="t-xs t-muted">Semua:</span>
+                <div className="pam-all">
+                  <span>Semua:</span>
                   {LEVEL_OPTIONS.map((o) => (
                     <button
                       key={o.level}
                       type="button"
-                      className="btn btn--ghost btn--sm"
-                      style={{ paddingInline: 8 }}
+                      data-level={o.level}
                       onClick={() => setGroup(group.pages, o.level)}
                     >
                       {o.label}
@@ -71,32 +69,26 @@ export function PageAccessMatrix({
                 </div>
               )}
             </div>
-            <ul className="divide-y rounded-[10px] border">
+            <ul className="pam-list">
               {group.pages.map((page) => {
                 const level = value[page];
                 const label = t.shell.navSections[page];
                 const overridden =
                   baseline !== undefined && baseline[page] !== level;
                 return (
-                  <li
-                    key={page}
-                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
+                  <li key={page} className="pam-row">
+                    <div className="pam-name">
                       <span
                         aria-hidden="true"
-                        className={cn(
-                          "size-2 shrink-0 rounded-full",
-                          DOT[level],
-                        )}
+                        className={cn("pam-dot", DOT[level])}
                       />
-                      <span className="text-[13px] font-semibold">{label}</span>
+                      <span className="pam-label">{label}</span>
                       {overridden && (
                         <button
                           type="button"
                           disabled={disabled}
                           onClick={() => onChange(page, baseline[page])}
-                          className="badge badge--warning"
+                          className="pam-custom"
                           title="Klik untuk kembali ke pengaturan role"
                         >
                           Khusus · kembalikan
@@ -108,13 +100,14 @@ export function PageAccessMatrix({
                     <div
                       role="radiogroup"
                       aria-label={`Akses ${label}`}
-                      className="segmented"
+                      className="pam-seg"
                     >
                       {LEVEL_OPTIONS.map((o) => (
                         <label
                           key={o.level}
                           title={LEVEL_HINT[o.level]}
-                          className="segmented__item has-[:checked]:bg-card has-[:checked]:text-foreground has-[:checked]:shadow-[var(--shadow-card)] has-[:disabled]:cursor-not-allowed has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/40"
+                          data-level={o.level}
+                          className="pam-opt"
                         >
                           <input
                             type="radio"

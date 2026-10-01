@@ -132,7 +132,7 @@ export function RoleEditorDialog({
       open={target !== null}
       onOpenChange={(o) => !o && !save.isPending && onClose()}
     >
-      <PanelContent variant="side" className="wm-form-panel">
+      <PanelContent variant="side" size="lg" className="wm-form-panel">
         <header className="wm-panel-head">
           <div className="min-w-0">
             <DialogTitle className="wm-panel-title">
