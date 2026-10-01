@@ -12,6 +12,11 @@ jest.mock("../../../lib/api-client", () => ({
 }));
 const toastSuccess = jest.fn();
 const toastError = jest.fn();
+jest.mock("../../../hooks/use-my-access", () => ({
+  useMyAccess: () => ({ data: undefined, isLoading: false }),
+  useBalancesHidden: () => false,
+}));
+
 jest.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => toastSuccess(...args),
