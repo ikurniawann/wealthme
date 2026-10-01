@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import "./aset.css";
 import Link from "next/link";
 import {
+  ArrowUpRight,
   Calculator,
   Eye,
   EyeOff,
@@ -37,9 +39,25 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { IconChip, CountUpRupiah, Rise, DateField } from "@/components/wm";
-import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
-import type { DonutSegment } from "@/components/charts/donut";
+import {
+  AddTile,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  BentoTile,
+  BentoTiles,
+  CompositionStack,
+  type CompositionItem,
+  DateField,
+  GhostButton,
+  HeroKpi,
+  MiniList,
+  MiniRow,
+  SeeAll,
+  TipsCard,
+} from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { cn } from "@/lib/utils";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 
 import {
@@ -67,10 +85,6 @@ import type {
 } from "@wealthme/contracts";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-
-type TabId = "semua" | "dana" | "rekening" | "investasi" | "fisik";
-
-const TAB_IDS: TabId[] = ["semua", "dana", "rekening", "investasi", "fisik"];
 
 // ── Privacy eye toggle (D1, US-ASSET-5) ─────────────────────────────────────────
 // Per-user localStorage, namespaced the same way as device-storage.ts
@@ -579,7 +593,6 @@ interface AssetRowProps {
   familyGroupId: string;
   token: string | undefined;
   subtitle: string;
-  index: number;
   // EPIC-022 D5 — edit/delete UI (previously entirely missing for physical
   // assets). Omitted when the current role has no `manage Asset` grant.
   canManage: boolean | undefined;
@@ -587,31 +600,33 @@ interface AssetRowProps {
   onDelete: () => void;
 }
 
-/**
- * EPIC-023 D19/US-ASSET-4: currentValue (recorded, authoritative) is the
- * PRIMARY bold figure. currentEstimatedValue (compute-on-read projection)
- * only appears as a secondary, clearly-labeled "Proyeksi:" line when it
- * actually differs from currentValue — with an adoptable "use this figure"
- * action that PATCHes currentValue to the projection.
- *
- * EPIC-023 Task H1 review (MEDIUM fix 5): `token` is received as a prop
- * (threaded from AsetPage through AssetGroupCard) rather than calling
- * useSession() again here — AsetPage already resolves it once at the top
- * level, matching how familyGroupId is already passed down.
- */
-/**
- * EPIC-025 N3-F1: restructured from a `.list-row` into the prototype's
- * `.grid--3` physical-asset mini-card (icon/title row → Nilai Tercatat/
- * Proyeksi 2-col grid → rate badge + "Gunakan nilai ini" action). The
- * underlying data and mutation are unchanged from the pre-port list-row
- * version — only the layout moved.
- */
-function AssetRow({
+const TIPS_MOSAIC = [
+  "a",
+  "a",
+  "a",
+  "b",
+  "b",
+  "c",
+  "a",
+  "a",
+  "b",
+  "b",
+  "c",
+  "c",
+  "a",
+  "b",
+  "b",
+  "c",
+  "c",
+  "o",
+] as const;
+
+/** One physical-asset tile: body edits, corner icon opens the detail page, adopt is its own control. */
+function AssetTile({
   asset,
   familyGroupId,
   token,
   subtitle,
-  index,
   canManage,
   onEdit,
   onDelete,
@@ -620,10 +635,7 @@ function AssetRow({
   const money = useMoney();
   const queryClient = useQueryClient();
 
-  const cfg = ASSET_TYPE_ICON[asset.type] ?? {
-    icon: Package,
-    chip: "bg-gray-100 text-gray-600",
-  };
+  const Icon = (ASSET_TYPE_ICON[asset.type] ?? { icon: Package }).icon;
   const recordedValue = BigInt(asset.currentValue ?? "0");
   const estimatedValue = BigInt(
     asset.currentEstimatedValue ?? asset.currentValue ?? "0",
@@ -634,10 +646,6 @@ function AssetRow({
     asset.valueChangeMode === "fixed"
       ? Boolean(asset.valueChangeAmount)
       : Boolean(asset.valueChangeRatePct);
-  const isPositiveValueChangeInfo =
-    asset.valueChangeMode === "fixed"
-      ? Number(asset.valueChangeAmount ?? "0") >= 0
-      : Number(asset.valueChangeRatePct ?? "0") >= 0;
 
   // D2/US-ASSET-6: badge text reflects whichever mode actually produced the
   // drift — percent rate or fixed Rp/year amount — never invented.
@@ -648,9 +656,6 @@ function AssetRow({
 
   const adoptMutation = useMutation({
     mutationFn: () => {
-      // EPIC-023 Task H1 review (LOW fix 6): guard !familyGroupId too, for
-      // symmetry with AddAssetModal's mutationFn guard — familyGroupId is
-      // typed required but AssetGroupCard falls back to "" when absent.
       if (!token || !familyGroupId) {
         return Promise.reject(new Error("Not authenticated"));
       }
@@ -677,344 +682,86 @@ function AssetRow({
     },
   });
 
-  return (
-    <Rise index={index}>
-      <div className="flex flex-col gap-2.5 rounded-[12px] border p-3.5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)]">
-        <div className="flex items-center gap-2.5">
-          <IconChip
-            icon={cfg.icon}
-            className={cfg.chip}
-            size={30}
-            rounded="rounded-full"
-          />
-          <div className="min-w-0 flex-1">
-            {/* EPIC-033 p16 — the name opens the asset's own page. */}
-            <Link
-              href={`/aset/${asset.id}`}
-              className="block truncate text-[13.5px] font-semibold hover:underline"
-            >
-              {asset.name}
-            </Link>
-            <div className="text-[11.5px] text-muted-foreground truncate">
-              {subtitle}
-            </div>
-          </div>
-          {/* EPIC-022 D5 — this page had NO edit/delete UI at all for
-              physical assets; the API's PATCH/DELETE already existed. */}
-          {canManage && <RowActions onEdit={onEdit} onDelete={onDelete} />}
-        </div>
+  const shownValue = hasProjectionDrift ? estimatedValue : recordedValue;
+  const tone = hasProjectionDrift
+    ? isAppreciating
+      ? "is-up"
+      : "is-down"
+    : undefined;
 
-        <div
-          className={`grid gap-2.5 ${hasProjectionDrift ? "grid-cols-2" : "grid-cols-1"}`}
-        >
-          <div>
-            <div className="text-[11px] text-muted-foreground">
-              {t.aset.recordedValueLabel}
-            </div>
-            <div className="wm-money text-[14px] font-black">
+  return (
+    <div className="as-tilewrap">
+      <BentoTile
+        onClick={canManage ? onEdit : undefined}
+        icon={<Icon aria-hidden="true" />}
+        title={asset.name}
+        value={
+          <span className={cn("wm-money", tone)}>
+            {money.format(Number(shownValue))}
+          </span>
+        }
+        foot={`${hasValueChangeInfo ? `${rateBadgeText} · ` : ""}${subtitle}`}
+      >
+        {hasProjectionDrift && (
+          <small className="as-proj">
+            {t.aset.projectionLabel} · {t.aset.recordedValueLabel}{" "}
+            <span className="wm-money">
               {money.format(Number(recordedValue))}
-            </div>
-          </div>
-          {hasProjectionDrift && (
-            <div>
-              <div className="text-[11px] text-muted-foreground">
-                {t.aset.projectionLabel}
-              </div>
-              <div
-                className={`wm-money text-[14px] font-black ${isAppreciating ? "text-success" : "text-destructive"}`}
-              >
-                {money.format(Number(estimatedValue))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {hasValueChangeInfo && (
-          <div className="flex items-center justify-between gap-2">
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] font-semibold ${
-                hasProjectionDrift
-                  ? isAppreciating
-                  : isPositiveValueChangeInfo
-                    ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
-                    : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-              }`}
-            >
-              {rateBadgeText}
             </span>
-            {hasProjectionDrift && (
-              <button
-                type="button"
-                onClick={() => adoptMutation.mutate()}
-                disabled={adoptMutation.isPending || !token || !familyGroupId}
-                className="cursor-pointer text-[11px] font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t.aset.useThisValueButton}
-              </button>
-            )}
-          </div>
+          </small>
         )}
+      </BentoTile>
+      <div className="as-tools">
+        <Link
+          href={`/aset/${asset.id}`}
+          className="as-detail"
+          aria-label={asset.name}
+        >
+          <ArrowUpRight aria-hidden="true" />
+        </Link>
+        {canManage && <RowActions onEdit={onEdit} onDelete={onDelete} />}
       </div>
-    </Rise>
-  );
-}
-
-// ── Physical Asset Group Card ─────────────────────────────────────────────────
-
-interface AssetGroupCardProps {
-  assets: AssetDto[];
-  categoryNameById: Record<string, string>;
-  familyGroupId: string;
-  token: string | undefined;
-  canManage: boolean | undefined;
-  onEditAsset: (asset: AssetDto) => void;
-  onDeleteAsset: (asset: AssetDto) => void;
-}
-
-function AssetGroupCard({
-  assets,
-  categoryNameById,
-  familyGroupId,
-  token,
-  canManage,
-  onEditAsset,
-  onDeleteAsset,
-}: AssetGroupCardProps) {
-  const { t } = useLocale();
-  const money = useMoney();
-  // EPIC-023 D19/US-ASSET-4: currentValue (recorded) is authoritative for
-  // net worth — this total must always agree with what the rest of the app
-  // (dashboard, balance sheet) calls net worth, which also sums
-  // currentValue, never the compute-on-read projection.
-  const groupTotal = assets.reduce(
-    (sum, a) => sum + BigInt(a.currentValue ?? "0"),
-    BigInt(0),
-  );
-
-  return (
-    <div className="rounded-[14px] border bg-card p-4">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <IconChip
-            icon={Home}
-            className="bg-yellow-100 text-yellow-600"
-            size={28}
-          />
-          <span className="text-[13.5px] font-bold">
-            {t.aset.physicalAssetsTitle}
-          </span>
-        </div>
-        <div className="wm-money text-[14px] font-extrabold">
-          {money.format(Number(groupTotal))}
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {assets.map((asset, i) => {
-          // B7 (client revision round 2) — the type-derived fallback now
-          // reads from the shared asset-class taxonomy (same wording as
-          // /investasi and /warisan) instead of this page's own
-          // assetTypeLabels; a category picked from master data (above) or
-          // notes still win, so this only affects an asset with neither.
-          const subtitle = asset.notes
-            ? asset.notes
-            : (asset.categoryId && categoryNameById[asset.categoryId]) ||
-              t.common.assetClassLabels[assetTypeToAssetClass(asset.type)];
-          return (
-            <AssetRow
-              key={asset.id}
-              asset={asset}
-              familyGroupId={familyGroupId}
-              token={token}
-              subtitle={subtitle}
-              index={i}
-              canManage={canManage}
-              onEdit={() => onEditAsset(asset)}
-              onDelete={() => onDeleteAsset(asset)}
-            />
-          );
-        })}
-        {assets.length === 0 && (
-          <div className="col-span-full py-4 text-center text-[12px] text-muted-foreground">
-            {t.aset.emptyPhysical}
-          </div>
-        )}
-      </div>
+      {hasProjectionDrift && hasValueChangeInfo && (
+        <button
+          type="button"
+          className="as-adopt"
+          onClick={() => adoptMutation.mutate()}
+          disabled={adoptMutation.isPending || !token || !familyGroupId}
+        >
+          {t.aset.useThisValueButton}
+        </button>
+      )}
     </div>
   );
 }
 
-// ── Dana & Rekening Group Card ────────────────────────────────────────────────
-
-interface AccountsGroupCardProps {
-  accounts: AccountDto[];
-  title: string;
-  headerIcon: LucideIcon;
-  headerChip: string;
+function assetSubtitle(
+  asset: AssetDto,
+  categoryNameById: Record<string, string>,
+  label: (cls: ReturnType<typeof assetTypeToAssetClass>) => string,
+): string {
+  // B7: type-derived fallback uses the shared asset-class taxonomy; a master
+  // data category or notes still win.
+  return asset.notes
+    ? asset.notes
+    : (asset.categoryId && categoryNameById[asset.categoryId]) ||
+        label(assetTypeToAssetClass(asset.type));
 }
 
-function AccountsGroupCard({
-  accounts,
-  title,
-  headerIcon,
-  headerChip,
-}: AccountsGroupCardProps) {
-  const { t } = useLocale();
-  const money = useMoney();
-  const groupTotal = accounts.reduce(
-    (sum, a) => sum + BigInt(a.balance ?? "0"),
-    BigInt(0),
-  );
-
-  return (
-    <div className="rounded-[14px] border bg-card p-4">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <IconChip icon={headerIcon} className={headerChip} size={28} />
-          <span className="text-[13.5px] font-bold">{title}</span>
-        </div>
-        <div className="wm-money text-[14px] font-extrabold">
-          {money.format(Number(groupTotal))}
-        </div>
-      </div>
-      <div>
-        {accounts.map((account, i) => {
-          // EPIC-025 N3 fidelity follow-up: the prototype renders account
-          // meta as ONE combined line — "Bank · ···9010 · Bersama" — not a
-          // single field chosen by fallback. Join every real field that's
-          // actually present (type, institution, masked number, owner)
-          // instead of discarding all but the first non-null one.
-          const typeLabel =
-            t.aset.accountTypeLabels[
-              account.type as keyof typeof t.aset.accountTypeLabels
-            ] ?? account.type;
-          const ownerSegment = account.ownerUserId
-            ? (account.ownerName ?? t.aset.ownerUnknownLabel)
-            : t.aset.ownerSharedLabel;
-          const subtitle = [
-            typeLabel,
-            account.institution,
-            account.maskedNumber,
-            ownerSegment,
-          ]
-            .filter((part): part is string => Boolean(part && part.trim()))
-            .join(" · ");
-          const cfg = ACCOUNT_TYPE_ICON[account.type] ?? {
-            icon: Wallet,
-            chip: "bg-gray-100 text-gray-600",
-          };
-          return (
-            <Rise key={account.id} index={i}>
-              <div
-                className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${i < accounts.length - 1 ? "border-b" : ""}`}
-              >
-                <IconChip
-                  icon={cfg.icon}
-                  className={cfg.chip}
-                  size={34}
-                  rounded="rounded-full"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold truncate">
-                    {account.name}
-                  </div>
-                  <div className="text-[11.5px] text-muted-foreground truncate">
-                    {subtitle}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="wm-money text-[14px] font-extrabold">
-                    {money.format(Number(BigInt(account.balance ?? "0")))}
-                  </div>
-                </div>
-              </div>
-            </Rise>
-          );
-        })}
-        {accounts.length === 0 && (
-          <div className="py-4 text-center text-[12px] text-muted-foreground">
-            {t.aset.emptyDanaRekening}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ── Investasi Group Card ──────────────────────────────────────────────────────
-
-function InvestasiGroupCard({ investments }: { investments: InvestmentDto[] }) {
-  const { t } = useLocale();
-  const money = useMoney();
-  // currentValue is a computed Decimal (quantity × price) serialized as a
-  // string that can contain a fractional part — BigInt() throws on that
-  // ("invalid BigInt syntax"), so unlike Account.balance/Asset.currentValue
-  // (genuine BigInt-backed fields) this must be parsed as a float.
-  const groupTotal = investments.reduce(
-    (sum, inv) => sum + parseFloat(inv.currentValue ?? "0"),
-    0,
-  );
-
-  return (
-    <div className="rounded-[14px] border bg-card p-4">
-      <div className="mb-1 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <IconChip
-            icon={TrendingUp}
-            className="bg-violet-100 text-violet-600"
-            size={28}
-          />
-          <span className="text-[13.5px] font-bold">
-            {t.aset.investmentsTitle}
-          </span>
-        </div>
-        <div className="wm-money text-[14px] font-extrabold">
-          {money.format(Number(groupTotal))}
-        </div>
-      </div>
-      <div>
-        {investments.map((inv, i) => {
-          const cfg = INV_TYPE_ICON[inv.type] ?? {
-            icon: Package,
-            chip: "bg-violet-100 text-violet-600",
-          };
-          return (
-            <Rise key={inv.id} index={i}>
-              <div
-                className={`flex items-center gap-3 py-3 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] ${i < investments.length - 1 ? "border-b" : ""}`}
-              >
-                <IconChip
-                  icon={cfg.icon}
-                  className={cfg.chip}
-                  size={34}
-                  rounded="rounded-full"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[13.5px] font-semibold truncate">
-                    {inv.ticker} · {inv.name}
-                  </div>
-                  <div className="text-[11.5px] text-muted-foreground truncate">
-                    {t.aset.invTypeLabels[
-                      inv.type as keyof typeof t.aset.invTypeLabels
-                    ] ?? inv.type}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="wm-money text-[14px] font-extrabold">
-                    {money.format(parseFloat(inv.currentValue ?? "0"))}
-                  </div>
-                </div>
-              </div>
-            </Rise>
-          );
-        })}
-        {investments.length === 0 && (
-          <div className="py-4 text-center text-[12px] text-muted-foreground">
-            {t.aset.emptyInvestments}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+function accountSubtitle(
+  account: AccountDto,
+  t: ReturnType<typeof useLocale>["t"],
+): string {
+  const typeLabel =
+    t.aset.accountTypeLabels[
+      account.type as keyof typeof t.aset.accountTypeLabels
+    ] ?? account.type;
+  const ownerSegment = account.ownerUserId
+    ? (account.ownerName ?? t.aset.ownerUnknownLabel)
+    : t.aset.ownerSharedLabel;
+  return [typeLabel, account.institution, account.maskedNumber, ownerSegment]
+    .filter((part): part is string => Boolean(part && part.trim()))
+    .join(" · ");
 }
 
 // ── Net-worth history → monthly buckets ─────────────────────────────────────
@@ -1046,75 +793,12 @@ function bucketPointsByMonth(
     .slice(-6);
 }
 
-// ── Asset breakdown stat card ────────────────────────────────────────────────
-//
-// EPIC-025 N3 fidelity follow-up: the prototype's `.bento-metrics` row under
-// the hero — one mini-card per Cash & E-Wallet / Bank & Account / Investasi
-// / Aset Fisik, each with an icon, label, value, and an optional sub-line.
-// The sub-line is either a real computed month-over-month delta (`deltaText`)
-// or a neutral, non-numeric note (`note`) — never both, and never a
-// fabricated delta. Matches this file's existing card idiom (`rounded-[14px]
-// border bg-card p-4`) rather than reusing `@/components/wm`'s `SummaryCard`,
-// which forces the delta slot to success/destructive coloring and has no
-// neutral-note variant.
-interface AssetStatCardProps {
-  icon: LucideIcon;
-  iconBg: string;
-  iconColor: string;
-  label: string;
-  value: number;
-  deltaText?: string;
-  deltaDirection?: "up" | "down";
-  note?: string;
-}
-
-function AssetStatCard({
-  icon: Icon,
-  iconBg,
-  iconColor,
-  label,
-  value,
-  deltaText,
-  deltaDirection,
-  note,
-}: AssetStatCardProps) {
-  const money = useMoney();
-  return (
-    <div className="rounded-[14px] border bg-card p-4">
-      <div
-        className="mb-2 flex size-9 items-center justify-center rounded-[10px]"
-        style={{ background: iconBg, color: iconColor }}
-      >
-        <Icon className="size-4" />
-      </div>
-      <div className="mb-0.5 text-[11px] text-muted-foreground">{label}</div>
-      <div className="wm-money mono mb-[3px] text-[15px] font-extrabold">
-        {money.format(value)}
-      </div>
-      {deltaText ? (
-        <div
-          className={`text-[11px] font-bold ${deltaDirection === "down" ? "text-destructive" : "text-success"}`}
-        >
-          {deltaText}
-        </div>
-      ) : (
-        note && (
-          <div className="text-[11px] font-semibold text-muted-foreground">
-            {note}
-          </div>
-        )
-      )}
-    </div>
-  );
-}
-
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AsetPage() {
   const { t, locale } = useLocale();
   const money = useMoney();
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
   // EPIC-022 D5 — edit/delete UI for physical assets.
   const [editingAsset, setEditingAsset] = useState<AssetDto | null>(null);
@@ -1269,16 +953,6 @@ export default function AsetPage() {
     }
   }, [hasError, t]);
 
-  const activeId = TAB_IDS[activeTab] ?? "semua";
-
-  // Tab visibility flags
-  const showFisik = activeId === "semua" || activeId === "fisik";
-  const showInvestasi = activeId === "semua" || activeId === "investasi";
-  // "Dana" tab = cash + ewallet; "Rekening" tab = bank; "Semua" shows all accounts in one card
-  const showDanaRekeningCombined = activeId === "semua";
-  const showDana = activeId === "dana";
-  const showRekening = activeId === "rekening";
-
   // Filter accounts by tab
   const danaAccounts = (accounts ?? []).filter(
     (a) => a.type === "cash" || a.type === "ewallet",
@@ -1325,60 +999,18 @@ export default function AsetPage() {
     BigInt(0),
   );
 
-  // A "breakdown" only says something useful when the portfolio actually
-  // spans more than one category — with a single funded category, each
-  // stat card would just repeat the group card's own total (and, when that
-  // category also happens to equal the grand total, the grand-total banner
-  // too) with zero added information. The row only renders once there are
-  // at least two non-zero categories to compare.
-  const nonZeroAssetCategoryCount = [
-    cashTotal > BigInt(0),
-    bankTotal > BigInt(0),
-    investmentsTotal > 0,
-    assetsTotalBig > BigInt(0),
-  ].filter(Boolean).length;
-
-  const allocationSegments: DonutSegment[] = [
-    {
-      label: t.aset.breakdownFisikLabel,
-      value: Number(assetsTotalBig),
-      color: "var(--warning)",
-    },
-    {
-      label: t.aset.breakdownInvestasiLabel,
-      value: investmentsTotal,
-      color: "var(--brand-purple)",
-    },
-    {
-      label: t.aset.breakdownBankLabel,
-      value: Number(bankTotal),
-      color: "var(--accent-foreground)",
-    },
-    {
-      label: t.aset.breakdownCashLabel,
-      value: Number(cashTotal),
-      color: "var(--success)",
-    },
-  ].filter((seg) => seg.value > 0);
-
   // EPIC-025 N3 fidelity follow-up: one point per calendar month (see
   // `bucketPointsByMonth` above) — feeds both the trend chart and the
   // Investasi stat card's month-over-month delta below.
   const monthlyAssetPoints = bucketPointsByMonth(assetHistory?.points ?? []);
   const hasRealAssetTrend = monthlyAssetPoints.length >= 2;
-  const assetTrendCategories = hasRealAssetTrend
-    ? monthlyAssetPoints.map((p) =>
-        new Date(p.capturedAt).toLocaleDateString(
-          locale === "en" ? "en-US" : "id-ID",
-          { month: "short" },
-        ),
-      )
-    : ["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"];
-  const assetTrendValues = hasRealAssetTrend
-    ? monthlyAssetPoints.map((p) => Number(p.totalAssets))
-    : [0.82, 0.86, 0.9, 0.93, 0.97, 1].map((ratio) =>
-        Math.round(grandTotal * ratio),
-      );
+  const assetTrendCategories = monthlyAssetPoints.map((p) =>
+    new Date(p.capturedAt).toLocaleDateString(
+      locale === "en" ? "en-US" : "id-ID",
+      { month: "short" },
+    ),
+  );
+  const assetTrendValues = monthlyAssetPoints.map((p) => Number(p.totalAssets));
 
   // Investasi stat-card delta: a REAL month-over-month % change computed
   // from `totalInvestments` across the two most recent monthly buckets —
@@ -1414,240 +1046,239 @@ export default function AsetPage() {
     { day: "numeric", month: "long", year: "numeric" },
   );
 
-  const showTrendChart = !isLoading && assetTrendValues.some((v) => v > 0);
-  const showAllocationDonut = !isLoading && allocationSegments.length > 0;
+  const compItems: CompositionItem[] = [
+    {
+      label: t.aset.breakdownFisikLabel,
+      value: Number(assetsTotalBig),
+      color: "var(--wm-orange, #ff9a52)",
+    },
+    {
+      label: t.aset.breakdownInvestasiLabel,
+      value: investmentsTotal,
+      color: "var(--wm-lilac, #b9a7ff)",
+    },
+    {
+      label: t.aset.breakdownBankLabel,
+      value: Number(bankTotal),
+      color: "var(--wm-sky, #7cc4ff)",
+    },
+    {
+      label: t.aset.breakdownCashLabel,
+      value: Number(cashTotal),
+      color: "var(--wm-lime)",
+    },
+  ].filter((item) => item.value > 0);
+
+  const heroCaption = `${t.aset.totalAssetsSubtitlePrefix}${totalAssetsAsOfLabel}`;
 
   return (
-    <div
-      className={`space-y-4${privacyOn ? " [&_.wm-money]:blur-sm [&_.wm-money]:select-none" : ""}`}
-    >
-      {/* Tabs */}
-      <div className="hide-scrollbar flex gap-2 overflow-x-auto">
-        {TAB_IDS.map((id, i) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setActiveTab(i)}
-            className={`shrink-0 cursor-pointer rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
-              activeTab === i
-                ? "bg-primary text-primary-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-accent"
-            }`}
-          >
-            {t.aset.tabs[id]}
-          </button>
-        ))}
-      </div>
+    <div data-page="aset" className={cn("as-page", privacyOn && "as-priv")}>
+      <BentoGrid className="as-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.aset}</h1>
 
-      {/* Total Banner */}
-      <div
-        className="flex flex-wrap items-center justify-between gap-2.5 rounded-[14px] border-[1.5px] p-4 px-[18px]"
-        style={{ background: "var(--accent)", borderColor: "#C7D2FE" }}
-      >
-        <div>
-          <div className="mb-[3px] text-[11px] text-muted-foreground">
-            {t.aset.totalAssetsLabel}
-          </div>
-          {isLoading ? (
-            <div className="animate-pulse h-7 w-40 rounded bg-muted" />
-          ) : (
-            <div className="wm-money mono text-[24px] font-black text-primary-strong transition-[filter] duration-150">
-              <CountUpRupiah value={grandTotal} format={money.format} />
+        <BentoHero
+          className="as-hero"
+          currency={null}
+          value={isLoading ? "…" : money.format(grandTotal).replace(/,00$/, "")}
+          valueAs="p"
+          caption={isLoading ? "…" : heroCaption}
+          controls={
+            <>
+              <GhostButton
+                aria-pressed={privacyOn}
+                aria-label={
+                  privacyOn ? t.aset.eyeShowAriaLabel : t.aset.eyeHideAriaLabel
+                }
+                onClick={togglePrivacy}
+              >
+                {privacyOn ? (
+                  <EyeOff aria-hidden="true" />
+                ) : (
+                  <Eye aria-hidden="true" />
+                )}{" "}
+                {privacyOn ? t.aset.v2.eyeShow : t.aset.v2.eyeHide}
+              </GhostButton>
+              <GhostButton
+                lit
+                disabled={!familyGroupId || !token}
+                onClick={() => setShowAddModal(true)}
+              >
+                <Plus aria-hidden="true" /> {t.aset.addAssetButton}
+              </GhostButton>
+            </>
+          }
+          chart={
+            <div className="as-plot">
+              {isLoading ? null : hasRealAssetTrend ? (
+                <HatchedBarChart
+                  labels={assetTrendCategories}
+                  series={[
+                    {
+                      name: t.aset.v2.trendLegend,
+                      data: assetTrendValues,
+                      color: "var(--wm-lime)",
+                    },
+                  ]}
+                  format={money.formatCompact}
+                  wide
+                  ariaLabel={t.aset.v2.trendAria}
+                />
+              ) : (
+                compItems.length > 0 && (
+                  <CompositionStack
+                    items={compItems}
+                    label={t.aset.v2.compAria}
+                    format={money.format}
+                  />
+                )
+              )}
             </div>
-          )}
-          <div className="mt-[2px] text-[11px] text-muted-foreground">
-            {t.aset.totalAssetsSubtitlePrefix}
-            {totalAssetsAsOfLabel}
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="h-auto px-[14px] py-2"
-            disabled={!familyGroupId || !token}
-          >
-            <Plus className="size-4" /> {t.aset.addAssetButton}
-          </Button>
-          <button
-            type="button"
-            aria-pressed={privacyOn}
-            aria-label={
-              privacyOn ? t.aset.eyeShowAriaLabel : t.aset.eyeHideAriaLabel
-            }
-            onClick={togglePrivacy}
-            className="flex size-9 cursor-pointer items-center justify-center rounded-md border bg-background transition-colors hover:bg-accent"
-          >
-            {privacyOn ? (
-              <EyeOff className="size-3.5" />
-            ) : (
-              <Eye className="size-3.5" />
-            )}
-          </button>
-        </div>
-      </div>
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.aset.v2.kpiAcc}
+                value={money.format(Number(accountsTotalBig))}
+              />
+              <HeroKpi
+                label={t.aset.v2.kpiInv}
+                value={money.format(investmentsTotal)}
+                delta={
+                  investasiDeltaText ? (
+                    <span className="wm-cap">{investasiDeltaText}</span>
+                  ) : undefined
+                }
+              />
+              <HeroKpi
+                label={t.aset.v2.kpiFisik}
+                value={money.format(Number(assetsTotalBig))}
+              />
+            </>
+          }
+        />
 
-      {/* Breakdown stat cards — Cash & E-Wallet / Bank & Account / Investasi
-          / Aset Fisik, each derived from data already fetched above. Only
-          shown once the portfolio spans 2+ categories (see
-          `nonZeroAssetCategoryCount` above). */}
-      {!isLoading && nonZeroAssetCategoryCount >= 2 && (
-        <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-          <AssetStatCard
-            icon={Wallet}
-            iconBg="var(--success-soft)"
-            iconColor="var(--success)"
-            label={t.aset.breakdownCashLabel}
-            value={Number(cashTotal)}
-          />
-          <AssetStatCard
-            icon={Landmark}
-            iconBg="var(--accent)"
-            iconColor="var(--accent-foreground)"
-            label={t.aset.breakdownBankLabel}
-            value={Number(bankTotal)}
-          />
-          <AssetStatCard
-            icon={TrendingUp}
-            iconBg="var(--brand-purple-soft)"
-            iconColor="var(--brand-purple)"
-            label={t.aset.breakdownInvestasiLabel}
-            value={investmentsTotal}
-            deltaText={investasiDeltaText}
-            deltaDirection={
-              investasiDeltaPct !== null && investasiDeltaPct < 0
-                ? "down"
-                : "up"
-            }
-          />
-          <AssetStatCard
-            icon={Home}
-            iconBg="var(--warning-soft)"
-            iconColor="var(--warning)"
-            label={t.aset.breakdownFisikLabel}
-            value={Number(assetsTotalBig)}
-            note={t.aset.statFisikNote}
-          />
-        </div>
-      )}
-
-      {/* Errors */}
-      {hasError && (
-        <div
-          role="alert"
-          className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
+        <BentoCard
+          className="as-side"
+          title={t.aset.investmentsTitle}
+          caption={`${(investments ?? []).length} ${t.aset.v2.instrumentSuffix}`}
         >
-          {t.aset.errorLoad}
-        </div>
-      )}
-
-      {/* Trend (6-month asset growth) + allocation donut, side by side
-          (2:1) — matches the prototype's `.bento-grid` (`bento-span-8` /
-          `bento-span-4`), previously stacked full-width. Trend fix (EPIC-025
-          N3 fidelity follow-up): `monthlyAssetPoints` (see
-          `bucketPointsByMonth` above) buckets the raw daily snapshot rows
-          from `/dashboard/net-worth/history` down to one point per month. */}
-      {(showTrendChart || showAllocationDonut) && (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {showTrendChart && (
-            <div className="rounded-[14px] border bg-card p-4 lg:col-span-2">
-              <div className="mb-2 text-[13.5px] font-bold">
-                {t.aset.assetTrendTitle}
-              </div>
-              <TrendChart
-                categories={assetTrendCategories}
-                series={[
-                  {
-                    name: t.aset.totalAssetsLabel,
-                    data: assetTrendValues,
-                  },
-                ]}
-                height={250}
-                ariaLabel={`${t.aset.assetTrendTitle}: ${money.format(assetTrendValues[0] ?? 0)} → ${money.format(assetTrendValues[assetTrendValues.length - 1] ?? 0)}`}
-                money={money}
-              />
-            </div>
+          {isLoading ? (
+            <AssetCardSkeleton />
+          ) : (investments ?? []).length === 0 ? (
+            <p className="as-empty">{t.aset.emptyInvestments}</p>
+          ) : (
+            <MiniList label={t.aset.investmentsTitle}>
+              {(investments ?? []).slice(0, 5).map((inv) => {
+                const Icon = (INV_TYPE_ICON[inv.type] ?? { icon: Package })
+                  .icon;
+                return (
+                  <MiniRow
+                    key={inv.id}
+                    icon={<Icon aria-hidden="true" />}
+                    title={`${inv.ticker} · ${inv.name}`}
+                    meta={
+                      t.aset.invTypeLabels[
+                        inv.type as keyof typeof t.aset.invTypeLabels
+                      ] ?? inv.type
+                    }
+                    amount={
+                      <span className="wm-money">
+                        {money.format(parseFloat(inv.currentValue ?? "0"))}
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </MiniList>
           )}
+          <SeeAll href="/investasi">{t.aset.v2.invSeeAll}</SeeAll>
+        </BentoCard>
 
-          {showAllocationDonut && (
-            // EPIC-025 N3 fidelity follow-up: the prototype's donut has NO
-            // legend row, only the centered total. `DonutChart` (protected —
-            // `components/charts/*`) doesn't expose a legend toggle, so the
-            // default ApexCharts bottom legend is hidden here, page-locally,
-            // via a Tailwind arbitrary-variant selector instead.
-            <div className="rounded-[14px] border bg-card p-4 lg:col-span-1 [&_.apexcharts-legend]:hidden!">
-              <div className="mb-2 text-[13.5px] font-bold">
-                {t.aset.allocationTitle}
-              </div>
-              <DonutChart
-                segments={allocationSegments}
-                centerLabel={t.aset.totalAssetsLabel}
-                ariaLabel={`${t.aset.allocationTitle}: ${allocationSegments.map((s) => `${s.label} ${money.format(s.value)}`).join(", ")}`}
-                money={money}
-              />
-            </div>
+        <BentoCard
+          className="as-accounts"
+          title={t.aset.v2.accTitle}
+          caption={`${allAccounts.length} ${t.aset.v2.accountSuffix}`}
+        >
+          {isLoading ? (
+            <AssetCardSkeleton />
+          ) : allAccounts.length === 0 ? (
+            <p className="as-empty">{t.aset.emptyDanaRekening}</p>
+          ) : (
+            <MiniList label={t.aset.v2.accTitle}>
+              {allAccounts.slice(0, 5).map((account) => {
+                const Icon = (
+                  ACCOUNT_TYPE_ICON[account.type] ?? { icon: Wallet }
+                ).icon;
+                return (
+                  <MiniRow
+                    key={account.id}
+                    icon={<Icon aria-hidden="true" />}
+                    title={account.name}
+                    meta={accountSubtitle(account, t)}
+                    amount={
+                      <span className="wm-money">
+                        {money.format(Number(BigInt(account.balance ?? "0")))}
+                      </span>
+                    }
+                  />
+                );
+              })}
+            </MiniList>
           )}
-        </div>
-      )}
+          <SeeAll href="/rekening">{t.aset.v2.accSeeAll}</SeeAll>
+        </BentoCard>
 
-      {/* Asset Cards */}
-      {isLoading ? (
-        <>
-          <AssetCardSkeleton />
-          <AssetCardSkeleton />
-          <AssetCardSkeleton />
-        </>
-      ) : (
-        <>
-          {/* Semua: combined Dana & Rekening card */}
-          {showDanaRekeningCombined && (
-            <AccountsGroupCard
-              accounts={allAccounts}
-              title={t.aset.danaRekeningTitle}
-              headerIcon={Wallet}
-              headerChip="bg-green-100 text-green-600"
-            />
-          )}
+        <TipsCard
+          className="as-tips"
+          title={t.aset.v2.tipTitle}
+          mosaic={TIPS_MOSAIC}
+        >
+          {t.aset.v2.tipBody}
+        </TipsCard>
 
-          {/* Dana tab: cash + ewallet only */}
-          {showDana && (
-            <AccountsGroupCard
-              accounts={danaAccounts}
-              title={t.aset.danaTitle}
-              headerIcon={Wallet}
-              headerChip="bg-green-100 text-green-600"
-            />
+        <BentoCard
+          className="as-fisik"
+          title={t.aset.physicalAssetsTitle}
+          caption={`${(assets ?? []).length > 0 ? `${(assets ?? []).length} · ` : ""}${t.aset.v2.fisikCaption}`}
+        >
+          {hasError && (
+            <p role="alert" className="as-error">
+              {t.aset.errorLoad}
+            </p>
           )}
-
-          {/* Rekening tab: bank accounts only */}
-          {showRekening && (
-            <AccountsGroupCard
-              accounts={rekeningAccounts}
-              title={t.aset.rekeningTitle}
-              headerIcon={Landmark}
-              headerChip="bg-blue-100 text-blue-600"
-            />
+          {isLoading ? (
+            <AssetCardSkeleton />
+          ) : (
+            <BentoTiles>
+              {(assets ?? []).map((asset) => (
+                <AssetTile
+                  key={asset.id}
+                  asset={asset}
+                  familyGroupId={familyGroupId ?? ""}
+                  token={token}
+                  subtitle={assetSubtitle(
+                    asset,
+                    categoryNameById,
+                    (cls) => t.common.assetClassLabels[cls],
+                  )}
+                  canManage={canManage}
+                  onEdit={() => setEditingAsset(asset)}
+                  onDelete={() => setDeletingAsset(asset)}
+                />
+              ))}
+              {(assets ?? []).length === 0 && (
+                <p className="as-empty">{t.aset.emptyPhysical}</p>
+              )}
+              {canManage && (
+                <AddTile onClick={() => setShowAddModal(true)}>
+                  <Plus aria-hidden="true" />
+                  {t.aset.v2.fisikNew}
+                </AddTile>
+              )}
+            </BentoTiles>
           )}
-
-          {/* Investasi card */}
-          {showInvestasi && (
-            <InvestasiGroupCard investments={investments ?? []} />
-          )}
-
-          {/* Aset Fisik card */}
-          {showFisik && (
-            <AssetGroupCard
-              assets={assets ?? []}
-              categoryNameById={categoryNameById}
-              familyGroupId={familyGroupId ?? ""}
-              token={token}
-              canManage={canManage}
-              onEditAsset={setEditingAsset}
-              onDeleteAsset={setDeletingAsset}
-            />
-          )}
-        </>
-      )}
+        </BentoCard>
+      </BentoGrid>
 
       {/* Add/Edit Modal */}
       {(showAddModal || editingAsset) && familyGroupId && (
@@ -1662,8 +1293,6 @@ export default function AsetPage() {
         />
       )}
 
-      {/* EPIC-022 D5 — delete confirmation, matching the RowActions/
-          ConfirmDeleteDialog pattern already used on /investasi. */}
       <ConfirmDeleteDialog
         label={deletingAsset ? `"${deletingAsset.name}"` : null}
         body={t.aset.deleteDialogBody}

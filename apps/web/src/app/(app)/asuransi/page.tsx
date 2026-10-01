@@ -1,13 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, X, CalendarClock, Pencil, Trash2, Banknote } from "lucide-react";
+import {
+  Plus,
+  X,
+  Pencil,
+  Trash2,
+  Banknote,
+  Car,
+  FileText,
+  GraduationCap,
+  HeartPulse,
+  Home,
+  Shield,
+  type LucideIcon,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogBody,
@@ -17,9 +29,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { StatusBadge, SectionCard, DateField } from "@/components/wm";
-import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
-import type { DonutSegment } from "@/components/charts/donut";
+import {
+  ARow,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  BentoTile,
+  BentoTiles,
+  CompositionStack,
+  DateField,
+  GhostButton,
+  HeroKpi,
+  StatusBadge,
+  TipsCard,
+} from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import "./asuransi.css";
 import { ConfirmDeleteDialog } from "@/components/crud";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useApiError } from "@/hooks/use-api-error";
@@ -66,24 +91,6 @@ type FamilyMember = {
   name: string;
   relationship: MemberRelationship | null;
   role: Role;
-};
-
-const INSURANCE_TYPE_ICON: Record<string, string> = {
-  jiwa: "🛡️",
-  kesehatan: "🏥",
-  kendaraan: "🚗",
-  properti: "🏠",
-  pendidikan: "🎓",
-  lainnya: "📋",
-};
-
-const INSURANCE_TYPE_BG: Record<string, string> = {
-  jiwa: "#EDE9FE",
-  kesehatan: "#DCFCE7",
-  kendaraan: "#DBEAFE",
-  properti: "#FEF9C3",
-  pendidikan: "#FFE4E6",
-  lainnya: "#F3F4F6",
 };
 
 // EPIC-025 N3-F3 — coverage-by-type donut (FOLD): distinct hex per type so
@@ -152,46 +159,43 @@ function daysUntilRenewalLabel(
     : `${days} ${notDueSuffix}`;
 }
 
-function PolicyCardSkeleton() {
+function Bone({ className }: { className?: string }) {
   return (
-    <div className="animate-pulse rounded-[14px] border bg-card p-[18px]">
-      <div className="mb-3.5 flex items-center gap-2.5">
-        <div className="size-[38px] rounded-[10px] bg-muted" />
-        <div className="flex-1 space-y-1.5">
-          <div className="h-4 w-36 rounded bg-muted" />
-          <div className="h-3 w-24 rounded bg-muted" />
-        </div>
-        <div className="h-5 w-14 rounded-full bg-muted" />
-      </div>
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="space-y-1">
-            <div className="h-2.5 w-20 rounded bg-muted" />
-            <div className="h-3.5 w-28 rounded bg-muted" />
-          </div>
-        ))}
-      </div>
-    </div>
+    <div
+      className={`animate-pulse rounded-[14px] bg-muted ${className ?? ""}`}
+    />
   );
 }
 
-interface PolicyCardProps {
+const INSURANCE_TYPE_LUCIDE: Record<string, LucideIcon> = {
+  jiwa: Shield,
+  kesehatan: HeartPulse,
+  kendaraan: Car,
+  properti: Home,
+  pendidikan: GraduationCap,
+  lainnya: FileText,
+};
+
+interface PolicyTileProps {
   item: InsuranceDto;
   onEdit: () => void;
   onPay: () => void;
   onDelete: () => void;
 }
 
-function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
+function PolicyTile({ item, onEdit, onPay, onDelete }: PolicyTileProps) {
   const { t, locale } = useLocale();
   const money = useMoney();
-  const icon = INSURANCE_TYPE_ICON[item.type] ?? "📋";
-  const iconBg = INSURANCE_TYPE_BG[item.type] ?? "#F3F4F6";
+  const Icon = INSURANCE_TYPE_LUCIDE[item.type] ?? FileText;
   const typeLabel = t.asuransi.typeLabels[item.type] ?? item.type;
   const periodLabel = t.asuransi.periodSuffixLabels[item.premiumPeriod] ?? "";
-  const renewalVariant = renewalBadgeVariant(item.daysUntilRenewal);
   const statusLabel = t.asuransi.statusLabels[item.status] ?? item.status;
-  // EPIC-021 Group D (#14) — mirrors warisan's heirSummary line on AssetRow.
+  const statusVariant =
+    item.status === "aktif"
+      ? "success"
+      : item.status === "kadaluarsa"
+        ? "danger"
+        : "warning";
   const beneficiarySummary =
     item.beneficiaries.length > 0
       ? item.beneficiaries
@@ -199,140 +203,93 @@ function PolicyCard({ item, onEdit, onPay, onDelete }: PolicyCardProps) {
           .join(", ")
       : null;
 
-  const statusVariant =
-    item.status === "aktif"
-      ? "success"
-      : item.status === "kadaluarsa"
-        ? "danger"
-        : "warning";
-
   return (
-    <Card className="gap-0 p-[18px]">
-      <div className="min-w-0">
-        <div className="mb-3.5 flex items-center gap-2.5">
-          <div
-            className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] text-[17px]"
-            style={{ background: iconBg }}
-          >
-            {icon}
-          </div>
-          <div className="flex-1">
-            <div className="text-[14px] font-bold">{item.name}</div>
-            <div className="text-[11px] text-muted-foreground">
-              {item.provider ? `${item.provider} · ` : ""}
-              {typeLabel}
-            </div>
-          </div>
-          <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+    <div className="as-tilewrap">
+      <BentoTile
+        icon={<Icon aria-hidden="true" />}
+        title={item.name}
+        value={
+          <span className="wm-money">
+            {money.format(Number(BigInt(item.premiumAmount)))}
+            <small className="as-period">{periodLabel}</small>
+          </span>
+        }
+        foot={
+          <>
+            {item.provider ? `${item.provider} · ` : ""}
+            {typeLabel}
+          </>
+        }
+      >
+        <dl className="as-facts">
           {item.coverageAmount && (
             <div>
-              <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {t.asuransi.coverageLabel}
-              </div>
-              <div className="text-[13.5px] font-bold">
+              <dt>{t.asuransi.coverageLabel}</dt>
+              <dd className="wm-money">
                 {money.format(Number(BigInt(item.coverageAmount)))}
-              </div>
+              </dd>
             </div>
           )}
-          <div>
-            <div className="mb-[3px] text-[11px] text-muted-foreground">
-              {t.asuransi.premiumLabel}
-            </div>
-            <div className="text-[13.5px] font-bold">
-              {money.format(Number(BigInt(item.premiumAmount)))}
-              <span className="font-normal text-muted-foreground">
-                {periodLabel}
-              </span>
-            </div>
-          </div>
           {item.renewalDate && (
             <div>
-              <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {t.asuransi.renewalLabel}
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="text-[13.5px] font-bold">
-                  {formatLocaleDate(item.renewalDate, locale)}
-                </div>
+              <dt>{t.asuransi.renewalLabel}</dt>
+              <dd>
+                {formatLocaleDate(item.renewalDate, locale)}
                 {item.daysUntilRenewal !== null && (
-                  <StatusBadge variant={renewalVariant} className="text-[10px]">
+                  <StatusBadge
+                    variant={renewalBadgeVariant(item.daysUntilRenewal)}
+                  >
                     {daysUntilRenewalLabel(item.daysUntilRenewal, t.asuransi)}
                   </StatusBadge>
                 )}
-              </div>
+              </dd>
             </div>
           )}
           {item.policyNumber && (
             <div>
-              <div className="mb-[3px] text-[11px] text-muted-foreground">
-                {t.asuransi.policyNumberLabel}
-              </div>
-              <div className="text-[13.5px] font-bold">{item.policyNumber}</div>
+              <dt>{t.asuransi.policyNumberLabel}</dt>
+              <dd>{item.policyNumber}</dd>
             </div>
           )}
-        </div>
-
+        </dl>
         {beneficiarySummary && (
-          <div className="mt-2.5 text-[11.5px] text-muted-foreground">
-            <span className="font-semibold">
-              {t.asuransi.beneficiariesLabel}:
-            </span>{" "}
-            {beneficiarySummary}
-          </div>
+          <small className="as-ben">
+            {t.asuransi.beneficiariesLabel}: {beneficiarySummary}
+          </small>
         )}
-
-        {/* EPIC-025 N3 restructure — prototype-parity footer action row
-              (primary "Bayar Premi" + labelled Edit/Hapus) replaces the
-              icon-only side-column used elsewhere (liabilitas keeps that
-              pattern via `CardSideActions`; this page's footer differs by
-              design, per the prototype). */}
-        <div className="mt-3.5 flex flex-wrap items-center gap-2 border-t pt-3">
-          <Button
-            size="sm"
-            onClick={onPay}
-            disabled={item.paidThisPeriod}
-            title={
-              item.paidThisPeriod
-                ? // Batch 5 item 5 — `new Date() > new Date()` read the
-                  // clock twice during render (non-deterministic, and a
-                  // second hydration-mismatch source alongside the date
-                  // formatting above). The server already computes
-                  // `daysUntilRenewal`; a non-negative value means the
-                  // renewal date is today or still ahead, same as the
-                  // `> new Date()` check it replaces.
-                  item.renewalDate &&
-                  item.daysUntilRenewal !== null &&
-                  item.daysUntilRenewal >= 0
-                  ? `${t.asuransi.payNextDueTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
-                  : t.asuransi.payAlreadyPaidTooltip
-                : undefined
-            }
-            className="h-auto px-3 py-[7px] text-[12.5px]"
-          >
-            {t.asuransi.payButtonLabel}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={onEdit}
-            className="h-auto px-3 py-[7px] text-[12.5px]"
-          >
-            <Pencil className="size-3.5" /> {t.asuransi.cardEditButton}
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={onDelete}
-            className="h-auto px-3 py-[7px] text-[12.5px] text-destructive hover:text-destructive"
-          >
-            <Trash2 className="size-3.5" /> {t.asuransi.cardDeleteButton}
-          </Button>
-        </div>
+      </BentoTile>
+      <span className="as-status">
+        <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
+      </span>
+      <div className="as-foot">
+        <button
+          type="button"
+          className="as-pay"
+          onClick={onPay}
+          disabled={item.paidThisPeriod}
+          title={
+            item.paidThisPeriod
+              ? item.renewalDate &&
+                item.daysUntilRenewal !== null &&
+                item.daysUntilRenewal >= 0
+                ? `${t.asuransi.payNextDueTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
+                : t.asuransi.payAlreadyPaidTooltip
+              : undefined
+          }
+        >
+          <Banknote className="size-3.5" aria-hidden="true" />{" "}
+          {t.asuransi.payButtonLabel}
+        </button>
+        <button type="button" onClick={onEdit}>
+          <Pencil className="size-3.5" aria-hidden="true" />{" "}
+          {t.asuransi.cardEditButton}
+        </button>
+        <button type="button" className="as-del" onClick={onDelete}>
+          <Trash2 className="size-3.5" aria-hidden="true" />{" "}
+          {t.asuransi.cardDeleteButton}
+        </button>
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -1410,9 +1367,6 @@ export default function AsuransiPage() {
   });
 
   const activePolicies = summary?.activePolicies ?? 0;
-  const totalMonthlyPremium = summary?.totalMonthlyPremium
-    ? money.format(Number(BigInt(summary.totalMonthlyPremium)))
-    : "Rp 0";
   const monthlyPremiumNumber = summary?.totalMonthlyPremium
     ? Number(BigInt(summary.totalMonthlyPremium))
     : 0;
@@ -1435,7 +1389,9 @@ export default function AsuransiPage() {
       (coverageByType.get(label) ?? BigInt(0)) + BigInt(item.coverageAmount),
     );
   }
-  const coverageSegments: DonutSegment[] = (insurances ?? [])
+  const coverageSegments: { label: string; value: number; color: string }[] = (
+    insurances ?? []
+  )
     .reduce<{ type: string; label: string }[]>((acc, item) => {
       if (acc.some((a) => a.type === item.type)) return acc;
       return [
@@ -1510,285 +1466,246 @@ export default function AsuransiPage() {
       ? policiesWithBeneficiaries[0]!
       : null;
 
+  const typeGroups = Array.from(coverageByType.entries());
+  const compositionItems = coverageSegments.map((seg) => ({
+    label: seg.label,
+    value: seg.value,
+    color: seg.color,
+  }));
+  const policyCount = insurances?.length ?? 0;
+  const tipTitle = showRenewalWarning
+    ? `${nearestRenewal!.name}${t.asuransi.v2.tipSoonSuffix}`
+    : policyCount > 0
+      ? t.asuransi.v2.tipOkTitle
+      : t.asuransi.v2.tipEmptyTitle;
+  const tipBody = showRenewalWarning
+    ? `${t.asuransi.renewalWarningSuffix} ${formatLocaleDate(nearestRenewal!.renewalDate, locale)} · ${daysUntilRenewalLabel(
+        nearestRenewal!.daysUntilRenewal!,
+        t.asuransi,
+        t.asuransi.renewalWarningDaysLeftSuffix,
+      )}.`
+    : policyCount > 0
+      ? t.asuransi.v2.tipOkBody
+      : t.asuransi.v2.tipEmptyBody;
+  const activeShare = policyCount
+    ? Math.round((Math.min(policyCount, activePolicies) / policyCount) * 18)
+    : 0;
+  const tipsMosaic = Array.from({ length: 18 }, (_, i) =>
+    i < activeShare
+      ? showRenewalWarning && i === activeShare - 1
+        ? "o"
+        : "a"
+      : i % 4 === 0
+        ? "b"
+        : "",
+  ) as ("a" | "b" | "c" | "o" | "")[];
+
   return (
-    <div className="space-y-4">
-      {/* EPIC-025 N3 restructure — page header (H1 + accent underline +
-          real subtitle) and the header action row. */}
-      <div className="flex flex-wrap items-start justify-between gap-2.5">
-        <div>
-          <h1 className="relative inline-block pb-2 text-[19px] font-extrabold tracking-tight">
-            {t.shell.pageTitles.asuransi}
-            <span className="absolute bottom-0 left-0 h-[3px] w-[42px] rounded-full bg-gradient-to-r from-primary to-brand-purple" />
-          </h1>
-          <div className="mt-1 text-xs text-muted-foreground">
-            {activePolicies} {t.asuransi.activePoliciesSuffix}
-            {", "}
-            {t.asuransi.totalPremiumPrefix} {totalMonthlyPremium}
-            {t.asuransi.periodSuffixLabels.monthly}
-            {totalCoverageAktif > BigInt(0) && (
-              <>
-                {", "}
-                {t.asuransi.totalCoveragePrefix}{" "}
-                {money.format(Number(totalCoverageAktif))}
-              </>
-            )}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setPayPolicyPicker(true)}
-            disabled={!familyGroupId}
-            className="h-auto px-4 py-[9px]"
-          >
-            <Banknote className="size-4" /> {t.asuransi.payButtonLabel}
-          </Button>
-          <Button
-            onClick={() => setShowModal(true)}
-            disabled={!familyGroupId}
-            className="h-auto px-4 py-[9px]"
-          >
-            <Plus className="size-4" /> {t.common.add}
-          </Button>
-        </div>
-      </div>
-
-      {isError && (
-        <div
-          role="alert"
-          className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
-        >
-          {t.asuransi.errorLoad}
-        </div>
-      )}
-
-      {!isLoading && !isError && (
-        <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {monthlyPremiumNumber > 0 && (
-            <SectionCard
-              title="Premi 6 Bulan Terakhir"
-              className="lg:col-span-2"
-            >
-              <TrendChart
-                categories={premiumTrendMonths}
-                series={[
-                  {
-                    name: t.asuransi.premiumLabel,
-                    data: premiumTrendData,
-                  },
-                ]}
-                height={245}
-                ariaLabel={`Premi 6 bulan terakhir: ${premiumTrendMonths.map((month, index) => `${month} ${money.format(premiumTrendData[index] ?? 0)}`).join(", ")}`}
-                money={money}
-              />
-            </SectionCard>
-          )}
-
-          {coverageSegments.length > 0 && (
-            <SectionCard title={t.asuransi.coverageAllocationTitle}>
-              <DonutChart
-                segments={coverageSegments}
-                centerLabel={t.asuransi.coverageLabel}
-                height={245}
-                ariaLabel={`${t.asuransi.coverageAllocationTitle}: ${coverageSegments.map((s) => `${s.label} ${money.format(s.value)}`).join(", ")}`}
-                money={money}
-              />
-            </SectionCard>
-          )}
-        </section>
-      )}
-
-      {/* Real nearest-renewal warning — never a hardcoded policy/date. */}
-      {!isLoading && !isError && showRenewalWarning && nearestRenewal && (
-        <div className="flex items-center gap-2.5 rounded-[11px] border border-warning/35 bg-warning-soft p-3 text-[12.5px] text-warning">
-          <CalendarClock className="size-4 shrink-0" aria-hidden="true" />
-          <span>
-            {t.asuransi.renewalWarningPrefix}{" "}
-            <strong>{nearestRenewal.name}</strong>{" "}
-            {t.asuransi.renewalWarningSuffix}{" "}
-            {formatLocaleDate(nearestRenewal.renewalDate, locale)} ·{" "}
-            {daysUntilRenewalLabel(
-              // filtered by `daysUntilRenewal !== null` above.
-              nearestRenewal.daysUntilRenewal!,
-              t.asuransi,
-              t.asuransi.renewalWarningDaysLeftSuffix,
-            )}
-            .
-          </span>
-        </div>
-      )}
-
-      {isLoading && (
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          {[1, 2, 3].map((i) => (
-            <PolicyCardSkeleton key={i} />
-          ))}
-        </div>
-      )}
-
-      {!isLoading && !isError && insurances?.length === 0 && (
-        <div className="rounded-[14px] border bg-card px-4 py-8 text-center text-[13px] text-muted-foreground">
-          {t.asuransi.emptyState}
-        </div>
-      )}
-
-      {!isLoading && !isError && insurances && insurances.length > 0 && (
-        <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-          {insurances.map((item) => (
-            <PolicyCard
-              key={item.id}
-              item={item}
-              onEdit={() => setEditingItem(item)}
-              onPay={() => setPayTarget(item)}
-              onDelete={() => setDeleteTarget(item)}
-            />
-          ))}
-        </div>
-      )}
-
-      {/* EPIC-025 N3 restructure — "Ahli Waris Asuransi" aggregated table.
-          Beneficiaries genuinely exist on `InsuranceDto` (same data
-          `PolicyCard`'s summary line already reads); this only presents it
-          as a table instead of inventing a separate beneficiary store. */}
-      {!isLoading && !isError && beneficiaryRows.length > 0 && (
-        <SectionCard
-          title={t.asuransi.beneficiariesSectionTitle}
-          action={
-            <button
-              type="button"
-              aria-label={t.asuransi.addBeneficiaryHeaderAriaLabel}
-              onClick={() => setBeneficiaryPolicyPicker(true)}
-              className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
-            >
-              {t.asuransi.addBeneficiaryButton}
-            </button>
+    <div data-page="asuransi" className="as-page">
+      <BentoGrid className="as-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.asuransi}</h1>
+        <BentoHero
+          className="as-hero"
+          currency={null}
+          value={
+            isLoading ? (
+              "…"
+            ) : (
+              <span className="wm-money">
+                {money.format(monthlyPremiumNumber)}
+              </span>
+            )
           }
+          caption={t.asuransi.v2.heroCaption}
+          controls={
+            <>
+              <GhostButton
+                onClick={() => setPayPolicyPicker(true)}
+                disabled={!familyGroupId}
+              >
+                <Banknote className="size-4" aria-hidden="true" />{" "}
+                {t.asuransi.payButtonLabel}
+              </GhostButton>
+              <GhostButton
+                lit
+                onClick={() => setShowModal(true)}
+                disabled={!familyGroupId}
+              >
+                <Plus className="size-4" aria-hidden="true" /> {t.common.add}
+              </GhostButton>
+            </>
+          }
+          chart={
+            <div className="as-plot">
+              {isLoading ? null : monthlyPremiumNumber > 0 ? (
+                <HatchedBarChart
+                  labels={premiumTrendMonths}
+                  series={[
+                    {
+                      name: t.asuransi.v2.legendPremium,
+                      data: premiumTrendData,
+                      color: "var(--wm-lime)",
+                    },
+                  ]}
+                  format={money.formatCompact}
+                  wide
+                  ariaLabel={t.asuransi.v2.chartAria}
+                />
+              ) : (
+                <p className="as-empty">{t.asuransi.v2.tipEmptyBody}</p>
+              )}
+            </div>
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={t.asuransi.v2.kpiActive}
+                value={String(activePolicies)}
+              />
+              <HeroKpi
+                label={t.asuransi.v2.kpiCoverage}
+                value={
+                  <span className="wm-money">
+                    {money.formatCompact(Number(totalCoverageAktif))}
+                  </span>
+                }
+              />
+              <HeroKpi
+                label={t.asuransi.v2.kpiRenew}
+                value={
+                  <span className="as-renew">
+                    {nearestRenewal
+                      ? `${nearestRenewal.name} · ${daysUntilRenewalLabel(nearestRenewal.daysUntilRenewal!, t.asuransi, t.asuransi.renewalWarningDaysLeftSuffix)}`
+                      : "—"}
+                  </span>
+                }
+              />
+            </>
+          }
+        />
+
+        {compositionItems.length > 0 && typeGroups.length > 0 && (
+          <BentoCard
+            className="as-side"
+            title={t.asuransi.coverageAllocationTitle}
+            caption={t.asuransi.v2.allocCaption}
+          >
+            <CompositionStack
+              label={t.asuransi.coverageAllocationTitle}
+              center={money.formatCompact(Number(totalCoverageAktif))}
+              sub={t.asuransi.coverageLabel}
+              format={money.formatCompact}
+              items={compositionItems}
+            />
+          </BentoCard>
+        )}
+
+        <BentoCard
+          className="as-list"
+          title={t.asuransi.v2.gridTitle}
+          caption={`${policyCount} ${t.asuransi.v2.gridCount}`}
         >
-          {soleFullyAllocatedPolicy && (
-            <div className="mb-3 flex items-center gap-2.5 rounded-[11px] border border-primary/20 bg-accent p-3 text-[12.5px]">
-              <span>
+          {isError && (
+            <p role="alert" className="as-error">
+              {t.asuransi.errorLoad}
+            </p>
+          )}
+          {isLoading ? (
+            <BentoTiles>
+              <Bone className="h-[170px] w-full" />
+              <Bone className="h-[170px] w-full" />
+            </BentoTiles>
+          ) : !isError && policyCount === 0 ? (
+            <p className="as-empty">{t.asuransi.emptyState}</p>
+          ) : (
+            <BentoTiles>
+              {(insurances ?? []).map((item) => (
+                <PolicyTile
+                  key={item.id}
+                  item={item}
+                  onEdit={() => setEditingItem(item)}
+                  onPay={() => setPayTarget(item)}
+                  onDelete={() => setDeleteTarget(item)}
+                />
+              ))}
+            </BentoTiles>
+          )}
+        </BentoCard>
+
+        <TipsCard className="as-tips" title={tipTitle} mosaic={tipsMosaic}>
+          {tipBody}
+        </TipsCard>
+
+        {!isLoading && !isError && beneficiaryRows.length > 0 && (
+          <BentoCard
+            className="as-benef"
+            title={t.asuransi.beneficiariesSectionTitle}
+            caption={t.asuransi.v2.benCaption}
+            action={
+              <GhostButton
+                aria-label={t.asuransi.addBeneficiaryHeaderAriaLabel}
+                onClick={() => setBeneficiaryPolicyPicker(true)}
+              >
+                {t.asuransi.addBeneficiaryButton}
+              </GhostButton>
+            }
+          >
+            {soleFullyAllocatedPolicy && (
+              <p className="as-allocated">
                 <strong>{t.asuransi.allocationFullyAllocated}</strong>{" "}
                 {t.asuransi.beneficiaryTablePolicyPrefix}{" "}
                 {soleFullyAllocatedPolicy.name}
-              </span>
-            </div>
-          )}
-          <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[640px] text-[12.5px]">
-              <thead>
-                <tr className="border-b text-left text-[11px] text-muted-foreground">
-                  <th className="pb-2 pr-3 font-semibold">
-                    {t.asuransi.beneficiaryTableHeaderName}
-                  </th>
-                  <th className="pb-2 pr-3 font-semibold">
-                    {t.asuransi.beneficiaryTableHeaderRelationship}
-                  </th>
-                  <th className="pb-2 pr-3 font-semibold">
-                    {t.asuransi.beneficiaryTableHeaderMember}
-                  </th>
-                  <th className="pb-2 pr-3 font-semibold">
-                    {t.asuransi.beneficiaryTableHeaderPercent}
-                  </th>
-                  <th className="pb-2 pr-3 font-semibold">
-                    {t.asuransi.beneficiaryTableHeaderBenefit}
-                  </th>
-                  <th className="pb-2" />
-                </tr>
-              </thead>
-              <tbody>
-                {beneficiaryRows.map(
-                  ({ policy, beneficiary, linkedMember, estimatedBenefit }) => {
-                    const initials = beneficiary.name
-                      .split(" ")
-                      .slice(0, 2)
-                      .map((w) => w[0]?.toUpperCase() ?? "")
-                      .join("");
-                    return (
-                      <tr
-                        key={beneficiary.id}
-                        className="border-b last:border-0"
+              </p>
+            )}
+            <ul className="as-benlist">
+              {beneficiaryRows.map(
+                ({ policy, beneficiary, linkedMember, estimatedBenefit }) => {
+                  const initials = beneficiary.name
+                    .split(" ")
+                    .slice(0, 2)
+                    .map((w) => w[0]?.toUpperCase() ?? "")
+                    .join("");
+                  return (
+                    <li key={beneficiary.id} className="as-benrow">
+                      <ARow
+                        badge={initials}
+                        title={beneficiary.name}
+                        meta={[
+                          beneficiary.relationship,
+                          linkedMember?.name,
+                          `${t.asuransi.beneficiaryTablePolicyPrefix} ${policy.name}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                        share={Math.min(100, Number(beneficiary.sharePercent))}
+                        amount={
+                          <span className="wm-money">
+                            {estimatedBenefit !== null
+                              ? money.format(Number(estimatedBenefit))
+                              : "—"}
+                          </span>
+                        }
+                        amountSub={`${beneficiary.sharePercent}%`}
+                      />
+                      <button
+                        type="button"
+                        className="as-benrm"
+                        aria-label={`${t.asuransi.removeBeneficiaryAriaLabel} ${beneficiary.name}`}
+                        disabled={removeBeneficiaryMutation.isPending}
+                        onClick={() =>
+                          setDeleteBeneficiaryTarget({ policy, beneficiary })
+                        }
                       >
-                        <td className="py-2.5 pr-3">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
-                              style={{
-                                background:
-                                  "linear-gradient(135deg,var(--primary),var(--brand-purple))",
-                              }}
-                            >
-                              {initials}
-                            </div>
-                            <div>
-                              <div className="font-semibold">
-                                {beneficiary.name}
-                              </div>
-                              <div className="text-[10.5px] text-muted-foreground">
-                                {t.asuransi.beneficiaryTablePolicyPrefix}{" "}
-                                {policy.name}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-2.5 pr-3">
-                          {beneficiary.relationship}
-                        </td>
-                        <td className="py-2.5 pr-3">
-                          {linkedMember ? (
-                            <StatusBadge variant="info">
-                              {linkedMember.name}
-                            </StatusBadge>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              {t.asuransi.beneficiaryMemberNoneOption}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 pr-3">
-                          <div className="flex items-center gap-2">
-                            <span className="mono font-bold">
-                              {beneficiary.sharePercent}%
-                            </span>
-                            <span className="h-1.5 w-[70px] overflow-hidden rounded-full bg-muted">
-                              <span
-                                className="block h-full rounded-full bg-primary"
-                                style={{
-                                  width: `${Math.min(100, Number(beneficiary.sharePercent))}%`,
-                                }}
-                              />
-                            </span>
-                          </div>
-                        </td>
-                        <td className="mono py-2.5 pr-3">
-                          {estimatedBenefit !== null
-                            ? money.format(Number(estimatedBenefit))
-                            : "—"}
-                        </td>
-                        <td className="py-2.5">
-                          <button
-                            type="button"
-                            aria-label={`${t.asuransi.removeBeneficiaryAriaLabel} ${beneficiary.name}`}
-                            disabled={removeBeneficiaryMutation.isPending}
-                            onClick={() =>
-                              setDeleteBeneficiaryTarget({
-                                policy,
-                                beneficiary,
-                              })
-                            }
-                            className="flex size-7 items-center justify-center rounded-full text-destructive hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  },
-                )}
-              </tbody>
-            </table>
-          </div>
-        </SectionCard>
-      )}
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                      </button>
+                    </li>
+                  );
+                },
+              )}
+            </ul>
+          </BentoCard>
+        )}
+      </BentoGrid>
 
       {showModal && familyGroupId && (
         <InsuranceModal

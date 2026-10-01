@@ -572,17 +572,19 @@ describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", (
   }, 30000);
 });
 
-describe("TujuanPage — KPI row hidden for a single goal (polish batch 7b item 6)", () => {
-  it("hides the on-track/needs-boost/at-risk/overall KPI row when there's exactly one goal", async () => {
+describe("TujuanPage — bento hero KPIs", () => {
+  it("shows the hero KPIs and the all-good attention card for a single on-track goal", async () => {
     mockSession("owner");
     render(<TujuanPage />);
 
     await screen.findByText("Dana Liburan");
-    expect(screen.queryByText("Perlu Boost")).not.toBeInTheDocument();
-    expect(screen.queryByText("Progres Keseluruhan")).not.toBeInTheDocument();
+    expect(screen.getByText("Sesuai rencana")).toBeInTheDocument();
+    expect(
+      screen.getByText("Semua tujuan berjalan sesuai rencana."),
+    ).toBeInTheDocument();
   });
 
-  it("keeps the KPI row when there are two or more goals", async () => {
+  it("lists a goal that needs a push under 'Perlu perhatian'", async () => {
     mockUseSessionAuth.mockReturnValue({
       data: {
         session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
@@ -602,7 +604,12 @@ describe("TujuanPage — KPI row hidden for a single goal (polish batch 7b item 
       if (path.endsWith("/goals")) {
         return Promise.resolve([
           buildGoal({}),
-          buildGoal({ id: "goal-2", name: "Rumah Baru" }),
+          buildGoal({
+            id: "goal-2",
+            name: "Rumah Baru",
+            status: "needs_boost",
+            progressPercent: 5,
+          }),
         ]);
       }
       return Promise.resolve([]);
@@ -611,7 +618,7 @@ describe("TujuanPage — KPI row hidden for a single goal (polish batch 7b item 
 
     await screen.findByText("Dana Liburan");
     await screen.findByText("Rumah Baru");
-    expect(screen.getByText("Perlu Boost")).toBeInTheDocument();
-    expect(screen.getByText("Progres Keseluruhan")).toBeInTheDocument();
+    expect(screen.getByText("Perlu perhatian")).toBeInTheDocument();
+    expect(screen.getByText("Rumah Baru 5%")).toBeInTheDocument();
   });
 });

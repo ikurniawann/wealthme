@@ -1,0 +1,24 @@
+/* Donation (bento v2, docs/design/proto/donation.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .dt-grid > .dt-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .dt-grid > .dt-calc {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .dt-grid > .dt-hist {
+      grid-column: 1 / 9;
+      grid-row: 2;
+    }
+    .dt-grid > .dt-tips {
+      grid-column: 9 / 13;
+      grid-row: 2;
+    }
+  }
+  .dt-grid > * {
+    min-width: 0;
+  }
+}

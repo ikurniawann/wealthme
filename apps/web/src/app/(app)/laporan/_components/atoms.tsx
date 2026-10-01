@@ -18,11 +18,13 @@ export function StatTile({
   hint?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[12px] border bg-card p-4">
-      <div className="text-[10.5px] text-muted-foreground">{label}</div>
-      <div className={"text-[18px] font-extrabold " + (valueClass ?? "")}>
-        {value}
-        {hint}
+    <div className="lp-stat">
+      <div>
+        <div className="lp-stat-l">{label}</div>
+        <div className={"lp-stat-v " + (valueClass ?? "")}>
+          {value}
+          {hint}
+        </div>
       </div>
     </div>
   );
@@ -49,14 +51,9 @@ export function ActItem({
   last?: boolean;
 }) {
   return (
-    <div
-      className={
-        "flex items-center gap-3 py-2.5 " +
-        (last ? "" : "border-b border-border")
-      }
-    >
+    <div className="lp-act" data-last={last ? "" : undefined}>
       <div
-        className="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] font-bold"
+        className="flex size-[38px] shrink-0 items-center justify-center rounded-[12px] font-bold"
         style={{ background: iconBg, color: iconColor, fontSize: iconSize }}
       >
         {icon}
@@ -83,12 +80,10 @@ export function BarRow({
   color: string;
 }) {
   return (
-    <div>
-      <div className="mb-[5px] flex justify-between text-[12.5px]">
-        <span className="font-semibold">{label}</span>
-        <span className="flex items-center gap-2">{right}</span>
-      </div>
+    <div className="lp-bar">
+      <span className="lp-bar-l">{label}</span>
       <ProgressBar value={value} color={color} height={8} />
+      <span className="lp-bar-r">{right}</span>
     </div>
   );
 }
@@ -117,28 +112,18 @@ export function RingkasanStatCard({
   deltaClass?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 rounded-[12px] border bg-card p-4">
+    <div className="lp-stat">
       <div
-        className="flex size-9 shrink-0 items-center justify-center rounded-[10px]"
+        className="lp-stat-ic"
         style={{ background: iconBg, color: iconColor }}
       >
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-[10.5px] text-muted-foreground">{label}</div>
-        <div
-          className={"mono text-[17px] font-extrabold " + (valueClass ?? "")}
-        >
-          {value}
-        </div>
+        <div className="lp-stat-l">{label}</div>
+        <div className={"lp-stat-v " + (valueClass ?? "")}>{value}</div>
         {delta && (
-          <div
-            className={
-              "mt-1 text-[11px] " + (deltaClass ?? "text-muted-foreground")
-            }
-          >
-            {delta}
-          </div>
+          <div className={"lp-stat-d " + (deltaClass ?? "")}>{delta}</div>
         )}
       </div>
     </div>

@@ -354,7 +354,7 @@ function CardRail({
   }, []);
   const page = (dir: 1 | -1) => {
     const el = ref.current;
-    const card = el?.querySelector<HTMLElement>(".wm-pcard");
+    const card = el?.querySelector<HTMLElement>(".wm-pcard-link, .wm-pcard");
     if (!el || !card) return;
     el.scrollBy({ left: dir * (card.offsetWidth + 12), behavior: "smooth" });
   };

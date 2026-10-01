@@ -1,9 +1,19 @@
 "use client";
 
-import { Eye, Lock, ShieldCheck, WalletCards } from "lucide-react";
+import { Eye, Info, Landmark, Lock, WalletCards } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
-import { IconChip, StatusBadge } from "@/components/wm";
+import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  HeroKpi,
+  IconChip,
+  MiniList,
+  MiniRow,
+  StatusBadge,
+} from "@/components/wm";
+import "./akses-saya.css";
 import { apiFetch } from "@/lib/api-client";
 import { useSession } from "@/lib/auth-compat";
 import { queryKeys } from "@/lib/query-keys";
@@ -80,36 +90,31 @@ export default function MyAccessPage() {
     ? t.aksesSaya.eyebrowMaster
     : t.aksesSaya.eyebrowDependant;
 
+  const v2 = t.aksesSaya.v2;
   const permissions = [
     {
-      title: "Rekening Ditugaskan",
+      title: v2.permAccTitle,
       value: accountsLoading
-        ? "Memuat…"
+        ? v2.permAccLoading
         : assigned.length === 0
-          ? "Belum ada"
-          : `${assigned.length} rekening`,
+          ? v2.permAccNone
+          : `${assigned.length} ${v2.permAccCount}`,
       description:
         assigned.length > 0
-          ? `Boleh mencatat transaksi dan melihat mutasi di: ${assigned
-              .map((a) => a.name)
-              .join(", ")}.`
-          : "Master belum menugaskan rekening apa pun ke akun ini.",
+          ? `${v2.permAccDescYes}${assigned.map((a) => a.name).join(", ")}.`
+          : v2.permAccDescNo,
       icon: WalletCards,
       tone: assigned.length > 0 ? ("success" as const) : ("info" as const),
     },
     {
-      title: "Saldo Keluarga",
-      value: "Tidak terlihat",
-      description:
-        "Kekayaan bersih, investasi, dan aset keluarga tidak dihitung untuk akun ini.",
+      title: v2.permBalTitle,
+      value: v2.permBalValue,
+      description: v2.permBalDesc,
       icon: Lock,
       tone: "danger" as const,
     },
     {
-      title: "Laporan Keluarga",
-      // Was hardcoded "Dikunci" for every viewer regardless of role — a
-      // self-viewing Master saw a permission table that contradicted its
-      // own "Hanya Master dan Co-Master" rule right below it.
+      title: v2.permRepTitle,
       value: familyReportsUnlocked
         ? t.aksesSaya.familyReportsUnlocked
         : t.aksesSaya.familyReportsLocked,
@@ -122,126 +127,148 @@ export default function MyAccessPage() {
   ];
 
   return (
-    <div className="page stack">
-      <section className="hero gradient-profile">
-        <div className="row row--between row--wrap">
-          <div>
-            <div className="hero__label">{eyebrowLabel}</div>
-            <h1 className="hero__value">Akses Saya</h1>
-            <p className="text-white/80">
-              Lihat data apa saja yang bisa kamu akses di WealthMe keluarga.
-            </p>
-          </div>
-          {roleLabel && (
-            <StatusBadge variant="success">Role: {roleLabel}</StatusBadge>
-          )}
-        </div>
-      </section>
+    <BentoGrid className="as-grid">
+      <h1 className="sr-only">{t.shell.pageTitles["akses-saya"]}</h1>
+      <BentoHero
+        className="as-hero"
+        currency={null}
+        value={assigned.length}
+        caption={eyebrowLabel}
+        controls={
+          roleLabel ? (
+            <StatusBadge variant="success">
+              {v2.rolePrefix}
+              {roleLabel}
+            </StatusBadge>
+          ) : undefined
+        }
+        kpis={
+          <>
+            <HeroKpi label={v2.kpiBalance} value={v2.permBalValue} />
+            <HeroKpi
+              label={v2.kpiReports}
+              value={
+                familyReportsUnlocked
+                  ? t.aksesSaya.familyReportsUnlocked
+                  : t.aksesSaya.familyReportsLocked
+              }
+            />
+            <HeroKpi label={v2.kpiRole} value={roleLabel ?? "—"} />
+          </>
+        }
+      />
 
-      <section className="auto-grid auto-grid--wide">
-        {permissions.map((item) => {
-          const Icon = item.icon;
-          return (
-            <article className="card" key={item.title}>
-              <div className="card__body stack">
-                <div className="row row--between">
+      <BentoCard className="as-acc" title={v2.accTitle} caption={v2.heroDesc}>
+        {assigned.length === 0 ? (
+          <div className="as-empty">
+            <b>{v2.accEmptyTitle}</b>
+            <p>{v2.accEmptyHint}</p>
+          </div>
+        ) : (
+          <MiniList label={v2.accTitle}>
+            {assigned.map((a) => (
+              <MiniRow
+                key={a.id}
+                icon={<Landmark size={16} aria-hidden="true" />}
+                title={a.name}
+              />
+            ))}
+          </MiniList>
+        )}
+        <p className="as-note">
+          <Info size={15} aria-hidden="true" />
+          <span>{v2.accNote}</span>
+        </p>
+      </BentoCard>
+
+      <BentoCard className="as-perm">
+        <div className="as-perm-grid">
+          {permissions.map((item) => {
+            const Icon = item.icon;
+            return (
+              <article className="as-perm-item" key={item.title}>
+                <div className="as-perm-top">
                   <IconChip icon={Icon} className={toneClass[item.tone]} />
                   <StatusBadge variant={item.tone}>{item.value}</StatusBadge>
                 </div>
-                <div>
-                  <h2 className="t-md">{item.title}</h2>
-                  <p className="t-sm text-muted-foreground">
-                    {item.description}
-                  </p>
-                </div>
-              </div>
-            </article>
-          );
-        })}
-      </section>
-
-      <section className="card">
-        <div className="card__header">
-          <div>
-            <h2>Aktivitas yang Diizinkan</h2>
-            <p className="text-muted-foreground">
-              Semua aksi di bawah ini tetap tercatat dan bisa ditinjau Master.
-            </p>
-          </div>
-          <StatusBadge variant="info">Read + Input terbatas</StatusBadge>
+                <h2>{item.title}</h2>
+                <p>{item.description}</p>
+              </article>
+            );
+          })}
         </div>
-        <div className="card__body">
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Aktivitas</th>
-                  <th>Status</th>
-                  <th>Catatan</th>
-                </tr>
-              </thead>
-              <tbody>
-                {/* Each row mirrors a real CASL grant in
-                    casl-ability.factory.ts for dependant/operational. */}
-                <tr>
-                  <td className="font-semibold">Mencatat transaksi</td>
-                  <td>
-                    <StatusBadge variant="success">Diizinkan</StatusBadge>
-                  </td>
-                  <td>
-                    {assigned.length > 0
-                      ? "Pada rekening yang ditugaskan."
-                      : "Menunggu rekening ditugaskan Master."}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="font-semibold">Mengajukan dana</td>
-                  <td>
-                    <StatusBadge variant="success">Diizinkan</StatusBadge>
-                  </td>
-                  <td>Perlu disetujui Master sebelum dana berpindah.</td>
-                </tr>
-                <tr>
-                  <td className="font-semibold">Melihat laporan keluarga</td>
-                  <td>
-                    {/* Controller-added batch 5 item — this row hardcoded
-                        "Dikunci" for every viewer regardless of role, the
-                        same self-contradiction the permission card above
-                        already had before batch 4 item 3. Derive from
-                        `familyReportsUnlocked` (same `useMyRole` rule) like
-                        that card does. */}
-                    <StatusBadge
-                      variant={familyReportsUnlocked ? "success" : "danger"}
-                    >
-                      {familyReportsUnlocked
-                        ? t.aksesSaya.familyReportsRowStatusUnlocked
-                        : t.aksesSaya.familyReportsLocked}
-                    </StatusBadge>
-                  </td>
-                  <td>
+      </BentoCard>
+
+      <BentoCard
+        className="as-act"
+        title={v2.actTitle}
+        caption={v2.actCaption}
+        action={<StatusBadge variant="info">{v2.actBadge}</StatusBadge>}
+      >
+        <div className="as-tbl-wrap">
+          <table className="as-tbl">
+            <thead>
+              <tr>
+                <th>{v2.colActivity}</th>
+                <th>{v2.colStatus}</th>
+                <th>{v2.colNote}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {/* Each row mirrors a real CASL grant in
+                  casl-ability.factory.ts for dependant/operational. */}
+              <tr>
+                <td>
+                  <b>{v2.actRecord}</b>
+                </td>
+                <td>
+                  <StatusBadge variant="success">{v2.actAllowed}</StatusBadge>
+                </td>
+                <td>
+                  {assigned.length > 0 ? v2.actRecordYes : v2.actRecordWait}
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <b>{v2.actFund}</b>
+                </td>
+                <td>
+                  <StatusBadge variant="success">{v2.actAllowed}</StatusBadge>
+                </td>
+                <td>{v2.actFundNote}</td>
+              </tr>
+              <tr>
+                <td>
+                  <b>{v2.actReports}</b>
+                </td>
+                <td>
+                  <StatusBadge
+                    variant={familyReportsUnlocked ? "success" : "danger"}
+                  >
                     {familyReportsUnlocked
-                      ? t.aksesSaya.familyReportsRowNoteUnlocked
-                      : t.aksesSaya.familyReportsRowNoteLocked}
-                  </td>
-                </tr>
-                <tr>
-                  <td className="font-semibold">Mengubah role anggota</td>
-                  <td>
-                    <StatusBadge variant="danger">Dikunci</StatusBadge>
-                  </td>
-                  <td>Hanya Master yang bisa mengubah IAM.</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+                      ? t.aksesSaya.familyReportsRowStatusUnlocked
+                      : t.aksesSaya.familyReportsLocked}
+                  </StatusBadge>
+                </td>
+                <td>
+                  {familyReportsUnlocked
+                    ? t.aksesSaya.familyReportsRowNoteUnlocked
+                    : t.aksesSaya.familyReportsRowNoteLocked}
+                </td>
+              </tr>
+              <tr>
+                <td>
+                  <b>{v2.actRole}</b>
+                </td>
+                <td>
+                  <StatusBadge variant="danger">{v2.actLocked}</StatusBadge>
+                </td>
+                <td>{v2.actRoleNote}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-      </section>
-
-      <div className="notice notice--info">
-        <ShieldCheck size={16} />
-        Kalau butuh akses tambahan, minta Master menugaskan rekening atau
-        mengubah role kamu dari halaman IAM Roles.
-      </div>
-    </div>
+      </BentoCard>
+    </BentoGrid>
   );
 }

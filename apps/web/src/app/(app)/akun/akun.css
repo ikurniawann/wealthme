@@ -1,0 +1,54 @@
+/* Akun (bento v2, docs/design/proto/akun.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .ak-grid > * {
+      grid-column: 1 / 13;
+    }
+  }
+  .ak-grid > * {
+    min-width: 0;
+  }
+  .ak-main {
+    display: grid;
+    gap: 16px;
+  }
+  .ak-hero-name {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 0;
+  }
+  .ak-avatar {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 56px;
+    height: 56px;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 18%, transparent);
+    font-size: 20px;
+  }
+  .ak-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: clamp(22px, 3vw, 32px);
+  }
+  .ak-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+  }
+  .ak-email {
+    overflow-wrap: anywhere;
+  }
+  .ak-role {
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 18%, transparent);
+    font-size: var(--wm-type-12);
+  }
+  .ak-since {
+    opacity: 0.75;
+  }
+}

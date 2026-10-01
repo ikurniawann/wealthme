@@ -42,16 +42,7 @@
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Ban,
-  Check,
-  CircleAlert,
-  CircleCheck,
-  Crown,
-  Hourglass,
-  TriangleAlert,
-  X,
-} from "lucide-react";
+import { Check, CircleAlert, TriangleAlert, X } from "lucide-react";
 
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
@@ -61,11 +52,19 @@ import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useMoney } from "@/hooks/use-money";
 import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
+  MiniList,
+  MiniRow,
+  Segmented,
   SectionCard,
   StatusBadge,
-  SummaryCard,
-  InfoTip,
+  TipsCard,
 } from "@/components/wm";
+import "./persetujuan.css";
 import {
   Dialog,
   DialogContent,
@@ -206,165 +205,196 @@ export default function PersetujuanPage() {
     0,
   );
 
+  const v2 = t.persetujuan.v2;
+  const decidedMax = Math.max(
+    approvedThisMonth.length,
+    rejectedThisMonth.length,
+    1,
+  );
+  const sidePending = pending.slice(0, 5);
+
   return (
-    <div className="space-y-3.5">
-      <div className="flex flex-wrap items-start justify-between gap-2.5">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-[17px] font-extrabold tracking-tight">
-              {t.shell.pageTitles.persetujuan}
-            </h1>
-            {pendingCount > 0 && (
-              <StatusBadge variant="danger">
-                {pendingCount}
-                {t.persetujuan.headerBadgeSuffix}
-              </StatusBadge>
-            )}
-          </div>
-          <InfoTip>
-            {t.persetujuan.pageDesc} {t.persetujuan.approverRuleNotice}
-          </InfoTip>
-        </div>
-        <StatusBadge variant="purple" className="gap-1.5">
-          <Crown className="size-[13px]" aria-hidden="true" />
-          {t.common.roleLabels.owner}
-          {session?.user?.name ? ` · ${session.user.name}` : ""}
-        </StatusBadge>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <SummaryCard
-          icon={<Hourglass className="size-[17px]" aria-hidden="true" />}
-          iconBg="var(--warning-soft)"
-          iconColor="var(--warning)"
-          label={t.persetujuan.statPendingLabel}
-          amount={pendingCount}
-          delta={`${t.persetujuan.statPendingTotalPrefix}${money.format(pendingTotal)}`}
-        />
-        <SummaryCard
-          icon={<CircleCheck className="size-[17px]" aria-hidden="true" />}
-          iconBg="var(--success-soft)"
-          iconColor="var(--success)"
-          label={t.persetujuan.statApprovedLabel}
-          amount={approvedThisMonth.length}
-          delta={`${money.format(approvedThisMonthTotal)}${t.persetujuan.statApprovedSuffix}`}
-          deltaUp
-        />
-        <SummaryCard
-          icon={<Ban className="size-[17px]" aria-hidden="true" />}
-          iconBg="hsl(var(--destructive) / 0.14)"
-          iconColor="var(--destructive)"
-          label={t.persetujuan.statRejectedLabel}
-          amount={rejectedThisMonth.length}
-          delta={`${money.format(rejectedThisMonthTotal)}${t.persetujuan.statRejectedSuffix}`}
-        />
-      </div>
-
-      <div
-        role="tablist"
-        aria-label={t.persetujuan.tabsAriaLabel}
-        className="flex flex-wrap items-center gap-1.5"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "pending"}
-          onClick={() => setTab("pending")}
-          className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
-            tab === "pending"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-accent"
-          }`}
-        >
-          {t.persetujuan.tabPending}
-          {pendingCount > 0 ? ` (${pendingCount})` : ""}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "riwayat"}
-          onClick={() => setTab("riwayat")}
-          className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
-            tab === "riwayat"
-              ? "border-primary bg-primary text-primary-foreground"
-              : "bg-card text-muted-foreground hover:bg-accent"
-          }`}
-        >
-          {t.persetujuan.tabRiwayat}
-        </button>
-      </div>
-
-      {tab === "pending" ? (
-        <AllowanceRequestsPanel familyGroupId={familyGroupId} token={token} />
-      ) : (
-        /* EPIC-026 Wave 6 — the prototype's "Riwayat Keputusan" decision
-           table (docs/prototype/pages/persetujuan.html §panel-riwayat).
-           "Unduh CSV" stays cut per EPIC-025 N3-J1. The "(Co-Master)" role
-           suffix on "Diputuskan oleh" is not on AllowanceRequestDto —
-           honest UI: name only. Header/title copy without an existing i18n
-           key uses the prototype's literal Indonesian text (per EPIC-026;
-           i18n dictionaries are protected). */
-        <SectionCard title="Riwayat Keputusan">
-          {riwayat.length === 0 ? (
-            <div className="py-6 text-center text-[12px] text-muted-foreground">
-              {t.persetujuan.riwayatEmpty}
-            </div>
+    <BentoGrid className="ps-grid">
+      <h1 className="sr-only">{t.shell.pageTitles.persetujuan}</h1>
+      <BentoHero
+        className="ps-hero"
+        currency={null}
+        value={money.format(pendingTotal)}
+        caption={v2.heroCap}
+        controls={
+          <span className="ps-chip">
+            {pendingCount} {v2.chip}
+          </span>
+        }
+        chart={
+          approvedThisMonth.length + rejectedThisMonth.length === 0 ? (
+            <p className="ps-empty">{v2.chartEmpty}</p>
           ) : (
-            <div className="w-full overflow-x-auto">
-              <table className="w-full min-w-[640px] border-collapse text-left text-[12.5px]">
-                <thead>
-                  <tr className="border-b text-[11px] text-muted-foreground">
-                    <th className="py-2 pr-3 font-semibold">Pemohon</th>
-                    <th className="py-2 pr-3 font-semibold">
-                      {t.persetujuan.fieldKeperluanLabel}
-                    </th>
-                    <th className="py-2 pr-3 font-semibold">Rekening</th>
-                    <th className="py-2 pr-3 font-semibold">Status</th>
-                    <th className="py-2 pr-3 font-semibold">
-                      {t.persetujuan.riwayatDecidedByLabel}
-                    </th>
-                    <th className="py-2 pr-3 font-semibold">Tanggal</th>
-                    <th className="py-2 text-right font-semibold">Jumlah</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {riwayat.map((r) => (
-                    <tr key={r.id} className="border-b last:border-b-0">
-                      <td className="py-2.5 pr-3 font-semibold">
-                        {r.requesterName}
-                      </td>
-                      <td className="py-2.5 pr-3">{keperluanOf(r)}</td>
-                      <td className="py-2.5 pr-3">{r.targetAccountName}</td>
-                      <td className="py-2.5 pr-3">
-                        <StatusBadge
-                          variant={
-                            r.status === "approved" ? "success" : "danger"
-                          }
-                          className="text-[10px]"
-                        >
-                          {r.status === "approved"
-                            ? t.persetujuan.riwayatStatusApproved
-                            : t.persetujuan.riwayatStatusRejected}
-                        </StatusBadge>
-                      </td>
-                      <td className="py-2.5 pr-3">{r.decidedByName ?? "—"}</td>
-                      <td className="py-2.5 pr-3 text-[12px] text-muted-foreground">
-                        {r.decidedAt
-                          ? formatDecidedDate(r.decidedAt, locale)
-                          : "—"}
-                      </td>
-                      <td className="mono py-2.5 text-right font-bold">
-                        {money.format(Number(r.amount))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="ps-bars" role="group" aria-label={v2.chartTitle}>
+              <div className="ps-bar">
+                <span>{t.persetujuan.riwayatStatusApproved}</span>
+                <i
+                  data-tone="good"
+                  style={{
+                    width: `${(approvedThisMonth.length / decidedMax) * 100}%`,
+                  }}
+                />
+                <b>{approvedThisMonth.length}</b>
+              </div>
+              <div className="ps-bar">
+                <span>{t.persetujuan.riwayatStatusRejected}</span>
+                <i
+                  data-tone="bad"
+                  style={{
+                    width: `${(rejectedThisMonth.length / decidedMax) * 100}%`,
+                  }}
+                />
+                <b>{rejectedThisMonth.length}</b>
+              </div>
             </div>
-          )}
-        </SectionCard>
-      )}
-    </div>
+          )
+        }
+        kpis={
+          <>
+            <HeroKpi label={v2.kpiPending} value={String(pendingCount)} />
+            <HeroKpi
+              label={v2.kpiApproved}
+              value={String(approvedThisMonth.length)}
+              short={money.format(approvedThisMonthTotal)}
+            />
+            <HeroKpi
+              label={v2.kpiRejected}
+              value={String(rejectedThisMonth.length)}
+              short={money.format(rejectedThisMonthTotal)}
+            />
+          </>
+        }
+      />
+
+      <BentoCard
+        className="ps-side"
+        title={v2.sideTitle}
+        caption={
+          pendingCount > 0
+            ? `${v2.sideCaption}: ${money.format(pendingTotal / pendingCount)}`
+            : undefined
+        }
+      >
+        {sidePending.length === 0 ? (
+          <p className="ps-empty">{v2.sideEmpty}</p>
+        ) : (
+          <MiniList label={v2.sideTitle}>
+            {sidePending.map((r) => (
+              <MiniRow
+                key={r.id}
+                icon={initialsOf(r.requesterName)}
+                title={r.requesterName}
+                meta={keperluanOf(r)}
+                amount={money.format(Number(r.amount))}
+              />
+            ))}
+          </MiniList>
+        )}
+        <GhostButton onClick={() => setTab("riwayat")}>
+          {v2.seeHistory}
+        </GhostButton>
+      </BentoCard>
+
+      <BentoCard
+        className="ps-main"
+        title={tab === "pending" ? v2.mainTitle : v2.riwayatTitle}
+        action={
+          <Segmented
+            label={t.persetujuan.tabsAriaLabel}
+            value={tab}
+            onChange={setTab}
+            options={[
+              {
+                value: "pending",
+                label: `${t.persetujuan.tabPending}${pendingCount > 0 ? ` (${pendingCount})` : ""}`,
+              },
+              { value: "riwayat", label: t.persetujuan.tabRiwayat },
+            ]}
+          />
+        }
+      >
+        {tab === "pending" ? (
+          <AllowanceRequestsPanel familyGroupId={familyGroupId} token={token} />
+        ) : riwayat.length === 0 ? (
+          <p className="ps-empty">{t.persetujuan.riwayatEmpty}</p>
+        ) : (
+          <div className="ps-tbl-wrap">
+            <table className="ps-tbl">
+              <thead>
+                <tr>
+                  <th>{v2.colRequester}</th>
+                  <th>{t.persetujuan.fieldKeperluanLabel}</th>
+                  <th>{v2.colAccount}</th>
+                  <th>{v2.colStatus}</th>
+                  <th>{t.persetujuan.riwayatDecidedByLabel}</th>
+                  <th>{v2.colDate}</th>
+                  <th className="ps-num">{v2.colAmount}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {riwayat.map((r) => (
+                  <tr key={r.id}>
+                    <td>
+                      <b>{r.requesterName}</b>
+                    </td>
+                    <td>{keperluanOf(r)}</td>
+                    <td>{r.targetAccountName}</td>
+                    <td>
+                      <StatusBadge
+                        variant={r.status === "approved" ? "success" : "danger"}
+                      >
+                        {r.status === "approved"
+                          ? t.persetujuan.riwayatStatusApproved
+                          : t.persetujuan.riwayatStatusRejected}
+                      </StatusBadge>
+                    </td>
+                    <td>{r.decidedByName ?? "—"}</td>
+                    <td>
+                      {r.decidedAt
+                        ? formatDecidedDate(r.decidedAt, locale)
+                        : "—"}
+                    </td>
+                    <td className="ps-num">{money.format(Number(r.amount))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </BentoCard>
+
+      <TipsCard
+        className="ps-tips"
+        title={v2.tipsTitle}
+        mosaic={[
+          "a",
+          "b",
+          "",
+          "c",
+          "",
+          "a",
+          "",
+          "b",
+          "o",
+          "",
+          "a",
+          "",
+          "c",
+          "",
+          "b",
+          "",
+          "a",
+          "",
+        ]}
+      >
+        {v2.tipsBody}
+      </TipsCard>
+    </BentoGrid>
   );
 }
 

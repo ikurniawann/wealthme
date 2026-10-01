@@ -1,0 +1,98 @@
+/* Akses Saya (bento v2, docs/design/proto/akses-saya.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .as-grid > .as-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .as-grid > .as-acc {
+      grid-column: 9 / 13;
+      grid-row: 1 / 3;
+    }
+    .as-grid > .as-perm {
+      grid-column: 1 / 9;
+      grid-row: 2;
+    }
+    .as-grid > .as-act {
+      grid-column: 1 / 13;
+      grid-row: 3;
+    }
+  }
+  .as-grid > * {
+    min-width: 0;
+  }
+  .as-empty {
+    padding: 14px 0;
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+  .as-empty b {
+    display: block;
+    color: var(--wm-ink);
+  }
+  .as-note {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: var(--wm-card-2);
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+  .as-note > svg {
+    flex: none;
+    margin-top: 1px;
+  }
+  .as-perm-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+  .as-perm-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+    border-radius: 16px;
+    background: var(--wm-card-2);
+  }
+  .as-perm-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .as-perm-item h2 {
+    font-size: var(--wm-type-14);
+    font-weight: 700;
+  }
+  .as-perm-item p {
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+  .as-tbl-wrap {
+    overflow-x: auto;
+  }
+  .as-tbl {
+    width: 100%;
+    min-width: 520px;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: var(--wm-type-12);
+  }
+  .as-tbl th {
+    padding: 8px 12px 8px 0;
+    font-size: var(--wm-type-11);
+    font-weight: 600;
+    color: var(--wm-muted);
+    border-bottom: 1px solid var(--wm-line);
+  }
+  .as-tbl td {
+    padding: 10px 12px 10px 0;
+    border-bottom: 1px solid var(--wm-line);
+  }
+  .as-tbl tr:last-child td {
+    border-bottom: 0;
+  }
+}

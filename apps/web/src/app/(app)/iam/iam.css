@@ -1,0 +1,57 @@
+/* IAM (bento v2, docs/design/proto/iam.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .iam-grid > .iam-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .iam-grid > .iam-steps {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .iam-grid > .iam-main {
+      grid-column: 1 / 13;
+      grid-row: 2;
+    }
+  }
+  .iam-grid > * {
+    min-width: 0;
+  }
+  .iam-main {
+    display: grid;
+    gap: 16px;
+  }
+  .iam-tabbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .iam-note {
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+  .iam-step-list {
+    display: grid;
+    gap: 14px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .iam-step {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .iam-step b {
+    display: block;
+    font-size: var(--wm-type-13);
+    color: var(--wm-ink);
+  }
+  .iam-step p {
+    margin-top: 2px;
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+}

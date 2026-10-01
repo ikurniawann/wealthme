@@ -311,3 +311,128 @@
     }
   }
 }
+
+/* Report bodies (proto `.rbody`): tables, stat tiles, bar rows. Unlayered so they
+   win over the Tailwind utilities still present on legacy section markup. */
+.lp-main #laporan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.lp-main #laporan-panel > * {
+  margin: 0 !important;
+}
+.lp-main #laporan-panel .card__body {
+  overflow-x: auto;
+}
+.lp-main #laporan-panel table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.lp-main #laporan-panel th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--wm-muted);
+  font-size: 12px;
+  padding: 10px;
+  border-bottom: 1px solid var(--wm-line);
+  white-space: nowrap;
+}
+.lp-main #laporan-panel th.text-right {
+  text-align: right;
+}
+.lp-main #laporan-panel td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--wm-line);
+  vertical-align: middle;
+}
+.lp-main #laporan-panel td.text-right,
+.lp-main #laporan-panel td.mono {
+  font-variant-numeric: tabular-nums;
+}
+.lp-main #laporan-panel tbody tr:hover {
+  background: var(--wm-card-2);
+}
+.lp-main #laporan-panel tfoot td {
+  font-weight: 700;
+  border-bottom: 0;
+  border-top: 1.5px solid var(--wm-ink);
+  padding-top: 14px;
+}
+.lp-main #laporan-panel .mono {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.lp-stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--wm-card-2);
+}
+.lp-stat-ic {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 12px;
+}
+.lp-stat-l {
+  font-size: 12px;
+  color: var(--wm-muted);
+}
+.lp-stat-v {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.lp-stat-d {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--wm-muted);
+}
+.lp-bar {
+  display: grid;
+  grid-template-columns: minmax(90px, 160px) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 7px 0;
+  font-size: 13px;
+}
+.lp-bar-l {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+.lp-bar-r {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lp-act {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--wm-line);
+}
+.lp-act[data-last] {
+  border-bottom: 0;
+}
+@media (max-width: 720px) {
+  .lp-bar {
+    grid-template-columns: minmax(70px, 110px) minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+}

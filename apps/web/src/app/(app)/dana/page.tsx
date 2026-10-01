@@ -1,7 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, HandCoins } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Plus,
+  HandCoins,
+  Palette,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,8 +20,12 @@ import { useCanManage } from "@/hooks/use-role-permissions";
 import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import type { Locale } from "@/i18n";
 import {
+  AccountCard,
+  CardSkinPanel,
   SectionCard,
   CardLink,
+  useCardLooks,
+  type CardLook,
   BentoCard,
   BentoGrid,
   BentoHero,
@@ -22,6 +33,7 @@ import {
   GhostButton,
   HeroKpi,
   TipsCard,
+  ARow,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import "./dana.css";
@@ -158,60 +170,71 @@ function buildWalletMeta(
   return parts.join(" · ");
 }
 
-function WalletRow({
+function WalletTile({
   item,
-  border,
+  look,
   onEdit,
   onDelete,
   onRequest,
+  onCustomize,
 }: {
   item: AccountDto;
-  border: boolean;
+  look: CardLook;
   onEdit?: () => void;
   onDelete?: () => void;
   /** EPIC-033 R5 — members ask for money FROM this family-shared wallet. */
   onRequest?: () => void;
+  onCustomize: () => void;
 }) {
   const { t, locale } = useLocale();
   const money = useMoney();
-  const isEwallet = EWALLET_TYPES.has(item.type);
-  const icon = isEwallet ? "💳" : "👛";
-  const iconBg = resolveWalletBg(item);
+  const negative = parseFloat(item.balance) < 0;
 
   return (
-    <div className={`flex items-center gap-3 py-3 ${border ? "border-b" : ""}`}>
-      <div
-        className="flex size-10 items-center justify-center rounded-[10px] text-[18px] text-white"
-        style={{ background: iconBg }}
-      >
-        {icon}
+    <article className="dn-wallet">
+      <AccountCard
+        decorative
+        look={look}
+        bank={item.institution ?? item.name}
+        name={item.name}
+        number={safeMaskedNumber(item.maskedNumber)}
+        holder={item.ownerName ?? (item.ownerUserId ? "" : SHARED_LABEL)}
+        balance={money.format(parseFloat(item.balance))}
+      />
+      <div className="dn-wallet-meta">
+        <span className="sr-only">
+          <span>{item.name}</span>
+          <span data-negative={negative || undefined}>
+            {money.format(parseFloat(item.balance))}
+          </span>
+        </span>
+        {buildWalletMeta(item, t, locale)}
       </div>
-      <div className="flex-1">
-        <div className="text-[13.5px] font-semibold">{item.name}</div>
-        <div className="text-[11.5px] text-muted-foreground">
-          {buildWalletMeta(item, t, locale)}
-        </div>
-      </div>
-      <div className="text-right">
-        <div
-          className={`text-[15px] font-extrabold ${parseFloat(item.balance) < 0 ? "text-destructive" : ""}`}
-        >
-          {money.format(parseFloat(item.balance))}
-        </div>
-      </div>
-      {onRequest && (
+      <div className="dn-wallet-acts">
+        {onRequest && (
+          <button
+            type="button"
+            className="dn-wallet-btn"
+            data-lit="true"
+            onClick={onRequest}
+          >
+            <HandCoins aria-hidden="true" /> {t.rekening.mintaDanaButtonLabel}
+          </button>
+        )}
         <button
           type="button"
-          className="btn btn--outline btn--sm ml-2"
-          onClick={onRequest}
+          className="dn-wallet-icon"
+          aria-label={t.rekening.v2.customize}
+          title={t.rekening.v2.customize}
+          onClick={onCustomize}
         >
-          <HandCoins className="size-3.5" /> {t.rekening.mintaDanaButtonLabel}
+          <Palette aria-hidden="true" />
         </button>
-      )}
-      {onEdit && onDelete && (
-        <RowActions className="ml-2" onEdit={onEdit} onDelete={onDelete} />
-      )}
-    </div>
+        {onEdit && onDelete && (
+          <RowActions className="ml-auto" onEdit={onEdit} onDelete={onDelete} />
+        )}
+      </div>
+    </article>
   );
 }
 
@@ -251,25 +274,19 @@ function MutationRow({
       ? tx.accountName
       : (tx.toAccountName ?? tx.accountName);
 
+  const Icon = isTransfer
+    ? ArrowLeftRight
+    : isIncome
+      ? ArrowDownLeft
+      : ArrowUpRight;
+
   return (
-    <tr className="border-b last:border-b-0">
-      <td className="px-3 py-2.5 align-top font-[family-name:var(--font-mono)] text-[11.5px] whitespace-nowrap">
-        {formatShortDate(tx.occurredAt, locale)}
-      </td>
-      <td className="px-3 py-2.5 align-top text-[13px]">
-        {tx.description ?? tx.categoryName ?? "—"}
-      </td>
-      <td className="px-3 py-2.5 align-top">
-        <span className="inline-flex items-center rounded-full bg-secondary px-2.5 py-[3px] text-[11px] font-semibold text-secondary-foreground">
-          {accountLabel ?? "—"}
-        </span>
-      </td>
-      <td
-        className={`px-3 py-2.5 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-semibold whitespace-nowrap ${amountClass}`}
-      >
-        {amountStr}
-      </td>
-    </tr>
+    <ARow
+      badge={<Icon className="size-4" aria-hidden="true" />}
+      title={tx.description ?? tx.categoryName ?? "—"}
+      meta={`${formatShortDate(tx.occurredAt, locale)} · ${accountLabel ?? "—"}`}
+      amount={<span className={amountClass}>{amountStr}</span>}
+    />
   );
 }
 
@@ -381,6 +398,8 @@ export default function DanaPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<AccountDto | null>(null);
   const [requesting, setRequesting] = useState<AccountDto | null>(null);
+  const [customizing, setCustomizing] = useState<AccountDto | null>(null);
+  const { lookFor, setLook } = useCardLooks();
 
   // EPIC-033 R3 — "Pemilik" picker for cash/e-wallet, same shape as the
   // bank form on /rekening (family-shared = "").
@@ -682,8 +701,6 @@ export default function DanaPage() {
         {t.dana.infoNoticeSuffix}
       </TipsCard>
 
-      {/* EPIC-021 #3 — Kas Tunai is now a real, plural account list (Add/Edit/
-          Delete), not a single read-only "Kas Tunai" row. */}
       <SectionCard
         className="dn-cash"
         title={t.dana.cashSectionTitle}
@@ -695,7 +712,6 @@ export default function DanaPage() {
             {t.dana.addButton}
           </CardLink>
         }
-        bodyClassName="-my-3"
       >
         {isLoading && (
           <div className="py-3 text-[13px] text-muted-foreground">
@@ -707,20 +723,23 @@ export default function DanaPage() {
             {t.dana.emptyCash}
           </div>
         )}
-        {cashItems.map((item, i) => (
-          <WalletRow
-            key={item.id}
-            item={item}
-            border={i < cashItems.length - 1}
-            onEdit={canManage ? () => openEdit("cash", item) : undefined}
-            onDelete={canManage ? () => setDeleting(item) : undefined}
-            onRequest={
-              !isMasterLike && item.ownerUserId === null
-                ? () => setRequesting(item)
-                : undefined
-            }
-          />
-        ))}
+        <div className="dn-wallets">
+          {cashItems.map((item) => (
+            <WalletTile
+              key={item.id}
+              item={item}
+              look={lookFor(item.id, item.type)}
+              onEdit={canManage ? () => openEdit("cash", item) : undefined}
+              onDelete={canManage ? () => setDeleting(item) : undefined}
+              onRequest={
+                !isMasterLike && item.ownerUserId === null
+                  ? () => setRequesting(item)
+                  : undefined
+              }
+              onCustomize={() => setCustomizing(item)}
+            />
+          ))}
+        </div>
       </SectionCard>
 
       <SectionCard
@@ -734,7 +753,6 @@ export default function DanaPage() {
             {t.dana.addButton}
           </CardLink>
         }
-        bodyClassName="-my-3"
       >
         {isLoading && (
           <div className="py-3 text-[13px] text-muted-foreground">
@@ -746,20 +764,23 @@ export default function DanaPage() {
             {t.dana.emptyEwallet}
           </div>
         )}
-        {ewalletItems.map((item, i) => (
-          <WalletRow
-            key={item.id}
-            item={item}
-            border={i < ewalletItems.length - 1}
-            onEdit={canManage ? () => openEdit("ewallet", item) : undefined}
-            onDelete={canManage ? () => setDeleting(item) : undefined}
-            onRequest={
-              !isMasterLike && item.ownerUserId === null
-                ? () => setRequesting(item)
-                : undefined
-            }
-          />
-        ))}
+        <div className="dn-wallets">
+          {ewalletItems.map((item) => (
+            <WalletTile
+              key={item.id}
+              item={item}
+              look={lookFor(item.id, item.type)}
+              onEdit={canManage ? () => openEdit("ewallet", item) : undefined}
+              onDelete={canManage ? () => setDeleting(item) : undefined}
+              onRequest={
+                !isMasterLike && item.ownerUserId === null
+                  ? () => setRequesting(item)
+                  : undefined
+              }
+              onCustomize={() => setCustomizing(item)}
+            />
+          ))}
+        </div>
       </SectionCard>
 
       {/* Prototype structural port — "Mutasi Tunai & E-Wallet Terakhir".
@@ -778,35 +799,15 @@ export default function DanaPage() {
             </a>
           }
         >
-          <div className="w-full overflow-x-auto">
-            <table className="w-full min-w-[520px] border-collapse text-left">
-              <thead>
-                <tr className="border-b text-[10.5px] font-bold tracking-wide text-muted-foreground uppercase">
-                  <th className="px-3 py-2 font-bold">
-                    {t.dana.tableDateHeader}
-                  </th>
-                  <th className="px-3 py-2 font-bold">
-                    {t.dana.tableDescriptionHeader}
-                  </th>
-                  <th className="px-3 py-2 font-bold">
-                    {t.dana.tableAccountHeader}
-                  </th>
-                  <th className="px-3 py-2 text-right font-bold">
-                    {t.dana.tableAmountHeader}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentDanaTransactions.map((tx) => (
-                  <MutationRow
-                    key={tx.id}
-                    tx={tx}
-                    danaAccountIds={danaAccountIds}
-                    locale={locale}
-                  />
-                ))}
-              </tbody>
-            </table>
+          <div className="dn-mut-list">
+            {recentDanaTransactions.map((tx) => (
+              <MutationRow
+                key={tx.id}
+                tx={tx}
+                danaAccountIds={danaAccountIds}
+                locale={locale}
+              />
+            ))}
           </div>
         </SectionCard>
       )}
@@ -818,6 +819,23 @@ export default function DanaPage() {
         dynamicOptions={{ ownerUserId: ownerOptions }}
       />
 
+      <CardSkinPanel
+        preview={
+          customizing
+            ? {
+                name: customizing.name,
+                bank: customizing.institution ?? customizing.name,
+                number: safeMaskedNumber(customizing.maskedNumber),
+                holder: customizing.ownerName ?? SHARED_LABEL,
+                balance: money.format(parseFloat(customizing.balance)),
+              }
+            : null
+        }
+        look={customizing ? lookFor(customizing.id, customizing.type) : null}
+        onChange={(look) => customizing && setLook(customizing.id, look)}
+        onReset={() => customizing && setLook(customizing.id, null)}
+        onClose={() => setCustomizing(null)}
+      />
       <MintaDanaDialog
         source={requesting}
         targets={myAccounts}

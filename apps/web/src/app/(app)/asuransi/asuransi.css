@@ -1,0 +1,160 @@
+/* Asuransi (bento v2, docs/design/proto/asuransi.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .as-grid > .as-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .as-grid > .as-side {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .as-grid > .as-list {
+      grid-column: 1 / 9;
+      grid-row: 2;
+    }
+    .as-grid > .as-tips {
+      grid-column: 9 / 13;
+      grid-row: 2;
+    }
+    .as-grid > .as-benef {
+      grid-column: 1 / 13;
+      grid-row: 3;
+    }
+  }
+  .as-grid > * {
+    min-width: 0;
+  }
+  .as-plot {
+    position: relative;
+    min-height: 200px;
+  }
+  .as-empty,
+  .as-error {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+  }
+  .as-error {
+    color: var(--wm-bad);
+  }
+  .as-renew {
+    display: block;
+    font-size: var(--wm-type-13);
+    line-height: 1.35;
+    white-space: normal;
+  }
+  .as-tilewrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .as-status {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+  }
+  .as-period {
+    margin-left: 2px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-11);
+    font-weight: 500;
+  }
+  .as-facts {
+    display: grid;
+    gap: 8px;
+    margin: 10px 0 0;
+  }
+  .as-facts > div {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: var(--wm-type-12);
+  }
+  .as-facts dt {
+    color: var(--wm-muted);
+  }
+  .as-facts dd {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .as-ben {
+    display: block;
+    margin-top: 8px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-11);
+  }
+  .as-foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .as-foot button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--wm-line, rgb(0 0 0 / 0.1));
+    background: none;
+    color: inherit;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .as-foot .as-pay {
+    background: var(--wm-lime);
+    color: #0b1a0b;
+    border-color: transparent;
+  }
+  .as-foot button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .as-foot .as-del {
+    color: var(--wm-bad);
+    margin-left: auto;
+  }
+  .as-allocated {
+    margin-bottom: 8px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+  }
+  .as-benlist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .as-benrow {
+    position: relative;
+  }
+  .as-benrm {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--wm-bad);
+    cursor: pointer;
+  }
+  .as-benrm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .as-benrow > :first-child {
+    padding-right: 36px;
+  }
+}

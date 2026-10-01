@@ -3221,4 +3221,60 @@
       background: #fff;
     }
   }
+
+  /* customize panel */
+  .wm-skin-preview {
+    width: 100%;
+  }
+  .wm-skin-swatches {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .wm-skin-swatch {
+    aspect-ratio: 1;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  }
+  .wm-skin-swatch[aria-checked="true"] {
+    border-color: var(--wm-ink);
+    box-shadow:
+      0 0 0 3px var(--wm-card),
+      0 0 0 5px var(--wm-lime);
+  }
+  .wm-skin-patterns {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .wm-skin-patterns button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    border: 2px solid var(--wm-line);
+    border-radius: 14px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font-size: var(--wm-type-12);
+    cursor: pointer;
+  }
+  .wm-skin-patterns button[aria-checked="true"] {
+    border-color: var(--wm-lime);
+    background: var(--wm-lime-soft);
+  }
+  .wm-skin-dot.wm-plate {
+    width: 100%;
+    padding: 0;
+    border-radius: 9px;
+    box-shadow: none;
+  }
+  @media (max-width: 720px) {
+    .wm-skin-swatches {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
 }

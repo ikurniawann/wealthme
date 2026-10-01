@@ -1,0 +1,157 @@
+/* Tujuan (bento v2, docs/design/proto/tujuan.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .tj-grid > .tj-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .tj-grid > .tj-side {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .tj-grid > .tj-tiles {
+      grid-column: 1 / 9;
+      grid-row: 2 / 4;
+    }
+    .tj-grid > .tj-tips {
+      grid-column: 9 / 13;
+      grid-row: 2 / 4;
+    }
+  }
+  .tj-tips {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tj-tips .wm-mosaic {
+    grid-template-columns: repeat(9, 1fr);
+    width: 100%;
+    max-width: 260px;
+    margin-top: auto;
+    justify-self: stretch;
+  }
+  .tj-tips .wm-mosaic i {
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+  }
+  .tj-att {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-bottom: 8px;
+  }
+  .tj-state {
+    margin-top: 12px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+  }
+  .tj-state-bad {
+    color: var(--wm-bad);
+  }
+  .tj-skeleton {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .tj-tile .tj-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tj-tile .tj-status {
+    margin-left: auto;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12, 12px);
+  }
+  .tj-tile[data-tone="orange"] .tj-pv {
+    color: var(--wm-orange);
+  }
+  .tj-tile[data-tone="bad"] .tj-pv {
+    color: var(--wm-bad);
+  }
+  .tj-tile .tj-foot {
+    margin-top: -4px;
+  }
+  .tj-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--wm-card);
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12, 12px);
+  }
+  .tj-notice[data-tone="orange"] {
+    color: var(--wm-orange);
+  }
+  .tj-notice[data-tone="bad"] {
+    color: var(--wm-bad);
+  }
+  .tj-notice svg {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin-top: 1px;
+  }
+  .tj-notice strong {
+    color: var(--wm-ink);
+    font-weight: 600;
+  }
+  .tj-acts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .tj-acts button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font: inherit;
+    font-size: var(--wm-type-12, 12px);
+    cursor: pointer;
+  }
+  .tj-acts button[data-primary="true"] {
+    background: var(--wm-lime);
+    color: var(--wm-on-lime, #11150a);
+  }
+  .tj-acts button[data-danger="true"] {
+    color: var(--wm-bad);
+  }
+  .tj-acts svg {
+    width: 13px;
+    height: 13px;
+  }
+  .tj-history-toggle {
+    align-self: flex-start;
+    border: 0;
+    background: transparent;
+    color: var(--wm-muted);
+    font: inherit;
+    font-size: var(--wm-type-12, 12px);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .tj-history {
+    border-top: 1px solid var(--wm-ghost);
+    padding-top: 8px;
+  }
+  @media (max-width: 720px) {
+    .tj-tips .wm-mosaic {
+      display: none;
+    }
+    .tj-skeleton {
+      grid-template-columns: 1fr;
+    }
+  }
+}

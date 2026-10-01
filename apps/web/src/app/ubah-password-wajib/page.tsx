@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, LogOut, ShieldAlert } from "lucide-react";
+import { Lock, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { useSession, signOut } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
-import { SectionCard } from "@/components/wm";
+import { AuthShell } from "@/components/auth/auth-shell";
+import { AuthField } from "@/components/auth/auth-fields";
 
 /** Same shape `apiFetch` throws (`{ status, message }`) — surfaces the
  *  server's real reason instead of one generic failure string. Mirrors the
@@ -39,11 +40,6 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 // account with 403 `{ code: "PASSWORD_CHANGE_REQUIRED" }` until this
 // succeeds; this page is reachable specifically because
 // `POST /auth/set-password` is allowlisted there.
-
-const INPUT_CLASS =
-  "w-full rounded-[9px] border bg-background px-3 py-[9px] text-[13.5px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-primary focus-visible:bg-card focus-visible:ring-[3px] focus-visible:ring-primary/20";
-const LABEL_CLASS = "mb-[5px] block text-[12.5px] font-semibold";
-const HINT_CLASS = "mt-[5px] text-[11.5px] text-muted-foreground";
 
 export default function UbahPasswordWajibPage() {
   const { t } = useLocale();
@@ -111,34 +107,17 @@ export default function UbahPasswordWajibPage() {
     submit();
   }
 
+  const fp = t.forcePasswordChange;
   return (
-    <div className="grid min-h-screen place-items-center bg-background px-4 py-6">
-      <div className="w-full max-w-[420px]">
-        <div className="mb-[18px] flex items-center justify-center gap-2.5">
-          <div className="grid size-[34px] place-items-center rounded-[9px] bg-warning text-white">
-            <ShieldAlert className="size-[18px]" />
-          </div>
-          <div className="text-[18px] font-extrabold tracking-tight">
-            WealthMe
-          </div>
-        </div>
+    <AuthShell>
+      <div className="au-panel">
+        <h1 className="au-title">{fp.title}</h1>
+        <p className="au-sub">{fp.subtitle}</p>
 
-        <SectionCard>
-          <h1 className="text-center text-[16px] font-extrabold">
-            {t.forcePasswordChange.title}
-          </h1>
-          <p className="mt-1.5 text-center text-[11.5px] text-muted-foreground">
-            {t.forcePasswordChange.subtitle}
-          </p>
-
+        <div className="au-form">
           {session?.user.name && (
-            <div className="mt-4 flex items-center gap-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-[12px] font-extrabold text-accent-foreground">
-                {session.user.name.charAt(0).toUpperCase()}
-              </span>
-              <div className="min-w-0 flex-1 text-[12.5px] font-bold">
-                {session.user.name}
-              </div>
+            <div className="au-ident">
+              <strong>{session.user.name}</strong>
             </div>
           )}
 
@@ -146,89 +125,64 @@ export default function UbahPasswordWajibPage() {
               gate (see the file-level comment above), NOT the prototype's
               "kepala keluarga bisa reset password anggota" promise, which
               has zero backend support today. */}
-          <div className="mt-3.5 flex items-start gap-2.5 rounded-[11px] border border-warning/35 bg-warning-soft p-3 text-[12.5px] text-warning">
-            <Lock className="mt-0.5 size-4 shrink-0" />
+          <div className="au-warn">
+            <Lock size={16} aria-hidden="true" style={{ flex: "none" }} />
             <span>
               <strong>Langkah ini tidak bisa dilewati.</strong> Semua halaman
               lain menolak akun ini sampai password diganti.
             </span>
           </div>
 
-          <form onSubmit={handleSubmit} className="mt-4">
-            <div>
-              <label htmlFor="currentPassword" className={LABEL_CLASS}>
-                {t.forcePasswordChange.currentPasswordLabel}
-              </label>
-              <input
-                id="currentPassword"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className={INPUT_CLASS}
-                required
-              />
-              <div className={HINT_CLASS}>
-                Password sementara yang diberikan kepala keluarga saat akun ini
-                dibuat.
-              </div>
-            </div>
-
-            <div className="mt-3">
-              <label htmlFor="newPassword" className={LABEL_CLASS}>
-                {t.forcePasswordChange.newPasswordLabel}
-              </label>
-              <input
-                id="newPassword"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className={INPUT_CLASS}
-                minLength={8}
-                required
-              />
-            </div>
-
-            <div className="mt-3">
-              <label htmlFor="confirmPassword" className={LABEL_CLASS}>
-                {t.forcePasswordChange.confirmPasswordLabel}
-              </label>
-              <input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className={INPUT_CLASS}
-                minLength={8}
-                required
-              />
-              <div className={HINT_CLASS}>
-                Minimal 8 karakter. Kepala keluarga tidak bisa melihat password
-                barumu.
-              </div>
-            </div>
-
+          <form onSubmit={handleSubmit} className="au-form">
+            <AuthField
+              id="currentPassword"
+              label={fp.currentPasswordLabel}
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              hint="Password sementara yang diberikan kepala keluarga saat akun ini dibuat."
+              required
+            />
+            <AuthField
+              id="newPassword"
+              label={fp.newPasswordLabel}
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              minLength={8}
+              required
+            />
+            <AuthField
+              id="confirmPassword"
+              label={fp.confirmPasswordLabel}
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              hint="Minimal 8 karakter. Kepala keluarga tidak bisa melihat password barumu."
+              minLength={8}
+              required
+            />
             <button
               type="submit"
               disabled={isPending || !token}
-              className="mt-4 flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] bg-primary px-3.5 text-[13px] font-semibold text-primary-foreground transition-colors hover:bg-primary-strong disabled:cursor-not-allowed disabled:opacity-50"
+              className="au-btn"
+              data-variant="primary"
             >
-              {isPending
-                ? t.forcePasswordChange.submitting
-                : t.forcePasswordChange.submitButton}
+              {isPending ? fp.submitting : fp.submitButton}
             </button>
           </form>
 
           <button
+            type="button"
+            className="au-btn"
             onClick={() => {
               void signOut({ callbackUrl: "/login" });
             }}
-            className="mt-2.5 flex h-9 w-full items-center justify-center gap-[7px] rounded-[9px] border bg-card px-3.5 text-[13px] font-semibold text-foreground transition-colors hover:bg-secondary"
           >
-            <LogOut className="size-[15px]" />{" "}
-            {t.forcePasswordChange.logoutButton}
+            <LogOut size={15} aria-hidden="true" /> {fp.logoutButton}
           </button>
-        </SectionCard>
+        </div>
       </div>
-    </div>
+    </AuthShell>
   );
 }

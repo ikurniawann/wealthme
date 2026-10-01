@@ -37,7 +37,7 @@ jest.mock("../../../hooks/use-ai-conversations", () => ({
   useAiConversations: (...args: unknown[]) => mockUseAiConversations(...args),
 }));
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { id as idDict } from "../../../i18n/id";
@@ -135,13 +135,12 @@ async function sendFirstMessage(
   user: ReturnType<typeof userEvent.setup>,
   text: string,
 ) {
-  await user.click(screen.getByText(idDict.ai.chatCard.placeholder));
   await user.type(
-    screen.getByPlaceholderText(idDict.ai.chatCard.placeholder),
+    screen.getByPlaceholderText(idDict.ai.inputPlaceholder),
     text,
   );
   await user.click(
-    screen.getByRole("button", { name: idDict.ai.chatCard.sendAriaLabel }),
+    screen.getByRole("button", { name: idDict.ai.sendAriaLabel }),
   );
 }
 
@@ -274,7 +273,10 @@ describe("AiPage — markdown rendering of assistant answers", () => {
     });
     expect(heading.tagName).toBe("H3");
     expect(screen.getByText("Sangat sehat.").tagName).toBe("STRONG");
-    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    const bubble = screen
+      .getByText("Sangat sehat.")
+      .closest(".bub") as HTMLElement;
+    expect(within(bubble).getAllByRole("listitem")).toHaveLength(2);
 
     // The literal markers must be gone from the rendered text, not merely
     // styled over.

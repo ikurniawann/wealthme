@@ -1,0 +1,37 @@
+/* Warisan (bento v2, docs/design/proto/warisan.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .wr-grid > .wr-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .wr-grid > .wr-ben {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .wr-grid > .wr-list {
+      grid-column: 1 / 9;
+      grid-row: 2;
+    }
+    .wr-grid > .wr-tips {
+      grid-column: 9 / 13;
+      grid-row: 2;
+    }
+  }
+  .wr-grid > * {
+    min-width: 0;
+  }
+  .wr-plot {
+    position: relative;
+    min-height: 200px;
+  }
+  .wr-empty {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+  }
+  .wr-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+}

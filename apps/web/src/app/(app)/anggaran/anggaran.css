@@ -1,0 +1,91 @@
+/* Anggaran (bento v2, docs/design/proto/anggaran.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .ag-grid > .ag-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .ag-grid > .ag-ob {
+      grid-column: 9 / 13;
+      grid-row: 1 / 3;
+    }
+    .ag-grid > .ag-cats {
+      grid-column: 1 / 9;
+      grid-row: 2 / 4;
+    }
+    .ag-grid > .ag-alert {
+      grid-column: 9 / 13;
+      grid-row: 3;
+    }
+  }
+  .ag-month {
+    border: 0;
+    background: var(--wm-card-2);
+    pointer-events: none;
+  }
+  .ag-tile .ag-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ag-tile .ag-acts {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+  }
+  .ag-tile .ag-acts button {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--wm-muted);
+    cursor: pointer;
+  }
+  .ag-tile .ag-acts button:hover {
+    background: var(--wm-card);
+    color: var(--wm-ink);
+  }
+  .ag-tile .ag-acts svg {
+    width: 14px;
+    height: 14px;
+  }
+  .ag-tile[data-tone="orange"] .ag-pv {
+    color: var(--wm-orange);
+  }
+  .ag-tile[data-tone="bad"] .ag-pv {
+    color: var(--wm-bad);
+  }
+  .ag-tile .ag-foot {
+    margin-top: -4px;
+  }
+  .ag-skeleton {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .ag-state {
+    margin-top: 16px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+  }
+  .ag-state-bad {
+    color: var(--wm-bad);
+  }
+  .ag-ob-list {
+    margin-top: 8px;
+  }
+  @media (max-width: 720px) {
+    .ag-alert .wm-mosaic {
+      display: none;
+    }
+    .ag-skeleton {
+      grid-template-columns: 1fr;
+    }
+  }
+}

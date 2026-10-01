@@ -1,0 +1,104 @@
+/* Aset (bento v2, docs/design/proto/aset.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .as-grid > .as-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .as-grid > .as-side {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .as-grid > .as-accounts {
+      grid-column: 1 / 9;
+      grid-row: 2;
+    }
+    .as-grid > .as-tips {
+      grid-column: 9 / 13;
+      grid-row: 2;
+    }
+    .as-grid > .as-fisik {
+      grid-column: 1 / 13;
+      grid-row: 3;
+    }
+  }
+  .as-plot {
+    position: relative;
+    flex: 1;
+    min-height: 200px;
+  }
+  .as-priv .wm-money {
+    filter: blur(7px);
+    user-select: none;
+  }
+  .as-empty {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+    padding: 10px 0;
+  }
+  .as-error {
+    color: var(--wm-bad);
+    font-size: var(--wm-type-13);
+    margin-bottom: 8px;
+  }
+  .as-tilewrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .as-tilewrap > .wm-btile {
+    flex: 1;
+    padding-right: 76px;
+  }
+  .as-tools {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .as-detail {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+    color: inherit;
+  }
+  .as-detail svg {
+    width: 14px;
+    height: 14px;
+  }
+  .as-tilewrap .wm-pv .is-up {
+    color: var(--wm-good, #15803d);
+  }
+  .as-tilewrap .wm-pv .is-down {
+    color: var(--wm-bad);
+  }
+  .as-proj {
+    display: block;
+    color: var(--wm-muted);
+  }
+  .as-adopt {
+    align-self: flex-start;
+    margin: 6px 0 0 14px;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .as-adopt:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .as-tips .wm-mosaic {
+    grid-template-columns: repeat(9, 1fr);
+  }
+}

@@ -1,6 +1,15 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2,
+  Gauge,
+  Receipt,
+  Settings,
+  Target,
+} from "lucide-react";
+
+import "./notifikasi.css";
 
 import { useMemo, useState } from "react";
 import { useSession } from "@/lib/auth-compat";
@@ -9,7 +18,15 @@ import { toast } from "sonner";
 
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
-import { CardLink, SectionCard, StatusBadge } from "@/components/wm";
+import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
+  Segmented,
+  StatusBadge,
+} from "@/components/wm";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -25,15 +42,31 @@ type Filter =
   | "jatuh-tempo"
   | "sistem";
 
-const FILTERS: { id: Filter; label: string }[] = [
-  { id: "semua", label: "Semua" },
-  { id: "belum-dibaca", label: "Belum dibaca" },
-  { id: "transaksi", label: "Transaksi" },
-  { id: "anggaran", label: "Anggaran" },
-  { id: "persetujuan", label: "Persetujuan" },
-  { id: "jatuh-tempo", label: "Jatuh Tempo" },
-  { id: "sistem", label: "Sistem" },
+const FILTER_IDS: Filter[] = [
+  "semua",
+  "belum-dibaca",
+  "transaksi",
+  "anggaran",
+  "persetujuan",
+  "jatuh-tempo",
+  "sistem",
 ];
+
+const CATEGORY_COLOR: Record<string, string> = {
+  transaksi: "var(--wm-lime)",
+  anggaran: "var(--wm-orange)",
+  persetujuan: "var(--wm-sky)",
+  "jatuh-tempo": "var(--wm-bad)",
+  sistem: "var(--wm-muted)",
+};
+
+const CATEGORY_ICON = {
+  transaksi: Target,
+  anggaran: Gauge,
+  persetujuan: CheckCircle2,
+  "jatuh-tempo": Receipt,
+  sistem: Settings,
+};
 
 function inferNotificationFilter(
   n: NotificationDto,
@@ -124,6 +157,7 @@ function NotifRow({
   const markRead = () => {
     if (!n.isRead) onMarkRead(n.id);
   };
+  const Icon = n.isRead ? Bell : CATEGORY_ICON[inferNotificationFilter(n)];
   return (
     <div
       role={n.isRead ? undefined : "button"}
@@ -138,36 +172,28 @@ function NotifRow({
           markRead();
         }
       }}
-      className={cn(
-        "flex items-start gap-3 border-b py-3.5 last:border-b-0",
-        n.isRead
-          ? "opacity-60"
-          : "cursor-pointer rounded-md transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-      )}
+      className={cn("nf-row", n.isRead ? "read" : "unread")}
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-        <Bell className="size-4" aria-hidden="true" />
-      </div>
-      <div className="flex-1">
-        {/* N3-B2 (prototype notifikasi.html list-row) — title and body flow
-            inline on one line, timestamp on its own line beneath. */}
-        <div className="text-[13.5px] leading-snug">
-          <span className="font-bold text-foreground">{n.title}</span>{" "}
-          <span className="text-muted-foreground">{n.body}</span>
-        </div>
-        <div className="mt-1 text-[11px] text-muted-foreground">
+      <span className="nf-ic" aria-hidden="true">
+        <Icon size={18} />
+      </span>
+      <span className="nf-body">
+        <span className="nf-line block">
+          <b>{n.title}</b> <span>{n.body}</span>
+        </span>
+        <span className="nf-time block">
           {formatRelativeTime(n.createdAt, t, locale)}
-        </div>
-      </div>
+        </span>
+      </span>
       {!n.isRead && (
-        <div className="flex shrink-0 flex-col items-end gap-1">
-          <StatusBadge variant="success" className="text-[10px]">
+        <span className="nf-side">
+          <StatusBadge variant="success">
             {t.notifikasi.unreadBadge}
           </StatusBadge>
-          <span className="text-[10.5px] font-semibold text-primary">
+          <span className="nf-hint text-primary">
             {t.notifikasi.markOneRead}
           </span>
-        </div>
+        </span>
       )}
     </div>
   );
@@ -189,17 +215,16 @@ function NotifGroup({
   if (items.length === 0) return null;
   const unreadCount = items.filter((n) => !n.isRead).length;
   return (
-    <SectionCard
-      title={title}
-      action={
-        unreadCount > 0 ? (
+    <div className="nf-group">
+      <h2 className="nf-group-title">
+        {title}
+        {unreadCount > 0 && (
           <StatusBadge variant="danger">
             {unreadCount}
             {t.notifikasi.groupUnreadSuffix}
           </StatusBadge>
-        ) : undefined
-      }
-    >
+        )}
+      </h2>
       {items.map((n) => (
         <NotifRow
           key={n.id}
@@ -209,7 +234,7 @@ function NotifGroup({
           onMarkRead={onMarkRead}
         />
       ))}
-    </SectionCard>
+    </div>
   );
 }
 
@@ -327,119 +352,156 @@ export default function NotifikasiPage() {
 
   const { today, thisWeek, older } = groupByRecency(filtered);
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const n of notifications ?? []) {
+      const c = inferNotificationFilter(n);
+      counts[c] = (counts[c] ?? 0) + 1;
+    }
+    return counts;
+  }, [notifications]);
+  const v2 = t.notifikasi.v2;
+  const categoryLabel: Record<string, string> = {
+    transaksi: v2.filterTransaksi,
+    anggaran: v2.filterAnggaran,
+    persetujuan: v2.filterPersetujuan,
+    "jatuh-tempo": v2.filterTempo,
+    sistem: v2.filterSistem,
+  };
+  const categoryKeys = Object.keys(categoryLabel).filter(
+    (k) => (categoryCounts[k] ?? 0) > 0,
+  );
+  const filterLabel = (id: Filter) =>
+    id === "semua"
+      ? t.notifikasi.filterAll
+      : id === "belum-dibaca"
+        ? t.notifikasi.filterUnread
+        : categoryLabel[id];
+  const onMarkRead = (id: string) => familyGroupId && markOneRead.mutate(id);
+
   return (
-    <div className="space-y-4">
-      <section
-        aria-labelledby="notifikasi-heading"
-        className="flex flex-wrap items-center gap-4"
-      >
-        <div className="min-w-[220px] flex-1">
-          <h1
-            id="notifikasi-heading"
-            className="flex items-center gap-2 text-[17px] font-extrabold tracking-tight"
-          >
-            {t.notifikasi.title}
-            {unreadCount > 0 && (
-              <StatusBadge variant="danger">
-                {unreadCount}
-                {t.notifikasi.newCountSuffix}
-              </StatusBadge>
-            )}
-          </h1>
-          {/* N3-B2 — only rendered once the real family name has loaded;
-              no placeholder/fabricated name shown while pending. */}
-        </div>
-        <CardLink
-          onClick={() => familyGroupId && markAllRead.mutate(familyGroupId)}
-          disabled={markAllRead.isPending || unreadCount === 0}
-          className="rounded-md border bg-card px-3 py-1.5 text-[11.5px] no-underline shadow-sm hover:no-underline"
-        >
-          {markAllRead.isPending
-            ? t.notifikasi.processing
-            : t.notifikasi.markAllRead}
-        </CardLink>
-      </section>
-
-      <section className="flex min-w-0 items-center gap-3">
-        <div
-          role="group"
-          aria-label={t.notifikasi.title}
-          className="hide-scrollbar scroll-fade-x flex min-w-0 flex-1 gap-1 overflow-x-auto rounded-[12px] bg-secondary p-[3px]"
-        >
-          {FILTERS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              aria-pressed={filter === item.id}
-              onClick={() => setFilter(item.id)}
-              className={cn(
-                "shrink-0 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold text-muted-foreground transition-colors",
-                filter === item.id && "bg-card text-foreground shadow-sm",
-              )}
+    <div className="space-y-4" data-page="notifikasi">
+      <BentoGrid className="nf-grid">
+        <h1 className="sr-only">{t.notifikasi.title}</h1>
+        <BentoHero
+          className="nf-hero"
+          currency={null}
+          value={unreadCount}
+          caption={v2.heroCap}
+          controls={
+            <GhostButton
+              lit
+              onClick={() => familyGroupId && markAllRead.mutate(familyGroupId)}
+              disabled={markAllRead.isPending || unreadCount === 0}
             >
-              {item.id === "semua"
-                ? t.notifikasi.filterAll
-                : item.id === "belum-dibaca"
-                  ? t.notifikasi.filterUnread
-                  : item.label}
-            </button>
-          ))}
-        </div>
-        {!isLoading && !isError && (
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {filtered.length}
-            {t.notifikasi.metaCountSuffix}
-          </span>
-        )}
-      </section>
+              {markAllRead.isPending
+                ? t.notifikasi.processing
+                : t.notifikasi.markAllRead}
+            </GhostButton>
+          }
+          chart={
+            categoryKeys.length > 0 ? (
+              <div>
+                <div className="nf-strip" role="img" aria-label={v2.compAria}>
+                  {categoryKeys.map((k) => (
+                    <span
+                      key={k}
+                      style={{
+                        flexGrow: categoryCounts[k],
+                        background: CATEGORY_COLOR[k],
+                      }}
+                    />
+                  ))}
+                </div>
+                <div className="nf-legend">
+                  {categoryKeys.map((k) => (
+                    <span
+                      key={k}
+                      style={
+                        { "--c": CATEGORY_COLOR[k] } as React.CSSProperties
+                      }
+                    >
+                      <i aria-hidden="true" />
+                      {categoryLabel[k]}
+                      <b>{categoryCounts[k]}</b>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : undefined
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={v2.kpiTotal}
+                value={String(notifications?.length ?? 0)}
+              />
+              <HeroKpi
+                label={v2.kpiApproval}
+                value={String(categoryCounts.persetujuan ?? 0)}
+              />
+              <HeroKpi
+                label={v2.kpiBill}
+                value={String(categoryCounts["jatuh-tempo"] ?? 0)}
+              />
+            </>
+          }
+        />
 
-      {isLoading && (
-        <SectionCard>
-          <NotifSkeleton />
-        </SectionCard>
-      )}
-
-      {isError && (
-        <SectionCard>
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {t.notifikasi.errorLoad}
-          </p>
-        </SectionCard>
-      )}
-
-      {!isLoading && !isError && filtered.length === 0 && (
-        <SectionCard>
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {t.notifikasi.emptyState}
-          </p>
-        </SectionCard>
-      )}
-
-      {!isLoading && !isError && filtered.length > 0 && (
-        <>
-          <NotifGroup
-            title={t.notifikasi.groupToday}
-            items={today}
-            t={t}
-            locale={locale}
-            onMarkRead={(id) => familyGroupId && markOneRead.mutate(id)}
-          />
-          <NotifGroup
-            title={t.notifikasi.groupThisWeek}
-            items={thisWeek}
-            t={t}
-            locale={locale}
-            onMarkRead={(id) => familyGroupId && markOneRead.mutate(id)}
-          />
-          <NotifGroup
-            title={t.notifikasi.groupOlder}
-            items={older}
-            t={t}
-            locale={locale}
-            onMarkRead={(id) => familyGroupId && markOneRead.mutate(id)}
-          />
-        </>
-      )}
+        <BentoCard className="nf-list">
+          <div className="nf-head">
+            <Segmented
+              label={v2.filterLabel}
+              value={filter}
+              onChange={setFilter}
+              options={FILTER_IDS.map((id) => ({
+                value: id,
+                label: filterLabel(id),
+              }))}
+            />
+            {!isLoading && !isError && (
+              <span className="nf-count">
+                {filtered.length}
+                {t.notifikasi.metaCountSuffix}
+              </span>
+            )}
+          </div>
+          <div className="nf-groups">
+            {isLoading && <NotifSkeleton />}
+            {isError && <p className="nf-empty">{t.notifikasi.errorLoad}</p>}
+            {!isLoading && !isError && filtered.length === 0 && (
+              <p className="nf-empty">
+                {filter === "semua" ? t.notifikasi.emptyState : v2.emptyFilter}
+              </p>
+            )}
+            {!isLoading && !isError && filtered.length > 0 && (
+              <>
+                <NotifGroup
+                  title={t.notifikasi.groupToday}
+                  items={today}
+                  t={t}
+                  locale={locale}
+                  onMarkRead={onMarkRead}
+                />
+                <NotifGroup
+                  title={t.notifikasi.groupThisWeek}
+                  items={thisWeek}
+                  t={t}
+                  locale={locale}
+                  onMarkRead={onMarkRead}
+                />
+                <NotifGroup
+                  title={t.notifikasi.groupOlder}
+                  items={older}
+                  t={t}
+                  locale={locale}
+                  onMarkRead={onMarkRead}
+                />
+              </>
+            )}
+          </div>
+        </BentoCard>
+      </BentoGrid>
     </div>
   );
 }

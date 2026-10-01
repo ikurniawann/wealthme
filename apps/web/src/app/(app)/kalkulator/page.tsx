@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Share2 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
-import { SectionCard } from "@/components/wm";
+import { BentoCard, BentoGrid, SectionCard } from "@/components/wm";
+import "./kalkulator.css";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -1285,42 +1286,24 @@ export default function KalkulatorPage() {
 
   return (
     <div className="space-y-4">
-      {/* EPIC-026 Wave 4 — prototype `page-lead` uses `section-title`
-          (17px extrabold, kalkulator.html:20), not 21px. */}
-      <div>
-        <h1 className="text-[17px] font-extrabold tracking-tight">
-          {t.kalkulator.pageTitle}
-        </h1>
-      </div>
-
-      {/* EPIC-026 Wave 4 — prototype `.tab` pills: bordered `bg-card`
-          idle, primary fill when selected (app.css:2308, 2492). Tab SET
-          stays the app's real 7 calculators (zakat kept over perpuluhan
-          per the documented contracts carve-out; tabungan/splitgroup are
-          real shipped features — dropping them would be a functional
-          regression, out of this presentation wave's scope). */}
-      <div
-        className="hide-scrollbar scroll-fade-x flex gap-[7px] overflow-x-auto max-[399px]:flex-wrap max-[399px]:overflow-visible max-[399px]:[mask-image:none] max-[399px]:[-webkit-mask-image:none]"
-        role="group"
-        aria-label="Pilih kalkulator"
-      >
-        {TAB_KEYS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            aria-pressed={tab === key}
-            onClick={() => setTab(key)}
-            className={
-              "shrink-0 cursor-pointer rounded-full border px-[13px] py-[7px] text-[12.5px] font-semibold whitespace-nowrap transition-colors " +
-              (tab === key
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-muted-foreground hover:bg-secondary/70")
-            }
-          >
-            {t.kalkulator.tabs[key]}
-          </button>
-        ))}
-      </div>
+      <BentoGrid className="kl-grid">
+        <h1 className="sr-only">{t.kalkulator.pageTitle}</h1>
+        <BentoCard className="kl-picker" title={t.kalkulator.pageTitle}>
+          <div className="kl-tiles" role="group" aria-label="Pilih kalkulator">
+            {TAB_KEYS.map((key) => (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={tab === key}
+                onClick={() => setTab(key)}
+                className="kl-tile"
+              >
+                {t.kalkulator.tabs[key]}
+              </button>
+            ))}
+          </div>
+        </BentoCard>
+      </BentoGrid>
 
       {tab === "zakat" && <ZakatTab token={token} />}
       {tab === "pph21" && <Pph21Tab token={token} />}

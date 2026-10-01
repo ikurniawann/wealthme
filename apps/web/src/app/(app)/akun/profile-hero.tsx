@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { User } from "lucide-react";
+import { BentoHero, GhostButton } from "@/components/wm";
 
 export function ProfileHero({
   initials,
@@ -19,31 +20,29 @@ export function ProfileHero({
   onEdit: () => void;
 }) {
   return (
-    <div className="gradient-profile grid grid-cols-[60px_minmax(0,1fr)] items-center gap-x-4 gap-y-3 rounded-2xl p-4 text-white sm:grid-cols-[60px_minmax(0,1fr)_auto] sm:p-5">
-      <div className="row-span-2 flex size-[60px] items-center justify-center rounded-full bg-white/20 text-[22px] font-extrabold">
-        {initials || <User className="size-5" />}
-      </div>
-      <div className="min-w-0 sm:col-start-2 sm:row-start-1">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="min-w-0 break-words text-[18px] font-extrabold leading-snug">
-            {displayName}
+    <BentoHero
+      className="ak-hero"
+      currency={null}
+      value={
+        <span className="ak-hero-name">
+          <span className="ak-avatar" aria-hidden="true">
+            {initials || <User className="size-5" />}
           </span>
-          {role && (
-            <span className="max-w-full break-words rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white">
-              {role}
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 break-all text-[13px] opacity-90">{email}</div>
-        <div className="mt-0.5 text-[12px] opacity-75">{memberSince}</div>
-      </div>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="col-start-2 flex min-h-11 w-fit items-center gap-1.5 rounded-lg border border-white/30 bg-white/15 px-3 text-[12px] font-semibold text-white sm:col-start-3 sm:row-span-2 sm:row-start-1"
-      >
-        <User className="size-3.5" /> {actionLabel}
-      </button>
-    </div>
+          <span className="ak-name">{displayName}</span>
+        </span>
+      }
+      caption={
+        <span className="ak-meta">
+          <span className="ak-email">{email}</span>
+          {role && <span className="ak-role">{role}</span>}
+          <span className="ak-since">{memberSince}</span>
+        </span>
+      }
+      controls={
+        <GhostButton lit onClick={onEdit}>
+          <User className="size-3.5" aria-hidden="true" /> {actionLabel}
+        </GhostButton>
+      }
+    />
   );
 }

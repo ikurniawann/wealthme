@@ -10,16 +10,16 @@
       grid-row: 1;
     }
     .dn-grid > .dn-cash {
-      grid-column: 1 / 5;
+      grid-column: 1 / 9;
       grid-row: 2;
     }
     .dn-grid > .dn-ew {
-      grid-column: 5 / 9;
-      grid-row: 2;
+      grid-column: 1 / 9;
+      grid-row: 3;
     }
     .dn-grid > .dn-tip {
       grid-column: 9 / 13;
-      grid-row: 2;
+      grid-row: 2 / span 2;
     }
   }
   .dn-grid > * {
@@ -39,5 +39,72 @@
   }
   .dn-tip {
     align-content: start;
+  }
+  .dn-wallets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
+  }
+  .dn-wallet {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .dn-wallet .wm-plate {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .dn-wallet:hover .wm-plate {
+    transform: translateY(-3px) rotate(-0.4deg);
+  }
+  .dn-wallet-meta {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+    padding: 0 4px;
+  }
+  .dn-wallet-acts {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .dn-wallet-btn,
+  .dn-wallet-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 38px;
+    border: 1px solid var(--wm-line);
+    border-radius: 12px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font-size: var(--wm-type-13);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .dn-wallet-btn {
+    flex: 1;
+    padding: 0 12px;
+  }
+  .dn-wallet-icon {
+    width: 38px;
+  }
+  .dn-wallet-btn[data-lit] {
+    border-color: var(--wm-lime);
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+  }
+  .dn-wallet-btn:hover,
+  .dn-wallet-icon:hover {
+    background: var(--wm-card-2);
+  }
+  .dn-wallet-btn[data-lit]:hover {
+    background: var(--wm-lime);
+    filter: brightness(1.04);
+  }
+  .dn-wallet-btn svg,
+  .dn-wallet-icon svg {
+    width: 15px;
+    height: 15px;
   }
 }

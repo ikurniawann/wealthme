@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Pencil, Tag, X } from "lucide-react";
 import type {
   ActiveReferenceItemGroup,
   CategoryDto,
@@ -20,7 +20,17 @@ import {
 } from "@/hooks/use-reference-items";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { SectionCard, CardLink, StatusBadge, InfoTip } from "@/components/wm";
+import {
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
+  InfoTip,
+  SeeAll,
+  StatusBadge,
+} from "@/components/wm";
+import "./masterdata.css";
 import {
   ConfirmDeleteDialog,
   CrudModal,
@@ -337,159 +347,162 @@ export default function MasterDataPage() {
     itemsByGroup.set(item.group, list);
   }
 
+  const v2 = t.masterdata.v2;
+  const incomeCount = categoryList.filter((c) => c.kind === "income").length;
+  const linkedCount = categoryList.filter((c) =>
+    coaById.has(c.coaAccountId),
+  ).length;
+
   return (
-    <div className="space-y-3.5">
-      {/* EPIC-025 N3-C3 — page-lead pattern per the N3 translation table
-          (`.page-lead` → flex row, `.section-title` → 17px/extrabold). */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="min-w-[220px] flex-1">
-          <div className="flex items-center gap-1">
-            <h1 className="text-[17px] font-extrabold tracking-tight">
-              {t.masterdata.pageTitle}
-            </h1>
-            <InfoTip>
-              {t.masterdata.pageSubtitle} {t.masterdata.topNoticePrefix} &ldquo;
-              {t.masterdata.systemBadge}&rdquo; {t.masterdata.topNoticeSuffix}
-            </InfoTip>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => router.push("/mastercoa")}
-          className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] font-semibold text-foreground transition-colors hover:bg-secondary"
-        >
-          <BookOpen className="size-3.5" /> {t.masterdata.masterCoaButton}
-        </button>
-      </div>
+    <BentoGrid className="md-grid">
+      <BentoHero
+        className="md-hero"
+        valueAs="h1"
+        currency={null}
+        value={categoryList.length}
+        caption={v2.heroCap}
+        controls={
+          <>
+            <GhostButton onClick={() => router.push("/mastercoa")}>
+              <BookOpen size={14} aria-hidden="true" />
+              {t.masterdata.masterCoaButton}
+            </GhostButton>
+            {canManageCategory && (
+              <GhostButton
+                lit
+                onClick={() => {
+                  setEditingCategoryId(null);
+                  setCrud({ entity: "mdkategori", mode: "add" });
+                }}
+              >
+                {t.masterdata.addLink}
+              </GhostButton>
+            )}
+          </>
+        }
+        kpis={
+          <>
+            <HeroKpi label={v2.kpiIn} value={incomeCount} />
+            <HeroKpi
+              label={v2.kpiOut}
+              value={categoryList.length - incomeCount}
+            />
+            <HeroKpi label={v2.kpiCoa} value={linkedCount} />
+          </>
+        }
+      />
 
-      {/* `items-start` — without it CSS Grid's default `align-items: stretch`
-          makes every card in a row match the tallest sibling's height, so
-          Kategori's ~19 chips stretched Bank/E-Wallet into empty space
-          alongside it. Each card now sizes to its own content. */}
-      <div className="grid grid-cols-1 items-start gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
-        {/* Kategori — backed by the real categories API */}
-        <SectionCard
-          title={t.masterdata.categorySectionTitle}
-          action={
-            <span className="flex items-center gap-3">
-              <CardLink onClick={() => router.push("/mastercoa")}>
-                {t.masterdata.masterCoaLink}
-              </CardLink>
-              {canManageCategory && (
-                <CardLink
-                  onClick={() => {
-                    setEditingCategoryId(null);
-                    setCrud({ entity: "mdkategori", mode: "add" });
-                  }}
-                >
-                  {t.masterdata.addLink}
-                </CardLink>
-              )}
-            </span>
-          }
-        >
-          {isCategoriesLoading || !enabled ? (
-            <div className="py-2 text-[12px] text-muted-foreground">
-              {t.masterdata.categoryLoading}
-            </div>
-          ) : categoryList.length === 0 ? (
-            <div className="py-2 text-[12px] text-muted-foreground">
-              {t.masterdata.categoryEmpty}
-            </div>
-          ) : (
-            <div className="flex flex-wrap">
-              {categoryList.map((cat) => (
-                <span
-                  key={cat.id}
-                  className="mr-1.5 mb-1.5 inline-flex items-center gap-1.5 rounded-[20px] border bg-background px-2.5 py-1.5 text-[12.5px] font-semibold"
-                >
-                  <span>
-                    {cat.icon ?? "🏷️"} {cat.name}
-                  </span>
-                  <StatusBadge
-                    variant={cat.kind === "income" ? "success" : "info"}
-                  >
-                    {cat.kind === "income"
-                      ? t.masterdata.kindIncome
-                      : t.masterdata.kindExpense}
-                  </StatusBadge>
-                  {coaById.get(cat.coaAccountId) && (
-                    <span
-                      className="mono text-[10.5px] text-muted-foreground"
-                      title={`COA: ${coaById.get(cat.coaAccountId)?.code} — ${coaById.get(cat.coaAccountId)?.name}`}
-                    >
-                      {coaById.get(cat.coaAccountId)?.code}
-                    </span>
-                  )}
-                  {cat.isPrivate && (
-                    <StatusBadge variant="purple">
-                      {t.masterdata.privateLabel}
-                    </StatusBadge>
-                  )}
-                  {canManageCategory && (
-                    <>
-                      <button
-                        type="button"
-                        aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
-                        onClick={() => openEditCategory(cat)}
-                        className="inline-flex size-4 items-center justify-center rounded-full text-[11px] leading-none text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [@media(pointer:coarse)]:size-11"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
-                        onClick={() => setPendingCatDelete(cat)}
-                        className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white [@media(pointer:coarse)]:size-11"
-                      >
-                        ×
-                      </button>
-                    </>
-                  )}
+      <BentoCard
+        className="md-coa"
+        title={v2.coaTitle}
+        caption={`${linkedCount} / ${categoryList.length} · ${v2.coaCaption}`}
+        action={
+          <InfoTip>
+            {t.masterdata.pageSubtitle} {t.masterdata.topNoticePrefix} &ldquo;
+            {t.masterdata.systemBadge}&rdquo; {t.masterdata.topNoticeSuffix}
+          </InfoTip>
+        }
+      >
+        <SeeAll onClick={() => router.push("/mastercoa")}>
+          {t.masterdata.masterCoaLink}
+        </SeeAll>
+      </BentoCard>
+
+      <BentoCard
+        className="md-cats"
+        title={t.masterdata.categorySectionTitle}
+        caption={v2.catCaption}
+      >
+        {isCategoriesLoading || !enabled ? (
+          <div className="md-empty">{t.masterdata.categoryLoading}</div>
+        ) : categoryList.length === 0 ? (
+          <div className="md-empty">{t.masterdata.categoryEmpty}</div>
+        ) : (
+          <div className="md-chips">
+            {categoryList.map((cat) => (
+              <span key={cat.id} className="md-chip">
+                <span>
+                  {cat.icon ?? <Tag size={13} aria-hidden="true" />} {cat.name}
                 </span>
-              ))}
-            </div>
-          )}
-          {!isCategoriesLoading && enabled && categoryList.length > 0 && (
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {t.masterdata.categoryFooterHint}
-            </p>
-          )}
-        </SectionCard>
+                <StatusBadge
+                  variant={cat.kind === "income" ? "success" : "info"}
+                >
+                  {cat.kind === "income"
+                    ? t.masterdata.kindIncome
+                    : t.masterdata.kindExpense}
+                </StatusBadge>
+                {coaById.get(cat.coaAccountId) && (
+                  <span
+                    className="md-code"
+                    title={`COA: ${coaById.get(cat.coaAccountId)?.code} — ${coaById.get(cat.coaAccountId)?.name}`}
+                  >
+                    {coaById.get(cat.coaAccountId)?.code}
+                  </span>
+                )}
+                {cat.isPrivate && (
+                  <StatusBadge variant="purple">
+                    {t.masterdata.privateLabel}
+                  </StatusBadge>
+                )}
+                {canManageCategory && (
+                  <>
+                    <button
+                      type="button"
+                      className="md-x"
+                      aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
+                      onClick={() => openEditCategory(cat)}
+                    >
+                      <Pencil size={12} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      className="md-x md-x-del"
+                      aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
+                      onClick={() => setPendingCatDelete(cat)}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </button>
+                  </>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+        {!isCategoriesLoading && enabled && categoryList.length > 0 && (
+          <p className="md-hint">{t.masterdata.categoryFooterHint}</p>
+        )}
+      </BentoCard>
 
-        {/* EPIC-024 Task J — the three reference lists, real API-backed data */}
+      <BentoCard className="md-ref" title={v2.refTitle}>
         {REFERENCE_GROUP_ENTITIES.map(({ entity, group }) => {
           const items = itemsByGroup.get(group) ?? [];
           return (
-            <SectionCard
-              key={entity}
-              title={
-                t.masterdata.groups[entity as keyof typeof t.masterdata.groups]
-                  .title
-              }
-              action={
-                canManageReferenceItem && (
-                  <CardLink onClick={() => setCrud({ entity, mode: "add" })}>
+            <section key={entity} className="md-ref-sec">
+              <div className="md-ref-head">
+                <h3>
+                  {
+                    t.masterdata.groups[
+                      entity as keyof typeof t.masterdata.groups
+                    ].title
+                  }
+                </h3>
+                {canManageReferenceItem && (
+                  <GhostButton
+                    className="md-add"
+                    onClick={() => setCrud({ entity, mode: "add" })}
+                  >
                     {t.masterdata.addLink}
-                  </CardLink>
-                )
-              }
-            >
-              <div className="flex flex-wrap">
+                  </GhostButton>
+                )}
+              </div>
+              <div className="md-chips">
                 {isReferenceItemsLoading || !enabled ? (
-                  <div className="py-2 text-[12px] text-muted-foreground">
-                    {t.masterdata.groupLoading}
-                  </div>
+                  <div className="md-empty">{t.masterdata.groupLoading}</div>
                 ) : items.length === 0 ? (
-                  <div className="py-2 text-[12px] text-muted-foreground">
-                    {t.masterdata.groupEmpty}
-                  </div>
+                  <div className="md-empty">{t.masterdata.groupEmpty}</div>
                 ) : (
                   items.map((item) => (
-                    <span
-                      key={item.id}
-                      className="mr-1.5 mb-1.5 inline-flex items-center gap-1.5 rounded-[20px] border bg-background px-2.5 py-1.5 text-[12.5px] font-semibold"
-                    >
+                    <span key={item.id} className="md-chip">
                       {item.label}
                       {item.isSystem && (
                         <StatusBadge variant="gray">
@@ -499,26 +512,26 @@ export default function MasterDataPage() {
                       {!item.isSystem && canManageReferenceItem && (
                         <button
                           type="button"
+                          className="md-x md-x-del"
                           aria-label={`${t.masterdata.deleteAriaPrefix}${item.label}`}
                           onClick={() => setPendingDelete(item)}
-                          className="inline-flex size-4 items-center justify-center rounded-full text-[15px] leading-none text-muted-foreground transition-colors hover:bg-destructive hover:text-white [@media(pointer:coarse)]:size-11"
                         >
-                          ×
+                          <X size={12} aria-hidden="true" />
                         </button>
                       )}
                     </span>
                   ))
                 )}
               </div>
-            </SectionCard>
+            </section>
           );
         })}
-      </div>
+      </BentoCard>
 
-      <div className="mt-3.5 rounded-[12px] border border-primary/20 bg-accent p-3.5 text-[12px] text-muted-foreground">
+      <p className="md-foot">
         <strong>{t.masterdata.footerBold}</strong>
         {t.masterdata.footerRest}
-      </div>
+      </p>
 
       <CrudModal
         state={crud}
@@ -548,6 +561,6 @@ export default function MasterDataPage() {
           if (pendingCatDelete) handleCategoryDelete(pendingCatDelete);
         }}
       />
-    </div>
+    </BentoGrid>
   );
 }

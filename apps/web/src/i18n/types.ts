@@ -815,7 +815,66 @@ export type I18nDictionary = {
    * per role are here; the rest of the page's copy predates i18n and is
    * out of this batch's scope.
    */
+  iam: {
+    v2: {
+      heroCap: string;
+      addBtn: string;
+      kpiMaster: string;
+      kpiManaged: string;
+      kpiCustom: string;
+      stepsTitle: string;
+      stepsCaption: string;
+      step1Title: string;
+      step1Text: string;
+      step2Title: string;
+      step2Text: string;
+      step3Title: string;
+      step3Text: string;
+      tabsLabel: string;
+      tabMembers: string;
+      tabRoles: string;
+      tabsNote: string;
+    };
+  };
   aksesSaya: {
+    v2: {
+      heroDesc: string;
+      heroCap: string;
+      rolePrefix: string;
+      kpiBalance: string;
+      kpiReports: string;
+      kpiRole: string;
+      accTitle: string;
+      accEmptyTitle: string;
+      accEmptyHint: string;
+      accNote: string;
+      permAccTitle: string;
+      permAccLoading: string;
+      permAccNone: string;
+      permAccCount: string;
+      permAccDescYes: string;
+      permAccDescNo: string;
+      permBalTitle: string;
+      permBalValue: string;
+      permBalDesc: string;
+      permRepTitle: string;
+      actTitle: string;
+      actCaption: string;
+      actBadge: string;
+      colActivity: string;
+      colStatus: string;
+      colNote: string;
+      actRecord: string;
+      actRecordYes: string;
+      actRecordWait: string;
+      actFund: string;
+      actFundNote: string;
+      actAllowed: string;
+      actReports: string;
+      actRole: string;
+      actLocked: string;
+      actRoleNote: string;
+    };
     eyebrowMaster: string;
     eyebrowDependant: string;
     familyReportsUnlocked: string;
@@ -1256,6 +1315,28 @@ export type I18nDictionary = {
    * adds what's new to the dedicated page (tabs, history, owner gate).
    */
   persetujuan: {
+    v2: {
+      heroCap: string;
+      chip: string;
+      chartTitle: string;
+      chartEmpty: string;
+      kpiPending: string;
+      kpiApproved: string;
+      kpiRejected: string;
+      sideTitle: string;
+      sideCaption: string;
+      sideEmpty: string;
+      seeHistory: string;
+      mainTitle: string;
+      riwayatTitle: string;
+      colRequester: string;
+      colAccount: string;
+      colStatus: string;
+      colDate: string;
+      colAmount: string;
+      tipsTitle: string;
+      tipsBody: string;
+    };
     pageDesc: string;
     tabPending: string;
     tabRiwayat: string;
@@ -1288,6 +1369,12 @@ export type I18nDictionary = {
    * desc string resolves from here, keyed by the stable journey/feature ids.
    */
   panduan: {
+    v2: {
+      heroTitle: string;
+      tabsLabel: string;
+      contactCaption: string;
+      emptyTitle: string;
+    };
     pageTitle: string;
     pageSubtitle: string;
     openLink: string;
@@ -1330,6 +1417,23 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A4 — `/asuransi` (insurance policies) page copy. */
   asuransi: {
+    v2: {
+      heroCaption: string;
+      kpiActive: string;
+      kpiCoverage: string;
+      kpiRenew: string;
+      chartAria: string;
+      legendPremium: string;
+      allocCaption: string;
+      gridTitle: string;
+      gridCount: string;
+      benCaption: string;
+      tipOkTitle: string;
+      tipOkBody: string;
+      tipEmptyTitle: string;
+      tipEmptyBody: string;
+      tipSoonSuffix: string;
+    };
     activePoliciesSuffix: string;
     totalPremiumPrefix: string;
     errorLoad: string;
@@ -1686,6 +1790,16 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A4 — `/ai` (AI Advisor chat) page copy. */
   ai: {
+    v2: {
+      heroCap: string;
+      chipsLabel: string;
+      emptyBody: string;
+      inputLabel: string;
+      dataReadCap: string;
+      summaryCap: string;
+      changeKey: string;
+      historyCap: string;
+    };
     bannerTitle: string;
     bannerSubtitle: string;
     popularQuestionsLabel: string;
@@ -1793,6 +1907,19 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
+    v2: {
+      allocTitle: string;
+      listTitle: string;
+      allocCaption: string;
+      legendCost: string;
+      legendValue: string;
+      chartEmpty: string;
+      filterLabel: string;
+      chartAria: string;
+      heroCapSuffix: string;
+      rowCapital: string;
+      noteDividends: string;
+    };
     goldPricePerGramTooHigh: string;
     typeLabels: Record<InvestasiTypeId, string>;
     errorLoad: string;
@@ -2022,6 +2149,30 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
+    v2: {
+      kpiAcc: string;
+      kpiInv: string;
+      kpiFisik: string;
+      accTitle: string;
+      invSeeAll: string;
+      accSeeAll: string;
+      instrumentSuffix: string;
+      accountSuffix: string;
+      fisikCaption: string;
+      fisikNew: string;
+      eyeHide: string;
+      eyeShow: string;
+      tipTitle: string;
+      tipBody: string;
+      trendAria: string;
+      compAria: string;
+      trendLegend: string;
+      detailKpiNow: string;
+      detailKpiFirst: string;
+      detailKpiChange: string;
+      detailDocCount: string;
+      detailHistCaption: string;
+    };
     tabs: Record<AsetTabId, string>;
     assetTypeLabels: Record<AsetTypeId, string>;
     accountTypeLabels: Record<AsetAccountTypeId, string>;
@@ -2143,6 +2294,30 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/liabilitas` (debts & credit) page copy. */
   liabilitas: {
+    v2: {
+      heroCaption: string;
+      kpiLoan: string;
+      kpiCard: string;
+      kpiMonthly: string;
+      legendPaid: string;
+      legendTotal: string;
+      chartAria: string;
+      chartEmpty: string;
+      riskTitle: string;
+      riskCaption: string;
+      riskHealthy: string;
+      riskWarn: string;
+      gridTitle: string;
+      gridCount: string;
+      detailLabel: string;
+      tipOverdueSuffix: string;
+      tipSoonSuffix: string;
+      tipInstallment: string;
+      tipOkTitle: string;
+      tipOkBody: string;
+      tipEmptyTitle: string;
+      tipEmptyBody: string;
+    };
     fieldGroups: {
       identity: string;
       amount: string;
@@ -2362,6 +2537,16 @@ export type I18nDictionary = {
    * `toastItemProtected` for the seeded-default delete guard).
    */
   masterdata: {
+    v2: {
+      heroCap: string;
+      kpiIn: string;
+      kpiOut: string;
+      kpiCoa: string;
+      coaTitle: string;
+      coaCaption: string;
+      catCaption: string;
+      refTitle: string;
+    };
     pageTitle: string;
     pageSubtitle: string;
     masterCoaButton: string;
@@ -2409,6 +2594,7 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/mastercoa` (chart of accounts) page copy. */
   mastercoa: {
+    v2: { heroCap: string };
     groupLabels: Record<MasterCoaGroupNum, string>;
     directionLabels: Record<MasterCoaDirectionId, string>;
     budgetTypeLabels: Record<MasterCoaBudgetTypeId, string>;
@@ -2503,6 +2689,20 @@ export type I18nDictionary = {
    * `title`/`body`/`icon` come from the API (real user-facing content set at
    * creation time) and stay untranslated in the page. */
   notifikasi: {
+    v2: {
+      heroCap: string;
+      kpiTotal: string;
+      kpiApproval: string;
+      kpiBill: string;
+      filterLabel: string;
+      filterTransaksi: string;
+      filterAnggaran: string;
+      filterPersetujuan: string;
+      filterTempo: string;
+      filterSistem: string;
+      emptyFilter: string;
+      compAria: string;
+    };
     title: string;
     newCountSuffix: string;
     subtitlePrefix: string;
@@ -2698,6 +2898,26 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/tujuan` (financial goals) page copy. */
   tujuan: {
+    v2: {
+      heroCapPrefix: string;
+      heroCapSuffix: string;
+      legendSaved: string;
+      legendTarget: string;
+      chartEmpty: string;
+      kpiOnTrack: string;
+      kpiBoost: string;
+      kpiRisk: string;
+      attTitle: string;
+      attCaption: string;
+      attAllGood: string;
+      tilesTitle: string;
+      tilesCaption: string;
+      addTile: string;
+      tipsOkTitle: string;
+      tipsWorstSuffix: string;
+      tipsOkBody: string;
+      tipsOverallPrefix: string;
+    };
     statusLabels: Record<TujuanStatusId, string>;
     noTargetDate: string;
     targetDatePrefix: string;
@@ -3257,6 +3477,15 @@ export type I18nDictionary = {
    * `LEMBAGA_OPTIONS`.
    */
   warisan: {
+    v2: {
+      legendValue: string;
+      chartAria: string;
+      kpiAssets: string;
+      kpiHeirs: string;
+      kpiAlloc: string;
+      benCaption: string;
+      benEmpty: string;
+    };
     heroTitle: string;
     assetsRegisteredSuffix: string;
     heirsMidDot: string;
@@ -3347,6 +3576,28 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {
+    v2: {
+      leftCap: string;
+      overCap: string;
+      legendSpent: string;
+      legendLimit: string;
+      kpiLimit: string;
+      kpiSpent: string;
+      kpiSafe: string;
+      ofLimit: string;
+      sortLabel: string;
+      sortUsed: string;
+      sortLeft: string;
+      tilesCaption: string;
+      addTile: string;
+      obCaptionUnpaid: string;
+      obCaptionAllPaid: string;
+      seeAllObligations: string;
+      alertOkTitle: string;
+      alertOkBody: string;
+      alertSeeTx: string;
+      chartEmpty: string;
+    };
     budgetTypeLabels: Record<AnggaranBudgetTypeId, string>;
     periodLabels: Record<AnggaranPeriodId, string>;
     amountsMidDari: string;
@@ -4505,6 +4756,38 @@ export type I18nDictionary = {
   };
   // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — forced first-login password
   // change for a head-created dependant/operational member.
+  login: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
+  register: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
+  lupaPassword: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
+  resetPassword: {
+    v2: {
+      coverPre: string;
+      coverEm: string;
+      coverPost: string;
+      features: string[];
+    };
+  };
   forcePasswordChange: {
     title: string;
     subtitle: string;

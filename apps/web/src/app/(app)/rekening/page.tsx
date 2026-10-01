@@ -22,15 +22,11 @@ import {
   BentoCard,
   BentoGrid,
   BentoHero,
-  CARD_PATTERNS,
-  CARD_SKINS,
-  DetailPanel,
+  CardSkinPanel,
   GhostButton,
   HeroKpi,
-  PillButton,
   useCardLooks,
   type CardLook,
-  type CardSkin,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { useShell } from "@/components/shell/shell-context";
@@ -252,112 +248,6 @@ function toCardData(
     institution: account.institution ?? null,
     rawMaskedNumber: safeMaskedNumber(account.maskedNumber),
   };
-}
-
-// ---------------------------------------------------------------------------
-// Card skin panel (bento v2 side panel)
-// ---------------------------------------------------------------------------
-
-const SKIN_SWATCH: Record<CardSkin, string> = {
-  lime: "#9ccb3b",
-  forest: "linear-gradient(150deg, #1a4b3b, #0c2b22)",
-  midnight: "linear-gradient(150deg, #1f2533, #0d1017)",
-  graphite: "linear-gradient(150deg, #3a3b36, #1c1d19)",
-  sand: "#efdc4e",
-  sky: "linear-gradient(150deg, #bfd8ef, #8fb7e0)",
-  lilac: "linear-gradient(150deg, #e3cdef, #c8a2de)",
-  coral: "linear-gradient(150deg, #f6b69a, #f2a247)",
-};
-
-function CardSkinPanel({
-  account,
-  look,
-  onChange,
-  onReset,
-  onClose,
-}: {
-  account: AccountCard | null;
-  look: CardLook | null;
-  onChange: (look: CardLook) => void;
-  onReset: () => void;
-  onClose: () => void;
-}) {
-  const { t } = useLocale();
-  const money = useMoney();
-  const v2 = t.rekening.v2;
-  if (!account || !look)
-    return (
-      <DetailPanel open={false} onOpenChange={() => {}} title="">
-        {null}
-      </DetailPanel>
-    );
-  return (
-    <DetailPanel
-      open
-      onOpenChange={(open) => !open && onClose()}
-      title={v2.customize}
-      description={account.name}
-      footer={
-        <>
-          <PillButton onClick={onReset}>{v2.resetLook}</PillButton>
-          <PillButton variant="primary" onClick={onClose}>
-            {v2.done}
-          </PillButton>
-        </>
-      }
-    >
-      <AccountCard
-        look={look}
-        className="rk-preview"
-        bank={account.institution ?? account.logo}
-        name={account.name}
-        number={account.rawMaskedNumber}
-        holder={account.type}
-        balance={money.format(account.rawBalance).replace(/,00$/, "")}
-      />
-      <div className="wm-field">
-        <span className="wm-flabel">{v2.colour}</span>
-        <div role="radiogroup" aria-label={v2.colour} className="rk-swatches">
-          {CARD_SKINS.map((skin) => (
-            <button
-              key={skin}
-              type="button"
-              role="radio"
-              aria-checked={look.skin === skin}
-              aria-label={v2.skins[skin]}
-              title={v2.skins[skin]}
-              className="rk-swatch"
-              style={{ background: SKIN_SWATCH[skin] }}
-              onClick={() => onChange({ ...look, skin })}
-            />
-          ))}
-        </div>
-      </div>
-      <div className="wm-field">
-        <span className="wm-flabel">{v2.pattern}</span>
-        <div role="radiogroup" aria-label={v2.pattern} className="rk-patterns">
-          {CARD_PATTERNS.map((pattern) => (
-            <button
-              key={pattern}
-              type="button"
-              role="radio"
-              aria-checked={look.pattern === pattern}
-              onClick={() => onChange({ ...look, pattern })}
-            >
-              <span
-                className="wm-plate rk-pattern-dot"
-                data-skin={look.skin}
-                data-pattern={pattern}
-                aria-hidden="true"
-              />
-              {v2.patterns[pattern]}
-            </button>
-          ))}
-        </div>
-      </div>
-      <p className="wm-cap">{v2.deviceNote}</p>
-    </DetailPanel>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1044,7 +934,19 @@ export default function RekeningPage() {
         onClose={() => setRequesting(null)}
       />
       <CardSkinPanel
-        account={customizing}
+        preview={
+          customizing
+            ? {
+                name: customizing.name,
+                bank: customizing.institution ?? customizing.logo,
+                number: customizing.rawMaskedNumber,
+                holder: customizing.type,
+                balance: money
+                  .format(customizing.rawBalance)
+                  .replace(/,00$/, ""),
+              }
+            : null
+        }
         look={customizing ? lookFor(customizing.id, customizing.rawType) : null}
         onChange={(look) => customizing && setLook(customizing.id, look)}
         onReset={() => customizing && setLook(customizing.id, null)}

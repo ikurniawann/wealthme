@@ -1,0 +1,183 @@
+/* Investasi (bento v2, docs/design/proto/investasi.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .iv-grid > .iv-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .iv-grid > .iv-comp {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .iv-grid > .iv-list {
+      grid-column: 1 / 9;
+      grid-row: 2;
+    }
+    .iv-grid > .iv-note {
+      grid-column: 9 / 13;
+      grid-row: 2;
+    }
+    .iv-grid > .iv-tax {
+      grid-column: 1 / 13;
+      grid-row: 3;
+    }
+  }
+  .iv-grid > .iv-tax {
+    min-width: 0;
+  }
+  .iv-filters {
+    margin-top: 12px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .iv-kdelta {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .iv-info {
+    color: inherit;
+    opacity: 0.7;
+  }
+  .iv-rows {
+    list-style: none;
+    margin: 6px 0 0;
+    padding: 0;
+  }
+  .iv-row {
+    display: grid;
+    grid-template-columns:
+      36px minmax(0, 1.6fr) minmax(0, 1.1fr) minmax(0, 1fr)
+      auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
+  }
+  .iv-row:last-child {
+    border-bottom: 0;
+  }
+  .iv-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 999px;
+    color: #fff;
+    font-size: var(--wm-type-11);
+    font-weight: 700;
+  }
+  .iv-id,
+  .iv-src,
+  .iv-val {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+    font-size: var(--wm-type-12);
+  }
+  .iv-id small,
+  .iv-val small {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-11);
+  }
+  .iv-name {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--wm-type-14);
+  }
+  .iv-val {
+    align-items: flex-end;
+    text-align: right;
+  }
+  .iv-val b {
+    font-size: var(--wm-type-14);
+    font-variant-numeric: tabular-nums;
+  }
+  .iv-val.is-up small:nth-of-type(1) {
+    color: var(--wm-good, #15803d);
+  }
+  .iv-val.is-down small:nth-of-type(1) {
+    color: var(--wm-bad);
+  }
+  .iv-link {
+    align-self: flex-start;
+    padding: 0;
+    background: none;
+    border: 0;
+    color: inherit;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .iv-state {
+    margin-top: 12px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+  }
+  .iv-state-bad {
+    color: var(--wm-bad);
+  }
+  .iv-note {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .iv-note h2 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .iv-more summary {
+    cursor: pointer;
+    list-style: none;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    text-decoration: underline;
+  }
+  .iv-more p {
+    margin-top: 6px;
+  }
+  .iv-note .wm-mosaic {
+    grid-template-columns: repeat(9, 1fr);
+    width: 100%;
+    max-width: 260px;
+    margin-top: auto;
+    justify-self: stretch;
+  }
+  .iv-note .wm-mosaic i {
+    width: auto;
+    height: auto;
+    aspect-ratio: 1;
+  }
+  @media (max-width: 720px) {
+    .iv-row {
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+    }
+    .iv-src {
+      display: none;
+    }
+    .iv-act {
+      grid-column: 2 / 4;
+    }
+  }
+}
+@layer components {
+  .iv-chartcol {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .iv-plot {
+    position: relative;
+    flex: 1;
+    min-height: 150px;
+  }
+}

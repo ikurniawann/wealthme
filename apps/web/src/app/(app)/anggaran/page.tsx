@@ -1,26 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Plus,
-  Save,
-  TrendingDown,
-  Calendar,
-  TriangleAlert,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import "./anggaran.css";
+import { Plus, Save, Pencil, Trash2 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  SectionCard,
-  CardLink,
-  HeroCard,
-  AnimatedProgress,
+  AddTile,
+  BentoCard,
+  BentoGrid,
+  BentoHero,
+  BentoTiles,
+  GhostButton,
+  HeroKpi,
   Rise,
+  Segmented,
+  SeeAll,
   StatusBadge,
+  TipsCard,
+  Track,
 } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { IconPickerField } from "@/components/crud/icon-picker-field";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import {
@@ -51,7 +52,6 @@ import {
 import type {
   BudgetDto,
   BudgetPeriod,
-  BudgetType,
   CreateBudgetDto,
   UpdateBudgetDto,
   LiabilityDto,
@@ -62,329 +62,84 @@ import type {
 } from "@wealthme/contracts";
 import type { Locale } from "@/i18n";
 
-type TypeBreakdownRow = {
-  key: BudgetType | "OTHER";
-  limit: number;
-  spent: number;
-  count: number;
-};
-
-/** Budget-vs-actual grouped by COA budgetType (EPIC-017 Task D). */
-function buildTypeBreakdown(budgets: BudgetDto[]): TypeBreakdownRow[] {
-  const order: (BudgetType | "OTHER")[] = [
-    "FIXED",
-    "VARIABLE",
-    "REIMBURSEMENT",
-    "OTHER",
-  ];
-  const map = new Map<
-    string,
-    { limit: number; spent: number; count: number }
-  >();
-  for (const b of budgets) {
-    const key = b.budgetType ?? "OTHER";
-    const e = map.get(key) ?? { limit: 0, spent: 0, count: 0 };
-    map.set(key, {
-      limit: e.limit + b.limitAmount,
-      spent: e.spent + b.spentAmount,
-      count: e.count + 1,
-    });
-  }
-  const rows: TypeBreakdownRow[] = [];
-  for (const k of order) {
-    const agg = map.get(k);
-    if (agg) rows.push({ key: k, ...agg });
-  }
-  return rows;
-}
-
-function budgetBarColor(dto: BudgetDto): string {
-  if (dto.isOverBudget) return "var(--destructive)";
-  if (dto.isNearLimit) return "var(--warning)";
-  return "var(--success)";
-}
-
-function budgetPctLabel(dto: BudgetDto): string {
-  const label = `${dto.usagePercent}%`;
-  if (dto.isOverBudget) return `${label} ⚠️`;
-  return label;
-}
-
-function budgetAmountsLabel(
-  dto: BudgetDto,
-  t: ReturnType<typeof useLocale>["t"],
-  money: ReturnType<typeof useMoney>,
-): string {
-  return `${money.format(dto.spentAmount)}${t.anggaran.amountsMidDari}${money.format(dto.limitAmount)}`;
+function budgetTone(dto: BudgetDto): "lime" | "orange" | "bad" {
+  if (dto.isOverBudget) return "bad";
+  if (dto.isNearLimit) return "orange";
+  return "lime";
 }
 
 const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "🙏"];
 
-function BudgetUsageList({ budgets }: { budgets: BudgetDto[] }) {
-  const money = useMoney();
-  const maxSpent = Math.max(...budgets.map((budget) => budget.spentAmount), 1);
-
-  return (
-    <div className="space-y-3">
-      {budgets.map((budget) => {
-        const usagePct = budget.usagePercent ?? 0;
-        const barWidth =
-          budget.spentAmount > 0
-            ? Math.max(4, Math.round((budget.spentAmount / maxSpent) * 100))
-            : 0;
-        const color = budgetBarColor(budget);
-
-        return (
-          <div
-            key={budget.id}
-            className="rounded-[11px] border bg-secondary/25 px-3 py-2.5"
-          >
-            <div className="flex min-w-0 items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="truncate text-[12.5px] font-semibold">
-                  {budget.categoryName}
-                </div>
-                <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                  {usagePct}% dari {money.format(budget.limitAmount)}
-                </div>
-              </div>
-              <div className="mono shrink-0 text-right text-[12.5px] font-semibold text-foreground">
-                {money.format(budget.spentAmount)}
-              </div>
-            </div>
-            <div className="mt-2 h-[7px] overflow-hidden rounded-full bg-secondary">
-              {barWidth > 0 && (
-                <div
-                  className="h-full rounded-full transition-[width] duration-200"
-                  style={{
-                    width: `${Math.min(100, barWidth)}%`,
-                    background: color,
-                  }}
-                />
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
+/** Axis ticks: "20 jt", "500 rb". */
+function axisJt(value: number): string {
+  const abs = Math.abs(value);
+  const trim = (n: number) =>
+    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+  if (abs >= 1e9) return `${trim(abs / 1e9)} M`;
+  if (abs >= 1e6) return `${trim(abs / 1e6)} jt`;
+  if (abs >= 1e3) return `${trim(abs / 1e3)} rb`;
+  return `${Math.round(abs)}`;
 }
 
-function BudgetTypeSummary({
-  rows,
-  totalSpent,
-  totalLimit,
-  totalRemaining,
-  overBudgetCount,
-  nearLimitCount,
-  t,
-}: {
-  rows: TypeBreakdownRow[];
-  totalSpent: number;
-  totalLimit: number;
-  totalRemaining: number;
-  overBudgetCount: number;
-  nearLimitCount: number;
-  t: ReturnType<typeof useLocale>["t"];
-}) {
-  const money = useMoney();
-  const totalPct =
-    totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
-  const totalColor =
-    totalSpent > totalLimit
-      ? "var(--destructive)"
-      : totalPct >= 80
-        ? "var(--warning)"
-        : "var(--success)";
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-[12px] border bg-secondary/25 p-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <div>
-            <div className="text-[11.5px] text-muted-foreground">
-              Total tipe aktif
-            </div>
-            <div className="text-[14px] font-semibold">{rows.length} tipe</div>
-          </div>
-          <div className="text-right">
-            <div className="text-[11.5px] text-muted-foreground">Terpakai</div>
-            <div
-              className="mono text-[14px] font-semibold"
-              style={{ color: totalColor }}
-            >
-              {totalPct}%
-            </div>
-          </div>
-        </div>
-        <AnimatedProgress value={Math.min(totalPct, 100)} color={totalColor} />
-        <div className="mt-2 flex items-center justify-between gap-3 text-[11.5px] text-muted-foreground">
-          <span>{money.format(totalSpent)} dipakai</span>
-          <span>{money.format(totalLimit)} rencana</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-[10px] border bg-card p-2.5">
-          <div className="text-[11px] text-muted-foreground">Sisa budget</div>
-          <div className="mono mt-1 text-[13px] font-semibold">
-            {money.format(totalRemaining)}
-          </div>
-        </div>
-        <div className="rounded-[10px] border bg-card p-2.5">
-          <div className="text-[11px] text-muted-foreground">
-            Perlu perhatian
-          </div>
-          <div className="mt-1 text-[13px] font-semibold">
-            {overBudgetCount + nearLimitCount} kategori
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-2.5">
-        {rows.map((row) => {
-          const pct =
-            row.limit > 0 ? Math.round((row.spent / row.limit) * 100) : 0;
-          const color =
-            row.spent > row.limit
-              ? "var(--destructive)"
-              : pct >= 80
-                ? "var(--warning)"
-                : "var(--success)";
-          return (
-            <div key={row.key}>
-              <div className="mb-1.5 flex items-center gap-2 text-[12.5px]">
-                <StatusBadge variant="gray">
-                  {t.anggaran.budgetTypeLabels[row.key]}
-                </StatusBadge>
-                <span className="text-[11.5px] text-muted-foreground">
-                  {row.count}
-                  {t.anggaran.categoriesSuffix}
-                </span>
-                <span className="ml-auto font-semibold" style={{ color }}>
-                  {pct}%
-                </span>
-              </div>
-              <AnimatedProgress value={Math.min(pct, 100)} color={color} />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function BudgetItem({
+function BudgetTile({
   dto,
-  index,
   canManage,
   onEdit,
   onDelete,
 }: {
   dto: BudgetDto;
-  index: number;
   canManage: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
   const { t } = useLocale();
   const money = useMoney();
-  const color = budgetBarColor(dto);
-  const icon = dto.categoryIcon ?? "📦";
+  const tone = budgetTone(dto);
   return (
-    <Rise index={index}>
-      {/* EPIC-026 Wave 4 — prototype tints an over-budget card's border
-          destructive (anggaran.html:168). */}
-      <div
-        className={
-          "rounded-[12px] border bg-card p-3.5 transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_rgba(15,23,42,0.10)] " +
-          (dto.isOverBudget ? "border-destructive/40" : "")
-        }
-      >
-        <div className="mb-2 flex items-center gap-2.5">
-          <div className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] bg-accent text-[14px]">
-            {icon}
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-1.5 text-[13.5px] font-semibold">
-              <span>{dto.categoryName}</span>
-              {dto.budgetType && (
-                <StatusBadge variant="gray">
-                  {t.anggaran.budgetTypeLabels[dto.budgetType]}
-                </StatusBadge>
-              )}
-            </div>
-            <div className="text-[11.5px] text-muted-foreground">
-              {budgetAmountsLabel(dto, t, money)}
-            </div>
-          </div>
-          <div className="text-[13px] font-bold" style={{ color }}>
-            {budgetPctLabel(dto)}
-          </div>
-          {/* EPIC-022 C2 — the API already had PATCH/DELETE for a budget;
-              this was the only surface with no way to reach either. */}
-          {canManage && (
-            <div className="flex shrink-0 items-center gap-1">
-              <button
-                type="button"
-                onClick={onEdit}
-                aria-label={`${t.anggaran.editAriaLabelPrefix}${dto.categoryName}`}
-                className="flex size-[26px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              >
-                <Pencil className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                aria-label={`${t.anggaran.deleteAriaLabelPrefix}${dto.categoryName}`}
-                className="flex size-[26px] items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 className="size-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-        <AnimatedProgress
-          value={Math.min(dto.usagePercent, 100)}
-          color={color}
-        />
-        {/* EPIC-025 N3 rework — prototype's per-card footer line: "Sisa
-            Rp N" for a healthy category, a red "Lewat anggaran Rp N" once
-            spend has exceeded the limit. Both derived from `dto`, no new
-            data. */}
-        <div
-          className={
-            "mt-1.5 text-[11px] " +
-            (dto.isOverBudget ? "text-destructive" : "text-muted-foreground")
-          }
-        >
-          {dto.isOverBudget
-            ? `${t.anggaran.categoryFooterOverBudgetPrefix}${money.format(dto.spentAmount - dto.limitAmount)}`
-            : `${t.anggaran.categoryFooterRemainingPrefix}${money.format(dto.remainingAmount)}`}
-        </div>
-      </div>
-    </Rise>
+    <div className="wm-btile ag-tile" data-tone={tone}>
+      <span className="wm-btile-tt">
+        <span className="wm-ci">{dto.categoryIcon ?? "📦"}</span>
+        <span className="ag-name">{dto.categoryName}</span>
+        {canManage && (
+          <span className="ag-acts">
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label={`${t.anggaran.editAriaLabelPrefix}${dto.categoryName}`}
+            >
+              <Pencil aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label={`${t.anggaran.deleteAriaLabelPrefix}${dto.categoryName}`}
+            >
+              <Trash2 aria-hidden="true" />
+            </button>
+          </span>
+        )}
+      </span>
+      <span className="wm-pv ag-pv">{dto.usagePercent}%</span>
+      <Track value={dto.usagePercent} fill={tone} />
+      <small>
+        {money.format(dto.spentAmount)}
+        {t.anggaran.amountsMidDari}
+        {money.format(dto.limitAmount)}
+      </small>
+      <small className="ag-foot">
+        {dto.isOverBudget
+          ? `${t.anggaran.categoryFooterOverBudgetPrefix}${money.format(dto.spentAmount - dto.limitAmount)}`
+          : `${t.anggaran.categoryFooterRemainingPrefix}${money.format(dto.remainingAmount)}`}
+      </small>
+    </div>
   );
 }
 
 function BudgetSkeleton() {
   return (
-    <div className="space-y-3 py-2">
+    <div className="ag-skeleton" aria-hidden="true">
       {[1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="animate-pulse space-y-2 rounded-[12px] border bg-card p-3.5"
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="size-[34px] rounded-[9px] bg-muted" />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3 w-32 rounded bg-muted" />
-              <div className="h-2.5 w-48 rounded bg-muted" />
-            </div>
-            <div className="h-3 w-8 rounded bg-muted" />
-          </div>
-          <div className="h-2 w-full rounded-full bg-muted" />
-        </div>
+        <div key={i} className="wm-btile animate-pulse" />
       ))}
     </div>
   );
@@ -770,49 +525,49 @@ export function ObligationsSection({
   const unpaidTotal = unpaid.reduce((sum, o) => sum + o.amountDue, 0);
 
   return (
-    <SectionCard
+    <BentoCard
+      className="ag-ob"
       title={t.anggaran.obligationsSectionTitle}
-      action={
-        // EPIC-025 N3 rework — kept as ONE text node (no nested `mono` span
-        // around the amount): a per-row amount can equal this total exactly
-        // when only one obligation is unpaid, and an isolated element with
-        // the same exact text would make `getByText` in
-        // obligations-section.test.tsx ambiguous between the two.
-        <span className="text-xs text-muted-foreground">
+      caption={
+        // One text node: a row amount can equal this total exactly, and a
+        // split node would make getByText ambiguous in the obligations test.
+        <>
           {unpaid.length}
           {t.anggaran.obligationsSummaryMidPrefix}
           {obligations.length}
           {t.anggaran.obligationsSummaryMidSuffix}
           {money.format(unpaidTotal)}
-        </span>
+        </>
       }
-      bodyClassName="-mt-1 divide-y"
     >
-      {obligations.map((o, i) => (
-        <ObligationRow
-          key={`${o.kind}-${o.id}`}
-          obligation={o}
-          index={i}
-          onPay={() => setTarget(o)}
+      <div className="ag-ob-list divide-y">
+        {obligations.map((o, i) => (
+          <ObligationRow
+            key={`${o.kind}-${o.id}`}
+            obligation={o}
+            index={i}
+            onPay={() => setTarget(o)}
+          />
+        ))}
+        <PayObligationDialog
+          obligation={target}
+          accounts={accounts}
+          sourceAccountId={sourceAccountId}
+          onSourceAccountChange={setSourceAccountId}
+          isPending={payMutation.isPending}
+          onClose={() => {
+            setTarget(null);
+            setSourceAccountId("");
+          }}
+          onConfirm={() => {
+            if (target && sourceAccountId) {
+              payMutation.mutate({ obligation: target, sourceAccountId });
+            }
+          }}
         />
-      ))}
-      <PayObligationDialog
-        obligation={target}
-        accounts={accounts}
-        sourceAccountId={sourceAccountId}
-        onSourceAccountChange={setSourceAccountId}
-        isPending={payMutation.isPending}
-        onClose={() => {
-          setTarget(null);
-          setSourceAccountId("");
-        }}
-        onConfirm={() => {
-          if (target && sourceAccountId) {
-            payMutation.mutate({ obligation: target, sourceAccountId });
-          }
-        }}
-      />
-    </SectionCard>
+      </div>
+      <SeeAll href="/liabilitas">{t.anggaran.v2.seeAllObligations}</SeeAll>
+    </BentoCard>
   );
 }
 
@@ -826,6 +581,7 @@ export default function AnggaranPage() {
   const queryClient = useQueryClient();
 
   const [open, setOpen] = useState(false);
+  const [sort, setSort] = useState<"pct" | "left">("pct");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState(ICON_OPTIONS[0] ?? "🎓");
   const amountField = useMoneyField();
@@ -1140,14 +896,6 @@ export default function AnggaranPage() {
 
   const totalLimit = budgets?.reduce((s, b) => s + b.limitAmount, 0) ?? 0;
   const totalSpent = budgets?.reduce((s, b) => s + b.spentAmount, 0) ?? 0;
-  const typeBreakdown = budgets ? buildTypeBreakdown(budgets) : [];
-  // EPIC-025 N3-E1 — J3 FOLD: "Terpakai per Kategori" bars, sorted by
-  // spentAmount desc like the prototype's `hbar()` mount, over the same
-  // already-fetched budgets list.
-  const categoryBarBudgets = (budgets ?? [])
-    .filter((budget) => budget.spentAmount > 0)
-    .slice()
-    .sort((a, b) => b.spentAmount - a.spentAmount);
   const totalRemaining = Math.max(0, totalLimit - totalSpent);
   const overBudgetItems = budgets?.filter((b) => b.isOverBudget) ?? [];
   const nearLimitItems = budgets?.filter((b) => b.isNearLimit) ?? [];
@@ -1162,249 +910,190 @@ export default function AnggaranPage() {
   const usagePct =
     totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
 
+  const sortedBudgets = (budgets ?? [])
+    .slice()
+    .sort((x, y) =>
+      sort === "pct"
+        ? y.usagePercent - x.usagePercent
+        : y.remainingAmount - x.remainingAmount,
+    );
+  const monthLabel = now.toLocaleString(locale === "en" ? "en-US" : "id-ID", {
+    month: "long",
+  });
+  const worst = overBudgetItems[0] ?? nearLimitItems[0];
+  const hottest = (budgets ?? []).reduce(
+    (m, b, k, arr) => (b.usagePercent > arr[m]!.usagePercent ? k : m),
+    0,
+  );
+  const mosaicFilled = Math.round((Math.min(usagePct, 100) / 100) * 18);
+  const mosaic = Array.from({ length: 18 }, (_, i) =>
+    i < mosaicFilled
+      ? usagePct >= 100
+        ? "o"
+        : i > mosaicFilled - 4
+          ? "c"
+          : "a"
+      : i % 5 === 0
+        ? "b"
+        : "",
+  ) as ("a" | "b" | "c" | "o" | "")[];
+
   return (
-    <div className="space-y-4">
-      {/* EPIC-026 Wave 4 — prototype `page-lead` typography (translation
-          table: h1 17px extrabold, 12.5px muted sub) + the "· N kategori
-          aktif" tail (anggaran.html:22), derived from the budgets list
-          already fetched. The prototype's period prev/next + Bulanan/
-          Mingguan/Tahunan segmented control stay CUT: they are toast-stub
-          dead controls with no period-browsing backend (J1 defect class). */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5">
-        <div>
-          <h1 className="text-[17px] font-extrabold tracking-tight">
-            {t.anggaran.pageTitlePrefix}
-            {now.toLocaleString(locale === "en" ? "en-US" : "id-ID", {
-              month: "long",
-              year: "numeric",
-            })}
-          </h1>
-          <div className="mt-1 text-[12.5px] text-muted-foreground">
-            {t.anggaran.totalBudgetPrefix}
-            <span className="mono">{money.format(totalLimit)}</span>
-            {budgets && budgets.length > 0 && (
-              <> · {budgets.length} kategori aktif</>
+    <BentoGrid className="ag-grid">
+      <h1 className="sr-only">{t.shell.pageTitles.anggaran}</h1>
+      <BentoHero
+        className="ag-hero"
+        currency={null}
+        value={money
+          .format(Math.abs(totalLimit - totalSpent))
+          .replace(/,00$/, "")}
+        caption={`${totalLimit >= totalSpent ? t.anggaran.v2.leftCap : t.anggaran.v2.overCap} ${monthLabel}`}
+        controls={
+          <>
+            <span className="wm-ghost-btn ag-month">{monthLabel}</span>
+            {canManageBudget && (
+              <GhostButton
+                lit
+                onClick={() => setOpen(true)}
+                disabled={!familyGroupId}
+              >
+                <Plus aria-hidden="true" /> {t.anggaran.addCategoryButton}
+              </GhostButton>
             )}
-          </div>
-        </div>
-        {canManageBudget && (
-          <Button
-            onClick={() => setOpen(true)}
-            disabled={!familyGroupId}
-            className="h-auto px-[18px] py-2.5"
-          >
-            <Plus className="size-4" /> {t.anggaran.addCategoryButton}
-          </Button>
-        )}
-      </div>
-
-      {/* EPIC-025 N3 rework — prototype's `budget-summary-grid`: a gradient
-          hero (remaining budget, usage badge, days-left, spent/planned
-          progress bar) plus 2 stacked mini-stats, replacing the previous
-          flat 3-stat-card row. All values are the same already-computed
-          `totalRemaining`/`totalSpent`/`daysLeft` this page already fetched
-          — no new data. */}
-      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-3">
-        <Rise index={0} className="lg:col-span-2">
-          <HeroCard className="gradient-emerald h-full">
-            <div className="mb-1 text-xs opacity-80">
-              {t.anggaran.remainingBudgetLabel}
-            </div>
-            <div className="mono text-[26px] font-black">
-              {money.format(totalRemaining)}
-            </div>
-            <div className="mt-2.5 flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold">
-                {totalLimit > 0
-                  ? `${100 - usagePct}${t.anggaran.pctOfBudgetSuffix}`
-                  : t.anggaran.noBudgetYet}
-              </span>
-              <span className="text-[11px] opacity-85">
-                {daysLeft}
-                {t.anggaran.heroDaysLeftMid}
-                {daysInMonth}
-                {t.anggaran.heroDaysLeftSuffix}
-              </span>
-            </div>
-            <div className="mt-3.5 h-[7px] overflow-hidden rounded-full bg-white/25">
-              <div
-                className="h-full rounded-full bg-white transition-[width] duration-200"
-                style={{ width: `${Math.min(100, usagePct)}%` }}
-              />
-            </div>
-            <div className="mono mt-1.5 flex items-center justify-between text-[11px] opacity-90">
-              <span>
-                {t.anggaran.heroTerpakaiPrefix}
-                {money.format(totalSpent)}
-              </span>
-              <span>
-                {t.anggaran.heroRencanaPrefix}
-                {money.format(totalLimit)}
-              </span>
-            </div>
-          </HeroCard>
-        </Rise>
-        <Rise index={1}>
-          {/* EPIC-026 Wave 4 — prototype separates the two mini-stats with
-              a border (`.budget-mini-stat + .budget-mini-stat`,
-              app.css:1225). */}
-          <div className="flex h-full flex-col justify-between divide-y rounded-[14px] border bg-card px-4 py-2">
-            <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-[34px] shrink-0 items-center justify-center rounded-md bg-destructive/10 text-destructive">
-                <TrendingDown className="size-4" />
-              </div>
-              <div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t.anggaran.totalSpentLabel}
-                </div>
-                <div className="mono text-[15px] font-extrabold text-destructive">
-                  {money.format(totalSpent)}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {usagePct}
-                  {t.anggaran.pctOfBudgetSuffix}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2.5 py-2">
-              <div className="flex size-[34px] shrink-0 items-center justify-center rounded-md bg-warning-soft text-warning">
-                <Calendar className="size-4" />
-              </div>
-              <div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t.anggaran.daysLeftLabel}
-                </div>
-                <div className="text-[15px] font-extrabold">
+          </>
+        }
+        chart={
+          budgets && budgets.length > 0 ? (
+            <HatchedBarChart
+              labels={budgets.map((b) => b.categoryName.split(" ")[0] ?? "")}
+              series={[
+                {
+                  name: t.anggaran.v2.legendLimit,
+                  data: budgets.map((b) => b.limitAmount),
+                  color: "var(--wm-ghost)",
+                },
+                {
+                  name: t.anggaran.v2.legendSpent,
+                  data: budgets.map((b) => b.spentAmount),
+                  color: "var(--wm-lime)",
+                },
+              ]}
+              highlight={hottest}
+              format={money.formatCompact}
+              axis={axisJt}
+              wide
+              ariaLabel={t.anggaran.categoryBarChartTitle}
+            />
+          ) : (
+            <p className="wm-cap">{t.anggaran.v2.chartEmpty}</p>
+          )
+        }
+        kpis={
+          <>
+            <HeroKpi
+              label={t.anggaran.v2.kpiLimit}
+              value={money.formatCompact(totalLimit)}
+              delta={
+                <small className="wm-cap">
+                  {budgets?.length ?? 0}
+                  {t.anggaran.categoriesSuffix}
+                </small>
+              }
+            />
+            <HeroKpi
+              label={t.anggaran.v2.kpiSpent}
+              value={money.formatCompact(totalSpent)}
+              delta={
+                <small className="wm-cap">
+                  {usagePct}% {t.anggaran.v2.ofLimit}
+                </small>
+              }
+            />
+            <HeroKpi
+              label={t.anggaran.v2.kpiSafe}
+              value={money.formatCompact(
+                daysLeft > 0
+                  ? Math.round(totalRemaining / daysLeft)
+                  : totalRemaining,
+              )}
+              delta={
+                <small className="wm-cap">
                   {daysLeft}
-                  {t.anggaran.daysSuffix}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {t.anggaran.statAvgSafePrefix}
-                  <span className="mono">
-                    {money.format(
-                      daysLeft > 0
-                        ? Math.round(totalRemaining / daysLeft)
-                        : totalRemaining,
-                    )}
-                  </span>
-                  {t.anggaran.statAvgSafeSuffix}
-                </div>
-              </div>
-            </div>
-          </div>
-        </Rise>
-      </div>
-
-      {/* EPIC-025 N3 rework — prototype places the over-budget/near-limit
-          alert directly under the hero, not at the bottom of the page
-          (same computed `overBudgetItems`/`nearLimitItems`, only moved). */}
-      {/* EPIC-026 Wave 4 — prototype's alert is a `notice notice--warning`
-          with a triangle-alert icon (anggaran.html:96), not a primary/
-          accent box: warning styling per the translation-table notice
-          mapping. The prototype's "Tips Hemat →" is a toast-stub dead
-          control — removed per the J1 defect class (same as login's inert
-          "Ingat saya"). */}
-      {(overBudgetItems.length > 0 || nearLimitItems.length > 0) && (
-        <div className="flex items-center gap-2.5 rounded-[11px] border border-warning/35 bg-warning-soft p-3 text-warning">
-          <TriangleAlert className="size-[18px] shrink-0" />
-          <div className="flex-1">
-            {overBudgetItems.length > 0 ? (
-              <>
-                <div className="text-[12.5px] font-bold">
-                  {overBudgetItems[0]!.categoryName}
-                  {t.anggaran.overBudgetMidText}
-                  {overBudgetItems[0]!.usagePercent - 100}
-                  {t.anggaran.overBudgetSuffix}
-                </div>
-                <div className="text-[11.5px]">{t.anggaran.overBudgetDesc}</div>
-              </>
-            ) : (
-              <>
-                <div className="text-[12.5px] font-bold">
-                  {nearLimitItems[0]!.categoryName}
-                  {t.anggaran.nearLimitMidText}
-                  {nearLimitItems[0]!.usagePercent}
-                  {t.anggaran.nearLimitSuffix}
-                </div>
-                <div className="text-[11.5px]">{t.anggaran.nearLimitDesc}</div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+                  {t.anggaran.daysSuffix.toLowerCase()}
+                </small>
+              }
+            />
+          </>
+        }
+      />
 
       {familyGroupId && (
         <ObligationsSection familyGroupId={familyGroupId} token={token} />
       )}
 
-      <SectionCard
+      <BentoCard
+        className="ag-cats"
         title={t.anggaran.categoryBreakdownTitle}
+        caption={t.anggaran.v2.tilesCaption}
         action={
-          canManageBudget && (
-            <CardLink onClick={() => setOpen(true)}>
-              {t.anggaran.categoryAddAction}
-            </CardLink>
-          )
+          <Segmented
+            label={t.anggaran.v2.sortLabel}
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: "pct", label: t.anggaran.v2.sortUsed },
+              { value: "left", label: t.anggaran.v2.sortLeft },
+            ]}
+          />
         }
-        bodyClassName="-mt-1"
       >
         {isLoading && <BudgetSkeleton />}
         {isError && (
-          <div className="py-4 text-center text-[13px] text-destructive">
+          <p role="alert" className="ag-state ag-state-bad">
             {t.anggaran.errorLoad}
-          </div>
+          </p>
         )}
         {!isLoading && !isError && (!budgets || budgets.length === 0) && (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">
-            {t.anggaran.emptyState}
-          </div>
+          <p className="ag-state">{t.anggaran.emptyState}</p>
         )}
         {!isLoading && !isError && budgets && budgets.length > 0 && (
-          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            {budgets.map((b, i) => (
-              <BudgetItem
+          <BentoTiles>
+            {sortedBudgets.map((b) => (
+              <BudgetTile
                 key={b.id}
                 dto={b}
-                index={i}
                 canManage={!!canManageBudget}
                 onEdit={() => openEdit(b)}
                 onDelete={() => setDeletingBudget(b)}
               />
             ))}
-          </div>
-        )}
-      </SectionCard>
-
-      {/* EPIC-026 Wave 4 — prototype uses `grid--sidebar` (2fr/1fr) for
-          the chart + type-breakdown band (anggaran.html:331), not equal
-          halves. */}
-      {(categoryBarBudgets.length > 0 || typeBreakdown.length > 0) && (
-        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <SectionCard title={t.anggaran.categoryBarChartTitle}>
-            {categoryBarBudgets.length === 0 ? (
-              <div className="py-4 text-center text-[13px] text-muted-foreground">
-                {t.anggaran.emptyCategoryBarChart}
-              </div>
-            ) : (
-              <BudgetUsageList budgets={categoryBarBudgets} />
+            {canManageBudget && (
+              <AddTile onClick={() => setOpen(true)}>
+                <Plus aria-hidden="true" /> {t.anggaran.v2.addTile}
+              </AddTile>
             )}
-          </SectionCard>
+          </BentoTiles>
+        )}
+      </BentoCard>
 
-          {typeBreakdown.length > 0 && (
-            <SectionCard title={t.anggaran.typeBreakdownTitle}>
-              <BudgetTypeSummary
-                rows={typeBreakdown}
-                totalSpent={totalSpent}
-                totalLimit={totalLimit}
-                totalRemaining={totalRemaining}
-                overBudgetCount={overBudgetItems.length}
-                nearLimitCount={nearLimitItems.length}
-                t={t}
-              />
-            </SectionCard>
-          )}
-        </div>
-      )}
+      <TipsCard
+        className="ag-alert"
+        title={
+          worst
+            ? worst.isOverBudget
+              ? `${worst.categoryName}${t.anggaran.overBudgetMidText}${worst.usagePercent - 100}${t.anggaran.overBudgetSuffix}`
+              : `${worst.categoryName}${t.anggaran.nearLimitMidText}${worst.usagePercent}${t.anggaran.nearLimitSuffix}`
+            : t.anggaran.v2.alertOkTitle
+        }
+        mosaic={mosaic}
+        action={<SeeAll href="/transaksi">{t.anggaran.v2.alertSeeTx}</SeeAll>}
+      >
+        {worst
+          ? worst.isOverBudget
+            ? t.anggaran.overBudgetDesc
+            : t.anggaran.nearLimitDesc
+          : t.anggaran.v2.alertOkBody}
+      </TipsCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
         {/* EPIC-026 — composition ported 1:1 from the prototype's
@@ -1692,6 +1381,6 @@ export default function AnggaranPage() {
         onClose={() => setDeletingBudget(null)}
         onConfirm={handleDeleteBudget}
       />
-    </div>
+    </BentoGrid>
   );
 }

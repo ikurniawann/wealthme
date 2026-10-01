@@ -531,7 +531,72 @@ export const id = {
       typeToSearchHint: "Ketik minimal 2 karakter untuk mencari",
     },
   },
+  iam: {
+    v2: {
+      heroCap: "Anggota keluarga",
+      addBtn: "Tambah",
+      kpiMaster: "Master",
+      kpiManaged: "Anggota dengan role",
+      kpiCustom: "Akses khusus",
+      stepsTitle: "Cara kerja",
+      stepsCaption: "Tiga langkah atur akses",
+      step1Title: "Buat role",
+      step1Text:
+        "Kumpulan halaman yang boleh dibuka (Lihat / Kelola) dan data siapa yang terlihat.",
+      step2Title: "Pasang ke anggota",
+      step2Text:
+        "Lewat tombol Atur Akses. Tanpa role, anggota memakai akses bawaan tipenya.",
+      step3Title: "Pengecualian (opsional)",
+      step3Text: "Buka atau tutup halaman tertentu hanya untuk satu anggota.",
+      tabsLabel: "Bagian IAM",
+      tabMembers: "Anggota",
+      tabRoles: "Role Akses",
+      tabsNote: "Master selalu punya akses penuh, {n} anggota diatur aksesnya",
+    },
+  },
   aksesSaya: {
+    v2: {
+      heroDesc:
+        "Lihat data apa saja yang bisa kamu akses di WealthMe keluarga.",
+      heroCap: "rekening ditugaskan",
+      rolePrefix: "Role: ",
+      kpiBalance: "Saldo keluarga",
+      kpiReports: "Laporan",
+      kpiRole: "Role",
+      accTitle: "Rekening kamu",
+      accEmptyTitle: "Belum ditugaskan",
+      accEmptyHint: "Minta Master menugaskan rekening dari IAM Roles.",
+      accNote:
+        "Kalau butuh akses tambahan, minta Master menugaskan rekening atau mengubah role kamu dari halaman IAM Roles.",
+      permAccTitle: "Rekening Ditugaskan",
+      permAccLoading: "Memuat…",
+      permAccNone: "Belum ada",
+      permAccCount: "rekening",
+      permAccDescYes: "Boleh mencatat transaksi dan melihat mutasi di: ",
+      permAccDescNo: "Master belum menugaskan rekening apa pun ke akun ini.",
+      permBalTitle: "Saldo Keluarga",
+      permBalValue: "Tidak terlihat",
+      permBalDesc:
+        "Kekayaan bersih, investasi, dan aset keluarga tidak dihitung untuk akun ini.",
+      permRepTitle: "Laporan Keluarga",
+      actTitle: "Aktivitas yang Diizinkan",
+      actCaption:
+        "Semua aksi di bawah ini tetap tercatat dan bisa ditinjau Master.",
+      actBadge: "Read + Input terbatas",
+      colActivity: "Aktivitas",
+      colStatus: "Status",
+      colNote: "Catatan",
+      actRecord: "Mencatat transaksi",
+      actRecordYes: "Pada rekening yang ditugaskan.",
+      actRecordWait: "Menunggu rekening ditugaskan Master.",
+      actFund: "Mengajukan dana",
+      actFundNote: "Perlu disetujui Master sebelum dana berpindah.",
+      actAllowed: "Diizinkan",
+      actReports: "Melihat laporan keluarga",
+      actRole: "Mengubah role anggota",
+      actLocked: "Dikunci",
+      actRoleNote: "Hanya Master yang bisa mengubah IAM.",
+    },
     eyebrowMaster: "Akun Master",
     eyebrowDependant: "Akun Anak / Staff",
     familyReportsUnlocked: "Terbuka",
@@ -1019,6 +1084,29 @@ export const id = {
     },
   },
   persetujuan: {
+    v2: {
+      heroCap: "menunggu keputusanmu",
+      chip: "permintaan",
+      chartTitle: "Keputusan bulan ini",
+      chartEmpty: "Belum ada keputusan bulan ini.",
+      kpiPending: "Menunggu",
+      kpiApproved: "Disetujui bulan ini",
+      kpiRejected: "Ditolak bulan ini",
+      sideTitle: "Pemohon aktif",
+      sideCaption: "Rata-rata per permintaan",
+      sideEmpty: "Tidak ada permintaan menunggu.",
+      seeHistory: "Lihat riwayat keputusan",
+      mainTitle: "Permintaan dana",
+      riwayatTitle: "Riwayat Keputusan",
+      colRequester: "Pemohon",
+      colAccount: "Rekening",
+      colStatus: "Status",
+      colDate: "Tanggal",
+      colAmount: "Jumlah",
+      tipsTitle: "Periksa sebelum menyetujui",
+      tipsBody:
+        "Menyetujui permintaan dana memindahkan uang sungguhan antar rekening. Pastikan keperluan dan rekening tujuan sudah sesuai.",
+    },
     pageDesc:
       "Setujui atau tolak permintaan dana keluarga di satu tempat, terpisah dari pengaturan akun.",
     tabPending: "Pending",
@@ -1059,6 +1147,12 @@ export const id = {
       "Dana ditransfer sungguhan dari rekening ini ke rekening tujuan.",
   },
   panduan: {
+    v2: {
+      heroTitle: "Cari panduan atau jelajahi fitur",
+      tabsLabel: "Kelompok fitur",
+      contactCaption: "Tim kami siap membantu langsung",
+      emptyTitle: "Tidak ditemukan",
+    },
     pageTitle: "Panduan Fitur WealthMe",
     pageSubtitle:
       "Semua fitur, dikelompokkan berdasarkan alur pemakaian, jelajahi sesuai kebutuhanmu.",
@@ -1330,6 +1424,25 @@ export const id = {
     },
   },
   asuransi: {
+    v2: {
+      heroCaption: "Premi bulan ini",
+      kpiActive: "Polis aktif",
+      kpiCoverage: "Pertanggungan",
+      kpiRenew: "Perpanjangan terdekat",
+      chartAria: "Estimasi premi 6 bulan terakhir",
+      legendPremium: "Premi (estimasi)",
+      allocCaption: "total pertanggungan aktif",
+      gridTitle: "Polis",
+      gridCount: "polis",
+      benCaption: "penerima manfaat di semua polis",
+      tipOkTitle: "Tidak ada perpanjangan dalam 30 hari",
+      tipOkBody:
+        "Semua polis aktifmu masih aman. Kami ingatkan saat jatuh tempo mendekat.",
+      tipEmptyTitle: "Belum ada polis",
+      tipEmptyBody:
+        "Tambahkan polis pertamamu untuk memantau premi dan pertanggungan.",
+      tipSoonSuffix: " segera jatuh tempo",
+    },
     activePoliciesSuffix: "Polis Aktif",
     totalPremiumPrefix: "Total premi:",
     errorLoad: "Gagal memuat data asuransi. Silakan refresh halaman.",
@@ -1711,6 +1824,16 @@ export const id = {
       "Halaman ini hanya untuk master/co-master keluarga. Kamu tidak memiliki akses.",
   },
   ai: {
+    v2: {
+      heroCap: "Tanya soal anggaran, tujuan, atau pengeluaran keluargamu.",
+      chipsLabel: "Pertanyaan populer",
+      emptyBody: "Tanya soal anggaran, tujuan, atau pengeluaran bulan ini.",
+      inputLabel: "Tulis pesan",
+      dataReadCap: "Yang dibaca AI untuk menjawabmu",
+      summaryCap: "Bulan ini",
+      changeKey: "Ubah",
+      historyCap: "Percakapan tersimpan",
+    },
     bannerTitle: "WealthMe AI Advisor",
     bannerSubtitle:
       "Analisa keuangan personal berdasarkan data nyata, memakai API key kamu sendiri.",
@@ -1823,6 +1946,19 @@ export const id = {
     },
   },
   investasi: {
+    v2: {
+      allocTitle: "Kepemilikan",
+      listTitle: "Portofolio",
+      allocCaption: "Porsi per jenis instrumen",
+      legendCost: "Modal",
+      legendValue: "Nilai",
+      chartEmpty: "Belum ada investasi untuk digambar.",
+      filterLabel: "Filter jenis investasi",
+      chartAria: "Modal dan nilai saat ini per investasi",
+      heroCapSuffix: "posisi tercatat",
+      rowCapital: "Modal",
+      noteDividends: "Dividen & bunga tercatat di Transaksi",
+    },
     goldPricePerGramTooHigh:
       "Harga emas diisi per gram, bukan per kg. Contoh: 2.597.000.",
     typeLabels: {
@@ -2057,6 +2193,31 @@ export const id = {
     historyFilterEmpty: "Tidak ada transaksi pada rentang tanggal ini.",
   },
   aset: {
+    v2: {
+      kpiAcc: "Dana & rekening",
+      kpiInv: "Investasi",
+      kpiFisik: "Aset fisik",
+      accTitle: "Dana & rekening",
+      invSeeAll: "Semua investasi",
+      accSeeAll: "Semua rekening & dana",
+      instrumentSuffix: "instrumen",
+      accountSuffix: "akun",
+      fisikCaption: "Ketuk kartu untuk ubah",
+      fisikNew: "Aset baru",
+      eyeHide: "Sembunyikan",
+      eyeShow: "Tampilkan",
+      tipTitle: "Total pakai nilai tercatat",
+      tipBody:
+        "Perkiraan kenaikan atau penyusutan per tahun dihitung terpisah dan tidak mengubah total sampai kamu memakainya.",
+      trendAria: "Tren total aset per bulan",
+      compAria: "Komposisi aset",
+      trendLegend: "Total aset",
+      detailKpiNow: "Nilai tercatat",
+      detailKpiFirst: "Nilai pertama",
+      detailKpiChange: "Sejak dicatat",
+      detailDocCount: "file",
+      detailHistCaption: "Terbaru di atas",
+    },
     tabs: {
       semua: "Semua",
       dana: "Cash & E-Wallet",
@@ -2184,6 +2345,32 @@ export const id = {
     ownerUnknownLabel: "Tidak diketahui",
   },
   liabilitas: {
+    v2: {
+      heroCaption: "Sisa liabilitas keluarga",
+      kpiLoan: "KPR & pinjaman",
+      kpiCard: "Kartu kredit",
+      kpiMonthly: "Cicilan bulan ini",
+      legendPaid: "Dibayar",
+      legendTotal: "Total",
+      chartAria: "Terbayar dibanding total utang per jenis",
+      chartEmpty:
+        "Belum ada liabilitas. Tambah KPR, kartu kredit, atau pinjaman untuk mulai memantau.",
+      riskTitle: "Rasio utang",
+      riskCaption: "Terhadap total aset",
+      riskHealthy: "Sisa liabilitas masih sehat dibanding aset keluarga.",
+      riskWarn: "Sisa liabilitas mendekati atau melebihi porsi aman.",
+      gridTitle: "Liabilitas",
+      gridCount: "liabilitas",
+      detailLabel: "Detail",
+      tipOverdueSuffix: " sudah jatuh tempo",
+      tipSoonSuffix: " segera jatuh tempo",
+      tipInstallment: "Cicilan",
+      tipOkTitle: "Semua liabilitas berjalan lancar",
+      tipOkBody: "Tidak ada cicilan yang jatuh tempo dalam waktu dekat.",
+      tipEmptyTitle: "Belum ada liabilitas",
+      tipEmptyBody:
+        "Tambah KPR, kartu kredit, atau pinjaman untuk mulai melacaknya.",
+    },
     fieldGroups: {
       identity: "Identitas",
       amount: "Nominal",
@@ -2433,6 +2620,16 @@ export const id = {
     },
   },
   masterdata: {
+    v2: {
+      heroCap: "Kategori tersimpan",
+      kpiIn: "Pemasukan",
+      kpiOut: "Pengeluaran",
+      kpiCoa: "Terhubung COA",
+      coaTitle: "Akun COA",
+      coaCaption: "Kategori yang sudah punya akun COA",
+      catCaption: "Transaksi, anggaran & laporan",
+      refTitle: "Daftar rujukan",
+    },
     pageTitle: "Setup Master Data",
     pageSubtitle:
       "Kelola data referensi yang dipakai di seluruh aplikasi. Semua daftar di halaman ini bisa kamu tambah dan hapus sendiri.",
@@ -2488,6 +2685,7 @@ export const id = {
       "adalah isian awal dari WealthMe, tetap bisa kamu hapus atau ganti kalau tidak dipakai keluargamu. Perubahan langsung tersimpan ke server dan berlaku untuk seluruh anggota keluarga.",
   },
   mastercoa: {
+    v2: { heroCap: "Akun COA aktif" },
     groupLabels: {
       1: "Income",
       2: "Expense",
@@ -2658,6 +2856,21 @@ export const id = {
     },
   },
   notifikasi: {
+    v2: {
+      heroCap: "notifikasi belum dibaca",
+      kpiTotal: "Total notifikasi",
+      kpiApproval: "Persetujuan",
+      kpiBill: "Jatuh tempo",
+      filterLabel: "Filter notifikasi",
+      filterTransaksi: "Transaksi",
+      filterAnggaran: "Anggaran",
+      filterPersetujuan: "Persetujuan",
+      filterTempo: "Jatuh Tempo",
+      filterSistem: "Sistem",
+      emptyFilter:
+        "Tidak ada notifikasi di filter ini. Coba pilih filter lain.",
+      compAria: "Komposisi notifikasi per kategori",
+    },
     title: "Notifikasi",
     newCountSuffix: " Baru",
     // N3-B2 (prototype notifikasi.html page-lead subtitle) — prefix/suffix
@@ -2855,6 +3068,27 @@ export const id = {
       "- mendekati batas, pertimbangkan mengurangi utang.",
   },
   tujuan: {
+    v2: {
+      heroCapPrefix: "Terkumpul dari ",
+      heroCapSuffix: " tujuan",
+      legendSaved: "Terkumpul",
+      legendTarget: "Target",
+      chartEmpty: "Belum ada tujuan untuk ditampilkan.",
+      kpiOnTrack: "Sesuai rencana",
+      kpiBoost: "Perlu didorong",
+      kpiRisk: "Berisiko",
+      attTitle: "Perlu perhatian",
+      attCaption: "Tujuan yang tertinggal dari rencana",
+      attAllGood: "Semua tujuan berjalan sesuai rencana.",
+      tilesTitle: "Semua tujuan",
+      tilesCaption: "Setor, ubah, atau hapus tiap tujuan",
+      addTile: "Tujuan baru",
+      tipsOkTitle: "Semua tujuan berjalan baik",
+      tipsWorstSuffix: " perlu dorongan",
+      tipsOkBody:
+        "Terus setor sesuai rencana supaya target tercapai tepat waktu.",
+      tipsOverallPrefix: "Progres keseluruhan ",
+    },
     statusLabels: {
       achieved: "Tercapai",
       on_track: "On Track",
@@ -3449,6 +3683,15 @@ export const id = {
       "Hanya zakat/persepuluhan ke lembaga resmi (PP 60/2010).",
   },
   warisan: {
+    v2: {
+      legendValue: "Nilai estimasi",
+      chartAria: "Nilai aset warisan terbesar",
+      kpiAssets: "Aset tercatat",
+      kpiHeirs: "Ahli waris",
+      kpiAlloc: "Teralokasi",
+      benCaption: "Perkiraan bagian per orang",
+      benEmpty: "Belum ada ahli waris. Tambahkan saat mencatat aset.",
+    },
     heroTitle: "Total Nilai Warisan",
     assetsRegisteredSuffix: " aset terdaftar",
     heirsMidDot: " · ",
@@ -3522,6 +3765,28 @@ export const id = {
     heirTableEmpty: "Belum ada ahli waris untuk aset ini.",
   },
   anggaran: {
+    v2: {
+      leftCap: "Sisa anggaran",
+      overCap: "Lewat anggaran",
+      legendSpent: "Terpakai",
+      legendLimit: "Batas",
+      kpiLimit: "Total anggaran",
+      kpiSpent: "Terpakai",
+      kpiSafe: "Aman per hari",
+      ofLimit: "dari batas",
+      sortLabel: "Urutkan",
+      sortUsed: "Terpakai",
+      sortLeft: "Sisa",
+      tilesCaption: "Pantau terpakai per kategori",
+      addTile: "Kategori baru",
+      obCaptionUnpaid: " belum dibayar",
+      obCaptionAllPaid: "Semua sudah dibayar",
+      seeAllObligations: "Semua kewajiban",
+      alertOkTitle: "Semua anggaran aman",
+      alertOkBody: "Pengeluaranmu masih di bawah batas.",
+      alertSeeTx: "Lihat transaksinya",
+      chartEmpty: "Belum ada anggaran. Tambah kategori untuk mulai memantau.",
+    },
     budgetTypeLabels: {
       FIXED: "Tetap",
       VARIABLE: "Variabel",
@@ -4682,6 +4947,53 @@ export const id = {
       creatingExportPrefix: "Membuat ekspor",
       creatingExportSuffix: "...",
       toastExportCreateFailed: "Gagal membuat ekspor.",
+    },
+  },
+  login: {
+    v2: {
+      coverPre: "Kelola keuangan ",
+      coverEm: "satu keluarga",
+      coverPost: ", dari satu akun.",
+      features: [
+        "Satu tempat untuk seluruh keuangan keluarga.",
+        "Anggota anak & staf punya akses terbatas, kamu yang atur.",
+        "Anggaran, tujuan, dan laporan otomatis terhubung.",
+      ],
+    },
+  },
+  register: {
+    v2: {
+      coverPre: "Mulai catat ",
+      coverEm: "kekayaanmu",
+      coverPost: " hari ini.",
+      features: [
+        "Bikin akun, lalu tambahkan rekening pertamamu sendiri.",
+        "Rekening tidak dibuat otomatis. Semua kamu yang atur.",
+        "Undang pasangan, anak atau staf belakangan, kapan saja.",
+      ],
+    },
+  },
+  lupaPassword: {
+    v2: {
+      coverPre: "Lupa password bukan ",
+      coverEm: "akhir cerita",
+      coverPost: ".",
+      features: [
+        "Link reset dikirim ke email yang terdaftar.",
+        "Link berlaku 60 menit demi keamanan akunmu.",
+        "Akun username? Minta Master keluarga mengganti dari IAM Roles.",
+      ],
+    },
+  },
+  resetPassword: {
+    v2: {
+      coverPre: "Setel ",
+      coverEm: "password baru",
+      coverPost: " untuk akunmu.",
+      features: [
+        "Password baru langsung aktif untuk masuk berikutnya.",
+        "Minimal 8 karakter, dan harus sama dengan konfirmasi.",
+      ],
     },
   },
   forcePasswordChange: {

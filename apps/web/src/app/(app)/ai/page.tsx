@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Bot, Check, Lock, SendHorizontal, X } from "lucide-react";
+import "./ai.css";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { useAiKeyStatus, type AiProvider } from "@/hooks/use-ai-key";
@@ -10,7 +12,13 @@ import { apiFetch } from "@/lib/api-client";
 import { useMoney } from "@/hooks/use-money";
 
 import { MarkdownMessage } from "@/components/ai/markdown-message";
-import { AIChatCard } from "@/components/ui/ai-chat-card";
+import {
+  BentoCard,
+  BentoGrid,
+  GhostButton,
+  MiniList,
+  MiniRow,
+} from "@/components/wm";
 import { useTimeGreeting } from "@/hooks/use-time-greeting";
 
 /** Restructure (prototype parity) — minimal shape read from the real
@@ -36,62 +44,53 @@ function NotConfiguredPanel({
   t: ReturnType<typeof useLocale>["t"];
 }) {
   return (
-    <div className="mx-auto flex max-w-[560px] flex-col items-center gap-3 rounded-[14px] border bg-card py-14 text-center">
-      <div className="text-5xl">🔒</div>
-      <p className="text-[16px] font-bold text-foreground">
-        {t.ai.notConfiguredTitle}
-      </p>
-      <p className="max-w-[420px] text-[13px] text-muted-foreground">
-        {canManage ? t.ai.notConfiguredBodyOwner : t.ai.notConfiguredBodyOther}
-      </p>
-      {canManage && (
-        <Link
-          href="/akun"
-          className="mt-1 rounded-lg bg-primary px-5 py-2.5 text-[13px] font-bold text-white"
-        >
-          {t.ai.notConfiguredCta}
-        </Link>
-      )}
-    </div>
+    <BentoGrid className="ai-grid">
+      <h1 className="sr-only">{t.shell.pageTitles.ai}</h1>
+      <section className="wm-card wm-dark ai-empty-card">
+        <span className="ai-empty-ic" aria-hidden="true">
+          <Lock size={22} />
+        </span>
+        <h2>{t.ai.notConfiguredTitle}</h2>
+        <p>
+          {canManage
+            ? t.ai.notConfiguredBodyOwner
+            : t.ai.notConfiguredBodyOther}
+        </p>
+        {canManage && (
+          <Link href="/akun" className="wm-ghost-btn" data-lit="true">
+            {t.ai.notConfiguredCta}
+          </Link>
+        )}
+      </section>
+    </BentoGrid>
   );
 }
 
-/** Restructure (prototype parity) — one row in the "Data yang Dibaca
- * Advisor" list. `read` is derived from `advisor-prompt.util.ts`'s
- * `buildAdvisorSystemPrompt`, which sends net-worth/cashflow aggregates and
- * top spending categories only — never raw per-transaction rows or account
- * numbers. */
+/** One row in the "Data yang Dibaca" list. `read` is derived from
+ * `advisor-prompt.util.ts`'s `buildAdvisorSystemPrompt`, which sends
+ * net-worth/cashflow aggregates and top spending categories only — never raw
+ * per-transaction rows or account numbers. */
 function DataReadRow({
   label,
-  detail,
   read,
   yesLabel,
   noLabel,
 }: {
   label: string;
-  detail?: string;
   read: boolean;
   yesLabel: string;
   noLabel: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b py-2 text-[12.5px] last:border-b-0">
-      <div>
-        <div className="font-semibold">{label}</div>
-        {detail && (
-          <div className="text-[11px] text-muted-foreground">{detail}</div>
-        )}
-      </div>
-      <span
-        className={`flex-shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
-          read
-            ? "bg-success-soft text-emerald-700 dark:text-emerald-300"
-            : "bg-muted text-muted-foreground"
-        }`}
-      >
-        {read ? yesLabel : noLabel}
-      </span>
-    </div>
+    <MiniRow
+      icon={read ? <Check size={16} /> : <X size={16} />}
+      title={label}
+      amount={
+        <span className="ai-yn" data-on={read || undefined}>
+          {read ? yesLabel : noLabel}
+        </span>
+      }
+    />
   );
 }
 
@@ -160,11 +159,16 @@ export default function AiPage() {
 
   if (!familyGroupId) {
     return (
-      <div className="mx-auto flex max-w-[800px] flex-col items-center justify-center gap-4 py-20 text-center">
-        <div className="text-5xl">🤖</div>
-        <p className="text-lg font-medium">{t.ai.noGroupTitle}</p>
-        <p className="text-sm text-muted-foreground">{t.ai.noGroupBody}</p>
-      </div>
+      <BentoGrid className="ai-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.ai}</h1>
+        <section className="wm-card wm-dark ai-empty-card">
+          <span className="ai-empty-ic" aria-hidden="true">
+            <Bot size={22} />
+          </span>
+          <h2>{t.ai.noGroupTitle}</h2>
+          <p>{t.ai.noGroupBody}</p>
+        </section>
+      </BentoGrid>
     );
   }
 
@@ -176,400 +180,265 @@ export default function AiPage() {
     return <NotConfiguredPanel canManage={canManageAiKey} t={t} />;
   }
 
+  const hasConversation = messages.length > 1;
+
   return (
-    <div className="mx-auto max-w-[1100px]">
-      {/* Banner — includes the real configured provider (from
-          `useAiKeyStatus`, never a fabricated model name) and the settings
-          entry point, matching the prototype's header actions. */}
-      <div className="gradient-ai mb-2 flex flex-wrap items-center gap-4 rounded-[14px] p-5 text-white">
-        <div className="text-[38px] leading-none">🤖</div>
-        <div className="flex-1">
-          <div className="text-[16px] font-bold">{t.ai.bannerTitle}</div>
-          <div className="mt-[3px] text-[12.5px] opacity-65">
-            {t.ai.bannerSubtitle}
+    <BentoGrid className="ai-grid">
+      <h1 className="sr-only">{t.shell.pageTitles.ai}</h1>
+
+      <section className="wm-card wm-dark ai-hero">
+        <div className="ai-top">
+          <div className="min-w-0">
+            <h2>{t.ai.bannerTitle}</h2>
+            <p className="wm-cap">{t.ai.v2.heroCap}</p>
           </div>
-        </div>
-        {providerLabel && (
-          <span className="rounded-full bg-white/15 px-3 py-1 text-[11.5px] font-bold">
-            {providerLabel}
-          </span>
-        )}
-        {canManageAiKey && (
-          <Link
-            href="/akun"
-            className="rounded-lg bg-white/15 px-4 py-2 text-[12.5px] font-bold transition-colors hover:bg-white/25"
-          >
-            {t.ai.manageApiKeyButton}
-          </Link>
-        )}
-      </div>
-
-      <div className="mb-4 flex items-center gap-2 text-[12px] text-muted-foreground">
-        <span className="font-semibold text-foreground">
-          {t.ai.statusApiKeyLabel}
-        </span>
-        <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
-          {t.ai.statusConnectedBadge}
-        </span>
-      </div>
-
-      {/* Popular-questions carousel — horizontal scroll strip above the
-          chat, matching the prototype's chip row (moved out of the sidebar
-          list it previously lived in). */}
-      <div className="hide-scrollbar mb-3.5 flex gap-2 overflow-x-auto pb-1">
-        {t.ai.chips.map((chip) => (
-          <button
-            key={chip}
-            type="button"
-            onClick={() => send(chip)}
-            disabled={isStreaming}
-            className="flex-shrink-0 whitespace-nowrap rounded-full border bg-card px-3.5 py-2 text-[12px] font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {chip}
-          </button>
-        ))}
-      </div>
-
-      {/* Bento layout (EPIC-025 N3-B5) — chat column spans 8/12 on desktop,
-          matching the prototype's `bento-span-8`; stacks to a single column
-          on tablet/mobile per the translation table's bento-grid mapping. */}
-      <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-12">
-        <div className="lg:col-span-8">
-          {/* G8 (hardening batch) — the empty state (only the seed
-              assistant greeting, no real exchange yet) now uses AIChatCard
-              instead of a blank transcript; sending a message switches
-              straight to the normal chat view below since `messages`
-              grows past 1 on the engine's own send(). */}
-          {messages.length <= 1 ? (
-            <AIChatCard
-              title={t.ai.chatCard.title}
-              subtitle={t.ai.chatCard.subtitle}
-              greeting={greeting}
-              prompt={t.ai.chatCard.promptText}
-              prompts={t.ai.chatCard.prompts}
-              placeholder={t.ai.chatCard.placeholder}
-              resetAriaLabel={t.ai.chatCard.resetAriaLabel}
-              attachAriaLabel={t.ai.chatCard.attachAriaLabel}
-              sendAriaLabel={t.ai.chatCard.sendAriaLabel}
-              onSend={(text) => send(text)}
-              onReset={handleNewConversation}
-            />
-          ) : (
-            <div className="flex flex-col overflow-hidden rounded-[14px] border bg-card">
-              {/* Prototype parity (docs/prototype/pages/ai.html): the chat card
-                carries a "Percakapan" title. The app rendered a bare row with
-                only the reset button, so the card had no heading at all —
-                found by the text-presence parity audit, not by the earlier
-                selector-based one, which reported it as present. */}
-              <div className="row--between flex items-center border-b px-3 py-2">
-                <h2 className="card__title">{t.ai.chatCardTitle}</h2>
-                <button
-                  type="button"
-                  onClick={handleNewConversation}
-                  disabled={isStreaming}
-                  className="rounded-md px-2.5 py-1 text-[11.5px] font-semibold text-primary transition-colors hover:bg-accent disabled:opacity-50"
-                >
-                  {t.ai.newConversationButton}
-                </button>
-              </div>
-              {/* The transcript used to sit at a fixed `min-h-[200px]
-                max-h-[440px]`, which on a 900px-tall desktop left ~324px of
-                empty viewport below the card while the conversation scrolled
-                inside a letterbox. It now grows downward into that space:
-                400px is the measured chrome above and below it (page header +
-                chip strip + card header + composer + bottom gutter), the
-                320px floor keeps it usable on a short window, and the 760px
-                cap stops the line length from sprawling on a tall monitor.
-                On mobile the page scrolls anyway, so the taller panel simply
-                shows more of the conversation. */}
-              <div
-                ref={scrollRef}
-                className="hide-scrollbar flex h-[clamp(320px,calc(100dvh_-_400px),760px)] flex-col gap-4 overflow-y-auto p-4"
-              >
-                {messages.map((msg) =>
-                  msg.role === "assistant" ? (
-                    <div key={msg.id} className="flex items-start gap-2.5">
-                      <div
-                        className="flex size-9 flex-shrink-0 items-center justify-center rounded-full text-[16px]"
-                        style={{ background: "#EEF2FF" }}
-                      >
-                        🤖
-                      </div>
-                      {/* EPIC-023 Task G retry (MEDIUM five-reviewer finding,
-                    round 2) — the truncation notice is a SEPARATE, visually
-                    distinct element below the bubble, not text appended
-                    into it (which collapsed into one run-on sentence and
-                    read as though the model wrote the caveat itself).
-                    The bubble no longer sets `whitespace-pre-wrap`: the
-                    answer is markdown, and `MarkdownMessage` produces real
-                    block elements whose own margins handle the spacing —
-                    keeping pre-wrap would additionally honour the source's
-                    newlines and double every gap. */}
-                      <div className="flex max-w-[78%] flex-col gap-1">
-                        <div className="rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2.5 text-[13px] leading-relaxed text-secondary-foreground">
-                          {msg.text ? (
-                            <MarkdownMessage text={msg.text} />
-                          ) : (
-                            <span className="animate-pulse text-muted-foreground">
-                              ●●●
-                            </span>
-                          )}
-                        </div>
-                        {msg.truncated && (
-                          <div className="px-1 text-[11px] font-medium italic text-muted-foreground">
-                            {t.ai.truncatedNotice}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      key={msg.id}
-                      className="flex items-start justify-end gap-2.5"
-                    >
-                      <div className="max-w-[78%] rounded-2xl rounded-tr-sm bg-primary px-3.5 py-2.5 text-[13px] leading-relaxed text-white">
-                        {msg.text}
-                      </div>
-                    </div>
-                  ),
-                )}
-              </div>
-
-              {/* Input */}
-              <div className="flex items-center gap-2 border-t p-3">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSubmit();
-                  }}
-                  disabled={isStreaming}
-                  placeholder={t.ai.inputPlaceholder}
-                  className="w-full rounded-full border bg-background px-4 py-2.5 text-[13.5px] outline-none transition-colors focus:border-primary focus:bg-card disabled:opacity-50"
-                />
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isStreaming || !input.trim()}
-                  aria-label={t.ai.sendAriaLabel}
-                  className="flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-primary text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                >
-                  ➤
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Disclaimer */}
-          <p className="mt-3 text-center text-[11px] text-muted-foreground">
-            {t.ai.disclaimer}
-          </p>
-        </div>
-
-        {/* Sidebar — mirrors the prototype's bento-span-4 column. Every row
-            is a real field: `DataReadRow`s are derived from
-            `advisor-prompt.util.ts`'s actual context builder, "Ringkasan
-            Konteks" reuses the real dashboard summary, and "Penyedia &
-            Kunci" reads the real `useAiKeyStatus` provider/keyHint. No
-            invented model name, "Diatur oleh" person, or on/off demo
-            toggle — none of those are real fields on `AiKeyStatusDto`. */}
-        <aside className="flex flex-col gap-3.5 lg:col-span-4">
-          {/* Saved sessions. Sits above the informational cards because it
-              is the only interactive one — the rest are read-only context. */}
-          <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-2 text-[13.5px] font-bold text-muted-foreground">
-              {t.ai.historyTitle}
-            </div>
-            {isHistoryLoading ? (
-              <p className="text-[12.5px] text-muted-foreground">
-                {t.ai.historyLoading}
-              </p>
-            ) : isHistoryError ? (
-              <p className="text-[12.5px] text-destructive">
-                {t.ai.historyError}
-              </p>
-            ) : conversations.length === 0 ? (
-              <p className="text-[12.5px] text-muted-foreground">
-                {t.ai.historyEmpty}
-              </p>
-            ) : (
-              <ul className="hide-scrollbar -mx-1 max-h-[280px] space-y-0.5 overflow-y-auto px-1">
-                {conversations.map((c) => {
-                  const isCurrent = c.id === conversationId;
-                  return (
-                    <li key={c.id} className="group flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() => void handleOpenConversation(c.id)}
-                        disabled={isStreaming}
-                        aria-current={isCurrent ? "true" : undefined}
-                        className={`min-w-0 flex-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent disabled:opacity-50 ${
-                          isCurrent ? "bg-accent" : ""
-                        }`}
-                      >
-                        <span className="block truncate text-[12.5px] font-medium text-foreground">
-                          {c.title}
-                        </span>
-                        <span className="block text-[11px] text-muted-foreground">
-                          {isCurrent
-                            ? t.ai.historyCurrentBadge
-                            : t.ai.historyMessageCount.replace(
-                                "{count}",
-                                String(c.messageCount),
-                              )}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleDeleteConversation(c.id)}
-                        aria-label={`${t.ai.historyDeleteAriaLabel}: ${c.title}`}
-                        // Always in the DOM and reachable by keyboard; only
-                        // its opacity is hover-gated, so the row stays tidy
-                        // without the control being touch- or a11y-hostile.
-                        className="flex size-7 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-destructive/10 hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 max-[1024px]:opacity-100"
-                      >
-                        ✕
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
+          <div className="ai-top-acts">
+            {providerLabel && (
+              <span className="ai-provider-tag">{providerLabel}</span>
             )}
+            <GhostButton onClick={handleNewConversation} disabled={isStreaming}>
+              {t.ai.newConversationButton}
+            </GhostButton>
           </div>
+        </div>
 
-          <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-1 text-[13.5px] font-bold text-muted-foreground">
-              {t.ai.dataReadTitle}
-            </div>
-            <DataReadRow
-              label={t.ai.dataReadNetWorth}
-              read
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-            <DataReadRow
-              label={t.ai.dataReadCashflow}
-              read
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-            <DataReadRow
-              label={t.ai.dataReadCategories}
-              read
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-            <DataReadRow
-              label={t.ai.dataReadLiabilities}
-              read
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-            <DataReadRow
-              label={t.ai.dataReadBalances}
-              read
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-            <DataReadRow
-              label={t.ai.dataReadGoals}
-              read
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-            <DataReadRow
-              label={t.ai.dataReadTransactions}
-              read={false}
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-            {/* Split out of the old combined "Nomor rekening & saldo per
-                akun" row. Balances are now sent (see the row above), account
-                numbers still are not — `Account.maskedNumber` is encrypted at
-                rest and `buildContext` deliberately never selects it. Leaving
-                the two claims fused would have made this card lie. */}
-            <DataReadRow
-              label={t.ai.dataReadAccountNumbers}
-              read={false}
-              yesLabel={t.ai.yesLabel}
-              noLabel={t.ai.noLabel}
-            />
-          </div>
+        <div className="ai-chips" role="group" aria-label={t.ai.v2.chipsLabel}>
+          {t.ai.chips.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => send(chip)}
+              disabled={isStreaming}
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
 
-          <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-2 text-[13.5px] font-bold text-muted-foreground">
-              {t.ai.contextSummaryTitle}
+        <div ref={scrollRef} className="ai-body">
+          {!hasConversation ? (
+            <div className="ai-empty">
+              <span className="ic" aria-hidden="true">
+                <Bot size={22} strokeWidth={1.6} />
+              </span>
+              <b>{greeting}</b>
+              {t.ai.v2.emptyBody}
             </div>
-            <div className="space-y-1.5 text-[12.5px]">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t.ai.contextNetWorthLabel}
-                </span>
-                <span className="font-bold">
-                  {dashboardSummary
-                    ? money.format(dashboardSummary.netWorth)
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t.ai.contextIncomeLabel}
-                </span>
-                <span className="font-bold text-success">
-                  {dashboardSummary
-                    ? money.format(dashboardSummary.currentMonth.income)
-                    : "—"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t.ai.contextExpenseLabel}
-                </span>
-                <span className="font-bold text-destructive">
-                  {dashboardSummary
-                    ? money.format(dashboardSummary.currentMonth.expense)
-                    : "—"}
-                </span>
-              </div>
-            </div>
-          </div>
+          ) : (
+            messages.map((msg) =>
+              msg.role === "assistant" ? (
+                <div key={msg.id} className="msg bot">
+                  <span className="av" aria-hidden="true">
+                    <Bot size={15} />
+                  </span>
+                  <div className="ai-bub-wrap">
+                    {/* The truncation notice is a SEPARATE element below the
+                        bubble, never text appended into it, so it cannot
+                        read as though the model wrote the caveat. */}
+                    <div className="bub">
+                      {msg.text ? (
+                        <MarkdownMessage text={msg.text} />
+                      ) : (
+                        <span className="animate-pulse">●●●</span>
+                      )}
+                    </div>
+                    {msg.truncated && (
+                      <div className="ai-trunc">{t.ai.truncatedNotice}</div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div key={msg.id} className="msg user">
+                  <div className="bub">{msg.text}</div>
+                </div>
+              ),
+            )
+          )}
+        </div>
 
-          <div className="rounded-[14px] border bg-card p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <div className="text-[13.5px] font-bold text-muted-foreground">
-                {t.ai.providerKeyTitle}
-              </div>
-              {canManageAiKey && (
-                <Link
-                  href="/akun"
-                  className="text-[11.5px] font-bold text-primary"
-                >
-                  {t.ai.changeApiKeyLink}
-                </Link>
-              )}
-            </div>
-            <div className="space-y-1.5 text-[12.5px]">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t.ai.providerLabel}
-                </span>
-                <span className="font-bold">{providerLabel ?? "—"}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">
-                  {t.ai.apiKeyLabel}
-                </span>
-                <span className="mono font-bold">{aiKeyHint ?? "••••"}</span>
-              </div>
-            </div>
-            <div className="mt-3 rounded-md bg-muted px-2.5 py-2 text-[11px] text-muted-foreground">
-              {t.ai.encryptionNote}
-              {!canManageAiKey && ` ${t.ai.notManagedHint}`}
-            </div>
-          </div>
-        </aside>
-      </div>
-    </div>
+        <div className="ai-in">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSubmit();
+            }}
+            disabled={isStreaming}
+            placeholder={t.ai.inputPlaceholder}
+            aria-label={t.ai.v2.inputLabel}
+          />
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={isStreaming || !input.trim()}
+            aria-label={t.ai.sendAriaLabel}
+          >
+            <SendHorizontal size={17} />
+          </button>
+        </div>
+        <p className="ai-disclaimer">{t.ai.disclaimer}</p>
+      </section>
+
+      <BentoCard
+        className="ai-hist"
+        title={t.ai.historyTitle}
+        caption={t.ai.v2.historyCap}
+      >
+        {isHistoryLoading ? (
+          <p className="ai-note">{t.ai.historyLoading}</p>
+        ) : isHistoryError ? (
+          <p className="ai-note" data-bad="true">
+            {t.ai.historyError}
+          </p>
+        ) : conversations.length === 0 ? (
+          <p className="ai-note">{t.ai.historyEmpty}</p>
+        ) : (
+          <ul className="ai-hist-list">
+            {conversations.map((c) => {
+              const isCurrent = c.id === conversationId;
+              return (
+                <li key={c.id} data-current={isCurrent || undefined}>
+                  <button
+                    type="button"
+                    className="ai-hist-open"
+                    onClick={() => void handleOpenConversation(c.id)}
+                    disabled={isStreaming}
+                    aria-current={isCurrent ? "true" : undefined}
+                  >
+                    <b>{c.title}</b>
+                    <small>
+                      {isCurrent
+                        ? t.ai.historyCurrentBadge
+                        : t.ai.historyMessageCount.replace(
+                            "{count}",
+                            String(c.messageCount),
+                          )}
+                    </small>
+                  </button>
+                  <button
+                    type="button"
+                    className="ai-hist-del"
+                    onClick={() => void handleDeleteConversation(c.id)}
+                    aria-label={`${t.ai.historyDeleteAriaLabel}: ${c.title}`}
+                  >
+                    <X size={15} />
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </BentoCard>
+
+      <BentoCard
+        className="ai-data"
+        title={t.ai.dataReadTitle}
+        caption={t.ai.v2.dataReadCap}
+      >
+        <MiniList>
+          <DataReadRow
+            label={t.ai.dataReadNetWorth}
+            read
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+          <DataReadRow
+            label={t.ai.dataReadCashflow}
+            read
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+          <DataReadRow
+            label={t.ai.dataReadCategories}
+            read
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+          <DataReadRow
+            label={t.ai.dataReadLiabilities}
+            read
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+          <DataReadRow
+            label={t.ai.dataReadBalances}
+            read
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+          <DataReadRow
+            label={t.ai.dataReadGoals}
+            read
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+          <DataReadRow
+            label={t.ai.dataReadTransactions}
+            read={false}
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+          {/* Balances are sent, account numbers are not:
+              `Account.maskedNumber` is encrypted at rest and `buildContext`
+              never selects it. Two rows so this card cannot lie. */}
+          <DataReadRow
+            label={t.ai.dataReadAccountNumbers}
+            read={false}
+            yesLabel={t.ai.yesLabel}
+            noLabel={t.ai.noLabel}
+          />
+        </MiniList>
+      </BentoCard>
+
+      <BentoCard
+        className="ai-ctx"
+        title={t.ai.contextSummaryTitle}
+        caption={t.ai.v2.summaryCap}
+      >
+        <dl className="ai-kv">
+          <dt>{t.ai.contextNetWorthLabel}</dt>
+          <dd>
+            {dashboardSummary ? money.format(dashboardSummary.netWorth) : "—"}
+          </dd>
+          <dt>{t.ai.contextIncomeLabel}</dt>
+          <dd data-tone="good">
+            {dashboardSummary
+              ? money.format(dashboardSummary.currentMonth.income)
+              : "—"}
+          </dd>
+          <dt>{t.ai.contextExpenseLabel}</dt>
+          <dd data-tone="bad">
+            {dashboardSummary
+              ? money.format(dashboardSummary.currentMonth.expense)
+              : "—"}
+          </dd>
+        </dl>
+      </BentoCard>
+
+      <BentoCard
+        className="ai-provider"
+        title={t.ai.providerKeyTitle}
+        caption={providerLabel ?? "—"}
+        action={
+          canManageAiKey ? (
+            <Link href="/akun" className="ai-change">
+              {t.ai.changeApiKeyLink}
+            </Link>
+          ) : undefined
+        }
+      >
+        <dl className="ai-kv">
+          <dt>{t.ai.providerLabel}</dt>
+          <dd>{providerLabel ?? "—"}</dd>
+          <dt>{t.ai.apiKeyLabel}</dt>
+          <dd className="mono">{aiKeyHint ?? "••••"}</dd>
+        </dl>
+        <p className="ai-note">
+          {t.ai.encryptionNote}
+          {!canManageAiKey && ` ${t.ai.notManagedHint}`}
+        </p>
+      </BentoCard>
+    </BentoGrid>
   );
 }

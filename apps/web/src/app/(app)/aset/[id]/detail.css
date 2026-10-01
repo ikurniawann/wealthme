@@ -1,0 +1,90 @@
+/* Aset detail (bento v2, docs/design/proto/aset-detail.html) */
+@layer components {
+  @media (min-width: 1181px) {
+    .ad-grid > .ad-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .ad-grid > .ad-docs {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .ad-grid > .ad-hist {
+      grid-column: 1 / 13;
+      grid-row: 2;
+    }
+  }
+  .ad-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-right: 10px;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    text-decoration: underline;
+  }
+  .ad-back-solo {
+    margin-bottom: 12px;
+  }
+  .ad-plot {
+    position: relative;
+    flex: 1;
+    min-height: 200px;
+  }
+  .ad-empty {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13);
+  }
+  .ad-upload {
+    cursor: pointer;
+  }
+  .ad-doclist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .ad-doc {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
+    font-size: var(--wm-type-12);
+  }
+  .ad-doc:last-child {
+    border-bottom: 0;
+  }
+  .ad-doc-open {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .ad-doc-open span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ad-doc-del {
+    background: none;
+    border: 0;
+    color: var(--wm-bad);
+    cursor: pointer;
+  }
+  .ad-hist small.ad-up {
+    color: var(--wm-good, #15803d);
+  }
+  .ad-hist small.ad-down {
+    color: var(--wm-bad);
+  }
+  .ad-hist .wm-amt small {
+    display: block;
+  }
+}

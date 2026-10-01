@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Plus, HandHeart } from "lucide-react";
+import "./donation.css";
 import { useSession } from "@/lib/auth-compat";
 import {
   keepPreviousData,
@@ -14,7 +15,11 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
-  HeroCard,
+  BentoGrid,
+  BentoHero,
+  GhostButton,
+  HeroKpi,
+  TipsCard,
   SectionCard,
   StatusBadge,
   InfoTip,
@@ -471,47 +476,53 @@ export default function DonationPage() {
     .filter((d) => !d.isTaxDeductible)
     .reduce((s, d) => s + Number(d.amount), 0);
   const receiptsSavedCount = donations.filter((d) => d.receiptUrl).length;
+  const tipsMosaic = Array.from({ length: 18 }, (_, i) =>
+    i < Math.round((receiptsSavedCount / Math.max(1, donations.length)) * 18)
+      ? i % 4 === 0
+        ? "b"
+        : "a"
+      : "",
+  ) as ("a" | "b" | "c" | "o" | "")[];
 
   return (
     <div className="space-y-4">
-      {/* Hero */}
-      <HeroCard className="gradient-emerald">
-        <div className="mb-1.5 flex items-center gap-2 text-xs opacity-85">
-          <HandHeart className="size-3.5" /> {t.donation.heroTitle}
-        </div>
-        <div className="text-[30px] font-black tracking-[-1px]">
-          {money.format(totalAmount)}
-        </div>
-        <div className="mt-1.5 text-xs opacity-85">
-          {donations.length}
-          {t.donation.transactionsSuffix}
-          {t.donation.yearRunningPrefix}
-          {currentYear}
-        </div>
-        {/* Task 10 carry (sub-plan L, /tax review) — `.hero > *`
-            (design-system.css, protected) forces `position: relative` on
-            every direct child, winning the specificity tie against
-            Tailwind's `.absolute` by source order and putting this glyph
-            back in normal flow, clipped by `.hero`'s `overflow: hidden`
-            instead of intentionally peeking past the corner. The inline
-            style wins over both classes without touching the protected
-            sheet. */}
-        <div
-          className="pointer-events-none absolute -top-5 -right-5 text-[140px] opacity-[0.12]"
-          style={{ position: "absolute" }}
-        >
-          🤲
-        </div>
-      </HeroCard>
+      <BentoGrid className="dt-grid">
+        <h1 className="sr-only">{t.shell.pageTitles.donation}</h1>
+        <BentoHero
+          className="dt-hero"
+          currency={null}
+          value={<span className="wm-money">{money.format(totalAmount)}</span>}
+          caption={`${t.donation.heroTitle} · ${donations.length}${t.donation.transactionsSuffix}${t.donation.yearRunningPrefix}${currentYear}`}
+          controls={
+            <GhostButton lit onClick={() => openModal()}>
+              <Plus className="size-4" aria-hidden="true" />{" "}
+              {t.donation.recordDonationButton}
+            </GhostButton>
+          }
+          kpis={
+            <>
+              <HeroKpi
+                label={`${t.donation.statDeductibleLabelPrefix}${currentYear}`}
+                value={
+                  <span className="wm-money">
+                    {money.format(deductibleAmount)}
+                  </span>
+                }
+              />
+              <HeroKpi
+                label={t.donation.statVoluntaryLabel}
+                value={
+                  <span className="wm-money">
+                    {money.format(voluntaryAmount)}
+                  </span>
+                }
+              />
+            </>
+          }
+        />
 
-      {/* Subheader + action */}
-      <div className="flex flex-wrap items-center justify-end gap-2">
-        <Button onClick={() => openModal()} className="h-auto px-4 py-2.5">
-          <Plus className="size-4" /> {t.donation.recordDonationButton}
-        </Button>
-      </div>
-
-      {/* Kalkulator donasi keagamaan — EPIC-023 F2 (D20, US-DON-6/7): the
+        <div className="dt-calc space-y-4">
+          {/* Kalkulator donasi keagamaan — EPIC-023 F2 (D20, US-DON-6/7): the
           calculator shown matches the family's religion setting; `none`
           shows an honest "not configured" note instead of fabricating a
           default faith. EPIC-023 Group F fix round (HIGH 4 / MEDIUM 9) —
@@ -519,323 +530,339 @@ export default function DonationPage() {
           falling through to any calculator (zakat included), and a family
           that has never chosen (`religion === null`) gets an explicit
           prompt to choose rather than silently showing nothing. */}
-      {isReligionLoading && (
-        <div className="flex items-center gap-3 rounded-[14px] border bg-card p-4">
-          <div className="text-[13px] text-muted-foreground">
-            {t.donation.religionLoadingMsg}
-          </div>
-        </div>
-      )}
-
-      {!isReligionLoading && isReligionError && (
-        <div
-          role="alert"
-          className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
-        >
-          {t.donation.religionErrorMsg}
-        </div>
-      )}
-
-      {!isReligionLoading && !isReligionError && religion === null && (
-        <div className="rounded-[14px] border bg-card p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-[13.5px] font-bold">
-              {t.donation.religionCalculatorUnconfirmedTitle}
-            </div>
-            <InfoTip>{t.donation.religionCalculatorUnconfirmedDesc}</InfoTip>
-          </div>
-          {isReligionOwner ? (
-            <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <select
-                aria-label={t.akun.pengaturan.religionLabel}
-                className="select sm:max-w-[240px]"
-                value={pendingReligion}
-                disabled={isReligionUpdating}
-                onChange={(e) =>
-                  setPendingReligion(e.target.value as FamilyReligion)
-                }
-              >
-                <option value="" disabled>
-                  {t.akun.pengaturan.religionUnconfirmedPlaceholder}
-                </option>
-                {FAMILY_RELIGION_OPTIONS.map((r) => (
-                  <option key={r} value={r}>
-                    {t.akun.pengaturan.religionOptions[r]}
-                  </option>
-                ))}
-              </select>
-              <Button
-                onClick={() => {
-                  if (!pendingReligion) return;
-                  updateReligion(pendingReligion, {
-                    onSuccess: () =>
-                      toast.success(t.akun.pengaturan.toastReligionUpdated),
-                    onError: () =>
-                      toast.error(t.akun.pengaturan.toastReligionFailed),
-                  });
-                }}
-                disabled={!pendingReligion || isReligionUpdating}
-                className="h-auto shrink-0 px-4 py-2.5"
-              >
-                {t.akun.pengaturan.religionSaveButton}
-              </Button>
-            </div>
-          ) : (
-            <div className="mt-3 text-xs text-muted-foreground">
-              {t.akun.pengaturan.religionOwnerOnlyNote}
+          {isReligionLoading && (
+            <div className="flex items-center gap-3 rounded-[14px] border bg-card p-4">
+              <div className="text-[13px] text-muted-foreground">
+                {t.donation.religionLoadingMsg}
+              </div>
             </div>
           )}
-        </div>
-      )}
 
-      {!isReligionLoading && !isReligionError && religion === "islam" && (
-        <SectionCard
-          title={t.donation.zakatCalculatorTitle}
-          action={<InfoTip>{t.donation.zakatCalculatorSubtitle}</InfoTip>}
-        >
-          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <ZkInput
-              label={t.donation.fieldCashLabel}
-              value={cash}
-              onChange={setCash}
-            />
-            <ZkInput
-              label={t.donation.fieldGoldLabel}
-              value={gold}
-              onChange={setGold}
-            />
-            <ZkInput
-              label={t.donation.fieldInvestLabel}
-              value={invest}
-              onChange={setInvest}
-            />
-            <ZkInput
-              label={t.donation.fieldDebtLabel}
-              value={debt}
-              onChange={setDebt}
-            />
-          </div>
-          <div className="mt-3.5 flex items-center gap-2">
-            <input
-              id="donation-zakat-haul"
-              type="checkbox"
-              checked={haulConfirmed}
-              onChange={(e) => setHaulConfirmed(e.target.checked)}
-              className="size-4 accent-primary"
-            />
-            <label
-              htmlFor="donation-zakat-haul"
-              className="text-[12.5px] text-muted-foreground"
+          {!isReligionLoading && isReligionError && (
+            <div
+              role="alert"
+              className="rounded-[14px] border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive"
             >
-              {t.donation.haulCheckboxLabel}
-            </label>
-          </div>
-          <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
-            <div className="text-[11.5px] text-muted-foreground">
-              {t.donation.zakatDueLabel}
+              {t.donation.religionErrorMsg}
             </div>
-            {isZakatError ? (
-              <div className="mt-1 text-[13px] font-semibold text-destructive">
-                {t.donation.zakatCalcErrorMsg}
-              </div>
-            ) : !hasZakatResult ? (
-              <div className="mt-1 text-[13px] text-muted-foreground">
-                {t.donation.zakatCalculatingMsg}
-              </div>
-            ) : (
-              <>
-                <div className="mt-1 text-[24px] font-black text-primary">
-                  {money.format(zakat)}
-                </div>
-                <div className="mt-1.5 text-xs text-muted-foreground">
-                  {nisabMessage}
-                </div>
-                <div className="mt-1 text-[11px] text-muted-foreground/80">
-                  {nisabSourceNote}
-                </div>
-              </>
-            )}
-          </div>
-          <Button
-            onClick={() => openModal("zakat")}
-            disabled={!canPayZakatNow}
-            className="mt-3.5 h-auto px-4 py-2.5"
-          >
-            <HandHeart className="size-4" />{" "}
-            {isObligated
-              ? t.donation.payZakatNowButton
-              : t.donation.recordZakatEstimateButton}
-          </Button>
-        </SectionCard>
-      )}
+          )}
 
-      {/* Kalkulator Persepuluhan — N3-C1 (prototype donation.html "Kalkulator
+          {!isReligionLoading && !isReligionError && religion === null && (
+            <div className="rounded-[14px] border bg-card p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-[13.5px] font-bold">
+                  {t.donation.religionCalculatorUnconfirmedTitle}
+                </div>
+                <InfoTip>
+                  {t.donation.religionCalculatorUnconfirmedDesc}
+                </InfoTip>
+              </div>
+              {isReligionOwner ? (
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <select
+                    aria-label={t.akun.pengaturan.religionLabel}
+                    className="select sm:max-w-[240px]"
+                    value={pendingReligion}
+                    disabled={isReligionUpdating}
+                    onChange={(e) =>
+                      setPendingReligion(e.target.value as FamilyReligion)
+                    }
+                  >
+                    <option value="" disabled>
+                      {t.akun.pengaturan.religionUnconfirmedPlaceholder}
+                    </option>
+                    {FAMILY_RELIGION_OPTIONS.map((r) => (
+                      <option key={r} value={r}>
+                        {t.akun.pengaturan.religionOptions[r]}
+                      </option>
+                    ))}
+                  </select>
+                  <Button
+                    onClick={() => {
+                      if (!pendingReligion) return;
+                      updateReligion(pendingReligion, {
+                        onSuccess: () =>
+                          toast.success(t.akun.pengaturan.toastReligionUpdated),
+                        onError: () =>
+                          toast.error(t.akun.pengaturan.toastReligionFailed),
+                      });
+                    }}
+                    disabled={!pendingReligion || isReligionUpdating}
+                    className="h-auto shrink-0 px-4 py-2.5"
+                  >
+                    {t.akun.pengaturan.religionSaveButton}
+                  </Button>
+                </div>
+              ) : (
+                <div className="mt-3 text-xs text-muted-foreground">
+                  {t.akun.pengaturan.religionOwnerOnlyNote}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isReligionLoading && !isReligionError && religion === "islam" && (
+            <SectionCard
+              title={t.donation.zakatCalculatorTitle}
+              action={<InfoTip>{t.donation.zakatCalculatorSubtitle}</InfoTip>}
+            >
+              <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                <ZkInput
+                  label={t.donation.fieldCashLabel}
+                  value={cash}
+                  onChange={setCash}
+                />
+                <ZkInput
+                  label={t.donation.fieldGoldLabel}
+                  value={gold}
+                  onChange={setGold}
+                />
+                <ZkInput
+                  label={t.donation.fieldInvestLabel}
+                  value={invest}
+                  onChange={setInvest}
+                />
+                <ZkInput
+                  label={t.donation.fieldDebtLabel}
+                  value={debt}
+                  onChange={setDebt}
+                />
+              </div>
+              <div className="mt-3.5 flex items-center gap-2">
+                <input
+                  id="donation-zakat-haul"
+                  type="checkbox"
+                  checked={haulConfirmed}
+                  onChange={(e) => setHaulConfirmed(e.target.checked)}
+                  className="size-4 accent-primary"
+                />
+                <label
+                  htmlFor="donation-zakat-haul"
+                  className="text-[12.5px] text-muted-foreground"
+                >
+                  {t.donation.haulCheckboxLabel}
+                </label>
+              </div>
+              <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
+                <div className="text-[11.5px] text-muted-foreground">
+                  {t.donation.zakatDueLabel}
+                </div>
+                {isZakatError ? (
+                  <div className="mt-1 text-[13px] font-semibold text-destructive">
+                    {t.donation.zakatCalcErrorMsg}
+                  </div>
+                ) : !hasZakatResult ? (
+                  <div className="mt-1 text-[13px] text-muted-foreground">
+                    {t.donation.zakatCalculatingMsg}
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-1 text-[24px] font-black text-primary">
+                      {money.format(zakat)}
+                    </div>
+                    <div className="mt-1.5 text-xs text-muted-foreground">
+                      {nisabMessage}
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground/80">
+                      {nisabSourceNote}
+                    </div>
+                  </>
+                )}
+              </div>
+              <Button
+                onClick={() => openModal("zakat")}
+                disabled={!canPayZakatNow}
+                className="mt-3.5 h-auto px-4 py-2.5"
+              >
+                <HandHeart className="size-4" />{" "}
+                {isObligated
+                  ? t.donation.payZakatNowButton
+                  : t.donation.recordZakatEstimateButton}
+              </Button>
+            </SectionCard>
+          )}
+
+          {/* Kalkulator Persepuluhan — N3-C1 (prototype donation.html "Kalkulator
           Perpuluhan"): its own arithmetic (income + other income) × an
           adjustable rate, not zakat relabelled (US-DON-6). Pure client-side
           math — no backend round-trip needed for a percentage calculation. */}
-      {showPerpuluhanPrototypeCalculator && (
+          {showPerpuluhanPrototypeCalculator && (
+            <SectionCard
+              title={t.donation.perpuluhanCalculatorTitle}
+              action={
+                <InfoTip>
+                  {t.donation.perpuluhanCalculatorSubtitle}{" "}
+                  {t.donation.fieldRateHint}
+                </InfoTip>
+              }
+            >
+              <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                <ZkInput
+                  label={t.donation.fieldIncomeLabel}
+                  value={titheIncome}
+                  onChange={setTitheIncome}
+                />
+                <ZkInput
+                  label={t.donation.fieldOtherIncomeLabel}
+                  value={titheOther}
+                  onChange={setTitheOther}
+                />
+                <div className="md:col-span-2">
+                  <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
+                    {t.donation.fieldRateLabel}
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    value={titheRate}
+                    onChange={(e) => setTitheRate(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+              <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
+                <div className="text-[11.5px] text-muted-foreground">
+                  {t.donation.perpuluhanResultLabel}
+                </div>
+                <div className="mt-1 text-[24px] font-black text-primary">
+                  {money.format(tithe)}
+                </div>
+              </div>
+              <Button
+                onClick={() => openModal("perpuluhan")}
+                disabled={!canPayPerpuluhanNow}
+                className="mt-3.5 h-auto px-4 py-2.5"
+              >
+                <HandHeart className="size-4" />{" "}
+                {t.donation.recordPerpuluhanButton}
+              </Button>
+            </SectionCard>
+          )}
+
+          {!isReligionLoading &&
+            !isReligionError &&
+            (religion === "none" ||
+              religion === "hindu" ||
+              religion === "buddha") && (
+              <div className="flex items-center justify-between gap-3 rounded-[14px] border bg-card p-4">
+                <div className="text-[13.5px] font-bold">
+                  {religion === "none"
+                    ? t.donation.religionCalculatorNoneTitle
+                    : t.donation.religionGeneralOnlyTitle}
+                </div>
+                <InfoTip>
+                  {religion === "none"
+                    ? t.donation.religionCalculatorNoneDesc
+                    : t.donation.religionGeneralOnlyDesc}
+                </InfoTip>
+              </div>
+            )}
+        </div>
+
+        {/* Riwayat Donasi */}
         <SectionCard
-          title={t.donation.perpuluhanCalculatorTitle}
+          className="dt-hist"
+          title={t.donation.historyTitle}
+          bodyClassName="-mt-1"
           action={
-            <InfoTip>
-              {t.donation.perpuluhanCalculatorSubtitle}{" "}
-              {t.donation.fieldRateHint}
-            </InfoTip>
+            <div className="flex items-center gap-1">
+              <InfoTip>
+                <strong>{t.donation.insightTitle}</strong>{" "}
+                {t.donation.insightDesc}
+              </InfoTip>
+              <Link
+                href="/laporan"
+                className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+              >
+                {t.donation.historyLaporanLink}
+              </Link>
+            </div>
           }
         >
-          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <ZkInput
-              label={t.donation.fieldIncomeLabel}
-              value={titheIncome}
-              onChange={setTitheIncome}
-            />
-            <ZkInput
-              label={t.donation.fieldOtherIncomeLabel}
-              value={titheOther}
-              onChange={setTitheOther}
-            />
-            <div className="md:col-span-2">
-              <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
-                {t.donation.fieldRateLabel}
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={100}
-                value={titheRate}
-                onChange={(e) => setTitheRate(e.target.value)}
-                className="input"
-              />
+          {isLoading ? (
+            <div className="py-6 text-center text-[13px] text-muted-foreground">
+              {t.donation.loadingLabel}
             </div>
-          </div>
-          <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
-            <div className="text-[11.5px] text-muted-foreground">
-              {t.donation.perpuluhanResultLabel}
+          ) : donations.length === 0 ? (
+            <div className="py-6 text-center text-[13px] text-muted-foreground">
+              {t.donation.emptyHistory}
             </div>
-            <div className="mt-1 text-[24px] font-black text-primary">
-              {money.format(tithe)}
-            </div>
-          </div>
-          <Button
-            onClick={() => openModal("perpuluhan")}
-            disabled={!canPayPerpuluhanNow}
-            className="mt-3.5 h-auto px-4 py-2.5"
-          >
-            <HandHeart className="size-4" /> {t.donation.recordPerpuluhanButton}
-          </Button>
-        </SectionCard>
-      )}
-
-      {!isReligionLoading &&
-        !isReligionError &&
-        (religion === "none" ||
-          religion === "hindu" ||
-          religion === "buddha") && (
-          <div className="flex items-center justify-between gap-3 rounded-[14px] border bg-card p-4">
-            <div className="text-[13.5px] font-bold">
-              {religion === "none"
-                ? t.donation.religionCalculatorNoneTitle
-                : t.donation.religionGeneralOnlyTitle}
-            </div>
-            <InfoTip>
-              {religion === "none"
-                ? t.donation.religionCalculatorNoneDesc
-                : t.donation.religionGeneralOnlyDesc}
-            </InfoTip>
-          </div>
-        )}
-
-      {/* Riwayat Donasi */}
-      <SectionCard
-        title={t.donation.historyTitle}
-        bodyClassName="-mt-1"
-        action={
-          <div className="flex items-center gap-1">
-            <InfoTip>
-              <strong>{t.donation.insightTitle}</strong>{" "}
-              {t.donation.insightDesc}
-            </InfoTip>
-            <Link
-              href="/laporan"
-              className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
-            >
-              {t.donation.historyLaporanLink}
-            </Link>
-          </div>
-        }
-      >
-        {isLoading ? (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">
-            {t.donation.loadingLabel}
-          </div>
-        ) : donations.length === 0 ? (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">
-            {t.donation.emptyHistory}
-          </div>
-        ) : (
-          donations.map((d) => {
-            const accountLabel = formatAccountLabel(
-              accounts.find((a) => a.id === d.accountId),
-            );
-            return (
-              <div
-                key={d.id}
-                className="flex items-center gap-3 border-b py-3 last:border-b-0"
-              >
+          ) : (
+            donations.map((d) => {
+              const accountLabel = formatAccountLabel(
+                accounts.find((a) => a.id === d.accountId),
+              );
+              return (
                 <div
-                  className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
-                  style={{ background: DONATION_TYPE_BG[d.type] ?? "#F3F4F6" }}
+                  key={d.id}
+                  className="flex items-center gap-3 border-b py-3 last:border-b-0"
                 >
-                  {DONATION_TYPE_ICON[d.type] ?? "🤲"}
-                </div>
-                {/* UI/UX audit fix (docs/uiux-beda) — flex-1 without min-w-0
+                  <div
+                    className="flex size-[34px] shrink-0 items-center justify-center rounded-[9px] text-[15px]"
+                    style={{
+                      background: DONATION_TYPE_BG[d.type] ?? "#F3F4F6",
+                    }}
+                  >
+                    {DONATION_TYPE_ICON[d.type] ?? "🤲"}
+                  </div>
+                  {/* UI/UX audit fix (docs/uiux-beda) — flex-1 without min-w-0
                     lets this column's content dictate its width, so a long
                     date · account · receipt line pushes the row wider than
                     the card on narrow viewports instead of wrapping. */}
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13.5px] font-semibold">
-                    {t.donation.typeLabels[d.type as DonationType] ?? d.type}:{" "}
-                    {d.recipient}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13.5px] font-semibold">
+                      {t.donation.typeLabels[d.type as DonationType] ?? d.type}:{" "}
+                      {d.recipient}
+                    </div>
+                    <div className="text-[11.5px] text-muted-foreground">
+                      <span className="break-words">
+                        {formatLocaleDate(d.donatedAt, locale)}
+                        {accountLabel && `, ${accountLabel}`}
+                      </span>
+                      {d.receiptUrl && isSafeHttpUrl(d.receiptUrl) && (
+                        <>
+                          {", "}
+                          <a
+                            href={d.receiptUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="underline"
+                          >
+                            {t.donation.receiptLabel}
+                          </a>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-[11.5px] text-muted-foreground">
-                    <span className="break-words">
-                      {formatLocaleDate(d.donatedAt, locale)}
-                      {accountLabel && `, ${accountLabel}`}
+                  <div className="flex items-center gap-2 text-right">
+                    <span className="text-[13.5px] font-bold">
+                      {money.format(Number(d.amount))}
                     </span>
-                    {d.receiptUrl && isSafeHttpUrl(d.receiptUrl) && (
-                      <>
-                        {", "}
-                        <a
-                          href={d.receiptUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="underline"
-                        >
-                          {t.donation.receiptLabel}
-                        </a>
-                      </>
-                    )}
+                    <StatusBadge
+                      variant={d.isTaxDeductible ? "success" : "gray"}
+                      className="text-[10px]"
+                    >
+                      {d.isTaxDeductible
+                        ? t.donation.taxDeductibleBadge
+                        : t.donation.taxNonDeductibleBadge}
+                    </StatusBadge>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-right">
-                  <span className="text-[13.5px] font-bold">
-                    {money.format(Number(d.amount))}
-                  </span>
-                  <StatusBadge
-                    variant={d.isTaxDeductible ? "success" : "gray"}
-                    className="text-[10px]"
-                  >
-                    {d.isTaxDeductible
-                      ? t.donation.taxDeductibleBadge
-                      : t.donation.taxNonDeductibleBadge}
-                  </StatusBadge>
-                </div>
-              </div>
-            );
-          })
-        )}
-      </SectionCard>
+              );
+            })
+          )}
+        </SectionCard>
+
+        <TipsCard
+          className="dt-tips"
+          title={t.donation.insightTitle}
+          mosaic={tipsMosaic}
+        >
+          {t.donation.insightDesc}
+        </TipsCard>
+      </BentoGrid>
 
       {/* N3-D4 (prototype donation.html "auto-grid--metrics") — all three
           derive from the already-fetched donations list above; "Kuitansi
