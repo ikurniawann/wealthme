@@ -44,7 +44,7 @@ export function MoneyInput({
     <div className="grid gap-1">
       <div className="flex gap-2">
         <select
-          className="select w-[96px] shrink-0"
+          className="select money-cur shrink-0"
           aria-label={t.money.currencyLabel}
           value={field.currency}
           disabled={disabled}

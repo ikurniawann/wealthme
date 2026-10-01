@@ -308,6 +308,15 @@ describe("AnggaranPage — edit and delete a budget (EPIC-022 C2)", () => {
     const user = userEvent.setup();
     render(<AnggaranPage />);
 
+    // Proto port — delete is no longer a standalone trash icon on the
+    // card (anggaran.html's "Ketuk kartu untuk ubah batas"): the card
+    // click opens the edit panel, and the delete trigger lives in that
+    // panel's footer.
+    await user.click(
+      await screen.findByRole("button", {
+        name: `Edit anggaran ${EXISTING_CATEGORY.name}`,
+      }),
+    );
     await user.click(
       await screen.findByRole("button", {
         name: `Hapus anggaran ${EXISTING_CATEGORY.name}`,

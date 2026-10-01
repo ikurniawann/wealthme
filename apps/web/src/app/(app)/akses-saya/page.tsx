@@ -205,68 +205,39 @@ export default function MyAccessPage() {
         caption={v2.actCaption}
         action={<StatusBadge variant="info">{v2.actBadge}</StatusBadge>}
       >
-        <div className="as-tbl-wrap">
-          <table className="as-tbl">
-            <thead>
-              <tr>
-                <th>{v2.colActivity}</th>
-                <th>{v2.colStatus}</th>
-                <th>{v2.colNote}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Each row mirrors a real CASL grant in
-                  casl-ability.factory.ts for dependant/operational. */}
-              <tr>
-                <td>
-                  <b>{v2.actRecord}</b>
-                </td>
-                <td>
-                  <StatusBadge variant="success">{v2.actAllowed}</StatusBadge>
-                </td>
-                <td>
-                  {assigned.length > 0 ? v2.actRecordYes : v2.actRecordWait}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <b>{v2.actFund}</b>
-                </td>
-                <td>
-                  <StatusBadge variant="success">{v2.actAllowed}</StatusBadge>
-                </td>
-                <td>{v2.actFundNote}</td>
-              </tr>
-              <tr>
-                <td>
-                  <b>{v2.actReports}</b>
-                </td>
-                <td>
-                  <StatusBadge
-                    variant={familyReportsUnlocked ? "success" : "danger"}
-                  >
-                    {familyReportsUnlocked
-                      ? t.aksesSaya.familyReportsRowStatusUnlocked
-                      : t.aksesSaya.familyReportsLocked}
-                  </StatusBadge>
-                </td>
-                <td>
-                  {familyReportsUnlocked
-                    ? t.aksesSaya.familyReportsRowNoteUnlocked
-                    : t.aksesSaya.familyReportsRowNoteLocked}
-                </td>
-              </tr>
-              <tr>
-                <td>
-                  <b>{v2.actRole}</b>
-                </td>
-                <td>
-                  <StatusBadge variant="danger">{v2.actLocked}</StatusBadge>
-                </td>
-                <td>{v2.actRoleNote}</td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="as-act-list">
+          {/* Each row mirrors a real CASL grant in casl-ability.factory.ts
+              for dependant/operational. */}
+          <div className="as-row">
+            <b>{v2.actRecord}</b>
+            <span>
+              {assigned.length > 0 ? v2.actRecordYes : v2.actRecordWait}
+            </span>
+            <StatusBadge variant="success">{v2.actAllowed}</StatusBadge>
+          </div>
+          <div className="as-row">
+            <b>{v2.actFund}</b>
+            <span>{v2.actFundNote}</span>
+            <StatusBadge variant="success">{v2.actAllowed}</StatusBadge>
+          </div>
+          <div className="as-row">
+            <b>{v2.actReports}</b>
+            <span>
+              {familyReportsUnlocked
+                ? t.aksesSaya.familyReportsRowNoteUnlocked
+                : t.aksesSaya.familyReportsRowNoteLocked}
+            </span>
+            <StatusBadge variant={familyReportsUnlocked ? "success" : "danger"}>
+              {familyReportsUnlocked
+                ? t.aksesSaya.familyReportsRowStatusUnlocked
+                : t.aksesSaya.familyReportsLocked}
+            </StatusBadge>
+          </div>
+          <div className="as-row">
+            <b>{v2.actRole}</b>
+            <span>{v2.actRoleNote}</span>
+            <StatusBadge variant="danger">{v2.actLocked}</StatusBadge>
+          </div>
         </div>
       </BentoCard>
     </BentoGrid>

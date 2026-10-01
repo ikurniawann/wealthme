@@ -91,7 +91,10 @@ export function formatRupiahCompact(value: number): string {
   const abs = Math.abs(value);
   const unit = (divisor: number, decimals: number, suffix: string): string =>
     `${sign}Rp ` +
-    (abs / divisor).toFixed(decimals).replace(".", ",") +
+    (abs / divisor)
+      .toFixed(decimals)
+      .replace(/\.?0+$/, (m) => (decimals > 0 ? "" : m))
+      .replace(".", ",") +
     " " +
     suffix;
 

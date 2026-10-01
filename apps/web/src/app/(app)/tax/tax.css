@@ -22,4 +22,74 @@
     font-size: var(--wm-type-20);
     font-weight: 700;
   }
+
+  /* Proto's "Status pernikahan"/"Jumlah tanggungan" segmented groups
+     (tax.html .seg.full) fill the row edge-to-edge instead of the default
+     inline wm-seg pill cluster. The long marital-status labels ("K/I —
+     penghasilan istri digabung") wrap inside wm-seg's default button
+     (bento.css, protected — no white-space rule there), stretching the
+     whole row into tall multi-line boxes; keep each option a tight
+     single-line pill matching proto instead. */
+  .wm-seg--full {
+    display: flex;
+    width: 100%;
+  }
+  .wm-seg--full button {
+    flex: 1;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+
+  /* Proto's inline "Belum ada PKP" hero note (tax.html #chart), shown in
+     place of the chart area once a pphOp result with pkp=0 comes back. */
+  .tx-hero-nopkp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 20px 12px;
+    text-align: center;
+  }
+  .tx-hero-nopkp-title {
+    font-size: var(--wm-type-16);
+    font-weight: 700;
+  }
+  .tx-hero-nopkp-hint {
+    max-width: 360px;
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+
+  /* Proto's calculator section ("Kalkulator PPh 21 Orang Pribadi") puts
+     the PPh result as its own adjacent card (s8/s4), not a full-width
+     banner embedded inside the fields card. */
+  .tx-calc-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+    align-items: stretch;
+  }
+  @media (min-width: 1024px) {
+    .tx-calc-layout {
+      grid-template-columns: 2fr 1fr;
+    }
+  }
+  .tx-calc-layout > * {
+    min-width: 0;
+  }
+  /* Proto's result card (tax.html .tx-calc) sits on the neutral --muted
+     surface (proto's --card-2), not a pale-green/accent tint, and its
+     content is vertically centered. */
+  .tx-calc-result {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: var(--muted);
+    text-align: center;
+  }
 }

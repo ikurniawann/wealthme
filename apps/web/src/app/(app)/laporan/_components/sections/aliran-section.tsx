@@ -1,11 +1,39 @@
-import { SectionCard } from "@/components/wm";
-import { HBarChart } from "@/components/charts/apex-presets";
-import { formatJuta, sankeyToFlowBars } from "@/lib/laporan-utils";
+import { BentoCard, Track } from "@/components/wm";
+import { sankeyToFlowBars } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
 import type { SankeyDto } from "@wealthme/contracts";
+import "./sections-a.css";
 
 /* ───────────────────────── Section: Aliran Dana ───────────────────────── */
+
+function FlowBars({
+  bars,
+  tone,
+  ariaLabel,
+}: {
+  bars: { label: string; amount: number }[];
+  tone: "lime" | "orange";
+  ariaLabel: string;
+}) {
+  const max = Math.max(1, ...bars.map((b) => b.amount));
+  const money = useMoney();
+  return (
+    <div role="img" aria-label={ariaLabel}>
+      {bars.map((b) => (
+        <div key={b.label} className="lap-a-flow-row" aria-hidden="true">
+          <span className="lap-a-flow-name">{b.label}</span>
+          <span className="lap-a-flow-amt">
+            {money.formatCompact(b.amount)}
+          </span>
+          <div className="lap-a-flow-track">
+            <Track value={(b.amount / max) * 100} fill={tone} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function AliranSection({
   sankeyData,
@@ -17,61 +45,47 @@ export function AliranSection({
   periodLabel: string;
 }) {
   const { t } = useLocale();
-  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const incomeBars = sankeyData ? sankeyToFlowBars(sankeyData, "income") : [];
   const expenseBars = sankeyData ? sankeyToFlowBars(sankeyData, "expense") : [];
 
   const bulan = periodLabel;
+  const hasData = incomeBars.length > 0 || expenseBars.length > 0;
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">{t.laporan.aliran.title}</div>
-      <SectionCard title={`${t.laporan.aliran.cardTitlePrefix} ${bulan}`}>
-        {sankeyData && (incomeBars.length > 0 || expenseBars.length > 0) ? (
-          /* EPIC-026 Wave 3 — prototype's `#c-aliran` mount is the Apex
-             hbar preset (J3 FOLD); same sankey-derived label/amount pairs
-             the hand-rolled gradient bars rendered before this rebuild. */
-          <div className="flex flex-col gap-3.5">
-            {incomeBars.length > 0 && (
-              <div>
-                <div className="mb-2 text-[11px] font-bold text-success">
-                  {t.laporan.aliran.incomeSourceLabel}
-                </div>
-                <HBarChart
-                  categories={incomeBars.map((b) => b.label)}
-                  data={incomeBars.map((b) => b.amount)}
-                  color="var(--success)"
-                  ariaLabel={`${t.laporan.aliran.incomeSourceLabel}: ${incomeBars
-                    .map((b) => `${b.label} ${formatJuta(b.amount)}`)
-                    .join(", ")}`}
-                  money={money}
-                />
-              </div>
-            )}
-            {expenseBars.length > 0 && (
-              <div>
-                <div className="mb-2 text-[11px] font-bold text-destructive">
-                  {t.laporan.aliran.expenseAllocLabel}
-                </div>
-                <HBarChart
-                  categories={expenseBars.map((b) => b.label)}
-                  data={expenseBars.map((b) => b.amount)}
-                  color="var(--destructive)"
-                  ariaLabel={`${t.laporan.aliran.expenseAllocLabel}: ${expenseBars
-                    .map((b) => `${b.label} ${formatJuta(b.amount)}`)
-                    .join(", ")}`}
-                  money={money}
-                />
-              </div>
-            )}
+      {hasData ? (
+        <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-2">
+          {incomeBars.length > 0 && (
+            <BentoCard title={t.laporan.aliran.incomeSourceLabel}>
+              <FlowBars
+                bars={incomeBars}
+                tone="lime"
+                ariaLabel={`${t.laporan.aliran.incomeSourceLabel}: ${incomeBars
+                  .map((b) => b.label)
+                  .join(", ")}`}
+              />
+            </BentoCard>
+          )}
+          {expenseBars.length > 0 && (
+            <BentoCard title={t.laporan.aliran.expenseAllocLabel}>
+              <FlowBars
+                bars={expenseBars}
+                tone="orange"
+                ariaLabel={`${t.laporan.aliran.expenseAllocLabel}: ${expenseBars
+                  .map((b) => b.label)
+                  .join(", ")}`}
+              />
+            </BentoCard>
+          )}
+        </div>
+      ) : (
+        <BentoCard title={`${t.laporan.aliran.cardTitlePrefix} ${bulan}`}>
+          <div className="lap-a-empty">
+            <b>{t.laporan.aliran.emptyFlow}</b>
           </div>
-        ) : (
-          <div className="py-4 text-center text-[12px] text-muted-foreground">
-            {t.laporan.aliran.emptyFlow}
-          </div>
-        )}
-      </SectionCard>
+        </BentoCard>
+      )}
     </div>
   );
 }

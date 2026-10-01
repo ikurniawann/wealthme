@@ -146,7 +146,7 @@ describe("MyAccessPage — 'Melihat laporan keluarga' table row derives from rol
         : idDict.aksesSaya.eyebrowDependant,
     );
     const cell = screen.getByText("Melihat laporan keluarga");
-    return within(cell.closest("tr") as HTMLElement);
+    return within(cell.closest(".as-row") as HTMLElement);
   }
 
   it("a Master (owner) viewer sees the row Allowed, not Locked", async () => {

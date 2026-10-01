@@ -2,7 +2,20 @@
 
 import { useState } from "react";
 import "./anggaran.css";
-import { Plus, Save, Pencil, Trash2 } from "lucide-react";
+import {
+  Car,
+  CreditCard,
+  FileText,
+  GraduationCap,
+  Home,
+  Landmark,
+  Plus,
+  ShieldCheck,
+  Stethoscope,
+  Trash2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -14,23 +27,25 @@ import {
   BentoTiles,
   GhostButton,
   HeroKpi,
-  Rise,
+  PillButton,
   Segmented,
   SeeAll,
   StatusBadge,
   TipsCard,
   Track,
 } from "@/components/wm";
-import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { CategoryIcon } from "@/components/shell/tx-pickers";
 import { IconPickerField } from "@/components/crud/icon-picker-field";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import {
   Dialog,
   DialogBody,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
 import { ConfirmDeleteDialog } from "@/components/crud/confirm-delete-dialog";
 import { Button } from "@/components/ui/button";
@@ -81,57 +96,248 @@ function axisJt(value: number): string {
   return `${Math.round(abs)}`;
 }
 
+/** 1 / 2 / 2.5 / 5 / 10 × 10^n — the tick top the prototype rounds to. */
+function ceilNice(value: number): number {
+  if (value <= 0) return 1;
+  const pow = 10 ** Math.floor(Math.log10(value));
+  const n = value / pow;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * pow;
+}
+
+/** Hero chart ported 1:1 from the prototype's `chart()` (anggaran.html:80) —
+ * NOT the shared `HatchedBarChart` (grouped side-by-side bars), because the
+ * prototype draws an OVERLAID pair per category: a ghost bar for the limit,
+ * a hatched bar on top for what's spent, only the tightest category lit.
+ * Capped at the 6 highest-usage categories so bars/labels stay readable
+ * (prototype's own data never exceeds a handful; this account can have 13+).
+ *
+ * Fixed viewBox + `preserveAspectRatio="none"`, NOT a `ResizeObserver`-
+ * measured box: the measured version went fully blank in production when
+ * every budget's `spentAmount` is 0 (fresh demo data) — ghost (limit) bars
+ * must always draw regardless of spend; only the hatched overlay and the
+ * top-category highlight are conditional on spend > 0. This SVG is a direct
+ * child of `.wm-chart-wrap`, so it picks up the existing
+ * `.wm-chart-wrap > svg { position:absolute; inset:0; width:100%; height:100% }`
+ * rule the shared chart components already rely on (bento.css) — no custom
+ * sizing CSS needed here. */
+function BudgetHeroChart({
+  budgets,
+  ariaLabel,
+  emptyLabel,
+}: {
+  budgets: BudgetDto[];
+  ariaLabel: string;
+  emptyLabel: string;
+}) {
+  if (budgets.length === 0) {
+    return <p className="wm-cap">{emptyLabel}</p>;
+  }
+
+  const top6 = [...budgets]
+    .sort((a, b) => b.usagePercent - a.usagePercent)
+    .slice(0, 6);
+
+  const W = 700;
+  const H = 230;
+  const left = 42;
+  const topPad = 34;
+  const bottomPad = 26;
+  // Ghost bars scale by max(limit, spent) across the visible set — always a
+  // real, positive number even when every `spentAmount` is 0.
+  const max = Math.max(
+    1,
+    ...top6.map((b) => Math.max(b.limitAmount, b.spentAmount)),
+  );
+  const top = ceilNice(max);
+  const y = (v: number) =>
+    topPad + ((top - v) / top) * (H - topPad - bottomPad);
+  const band = (W - left) / top6.length;
+  const barW = Math.min(56, band * 0.62);
+  // The tightest category is only "lit" (hatched + % tag) once something
+  // has actually been spent — with a fresh/empty month every bar is a
+  // plain ghost column, no fabricated emphasis on a 0% category.
+  const hiIndex = top6.reduce(
+    (best, b, i) =>
+      b.spentAmount > 0 &&
+      (best < 0 || b.usagePercent > (top6[best]?.usagePercent ?? -1))
+        ? i
+        : best,
+    -1,
+  );
+
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="none"
+      role="img"
+      aria-label={ariaLabel}
+    >
+      <g aria-hidden="true">
+        <defs>
+          <pattern
+            id="ag-hatch-orange"
+            width={8}
+            height={8}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <rect width={8} height={8} fill="var(--wm-orange)" />
+            <rect width={2} height={8} fill="rgba(255,255,255,.28)" />
+          </pattern>
+          <pattern
+            id="ag-hatch-bad"
+            width={8}
+            height={8}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <rect width={8} height={8} fill="var(--wm-bad)" />
+            <rect width={2} height={8} fill="rgba(255,255,255,.28)" />
+          </pattern>
+        </defs>
+        {[0, top / 2, top].map((t) => (
+          <g key={t}>
+            <line
+              x1={left}
+              x2={W}
+              y1={y(t)}
+              y2={y(t)}
+              stroke="var(--cgrid)"
+              strokeDasharray={t ? "3 4" : undefined}
+            />
+            <text
+              x={left - 8}
+              y={y(t) + 3.5}
+              textAnchor="end"
+              style={{ fill: "var(--ctext)", fontSize: 11 }}
+            >
+              {axisJt(t)}
+            </text>
+          </g>
+        ))}
+        {top6.map((b, i) => {
+          const x = left + band * i + band / 2 - barW / 2;
+          const on = i === hiIndex;
+          const tone = b.isOverBudget ? "bad" : "orange";
+          const label = b.categoryName.split(" ")[0] ?? "";
+          return (
+            <g key={b.id} style={{ animationDelay: `${i * 40}ms` }}>
+              <rect
+                x={x}
+                y={y(b.limitAmount)}
+                width={barW}
+                height={Math.max(0, y(0) - y(b.limitAmount))}
+                rx={8}
+                fill="var(--cghost)"
+              />
+              {b.spentAmount > 0 && (
+                <rect
+                  x={x}
+                  y={y(Math.min(b.spentAmount, max))}
+                  width={barW}
+                  height={Math.max(3, y(0) - y(b.spentAmount))}
+                  rx={8}
+                  fill={on ? `url(#ag-hatch-${tone})` : "var(--ctext)"}
+                  opacity={on ? 1 : 0.28}
+                />
+              )}
+              <text
+                x={x + barW / 2}
+                y={H - 8}
+                textAnchor="middle"
+                style={
+                  on
+                    ? { fill: "var(--cstrong)", fontSize: 11, fontWeight: 500 }
+                    : { fill: "var(--ctext)", fontSize: 11 }
+                }
+              >
+                {label}
+              </text>
+              {on &&
+                (() => {
+                  const text = `${b.usagePercent}%`;
+                  const pillW = Math.max(48, text.length * 8 + 16);
+                  const cx = x + barW / 2;
+                  const px = Math.max(0, Math.min(W - pillW, cx - pillW / 2));
+                  const py = y(Math.max(b.spentAmount, b.limitAmount)) - 28;
+                  return (
+                    <g>
+                      <rect
+                        x={px}
+                        y={py}
+                        width={pillW}
+                        height={22}
+                        rx={11}
+                        fill="var(--cstrong)"
+                      />
+                      <text
+                        x={px + pillW / 2}
+                        y={py + 15}
+                        textAnchor="middle"
+                        style={{
+                          fill: "var(--cbg)",
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {text}
+                      </text>
+                    </g>
+                  );
+                })()}
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+// Proto's card is `.btile` (a clickable button) with ONE compact footer
+// line, a line icon on a white rounded square (`.ci`), and no inline
+// edit/delete affordances — "Ketuk kartu untuk ubah batas" (anggaran.html:44).
+// Edit opens the side panel; delete moved into that panel's footer.
 function BudgetTile({
   dto,
   canManage,
   onEdit,
-  onDelete,
 }: {
   dto: BudgetDto;
   canManage: boolean;
   onEdit: () => void;
-  onDelete: () => void;
 }) {
   const { t } = useLocale();
   const money = useMoney();
   const tone = budgetTone(dto);
   return (
-    <div className="wm-btile ag-tile" data-tone={tone}>
+    <button
+      type="button"
+      className="wm-btile ag-tile"
+      data-tone={tone}
+      disabled={!canManage}
+      onClick={canManage ? onEdit : undefined}
+      aria-label={
+        canManage
+          ? `${t.anggaran.editAriaLabelPrefix}${dto.categoryName}`
+          : undefined
+      }
+    >
       <span className="wm-btile-tt">
-        <span className="wm-ci">{dto.categoryIcon ?? "📦"}</span>
+        <span className="wm-ci">
+          <CategoryIcon name={dto.categoryName} />
+        </span>
         <span className="ag-name">{dto.categoryName}</span>
-        {canManage && (
-          <span className="ag-acts">
-            <button
-              type="button"
-              onClick={onEdit}
-              aria-label={`${t.anggaran.editAriaLabelPrefix}${dto.categoryName}`}
-            >
-              <Pencil aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              aria-label={`${t.anggaran.deleteAriaLabelPrefix}${dto.categoryName}`}
-            >
-              <Trash2 aria-hidden="true" />
-            </button>
-          </span>
-        )}
       </span>
       <span className="wm-pv ag-pv">{dto.usagePercent}%</span>
       <Track value={dto.usagePercent} fill={tone} />
-      <small>
-        {money.format(dto.spentAmount)}
-        {t.anggaran.amountsMidDari}
-        {money.format(dto.limitAmount)}
-      </small>
       <small className="ag-foot">
         {dto.isOverBudget
-          ? `${t.anggaran.categoryFooterOverBudgetPrefix}${money.format(dto.spentAmount - dto.limitAmount)}`
-          : `${t.anggaran.categoryFooterRemainingPrefix}${money.format(dto.remainingAmount)}`}
+          ? `${t.anggaran.categoryFooterOverBudgetPrefix}${money.formatCompact(dto.spentAmount - dto.limitAmount)}`
+          : `${t.anggaran.categoryFooterRemainingPrefix}${money.formatCompact(dto.remainingAmount)}`}
+        {" · "}
+        {money.formatCompact(dto.limitAmount)}
       </small>
-    </div>
+    </button>
   );
 }
 
@@ -159,26 +365,27 @@ type Obligation = {
   // derived from real fields already on the DTO (`type` → icon,
   // `dueDate`/`renewalDate` → due date) — no fabricated data.
   dueDate: string | null;
-  icon: string;
+  icon: LucideIcon;
 };
 
-// EPIC-025 N3 rework — one emoji per liability/insurance `type`, matching
-// the prototype's per-row icon. Falls back to a generic document icon for
-// any type not explicitly mapped.
-const LIABILITY_ICONS: Record<LiabilityType, string> = {
-  kpr: "🏠",
-  kartu_kredit: "💳",
-  pinjaman_pribadi: "🏦",
-  kendaraan: "🚗",
-  lainnya: "📄",
+// EPIC-025 N3 rework, line-icon pass — one lucide icon per liability/
+// insurance `type`, matching the prototype's per-row icon on a neutral
+// square (anggaran.html's `.ic`, not a colored emoji glyph). Falls back to
+// a generic document icon for any type not explicitly mapped.
+const LIABILITY_ICONS: Record<LiabilityType, LucideIcon> = {
+  kpr: Home,
+  kartu_kredit: CreditCard,
+  pinjaman_pribadi: Landmark,
+  kendaraan: Car,
+  lainnya: FileText,
 };
-const INSURANCE_ICONS: Record<InsuranceType, string> = {
-  jiwa: "🛡️",
-  kesehatan: "🏥",
-  kendaraan: "🚗",
-  properti: "🏠",
-  pendidikan: "🎓",
-  lainnya: "📄",
+const INSURANCE_ICONS: Record<InsuranceType, LucideIcon> = {
+  jiwa: ShieldCheck,
+  kesehatan: Stethoscope,
+  kendaraan: Car,
+  properti: Home,
+  pendidikan: GraduationCap,
+  lainnya: FileText,
 };
 
 /**
@@ -216,7 +423,7 @@ function toObligations(
       // form never sets; `nextDueDate` (same anchor rule /liabilitas uses)
       // is the real "next due" value when present.
       dueDate: l.nextDueDate ?? l.dueDate,
-      icon: LIABILITY_ICONS[l.type] ?? "📄",
+      icon: LIABILITY_ICONS[l.type] ?? FileText,
     }));
   const fromInsurances: Obligation[] = insurances
     .filter((i) => i.status === "aktif" && Number(i.premiumAmount) > 0)
@@ -227,7 +434,7 @@ function toObligations(
       amountDue: Number(i.premiumAmount),
       paidThisPeriod: i.paidThisPeriod,
       dueDate: i.renewalDate,
-      icon: INSURANCE_ICONS[i.type] ?? "📄",
+      icon: INSURANCE_ICONS[i.type] ?? FileText,
     }));
   return [...fromLiabilities, ...fromInsurances];
 }
@@ -241,6 +448,15 @@ function formatLocaleDate(
     day: "numeric",
     month,
     year: "numeric",
+  });
+}
+
+/** Compact due date, no year — proto's obligations row ("4 Okt"), distinct
+ * from `formatLocaleDate`'s full "4 Oktober 2026" used by the pay dialog. */
+function formatDueShort(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+    day: "numeric",
+    month: "short",
   });
 }
 
@@ -346,58 +562,54 @@ function ObligationRow({
 }) {
   const { t, locale } = useLocale();
   const money = useMoney();
+  const Icon = obligation.icon;
   const dueDateLabel = obligation.dueDate
-    ? formatLocaleDate(obligation.dueDate, locale, "short")
+    ? formatDueShort(obligation.dueDate, locale)
     : null;
+  // Proto's obligations row (anggaran.html's `obList`): a neutral line-icon
+  // square, ONE compact meta line ("Rp 545 rb · 4 Okt" — no year, no "jatuh
+  // tempo" prefix), and a lime "Bayar" pill. Keeps the original `<div>`
+  // nesting depth (row > icon + content > name-row/meta-row) rather than
+  // `MiniRow`'s span-based shape, since several regression tests scope
+  // themselves off that nesting (`getByText(name).closest("div")…`).
+  // `Rise`'s own wrapper is a <div>, invalid as a direct <ul> child — apply
+  // its stagger animation inline on the <li> instead.
   return (
-    <Rise index={index}>
-      {/* EPIC-026 Wave 4 — prototype renders obligations as `.list-row`s
-          inside the card (anggaran.html:113), not as bordered sub-cards:
-          translation-table list-row pattern (`divide-y` on the body,
-          `py-3` rows), amount + due date merged into ONE mono sub line
-          ("Rp N · jatuh tempo D") exactly like `list-row__sub`. */}
-      <div className="flex items-center gap-3 py-3">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-accent text-[15px]">
-          {obligation.icon}
+    <li className="animate-rise" style={{ animationDelay: `${index * 70}ms` }}>
+      <div className="flex items-center gap-3 py-3 ag-ob-row">
+        <div className="wm-ic">
+          <Icon aria-hidden="true" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-semibold">
             <span>{obligation.name}</span>
             {obligation.paidThisPeriod && (
-              <StatusBadge variant="success">
+              <StatusBadge variant="gray">
                 {t.anggaran.obligationsPaidBadge}
               </StatusBadge>
             )}
           </div>
           <div className="mono text-[11.5px] text-muted-foreground">
-            {money.format(obligation.amountDue)}
-            {dueDateLabel && (
-              <>
-                {t.anggaran.obligationsDueDatePrefix}
-                {dueDateLabel}
-              </>
-            )}
+            {money.formatCompact(obligation.amountDue)}
+            {dueDateLabel && ` · ${dueDateLabel}`}
           </div>
         </div>
         {/* EPIC-023 Task E retry (CRITICAL 1) — an already-paid obligation
-            must not accept a second Pay click: the label previously stayed
-            "Bayar" and onClick was fully live regardless of
-            `paidThisPeriod`, so clicking it opened the same confirm dialog
-            and debited the source account a second time for the same
-            period, silently. Honest UI: disable the control and say why
-            instead of letting the copy imply an action it must not take. */}
-        <Button
-          size="sm"
-          variant={obligation.paidThisPeriod ? "outline" : "default"}
+            must not accept a second Pay click: stays a real disabled
+            <button>, just restyled muted/lime-pill instead of the old
+            default/outline shadcn Button. */}
+        <PillButton
+          className="ag-ob-pay"
+          variant={obligation.paidThisPeriod ? "default" : "primary"}
           disabled={obligation.paidThisPeriod}
           onClick={onPay}
         >
           {obligation.paidThisPeriod
             ? t.anggaran.obligationsAlreadyPaidButton
             : t.anggaran.obligationsPayButton}
-        </Button>
+        </PillButton>
       </div>
-    </Rise>
+    </li>
   );
 }
 
@@ -528,19 +740,13 @@ export function ObligationsSection({
     <BentoCard
       className="ag-ob"
       title={t.anggaran.obligationsSectionTitle}
-      caption={
-        // One text node: a row amount can equal this total exactly, and a
-        // split node would make getByText ambiguous in the obligations test.
-        <>
-          {unpaid.length}
-          {t.anggaran.obligationsSummaryMidPrefix}
-          {obligations.length}
-          {t.anggaran.obligationsSummaryMidSuffix}
-          {money.format(unpaidTotal)}
-        </>
-      }
+      // Proto's `.cap` is just "{N} belum dibayar" (anggaran.html:37) — the
+      // total moves into its own `.mid` headline below, matching the
+      // "Riwayat" card's `wm-mid` pattern (splitbill/page.tsx:667).
+      caption={`${unpaid.length}${t.anggaran.obligationsSummaryMidSuffix.replace(/\s*·\s*$/, "")}`}
     >
-      <div className="ag-ob-list divide-y">
+      <p className="wm-mid">{money.format(unpaidTotal).replace(/,00$/, "")}</p>
+      <ul className="wm-mini-list ag-ob-list">
         {obligations.map((o, i) => (
           <ObligationRow
             key={`${o.kind}-${o.id}`}
@@ -549,23 +755,23 @@ export function ObligationsSection({
             onPay={() => setTarget(o)}
           />
         ))}
-        <PayObligationDialog
-          obligation={target}
-          accounts={accounts}
-          sourceAccountId={sourceAccountId}
-          onSourceAccountChange={setSourceAccountId}
-          isPending={payMutation.isPending}
-          onClose={() => {
-            setTarget(null);
-            setSourceAccountId("");
-          }}
-          onConfirm={() => {
-            if (target && sourceAccountId) {
-              payMutation.mutate({ obligation: target, sourceAccountId });
-            }
-          }}
-        />
-      </div>
+      </ul>
+      <PayObligationDialog
+        obligation={target}
+        accounts={accounts}
+        sourceAccountId={sourceAccountId}
+        onSourceAccountChange={setSourceAccountId}
+        isPending={payMutation.isPending}
+        onClose={() => {
+          setTarget(null);
+          setSourceAccountId("");
+        }}
+        onConfirm={() => {
+          if (target && sourceAccountId) {
+            payMutation.mutate({ obligation: target, sourceAccountId });
+          }
+        }}
+      />
       <SeeAll href="/liabilitas">{t.anggaran.v2.seeAllObligations}</SeeAll>
     </BentoCard>
   );
@@ -921,10 +1127,6 @@ export default function AnggaranPage() {
     month: "long",
   });
   const worst = overBudgetItems[0] ?? nearLimitItems[0];
-  const hottest = (budgets ?? []).reduce(
-    (m, b, k, arr) => (b.usagePercent > arr[m]!.usagePercent ? k : m),
-    0,
-  );
   const mosaicFilled = Math.round((Math.min(usagePct, 100) / 100) * 18);
   const mosaic = Array.from({ length: 18 }, (_, i) =>
     i < mosaicFilled
@@ -949,44 +1151,42 @@ export default function AnggaranPage() {
           .replace(/,00$/, "")}
         caption={`${totalLimit >= totalSpent ? t.anggaran.v2.leftCap : t.anggaran.v2.overCap} ${monthLabel}`}
         controls={
-          <>
-            <span className="wm-ghost-btn ag-month">{monthLabel}</span>
-            {canManageBudget && (
-              <GhostButton
-                lit
-                onClick={() => setOpen(true)}
-                disabled={!familyGroupId}
-              >
-                <Plus aria-hidden="true" /> {t.anggaran.addCategoryButton}
-              </GhostButton>
-            )}
-          </>
+          // Proto's `.hero-ctrl` is itself a column (buttons row, legend
+          // row below, both right-aligned) — `wm-hero-ctrl` only right-
+          // aligns its own direct children, so without this wrapper the
+          // month pill / button / legend all sat on ONE wrapping flex row
+          // (anggaran.html:22-24).
+          <div className="ag-hero-ctrl">
+            <div className="ag-ctrl-row">
+              <span className="wm-ghost-btn ag-month">{monthLabel}</span>
+              {canManageBudget && (
+                <GhostButton
+                  lit
+                  onClick={() => setOpen(true)}
+                  disabled={!familyGroupId}
+                >
+                  <Plus aria-hidden="true" /> {t.anggaran.addCategoryButton}
+                </GhostButton>
+              )}
+            </div>
+            <div className="wm-legend" aria-hidden="true">
+              <span>
+                <i style={{ background: "var(--wm-lime)" }} />
+                {t.anggaran.v2.legendSpent}
+              </span>
+              <span>
+                <i style={{ background: "var(--wm-ghost)" }} />
+                {t.anggaran.v2.legendLimit}
+              </span>
+            </div>
+          </div>
         }
         chart={
-          budgets && budgets.length > 0 ? (
-            <HatchedBarChart
-              labels={budgets.map((b) => b.categoryName.split(" ")[0] ?? "")}
-              series={[
-                {
-                  name: t.anggaran.v2.legendLimit,
-                  data: budgets.map((b) => b.limitAmount),
-                  color: "var(--wm-ghost)",
-                },
-                {
-                  name: t.anggaran.v2.legendSpent,
-                  data: budgets.map((b) => b.spentAmount),
-                  color: "var(--wm-lime)",
-                },
-              ]}
-              highlight={hottest}
-              format={money.formatCompact}
-              axis={axisJt}
-              wide
-              ariaLabel={t.anggaran.categoryBarChartTitle}
-            />
-          ) : (
-            <p className="wm-cap">{t.anggaran.v2.chartEmpty}</p>
-          )
+          <BudgetHeroChart
+            budgets={budgets ?? []}
+            ariaLabel={t.anggaran.categoryBarChartTitle}
+            emptyLabel={t.anggaran.v2.chartEmpty}
+          />
         }
         kpis={
           <>
@@ -1064,7 +1264,6 @@ export default function AnggaranPage() {
                 dto={b}
                 canManage={!!canManageBudget}
                 onEdit={() => openEdit(b)}
-                onDelete={() => setDeletingBudget(b)}
               />
             ))}
             {canManageBudget && (
@@ -1105,197 +1304,219 @@ export default function AnggaranPage() {
             switch stay CUT: CreateBudgetDto has no budgetType (it derives
             from the category's COA) and no notification-threshold field
             exists — rendering either would silently drop the user's input. */}
-        <DialogContent>
-          <DialogTitle>{t.anggaran.modalAddTitle}</DialogTitle>
-          <DialogDescription>{t.anggaran.modalAddDesc}</DialogDescription>
-          <DialogBody>
-            {/* polish-j batch 7a item 2 — Budget (this dialog's actual
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {t.anggaran.modalAddTitle}
+              </DialogTitle>
+              <DialogDescription className="wm-panel-desc">
+                {t.anggaran.modalAddDesc}
+              </DialogDescription>
+            </div>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="wm-panel-body wm-form">
+              <div className="wm-form__grid">
+                {/* polish-j batch 7a item 2 — Budget (this dialog's actual
                 point) now leads; Tipe/COA/Privat/Ikon collapse under "Opsi
                 lanjutan" for the owner flow, since a default (expense, auto
                 COA, not private) already covers most budgets. */}
-            {/* F3 fix — a member can "manage Budget" but only "read
+                {/* F3 fix — a member can "manage Budget" but only "read
                 Category": the create-a-category fields below would 403 on
                 submit, so a member instead picks an existing category of
                 the chosen kind (see `existingCategoryId` above). */}
-            {canManageCategory !== false && (
-              <div className="field">
-                <label className="label" htmlFor="budget-name">
-                  {t.anggaran.fieldCategoryNameLabel}
-                </label>
-                <input
-                  id="budget-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t.anggaran.fieldCategoryNamePlaceholder}
-                  className="input"
-                />
-              </div>
-            )}
-            {canManageCategory === false && (
-              <div className="field">
-                <label className="label" htmlFor="budget-existing-category">
-                  {t.anggaran.fieldExistingCategoryLabel}
-                </label>
-                <select
-                  id="budget-existing-category"
-                  value={existingCategoryId}
-                  onChange={(e) => setExistingCategoryId(e.target.value)}
-                  className="select"
-                >
-                  <option value="">
-                    {t.anggaran.existingCategoryPlaceholder}
-                  </option>
-                  {selectableCategories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {selectableCategories.length === 0 && (
-                  <span className="hint block">
-                    {t.anggaran.existingCategoryEmptyOption}
-                  </span>
+                {canManageCategory !== false && (
+                  <div className="field">
+                    <label className="label" htmlFor="budget-name">
+                      {t.anggaran.fieldCategoryNameLabel}
+                    </label>
+                    <input
+                      id="budget-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t.anggaran.fieldCategoryNamePlaceholder}
+                      className="input"
+                    />
+                  </div>
                 )}
-              </div>
-            )}
-            {/* EPIC-026 Wave 4 — prototype puts amount + periode side by
+                {canManageCategory === false && (
+                  <div className="field">
+                    <label className="label" htmlFor="budget-existing-category">
+                      {t.anggaran.fieldExistingCategoryLabel}
+                    </label>
+                    <select
+                      id="budget-existing-category"
+                      value={existingCategoryId}
+                      onChange={(e) => setExistingCategoryId(e.target.value)}
+                      className="select"
+                    >
+                      <option value="">
+                        {t.anggaran.existingCategoryPlaceholder}
+                      </option>
+                      {selectableCategories.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    {selectableCategories.length === 0 && (
+                      <span className="hint block">
+                        {t.anggaran.existingCategoryEmptyOption}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {/* EPIC-026 Wave 4 — prototype puts amount + periode side by
                 side in a `field-row` (anggaran.html:410). */}
-            <div className="field field-row mt-3">
-              <div className="field mt-0">
-                <label className="label" htmlFor="budget-amount">
-                  {t.anggaran.fieldAmountLabel}
-                </label>
-                <MoneyInput field={amountField} id="budget-amount" />
-              </div>
-              <div className="field mt-0">
-                <label className="label" htmlFor="budget-period">
-                  {t.anggaran.fieldPeriodLabel}
-                </label>
-                <select
-                  id="budget-period"
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}
-                  className="select"
-                >
-                  <option value="monthly">
-                    {t.anggaran.periodLabels.monthly}
-                  </option>
-                  <option value="weekly">
-                    {t.anggaran.periodLabels.weekly}
-                  </option>
-                  <option value="yearly">
-                    {t.anggaran.periodLabels.yearly}
-                  </option>
-                </select>
-              </div>
-            </div>
-            {canManageCategory !== false && (
-              <AdvancedDisclosure label={t.common.advancedOptions}>
-                {/* The category half of the form. These were previously
+                <div className="wm-form__grid--two">
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="budget-amount">
+                      {t.anggaran.fieldAmountLabel}
+                    </label>
+                    <MoneyInput field={amountField} id="budget-amount" />
+                  </div>
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="budget-period">
+                      {t.anggaran.fieldPeriodLabel}
+                    </label>
+                    <select
+                      id="budget-period"
+                      value={period}
+                      onChange={(e) =>
+                        setPeriod(e.target.value as BudgetPeriod)
+                      }
+                      className="select"
+                    >
+                      <option value="monthly">
+                        {t.anggaran.periodLabels.monthly}
+                      </option>
+                      <option value="weekly">
+                        {t.anggaran.periodLabels.weekly}
+                      </option>
+                      <option value="yearly">
+                        {t.anggaran.periodLabels.yearly}
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                {canManageCategory !== false && (
+                  <AdvancedDisclosure label={t.common.advancedOptions}>
+                    {/* The category half of the form. These were previously
                     decided for the user — always `expense`, always the
                     server's default COA account, never private — even
                     though the budget's whole identity comes from the
                     category it creates. */}
-                <div className="field field-row mt-0">
-                  <div className="field mt-0">
-                    <label className="label" htmlFor="budget-kind">
-                      {t.anggaran.fieldKindLabel}
-                    </label>
-                    <select
-                      id="budget-kind"
-                      value={kind}
-                      onChange={(e) => {
-                        setKind(e.target.value as "income" | "expense");
-                        // The previously chosen account/category may not be
-                        // offered for the new kind; fall back rather than
-                        // silently submitting a value no longer in the list.
-                        setCoaAccountId("");
-                        setExistingCategoryId("");
-                      }}
-                      className="select"
-                    >
-                      <option value="expense">{t.common.expense}</option>
-                      <option value="income">{t.common.income}</option>
-                    </select>
-                  </div>
-                  <div className="field mt-0">
-                    <label className="label" htmlFor="budget-coa">
-                      {t.anggaran.fieldCoaLabel}
-                    </label>
-                    <select
-                      id="budget-coa"
-                      value={coaAccountId}
-                      onChange={(e) => setCoaAccountId(e.target.value)}
-                      className="select"
-                    >
-                      <option value="">{t.anggaran.coaAutoOptionLabel}</option>
-                      {selectableCoaAccounts.map((a) => (
-                        <option key={a.id} value={a.id}>
-                          {a.code} · {a.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="field mt-0">
-                  {/* polish-j batch 6 item 2 — switch first (left), label +
+                    <div className="wm-form__grid--two">
+                      <div className="field mt-0">
+                        <label className="label" htmlFor="budget-kind">
+                          {t.anggaran.fieldKindLabel}
+                        </label>
+                        <select
+                          id="budget-kind"
+                          value={kind}
+                          onChange={(e) => {
+                            setKind(e.target.value as "income" | "expense");
+                            // The previously chosen account/category may not be
+                            // offered for the new kind; fall back rather than
+                            // silently submitting a value no longer in the list.
+                            setCoaAccountId("");
+                            setExistingCategoryId("");
+                          }}
+                          className="select"
+                        >
+                          <option value="expense">{t.common.expense}</option>
+                          <option value="income">{t.common.income}</option>
+                        </select>
+                      </div>
+                      <div className="field mt-0">
+                        <label className="label" htmlFor="budget-coa">
+                          {t.anggaran.fieldCoaLabel}
+                        </label>
+                        <select
+                          id="budget-coa"
+                          value={coaAccountId}
+                          onChange={(e) => setCoaAccountId(e.target.value)}
+                          className="select"
+                        >
+                          <option value="">
+                            {t.anggaran.coaAutoOptionLabel}
+                          </option>
+                          {selectableCoaAccounts.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.code} · {a.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="field mt-0">
+                      {/* polish-j batch 6 item 2 — switch first (left), label +
                       hint after (right), matching crud-modal.tsx's toggle
                       branch and every other visibility toggle in the app. */}
-                  <div className="row mt-0 gap-[9px]">
-                    <Switch
-                      checked={isPrivate}
-                      onCheckedChange={setIsPrivate}
-                      aria-label={t.anggaran.fieldPrivateLabel}
-                    />
-                    <span>
-                      <span className="label">
-                        {t.anggaran.fieldPrivateLabel}
-                      </span>
-                      <span className="hint block">
-                        {t.anggaran.fieldPrivateHint}
-                      </span>
-                    </span>
-                  </div>
-                </div>
-                {/* The fixed 8-emoji grid that used to live here is gone: a
+                      <div className="row mt-0 gap-[9px]">
+                        <Switch
+                          checked={isPrivate}
+                          onCheckedChange={setIsPrivate}
+                          aria-label={t.anggaran.fieldPrivateLabel}
+                        />
+                        <span>
+                          <span className="label">
+                            {t.anggaran.fieldPrivateLabel}
+                          </span>
+                          <span className="hint block">
+                            {t.anggaran.fieldPrivateHint}
+                          </span>
+                        </span>
+                      </div>
+                    </div>
+                    {/* The fixed 8-emoji grid that used to live here is gone: a
                     category whose icon is a boat or a violin was simply not
                     expressible. Same component the master-data category
                     dialog uses, so the two no longer disagree about what an
                     icon is; batch 7a item 1 collapses it behind a 40px
                     trigger button instead of an always-open grid. */}
-                <IconPickerField
-                  label={t.anggaran.iconLabel}
-                  value={icon}
-                  onChange={setIcon}
-                  searchPlaceholder={t.common.emojiSearchPlaceholder}
-                  noResultsLabel={t.common.emojiNoResults}
-                  loadingLabel={t.common.emojiLoading}
-                  ariaLabel={t.anggaran.iconGroupAriaLabel}
-                />
-              </AdvancedDisclosure>
-            )}
-          </DialogBody>
-          {/* EPIC-026 Wave 4 — prototype's `dialog__footer`: Batal +
-              Simpan side by side (anggaran.html:444), not a single
-              full-width save. */}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              {t.common.cancel}
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={
-                createMutation.isPending || amountField.resolved.isPending
-              }
-            >
-              <Save className="size-[14px]" />
-              {createMutation.isPending
-                ? t.anggaran.savingLabel
-                : t.anggaran.saveCategoryButton}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+                    <IconPickerField
+                      label={t.anggaran.iconLabel}
+                      value={icon}
+                      onChange={setIcon}
+                      searchPlaceholder={t.common.emojiSearchPlaceholder}
+                      noResultsLabel={t.common.emojiNoResults}
+                      loadingLabel={t.common.emojiLoading}
+                      ariaLabel={t.anggaran.iconGroupAriaLabel}
+                    />
+                  </AdvancedDisclosure>
+                )}
+              </div>
+            </div>
+            <div className="wm-panel-foot">
+              <PillButton type="button" onClick={() => setOpen(false)}>
+                {t.common.cancel}
+              </PillButton>
+              <PillButton
+                type="submit"
+                variant="primary"
+                disabled={
+                  createMutation.isPending || amountField.resolved.isPending
+                }
+              >
+                {createMutation.isPending
+                  ? t.anggaran.savingLabel
+                  : t.anggaran.saveCategoryButton}
+              </PillButton>
+            </div>
+          </form>
+        </PanelContent>
       </Dialog>
 
       {/* EPIC-022 C2 — edit an existing budget's limit/period. Only the
@@ -1307,70 +1528,108 @@ export default function AnggaranPage() {
         open={editing !== null}
         onOpenChange={(nextOpen) => !nextOpen && setEditing(null)}
       >
-        <DialogContent>
-          <DialogTitle>{t.anggaran.modalEditTitle}</DialogTitle>
-          <DialogDescription>{t.anggaran.modalEditDesc}</DialogDescription>
-          {editing && (
-            <DialogBody>
-              <div className="field">
-                <span className="label">
-                  {t.anggaran.fieldCategoryNameLabel}
-                </span>
-                <div className="flex items-center gap-2 text-[13.5px] font-semibold">
-                  <span>{editing.categoryIcon ?? "📦"}</span>
-                  <span>{editing.categoryName}</span>
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {t.anggaran.modalEditTitle}
+              </DialogTitle>
+              <DialogDescription className="wm-panel-desc">
+                {t.anggaran.modalEditDesc}
+              </DialogDescription>
+            </div>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSaveEdit();
+            }}
+            className="flex min-h-0 flex-1 flex-col"
+          >
+            <div className="wm-panel-body wm-form">
+              {editing && (
+                <div className="wm-form__grid">
+                  <div className="field">
+                    <span className="label">
+                      {t.anggaran.fieldCategoryNameLabel}
+                    </span>
+                    <div className="flex items-center gap-2 text-[13.5px] font-semibold">
+                      <CategoryIcon name={editing.categoryName} />
+                      <span>{editing.categoryName}</span>
+                    </div>
+                  </div>
+                  <div className="wm-form__grid--two">
+                    <div className="field mt-0">
+                      <label className="label" htmlFor="budget-edit-amount">
+                        {t.anggaran.fieldAmountLabel}
+                      </label>
+                      <MoneyInput field={editField} id="budget-edit-amount" />
+                    </div>
+                    <div className="field mt-0">
+                      <label className="label" htmlFor="budget-edit-period">
+                        {t.anggaran.fieldPeriodLabel}
+                      </label>
+                      <select
+                        id="budget-edit-period"
+                        value={editPeriod}
+                        onChange={(e) =>
+                          setEditPeriod(e.target.value as BudgetPeriod)
+                        }
+                        className="select"
+                      >
+                        <option value="monthly">
+                          {t.anggaran.periodLabels.monthly}
+                        </option>
+                        <option value="weekly">
+                          {t.anggaran.periodLabels.weekly}
+                        </option>
+                        <option value="yearly">
+                          {t.anggaran.periodLabels.yearly}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="field field-row">
-                <div className="field mt-0">
-                  <label className="label" htmlFor="budget-edit-amount">
-                    {t.anggaran.fieldAmountLabel}
-                  </label>
-                  <MoneyInput field={editField} id="budget-edit-amount" />
-                </div>
-                <div className="field mt-0">
-                  <label className="label" htmlFor="budget-edit-period">
-                    {t.anggaran.fieldPeriodLabel}
-                  </label>
-                  <select
-                    id="budget-edit-period"
-                    value={editPeriod}
-                    onChange={(e) =>
-                      setEditPeriod(e.target.value as BudgetPeriod)
-                    }
-                    className="select"
-                  >
-                    <option value="monthly">
-                      {t.anggaran.periodLabels.monthly}
-                    </option>
-                    <option value="weekly">
-                      {t.anggaran.periodLabels.weekly}
-                    </option>
-                    <option value="yearly">
-                      {t.anggaran.periodLabels.yearly}
-                    </option>
-                  </select>
-                </div>
-              </div>
-            </DialogBody>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditing(null)}>
-              {t.common.cancel}
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={
-                updateMutation.isPending || editField.resolved.isPending
-              }
-            >
-              <Save className="size-[14px]" />
-              {updateMutation.isPending
-                ? t.anggaran.savingLabel
-                : t.anggaran.saveChangesButton}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+              )}
+            </div>
+            <div className="wm-panel-foot">
+              {/* Proto's "Ketuk kartu untuk ubah batas" — delete lives in
+                  the edit panel the card click opens, not as an inline
+                  trash icon on the card (anggaran.html's `inlineEdit`). */}
+              {editing && (
+                <PillButton
+                  type="button"
+                  variant="danger"
+                  className="ag-panel-delete"
+                  onClick={() => {
+                    setDeletingBudget(editing);
+                    setEditing(null);
+                  }}
+                  aria-label={`${t.anggaran.deleteAriaLabelPrefix}${editing.categoryName}`}
+                >
+                  <Trash2 aria-hidden="true" />
+                </PillButton>
+              )}
+              <PillButton type="button" onClick={() => setEditing(null)}>
+                {t.common.cancel}
+              </PillButton>
+              <PillButton
+                type="submit"
+                variant="primary"
+                disabled={
+                  updateMutation.isPending || editField.resolved.isPending
+                }
+              >
+                {updateMutation.isPending
+                  ? t.anggaran.savingLabel
+                  : t.anggaran.saveChangesButton}
+              </PillButton>
+            </div>
+          </form>
+        </PanelContent>
       </Dialog>
 
       <ConfirmDeleteDialog

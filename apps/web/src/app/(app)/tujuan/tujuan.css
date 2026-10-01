@@ -41,6 +41,54 @@
     gap: 6px;
     padding-bottom: 8px;
   }
+  .tj-hero-ctrl {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .tj-legend {
+    display: flex;
+    gap: 12px;
+  }
+  .tj-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12, 12px);
+  }
+  .tj-legend-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--wm-lime);
+  }
+  .tj-legend-dot[data-tone="ghost"] {
+    background: var(--wm-ghost);
+  }
+  .tj-tile-main {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+  .tj-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tj-meta-line {
+    color: var(--wm-muted);
+  }
   .tj-state {
     margin-top: 12px;
     color: var(--wm-muted);
@@ -145,6 +193,29 @@
   .tj-history {
     border-top: 1px solid var(--wm-ghost);
     padding-top: 8px;
+  }
+  .tj-detail-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .tj-detail-progress {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .tj-detail-progress-main {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tj-detail-progress-main .tj-pv[data-tone="orange"] {
+    color: var(--wm-orange);
+  }
+  .tj-detail-progress-main .tj-pv[data-tone="bad"] {
+    color: var(--wm-bad);
   }
   @media (max-width: 720px) {
     .tj-tips .wm-mosaic {

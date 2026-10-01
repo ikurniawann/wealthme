@@ -18,6 +18,7 @@ import { createContext, useContext, useMemo } from "react";
 
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
+import { useBalancesHidden } from "@/hooks/use-my-access";
 
 type MoneyContextValue = {
   currency: string;
@@ -29,7 +30,7 @@ type MoneyContextValue = {
   // need to react to it directly (rare; most just call format/formatCompact)
   // don't have to re-read the profile themselves.
   hideBalance: boolean;
-  formatExact: (idr: string | bigint) => string;
+  formatExact: (idr: string | bigint | null) => string;
 };
 
 const CURRENCY_LOCALES: Record<string, string> = {
@@ -126,7 +127,11 @@ export function DisplayCurrencyProvider({
   // test harness that mocks useCurrencyPreference() directly, predating this
   // field): behave exactly like before this batch, i.e. no decimals shown.
   // Once the real profile loads, resolvePrivacyPrefs always fills both keys.
-  const hideBalance = privacyPrefs?.hideBalance ?? false;
+  // "Lihat saldo" off (set by the Master on /iam): the API already withholds
+  // the numbers (null + balancesHidden); every formatted amount renders
+  // "••••••" so a nulled balance never shows as "Rp 0".
+  const balancesHidden = useBalancesHidden();
+  const hideBalance = (privacyPrefs?.hideBalance ?? false) || balancesHidden;
   const showDecimal = privacyPrefs?.showDecimal ?? false;
 
   const value = useMemo<MoneyContextValue>(() => {
@@ -149,8 +154,9 @@ export function DisplayCurrencyProvider({
         : formatRupiahCompact(idr);
       return hideBalance ? maskAmount(base) : base;
     };
-    const formatExact = (idr: string | bigint): string => {
+    const formatExact = (idr: string | bigint | null): string => {
       if (!isReady) return "…";
+      if (idr === null) return maskAmount("Rp 0");
       const amount = typeof idr === "bigint" ? idr : BigInt(idr);
       const result = formatExactCurrency(amount, currency, rate);
       const withDecimalsApplied =
@@ -201,6 +207,9 @@ export function useMoney(): MoneyContextValue {
     format: formatRupiah,
     formatCompact: formatRupiahCompact,
     hideBalance: false,
-    formatExact: (idr) => formatExactCurrency(BigInt(idr), "IDR", 1),
+    formatExact: (idr) =>
+      idr === null
+        ? maskAmount("Rp 0")
+        : formatExactCurrency(BigInt(idr), "IDR", 1),
   };
 }

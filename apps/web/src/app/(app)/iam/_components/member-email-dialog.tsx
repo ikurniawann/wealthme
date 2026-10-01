@@ -2,16 +2,17 @@
 
 import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
+  DialogClose,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
+import { PillButton } from "@/components/wm";
 import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -72,20 +73,30 @@ export function MemberEmailDialog({
       open={member !== null}
       onOpenChange={(o) => !o && !save.isPending && onClose()}
     >
-      <DialogContent className="dialog--sm">
-        <DialogTitle>Email untuk {member?.name}</DialogTitle>
-        <DialogDescription>
-          Kami kirim link konfirmasi ke email ini. Setelah pemilik email
-          mengeklik link itu, {member?.name} bisa login dengan email dan memakai
-          Lupa Password. Sebelum dikonfirmasi, email belum berlaku.
-        </DialogDescription>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              Email untuk {member?.name}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              Kami kirim link konfirmasi ke email ini. Setelah pemilik email
+              mengeklik link itu, {member?.name} bisa login dengan email dan
+              memakai Lupa Password. Sebelum dikonfirmasi, email belum berlaku.
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label="Tutup">
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         <form
+          className="flex min-h-0 flex-1 flex-col"
           onSubmit={(e) => {
             e.preventDefault();
             if (isValid) save.mutate(trimmed);
           }}
         >
-          <DialogBody>
+          <div className="wm-panel-body wm-form">
             <label className="field" htmlFor={`${fieldId}-email`}>
               <span className="label">Email</span>
               <input
@@ -105,8 +116,8 @@ export function MemberEmailDialog({
                 Simpan lagi untuk mengirim ulang link.
               </p>
             )}
-          </DialogBody>
-          <DialogFooter>
+          </div>
+          <div className="wm-panel-foot">
             {member?.pendingEmail && (
               <button
                 type="button"
@@ -117,24 +128,23 @@ export function MemberEmailDialog({
                 Batalkan email
               </button>
             )}
-            <button
+            <PillButton
               type="button"
-              className="btn btn--outline"
               disabled={save.isPending}
               onClick={onClose}
             >
               Tutup
-            </button>
-            <button
+            </PillButton>
+            <PillButton
+              variant="primary"
               type="submit"
-              className="btn btn--primary"
               disabled={!isValid || save.isPending}
             >
               {save.isPending ? "Mengirim…" : "Kirim Link Konfirmasi"}
-            </button>
-          </DialogFooter>
+            </PillButton>
+          </div>
         </form>
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }

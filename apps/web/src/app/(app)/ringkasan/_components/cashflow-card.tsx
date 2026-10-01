@@ -1,86 +1,107 @@
 "use client";
 
-// EPIC-026 — prototype `ringkasan.html` block 5a: the "Cash Flow <bulan>"
-// card — a `.card__body.stack` of Pemasukan / Pengeluaran / Surplus, the last
-// separated by a top border.
-//
-// The `CashflowChart` above the figures is an app-only addition kept from
-// EPIC-025 N3-C2 (the prototype card has no chart); it plots the same
-// `summary.cashflow` arrays the figures below are drawn from. Height stays at
-// CASHFLOW_HEIGHT so the grouped bars keep real vertical range — an earlier
-// bug pinned this to 90px and collapsed them.
-
-import { CashflowChart } from "@/components/charts/apex-presets";
+import { BentoCard } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { useLocale } from "@/hooks/use-locale";
 import type { RingkasanData } from "./use-ringkasan-data";
 
-const CASHFLOW_HEIGHT = 200;
+const MONTHS_SHOWN = 6;
 
 export function CashflowCard({ data }: { data: RingkasanData }) {
   const { t } = useLocale();
   const {
     isLoading,
     moneyFull,
-    monthIncome,
-    monthExpense,
-    monthNet,
+    money,
     cashflowMonths,
     cashflowIncome,
     cashflowExpense,
     cashflowAriaLabel,
-    money: moneyCompactFmt,
   } = data;
 
+  const months = cashflowMonths.slice(-MONTHS_SHOWN);
+  const income = cashflowIncome.slice(-MONTHS_SHOWN);
+  const expense = cashflowExpense.slice(-MONTHS_SHOWN);
+
+  // The current month is often still empty; summarise the latest month that
+  // has activity so the figures match a visible pair of bars.
+  let refIndex = months.length - 1;
+  while (refIndex > 0 && !income[refIndex] && !expense[refIndex]) refIndex--;
+  const refIncome = income[refIndex] ?? 0;
+  const refExpense = expense[refIndex] ?? 0;
+  const refNet = refIncome - refExpense;
+  const refMonth = months[refIndex] ?? "";
+  const avgNet =
+    months.length > 0
+      ? income.reduce((sum, v, i) => sum + v - (expense[i] ?? 0), 0) /
+        months.length
+      : 0;
+
   return (
-    <article className="card">
-      <div className="card__header">
-        <h2 className="card__title">
-          {t.ringkasan.cashFlowTitlePrefix}
-          {cashflowMonths.at(-1) ?? ""}
-        </h2>
-      </div>
-      <div className="card__body stack" style={{ gap: 12 }}>
-        {isLoading ? (
-          <div
-            className="animate-pulse rounded-md bg-muted"
-            style={{ height: CASHFLOW_HEIGHT }}
-          />
-        ) : cashflowMonths.length === 0 ? null : (
-          <div className="chart private">
-            <CashflowChart
-              months={cashflowMonths}
-              income={cashflowIncome}
-              expense={cashflowExpense}
-              height={CASHFLOW_HEIGHT}
+    <BentoCard
+      className="rk2-cash"
+      title={`${t.ringkasan.cashFlowTitlePrefix}${refMonth}`}
+      caption={months.length > 0 ? `${months[0]} – ${months.at(-1)}` : ""}
+      action={
+        <div className="wm-legend">
+          <span>
+            <i style={{ background: "var(--wm-lime)" }} />
+            {t.ringkasan.incomeLabel}
+          </span>
+          <span>
+            <i style={{ background: "var(--wm-orange)" }} />
+            {t.ringkasan.expenseLabel}
+          </span>
+        </div>
+      }
+    >
+      {isLoading ? (
+        <div className="mt-4 h-[210px] animate-pulse rounded-xl bg-muted" />
+      ) : months.length === 0 ? null : (
+        <>
+          <div className="rk2-cash-chart private">
+            <HatchedBarChart
+              labels={months}
+              series={[
+                {
+                  name: t.ringkasan.incomeLabel,
+                  data: income,
+                  color: "var(--wm-lime)",
+                },
+                {
+                  name: t.ringkasan.expenseLabel,
+                  data: expense,
+                  color: "var(--wm-orange)",
+                },
+              ]}
+              highlight={refIndex}
+              format={money}
+              axis={money}
               ariaLabel={cashflowAriaLabel}
-              money={{ format: moneyFull, formatCompact: moneyCompactFmt }}
             />
           </div>
-        )}
-        <div>
-          <div className="t-xs t-muted">{t.ringkasan.incomeLabel}</div>
-          <div className="t-xl t-black t-success mono private">
-            {isLoading ? "..." : moneyFull(monthIncome)}
-          </div>
-        </div>
-        <div>
-          <div className="t-xs t-muted">{t.ringkasan.expenseLabel}</div>
-          <div className="t-xl t-black t-danger mono private">
-            {isLoading ? "..." : moneyFull(monthExpense)}
-          </div>
-        </div>
-        <div
-          style={{ paddingTop: 12, borderTop: "1px solid var(--border)" }}
-          className="mt-auto"
-        >
-          <div className="t-xs t-muted">{t.ringkasan.surplusLabel}</div>
-          <div
-            className={`t-xl t-black mono private ${monthNet >= 0 ? "t-success" : "t-danger"}`}
-          >
-            {isLoading ? "..." : moneyFull(monthNet)}
-          </div>
-        </div>
-      </div>
-    </article>
+          <dl className="rk2-cash-stats private">
+            <div>
+              <dt>{t.ringkasan.incomeLabel}</dt>
+              <dd className="t-success">{moneyFull(refIncome)}</dd>
+            </div>
+            <div>
+              <dt>{t.ringkasan.expenseLabel}</dt>
+              <dd className="t-danger">{moneyFull(refExpense)}</dd>
+            </div>
+            <div>
+              <dt>{t.ringkasan.surplusLabel}</dt>
+              <dd className={refNet >= 0 ? "t-success" : "t-danger"}>
+                {moneyFull(refNet)}
+              </dd>
+            </div>
+            <div>
+              <dt>{t.ringkasan.avgNetPerMonthLabel}</dt>
+              <dd className={avgNet >= 0 ? "" : "t-danger"}>{money(avgNet)}</dd>
+            </div>
+          </dl>
+        </>
+      )}
+    </BentoCard>
   );
 }

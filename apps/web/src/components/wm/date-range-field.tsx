@@ -175,7 +175,7 @@ const EDGE_MARGIN = 8;
 // Base UI dialogs/sheets trap focus and dismiss on outside presses, so a picker
 // inside one is portaled into that popup rather than into <body>.
 const MODAL_HOST_SELECTOR =
-  '[data-slot="dialog-content"], [data-slot="sheet-content"]';
+  '[data-slot="dialog-content"], [data-slot="sheet-content"], [data-slot="panel-content"]';
 
 function resolvePortalHost(trigger: HTMLElement | null): HTMLElement {
   return trigger?.closest<HTMLElement>(MODAL_HOST_SELECTOR) ?? document.body;

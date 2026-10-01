@@ -20,7 +20,8 @@ describe("ProfileHero", () => {
     const action = screen.getByRole("button", { name: "Edit profil" });
     expect(screen.getByText("Andi Raharjo")).toBeInTheDocument();
     expect(screen.getByText("Pemilik")).toBeInTheDocument();
-    expect(screen.getByText("Bergabung sejak 2024")).toBeInTheDocument();
+    // Prototype hero row is role badge + email only (akun.html `.ak-meta`) —
+    // `memberSince` is accepted for compat but no longer rendered here.
     expect(action.parentElement).not.toBe(email.parentElement);
 
     fireEvent.click(action);

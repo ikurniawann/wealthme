@@ -410,7 +410,10 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Opsi lainnya" }),
+    );
+    await user.click(await screen.findByText("Edit"));
     await screen.findByText("Edit Liabilitas");
 
     await user.click(
@@ -450,7 +453,10 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Hapus" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Opsi lainnya" }),
+    );
+    await user.click(await screen.findByText("Hapus"));
 
     const confirmDialog = within(await screen.findByRole("dialog"));
     expect(
@@ -894,7 +900,10 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Opsi lainnya" }),
+    );
+    await user.click(await screen.findByText("Edit"));
     const dialog = within(await screen.findByRole("dialog"));
 
     expect(dialog.queryByText("Contoh")).not.toBeInTheDocument();
@@ -949,7 +958,10 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Opsi lainnya" }),
+    );
+    await user.click(await screen.findByText("Edit"));
     const dialog = within(await screen.findByRole("dialog"));
 
     expect(
@@ -1214,7 +1226,10 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     const user = userEvent.setup();
     render(<LiabilitasPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Opsi lainnya" }),
+    );
+    await user.click(await screen.findByText("Edit"));
     const dialog = within(await screen.findByRole("dialog"));
     await user.click(dialog.getByLabelText("Tanggal Akad"));
     await user.click(

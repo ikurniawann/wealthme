@@ -1,29 +1,35 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Share2, X, Link2, TriangleAlert } from "lucide-react";
+import { Plus, X, Link2, TriangleAlert, Trash2 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  SectionCard,
-  ARow,
-  StatusBadge,
+  AddTile,
+  BentoCard,
   BentoGrid,
   BentoHero,
+  BentoTile,
+  BentoTiles,
   GhostButton,
-  HatchedBar,
   HeroKpi,
+  MiniList,
+  MiniRow,
+  PillButton,
+  StatusBadge,
   TipsCard,
+  Track,
 } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { Split as SplitIcon } from "lucide-react";
 import "./splitbill.css";
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
+  DialogClose,
+  PanelContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDeleteDialog } from "@/components/crud";
@@ -89,6 +95,19 @@ function computePct(split: SplitBillDto): number {
   return Math.round((computePaidAmount(split) / total) * 100);
 }
 
+/** Axis ticks: "6 jt" / "1,5 M", no currency or decimals (docs/design/proto
+ * splitbill.html's chart y-axis; same pattern as rekening/anggaran). */
+function axisJt(value: number): string {
+  const abs = Math.abs(value);
+  const sign = value < 0 ? "−" : "";
+  const trim = (n: number) =>
+    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
+  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
+  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
+  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
+  return `${sign}${Math.round(abs)}`;
+}
+
 export default function SplitBillPage() {
   const { t, locale } = useLocale();
   const { handleError } = useApiError();
@@ -106,11 +125,28 @@ export default function SplitBillPage() {
   // confirmation dialog (ConfirmDeleteDialog) instead of one being a
   // native `window.confirm` and the other firing on a single click.
   const [revokeTarget, setRevokeTarget] = useState<SplitBillDto | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<SplitBillDto | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<{
     splitId: string;
     participantId: string;
     participantName: string;
   } | null>(null);
+  const deleteMutation = useMutation({
+    mutationFn: (splitId: string) =>
+      apiFetch<void>(`/family-groups/${familyGroupId}/split-bills/${splitId}`, {
+        method: "DELETE",
+        token,
+      }),
+    onSuccess: (_data, splitId) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.splitBills.list(familyGroupId ?? ""),
+      });
+      setSelectedSplit((prev) => (prev && prev.id === splitId ? null : prev));
+      toast.success(t.splitbill.toastSplitDeleted);
+    },
+    onError: handleError,
+  });
+
   // Group F (task F3) — repairs a bill whose payoutAccountId is null or
   // points at a deleted account.
   const [editPayoutOpen, setEditPayoutOpen] = useState(false);
@@ -516,6 +552,14 @@ export default function SplitBillPage() {
 
   // Stats derived from API data
   const activeSplits = splits?.filter((s) => s.status === "open") ?? [];
+  // Prototype's "Riwayat" panel (docs/design/proto/splitbill.html `history`) —
+  // every split no longer open (settled or revoked), newest-created first.
+  const historySplits = (splits ?? [])
+    .filter((s) => s.status !== "open")
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   const totalDitalangin = activeSplits.reduce(
     (s, split) => s + Number(BigInt(split.totalAmount)),
     0,
@@ -528,6 +572,32 @@ export default function SplitBillPage() {
   const belumBayarCount = activeSplits
     .flatMap((s) => s.participants)
     .filter((p) => p.status === "pending").length;
+  // "tightest-to-goal" split is the one the hero chart highlights, same as
+  // the prototype's `hi` (highest pct) index.
+  const highlightIndex =
+    activeSplits.length > 0
+      ? activeSplits.reduce(
+          (best, split, i) =>
+            computePct(split) > computePct(activeSplits[best]) ? i : best,
+          0,
+        )
+      : undefined;
+  // Prototype's `.sb-tip` card: the lowest-progress active split ("worst"),
+  // same pick as `active.slice().sort(pct asc)[0]` in splitbill.html.
+  const worstSplit =
+    activeSplits.length > 0
+      ? activeSplits.reduce((worst, split) =>
+          computePct(split) < computePct(worst) ? split : worst,
+        )
+      : undefined;
+  const pctAll =
+    totalDitalangin > 0
+      ? Math.round((totalTerkumpul / totalDitalangin) * 100)
+      : 0;
+  const tipMosaicFilled = Math.round((pctAll / 100) * 18);
+  const tipMosaic = Array.from({ length: 18 }, (_, i) =>
+    i < tipMosaicFilled ? "c" : i % 5 === 0 ? "b" : "",
+  ) as ("a" | "b" | "c" | "o" | "")[];
 
   return (
     <BentoGrid className="sb-grid">
@@ -535,53 +605,64 @@ export default function SplitBillPage() {
       <BentoHero
         className="sb-hero"
         currency={null}
-        value={money.format(totalBelum).replace(/,00$/, "")}
-        caption={`${t.splitbill.belumDibayarLabel} · ${belumBayarCount}${t.splitbill.peopleUnpaidSuffix}`}
+        value={money.format(totalDitalangin).replace(/,00$/, "")}
+        caption={t.splitbill.headerDesc}
         controls={
-          <GhostButton
-            lit
-            onClick={() => setCreateOpen(true)}
-            disabled={!familyGroupId}
-          >
-            <Plus aria-hidden="true" /> {t.splitbill.createButton}
-          </GhostButton>
+          <>
+            <GhostButton
+              lit
+              onClick={() => setCreateOpen(true)}
+              disabled={!familyGroupId}
+            >
+              <Plus aria-hidden="true" /> {t.splitbill.createButton}
+            </GhostButton>
+            <div className="wm-legend" aria-hidden="true">
+              <span>
+                <i style={{ background: "var(--wm-lime)" }} />
+                {t.splitbill.legendCollected}
+              </span>
+              <span>
+                <i style={{ background: "var(--wm-ghost)" }} />
+                {t.splitbill.legendTotal}
+              </span>
+            </div>
+          </>
         }
         chart={
           activeSplits.length > 0 ? (
-            <div
-              className="sb-bars"
-              role="img"
-              aria-label={activeSplits
+            <HatchedBarChart
+              labels={activeSplits
+                .slice(0, 5)
+                .map((split) => split.title.split(" ")[0] ?? "")}
+              series={[
+                {
+                  name: t.splitbill.legendTotal,
+                  data: activeSplits
+                    .slice(0, 5)
+                    .map((split) => Number(BigInt(split.totalAmount))),
+                  color: "var(--wm-ghost)",
+                },
+                {
+                  name: t.splitbill.legendCollected,
+                  data: activeSplits.slice(0, 5).map(computePaidAmount),
+                  color: "var(--wm-lime)",
+                },
+              ]}
+              highlight={highlightIndex}
+              format={money.formatCompact}
+              axis={axisJt}
+              wide
+              ariaLabel={activeSplits
                 .slice(0, 5)
                 .map((split) => `${split.title} ${computePct(split)}%`)
                 .join(", ")}
-            >
-              {activeSplits.slice(0, 5).map((split) => {
-                const pct = computePct(split);
-                return (
-                  <div key={split.id} className="sb-bar-row">
-                    <span
-                      className="sb-bar-lbl"
-                      data-label={split.title}
-                      aria-hidden="true"
-                    />
-                    <HatchedBar value={pct} label={`${split.title} ${pct}%`} />
-                    <b className="wm-num">{pct}%</b>
-                  </div>
-                );
-              })}
-            </div>
+            />
           ) : (
-            <p className="wm-cap">{t.splitbill.headerDesc}</p>
+            <p className="wm-cap">{t.splitbill.emptyActiveSplits}</p>
           )
         }
         kpis={
           <>
-            <HeroKpi
-              label={t.splitbill.totalDitalanginLabel}
-              value={money.format(totalDitalangin).replace(/,00$/, "")}
-              short={money.formatCompact(totalDitalangin)}
-            />
             <HeroKpi
               label={t.splitbill.sudahDibayarLabel}
               value={money.format(totalTerkumpul).replace(/,00$/, "")}
@@ -591,12 +672,74 @@ export default function SplitBillPage() {
               }
             />
             <HeroKpi
+              label={t.splitbill.belumDibayarLabel}
+              value={money.format(totalBelum).replace(/,00$/, "")}
+              short={money.formatCompact(totalBelum)}
+              delta={
+                <small className="wm-cap">{`${belumBayarCount}${t.splitbill.peopleUnpaidSuffix}`}</small>
+              }
+            />
+            <HeroKpi
               label={t.splitbill.activeSplitsTitle}
               value={String(activeSplits.length)}
             />
           </>
         }
       />
+
+      {/* "Riwayat" — EPIC prototype port (docs/design/proto/splitbill.html
+          `.sb-hist`): settled/revoked splits, newest first. */}
+      <BentoCard
+        className="sb-hist"
+        title={t.splitbill.historyTitle}
+        caption={`${historySplits.length}${t.splitbill.historyCountSuffix}`}
+      >
+        <p className="wm-mid">
+          {money
+            .format(
+              historySplits.reduce(
+                (s, split) => s + Number(BigInt(split.totalAmount)),
+                0,
+              ),
+            )
+            .replace(/,00$/, "")}
+        </p>
+        <p className="wm-cap">{t.splitbill.historyTotalCaption}</p>
+        <MiniList label={t.splitbill.historyTitle}>
+          {historySplits.length === 0 && (
+            <li className="wm-mini-row-empty">
+              <small>{t.splitbill.emptyHistory}</small>
+            </li>
+          )}
+          {historySplits.slice(0, 5).map((split) => (
+            <MiniRow
+              key={split.id}
+              icon={<SplitIcon aria-hidden="true" />}
+              title={split.title}
+              meta={`${split.participants.length}${t.splitbill.peopleCountSuffix} · ${new Date(
+                split.createdAt,
+              ).toLocaleDateString(locale === "en" ? "en-US" : "id-ID", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                timeZone: "UTC",
+              })}`}
+              amount={
+                split.revokedAt ? (
+                  <StatusBadge variant="danger">
+                    {t.splitbill.badgeRevoked}
+                  </StatusBadge>
+                ) : (
+                  <StatusBadge variant="success">
+                    {t.splitbill.badgeSettled}
+                  </StatusBadge>
+                )
+              }
+              onClick={() => setSelectedSplit(split)}
+            />
+          ))}
+        </MiniList>
+      </BentoCard>
 
       {/* Error state */}
       {isError && (
@@ -608,130 +751,112 @@ export default function SplitBillPage() {
         </div>
       )}
 
-      {/* Active splits */}
-      <SectionCard className="sb-active" title={t.splitbill.activeSplitsTitle}>
+      {/* "Split aktif" — card grid, docs/design/proto/splitbill.html
+          `.btiles`/`.btile` (replaces the old row-list). */}
+      <BentoCard
+        className="sb-active"
+        title={t.splitbill.activeSplitsTitle}
+        caption={t.splitbill.activeSplitsCaption}
+      >
         {isLoading && (
-          <div className="space-y-2.5">
+          <div className="wm-btiles">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
-                className="h-[100px] animate-pulse rounded-[10px] border bg-muted"
+                className="wm-btile animate-pulse"
+                aria-hidden="true"
               />
             ))}
           </div>
         )}
 
-        {!isLoading && !isError && activeSplits.length === 0 && (
-          <div className="py-6 text-center text-[13px] text-muted-foreground">
-            {t.splitbill.emptyActiveSplits}
-          </div>
+        {!isLoading && !isError && (
+          <BentoTiles>
+            {activeSplits.length === 0 && (
+              <div className="py-6 text-center text-[13px] text-muted-foreground">
+                {t.splitbill.emptyActiveSplits}
+              </div>
+            )}
+            {activeSplits.map((split) => {
+              const pct = computePct(split);
+              const paidCount = split.participants.filter(
+                (p) => p.status === "paid",
+              ).length;
+              // Prototype's row-level status badge — priority order matches
+              // its urgency: a missing payout account blocks confirmation
+              // outright, so it outranks "still collecting".
+              const rowBadge = !split.payoutAccountId ? (
+                <StatusBadge variant="danger">
+                  {t.splitbill.badgeNoPayoutAccount}
+                </StatusBadge>
+              ) : pct >= 100 ? (
+                <StatusBadge variant="success">
+                  {t.splitbill.badgeSettled}
+                </StatusBadge>
+              ) : (
+                <StatusBadge variant="warning">
+                  {t.splitbill.badgeUnpaid}
+                </StatusBadge>
+              );
+              const createdOn = new Date(split.createdAt).toLocaleDateString(
+                locale === "en" ? "en-US" : "id-ID",
+                {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  timeZone: "UTC",
+                },
+              );
+              return (
+                <BentoTile
+                  key={split.id}
+                  onClick={() => setSelectedSplit(split)}
+                  title={
+                    <>
+                      <span className="sb-tile-tt" title={split.title}>
+                        {split.title}
+                      </span>
+                      <span className="sr-only"> {rowBadge}</span>
+                    </>
+                  }
+                  value={`${pct}%`}
+                >
+                  <Track value={pct} />
+                  <small>
+                    {`${money.format(computePaidAmount(split))}${t.splitbill.collectedSuffix} ${t.splitbill.paidOfMidText}${money.format(Number(BigInt(split.totalAmount)))} · ${split.participants.length}${t.splitbill.peopleCountSuffix}`}
+                  </small>
+                  <small>
+                    {`${paidCount}${t.splitbill.paidOfMidText}${split.participants.length}${t.splitbill.peopleCountSuffix} · ${t.splitbill.createdOnPrefix}${createdOn}`}
+                  </small>
+                </BentoTile>
+              );
+            })}
+            <AddTile onClick={() => setCreateOpen(true)}>
+              <Plus aria-hidden="true" />
+              {t.splitbill.addSplitTileLabel}
+            </AddTile>
+          </BentoTiles>
         )}
+      </BentoCard>
 
-        {!isLoading &&
-          !isError &&
-          activeSplits.map((split) => {
-            const pct = computePct(split);
-            const paidCount = split.participants.filter(
-              (p) => p.status === "paid",
-            ).length;
-            // Prototype's row-level status badge — priority order matches
-            // its urgency: a missing payout account blocks confirmation
-            // outright, so it outranks "still collecting".
-            const rowBadge = !split.payoutAccountId ? (
-              <StatusBadge variant="danger">
-                {t.splitbill.badgeNoPayoutAccount}
-              </StatusBadge>
-            ) : pct >= 100 ? (
-              <StatusBadge variant="success">
-                {t.splitbill.badgeSettled}
-              </StatusBadge>
-            ) : (
-              <StatusBadge variant="warning">
-                {t.splitbill.badgeUnpaid}
-              </StatusBadge>
-            );
-            const initials = split.title
-              .split(" ")
-              .slice(0, 2)
-              .map((w) => w[0]?.toUpperCase() ?? "")
-              .join("");
-            const createdOn = new Date(split.createdAt).toLocaleDateString(
-              locale === "en" ? "en-US" : "id-ID",
-              {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-                timeZone: "UTC",
-              },
-            );
-            const perPerson =
-              split.participants.length > 0
-                ? `${money.format(
-                    Math.round(
-                      Number(BigInt(split.totalAmount)) /
-                        split.participants.length,
-                    ),
-                  )}${t.splitbill.perOrgSuffix}`
-                : null;
-            return (
-              <ARow
-                key={split.id}
-                badge={initials}
-                title={
-                  <>
-                    {split.title} {rowBadge}
-                  </>
-                }
-                meta={[
-                  `${split.participants.length}${t.splitbill.peopleCountSuffix}`,
-                  perPerson,
-                  `${t.splitbill.createdOnPrefix}${createdOn}`,
-                  `${paidCount}${t.splitbill.paidOfMidText}${split.participants.length}`,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                share={pct}
-                amount={
-                  <span className="wm-money">
-                    {money.format(Number(BigInt(split.totalAmount)))}
-                  </span>
-                }
-                amountSub={`${money.format(computePaidAmount(split))}${t.splitbill.collectedSuffix}`}
-                onClick={() => setSelectedSplit(split)}
-              />
-            );
-          })}
-      </SectionCard>
-
-      {/* "Cara kerja Split Bill" — EPIC-025 N3-E5: prototype's `.card` +
-          `.notice--info` (translation table: Cards → `SectionCard`, Notices
-          → inline Tailwind `notice--info` mapping). Same copy as before,
-          just the card/notice chrome instead of a bespoke accent banner. */}
+      {/* Contextual tip card — docs/design/proto/splitbill.html `#tipT`/`#tipP`:
+          the lowest-progress active split ("worst"), its remaining amount,
+          and a mosaic sized to overall collected %. Replaces the old static
+          "Cara kerja Split Bill" explainer. */}
       <TipsCard
         className="sb-tip"
-        title={t.splitbill.insightTitle}
-        mosaic={[
-          "",
-          "b",
-          "a",
-          "",
-          "b",
-          "a",
-          "b",
-          "a",
-          "a",
-          "",
-          "c",
-          "a",
-          "",
-          "b",
-          "a",
-          "a",
-          "b",
-          "a",
-        ]}
+        title={
+          worstSplit
+            ? `${worstSplit.title}${t.splitbill.tipTitleSuffix} ${computePct(worstSplit)}%`
+            : activeSplits.length > 0
+              ? t.splitbill.tipAllOnTrack
+              : t.splitbill.tipNoActiveSplits
+        }
+        mosaic={tipMosaic}
       >
-        {t.splitbill.insightDesc}
+        {worstSplit
+          ? `${t.splitbill.tipRemainingPrefix}${money.format(Number(BigInt(worstSplit.totalAmount)) - computePaidAmount(worstSplit))}${t.splitbill.tipRemainingMid}${worstSplit.participants.filter((p) => p.status !== "paid").length}${t.splitbill.tipRemainingPeopleSuffix}`
+          : t.splitbill.tipInviteHint}
       </TipsCard>
 
       {/* Create modal */}
@@ -748,222 +873,242 @@ export default function SplitBillPage() {
             (judul → total → rekening tujuan (+hint) → instruksi → metode
             (`.segmented`) → peserta), a `.notice` summary line, and a
             `.dialog__footer` with Batal / Buat & Bagikan Link. */}
-        <DialogContent>
-          <DialogTitle>{t.splitbill.createButton}</DialogTitle>
-          <DialogDescription>{t.splitbill.createDialogDesc}</DialogDescription>
-
-          <DialogBody>
-            <label className="field">
-              <span className="label">{t.splitbill.fieldTitleLabel}</span>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder={t.splitbill.fieldTitlePlaceholder}
-                className="input"
-              />
-            </label>
-
-            <div className="field">
-              <label className="label" htmlFor="splitbill-total">
-                {t.splitbill.fieldTotalLabel}
-              </label>
-              <MoneyInput field={totalField} id="splitbill-total" />
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {t.splitbill.createButton}
+              </DialogTitle>
+              <DialogDescription className="wm-panel-desc">
+                {t.splitbill.createDialogDesc}
+              </DialogDescription>
             </div>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="wm-panel-body wm-form">
+              <div className="wm-form__grid">
+                <label className="field">
+                  <span className="label">{t.splitbill.fieldTitleLabel}</span>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={t.splitbill.fieldTitlePlaceholder}
+                    className="input"
+                  />
+                </label>
 
-            <div className="field">
-              <label className="label" htmlFor="splitbill-payout-account">
-                {t.splitbill.fieldPayoutAccountLabel}
-              </label>
-              <select
-                id="splitbill-payout-account"
-                value={payoutAccountId}
-                onChange={(e) => setPayoutAccountId(e.target.value)}
-                className="select"
-              >
-                <option value="">
-                  {t.splitbill.fieldPayoutAccountPlaceholder}
-                </option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-              <span className="hint">{t.splitbill.fieldPayoutAccountHint}</span>
-            </div>
+                <div className="field">
+                  <label className="label" htmlFor="splitbill-total">
+                    {t.splitbill.fieldTotalLabel}
+                  </label>
+                  <MoneyInput field={totalField} id="splitbill-total" />
+                </div>
 
-            <div className="field">
-              <label className="label" htmlFor="splitbill-payout-instructions">
-                {t.splitbill.fieldPayoutInstructionsLabel}
-              </label>
-              <input
-                id="splitbill-payout-instructions"
-                type="text"
-                value={payoutInstructions}
-                onChange={(e) => setPayoutInstructions(e.target.value)}
-                placeholder={t.splitbill.fieldPayoutInstructionsPlaceholder}
-                className="input"
-              />
-            </div>
-
-            <div className="field">
-              <span className="label">{t.splitbill.fieldMethodLabel}</span>
-              <div
-                className="segmented w-full"
-                role="tablist"
-                aria-label={t.splitbill.fieldMethodLabel}
-              >
-                {(
-                  [
-                    ["equal", t.splitbill.methodEqualLabel],
-                    ["custom", t.splitbill.methodCustomLabel],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    role="tab"
-                    aria-selected={method === key}
-                    onClick={() => setMethod(key)}
-                    className="segmented__item flex-1"
+                <div className="field">
+                  <label className="label" htmlFor="splitbill-payout-account">
+                    {t.splitbill.fieldPayoutAccountLabel}
+                  </label>
+                  <select
+                    id="splitbill-payout-account"
+                    value={payoutAccountId}
+                    onChange={(e) => setPayoutAccountId(e.target.value)}
+                    className="select"
                   >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
+                    <option value="">
+                      {t.splitbill.fieldPayoutAccountPlaceholder}
+                    </option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="hint">
+                    {t.splitbill.fieldPayoutAccountHint}
+                  </span>
+                </div>
 
-            <div className="field">
-              <span className="label">
-                {t.splitbill.fieldParticipantsLabel} ({participants.length})
-              </span>
-              <div className="space-y-2">
-                {participants.map((p, i) => (
+                <div className="field">
+                  <label
+                    className="label"
+                    htmlFor="splitbill-payout-instructions"
+                  >
+                    {t.splitbill.fieldPayoutInstructionsLabel}
+                  </label>
+                  <input
+                    id="splitbill-payout-instructions"
+                    type="text"
+                    value={payoutInstructions}
+                    onChange={(e) => setPayoutInstructions(e.target.value)}
+                    placeholder={t.splitbill.fieldPayoutInstructionsPlaceholder}
+                    className="input"
+                  />
+                </div>
+
+                <div className="field">
+                  <span className="label">{t.splitbill.fieldMethodLabel}</span>
                   <div
-                    key={p.localId}
-                    className="flex flex-wrap items-center gap-2"
+                    className="segmented w-full"
+                    role="tablist"
+                    aria-label={t.splitbill.fieldMethodLabel}
                   >
-                    <input
-                      type="text"
-                      value={p.name}
-                      onChange={(e) =>
-                        renameParticipant(p.localId, e.target.value)
-                      }
-                      className="input min-w-0 flex-1 basis-[120px]"
-                      aria-label={`${t.splitbill.fieldParticipantsLabel} ${p.name}`}
-                    />
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
-                      {method === "equal" ? (
-                        <span className="mono text-right text-[12.5px] font-semibold whitespace-nowrap text-primary">
-                          {unitsLabel(equalShares[i] ?? 0)}
-                        </span>
-                      ) : (
-                        <input
-                          inputMode={billDecimals > 0 ? "decimal" : "numeric"}
-                          value={customAmounts[p.localId] ?? ""}
-                          onChange={(e) =>
-                            setCustomAmounts((prev) => ({
-                              ...prev,
-                              [p.localId]: formatMoneyTyping(
-                                e.target.value,
-                                billDecimals,
-                              ),
-                            }))
-                          }
-                          placeholder={
-                            billCurrency === "IDR" ? "0" : billCurrency
-                          }
-                          aria-label={`${t.splitbill.fieldTotalLabel} ${p.name}`}
-                          className="input mono w-[104px] shrink-0 text-[12px]"
-                        />
-                      )}
-                      <Button
+                    {(
+                      [
+                        ["equal", t.splitbill.methodEqualLabel],
+                        ["custom", t.splitbill.methodCustomLabel],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <button
+                        key={key}
                         type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => removeParticipant(p.localId)}
-                        aria-label={`${t.splitbill.removeParticipantAriaPrefix}${p.name}`}
+                        role="tab"
+                        aria-selected={method === key}
+                        onClick={() => setMethod(key)}
+                        className="segmented__item flex-1"
                       >
-                        <X className="size-[15px]" />
-                      </Button>
-                    </div>
+                        {label}
+                      </button>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addParticipant}
-                className="btn--block mt-2.5"
-              >
-                <Plus className="size-[15px]" />{" "}
-                {t.splitbill.addParticipantButton}
-              </Button>
-
-              {method === "equal" && (
-                <div className="notice mt-2.5">
-                  <span>
-                    {t.splitbill.perPersonPrefix}
-                    <strong className="mono t-primary">
-                      {unitsLabel(perPerson)}
-                    </strong>
-                  </span>
                 </div>
-              )}
 
-              {method === "custom" && totalNum <= 0 && (
-                <div className="notice mt-2.5">
-                  <span>{t.splitbill.remainderNeedTotalNote}</span>
-                </div>
-              )}
-              {method === "custom" && totalNum > 0 && (
-                <div
-                  className={
-                    "notice row row--between mt-2.5 " +
-                    (customRemainder === 0
-                      ? "notice--info"
-                      : customRemainder > 0
-                        ? "notice--warning"
-                        : "notice--danger")
-                  }
-                >
-                  <span>
-                    {customRemainder === 0 ? (
-                      <strong>{t.splitbill.remainderExactLabel}</strong>
-                    ) : customRemainder > 0 ? (
-                      <>
-                        {t.splitbill.remainderLeftPrefix}
-                        <strong className="mono">
-                          {unitsLabel(customRemainder)}
-                        </strong>
-                      </>
-                    ) : (
-                      <>
-                        {t.splitbill.remainderOverPrefix}
-                        <strong className="mono">
-                          {unitsLabel(Math.abs(customRemainder))}
-                        </strong>
-                        {t.splitbill.remainderOverSuffix}
-                      </>
-                    )}
+                <div className="field">
+                  <span className="label">
+                    {t.splitbill.fieldParticipantsLabel} ({participants.length})
                   </span>
+                  <div className="space-y-2">
+                    {participants.map((p, i) => (
+                      <div
+                        key={p.localId}
+                        className="flex flex-wrap items-center gap-2"
+                      >
+                        <input
+                          type="text"
+                          value={p.name}
+                          onChange={(e) =>
+                            renameParticipant(p.localId, e.target.value)
+                          }
+                          className="input min-w-0 flex-1 basis-[120px]"
+                          aria-label={`${t.splitbill.fieldParticipantsLabel} ${p.name}`}
+                        />
+                        <div className="ml-auto flex shrink-0 items-center gap-2">
+                          {method === "equal" ? (
+                            <span className="mono text-right text-[12.5px] font-semibold whitespace-nowrap text-primary">
+                              {unitsLabel(equalShares[i] ?? 0)}
+                            </span>
+                          ) : (
+                            <input
+                              inputMode={
+                                billDecimals > 0 ? "decimal" : "numeric"
+                              }
+                              value={customAmounts[p.localId] ?? ""}
+                              onChange={(e) =>
+                                setCustomAmounts((prev) => ({
+                                  ...prev,
+                                  [p.localId]: formatMoneyTyping(
+                                    e.target.value,
+                                    billDecimals,
+                                  ),
+                                }))
+                              }
+                              placeholder={
+                                billCurrency === "IDR" ? "0" : billCurrency
+                              }
+                              aria-label={`${t.splitbill.fieldTotalLabel} ${p.name}`}
+                              className="input mono w-[104px] shrink-0 text-[12px]"
+                            />
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => removeParticipant(p.localId)}
+                            aria-label={`${t.splitbill.removeParticipantAriaPrefix}${p.name}`}
+                          >
+                            <X className="size-[15px]" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
-                    onClick={handleSplitRemainderEvenly}
-                    disabled={customRemainder <= 0}
-                    className="shrink-0"
+                    onClick={addParticipant}
+                    className="btn--block mt-2.5"
                   >
-                    {t.splitbill.splitRemainderButton}
+                    <Plus className="size-[15px]" />{" "}
+                    {t.splitbill.addParticipantButton}
                   </Button>
-                </div>
-              )}
-            </div>
-          </DialogBody>
 
-          {/* polish-j batch 7a item 12 — `.dialog__footer` only sticks at
+                  {method === "equal" && (
+                    <div className="notice mt-2.5">
+                      <span>
+                        {t.splitbill.perPersonPrefix}
+                        <strong className="mono t-primary">
+                          {unitsLabel(perPerson)}
+                        </strong>
+                      </span>
+                    </div>
+                  )}
+
+                  {method === "custom" && totalNum <= 0 && (
+                    <div className="notice mt-2.5">
+                      <span>{t.splitbill.remainderNeedTotalNote}</span>
+                    </div>
+                  )}
+                  {method === "custom" && totalNum > 0 && (
+                    <div
+                      className={
+                        "notice row row--between mt-2.5 " +
+                        (customRemainder === 0
+                          ? "notice--info"
+                          : customRemainder > 0
+                            ? "notice--warning"
+                            : "notice--danger")
+                      }
+                    >
+                      <span>
+                        {customRemainder === 0 ? (
+                          <strong>{t.splitbill.remainderExactLabel}</strong>
+                        ) : customRemainder > 0 ? (
+                          <>
+                            {t.splitbill.remainderLeftPrefix}
+                            <strong className="mono">
+                              {unitsLabel(customRemainder)}
+                            </strong>
+                          </>
+                        ) : (
+                          <>
+                            {t.splitbill.remainderOverPrefix}
+                            <strong className="mono">
+                              {unitsLabel(Math.abs(customRemainder))}
+                            </strong>
+                            {t.splitbill.remainderOverSuffix}
+                          </>
+                        )}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSplitRemainderEvenly}
+                        disabled={customRemainder <= 0}
+                        className="shrink-0"
+                      >
+                        {t.splitbill.splitRemainderButton}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* polish-j batch 7a item 12 — `.dialog__footer` only sticks at
               <=768px (design-system.css's own mobile media query); above
               that, `.dialog` itself is the scrolling box (`max-height:
               85dvh; overflow-y: auto`, unchanged), so a local Tailwind
@@ -971,32 +1116,34 @@ export default function SplitBillPage() {
               the footer to that same scrolling box's bottom edge at
               desktop widths too, mirroring the mobile block's own
               negative-margin + padding technique. */}
-          <DialogFooter className="min-[769px]:sticky min-[769px]:bottom-0 min-[769px]:-mx-5 min-[769px]:-mb-5 min-[769px]:mt-[18px] min-[769px]:border-t min-[769px]:bg-popover min-[769px]:px-5 min-[769px]:pt-3 min-[769px]:pb-5">
-            {/* Same teardown as the Escape/backdrop path above
+            <div className="wm-panel-foot">
+              {/* Same teardown as the Escape/backdrop path above
                 (`onOpenChange` → `resetCreateForm`), so cancelling never
                 leaves a half-filled form behind for the next open. */}
-            <Button
-              variant="outline"
-              onClick={() => {
-                setCreateOpen(false);
-                resetCreateForm();
-              }}
-            >
-              {t.common.cancel}
-            </Button>
-            <Button
-              onClick={handleCreate}
-              disabled={
-                createMutation.isPending || totalField.resolved.isPending
-              }
-            >
-              <Share2 className="size-4" />
-              {createMutation.isPending
-                ? t.splitbill.savingCreateLabel
-                : t.splitbill.createAndShareButton}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+              <PillButton
+                type="button"
+                onClick={() => {
+                  setCreateOpen(false);
+                  resetCreateForm();
+                }}
+              >
+                {t.common.cancel}
+              </PillButton>
+              <PillButton
+                type="button"
+                variant="primary"
+                onClick={handleCreate}
+                disabled={
+                  createMutation.isPending || totalField.resolved.isPending
+                }
+              >
+                {createMutation.isPending
+                  ? t.splitbill.savingCreateLabel
+                  : t.splitbill.createAndShareButton}
+              </PillButton>
+            </div>
+          </div>
+        </PanelContent>
       </Dialog>
 
       {/* Detail / share modal */}
@@ -1014,34 +1161,43 @@ export default function SplitBillPage() {
             participant list sits under a `.section-title`, and "Cabut Semua
             Link" moves from the header into the `.dialog__footer` next to
             Tutup, matching the prototype's outline/destructive pair. */}
-        <DialogContent>
+        <PanelContent variant="side" className="wm-form-panel">
           {selectedSplit && (
             <>
-              <DialogTitle>{selectedSplit.title}</DialogTitle>
-              <DialogDescription>
-                <span className="mono">
-                  {money.format(Number(BigInt(selectedSplit.totalAmount)))}
-                </span>
-                {" · "}
-                {selectedSplit.participants.length}
-                {t.splitbill.detailParticipantsSuffix}
-                {selectedSplit.participants.length > 0 && (
-                  <>
-                    {" · "}
+              <header className="wm-panel-head">
+                <div className="min-w-0">
+                  <DialogTitle className="wm-panel-title">
+                    {selectedSplit.title}
+                  </DialogTitle>
+                  <DialogDescription className="wm-panel-desc">
                     <span className="mono">
-                      {money.format(
-                        Math.round(
-                          Number(BigInt(selectedSplit.totalAmount)) /
-                            selectedSplit.participants.length,
-                        ),
-                      )}
+                      {money.format(Number(BigInt(selectedSplit.totalAmount)))}
                     </span>
-                    {t.splitbill.detailPerOrangSuffix}
-                  </>
-                )}
-              </DialogDescription>
+                    {" · "}
+                    {selectedSplit.participants.length}
+                    {t.splitbill.detailParticipantsSuffix}
+                    {selectedSplit.participants.length > 0 && (
+                      <>
+                        {" · "}
+                        <span className="mono">
+                          {money.format(
+                            Math.round(
+                              Number(BigInt(selectedSplit.totalAmount)) /
+                                selectedSplit.participants.length,
+                            ),
+                          )}
+                        </span>
+                        {t.splitbill.detailPerOrangSuffix}
+                      </>
+                    )}
+                  </DialogDescription>
+                </div>
+                <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+                  <X aria-hidden="true" />
+                </DialogClose>
+              </header>
 
-              <DialogBody>
+              <div className="wm-panel-body">
                 {selectedSplit.revokedAt && (
                   <div className="notice notice--danger">
                     <span>{t.splitbill.revokedNotice}</span>
@@ -1141,28 +1297,35 @@ export default function SplitBillPage() {
                     </div>
                   ))}
                 </div>
-              </DialogBody>
+              </div>
 
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setSelectedSplit(null)}
+              <div className="wm-panel-foot">
+                <button
+                  type="button"
+                  className="sb-del-btn"
+                  onClick={() => setDeleteTarget(selectedSplit)}
+                  disabled={deleteMutation.isPending}
+                  aria-label={`${t.splitbill.deleteSplitButton} ${selectedSplit.title}`}
                 >
+                  <Trash2 className="size-4" aria-hidden="true" />
+                  {t.splitbill.deleteSplitButton}
+                </button>
+                <PillButton onClick={() => setSelectedSplit(null)}>
                   {t.splitbill.detailCloseButton}
-                </Button>
+                </PillButton>
                 {!selectedSplit.revokedAt && (
-                  <Button
-                    variant="destructive"
+                  <PillButton
+                    variant="danger"
                     onClick={() => handleRevoke(selectedSplit)}
                     disabled={revokeMutation.isPending}
                   >
                     {t.splitbill.revokeButton}
-                  </Button>
+                  </PillButton>
                 )}
-              </DialogFooter>
+              </div>
             </>
           )}
-        </DialogContent>
+        </PanelContent>
       </Dialog>
 
       {/* Group F (task F3) — repair the payout account for a bill whose
@@ -1175,50 +1338,70 @@ export default function SplitBillPage() {
           here — `UpdatePayoutAccountDto` carries only `payoutAccountId`, so
           rendering it would silently drop whatever the user typed. */}
       <Dialog open={editPayoutOpen} onOpenChange={setEditPayoutOpen}>
-        <DialogContent className="dialog--sm">
-          <DialogTitle>{t.splitbill.editPayoutAccountTitle}</DialogTitle>
-          <DialogDescription>
-            {t.splitbill.editPayoutAccountDesc}
-          </DialogDescription>
-          <DialogBody>
-            <div className="field">
-              <label className="label" htmlFor="edit-payout-account">
-                {t.splitbill.fieldPayoutAccountLabel}
-              </label>
-              <select
-                id="edit-payout-account"
-                value={editPayoutAccountId}
-                onChange={(e) => setEditPayoutAccountId(e.target.value)}
-                className="select"
-              >
-                <option value="">
-                  {t.splitbill.fieldPayoutAccountPlaceholder}
-                </option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-              <span className="hint">{t.splitbill.fieldPayoutAccountHint}</span>
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {t.splitbill.editPayoutAccountTitle}
+              </DialogTitle>
+              <DialogDescription className="wm-panel-desc">
+                {t.splitbill.editPayoutAccountDesc}
+              </DialogDescription>
             </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditPayoutOpen(false)}>
-              {t.common.cancel}
-            </Button>
-            <Button
-              onClick={handleSavePayoutAccount}
-              disabled={
-                !editPayoutAccountId || updatePayoutAccountMutation.isPending
-              }
-            >
-              {updatePayoutAccountMutation.isPending
-                ? t.splitbill.savingPayoutAccountLabel
-                : t.splitbill.savePayoutAccountButton}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="wm-panel-body wm-form">
+              <div className="wm-form__grid">
+                <div className="field">
+                  <label className="label" htmlFor="edit-payout-account">
+                    {t.splitbill.fieldPayoutAccountLabel}
+                  </label>
+                  <select
+                    id="edit-payout-account"
+                    value={editPayoutAccountId}
+                    onChange={(e) => setEditPayoutAccountId(e.target.value)}
+                    className="select"
+                  >
+                    <option value="">
+                      {t.splitbill.fieldPayoutAccountPlaceholder}
+                    </option>
+                    {accounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="hint">
+                    {t.splitbill.fieldPayoutAccountHint}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="wm-panel-foot">
+              <PillButton
+                type="button"
+                onClick={() => setEditPayoutOpen(false)}
+              >
+                {t.common.cancel}
+              </PillButton>
+              <PillButton
+                type="button"
+                variant="primary"
+                onClick={handleSavePayoutAccount}
+                disabled={
+                  !editPayoutAccountId || updatePayoutAccountMutation.isPending
+                }
+              >
+                {updatePayoutAccountMutation.isPending
+                  ? t.splitbill.savingPayoutAccountLabel
+                  : t.splitbill.savePayoutAccountButton}
+              </PillButton>
+            </div>
+          </div>
+        </PanelContent>
       </Dialog>
 
       {/* EPIC-023 Group F fix round (HIGH 1) — revoke is cosmetic (no money
@@ -1226,6 +1409,16 @@ export default function SplitBillPage() {
           payment is irreversible (real income, no un-confirm endpoint) and
           previously fired on a single click. Both now share the SAME real
           confirmation dialog. */}
+      <ConfirmDeleteDialog
+        label={deleteTarget ? deleteTarget.title : null}
+        title={t.splitbill.deleteSplitConfirmTitle}
+        body={t.splitbill.deleteSplitConfirmMessage}
+        confirmLabel={t.splitbill.deleteSplitConfirmButton}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+        }}
+      />
       <ConfirmDeleteDialog
         label={revokeTarget ? revokeTarget.title : null}
         title={t.splitbill.revokeConfirmTitle}

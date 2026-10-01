@@ -264,12 +264,30 @@ describe("TujuanPage — role gating (F3)", () => {
   });
 });
 
+// EPIC-033 revision — Setor/Edit/Hapus/Riwayat Setoran no longer sit on the
+// tile face; the tile opens a side panel (GoalDetailPanel) that contains
+// them. `openGoalDetail` opens that panel the same way a real user would:
+// click the tile by its accessible name, then look inside the panel.
+async function openGoalDetail(
+  user: ReturnType<typeof userEvent.setup>,
+  goalName: string,
+  pct = 10,
+) {
+  await user.click(
+    await screen.findByRole("button", {
+      name: new RegExp(`^${goalName}, ${pct}%`),
+    }),
+  );
+  return screen.findByRole("dialog", { name: goalName });
+}
+
 describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
   it("posts the amount as a digit string with the source account and a local-midnight date, then closes", async () => {
     mockSession("owner");
     const user = userEvent.setup();
     render(<TujuanPage />);
 
+    await openGoalDetail(user, "Dana Liburan");
     await user.click(
       await screen.findByRole("button", { name: "Setor ke Dana Liburan" }),
     );
@@ -320,6 +338,7 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     const user = userEvent.setup();
     render(<TujuanPage />);
 
+    await openGoalDetail(user, "Dana Liburan");
     await user.click(
       await screen.findByRole("button", { name: "Setor ke Dana Liburan" }),
     );
@@ -356,6 +375,7 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     const user = userEvent.setup();
     render(<TujuanPage />);
 
+    await openGoalDetail(user, "Dana Liburan");
     await user.click(
       await screen.findByRole("button", { name: "Setor ke Dana Liburan" }),
     );
@@ -385,12 +405,14 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     const user = userEvent.setup();
     render(<TujuanPage />);
 
-    await screen.findByText("Dana Liburan");
+    const detail = await openGoalDetail(user, "Dana Liburan");
     expect(
-      screen.queryByRole("button", { name: /Setor ke/i }),
+      within(detail).queryByRole("button", { name: /Setor ke/i }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Riwayat Setoran" }));
+    await user.click(
+      within(detail).getByRole("button", { name: "Riwayat Setoran" }),
+    );
     expect(await screen.findByText("Rp 250.000")).toBeInTheDocument();
     expect(screen.getByText(/Manual · BCA Tahapan/)).toBeInTheDocument();
   }, 10000);
@@ -498,7 +520,8 @@ describe("TujuanPage — edit dialog Target Tanggal (polish-j batch 6 item 3)", 
     const user = userEvent.setup();
     render(<TujuanPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const detail = await openGoalDetail(user, "Dana Liburan");
+    await user.click(within(detail).getByRole("button", { name: "Edit" }));
     const dialog = await screen.findByRole("dialog");
     const deadlineTrigger = within(dialog).getByLabelText("Target Tanggal");
 
@@ -524,7 +547,8 @@ describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", (
     const user = userEvent.setup();
     render(<TujuanPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const detail = await openGoalDetail(user, "Dana Liburan");
+    await user.click(within(detail).getByRole("button", { name: "Edit" }));
     const dialog = await screen.findByRole("dialog");
     const autodebitInput = within(dialog).getByLabelText("Auto-debit / Bulan");
     expect(autodebitInput).toHaveValue("500.000");
@@ -550,7 +574,8 @@ describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", (
     const user = userEvent.setup();
     render(<TujuanPage />);
 
-    await user.click(await screen.findByRole("button", { name: "Edit" }));
+    const detail = await openGoalDetail(user, "Dana Liburan");
+    await user.click(within(detail).getByRole("button", { name: "Edit" }));
     const dialog = await screen.findByRole("dialog");
     await user.type(
       within(dialog).getByPlaceholderText("cth: Dana Liburan"),
@@ -573,15 +598,18 @@ describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", (
 });
 
 describe("TujuanPage — bento hero KPIs", () => {
-  it("shows the hero KPIs and the all-good attention card for a single on-track goal", async () => {
+  it("shows the hero KPIs, and 'Perlu perhatian' lists the single on-track goal as a row", async () => {
+    // EPIC-033 revision — "Perlu perhatian" always lists every goal as a
+    // row (matching docs/design/proto/tujuan.html's `sideShow`), so a
+    // single on-track goal still appears here, not behind an "all good"
+    // sentence — that copy only shows when there are no goals at all.
     mockSession("owner");
     render(<TujuanPage />);
 
     await screen.findByText("Dana Liburan");
     expect(screen.getByText("Sesuai rencana")).toBeInTheDocument();
-    expect(
-      screen.getByText("Semua tujuan berjalan sesuai rencana."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Perlu perhatian")).toBeInTheDocument();
+    expect(screen.getByText("Dana Liburan 10%")).toBeInTheDocument();
   });
 
   it("lists a goal that needs a push under 'Perlu perhatian'", async () => {

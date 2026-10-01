@@ -1,14 +1,14 @@
 /**
- * Revisi H final-review fix — the "Anggota Keluarga" table on /akun used to
- * label its columns "Peran" (literal) and
- * `t.akun.addDependant.relationshipLabel` ("Hubungan (opsional)", which
- * reads wrong in a table header), while /iam's `MembersTab` names the same
- * two concepts via `t.akun.memberConcepts.systemRole` ("Peran sistem") and
- * `t.akun.memberConcepts.relationship` ("Hubungan"). This asserts /akun uses
- * the same shared labels.
+ * Revisi H final-review fix — the "Anggota" section on /akun used to label
+ * its role column with the literal "Peran" instead of the shared role
+ * label /iam's `MembersTab` uses (`t.common.roleLabels`). EPIC-033 restyle
+ * replaced the multi-column table with a row list (akun.html's compact
+ * member rows); this now asserts the row's subtext still uses the shared
+ * role label, not a literal "Peran" string, and that the member is shown
+ * (not hidden behind a column that no longer exists).
  */
 
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import { id as mockAkunDictionary } from "../../../i18n/id";
 
@@ -39,6 +39,7 @@ jest.mock("../../../hooks/use-locale", () => ({
 import { FamilyMembersTableCard, type FamilyMember } from "./page";
 
 const t = mockAkunDictionary.akun;
+const commonT = mockAkunDictionary.common;
 
 const MEMBERS: FamilyMember[] = [
   {
@@ -53,8 +54,8 @@ const MEMBERS: FamilyMember[] = [
   },
 ];
 
-describe("FamilyMembersTableCard — column labels match /iam's member concepts (Revisi H)", () => {
-  it("labels the role column with memberConcepts.systemRole, not literal 'Peran'", () => {
+describe("FamilyMembersTableCard — row subtext matches /iam's shared role labels (Revisi H)", () => {
+  it("shows the member's name and the shared role label, not a literal 'Peran'", () => {
     render(
       <FamilyMembersTableCard
         familyMembers={MEMBERS}
@@ -69,18 +70,14 @@ describe("FamilyMembersTableCard — column labels match /iam's member concepts 
       />,
     );
 
-    const table = screen.getByRole("table");
+    expect(screen.getByText(/Irfan/)).toBeInTheDocument();
     expect(
-      within(table).getByRole("columnheader", {
-        name: t.memberConcepts.systemRole,
-      }),
+      screen.getByText(new RegExp(commonT.roleLabels.owner)),
     ).toBeInTheDocument();
-    expect(
-      within(table).queryByRole("columnheader", { name: "Peran" }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Peran")).not.toBeInTheDocument();
   });
 
-  it("labels the relationship column with memberConcepts.relationship, not the addDependant '(opsional)' wording", () => {
+  it("shows the section title with the member count", () => {
     render(
       <FamilyMembersTableCard
         familyMembers={MEMBERS}
@@ -95,16 +92,8 @@ describe("FamilyMembersTableCard — column labels match /iam's member concepts 
       />,
     );
 
-    const table = screen.getByRole("table");
     expect(
-      within(table).getByRole("columnheader", {
-        name: t.memberConcepts.relationship,
-      }),
+      screen.getByText(`${t.family.membersSectionTitle} (1)`),
     ).toBeInTheDocument();
-    expect(
-      within(table).queryByRole("columnheader", {
-        name: t.addDependant.relationshipLabel,
-      }),
-    ).not.toBeInTheDocument();
   });
 });

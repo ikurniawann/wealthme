@@ -195,9 +195,12 @@ describe("DonationPage — inline family religion prompt (EPIC-024 Group I)", ()
 
     const { rerender } = renderPage();
 
+    // Reviewer fix (cmp-donation.png item 2/3) — the Kalkulator Zakat Maal
+    // card now renders by default while religion is unset, with the
+    // religion picker folded into its header instead of blocking it.
     expect(
-      screen.queryByText(mockDictionary.donation.zakatCalculatorTitle),
-    ).not.toBeInTheDocument();
+      screen.getByText(mockDictionary.donation.zakatCalculatorTitle),
+    ).toBeInTheDocument();
 
     const select = screen.getByRole("combobox", { name: /agama keluarga/i });
     const user = userEvent.setup();

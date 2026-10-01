@@ -1,5 +1,6 @@
 import { MoneyStat, SectionCard, StatusBadge } from "@/components/wm";
-import { CashflowChart } from "@/components/charts/apex-presets";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { CategoryIcon } from "@/components/shell/tx-pickers";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
@@ -30,21 +31,35 @@ export function KasSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <SectionCard title={t.laporan.kas.title}>
+      <SectionCard
+        title={t.laporan.kas.title}
+        action={
+          <div className="wm-legend">
+            <span>
+              <i style={{ background: "var(--wm-lime)" }} />
+              {t.common.income}
+            </span>
+            <span>
+              <i style={{ background: "var(--wm-orange)" }} />
+              {t.common.expense}
+            </span>
+          </div>
+        }
+      >
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <MoneyStat
             label={t.common.income}
-            value={summary ? money.format(summary.totalIncome) : "Rp ·"}
+            value={summary ? money.format(summary.totalIncome ?? 0) : "Rp ·"}
             valueClass="text-success"
           />
           <MoneyStat
             label={t.common.expense}
-            value={summary ? money.format(summary.totalExpense) : "Rp ·"}
+            value={summary ? money.format(summary.totalExpense ?? 0) : "Rp ·"}
             valueClass="text-destructive"
           />
           <MoneyStat
             label={t.laporan.surplusLabel}
-            value={summary ? money.format(summary.netSavings) : "Rp ·"}
+            value={summary ? money.format(summary.netSavings ?? 0) : "Rp ·"}
             valueClass="text-success"
           />
           <MoneyStat
@@ -54,18 +69,23 @@ export function KasSection({
           />
         </div>
         {chartMonths.length > 0 && (
-          <div className="mt-4">
-            {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). Height 260
-                matches docs/prototype/assets/charts.js's `cashflow()`; the
-                previous 110 left too little plot area once the bottom
-                legend took its share. */}
-            <CashflowChart
-              months={chartMonths}
-              income={chartIncome}
-              expense={chartExpense}
-              height={260}
+          <div className="wm-chart" style={{ height: 240, marginTop: 16 }}>
+            <HatchedBarChart
+              labels={chartMonths}
+              series={[
+                {
+                  name: t.common.income,
+                  data: chartIncome,
+                  color: "var(--wm-lime)",
+                },
+                {
+                  name: t.common.expense,
+                  data: chartExpense,
+                  color: "var(--wm-orange)",
+                },
+              ]}
+              format={(v) => money.formatCompact(v)}
               ariaLabel={cashflowChartAriaLabel}
-              money={money}
             />
           </div>
         )}
@@ -76,8 +96,13 @@ export function KasSection({
           summary.topIncomeCategories.map((cat, i) => (
             <ActItem
               key={cat.categoryName}
-              icon="💼"
-              iconBg="#DCFCE7"
+              icon={
+                <span className="block size-[18px] [&>svg]:size-full">
+                  <CategoryIcon name={cat.categoryName} />
+                </span>
+              }
+              iconBg="var(--muted)"
+              iconColor="var(--success)"
               name={cat.categoryName}
               right={
                 <>

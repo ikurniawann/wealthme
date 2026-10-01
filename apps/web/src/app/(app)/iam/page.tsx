@@ -13,6 +13,7 @@ import {
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
 import {
   BentoCard,
   BentoGrid,
@@ -30,7 +31,16 @@ import { useSession } from "@/lib/auth-compat";
 import { queryKeys } from "@/lib/query-keys";
 
 import { AddMemberDialog } from "./_components/add-member-dialog";
-import { FamilyHandleCard } from "./_components/family-handle-card";
+import {
+  managedPageCount,
+  SCOPE_COPY,
+  summarizePermissions,
+} from "./_components/access-shared";
+import {
+  FamilyHandleDialog,
+  useFamilyHandle,
+} from "./_components/family-handle-card";
+import { LimitedAccessCard } from "./_components/limited-access-card";
 import { MemberAccessDialog } from "./_components/member-access-dialog";
 import { MemberEmailDialog } from "./_components/member-email-dialog";
 import { MembersTab, type MemberRow } from "./_components/members-tab";
@@ -39,24 +49,25 @@ import {
   type ResetPasswordTarget,
 } from "./_components/reset-password-dialog";
 import { RoleEditorDialog } from "./_components/role-editor-dialog";
-import { RolesTab } from "./_components/roles-tab";
 
 /**
  * EPIC-030 — /iam rebuilt as a conventional IAM screen (Master only; the
  * route guard and the API's Master-only `iam` resource keep everyone else
- * out). Two tabs, one mental model:
+ * out). EPIC-033 restyle (akun.html/iam.html parity): one view, no
+ * Anggota/Role Akses tab strip —
  *
- *  - Anggota: every member, how they log in, what access they have, whose
- *    data they see, and the per-person actions (Atur Akses, Reset Password,
- *    Hapus).
- *  - Role Akses: reusable page-access bundles the Master assigns to members.
+ *  - Anggota: every member, how they log in, whose data they see; row click
+ *    opens "Atur Akses", per-row icon buttons cover Reset Password/Email/
+ *    Hapus.
+ *  - Role akses: reusable page-access bundles, always visible in the hero's
+ *    sibling card (role tiles + a dashed "Buat role" tile).
+ *  - "Kode: <handle>" lives on the hero as a ghost button, opening the same
+ *    edit-code panel the old standalone "Kode keluarga" card used.
  *
  * The old static "Role Permission Matrix" and role cards are gone: they
  * described fixed grants that the Master can now change, so they would have
  * contradicted the real configuration.
  */
-type Tab = "members" | "roles";
-
 const HOW_IT_WORKS = [
   { icon: ShieldCheck, key: "step1Title", text: "step1Text" },
   { icon: UserCog, key: "step2Title", text: "step2Text" },
@@ -70,7 +81,9 @@ export default function IamRolesPage() {
   const queryClient = useQueryClient();
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId ?? null;
-  const [tab, setTab] = useState<Tab>("members");
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [handleEditorOpen, setHandleEditorOpen] = useState(false);
+  const familyHandle = useFamilyHandle(familyGroupId, token);
 
   const membersKey = queryKeys.familyGroups.members(familyGroupId ?? "");
   const removedKey = queryKeys.familyGroups.removedMembers(familyGroupId ?? "");
@@ -99,9 +112,7 @@ export default function IamRolesPage() {
     staleTime: 60_000,
   });
 
-  const { data: roles, isLoading: rolesLoading } = useQuery<
-    AccessRoleResponse[]
-  >({
+  const { data: roles } = useQuery<AccessRoleResponse[]>({
     queryKey: rolesKey,
     queryFn: ({ signal }) =>
       apiFetch<AccessRoleResponse[]>(
@@ -175,7 +186,6 @@ export default function IamRolesPage() {
   });
 
   const memberCount = (members ?? []).length;
-  const roleCount = (roles ?? []).length;
   const restrictedCount = (members ?? []).filter(
     (m) => m.role !== "owner",
   ).length;
@@ -186,6 +196,15 @@ export default function IamRolesPage() {
     (m) => m.accessRoleId || m.accessOverrides,
   ).length;
 
+  // Hero chart — "N halaman" managed per member, docs/design/proto/iam.html's
+  // bar chart under the headline.
+  const chartMembers = (members ?? []).slice(0, 8);
+  const chartCounts = chartMembers.map((m) => managedPageCount(m, roles ?? []));
+  const chartHighlight =
+    chartCounts.length > 0
+      ? chartCounts.reduce((hi, v, i, arr) => (v > arr[hi] ? i : hi), 0)
+      : undefined;
+
   return (
     <BentoGrid className="iam-grid">
       <BentoHero
@@ -195,10 +214,35 @@ export default function IamRolesPage() {
         value={memberCount}
         caption={v2.heroCap}
         controls={
-          <GhostButton lit onClick={() => setAddOpen(true)}>
-            <Plus size={14} aria-hidden="true" />
-            {v2.addBtn}
-          </GhostButton>
+          <div className="iam-hero-btns">
+            {/* iam.html's `editHandle`: "Kode: <handle>" ghost button opens
+                the same edit-code panel the old standalone card used. */}
+            <GhostButton onClick={() => setHandleEditorOpen(true)}>
+              Kode: {familyHandle ?? "…"}
+            </GhostButton>
+            <GhostButton lit onClick={() => setAddOpen(true)}>
+              <Plus size={14} aria-hidden="true" />
+              {v2.addBtn}
+            </GhostButton>
+          </div>
+        }
+        chart={
+          chartMembers.length > 0 ? (
+            <HatchedBarChart
+              labels={chartMembers.map((m) => m.name.split(" ")[0])}
+              series={[
+                {
+                  name: v2.kpiManaged,
+                  data: chartCounts,
+                  color: "var(--wm-lime)",
+                },
+              ]}
+              highlight={chartHighlight}
+              format={(v) => v2.chartUnit.replace("{n}", String(v))}
+              ariaLabel={v2.chartAria}
+              wide
+            />
+          ) : undefined
         }
         kpis={
           <>
@@ -211,80 +255,90 @@ export default function IamRolesPage() {
 
       <BentoCard
         className="iam-steps"
-        title={v2.stepsTitle}
-        caption={v2.stepsCaption}
+        title={v2.rolesCardTitle}
+        caption={v2.rolesCardCap}
       >
-        <ol className="iam-step-list">
-          {HOW_IT_WORKS.map((step, i) => {
-            const Icon = step.icon;
-            return (
-              <li key={step.key} className="iam-step">
-                <IconChip icon={Icon} />
-                <div>
-                  <b>
-                    {i + 1}. {v2[step.key]}
-                  </b>
-                  <p>{v2[step.text]}</p>
+        {(roles ?? []).length === 0 && (
+          <p className="iam-roles-empty">{v2.rolesCardEmpty}</p>
+        )}
+        <ul className="iam-role-tiles">
+          {(roles ?? []).slice(0, 3).map((role) => (
+            <li key={role.id}>
+              <button
+                type="button"
+                className="iam-role-tile"
+                onClick={() => setEditingRole(role)}
+              >
+                <div className="row row--between" style={{ gap: 8 }}>
+                  <b className="truncate">{role.name}</b>
+                  <StatusBadge
+                    variant={role.dataScope === "own" ? "warning" : "info"}
+                  >
+                    {SCOPE_COPY[role.dataScope].short}
+                  </StatusBadge>
                 </div>
-              </li>
-            );
-          })}
-        </ol>
+                <small>{summarizePermissions(role.permissions)}</small>
+              </button>
+            </li>
+          ))}
+          <li>
+            {/* iam.html's dashed "+ Buat role" tile, last in the list. */}
+            <button
+              type="button"
+              className="iam-role-tile iam-role-tile--add"
+              onClick={() => setEditingRole("new")}
+            >
+              <Plus size={16} aria-hidden="true" />
+              {v2.rolesCardCreateBtn}
+            </button>
+          </li>
+        </ul>
+
+        <button
+          type="button"
+          className="iam-steps-toggle"
+          aria-expanded={showHowItWorks}
+          onClick={() => setShowHowItWorks((v) => !v)}
+        >
+          {showHowItWorks ? v2.stepsToggleHide : v2.stepsToggleShow}
+        </button>
+        {showHowItWorks && (
+          <ol className="iam-step-list">
+            {HOW_IT_WORKS.map((step, i) => {
+              const Icon = step.icon;
+              return (
+                <li key={step.key} className="iam-step">
+                  <IconChip icon={Icon} />
+                  <div>
+                    <b>
+                      {i + 1}. {v2[step.key]}
+                    </b>
+                    <p>{v2[step.text]}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+        )}
       </BentoCard>
 
       <div className="iam-main">
-        <div className="iam-tabbar">
-          <div className="segmented" role="tablist" aria-label={v2.tabsLabel}>
-            <button
-              type="button"
-              role="tab"
-              className="segmented__item"
-              aria-selected={tab === "members"}
-              onClick={() => setTab("members")}
-            >
-              {v2.tabMembers} ({memberCount})
-            </button>
-            <button
-              type="button"
-              role="tab"
-              className="segmented__item"
-              aria-selected={tab === "roles"}
-              onClick={() => setTab("roles")}
-            >
-              {v2.tabRoles} ({roleCount})
-            </button>
-          </div>
-          <p className="iam-note">
-            {v2.tabsNote.replace("{n}", String(restrictedCount))}
-          </p>
-        </div>
+        <p className="iam-note">
+          {v2.tabsNote.replace("{n}", String(restrictedCount))}
+        </p>
 
-        {tab === "members" && (
-          <FamilyHandleCard familyGroupId={familyGroupId} token={token} />
-        )}
+        <MembersTab
+          members={members}
+          isLoading={membersLoading}
+          roles={roles ?? []}
+          currentUserId={session?.userId}
+          onEditAccess={setEditingAccess}
+          onResetPassword={setResettingPassword}
+          onEditEmail={setEditingEmail}
+          onRemove={setRemoving}
+        />
 
-        {tab === "members" ? (
-          <MembersTab
-            members={members}
-            isLoading={membersLoading}
-            roles={roles ?? []}
-            currentUserId={session?.userId}
-            onEditAccess={setEditingAccess}
-            onResetPassword={setResettingPassword}
-            onEditEmail={setEditingEmail}
-            onRemove={setRemoving}
-          />
-        ) : (
-          <RolesTab
-            roles={roles}
-            isLoading={rolesLoading}
-            onCreate={() => setEditingRole("new")}
-            onEdit={setEditingRole}
-            onDelete={setDeletingRole}
-          />
-        )}
-
-        {tab === "members" && (removedMembers ?? []).length > 0 && (
+        {(removedMembers ?? []).length > 0 && (
           <section className="card">
             <div className="card__header">
               <div>
@@ -336,6 +390,15 @@ export default function IamRolesPage() {
         )}
       </div>
 
+      <LimitedAccessCard members={members ?? []} roles={roles ?? []} />
+
+      <FamilyHandleDialog
+        familyGroupId={familyGroupId}
+        token={token}
+        open={handleEditorOpen}
+        onOpenChange={setHandleEditorOpen}
+      />
+
       <AddMemberDialog
         open={addOpen}
         onOpenChange={setAddOpen}
@@ -382,6 +445,7 @@ export default function IamRolesPage() {
         onClose={() => setEditingRole(null)}
         familyGroupId={familyGroupId}
         token={token}
+        onDelete={setDeletingRole}
       />
 
       {/* ── Hapus anggota ───────────────────────────────────────────── */}

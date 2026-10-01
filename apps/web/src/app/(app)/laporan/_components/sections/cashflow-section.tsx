@@ -4,6 +4,7 @@ import { formatSignedRupiah } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { CashflowStatementDto } from "@wealthme/contracts";
 import { StatementRow } from "../atoms";
+import "./sections-b.css";
 
 /* ───────────────────────── Section: Cashflow ───────────────────────── */
 
@@ -27,10 +28,42 @@ export function CashflowSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">
-        {t.laporan.cashflow.titlePrefix} {bulan}
-      </div>
-      <SectionCard>
+      <SectionCard title={`${t.laporan.cashflow.titlePrefix} ${bulan}`}>
+        {cashflow && (
+          <div className="lpb-kpi-strip mb-3.5">
+            <div className="lpb-kpi">
+              <div className="lpb-kpi-l">
+                {t.laporan.cashflow.totalInflowLabel}
+              </div>
+              <div className="lpb-kpi-v text-success">
+                +{money.formatCompact(cashflow.operatingInflows)}
+              </div>
+            </div>
+            <div className="lpb-kpi">
+              <div className="lpb-kpi-l">
+                {t.laporan.cashflow.totalOutflowLabel}
+              </div>
+              <div className="lpb-kpi-v text-destructive">
+                -{money.formatCompact(cashflow.operatingOutflows)}
+              </div>
+            </div>
+            <div className="lpb-kpi">
+              <div className="lpb-kpi-l">
+                {t.laporan.cashflow.netCashflowLabel}
+              </div>
+              <div
+                className={
+                  "lpb-kpi-v " +
+                  (cashflow.netChange >= 0
+                    ? "text-success"
+                    : "text-destructive")
+                }
+              >
+                {fmt(cashflow.netChange)}
+              </div>
+            </div>
+          </div>
+        )}
         <table className="w-full border-collapse text-[13px]">
           <tbody>
             <StatementRow

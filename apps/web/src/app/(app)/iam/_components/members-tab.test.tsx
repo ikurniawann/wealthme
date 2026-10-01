@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { id as mockDictionary } from "../../../../i18n/id";
@@ -71,7 +71,7 @@ function setup() {
   return handlers;
 }
 
-describe("IAM MembersTab", () => {
+describe("IAM MembersTab (row list, EPIC-033 restyle)", () => {
   it("shows the username for members without email, and email otherwise", () => {
     setup();
     expect(screen.getByText("Username: elsamariska")).toBeInTheDocument();
@@ -112,54 +112,39 @@ describe("IAM MembersTab", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the assigned role, its overrides, and the data scope", () => {
+  it("shows the assigned role, its overrides, and the data scope in the row subtext", () => {
     setup();
-    expect(screen.getByText("Anak Sekolah")).toBeInTheDocument();
-    expect(screen.getByText("+2 khusus")).toBeInTheDocument();
-    expect(screen.getByText("Hanya data miliknya")).toBeInTheDocument();
-    expect(screen.getAllByText("Akses penuh")).toHaveLength(2);
+    expect(screen.getByText(/Anak Sekolah/)).toBeInTheDocument();
+    expect(screen.getByText(/\+2 khusus/)).toBeInTheDocument();
+    expect(screen.getByText(/Hanya data miliknya/)).toBeInTheDocument();
+    expect(screen.getAllByText(/Akses penuh/)).toHaveLength(2);
   });
 
   it("offers Reset Password on managed logins but never on your own row", async () => {
-    const { onResetPassword, onEditAccess } = setup();
+    const { onResetPassword } = setup();
     const resets = screen.getAllByRole("button", { name: /Reset Password/ });
     expect(resets).toHaveLength(2); // Elsa + Aisyah, not Irfan (self)
     await userEvent.click(resets[1]);
     expect(onResetPassword).toHaveBeenCalledWith(child);
-    // Masters are never "Atur Akses"-able.
-    const edits = screen.getAllByRole("button", { name: /Atur Akses/ });
-    expect(edits).toHaveLength(1);
-    await userEvent.click(edits[0]);
-    expect(onEditAccess).toHaveBeenCalledWith(child);
   });
 
-  it("names Hubungan, Peran sistem and Hak akses apart, each with its own explainer (Revisi H)", () => {
-    render(
-      <MembersTab
-        members={[{ ...child, relationship: "anak" }]}
-        isLoading={false}
-        roles={[]}
-        currentUserId="u-master"
-        onEditAccess={jest.fn()}
-        onResetPassword={jest.fn()}
-        onEditEmail={jest.fn()}
-        onRemove={jest.fn()}
-      />,
+  it("clicking a non-master row opens 'Atur Akses' for that member; the Master row is not clickable", async () => {
+    const { onEditAccess } = setup();
+    await userEvent.click(
+      screen.getByRole("button", { name: /Atur akses Aisyah/i }),
     );
-    const c = mockDictionary.akun.memberConcepts;
-    for (const label of [c.relationship, c.systemRole, c.accessRole]) {
-      expect(
-        screen.getByRole("columnheader", { name: new RegExp(`^${label}`) }),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: `${c.infoLabelPrefix}${label}` }),
-      ).toBeInTheDocument();
-    }
+    expect(onEditAccess).toHaveBeenCalledWith(child);
     expect(
-      screen.queryByRole("columnheader", { name: "Tipe" }),
+      screen.queryByRole("button", { name: /Atur akses Irfan/i }),
     ).not.toBeInTheDocument();
-    const row = screen.getByRole("row", { name: /Aisyah/ });
-    expect(within(row).getAllByRole("cell")[1]).toHaveTextContent("Anak");
+  });
+
+  it("clicking a row's Reset Password icon does not also open 'Atur Akses' for that row", async () => {
+    const { onEditAccess, onResetPassword } = setup();
+    const resets = screen.getAllByRole("button", { name: /Reset Password/ });
+    await userEvent.click(resets[1]);
+    expect(onResetPassword).toHaveBeenCalledWith(child);
+    expect(onEditAccess).not.toHaveBeenCalled();
   });
 
   it("offers a copy button next to each username, and never for members without one", async () => {

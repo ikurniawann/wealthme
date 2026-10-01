@@ -29,6 +29,22 @@
     position: relative;
     min-height: 200px;
   }
+  /* hero controls: "+ Tambah Liabilitas" on the title row (top-right),
+     legend (Dibayar/Total) underneath — matches docs/design/proto/
+     liabilitas.html .hero-ctrl + .legend, same pattern as asuransi's
+     .as-hero-ctrl/.as-hero-ctrl-row. */
+  .li-hero-ctrl {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+  }
+  .li-hero-ctrl-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
   .li-legend {
     display: inline-flex;
     gap: 12px;
@@ -77,63 +93,124 @@
     color: var(--wm-muted);
     font-size: var(--wm-type-12);
   }
+  /* liability tile grid: 2 columns per proto (`.l-grid .btiles` is a 2-up
+     flex wrap), not the default 3-up `.wm-btiles`. Same pattern as
+     /asuransi's `.as-list .wm-btiles`. */
+  .li-list .wm-btiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 640px) {
+    .li-list .wm-btiles {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  /* tile: icon chip + name (1 line, truncated) + status badge inline on
+     one row (no absolute-position overlap), amount ~20px nowrap, progress
+     bar, muted meta lines, footer INSIDE the tile — same shape as
+     /asuransi's `.as-tilewrap`/`.as-tile-*`/`.as-foot`. */
   .li-tilewrap {
-    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    min-height: auto;
+    padding: 14px;
+    border-radius: 18px;
+    background: var(--wm-card-2);
   }
-  .li-status {
-    position: absolute;
-    top: 12px;
-    right: 12px;
+  .li-tile-tt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .li-tile-name {
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    font-size: var(--wm-type-14);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .li-tile-amount {
+    margin-top: 4px;
+    font-size: var(--wm-type-20);
   }
   .li-remaining {
+    white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
-  .li-progress,
-  .li-late {
+  .li-tile-meta {
     display: block;
-    margin-top: 6px;
     color: var(--wm-muted);
-    font-size: var(--wm-type-11);
+    font-size: var(--wm-type-12);
+    font-variant-numeric: tabular-nums;
   }
   .li-late {
+    display: block;
+    margin-top: 2px;
     color: var(--wm-bad);
+    font-size: var(--wm-type-11);
   }
   .li-foot {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
   }
-  .li-foot button,
+  .li-detail {
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--wm-card);
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+    font-weight: 500;
+    min-height: 32px;
+    cursor: pointer;
+  }
+  .li-pay {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--wm-lime);
+    color: #0b1a0b;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    min-height: 32px;
+    cursor: pointer;
+  }
   .li-paid {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 6px 10px;
+    margin-left: auto;
+    padding: 0 12px;
     border-radius: 999px;
-    border: 1px solid var(--wm-line, rgb(0 0 0 / 0.1));
-    background: none;
-    color: inherit;
+    color: var(--wm-muted);
     font-size: var(--wm-type-12);
     font-weight: 600;
+    min-height: 32px;
+    cursor: default;
+  }
+  .li-opts {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--wm-muted);
     cursor: pointer;
   }
-  .li-foot .li-del {
-    color: var(--wm-bad);
-  }
-  .li-foot .li-pay {
-    margin-left: auto;
-    background: var(--wm-lime);
-    color: #0b1a0b;
-    border-color: transparent;
-  }
-  .li-paid {
-    margin-left: auto;
-    border-color: transparent;
-    color: var(--wm-muted);
-    cursor: default;
+  .li-opts:hover {
+    background: var(--wm-card);
   }
   .li-disclaimer {
     margin-top: 8px;

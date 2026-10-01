@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 
 import { useLocale } from "@/hooks/use-locale";
-import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
+import { PillButton } from "@/components/wm";
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
+  DialogClose,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
 import { formatNumber, parseRupiah } from "@/lib/format";
 
@@ -119,118 +119,137 @@ export function FinalIncomeDialog({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="dialog--sm">
-        <DialogTitle>
-          {mode === "edit" ? t.tax.final.editEntry : t.tax.final.addEntry}
-        </DialogTitle>
-        <DialogBody className="space-y-3">
-          <div className="field">
-            <label htmlFor="final-instrument" className="label">
-              {t.tax.final.fieldInstrument}
-            </label>
-            <select
-              id="final-instrument"
-              className="select"
-              value={instrument}
-              onChange={(e) =>
-                handleInstrumentChange(e.target.value as TaxFinalInstrument)
-              }
-            >
-              {MANUAL_INSTRUMENTS.map((i) => (
-                <option key={i} value={i}>
-                  {t.tax.final.instruments[i]}
-                </option>
-              ))}
-            </select>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {mode === "edit" ? t.tax.final.editEntry : t.tax.final.addEntry}
+            </DialogTitle>
           </div>
-          <div className="field">
-            <label htmlFor="final-gross" className="label">
-              {t.tax.final.fieldGross}
-            </label>
-            <input
-              id="final-gross"
-              type="text"
-              inputMode="numeric"
-              className="input"
-              value={gross}
-              onChange={(e) =>
-                setGross(
-                  e.target.value === ""
-                    ? ""
-                    : formatNumber(
-                        Math.min(parseRupiah(e.target.value), MAX_TAX_INPUT),
-                      ),
-                )
-              }
-            />
-          </div>
-          <div className="field">
-            <label htmlFor="final-date" className="label">
-              {t.tax.final.fieldDate}
-            </label>
-            <input
-              id="final-date"
-              type="date"
-              className="input"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-          {instrument === "dividen" && (
-            <div className="field flex items-center gap-2">
-              <input
-                id="final-reinvested"
-                type="checkbox"
-                className="size-4 accent-primary"
-                checked={reinvested}
-                onChange={(e) => setReinvested(e.target.checked)}
-              />
-              <label htmlFor="final-reinvested" className="text-[13px]">
-                {t.tax.final.fieldReinvested}
-              </label>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="wm-panel-body wm-form">
+            <div className="wm-form__grid">
+              <div className="field">
+                <label htmlFor="final-instrument" className="label">
+                  {t.tax.final.fieldInstrument}
+                </label>
+                <select
+                  id="final-instrument"
+                  className="select"
+                  value={instrument}
+                  onChange={(e) =>
+                    handleInstrumentChange(e.target.value as TaxFinalInstrument)
+                  }
+                >
+                  {MANUAL_INSTRUMENTS.map((i) => (
+                    <option key={i} value={i}>
+                      {t.tax.final.instruments[i]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label htmlFor="final-gross" className="label">
+                  {t.tax.final.fieldGross}
+                </label>
+                <input
+                  id="final-gross"
+                  type="text"
+                  inputMode="numeric"
+                  className="input"
+                  value={gross}
+                  onChange={(e) =>
+                    setGross(
+                      e.target.value === ""
+                        ? ""
+                        : formatNumber(
+                            Math.min(
+                              parseRupiah(e.target.value),
+                              MAX_TAX_INPUT,
+                            ),
+                          ),
+                    )
+                  }
+                />
+              </div>
+              <div className="field">
+                <label htmlFor="final-date" className="label">
+                  {t.tax.final.fieldDate}
+                </label>
+                <input
+                  id="final-date"
+                  type="date"
+                  className="input"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                />
+              </div>
+              {instrument === "dividen" && (
+                <div className="field flex items-center gap-2">
+                  <input
+                    id="final-reinvested"
+                    type="checkbox"
+                    className="size-4 accent-primary"
+                    checked={reinvested}
+                    onChange={(e) => setReinvested(e.target.checked)}
+                  />
+                  <label htmlFor="final-reinvested" className="text-[13px]">
+                    {t.tax.final.fieldReinvested}
+                  </label>
+                </div>
+              )}
+              <div className="field">
+                <label htmlFor="final-rate-override" className="label">
+                  {t.tax.final.fieldRateOverride}
+                </label>
+                <input
+                  id="final-rate-override"
+                  type="text"
+                  inputMode="decimal"
+                  className="input"
+                  value={rateOverridePct}
+                  onChange={(e) =>
+                    setRateOverridePct(e.target.value.replace(/[^0-9,.]/g, ""))
+                  }
+                />
+                {NO_FIXED_RATE.includes(instrument) && (
+                  <div className="hint">{t.tax.final.missingRate}</div>
+                )}
+              </div>
+              <div className="field">
+                <label htmlFor="final-notes" className="label">
+                  {t.tax.final.fieldNotes}
+                </label>
+                <input
+                  id="final-notes"
+                  type="text"
+                  className="input"
+                  maxLength={NOTES_MAX}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
             </div>
-          )}
-          <div className="field">
-            <label htmlFor="final-rate-override" className="label">
-              {t.tax.final.fieldRateOverride}
-            </label>
-            <input
-              id="final-rate-override"
-              type="text"
-              inputMode="decimal"
-              className="input"
-              value={rateOverridePct}
-              onChange={(e) =>
-                setRateOverridePct(e.target.value.replace(/[^0-9,.]/g, ""))
-              }
-            />
-            {NO_FIXED_RATE.includes(instrument) && (
-              <div className="hint">{t.tax.final.missingRate}</div>
-            )}
           </div>
-          <div className="field">
-            <label htmlFor="final-notes" className="label">
-              {t.tax.final.fieldNotes}
-            </label>
-            <input
-              id="final-notes"
-              type="text"
-              className="input"
-              maxLength={NOTES_MAX}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-            />
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
+              {t.common.cancel}
+            </PillButton>
+            <PillButton
+              type="button"
+              variant="primary"
+              disabled={submitting}
+              onClick={handleSubmit}
+            >
+              {t.common.save}
+            </PillButton>
           </div>
-        </DialogBody>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button type="button" disabled={submitting} onClick={handleSubmit}>
-            {t.common.save}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+        </div>
+      </PanelContent>
     </Dialog>
   );
 }

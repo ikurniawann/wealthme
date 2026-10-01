@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Plus,
   CreditCard,
+  EllipsisVertical,
   Landmark,
   FileText,
   Pencil,
@@ -13,6 +14,7 @@ import {
   Split,
   StickyNote,
   TriangleAlert,
+  X as XIcon,
   type LucideIcon,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
@@ -42,18 +44,25 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogBody,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 import { ConfirmDeleteDialog } from "@/components/crud";
 import {
   BentoCard,
   BentoGrid,
   BentoHero,
-  BentoTile,
   BentoTiles,
   DateField,
   GhostButton,
@@ -61,6 +70,7 @@ import {
   Segmented,
   StatusBadge,
   TipsCard,
+  PillButton,
   Track,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
@@ -578,19 +588,26 @@ function LiabilityModal({
     // `dialog__title`/`__desc`/`__body`/`__footer` structure
     // (docs/prototype/pages/liabilitas.html `dlg-lia-edit`).
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogTitle>
-          {editing ? t.liabilitas.modalEditTitle : t.liabilitas.modalTitle}
-        </DialogTitle>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {editing ? t.liabilitas.modalEditTitle : t.liabilitas.modalTitle}
+            </DialogTitle>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <XIcon aria-hidden="true" />
+          </DialogClose>
+        </header>
 
-        <form onSubmit={handleSubmit}>
-          <DialogBody>
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="wm-panel-body wm-form">
             <fieldset className="space-y-3 rounded-lg border p-3">
               <legend className="px-1 text-[13px] font-semibold">
                 {t.liabilitas.fieldGroups.identity}
               </legend>
               {/* Prototype pairs Nama + Institusi 2-up (liabilitas.html:432). */}
-              <div className="field-row">
+              <div className="wm-form__grid wm-form__grid--two">
                 <div className="field mt-0">
                   <label className="label" htmlFor="liability-name">
                     {t.liabilitas.fieldNameLabel}
@@ -661,7 +678,7 @@ function LiabilityModal({
               <legend className="px-1 text-[13px] font-semibold">
                 {t.liabilitas.fieldGroups.amount}
               </legend>
-              <div className="field-row mt-3">
+              <div className="wm-form__grid wm-form__grid--two">
                 <div className="field mt-0">
                   <label className="label" htmlFor="liability-total-debt">
                     {t.liabilitas.fieldTotalDebtLabel}
@@ -767,7 +784,7 @@ function LiabilityModal({
               )}
 
               {usesTenor && (
-                <div className="field-row mt-3">
+                <div className="wm-form__grid wm-form__grid--two">
                   <div className="field mt-0">
                     <label className="label" htmlFor="liability-start-date">
                       {t.liabilitas.fieldStartDateLabel}
@@ -851,20 +868,24 @@ function LiabilityModal({
                 </div>
               )}
             </fieldset>
-          </DialogBody>
+          </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
               {t.common.cancel}
-            </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            </PillButton>
+            <PillButton
+              type="submit"
+              variant="primary"
+              disabled={mutation.isPending}
+            >
               {mutation.isPending
                 ? t.liabilitas.saving
                 : t.liabilitas.saveButton}
-            </Button>
-          </DialogFooter>
+            </PillButton>
+          </div>
         </form>
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -915,49 +936,37 @@ function LiabilityTile({
 
   return (
     <div className="li-tilewrap">
-      <BentoTile
-        onClick={onDetail}
-        icon={<Icon aria-hidden="true" />}
-        title={item.name}
-        value={
-          <span className="wm-money li-remaining">
-            {money.format(remaining)}
-          </span>
-        }
-        foot={
-          <>
-            {installment > 0
-              ? `${money.formatCompact(installment)}/bln`
-              : typeLabel}
-            {item.institution ? ` · ${item.institution}` : ""}
-          </>
-        }
-      >
-        <Track value={progress} fill={fill} />
-        <small className="li-progress">
-          {progressLabel} {progress}%
-        </small>
-        {isOverdue && (
-          <small className="li-late">
-            <TriangleAlert className="size-3" aria-hidden="true" />{" "}
-            {t.liabilitas.overdueWarningPrefix}
-            {nextDue ? formatLocaleDate(nextDue, locale) : ""}
-            {t.liabilitas.overdueWarningSuffix}
-          </small>
-        )}
-      </BentoTile>
-      <span className="li-status">
+      <div className="li-tile-tt">
+        <span className="wm-ci">
+          <Icon aria-hidden="true" />
+        </span>
+        <span className="li-tile-name">{item.name}</span>
         <StatusBadge variant={status.variant}>{status.text}</StatusBadge>
+      </div>
+      <span className="wm-pv li-tile-amount">
+        <span className="wm-money li-remaining">{money.format(remaining)}</span>
       </span>
+      <Track value={progress} fill={fill} />
+      <small className="li-tile-meta">
+        {progressLabel} {progress}%
+      </small>
+      <small className="li-tile-meta">
+        {installment > 0
+          ? `${money.formatCompact(installment)}/bln`
+          : typeLabel}
+        {item.institution ? ` · ${item.institution}` : ""}
+      </small>
+      {isOverdue && (
+        <small className="li-late">
+          <TriangleAlert className="size-3" aria-hidden="true" />{" "}
+          {t.liabilitas.overdueWarningPrefix}
+          {nextDue ? formatLocaleDate(nextDue, locale) : ""}
+          {t.liabilitas.overdueWarningSuffix}
+        </small>
+      )}
       <div className="li-foot">
-        <button type="button" onClick={onDetail}>
+        <button type="button" className="li-detail" onClick={onDetail}>
           <FileText className="size-3.5" aria-hidden="true" /> Detail
-        </button>
-        <button type="button" onClick={onEdit}>
-          <Pencil className="size-3.5" aria-hidden="true" /> Edit
-        </button>
-        <button type="button" className="li-del" onClick={onDelete}>
-          <Trash2 className="size-3.5" aria-hidden="true" /> Hapus
         </button>
         {item.paidThisPeriod ? (
           <span className="li-paid">
@@ -969,6 +978,22 @@ function LiabilityTile({
             <Banknote className="size-3.5" aria-hidden="true" /> Bayar
           </button>
         )}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label="Opsi lainnya"
+            render={<button type="button" className="li-opts" />}
+          >
+            <EllipsisVertical className="size-3.5" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[140px]">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="size-3.5" aria-hidden="true" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="size-3.5" aria-hidden="true" /> Hapus
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -1895,15 +1920,17 @@ export default function LiabilitasPage() {
           }
           caption={t.liabilitas.v2.heroCaption}
           controls={
-            <>
-              <GhostButton
-                lit
-                onClick={() => setShowAddModal(true)}
-                disabled={!familyGroupId || !token}
-              >
-                <Plus className="size-4" aria-hidden="true" />{" "}
-                {t.liabilitas.addButton}
-              </GhostButton>
+            <div className="li-hero-ctrl">
+              <div className="li-hero-ctrl-row">
+                <GhostButton
+                  lit
+                  onClick={() => setShowAddModal(true)}
+                  disabled={!familyGroupId || !token}
+                >
+                  <Plus className="size-4" aria-hidden="true" />{" "}
+                  {t.liabilitas.addButton}
+                </GhostButton>
+              </div>
               <span className="li-legend" aria-hidden="true">
                 <span>
                   <i className="li-dot-paid" />
@@ -1914,7 +1941,7 @@ export default function LiabilitasPage() {
                   {t.liabilitas.v2.legendTotal}
                 </span>
               </span>
-            </>
+            </div>
           }
           chart={
             <div className="li-plot">

@@ -1,16 +1,16 @@
 "use client";
 
-import { Crown, KeyRound, Mail, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Crown, KeyRound, Mail, Trash2 } from "lucide-react";
 import {
   LEGACY_ACCESS_PRESETS,
   type AccessDataScope,
   type AccessPermissions,
 } from "@wealthme/contracts";
 
-import { InfoTip, StatusBadge } from "@/components/wm";
+import { StatusBadge } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 
-import { SCOPE_COPY } from "./access-shared";
+import { MEMBER_PASTELS, SCOPE_COPY } from "./access-shared";
 import { CopyButton } from "./copy-button";
 import type { AccessRoleResponse } from "@wealthme/contracts";
 
@@ -32,6 +32,7 @@ export type MemberRow = {
   accessRoleId?: string | null;
   accessRoleName?: string | null;
   accessOverrides?: AccessPermissions;
+  canViewBalances?: boolean;
 };
 
 type MembersTabProps = {
@@ -45,7 +46,10 @@ type MembersTabProps = {
   onRemove: (m: MemberRow) => void;
 };
 
-function scopeOf(m: MemberRow, roles: AccessRoleResponse[]): AccessDataScope {
+export function scopeOf(
+  m: MemberRow,
+  roles: AccessRoleResponse[],
+): AccessDataScope {
   if (m.role === "owner") return "all";
   const custom = roles.find((r) => r.id === m.accessRoleId);
   if (custom) return custom.dataScope;
@@ -55,8 +59,12 @@ function scopeOf(m: MemberRow, roles: AccessRoleResponse[]): AccessDataScope {
 }
 
 /**
- * The roster as a Master reads it: who (name + how they log in), what type
- * of member, which access, whose data — and the actions for that person.
+ * The roster as a Master reads it: who (name + how they log in) and whose
+ * data they see, as a row list (iam.html's `.mem-row`) instead of a dense
+ * table. Clicking a row opens the "Atur Akses" side panel (`onEditAccess`),
+ * same as a prototype `mem-row` click; the per-row Email/Reset
+ * Password/Hapus actions stay reachable as small ghost icon buttons inside
+ * the row (they `stopPropagation` so they don't also open the panel).
  */
 export function MembersTab({
   members,
@@ -71,186 +79,143 @@ export function MembersTab({
   const { t } = useLocale();
   const roleLabel = (role: string) =>
     t.common.roleLabels[role as keyof typeof t.common.roleLabels] ?? role;
-  const concepts = t.akun.memberConcepts;
-  const conceptHeader = (label: string, info: string) => (
-    <span className="inline-flex items-center gap-0.5">
-      {label}
-      <InfoTip label={`${concepts.infoLabelPrefix}${label}`}>{info}</InfoTip>
-    </span>
-  );
+
+  if (isLoading) {
+    return <div className="card card__body t-muted">Memuat…</div>;
+  }
+
+  if (!members || members.length === 0) {
+    return <div className="card card__body t-muted">Belum ada anggota</div>;
+  }
 
   return (
     <section className="card">
-      <div className="card__body">
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Anggota</th>
-                <th>
-                  {conceptHeader(
-                    concepts.relationship,
-                    concepts.relationshipInfo,
-                  )}
-                </th>
-                <th>
-                  {conceptHeader(concepts.systemRole, concepts.systemRoleInfo)}
-                </th>
-                <th>
-                  {conceptHeader(concepts.accessRole, concepts.accessRoleInfo)}
-                </th>
-                <th>Data terlihat</th>
-                <th style={{ textAlign: "right" }}>Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading && (
-                <tr>
-                  <td colSpan={6} className="py-4 text-center t-muted">
-                    Memuat…
-                  </td>
-                </tr>
-              )}
-              {!isLoading && (members ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={6} className="py-4 text-center t-muted">
-                    Belum ada anggota
-                  </td>
-                </tr>
-              )}
-              {(members ?? []).map((m) => {
-                const isMaster = m.role === "owner";
-                const isSelf = m.userId === currentUserId;
-                const overrideCount = Object.keys(
-                  m.accessOverrides ?? {},
-                ).length;
-                const scope = scopeOf(m, roles);
-                // EPIC-031 — a Master-created member may have a username
-                // login (`nama@kode`), a real email, or both.
-                const hasRealEmail = !m.email.endsWith(SYNTHETIC_EMAIL_SUFFIX);
-                return (
-                  <tr key={m.id}>
-                    <td>
-                      <div className="font-semibold">
-                        {m.name}
-                        {isSelf && (
-                          <span className="t-xs t-muted"> (Anda)</span>
-                        )}
-                      </div>
-                      {m.username && (
-                        <div className="mono flex items-center gap-0.5 text-[11.5px] text-muted-foreground">
-                          <span>{`Username: ${m.username}`}</span>
-                          <CopyButton
-                            value={m.username}
-                            ariaLabel={t.akun.copyCredentials.usernameAriaLabel}
-                          />
-                        </div>
-                      )}
-                      {hasRealEmail && (
-                        <div className="text-[11.5px] text-muted-foreground">
-                          {m.email}
-                        </div>
-                      )}
-                      {m.pendingEmail && (
-                        <div className="text-[11.5px] text-warning">
-                          {m.pendingEmail} · menunggu konfirmasi
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      {m.relationship ? (
-                        m.relationship.charAt(0).toUpperCase() +
-                        m.relationship.slice(1)
-                      ) : (
-                        <span className="t-muted">—</span>
-                      )}
-                    </td>
-                    <td>
-                      <StatusBadge variant={isMaster ? "success" : "gray"}>
-                        {isMaster && <Crown size={11} aria-hidden="true" />}{" "}
-                        {roleLabel(m.role)}
-                      </StatusBadge>
-                    </td>
-                    <td>
-                      {isMaster ? (
-                        <span className="font-semibold">Akses penuh</span>
-                      ) : (
-                        <div className="row row--wrap" style={{ gap: 4 }}>
-                          <span className="font-semibold">
-                            {m.accessRoleName ?? `Bawaan ${roleLabel(m.role)}`}
-                          </span>
-                          {overrideCount > 0 && (
-                            <StatusBadge variant="warning">
-                              +{overrideCount} khusus
-                            </StatusBadge>
-                          )}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <StatusBadge
-                        variant={scope === "own" ? "warning" : "info"}
-                      >
-                        {SCOPE_COPY[scope].short}
-                      </StatusBadge>
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      <div
-                        className="row row--wrap"
-                        style={{ justifyContent: "flex-end", gap: 6 }}
-                      >
-                        {!isMaster && (
-                          <button
-                            type="button"
-                            className="btn btn--outline btn--sm"
-                            onClick={() => onEditAccess(m)}
-                          >
-                            <SlidersHorizontal size={14} aria-hidden="true" />
-                            Atur Akses
-                          </button>
-                        )}
-                        {m.managedLogin && !isSelf && (
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            onClick={() => onEditEmail(m)}
-                          >
-                            <Mail size={14} aria-hidden="true" />
-                            Email
-                          </button>
-                        )}
-                        {m.managedLogin && !isSelf && (
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm"
-                            onClick={() => onResetPassword(m)}
-                          >
-                            <KeyRound size={14} aria-hidden="true" />
-                            Reset Password
-                          </button>
-                        )}
-                        {!isMaster && (
-                          <button
-                            type="button"
-                            className="btn btn--ghost btn--sm btn--icon text-destructive"
-                            aria-label={`Hapus ${m.name}`}
-                            title="Hapus dari keluarga"
-                            onClick={() => onRemove(m)}
-                          >
-                            <Trash2 size={14} aria-hidden="true" />
-                          </button>
-                        )}
-                        {isMaster && !(m.managedLogin && !isSelf) && (
-                          <span className="t-muted t-xs">—</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      <div className="card__body iam-member-list">
+        {members.map((m, i) => {
+          const isMaster = m.role === "owner";
+          const isSelf = m.userId === currentUserId;
+          const overrideCount = Object.keys(m.accessOverrides ?? {}).length;
+          const scope = scopeOf(m, roles);
+          // EPIC-031 — a Master-created member may have a username login
+          // (`nama@kode`), a real email, or both.
+          const hasRealEmail = !m.email.endsWith(SYNTHETIC_EMAIL_SUFFIX);
+          const initials = m.name
+            .split(" ")
+            .slice(0, 2)
+            .map((w) => w[0])
+            .join("")
+            .toUpperCase();
+          const pastel =
+            MEMBER_PASTELS[i % MEMBER_PASTELS.length] ?? MEMBER_PASTELS[0]!;
+          const accessLine = isMaster
+            ? "Akses penuh"
+            : (m.accessRoleName ?? `Bawaan ${roleLabel(m.role)}`);
+
+          return (
+            <div
+              key={m.id}
+              role={isMaster ? undefined : "button"}
+              tabIndex={isMaster ? undefined : 0}
+              aria-label={isMaster ? undefined : `Atur akses ${m.name}`}
+              className="iam-mem-row"
+              data-master={isMaster || undefined}
+              title={m.relationship ? `Hubungan: ${m.relationship}` : undefined}
+              onClick={isMaster ? undefined : () => onEditAccess(m)}
+              onKeyDown={
+                isMaster
+                  ? undefined
+                  : (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onEditAccess(m);
+                      }
+                    }
+              }
+            >
+              <span
+                className="avatar"
+                aria-hidden="true"
+                style={{ background: pastel.bg, color: pastel.fg }}
+              >
+                {initials}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="iam-mem-row__name">
+                  {m.name}
+                  {isSelf && <span className="t-xs t-muted"> (Anda)</span>}
+                </span>
+                <span className="iam-mem-row__sub">
+                  {accessLine}
+                  {overrideCount > 0 && ` · +${overrideCount} khusus`}
+                  {" · "}
+                  {SCOPE_COPY[scope].short}
+                </span>
+                {m.username && (
+                  <span
+                    className="mono iam-mem-row__sub flex items-center gap-0.5"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {`Username: ${m.username}`}
+                    <CopyButton
+                      value={m.username}
+                      ariaLabel={t.akun.copyCredentials.usernameAriaLabel}
+                    />
+                  </span>
+                )}
+                {hasRealEmail && (
+                  <span className="iam-mem-row__sub">{m.email}</span>
+                )}
+                {m.pendingEmail && (
+                  <span className="iam-mem-row__sub text-warning">
+                    {m.pendingEmail} · menunggu konfirmasi
+                  </span>
+                )}
+              </span>
+              <span
+                className="iam-mem-row__actions"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {m.managedLogin && !isSelf && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm btn--icon"
+                    aria-label={`Ubah email ${m.name}`}
+                    title="Ubah email"
+                    onClick={() => onEditEmail(m)}
+                  >
+                    <Mail size={14} aria-hidden="true" />
+                  </button>
+                )}
+                {m.managedLogin && !isSelf && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm btn--icon"
+                    aria-label={`Reset Password ${m.name}`}
+                    title="Reset Password"
+                    onClick={() => onResetPassword(m)}
+                  >
+                    <KeyRound size={14} aria-hidden="true" />
+                  </button>
+                )}
+                {!isMaster && (
+                  <button
+                    type="button"
+                    className="btn btn--ghost btn--sm btn--icon text-destructive"
+                    aria-label={`Hapus ${m.name}`}
+                    title="Hapus dari keluarga"
+                    onClick={() => onRemove(m)}
+                  >
+                    <Trash2 size={14} aria-hidden="true" />
+                  </button>
+                )}
+              </span>
+              <StatusBadge variant={isMaster ? "success" : "gray"}>
+                {isMaster && <Crown size={11} aria-hidden="true" />}{" "}
+                {roleLabel(m.role)}
+              </StatusBadge>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

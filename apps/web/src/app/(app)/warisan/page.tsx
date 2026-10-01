@@ -1,7 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { CircleAlert, PieChart, Plus, Save, X } from "lucide-react";
+import {
+  Building,
+  Car,
+  CircleAlert,
+  Coins,
+  Gem,
+  Home,
+  Landmark,
+  LineChart,
+  Package,
+  PieChart,
+  Plus,
+  TrendingUp,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,24 +25,25 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
   DialogTitle,
+  DialogClose,
+  PanelContent,
 } from "@/components/ui/dialog";
 import {
   BentoCard,
   BentoGrid,
   BentoHero,
   GhostButton,
+  PillButton,
   HeroKpi,
   MiniList,
   MiniRow,
   StatusBadge,
   ProgressBar,
   TipsCard,
+  CompositionStack,
+  type CompositionItem,
 } from "@/components/wm";
-import { HatchedBarChart } from "@/components/charts/bento-charts";
 import "./warisan.css";
 import { ConfirmDeleteDialog, RowActions } from "@/components/crud";
 import {
@@ -77,17 +93,19 @@ const ASSET_TYPE_OPTIONS = [
   "Lainnya",
 ];
 
-const ASSET_CLASS_ICON: Record<AssetClassKey, string> = {
-  properti: "🏠",
-  kendaraan: "🚗",
-  kas_tabungan: "💵",
-  deposito: "🏦",
-  saham: "📈",
-  reksa_dana: "📊",
-  obligasi: "📜",
-  emas: "🪙",
-  kripto: "🪙",
-  lainnya: "📋",
+// Point 3 — swapped from emoji to the same lucide-icon convention /aset and
+// /investasi use for their asset-class chips (ASSET_TYPE_ICON/INV_TYPE_ICON).
+const ASSET_CLASS_ICON: Record<AssetClassKey, LucideIcon> = {
+  properti: Home,
+  kendaraan: Car,
+  kas_tabungan: Coins,
+  deposito: Landmark,
+  saham: TrendingUp,
+  reksa_dana: LineChart,
+  obligasi: Building,
+  emas: Gem,
+  kripto: Gem,
+  lainnya: Package,
 };
 
 const ASSET_CLASS_BG: Record<AssetClassKey, string> = {
@@ -212,7 +230,7 @@ function AssetCard({
   // display ONLY (never rewrites the stored record), so old and new entries
   // alike show the same icon/color/label class.
   const assetClass = warisanAssetTypeToAssetClass(item.assetType);
-  const icon = ASSET_CLASS_ICON[assetClass];
+  const Icon = ASSET_CLASS_ICON[assetClass];
   const iconBg = ASSET_CLASS_BG[assetClass];
   const categoryLabel = t.common.assetClassLabels[assetClass];
   const allocated = item.heirs.reduce(
@@ -240,10 +258,10 @@ function AssetCard({
     <div className="rounded-[12px] border bg-background p-3.5">
       <div className="flex flex-wrap items-start gap-2.5">
         <div
-          className="flex size-[36px] shrink-0 items-center justify-center rounded-[10px] text-[15px]"
+          className="flex size-[36px] shrink-0 items-center justify-center rounded-[10px]"
           style={{ background: iconBg }}
         >
-          {icon}
+          <Icon className="size-4" aria-hidden="true" />
         </div>
         <div className="min-w-[170px] flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -288,18 +306,21 @@ function AssetCard({
 
       {item.heirs.length > 0 && (
         <>
-          <ProgressBar
-            value={clampedAllocated}
-            color={barColor}
-            className="mt-2.5"
-          />
-          <div
-            className={`mt-1 text-[11px] ${isFullyAllocated ? "text-success" : "text-warning"}`}
-          >
-            {isFullyAllocated
-              ? t.warisan.heirAllocationFullyAllocated
-              : `${unallocated}${t.warisan.heirAllocationUnallocatedSuffix}`}
+          {/* Point 3 — proto `.wr-alloc .lbl` (warisan.html:108): a label
+              line pairing the static "Alokasi ahli waris" text with
+              "Penuh" or the running unallocated percentage, above the
+              bar itself. */}
+          <div className="wr-alloc-lbl mt-2.5">
+            <span>{t.warisan.listRowAllocationLabel}</span>
+            <span
+              className={isFullyAllocated ? "text-success" : "text-warning"}
+            >
+              {isFullyAllocated
+                ? t.warisan.listRowAllocationFull
+                : `${unallocated}${t.warisan.heirAllocationUnallocatedSuffix}`}
+            </span>
           </div>
+          <ProgressBar value={clampedAllocated} color={barColor} />
         </>
       )}
     </div>
@@ -935,12 +956,51 @@ export default function WarisanPage() {
           ((Number(totalValue) - unallocatedTotal) / Number(totalValue)) * 100,
         )
       : 0;
-  const topAssets = [...assets]
-    .sort((x, y) => Number(BigInt(y.estimatedValue) - BigInt(x.estimatedValue)))
-    .slice(0, 6);
+  // Point 1 (fix) — the hero is NOT a pie/donut chart in the prototype
+  // (warisan.html:35 `#donut` mounts `WM.chart.donut()`, which — per
+  // wm.js's own comment — "replaces the old donut": a headline figure, a
+  // single hatched composition bar, then a ranked legend list per heir).
+  // A prior pass swapped this hero to a real `DonutChart` (ApexCharts pie);
+  // that was a deviation from the proto, reverted here in favor of the same
+  // `CompositionStack` component /aset, /dana, /asuransi and /investasi
+  // already use for their hero composition bars.
+  const compItems: CompositionItem[] = [
+    ...heirBeneficiaryRows.map((row) => ({
+      label: row.name,
+      value: Math.round(row.value),
+      color: row.color,
+    })),
+    ...(unallocatedTotal > 0
+      ? [
+          {
+            label: t.warisan.heirAllocationUnallocatedLabel,
+            value: Math.round(unallocatedTotal),
+            color: "var(--wm-muted)",
+          },
+        ]
+      : []),
+  ];
   const tipsMosaic = Array.from({ length: 18 }, (_, i) =>
     i < Math.round((allocatedPct / 100) * 18) ? (i % 4 === 0 ? "b" : "a") : "",
   ) as ("a" | "b" | "c" | "o" | "")[];
+
+  // Point 4 — proto's tip card headline switches on allocation state
+  // (warisan.html's `draw()`: empty list → "start recording"; 100% → "all
+  // allocated"; otherwise the running unallocated percentage, e.g.
+  // "2% nilai belum dialokasikan").
+  const unallocatedPct = Math.max(0, 100 - allocatedPct);
+  const insightTitle =
+    assets.length === 0
+      ? t.warisan.insightEmptyTitle
+      : allocatedPct >= 100
+        ? t.warisan.insightFullTitle
+        : `${unallocatedPct}${t.warisan.insightUnallocatedSuffix}`;
+  const insightDesc =
+    assets.length === 0
+      ? t.warisan.insightEmptyDesc
+      : allocatedPct >= 100
+        ? t.warisan.insightFullDesc
+        : t.warisan.insightUnallocatedDesc;
 
   return (
     <div className="space-y-4" data-page="warisan">
@@ -961,21 +1021,13 @@ export default function WarisanPage() {
           }
           chart={
             <div className="wr-plot">
-              {topAssets.length > 0 ? (
-                <HatchedBarChart
-                  labels={topAssets.map((a) => a.name)}
-                  series={[
-                    {
-                      name: t.warisan.v2.legendValue,
-                      data: topAssets.map((a) =>
-                        Number(BigInt(a.estimatedValue)),
-                      ),
-                      color: "var(--wm-lime)",
-                    },
-                  ]}
-                  format={money.formatCompact}
-                  wide
-                  ariaLabel={t.warisan.v2.chartAria}
+              {compItems.length > 0 ? (
+                <CompositionStack
+                  items={compItems}
+                  center={money.formatCompact(Number(totalValue))}
+                  sub={t.warisan.v2.compTotalLabel}
+                  label={t.warisan.v2.chartAria}
+                  format={money.format}
                 />
               ) : (
                 <p className="wr-empty">{t.warisan.emptyState}</p>
@@ -1012,7 +1064,15 @@ export default function WarisanPage() {
               {heirBeneficiaryRows.map((row) => (
                 <MiniRow
                   key={row.name}
-                  icon={row.initials}
+                  icon={
+                    <span
+                      className="wr-heir-avatar"
+                      style={{ background: row.color }}
+                      aria-hidden="true"
+                    >
+                      {row.initials}
+                    </span>
+                  }
                   title={row.name}
                   meta={row.relationship || undefined}
                   amount={
@@ -1071,12 +1131,8 @@ export default function WarisanPage() {
           )}
         </BentoCard>
 
-        <TipsCard
-          className="wr-tips"
-          title={t.warisan.insightTitle}
-          mosaic={tipsMosaic}
-        >
-          {t.warisan.insightDesc}
+        <TipsCard className="wr-tips" title={insightTitle} mosaic={tipsMosaic}>
+          {insightDesc}
         </TipsCard>
       </BentoGrid>
 
@@ -1102,169 +1158,185 @@ export default function WarisanPage() {
           }
         }}
       >
-        <DialogContent className="dialog--wide">
-          <DialogTitle>
-            {editing ? t.warisan.modalTitleEdit : t.warisan.addAssetButton}
-          </DialogTitle>
-          <DialogBody>
-            {/* EPIC-021 Group D (#11) — pick an existing Asset instead of
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {editing ? t.warisan.modalTitleEdit : t.warisan.addAssetButton}
+              </DialogTitle>
+            </div>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="wm-panel-body wm-form">
+              <div className="wm-form__grid">
+                {/* EPIC-021 Group D (#11) — pick an existing Asset instead of
                 manual re-entry; manual entry stays available. The prototype
                 folds both into a single "Aset" <select> whose last option is
                 "Tidak dihubungkan (catat manual)"; the app keeps the
                 explicit mode switch it already shipped and renders it with
                 the prototype's `.segmented` control. */}
-            {pickMode === "asset" && (
-              <div className="field">
-                <label className="label" htmlFor="warisan-asset">
-                  {t.warisan.fieldAssetLabel}
-                </label>
-                <select
-                  id="warisan-asset"
-                  aria-describedby="warisan-asset-hint"
-                  value={selectedAssetId}
-                  onChange={(e) => handlePickAsset(e.target.value)}
-                  className="select"
-                >
-                  <option value="">{t.warisan.assetPickerPlaceholder}</option>
-                  {pickableAssets.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({money.format(Number(BigInt(a.currentValue)))})
-                    </option>
-                  ))}
-                </select>
-                <span className="hint" id="warisan-asset-hint">
-                  {t.warisan.assetPickerHint}
-                </span>
-              </div>
-            )}
+                {pickMode === "asset" && (
+                  <div className="field">
+                    <label className="label" htmlFor="warisan-asset">
+                      {t.warisan.fieldAssetLabel}
+                    </label>
+                    <select
+                      id="warisan-asset"
+                      aria-describedby="warisan-asset-hint"
+                      value={selectedAssetId}
+                      onChange={(e) => handlePickAsset(e.target.value)}
+                      className="select"
+                    >
+                      <option value="">
+                        {t.warisan.assetPickerPlaceholder}
+                      </option>
+                      {pickableAssets.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} (
+                          {money.format(Number(BigInt(a.currentValue)))})
+                        </option>
+                      ))}
+                    </select>
+                    <span className="hint" id="warisan-asset-hint">
+                      {t.warisan.assetPickerHint}
+                    </span>
+                  </div>
+                )}
 
-            <div className="field">
-              <label className="label" htmlFor="warisan-name">
-                {t.warisan.fieldNameLabel}
-              </label>
-              <input
-                id="warisan-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t.warisan.fieldNamePlaceholder}
-                className="input"
-              />
-            </div>
+                <div className="field">
+                  <label className="label" htmlFor="warisan-name">
+                    {t.warisan.fieldNameLabel}
+                  </label>
+                  <input
+                    id="warisan-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t.warisan.fieldNamePlaceholder}
+                    className="input"
+                  />
+                </div>
 
-            {/* Prototype pairs Nilai Estimasi + Kategori 2-up
+                {/* Prototype pairs Nilai Estimasi + Kategori 2-up
                 (warisan.html:235). */}
-            <div className="field-row mt-3">
-              <div className="field mt-0">
-                <label className="label" htmlFor="warisan-value">
-                  {t.warisan.fieldValueLabel}
-                </label>
-                <MoneyInput field={valueField} id="warisan-value" />
-              </div>
-              <div className="field mt-0">
-                <label className="label" htmlFor="warisan-category">
-                  {t.warisan.fieldCategoryLabel}
-                </label>
-                <select
-                  id="warisan-category"
-                  value={assetType}
-                  onChange={(e) => setAssetType(e.target.value)}
-                  className="select"
-                >
-                  {ASSET_TYPE_OPTIONS.map((o) => (
-                    <option key={o}>{o}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                <div className="wm-form__grid">
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="warisan-value">
+                      {t.warisan.fieldValueLabel}
+                    </label>
+                    <MoneyInput field={valueField} id="warisan-value" />
+                  </div>
+                  <div className="field mt-0">
+                    <label className="label" htmlFor="warisan-category">
+                      {t.warisan.fieldCategoryLabel}
+                    </label>
+                    <select
+                      id="warisan-category"
+                      value={assetType}
+                      onChange={(e) => setAssetType(e.target.value)}
+                      className="select"
+                    >
+                      {ASSET_TYPE_OPTIONS.map((o) => (
+                        <option key={o}>{o}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
 
-            <div className="field">
-              <label className="label" htmlFor="warisan-notes">
-                {t.warisan.fieldNotesLabel}
-              </label>
-              <textarea
-                id="warisan-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                placeholder={t.warisan.fieldNotesPlaceholder}
-                className="textarea resize-none"
-              />
-            </div>
+                <div className="field">
+                  <label className="label" htmlFor="warisan-notes">
+                    {t.warisan.fieldNotesLabel}
+                  </label>
+                  <textarea
+                    id="warisan-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={2}
+                    placeholder={t.warisan.fieldNotesPlaceholder}
+                    className="textarea resize-none"
+                  />
+                </div>
 
-            {/* App-only field with no prototype counterpart — kept because it
+                {/* App-only field with no prototype counterpart — kept because it
                 already shipped, and labeled honestly as unavailable rather
                 than pretending to upload. */}
 
-            {/* polish-j batch 6 item 2 — switch first (left), label + hint
+                {/* polish-j batch 6 item 2 — switch first (left), label + hint
                 after (right), matching crud-modal.tsx's toggle branch and
                 Anggaran's/Liabilitas's visibility-style toggles. Was
                 label-left/switch-right (warisan.html:254's own layout),
                 the one deliberate deviation for this batch. */}
-            <div className="field">
-              <div className="row mt-3.5 gap-[9px]">
-                <Switch
-                  checked={visible}
-                  onCheckedChange={setVisible}
-                  aria-labelledby="warisan-visibility-label"
+                <div className="field">
+                  <div className="row mt-3.5 gap-[9px]">
+                    <Switch
+                      checked={visible}
+                      onCheckedChange={setVisible}
+                      aria-labelledby="warisan-visibility-label"
+                    />
+                    <span className="label m-0" id="warisan-visibility-label">
+                      {t.warisan.visibleToHeirsLabel}
+                    </span>
+                  </div>
+                </div>
+
+                {/* EPIC-021 Group D (#12) — heirs are optional; add/edit by
+                percentage with an allocation bar. */}
+                <HeirEditor
+                  rows={heirs}
+                  onChange={setHeirs}
+                  familyMembers={familyMembers}
+                  membersUnavailable={isFamilyMembersError}
+                  invalidRelationshipHeirIds={invalidRelationshipHeirIds}
                 />
-                <span className="label m-0" id="warisan-visibility-label">
-                  {t.warisan.visibleToHeirsLabel}
-                </span>
+
+                {/* Prototype's `notice notice--danger` save blocker
+                (warisan.html:341) — shown for the same condition the
+                client-side guard in `handleSave` blocks on. */}
+                {invalidRelationshipHeirIds.size > 0 && (
+                  <div className="notice notice--danger mt-3" role="alert">
+                    <CircleAlert
+                      className="size-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span>{t.warisan.toastHeirRelationshipRequired}</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* EPIC-021 Group D (#12) — heirs are optional; add/edit by
-                percentage with an allocation bar. */}
-            <HeirEditor
-              rows={heirs}
-              onChange={setHeirs}
-              familyMembers={familyMembers}
-              membersUnavailable={isFamilyMembersError}
-              invalidRelationshipHeirIds={invalidRelationshipHeirIds}
-            />
-
-            {/* Prototype's `notice notice--danger` save blocker
-                (warisan.html:341) — shown for the same condition the
-                client-side guard in `handleSave` blocks on. */}
-            {invalidRelationshipHeirIds.size > 0 && (
-              <div className="notice notice--danger mt-3" role="alert">
-                <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
-                <span>{t.warisan.toastHeirRelationshipRequired}</span>
-              </div>
-            )}
-          </DialogBody>
-
-          {/* Prototype `.dialog__footer`: Batal (outline) then the primary
+            {/* Prototype `.dialog__footer`: Batal (outline) then the primary
               save (warisan.html:352). */}
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setOpen(false);
-                setEditing(null);
-                resetForm();
-              }}
-            >
-              {t.common.cancel}
-            </Button>
-            <Button
-              type="button"
-              onClick={handleSave}
-              disabled={
-                createMutation.isPending ||
-                updateMutation.isPending ||
-                valueField.resolved.isPending
-              }
-            >
-              <Save className="size-4" />
-              {createMutation.isPending || updateMutation.isPending
-                ? t.warisan.savingLabel
-                : t.warisan.saveAssetButton}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+            <div className="wm-panel-foot">
+              <PillButton
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  setEditing(null);
+                  resetForm();
+                }}
+              >
+                {t.common.cancel}
+              </PillButton>
+              <PillButton
+                type="button"
+                variant="primary"
+                onClick={handleSave}
+                disabled={
+                  createMutation.isPending ||
+                  updateMutation.isPending ||
+                  valueField.resolved.isPending
+                }
+              >
+                {createMutation.isPending || updateMutation.isPending
+                  ? t.warisan.savingLabel
+                  : t.warisan.saveAssetButton}
+              </PillButton>
+            </div>
+          </div>
+        </PanelContent>
       </Dialog>
     </div>
   );

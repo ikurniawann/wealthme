@@ -1,3 +1,4 @@
+import { Pencil, Trash2 } from "lucide-react";
 import { SectionCard } from "@/components/wm";
 import { DonutChart } from "@/components/charts/apex-presets";
 import { useMoney } from "@/hooks/use-money";
@@ -9,6 +10,7 @@ import type {
   InvestmentType,
 } from "@wealthme/contracts";
 import { BarRow } from "../atoms";
+import "./sections-b.css";
 
 /* ───────────────────────── Section: Investasi ───────────────────────── */
 
@@ -69,20 +71,20 @@ export function InvSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="flex items-center justify-between">
-        <div className="text-[15px] font-bold">
-          {t.laporan.investasi.sectionTitle}
-        </div>
-        {onAdd && (
-          <button
-            onClick={onAdd}
-            className="rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
-          >
-            + {t.common.add}
-          </button>
-        )}
-      </div>
-      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+      <SectionCard
+        title={t.laporan.investasi.sectionTitle}
+        action={
+          onAdd && (
+            <button
+              onClick={onAdd}
+              className="rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+            >
+              + {t.common.add}
+            </button>
+          )
+        }
+        bodyClassName="grid grid-cols-1 gap-3.5 md:grid-cols-2"
+      >
         <div className="rounded-[12px] border bg-card p-4">
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.laporan.investasi.totalPortfolioLabel}
@@ -124,7 +126,7 @@ export function InvSection({
               : "—"}
           </div>
         </div>
-      </div>
+      </SectionCard>
       <SectionCard title={t.laporan.investasi.portfolioByTypeTitle}>
         {typeRows.length > 0 ? (
           <div className="grid items-center gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
@@ -214,23 +216,48 @@ export function InvSection({
                   const val = investmentCurrentValue(inv);
                   const ret = parseFloat(inv.returnRp ?? "0");
                   const typeLabel = t.laporan.investasi.typeLabels[inv.type];
+                  const typeColor = INV_TYPE_COLORS[inv.type];
                   return (
                     <tr key={inv.id} className="border-b last:border-0">
                       <td className="py-2.5">
-                        <div className="font-semibold">{inv.ticker}</div>
-                        <div className="text-[11px] text-muted-foreground">
-                          {inv.name}
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="flex size-8 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
+                            style={{
+                              background: `color-mix(in srgb, ${typeColor} 16%, transparent)`,
+                              color: typeColor,
+                            }}
+                            aria-hidden="true"
+                          >
+                            {inv.ticker.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold">
+                              {inv.ticker}
+                            </div>
+                            <div className="truncate text-[11px] text-muted-foreground">
+                              {inv.name}
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="py-2.5 text-[11px]">
-                        {typeLabel ?? inv.type}
+                      <td className="py-2.5">
+                        <span
+                          className="lpb-rate-pill"
+                          style={{
+                            background: `color-mix(in srgb, ${typeColor} 14%, transparent)`,
+                            color: typeColor,
+                          }}
+                        >
+                          {typeLabel ?? inv.type}
+                        </span>
                       </td>
-                      <td className="mono py-2.5">
+                      <td className="lpb-amt mono py-2.5">
                         {val > 0 ? money.format(val) : "—"}
                       </td>
                       <td
                         className={
-                          "mono py-2.5 " +
+                          "lpb-amt mono py-2.5 " +
                           (ret >= 0 ? "text-success" : "text-destructive")
                         }
                       >
@@ -240,21 +267,27 @@ export function InvSection({
                       </td>
                       {(onEdit ?? onDelete) && (
                         <td className="py-2.5">
-                          <div className="flex gap-2">
+                          <div className="flex justify-end gap-1.5">
                             {onEdit && (
                               <button
+                                type="button"
                                 onClick={() => onEdit(inv)}
-                                className="text-[11px] text-primary hover:underline"
+                                className="lpb-icon-btn"
+                                aria-label={t.laporan.investasi.editLink}
+                                title={t.laporan.investasi.editLink}
                               >
-                                {t.laporan.investasi.editLink}
+                                <Pencil size={13} />
                               </button>
                             )}
                             {onDelete && (
                               <button
+                                type="button"
                                 onClick={() => onDelete(inv)}
-                                className="text-[11px] text-destructive hover:underline"
+                                className="lpb-icon-btn lpb-icon-btn--danger"
+                                aria-label={t.common.delete}
+                                title={t.common.delete}
                               >
-                                {t.common.delete}
+                                <Trash2 size={13} />
                               </button>
                             )}
                           </div>

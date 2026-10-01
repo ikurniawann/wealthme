@@ -46,11 +46,11 @@
   }
   .lp-f .select {
     width: 100%;
-    min-height: 46px;
+    min-height: 42px;
     border: 1px solid var(--wm-line);
-    border-radius: 13px;
+    border-radius: 12px;
     background-color: var(--wm-card);
-    font-size: var(--wm-type-14);
+    font-size: var(--wm-type-13);
   }
   .lp-filter .notice {
     margin-top: 14px !important;
@@ -120,9 +120,9 @@
     margin: 0;
     padding: 10px 10px 4px;
     color: var(--wm-muted);
-    font-size: var(--wm-type-12);
+    font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }
   .lp-rep {
@@ -130,10 +130,11 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 44px;
-    padding: 6px 8px;
+    min-height: 36px;
+    padding: 4px 8px 4px 10px;
     border: 0;
-    border-radius: 12px;
+    border-left: 2px solid transparent;
+    border-radius: 10px;
     background: transparent;
     color: var(--wm-ink);
     font: inherit;
@@ -145,20 +146,21 @@
     display: grid;
     flex: none;
     place-items: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 9px;
+    width: 24px;
+    height: 24px;
+    border-radius: 8px;
     background: var(--wm-card-2);
     color: var(--wm-muted);
   }
   .lp-rep i svg {
-    width: 15px;
-    height: 15px;
+    width: 13px;
+    height: 13px;
   }
   .lp-rep:hover {
     background: var(--wm-card-2);
   }
   .lp-rep[aria-selected="true"] {
+    border-left-color: var(--wm-lime);
     background: var(--wm-lime-soft);
     font-weight: 600;
   }
@@ -200,12 +202,17 @@
   }
   .lp-crumb {
     display: flex;
-    flex-wrap: wrap;
+    flex: 1 1 auto;
+    flex-wrap: nowrap;
     align-items: center;
     gap: 6px;
+    min-width: 0;
     margin: 0;
+    overflow: hidden;
     color: var(--wm-muted);
     font-size: var(--wm-type-13);
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
   .lp-crumb b {
     color: var(--wm-ink);
@@ -246,20 +253,74 @@
     width: 15px;
     height: 15px;
   }
+  /* Honest export-type picker (Task 2) — a visible caption instead of a
+     bare select so it doesn't read as mirroring the active tab. */
+  .lp-export {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lp-export > span {
+    padding: 0 2px;
+    color: rgb(238 240 232 / 0.5);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+  .lp-export .lp-cbtn-select {
+    color: inherit;
+  }
+  .lp-cbtn-select {
+    appearance: none;
+    padding-right: 28px;
+    background-image:
+      linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position:
+      calc(100% - 14px) center,
+      calc(100% - 9px) center;
+    background-size:
+      5px 5px,
+      5px 5px;
+    background-repeat: no-repeat;
+  }
   .lp-headline {
     max-width: 24ch;
-    margin: 14px 0 0;
-    font-size: clamp(26px, 1.1rem + 1.6vw, 42px);
-    font-weight: 600;
+    margin: 22px 0 0;
+    font-size: clamp(28px, 1rem + 1.3vw, 40px);
+    font-weight: 700;
     letter-spacing: -0.04em;
-    line-height: 1.08;
+    line-height: 1.1;
   }
   .lp-headline em {
     color: #a9d84c;
     font-style: normal;
+    white-space: nowrap;
   }
   .dark .lp-headline em {
     color: var(--wm-lime);
+  }
+  /* Prototype's `.c-viz` — the trend chart embedded directly inside the
+     dark hero (above the legend chips), not a separate card below it.
+     HatchedBarChart measures its container via ResizeObserver and renders
+     an absolutely-positioned (inset: 0) SVG into it (see
+     `components/charts/bento-charts.tsx` `Frame`/`useBox`), so this wrapper
+     MUST be `position: relative` with an explicit height — exactly the
+     `.wm-chart-wrap` pattern in `app/bento.css` used by the rekening/
+     ringkasan hero charts. Without it the SVG positions against whatever
+     ancestor is actually positioned and renders unconstrained, spilling out
+     of the hero card over the sidebar and the cards below.
+  */
+  .lp-chart-wrap {
+    display: flex;
+    flex-direction: column;
+    margin-top: 20px;
+  }
+  .lp-chart-wrap-chart {
+    position: relative;
+    height: 140px;
+    overflow: hidden;
   }
   .lp-leg {
     display: flex;
@@ -291,8 +352,49 @@
     .lp-layout {
       grid-template-columns: minmax(0, 1fr);
     }
+    /* Task 4 — nav becomes a horizontal scroll chip row instead of the
+       sticky vertical index; the search box and group headers don't fit
+       that shape, so they drop out (the native `.lp-picker` select below
+       keeps find/group-by-name working on phones). */
     .lp-idx {
+      position: static;
+      max-height: none;
+      padding: 10px 10px 12px;
+      overflow: visible;
+    }
+    .lp-idx-h,
+    .lp-find,
+    .lp-grp h3 {
       display: none;
+    }
+    .lp-idx [role="tablist"] {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .lp-grp {
+      display: flex;
+      flex: none;
+      gap: 6px;
+      margin-top: 0;
+    }
+    .lp-rep {
+      flex: none;
+      width: auto;
+      min-height: 32px;
+      padding: 0 12px;
+      border-left: 0;
+      border-radius: 999px;
+      background: var(--wm-card-2);
+      white-space: nowrap;
+    }
+    .lp-rep i {
+      display: none;
+    }
+    .lp-rep[aria-selected="true"] {
+      border-left: 0;
     }
     .lp-picker {
       display: flex;
@@ -308,6 +410,10 @@
     .lp-cbtn {
       flex: 1;
       justify-content: center;
+    }
+    .lp-headline {
+      font-size: 28px;
+      max-width: 22ch;
     }
   }
 }
@@ -429,6 +535,27 @@
 }
 .lp-act[data-last] {
   border-bottom: 0;
+}
+/* "Dibanding bulan lalu" change badges — prototype's `.chg.up`/`.chg.dn`. */
+.lp-chg {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.lp-chg[data-tone="up"] {
+  background: var(
+    --success-soft,
+    color-mix(in oklab, var(--success) 14%, transparent)
+  );
+  color: var(--success);
+}
+.lp-chg[data-tone="down"] {
+  background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  color: var(--destructive);
 }
 @media (max-width: 720px) {
   .lp-bar {

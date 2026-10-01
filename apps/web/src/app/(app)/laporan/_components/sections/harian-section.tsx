@@ -1,9 +1,10 @@
-import { DateField, SectionCard } from "@/components/wm";
+import { BentoCard, BentoTile, BentoTiles } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { DetailReportDto } from "@wealthme/contracts";
-import { formatLocaleDateLong, formatLocaleTime } from "../date-helpers";
-import { ActItem, StatTile } from "../atoms";
+import { formatLocaleTime } from "../date-helpers";
+import { ActItem } from "../atoms";
+import "./sections-a.css";
 
 /* ───────────────────────── Section: Harian ───────────────────────── */
 
@@ -21,13 +22,14 @@ const TX_ICON_BG: Record<string, string> = {
 export function HarianSection({
   dailyReport,
   isLoading,
-  date,
-  onDateChange,
 }: {
   dailyReport?: DetailReportDto;
   isLoading?: boolean;
-  date: string;
-  onDateChange: (d: string) => void;
+  // The hero (laporan-inner.tsx) owns the single day picker for this tab —
+  // kept here only so callers that still pass it (laporan-inner.tsx's
+  // switch) type-check; this component renders no date control of its own.
+  date?: string;
+  onDateChange?: (d: string) => void;
 }) {
   const { t, locale } = useLocale();
   const money = useMoney();
@@ -37,44 +39,50 @@ export function HarianSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[15px] font-bold">
-          {t.laporan.harian.titlePrefix}{" "}
-          {formatLocaleDateLong(`${date}T00:00:00`, locale)}
-        </div>
-        <DateField
-          value={date}
-          locale={locale}
-          label={t.laporan.harian.dateLabel}
-          required
-          onChange={onDateChange}
-        />
-      </div>
-      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-        <StatTile
-          label={t.laporan.harian.incomeTodayLabel}
-          value={dailyReport ? money.format(dailyReport.totalIncome) : "Rp ·"}
-          valueClass="text-success"
-        />
-        <StatTile
-          label={t.laporan.harian.expenseTodayLabel}
-          value={dailyReport ? money.format(dailyReport.totalExpense) : "Rp ·"}
-          valueClass="text-destructive"
-        />
-        <StatTile
-          label={t.laporan.harian.netDailyLabel}
+      <BentoTiles>
+        <BentoTile
+          title={t.laporan.harian.incomeTodayLabel}
           value={
-            dailyReport ? `${net >= 0 ? "+" : ""}${money.format(net)}` : "Rp ·"
+            <span
+              className="lap-a-kpi-value"
+              style={{ color: "var(--wm-lime)" }}
+            >
+              {dailyReport ? money.format(dailyReport.totalIncome) : "Rp ·"}
+            </span>
           }
-          valueClass={net >= 0 ? "text-success" : "text-destructive"}
         />
-        <StatTile
-          label={t.laporan.harian.txnCountLabel}
+        <BentoTile
+          title={t.laporan.harian.expenseTodayLabel}
+          value={
+            <span
+              className="lap-a-kpi-value"
+              style={{ color: "var(--wm-orange)" }}
+            >
+              {dailyReport ? money.format(dailyReport.totalExpense) : "Rp ·"}
+            </span>
+          }
+        />
+        <BentoTile
+          title={t.laporan.harian.netDailyLabel}
+          value={
+            <span
+              className="lap-a-kpi-value"
+              style={{
+                color: net >= 0 ? "var(--wm-lime)" : "var(--wm-orange)",
+              }}
+            >
+              {dailyReport
+                ? `${net >= 0 ? "+" : ""}${money.format(net)}`
+                : "Rp ·"}
+            </span>
+          }
+        />
+        <BentoTile
+          title={t.laporan.harian.txnCountLabel}
           value={dailyReport ? String(dailyReport.count) : "—"}
-          valueClass="text-primary"
         />
-      </div>
-      <SectionCard title={t.laporan.harian.txnTodayTitle}>
+      </BentoTiles>
+      <BentoCard title={t.laporan.harian.txnTodayTitle}>
         {dailyReport && dailyReport.transactions.length > 0 ? (
           dailyReport.transactions.map((tx, i) => {
             const isIncome = tx.type === "income";
@@ -94,7 +102,7 @@ export function HarianSection({
                 right={
                   <div
                     className={
-                      "text-[13px] font-bold " +
+                      "lap-a-amt text-[13px] font-bold " +
                       (isTransfer
                         ? "text-muted-foreground"
                         : isIncome
@@ -111,11 +119,12 @@ export function HarianSection({
             );
           })
         ) : (
-          <div className="py-4 text-center text-[12px] text-muted-foreground">
-            {t.laporan.harian.emptyToday}
+          <div className="lap-a-empty">
+            <b>{t.laporan.harian.emptyToday}</b>
+            <span>{t.laporan.harian.emptyTodayHint}</span>
           </div>
         )}
-      </SectionCard>
+      </BentoCard>
     </div>
   );
 }

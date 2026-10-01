@@ -10,16 +10,20 @@
       grid-row: 1;
     }
     .dn-grid > .dn-cash {
-      grid-column: 1 / 9;
+      grid-column: 1 / 5;
       grid-row: 2;
     }
     .dn-grid > .dn-ew {
-      grid-column: 1 / 9;
-      grid-row: 3;
+      grid-column: 5 / 9;
+      grid-row: 2;
     }
     .dn-grid > .dn-tip {
       grid-column: 9 / 13;
-      grid-row: 2 / span 2;
+      grid-row: 2;
+    }
+    .dn-grid > .dn-mut {
+      grid-column: 1 / 13;
+      grid-row: 3;
     }
   }
   .dn-grid > * {
@@ -40,71 +44,160 @@
   .dn-tip {
     align-content: start;
   }
-  .dn-wallets {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 18px;
-  }
-  .dn-wallet {
+  /* EPIC-033/dana-redesign — Tunai/E-Wallet restyled from "physical card"
+     tiles to simple rows (docs/design/proto/dana.html `.wrow`): icon chip +
+     name + owner pill, amount + meta underneath. */
+  .dn-rows {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    min-width: 0;
   }
-  .dn-wallet .wm-plate {
-    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .dn-wallet:hover .wm-plate {
-    transform: translateY(-3px) rotate(-0.4deg);
-  }
-  .dn-wallet-meta {
-    color: var(--wm-muted);
-    font-size: var(--wm-type-12);
-    padding: 0 4px;
-  }
-  .dn-wallet-acts {
+  .dn-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 12px;
+    padding: 11px 4px;
+    border-top: 1px solid var(--wm-line);
+    border-radius: 10px;
+    min-width: 0;
   }
-  .dn-wallet-btn,
-  .dn-wallet-icon {
+  .dn-row:first-child {
+    border-top: 0;
+  }
+  .dn-row:hover {
+    background: var(--wm-card-2);
+  }
+  .dn-row-ic {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    color: #fff;
+  }
+  .dn-row-ic svg {
+    width: 17px;
+    height: 17px;
+  }
+  .dn-row-body {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .dn-row-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .dn-row-top b {
+    font-size: var(--wm-type-13);
+    font-weight: 500;
+    color: var(--wm-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .dn-row-top small {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .dn-row-amt {
+    flex: none;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    color: var(--wm-ink);
+  }
+  .dn-row-amt[data-negative] {
+    color: var(--wm-bad);
+  }
+  .dn-row-owner {
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--wm-card-2);
+    color: var(--wm-muted);
+    border-radius: 99px;
+    padding: 2px 7px;
+    flex: none;
+  }
+  .dn-row-owner[data-shared] {
+    background: color-mix(in srgb, var(--wm-lime) 25%, transparent);
+    color: var(--wm-ink);
+  }
+  .dn-row-acts {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .dn-row:hover .dn-row-acts,
+  .dn-row:focus-within .dn-row-acts {
+    opacity: 1;
+  }
+  .dn-row-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    min-height: 38px;
+    width: 30px;
+    height: 30px;
     border: 1px solid var(--wm-line);
-    border-radius: 12px;
+    border-radius: 9px;
     background: var(--wm-card);
     color: var(--wm-ink);
-    font-size: var(--wm-type-13);
-    font-weight: 600;
     cursor: pointer;
   }
-  .dn-wallet-btn {
-    flex: 1;
-    padding: 0 12px;
-  }
-  .dn-wallet-icon {
-    width: 38px;
-  }
-  .dn-wallet-btn[data-lit] {
-    border-color: var(--wm-lime);
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
-  }
-  .dn-wallet-btn:hover,
-  .dn-wallet-icon:hover {
+  .dn-row-btn:hover {
     background: var(--wm-card-2);
   }
-  .dn-wallet-btn[data-lit]:hover {
-    background: var(--wm-lime);
-    filter: brightness(1.04);
-  }
-  .dn-wallet-btn svg,
-  .dn-wallet-icon svg {
+  .dn-row-btn svg {
     width: 15px;
     height: 15px;
+  }
+
+  /* "+ Tambah" per-section header button — small outline, not filled. */
+  .dn-add-btn {
+    border-radius: 999px;
+    border: 1px solid var(--wm-line);
+    background: transparent;
+    padding: 5px 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--wm-ink);
+  }
+  .dn-add-btn:hover {
+    background: var(--wm-card-2);
+  }
+
+  .dn-tip-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--wm-type-13);
+    font-weight: 700;
+    color: var(--wm-ink);
+  }
+  .dn-tip-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Relocated "saldo kas boleh minus" notice (previously the dn-tip card,
+     now occupied by "Kartu & bank di tempat lain" to match the proto). */
+  .dn-saldo-note {
+    font-size: var(--wm-type-13);
+    color: var(--wm-muted);
+    line-height: 1.5;
+    padding: 2px 2px 0;
+  }
+  .dn-saldo-note b {
+    color: var(--wm-ink);
   }
 }

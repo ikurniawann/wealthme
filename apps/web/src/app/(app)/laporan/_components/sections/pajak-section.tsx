@@ -1,9 +1,11 @@
+import { Receipt } from "lucide-react";
 import { SectionCard } from "@/components/wm";
 import { formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import type { Pph21ResultDto } from "@wealthme/contracts";
 import { StatementRow, StatTile } from "../atoms";
 import { PajakFinalCard } from "./pajak-final-card";
+import "./sections-b.css";
 
 /* ───────────────────────── Section: Pajak ───────────────────────── */
 
@@ -22,9 +24,10 @@ export function PajakSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">{t.laporan.pajak.title}</div>
-
-      <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
+      <SectionCard
+        title={t.laporan.pajak.title}
+        bodyClassName="grid grid-cols-2 gap-3.5 md:grid-cols-4"
+      >
         <StatTile
           label={t.laporan.pajak.grossYearLabel}
           value={grossIncome != null ? formatRupiah(grossIncome) : "Rp ·"}
@@ -43,7 +46,7 @@ export function PajakSection({
           value={pph21 ? `${(pph21.effectiveRate * 100).toFixed(2)}%` : "—"}
           valueClass="text-primary"
         />
-      </div>
+      </SectionCard>
 
       <SectionCard title={t.laporan.pajak.calcTitle}>
         <table className="w-full border-collapse text-[13px]">
@@ -107,7 +110,11 @@ export function PajakSection({
                     <td className="mono py-2.5">
                       {formatRupiah(b.taxableAmount)}
                     </td>
-                    <td className="py-2.5">{(b.rate * 100).toFixed(0)}%</td>
+                    <td className="py-2.5">
+                      <span className="lpb-rate-pill">
+                        {(b.rate * 100).toFixed(0)}%
+                      </span>
+                    </td>
                     <td className="mono py-2.5 text-right text-destructive">
                       {formatRupiah(b.tax)}
                     </td>
@@ -134,7 +141,10 @@ export function PajakSection({
       )}
 
       <div className="flex items-start gap-3 rounded-[12px] border border-primary/20 bg-accent p-3.5">
-        <div className="text-[20px]">🧾</div>
+        <Receipt
+          className="mt-0.5 size-5 shrink-0 text-primary"
+          aria-hidden="true"
+        />
         <div className="flex-1 text-[12px] text-muted-foreground">
           {t.laporan.pajak.estimateNoteBefore}{" "}
           <strong>{t.laporan.pajak.estimateNoteBold}</strong>{" "}

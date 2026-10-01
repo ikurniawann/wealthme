@@ -1,4 +1,28 @@
 @layer components {
+  /* `.r-hero` top-right controls (currency seg + range select + privacy) —
+     compact single row, sitting inside the hero instead of a page header. */
+  .rk2-hero-ctrl-row {
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* `#hMonthDelta` + `#multiCur` — delta pill then the indicative multicur
+     line, stacked under the "Total Kekayaan Bersih" caption text. */
+  .rk2-hero-cap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .rk2-hero-delta {
+    margin-top: 2px;
+  }
+  .rk2-hero-multicur {
+    font-size: 12px;
+    color: var(--wm-muted);
+  }
+
   .rk2-top {
     display: grid;
     grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
@@ -27,5 +51,102 @@
   /* narrow side slot: IDR / USD / gram stack as rows instead of three cramped columns */
   .rk2-side .sm\:grid-cols-3 {
     grid-template-columns: 1fr;
+  }
+}
+
+@layer components {
+  /* prototype `ringkasan.html` grid below the hero: `.r-cash`(1/5) + `.r-top`
+     (5/9) share a row, `.r-health`(1/9) + `.r-liab`(9/13) share the next,
+     then `.r-breakdown` spans the full width on its own row. */
+  .rk2-grid > .rk2-cash {
+    grid-column: 1 / 9;
+  }
+  .rk2-grid > .rk2-topexp {
+    grid-column: 9 / 13;
+  }
+  .rk2-grid > .rk2-health {
+    grid-column: 1 / 6;
+  }
+  .rk2-grid > .rk2-liab {
+    grid-column: 6 / 13;
+  }
+  .rk2-cash-chart {
+    position: relative;
+    height: 210px;
+    margin-top: 14px;
+  }
+  .rk2-cash-chart > * {
+    position: absolute;
+    inset: 0;
+  }
+  .rk2-cash-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 16px 0 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--wm-line);
+  }
+  .rk2-cash-stats dt {
+    color: var(--wm-muted);
+    font-size: 12px;
+  }
+  .rk2-cash-stats dd {
+    margin: 4px 0 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  @media (max-width: 640px) {
+    .rk2-cash-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .rk2-grid > .rk2-breakdown {
+    grid-column: 1 / -1;
+  }
+  @media (max-width: 1180px) {
+    .rk2-grid > * {
+      grid-column: 1 / -1 !important;
+    }
+  }
+
+  /* `.r-health` — gauge beside the score/status/notice column, matching the
+     prototype's `.health-body` / `.health-stat`. */
+  .rk2-health-body {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 8px;
+  }
+  .rk2-health-gauge {
+    flex: none;
+    width: 200px;
+  }
+  .rk2-health-gauge .wm-gauge {
+    margin: 0;
+  }
+  @media (max-width: 520px) {
+    .rk2-health-body {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .rk2-health-gauge {
+      width: 100%;
+    }
+  }
+  .rk2-health-stat {
+    flex: 1;
+    min-width: 170px;
+  }
+  /* `.hs-score` — the big standalone score number beside the gauge, per
+     prototype `.health-stat .hs-score { font-size: 40px; font-weight: 700 }`. */
+  .rk2-health-score {
+    font-size: 44px;
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
   }
 }

@@ -22,16 +22,19 @@
     display: inline-grid;
     place-items: center;
     flex: none;
-    width: 56px;
-    height: 56px;
+    width: 64px;
+    height: 64px;
     border-radius: 999px;
     background: color-mix(in srgb, currentColor 18%, transparent);
-    font-size: 20px;
+    font-size: 24px;
+    font-weight: 700;
+    /* akun.html `.ak-av` — a soft ring around the hero avatar. */
+    box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 14%, transparent);
   }
   .ak-name {
     min-width: 0;
     overflow-wrap: anywhere;
-    font-size: clamp(22px, 3vw, 32px);
+    font-size: clamp(24px, 3vw, 34px);
   }
   .ak-meta {
     display: flex;
@@ -45,10 +48,366 @@
   .ak-role {
     padding: 1px 8px;
     border-radius: 999px;
-    background: color-mix(in srgb, currentColor 18%, transparent);
+    /* Prototype `.card.dark .ak-meta .pill` — a lime-tinted pill, not a
+       plain currentColor tint (the hero is always dark, regardless of the
+       app's light/dark theme). */
+    background: rgba(169, 216, 76, 0.18);
+    color: #c9e88e;
     font-size: var(--wm-type-12);
+    font-weight: 600;
   }
   .ak-since {
     opacity: 0.75;
+  }
+
+  /* "Kelengkapan profil" progress block — prototype `.ak-prog`/`.ak-steps`
+     (akun.html). Rendered in the hero's chart slot, so it inherits the dark
+     hero's text color via currentColor/opacity instead of its own palette. */
+  .ak-prog {
+    margin-top: auto;
+    padding-top: 28px;
+  }
+  .ak-prog-h {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+  .ak-prog-h b {
+    font-weight: 600;
+  }
+  .ak-prog-num {
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+  }
+  .ak-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .ak-step {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+    opacity: 0.65;
+  }
+  .ak-step i {
+    height: 10px;
+    border-radius: 5px;
+    background: color-mix(in srgb, currentColor 14%, transparent);
+  }
+  .ak-step.on {
+    opacity: 1;
+  }
+  .ak-step.on i {
+    background: var(--primary);
+  }
+  @media (max-width: 720px) {
+    .ak-step span {
+      display: none;
+    }
+  }
+
+  /* Tabs — prototype `.qtabs` (docs/design/proto/akun.html #tabs): a
+     compact segmented control that is the FIRST element inside the single
+     outer content card (`.ak-content-card`), not a separate card of its
+     own. */
+  .ak-content-card > .card__body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .ak-tabs {
+    width: auto;
+    max-width: 420px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ak-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .ak-tabs button {
+    flex: none;
+    min-width: 90px;
+  }
+  @media (max-width: 560px) {
+    .ak-tabs {
+      max-width: 100%;
+    }
+  }
+
+  /* Inner card-in-card sections nested inside `.ak-content-card` — prototype
+     `.card.soft` (flat `--card-2` fill, no shadow). */
+  .ak-content-card .ak-soft-card {
+    border-color: transparent;
+    background: var(--wm-card-2);
+    box-shadow: none;
+  }
+  .ak-tabs button[aria-selected="true"] {
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    box-shadow: var(--wm-shadow);
+    font-weight: 600;
+  }
+
+  /* Bahasa segmented control — prototype `.seg.full`: spans the full width
+     of its card instead of the default inline-flex, content-width size. */
+  .ak-seg-full {
+    display: flex;
+    width: 100%;
+  }
+  .ak-seg-full button {
+    flex: 1;
+  }
+
+  /* Password & PIN tiles — prototype `.set-tile`/`.set-tiles`. */
+  .ak-set-tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+  .ak-set-tile {
+    border: 0;
+    background: var(--secondary);
+    border-radius: 16px;
+    padding: 14px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-height: 88px;
+  }
+  .ak-set-tile:hover {
+    background: var(--accent);
+  }
+  .ak-set-tile-ci {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    background: var(--card);
+    display: grid;
+    place-items: center;
+  }
+  .ak-set-tile b {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .ak-set-tile small {
+    color: var(--muted-foreground);
+    font-size: 11px;
+  }
+
+  /* Currency tile grid — prototype `.currency-tile` / `.pref-tiles`. */
+  .ak-currency-tiles {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ak-currency-tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    border-radius: 13px;
+    padding: 12px 14px;
+    text-align: left;
+    transition: border-color 0.15s ease;
+  }
+  .ak-currency-tile[aria-checked="true"] {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, var(--card));
+  }
+  .ak-currency-flag {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1;
+    display: grid;
+    place-items: center;
+    min-width: 24px;
+    flex: none;
+  }
+  .ak-currency-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    margin-top: 2px;
+    overflow: hidden;
+    color: var(--muted-foreground);
+    font-size: 11.5px;
+    line-height: 1.3;
+    white-space: normal;
+    word-break: break-word;
+  }
+  .ak-hero .wm-chart-wrap {
+    flex: none;
+    min-height: 0;
+  }
+  .ak-currency-ck {
+    margin-left: auto;
+    color: var(--success, #16a34a);
+    font-weight: 700;
+  }
+
+  /* Danger row — prototype `.danger-zone`: the destructive action gets a
+     visibly distinct, red-tinted treatment instead of a plain list row. */
+  .ak-danger-row {
+    border: 1.5px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+    border-radius: 12px;
+    padding: 0 12px;
+    background: color-mix(in srgb, var(--destructive) 4%, transparent);
+  }
+  .ak-danger-row button {
+    border-bottom: 0 !important;
+  }
+
+  /* Preferensi — Bahasa segmented control and Tema tile row (prototype
+     `.seg`/`.pref-tiles`). */
+  .ak-lang-seg button[aria-checked="true"] {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  .ak-pref-tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .ak-pref-tile {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    border-radius: 13px;
+    padding: 12px 14px;
+    text-align: left;
+    transition: border-color 0.15s ease;
+  }
+  .ak-pref-tile[aria-checked="true"] {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 10%, var(--card));
+  }
+  @media (max-width: 560px) {
+    .ak-pref-tiles {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* Profil tab "Lengkapi profil kamu" notice — prototype `#stepperBox`. */
+  .ak-mini-steps {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .ak-mini-steps i {
+    display: block;
+    height: 6px;
+    border-radius: 4px;
+    background: var(--secondary);
+  }
+  .ak-mini-steps i.on {
+    background: var(--primary);
+  }
+
+  /* Zona berbahaya — prototype `.card.danger-zone`. */
+  .ak-zona {
+    border-color: color-mix(in srgb, var(--destructive) 45%, var(--border));
+    background: color-mix(in srgb, var(--destructive) 4%, transparent);
+  }
+
+  /* Logout — prototype `.btn.danger.block`: a solid destructive fill, not
+     an outline. */
+  .ak-logout-btn {
+    background: var(--destructive);
+    color: #fff;
+  }
+  .ak-logout-btn:hover {
+    background: color-mix(in srgb, var(--destructive) 88%, black);
+  }
+}
+
+@layer components {
+  @media (max-width: 1280px) {
+    .ak-currency-tiles {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 560px) {
+    .ak-currency-tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  /* toggle rows sit directly in their card — no second bordered box */
+  .ak-toggle-list > div {
+    border-color: var(--wm-line);
+  }
+  .ak-set-tiles--row {
+    grid-template-columns: 1fr;
+  }
+  .ak-set-tiles--row .ak-set-tile {
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 16px;
+    background: var(--wm-card);
+  }
+  .ak-set-tiles--row .ak-set-tile > span:last-child {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .ak-content-card .ak-soft-card .ak-set-tile {
+    background: var(--wm-card);
+  }
+}
+
+@layer components {
+  /* Irreversible: compact, outlined red — reads as dangerous, not primary. */
+  .ak-danger-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 18px;
+    border: 1.5px solid var(--wm-bad);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--wm-bad);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s;
+  }
+  .ak-danger-btn:hover {
+    background: color-mix(in srgb, var(--wm-bad) 12%, transparent);
+  }
+  /* Everyday exit: full-width neutral, no alarm colour. */
+  .ak-signout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    min-height: 48px;
+    border: 1.5px solid var(--wm-line);
+    border-radius: 999px;
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color 0.15s,
+      border-color 0.15s;
+  }
+  .ak-signout-btn:hover {
+    border-color: var(--wm-muted);
   }
 }

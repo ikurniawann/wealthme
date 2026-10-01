@@ -182,19 +182,19 @@ function LaporanCetakContent() {
         <div className="cetak-kpi">
           <div className="cetak-kpi-label">Pemasukan</div>
           <div className="cetak-kpi-value cetak-kpi-positive">
-            {formatRupiah(summary.totalIncome)}
+            {formatRupiah(summary.totalIncome ?? 0)}
           </div>
         </div>
         <div className="cetak-kpi">
           <div className="cetak-kpi-label">Pengeluaran</div>
           <div className="cetak-kpi-value cetak-kpi-negative">
-            {formatRupiah(summary.totalExpense)}
+            {formatRupiah(summary.totalExpense ?? 0)}
           </div>
         </div>
         <div className="cetak-kpi">
           <div className="cetak-kpi-label">Tabungan Bersih</div>
           <div className="cetak-kpi-value">
-            {formatRupiah(summary.netSavings)}
+            {formatRupiah(summary.netSavings ?? 0)}
           </div>
         </div>
         <div className="cetak-kpi">

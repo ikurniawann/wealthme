@@ -176,10 +176,12 @@ describe("MasterCoaPage, COA code auto-gen + editable (EPIC-021 #4)", () => {
     mockCoaRoutes([buildAccount()]);
     const user = userEvent.setup();
     render(<MasterCoaPage />);
-    await screen.findByText("Belanja");
+    await screen.findAllByText("Belanja");
 
-    // Act
-    await user.click(screen.getByRole("button", { name: "Tambah Akun" }));
+    // Act — the bento port (docs/design/proto/mastercoa.html) renders the
+    // "Tambah Akun" control twice: the hero control and the tile grid's add
+    // tile; either opens the same add form.
+    await user.click(screen.getAllByRole("button", { name: "Tambah Akun" })[0]);
     const dialog = within(await screen.findByRole("dialog"));
     expect(
       dialog.getByRole("heading", { name: "Tambah Akun COA" }),
@@ -212,10 +214,11 @@ describe("MasterCoaPage, COA code auto-gen + editable (EPIC-021 #4)", () => {
     mockCoaRoutes([buildAccount({ id: "coa-1", code: "20001" })]);
     const user = userEvent.setup();
     render(<MasterCoaPage />);
-    await screen.findByText("Belanja");
+    await screen.findAllByText("Belanja");
 
-    // Act
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    // Act — the bento port's account tile is itself the edit trigger
+    // (docs/design/proto/mastercoa.html .btile), no separate "Edit" icon.
+    await user.click(screen.getByRole("button", { name: /^20001/ }));
     const dialog = within(await screen.findByRole("dialog"));
     expect(
       dialog.getByRole("heading", { name: "Edit Akun COA" }),
@@ -268,10 +271,10 @@ describe("MasterCoaPage, COA code auto-gen + editable (EPIC-021 #4)", () => {
     );
     const user = userEvent.setup();
     render(<MasterCoaPage />);
-    await screen.findByText("Belanja");
+    await screen.findAllByText("Belanja");
 
     // Act
-    await user.click(screen.getByRole("button", { name: "Tambah Akun" }));
+    await user.click(screen.getAllByRole("button", { name: "Tambah Akun" })[0]);
     const dialog = within(await screen.findByRole("dialog"));
     await user.type(
       dialog.getByPlaceholderText("Otomatis jika dikosongkan"),
@@ -309,10 +312,14 @@ describe("MasterCoaPage, plain-language guide (EPIC-023 H2)", () => {
   });
 
   it("states the risk of editing the COA incorrectly, and explains why groups 4/5 are transfers", async () => {
-    // Arrange
+    // Arrange — EPIC-033 reviewer fix round: the guide is a dialog opened
+    // from the hero's "Panduan" button (docs/design/proto/mastercoa.html
+    // #btnGuide), not a permanent inline row.
+    const user = userEvent.setup();
     mockCoaRoutes([buildAccount()]);
     render(<MasterCoaPage />);
-    await screen.findByText("Belanja");
+    await screen.findAllByText("Belanja");
+    await user.click(screen.getByRole("button", { name: "Panduan" }));
 
     // Assert — the risk (D18) is stated plainly, not buried.
     expect(screen.getByText("Risiko kalau salah edit")).toBeInTheDocument();
@@ -333,9 +340,11 @@ describe("MasterCoaPage, plain-language guide (EPIC-023 H2)", () => {
 
   it("gives every one of the 6 groups a worked example with concrete numbers", async () => {
     // Arrange
+    const user = userEvent.setup();
     mockCoaRoutes([buildAccount()]);
     render(<MasterCoaPage />);
-    await screen.findByText("Belanja");
+    await screen.findAllByText("Belanja");
+    await user.click(screen.getByRole("button", { name: "Panduan" }));
 
     // Assert — each group has its own plain-language title and example.
     expect(screen.getByText("1 · Pemasukan (Income)")).toBeInTheDocument();
@@ -360,9 +369,11 @@ describe("MasterCoaPage, plain-language guide (EPIC-023 H2)", () => {
     // Arrange — SectionCard's own `title` div (components/wm, protected)
     // has no heading semantics; the guide passes a real <h2>/<h3> INTO it
     // instead of editing the protected component.
+    const user = userEvent.setup();
     mockCoaRoutes([buildAccount()]);
     render(<MasterCoaPage />);
-    await screen.findByText("Belanja");
+    await screen.findAllByText("Belanja");
+    await user.click(screen.getByRole("button", { name: "Panduan" }));
 
     expect(
       screen.getByRole("heading", { name: "Apa itu Master COA?" }),

@@ -1,0 +1,212 @@
+/* ───────────────────────── sections-b.css ─────────────────────────
+ * Styling for the "group B" report tabs (detail, pnl, cashflow, kas,
+ * balance, asl, inv, pajak, coa). Scoped to this new file per the task
+ * brief — laporan.css stays owned by the other half of the pass.
+ */
+
+/* KPI strip shared by detail/pnl/cashflow (in / out / net at a glance). */
+.lpb-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+@media (max-width: 760px) {
+  .lpb-kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.lpb-kpi {
+  border-radius: 10px;
+  background: var(--muted);
+  padding: 10px 12px;
+}
+.lpb-kpi-l {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted-foreground);
+}
+.lpb-kpi-v {
+  margin-top: 2px;
+  font-size: 18px;
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ledger table (Detail tab). */
+.lpb-ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+.lpb-ledger thead tr {
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  color: var(--muted-foreground);
+}
+.lpb-ledger th {
+  padding: 8px 10px 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.lpb-ledger td {
+  padding: 10px 10px 10px 0;
+  vertical-align: middle;
+}
+.lpb-ledger tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background-color 120ms ease;
+}
+.lpb-ledger tbody tr:last-child {
+  border-bottom: 0;
+}
+.lpb-ledger tbody tr:hover {
+  background: var(--muted);
+}
+.lpb-ledger-desc {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.lpb-cat-dot {
+  height: 8px;
+  width: 8px;
+  flex-shrink: 0;
+  border-radius: 999px;
+}
+.lpb-ledger-desc-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lpb-ledger-cat {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.lpb-amt {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Statement cards (PNL / cashflow). */
+.lpb-statement-group {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.lpb-statement-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 6px 0;
+}
+.lpb-statement-row + .lpb-statement-row {
+  border-top: 1px dashed var(--border);
+}
+.lpb-statement-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+}
+.lpb-statement-value {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-size: 12.5px;
+}
+.lpb-statement-track {
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--muted);
+}
+.lpb-statement-track-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+.lpb-statement-subtotal {
+  border-top: 2px solid var(--border);
+  margin-top: 4px;
+  padding-top: 8px;
+  font-weight: 800;
+}
+.lpb-statement-net {
+  margin-top: 10px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 2px solid var(--primary);
+  padding-top: 12px;
+}
+.lpb-statement-net-label {
+  font-size: 13px;
+  font-weight: 800;
+}
+.lpb-statement-net-value {
+  font-size: 20px;
+  font-weight: 900;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Composition card (Balance / ASL). */
+.lpb-composition {
+  margin-top: 10px;
+  display: flex;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--muted);
+}
+.lpb-composition-seg {
+  height: 100%;
+}
+
+/* Table row action icon buttons (Investasi). */
+.lpb-icon-btn {
+  display: inline-flex;
+  height: 26px;
+  width: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+.lpb-icon-btn:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.lpb-icon-btn--danger:hover {
+  color: var(--destructive);
+  border-color: var(--destructive);
+}
+
+/* Rate pill (Pajak bracket table). */
+.lpb-rate-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--muted);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

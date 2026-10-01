@@ -2,10 +2,20 @@
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Share2 } from "lucide-react";
+import {
+  AlertTriangle,
+  FileText,
+  Heart,
+  Home,
+  LineChart,
+  Share2,
+  Target,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
-import { BentoCard, BentoGrid, SectionCard } from "@/components/wm";
+import { BentoCard, BentoGrid, MoneyInput } from "@/components/wm";
 import "./kalkulator.css";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,6 +82,17 @@ const TAB_KEYS: TabKey[] = [
   "splitgroup",
 ];
 
+// Proto (kalkulator.html CALCS[].icon) — heart/file/chart/home/target/wallet/split.
+const TAB_ICONS: Record<TabKey, LucideIcon> = {
+  zakat: Heart,
+  pph21: FileText,
+  investasi: LineChart,
+  kredit: Home,
+  pensiun: Target,
+  tabungan: Wallet,
+  splitgroup: Share2,
+};
+
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
@@ -83,21 +104,55 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/* EPIC-025 N3 fidelity follow-up — every calculator now pairs its input
-   card with a dedicated "Hasil" card (prototype's `grid--sidebar` 2-col
-   layout). Kept as tabs (one calculator visible at a time) rather than
-   stacking all calculators on one page: the prototype ALSO shows one panel
-   at a time (`.calc-panel[hidden]` toggled by its own tab bar) — only the
-   result placement (separate card vs inline) differed from the live app. */
-function CalcLayout({ input, hasil }: { input: ReactNode; hasil: ReactNode }) {
-  // EPIC-026 Wave 4 — prototype's `grid--sidebar` is 2fr/1fr
-  // (app.css:748), not equal halves.
+/* EPIC-029 proto-parity pass — ported from the prototype's 3-card
+   `.bento` layout (kalkulator.html): a full-width `.k-picker` tile grid
+   on top, then `.k-form` (8/12, light) + `.k-hero` (4/12, dark) side by
+   side. Kept as tabs (one calculator visible at a time) rather than
+   stacking all calculators on one page — the prototype ALSO shows one
+   panel at a time (swapped by its own tile grid). */
+function CalcLayout({
+  formTitle,
+  formCaption,
+  formAction,
+  input,
+  hasil,
+}: {
+  formTitle: ReactNode;
+  formCaption?: ReactNode;
+  formAction?: ReactNode;
+  input: ReactNode;
+  hasil: ReactNode;
+}) {
   return (
-    <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
-      {input}
-      {hasil}
-    </div>
+    <BentoGrid>
+      <BentoCard
+        area="main"
+        title={formTitle}
+        caption={formCaption}
+        action={formAction}
+        className="kl-form"
+      >
+        {input}
+      </BentoCard>
+      <section className={cn("wm-card wm-dark kl-hero-card wm-col-side")}>
+        {hasil}
+      </section>
+    </BentoGrid>
   );
+}
+
+// Leading currency symbol money.format()/formatRupiah() bake into the
+// string ("Rp 625.096.724,00", "≈ $ 123,45", a masked "Rp ••••••" …) — see
+// CURRENCY_CONFIG in `@/lib/format`. Matched here so the hero can render it
+// as the small muted `.wm-cur` prefix (kalkulator.html's `hero()` macro)
+// instead of leaving it glued to the big number where it can wrap onto its
+// own line.
+const CURRENCY_PREFIX_RE = /^(≈\s)?(Rp|CN¥|A\$|S\$|\$|€|¥)\s/;
+
+function splitMoneyValue(value: string): { prefix: string; amount: string } {
+  const match = value.match(CURRENCY_PREFIX_RE);
+  if (!match) return { prefix: "", amount: value };
+  return { prefix: match[0], amount: value.slice(match[0].length) };
 }
 
 function Headline({
@@ -106,20 +161,24 @@ function Headline({
   note,
 }: {
   label: string;
+  /** Already-formatted (money.format/formatRupiah bake in the currency
+      symbol themselves, so the hero never splits it out separately). */
   value: string;
   note?: ReactNode;
 }) {
-  // EPIC-026 Wave 4 — prototype's Hasil headline is `t-2xl mono t-black
-  // t-primary` (26px, kalkulator.html:89).
+  // Prototype `hero()` macro (kalkulator.html:64) — `.big.num` inside the
+  // dark result card, value then caption below. `.wm-cur` is the shared
+  // small-prefix style `BentoHero` already uses (app/bento.css) — reused
+  // here rather than inventing a page-local equivalent.
+  const { prefix, amount } = splitMoneyValue(value);
   return (
     <div>
-      <div className="text-[11.5px] text-muted-foreground">{label}</div>
-      <div className="mono mt-0.5 text-[26px] font-black text-primary">
-        {value}
-      </div>
-      {note && (
-        <div className="mt-1.5 text-[12.5px] text-muted-foreground">{note}</div>
-      )}
+      <p className="wm-big kl-hero-value">
+        {prefix && <span className="wm-cur">{prefix}</span>}
+        {amount}
+      </p>
+      <div className="wm-cap">{label}</div>
+      {note && <div className="kl-note">{note}</div>}
     </div>
   );
 }
@@ -133,50 +192,18 @@ function Row({
   value: ReactNode;
   valueClassName?: string;
 }) {
-  // EPIC-026 Wave 4 — prototype renders result details as borderless
-  // `.table` rows separated by a bottom border (app.css:1725), not
-  // rounded chips.
+  // Prototype `.k-row` (kalkulator.html:21) — borderless flex row with a
+  // bottom divider, label left / bold mono value right.
   return (
-    <div className="flex items-center justify-between gap-2 border-b py-2.5 last:border-b-0">
-      <span className="text-[11.5px] text-muted-foreground">{label}</span>
-      <span
-        className={cn(
-          "mono text-[12.5px] font-bold text-right",
-          valueClassName,
-        )}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function ResultCard({
-  label,
-  value,
-  detail,
-}: {
-  label: string;
-  value: string;
-  detail: ReactNode;
-}) {
-  return (
-    <div className="rounded-[14px] border border-primary/30 bg-accent p-[18px] text-center">
-      <div className="text-[12px] text-muted-foreground">{label}</div>
-      <div className="mt-0.5 text-[26px] font-black text-primary-strong">
-        {value}
-      </div>
-      <div className="mt-1.5 text-[12px] text-muted-foreground">{detail}</div>
+    <div className="kl-row">
+      <span>{label}</span>
+      <span className={cn("mono", valueClassName)}>{value}</span>
     </div>
   );
 }
 
 function EmptyHasil({ note }: { note: string }) {
-  return (
-    <div className="flex h-full min-h-[140px] items-center justify-center rounded-md border border-dashed p-6 text-center text-[12.5px] text-muted-foreground">
-      {note}
-    </div>
-  );
+  return <div className="kl-empty-hasil">{note}</div>;
 }
 
 /* ─────────────────────────── Zakat Maal ─────────────────────────── */
@@ -254,50 +281,41 @@ function ZakatTab({ token }: { token: string | undefined }) {
 
   return (
     <CalcLayout
+      formTitle={t.kalkulator.zakat.cardTitle}
+      formCaption={t.kalkulator.zakat.nisabAutoNote}
       input={
-        <SectionCard title={t.kalkulator.zakat.cardTitle}>
-          <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
-            {t.kalkulator.zakat.nisabAutoNote}
-          </div>
+        <>
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <Field label={t.kalkulator.zakat.fieldCash}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.zakat.fieldCash}
                 value={cash}
                 onChange={(e) => setCash(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.zakat.fieldInvestments}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.zakat.fieldInvestments}
                 value={investments}
                 onChange={(e) =>
                   setInvestments(formatAmountInput(e.target.value))
                 }
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.zakat.fieldGold}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.zakat.fieldGold}
                 value={gold}
                 onChange={(e) => setGold(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.zakat.fieldLiabilities}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.zakat.fieldLiabilities}
                 value={liabilities}
                 onChange={(e) =>
                   setLiabilities(formatAmountInput(e.target.value))
                 }
-                className="input"
               />
             </Field>
           </div>
@@ -325,19 +343,28 @@ function ZakatTab({ token }: { token: string | undefined }) {
               ? t.kalkulator.calculating
               : t.kalkulator.zakat.calculateButton}
           </Button>
-        </SectionCard>
+        </>
       }
       hasil={
-        <SectionCard title={t.kalkulator.hasilCardTitle}>
+        <>
+          <h2 className="sr-only">{t.kalkulator.hasilCardTitle}</h2>
           {!result ? (
             <EmptyHasil note={t.kalkulator.zakat.calculateButton} />
           ) : (
-            <div className="space-y-3">
+            <>
               <Headline
                 label={resultLabel ?? ""}
                 value={money.format(result.zakat)}
               />
-              <div className="space-y-1.5">
+              {(!result.meetsNisab ||
+                (result.meetsNisab && !result.isObligated)) && (
+                <p className="kl-note">
+                  {!result.meetsNisab
+                    ? `${t.kalkulator.zakat.belowNisabPrefix}${money.format(result.nisab)}${t.kalkulator.zakat.belowNisabSuffix}`
+                    : t.kalkulator.zakat.estimateNote}
+                </p>
+              )}
+              <div className="kl-block">
                 <Row
                   label={t.kalkulator.zakat.detailZakatablePrefix.replace(
                     ":",
@@ -353,19 +380,7 @@ function ZakatTab({ token }: { token: string | undefined }) {
                   value={money.format(result.nisab)}
                 />
               </div>
-              {!result.meetsNisab && (
-                <p className="text-center text-[12px] text-muted-foreground">
-                  {t.kalkulator.zakat.belowNisabPrefix}
-                  {money.format(result.nisab)}
-                  {t.kalkulator.zakat.belowNisabSuffix}
-                </p>
-              )}
-              {result.meetsNisab && !result.isObligated && (
-                <p className="text-center text-[12px] text-muted-foreground">
-                  {t.kalkulator.zakat.estimateNote}
-                </p>
-              )}
-              <p className="text-center text-[11px] text-muted-foreground/80">
+              <p className="kl-source-note">
                 {result.nisabSource === "family"
                   ? `${t.kalkulator.zakat.nisabSourceFamilyPrefix}${money.format(familyGoldPrice ?? 0)}${t.kalkulator.zakat.nisabSourceFamilyMidfix}${t.consolidatedTotal.manualLabelPrefix}${
                       familyGoldPriceUpdatedAt
@@ -374,9 +389,9 @@ function ZakatTab({ token }: { token: string | undefined }) {
                     }${t.kalkulator.zakat.nisabSourceFamilySuffix}`
                   : t.kalkulator.zakat.nisabSourceIndicative}
               </p>
-            </div>
+            </>
           )}
-        </SectionCard>
+        </>
       }
     />
   );
@@ -424,44 +439,37 @@ function Pph21Tab({ token }: { token: string | undefined }) {
   return (
     <>
       <CalcLayout
-        input={
-          <SectionCard
-            title={t.kalkulator.pph21.cardTitle}
-            action={
-              <button
-                type="button"
-                onClick={() => setBracketDialogOpen(true)}
-                className="cursor-pointer text-[12px] font-semibold text-primary hover:underline"
-              >
-                {t.kalkulator.pph21.bracketDialogLinkLabel}
-              </button>
-            }
+        formTitle={t.kalkulator.pph21.cardTitle}
+        formCaption={t.kalkulator.pph21.ptkpNote}
+        formAction={
+          <button
+            type="button"
+            onClick={() => setBracketDialogOpen(true)}
+            className="wm-ghost-btn kl-link-btn"
           >
-            <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
-              {t.kalkulator.pph21.ptkpNote}
-            </div>
+            {t.kalkulator.pph21.bracketDialogLinkLabel}
+          </button>
+        }
+        input={
+          <>
             <div className="mb-3.5 rounded-md border bg-secondary/50 px-3.5 py-2.5 text-[12px] text-muted-foreground">
               {t.kalkulator.pph21.typingNote}
             </div>
             <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
               <Field label={t.kalkulator.pph21.fieldGross}>
-                <input
-                  type="text"
-                  inputMode="numeric"
+                <MoneyInput
+                  aria-label={t.kalkulator.pph21.fieldGross}
                   value={gross}
                   onChange={(e) => setGross(formatAmountInput(e.target.value))}
-                  className="input"
                 />
               </Field>
               <Field label={t.kalkulator.pph21.fieldZakatPaid}>
-                <input
-                  type="text"
-                  inputMode="numeric"
+                <MoneyInput
+                  aria-label={t.kalkulator.pph21.fieldZakatPaid}
                   value={zakatPaid}
                   onChange={(e) =>
                     setZakatPaid(formatAmountInput(e.target.value))
                   }
-                  className="input"
                 />
               </Field>
             </div>
@@ -474,55 +482,51 @@ function Pph21Tab({ token }: { token: string | undefined }) {
                 ? t.kalkulator.calculating
                 : t.kalkulator.pph21.calculateButton}
             </Button>
-          </SectionCard>
+          </>
         }
         hasil={
-          <SectionCard title={t.kalkulator.hasilCardTitle}>
+          <>
+            <h2 className="sr-only">{t.kalkulator.hasilCardTitle}</h2>
             {!result ? (
               <EmptyHasil note={t.kalkulator.pph21.calculateButton} />
             ) : (
-              <div className="space-y-3.5">
+              <>
                 <Headline
                   label={t.kalkulator.pph21.resultLabel}
                   value={formatRupiah(result.totalTax)}
                   note={
                     <>
                       {t.kalkulator.pph21.detailPkpPrefix}{" "}
-                      <strong className="text-foreground">
-                        {formatRupiah(result.pkp)}
-                      </strong>{" "}
+                      <strong>{formatRupiah(result.pkp)}</strong>{" "}
                       {t.kalkulator.pph21.detailEffectiveRatePrefix}{" "}
-                      <strong className="text-primary">
+                      <strong className="wm-hl">
                         {(result.effectiveRate * 100).toFixed(2)}%
                       </strong>
                     </>
                   }
                 />
-                <div className="space-y-1.5">
-                  <div className="text-[12px] font-semibold text-muted-foreground mb-1">
+                <div className="kl-block">
+                  <div className="kl-group-label">
                     {t.kalkulator.pph21.deductionHeading}
                   </div>
                   <Row
                     label={t.kalkulator.pph21.laborCostLabel}
                     value={`−${formatRupiah(result.biayaJabatan)}`}
-                    valueClassName="text-destructive"
                   />
                   <Row
                     label={t.kalkulator.pph21.ptkpLabel}
                     value={`−${formatRupiah(result.ptkp)}`}
-                    valueClassName="text-destructive"
                   />
                   {result.zakatDeduction > 0 && (
                     <Row
                       label={t.kalkulator.pph21.zakatLabel}
                       value={`−${formatRupiah(result.zakatDeduction)}`}
-                      valueClassName="text-destructive"
                     />
                   )}
                 </div>
-              </div>
+              </>
             )}
-          </SectionCard>
+          </>
         }
       />
       <Pph21BracketDialog
@@ -637,7 +641,7 @@ function InvestasiTab() {
       const m = parseRupiah(modal);
       const mo = parseRupiah(monthly);
       const r = Number(rate) / 100 / 12;
-      // EPIC-025 N3-E2 hotfix — `n` feeds the ResultCard's fv/totalModal/
+      // EPIC-025 N3-E2 hotfix — `n` feeds the Headline's fv/totalModal/
       // profit; it must stay UNCLAMPED so an invalid/empty `years` field
       // (0 or NaN) surfaces the same way it always did (fv === m, or a
       // visibly broken number), not silently forced to a fake 1-year
@@ -677,25 +681,22 @@ function InvestasiTab() {
 
   return (
     <CalcLayout
+      formTitle={t.kalkulator.investasi.cardTitle}
       input={
-        <SectionCard title={t.kalkulator.investasi.cardTitle}>
+        <>
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <Field label={t.kalkulator.investasi.fieldInitialCapital}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.investasi.fieldInitialCapital}
                 value={modal}
                 onChange={(e) => setModal(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.investasi.fieldMonthlyDeposit}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.investasi.fieldMonthlyDeposit}
                 value={monthly}
                 onChange={(e) => setMonthly(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             {/* EPIC-025 N3 fidelity follow-up — field order swapped to match
@@ -724,28 +725,27 @@ function InvestasiTab() {
               </div>
             </Field>
           </div>
-        </SectionCard>
+        </>
       }
       hasil={
-        <SectionCard title={t.kalkulator.hasilCardTitle}>
-          <div className="space-y-3.5">
-            <Headline
-              label={t.kalkulator.investasi.resultLabel}
-              value={money.format(fv)}
-              note={
-                <span className="text-success">
-                  {t.kalkulator.investasi.detailProfitPrefix.replace(
-                    /[·:]/g,
-                    "",
-                  )}{" "}
-                  {money.format(profit)}
-                </span>
-              }
-            />
-            {/* EPIC-025 N3-E2 — J3 FOLD: projection chart, pure client-side
-                computation from the same series computed above. Height
-                bumped from the prototype's 190 to 220 so the plotted area
-                doesn't read as visually squashed inside the card. */}
+        <>
+          <h2 className="sr-only">{t.kalkulator.hasilCardTitle}</h2>
+          <Headline
+            label={t.kalkulator.investasi.resultLabel}
+            value={money.format(fv)}
+            note={
+              <span className="wm-hl">
+                {t.kalkulator.investasi.detailProfitPrefix.replace(/[·:]/g, "")}{" "}
+                {money.format(profit)}
+              </span>
+            }
+          />
+          {/* EPIC-025 N3-E2 — J3 FOLD: projection chart, pure client-side
+              computation from the same series computed above. Proto's own
+              `.k-chart` is 150px (kalkulator.html:27); kept at 190 (closer
+              to the prototype's height than the previous 220) so the
+              plotted area doesn't read as squashed inside the card. */}
+          <div className="kl-chart">
             <TrendChart
               categories={projectionCategories}
               series={[
@@ -754,23 +754,28 @@ function InvestasiTab() {
                   data: projectionValues,
                 },
               ]}
-              height={220}
+              height={190}
               ariaLabel={`${t.kalkulator.investasi.projectionChartTitle}: ${money.format(projectionValues[0] ?? 0)} → ${money.format(fv)}`}
               money={money}
             />
-            <div className="space-y-1.5">
-              <Row
-                label={t.kalkulator.investasi.rowTotalDepositLabel}
-                value={money.format(totalModal)}
-              />
-              <Row
-                label={t.kalkulator.investasi.rowGrowthLabel}
-                value={`+${money.format(profit)}`}
-                valueClassName="text-success"
-              />
-            </div>
+            {/* Proto `WM.chart.area`'s `pill()` tag on the trend line's last
+                point (kalkulator.html wm.js:3413-ish) — TrendChart has no
+                annotation prop, so this is a page-local overlay. */}
+            <span className="kl-chart-tag" aria-hidden="true">
+              {money.formatCompact(fv)}
+            </span>
           </div>
-        </SectionCard>
+          <div className="kl-block">
+            <Row
+              label={t.kalkulator.investasi.rowTotalDepositLabel}
+              value={money.format(totalModal)}
+            />
+            <Row
+              label={t.kalkulator.investasi.rowGrowthLabel}
+              value={`+${money.format(profit)}`}
+            />
+          </div>
+        </>
       }
     />
   );
@@ -812,25 +817,22 @@ function KreditTab() {
 
   return (
     <CalcLayout
+      formTitle={t.kalkulator.kredit.cardTitleAlt}
       input={
-        <SectionCard title={t.kalkulator.kredit.cardTitleAlt}>
+        <>
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <Field label={t.kalkulator.kredit.fieldPropertyPrice}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.kredit.fieldPropertyPrice}
                 value={harga}
                 onChange={(e) => setHarga(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.kredit.fieldDownPaymentAmount}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.kredit.fieldDownPaymentAmount}
                 value={dp}
                 onChange={(e) => setDp(formatAmountInput(e.target.value))}
-                className="input"
               />
               <div className="mt-1.5 text-[11.5px] text-muted-foreground">
                 {dpPct.toFixed(1).replace(".", ",")}
@@ -859,45 +861,44 @@ function KreditTab() {
               />
             </Field>
           </div>
-        </SectionCard>
+        </>
       }
       hasil={
-        <SectionCard title={t.kalkulator.hasilCardTitle}>
-          <div className="space-y-3.5">
-            <Headline
-              label={t.kalkulator.kredit.resultLabel}
-              value={money.format(cicilan)}
+        <>
+          <h2 className="sr-only">{t.kalkulator.hasilCardTitle}</h2>
+          <Headline
+            label={t.kalkulator.kredit.resultLabel}
+            value={money.format(cicilan)}
+          />
+          <div className="kl-block">
+            <Row
+              label={t.kalkulator.kredit.rowPrincipalLabel}
+              value={money.format(pokok)}
             />
-            <div className="space-y-1.5">
-              <Row
-                label={t.kalkulator.kredit.rowPrincipalLabel}
-                value={money.format(pokok)}
-              />
-              <Row
-                label={t.kalkulator.kredit.rowTotalInterestLabel}
-                value={money.format(totalInterest)}
-                valueClassName="text-destructive"
-              />
-              <Row
-                label={t.kalkulator.kredit.rowTotalPaymentLabel}
-                value={money.format(total)}
-              />
-              <Row
-                label={t.kalkulator.kredit.rowInstallmentCountLabel}
-                value={`${formatNumber(n)}${t.kalkulator.kredit.installmentCountSuffix}`}
-              />
-            </div>
-            <div className="flex items-start gap-2 rounded-[10px] border border-warning/30 bg-warning-soft px-3.5 py-2.5 text-[12.5px]">
-              <span>⚠️</span>
-              <span>
-                {t.kalkulator.kredit.ruleWarningNote}{" "}
-                {t.kalkulator.kredit.minIncomeNotePrefix}
-                <strong>{money.format(cicilan / 0.3)}</strong>
-                {t.kalkulator.kredit.minIncomeNoteSuffix}
-              </span>
-            </div>
+            <Row
+              label={t.kalkulator.kredit.rowTotalInterestLabel}
+              value={money.format(totalInterest)}
+            />
+            <Row
+              label={t.kalkulator.kredit.rowTotalPaymentLabel}
+              value={money.format(total)}
+            />
+            <Row
+              label={t.kalkulator.kredit.rowInstallmentCountLabel}
+              value={`${formatNumber(n)}${t.kalkulator.kredit.installmentCountSuffix}`}
+            />
           </div>
-        </SectionCard>
+          {/* Prototype `.k-warn` (kalkulator.html:25). */}
+          <div className="kl-warn">
+            <AlertTriangle className="kl-warn-icon" aria-hidden />
+            <span>
+              {t.kalkulator.kredit.ruleWarningNote}{" "}
+              {t.kalkulator.kredit.minIncomeNotePrefix}
+              <strong>{money.format(cicilan / 0.3)}</strong>
+              {t.kalkulator.kredit.minIncomeNoteSuffix}
+            </span>
+          </div>
+        </>
       }
     />
   );
@@ -962,8 +963,9 @@ function PensiunTab({ token }: { token: string | undefined }) {
 
   return (
     <CalcLayout
+      formTitle={t.kalkulator.pensiun.cardTitle}
       input={
-        <SectionCard title={t.kalkulator.pensiun.cardTitle}>
+        <>
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <Field label={t.kalkulator.pensiun.fieldCurrentAge}>
               <input
@@ -982,12 +984,10 @@ function PensiunTab({ token }: { token: string | undefined }) {
               />
             </Field>
             <Field label={t.kalkulator.pensiun.fieldCurrentMonthlyExpense}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.pensiun.fieldCurrentMonthlyExpense}
                 value={monthly}
                 onChange={(e) => setMonthly(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.pensiun.fieldInvestmentReturn}>
@@ -1008,23 +1008,23 @@ function PensiunTab({ token }: { token: string | undefined }) {
               ? t.kalkulator.calculating
               : t.kalkulator.pensiun.calculateButton}
           </Button>
-        </SectionCard>
+        </>
       }
       hasil={
-        <SectionCard title={t.kalkulator.hasilCardTitle}>
+        <>
+          <h2 className="sr-only">{t.kalkulator.hasilCardTitle}</h2>
           {!result ? (
             <EmptyHasil note={t.kalkulator.pensiun.calculateButton} />
           ) : (
-            <div className="space-y-3.5">
+            <>
               <Headline
                 label={t.kalkulator.pensiun.resultLabel}
                 value={money.format(result.projectedValue)}
               />
-              <div className="space-y-1.5">
+              <div className="kl-block">
                 <Row
                   label={t.kalkulator.pensiun.rowMonthlyContributionLabel}
                   value={money.format(result.monthlyContribution)}
-                  valueClassName="text-primary"
                 />
                 <Row
                   label={t.kalkulator.pensiun.rowTotalContributionsLabel}
@@ -1039,12 +1039,10 @@ function PensiunTab({ token }: { token: string | undefined }) {
                   withdrawal rate), more aggressive than the common 25×/4%
                   rule. Disclose the basis rather than leaving the
                   multiplier hidden. */}
-              <p className="text-center text-[11px] text-muted-foreground/80">
-                {t.kalkulator.pensiun.targetBasisNote}
-              </p>
-            </div>
+              <p className="kl-note">{t.kalkulator.pensiun.targetBasisNote}</p>
+            </>
           )}
-        </SectionCard>
+        </>
       }
     />
   );
@@ -1083,25 +1081,22 @@ function TabunganTab() {
 
   return (
     <CalcLayout
+      formTitle={t.kalkulator.tabungan.cardTitle}
       input={
-        <SectionCard title={t.kalkulator.tabungan.cardTitle}>
+        <>
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <Field label={t.kalkulator.tabungan.fieldTarget}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.tabungan.fieldTarget}
                 value={target}
                 onChange={(e) => setTarget(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.tabungan.fieldCurrentBalance}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.tabungan.fieldCurrentBalance}
                 value={current}
                 onChange={(e) => setCurrent(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.tabungan.fieldAnnualInterest}>
@@ -1113,12 +1108,10 @@ function TabunganTab() {
               />
             </Field>
             <Field label={t.kalkulator.tabungan.fieldMonthlyDeposit}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.tabungan.fieldMonthlyDeposit}
                 value={setor}
                 onChange={(e) => setSetor(formatAmountInput(e.target.value))}
-                className="input"
               />
               {unreachable && (
                 <p className="mt-1 text-[12px] text-destructive" role="alert">
@@ -1127,25 +1120,26 @@ function TabunganTab() {
               )}
             </Field>
           </div>
-        </SectionCard>
+        </>
       }
       hasil={
-        <SectionCard title={t.kalkulator.hasilCardTitle}>
+        <>
+          <h2 className="sr-only">{t.kalkulator.hasilCardTitle}</h2>
           {unreachable ? (
             <EmptyHasil note={t.kalkulator.tabungan.unreachableError} />
           ) : (
-            <ResultCard
+            <Headline
               label={t.kalkulator.tabungan.resultLabel}
               value={`±${formatNumber(bln)} ${t.kalkulator.tabungan.resultValueSuffix}`}
-              detail={
+              note={
                 <>
                   {t.kalkulator.tabungan.detailTargetReachedPrefix}{" "}
-                  <strong className="text-primary">{label}</strong>
+                  <strong className="wm-hl">{label}</strong>
                 </>
               }
             />
           )}
-        </SectionCard>
+        </>
       }
     />
   );
@@ -1181,19 +1175,16 @@ function SplitGroupTab() {
 
   return (
     <CalcLayout
+      formTitle={t.kalkulator.splitgroup.cardTitle}
+      formCaption={t.kalkulator.splitgroup.description}
       input={
-        <SectionCard title={t.kalkulator.splitgroup.cardTitle}>
-          <div className="-mt-1 mb-3.5 text-[12px] text-muted-foreground">
-            {t.kalkulator.splitgroup.description}
-          </div>
+        <>
           <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <Field label={t.kalkulator.splitgroup.fieldTotalBill}>
-              <input
-                type="text"
-                inputMode="numeric"
+              <MoneyInput
+                aria-label={t.kalkulator.splitgroup.fieldTotalBill}
                 value={total}
                 onChange={(e) => setTotal(formatAmountInput(e.target.value))}
-                className="input"
               />
             </Field>
             <Field label={t.kalkulator.splitgroup.fieldPeopleCount}>
@@ -1235,42 +1226,37 @@ function SplitGroupTab() {
             <Share2 className="size-4" />{" "}
             {t.kalkulator.splitgroup.createSplitBillButton}
           </Button>
-        </SectionCard>
+        </>
       }
       hasil={
-        <SectionCard title={t.kalkulator.hasilCardTitle}>
+        <>
+          <h2 className="sr-only">{t.kalkulator.hasilCardTitle}</h2>
           {invalidPeopleCount ? (
             <EmptyHasil note={t.kalkulator.splitgroup.invalidPeopleError} />
           ) : (
-            <div className="space-y-3.5">
-              <ResultCard
+            <>
+              <Headline
                 label={t.kalkulator.splitgroup.resultLabel}
                 value={money.format(per)}
-                detail={
+                note={
                   <>
                     {t.kalkulator.splitgroup.detailTotalWithTaxPrefix}{" "}
-                    <strong className="text-primary">
-                      {money.format(grand)}
-                    </strong>
+                    <strong className="wm-hl">{money.format(grand)}</strong>
                   </>
                 }
               />
-              <div className="space-y-1.5">
+              {/* Prototype `.k-people`/`.k-person` (kalkulator.html:28-30). */}
+              <div className="kl-people">
                 {GROUP_NAMES.slice(0, breakdownCount).map((name) => (
-                  <div
-                    key={name}
-                    className="flex items-center justify-between rounded-md border px-3.5 py-2.5"
-                  >
-                    <span className="text-[13px] font-semibold">{name}</span>
-                    <span className="text-[13px] font-bold text-primary">
-                      {money.format(per)}
-                    </span>
+                  <div key={name} className="kl-person">
+                    <span>{name}</span>
+                    <strong>{money.format(per)}</strong>
                   </div>
                 ))}
               </div>
-            </div>
+            </>
           )}
-        </SectionCard>
+        </>
       }
     />
   );
@@ -1286,21 +1272,41 @@ export default function KalkulatorPage() {
 
   return (
     <div className="space-y-4">
-      <BentoGrid className="kl-grid">
-        <h1 className="sr-only">{t.kalkulator.pageTitle}</h1>
-        <BentoCard className="kl-picker" title={t.kalkulator.pageTitle}>
-          <div className="kl-tiles" role="group" aria-label="Pilih kalkulator">
-            {TAB_KEYS.map((key) => (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={tab === key}
-                onClick={() => setTab(key)}
-                className="kl-tile"
-              >
-                {t.kalkulator.tabs[key]}
-              </button>
-            ))}
+      <h1 className="sr-only">{t.kalkulator.pageTitle}</h1>
+      <BentoGrid>
+        {/* Prototype `.k-picker` (kalkulator.html:37-40) — light card,
+            title + caption, icon-tile picker below (not the pill-tab dark
+            hero banner this page used before). */}
+        <BentoCard
+          area="full"
+          title={t.kalkulator.pageTitle}
+          caption={t.kalkulator.pageSubtitle}
+        >
+          <div
+            className="kl-tiles"
+            role="tablist"
+            aria-label="Pilih kalkulator"
+          >
+            {TAB_KEYS.map((key) => {
+              const Icon = TAB_ICONS[key];
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  onClick={() => setTab(key)}
+                  className="wm-btile kl-tile"
+                >
+                  <span className="wm-btile-tt">
+                    <span className="wm-ci">
+                      <Icon aria-hidden />
+                    </span>
+                    {t.kalkulator.tabs[key]}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </BentoCard>
       </BentoGrid>

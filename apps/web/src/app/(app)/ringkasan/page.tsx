@@ -1,21 +1,25 @@
 "use client";
 
 /**
- * `/ringkasan` — rebuilt against `docs/prototype/pages/ringkasan.html`
- * (EPIC-026). This file only owns page-level state (trend range + privacy)
- * and composes the prototype's blocks, each of which lives in
- * `./_components`:
+ * `/ringkasan` — ported against `docs/design/proto/ringkasan.html` (source
+ * of truth; the "Structural port fidelity follow-up" pass). This file only
+ * owns page-level state (trend range + currency + privacy) and composes the
+ * prototype's blocks, each of which lives in `./_components`:
  *
- *   1. `.page-lead`                       → `RingkasanPageLead`
- *   2. `.bento-grid` hero + 3 stats       → `HeroStatsSection`
- *   3. composition stack beside the hero → `CompositionBento`
- *   4. "Rincian Aset vs Liabilitas" table → `BreakdownTableSection`
- *   5. `.grid.grid--3.equal-grid` band    → `CashflowCard` / `TopExpensesCard`
- *                                            / `HealthScoreCard`
+ *   1. `.r-hero` top-right `.hero-ctrl` row → `RingkasanPageLead`, rendered
+ *      INSIDE `HeroStatsSection`/`BentoHero`'s `controls` slot. There is no
+ *      standalone page-header row above the hero — the prototype has none.
+ *   2. `.r-hero` (number, delta pill, multicur line, chart, KPIs) → `HeroStatsSection`
+ *   3. `.r-comp` composition stack beside the hero → `CompositionBento`
+ *   4. `.r-cash` / `.r-top` row             → `CashflowCard` / `TopExpensesCard`
+ *   5. `.r-health` / `.r-liab` row          → `HealthScoreCard` / `LiabilityBreakdownCard`
+ *   6. `.r-breakdown` table                 → `BreakdownTableSection` (last, full width)
  *
- * Two app-only blocks sit outside the prototype's five: the consolidated
- * IDR/USD/gram-emas total (EPIC-021 Group F, Open Design Decision #6) and the
- * liability breakdown chart (EPIC-025 N3-C2).
+ * The former "Total Konsolidasi" (IDR/USD/gram-emas) card was removed — the
+ * prototype has no such card, and its figures duplicate the hero's own
+ * "≈ $X · Y gr emas" multicur line (now rendered in `HeroStatsSection`). The
+ * `ConsolidatedTotalCard` component itself is untouched (still used by
+ * `/beranda`).
  *
  * All data comes from `useRingkasanData()` — real API queries. The
  * prototype's hardcoded mock figures are never used.
@@ -26,14 +30,13 @@ import "./ringkasan.css";
 
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
-import { ConsolidatedTotalCard } from "@/components/consolidated-total-card";
+import { BentoGrid } from "@/components/wm";
 
 import { BreakdownTableSection } from "./_components/breakdown-table-section";
 import { CashflowCard } from "./_components/cashflow-card";
 import { HealthScoreCard } from "./_components/health-score-card";
 import { HeroStatsSection } from "./_components/hero-stats-section";
 import { LiabilityBreakdownCard } from "./_components/liability-breakdown-card";
-import { RingkasanPageLead } from "./_components/page-lead";
 import { TopExpensesCard } from "./_components/top-expenses-card";
 import { CompositionBento } from "./_components/trend-composition-section";
 import { useRingkasanPrivacy } from "./_components/use-ringkasan-privacy";
@@ -88,28 +91,20 @@ export default function RingkasanPage() {
       className={`stack${privacyOn ? " is-private" : ""}`}
       style={{ gap: 16 }}
     >
-      <RingkasanPageLead
-        familyName={data.familyName}
-        todayLabel={data.todayLabel}
-        trendRange={trendRange}
-        onTrendRangeChange={setTrendRange}
-        customRange={customRange}
-        onCustomRangeChange={setCustomRange}
-        displayCurrency={displayCurrency}
-        onDisplayCurrencyChange={setDisplayCurrency}
-        privacyOn={privacyOn}
-        onTogglePrivacy={togglePrivacy}
-      />
-
       <div className="rk2-top">
-        <HeroStatsSection data={data} displayCurrency={displayCurrency} />
-        {/* EPIC-021 Group F (#6) — consolidated IDR + USD + gram-emas total. */}
+        <HeroStatsSection
+          data={data}
+          displayCurrency={displayCurrency}
+          trendRange={trendRange}
+          onTrendRangeChange={setTrendRange}
+          customRange={customRange}
+          onCustomRangeChange={setCustomRange}
+          onDisplayCurrencyChange={setDisplayCurrency}
+          privacyOn={privacyOn}
+          onTogglePrivacy={togglePrivacy}
+        />
         <div className="rk2-side">
           <CompositionBento data={data} />
-          <ConsolidatedTotalCard
-            netWorthIdr={data.netWorth}
-            isLoading={data.isLoading}
-          />
         </div>
       </div>
 
@@ -121,15 +116,16 @@ export default function RingkasanPage() {
         </div>
       )}
 
-      <BreakdownTableSection data={data} />
-
-      <section className="grid grid--3 equal-grid">
+      {/* Prototype `ringkasan.html` row order below the hero: Arus kas +
+          Pengeluaran terbesar, then Skor kesehatan + Liabilitas terbesar,
+          then the full-width Rincian Aset vs Liabilitas table last. */}
+      <BentoGrid className="rk2-grid">
         <CashflowCard data={data} />
         <TopExpensesCard data={data} />
         <HealthScoreCard data={data} />
-      </section>
-
-      <LiabilityBreakdownCard data={data} />
+        <LiabilityBreakdownCard data={data} />
+        <BreakdownTableSection data={data} />
+      </BentoGrid>
     </div>
   );
 }

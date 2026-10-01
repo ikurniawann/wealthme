@@ -8,6 +8,9 @@ import {
   Plus,
   HandCoins,
   Palette,
+  Banknote,
+  Smartphone,
+  ArrowRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession, signOut } from "@/lib/auth-compat";
@@ -20,7 +23,6 @@ import { useCanManage } from "@/hooks/use-role-permissions";
 import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import type { Locale } from "@/i18n";
 import {
-  AccountCard,
   CardSkinPanel,
   SectionCard,
   CardLink,
@@ -35,7 +37,7 @@ import {
   TipsCard,
   ARow,
 } from "@/components/wm";
-import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { HatchedAreaChart } from "@/components/charts/bento-charts";
 import "./dana.css";
 import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
@@ -64,6 +66,14 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
   return err && typeof err === "object" && "message" in err
     ? String((err as { message: unknown }).message)
     : fallback;
+}
+
+/** E-wallet identity is provider + number: two GoPay wallets differ only by
+ * phone, but account names are unique per family, so the label carries the
+ * last digits ("GoPay ··5678"). */
+function ewalletAccountName(provider: string, phone?: string): string {
+  const digits = (phone ?? "").replace(/\D/g, "");
+  return digits.length >= 4 ? `${provider} ··${digits.slice(-4)}` : provider;
 }
 
 const EWALLET_TYPES = new Set(["ewallet"]);
@@ -121,6 +131,78 @@ function formatShortDate(isoString: string, locale: Locale): string {
 // toasts and this page stay translated.
 type DanaEntity = "cash" | "ewallet";
 
+// EPIC-033/dana-redesign — hero chart swap (bar → line/area, matching
+// docs/design/proto/dana.html's `drawTrend`). The API has no dedicated
+// balance-history endpoint, so this reconstructs a daily running balance
+// from the SAME `/transactions?limit=20` list already fetched for the
+// "Mutasi" table below, walking backward from the current total exactly
+// like the prototype's own `drawTrend` does from its local tx store. Real
+// data only — no fabricated points — so when there's no tx history yet it
+// falls back to a flat two-point line at the current total.
+function danaTrendDelta(
+  tx: TransactionDto,
+  danaAccountIds: ReadonlySet<string>,
+): number {
+  const amount = parseFloat(tx.amount);
+  const fromDana = !!tx.accountId && danaAccountIds.has(tx.accountId);
+  const toDana = !!tx.toAccountId && danaAccountIds.has(tx.toAccountId);
+  if (tx.type === "transfer") {
+    if (fromDana && toDana) return 0;
+    if (toDana) return amount;
+    if (fromDana) return -amount;
+    return 0;
+  }
+  if (!fromDana) return 0;
+  return tx.type === "income" ? amount : -amount;
+}
+
+function buildDanaTrend(
+  transactions: readonly TransactionDto[],
+  danaAccountIds: ReadonlySet<string>,
+  totalBalance: number,
+  locale: Locale,
+): { labels: string[]; values: number[] } {
+  const relevant = transactions
+    .filter(
+      (tx) =>
+        (tx.accountId && danaAccountIds.has(tx.accountId)) ||
+        (tx.toAccountId && danaAccountIds.has(tx.toAccountId)),
+    )
+    .slice()
+    .sort((a, b) => (a.occurredAt < b.occurredAt ? -1 : 1));
+
+  const todayLabel = formatShortDate(new Date().toISOString(), locale);
+  if (relevant.length === 0) {
+    return { labels: [todayLabel], values: [totalBalance] };
+  }
+
+  const totalDelta = relevant.reduce(
+    (sum, tx) => sum + danaTrendDelta(tx, danaAccountIds),
+    0,
+  );
+  let running = totalBalance - totalDelta;
+
+  const byDay = new Map<string, number>();
+  for (const tx of relevant) {
+    const day = tx.occurredAt.slice(0, 10);
+    running += danaTrendDelta(tx, danaAccountIds);
+    byDay.set(day, running);
+  }
+
+  const labels: string[] = [];
+  const values: number[] = [];
+  for (const [day, value] of byDay) {
+    labels.push(formatShortDate(day, locale));
+    values.push(value);
+  }
+  const lastDay = relevant[relevant.length - 1]?.occurredAt.slice(0, 10);
+  if (lastDay !== new Date().toISOString().slice(0, 10)) {
+    labels.push(todayLabel);
+    values.push(totalBalance);
+  }
+  return { labels, values };
+}
+
 // Prototype structural port (EPIC-025 N3 audit) — per-provider e-wallet
 // brand colors, mirroring `/rekening`'s `BANK_BRANDS` (page-local, not
 // shared — WM_CONVENTIONS.md: inline a helper here instead of a new
@@ -142,37 +224,19 @@ function resolveWalletBg(item: AccountDto): string {
   return "#EEF2FF";
 }
 
-/** Real-data-only meta line for a wallet row — never fabricates a fixed
- * "Kas pribadi"-style description the API doesn't actually expose
- * (AccountDto has no notes/description field), only real owner + masked
- * number + last-updated fields. */
 /** Family-shared (ownerUserId null) wallets/cash — visible to every member with this page. */
 const SHARED_LABEL = "Bersama";
 
-function buildWalletMeta(
-  item: AccountDto,
-  t: ReturnType<typeof useLocale>["t"],
-  locale: Locale,
-): string {
-  if (EWALLET_TYPES.has(item.type)) {
-    const parts = [
-      safeMaskedNumber(item.maskedNumber),
-      item.ownerName ?? (item.ownerUserId ? null : SHARED_LABEL),
-    ].filter((v): v is string => !!v);
-    return parts.length > 0 ? parts.join(" · ") : (item.institution ?? "—");
-  }
-  const parts: string[] = [];
-  if (item.ownerName) parts.push(item.ownerName);
-  else if (!item.ownerUserId) parts.push(SHARED_LABEL);
-  parts.push(
-    `${t.dana.updatedPrefix}${formatShortDate(item.updatedAt, locale)}`,
-  );
-  return parts.join(" · ");
-}
-
-function WalletTile({
+// EPIC-033/dana-redesign — restyled from a "physical card" visual
+// (AccountCard) to a simple row (docs/design/proto/dana.html `.wrow`):
+// colored icon chip + name + owner pill, amount + meta underneath. All the
+// same data/handlers (edit, delete, request, customize) stay wired up —
+// `look`/`onCustomize` are kept (CardSkinPanel still customizes the
+// account's stored skin) even though the row no longer renders the skin
+// itself, so no real functionality is dropped.
+function WalletRow({
   item,
-  look,
+  look: _look,
   onEdit,
   onDelete,
   onRequest,
@@ -188,42 +252,63 @@ function WalletTile({
 }) {
   const { t, locale } = useLocale();
   const money = useMoney();
-  const negative = parseFloat(item.balance) < 0;
+  const negative = parseFloat(item.balance ?? "0") < 0;
+  const isEwallet = EWALLET_TYPES.has(item.type);
+  const Icon = isEwallet ? Smartphone : Banknote;
+  const ownerText = item.ownerName ?? (item.ownerUserId ? "" : SHARED_LABEL);
+  const metaParts = [
+    safeMaskedNumber(item.maskedNumber),
+    isEwallet
+      ? null
+      : `${t.dana.updatedPrefix}${formatShortDate(item.updatedAt, locale)}`,
+  ].filter((v): v is string => !!v);
 
   return (
-    <article className="dn-wallet">
-      <AccountCard
-        decorative
-        look={look}
-        bank={item.institution ?? item.name}
-        name={item.name}
-        number={safeMaskedNumber(item.maskedNumber)}
-        holder={item.ownerName ?? (item.ownerUserId ? "" : SHARED_LABEL)}
-        balance={money.format(parseFloat(item.balance))}
-      />
-      <div className="dn-wallet-meta">
-        <span className="sr-only">
-          <span>{item.name}</span>
-          <span data-negative={negative || undefined}>
-            {money.format(parseFloat(item.balance))}
+    <div className="dn-row">
+      <span
+        className="dn-row-ic"
+        style={{ background: resolveWalletBg(item) }}
+        aria-hidden="true"
+      >
+        <Icon aria-hidden="true" />
+      </span>
+      <div className="dn-row-body">
+        <div className="dn-row-top">
+          <b>{item.name}</b>
+          {ownerText && (
+            <span
+              className="dn-row-owner"
+              data-shared={!item.ownerUserId || undefined}
+            >
+              {ownerText}
+            </span>
+          )}
+        </div>
+        <div className="dn-row-top">
+          <span
+            className="dn-row-amt num"
+            data-negative={negative || undefined}
+          >
+            {money.format(parseFloat(item.balance ?? "0"))}
           </span>
-        </span>
-        {buildWalletMeta(item, t, locale)}
+          {metaParts.length > 0 && <small>{metaParts.join(" · ")}</small>}
+        </div>
       </div>
-      <div className="dn-wallet-acts">
+      <div className="dn-row-acts">
         {onRequest && (
           <button
             type="button"
-            className="dn-wallet-btn"
-            data-lit="true"
+            className="dn-row-btn"
+            aria-label={t.rekening.mintaDanaButtonLabel}
+            title={t.rekening.mintaDanaButtonLabel}
             onClick={onRequest}
           >
-            <HandCoins aria-hidden="true" /> {t.rekening.mintaDanaButtonLabel}
+            <HandCoins aria-hidden="true" />
           </button>
         )}
         <button
           type="button"
-          className="dn-wallet-icon"
+          className="dn-row-btn"
           aria-label={t.rekening.v2.customize}
           title={t.rekening.v2.customize}
           onClick={onCustomize}
@@ -231,10 +316,10 @@ function WalletTile({
           <Palette aria-hidden="true" />
         </button>
         {onEdit && onDelete && (
-          <RowActions className="ml-auto" onEdit={onEdit} onDelete={onDelete} />
+          <RowActions onEdit={onEdit} onDelete={onDelete} />
         )}
       </div>
-    </article>
+    </div>
   );
 }
 
@@ -335,11 +420,11 @@ export default function DanaPage() {
   const cashItems = danaAccounts.filter((a) => CASH_TYPES.has(a.type));
   const ewalletItems = danaAccounts.filter((a) => EWALLET_TYPES.has(a.type));
   const totalBalance = danaAccounts.reduce(
-    (sum, a) => sum + parseFloat(a.balance),
+    (sum, a) => sum + parseFloat(a.balance ?? "0"),
     0,
   );
   const cashTotal = cashItems.reduce(
-    (sum, a) => sum + parseFloat(a.balance),
+    (sum, a) => sum + parseFloat(a.balance ?? "0"),
     0,
   );
   const danaAccountIds = new Set(danaAccounts.map((a) => a.id));
@@ -369,6 +454,12 @@ export default function DanaPage() {
         (tx.toAccountId && danaAccountIds.has(tx.toAccountId)),
     )
     .slice(0, 4);
+  const danaTrend = buildDanaTrend(
+    recentResponse?.data ?? [],
+    danaAccountIds,
+    totalBalance,
+    locale,
+  );
 
   // Prototype structural port — "Komposisi" donut: one segment per e-wallet
   // instrument (brand-colored, matching its list-row icon) plus a single
@@ -379,7 +470,7 @@ export default function DanaPage() {
   const compositionSegments: DonutSegment[] = [
     ...ewalletItems.map((item) => ({
       label: item.name,
-      value: parseFloat(item.balance),
+      value: parseFloat(item.balance ?? "0"),
       color: resolveWalletBg(item),
     })),
     ...(cashTotal > 0
@@ -452,7 +543,9 @@ export default function DanaPage() {
       entity,
       mode: "edit",
       initialValues: {
-        nama: item.name,
+        nama:
+          entity === "ewallet" ? (item.institution ?? item.name) : item.name,
+        ...(entity === "ewallet" ? { phone: item.maskedNumber ?? "" } : {}),
         saldo: String(item.balance),
         ownerUserId: item.ownerUserId ?? "",
       },
@@ -487,7 +580,10 @@ export default function DanaPage() {
             body: JSON.stringify(
               withCrudFx(
                 {
-                  name: values.nama,
+                  name:
+                    danaEntity === "ewallet"
+                      ? ewalletAccountName(values.nama, values.phone)
+                      : values.nama,
                   // F6 — `nama` on the e-wallet form IS the provider select
                   // (GoPay/OVO/...), exactly like at create time; only
                   // sending `name` here let a provider change desync
@@ -496,7 +592,10 @@ export default function DanaPage() {
                   // logo lookup) kept showing the OLD provider after the
                   // "rename".
                   ...(danaEntity === "ewallet"
-                    ? { institution: values.nama }
+                    ? {
+                        institution: values.nama,
+                        maskedNumber: values.phone || undefined,
+                      }
                     : {}),
                   balance,
                   type: danaEntity,
@@ -517,7 +616,10 @@ export default function DanaPage() {
             withCrudFx(
               {
                 type: danaEntity,
-                name: values.nama,
+                name:
+                  danaEntity === "ewallet"
+                    ? ewalletAccountName(values.nama, values.phone)
+                    : values.nama,
                 institution: danaEntity === "ewallet" ? values.nama : undefined,
                 maskedNumber: values.phone || undefined,
                 balance,
@@ -587,24 +689,21 @@ export default function DanaPage() {
         }
         chart={
           danaAccounts.length > 0 ? (
-            <HatchedBarChart
-              labels={danaAccounts.map((a) => a.institution || a.name)}
-              series={[
-                {
-                  name: t.dana.totalLabel,
-                  data: danaAccounts.map((a) => parseFloat(a.balance)),
-                  color: "var(--wm-lime)",
-                },
-              ]}
-              highlight={danaAccounts.reduce(
-                (m, a, k, arr) =>
-                  parseFloat(a.balance) > parseFloat(arr[m].balance) ? k : m,
-                0,
-              )}
+            <HatchedAreaChart
+              labels={
+                danaTrend.values.length === 1
+                  ? [danaTrend.labels[0] ?? "", danaTrend.labels[0] ?? ""]
+                  : danaTrend.labels
+              }
+              values={
+                danaTrend.values.length === 1
+                  ? [danaTrend.values[0] ?? 0, danaTrend.values[0] ?? 0]
+                  : danaTrend.values
+              }
               format={money.formatCompact}
               axis={axisJt}
-              wide
-              ariaLabel={t.dana.compositionTitle}
+              floor={Math.min(0, ...danaTrend.values)}
+              ariaLabel={t.dana.totalLabel}
             />
           ) : null
         }
@@ -613,7 +712,10 @@ export default function DanaPage() {
             <HeroKpi
               label={t.dana.cashStatLabel}
               value={money.formatCompact(
-                cashItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
+                cashItems.reduce(
+                  (sum, a) => sum + parseFloat(a.balance ?? "0"),
+                  0,
+                ),
               )}
               delta={
                 <small className="wm-cap">{`${cashItems.length}${t.dana.cashCountSuffix}`}</small>
@@ -622,7 +724,10 @@ export default function DanaPage() {
             <HeroKpi
               label={t.dana.ewalletStatLabel}
               value={money.formatCompact(
-                ewalletItems.reduce((sum, a) => sum + parseFloat(a.balance), 0),
+                ewalletItems.reduce(
+                  (sum, a) => sum + parseFloat(a.balance ?? "0"),
+                  0,
+                ),
               )}
               delta={
                 <small className="wm-cap">{`${ewalletItems.length}${t.dana.ewalletCountSuffix}`}</small>
@@ -670,9 +775,13 @@ export default function DanaPage() {
         )}
       </BentoCard>
 
+      {/* EPIC-033/dana-redesign — matches docs/design/proto/dana.html's
+          `.d-tip` slot: "Kartu & bank di tempat lain" pointing at
+          /rekening (the only destination the proto/app has for cards and
+          bank accounts). */}
       <TipsCard
         className="dn-tip"
-        title={t.dana.infoNoticeBold}
+        title={t.dana.bankInfoTitle}
         mosaic={[
           "",
           "b",
@@ -693,22 +802,21 @@ export default function DanaPage() {
           "b",
           "a",
         ]}
+        action={
+          <a href="/rekening" className="dn-tip-link">
+            {t.dana.bankInfoLinkLabel}
+            <ArrowRight aria-hidden="true" className="size-3.5" />
+          </a>
+        }
       >
-        {t.dana.infoNoticeBody}
-        <a href="/rekening" className="font-bold">
-          {t.dana.infoNoticeLinkLabel}
-        </a>
-        {t.dana.infoNoticeSuffix}
+        {t.dana.bankInfoBody}
       </TipsCard>
 
       <SectionCard
         className="dn-cash"
         title={t.dana.cashSectionTitle}
         action={
-          <CardLink
-            className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
-            onClick={() => openAdd("cash")}
-          >
+          <CardLink className="dn-add-btn" onClick={() => openAdd("cash")}>
             {t.dana.addButton}
           </CardLink>
         }
@@ -723,9 +831,9 @@ export default function DanaPage() {
             {t.dana.emptyCash}
           </div>
         )}
-        <div className="dn-wallets">
+        <div className="dn-rows">
           {cashItems.map((item) => (
-            <WalletTile
+            <WalletRow
               key={item.id}
               item={item}
               look={lookFor(item.id, item.type)}
@@ -746,10 +854,7 @@ export default function DanaPage() {
         className="dn-ew"
         title={t.dana.ewalletSectionTitle}
         action={
-          <CardLink
-            className="rounded-md bg-accent px-3 py-[5px] text-[11px]"
-            onClick={() => openAdd("ewallet")}
-          >
+          <CardLink className="dn-add-btn" onClick={() => openAdd("ewallet")}>
             {t.dana.addButton}
           </CardLink>
         }
@@ -764,9 +869,9 @@ export default function DanaPage() {
             {t.dana.emptyEwallet}
           </div>
         )}
-        <div className="dn-wallets">
+        <div className="dn-rows">
           {ewalletItems.map((item) => (
-            <WalletTile
+            <WalletRow
               key={item.id}
               item={item}
               look={lookFor(item.id, item.type)}
@@ -783,12 +888,24 @@ export default function DanaPage() {
         </div>
       </SectionCard>
 
+      {/* Relocated, not deleted — the negative-cash-balance notice
+          (previously the dn-tip card) now that dn-tip shows the
+          "Kartu & bank di tempat lain" card matching the prototype. */}
+      <div className="dn-full dn-saldo-note" role="note">
+        <b>{t.dana.infoNoticeBold}</b>
+        {t.dana.infoNoticeBody}
+        <a href="/rekening" className="font-bold">
+          {t.dana.infoNoticeLinkLabel}
+        </a>
+        {t.dana.infoNoticeSuffix}
+      </div>
+
       {/* Prototype structural port — "Mutasi Tunai & E-Wallet Terakhir".
           Rendered only once there's real data to show (no empty-table
           placeholder rows). */}
       {recentDanaTransactions.length > 0 && (
         <SectionCard
-          className="dn-full"
+          className="dn-full dn-mut"
           title={t.dana.mutationsSectionTitle}
           action={
             <a
@@ -827,7 +944,7 @@ export default function DanaPage() {
                 bank: customizing.institution ?? customizing.name,
                 number: safeMaskedNumber(customizing.maskedNumber),
                 holder: customizing.ownerName ?? SHARED_LABEL,
-                balance: money.format(parseFloat(customizing.balance)),
+                balance: money.format(parseFloat(customizing.balance ?? "0")),
               }
             : null
         }

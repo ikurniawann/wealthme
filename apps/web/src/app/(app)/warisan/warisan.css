@@ -34,4 +34,28 @@
     flex-direction: column;
     gap: 12px;
   }
+  /* Point 2 — colored initials avatar per heir in the "Ahli waris" side
+     card: fill MiniRow's icon slot as a circle instead of its default
+     neutral rounded-square chip. */
+  .wr-ben .wm-ic {
+    background: transparent;
+    padding: 0;
+  }
+  .wr-alloc-lbl {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--wm-type-11);
+    color: var(--wm-muted);
+    margin-bottom: 4px;
+  }
+  .wr-heir-avatar {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    color: #fff;
+    font-size: var(--wm-type-11);
+    font-weight: 700;
+  }
 }

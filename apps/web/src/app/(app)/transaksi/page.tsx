@@ -6,7 +6,6 @@ import {
   Suspense,
   type ChangeEvent,
   type KeyboardEvent,
-  type ReactNode,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -21,7 +20,6 @@ import {
   Lock,
   Pencil,
   Search,
-  Sparkles,
   Tag,
   Trash2,
   XIcon,
@@ -52,7 +50,6 @@ import { cn } from "@/lib/utils";
 import { PpnHint } from "@/components/tax/ppn-hint";
 
 import {
-  SectionCard,
   StatusBadge,
   IconChip,
   DateField,
@@ -82,7 +79,6 @@ import type {
   TransactionListResponse,
 } from "@wealthme/contracts";
 import { getActiveTransactionFilterCount } from "./filter-count";
-import { TransactionSummary } from "./transaction-summary";
 
 // EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
 // `app/(app)/dana/page.tsx`'s own copy: never touch lib/api-client.ts.
@@ -561,36 +557,6 @@ export function TxTableRow({
         }}
       />
     </>
-  );
-}
-
-/** Top insight pill row — prototype's `.value-strip`/`.value-pill`. Only
- * the "% terkategori" pill is honest here: the other two prototype pills
- * ("N anggota aktif mencatat", "N transaksi besar sudah diverifikasi")
- * need a per-transaction recorder identity and a verification flag that
- * `TransactionDto` doesn't carry — they are deliberately NOT rendered
- * rather than shipped with an invented number. */
-function InsightPill({
-  icon,
-  label,
-  value,
-}: {
-  icon: ReactNode;
-  label: ReactNode;
-  value: ReactNode;
-}) {
-  return (
-    <div className="flex items-center gap-2.5 rounded-xl border bg-card px-3.5 py-2.5">
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-primary">
-        {icon}
-      </span>
-      <span className="flex flex-col">
-        <span className="text-[10px] font-bold tracking-wide text-muted-foreground uppercase">
-          {label}
-        </span>
-        <span className="text-[12.5px] font-semibold">{value}</span>
-      </span>
-    </div>
   );
 }
 
@@ -1501,24 +1467,9 @@ function TransaksiPageInner() {
     return sortOrder === "newest" ? -cmp : cmp;
   });
 
-  // Prototype's table renders a flat, paginated row list (no date-group
-  // headers) — the date is its own table column instead.
-  const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const pagedTransactions = sorted.slice(
-    (currentPage - 1) * PAGE_SIZE,
-    currentPage * PAGE_SIZE,
-  );
-
   const totalIncome = summary ? parseFloat(summary.totalIncome) : 0;
   const totalExpense = summary ? parseFloat(summary.totalExpense) : 0;
   const netBalance = summary ? parseFloat(summary.netBalance) : 0;
-
-  // EPIC-025 N3-E4 — per-stat cards (translation table's `.stat` →
-  // `SummaryCard`) replace the single combined MoneyStat row; the surplus/
-  // deficit % is derived from the already-fetched summary, not invented copy.
-  const netPct =
-    totalIncome > 0 ? Math.round((netBalance / totalIncome) * 100) : 0;
 
   // Income/expense transaction counts + the real applied period (only set
   // when the date-range filter above is actually in use — `summary.period`
@@ -1537,8 +1488,9 @@ function TransaksiPageInner() {
     ? undefined
     : `${expenseCount}${t.transaksi.transactionsCountSuffix}${monthLabel ? ` · ${monthLabel}` : ""}`;
 
-  // "Otomatis rapi" insight pill — the one honest number derivable from the
-  // already-fetched list (see the omission note on `InsightPill` above).
+  // "Otomatis rapi" insight — the one honest number derivable from the
+  // already-fetched list (the other prototype pills need identity/verification
+  // data the API doesn't expose, so they're deliberately not rendered).
   const categorizedCount = transactions.filter((tx) => !!tx.categoryId).length;
   const categorizedPct =
     transactions.length > 0

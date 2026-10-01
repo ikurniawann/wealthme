@@ -23,11 +23,16 @@ import {
   Eye,
   EyeOff,
   Plus,
+  X,
 } from "lucide-react";
-// EPIC-026 Wave 5 note — the prototype's rekonsiliasi page mounts NO chart
-// at all (its <script> block loads only shell.js); the composition card is
-// a hand-rolled stacked bar. The DonutChart previously rendered here was an
-// invention relative to the prototype and has been replaced by that bar.
+// Verified against the prototype's own <script>: `draw()` calls
+// `WM.chart.donut(box,{items:[...Cocok/Ditinjau/Belum cocok...]})` once an
+// import is active — the earlier note above (now corrected) had this
+// backwards. The hero's chart slot renders that same donut/pie (via this
+// app's shared `DonutChart`) once entries exist; the step track below is a
+// genuine extra this app needs (the prototype fakes its upload with two demo
+// buttons, so it never needs a real multi-step wizard) and is kept for the
+// pre-data state only.
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -37,6 +42,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogTitle,
+  DialogClose,
+  PanelContent,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,8 +54,11 @@ import {
   InfoTip,
   BentoHero,
   GhostButton,
+  PillButton,
   HeroKpi,
 } from "@/components/wm";
+import { DonutChart } from "@/components/charts/apex-presets";
+import type { DonutSegment } from "@/components/charts/donut";
 import "./rekonsiliasi.css";
 import { useLocale } from "@/hooks/use-locale";
 // EPIC-029 group 4 — client-side unlock of a password-protected statement.
@@ -567,168 +577,183 @@ export function SplitEntryDialog({
           and the balance notice, and an outline/primary `.dialog__footer`.
           The multi-step import/matching logic and this dialog's own
           validation + mutation are untouched. */}
-      <DialogContent className="dialog--wide">
-        <DialogTitle>{t.rekonsiliasi.splitDialogTitle}</DialogTitle>
-        <DialogDescription>
-          {t.rekonsiliasi.splitDialogDescription}
-        </DialogDescription>
-        {entry && (
-          <DialogBody>
-            <div className="notice mb-3.5">
-              <ReceiptText aria-hidden="true" className="size-4 shrink-0" />
-              <span>
-                <strong>{entry.description}</strong>
-                {" · "}
-                {new Date(entry.date).toLocaleDateString(numLocale, {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })}
-                {" · "}
-                <span className="mono">{entryAmountDisplay}</span>
-              </span>
-            </div>
-
-            <div className="field-row">
-              <label className="field mt-0">
-                <span className="label">
-                  {t.rekonsiliasi.splitSourceAccountLabel}
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {t.rekonsiliasi.splitDialogTitle}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.rekonsiliasi.splitDialogDescription}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {entry && (
+            <div className="wm-panel-body wm-form">
+              <div className="notice mb-3.5">
+                <ReceiptText aria-hidden="true" className="size-4 shrink-0" />
+                <span>
+                  <strong>{entry.description}</strong>
+                  {" · "}
+                  {new Date(entry.date).toLocaleDateString(numLocale, {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                  {" · "}
+                  <span className="mono">{entryAmountDisplay}</span>
                 </span>
-                <select
-                  className="select"
-                  value={sourceAccountId}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setSourceAccountId(next);
-                    if (destAccountId === next) setDestAccountId("");
-                  }}
-                >
-                  <option value="">
-                    {t.rekonsiliasi.splitSourceAccountPlaceholder}
-                  </option>
-                  {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                      {a.institution ? ` — ${a.institution}` : ""}
+              </div>
+
+              <div className="wm-form__grid">
+                <label className="field mt-0">
+                  <span className="label">
+                    {t.rekonsiliasi.splitSourceAccountLabel}
+                  </span>
+                  <select
+                    className="select"
+                    value={sourceAccountId}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setSourceAccountId(next);
+                      if (destAccountId === next) setDestAccountId("");
+                    }}
+                  >
+                    <option value="">
+                      {t.rekonsiliasi.splitSourceAccountPlaceholder}
                     </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="field mt-0">
-                <span className="label">
-                  {t.rekonsiliasi.splitDestAccountLabel}
-                </span>
-                <select
-                  className="select"
-                  value={destAccountId}
-                  onChange={(e) => setDestAccountId(e.target.value)}
-                >
-                  <option value="">
-                    {t.rekonsiliasi.splitDestAccountPlaceholder}
-                  </option>
-                  {accounts
-                    .filter((a) => a.id !== sourceAccountId)
-                    .map((a) => (
+                    {accounts.map((a) => (
                       <option key={a.id} value={a.id}>
                         {a.name}
                         {a.institution ? ` — ${a.institution}` : ""}
                       </option>
                     ))}
-                </select>
-              </label>
-            </div>
+                  </select>
+                </label>
 
-            <div className="field-row mt-3">
-              <label className="field mt-0">
+                <label className="field mt-0">
+                  <span className="label">
+                    {t.rekonsiliasi.splitDestAccountLabel}
+                  </span>
+                  <select
+                    className="select"
+                    value={destAccountId}
+                    onChange={(e) => setDestAccountId(e.target.value)}
+                  >
+                    <option value="">
+                      {t.rekonsiliasi.splitDestAccountPlaceholder}
+                    </option>
+                    {accounts
+                      .filter((a) => a.id !== sourceAccountId)
+                      .map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                          {a.institution ? ` — ${a.institution}` : ""}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+
+              <div className="wm-form__grid wm-form__grid--two">
+                <label className="field mt-0">
+                  <span className="label">
+                    {t.rekonsiliasi.splitPrincipalLabel}
+                  </span>
+                  <input
+                    className="input mono"
+                    inputMode="numeric"
+                    value={principal}
+                    onChange={(e) =>
+                      setPrincipal(formatAmountInput(e.target.value))
+                    }
+                    placeholder="0"
+                  />
+                </label>
+
+                <label className="field mt-0">
+                  <span className="label">
+                    {t.rekonsiliasi.splitAdminFeeLabel}
+                  </span>
+                  <input
+                    className="input mono"
+                    inputMode="numeric"
+                    value={adminFee}
+                    onChange={(e) =>
+                      setAdminFee(formatAmountInput(e.target.value))
+                    }
+                    placeholder="0"
+                  />
+                </label>
+              </div>
+
+              <label className="field">
                 <span className="label">
-                  {t.rekonsiliasi.splitPrincipalLabel}
+                  {t.rekonsiliasi.splitDescriptionLabel}
                 </span>
                 <input
-                  className="input mono"
-                  inputMode="numeric"
-                  value={principal}
-                  onChange={(e) =>
-                    setPrincipal(formatAmountInput(e.target.value))
-                  }
-                  placeholder="0"
+                  className="input"
+                  type="text"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t.rekonsiliasi.splitDescriptionPlaceholder}
                 />
               </label>
 
-              <label className="field mt-0">
-                <span className="label">
-                  {t.rekonsiliasi.splitAdminFeeLabel}
+              <div className="row row--between mt-3.5">
+                <span className="t-sm t-muted">
+                  {t.rekonsiliasi.splitTotalLabel}
                 </span>
-                <input
-                  className="input mono"
-                  inputMode="numeric"
-                  value={adminFee}
-                  onChange={(e) =>
-                    setAdminFee(formatAmountInput(e.target.value))
-                  }
-                  placeholder="0"
-                />
-              </label>
-            </div>
+                <span className="t-sm t-bold mono">{money(splitTotal)}</span>
+              </div>
+              <div className="row row--between mt-1">
+                <span className="t-sm t-muted">
+                  {t.rekonsiliasi.splitEntryAmountLabel}
+                </span>
+                <span className="t-sm t-bold mono">{entryAmountDisplay}</span>
+              </div>
 
-            <label className="field">
-              <span className="label">
-                {t.rekonsiliasi.splitDescriptionLabel}
-              </span>
-              <input
-                className="input"
-                type="text"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder={t.rekonsiliasi.splitDescriptionPlaceholder}
-              />
-            </label>
-
-            <div className="row row--between mt-3.5">
-              <span className="t-sm t-muted">
-                {t.rekonsiliasi.splitTotalLabel}
-              </span>
-              <span className="t-sm t-bold mono">{money(splitTotal)}</span>
+              <div
+                className={`notice mt-2.5 ${
+                  isBalanced ? "notice--info" : "notice--warning"
+                }`}
+              >
+                {isBalanced ? (
+                  <CheckCheck aria-hidden="true" className="size-4 shrink-0" />
+                ) : (
+                  <TriangleAlert
+                    aria-hidden="true"
+                    className="size-4 shrink-0"
+                  />
+                )}
+                <span>
+                  {isBalanced
+                    ? t.rekonsiliasi.splitBalancedNotice
+                    : t.rekonsiliasi.splitUnbalancedNotice}
+                </span>
+              </div>
             </div>
-            <div className="row row--between mt-1">
-              <span className="t-sm t-muted">
-                {t.rekonsiliasi.splitEntryAmountLabel}
-              </span>
-              <span className="t-sm t-bold mono">{entryAmountDisplay}</span>
-            </div>
+          )}
 
-            <div
-              className={`notice mt-2.5 ${
-                isBalanced ? "notice--info" : "notice--warning"
-              }`}
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
+              {t.rekonsiliasi.splitCancelButton}
+            </PillButton>
+            <PillButton
+              type="button"
+              variant="primary"
+              disabled={splitMutation.isPending}
+              onClick={handleSubmit}
             >
-              {isBalanced ? (
-                <CheckCheck aria-hidden="true" className="size-4 shrink-0" />
-              ) : (
-                <TriangleAlert aria-hidden="true" className="size-4 shrink-0" />
-              )}
-              <span>
-                {isBalanced
-                  ? t.rekonsiliasi.splitBalancedNotice
-                  : t.rekonsiliasi.splitUnbalancedNotice}
-              </span>
-            </div>
-          </DialogBody>
-        )}
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.rekonsiliasi.splitCancelButton}
-          </Button>
-          <Button
-            type="button"
-            disabled={splitMutation.isPending}
-            onClick={handleSubmit}
-          >
-            {t.rekonsiliasi.splitSubmitButton}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+              {t.rekonsiliasi.splitSubmitButton}
+            </PillButton>
+          </div>
+        </div>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -840,19 +865,28 @@ function ReconciliationTemplateManagerDialog({
           `ReconciliationTemplateDto` has a single `amountColumn` and no
           debit/credit pair, so one "Kolom Jumlah" field is rendered instead
           of two inputs whose second value would be silently dropped. */}
-      <DialogContent className="dialog--wide">
-        <DialogTitle>{t.rekonsiliasi.templateManagerTitle}</DialogTitle>
-        <DialogDescription>
-          {t.rekonsiliasi.templateManagerHint}
-        </DialogDescription>
-
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {t.rekonsiliasi.templateManagerTitle}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.rekonsiliasi.templateManagerHint}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         <form
           onSubmit={(e) => {
             e.preventDefault();
             saveMutation.mutate();
           }}
+          className="flex min-h-0 flex-1 flex-col"
         >
-          <DialogBody>
+          <div className="wm-panel-body wm-form">
             {(templatesQuery.data?.length ?? 0) > 0 && (
               <div className="table-wrap mb-4">
                 <table className="table min-w-[520px]">
@@ -894,7 +928,7 @@ function ReconciliationTemplateManagerDialog({
               </div>
             )}
 
-            <div className="field-row">
+            <div className="wm-form__grid">
               <label className="field mt-0">
                 <span className="label">
                   {t.rekonsiliasi.templateBankLabel}
@@ -924,7 +958,7 @@ function ReconciliationTemplateManagerDialog({
               </label>
             </div>
 
-            <div className="field-row mt-3">
+            <div className="wm-form__grid">
               <label className="field mt-0">
                 <span className="label">
                   {t.rekonsiliasi.templateDateColumnLabel}
@@ -980,18 +1014,22 @@ function ReconciliationTemplateManagerDialog({
                 <option value="MM/DD/YYYY">MM/DD/YYYY</option>
               </select>
             </label>
-          </DialogBody>
+          </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
               {t.rekonsiliasi.closeButton}
-            </Button>
-            <Button type="submit" disabled={saveMutation.isPending}>
+            </PillButton>
+            <PillButton
+              type="submit"
+              variant="primary"
+              disabled={saveMutation.isPending}
+            >
               {t.rekonsiliasi.templateSaveButton}
-            </Button>
-          </DialogFooter>
+            </PillButton>
+          </div>
         </form>
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -1955,11 +1993,11 @@ export default function RekonsiliasiPage() {
     (e) => e.reconStatus === "unmatched",
   ).length;
 
-  // EPIC-026 Wave 5 (prototype parity) — composition percentages + the
-  // matched-amount sum for the prototype's `.card stat` summary cards and
-  // its stacked `.recon-composition` bar. All derived from the SAME fetched
-  // `entries` list, at the SAME unscaled whole-rupiah scale as the table's
-  // rows (see the scale note on `formatEntryAmount`).
+  // EPIC-026 Wave 5 (prototype parity) — the match-rate percentage + the
+  // matched-amount sum for the hero headline, and the donut/legend segments
+  // above. All derived from the SAME fetched `entries` list, at the SAME
+  // unscaled whole-rupiah scale as the table's rows (see the scale note on
+  // `formatEntryAmount`).
   const numLocale = locale === "en" ? "en-US" : "id-ID";
   const txTypeLabelsPage = t.rekonsiliasi.txTypeLabels as Record<
     string,
@@ -1968,10 +2006,6 @@ export default function RekonsiliasiPage() {
   const totalEntriesCount = entries.length;
   const matchedPct =
     totalEntriesCount > 0 ? (matchedCount / totalEntriesCount) * 100 : 0;
-  const suggestedPct =
-    totalEntriesCount > 0 ? (suggestedCount / totalEntriesCount) * 100 : 0;
-  const unmatchedPct =
-    totalEntriesCount > 0 ? (unmatchedCount / totalEntriesCount) * 100 : 0;
   const matchedPctDisplay = matchedPct.toLocaleString(numLocale, {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1,
@@ -1983,12 +2017,76 @@ export default function RekonsiliasiPage() {
     .filter((e) => e.reconStatus === "matched")
     .reduce((sum, e) => sum + Math.abs(parseInt(e.amount, 10)), 0);
 
+  // Prototype parity — bulk-confirm every "suggested" entry in one action.
+  // Reuses confirmMutation's own mutationFn (via .mutateAsync, so this can
+  // await each call) rather than adding a second endpoint; a single
+  // combined toast reports the batch instead of one toast per row.
+  const [bulkConfirming, setBulkConfirming] = React.useState(false);
+  const suggestedEntries = entries.filter(
+    (entry) => entryStatus(entry.reconStatus) === "warn" && entry.suggestedTxId,
+  );
+  const handleBulkConfirm = React.useCallback(async () => {
+    setBulkConfirming(true);
+    try {
+      const results = await Promise.allSettled(
+        suggestedEntries.map((entry) =>
+          confirmMutation.mutateAsync({
+            entryId: entry.id,
+            transactionId: entry.suggestedTxId as string,
+          }),
+        ),
+      );
+      const succeeded = results.filter((r) => r.status === "fulfilled").length;
+      if (succeeded > 0) toast.success(t.rekonsiliasi.toastBulkConfirmed);
+    } finally {
+      setBulkConfirming(false);
+    }
+  }, [suggestedEntries, confirmMutation, t]);
+
+  // Prototype parity — `WM.chart.donut(box,{items:[["Cocok",...],["Perlu
+  // ditinjau",...],["Belum cocok",...]]})`. Zero-count slices are dropped
+  // (a 0-value pie slice is a rendering no-op, not a real segment), same as
+  // the prototype's own `.filter(function(it){return it[1]>0;})`.
+  const donutSegments: DonutSegment[] = [
+    ...(matchedCount > 0
+      ? [
+          {
+            label: t.rekonsiliasi.matchedLabel,
+            value: matchedCount,
+            color: "var(--wm-lime)",
+          },
+        ]
+      : []),
+    ...(suggestedCount > 0
+      ? [
+          {
+            label: t.rekonsiliasi.suggestedLabel,
+            value: suggestedCount,
+            color: "var(--wm-orange)",
+          },
+        ]
+      : []),
+    ...(unmatchedCount > 0
+      ? [
+          {
+            label: t.rekonsiliasi.notFoundLabel,
+            value: unmatchedCount,
+            color: "var(--wm-bad)",
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div>
       {/* Bento v2 hero: the match rate once entries are matched (else the
-          number of uploaded statements), the 4-step flow as a progress track
-          plus the match composition, and the real Cocok / Ditinjau / Belum
-          counts. Same two header actions and gates as before. */}
+          number of uploaded statements), the real Cocok / Ditinjau / Belum
+          counts, and — once entries exist — the prototype's donut/pie
+          composition chart + legend. Before that (nothing imported yet) the
+          chart slot shows the 4-step wizard track instead: a genuine extra
+          this app needs for its real multi-step upload that the prototype,
+          which fakes the whole import with two demo buttons, never has to
+          show. Same two header actions and gates as before. */}
       <BentoHero
         className="rk-hero mb-4"
         valueAs="h1"
@@ -2005,72 +2103,88 @@ export default function RekonsiliasiPage() {
         }
         controls={
           <>
-            {canManageTemplates && (
-              <GhostButton onClick={() => setTemplateManagerOpen(true)}>
-                {t.rekonsiliasi.manageTemplatesLink}
+            <div className="rk-ctrl-row">
+              {canManageTemplates && (
+                <GhostButton onClick={() => setTemplateManagerOpen(true)}>
+                  {t.rekonsiliasi.manageTemplatesLink}
+                </GhostButton>
+              )}
+              <GhostButton
+                lit
+                onClick={() => {
+                  goto(1);
+                  handleUploadAreaClick();
+                }}
+              >
+                <ArrowUpFromLine aria-hidden="true" />
+                {t.rekonsiliasi.uploadMutasiButton}
               </GhostButton>
+            </div>
+            {/* Prototype parity — `.legend` under `.hero-ctrl`: the same
+                three Cocok/Ditinjau/Belum cocok swatches as the donut. */}
+            {totalEntriesCount > 0 && (
+              <div className="rk-legend">
+                <span>
+                  <i data-k="ok" />
+                  {t.rekonsiliasi.matchedLabel}
+                </span>
+                <span>
+                  <i data-k="warn" />
+                  {t.rekonsiliasi.suggestedLabel}
+                </span>
+                <span>
+                  <i data-k="err" />
+                  {t.rekonsiliasi.notFoundLabel}
+                </span>
+              </div>
             )}
-            <GhostButton
-              lit
-              onClick={() => {
-                goto(1);
-                handleUploadAreaClick();
-              }}
-            >
-              <ArrowUpFromLine aria-hidden="true" />
-              {t.rekonsiliasi.uploadMutasiButton}
-            </GhostButton>
           </>
         }
         chart={
-          <div className="rk-flow">
-            <ol
-              className="rk-steps"
-              aria-label={t.rekonsiliasi.v2.stepOf.replace("{n}", String(step))}
-            >
-              {STEP_NUMS.map((num) => {
-                const s = t.rekonsiliasi.steps[num];
-                const state =
-                  step > num ? "done" : step === num ? "active" : "todo";
-                return (
-                  <li
-                    key={num}
-                    data-state={state}
-                    aria-current={state === "active" ? "step" : undefined}
-                  >
-                    <span className="rk-step-dot">
-                      {state === "done" ? <Check aria-hidden="true" /> : num}
-                    </span>
-                    <b>{s.label}</b>
-                    <small>
-                      {state === "done"
-                        ? t.rekonsiliasi.stepStatusDone
-                        : state === "active"
-                          ? t.rekonsiliasi.stepStatusActive
-                          : t.rekonsiliasi.stepStatusPending}
-                    </small>
-                  </li>
-                );
-              })}
-            </ol>
-            {totalEntriesCount > 0 && (
-              <div
-                className="rk-comp"
-                role="img"
-                aria-label={t.rekonsiliasi.v2.compAria}
+          totalEntriesCount > 0 ? (
+            <div className="rk-donut-wrap">
+              <DonutChart
+                segments={donutSegments}
+                centerLabel={String(totalEntriesCount)}
+                ariaLabel={t.rekonsiliasi.v2.compAria}
+              />
+            </div>
+          ) : (
+            <div className="rk-flow">
+              <ol
+                className="rk-steps"
+                aria-label={t.rekonsiliasi.v2.stepOf.replace(
+                  "{n}",
+                  String(step),
+                )}
               >
-                {matchedPct > 0 && (
-                  <i data-k="ok" style={{ flex: matchedPct }} />
-                )}
-                {suggestedPct > 0 && (
-                  <i data-k="warn" style={{ flex: suggestedPct }} />
-                )}
-                {unmatchedPct > 0 && (
-                  <i data-k="err" style={{ flex: unmatchedPct }} />
-                )}
-              </div>
-            )}
-          </div>
+                {STEP_NUMS.map((num) => {
+                  const s = t.rekonsiliasi.steps[num];
+                  const state =
+                    step > num ? "done" : step === num ? "active" : "todo";
+                  return (
+                    <li
+                      key={num}
+                      data-state={state}
+                      aria-current={state === "active" ? "step" : undefined}
+                    >
+                      <span className="rk-step-dot">
+                        {state === "done" ? <Check aria-hidden="true" /> : num}
+                      </span>
+                      <b>{s.label}</b>
+                      <small>
+                        {state === "done"
+                          ? t.rekonsiliasi.stepStatusDone
+                          : state === "active"
+                            ? t.rekonsiliasi.stepStatusActive
+                            : t.rekonsiliasi.stepStatusPending}
+                      </small>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          )
         }
         kpis={
           <>
@@ -2499,72 +2613,6 @@ export default function RekonsiliasiPage() {
               token={token}
             />
 
-            {/* Recent documents */}
-            <SectionCard
-              title={t.rekonsiliasi.recentDocsTitle}
-              action={<CardLink>{t.rekonsiliasi.viewHistoryLink}</CardLink>}
-            >
-              {syncsQuery.isLoading ? (
-                <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-                  {t.rekonsiliasi.loadingLabel}
-                </div>
-              ) : !syncsQuery.data || syncsQuery.data.length === 0 ? (
-                <div className="py-6 text-center text-[12.5px] text-muted-foreground">
-                  {t.rekonsiliasi.emptyDocs}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {syncsQuery.data.map((sync) => {
-                    const isSpreadsheet = /\.(xlsx?|csv)$/i.test(sync.fileName);
-                    return (
-                      <button
-                        key={sync.id}
-                        type="button"
-                        onClick={() => {
-                          setSyncId(sync.id);
-                          setStep(2);
-                        }}
-                        className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
-                      >
-                        <div
-                          className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
-                          style={{
-                            background: isSpreadsheet ? "#217346" : "#E53E3E",
-                          }}
-                        >
-                          {isSpreadsheet ? (
-                            <FileSpreadsheet className="size-[18px]" />
-                          ) : (
-                            <FileText className="size-[18px]" />
-                          )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-[13px] font-bold">
-                            {sync.fileName}
-                            <span className="ml-1.5 font-normal text-muted-foreground">
-                              ·{" "}
-                              {`${t.rekonsiliasi.uploadedAtPrefix}${new Date(
-                                sync.uploadedAt,
-                              ).toLocaleString(
-                                locale === "en" ? "en-US" : "id-ID",
-                              )} · ${sync.rowCount}${t.rekonsiliasi.transactionsCountSuffix}`}
-                            </span>
-                          </div>
-                        </div>
-                        <StatusBadge
-                          variant="info"
-                          className="flex-shrink-0 text-[10px]"
-                        >
-                          {t.rekonsiliasi.uploadedBadge}
-                        </StatusBadge>
-                        <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </SectionCard>
-
             <button
               type="button"
               onClick={() => setStep(2)}
@@ -2611,6 +2659,73 @@ export default function RekonsiliasiPage() {
                 </div>
               </div>
             )}
+
+            {/* Recent documents */}
+            <SectionCard
+              title={t.rekonsiliasi.recentDocsTitle}
+              action={<CardLink>{t.rekonsiliasi.viewHistoryLink}</CardLink>}
+            >
+              {syncsQuery.isLoading ? (
+                <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+                  {t.rekonsiliasi.loadingLabel}
+                </div>
+              ) : !syncsQuery.data || syncsQuery.data.length === 0 ? (
+                <div className="py-6 text-center text-[12.5px] text-muted-foreground">
+                  {t.rekonsiliasi.emptyDocs}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {syncsQuery.data.map((sync) => {
+                    const isSpreadsheet = /\.(xlsx?|csv)$/i.test(sync.fileName);
+                    return (
+                      <button
+                        key={sync.id}
+                        type="button"
+                        onClick={() => {
+                          setSyncId(sync.id);
+                          setStep(2);
+                        }}
+                        className="flex w-full cursor-pointer items-center gap-3 rounded-lg border bg-card p-3 text-left transition-colors hover:bg-accent/50"
+                      >
+                        <div
+                          className="flex size-9 flex-shrink-0 items-center justify-center rounded-lg text-white"
+                          style={{
+                            background: isSpreadsheet ? "#217346" : "#E53E3E",
+                          }}
+                        >
+                          {isSpreadsheet ? (
+                            <FileSpreadsheet className="size-[18px]" />
+                          ) : (
+                            <FileText className="size-[18px]" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13px] font-bold">
+                            {sync.fileName}
+                          </div>
+                          <div className="truncate text-[11.5px] text-muted-foreground">
+                            <span>
+                              {`${t.rekonsiliasi.uploadedAtPrefix}${new Date(
+                                sync.uploadedAt,
+                              ).toLocaleString(
+                                locale === "en" ? "en-US" : "id-ID",
+                              )} · ${sync.rowCount}${t.rekonsiliasi.transactionsCountSuffix}`}
+                            </span>
+                          </div>
+                        </div>
+                        <StatusBadge
+                          variant="info"
+                          className="flex-shrink-0 text-[10px]"
+                        >
+                          {t.rekonsiliasi.uploadedBadge}
+                        </StatusBadge>
+                        <ChevronRight className="size-3 flex-shrink-0 text-muted-foreground" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </SectionCard>
           </div>
         </div>
       )}
@@ -2790,6 +2905,32 @@ export default function RekonsiliasiPage() {
                     <p className="w-full text-[11.5px] text-muted-foreground">
                       {t.rekonsiliasi.importHelpText}
                     </p>
+                  </div>
+                )}
+
+                {/* Prototype parity — `.note` bulk-confirm bar above the
+                    table: all "suggested" entries get confirmed via the
+                    same per-entry PATCH …/match the row button already
+                    calls, just looped and awaited together so one toast
+                    reports the batch instead of one per row. */}
+                {suggestedEntries.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-3 rounded-[12px] border bg-accent/30 p-3 text-[12.5px]">
+                    <span className="flex-1 min-w-[180px]">
+                      {t.rekonsiliasi.bulkConfirmBannerText.replace(
+                        "{count}",
+                        String(suggestedEntries.length),
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={bulkConfirming}
+                      onClick={handleBulkConfirm}
+                      className="btn btn--primary"
+                    >
+                      {bulkConfirming
+                        ? t.rekonsiliasi.bulkConfirmPendingLabel
+                        : t.rekonsiliasi.bulkConfirmButton}
+                    </button>
                   </div>
                 )}
 
@@ -3138,16 +3279,26 @@ export default function RekonsiliasiPage() {
           if (!open) clearPasswordState();
         }}
       >
-        <DialogContent className="dialog--sm">
-          <DialogTitle>{t.rekonsiliasi.protectedDialogTitle}</DialogTitle>
-          <DialogDescription>
-            {protectedFile?.kind === "pdf"
-              ? t.rekonsiliasi.protectedDialogDescPdf
-              : protectedFile?.kind === "encrypted-zip"
-                ? t.rekonsiliasi.protectedDialogDescZip
-                : t.rekonsiliasi.protectedDialogDescXlsx}
-          </DialogDescription>
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {t.rekonsiliasi.protectedDialogTitle}
+              </DialogTitle>
+              <DialogDescription className="wm-panel-desc">
+                {protectedFile?.kind === "pdf"
+                  ? t.rekonsiliasi.protectedDialogDescPdf
+                  : protectedFile?.kind === "encrypted-zip"
+                    ? t.rekonsiliasi.protectedDialogDescZip
+                    : t.rekonsiliasi.protectedDialogDescXlsx}
+              </DialogDescription>
+            </div>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
           <form
+            className="flex min-h-0 flex-1 flex-col"
             onSubmit={(e) => {
               e.preventDefault();
               if (!protectedFile || unlocking) return;
@@ -3156,7 +3307,7 @@ export default function RekonsiliasiPage() {
                 : runUpload(protectedFile.file, filePassword));
             }}
           >
-            <DialogBody>
+            <div className="wm-panel-body wm-form">
               <label className="field">
                 <span className="label">
                   {t.rekonsiliasi.protectedPasswordLabel}
@@ -3208,23 +3359,23 @@ export default function RekonsiliasiPage() {
                   {unlockError}
                 </p>
               )}
-            </DialogBody>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={clearPasswordState}
-              >
+            </div>
+            <div className="wm-panel-foot">
+              <PillButton type="button" onClick={clearPasswordState}>
                 {t.rekonsiliasi.protectedCancelButton}
-              </Button>
-              <Button type="submit" disabled={unlocking || !filePassword}>
+              </PillButton>
+              <PillButton
+                type="submit"
+                variant="primary"
+                disabled={unlocking || !filePassword}
+              >
                 {unlocking
                   ? t.rekonsiliasi.protectedUnlockingLabel
                   : t.rekonsiliasi.protectedSubmitButton}
-              </Button>
-            </DialogFooter>
+              </PillButton>
+            </div>
           </form>
-        </DialogContent>
+        </PanelContent>
       </Dialog>
     </div>
   );

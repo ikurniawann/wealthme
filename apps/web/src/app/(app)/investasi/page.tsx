@@ -9,11 +9,13 @@ import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { io } from "socket.io-client";
 import {
+  ArrowLeftRight,
   Calculator,
   Info,
   PencilLine,
   Plus,
   RefreshCw,
+  X as XIcon,
   Zap,
 } from "lucide-react";
 
@@ -29,6 +31,7 @@ import {
   Segmented,
   StatusBadge,
   DateField,
+  PillButton,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { DateRangeFilterField } from "@/components/wm/date-range-field";
@@ -41,6 +44,8 @@ import {
 import {
   Dialog,
   DialogBody,
+  DialogClose,
+  PanelContent,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -877,29 +882,33 @@ function AddInvestmentModal({
       {/* EPIC-026 Wave 8 — rebuilt 1:1 against the prototype's #dlg-catat
           (docs/prototype/pages/investasi.html:329): a `dialog--wide
           investment-dialog` shell whose header/body/footer are three fixed
-          rows, and whose body is the `investment-form` — bordered
-          `investment-form__section` blocks, each with a heading + 2-up
-          `investment-form__grid` field pairs and `.hint` lines. Field order
+          rows, and whose body is the `wm-form` — bordered
+          `wm-form__section` blocks, each with a heading + 2-up
+          `wm-form__grid` field pairs and `.hint` lines. Field order
           matches the prototype: [Jenis | Tanggal Beli], [Nama | Kode], then
           quantity & price, then valuation. */}
-      <DialogContent className="dialog--wide investment-dialog">
-        <DialogHeader className="investment-dialog__header">
-          <DialogTitle>
-            {editing ? t.investasi.modalTitleEdit : t.investasi.modalTitleAdd}
-          </DialogTitle>
-          <DialogDescription>{t.investasi.modalDesc}</DialogDescription>
-        </DialogHeader>
-        {/* `.investment-dialog` is a flex column; the form has to carry that
-            through or the body would stop scrolling independently of the
-            pinned footer. */}
+      <PanelContent variant="side" size="lg" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {editing ? t.investasi.modalTitleEdit : t.investasi.modalTitleAdd}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.investasi.modalDesc}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <XIcon aria-hidden="true" />
+          </DialogClose>
+        </header>
         <form
           onSubmit={(e) => {
             void handleSubmit(e);
           }}
           className="flex min-h-0 flex-1 flex-col"
         >
-          <DialogBody className="investment-form">
-            <div className="investment-form__grid">
+          <div className="wm-panel-body wm-form">
+            <div className="wm-form__grid">
               <div className="field">
                 <label className="label" htmlFor="type">
                   {t.investasi.fieldTypeLabel}
@@ -918,27 +927,9 @@ function AddInvestmentModal({
                   ))}
                 </select>
               </div>
-
-              {/* EPIC-024 C3 (D7) — "tanggal beli", every type. */}
-              <div className="field">
-                <label className="label" htmlFor="purchasedAt">
-                  {t.investasi.fieldPurchaseDateLabel}
-                </label>
-                <DateField
-                  id="purchasedAt"
-                  name="purchasedAt"
-                  value={form.purchasedAt}
-                  locale={locale}
-                  label={t.investasi.fieldPurchaseDateLabel}
-                  onChange={(iso) =>
-                    setForm((prev) => ({ ...prev, purchasedAt: iso }))
-                  }
-                />
-                <div className="hint">{t.investasi.hintPurchaseDate}</div>
-              </div>
             </div>
 
-            <div className="investment-form__grid mt-3">
+            <div className="wm-form__grid">
               <div className="field">
                 <label className="label" htmlFor="name">
                   {t.investasi.fieldNameLabel}
@@ -982,7 +973,7 @@ function AddInvestmentModal({
                 own labelled field, same rhythm as every other field in the
                 grid. */}
             {form.type === "saham" && (
-              <div className="field mt-3">
+              <div className="field">
                 <span className="label">
                   {t.investasi.fieldQuantityUnitLabel}
                 </span>
@@ -1014,7 +1005,7 @@ function AddInvestmentModal({
               </div>
             )}
 
-            <div className="investment-form__grid mt-3">
+            <div className="wm-form__grid wm-form__grid--two">
               {/* EPIC-024 C3 (D9) — saham gets the Lot/Lembar toggle above
                     (canonical lembar, ×100, converted only at submit — see
                     handleQuantityUnitChange); kripto is coin decimals;
@@ -1084,7 +1075,27 @@ function AddInvestmentModal({
                   <div className="hint">{t.investasi.hintCostBasisLocked}</div>
                 )}
               </div>
+            </div>
 
+            {/* EPIC-024 C3 (D7) — "tanggal beli", every type. */}
+            <div className="field">
+              <label className="label" htmlFor="purchasedAt">
+                {t.investasi.fieldPurchaseDateLabel}
+              </label>
+              <DateField
+                id="purchasedAt"
+                name="purchasedAt"
+                value={form.purchasedAt}
+                locale={locale}
+                label={t.investasi.fieldPurchaseDateLabel}
+                onChange={(iso) =>
+                  setForm((prev) => ({ ...prev, purchasedAt: iso }))
+                }
+              />
+              <div className="hint">{t.investasi.hintPurchaseDate}</div>
+            </div>
+
+            <div className="wm-form__grid">
               {INTEREST_BEARING_TYPES.includes(form.type) && (
                 <div className="field">
                   <label className="label" htmlFor="interestRatePct">
@@ -1134,7 +1145,7 @@ function AddInvestmentModal({
                 entered. batch 7a item 3 — this notice is the ONE place the
                 per-type pricing-source note is shown now; the duplicate
                 hint that used to sit under the Jenis select is gone. */}
-            <div className="mt-3">
+            <div className="iv-form-note">
               {isDeposito ? (
                 <div className="notice notice--info">
                   <Calculator className="size-4 shrink-0" aria-hidden="true" />
@@ -1177,7 +1188,7 @@ function AddInvestmentModal({
                         : t.investasi.manualPriceNote}
                     </span>
                   </div>
-                  <div className="investment-form__grid">
+                  <div className="wm-form__grid">
                     <div className="field">
                       <label className="label" htmlFor="manualPrice">
                         {t.investasi.fieldManualPriceLabel}
@@ -1216,28 +1227,18 @@ function AddInvestmentModal({
                 </div>
               )}
             </div>
-          </DialogBody>
+          </div>
 
-          {/* Prototype `.dialog__footer` — outline Batal, primary save
-              (investasi.html:539-546). */}
-          <DialogFooter>
-            <button
-              type="button"
-              className="btn btn--outline"
-              onClick={onClose}
-            >
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
               {t.common.cancel}
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn btn--primary"
-            >
+            </PillButton>
+            <PillButton type="submit" variant="primary" disabled={submitting}>
               {submitting ? t.investasi.saving : t.investasi.saveButton}
-            </button>
-          </DialogFooter>
+            </PillButton>
+          </div>
         </form>
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -1396,6 +1397,41 @@ function BuySellModal({
     }
   }
 
+  // Live order preview — display only; the submitted values are computed in
+  // handleSubmit exactly as before.
+  const unitFactor =
+    isSaham && quantityUnit === "lot" ? 100 : isGold ? 1000 : 1;
+  const qtyCanonical = (Number(quantity) || 0) * unitFactor;
+  let priceIdr = 0;
+  if (!priceField.resolved.isPending) {
+    try {
+      priceIdr = Number(
+        moneyIdrDecimal(
+          priceField,
+          () => toCanonicalAmount(priceField.raw) ?? "0",
+        ),
+      );
+    } catch {
+      priceIdr = 0;
+    }
+  }
+  const held = Number(holding?.quantity ?? 0);
+  const avgCost = Number(holding?.costBasisPerUnit ?? 0);
+  const lastPrice =
+    holding?.currentPrice != null ? Number(holding.currentPrice) : null;
+  const total = qtyCanonical * priceIdr;
+  const isSell = txType === "sell";
+  const nextHeld = isSell ? held - qtyCanonical : held + qtyCanonical;
+  const overSell = isSell && qtyCanonical > held + 1e-9;
+  const newAvg =
+    !isSell && nextHeld > 0
+      ? (held * avgCost + qtyCanonical * priceIdr) / nextHeld
+      : avgCost;
+  const estPnl = isSell ? (priceIdr - avgCost) * qtyCanonical : 0;
+  const hasPreview = qtyCanonical > 0 && priceIdr > 0;
+  const showQty = (canonical: number) =>
+    `${formatQuantity(String(canonical / unitFactor), holding?.type ?? "", effectiveUnit)} ${unitLabel}`;
+
   return (
     <Dialog
       open={open}
@@ -1403,19 +1439,53 @@ function BuySellModal({
         if (!isOpen) onClose();
       }}
     >
-      <DialogContent className="dialog--sm">
-        <DialogHeader>
-          <DialogTitle>
-            {txType === "buy"
-              ? t.investasi.buySellModalTitleBuy
-              : t.investasi.buySellModalTitleSell}
-          </DialogTitle>
-          <DialogDescription>{holding?.name}</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={(e) => void handleSubmit(e)}>
-          <DialogBody className="space-y-3">
+      <PanelContent variant="side" size="lg" className="wm-form-panel bs-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {isSell
+                ? t.investasi.buySellModalTitleSell
+                : t.investasi.buySellModalTitleBuy}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {holding?.name}
+              {holding?.ticker ? ` · ${holding.ticker}` : ""}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <XIcon aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="wm-panel-body wm-form">
+            {holding && (
+              <section
+                className="bs-pos"
+                aria-label={t.investasi.bsHoldingTitle}
+              >
+                <div className="bs-pos-title">{t.investasi.bsHoldingTitle}</div>
+                <dl className="bs-pos-grid">
+                  <div>
+                    <dt>{t.investasi.bsHeldLabel}</dt>
+                    <dd>{showQty(held)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t.investasi.bsAvgPriceLabel}</dt>
+                    <dd>{money.format(avgCost)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t.investasi.bsLastPriceLabel}</dt>
+                    <dd>{lastPrice != null ? money.format(lastPrice) : "—"}</dd>
+                  </div>
+                </dl>
+              </section>
+            )}
+
             <div
-              className="segmented"
+              className="bs-side"
               role="tablist"
               aria-label={t.investasi.buySellButtonLabel}
             >
@@ -1424,7 +1494,7 @@ function BuySellModal({
                   key={type}
                   type="button"
                   role="tab"
-                  className="segmented__item"
+                  data-side={type}
                   aria-selected={txType === type}
                   onClick={() => setTxType(type)}
                 >
@@ -1434,6 +1504,7 @@ function BuySellModal({
                 </button>
               ))}
             </div>
+
             {isSaham && (
               <div className="field">
                 <span className="label">
@@ -1461,94 +1532,166 @@ function BuySellModal({
                 </div>
               </div>
             )}
-            <div className="field">
-              <label className="label" htmlFor="tx-quantity">
-                {t.investasi.buySellFieldQuantityLabel} ({unitLabel})
-              </label>
-              <input
-                id="tx-quantity"
-                type="number"
-                required
-                min="0"
-                step={
-                  holding ? quantityStep(holding.type, effectiveUnit) : "any"
-                }
-                value={quantity}
-                onChange={(e) => setQuantity(e.target.value)}
-                className="input mono"
-              />
-              {isSaham && (
-                <div className="hint">{t.investasi.hintLotConversion}</div>
-              )}
+
+            <div className="wm-form__grid wm-form__grid--two">
+              <div className="field">
+                <label className="label" htmlFor="tx-quantity">
+                  {t.investasi.buySellFieldQuantityLabel} ({unitLabel})
+                </label>
+                <input
+                  id="tx-quantity"
+                  type="number"
+                  required
+                  min="0"
+                  step={
+                    holding ? quantityStep(holding.type, effectiveUnit) : "any"
+                  }
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="input mono"
+                  aria-invalid={overSell || undefined}
+                />
+                {overSell ? (
+                  <div className="hint t-danger">{t.investasi.bsOverSell}</div>
+                ) : (
+                  isSaham && (
+                    <div className="hint">{t.investasi.hintLotConversion}</div>
+                  )
+                )}
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="tx-price">
+                  {t.investasi.buySellFieldPriceLabel}
+                </label>
+                <MoneyInput field={priceField} id="tx-price" />
+                {lastPrice != null && (
+                  <button
+                    type="button"
+                    className="bs-chip"
+                    onClick={() =>
+                      priceField.setRaw(String(Math.round(lastPrice)))
+                    }
+                  >
+                    {t.investasi.bsUseLastPrice} · {money.format(lastPrice)}
+                  </button>
+                )}
+                {isSaham && (
+                  <div className="hint">
+                    {t.investasi.buySellPricePerLembarHint}
+                  </div>
+                )}
+                {isGold && (
+                  <div className="hint">
+                    {t.investasi.buySellPricePerGramHint}
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="field">
-              <label className="label" htmlFor="tx-price">
-                {t.investasi.buySellFieldPriceLabel}
-              </label>
-              <MoneyInput field={priceField} id="tx-price" />
-              {isSaham && (
-                <div className="hint">
-                  {t.investasi.buySellPricePerLembarHint}
-                </div>
-              )}
-              {isGold && (
-                <div className="hint">
-                  {t.investasi.buySellPricePerGramHint}
-                </div>
-              )}
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="tx-account">
-                {t.investasi.buySellFieldAccountLabel}
-              </label>
-              <select
-                id="tx-account"
-                className="select"
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-              >
-                <option value="">{t.investasi.buySellAccountNoneOption}</option>
-                {settleOptions.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
+
+            <div className="wm-form__grid wm-form__grid--two">
+              <div className="field">
+                <label className="label" htmlFor="tx-account">
+                  {t.investasi.buySellFieldAccountLabel}
+                </label>
+                <select
+                  id="tx-account"
+                  className="select"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                >
+                  <option value="">
+                    {t.investasi.buySellAccountNoneOption}
                   </option>
-                ))}
-              </select>
+                  {settleOptions.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="tx-date">
+                  {t.investasi.buySellFieldDateLabel}
+                </label>
+                <DateField
+                  id="tx-date"
+                  value={occurredAt}
+                  locale={locale}
+                  label={t.investasi.buySellFieldDateLabel}
+                  required
+                  onChange={setOccurredAt}
+                />
+              </div>
             </div>
-            <div className="field">
-              <label className="label" htmlFor="tx-date">
-                {t.investasi.buySellFieldDateLabel}
-              </label>
-              <DateField
-                id="tx-date"
-                value={occurredAt}
-                locale={locale}
-                label={t.investasi.buySellFieldDateLabel}
-                required
-                onChange={setOccurredAt}
-              />
-            </div>
-          </DialogBody>
-          <DialogFooter>
-            <button
-              type="button"
-              className="btn btn--outline"
-              onClick={onClose}
+
+            <section
+              className="bs-sum"
+              data-side={txType}
+              aria-live="polite"
+              aria-label={t.investasi.bsSummaryTitle}
             >
+              <div className="bs-sum-title">{t.investasi.bsSummaryTitle}</div>
+              {hasPreview ? (
+                <>
+                  <div className="bs-sum-total">
+                    <span>
+                      {isSell
+                        ? t.investasi.bsTotalSell
+                        : t.investasi.bsTotalBuy}
+                    </span>
+                    <b>{money.format(total)}</b>
+                  </div>
+                  <dl className="bs-sum-rows">
+                    <div>
+                      <dt>
+                        {isSell
+                          ? t.investasi.bsRemainingLabel
+                          : t.investasi.bsNewHoldingLabel}
+                      </dt>
+                      <dd className={overSell ? "t-danger" : undefined}>
+                        {showQty(Math.max(0, nextHeld))}
+                      </dd>
+                    </div>
+                    {isSell ? (
+                      <div>
+                        <dt>{t.investasi.bsEstPnlLabel}</dt>
+                        <dd className={estPnl >= 0 ? "t-success" : "t-danger"}>
+                          {estPnl >= 0 ? "+" : "−"}
+                          {money.format(Math.abs(estPnl))}
+                        </dd>
+                      </div>
+                    ) : (
+                      <div>
+                        <dt>{t.investasi.bsNewAvgLabel}</dt>
+                        <dd>{money.format(newAvg)}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </>
+              ) : (
+                <p className="bs-sum-empty">{t.investasi.bsSummaryEmpty}</p>
+              )}
+            </section>
+          </div>
+
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
               {t.common.cancel}
-            </button>
-            <button
+            </PillButton>
+            <PillButton
               type="submit"
-              disabled={submitting}
-              className="btn btn--primary"
+              variant="primary"
+              disabled={submitting || overSell}
             >
               {submitting
                 ? t.investasi.buySellSaving
-                : t.investasi.buySellSaveButton}
-            </button>
-          </DialogFooter>
+                : hasPreview
+                  ? `${isSell ? t.investasi.buySellTypeSellLabel : t.investasi.buySellTypeBuyLabel} · ${money.formatCompact(total)}`
+                  : t.investasi.buySellSaveButton}
+            </PillButton>
+          </div>
         </form>
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -1898,6 +2041,18 @@ export default function InvestasiPage() {
                   {t.investasi.addInvestmentHeaderButton}
                 </GhostButton>
               )}
+              {/* proto `.legend` under the ctrl-row — Modal (cost) vs Nilai
+                  (current value), same colors as the bar chart below. */}
+              <span className="iv-legend" aria-hidden="true">
+                <span>
+                  <i className="iv-dot-cost" />
+                  {t.investasi.v2.legendCost}
+                </span>
+                <span>
+                  <i className="iv-dot-value" />
+                  {t.investasi.v2.legendValue}
+                </span>
+              </span>
             </>
           }
           chart={
@@ -2115,6 +2270,18 @@ export default function InvestasiPage() {
                   </div>
                   {canManage && (
                     <div className="iv-act">
+                      {/* proto `data-buysell` icon — the only path to grow/
+                          shrink a lot once it exists (see isEditingLots in
+                          AddInvestmentModal), restored alongside edit/delete. */}
+                      <button
+                        type="button"
+                        className="iv-buysell"
+                        aria-label={t.investasi.buySellButtonLabel}
+                        title={t.investasi.buySellButtonLabel}
+                        onClick={() => setBuySellHolding(h)}
+                      >
+                        <ArrowLeftRight aria-hidden="true" />
+                      </button>
                       <RowActions
                         onEdit={() => {
                           setEditingHolding(h);
@@ -2153,7 +2320,7 @@ export default function InvestasiPage() {
               <p>{t.investasi.pricingSourceNoticeBody}</p>
             </details>
             <Link className="iv-link" href="/transaksi">
-              {t.investasi.v2.noteDividends}
+              {t.investasi.v2.noteDividends} <span aria-hidden="true">→</span>
             </Link>
           </div>
           <div className="wm-mosaic" aria-hidden="true">

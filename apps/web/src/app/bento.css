@@ -2178,48 +2178,37 @@
   }
 
   /* money input with the Rp pill */
+  /* prototype .affix — bordered field with a muted prefix (Rp, %) */
   .wm-affix {
     display: flex;
     align-items: center;
-    gap: 10px;
-    min-height: 54px;
-    padding: 0 8px;
-    border: 2px solid transparent;
-    border-radius: 16px;
-    background: var(--wm-card-2);
-    transition:
-      border-color 0.15s,
-      background-color 0.15s,
-      box-shadow 0.15s;
-  }
-  .wm-affix:hover {
-    background: var(--wm-ghost);
+    gap: 8px;
+    min-height: 46px;
+    padding: 0 12px;
+    border: 1.5px solid var(--wm-line);
+    border-radius: 12px;
+    background: var(--wm-card);
+    transition: border-color 0.15s;
   }
   .wm-affix:focus-within {
     border-color: var(--wm-lime);
-    background: var(--wm-card);
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--wm-lime) 22%, transparent);
   }
   .wm-affix-pre {
     flex: none;
-    padding: 6px 10px;
-    border-radius: 10px;
-    background: var(--wm-ink);
-    color: var(--wm-card);
-    font-size: var(--wm-type-13);
-    font-weight: 700;
+    color: var(--wm-muted);
+    font-size: 14px;
+    font-weight: 500;
   }
   .wm-affix input {
     width: 100%;
     min-width: 0;
-    padding: 12px 0;
+    padding: 10px 0;
     border: 0;
     outline: 0;
     background: transparent;
     color: var(--wm-ink);
-    font-size: var(--wm-type-20);
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 14px;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
   .wm-affix[aria-invalid="true"] {
@@ -2311,68 +2300,57 @@
     font-size: var(--wm-type-13);
     font-weight: 600;
   }
-  .dialog :is(.input, .select, .textarea) {
-    min-height: 54px;
-    padding: 12px 16px;
-    border: 2px solid transparent;
-    border-radius: 16px;
-    background-color: var(--wm-card-2);
+  :is(.dialog, body) :is(.input, .select, .textarea) {
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--wm-line);
+    border-radius: 12px;
+    background-color: var(--wm-card);
     box-shadow: none;
     color: var(--wm-ink);
-    font-size: var(--wm-type-16);
+    font-size: 14px;
     font-weight: 500;
-    transition:
-      border-color 0.15s,
-      background-color 0.15s,
-      box-shadow 0.15s;
+    transition: border-color 0.15s;
   }
-  /* the date picker trigger is a button: give it the same filled 54px shape */
-  .dialog .date-field .date-range__trigger {
+  :is(.dialog, body) .textarea {
+    min-height: 88px;
+  }
+  :is(.dialog, body) .date-field .date-range__trigger {
     width: 100%;
-    min-height: 54px;
-    padding: 12px 16px;
-    border: 2px solid transparent;
-    border-radius: 16px;
-    background-color: var(--wm-card-2);
+    min-height: 46px;
+    padding: 10px 12px;
+    border: 1.5px solid var(--wm-line);
+    border-radius: 12px;
+    background-color: var(--wm-card);
     box-shadow: none;
     color: var(--wm-ink);
-    font-size: var(--wm-type-16);
+    font-size: 14px;
     font-weight: 500;
   }
-  .dialog .date-field .date-range__trigger:hover {
-    background-color: var(--wm-ghost);
-  }
-  .dialog .date-field .date-range__trigger:focus-visible,
-  .dialog .date-field .date-range__trigger[aria-expanded="true"] {
+  :is(.dialog, body) .date-field .date-range__trigger:focus-visible,
+  :is(.dialog, body) .date-field .date-range__trigger[aria-expanded="true"] {
     border-color: var(--wm-lime);
     outline: 0;
-    background-color: var(--wm-card);
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--wm-lime) 22%, transparent);
   }
   .dialog .date-field .date-range__label {
     font-weight: 500;
   }
-  .dialog .select {
-    padding-right: 40px;
-    background-position: right 16px center;
+  :is(.dialog, body) .select {
+    padding-right: 34px;
+    background-position: right 12px center;
   }
-  .dialog :is(.input, .select, .textarea):hover {
-    background-color: var(--wm-ghost);
-  }
-  .dialog :is(.input, .select, .textarea):focus,
-  .dialog :is(.input, .select, .textarea):focus-visible {
+  :is(.dialog, body) :is(.input, .select, .textarea):focus,
+  :is(.dialog, body) :is(.input, .select, .textarea):focus-visible {
     border-color: var(--wm-lime);
     outline: 0;
-    background-color: var(--wm-card);
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--wm-lime) 22%, transparent);
+    box-shadow: none;
   }
-  .dialog :is(.input, .textarea)::placeholder {
+  :is(.dialog, body) :is(.input, .textarea)::placeholder {
     color: color-mix(in srgb, var(--wm-muted) 70%, transparent);
     font-weight: 400;
   }
-  .dialog :is(.input, .select, .textarea)[aria-invalid="true"] {
+  :is(.dialog, body) :is(.input, .select, .textarea)[aria-invalid="true"] {
     border-color: var(--wm-bad);
-    background-color: color-mix(in srgb, var(--wm-bad) 6%, var(--wm-card));
   }
   .dialog .dialog__footer {
     gap: 10px;
@@ -3275,6 +3253,255 @@
   @media (max-width: 720px) {
     .wm-skin-swatches {
       grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* ───── dialog forms: one rhythm (proto .sheet-body / .field / .two) ───── */
+  .dialog .dialog__title {
+    font-size: 24px;
+  }
+  .dialog.dialog--sm .dialog__title {
+    font-size: 20px;
+  }
+  .dialog .dialog__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .dialog .dialog__body > * {
+    margin-top: 0;
+  }
+  .dialog :is(.field, .field + .field) {
+    margin-top: 0;
+  }
+  .dialog .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .dialog .field .label {
+    margin-bottom: 0;
+  }
+  .dialog .field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 0;
+  }
+  .dialog :is(.input, .select, .textarea, .date-field .date-range__trigger) {
+    min-height: 48px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    font-size: 15px;
+  }
+  .dialog .textarea {
+    min-height: 88px;
+  }
+  .dialog .wm-affix {
+    min-height: 48px;
+  }
+  .dialog .wm-affix input {
+    font-size: 18px;
+  }
+  .dialog .select.shrink-0 {
+    min-width: 108px;
+    padding-left: 12px;
+    padding-right: 30px;
+    background-position: right 10px center;
+  }
+  .dialog .dialog__body > .row {
+    min-height: 56px;
+    padding: 10px 16px;
+    border-radius: 16px;
+    background: var(--wm-card-2);
+    align-items: center;
+    gap: 12px;
+  }
+  @media (max-width: 560px) {
+    .dialog .field-row {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 16px;
+    }
+  }
+  /* Catat investasi — prototype side sheet (docs/design/proto): light head,
+     single-column fields, Jumlah | Modal as the only pair. */
+  .wm-form-panel .wm-panel-head {
+    background: transparent;
+    color: var(--wm-ink, inherit);
+    padding: 22px 24px 14px;
+    border-bottom: 0;
+  }
+  .wm-form-panel .wm-panel-title {
+    color: inherit;
+    font-size: 20px;
+    letter-spacing: -0.02em;
+  }
+  .wm-form-panel .wm-panel-desc {
+    color: var(--muted-foreground, #6b7260);
+  }
+  .wm-form-panel .wm-panel-x {
+    width: 36px;
+    height: 36px;
+    background: var(--wm-card-2, rgb(0 0 0 / 0.06));
+    color: inherit;
+  }
+  .wm-form-panel .wm-panel-x:hover {
+    background: rgb(0 0 0 / 0.1);
+  }
+  .wm-form-panel .wm-panel-body {
+    gap: 16px;
+    padding: 4px 24px 20px;
+  }
+  .wm-form .wm-form__grid {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .wm-form .wm-form__grid--two {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+  }
+  .wm-form .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .wm-form .label {
+    color: var(--muted-foreground, #6b7260);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .wm-form :is(.input, .select, .date-field .date-range__trigger, .wm-affix) {
+    min-height: 46px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  .wm-form .input,
+  .wm-form .select {
+    padding: 10px 12px;
+  }
+  .wm-form :is(.input, .select, .date-field .date-range__trigger):focus-visible,
+  .wm-form .wm-affix:focus-within {
+    border-color: var(--wm-lime, #c6f432);
+    outline: none;
+  }
+  .wm-form .hint {
+    margin-top: 0;
+    font-size: 12px;
+  }
+  .wm-form .segmented {
+    width: 100%;
+  }
+  .wm-form .segmented .segmented__item {
+    flex: 1;
+    min-height: 40px;
+  }
+  .wm-form .iv-form-note {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .wm-form .notice {
+    border-radius: 14px;
+    padding: 12px 14px;
+  }
+  .wm-form-panel .wm-panel-foot {
+    flex-wrap: nowrap;
+    padding: 16px 24px 22px;
+    border-top: 1px solid var(--border);
+    background: transparent;
+  }
+  .wm-form-panel .wm-panel-foot > .wm-pill {
+    min-height: 46px;
+  }
+  @media (max-width: 380px) {
+    .wm-form .wm-form__grid--two {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  /* Mobile tidy pass: hero figures never break mid-number, KPI rails stay
+     legible with full-Rupiah values (decimals on). */
+  @media (max-width: 720px) {
+    .wm-big {
+      font-size: clamp(22px, 7.2vw, 34px);
+      white-space: nowrap;
+      overflow-wrap: normal;
+    }
+    .wm-kpis {
+      grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+      row-gap: 14px;
+    }
+    .wm-kpi {
+      min-width: 0;
+    }
+    .wm-kpi-v {
+      display: block;
+      overflow: hidden;
+      font-size: 15px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .wm-hero-ctrl {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+  }
+  @media (max-width: 720px) {
+    .wm-seg {
+      max-width: 100%;
+      flex-wrap: wrap;
+      height: auto;
+    }
+    .wm-card,
+    .wm-hero,
+    .wm-hero-main {
+      min-width: 0;
+      max-width: 100%;
+    }
+  }
+  /* Decorative mosaic collided with tip copy on every page — removed. */
+  .wm-mosaic {
+    display: none !important;
+  }
+  @media (min-width: 1181px) {
+    .wm-hero {
+      grid-template-columns: minmax(0, 1fr) 270px;
+    }
+  }
+  .wm-kpi-v {
+    white-space: nowrap;
+  }
+  /* MoneyInput: compact currency picker so the amount field gets the room. */
+  .select.money-cur,
+  .dialog .select.money-cur,
+  .wm-form .select.money-cur {
+    width: 78px;
+    min-width: 0;
+    padding-left: 10px;
+    padding-right: 22px;
+    background-position: right 8px center;
+    font-size: 13px;
+  }
+  .money-cur + .input {
+    min-width: 110px;
+  }
+  .wm-panel--side:not(.wm-panel--lg)
+    :is(.wm-form__grid--two, .field-row, .grid):has(.money-cur) {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  /* Floating bottom nav + "+" button: keep the last content clear of it. */
+  @media (max-width: 720px) {
+    .wm-main {
+      padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important;
+    }
+  }
+  /* Touch screens swipe the account rail; the arrows only covered card text. */
+  @media (hover: none), (max-width: 720px) {
+    .wm-rail-btn {
+      display: none !important;
     }
   }
 }

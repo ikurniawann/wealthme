@@ -11,7 +11,7 @@ import type {
 
 /* ───────────────────────── Export Section ───────────────────────── */
 
-const EXPORT_REPORT_TYPE_IDS: ExportReportType[] = [
+export const EXPORT_REPORT_TYPE_IDS: ExportReportType[] = [
   "summary",
   "bank",
   "detail",
@@ -19,6 +19,23 @@ const EXPORT_REPORT_TYPE_IDS: ExportReportType[] = [
   "balance-sheet",
   "cashflow",
 ];
+
+/**
+ * This selector drives the EXPORT job's report type, not the currently
+ * viewed tab — the two can legitimately differ (e.g. exporting a Bank
+ * report while reading rsum). It used to default to and stay on "summary"
+ * ("Ringkasan") on every tab, which read as if it mirrored the active tab
+ * and never changed. Map each tab to its closest export type so switching
+ * tabs updates the default sensibly; the user can still override it.
+ */
+export const EXPORT_TYPE_FOR_TAB: Record<string, ExportReportType> = {
+  rbank: "bank",
+  rdetail: "detail",
+  rpnl: "pnl",
+  rbalance: "balance-sheet",
+  rasl: "balance-sheet",
+  rcashflow: "cashflow",
+};
 
 /**
  * EPIC-025 N3-J1 — export job logic extracted from `ExportSection` into a

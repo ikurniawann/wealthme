@@ -368,9 +368,11 @@ export function TransactionDialog() {
     caption: a.name,
     label: a.institution ?? a.name,
     sub:
-      a.balance !== undefined
-        ? formatRupiahCompact(Number(a.balance))
-        : undefined,
+      a.balance === null
+        ? "Rp ••••••"
+        : a.balance !== undefined
+          ? formatRupiahCompact(Number(a.balance))
+          : undefined,
   }));
   const categoryChoices: Choice[] = relevantCategories.map((c) => {
     const Icon = categoryIcon(c.name);
