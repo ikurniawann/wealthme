@@ -247,7 +247,7 @@ describe("TransactionDialog, tab-strip scrolls at tablet/desktop, wraps below 40
     // Batch 8 item 1 — "Kartu Kredit" clipped at 390px with no usable
     // affordance; wrap into extra rows below 400px instead of relying on
     // scroll-fade alone, matching /kalkulator and /investasi.
-    expect(tablist.className).toMatch(/\bmax-\[399px\]:grid-cols-2\b/);
+    expect(tablist.className).toMatch(/\bmax-\[720px\]:grid-cols-2\b/);
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab.className).toMatch(/\bshrink-0\b/);
       expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
