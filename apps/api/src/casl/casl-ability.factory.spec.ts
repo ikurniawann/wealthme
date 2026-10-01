@@ -370,3 +370,17 @@ describe("CaslAbilityFactory — notifications can be marked read by every role"
     ).toBe(true);
   });
 });
+
+describe("CaslAbilityFactory — transaction-only roles can read categories", () => {
+  const factory = new CaslAbilityFactory();
+  it.each([Role.dependant, Role.operational])(
+    "%s can read but not manage Category",
+    (role) => {
+      const ability = factory.createForMember({ role });
+      expect(ability.can("read", "Category")).toBe(true);
+      expect(ability.can("create", "Category")).toBe(false);
+      expect(ability.can("update", "Category")).toBe(false);
+      expect(ability.can("delete", "Category")).toBe(false);
+    },
+  );
+});
