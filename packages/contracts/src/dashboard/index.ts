@@ -18,13 +18,16 @@ export interface AccountSummaryItemDto {
   total: number;
 }
 
+// Every amount is null when the viewer's "Lihat saldo" is off
+// (`balancesHidden: true`).
 export interface NetWorthDto {
-  accountsTotal: string;
-  investmentsTotal: string;
-  assetsTotal: string;
-  liabilitiesTotal: string;
-  netWorth: string;
+  accountsTotal: string | null;
+  investmentsTotal: string | null;
+  assetsTotal: string | null;
+  liabilitiesTotal: string | null;
+  netWorth: string | null;
   currency: string;
+  balancesHidden?: boolean;
 }
 
 export interface NetWorthHistoryPointDto {
@@ -42,10 +45,14 @@ export interface NetWorthHistoryDto {
   points: NetWorthHistoryPointDto[];
 }
 
+// When the viewer's "Lihat saldo" is off: netWorth/assetsTotal/currentMonth/
+// cashflow are null, sparkline/allocation/accountSummary are empty and
+// `balancesHidden` is true. Recent transactions are unchanged.
 export interface DashboardSummaryDto {
-  netWorth: number;
-  assetsTotal: number;
-  cashflow: CashflowDto;
+  balancesHidden?: boolean;
+  netWorth: number | null;
+  assetsTotal: number | null;
+  cashflow: CashflowDto | null;
   sparkline: number[];
   allocation: AllocationItemDto[];
   accountSummary: AccountSummaryItemDto[];
@@ -54,7 +61,7 @@ export interface DashboardSummaryDto {
     expense: number;
     net: number;
     savingsRate: number;
-  };
+  } | null;
   recentTransactions: {
     id: string;
     description: string | null;

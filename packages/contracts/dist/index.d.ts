@@ -115,20 +115,22 @@ declare const AccountDtoSchema: z.ZodObject<{
     type: z.ZodEnum<["bank", "ewallet", "cash", "investment", "property"]>;
     institution: z.ZodNullable<z.ZodString>;
     maskedNumber: z.ZodNullable<z.ZodString>;
-    balance: z.ZodString;
+    /** null when the viewer's "Lihat saldo" is off (see balancesHidden). */
+    balance: z.ZodNullable<z.ZodString>;
     currency: z.ZodString;
     isPrivate: z.ZodBoolean;
     ownerUserId: z.ZodNullable<z.ZodString>;
     ownerName: z.ZodNullable<z.ZodString>;
     createdAt: z.ZodString;
     updatedAt: z.ZodString;
+    balancesHidden: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     type: "bank" | "ewallet" | "cash" | "investment" | "property";
     id: string;
     name: string;
     institution: string | null;
     maskedNumber: string | null;
-    balance: string;
+    balance: string | null;
     currency: string;
     isPrivate: boolean;
     ownerUserId: string | null;
@@ -136,13 +138,14 @@ declare const AccountDtoSchema: z.ZodObject<{
     ownerName: string | null;
     createdAt: string;
     updatedAt: string;
+    balancesHidden?: boolean | undefined;
 }, {
     type: "bank" | "ewallet" | "cash" | "investment" | "property";
     id: string;
     name: string;
     institution: string | null;
     maskedNumber: string | null;
-    balance: string;
+    balance: string | null;
     currency: string;
     isPrivate: boolean;
     ownerUserId: string | null;
@@ -150,6 +153,7 @@ declare const AccountDtoSchema: z.ZodObject<{
     ownerName: string | null;
     createdAt: string;
     updatedAt: string;
+    balancesHidden?: boolean | undefined;
 }>;
 type AccountDto = z.infer<typeof AccountDtoSchema>;
 
@@ -647,12 +651,13 @@ interface AccountSummaryItemDto {
     total: number;
 }
 interface NetWorthDto {
-    accountsTotal: string;
-    investmentsTotal: string;
-    assetsTotal: string;
-    liabilitiesTotal: string;
-    netWorth: string;
+    accountsTotal: string | null;
+    investmentsTotal: string | null;
+    assetsTotal: string | null;
+    liabilitiesTotal: string | null;
+    netWorth: string | null;
     currency: string;
+    balancesHidden?: boolean;
 }
 interface NetWorthHistoryPointDto {
     capturedAt: string;
@@ -668,9 +673,10 @@ interface NetWorthHistoryDto {
     points: NetWorthHistoryPointDto[];
 }
 interface DashboardSummaryDto {
-    netWorth: number;
-    assetsTotal: number;
-    cashflow: CashflowDto;
+    balancesHidden?: boolean;
+    netWorth: number | null;
+    assetsTotal: number | null;
+    cashflow: CashflowDto | null;
     sparkline: number[];
     allocation: AllocationItemDto[];
     accountSummary: AccountSummaryItemDto[];
@@ -679,7 +685,7 @@ interface DashboardSummaryDto {
         expense: number;
         net: number;
         savingsRate: number;
-    };
+    } | null;
     recentTransactions: {
         id: string;
         description: string | null;
@@ -1371,12 +1377,13 @@ interface CategoryBreakdownItem {
     color: string | null;
 }
 interface ReportSummaryDto {
+    balancesHidden?: boolean;
     period: ReportPeriod;
     points: PeriodPoint[];
-    totalIncome: number;
-    totalExpense: number;
-    netSavings: number;
-    savingsRate: number;
+    totalIncome: number | null;
+    totalExpense: number | null;
+    netSavings: number | null;
+    savingsRate: number | null;
     topIncomeCategories: CategoryBreakdownItem[];
     topExpenseCategories: CategoryBreakdownItem[];
 }
@@ -2209,6 +2216,12 @@ type EffectiveAccess = {
      * from `accessRole`/`overrides`.
      */
     role: MemberRoleKey;
+    /**
+     * "Lihat saldo" off for this member: the API nulls every balance / net
+     * worth / money aggregate and the UI renders "••••••". Set per request by
+     * the API's TenantGuard; never true for owner/spouse. Absent = visible.
+     */
+    balancesHidden?: boolean;
 };
 /** Master (`owner`) or Co-Master (`spouse`) — see `EffectiveAccess.role`. */
 declare function isMasterOrCoMaster(role: MemberRoleKey | string | null | undefined): boolean;
@@ -2258,12 +2271,19 @@ declare const MemberAccessInputSchema: z.ZodObject<{
     accessRoleId: z.ZodNullable<z.ZodString>;
     /** Sparse overrides on top of the role; {} clears them. */
     overrides: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+    /**
+     * "Lihat saldo". Omit to leave unchanged. false = member can still record
+     * transactions but never sees balance figures.
+     */
+    canViewBalances: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     accessRoleId: string | null;
     overrides: Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
+    canViewBalances?: boolean | undefined;
 }, {
     accessRoleId: string | null;
     overrides: Record<string, "none" | "view" | "manage">;
+    canViewBalances?: boolean | undefined;
 }>;
 type MemberAccessInput = z.infer<typeof MemberAccessInputSchema>;
 type MyAccessResponse = EffectiveAccess;

@@ -32,13 +32,15 @@ export interface CategoryBreakdownItem {
 }
 
 // T-401 — Ringkasan/Harian/Bulanan/Tahunan
+// "Lihat saldo" off → totals null, lists empty, `balancesHidden: true`.
 export interface ReportSummaryDto {
+  balancesHidden?: boolean;
   period: ReportPeriod;
   points: PeriodPoint[];
-  totalIncome: number;
-  totalExpense: number;
-  netSavings: number;
-  savingsRate: number;
+  totalIncome: number | null;
+  totalExpense: number | null;
+  netSavings: number | null;
+  savingsRate: number | null;
   topIncomeCategories: CategoryBreakdownItem[];
   topExpenseCategories: CategoryBreakdownItem[];
 }

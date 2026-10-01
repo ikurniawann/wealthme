@@ -148,9 +148,7 @@ export async function main(): Promise<void> {
   // ── Accounts ──────────────────────────────────────────────────────────────────
 
   const acBCA = await prisma.account.upsert({
-    where: {
-      familyGroupId_name: { familyGroupId: FG, name: "BCA Tahapan ···9010" },
-    },
+    where: { id: "c7c973f6-43db-48a9-a726-3466e8c7713c" },
     update: { balance: 128_450_000n },
     create: {
       id: "c7c973f6-43db-48a9-a726-3466e8c7713c",
@@ -165,9 +163,7 @@ export async function main(): Promise<void> {
   });
 
   const acMandiri = await prisma.account.upsert({
-    where: {
-      familyGroupId_name: { familyGroupId: FG, name: "Mandiri ···5586" },
-    },
+    where: { id: "016b4f1e-38bb-4e34-a60e-d402f4138ef2" },
     update: { balance: 85_200_000n },
     create: {
       id: "016b4f1e-38bb-4e34-a60e-d402f4138ef2",
@@ -182,7 +178,7 @@ export async function main(): Promise<void> {
   });
 
   const acBNI = await prisma.account.upsert({
-    where: { familyGroupId_name: { familyGroupId: FG, name: "BNI ···2234" } },
+    where: { id: "42a83ca0-56a9-41e3-8d2c-9a1ab62622e5" },
     update: { balance: 32_000_000n },
     create: {
       id: "42a83ca0-56a9-41e3-8d2c-9a1ab62622e5",
@@ -197,7 +193,7 @@ export async function main(): Promise<void> {
   });
 
   const acGoPay = await prisma.account.upsert({
-    where: { familyGroupId_name: { familyGroupId: FG, name: "GoPay" } },
+    where: { id: "1353a88d-d8ec-4e8d-84cb-86f3a6483e76" },
     update: { balance: 2_450_000n },
     create: {
       id: "1353a88d-d8ec-4e8d-84cb-86f3a6483e76",
@@ -212,7 +208,7 @@ export async function main(): Promise<void> {
   });
 
   const acOVO = await prisma.account.upsert({
-    where: { familyGroupId_name: { familyGroupId: FG, name: "OVO" } },
+    where: { id: "fe5c0fb5-b54c-4307-ae32-82e6152f9c87" },
     update: { balance: 1_200_000n },
     create: {
       id: "fe5c0fb5-b54c-4307-ae32-82e6152f9c87",
@@ -227,7 +223,7 @@ export async function main(): Promise<void> {
   });
 
   const acCash = await prisma.account.upsert({
-    where: { familyGroupId_name: { familyGroupId: FG, name: "Kas Tunai" } },
+    where: { id: "927b685c-df19-4e8a-a1c7-cea4db8f2230" },
     update: { balance: 3_000_000n },
     create: {
       id: "927b685c-df19-4e8a-a1c7-cea4db8f2230",

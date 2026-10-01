@@ -109,7 +109,12 @@ describe("TenantGuard", () => {
         userId: "user-1",
         familyGroupId: "group-1",
         role: Role.owner,
-        member: { ...member, rowScoped: false, seesSharedAccounts: true },
+        member: {
+          ...member,
+          rowScoped: false,
+          seesSharedAccounts: true,
+          balancesHidden: false,
+        },
         access: expect.objectContaining({ isMaster: true, dataScope: "all" }),
       });
     });

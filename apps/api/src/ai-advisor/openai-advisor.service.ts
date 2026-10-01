@@ -37,7 +37,7 @@ type OpenAiMessage = {
 const OPENAI_CHAT_COMPLETIONS_URL =
   "https://api.openai.com/v1/chat/completions";
 const MODEL = "gpt-4o-mini" as const;
-const MAX_TOKENS = 1024;
+const MAX_TOKENS = 4096;
 const DONE_SENTINEL = "[DONE]";
 // EPIC-023 Task G retry (HIGH five-reviewer finding) — bounds the whole
 // streamed request so a stalled connection cannot hang the chat request

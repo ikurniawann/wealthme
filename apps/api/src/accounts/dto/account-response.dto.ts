@@ -1,4 +1,4 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { AccountType } from "@prisma/client";
 
 export class AccountResponseDto {
@@ -30,9 +30,17 @@ export class AccountResponseDto {
 
   @ApiProperty({
     type: String,
-    description: "Current balance as string to preserve BigInt precision",
+    nullable: true,
+    description:
+      'Current balance as string to preserve BigInt precision; null when the viewer\'s "Lihat saldo" is off',
   })
-  balance!: string;
+  balance!: string | null;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description: "true when balance figures are withheld from this viewer",
+  })
+  balancesHidden?: boolean;
 
   @ApiProperty({ type: String, description: "ISO 4217 currency code" })
   currency!: string;

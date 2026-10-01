@@ -17,6 +17,11 @@ import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import {
+  assertBalancesVisible,
+  redactDashboardSummary,
+  redactNetWorth,
+} from "../common/utils/balance-visibility.util";
+import {
   assertHouseholdWideReadAllowed,
   canSeePrivateItems,
 } from "../common/utils/privacy.util";
@@ -43,12 +48,15 @@ export class DashboardController {
     @Req() req: Request,
   ): Promise<DashboardSummaryDto> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.dashboardService.getSummary(
-      familyGroupId,
-      canSeePrivate,
-      req.tenantContext?.member ?? null,
-      req.tenantContext?.userId,
-    );
+    const member = req.tenantContext?.member ?? null;
+    return this.dashboardService
+      .getSummary(
+        familyGroupId,
+        canSeePrivate,
+        member,
+        req.tenantContext?.userId,
+      )
+      .then((dto) => redactDashboardSummary(dto, member));
   }
 
   @Get("net-worth")
@@ -61,12 +69,15 @@ export class DashboardController {
     @Req() req: Request,
   ): Promise<NetWorthDto> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.dashboardService.getNetWorth(
-      familyGroupId,
-      canSeePrivate,
-      req.tenantContext?.member ?? null,
-      req.tenantContext?.userId,
-    );
+    const member = req.tenantContext?.member ?? null;
+    return this.dashboardService
+      .getNetWorth(
+        familyGroupId,
+        canSeePrivate,
+        member,
+        req.tenantContext?.userId,
+      )
+      .then((dto) => redactNetWorth(dto, member));
   }
 
   @Get("net-worth/history")
@@ -86,6 +97,7 @@ export class DashboardController {
     // a new snapshot dimension this task does not add, so this endpoint is
     // denied outright rather than leaking the household's wealth trend.
     assertHouseholdWideReadAllowed(req.tenantContext?.member);
+    assertBalancesVisible(req.tenantContext?.member);
     return this.dashboardService.getNetWorthHistory(familyGroupId, range);
   }
 }

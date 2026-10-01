@@ -62,7 +62,7 @@ export class ClaudeAdvisorService extends AiAdvisorPort {
       const reply = await this.client.messages.create(
         {
           model: this.model,
-          max_tokens: 1024,
+          max_tokens: 4096,
           system,
           messages: convo,
           tools: [
@@ -114,7 +114,7 @@ export class ClaudeAdvisorService extends AiAdvisorPort {
       const stream = this.client.messages.stream(
         {
           model: this.model,
-          max_tokens: 1024,
+          max_tokens: 4096,
           system,
           // Tools are deliberately NOT offered on this turn: it exists to
           // answer, and a tool call mid-stream could not be serviced.
