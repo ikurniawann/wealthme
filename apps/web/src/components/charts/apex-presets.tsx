@@ -128,7 +128,7 @@ type DonutChartProps = {
   money?: ChartMoneyFormatter;
 };
 
-/** Donut chart with a centered total. Accepts the existing `DonutSegment[]` shape. Ports `donut()`. */
+/** Pie chart (was donut). Accepts the existing `DonutSegment[]` shape. Ports `donut()`. */
 export function DonutChart({
   segments,
   centerLabel = "Total",
@@ -146,7 +146,7 @@ export function DonutChart({
     <ChartErrorBoundary label="Grafik donat">
       <div role="img" aria-label={ariaLabel ?? "Grafik donat"}>
         <ApexChart
-          type="donut"
+          type="pie"
           width="100%"
           height={height}
           options={options}

@@ -49,13 +49,15 @@ var AccountDtoSchema = z3.object({
   type: AccountTypeSchema,
   institution: z3.string().nullable(),
   maskedNumber: z3.string().nullable(),
-  balance: z3.string(),
+  /** null when the viewer's "Lihat saldo" is off (see balancesHidden). */
+  balance: z3.string().nullable(),
   currency: z3.string(),
   isPrivate: z3.boolean(),
   ownerUserId: z3.string().nullable(),
   ownerName: z3.string().nullable(),
   createdAt: z3.string(),
-  updatedAt: z3.string()
+  updatedAt: z3.string(),
+  balancesHidden: z3.boolean().optional()
 });
 
 // src/allowance-requests/index.ts
@@ -730,7 +732,12 @@ var MemberAccessInputSchema = z12.object({
   /** null = no custom role (use the built-in role's preset). */
   accessRoleId: z12.string().min(1).nullable(),
   /** Sparse overrides on top of the role; {} clears them. */
-  overrides: AccessPermissionsSchema
+  overrides: AccessPermissionsSchema,
+  /**
+   * "Lihat saldo". Omit to leave unchanged. false = member can still record
+   * transactions but never sees balance figures.
+   */
+  canViewBalances: z12.boolean().optional()
 });
 
 // src/family-login/index.ts

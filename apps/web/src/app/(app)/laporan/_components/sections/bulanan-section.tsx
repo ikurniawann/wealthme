@@ -1,8 +1,9 @@
-import { SectionCard } from "@/components/wm";
-import { CashflowChart } from "@/components/charts/apex-presets";
+import { BentoCard } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
+import "./sections-a.css";
 
 /* ───────────────────────── Section: Bulanan ───────────────────────── */
 
@@ -29,60 +30,69 @@ export function BulananSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[15px] font-bold">{t.laporan.bulanan.title}</div>
-      </div>
       {chartMonths.length > 0 && (
-        <SectionCard title={t.laporan.bulanan.trendTitle}>
-          {/* EPIC-025 N3-G2 — BarChart → CashflowChart (Apex). Height 260
-                matches docs/prototype/assets/charts.js's `cashflow()`; the
-                previous 110 left too little plot area once the bottom
-                legend took its share. */}
-          <CashflowChart
-            months={chartMonths}
-            income={chartIncome}
-            expense={chartExpense}
-            height={260}
-            ariaLabel={cashflowChartAriaLabel}
-            money={money}
-          />
-        </SectionCard>
+        <BentoCard
+          title={t.laporan.bulanan.trendTitle}
+          action={
+            <span className="wm-legend">
+              <span>
+                <i style={{ background: "var(--wm-lime)" }} />
+                {t.common.income}
+              </span>
+              <span>
+                <i style={{ background: "var(--wm-orange)" }} />
+                {t.common.expense}
+              </span>
+            </span>
+          }
+        >
+          <div className="wm-chart" style={{ height: 240 }}>
+            <HatchedBarChart
+              labels={chartMonths}
+              series={[
+                {
+                  name: t.common.income,
+                  data: chartIncome,
+                  color: "var(--wm-lime)",
+                },
+                {
+                  name: t.common.expense,
+                  data: chartExpense,
+                  color: "var(--wm-orange)",
+                },
+              ]}
+              format={(v) => money.formatCompact(v)}
+              wide
+              ariaLabel={cashflowChartAriaLabel}
+            />
+          </div>
+        </BentoCard>
       )}
-      <SectionCard title={t.laporan.bulanan.recapTitle}>
-        <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
-          <table className="w-full text-[12.5px]">
+      <BentoCard title={t.laporan.bulanan.recapTitle}>
+        <div className="lap-a-table-wrap">
+          <table className="lap-a-table">
             <thead>
-              <tr className="border-b text-left text-muted-foreground">
-                <th className="py-2 font-semibold">
-                  {t.laporan.bulanan.colBulan}
-                </th>
-                <th className="py-2 font-semibold">
-                  {t.laporan.bulanan.colMasuk}
-                </th>
-                <th className="py-2 font-semibold">
-                  {t.laporan.bulanan.colKeluar}
-                </th>
-                <th className="py-2 font-semibold">
-                  {t.laporan.bulanan.colNet}
-                </th>
+              <tr>
+                <th>{t.laporan.bulanan.colBulan}</th>
+                <th data-num="true">{t.laporan.bulanan.colMasuk}</th>
+                <th data-num="true">{t.laporan.bulanan.colKeluar}</th>
+                <th data-num="true">{t.laporan.bulanan.colNet}</th>
               </tr>
             </thead>
             <tbody>
               {summary?.points && summary.points.length > 0 ? (
                 summary.points.map((p) => (
-                  <tr key={p.label} className="border-b last:border-0">
-                    <td className="py-2.5 font-semibold">{p.label}</td>
-                    <td className="mono py-2.5 text-success">
+                  <tr key={p.label}>
+                    <td>{p.label}</td>
+                    <td data-num="true" className="lap-a-pos">
                       {money.format(p.income)}
                     </td>
-                    <td className="mono py-2.5 text-destructive">
+                    <td data-num="true" className="lap-a-neg">
                       {money.format(p.expense)}
                     </td>
                     <td
-                      className={
-                        "mono py-2.5 " +
-                        (p.net >= 0 ? "text-success" : "text-destructive")
-                      }
+                      data-num="true"
+                      className={p.net >= 0 ? "lap-a-pos" : "lap-a-neg"}
                     >
                       {p.net >= 0 ? "+" : ""}
                       {money.format(p.net)}
@@ -102,7 +112,7 @@ export function BulananSection({
             </tbody>
           </table>
         </div>
-      </SectionCard>
+      </BentoCard>
     </div>
   );
 }

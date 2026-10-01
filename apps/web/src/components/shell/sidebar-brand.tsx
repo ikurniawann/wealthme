@@ -2,23 +2,19 @@
 
 import Link from "next/link";
 
-/** The prototype's lime "W" mark: a zig-zag stroke on a rounded lime tile. */
-export function BrandMark({ size = 15 }: { size?: number }) {
+/** WealthMe app mark (gradient tile with the white ribbon W). */
+export function BrandMark({ size = 28 }: { size?: number }) {
   return (
-    <span className="wm-brand-mark" aria-hidden="true">
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M3 6l4.5 12L12 8l4.5 10L21 6" />
-      </svg>
-    </span>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/brand/wealthme-mark.png"
+      alt=""
+      aria-hidden="true"
+      width={size}
+      height={size}
+      className="wm-brand-img"
+      style={{ width: size, height: size, borderRadius: size * 0.22 }}
+    />
   );
 }
 

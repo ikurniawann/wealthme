@@ -653,6 +653,12 @@ model Member {
   accessRoleId       String?
   accessRole         AccessRole?               @relation(fields: [accessRoleId], references: [id], onDelete: SetNull)
   accessOverrides    Json?
+  // "Lihat saldo" — false lets a member (e.g. a household helper) record
+  // transactions on accounts she can use without seeing any balance, net
+  // worth or money aggregate (API returns null + balancesHidden). Ignored for
+  // owner/spouse (master-like roles always see balances). Default true, so
+  // every pre-existing member is unchanged.
+  canViewBalances    Boolean                   @default(true)
 
   @@unique([userId, familyGroupId])
   @@index([familyGroupId])
@@ -699,7 +705,9 @@ model Account {
   goalContributions         GoalContribution[]
   taxFinalIncomeEntries     TaxFinalIncomeEntry[]
 
-  @@unique([familyGroupId, name])
+  // Identity is provider + number (two GoPay wallets differ by phone), not
+  // the display name. NULL maskedNumber/institution never collide.
+  @@unique([familyGroupId, type, institution, maskedNumber])
   @@index([familyGroupId])
   @@index([ownerUserId])
   @@map("accounts")

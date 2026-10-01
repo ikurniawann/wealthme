@@ -319,9 +319,9 @@ export class ExportsService {
             String(p.net),
           ]),
           [],
-          ["Total Pemasukan", rupiah(data.totalIncome)],
-          ["Total Pengeluaran", rupiah(data.totalExpense)],
-          ["Net Savings", rupiah(data.netSavings)],
+          ["Total Pemasukan", rupiah(data.totalIncome ?? 0)],
+          ["Total Pengeluaran", rupiah(data.totalExpense ?? 0)],
+          ["Net Savings", rupiah(data.netSavings ?? 0)],
           ["Savings Rate", `${data.savingsRate}%`],
         ];
       }
@@ -337,8 +337,8 @@ export class ExportsService {
             String(b.balance),
           ]),
           [],
-          ["Total Pemasukan", rupiah(data.totalIncome)],
-          ["Total Pengeluaran", rupiah(data.totalExpense)],
+          ["Total Pemasukan", rupiah(data.totalIncome ?? 0)],
+          ["Total Pengeluaran", rupiah(data.totalExpense ?? 0)],
         ];
       }
       case "detail": {
@@ -360,8 +360,8 @@ export class ExportsService {
             String(t.amount),
           ]),
           [],
-          ["Total Pemasukan", rupiah(data.totalIncome)],
-          ["Total Pengeluaran", rupiah(data.totalExpense)],
+          ["Total Pemasukan", rupiah(data.totalIncome ?? 0)],
+          ["Total Pengeluaran", rupiah(data.totalExpense ?? 0)],
           ["Jumlah Transaksi", String(data.count)],
         ];
       }
@@ -491,9 +491,9 @@ export class ExportsService {
               heading: "Ringkasan",
               header: ["Item", "Nilai"],
               rows: [
-                ["Total Pemasukan", rupiah(data.totalIncome)],
-                ["Total Pengeluaran", rupiah(data.totalExpense)],
-                ["Net Savings", rupiah(data.netSavings)],
+                ["Total Pemasukan", rupiah(data.totalIncome ?? 0)],
+                ["Total Pengeluaran", rupiah(data.totalExpense ?? 0)],
+                ["Net Savings", rupiah(data.netSavings ?? 0)],
                 ["Savings Rate", `${data.savingsRate}%`],
               ],
             },
@@ -530,8 +530,8 @@ export class ExportsService {
               heading: "Ringkasan",
               header: ["Item", "Nilai"],
               rows: [
-                ["Total Pemasukan", rupiah(data.totalIncome)],
-                ["Total Pengeluaran", rupiah(data.totalExpense)],
+                ["Total Pemasukan", rupiah(data.totalIncome ?? 0)],
+                ["Total Pengeluaran", rupiah(data.totalExpense ?? 0)],
               ],
             },
           ],
@@ -565,8 +565,8 @@ export class ExportsService {
               heading: "Ringkasan",
               header: ["Item", "Nilai"],
               rows: [
-                ["Total Pemasukan", rupiah(data.totalIncome)],
-                ["Total Pengeluaran", rupiah(data.totalExpense)],
+                ["Total Pemasukan", rupiah(data.totalIncome ?? 0)],
+                ["Total Pengeluaran", rupiah(data.totalExpense ?? 0)],
               ],
             },
           ],

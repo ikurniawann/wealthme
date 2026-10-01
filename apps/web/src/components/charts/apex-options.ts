@@ -111,42 +111,11 @@ export function buildDonutOptions(
   const series = segments.map((s) => s.value);
   const colors = segments.map((s) => s.color);
   const options = mergeChartOptions(baseChartOptions(), {
-    chart: { type: "donut", height },
+    chart: { type: "pie", height },
     labels,
     colors,
-    stroke: { width: 0 },
-    plotOptions: {
-      pie: {
-        donut: {
-          size: "72%",
-          labels: {
-            show: true,
-            name: {
-              fontSize: "12px",
-              fontWeight: 500,
-              color: cssVar("--muted-foreground"),
-            },
-            value: {
-              fontSize: "18px",
-              fontWeight: 650,
-              color: cssVar("--foreground"),
-              formatter: (v: string) => formatCompact(Number(v)),
-            },
-            total: {
-              show: true,
-              label: centerLabel,
-              fontSize: "12px",
-              fontWeight: 500,
-              color: cssVar("--muted-foreground"),
-              formatter: (w: { globals: { seriesTotals: number[] } }) =>
-                formatCompact(
-                  w.globals.seriesTotals.reduce((a, b) => a + b, 0),
-                ),
-            },
-          },
-        },
-      },
-    },
+    stroke: { width: 2, colors: [cssVar("--card")] },
+    dataLabels: { enabled: false },
     tooltip: { y: { formatter: (v: number) => format(v) } },
   });
   return { options, series };

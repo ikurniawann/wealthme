@@ -1,11 +1,11 @@
-import { SectionCard, StatusBadge } from "@/components/wm";
-import { RadialChart } from "@/components/charts/apex-presets";
+import { BentoCard, StatusBadge, Track } from "@/components/wm";
+import { TickGauge } from "@/components/charts/bento-charts";
 import { useLocale } from "@/hooks/use-locale";
 import type {
   InvestmentSummaryDto,
   ReportSummaryDto,
 } from "@wealthme/contracts";
-import { BarRow } from "../atoms";
+import "./sections-a.css";
 
 /* ───────────────────────── Section: Performa ───────────────────────── */
 
@@ -25,28 +25,28 @@ export function PerfSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <SectionCard title={t.laporan.performa.title}>
-        {/* EPIC-026 Wave 3 — prototype's `#c-rperf` mount is the Apex
-            radial preset (J3 FOLD) beside the indicator list. The
-            prototype's own radial ("Dana Darurat", months of emergency
-            fund) needs a liquid-balance-vs-monthly-expense figure this
-            section does not fetch — the radial gauges the savings rate,
-            the same indicator the first row below tracks. */}
+      <BentoCard title={t.laporan.performa.title}>
+        {/* EPIC-026 Wave 3 — prototype's `#c-rperf` mount is the gauge
+            (J3 FOLD) beside the indicator list. The gauge reads the
+            savings rate, the same indicator the first row below tracks. */}
         {savingsRate !== null && (
           <div className="mb-3.5 mx-auto max-w-[260px]">
-            <RadialChart
+            <TickGauge
               value={Math.max(0, Math.min(100, savingsRate))}
-              label={t.laporan.savingsRateLabel}
-              height={180}
               ariaLabel={`${t.laporan.performa.savingsRateTargetLabel}: ${savingsRate}%`}
-            />
+            >
+              <b>{savingsRate}%</b>
+              <small>{t.laporan.savingsRateLabel}</small>
+            </TickGauge>
           </div>
         )}
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col">
           {savingsRate !== null && (
-            <BarRow
-              label={t.laporan.performa.savingsRateTargetLabel}
-              right={
+            <div className="lap-a-perf-bar">
+              <div className="lap-a-perf-bar-head">
+                <span className="lap-a-perf-label">
+                  {t.laporan.performa.savingsRateTargetLabel}
+                </span>
                 <StatusBadge
                   variant={
                     savingsRate >= 30
@@ -61,21 +61,25 @@ export function PerfSection({
                     ? t.laporan.performa.achievedSuffix
                     : t.laporan.performa.needsImprovementSuffix}
                 </StatusBadge>
-              }
-              value={Math.min(savingsRate, 100)}
-              color={
-                savingsRate >= 30
-                  ? "var(--success)"
-                  : savingsRate >= 20
-                    ? "var(--warning)"
-                    : "var(--destructive)"
-              }
-            />
+              </div>
+              <Track
+                value={Math.min(savingsRate, 100)}
+                fill={
+                  savingsRate >= 30
+                    ? "lime"
+                    : savingsRate >= 20
+                      ? "orange"
+                      : "bad"
+                }
+              />
+            </div>
           )}
           {invReturn !== null && (
-            <BarRow
-              label={t.laporan.performa.investReturnTargetLabel}
-              right={
+            <div className="lap-a-perf-bar">
+              <div className="lap-a-perf-bar-head">
+                <span className="lap-a-perf-label">
+                  {t.laporan.performa.investReturnTargetLabel}
+                </span>
                 <StatusBadge
                   variant={
                     invReturn >= 12
@@ -88,21 +92,23 @@ export function PerfSection({
                   {invReturn.toFixed(1)}%
                   {invReturn >= 12 ? t.laporan.performa.exceededSuffix : ""}
                 </StatusBadge>
-              }
-              value={Math.min(Math.max(invReturn, 0), 100)}
-              color={invReturn >= 12 ? "var(--success)" : "var(--warning)"}
-            />
+              </div>
+              <Track
+                value={Math.min(Math.max(invReturn, 0), 100)}
+                fill={invReturn >= 12 ? "lime" : "orange"}
+              />
+            </div>
           )}
           {savingsRate === null && invReturn === null && (
-            <div className="py-6 text-center text-[12px] text-muted-foreground">
-              {t.laporan.performa.emptyPerf}
+            <div className="lap-a-empty">
+              <b>{t.laporan.performa.emptyPerf}</b>
             </div>
           )}
         </div>
         <div className="mt-3 text-[11px] text-muted-foreground">
           {t.laporan.performa.noteText}
         </div>
-      </SectionCard>
+      </BentoCard>
     </div>
   );
 }

@@ -5,13 +5,17 @@
       grid-column: 1 / 9;
       grid-row: 1;
     }
-    .sb-grid > .sb-tip {
+    .sb-grid > .sb-hist {
       grid-column: 9 / 13;
-      grid-row: 1;
+      grid-row: 1 / 3;
     }
     .sb-grid > .sb-active {
-      grid-column: 1 / -1;
-      grid-row: 2;
+      grid-column: 1 / 9;
+      grid-row: 2 / 4;
+    }
+    .sb-grid > .sb-tip {
+      grid-column: 9 / 13;
+      grid-row: 3;
     }
     .sb-grid > [role="alert"] {
       grid-column: 1 / -1;
@@ -32,39 +36,75 @@
     display: block;
     margin-top: 2px;
   }
-  .sb-bars {
+  .sb-hero .wm-hero-ctrl {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    align-items: flex-end;
+    gap: 10px;
   }
-  .sb-bar-row {
-    display: grid;
-    grid-template-columns: minmax(0, 150px) minmax(0, 1fr) 44px;
-    align-items: center;
-    gap: 14px;
-    font-size: var(--wm-type-13);
+  /* "Riwayat" side panel — same big-number + caption + mini-list shape as
+     other side cards (rekening/aset), just themed for settled splits. */
+  .sb-hist .wm-mid {
+    margin: 4px 0 0;
+    font-size: var(--wm-type-20);
+    font-weight: 600;
   }
-  /* label drawn by CSS so the title is not duplicated in page text (the list owns it) */
-  .sb-bar-lbl {
+  .wm-mini-row-empty {
+    padding: 10px 0;
+    color: var(--wm-muted);
+  }
+  @media (max-width: 720px) {
+    .sb-hero .wm-hero-ctrl {
+      align-items: flex-start;
+    }
+  }
+  /* "Split aktif" tiles — docs/design/proto/splitbill.html `.btile .tt` is a
+     single-line title (no wrap). The live `.wm-btile-tt` title row used to
+     wrap long titles onto 2 lines and collide with the inline status badge;
+     the badge now moves to a visually-hidden `.sr-only` sibling (see
+     page.tsx) so the title alone can truncate cleanly. */
+  .sb-active .wm-btile-tt {
+    min-width: 0;
+  }
+  .sb-tile-tt {
+    display: block;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .sb-bar-lbl::before {
-    content: attr(data-label);
-  }
-  .sb-bar-row .wm-bar {
-    height: 16px;
-    margin: 0;
-  }
-  .sb-bar-row b {
-    text-align: right;
-    font-weight: 600;
+  /* Tip card mosaic spacing to match the prototype's `.sb-tip .mosaic`. */
+  .sb-tip .wm-mosaic {
+    margin-top: 14px;
   }
   @media (max-width: 720px) {
-    .sb-bar-row {
-      grid-template-columns: minmax(0, 90px) minmax(0, 1fr) 38px;
-      gap: 10px;
+    .sb-tip .wm-mosaic {
+      display: none;
     }
+  }
+}
+
+@layer components {
+  .sb-del-btn {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 54px;
+    padding: 0 16px;
+    border: 1.5px solid color-mix(in srgb, var(--wm-bad) 45%, transparent);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--wm-bad);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .sb-del-btn:hover {
+    background: color-mix(in srgb, var(--wm-bad) 8%, transparent);
+  }
+  .sb-del-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }

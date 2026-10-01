@@ -199,7 +199,7 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
 
     await screen.findAllByText("Makan di Sushi Tei");
     expect(
-      screen.getByText(idDict.splitbill.totalDitalanginLabel),
+      screen.getByText(idDict.splitbill.belumDibayarLabel),
     ).toBeInTheDocument();
     expect(
       screen.getByText(idDict.splitbill.sudahDibayarLabel),
@@ -213,7 +213,7 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     expect(document.querySelectorAll(".wm-kpi")).toHaveLength(3);
   });
 
-  it("polish-j batch 7a item 12 — the create dialog's footer sticks to the bottom on desktop widths too", async () => {
+  it("proto port — the create dialog is a side sheet with a pinned footer bar", async () => {
     mockApiFetchDefault();
     const user = userEvent.setup();
     render(<SplitBillPage />);
@@ -224,15 +224,14 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
       }),
     );
     const dialog = await screen.findByRole("dialog");
+    // Create form now renders in the wm side-sheet (PanelContent
+    // variant="side" + wm-form-panel), whose footer row is the
+    // `.wm-panel-foot` bar styled by splitbill.css — not the old
+    // DialogFooter/dialog-footer slot with sticky utility classes.
     const footer = within(dialog)
       .getByRole("button", { name: idDict.common.cancel })
-      .closest('[data-slot="dialog-footer"]');
+      .closest(".wm-panel-foot");
     expect(footer).not.toBeNull();
-    // Local Tailwind classes (batch 7a item 12), not a design-system.css or
-    // dialog.tsx edit — scoped to >=769px so the mobile sticky footer (its
-    // own media-query rule) is untouched.
-    expect(footer).toHaveClass("min-[769px]:sticky");
-    expect(footer).toHaveClass("min-[769px]:bottom-0");
   });
 
   it("shows an honest error banner when the list fails to load", async () => {

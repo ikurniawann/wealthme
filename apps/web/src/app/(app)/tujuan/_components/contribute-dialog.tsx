@@ -4,16 +4,15 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { X } from "lucide-react";
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
+  DialogClose,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
-import { DateField } from "@/components/wm";
+import { DateField, PillButton } from "@/components/wm";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
@@ -112,69 +111,83 @@ export function ContributeDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogTitle>{`${t.tujuan.contributeDialogTitlePrefix}${goal.name}`}</DialogTitle>
-        <DialogDescription>{t.tujuan.contributeDialogDesc}</DialogDescription>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">{`${t.tujuan.contributeDialogTitlePrefix}${goal.name}`}</DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.tujuan.contributeDialogDesc}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         {/* Revisi F final-review Finding 4 — honest, minimal scope notice:
             a Setor has no destination account, so it is never counted in
             net worth. Plain copy, no invented feature. */}
-        <p className="hint">{t.tujuan.contributeNetWorthNotice}</p>
-        <DialogBody>
-          <div className="field">
-            <label className="label" htmlFor="goal-contribute-amount">
-              {t.tujuan.contributeAmountLabel}
-            </label>
-            <MoneyInput field={amountField} id="goal-contribute-amount" />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="wm-panel-body wm-form">
+            <p className="hint">{t.tujuan.contributeNetWorthNotice}</p>
+            <div className="wm-form__grid">
+              <div className="field">
+                <label className="label" htmlFor="goal-contribute-amount">
+                  {t.tujuan.contributeAmountLabel}
+                </label>
+                <MoneyInput field={amountField} id="goal-contribute-amount" />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="goal-contribute-account">
+                  {t.tujuan.contributeAccountLabel}
+                </label>
+                <select
+                  id="goal-contribute-account"
+                  value={accountId}
+                  onChange={(e) => setAccountId(e.target.value)}
+                  className="select"
+                >
+                  <option value="">{t.tujuan.contributeNoAccountOption}</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                      {a.institution ? ` (${a.institution})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="field">
+                <label className="label" htmlFor="goal-contribute-date">
+                  {t.tujuan.contributeDateLabel}
+                </label>
+                <DateField
+                  id="goal-contribute-date"
+                  value={date}
+                  locale={locale}
+                  label={t.tujuan.contributeDateLabel}
+                  max={todayLocalIsoDate()}
+                  required
+                  onChange={setDate}
+                />
+              </div>
+            </div>
           </div>
-          <div className="field">
-            <label className="label" htmlFor="goal-contribute-account">
-              {t.tujuan.contributeAccountLabel}
-            </label>
-            <select
-              id="goal-contribute-account"
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              className="select"
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
+              {t.common.cancel}
+            </PillButton>
+            <PillButton
+              type="button"
+              variant="primary"
+              disabled={!canSubmit || mutation.isPending}
+              onClick={handleSubmit}
             >
-              <option value="">{t.tujuan.contributeNoAccountOption}</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                  {a.institution ? ` (${a.institution})` : ""}
-                </option>
-              ))}
-            </select>
+              {mutation.isPending
+                ? t.tujuan.contributeSubmitting
+                : t.tujuan.contributeSubmit}
+            </PillButton>
           </div>
-          <div className="field">
-            <label className="label" htmlFor="goal-contribute-date">
-              {t.tujuan.contributeDateLabel}
-            </label>
-            <DateField
-              id="goal-contribute-date"
-              value={date}
-              locale={locale}
-              label={t.tujuan.contributeDateLabel}
-              max={todayLocalIsoDate()}
-              required
-              onChange={setDate}
-            />
-          </div>
-        </DialogBody>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button
-            type="button"
-            disabled={!canSubmit || mutation.isPending}
-            onClick={handleSubmit}
-          >
-            {mutation.isPending
-              ? t.tujuan.contributeSubmitting
-              : t.tujuan.contributeSubmit}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+        </div>
+      </PanelContent>
     </Dialog>
   );
 }

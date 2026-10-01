@@ -12,7 +12,7 @@
 // already fetched by `use-ringkasan-data.ts` — no new endpoint, and each row
 // reconciles with the stat cards above.
 
-import { StatusBadge } from "@/components/wm";
+import { BentoCard, StatusBadge } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { formatPercent1, type RingkasanData } from "./use-ringkasan-data";
 
@@ -40,11 +40,11 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
     assetBreakdownRows.length === 0 && allLiabilities.length === 0;
 
   return (
-    <section className="card">
-      <div className="card__header">
-        <h2 className="card__title">{t.ringkasan.breakdownTableTitle}</h2>
-      </div>
-      <div className="card__body" style={{ padding: "6px 0 0" }}>
+    <BentoCard
+      className="rk2-breakdown"
+      title={t.ringkasan.breakdownTableTitle}
+    >
+      <div style={{ padding: "6px 0 0" }}>
         {isBusy ? (
           <div className="mx-4 mb-4 h-[220px] animate-pulse rounded-md bg-muted" />
         ) : isEmpty ? (
@@ -148,6 +148,6 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
           </div>
         )}
       </div>
-    </section>
+    </BentoCard>
   );
 }

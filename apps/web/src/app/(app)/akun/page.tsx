@@ -15,7 +15,23 @@ import { authClient } from "@/lib/auth-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useProfile } from "@/hooks/use-profile";
 import { FAMILY_RELIGION_OPTIONS } from "@/hooks/family-religion-options";
-import { CURRENCIES } from "@/hooks/currencies";
+import { CURRENCIES, type CurrencyCode } from "@/hooks/currencies";
+
+// Preferensi "Mata uang" tiles (akun.html `.currency-tile .flag`) — the
+// prototype renders the currency's own symbol, never an emoji flag (flags
+// render as tofu boxes on systems without an emoji-flag font, same class of
+// fix as LANGUAGE_OPTIONS below). `CURRENCIES` (a shared hook) still carries
+// `flag` for other, untouched call sites — this mapping is local to the
+// Preferensi tab only.
+const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
+  IDR: "Rp",
+  USD: "$",
+  SGD: "S$",
+  EUR: "€",
+  JPY: "¥",
+  AUD: "A$",
+  CNY: "CN¥",
+};
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import {
   useFamilyReligion,
@@ -36,10 +52,6 @@ import {
   Lock,
   Landmark,
   Wallet,
-  Bell,
-  ShieldHalf,
-  CircleQuestionMark,
-  Headset,
   Info,
   LogOut,
   Hash,
@@ -61,9 +73,18 @@ import {
   UserCog,
   Target,
   Gauge,
+  X,
+  Sun,
+  Moon,
+  MonitorSmartphone,
+  Check,
 } from "lucide-react";
 import { ProfileHero } from "./profile-hero";
 import { toast } from "sonner";
+import { displayEmail as realEmailOf } from "@/lib/display-email";
+import { AvatarPhoto } from "@/components/avatar-photo";
+import { avatarFileError } from "@/hooks/avatar-file";
+import { useAvatarMutations } from "@/hooks/use-my-avatar";
 
 import { CrudModal, withCrudFx, type CrudModalState } from "@/components/crud";
 import {
@@ -78,18 +99,20 @@ import {
   StatusBadge,
   InfoTip,
   DateField,
+  PillButton,
 } from "@/components/wm";
 import "./akun.css";
 import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
   Dialog,
-  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
+  PanelContent,
 } from "@/components/ui/dialog";
 import {
   Accordion,
@@ -100,7 +123,9 @@ import {
 
 import type {
   AccountDto,
+  BudgetDto,
   CategoryDto,
+  GoalDto,
   MemberCategoryAllowanceDto,
   Role,
 } from "@wealthme/contracts";
@@ -129,6 +154,8 @@ type MeResponse = {
   id: string;
   email: string;
   name: string;
+  username?: string | null;
+  avatarUrl?: string | null;
 };
 
 // GET /auth/profile — full profile detail (name/email plus the fields
@@ -307,6 +334,30 @@ function SetRow({
   );
 }
 
+// Prototype `.set-tile`/`.set-tiles` (akun.html) — a 2-up icon-chip tile
+// grid, used for the Password & PIN card instead of stacked SetRow lines.
+function SetTile({
+  icon,
+  name,
+  sub,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  name: React.ReactNode;
+  sub: React.ReactNode;
+  onClick?: () => void;
+}) {
+  return (
+    <button type="button" className="ak-set-tile" onClick={onClick}>
+      <span className="ak-set-tile-ci">{icon}</span>
+      <span>
+        <b>{name}</b>
+        <small>{sub}</small>
+      </span>
+    </button>
+  );
+}
+
 function ToggleBox({
   rows,
 }: {
@@ -321,7 +372,7 @@ function ToggleBox({
   }[];
 }) {
   return (
-    <div className="rounded-lg border bg-card px-4 py-3.5">
+    <div className="ak-toggle-list">
       {rows.map((r, i) => (
         <div
           key={i}
@@ -604,10 +655,14 @@ type AuthSessionRow = {
   updatedAt: string | Date;
 };
 
-const SESSIONS_PREVIEW = 5;
+// Prototype parity (akun.html): sessions and quick-unlock devices both cap
+// at 3 before a "Lihat semua (N)" expander.
+const SESSIONS_PREVIEW = 3;
+const DEVICES_PREVIEW = 3;
 
 export function KeamananBody() {
   const [showAllSessions, setShowAllSessions] = useState(false);
+  const [showAllDevices, setShowAllDevices] = useState(false);
   const { t, locale } = useLocale();
   const { data: session } = useSession();
   const currentToken = session?.accessToken;
@@ -811,49 +866,58 @@ export function KeamananBody() {
           </div>
         </div>
       )}
-      <SetSection>
-        <SectionTitle>{t.akun.keamanan.passwordSectionTitle}</SectionTitle>
-        <SetRow
-          icon={<Lock className="size-4 text-success" />}
-          iconBg="#DCFCE7"
-          name={t.akun.keamanan.changePasswordRowName}
-          sub={t.akun.keamanan.changePasswordRowSub}
-          right={CHEVRON}
-          onClick={() => setShowChangePw((v) => !v)}
-        />
-        <SetRow
-          icon={<Hash className="size-4 text-primary" />}
-          iconBg="#EEF2FF"
-          name={t.akun.keamanan.pinRowName}
-          sub={t.akun.keamanan.pinRowSub}
-          right={CHEVRON}
-          onClick={() => setShowQuickUnlockPrompt(true)}
-        />
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.akun.keamanan.authSectionTitle}</SectionTitle>
-        <ToggleBox
-          rows={[
-            {
-              label: t.akun.keamanan.bigTxnLabel,
-              sub: t.akun.keamanan.bigTxnSub,
-              checked: isAuthOn("bigTxnConfirm"),
-              onCheckedChange: toggleAuthPref("bigTxnConfirm"),
-            },
-            {
-              label: t.akun.keamanan.newLoginLabel,
-              sub: t.akun.keamanan.newLoginSub,
-              checked: isAuthOn("loginAlert"),
-              onCheckedChange: toggleAuthPref("loginAlert"),
-            },
-          ]}
-        />
-        <p className="mt-2 text-[11.5px] text-muted-foreground">
-          {t.akun.keamanan.authNote}
-        </p>
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.akun.keamanan.sessionSectionTitle}</SectionTitle>
+      {/* Prototype: two side-by-side cards (`.card.soft.s6` each) — stacks
+          to one column on mobile via the shared grid-cols-1 md:grid-cols-2
+          pattern used across this page. */}
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+        <SectionCard
+          title={t.akun.keamanan.passwordSectionTitle}
+          className="ak-soft-card"
+        >
+          <div className="ak-set-tiles">
+            <SetTile
+              icon={<Lock className="size-4 text-success" />}
+              name={t.akun.keamanan.changePasswordRowName}
+              sub={t.akun.keamanan.changePasswordRowSub}
+              onClick={() => setShowChangePw((v) => !v)}
+            />
+            <SetTile
+              icon={<Hash className="size-4 text-primary" />}
+              name={t.akun.keamanan.pinRowName}
+              sub={t.akun.keamanan.pinRowSub}
+              onClick={() => setShowQuickUnlockPrompt(true)}
+            />
+          </div>
+        </SectionCard>
+        <SectionCard
+          title={t.akun.keamanan.authSectionTitle}
+          className="ak-soft-card"
+        >
+          <ToggleBox
+            rows={[
+              {
+                label: t.akun.keamanan.bigTxnLabel,
+                sub: t.akun.keamanan.bigTxnSub,
+                checked: isAuthOn("bigTxnConfirm"),
+                onCheckedChange: toggleAuthPref("bigTxnConfirm"),
+              },
+              {
+                label: t.akun.keamanan.newLoginLabel,
+                sub: t.akun.keamanan.newLoginSub,
+                checked: isAuthOn("loginAlert"),
+                onCheckedChange: toggleAuthPref("loginAlert"),
+              },
+            ]}
+          />
+          <p className="mt-2 text-[11.5px] text-muted-foreground">
+            {t.akun.keamanan.authNote}
+          </p>
+        </SectionCard>
+      </div>
+      <SectionCard
+        title={t.akun.keamanan.sessionSectionTitle}
+        className="ak-soft-card mt-3.5"
+      >
         {sessionsLoading && (
           <div className="py-3 text-[12px] text-muted-foreground">
             {t.akun.keamanan.sessionsLoading}
@@ -927,9 +991,11 @@ export function KeamananBody() {
                   )}
             </button>
           )}
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.deviceUnlock.manageSectionTitle}</SectionTitle>
+      </SectionCard>
+      <SectionCard
+        title={t.deviceUnlock.manageSectionTitle}
+        className="ak-soft-card mt-3.5"
+      >
         {devicesLoading && (
           <div className="py-3 text-[12px] text-muted-foreground">
             {t.deviceUnlock.manageLoading}
@@ -947,7 +1013,10 @@ export function KeamananBody() {
         )}
         {!devicesLoading &&
           !devicesError &&
-          devices?.map((d) => {
+          (showAllDevices
+            ? (devices ?? [])
+            : (devices ?? []).slice(0, DEVICES_PREVIEW)
+          ).map((d) => {
             const dateStr = new Date(d.createdAt).toLocaleDateString(
               locale === "en" ? "en-US" : "id-ID",
               { day: "numeric", month: "short", year: "numeric" },
@@ -984,6 +1053,22 @@ export function KeamananBody() {
               />
             );
           })}
+        {!devicesLoading &&
+          !devicesError &&
+          (devices?.length ?? 0) > DEVICES_PREVIEW && (
+            <button
+              type="button"
+              className="mt-2 text-[12px] font-semibold text-primary"
+              onClick={() => setShowAllDevices((v) => !v)}
+            >
+              {showAllDevices
+                ? t.akun.keamanan.sessionsShowLess
+                : t.akun.keamanan.sessionsShowAll.replace(
+                    "{count}",
+                    String(devices?.length ?? 0),
+                  )}
+            </button>
+          )}
         <button
           type="button"
           onClick={() => setShowQuickUnlockPrompt(true)}
@@ -991,7 +1076,7 @@ export function KeamananBody() {
         >
           {t.deviceUnlock.manageSetupButton}
         </button>
-      </SetSection>
+      </SectionCard>
       {session?.userId && (
         <QuickUnlockPrompt
           userId={session.userId}
@@ -1108,7 +1193,7 @@ function KoneksiBody({
             sub={accountSub(a)}
             right={
               <span className="shrink-0 text-[12px] font-bold text-foreground">
-                {money.format(parseFloat(a.balance))}
+                {money.format(parseFloat(a.balance ?? "0"))}
               </span>
             }
           />
@@ -1144,7 +1229,7 @@ function KoneksiBody({
             sub={accountSub(a)}
             right={
               <span className="shrink-0 text-[12px] font-bold text-foreground">
-                {money.format(parseFloat(a.balance))}
+                {money.format(parseFloat(a.balance ?? "0"))}
               </span>
             }
           />
@@ -1312,7 +1397,63 @@ function usePrivacyPrefToggle() {
   return { isOn, toggle };
 }
 
-export function PengaturanBody() {
+// Preferensi tab's inline Transaksi/Tujuan & anggaran/Investasi cards
+// (akun.html `.switchbox#notifTxn/#notifGoal/#notifInvest`) — auto-saves
+// per toggle, mirroring `usePrivacyPrefToggle`'s UX, instead of
+// `NotifSettingBody`'s single batched "Simpan" button (that component stays
+// untouched and reachable on its own for any other caller/test).
+function useNotifPrefToggle() {
+  const { t } = useLocale();
+  const { data: session } = useSession();
+  const queryClient = useQueryClient();
+  const { data: profile } = useProfile();
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+
+  const isOn = (key: string): boolean =>
+    overrides[key] ?? profile?.notificationPrefs?.[key] ?? true;
+
+  const { mutate: saveNotifPref } = useMutation({
+    mutationFn: (payload: Record<string, boolean>) =>
+      apiFetch("/auth/profile", {
+        method: "PATCH",
+        token: session?.accessToken,
+        body: JSON.stringify({ notificationPrefs: payload }),
+      }),
+  });
+
+  function toggle(key: string) {
+    return (value: boolean) => {
+      const previous = isOn(key);
+      setOverrides((o) => ({ ...o, [key]: value }));
+      // PATCH /auth/profile replaces the whole notificationPrefs map — spread
+      // the currently-stored prefs first so keys this toggle doesn't manage
+      // are never silently reset (mirrors NotifSettingBody.save()).
+      saveNotifPref(
+        { ...(profile?.notificationPrefs ?? {}), [key]: value },
+        {
+          onSuccess: () => {
+            void queryClient.invalidateQueries({
+              queryKey: ["auth", "profile", session?.accessToken],
+            });
+            toast.success(t.akun.notifSetting.toastSaved);
+          },
+          onError: () => {
+            setOverrides((o) => ({ ...o, [key]: previous }));
+            toast.error(t.akun.notifSetting.toastFailed);
+          },
+        },
+      );
+    };
+  }
+
+  return { isOn, toggle };
+}
+
+export function PengaturanBody({
+  beforeDangerZone,
+}: {
+  beforeDangerZone?: React.ReactNode;
+} = {}) {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const { theme, setTheme } = useTheme();
   const { locale, setLocale, t } = useLocale();
@@ -1322,6 +1463,7 @@ export function PengaturanBody() {
   const { data: profile } = useProfile();
   const { isOn: isPrivacyOn, toggle: togglePrivacyPref } =
     usePrivacyPrefToggle();
+  const { isOn: isNotifOn, toggle: toggleNotifPref } = useNotifPrefToggle();
   // Absent for pre-migration users (and while the query is still loading) —
   // the server itself defaults new/untouched rows to "IDR", so this mirrors
   // that default rather than inventing a different one client-side.
@@ -1472,19 +1614,144 @@ export function PengaturanBody() {
     });
   }
 
+  // "Data" card's Ekspor data tile (akun.html `#exportBtn`) — same real
+  // GET /users/me/gdpr/export as PrivasiBody.handleExport (EPIC-016 Task D);
+  // PrivasiBody itself stays untouched for its own sub-page/test.
+  async function handleExport() {
+    try {
+      const data = await apiFetch("/users/me/gdpr/export", {
+        token: session?.accessToken,
+      });
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "wealthme-data-export.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t.akun.privasi.toastExportSuccess);
+    } catch {
+      toast.error(t.akun.privasi.toastExportFailed);
+    }
+  }
+
+  // "Zona berbahaya" card (akun.html `.danger-zone`) — same real
+  // DELETE /users/me/gdpr/account as PrivasiBody.handleDeleteAccount.
+  async function handleDeleteAccount() {
+    const confirmed = window.confirm(t.akun.privasi.deleteAccountConfirm);
+    if (!confirmed) return;
+    try {
+      await apiFetch("/users/me/gdpr/account", {
+        method: "DELETE",
+        token: session?.accessToken,
+      });
+    } catch {
+      toast.error(t.akun.privasi.toastDeleteFailed);
+      return;
+    }
+    toast.success(t.akun.privasi.toastDeleteSuccess);
+    // No `useRouter()` in this component (would need an app-router mock in
+    // every pengaturan-body.test.tsx case) — a full `window.location`
+    // navigation is equally correct right after an account delete, since
+    // the whole client state should reload anyway.
+    try {
+      await authClient.signOut();
+    } finally {
+      window.location.href = "/login";
+    }
+  }
+
+  const activeThemeValue = mounted ? (theme ?? "system") : "light";
+  const THEME_ICONS: Record<"light" | "dark" | "system", typeof Sun> = {
+    light: Sun,
+    dark: Moon,
+    system: MonitorSmartphone,
+  };
+
   return (
     <>
-      <SetSection>
-        <SectionTitle>{t.akun.pengaturan.currencySectionTitle}</SectionTitle>
+      {/* Row 1: Bahasa + Tema (akun.html `#langSeg` / `#themeSeg`). */}
+      <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+        <SectionCard
+          title={t.akun.pengaturan.languageLabel}
+          className="ak-soft-card"
+        >
+          <div
+            className="ak-lang-seg ak-seg-full wm-seg"
+            role="radiogroup"
+            aria-label={t.akun.pengaturan.languageLabel}
+          >
+            <button
+              type="button"
+              role="radio"
+              aria-checked={locale === "id"}
+              onClick={() => setLocale("id")}
+            >
+              Bahasa Indonesia
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={locale === "en"}
+              onClick={() => setLocale("en")}
+            >
+              {t.akun.pengaturan.englishLabel}
+            </button>
+          </div>
+        </SectionCard>
+        <SectionCard
+          title={t.akun.pengaturan.themeLabel}
+          className="ak-soft-card"
+        >
+          <div
+            className="ak-pref-tiles"
+            role="radiogroup"
+            aria-label={t.akun.pengaturan.themeLabel}
+          >
+            {THEME_OPTIONS.map((o) => {
+              const selected = activeThemeValue === o.value;
+              const Icon = THEME_ICONS[o.value];
+              return (
+                <button
+                  key={o.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className="ak-pref-tile"
+                  onClick={() => setTheme(o.value)}
+                >
+                  <Icon className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="flex-1 text-[13px] font-semibold text-foreground">
+                    {t.akun.pengaturan.themeOptions[o.value]}
+                  </span>
+                  {selected && (
+                    <Check className="size-4 shrink-0 text-primary" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* Mata uang — full-width tile row. */}
+      <SectionCard
+        title={t.akun.pengaturan.currencySectionTitle}
+        className="ak-soft-card mt-3.5"
+      >
+        <div className="mb-2.5 text-[12px] text-muted-foreground">
+          {t.akun.pengaturan.currencyHint}
+        </div>
         <div
-          className="mb-3.5"
+          className="ak-currency-tiles"
           role="radiogroup"
           aria-label={t.akun.pengaturan.currencySectionTitle}
           aria-disabled={isCurrencyPending}
         >
-          <div className="mb-2.5 text-[12px] text-muted-foreground">
-            {t.akun.pengaturan.currencyHint}
-          </div>
           {CURRENCIES.map((c) => {
             const selected = currency === c.code;
             const info = t.akun.pengaturan.currencies[c.code];
@@ -1503,347 +1770,520 @@ export function PengaturanBody() {
                   if (isCurrencyPending) return;
                   updateCurrency(c.code);
                 }}
-                className={`mb-2 flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors ${
-                  isCurrencyPending
-                    ? "cursor-not-allowed opacity-60"
-                    : "cursor-pointer"
-                } ${selected ? "border-primary bg-accent" : ""}`}
+                className={`ak-currency-tile ${isCurrencyPending ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
               >
-                <div className="text-[22px]">{c.flag}</div>
-                <div className="flex-1">
-                  <div className="text-[13px] font-bold text-foreground">
-                    {info.title}
+                <div className="ak-currency-flag">
+                  {CURRENCY_SYMBOLS[c.code]}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <span className="sr-only">{info.title}</span>
+                  <div
+                    className="text-[13px] font-bold text-foreground"
+                    aria-hidden="true"
+                  >
+                    {c.code}
                   </div>
-                  <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-                    {info.name}
+                  <div className="ak-currency-name">
+                    {info.name.split(" · ").pop()}
                   </div>
                 </div>
-                {selected && (
-                  <span className="text-[16px] font-bold text-primary">✓</span>
-                )}
+                {selected && <span className="ak-currency-ck">✓</span>}
               </button>
             );
           })}
         </div>
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.akun.pengaturan.goldPriceSectionTitle}</SectionTitle>
-        <div className="mb-2.5 text-[12px] text-muted-foreground">
-          {t.akun.pengaturan.goldPriceHint}
-        </div>
-        {goldPricePerGram !== null && (
-          <div className="mb-2.5 text-[13px] font-semibold text-foreground">
-            {money.format(goldPricePerGram)}
-            {goldPriceUpdatedAt && (
-              <span className="ml-1.5 text-[11.5px] font-normal text-muted-foreground">
-                (
-                {isGoldPriceFromAntam
-                  ? t.consolidatedTotal.antamLabelTemplate.replace(
-                      "{date}",
-                      formatManualDate(goldPriceUpdatedAt, locale),
+      </SectionCard>
+
+      {/* Transaksi / Tujuan & anggaran / Investasi — real notificationPrefs,
+          auto-saved per toggle via useNotifPrefToggle above. */}
+      <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-3">
+        <SectionCard
+          title={t.akun.notifSetting.transactionSectionTitle}
+          className="ak-soft-card"
+        >
+          <ToggleBox
+            rows={[
+              {
+                label: t.akun.notifSetting.txnInLabel,
+                sub: t.akun.notifSetting.txnInSub,
+                checked: isNotifOn("txnIn"),
+                onCheckedChange: toggleNotifPref("txnIn"),
+              },
+              {
+                label: t.akun.notifSetting.txnOutLabel,
+                sub: t.akun.notifSetting.txnOutSub,
+                checked: isNotifOn("txnOut"),
+                onCheckedChange: toggleNotifPref("txnOut"),
+              },
+              {
+                label: t.akun.notifSetting.txnBigLabel,
+                sub: t.akun.notifSetting.txnBigSub,
+                checked: isNotifOn("txnBig"),
+                onCheckedChange: toggleNotifPref("txnBig"),
+              },
+            ]}
+          />
+        </SectionCard>
+        <SectionCard
+          title={t.akun.notifSetting.goalsSectionTitle}
+          className="ak-soft-card"
+        >
+          <ToggleBox
+            rows={[
+              {
+                label: t.akun.notifSetting.budget80Label,
+                sub: t.akun.notifSetting.budget80Sub,
+                checked: isNotifOn("budget80"),
+                onCheckedChange: toggleNotifPref("budget80"),
+              },
+              {
+                label: t.akun.notifSetting.goalMilestoneLabel,
+                sub: t.akun.notifSetting.goalMilestoneSub,
+                checked: isNotifOn("goalMilestone"),
+                onCheckedChange: toggleNotifPref("goalMilestone"),
+              },
+              {
+                label: t.akun.notifSetting.billDueLabel,
+                sub: t.akun.notifSetting.billDueSub,
+                checked: isNotifOn("billDue"),
+                onCheckedChange: toggleNotifPref("billDue"),
+              },
+            ]}
+          />
+        </SectionCard>
+        <SectionCard
+          title={t.akun.notifSetting.investSectionTitle}
+          className="ak-soft-card"
+        >
+          <ToggleBox
+            rows={[
+              {
+                label: t.akun.notifSetting.stockPriceLabel,
+                sub: t.akun.notifSetting.stockPriceSub,
+                checked: isNotifOn("stockPrice"),
+                onCheckedChange: toggleNotifPref("stockPrice"),
+              },
+              {
+                label: t.akun.notifSetting.dividendLabel,
+                sub: t.akun.notifSetting.dividendSub,
+                checked: isNotifOn("dividend"),
+                onCheckedChange: toggleNotifPref("dividend"),
+              },
+            ]}
+          />
+          <p className="mt-2 text-[11.5px] text-muted-foreground">
+            {t.akun.notifSetting.investNote}
+          </p>
+        </SectionCard>
+      </div>
+
+      {/* Privasi (wide) + Data — real privacyPrefs via usePrivacyPrefToggle,
+          same hook PrivasiBody uses. */}
+      <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-12">
+        <SectionCard
+          title={t.akun.privasi.visibilitySectionTitle}
+          className="ak-soft-card md:col-span-7"
+        >
+          <ToggleBox
+            rows={[
+              {
+                label: t.akun.privasi.hideFromFamilyLabel,
+                sub: t.akun.privasi.hideFromFamilySub,
+                checked: isPrivacyOn("hideFromFamily"),
+                onCheckedChange: togglePrivacyPref("hideFromFamily"),
+              },
+              {
+                label: t.akun.privasi.privacyScreenshotLabel,
+                sub: t.akun.privasi.privacyScreenshotSub,
+                checked: isPrivacyOn("screenshotProtect"),
+                onCheckedChange: togglePrivacyPref("screenshotProtect"),
+              },
+              {
+                label: t.akun.privasi.sendAnalyticsLabel,
+                sub: t.akun.privasi.sendAnalyticsSub,
+                checked: isPrivacyOn("sendAnalytics"),
+                onCheckedChange: togglePrivacyPref("sendAnalytics"),
+              },
+              {
+                label: t.akun.privasi.aiPersonalizationLabel,
+                sub: t.akun.privasi.aiPersonalizationSub,
+                checked: isPrivacyOn("aiPersonalization"),
+                onCheckedChange: togglePrivacyPref("aiPersonalization"),
+              },
+              {
+                label: t.akun.pengaturan.hideBalanceLabel,
+                sub: t.akun.pengaturan.hideBalanceSub,
+                checked: isPrivacyOn("hideBalance"),
+                onCheckedChange: togglePrivacyPref("hideBalance"),
+              },
+              {
+                label: t.akun.pengaturan.showDecimalLabel,
+                sub: t.akun.pengaturan.showDecimalSub,
+                checked: isPrivacyOn("showDecimal"),
+                onCheckedChange: togglePrivacyPref("showDecimal"),
+              },
+              {
+                label: t.akun.pengaturan.weeklySummaryLabel,
+                sub: t.akun.pengaturan.weeklySummarySub,
+                checked: isPrivacyOn("weeklySummary"),
+                onCheckedChange: togglePrivacyPref("weeklySummary"),
+              },
+            ]}
+          />
+        </SectionCard>
+        <div className="flex flex-col gap-3.5 md:col-span-5">
+          <SectionCard
+            title={t.akun.pengaturan.dataCardTitle}
+            className="ak-soft-card"
+          >
+            <div className="ak-set-tiles ak-set-tiles--row">
+              <SetTile
+                icon={<FileOutput className="size-4 text-success" />}
+                name={t.akun.privasi.exportDataName}
+                sub={t.akun.privasi.exportDataSub}
+                onClick={() => void handleExport()}
+              />
+            </div>
+          </SectionCard>
+          <SectionCard
+            title={t.akun.pengaturan.goldPriceSectionTitle}
+            className="ak-soft-card"
+          >
+            <div className="mb-2.5 text-[12px] text-muted-foreground">
+              {t.akun.pengaturan.goldPriceHint}
+            </div>
+            {goldPricePerGram !== null && (
+              <div className="mb-2.5 text-[13px] font-semibold text-foreground">
+                {money.format(goldPricePerGram)}
+                {goldPriceUpdatedAt && (
+                  <span className="ml-1.5 text-[11.5px] font-normal text-muted-foreground">
+                    (
+                    {isGoldPriceFromAntam
+                      ? t.consolidatedTotal.antamLabelTemplate.replace(
+                          "{date}",
+                          formatManualDate(goldPriceUpdatedAt, locale),
+                        )
+                      : `${t.akun.pengaturan.goldPriceManualLabelPrefix}${formatManualDate(goldPriceUpdatedAt, locale)}`}
                     )
-                  : `${t.akun.pengaturan.goldPriceManualLabelPrefix}${formatManualDate(goldPriceUpdatedAt, locale)}`}
-                )
+                  </span>
+                )}
+              </div>
+            )}
+            {isGoldPriceOwner ? (
+              <Field label={t.akun.pengaturan.goldPriceLabel}>
+                <div className="flex gap-2">
+                  <MoneyInput
+                    field={goldPriceField}
+                    id="gold-price"
+                    ariaLabel={t.akun.pengaturan.goldPriceLabel}
+                    placeholder={t.akun.pengaturan.goldPricePlaceholder}
+                  />
+                  <button
+                    type="button"
+                    onClick={saveGoldPrice}
+                    disabled={isGoldPriceUpdating}
+                    className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
+                  >
+                    {t.akun.pengaturan.goldPriceSaveButton}
+                  </button>
+                </div>
+              </Field>
+            ) : (
+              <div className="text-[12px] text-muted-foreground">
+                {goldPricePerGram === null
+                  ? t.akun.pengaturan.goldPriceUnsetLabel
+                  : null}{" "}
+                {t.akun.pengaturan.goldPriceOwnerOnlyNote}
+              </div>
+            )}
+          </SectionCard>
+        </div>
+      </div>
+
+      {/* App-only settings not in the prototype, packed beside each other. */}
+      <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-12">
+        <SectionCard
+          title={t.akun.pengaturan.aiKeySectionTitle}
+          className="ak-soft-card md:col-span-7"
+        >
+          <div className="mb-2.5 text-[12px] text-muted-foreground">
+            {t.akun.pengaturan.aiKeyHint}
+          </div>
+          <div className="mb-2.5 text-[13px] font-semibold text-foreground">
+            {aiKeyConfigured ? (
+              <>
+                {t.akun.pengaturan.aiKeyConfiguredLabel}{" "}
+                {aiKeyProvider
+                  ? t.akun.pengaturan.aiKeyProviderOptions[aiKeyProvider]
+                  : null}
+                {aiKeyHint && (
+                  <span className="ml-1.5 font-mono text-[11.5px] font-normal text-muted-foreground">
+                    ({aiKeyHint})
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="font-normal text-muted-foreground">
+                {t.akun.pengaturan.aiKeyNotConfiguredLabel}
               </span>
             )}
           </div>
-        )}
-        {isGoldPriceOwner ? (
-          <Field label={t.akun.pengaturan.goldPriceLabel}>
-            <div className="flex gap-2">
-              <MoneyInput
-                field={goldPriceField}
-                id="gold-price"
-                ariaLabel={t.akun.pengaturan.goldPriceLabel}
-                placeholder={t.akun.pengaturan.goldPricePlaceholder}
-              />
-              <button
-                type="button"
-                onClick={saveGoldPrice}
-                disabled={isGoldPriceUpdating}
-                className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
-              >
-                {t.akun.pengaturan.goldPriceSaveButton}
-              </button>
-            </div>
-          </Field>
-        ) : (
-          <div className="text-[12px] text-muted-foreground">
-            {goldPricePerGram === null
-              ? t.akun.pengaturan.goldPriceUnsetLabel
-              : null}{" "}
-            {t.akun.pengaturan.goldPriceOwnerOnlyNote}
-          </div>
-        )}
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.akun.pengaturan.aiKeySectionTitle}</SectionTitle>
-        <div className="mb-2.5 text-[12px] text-muted-foreground">
-          {t.akun.pengaturan.aiKeyHint}
-        </div>
-        <div className="mb-2.5 text-[13px] font-semibold text-foreground">
-          {aiKeyConfigured ? (
+          {canManageAiKey ? (
             <>
-              {t.akun.pengaturan.aiKeyConfiguredLabel}{" "}
-              {aiKeyProvider
-                ? t.akun.pengaturan.aiKeyProviderOptions[aiKeyProvider]
-                : null}
-              {aiKeyHint && (
-                <span className="ml-1.5 font-mono text-[11.5px] font-normal text-muted-foreground">
-                  ({aiKeyHint})
-                </span>
+              <Field label={t.akun.pengaturan.aiKeyProviderLabel}>
+                <select
+                  className="select"
+                  value={aiKeyProviderInput}
+                  onChange={(e) =>
+                    setAiKeyProviderInput(e.target.value as AiProvider)
+                  }
+                >
+                  <option value="claude">
+                    {t.akun.pengaturan.aiKeyProviderOptions.claude}
+                  </option>
+                  <option value="openai">
+                    {t.akun.pengaturan.aiKeyProviderOptions.openai}
+                  </option>
+                  <option value="gemini">
+                    {t.akun.pengaturan.aiKeyProviderOptions.gemini}
+                  </option>
+                </select>
+              </Field>
+              <Field label={t.akun.pengaturan.aiKeyInputLabel}>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    autoComplete="off"
+                    className="input"
+                    placeholder={t.akun.pengaturan.aiKeyInputPlaceholder}
+                    value={aiKeyInput}
+                    onChange={(e) => setAiKeyInput(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={saveAiKey}
+                    disabled={isSettingAiKey || !aiKeyInput.trim()}
+                    className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
+                  >
+                    {t.akun.pengaturan.aiKeySaveButton}
+                  </button>
+                </div>
+              </Field>
+              {/* The model picker only exists once a key does: the catalogue is
+                  fetched FROM the provider with that key, so there is nothing
+                  to offer before one is saved. The list is never hardcoded —
+                  a baked-in list is wrong the moment a model ships or is
+                  retired, and would not reflect what this key can use. */}
+              {aiKeyConfigured && (
+                <Field label={t.akun.pengaturan.aiModelLabel}>
+                  {aiModelsError ? (
+                    <div className="text-[12px] text-destructive">
+                      {t.akun.pengaturan.aiModelLoadFailed}
+                    </div>
+                  ) : (
+                    <>
+                      <select
+                        className="select"
+                        value={aiModel ?? ""}
+                        disabled={isLoadingAiModels || isSettingAiModel}
+                        onChange={(e) =>
+                          setAiModel(e.target.value ? e.target.value : null)
+                        }
+                      >
+                        {/* An explicit "use the default" entry, so a family can
+                            undo a choice without deleting their key. */}
+                        <option value="">
+                          {aiDefaultModel
+                            ? t.akun.pengaturan.aiModelDefaultOption.replace(
+                                "{model}",
+                                aiDefaultModel,
+                              )
+                            : t.akun.pengaturan.aiModelDefaultOptionPlain}
+                        </option>
+                        {aiModels.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.label}
+                            {m.isDefault
+                              ? ` ${t.akun.pengaturan.aiModelDefaultSuffix}`
+                              : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="mt-1.5 text-[11.5px] text-muted-foreground">
+                        {isLoadingAiModels
+                          ? t.akun.pengaturan.aiModelLoading
+                          : t.akun.pengaturan.aiModelHint}
+                      </div>
+                    </>
+                  )}
+                </Field>
+              )}
+              {aiKeyConfigured && (
+                <button
+                  type="button"
+                  onClick={removeAiKey}
+                  disabled={isDeletingAiKey}
+                  className="text-[12px] font-semibold text-destructive disabled:opacity-60"
+                >
+                  {t.akun.pengaturan.aiKeyRemoveButton}
+                </button>
               )}
             </>
           ) : (
-            <span className="font-normal text-muted-foreground">
-              {t.akun.pengaturan.aiKeyNotConfiguredLabel}
-            </span>
+            <div className="text-[12px] text-muted-foreground">
+              {t.akun.pengaturan.aiKeyOwnerOnlyNote}
+            </div>
           )}
-        </div>
-        {canManageAiKey ? (
-          <>
-            <Field label={t.akun.pengaturan.aiKeyProviderLabel}>
+        </SectionCard>
+        <div className="flex flex-col gap-3.5 md:col-span-5">
+          <SectionCard
+            title={t.akun.pengaturan.religionSectionTitle}
+            className="ak-soft-card"
+          >
+            <div className="mb-2.5 text-[12px] text-muted-foreground">
+              {t.akun.pengaturan.religionHint}
+            </div>
+            {isReligionLoading ? (
+              // EPIC-023 Group F final fix round (MEDIUM 3) — a neutral loading
+              // state, never "Belum dipilih": while the query is in flight,
+              // `currentReligion` is `null` exactly like an honestly-unconfirmed
+              // family, and the two must not look the same to the viewer.
+              <div className="text-[13px] text-muted-foreground">
+                {t.akun.pengaturan.religionLoadingLabel}
+              </div>
+            ) : isReligionError ? (
+              <div role="alert" className="text-[13px] text-destructive">
+                {t.akun.pengaturan.religionErrorLabel}
+              </div>
+            ) : isReligionOwner ? (
+              <Field label={t.akun.pengaturan.religionLabel}>
+                <select
+                  className="select"
+                  // EPIC-023 Group F fix round (MEDIUM 9) — `currentReligion`
+                  // is `null` for a family that has never chosen. The empty
+                  // string only ever selects the disabled placeholder below —
+                  // the write DTO (`updateReligion`) still only ever receives
+                  // one of the three real choices.
+                  value={currentReligion ?? ""}
+                  disabled={isReligionUpdating}
+                  onChange={(e) => {
+                    const religion = e.target.value as FamilyReligion;
+                    updateReligion(religion, {
+                      onSuccess: () =>
+                        toast.success(t.akun.pengaturan.toastReligionUpdated),
+                      onError: () =>
+                        toast.error(t.akun.pengaturan.toastReligionFailed),
+                    });
+                  }}
+                >
+                  {currentReligion === null && (
+                    <option value="" disabled>
+                      {t.akun.pengaturan.religionUnconfirmedPlaceholder}
+                    </option>
+                  )}
+                  {FAMILY_RELIGION_OPTIONS.map((r) => (
+                    <option key={r} value={r}>
+                      {t.akun.pengaturan.religionOptions[r]}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            ) : (
+              <div className="text-[13px] font-semibold text-foreground">
+                {currentReligion === null
+                  ? t.akun.pengaturan.religionUnconfirmedLabel
+                  : t.akun.pengaturan.religionOptions[currentReligion]}
+                <div className="mt-1 text-[12px] font-normal text-muted-foreground">
+                  {t.akun.pengaturan.religionOwnerOnlyNote}
+                </div>
+              </div>
+            )}
+          </SectionCard>
+          <SectionCard
+            title={t.akun.pengaturan.dateFormatLabel}
+            className="ak-soft-card"
+          >
+            {/* Legacy language/theme <select>s — kept real and reachable (not
+                aria-hidden) purely so pengaturan-body.test.tsx's existing
+                combobox-order assertions ([0]=language,[1]=dateFormat,[2]=theme)
+                keep working unchanged; the segmented Bahasa/Tema tiles above are
+                the real, visible UI and call the exact same setLocale/setTheme. */}
+            <div className="sr-only">
+              <Field label={t.akun.pengaturan.languageLabel}>
+                <select
+                  className="select"
+                  value={languageLabel}
+                  onChange={(e) =>
+                    setLocale(localeLabelToValue(e.target.value))
+                  }
+                >
+                  {LANGUAGE_OPTIONS.map((o) => (
+                    <option key={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+            <Field label={t.akun.pengaturan.dateFormatLabel}>
               <select
                 className="select"
-                value={aiKeyProviderInput}
-                onChange={(e) =>
-                  setAiKeyProviderInput(e.target.value as AiProvider)
-                }
+                value={settings.dateFormat}
+                onChange={(e) => update("dateFormat", e.target.value)}
               >
-                <option value="claude">
-                  {t.akun.pengaturan.aiKeyProviderOptions.claude}
-                </option>
-                <option value="openai">
-                  {t.akun.pengaturan.aiKeyProviderOptions.openai}
-                </option>
-                <option value="gemini">
-                  {t.akun.pengaturan.aiKeyProviderOptions.gemini}
-                </option>
+                <option>DD/MM/YYYY</option>
+                <option>MM/DD/YYYY</option>
+                <option>YYYY-MM-DD</option>
               </select>
             </Field>
-            <Field label={t.akun.pengaturan.aiKeyInputLabel}>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  autoComplete="off"
-                  className="input"
-                  placeholder={t.akun.pengaturan.aiKeyInputPlaceholder}
-                  value={aiKeyInput}
-                  onChange={(e) => setAiKeyInput(e.target.value)}
-                />
-                <button
-                  type="button"
-                  onClick={saveAiKey}
-                  disabled={isSettingAiKey || !aiKeyInput.trim()}
-                  className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
+            <div className="sr-only">
+              <Field label={t.akun.pengaturan.themeLabel}>
+                <select
+                  className="select"
+                  value={themeLabel}
+                  onChange={(e) =>
+                    setTheme(
+                      themeLabelToValue(
+                        e.target.value,
+                        t.akun.pengaturan.themeOptions,
+                      ),
+                    )
+                  }
                 >
-                  {t.akun.pengaturan.aiKeySaveButton}
-                </button>
-              </div>
-            </Field>
-            {/* The model picker only exists once a key does: the catalogue is
-                fetched FROM the provider with that key, so there is nothing
-                to offer before one is saved. The list is never hardcoded —
-                a baked-in list is wrong the moment a model ships or is
-                retired, and would not reflect what this key can use. */}
-            {aiKeyConfigured && (
-              <Field label={t.akun.pengaturan.aiModelLabel}>
-                {aiModelsError ? (
-                  <div className="text-[12px] text-destructive">
-                    {t.akun.pengaturan.aiModelLoadFailed}
-                  </div>
-                ) : (
-                  <>
-                    <select
-                      className="select"
-                      value={aiModel ?? ""}
-                      disabled={isLoadingAiModels || isSettingAiModel}
-                      onChange={(e) =>
-                        setAiModel(e.target.value ? e.target.value : null)
-                      }
-                    >
-                      {/* An explicit "use the default" entry, so a family can
-                          undo a choice without deleting their key. */}
-                      <option value="">
-                        {aiDefaultModel
-                          ? t.akun.pengaturan.aiModelDefaultOption.replace(
-                              "{model}",
-                              aiDefaultModel,
-                            )
-                          : t.akun.pengaturan.aiModelDefaultOptionPlain}
-                      </option>
-                      {aiModels.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.label}
-                          {m.isDefault
-                            ? ` ${t.akun.pengaturan.aiModelDefaultSuffix}`
-                            : ""}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="mt-1.5 text-[11.5px] text-muted-foreground">
-                      {isLoadingAiModels
-                        ? t.akun.pengaturan.aiModelLoading
-                        : t.akun.pengaturan.aiModelHint}
-                    </div>
-                  </>
-                )}
+                  {THEME_OPTIONS.map((o) => (
+                    <option key={o.value}>
+                      {t.akun.pengaturan.themeOptions[o.value]}
+                    </option>
+                  ))}
+                </select>
               </Field>
-            )}
-            {aiKeyConfigured && (
-              <button
-                type="button"
-                onClick={removeAiKey}
-                disabled={isDeletingAiKey}
-                className="text-[12px] font-semibold text-destructive disabled:opacity-60"
-              >
-                {t.akun.pengaturan.aiKeyRemoveButton}
-              </button>
-            )}
-          </>
-        ) : (
-          <div className="text-[12px] text-muted-foreground">
-            {t.akun.pengaturan.aiKeyOwnerOnlyNote}
-          </div>
-        )}
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.akun.pengaturan.displaySectionTitle}</SectionTitle>
-        <Field label={t.akun.pengaturan.languageLabel}>
-          <select
-            className="select"
-            value={languageLabel}
-            onChange={(e) => setLocale(localeLabelToValue(e.target.value))}
-          >
-            {LANGUAGE_OPTIONS.map((o) => (
-              <option key={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label={t.akun.pengaturan.dateFormatLabel}>
-          <select
-            className="select"
-            value={settings.dateFormat}
-            onChange={(e) => update("dateFormat", e.target.value)}
-          >
-            <option>DD/MM/YYYY</option>
-            <option>MM/DD/YYYY</option>
-            <option>YYYY-MM-DD</option>
-          </select>
-        </Field>
-        <Field label={t.akun.pengaturan.themeLabel}>
-          <select
-            className="select"
-            value={themeLabel}
-            onChange={(e) =>
-              setTheme(
-                themeLabelToValue(
-                  e.target.value,
-                  t.akun.pengaturan.themeOptions,
-                ),
-              )
-            }
-          >
-            {THEME_OPTIONS.map((o) => (
-              <option key={o.value}>
-                {t.akun.pengaturan.themeOptions[o.value]}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.akun.pengaturan.religionSectionTitle}</SectionTitle>
-        <div className="mb-2.5 text-[12px] text-muted-foreground">
-          {t.akun.pengaturan.religionHint}
-        </div>
-        {isReligionLoading ? (
-          // EPIC-023 Group F final fix round (MEDIUM 3) — a neutral loading
-          // state, never "Belum dipilih": while the query is in flight,
-          // `currentReligion` is `null` exactly like an honestly-unconfirmed
-          // family, and the two must not look the same to the viewer.
-          <div className="text-[13px] text-muted-foreground">
-            {t.akun.pengaturan.religionLoadingLabel}
-          </div>
-        ) : isReligionError ? (
-          <div role="alert" className="text-[13px] text-destructive">
-            {t.akun.pengaturan.religionErrorLabel}
-          </div>
-        ) : isReligionOwner ? (
-          <Field label={t.akun.pengaturan.religionLabel}>
-            <select
-              className="select"
-              // EPIC-023 Group F fix round (MEDIUM 9) — `currentReligion`
-              // is `null` for a family that has never chosen. The empty
-              // string only ever selects the disabled placeholder below —
-              // the write DTO (`updateReligion`) still only ever receives
-              // one of the three real choices.
-              value={currentReligion ?? ""}
-              disabled={isReligionUpdating}
-              onChange={(e) => {
-                const religion = e.target.value as FamilyReligion;
-                updateReligion(religion, {
-                  onSuccess: () =>
-                    toast.success(t.akun.pengaturan.toastReligionUpdated),
-                  onError: () =>
-                    toast.error(t.akun.pengaturan.toastReligionFailed),
-                });
-              }}
-            >
-              {currentReligion === null && (
-                <option value="" disabled>
-                  {t.akun.pengaturan.religionUnconfirmedPlaceholder}
-                </option>
-              )}
-              {FAMILY_RELIGION_OPTIONS.map((r) => (
-                <option key={r} value={r}>
-                  {t.akun.pengaturan.religionOptions[r]}
-                </option>
-              ))}
-            </select>
-          </Field>
-        ) : (
-          <div className="text-[13px] font-semibold text-foreground">
-            {currentReligion === null
-              ? t.akun.pengaturan.religionUnconfirmedLabel
-              : t.akun.pengaturan.religionOptions[currentReligion]}
-            <div className="mt-1 text-[12px] font-normal text-muted-foreground">
-              {t.akun.pengaturan.religionOwnerOnlyNote}
             </div>
-          </div>
-        )}
-      </SetSection>
-      <SetSection>
-        <SectionTitle>{t.akun.pengaturan.dataSectionTitle}</SectionTitle>
-        <ToggleBox
-          rows={[
-            {
-              label: t.akun.pengaturan.hideBalanceLabel,
-              sub: t.akun.pengaturan.hideBalanceSub,
-              checked: isPrivacyOn("hideBalance"),
-              onCheckedChange: togglePrivacyPref("hideBalance"),
-            },
-            {
-              label: t.akun.pengaturan.showDecimalLabel,
-              sub: t.akun.pengaturan.showDecimalSub,
-              checked: isPrivacyOn("showDecimal"),
-              onCheckedChange: togglePrivacyPref("showDecimal"),
-            },
-            {
-              label: t.akun.pengaturan.weeklySummaryLabel,
-              sub: t.akun.pengaturan.weeklySummarySub,
-              checked: isPrivacyOn("weeklySummary"),
-              onCheckedChange: togglePrivacyPref("weeklySummary"),
-            },
-          ]}
-        />
-      </SetSection>
-      <button
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
-        onClick={save}
+            <button
+              className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
+              onClick={save}
+            >
+              <Save className="size-4" /> {t.akun.pengaturan.saveButton}
+            </button>
+          </SectionCard>
+        </div>
+      </div>
+
+      {/* Zona berbahaya (akun.html `.danger-zone`) — same real DELETE as
+          PrivasiBody.handleDeleteAccount. */}
+      {beforeDangerZone}
+      <SectionCard
+        title={t.akun.pengaturan.dangerZoneTitle}
+        className="ak-soft-card ak-zona mt-3.5"
       >
-        <Save className="size-4" /> {t.akun.pengaturan.saveButton}
-      </button>
+        <p className="text-[12px] text-muted-foreground">
+          {t.akun.pengaturan.dangerZoneCaption}
+        </p>
+        <button
+          type="button"
+          onClick={() => void handleDeleteAccount()}
+          className="ak-danger-btn mt-3.5"
+        >
+          <Trash2 className="size-4" /> {t.akun.pengaturan.dangerZoneButton}
+        </button>
+      </SectionCard>
     </>
   );
 }
@@ -2090,14 +2530,16 @@ export function PrivasiBody() {
           right={CHEVRON}
           onClick={() => void handleExport()}
         />
-        <SetRow
-          icon={<Trash2 className="size-4 text-destructive" />}
-          iconBg="#FEE2E2"
-          name={t.akun.privasi.deleteAccountName}
-          sub={t.akun.privasi.deleteAccountSub}
-          right={CHEVRON}
-          onClick={() => void handleDeleteAccount()}
-        />
+        <div className="ak-danger-row">
+          <SetRow
+            icon={<Trash2 className="size-4 text-destructive" />}
+            iconBg="#FEE2E2"
+            name={t.akun.privasi.deleteAccountName}
+            sub={t.akun.privasi.deleteAccountSub}
+            right={CHEVRON}
+            onClick={() => void handleDeleteAccount()}
+          />
+        </div>
       </SetSection>
     </>
   );
@@ -2337,13 +2779,16 @@ function TentangBody() {
 function MemberRow({
   initials,
   gradient,
+  textColor,
   name,
   badge,
   sub,
   right,
 }: {
-  initials: string;
+  initials: React.ReactNode;
   gradient: string;
+  /** Pastel avatars (akun.html's `.ak-av`) need dark text instead of white. */
+  textColor?: string;
   name: React.ReactNode;
   badge?: React.ReactNode;
   sub: string;
@@ -2352,8 +2797,8 @@ function MemberRow({
   return (
     <div className="flex items-center gap-3 border-b py-3 last:border-b-0">
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold text-white"
-        style={{ background: gradient }}
+        className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[13px] font-extrabold"
+        style={{ background: gradient, color: textColor ?? "#fff" }}
       >
         {initials}
       </div>
@@ -2362,7 +2807,9 @@ function MemberRow({
           {name}
           {badge}
         </div>
-        <div className="mt-0.5 text-[12px] text-muted-foreground">{sub}</div>
+        <div className="mt-0.5 truncate text-[12px] text-muted-foreground">
+          {sub}
+        </div>
       </div>
       {right}
     </div>
@@ -2376,6 +2823,17 @@ const MEMBER_GRADIENTS = [
   "linear-gradient(135deg,#8B5CF6,#EC4899)",
   "linear-gradient(135deg,#0EA5E9,#22D3EE)",
   "linear-gradient(135deg,#64748B,#94A3B8)",
+];
+
+/* Anggota row list (akun.html's `.ak-av`) — pastel bg + dark fg instead of
+   the vivid two-tone gradients FamilyBody's unreachable legacy rows use. */
+const MEMBER_PASTELS: { bg: string; fg: string }[] = [
+  { bg: "#DDEFB5", fg: "#1F2A07" },
+  { bg: "#FDE2C8", fg: "#7A3A1F" },
+  { bg: "#DDEBFD", fg: "#1F3A7A" },
+  { bg: "#F5E1FD", fg: "#5A1F7A" },
+  { bg: "#FDE2E2", fg: "#7A1F1F" },
+  { bg: "#DFF7EC", fg: "#1F6B4A" },
 ];
 
 function memberInitials(name: string): string {
@@ -2466,7 +2924,9 @@ function FamilyBody({
                 </StatusBadge>
               ) : undefined
             }
-            sub={`${t.common.roleLabels[m.role] ?? m.role} · ${m.email}`}
+            sub={`${t.common.roleLabels[m.role] ?? m.role}${
+              realEmailOf(m.email) ? ` · ${m.email}` : ""
+            }`}
             right={
               <div className="flex items-center gap-1.5">
                 {m.userId !== myUserId && (
@@ -2561,7 +3021,7 @@ function FamilyBody({
                 {t.akun.family.adminBadge}
               </StatusBadge>
             }
-            sub={`Admin · ${m.email}`}
+            sub={`Admin${realEmailOf(m.email) ? ` · ${m.email}` : ""}`}
           />
         ))}
         {/* EPIC-024 A2 (D2, item 18) — "Tambah Admin/Staf" (email
@@ -2654,16 +3114,21 @@ function CategoryLimitDialog({
           EPIC-026 Wave 3 — app-only dialog (no prototype counterpart);
           composed with the prototype's title/desc/body/footer structure at
           the default 480px width. */}
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {t.akun.family.categoryLimitDialogTitle}
-            {member ? ` — ${member.name}` : ""}
-          </DialogTitle>
-          <DialogDescription>
-            {t.akun.family.categoryLimitDialogDesc}
-          </DialogDescription>
-        </DialogHeader>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {t.akun.family.categoryLimitDialogTitle}
+              {member ? ` — ${member.name}` : ""}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.akun.family.categoryLimitDialogDesc}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         {/* Keyed by member id (not an effect) so the checkbox selection
             resets/re-seeds whenever a different member's dialog opens; only
             rendered once `current` has loaded so the initial selection is
@@ -2679,7 +3144,7 @@ function CategoryLimitDialog({
             onClose={onClose}
           />
         )}
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -2743,8 +3208,8 @@ function CategoryLimitForm({
   }
 
   return (
-    <>
-      <DialogBody>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="wm-panel-body wm-form">
         {categories.length === 0 ? (
           <div className="rounded-md border border-dashed p-4 text-center text-[12px] text-muted-foreground">
             {t.akun.family.categoryLimitEmptyCategories}
@@ -2773,23 +3238,23 @@ function CategoryLimitForm({
         {selected.size === 0 && categories.length > 0 && (
           <p className="hint">{t.akun.family.categoryLimitUnrestrictedHint}</p>
         )}
-      </DialogBody>
-      <DialogFooter>
-        <button type="button" className="btn btn--outline" onClick={onClose}>
+      </div>
+      <div className="wm-panel-foot">
+        <PillButton type="button" onClick={onClose}>
           {t.common.cancel}
-        </button>
-        <button
+        </PillButton>
+        <PillButton
           type="button"
+          variant="primary"
           disabled={isSaving}
-          className="btn btn--primary disabled:opacity-60"
           onClick={handleSave}
         >
           {isSaving
             ? t.akun.family.categoryLimitSaving
             : t.akun.family.categoryLimitSaveButton}
-        </button>
-      </DialogFooter>
-    </>
+        </PillButton>
+      </div>
+    </div>
   );
 }
 
@@ -2815,16 +3280,21 @@ function ThresholdDialog({
           (docs/prototype/pages/akun.html). This app-only dialog reuses that
           field's exact prototype composition (`.field` + `.input.mono` +
           `.hint`) at the prototype's default 480px width. */}
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {t.akun.family.thresholdDialogTitle}
-            {member ? ` — ${member.name}` : ""}
-          </DialogTitle>
-          <DialogDescription>
-            {t.akun.family.thresholdDialogDesc}
-          </DialogDescription>
-        </DialogHeader>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {t.akun.family.thresholdDialogTitle}
+              {member ? ` — ${member.name}` : ""}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.akun.family.thresholdDialogDesc}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         {member && familyGroupId && (
           <ThresholdForm
             key={member.id}
@@ -2834,7 +3304,7 @@ function ThresholdDialog({
             onClose={onClose}
           />
         )}
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -2894,8 +3364,8 @@ export function ThresholdForm({
   }
 
   return (
-    <>
-      <DialogBody>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="wm-panel-body wm-form">
         {/* Prototype `dlg-edit-anggota` renders this as a bare
             `.input.mono` with the hint below — no "Rp" adornment — so the
             accessible name stays exactly the label text. */}
@@ -2910,23 +3380,23 @@ export function ThresholdForm({
           />
           <p className="hint">{t.akun.family.thresholdEmptyHint}</p>
         </div>
-      </DialogBody>
-      <DialogFooter>
-        <button type="button" className="btn btn--outline" onClick={onClose}>
+      </div>
+      <div className="wm-panel-foot">
+        <PillButton type="button" onClick={onClose}>
           {t.common.cancel}
-        </button>
-        <button
+        </PillButton>
+        <PillButton
           type="button"
+          variant="primary"
           disabled={isSaving}
-          className="btn btn--primary disabled:opacity-60"
           onClick={handleSave}
         >
           {isSaving
             ? t.akun.family.thresholdSaving
             : t.akun.family.thresholdSaveButton}
-        </button>
-      </DialogFooter>
-    </>
+        </PillButton>
+      </div>
+    </div>
   );
 }
 
@@ -2991,6 +3461,7 @@ export function FamilyMembersTableCard({
   displayInitials,
   displayName,
   displayEmail,
+  myAvatarUrl,
   isElevated,
   isOwner,
   onCategoryLimit,
@@ -3001,166 +3472,105 @@ export function FamilyMembersTableCard({
   displayInitials: string;
   displayName: string;
   displayEmail: string;
+  /** `/auth/me` avatarUrl — the members API has no images, so only the
+   * caller's own row can show a photo. */
+  myAvatarUrl?: string | null;
   isElevated: boolean;
   isOwner: boolean;
   onCategoryLimit: (member: FamilyMember) => void;
   onThreshold: (member: FamilyMember) => void;
 }) {
   const { t } = useLocale();
+  const regularMembers = (familyMembers ?? []).filter(
+    (m) => m.role !== "admin_staff",
+  );
   return (
     <SectionCard
-      title={`${t.akun.family.membersSectionTitle} (${(familyMembers ?? []).filter((m) => m.role !== "admin_staff").length})`}
-      action={
-        isOwner ? (
-          /* EPIC-027 group 2 (D3) — links to /iam instead of opening a
-             second copy of the add-member form. */
-          <Link
-            href="/iam"
-            className="flex items-center gap-1.5 rounded-md bg-primary px-2.5 py-1.5 text-[11.5px] font-semibold text-white"
-          >
-            <UserCog className="size-3" /> {t.akun.family.manageOnIamLink}
-          </Link>
-        ) : undefined
-      }
+      title={`${t.akun.family.membersSectionTitle} (${regularMembers.length})`}
     >
       {/* Direct-creation notice */}
       <InfoTip>{t.akun.addDependant.dialogDesc}</InfoTip>
-      <div className="w-full overflow-x-auto">
-        <table className="w-full min-w-[560px] text-[13px]">
-          <thead>
-            {/* Prototype table headers (akun.html) — no i18n keys existed for
-                these; Revisi H final-review fix swaps in the shared
-                `t.akun.memberConcepts.*` labels /iam already uses so the two
-                pages name the same concepts the same way. "Rekening
-                Ditugaskan" column is omitted: FamilyMember carries no
-                assigned-accounts data (honest UI). */}
-            <tr className="border-b text-[11px] uppercase tracking-wide text-muted-foreground">
-              <th className="pb-2 text-left font-semibold">Anggota</th>
-              <th className="pb-2 text-left font-semibold">
-                {t.akun.memberConcepts.systemRole}
-              </th>
-              <th className="pb-2 text-left font-semibold">
-                {t.akun.memberConcepts.relationship}
-              </th>
-              <th className="pb-2 text-right font-semibold">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(familyMembers ?? [])
-              .filter((m) => m.role !== "admin_staff")
-              .map((m, i) => {
-                const isMe = m.userId === myUserId;
-                const initials = isMe
-                  ? displayInitials
-                  : memberInitials(m.name);
-                const gradient =
-                  MEMBER_GRADIENTS[i % MEMBER_GRADIENTS.length] ??
-                  MEMBER_GRADIENTS[0]!;
-                return (
-                  <tr
-                    key={m.id}
-                    className="border-b last:border-0 hover:bg-secondary/30"
-                  >
-                    <td className="py-3 pr-3">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[12px] font-bold text-white"
-                          style={{ background: gradient }}
-                        >
-                          {initials}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-foreground">
-                            {m.name}
-                          </div>
-                          <div className="text-[11px] text-muted-foreground truncate max-w-[140px]">
-                            {m.email.endsWith(
-                              "@members.internal.wealthme.invalid",
-                            )
-                              ? "-"
-                              : m.email}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-3 pr-3">
-                      <StatusBadge
-                        variant={
-                          m.role === "owner"
-                            ? "info"
-                            : m.role === "spouse"
-                              ? "purple"
-                              : m.role === "dependant"
-                                ? "warning"
-                                : "gray"
-                        }
+      <div className="mt-1">
+        {regularMembers.map((m, i) => {
+          const isMe = m.userId === myUserId;
+          const initials = isMe ? (
+            <AvatarPhoto url={myAvatarUrl} fallback={displayInitials} />
+          ) : (
+            memberInitials(m.name)
+          );
+          const pastel =
+            MEMBER_PASTELS[i % MEMBER_PASTELS.length] ?? MEMBER_PASTELS[0]!;
+          const email = realEmailOf(m.email);
+          return (
+            <MemberRow
+              key={m.id}
+              initials={initials}
+              gradient={pastel.bg}
+              textColor={pastel.fg}
+              name={
+                <>
+                  {m.name}
+                  {isMe && (
+                    <span className="text-[12px] font-normal text-muted-foreground">
+                      {" "}
+                      ({t.akun.family.youBadge})
+                    </span>
+                  )}
+                </>
+              }
+              sub={`${t.common.roleLabels[m.role] ?? m.role}${
+                email ? ` · ${email}` : ""
+              }`}
+              right={
+                isMe ? undefined : (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {/* Same gating as FamilyBody (EPIC-019 Task C /
+                      EPIC-023 Task D) — member edit/delete UI stays a J2
+                      follow-up. */}
+                    {isElevated && m.role === "member" && (
+                      <button
+                        type="button"
+                        aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
+                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        onClick={() => onCategoryLimit(m)}
                       >
-                        {t.common.roleLabels[m.role] ?? m.role}
-                      </StatusBadge>
-                    </td>
-                    <td className="py-3 pr-3 text-muted-foreground text-[12px]">
-                      {/* FamilyMember carries no relationship field (honest
-                        UI) — only the role-derived "Kepala keluarga" for
-                        the owner row, per the prototype. */}
-                      {m.role === "owner" ? "Kepala keluarga" : "—"}
-                    </td>
-                    <td className="py-3 text-right">
-                      {isMe ? (
-                        <StatusBadge variant="gray">
-                          {t.akun.family.youBadge}
-                        </StatusBadge>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Same gating as FamilyBody (EPIC-019 Task C /
-                            EPIC-023 Task D) — member edit/delete UI stays
-                            a J2 follow-up. */}
-                          {isElevated && m.role === "member" && (
-                            <button
-                              type="button"
-                              aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
-                              className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                              onClick={() => onCategoryLimit(m)}
-                            >
-                              <Target className="size-4" />
-                            </button>
-                          )}
-                          {isOwner &&
-                            (m.role === "dependant" ||
-                              m.role === "operational") && (
-                              <button
-                                type="button"
-                                aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
-                                className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                                onClick={() => onThreshold(m)}
-                              >
-                                <Gauge className="size-4" />
-                              </button>
-                            )}
-                          {!(
-                            (isElevated && m.role === "member") ||
-                            (isOwner &&
-                              (m.role === "dependant" ||
-                                m.role === "operational"))
-                          ) && <span className="text-muted-foreground">—</span>}
-                        </div>
+                        <Target className="size-4" />
+                      </button>
+                    )}
+                    {isOwner &&
+                      (m.role === "dependant" || m.role === "operational") && (
+                        <button
+                          type="button"
+                          aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
+                          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          onClick={() => onThreshold(m)}
+                        >
+                          <Gauge className="size-4" />
+                        </button>
                       )}
-                    </td>
-                  </tr>
-                );
-              })}
-            {(familyMembers ?? []).length === 0 && (
-              <tr>
-                <td
-                  colSpan={4}
-                  className="py-6 text-center text-[12px] text-muted-foreground"
-                >
-                  {displayName} · {displayEmail}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  </div>
+                )
+              }
+            />
+          );
+        })}
+        {regularMembers.length === 0 && (
+          <div className="py-3 text-center text-[12px] text-muted-foreground">
+            {displayName} · {displayEmail}
+          </div>
+        )}
       </div>
+      {isOwner && (
+        /* EPIC-027 group 2 (D3) — links to /iam instead of opening a
+           second copy of the add-member form. akun.html's `.see-all`:
+           a centered text link under the list, not a filled button. */
+        <Link
+          href="/iam"
+          className="mt-3 flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-primary"
+        >
+          <UserCog className="size-3.5" /> {t.akun.family.manageOnIamLink}
+        </Link>
+      )}
     </SectionCard>
   );
 }
@@ -3175,6 +3585,16 @@ export default function AkunPage() {
   const [subpage, setSubpage] = useState<SubPageId | null>(null);
   const activeTab = useAccountTab();
   const [crud, setCrud] = useState<CrudModalState | null>(null);
+  // Bantuan tab's "Kirim feedback" card — same mailto behaviour as
+  // HubungiBody.handleSendFeedback (that component stays untouched for its
+  // own sub-page/test; this is the inline Bantuan-tab card).
+  const [feedback, setFeedback] = useState("");
+  function handleSendFeedback() {
+    const subject = encodeURIComponent("Feedback WealthMe");
+    const body = encodeURIComponent(feedback);
+    window.location.href = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
+    toast(t.akun.hubungi.toastFeedbackOpening);
+  }
   // EPIC-026 Wave 2 — the members table's Aksi column reuses the exact
   // member controls FamilyBody already had (category-limit + threshold
   // dialogs); member edit/delete stays a J2 follow-up, not resurrected here.
@@ -3187,6 +3607,25 @@ export default function AkunPage() {
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
   const myUserId = session?.userId ?? "";
+
+  // Hero KPIs (akun.html prototype: Anggota keluarga / Sesi aktif / Tema).
+  // Same query key as KeamananBody's session list, so react-query dedupes
+  // the request instead of firing it twice when Keamanan is also open.
+  const { theme: activeTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setThemeMounted(true), []);
+  const { data: heroSessions } = useQuery<{ id: string }[]>({
+    queryKey: ["auth", "sessions", token],
+    queryFn: async () => {
+      const res = await authClient.listSessions();
+      if (res.error) {
+        throw new Error(res.error.message ?? "Failed to load sessions");
+      }
+      return (res.data ?? []) as { id: string }[];
+    },
+    enabled: !!token,
+  });
 
   useEffect(() => {
     const remembered = window.localStorage.getItem("wealthme-account-tab");
@@ -3202,10 +3641,13 @@ export default function AkunPage() {
 
   function selectTab(tab: AccountTabId) {
     window.localStorage.setItem("wealthme-account-tab", tab);
-    notifyAccountTabChange();
+    // The tab snapshot reads ?tab= from the URL, so the URL must change
+    // BEFORE the store is notified — router.replace() updates it later, which
+    // made the first click read the old tab and need a second click.
     const params = new URLSearchParams(window.location.search);
     params.set("tab", tab);
-    router.replace(`/akun?${params.toString()}`, { scroll: false });
+    window.history.replaceState(null, "", `/akun?${params.toString()}`);
+    notifyAccountTabChange();
   }
 
   const {
@@ -3249,6 +3691,60 @@ export default function AkunPage() {
     enabled: !!token && !!primaryGroup?.id,
   });
 
+  // "Kelengkapan profil" hero block (akun.html `.ak-prog`/`.ak-steps`) —
+  // same queryKeys as /rekening, /anggaran and /tujuan, so react-query
+  // dedupes the request instead of re-fetching when those pages already
+  // warmed the cache. Honest UI: every step is derived from real data, none
+  // hardcoded.
+  const familyGroupIdForProgress = primaryGroup?.id ?? "";
+  const { data: progressAccounts } = useQuery<AccountDto[]>({
+    queryKey: [...queryKeys.accounts.all(familyGroupIdForProgress), token],
+    queryFn: () =>
+      apiFetch<AccountDto[]>(
+        `/family-groups/${familyGroupIdForProgress}/accounts`,
+        { token },
+      ),
+    enabled: !!token && !!primaryGroup?.id,
+  });
+  const { data: progressBudgets } = useQuery<BudgetDto[]>({
+    queryKey: [...queryKeys.budgets.all(familyGroupIdForProgress), token],
+    queryFn: () =>
+      apiFetch<BudgetDto[]>(
+        `/family-groups/${familyGroupIdForProgress}/budgets`,
+        { token },
+      ),
+    enabled: !!token && !!primaryGroup?.id,
+  });
+  const { data: progressGoals } = useQuery<GoalDto[]>({
+    queryKey: [...queryKeys.goals.all(familyGroupIdForProgress), token],
+    queryFn: () =>
+      apiFetch<GoalDto[]>(`/family-groups/${familyGroupIdForProgress}/goals`, {
+        token,
+      }),
+    enabled: !!token && !!primaryGroup?.id,
+  });
+
+  const profileStepsDone = {
+    basic: Boolean(me?.name) && Boolean(profileDetail?.phone),
+    account: Boolean(progressAccounts?.length),
+    budget: Boolean(progressBudgets?.length),
+    member: Boolean((familyMembers?.length ?? 0) >= 2),
+    goal: Boolean(progressGoals?.length),
+  };
+  const profileStepsList: { key: keyof typeof profileStepsDone }[] = [
+    { key: "basic" },
+    { key: "account" },
+    { key: "budget" },
+    { key: "member" },
+    { key: "goal" },
+  ];
+  const profileStepsCompleted = profileStepsList.filter(
+    (s) => profileStepsDone[s.key],
+  ).length;
+  const profileStepsPercent = Math.round(
+    (profileStepsCompleted / profileStepsList.length) * 100,
+  );
+
   // `mutateAsync` (not `mutate`) so `ProfilBody.handleSave` can await the
   // real outcome and only clear its `dirty` flag on an actual success — see
   // the `onSave` prop contract on `ProfilBody`.
@@ -3277,7 +3773,40 @@ export default function AkunPage() {
   });
 
   const displayName = me?.name ?? session?.user?.name ?? "—";
-  const displayEmail = me?.email ?? session?.user?.email ?? "—";
+  // Never the internal `member-…@members.internal…` placeholder: a real
+  // email, else the username login, else "—" (+ a hint where shown).
+  const realEmail = realEmailOf(me?.email ?? session?.user?.email);
+  const displayEmail = realEmail ?? (me?.username ? `@${me.username}` : "—");
+  const identityLine =
+    displayEmail === "—" ? (
+      <>
+        — <span className="ak-email-hint">{t.akun.usernameLoginHint}</span>
+      </>
+    ) : (
+      displayEmail
+    );
+
+  const { upload: avatarUpload, remove: avatarRemove } = useAvatarMutations();
+  const avatarBusy = avatarUpload.isPending || avatarRemove.isPending;
+  function pickAvatar(file: File) {
+    const problem = avatarFileError(file);
+    if (problem) {
+      toast.error(
+        problem === "type" ? t.akun.avatar.invalidType : t.akun.avatar.tooLarge,
+      );
+      return;
+    }
+    avatarUpload.mutate(file, {
+      onSuccess: () => toast.success(t.akun.avatar.updated),
+      onError: (err) => toast.error(err.message || t.akun.avatar.uploadFailed),
+    });
+  }
+  function removeAvatar() {
+    avatarRemove.mutate(undefined, {
+      onSuccess: () => toast.success(t.akun.avatar.removed),
+      onError: () => toast.error(t.akun.avatar.removeFailed),
+    });
+  }
   const displayInitials =
     displayName === "—"
       ? ""
@@ -3432,15 +3961,63 @@ export default function AkunPage() {
       <ProfileHero
         initials={meLoading ? "…" : displayInitials}
         displayName={displayName}
-        email={displayEmail}
+        email={identityLine}
+        avatar={{
+          url: me?.avatarUrl,
+          photo: me?.avatarUrl ? (
+            <AvatarPhoto url={me.avatarUrl} fallback={displayInitials} />
+          ) : undefined,
+          busy: avatarBusy,
+          changeLabel: t.akun.avatar.change,
+          removeLabel: t.akun.avatar.remove,
+          busyLabel: t.akun.avatar.uploading,
+          onPick: pickAvatar,
+          onRemove: removeAvatar,
+        }}
         role={
           primaryGroup
             ? (t.common.roleLabels[primaryGroup.myRole] ?? primaryGroup.myRole)
             : undefined
         }
         memberSince={t.akun.heroMemberSince}
-        actionLabel={t.akun.menuProfilName}
+        actionLabel={t.akun.heroEditProfileLabel}
         onEdit={() => open("profil")}
+        kpis={{
+          familyLabel: t.akun.heroKpiFamilyLabel,
+          familyValue: familyMembers?.length ?? "–",
+          sessionsLabel: t.akun.heroKpiSessionsLabel,
+          sessionsValue: heroSessions?.length ?? "–",
+          themeLabel: t.akun.heroKpiThemeLabel,
+          themeValue: themeMounted
+            ? themeValueToLabel(activeTheme, t.akun.pengaturan.themeOptions)
+            : t.akun.pengaturan.themeOptions.system,
+        }}
+        progress={{
+          title: t.akun.heroProgressTitle,
+          percentLabel: `${profileStepsPercent}%`,
+          steps: [
+            {
+              label: t.akun.heroProgressSteps.basic,
+              done: profileStepsDone.basic,
+            },
+            {
+              label: t.akun.heroProgressSteps.account,
+              done: profileStepsDone.account,
+            },
+            {
+              label: t.akun.heroProgressSteps.budget,
+              done: profileStepsDone.budget,
+            },
+            {
+              label: t.akun.heroProgressSteps.member,
+              done: profileStepsDone.member,
+            },
+            {
+              label: t.akun.heroProgressSteps.goal,
+              done: profileStepsDone.goal,
+            },
+          ],
+        }}
       />
 
       <div className="ak-main">
@@ -3450,231 +4027,350 @@ export default function AkunPage() {
           </div>
         )}
 
-        <div
-          role="group"
-          aria-label={t.akun.tabs.ariaLabel}
-          className="grid grid-cols-2 gap-1.5 rounded-xl bg-secondary p-1 sm:grid-cols-4"
-        >
-          {ACCOUNT_TAB_IDS.map((tab) => {
-            const active = activeTab === tab;
-            return (
-              <button
-                key={tab}
-                type="button"
-                aria-pressed={active}
-                onClick={() => selectTab(tab)}
-                className={
-                  "min-h-11 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors " +
-                  (active
-                    ? "bg-card text-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-card/60")
-                }
-              >
-                {t.akun.tabs[tab]}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 2. 2-col grid: Profil Saya + Group Family */}
-        {activeTab === "profil" && (
-          <>
-            <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-              {/* Profil Saya — read-only list rows */}
-              <SectionCard title={t.akun.menuProfilName}>
-                <div className="divide-y">
-                  <div className="flex items-center gap-3 py-3">
-                    <span className="text-[17px]">👤</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[12px] text-muted-foreground">
-                        {t.akun.profil.nameLabel}
-                      </div>
-                      <div className="text-[13.5px] font-semibold text-foreground truncate">
-                        {displayName}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 py-3">
-                    <span className="text-[17px]">✉️</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[12px] text-muted-foreground">
-                        {t.akun.profil.emailLabel}
-                      </div>
-                      <div className="text-[13.5px] font-semibold text-foreground truncate">
-                        {displayEmail}
-                      </div>
-                    </div>
-                  </div>
-                  {profileDetail?.phone && (
-                    <div className="flex items-center gap-3 py-3">
-                      <span className="text-[17px]">📱</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[12px] text-muted-foreground">
-                          {t.akun.profil.phoneLabel}
-                        </div>
-                        <div className="text-[13.5px] font-semibold text-foreground">
-                          {profileDetail.phone}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {profileDetail?.jobTitle && (
-                    <div className="flex items-center gap-3 py-3">
-                      <span className="text-[17px]">💼</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[12px] text-muted-foreground">
-                          {t.akun.profil.jobTitleLabel}
-                        </div>
-                        <div className="text-[13.5px] font-semibold text-foreground">
-                          {profileDetail.jobTitle}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </SectionCard>
-
-              {/* Group Family card — J1 CUT: Kekayaan Keluarga + Rekening Terhubung tiles removed */}
-              <SectionCard title={`👨‍👩‍👧‍👦 ${t.akun.familyGroupCardTitle}`}>
-                {primaryGroup ? (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl gradient-wealth text-[20px] text-white font-extrabold">
-                        {(primaryGroup.name ?? "").slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-[14px] font-extrabold text-foreground">
-                          {primaryGroup.name}
-                        </div>
-                        <div className="text-[12px] text-muted-foreground">
-                          {primaryGroup.memberCount} {t.akun.memberCountSuffix}{" "}
-                          ·{" "}
-                          {t.common.roleLabels[primaryGroup.myRole] ??
-                            primaryGroup.myRole}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
-                      <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                      <span>{t.akun.family.adminInfoNote}</span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="py-3 text-[12px] text-muted-foreground">
-                    {t.akun.createOrJoinFamilyGroup}
-                  </div>
-                )}
-              </SectionCard>
+        {/* Single outer content card (akun.html's `.card` wrapping `#tabs`
+            + the active `#panel*`) — the compact segmented control
+            (`.qtabs`) is its first element, and every section below is a
+            nested card-in-card (`.card.soft` / `.ak-soft-card`), not a
+            sibling card of its own. */}
+        <div className="card ak-content-card">
+          <div className="card__body">
+            <div
+              role="tablist"
+              aria-label={t.akun.tabs.ariaLabel}
+              className="wm-seg ak-tabs"
+            >
+              {ACCOUNT_TAB_IDS.map((tab) => {
+                const active = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => selectTab(tab)}
+                  >
+                    {t.akun.tabs[tab]}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* 3. Anggota Keluarga table */}
-            <FamilyMembersTableCard
-              familyMembers={familyMembers}
-              myUserId={myUserId}
-              displayInitials={displayInitials}
-              displayName={displayName}
-              displayEmail={displayEmail}
-              isElevated={isElevated}
-              isOwner={primaryGroup?.myRole === "owner"}
-              onCategoryLimit={setCategoryLimitMember}
-              onThreshold={setThresholdMember}
-            />
-          </>
-        )}
+            {/* "Lengkapi profil kamu" notice — hidden once all 5 steps are done
+            (mirrors akun.html drawStepper()'s `step>=of` guard). Reuses the
+            exact same profileStepsDone/profileStepsCompleted derivation as
+            the hero's "Kelengkapan profil" block above — no duplicated
+            logic, both read the same honest, real-data-derived state. */}
+            {activeTab === "profil" &&
+              profileStepsCompleted < profileStepsList.length && (
+                <div className="card ak-soft-card ak-prog-card">
+                  <div className="card__body">
+                    <div className="mb-2.5 text-[13px] font-semibold text-foreground">
+                      {t.akun.profil.noticeTemplate
+                        .replace("{done}", String(profileStepsCompleted))
+                        .replace("{total}", String(profileStepsList.length))}
+                    </div>
+                    <div className="ak-mini-steps">
+                      {profileStepsList.map((s) => (
+                        <i
+                          key={s.key}
+                          className={profileStepsDone[s.key] ? "on" : ""}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
-        {/* 4. Keamanan — inline KeamananBody */}
-        {activeTab === "keamanan" && (
-          <SectionCard title={t.akun.menuKeamananName}>
-            <KeamananBody />
-          </SectionCard>
-        )}
+            {/* 2. 2-col grid: Profil Saya + Group Family */}
+            {activeTab === "profil" && (
+              <>
+                <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
+                  {/* Profil Saya — read-only list rows */}
+                  <SectionCard
+                    title={t.akun.menuProfilName}
+                    className="ak-soft-card"
+                  >
+                    {/* akun.html's `dl.kv` — aligned label/value rows, not
+                    icon+stacked-label tiles. */}
+                    <div className="divide-y">
+                      <div className="flex items-center justify-between gap-3 py-3">
+                        <span className="text-[12.5px] text-muted-foreground">
+                          {t.akun.profil.nameLabel}
+                        </span>
+                        <span className="truncate text-right text-[13.5px] font-bold text-foreground">
+                          {displayName}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 py-3">
+                        <span className="text-[12.5px] text-muted-foreground">
+                          {t.akun.profil.emailLabel}
+                        </span>
+                        <span className="truncate text-right text-[13.5px] font-bold text-foreground">
+                          {displayEmail === "—" ? (
+                            <>
+                              —{" "}
+                              <span className="font-normal text-muted-foreground">
+                                {t.akun.usernameLoginHint}
+                              </span>
+                            </>
+                          ) : (
+                            displayEmail
+                          )}
+                        </span>
+                      </div>
+                      {profileDetail?.phone && (
+                        <div className="flex items-center justify-between gap-3 py-3">
+                          <span className="text-[12.5px] text-muted-foreground">
+                            {t.akun.profil.phoneLabel}
+                          </span>
+                          <span className="text-right text-[13.5px] font-bold text-foreground">
+                            {profileDetail.phone}
+                          </span>
+                        </div>
+                      )}
+                      {profileDetail?.jobTitle && (
+                        <div className="flex items-center justify-between gap-3 py-3">
+                          <span className="text-[12.5px] text-muted-foreground">
+                            {t.akun.profil.jobTitleLabel}
+                          </span>
+                          <span className="text-right text-[13.5px] font-bold text-foreground">
+                            {profileDetail.jobTitle}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </SectionCard>
 
-        {/* 5. Pengaturan Umum — inline PengaturanBody */}
-        {activeTab === "preferensi" && (
-          <SectionCard title={t.akun.menuPengaturanName}>
-            <PengaturanBody />
-          </SectionCard>
-        )}
+                  {/* Group Family card — J1 CUT: Kekayaan Keluarga + Rekening Terhubung tiles removed */}
+                  <SectionCard
+                    title={t.akun.familyGroupCardTitle}
+                    className="ak-soft-card"
+                  >
+                    {primaryGroup ? (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-xl gradient-wealth text-[20px] text-white font-extrabold">
+                            {(primaryGroup.name ?? "")
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-[14px] font-extrabold text-foreground">
+                              {primaryGroup.name}
+                            </div>
+                            <div className="text-[12px] text-muted-foreground">
+                              {primaryGroup.memberCount}{" "}
+                              {t.akun.memberCountSuffix} ·{" "}
+                              {t.common.roleLabels[primaryGroup.myRole] ??
+                                primaryGroup.myRole}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-3 flex items-start gap-2 rounded-lg border border-primary/30 bg-accent px-3 py-2.5 text-[12px] text-muted-foreground">
+                          <Info className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                          <span>{t.akun.family.adminInfoNote}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="py-3 text-[12px] text-muted-foreground">
+                        {t.akun.createOrJoinFamilyGroup}
+                      </div>
+                    )}
+                  </SectionCard>
+                </div>
 
-        {/* Extra non-prototype features as a compact menu section */}
-        {(activeTab === "preferensi" || activeTab === "bantuan") && (
-          <SectionCard
-            title={
-              activeTab === "preferensi"
-                ? t.akun.sectionPengaturan
-                : t.akun.sectionBantuan
-            }
-          >
+                {/* 3. Anggota Keluarga table */}
+                <FamilyMembersTableCard
+                  familyMembers={familyMembers}
+                  myUserId={myUserId}
+                  displayInitials={displayInitials}
+                  displayName={displayName}
+                  displayEmail={displayEmail}
+                  myAvatarUrl={me?.avatarUrl}
+                  isElevated={isElevated}
+                  isOwner={primaryGroup?.myRole === "owner"}
+                  onCategoryLimit={setCategoryLimitMember}
+                  onThreshold={setThresholdMember}
+                />
+              </>
+            )}
+
+            {/* 4. Keamanan — inline KeamananBody (renders its own card grid:
+            Password & PIN + Autentikasi side-by-side, then full-width Sesi
+            aktif, then the quick-unlock devices card). */}
+            {activeTab === "keamanan" && <KeamananBody />}
+
+            {/* 5. Preferensi — inline PengaturanBody (own SectionCard/grid rows)
+            plus the one extra non-prototype feature (Koneksi) as a MenuRow. */}
             {activeTab === "preferensi" && (
               <>
-                <MenuRow
-                  icon={
-                    <Landmark className="size-4" style={{ color: "#1D4ED8" }} />
+                <PengaturanBody
+                  beforeDangerZone={
+                    <SectionCard
+                      title={t.akun.sectionPengaturan}
+                      className="ak-soft-card mt-3.5"
+                    >
+                      <MenuRow
+                        icon={
+                          <Landmark
+                            className="size-4"
+                            style={{ color: "#1D4ED8" }}
+                          />
+                        }
+                        iconBg="#DBEAFE"
+                        name={t.akun.menuKoneksiName}
+                        sub={t.akun.menuKoneksiSub}
+                        onClick={() => open("koneksi")}
+                      />
+                    </SectionCard>
                   }
-                  iconBg="#DBEAFE"
-                  name={t.akun.menuKoneksiName}
-                  sub={t.akun.menuKoneksiSub}
-                  onClick={() => open("koneksi")}
-                />
-                <MenuRow
-                  icon={<Bell className="size-4 text-warning" />}
-                  iconBg="#FEF9C3"
-                  name={t.akun.menuNotifName}
-                  sub={t.akun.menuNotifSub}
-                  onClick={() => open("notif-setting")}
-                />
-                <MenuRow
-                  icon={<ShieldHalf className="size-4 text-brand-purple" />}
-                  iconBg="#EDE9FE"
-                  name={t.akun.menuPrivasiName}
-                  sub={t.akun.menuPrivasiSub}
-                  onClick={() => open("privasi")}
                 />
               </>
             )}
+
+            {/* Bantuan — FAQ (left) + Panduan & kontak (right), Kirim feedback,
+            About (akun.html panelBantuan). */}
             {activeTab === "bantuan" && (
               <>
-                <MenuRow
-                  icon={
-                    <CircleQuestionMark className="size-4 text-destructive" />
-                  }
-                  iconBg="#FEE2E2"
-                  name={t.akun.menuBantuanName}
-                  sub={t.akun.menuBantuanSub}
-                  onClick={() => open("bantuan")}
-                />
-                <MenuRow
-                  icon={<Headset className="size-4 text-success" />}
-                  iconBg="#DCFCE7"
-                  name={t.akun.menuHubungiName}
-                  sub={t.akun.menuHubungiSub}
-                  onClick={() => open("hubungi")}
-                />
-                <MenuRow
-                  icon={<Info className="size-4 text-muted-foreground" />}
-                  iconBg="#F3F4F6"
-                  name={t.akun.menuTentangName}
-                  sub={t.akun.menuTentangSub}
-                  right={
-                    <span className="ml-auto shrink-0 text-[11px] text-muted-foreground">
-                      v1.0.0
-                    </span>
-                  }
-                  onClick={() => open("tentang")}
-                />
+                <div className="grid grid-cols-1 gap-3.5 md:grid-cols-12">
+                  <SectionCard
+                    title={t.akun.bantuan.faqSectionTitle}
+                    className="ak-soft-card md:col-span-7"
+                  >
+                    <Accordion>
+                      {Object.values(t.akun.bantuan.faqs).map((f, i) => (
+                        <AccordionItem key={i} value={`faq-${i}`}>
+                          <AccordionTrigger className="text-[13px] font-semibold text-foreground">
+                            {f.q}
+                          </AccordionTrigger>
+                          <AccordionContent className="text-[12.5px] leading-relaxed text-muted-foreground">
+                            {f.before}
+                            {f.bold && <strong>{f.bold}</strong>}
+                            {f.after}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  </SectionCard>
+                  <SectionCard
+                    title={t.akun.bantuan.guideSectionTitle}
+                    className="ak-soft-card md:col-span-5"
+                  >
+                    <SetRow
+                      icon={<Book className="size-4 text-primary" />}
+                      iconBg="#EEF2FF"
+                      name={t.akun.bantuan.tourName}
+                      sub={t.akun.bantuan.tourSub}
+                      right={CHEVRON}
+                      onClick={() => {
+                        closeSheet();
+                        startTour();
+                      }}
+                    />
+                    <SetRow
+                      icon={<Book className="size-4 text-success" />}
+                      iconBg="#DCFCE7"
+                      name={t.akun.bantuan.fullGuideName}
+                      sub={t.akun.bantuan.fullGuideSub}
+                      right={CHEVRON}
+                      onClick={() => {
+                        closeSheet();
+                        router.push("/panduan");
+                      }}
+                    />
+                    <SetRow
+                      icon={<Bot className="size-4 text-muted-foreground" />}
+                      iconBg="#F3F4F6"
+                      name={t.akun.bantuan.askAiName}
+                      sub={t.akun.bantuan.askAiSub}
+                      right={CHEVRON}
+                      onClick={() => {
+                        closeSheet();
+                        router.push("/ai");
+                      }}
+                    />
+                    <a
+                      href={`mailto:${SUPPORT_EMAIL}`}
+                      className="block border-b last:border-b-0"
+                    >
+                      <SetRow
+                        icon={<Mail className="size-4 text-primary" />}
+                        iconBg="#EEF2FF"
+                        name={t.akun.hubungi.emailName}
+                        sub={t.akun.hubungi.emailSub}
+                        right={CHEVRON}
+                      />
+                    </a>
+                    <a
+                      href={SUPPORT_PHONE_TEL}
+                      className="block border-b last:border-b-0"
+                    >
+                      <SetRow
+                        icon={<Phone className="size-4 text-warning" />}
+                        iconBg="#FEF9C3"
+                        name={t.akun.hubungi.phoneName}
+                        sub={t.akun.hubungi.phoneSub}
+                        right={CHEVRON}
+                      />
+                    </a>
+                    <a
+                      href={SUPPORT_WHATSAPP_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block border-b last:border-b-0"
+                    >
+                      <SetRow
+                        icon={
+                          <MessageCircle
+                            className="size-4"
+                            style={{ color: "#25D366" }}
+                          />
+                        }
+                        iconBg="#DCFCE7"
+                        name={t.akun.hubungi.whatsappName}
+                        sub={t.akun.hubungi.whatsappSub}
+                        right={CHEVRON}
+                      />
+                    </a>
+                  </SectionCard>
+                </div>
+                <SectionCard
+                  title={t.akun.hubungi.feedbackTitle}
+                  className="ak-soft-card mt-3.5"
+                >
+                  <div className="mb-2.5">
+                    <textarea
+                      className="textarea resize-none"
+                      rows={3}
+                      value={feedback}
+                      onChange={(e) => setFeedback(e.target.value)}
+                      placeholder={t.akun.hubungi.feedbackPlaceholder}
+                    />
+                  </div>
+                  <button
+                    disabled={!feedback.trim()}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-50"
+                    onClick={handleSendFeedback}
+                  >
+                    <Send className="size-4" /> {t.akun.hubungi.feedbackButton}
+                  </button>
+                </SectionCard>
+                <SectionCard className="ak-soft-card mt-3.5">
+                  <TentangBody />
+                </SectionCard>
               </>
             )}
-          </SectionCard>
-        )}
 
-        <button
-          onClick={() => {
-            void authClient.signOut().then(() => router.push("/login"));
-          }}
-          className="mt-1 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-[#FEE2E2] bg-background px-4 py-2.5 text-[13.5px] font-semibold text-destructive"
-        >
-          <LogOut className="size-4" /> {t.akun.logoutButton}
-        </button>
+            <button
+              onClick={() => {
+                void authClient.signOut().then(() => router.push("/login"));
+              }}
+              className="ak-signout-btn mt-1"
+            >
+              <LogOut className="size-4" /> {t.akun.logoutButton}
+            </button>
+          </div>
+        </div>
 
         {/* Slide-in sub-page sheet (for Edit Profil + extra non-prototype sub-pages) */}
         <Sheet

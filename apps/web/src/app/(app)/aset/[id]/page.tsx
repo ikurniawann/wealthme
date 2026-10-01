@@ -11,6 +11,7 @@ import {
   Plus,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
@@ -29,7 +30,9 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogBody,
+  DialogClose,
   DialogContent,
+  PanelContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
@@ -45,6 +48,7 @@ import {
   HeroKpi,
   MiniList,
   MiniRow,
+  PillButton,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import type {
@@ -444,104 +448,122 @@ function AddHistoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="dialog--sm">
-        <DialogHeader>
-          <DialogTitle>{t.aset.addHistoryDialogTitle}</DialogTitle>
-          <DialogDescription>{asset.name}</DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <div className="field">
-            <span className="label" id={`${fieldId}-mode`}>
-              {t.aset.historyModeValue} / {t.aset.historyModePercent}
-            </span>
-            <div
-              className="segmented flex w-full"
-              role="tablist"
-              aria-labelledby={`${fieldId}-mode`}
-            >
-              {(
-                [
-                  ["value", t.aset.historyModeValue],
-                  ["percent", t.aset.historyModePercent],
-                ] as const
-              ).map(([m, label]) => (
-                <button
-                  key={m}
-                  type="button"
-                  role="tab"
-                  aria-selected={mode === m}
-                  onClick={() => setMode(m)}
-                  className="segmented__item flex-1"
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {t.aset.addHistoryDialogTitle}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {asset.name}
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (canSave && !mutation.isPending) mutation.mutate();
+          }}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="wm-panel-body wm-form">
+            <div className="wm-form__grid">
+              <div className="field">
+                <span className="label" id={`${fieldId}-mode`}>
+                  {t.aset.historyModeValue} / {t.aset.historyModePercent}
+                </span>
+                <div
+                  className="segmented flex w-full"
+                  role="tablist"
+                  aria-labelledby={`${fieldId}-mode`}
                 >
-                  {label}
-                </button>
-              ))}
+                  {(
+                    [
+                      ["value", t.aset.historyModeValue],
+                      ["percent", t.aset.historyModePercent],
+                    ] as const
+                  ).map(([m, label]) => (
+                    <button
+                      key={m}
+                      type="button"
+                      role="tab"
+                      aria-selected={mode === m}
+                      onClick={() => setMode(m)}
+                      className="segmented__item flex-1"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {mode === "value" ? (
+                <div className="field">
+                  <label className="label" htmlFor={`${fieldId}-value`}>
+                    {t.aset.historyValueLabel}
+                  </label>
+                  <MoneyInput field={valueField} id={`${fieldId}-value`} />
+                </div>
+              ) : (
+                <div className="field">
+                  <label className="label" htmlFor={`${fieldId}-pct`}>
+                    {t.aset.historyPercentLabel}
+                  </label>
+                  <input
+                    id={`${fieldId}-pct`}
+                    className="input mono"
+                    inputMode="decimal"
+                    placeholder="-2,5"
+                    value={percent}
+                    onChange={(e) => setPercent(e.target.value)}
+                  />
+                  <p className="hint">{t.aset.historyPercentHint}</p>
+                </div>
+              )}
+              <div className="field">
+                <label className="label" htmlFor={`${fieldId}-date`}>
+                  {t.aset.historyDateLabel}
+                </label>
+                <DateField
+                  id={`${fieldId}-date`}
+                  value={recordedAt}
+                  locale={locale}
+                  label={t.aset.historyDateLabel}
+                  max={new Date().toISOString().slice(0, 10)}
+                  onChange={setRecordedAt}
+                />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor={`${fieldId}-note`}>
+                  {t.aset.historyNoteLabel}
+                </label>
+                <input
+                  id={`${fieldId}-note`}
+                  type="text"
+                  className="input"
+                  placeholder={t.aset.historyNotePlaceholder}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                />
+              </div>
             </div>
           </div>
-          {mode === "value" ? (
-            <div className="field">
-              <label className="label" htmlFor={`${fieldId}-value`}>
-                {t.aset.historyValueLabel}
-              </label>
-              <MoneyInput field={valueField} id={`${fieldId}-value`} />
-            </div>
-          ) : (
-            <div className="field">
-              <label className="label" htmlFor={`${fieldId}-pct`}>
-                {t.aset.historyPercentLabel}
-              </label>
-              <input
-                id={`${fieldId}-pct`}
-                className="input mono"
-                inputMode="decimal"
-                placeholder="-2,5"
-                value={percent}
-                onChange={(e) => setPercent(e.target.value)}
-              />
-              <p className="hint">{t.aset.historyPercentHint}</p>
-            </div>
-          )}
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-date`}>
-              {t.aset.historyDateLabel}
-            </label>
-            <DateField
-              id={`${fieldId}-date`}
-              value={recordedAt}
-              locale={locale}
-              label={t.aset.historyDateLabel}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={setRecordedAt}
-            />
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
+              {t.common.cancel}
+            </PillButton>
+            <PillButton
+              type="submit"
+              variant="primary"
+              disabled={!canSave || mutation.isPending}
+            >
+              {t.aset.historySaveButton}
+            </PillButton>
           </div>
-          <div className="field">
-            <label className="label" htmlFor={`${fieldId}-note`}>
-              {t.aset.historyNoteLabel}
-            </label>
-            <input
-              id={`${fieldId}-note`}
-              type="text"
-              className="input"
-              placeholder={t.aset.historyNotePlaceholder}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </div>
-        </DialogBody>
-        <DialogFooter>
-          <button type="button" className="btn btn--outline" onClick={onClose}>
-            {t.common.cancel}
-          </button>
-          <button
-            type="button"
-            className="btn btn--primary disabled:opacity-60"
-            disabled={!canSave || mutation.isPending}
-            onClick={() => mutation.mutate()}
-          >
-            {t.aset.historySaveButton}
-          </button>
-        </DialogFooter>
-      </DialogContent>
+        </form>
+      </PanelContent>
     </Dialog>
   );
 }

@@ -1,21 +1,28 @@
 "use client";
 
-// EPIC-026 — prototype `ringkasan.html` block 2: the `.bento-grid` carrying
-// `.hero.gradient-wealth.bento-span-5` plus three `.card.stat` cells
-// (span-2 / span-2 / span-3 of the 12-column bento).
+// Structural port fidelity follow-up — `docs/design/proto/ringkasan.html`'s
+// `.r-hero` card: big number + green up/down delta PILL + an indicative
+// "≈ $X · Y gr emas" multi-currency line, the compact currency/range/privacy
+// control row (top-right, via `RingkasanPageLead`), an area trend chart, and
+// the Total aset / Total liabilitas / Menabung bulan ini KPI column — all in
+// one dark hero card. There is no page title row above it (see page.tsx).
 
 import { useQuery } from "@tanstack/react-query";
 import { useLocale } from "@/hooks/use-locale";
 import { BentoHero, HeroKpi } from "@/components/wm";
+import { StatusBadge } from "@/components/wm/badge";
 import { HatchedAreaChart } from "@/components/charts/bento-charts";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { apiFetch } from "@/lib/api-client";
+import { formatRupiah } from "@/lib/format";
 import type { RingkasanData } from "./use-ringkasan-data";
 import {
   formatInDisplayCurrency,
-  isForeignCurrency,
   type DisplayCurrency,
 } from "./display-currency";
+import { RingkasanPageLead } from "./page-lead";
+import type { TrendCustomRange, TrendRangeKey } from "./use-ringkasan-data";
+import { formatGoldGrams } from "@/components/consolidated-total-card";
 
 type FxRatesResponse = { base: string; rates: Record<string, number> };
 
@@ -33,20 +40,37 @@ function compactAxis(value: number): string {
 export function HeroStatsSection({
   data,
   displayCurrency = "IDR",
+  trendRange,
+  onTrendRangeChange,
+  customRange,
+  onCustomRangeChange,
+  onDisplayCurrencyChange,
+  privacyOn,
+  onTogglePrivacy,
 }: {
   data: RingkasanData;
   displayCurrency?: DisplayCurrency;
+  trendRange: TrendRangeKey;
+  onTrendRangeChange: (range: TrendRangeKey) => void;
+  customRange: TrendCustomRange;
+  onCustomRangeChange: (range: TrendCustomRange) => void;
+  onDisplayCurrencyChange: (c: DisplayCurrency) => void;
+  privacyOn: boolean;
+  onTogglePrivacy: () => void;
 }) {
   const { t } = useLocale();
-  // Same FX cache key as ConsolidatedTotalCard; gold uses the family's own price per gram.
+  // Same FX cache key as ConsolidatedTotalCard; gold uses the family's own
+  // price per gram. Fetched unconditionally — the hero's "≈ $X · Y gr emas"
+  // multicur line (prototype `#multiCur`) always shows USD + gold alongside
+  // whatever `displayCurrency` is selected.
   const { data: fx } = useQuery<FxRatesResponse>({
     queryKey: ["fx", "rates", "IDR"],
     queryFn: () => apiFetch<FxRatesResponse>("/fx/rates?base=IDR"),
     staleTime: 5 * 60_000,
-    enabled: isForeignCurrency(displayCurrency),
   });
   const { pricePerGram } = useGoldPrice();
   const gramPrice = pricePerGram ? Number(pricePerGram) : null;
+  const usdRate = fx?.rates.USD;
   const {
     isLoading,
     isNetWorthLoading,
@@ -67,6 +91,12 @@ export function HeroStatsSection({
     });
 
   const trend = data.netWorthTrendValues;
+  // Prototype `#multiCur` — indicative USD + gold-gram equivalent of the net
+  // worth, always shown under the delta pill regardless of `displayCurrency`.
+  const multiCur =
+    !isLoading && usdRate && gramPrice
+      ? `≈ ${formatRupiah(netWorth, { code: "USD", rate: usdRate })} · ${formatGoldGrams(netWorth / gramPrice)}${t.consolidatedTotal.goldUnitSuffix}`
+      : null;
   return (
     <BentoHero
       className="rk2-hero private-scope"
@@ -75,15 +105,32 @@ export function HeroStatsSection({
         <span className="private">{isLoading ? "..." : money(netWorth)}</span>
       }
       caption={
-        <span className="private">
-          {t.ringkasan.totalNetWorthLabel}
-          {!isLoading &&
-            ` · ${
-              monthNet >= 0
+        <span className="private rk2-hero-cap">
+          <span>{t.ringkasan.totalNetWorthLabel}</span>
+          {!isLoading && (
+            <StatusBadge
+              variant={monthNet >= 0 ? "success" : "danger"}
+              className="rk2-hero-delta"
+            >
+              {monthNet >= 0
                 ? `${t.ringkasan.monthDeltaUpPrefix}${money(monthNet)}${t.ringkasan.monthDeltaSuffix}`
-                : `${t.ringkasan.monthDeltaDownPrefix}${money(Math.abs(monthNet))}${t.ringkasan.monthDeltaSuffix}`
-            }`}
+                : `${t.ringkasan.monthDeltaDownPrefix}${money(Math.abs(monthNet))}${t.ringkasan.monthDeltaSuffix}`}
+            </StatusBadge>
+          )}
+          {multiCur && <span className="rk2-hero-multicur">{multiCur}</span>}
         </span>
+      }
+      controls={
+        <RingkasanPageLead
+          trendRange={trendRange}
+          onTrendRangeChange={onTrendRangeChange}
+          customRange={customRange}
+          onCustomRangeChange={onCustomRangeChange}
+          displayCurrency={displayCurrency}
+          onDisplayCurrencyChange={onDisplayCurrencyChange}
+          privacyOn={privacyOn}
+          onTogglePrivacy={onTogglePrivacy}
+        />
       }
       chart={
         trend.length >= 2 ? (

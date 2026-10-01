@@ -68,3 +68,19 @@ export function useMyAccess(): {
   if (!data) return { access: undefined, isLoading: true };
   return { access: data, isLoading: false };
 }
+
+/**
+ * "Lihat saldo" — true when the API withholds balance figures from the
+ * signed-in member. Observes the `access/me` cache that `useMyAccess` (the
+ * always-mounted sidebar) fills, without issuing a request of its own.
+ */
+export function useBalancesHidden(): boolean {
+  const { data: session } = useSession();
+  const token = session?.accessToken;
+  const familyGroupId = session?.familyGroupId ?? "";
+  const { data } = useQuery<EffectiveAccess>({
+    queryKey: [...queryKeys.familyGroups.myAccess(familyGroupId), token],
+    enabled: false,
+  });
+  return data?.balancesHidden === true;
+}

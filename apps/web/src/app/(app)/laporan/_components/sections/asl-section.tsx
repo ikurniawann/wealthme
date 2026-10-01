@@ -1,10 +1,8 @@
 import { SectionCard } from "@/components/wm";
-import { cssVar, useThemeRebuildToken } from "@/components/charts/apex-base";
-import { HBarChart } from "@/components/charts/apex-presets";
 import { useMoney } from "@/hooks/use-money";
-import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { BalanceSheetDto } from "@wealthme/contracts";
+import { BarRow } from "../atoms";
 
 /* ───────────────────────── Section: Aset & Liabilitas ───────────────────────── */
 
@@ -17,10 +15,6 @@ export function AslSection({
 }) {
   const { t } = useLocale();
   const money = useMoney();
-  // Forces a re-render (and a fresh `cssVar()` read below) on a theme flip —
-  // same idiom `AllocationCard`/the chart presets use; --success/--destructive
-  // are re-read live rather than baked in once at first render.
-  useThemeRebuildToken();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const debtRatio =
     balanceSheet && balanceSheet.totalAssets > 0
@@ -72,42 +66,61 @@ export function AslSection({
           (not one flat hue) so a debt never reads as if it were savings. */}
       {balanceSheet &&
         (balanceSheet.assets.length > 0 ||
-          balanceSheet.liabilities.length > 0) && (
-          <SectionCard title={t.shell.reportTabs.rasl}>
-            <HBarChart
-              categories={[
-                ...balanceSheet.assets.map(
-                  (g) =>
-                    t.aset.assetTypeLabels[
-                      g.category as keyof typeof t.aset.assetTypeLabels
-                    ] ?? g.category,
-                ),
-                ...balanceSheet.liabilities.map(
-                  (g) =>
-                    t.liabilitas.typeLabels[
-                      g.category as keyof typeof t.liabilitas.typeLabels
-                    ] ?? g.category,
-                ),
-              ]}
-              data={[
-                ...balanceSheet.assets.map((g) => g.amount),
-                ...balanceSheet.liabilities.map((g) => g.amount),
-              ]}
-              colors={[
-                ...balanceSheet.assets.map(() => cssVar("--success")),
-                ...balanceSheet.liabilities.map(() => cssVar("--destructive")),
-              ]}
-              showXAxisLabels
-              ariaLabel={`${t.shell.reportTabs.rasl}: ${[
-                ...balanceSheet.assets,
-                ...balanceSheet.liabilities,
-              ]
-                .map((g) => `${g.category} ${money.format(g.amount)}`)
-                .join(", ")}`}
-              money={money}
-            />
-          </SectionCard>
-        )}
+          balanceSheet.liabilities.length > 0) &&
+        (() => {
+          const rows = [
+            ...balanceSheet.assets.map((g) => ({
+              label:
+                t.aset.assetTypeLabels[
+                  g.category as keyof typeof t.aset.assetTypeLabels
+                ] ?? g.category,
+              amount: g.amount,
+              color: "var(--wm-lime)",
+            })),
+            ...balanceSheet.liabilities.map((g) => ({
+              label:
+                t.liabilitas.typeLabels[
+                  g.category as keyof typeof t.liabilitas.typeLabels
+                ] ?? g.category,
+              amount: g.amount,
+              color: "var(--wm-orange)",
+            })),
+          ];
+          const maxAmount = Math.max(...rows.map((r) => r.amount), 0);
+          return (
+            <SectionCard
+              title={t.shell.reportTabs.rasl}
+              action={
+                <div className="wm-legend">
+                  <span>
+                    <i style={{ background: "var(--wm-lime)" }} />
+                    {t.laporan.balance.assetLabel}
+                  </span>
+                  <span>
+                    <i style={{ background: "var(--wm-orange)" }} />
+                    {t.laporan.balance.liabilitiesLabel}
+                  </span>
+                </div>
+              }
+            >
+              <div className="flex flex-col gap-1.5">
+                {rows.map((row) => (
+                  <BarRow
+                    key={row.label}
+                    label={row.label}
+                    right={money.format(row.amount)}
+                    value={
+                      maxAmount > 0
+                        ? Math.round((row.amount / maxAmount) * 100)
+                        : 0
+                    }
+                    color={row.color}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          );
+        })()}
       <SectionCard title={t.laporan.asetLiabilitas.ratioTitle}>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md bg-muted p-3">
@@ -147,7 +160,7 @@ export function AslSection({
               className="text-[20px] font-extrabold"
               style={{ color: "var(--success)" }}
             >
-              {balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
+              {balanceSheet ? money.format(balanceSheet.netWorth) : "—"}
             </div>
             <div className="text-[10.5px]" style={{ color: "var(--success)" }}>
               {t.laporan.asetLiabilitas.netWorthDesc}

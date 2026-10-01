@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { BookOpen, Pencil, Tag, X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import type {
   ActiveReferenceItemGroup,
   CategoryDto,
@@ -20,13 +20,17 @@ import {
 } from "@/hooks/use-reference-items";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { CategoryIcon } from "@/components/shell/tx-pickers";
 import {
   BentoCard,
   BentoGrid,
   BentoHero,
+  CompositionStack,
   GhostButton,
   HeroKpi,
   InfoTip,
+  MiniList,
+  MiniRow,
   SeeAll,
   StatusBadge,
 } from "@/components/wm";
@@ -136,6 +140,17 @@ export default function MasterDataPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setCrud({ entity: target.entity, mode: "add" });
   }, [canManageReferenceItem]);
+
+  function openAddCategory(kind: "income" | "expense") {
+    setEditingCategoryId(null);
+    setCrud({
+      entity: "mdkategori",
+      mode: "add",
+      initialValues: {
+        tipe: kind === "income" ? "Pemasukan" : "Pengeluaran",
+      },
+    });
+  }
 
   function openEditCategory(cat: CategoryDto) {
     setEditingCategoryId(cat.id);
@@ -349,9 +364,65 @@ export default function MasterDataPage() {
 
   const v2 = t.masterdata.v2;
   const incomeCount = categoryList.filter((c) => c.kind === "income").length;
+  const expenseCount = categoryList.length - incomeCount;
   const linkedCount = categoryList.filter((c) =>
     coaById.has(c.coaAccountId),
   ).length;
+
+  const coaGroupNums = [1, 2, 3, 4, 5, 6] as const;
+  const coaGroupCounts = coaGroupNums.map(
+    (g) => coaList.filter((a) => a.groupNum === g).length,
+  );
+
+  const renderCategoryRow = (cat: (typeof categoryList)[number]) => {
+    const coa = coaById.get(cat.coaAccountId);
+    return (
+      <div key={cat.id} className="md-cat-row">
+        <span className="md-cat-icon" aria-hidden="true">
+          <CategoryIcon name={cat.name} />
+        </span>
+        <span className="md-cat-name" title={cat.name}>
+          {cat.name}
+        </span>
+        {cat.isPrivate && (
+          <StatusBadge variant="purple">
+            {t.masterdata.privateLabel}
+          </StatusBadge>
+        )}
+        {coa && (
+          <span
+            className="md-cat-code"
+            title={`COA: ${coa.code} — ${coa.name}`}
+          >
+            {coa.code}
+          </span>
+        )}
+        {canManageCategory && (
+          <span className="md-cat-actions">
+            <button
+              type="button"
+              className="md-x"
+              aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
+              onClick={() => openEditCategory(cat)}
+            >
+              <Pencil size={14} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="md-x md-x-del"
+              aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
+              onClick={() => setPendingCatDelete(cat)}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  const incomeCategories = categoryList.filter((c) => c.kind === "income");
+  const expenseCategories = categoryList.filter((c) => c.kind === "expense");
 
   return (
     <BentoGrid className="md-grid">
@@ -361,32 +432,30 @@ export default function MasterDataPage() {
         currency={null}
         value={categoryList.length}
         caption={v2.heroCap}
-        controls={
-          <>
-            <GhostButton onClick={() => router.push("/mastercoa")}>
-              <BookOpen size={14} aria-hidden="true" />
-              {t.masterdata.masterCoaButton}
-            </GhostButton>
-            {canManageCategory && (
-              <GhostButton
-                lit
-                onClick={() => {
-                  setEditingCategoryId(null);
-                  setCrud({ entity: "mdkategori", mode: "add" });
-                }}
-              >
-                {t.masterdata.addLink}
-              </GhostButton>
-            )}
-          </>
+        chart={
+          categoryList.length > 0 ? (
+            <CompositionStack
+              label={v2.heroCap}
+              format={(n) => String(n)}
+              items={[
+                {
+                  label: t.masterdata.kindIncome,
+                  value: incomeCount,
+                  color: "var(--wm-lime)",
+                },
+                {
+                  label: t.masterdata.kindExpense,
+                  value: expenseCount,
+                  color: "var(--wm-rose)",
+                },
+              ]}
+            />
+          ) : null
         }
         kpis={
           <>
             <HeroKpi label={v2.kpiIn} value={incomeCount} />
-            <HeroKpi
-              label={v2.kpiOut}
-              value={categoryList.length - incomeCount}
-            />
+            <HeroKpi label={v2.kpiOut} value={expenseCount} />
             <HeroKpi label={v2.kpiCoa} value={linkedCount} />
           </>
         }
@@ -395,7 +464,7 @@ export default function MasterDataPage() {
       <BentoCard
         className="md-coa"
         title={v2.coaTitle}
-        caption={`${linkedCount} / ${categoryList.length} · ${v2.coaCaption}`}
+        caption={`${coaList.length}${t.mastercoa.accountsCountSuffix} · ${v2.coaCaption}`}
         action={
           <InfoTip>
             {t.masterdata.pageSubtitle} {t.masterdata.topNoticePrefix} &ldquo;
@@ -403,135 +472,136 @@ export default function MasterDataPage() {
           </InfoTip>
         }
       >
+        <MiniList label={v2.coaTitle}>
+          {coaGroupNums.map((g, i) => (
+            <MiniRow
+              key={g}
+              icon={g}
+              title={t.mastercoa.groupTabLabels[g]}
+              meta={`${coaGroupCounts[i]}${t.mastercoa.accountsCountSuffix}`}
+            />
+          ))}
+        </MiniList>
         <SeeAll onClick={() => router.push("/mastercoa")}>
           {t.masterdata.masterCoaLink}
         </SeeAll>
       </BentoCard>
 
       <BentoCard
-        className="md-cats"
-        title={t.masterdata.categorySectionTitle}
-        caption={v2.catCaption}
+        className="md-cats md-cats-in"
+        title={`${t.masterdata.categoryIncomeTitle} (${incomeCount})`}
+        action={
+          canManageCategory && (
+            <GhostButton
+              className="md-add"
+              onClick={() => openAddCategory("income")}
+            >
+              {t.masterdata.addLink}
+            </GhostButton>
+          )
+        }
       >
         {isCategoriesLoading || !enabled ? (
           <div className="md-empty">{t.masterdata.categoryLoading}</div>
-        ) : categoryList.length === 0 ? (
+        ) : incomeCategories.length === 0 ? (
           <div className="md-empty">{t.masterdata.categoryEmpty}</div>
         ) : (
-          <div className="md-chips">
-            {categoryList.map((cat) => (
-              <span key={cat.id} className="md-chip">
-                <span>
-                  {cat.icon ?? <Tag size={13} aria-hidden="true" />} {cat.name}
-                </span>
-                <StatusBadge
-                  variant={cat.kind === "income" ? "success" : "info"}
-                >
-                  {cat.kind === "income"
-                    ? t.masterdata.kindIncome
-                    : t.masterdata.kindExpense}
-                </StatusBadge>
-                {coaById.get(cat.coaAccountId) && (
-                  <span
-                    className="md-code"
-                    title={`COA: ${coaById.get(cat.coaAccountId)?.code} — ${coaById.get(cat.coaAccountId)?.name}`}
-                  >
-                    {coaById.get(cat.coaAccountId)?.code}
-                  </span>
-                )}
-                {cat.isPrivate && (
-                  <StatusBadge variant="purple">
-                    {t.masterdata.privateLabel}
-                  </StatusBadge>
-                )}
-                {canManageCategory && (
-                  <>
-                    <button
-                      type="button"
-                      className="md-x"
-                      aria-label={`${t.masterdata.editAriaPrefix}${cat.name}`}
-                      onClick={() => openEditCategory(cat)}
-                    >
-                      <Pencil size={12} aria-hidden="true" />
-                    </button>
-                    <button
-                      type="button"
-                      className="md-x md-x-del"
-                      aria-label={`${t.masterdata.deleteAriaPrefix}${cat.name}`}
-                      onClick={() => setPendingCatDelete(cat)}
-                    >
-                      <X size={12} aria-hidden="true" />
-                    </button>
-                  </>
-                )}
-              </span>
-            ))}
+          <div className="md-cat-list">
+            {incomeCategories.map(renderCategoryRow)}
           </div>
         )}
-        {!isCategoriesLoading && enabled && categoryList.length > 0 && (
-          <p className="md-hint">{t.masterdata.categoryFooterHint}</p>
+      </BentoCard>
+
+      <BentoCard
+        className="md-cats md-cats-out"
+        title={`${t.masterdata.categoryExpenseTitle} (${expenseCount})`}
+        action={
+          canManageCategory && (
+            <GhostButton
+              className="md-add"
+              onClick={() => openAddCategory("expense")}
+            >
+              {t.masterdata.addLink}
+            </GhostButton>
+          )
+        }
+      >
+        {isCategoriesLoading || !enabled ? (
+          <div className="md-empty">{t.masterdata.categoryLoading}</div>
+        ) : expenseCategories.length === 0 ? (
+          <div className="md-empty">{t.masterdata.categoryEmpty}</div>
+        ) : (
+          <div className="md-cat-list">
+            {expenseCategories.map(renderCategoryRow)}
+          </div>
         )}
       </BentoCard>
 
-      <BentoCard className="md-ref" title={v2.refTitle}>
-        {REFERENCE_GROUP_ENTITIES.map(({ entity, group }) => {
-          const items = itemsByGroup.get(group) ?? [];
-          return (
-            <section key={entity} className="md-ref-sec">
-              <div className="md-ref-head">
-                <h3>
-                  {
-                    t.masterdata.groups[
-                      entity as keyof typeof t.masterdata.groups
-                    ].title
-                  }
-                </h3>
-                {canManageReferenceItem && (
-                  <GhostButton
-                    className="md-add"
-                    onClick={() => setCrud({ entity, mode: "add" })}
-                  >
-                    {t.masterdata.addLink}
-                  </GhostButton>
-                )}
-              </div>
-              <div className="md-chips">
-                {isReferenceItemsLoading || !enabled ? (
-                  <div className="md-empty">{t.masterdata.groupLoading}</div>
-                ) : items.length === 0 ? (
-                  <div className="md-empty">{t.masterdata.groupEmpty}</div>
-                ) : (
-                  items.map((item) => (
-                    <span key={item.id} className="md-chip">
-                      {item.label}
-                      {item.isSystem && (
-                        <StatusBadge variant="gray">
-                          {t.masterdata.systemBadge}
-                        </StatusBadge>
-                      )}
-                      {!item.isSystem && canManageReferenceItem && (
-                        <button
-                          type="button"
-                          className="md-x md-x-del"
-                          aria-label={`${t.masterdata.deleteAriaPrefix}${item.label}`}
-                          onClick={() => setPendingDelete(item)}
-                        >
-                          <X size={12} aria-hidden="true" />
-                        </button>
-                      )}
-                    </span>
-                  ))
-                )}
-              </div>
-            </section>
-          );
-        })}
+      <BentoCard
+        className="md-ref"
+        title={v2.refTitle}
+        action={
+          <InfoTip>
+            <strong>{t.masterdata.footerBold}</strong>
+            {t.masterdata.footerRest}
+          </InfoTip>
+        }
+      >
+        <div className="md-ref-grid">
+          {REFERENCE_GROUP_ENTITIES.map(({ entity, group }) => {
+            const items = itemsByGroup.get(group) ?? [];
+            return (
+              <section key={entity} className="md-ref-sec">
+                <div className="md-ref-head">
+                  <h3>
+                    {
+                      t.masterdata.groups[
+                        entity as keyof typeof t.masterdata.groups
+                      ].title
+                    }
+                  </h3>
+                  {canManageReferenceItem && (
+                    <GhostButton
+                      className="md-add"
+                      onClick={() => setCrud({ entity, mode: "add" })}
+                    >
+                      {t.masterdata.addLink}
+                    </GhostButton>
+                  )}
+                </div>
+                <div className="md-chips">
+                  {isReferenceItemsLoading || !enabled ? (
+                    <div className="md-empty">{t.masterdata.groupLoading}</div>
+                  ) : items.length === 0 ? (
+                    <div className="md-empty">{t.masterdata.groupEmpty}</div>
+                  ) : (
+                    items.map((item) => (
+                      <span key={item.id} className="md-chip">
+                        {item.label}
+                        {item.isSystem && (
+                          <StatusBadge variant="gray">
+                            {t.masterdata.systemBadge}
+                          </StatusBadge>
+                        )}
+                        {!item.isSystem && canManageReferenceItem && (
+                          <button
+                            type="button"
+                            className="md-x md-x-del"
+                            aria-label={`${t.masterdata.deleteAriaPrefix}${item.label}`}
+                            onClick={() => setPendingDelete(item)}
+                          >
+                            <X size={14} aria-hidden="true" />
+                          </button>
+                        )}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </BentoCard>
-
-      <p className="md-foot">
-        <strong>{t.masterdata.footerBold}</strong>
-        {t.masterdata.footerRest}
-      </p>
 
       <CrudModal
         state={crud}

@@ -29,16 +29,18 @@
     gap: 16px;
   }
   .pd-title {
-    font-size: 28px;
+    font-size: clamp(30px, 4.6vw, 50px);
+    letter-spacing: -0.045em;
+    line-height: 1;
   }
   .pd-search {
     display: flex;
     align-items: center;
     gap: 9px;
-    min-width: 260px;
-    height: 42px;
-    padding: 0 14px;
-    border-radius: 12px;
+    min-width: 320px;
+    height: 52px;
+    padding: 0 18px;
+    border-radius: 16px;
     background: var(--wm-ghost);
   }
   .pd-search input {
@@ -47,11 +49,14 @@
     border: 0;
     background: none;
     font: inherit;
-    font-size: var(--wm-type-13);
+    font-size: var(--wm-type-14);
     color: inherit;
   }
   .pd-search input:focus {
     outline: 0;
+  }
+  .pd-search:focus-within {
+    box-shadow: 0 0 0 2px var(--wm-good);
   }
   .pd-hero .pd-tabs {
     margin-top: 16px;
@@ -59,7 +64,10 @@
   .pd-groups {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 22px;
+  }
+  .pd-gh {
+    margin-bottom: 14px;
   }
   .pd-group h2 {
     margin: 0 0 2px;
@@ -67,14 +75,43 @@
     font-weight: 600;
   }
   .pd-tag {
-    margin: 0 0 12px;
+    margin: 0;
     font-size: var(--wm-type-13);
     color: var(--wm-muted);
   }
   .pd-items {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-auto-flow: dense;
     gap: 10px;
+  }
+  @media (min-width: 640px) {
+    .pd-items > .pd-feat {
+      grid-column: span 2;
+    }
+  }
+  @media (max-width: 639px) {
+    .pd-items {
+      grid-template-columns: 1fr;
+    }
+    .pd-search {
+      width: 100%;
+      min-width: 0;
+    }
+    .pd-hero .pd-tabs {
+      overflow-x: auto;
+      scroll-snap-type: x proximity;
+      flex-wrap: nowrap;
+      scrollbar-width: none;
+    }
+    .pd-hero .pd-tabs button {
+      flex: none;
+      min-height: 44px;
+      scroll-snap-align: start;
+    }
+    .pd-item {
+      min-height: 44px;
+    }
   }
   .pd-item {
     display: flex;
@@ -85,13 +122,44 @@
     border: 1px solid var(--wm-line);
     border-radius: 14px;
     background: var(--wm-card);
+    transition:
+      transform 0.18s ease,
+      border-color 0.18s ease;
   }
   .pd-link {
     cursor: pointer;
   }
   .pd-link:hover,
   .pd-link:focus-visible {
-    border-color: var(--wm-muted);
+    border-color: var(--wm-ink);
+    transform: translateY(-2px);
+  }
+  .pd-link:focus-visible {
+    outline: 2px solid var(--wm-good);
+    outline-offset: 2px;
+  }
+  .pd-feat {
+    padding: 20px;
+    background: var(--wm-card-2);
+  }
+  .pd-feat .pd-ic {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: var(--wm-ink);
+    color: var(--wm-card);
+  }
+  .pd-feat b {
+    font-size: 17px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .pd-item {
+      transition: none;
+    }
+    .pd-link:hover,
+    .pd-link:focus-visible {
+      transform: none;
+    }
   }
   .pd-ic {
     display: grid;
@@ -169,5 +237,61 @@
   }
   .pd-tile small {
     color: var(--wm-muted);
+  }
+}
+
+/* Tidy pass: even grid, featured strip, clamped copy. */
+@layer components {
+  .pd-title {
+    font-size: clamp(26px, 2.4vw, 36px);
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+  }
+  .pd-groups {
+    gap: 28px;
+  }
+  .pd-group {
+    padding-top: 22px;
+    border-top: 1px solid var(--wm-line);
+  }
+  .pd-group:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .pd-group h2 {
+    font-size: 16px;
+    letter-spacing: -0.01em;
+  }
+  .pd-items {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    grid-auto-flow: row;
+    gap: 12px;
+  }
+  .pd-items > .pd-feat {
+    grid-column: 1 / -1;
+    align-items: center;
+    padding: 18px 20px;
+  }
+  .pd-feat p {
+    max-width: 70ch;
+  }
+  .pd-items > .pd-item:not(.pd-feat) {
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    padding: 16px;
+  }
+  .pd-link:hover,
+  .pd-link:focus-visible {
+    border-color: var(--wm-lime);
+  }
+  @media (max-width: 639px) {
+    .pd-items > .pd-item:not(.pd-feat) {
+      flex-direction: row;
+      min-height: 0;
+    }
+    .pd-items > .pd-feat {
+      align-items: flex-start;
+    }
   }
 }

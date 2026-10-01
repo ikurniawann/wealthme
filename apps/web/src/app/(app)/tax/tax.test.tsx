@@ -278,11 +278,12 @@ describe("TaxPage — PPh OP save uses the server-echoed result, never a stale/m
     render(<TaxPage />);
 
     await screen.findByRole("button", { name: /Simpan ke Catatan Pajak/i });
-    await user.selectOptions(
-      screen.getByLabelText("Status PTKP"),
-      "K/I (penghasilan istri digabung)",
+    await user.click(
+      screen.getByRole("button", {
+        name: "K/I (penghasilan istri digabung)",
+      }),
     );
-    await user.selectOptions(screen.getByLabelText("Tanggungan (0–3)"), "2");
+    await user.click(screen.getByRole("button", { name: "2" }));
 
     await waitFor(() => {
       const call = mockApiFetch.mock.calls.find((c) => {

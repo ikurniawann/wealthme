@@ -4,7 +4,7 @@ import {
   type CanActivate,
   type ExecutionContext,
 } from "@nestjs/common";
-import { canAccessPage } from "@wealthme/contracts";
+import { canAccessPage, isMasterOrCoMaster } from "@wealthme/contracts";
 
 import {
   MEMBER_ACCESS_SELECT,
@@ -45,6 +45,7 @@ export class TenantGuard implements CanActivate {
         id: true,
         userId: true,
         familyGroupId: true,
+        canViewBalances: true,
         ...MEMBER_ACCESS_SELECT,
       },
     });
@@ -53,7 +54,13 @@ export class TenantGuard implements CanActivate {
 
     // EPIC-030 — resolved once per request; PageAccessGuard, CASL and the
     // privacy helpers all read this same object.
-    const access = effectiveAccessForMember(member);
+    const resolved = effectiveAccessForMember(member);
+    // "Lihat saldo" — master-like roles always see balances.
+    const balancesHidden =
+      !isMasterOrCoMaster(member.role) && member.canViewBalances === false;
+    const access = balancesHidden
+      ? { ...resolved, balancesHidden: true }
+      : resolved;
 
     req.tenantContext = {
       userId: user.sub,
@@ -69,6 +76,7 @@ export class TenantGuard implements CanActivate {
         // member who has either account page (read-only; writes stay own).
         seesSharedAccounts:
           canAccessPage(access, "rekening") || canAccessPage(access, "dana"),
+        balancesHidden,
       },
       access,
     };

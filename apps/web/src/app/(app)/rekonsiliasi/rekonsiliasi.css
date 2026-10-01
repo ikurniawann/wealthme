@@ -1,4 +1,6 @@
-/* Rekonsiliasi hero (bento v2): the 4-step flow as a progress track + match composition. */
+/* Rekonsiliasi hero (bento v2): before an import exists, the 4-step flow as
+   a progress track; once one exists, the prototype's donut/pie match chart
+   + legend (`WM.chart.donut` in docs/design/proto/rekonsiliasi.html). */
 @layer components {
   .rk-hero .wm-chart-wrap {
     display: flex;
@@ -9,6 +11,49 @@
   .rk-hero .wm-ghost-btn svg {
     width: 14px;
     height: 14px;
+  }
+  .rk-ctrl-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  /* Prototype parity — `.legend` under `.hero-ctrl`. */
+  .rk-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin-top: 10px;
+    font-size: var(--wm-type-12);
+    color: var(--wm-muted);
+  }
+  .rk-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .rk-legend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+  }
+  .rk-legend i[data-k="ok"] {
+    background: var(--wm-lime);
+  }
+  .rk-legend i[data-k="warn"] {
+    background: var(--wm-orange);
+  }
+  .rk-legend i[data-k="err"] {
+    background: var(--wm-bad);
+  }
+  .rk-donut-wrap {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+  }
+  @media (max-width: 720px) {
+    .rk-legend {
+      display: none;
+    }
   }
   .rk-flow {
     display: flex;

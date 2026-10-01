@@ -133,6 +133,7 @@ type AccountCard = {
   number: string;
   balanceLabel: string;
   rawBalance: number;
+  balanceHidden: boolean;
   type: string;
   // EPIC-022 A2 — the original `AccountDto.type` ("bank" | "ewallet" | "cash"
   // | "investment" | "property"), kept alongside the display-formatted
@@ -217,7 +218,7 @@ function toCardData(
   account: AccountDto,
   t: ReturnType<typeof useLocale>["t"],
 ): AccountCard {
-  const rawBalance = parseFloat(account.balance);
+  const rawBalance = parseFloat(account.balance ?? "0");
   const brand = resolveBrand(account.institution ?? null);
 
   const logoBg = brand?.bg ?? TYPE_LOGO_BG[account.type] ?? "#6B7280";
@@ -238,6 +239,7 @@ function toCardData(
     number: safeMaskedNumber(account.maskedNumber) ?? "—",
     balanceLabel: t.rekening.balanceLabel,
     rawBalance,
+    balanceHidden: account.balance === null,
     type: account.institution
       ? `${typeLabel} · ${account.institution}`
       : typeLabel,
@@ -305,7 +307,9 @@ function AccountCardItem({
             : null
         }
         holder={account.type}
-        balance={money.format(account.rawBalance).replace(/,00$/, "")}
+        balance={money
+          .formatBalance(account.balanceHidden ? null : account.rawBalance)
+          .replace(/,00$/, "")}
         badge={
           <span className="rk-card-badges">
             {account.isPrivate && (
@@ -467,7 +471,7 @@ export default function RekeningPage() {
   });
 
   const totalBalance = scopedAccounts.reduce(
-    (sum, a) => sum + parseFloat(a.balance),
+    (sum, a) => sum + parseFloat(a.balance ?? "0"),
     0,
   );
   // N3-D3 (prototype rekening.html "auto-grid--metrics") — Saldo Bank /
@@ -475,7 +479,7 @@ export default function RekeningPage() {
   // fetched accounts list, no new endpoint needed.
   const sharedBalance = scopedAccounts
     .filter((a) => a.ownerUserId === null)
-    .reduce((sum, a) => sum + parseFloat(a.balance), 0);
+    .reduce((sum, a) => sum + parseFloat(a.balance ?? "0"), 0);
   const ownedBalance = totalBalance - sharedBalance;
   const sharedCount = scopedAccounts.filter(
     (a) => a.ownerUserId === null,
@@ -746,13 +750,18 @@ export default function RekeningPage() {
                 series={[
                   {
                     name: t.rekening.balanceLabel,
-                    data: visibleAccounts.map((a) => parseFloat(a.balance)),
+                    data: visibleAccounts.map((a) =>
+                      parseFloat(a.balance ?? "0"),
+                    ),
                     color: "var(--wm-lime)",
                   },
                 ]}
                 highlight={visibleAccounts.reduce(
                   (m, a, i, arr) =>
-                    parseFloat(a.balance) > parseFloat(arr[m].balance) ? i : m,
+                    parseFloat(a.balance ?? "0") >
+                    parseFloat(arr[m].balance ?? "0")
+                      ? i
+                      : m,
                   0,
                 )}
                 format={money.formatCompact}
@@ -809,7 +818,7 @@ export default function RekeningPage() {
                       ? t.rekening.privateBadge
                       : (account.ownerName ?? "")
                   }
-                  balance={money.formatCompact(parseFloat(account.balance))}
+                  balance={money.formatBalance(account.balance, true)}
                 />
               ))}
             </div>

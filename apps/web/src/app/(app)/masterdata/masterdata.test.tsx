@@ -245,14 +245,15 @@ describe("MasterDataPage, reference items are real API-backed data (EPIC-024 Tas
     render(<MasterDataPage />);
 
     await screen.findByText("Bank");
-    // Render order is Kategori, then Bank (first of the seven reference
-    // groups) — "+ Tambah" (index 1) opens the Bank add modal. `findAllByRole`
-    // (not `getAllByRole`) — F3 role-gating hides these links until
-    // `useCanManage`'s own role fetch resolves (mocked "owner" above).
+    // Render order is the income/expense category cards, then the three
+    // reference-list cards (Bank first) — "+ Tambah" index 2 opens the Bank
+    // add modal. `findAllByRole` (not `getAllByRole`) — F3 role-gating hides
+    // these links until `useCanManage`'s own role fetch resolves (mocked
+    // "owner" above).
     const addButtons = await screen.findAllByRole("button", {
       name: "+ Tambah",
     });
-    await user.click(addButtons[1]);
+    await user.click(addButtons[2]);
 
     const dialog = await screen.findByRole("dialog");
     await user.type(
@@ -392,7 +393,7 @@ describe("MasterDataPage, a new item reaches every form reading the same group (
     const addButtons = await screen.findAllByRole("button", {
       name: "+ Tambah",
     });
-    await user.click(addButtons[1]);
+    await user.click(addButtons[2]);
     const dialog = await screen.findByRole("dialog");
     await user.type(
       within(dialog).getByPlaceholderText("cth: Bank Jago"),

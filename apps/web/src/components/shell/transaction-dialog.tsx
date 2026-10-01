@@ -368,9 +368,11 @@ export function TransactionDialog() {
     caption: a.name,
     label: a.institution ?? a.name,
     sub:
-      a.balance !== undefined
-        ? formatRupiahCompact(Number(a.balance))
-        : undefined,
+      a.balance === null
+        ? "Rp ••••••"
+        : a.balance !== undefined
+          ? formatRupiahCompact(Number(a.balance))
+          : undefined,
   }));
   const categoryChoices: Choice[] = relevantCategories.map((c) => {
     const Icon = categoryIcon(c.name);
@@ -883,7 +885,7 @@ export function TransactionDialog() {
                 `.segmented__item` with `role="tablist"`/`role="tab"`
                 (shell.js:531-535). */}
               <div
-                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto max-[399px]:grid max-[399px]:grid-cols-2 max-[399px]:overflow-visible max-[399px]:[mask-image:none] max-[399px]:[-webkit-mask-image:none]"
+                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto max-[720px]:grid max-[720px]:grid-cols-2 max-[720px]:overflow-visible max-[720px]:[mask-image:none] max-[720px]:[-webkit-mask-image:none]"
                 role="tablist"
                 aria-label={t.shell.transactionDialog.typeSwitchLabel}
               >

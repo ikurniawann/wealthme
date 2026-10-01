@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, Req } from "@nestjs/common";
+import { Controller, Get, Param, Query, Req, UseGuards } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -11,6 +11,11 @@ import {
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { BalancesVisibleGuard } from "../common/guards/balances-visible.guard";
+import {
+  areBalancesHidden,
+  hiddenReportSummary,
+} from "../common/utils/balance-visibility.util";
 import {
   assertHouseholdWideReadAllowed,
   canSeePrivateItems,
@@ -62,6 +67,8 @@ function defaultMonthStartWib(now: Date): Date {
 
 @ApiTags("reports")
 @ApiBearerAuth()
+// "Lihat saldo" — every report is a money aggregate: denied when off,
+// except /summary (ringkasan), which returns nulls + balancesHidden.
 @PageAccess("reports")
 @Controller("family-groups/:familyGroupId/reports")
 export class ReportsController {
@@ -94,6 +101,9 @@ export class ReportsController {
     @Query("period") period?: string,
     @Query("endDate") endDateStr?: string,
   ): Promise<ReportSummaryDto> {
+    if (areBalancesHidden(req.tenantContext?.member)) {
+      return Promise.resolve(hiddenReportSummary(period));
+    }
     const raw = parseInt(months ?? "", 10);
     const parsedMonths = Number.isNaN(raw) ? 6 : Math.min(Math.max(raw, 1), 24);
     const safePeriod: ReportPeriod =
@@ -114,6 +124,7 @@ export class ReportsController {
     );
   }
 
+  @UseGuards(BalancesVisibleGuard)
   @Get("bank")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })
@@ -141,6 +152,7 @@ export class ReportsController {
     );
   }
 
+  @UseGuards(BalancesVisibleGuard)
   @Get("detail")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })
@@ -168,6 +180,7 @@ export class ReportsController {
     );
   }
 
+  @UseGuards(BalancesVisibleGuard)
   @Get("pnl")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })
@@ -195,6 +208,7 @@ export class ReportsController {
     );
   }
 
+  @UseGuards(BalancesVisibleGuard)
   @Get("balance-sheet")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })
@@ -216,6 +230,7 @@ export class ReportsController {
     );
   }
 
+  @UseGuards(BalancesVisibleGuard)
   @Get("cashflow")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })
@@ -243,6 +258,7 @@ export class ReportsController {
     );
   }
 
+  @UseGuards(BalancesVisibleGuard)
   @Get("sankey")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })
@@ -274,6 +290,7 @@ export class ReportsController {
   // as every other route on this controller: `@CheckAbility` is required or
   // `AbilitiesGuard` fails OPEN, and `assertHouseholdWideReadAllowed` keeps
   // dependant/operational off this household-wide reconciliation view.
+  @UseGuards(BalancesVisibleGuard)
   @Get("reconciliation-bridge")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })
@@ -311,6 +328,7 @@ export class ReportsController {
   // EPIC-024 Task M (M1, D16, US-RPT-14) — same ability/tenant-scoping shape
   // as every other route here: `@CheckAbility` is required or
   // `AbilitiesGuard` fails OPEN (see the project's AbilitiesGuard note).
+  @UseGuards(BalancesVisibleGuard)
   @Get("coa-matrix")
   @CheckAbility((ab: AppAbility) => ab.can("read", "Account"))
   @ApiParam({ name: "familyGroupId", type: String })

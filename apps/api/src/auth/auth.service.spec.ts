@@ -349,7 +349,11 @@ describe("AuthService", () => {
       const result = await service.getMe("user-1");
 
       // Assert
-      expect(result).toEqual({ ...profile, familyGroupId: "fg-1" });
+      expect(result).toEqual({
+        ...profile,
+        avatarUrl: null,
+        familyGroupId: "fg-1",
+      });
       expect(result).not.toHaveProperty("passwordHash");
       expect(mockPrisma.user.findUniqueOrThrow).toHaveBeenCalledWith({
         where: { id: "user-1" },
@@ -358,6 +362,8 @@ describe("AuthService", () => {
           email: true,
           name: true,
           avatarInitials: true,
+          username: true,
+          image: true,
           createdAt: true,
           memberships: {
             // EPIC-027 A7 (security gate, CRITICAL) — a nested membership read

@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Req } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiBody,
@@ -11,6 +19,7 @@ import {
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { BalancesVisibleGuard } from "../common/guards/balances-visible.guard";
 import {
   assertHouseholdWideReadAllowed,
   canSeePrivateItems,
@@ -26,6 +35,8 @@ import type { Request } from "express";
 
 @ApiTags("exports")
 @ApiBearerAuth()
+// "Lihat saldo" — exports are money reports; denied when off.
+@UseGuards(BalancesVisibleGuard)
 @PageAccess("exports")
 @Controller("family-groups/:familyGroupId/exports")
 export class ExportsController {

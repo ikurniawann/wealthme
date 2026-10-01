@@ -1,5 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 
 // Batch C — HarianSection now reads useMoney() (DisplayCurrencyProvider's
 // hook), which pulls in useCurrencyPreference -> useProfile -> useSession
@@ -15,32 +14,26 @@ jest.mock("../../../../../lib/auth-client", () => ({
 import { setLocale } from "../../../../../hooks/use-locale";
 import { HarianSection } from "./harian-section";
 
-describe("HarianSection — report day picker", () => {
+// The day picker moved to the shared hero (laporan-inner.tsx owns it) — this
+// section no longer renders its own date field or a bare page heading, only
+// the KPI tiles and the transaction list card.
+describe("HarianSection — card content", () => {
   beforeEach(() => setLocale("id"));
 
-  it("uses the shared calendar instead of a native date input", async () => {
-    const onDateChange = jest.fn();
-    const user = userEvent.setup();
-    const { container } = render(
-      <HarianSection date="2026-09-10" onDateChange={onDateChange} />,
-    );
+  it("renders no date picker of its own", () => {
+    const { container } = render(<HarianSection />);
 
     expect(
       container.querySelector('input[type="date"]:not(.sr-only)'),
     ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: /^Tanggal laporan/ }),
+    ).toBeNull();
+  });
 
-    await user.click(
-      screen.getByRole("button", {
-        name: "Tanggal laporan: 10 September 2026",
-      }),
-    );
-    await user.click(
-      within(screen.getByRole("dialog", { name: "Tanggal laporan" })).getByRole(
-        "button",
-        { name: /^12 / },
-      ),
-    );
+  it("shows the honest empty state when there are no transactions", () => {
+    render(<HarianSection />);
 
-    expect(onDateChange).toHaveBeenCalledWith("2026-09-12");
+    expect(screen.getByText("Tidak ada transaksi hari ini")).toBeVisible();
   });
 });

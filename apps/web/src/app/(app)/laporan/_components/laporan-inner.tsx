@@ -12,6 +12,8 @@ import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { REPORT_TABS, type ReportTabId } from "@/lib/nav";
 import { useMoney } from "@/hooks/use-money";
+import { DateField, Segmented } from "@/components/wm";
+import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { coverFor } from "./report-cover";
 import { REPORT_ICONS } from "./report-icons";
 import {
@@ -35,7 +37,11 @@ import type {
   InvestmentDto,
   InvestmentType,
 } from "@wealthme/contracts";
-import { useExportJob, ExportSection } from "./export-section";
+import {
+  EXPORT_REPORT_TYPE_IDS,
+  EXPORT_TYPE_FOR_TAB,
+  useExportJob,
+} from "./export-section";
 import { useLaporanReportQueries } from "./use-laporan-report-queries";
 import { InvestmentDialogs } from "./investment-dialogs";
 import { RangePresetSelect } from "./period-filter";
@@ -435,6 +441,20 @@ export function LaporanInner() {
   const [findReport, setFindReport] = useState("");
   const findNeedle = findReport.trim().toLowerCase();
   const moneyFmt = useMoney();
+  // Hero trend chart for the rsum tab (prototype's `rsum.viz`) — same
+  // series the old "Pemasukan vs Pengeluaran" card below used, just moved
+  // up into the dark cover alongside the legend chips.
+  const heroActiveChartSummary = ringkasanChartSummary ?? summary;
+  const heroChartMonths =
+    heroActiveChartSummary?.points.map((p) => p.label) ?? [];
+  const heroChartIncome =
+    heroActiveChartSummary?.points.map((p) => p.income) ?? [];
+  const heroChartExpense =
+    heroActiveChartSummary?.points.map((p) => p.expense) ?? [];
+  const heroChartAriaLabel =
+    heroActiveChartSummary && heroChartMonths.length > 0
+      ? `${t.laporan.ringkasan.cashflowCardTitle} ${heroChartMonths[heroChartMonths.length - 1]}: ${t.laporan.v2.income} ${moneyFmt.format(heroChartIncome[heroChartIncome.length - 1] ?? 0)}, ${t.laporan.v2.expense} ${moneyFmt.format(heroChartExpense[heroChartExpense.length - 1] ?? 0)}`
+      : t.laporan.ringkasan.cashflowCardTitle;
   const cover = coverFor(
     tab as ReportTabId,
     {
@@ -447,10 +467,20 @@ export function LaporanInner() {
       cashflow,
       invSummary,
       pph21,
+      daily: dailyReport,
     },
     t,
     moneyFmt.formatCompact,
   );
+  // Task 2 — the export-type select used to stay on "summary" ("Ringkasan")
+  // regardless of the active tab, which read as if it mirrored the current
+  // report. Default it to the tab's closest export type on every tab
+  // switch; the user can still pick a different one afterward.
+  useEffect(() => {
+    const mapped = EXPORT_TYPE_FOR_TAB[tab];
+    if (mapped) exportJob.setReportType(mapped);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-sync only on tab change, not on every exportJob identity change.
+  }, [tab]);
   const periodCaption =
     rangeStart && rangeEnd
       ? `${fmtDay(rangeStart, locale)} – ${fmtDay(rangeEnd, locale)}`
@@ -580,7 +610,7 @@ export function LaporanInner() {
         return (
           <PajakSection
             pph21={pph21}
-            grossIncome={annualGross}
+            grossIncome={annualGross ?? undefined}
             isLoading={isAnnualLoading || isPph21Loading}
           />
         );
@@ -600,17 +630,8 @@ export function LaporanInner() {
       default:
         return (
           <RingkasanSection
-            go={go}
             summary={summary}
-            detailReport={detailReport}
-            invSummary={invSummary}
-            balanceSheet={balanceSheet}
             isLoading={isSummaryLoading || isDetailLoading}
-            chartSummary={ringkasanChartSummary}
-            isChartLoading={isRingkasanChartLoading}
-            chartRange={ringkasanChartRange}
-            onChartRangeChange={setRingkasanChartRange}
-            periodLabel={periodLabel}
           />
         );
     }
@@ -806,6 +827,46 @@ export function LaporanInner() {
                 )}
               </p>
               <div className="lp-c-acts">
+                {tab === "rharian" && (
+                  <DateField
+                    value={harianDate}
+                    locale={locale}
+                    label={t.laporan.harian.dateLabel}
+                    required
+                    onChange={handleHarianDateChange}
+                  />
+                )}
+                {/* Real backend feature (bank/detail/pnl/balance-sheet/cashflow
+                    exports) the prototype doesn't model — kept as a compact
+                    select beside the export buttons instead of deleting it,
+                    per port rules (restyle, don't drop existing features).
+                    This selects the EXPORT job's report type, which can
+                    legitimately differ from the tab being viewed — labeled
+                    explicitly so it doesn't read as mirroring the active
+                    tab (Task 2); it re-syncs to the tab's closest type on
+                    every tab change but stays overridable. */}
+                <label className="lp-export">
+                  <span className="wm-cap">
+                    {t.laporan.export.reportTypeLabel}
+                  </span>
+                  <select
+                    className="lp-cbtn lp-cbtn-select"
+                    aria-label={t.laporan.export.reportTypeLabel}
+                    value={exportJob.reportType}
+                    onChange={(e) =>
+                      exportJob.setReportType(
+                        e.target.value as typeof exportJob.reportType,
+                      )
+                    }
+                    disabled={!!exportJob.isActive || exportJob.isSubmitting}
+                  >
+                    {EXPORT_REPORT_TYPE_IDS.map((id) => (
+                      <option key={id} value={id}>
+                        {t.laporan.export.reportTypeLabels[id]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <button
                   type="button"
                   className="lp-cbtn"
@@ -831,6 +892,59 @@ export function LaporanInner() {
               </div>
             </div>
             <h1 className="lp-headline">{cover.headline}</h1>
+            {/* Prototype parity (docs/design/proto/laporan.html `rsum.viz`)
+                — the trend chart lives INSIDE the dark hero, above the
+                legend chips, not in a separate card below it. The detailed
+                "Export Laporan" card (report-type picker + PDF/CSV) was
+                removed site-wide — the prototype's only export affordance
+                anywhere on /laporan is these two header buttons, which
+                already drive the same export job. */}
+            {tab === "rsum" && heroChartMonths.length > 0 && (
+              <div className="lp-chart-wrap">
+                <div className="mb-2 flex justify-end">
+                  <Segmented
+                    label={t.laporan.ringkasan.cashflowCardTitle}
+                    value={String(ringkasanChartRange)}
+                    onChange={(v) =>
+                      setRingkasanChartRange(Number(v) as 6 | 12)
+                    }
+                    options={[
+                      { value: "6", label: t.laporan.ringkasan.cashflowRange6 },
+                      {
+                        value: "12",
+                        label: t.laporan.ringkasan.cashflowRange12,
+                      },
+                    ]}
+                  />
+                </div>
+                <div
+                  className={
+                    isRingkasanChartLoading
+                      ? "lp-chart-wrap-chart opacity-50 pointer-events-none"
+                      : "lp-chart-wrap-chart"
+                  }
+                >
+                  <HatchedBarChart
+                    labels={heroChartMonths}
+                    series={[
+                      {
+                        name: t.laporan.v2.income,
+                        data: heroChartIncome,
+                        color: "var(--wm-lime)",
+                      },
+                      {
+                        name: t.laporan.v2.expense,
+                        data: heroChartExpense,
+                        color: "var(--wm-orange)",
+                      },
+                    ]}
+                    format={moneyFmt.formatCompact}
+                    wide
+                    ariaLabel={heroChartAriaLabel}
+                  />
+                </div>
+              </div>
+            )}
             {cover.legend.length > 0 && (
               <div className="lp-leg">
                 {cover.legend.map((item) => (
@@ -842,8 +956,6 @@ export function LaporanInner() {
               </div>
             )}
           </section>
-          {/* Export (detailed card — report type, status, download) */}
-          {familyGroupId && <ExportSection exportJob={exportJob} />}
 
           {/* Active section */}
           <div

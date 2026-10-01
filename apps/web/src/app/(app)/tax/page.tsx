@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Send, FileText, ShieldCheck, Trash2, Upload } from "lucide-react";
+import { Send, FileText, ShieldCheck, Trash2, Upload, X } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -12,17 +12,17 @@ import { useLocale } from "@/hooks/use-locale";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
+  DialogClose,
+  PanelContent,
 } from "@/components/ui/dialog";
 import {
   BentoCard,
   BentoGrid,
   BentoHero,
   HeroKpi,
+  PillButton,
   SectionCard,
   StatusBadge,
 } from "@/components/wm";
@@ -43,7 +43,11 @@ import {
   uploadTaxDocument,
 } from "./_components/tax-documents";
 import { FinalIncomePanel } from "./_components/final-income-panel";
-import { PphOpFields } from "./_components/pph-op-fields";
+import {
+  PphOpFields,
+  PphOpFreelanceFields,
+  taxMoneyField,
+} from "./_components/pph-op-fields";
 import {
   TaxRulesProvider,
   useAllTaxRules,
@@ -489,6 +493,20 @@ function TaxPageContent() {
           controls={
             allTaxRules.length > 0 ? <TaxRuleBadge rules={allTaxRules} /> : null
           }
+          chart={
+            // Proto (tax.html #chart) shows an inline "Belum ada PKP" note
+            // centered in the hero once a result has come back with no
+            // taxable income yet (gross not entered), instead of leaving the
+            // hero's lower half blank.
+            !currentRecord && hasPph21Result && !isPph21Error && pkp === 0 ? (
+              <div className="tx-hero-nopkp">
+                <div className="tx-hero-nopkp-title">
+                  {t.tax.heroNoPkpTitle}
+                </div>
+                <div className="tx-hero-nopkp-hint">{t.tax.heroNoPkpHint}</div>
+              </div>
+            ) : null
+          }
           kpis={
             <>
               <HeroKpi
@@ -563,21 +581,23 @@ function TaxPageContent() {
         </BentoCard>
       </BentoGrid>
 
-      {/* Ringkasan pajak tahunan — the page's one "answer" block (Task 10,
-          sub-plan L), directly after the SPT-status trio. */}
-      <AnnualSummary taxYear={taxYear} />
-
       <div className="flex justify-end">
+        {/* Quiet jump-to-calculator affordance — kept (and kept functional,
+          see tax.test.tsx) for the long scroll past the SPT status cards on
+          mobile, but toned down from a bold floating headline to a small
+          muted chip so it doesn't read as a dangling, templated link. */}
         <a
           href="#pph21-calculator"
-          className="inline-flex min-h-11 items-center font-semibold text-primary hover:underline"
+          className="inline-flex min-h-11 items-center gap-1 rounded-full border border-border px-3 text-xs font-medium text-muted-foreground hover:text-primary hover:underline"
         >
           {t.tax.jumpToCalculator}
         </a>
       </div>
 
-      {/* Kalkulator PPh 21 */}
-      <div id="pph21-calculator" className="scroll-mt-4">
+      {/* Kalkulator PPh 21 — proto (tax.html #pph21-calc) renders the
+        fields card (s8) and the PPh result (s4) as two adjacent cards, not
+        one full-width card with the result embedded inside it. */}
+      <div id="pph21-calculator" className="scroll-mt-4 tx-calc-layout">
         <SectionCard
           title={t.tax.calculatorTitle}
           action={
@@ -592,27 +612,32 @@ function TaxPageContent() {
           <div className="mb-3.5 text-xs text-muted-foreground">
             {t.tax.calculatorSubtitle}
           </div>
-          <div className="grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            <div>
-              <label
-                htmlFor="tax-year-select"
-                className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
-              >
-                {t.tax.fieldTaxYearLabel}
-              </label>
-              <select
-                id="tax-year-select"
-                value={taxYear}
-                onChange={(e) => setTaxYear(Number(e.target.value))}
-                className="select"
-              >
-                {TAX_YEAR_OPTIONS.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
+
+          {/* Real, distinct functionality from a hero year switcher (see
+            the `taxYear` state comment below) — proto has no slot for it,
+            so it gets its own compact row above the proto-matched grid. */}
+          <div className="max-w-[200px]">
+            <label
+              htmlFor="tax-year-select"
+              className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
+            >
+              {t.tax.fieldTaxYearLabel}
+            </label>
+            <select
+              id="tax-year-select"
+              value={taxYear}
+              onChange={(e) => setTaxYear(Number(e.target.value))}
+              className="select"
+            >
+              {TAX_YEAR_OPTIONS.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-2">
             <div>
               <label
                 htmlFor="tax-gross-input"
@@ -637,6 +662,12 @@ function TaxPageContent() {
                 className="input"
               />
             </div>
+            {taxMoneyField(
+              "tax-pension-input",
+              t.tax.op.pensionLabel,
+              pension,
+              setPension,
+            )}
           </div>
 
           <div className="mt-3.5">
@@ -645,38 +676,18 @@ function TaxPageContent() {
               onMaritalStatusChange={setMaritalStatus}
               dependents={dependents}
               onDependentsChange={setDependents}
-              pension={pension}
-              onPensionChange={setPension}
-              withheld={withheld}
-              onWithheldChange={setWithheld}
-              freelance={freelance}
-              onFreelanceChange={setFreelance}
-              nppnPct={nppnPct}
-              onNppnPctChange={setNppnPct}
-              otherNet={otherNet}
-              onOtherNetChange={setOtherNet}
               ptkp={pphOp?.ptkp}
             />
           </div>
 
           <div className="mt-3.5 grid grid-cols-1 gap-3.5 md:grid-cols-2">
-            {/* Task 10 carry (Task 9 review) — this read-only computed row
-              used to sit alone in a half-width cell, leaving an empty
-              column beside it at 1440. Every 2-col row here is either a
-              genuine pair or spans the full width; a single field never
-              gets a lone half row. */}
-            <div className="md:col-span-2">
-              <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
-                {t.tax.fieldJabatanLabel}
-              </label>
-              <input
-                type="text"
-                value={formatNumber(jabatan)}
-                disabled
-                className="input opacity-70"
-              />
-            </div>
-            <div className="md:col-span-2">
+            {taxMoneyField(
+              "tax-other-net-input",
+              t.tax.op.otherNetLabel,
+              otherNet,
+              setOtherNet,
+            )}
+            <div>
               <label
                 htmlFor="tax-perpuluhan"
                 className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground"
@@ -708,53 +719,30 @@ function TaxPageContent() {
               </div>
             </div>
           </div>
-          <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-muted-foreground">
-              {t.tax.estimateLabel}
-            </div>
-            {!fgId ? (
-              <div className="mt-1 text-[13px] text-muted-foreground">
-                {t.tax.op.previewNeedsFamily}
-              </div>
-            ) : isPph21Error ? (
-              <div className="mt-1 text-[13px] font-semibold text-destructive">
-                {t.tax.calcErrorLabel}
-              </div>
-            ) : !hasPph21Result ? (
-              <div className="mt-1 text-[13px] text-muted-foreground">
-                {t.tax.calculatingLabel}
-              </div>
-            ) : (
-              <>
-                <div className="mt-1 text-[24px] font-black text-primary">
-                  {formatRupiah(tax)}
-                </div>
-                <div className="mt-1.5 text-xs text-muted-foreground">
-                  {t.tax.pkpPrefix}
-                  <strong className="text-primary">{formatRupiah(pkp)}</strong>
-                  {t.tax.effectiveRatePrefix}
-                  <strong>{effRate}</strong>
-                </div>
-                <div className="mt-1.5 text-xs text-muted-foreground">
-                  {t.tax.op.netoLabel}
-                  {": "}
-                  <strong>{formatRupiah(Number(pphOp.neto))}</strong>
-                </div>
-                <div className="mt-1.5 text-xs text-muted-foreground">
-                  {t.tax.op.balanceLabel}
-                  {": "}
-                  {Number(pphOp.balance) < 0 ? (
-                    <strong className="text-success">
-                      {t.tax.op.overpaidLabel} (
-                      {formatRupiah(Math.abs(Number(pphOp.balance)))})
-                    </strong>
-                  ) : (
-                    <strong>{formatRupiah(Number(pphOp.balance))}</strong>
-                  )}
-                </div>
-              </>
-            )}
+
+          <PphOpFreelanceFields
+            withheld={withheld}
+            onWithheldChange={setWithheld}
+            freelance={freelance}
+            onFreelanceChange={setFreelance}
+            nppnPct={nppnPct}
+            onNppnPctChange={setNppnPct}
+          />
+
+          {/* Proto keeps "Biaya jabatan (otomatis)" as its own compact,
+            narrow field (tax.html: max-width:260px), not full-width. */}
+          <div className="mt-3.5 max-w-[260px]">
+            <label className="mb-1.5 block text-[12.5px] font-medium text-muted-foreground">
+              {t.tax.fieldJabatanLabel}
+            </label>
+            <input
+              type="text"
+              value={formatNumber(jabatan)}
+              disabled
+              className="input opacity-70"
+            />
           </div>
+
           <div className="mt-3.5 flex flex-wrap gap-2.5">
             {/* EPIC-026 Wave 2 — prototype (tax.html) renders Simpan as
               btn--primary; Reset stays outline. */}
@@ -778,6 +766,7 @@ function TaxPageContent() {
               {t.tax.resetButton}
             </Button>
           </div>
+
           {/* EPIC-023 Task I (I1) — say why Save (and the SPT status buttons
             above, which share this same explanation via aria-describedby)
             are unavailable, instead of letting the user press them and
@@ -789,6 +778,56 @@ function TaxPageContent() {
             >
               {accessNote}
             </div>
+          )}
+        </SectionCard>
+
+        {/* Proto's result card (tax.html .tx-calc) sits on a neutral
+          `--card-2` surface, not a pale-green/accent tint. */}
+        <SectionCard className="tx-calc-result">
+          <div className="flex items-center justify-center gap-1.5 text-[11.5px] text-muted-foreground">
+            {t.tax.estimateLabel}
+          </div>
+          {!fgId ? (
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {t.tax.op.previewNeedsFamily}
+            </div>
+          ) : isPph21Error ? (
+            <div className="mt-1 text-[13px] font-semibold text-destructive">
+              {t.tax.calcErrorLabel}
+            </div>
+          ) : !hasPph21Result ? (
+            <div className="mt-1 text-[13px] text-muted-foreground">
+              {t.tax.calculatingLabel}
+            </div>
+          ) : (
+            <>
+              <div className="mt-1 text-[24px] font-black text-primary">
+                {formatRupiah(tax)}
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {t.tax.pkpPrefix}
+                <strong className="text-primary">{formatRupiah(pkp)}</strong>
+                {t.tax.effectiveRatePrefix}
+                <strong>{effRate}</strong>
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {t.tax.op.netoLabel}
+                {": "}
+                <strong>{formatRupiah(Number(pphOp.neto))}</strong>
+              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">
+                {t.tax.op.balanceLabel}
+                {": "}
+                {Number(pphOp.balance) < 0 ? (
+                  <strong className="text-success">
+                    {t.tax.op.overpaidLabel} (
+                    {formatRupiah(Math.abs(Number(pphOp.balance)))})
+                  </strong>
+                ) : (
+                  <strong>{formatRupiah(Number(pphOp.balance))}</strong>
+                )}
+              </div>
+            </>
           )}
         </SectionCard>
       </div>
@@ -872,6 +911,14 @@ function TaxPageContent() {
       <SectionCard title={t.tax.umkm.title}>
         <UmkmPanel taxYear={taxYear} canManage={canManageTaxRecords} />
       </SectionCard>
+
+      {/* Ringkasan pajak tahunan — not in the prototype's own layout, but
+          genuinely unique data not shown anywhere else on the page (the
+          combined total across pphOp + final + UMKM, plus the SPT deadline/
+          grace/filed timeline), so it keeps its own section rather than
+          being deleted; moved out of the lean hero/status-trio area the
+          prototype shows at the top. */}
+      <AnnualSummary taxYear={taxYear} />
 
       {/* Riwayat Pajak */}
       {taxRecords.length > 0 && (
@@ -1060,75 +1107,91 @@ function TaxPageContent() {
             `.table-wrap` > `.table.table--num` summary, the `notice--info`
             about the numeric-string payload, and an outline/primary
             `.dialog__footer`. */}
-        <DialogContent>
-          <DialogTitle>{t.tax.saveDialogTitle}</DialogTitle>
-          <DialogDescription>
-            {t.tax.saveDialogDescPrefix}
-            {taxYear}
-          </DialogDescription>
-          <DialogBody>
-            {pphOp && (
-              <div className="table-wrap">
-                <table className="table table--num min-w-0">
-                  <tbody>
-                    <tr>
-                      <td>{t.tax.saveDialogGrossRow}</td>
-                      <td className="mono">
-                        {formatRupiah(Number(pphOpRequest.employmentGross))}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>{t.tax.saveDialogPtkpRow}</td>
-                      <td className="mono">
-                        {formatRupiah(Number(pphOp.ptkp))}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>{t.tax.saveDialogPerpuluhanRow}</td>
-                      <td className="mono">
-                        {formatRupiah(
-                          Number(
-                            toClampedDigitString(debouncedZakat, MAX_TAX_INPUT),
-                          ),
-                        )}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <strong>{t.tax.saveDialogTaxRow}</strong>
-                      </td>
-                      <td className="mono t-bold text-primary">
-                        {formatRupiah(Number(pphOp.tax))}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="notice notice--info mt-3">
-              <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />
-              <span>{t.tax.saveDialogNote}</span>
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {t.tax.saveDialogTitle}
+              </DialogTitle>
+              <DialogDescription className="wm-panel-desc">
+                {t.tax.saveDialogDescPrefix}
+                {taxYear}
+              </DialogDescription>
             </div>
-          </DialogBody>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowSaveDialog(false)}
-            >
-              {t.common.cancel}
-            </Button>
-            <Button
-              type="button"
-              disabled={!canSaveTaxRecord || upsertMutation.isPending}
-              onClick={handleSaveTaxRecord}
-            >
-              {upsertMutation.isPending
-                ? t.tax.savingLabel
-                : t.tax.saveDialogConfirmButton}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="wm-panel-body wm-form">
+              <div className="wm-form__grid">
+                {pphOp && (
+                  <div className="table-wrap">
+                    <table className="table table--num min-w-0">
+                      <tbody>
+                        <tr>
+                          <td>{t.tax.saveDialogGrossRow}</td>
+                          <td className="mono">
+                            {formatRupiah(Number(pphOpRequest.employmentGross))}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>{t.tax.saveDialogPtkpRow}</td>
+                          <td className="mono">
+                            {formatRupiah(Number(pphOp.ptkp))}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>{t.tax.saveDialogPerpuluhanRow}</td>
+                          <td className="mono">
+                            {formatRupiah(
+                              Number(
+                                toClampedDigitString(
+                                  debouncedZakat,
+                                  MAX_TAX_INPUT,
+                                ),
+                              ),
+                            )}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td>
+                            <strong>{t.tax.saveDialogTaxRow}</strong>
+                          </td>
+                          <td className="mono t-bold text-primary">
+                            {formatRupiah(Number(pphOp.tax))}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                <div className="notice notice--info mt-3">
+                  <ShieldCheck aria-hidden="true" className="size-4 shrink-0" />
+                  <span>{t.tax.saveDialogNote}</span>
+                </div>
+              </div>
+            </div>
+            <div className="wm-panel-foot">
+              <PillButton
+                type="button"
+                onClick={() => setShowSaveDialog(false)}
+              >
+                {t.common.cancel}
+              </PillButton>
+              <PillButton
+                type="button"
+                variant="primary"
+                disabled={!canSaveTaxRecord || upsertMutation.isPending}
+                onClick={handleSaveTaxRecord}
+              >
+                {upsertMutation.isPending
+                  ? t.tax.savingLabel
+                  : t.tax.saveDialogConfirmButton}
+              </PillButton>
+            </div>
+          </div>
+        </PanelContent>
       </Dialog>
     </div>
   );

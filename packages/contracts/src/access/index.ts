@@ -160,6 +160,12 @@ export type EffectiveAccess = {
    * from `accessRole`/`overrides`.
    */
   role: MemberRoleKey;
+  /**
+   * "Lihat saldo" off for this member: the API nulls every balance / net
+   * worth / money aggregate and the UI renders "••••••". Set per request by
+   * the API's TenantGuard; never true for owner/spouse. Absent = visible.
+   */
+  balancesHidden?: boolean;
 };
 
 /** Master (`owner`) or Co-Master (`spouse`) — see `EffectiveAccess.role`. */
@@ -248,6 +254,11 @@ export const MemberAccessInputSchema = z.object({
   accessRoleId: z.string().min(1).nullable(),
   /** Sparse overrides on top of the role; {} clears them. */
   overrides: AccessPermissionsSchema,
+  /**
+   * "Lihat saldo". Omit to leave unchanged. false = member can still record
+   * transactions but never sees balance figures.
+   */
+  canViewBalances: z.boolean().optional(),
 });
 export type MemberAccessInput = z.infer<typeof MemberAccessInputSchema>;
 

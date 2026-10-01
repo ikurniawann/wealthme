@@ -1,31 +1,181 @@
-/* Kalkulator (bento v2, docs/design/proto/kalkulator.html) */
+/* Ported from docs/design/proto/kalkulator.html + wm.css's shared
+   `.btiles`/`.btile` and `.k-*` rules — kept page-scoped under `kl-*`
+   because `app/bento.css` (protected) only ships the generic big-stat
+   tile shape, not this page's row-style icon chip or the dark result
+   card's row/warn/chart/people treatments. */
 @layer components {
-  .kl-grid > * {
-    min-width: 0;
-  }
   .kl-tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
-    margin-top: 4px;
+    margin-top: 14px;
   }
-  .kl-tile {
+  @media (max-width: 900px) {
+    .kl-tiles {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  /* Proto's page-local override (kalkulator.html:12-16): the picker's
+     tiles are a row (icon + label inline, 56px tall), not the generic
+     128px stacked stat-tile shape `.wm-btile` ships by default. */
+  .kl-tile.wm-btile {
     min-height: 56px;
-    padding: 0 16px;
-    display: flex;
+    flex-direction: row;
     align-items: center;
-    border-radius: var(--wm-radius-md, 14px);
-    background: var(--wm-card-2, var(--secondary));
-    font-size: 13px;
-    font-weight: 600;
-    text-align: left;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      color 0.15s;
+    gap: 10px;
+    padding: 0 16px;
   }
-  .kl-tile[aria-pressed="true"] {
+  .kl-tile .wm-btile-tt {
+    font-size: 13px;
+  }
+  .kl-tile[aria-selected="true"] {
     background: var(--wm-lime);
     color: var(--wm-lime-ink, #10140a);
+  }
+  .kl-tile[aria-selected="true"] .wm-ci {
+    background: rgb(0 0 0 / 0.12);
+  }
+
+  /* ───────── form card (left, 8/12) ───────── */
+  .kl-form .wm-card-head + * {
+    margin-top: 14px;
+  }
+  .kl-link-btn {
+    color: var(--wm-ink);
+  }
+
+  /* ───────── result card (right, 4/12, dark) ───────── */
+  .kl-hero-card {
+    justify-content: center;
+    gap: 0;
+  }
+  .kl-hero-value {
+    font-size: clamp(28px, 4.2vw, 40px);
+    /* `.wm-big` (app/bento.css, protected) ships `overflow-wrap: anywhere`,
+       which lets the browser break right after the `.wm-cur` "Rp" prefix
+       and strand it on its own line above the number. Pin the value row so
+       the prefix + number always render on one line, like the prototype's
+       `hero()` macro. */
+    white-space: nowrap;
+  }
+  .kl-note {
+    margin-top: 6px;
+    color: var(--wm-muted);
+    font-size: 12px;
+  }
+  .kl-source-note {
+    margin-top: 6px;
+    color: var(--wm-muted);
+    font-size: 11px;
+    opacity: 0.8;
+  }
+  .kl-group-label {
+    margin: 12px 0 2px;
+    color: var(--wm-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .kl-empty-hasil {
+    display: flex;
+    min-height: 140px;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    color: var(--wm-muted);
+    font-size: 12.5px;
+  }
+
+  /* proto `.k-row` (kalkulator.html:21-23) */
+  .kl-block {
+    margin-top: 16px;
+  }
+  .kl-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--wm-line);
+    font-size: 13px;
+  }
+  .kl-row:last-child {
+    border-bottom: 0;
+  }
+  .kl-row span:last-child {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* proto `.k-warn` (kalkulator.html:25-26) */
+  .kl-warn {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 11px 13px;
+    border-radius: 12px;
+    background: var(--wm-card-2);
+    font-size: 12px;
+  }
+  .kl-warn-icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
+    color: var(--wm-orange, #e08a3c);
+  }
+
+  /* proto `.k-chart` (kalkulator.html:27) — full-bleed inside the dark
+     result card, like the prototype. `.wm-card` (app/bento.css, protected)
+     pads the card 20px (18px under the 900px breakpoint); bleed the chart
+     out to those same edges instead of sitting inset inside them. */
+  .kl-chart {
+    position: relative;
+    height: 190px;
+    margin: 4px -20px 0;
+  }
+  @media (max-width: 900px) {
+    .kl-chart {
+      margin-inline: -18px;
+    }
+  }
+  /* Proto `WM.chart.area`'s `pill()` value tag on the trend line's last
+     point (wm.js) — TrendChart (components/charts, protected) has no
+     annotation prop, so this is a page-local overlay positioned near the
+     chart's top-right, matching the proto's "Rp 625 jt" tag. */
+  .kl-chart-tag {
+    position: absolute;
+    top: 8px;
+    right: 24px;
+    z-index: 1;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink, #10140a);
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+
+  /* proto `.k-people`/`.k-person` (kalkulator.html:28-30) */
+  .kl-people {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 12px;
+  }
+  .kl-person {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 13px;
+    border: 1px solid var(--wm-line);
+    border-radius: 11px;
+    font-size: 13px;
+  }
+  .kl-person strong {
+    font-weight: 700;
   }
 }

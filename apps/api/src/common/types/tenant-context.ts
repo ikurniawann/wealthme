@@ -14,6 +14,8 @@ export interface TenantContext {
     rowScoped: boolean;
     /** Row-scoped member granted Bank & Account / Cash & E-Wallet: sees shared accounts. */
     seesSharedAccounts: boolean;
+    /** "Lihat saldo" off (never for owner/spouse) — see balance-visibility.util. */
+    balancesHidden?: boolean;
   } | null;
   /** EPIC-030 — effective page access; null outside a family route. */
   access: EffectiveAccess | null;

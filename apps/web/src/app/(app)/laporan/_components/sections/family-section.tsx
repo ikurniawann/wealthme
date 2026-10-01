@@ -1,9 +1,9 @@
-import { MoneyStat, SectionCard, StatusBadge } from "@/components/wm";
+import { BentoCard, BentoTile, BentoTiles, StatusBadge } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { NetWorthDto, ReportSummaryDto } from "@wealthme/contracts";
 import type { FamilyMember } from "../types";
-import { ActItem } from "../atoms";
+import "./sections-a.css";
 
 // EPIC-023 Task C retry (six-reviewer finding) — covers all six roles; the
 // previous map only covered 3 and its "admin" key never matched the real
@@ -68,39 +68,59 @@ export function FamilySection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">{t.laporan.family.title}</div>
-
-      <SectionCard title={t.laporan.family.consolidationTitle}>
-        <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
-          <MoneyStat
-            label={t.laporan.family.totalNetWorthLabel}
+      <BentoCard title={t.laporan.family.consolidationTitle}>
+        <BentoTiles>
+          <BentoTile
+            title={t.laporan.family.totalNetWorthLabel}
             value={
-              netWorth
-                ? money.format(parseFloat(netWorth.netWorth) || 0)
-                : "Rp ·"
+              <span
+                className="lap-a-kpi-value"
+                style={{ color: "var(--primary)" }}
+              >
+                {netWorth
+                  ? money.format(parseFloat(netWorth.netWorth ?? "0") || 0)
+                  : "Rp ·"}
+              </span>
             }
-            valueClass="text-primary"
           />
-          <MoneyStat
-            label={t.laporan.totalIncomeLabel}
-            value={summary ? money.format(summary.totalIncome) : "Rp ·"}
-            valueClass="text-success"
+          <BentoTile
+            title={t.laporan.totalIncomeLabel}
+            value={
+              <span
+                className="lap-a-kpi-value"
+                style={{ color: "var(--wm-lime)" }}
+              >
+                {summary ? money.format(summary.totalIncome ?? 0) : "Rp ·"}
+              </span>
+            }
           />
-          <MoneyStat
-            label={t.laporan.totalExpenseLabel}
-            value={summary ? money.format(summary.totalExpense) : "Rp ·"}
-            valueClass="text-destructive"
+          <BentoTile
+            title={t.laporan.totalExpenseLabel}
+            value={
+              <span
+                className="lap-a-kpi-value"
+                style={{ color: "var(--wm-orange)" }}
+              >
+                {summary ? money.format(summary.totalExpense ?? 0) : "Rp ·"}
+              </span>
+            }
           />
-          <MoneyStat
-            label={t.laporan.surplusLabel}
-            value={summary ? money.format(summary.netSavings) : "Rp ·"}
-            valueClass="text-success"
+          <BentoTile
+            title={t.laporan.surplusLabel}
+            value={
+              <span
+                className="lap-a-kpi-value"
+                style={{ color: "var(--wm-lime)" }}
+              >
+                {summary ? money.format(summary.netSavings ?? 0) : "Rp ·"}
+              </span>
+            }
           />
-        </div>
-      </SectionCard>
+        </BentoTiles>
+      </BentoCard>
 
       {netWorthRows.length > 0 && (
-        <SectionCard title={t.laporan.family.wealthCompositionTitle}>
+        <BentoCard title={t.laporan.family.wealthCompositionTitle}>
           <div className="flex flex-col">
             {netWorthRows.map((row, i) => (
               <div
@@ -115,46 +135,54 @@ export function FamilySection({
                 <span className="text-[13px] font-semibold">{row.label}</span>
                 <span
                   className={
-                    "mono text-[13px] font-bold " +
+                    "lap-a-amt text-[13px] font-bold " +
                     (row.neg ? "text-destructive" : "text-foreground")
                   }
                 >
                   {row.neg ? "-" : ""}
-                  {money.format(parseFloat(row.value) || 0)}
+                  {money.format(parseFloat(row.value ?? "0") || 0)}
                 </span>
               </div>
             ))}
           </div>
-        </SectionCard>
+        </BentoCard>
       )}
 
-      <SectionCard
+      <BentoCard
         title={`${t.laporan.family.membersTitlePrefix} (${memberList.length})`}
       >
         {memberList.length > 0 ? (
-          memberList.map((m, i) => (
-            <ActItem
-              key={m.id}
-              icon={m.name.slice(0, 2).toUpperCase()}
-              iconBg="#EEF2FF"
-              iconColor="#4F46E5"
-              iconSize="12px"
-              name={m.name}
-              cat={m.email}
-              right={
+          memberList.map((m) => {
+            const roleLabel = t.common.roleLabels[m.role] ?? m.role;
+            return (
+              <div key={m.id} className="lap-a-member-row">
+                <span
+                  className="lap-a-bank-chip"
+                  style={{ background: "#EEF2FF", color: "#4F46E5" }}
+                  aria-hidden="true"
+                >
+                  {m.name.slice(0, 2).toUpperCase()}
+                </span>
+                <span className="lap-a-bank-meta">
+                  <span className="lap-a-bank-name">{m.name}</span>
+                  {/* Never show the member's raw email/username (it can be
+                      an internal `member-...@members.internal` placeholder
+                      for dependant/operational accounts) — the relationship
+                      role already says more to a family reader. */}
+                  <span className="lap-a-bank-sub">{roleLabel}</span>
+                </span>
                 <StatusBadge variant={ROLE_VARIANTS[m.role] ?? "info"}>
-                  {t.common.roleLabels[m.role] ?? m.role}
+                  {roleLabel}
                 </StatusBadge>
-              }
-              last={i === memberList.length - 1}
-            />
-          ))
+              </div>
+            );
+          })
         ) : (
-          <div className="py-4 text-center text-[12px] text-muted-foreground">
-            {t.laporan.family.emptyMembers}
+          <div className="lap-a-empty">
+            <b>{t.laporan.family.emptyMembers}</b>
           </div>
         )}
-      </SectionCard>
+      </BentoCard>
 
       <div className="rounded-[12px] border border-primary/20 bg-accent p-3.5 text-[12px] text-muted-foreground">
         {t.laporan.family.noteConsolidation}

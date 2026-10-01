@@ -264,11 +264,12 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     const row = screen
       .getByText(DUE_LIABILITY.name)
       .closest("div")!.parentElement!;
+    // Proto port — the row's due date is compact, no year ("27 Sep"), not
+    // the full "27 Sep 2026" the pay dialog still shows.
     expect(row.textContent).toContain(
       new Date("2026-09-27T00:00:00.000Z").toLocaleDateString("id-ID", {
         day: "numeric",
         month: "short",
-        year: "numeric",
       }),
     );
   });

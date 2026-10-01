@@ -126,9 +126,18 @@ export class AccessService {
 
     const member = await this.prisma.member.findFirst({
       where: { id: memberId, familyGroupId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, userId: true },
     });
     if (!member) throw new NotFoundException("Member not found");
+    if (
+      parsed.data.canViewBalances !== undefined &&
+      member.userId === requesterId
+    ) {
+      throw new ForbiddenException({
+        message: "Tidak bisa mengubah izin saldo milik sendiri",
+        code: "OWN_BALANCE_ACCESS_FIXED",
+      });
+    }
     if (member.role === Role.owner) {
       throw new BadRequestException({
         message: "Master selalu punya akses penuh",
@@ -146,6 +155,9 @@ export class AccessService {
         accessRoleId: parsed.data.accessRoleId,
         accessOverrides:
           Object.keys(overrides).length > 0 ? overrides : Prisma.DbNull,
+        ...(parsed.data.canViewBalances !== undefined && {
+          canViewBalances: parsed.data.canViewBalances,
+        }),
       },
     });
   }

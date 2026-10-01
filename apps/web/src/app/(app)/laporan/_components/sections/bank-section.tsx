@@ -1,19 +1,10 @@
-import { SectionCard } from "@/components/wm";
+import { BentoCard } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
-import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { BankReportDto } from "@wealthme/contracts";
-import { ActItem, BarRow } from "../atoms";
+import "./sections-a.css";
 
 /* ───────────────────────── Section: Bank ───────────────────────── */
-
-const BANK_COLORS = [
-  "var(--success)",
-  "var(--brand-cyan)",
-  "var(--warning)",
-  "var(--primary)",
-  "#8B5CF6",
-];
 
 export function BankSection({
   bankReport,
@@ -26,64 +17,70 @@ export function BankSection({
   const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const banks = bankReport?.banks ?? [];
-  const maxIncome = Math.max(...banks.map((b) => b.income), 1);
+  const maxTotal = Math.max(...banks.map((b) => b.income + b.expense), 1);
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">{t.laporan.bank.title}</div>
-      <SectionCard title={t.laporan.bank.balancePerAccountTitle}>
+      <BentoCard title={t.laporan.bank.balancePerAccountTitle}>
         {banks.length > 0 ? (
-          banks.map((b, i) => (
-            <ActItem
-              key={b.accountName}
-              icon={
-                b.institution?.slice(0, 3).toUpperCase() ??
-                b.accountName.slice(0, 3).toUpperCase()
-              }
-              iconBg="#DBEAFE"
-              iconColor="#0061AF"
-              iconSize="11px"
-              name={b.accountName}
-              cat={b.institution ?? "—"}
-              right={
-                <div className="text-[13px] font-bold">
-                  {money.format(b.balance)}
-                </div>
-              }
-              last={i === banks.length - 1}
-            />
+          banks.map((b) => (
+            <div key={b.accountName} className="lap-a-bank-row">
+              <span className="lap-a-bank-chip" aria-hidden="true">
+                {b.institution?.slice(0, 3).toUpperCase() ??
+                  b.accountName.slice(0, 3).toUpperCase()}
+              </span>
+              <span className="lap-a-bank-meta">
+                <span className="lap-a-bank-name">{b.accountName}</span>
+                <span className="lap-a-bank-sub">{b.institution ?? "—"}</span>
+              </span>
+              <span className="lap-a-bank-balance">
+                {money.format(b.balance)}
+              </span>
+            </div>
           ))
         ) : (
-          <div className="py-4 text-center text-[12px] text-muted-foreground">
-            {t.laporan.bank.emptyAccounts}
+          <div className="lap-a-empty">
+            <b>{t.laporan.bank.emptyAccounts}</b>
           </div>
         )}
-      </SectionCard>
+      </BentoCard>
       {banks.length > 0 && (
-        <SectionCard title={t.laporan.bank.inOutTitle}>
-          <div className="flex flex-col gap-2.5">
-            {banks.map((b, i) => (
-              <BarRow
-                key={b.accountName}
-                label={b.accountName}
-                right={
-                  <>
-                    <span className="font-bold text-success">
-                      +{formatJuta(b.income)}
+        <BentoCard title={t.laporan.bank.inOutTitle}>
+          {banks.map((b) => {
+            const inPct = (b.income / maxTotal) * 100;
+            const outPct = (b.expense / maxTotal) * 100;
+            return (
+              <div key={b.accountName} className="lap-a-bank-inout">
+                <div className="lap-a-bank-inout-head">
+                  <span className="lap-a-bank-inout-name">{b.accountName}</span>
+                  <span className="lap-a-bank-inout-amt">
+                    <span style={{ color: "var(--wm-lime)" }}>
+                      +{money.formatCompact(b.income)}
+                    </span>{" "}
+                    <span style={{ color: "var(--wm-orange)" }}>
+                      -{money.formatCompact(b.expense)}
                     </span>
-                    <span className="font-bold text-destructive">
-                      -{formatJuta(b.expense)}
-                    </span>
-                  </>
-                }
-                value={
-                  maxIncome > 0 ? Math.round((b.income / maxIncome) * 100) : 0
-                }
-                color={BANK_COLORS[i % BANK_COLORS.length] ?? "var(--primary)"}
-              />
-            ))}
-          </div>
-        </SectionCard>
+                  </span>
+                </div>
+                <div
+                  className="lap-a-bank-inout-bar"
+                  role="img"
+                  aria-label={`${b.accountName}: ${t.common.income} ${money.format(b.income)}, ${t.common.expense} ${money.format(b.expense)}`}
+                >
+                  <i
+                    style={{ width: `${inPct}%`, background: "var(--wm-lime)" }}
+                  />
+                  <i
+                    style={{
+                      width: `${outPct}%`,
+                      background: "var(--wm-orange)",
+                    }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+        </BentoCard>
       )}
     </div>
   );

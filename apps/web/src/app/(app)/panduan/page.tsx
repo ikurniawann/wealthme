@@ -235,18 +235,20 @@ function TopicCard({
   feature,
   title,
   desc,
+  featured,
   onNavigate,
 }: {
   feature: FeatureMeta;
   title: string;
   desc: string;
+  featured?: boolean;
   onNavigate: (href: string) => void;
 }) {
   const Icon = feature.icon;
   const content = (
     <>
       <span className="pd-ic" aria-hidden="true">
-        <Icon size={17} />
+        <Icon size={featured ? 22 : 18} />
       </span>
       <span>
         <b>{title}</b>
@@ -260,14 +262,16 @@ function TopicCard({
       <button
         type="button"
         onClick={() => onNavigate(feature.href as string)}
-        className="pd-item pd-link"
+        className={`pd-item pd-link${featured ? " pd-feat" : ""}`}
       >
         {content}
       </button>
     );
   }
 
-  return <div className="pd-item">{content}</div>;
+  return (
+    <div className={`pd-item${featured ? " pd-feat" : ""}`}>{content}</div>
+  );
 }
 
 function ContactTile({
@@ -382,10 +386,12 @@ export default function PanduanPage() {
               return (
                 <Rise key={group.id} index={gi}>
                   <div className="pd-group">
-                    <h2>{groupText.title}</h2>
-                    <p className="pd-tag">{groupText.tagline}</p>
+                    <div className="pd-gh">
+                      <h2>{groupText.title}</h2>
+                      <p className="pd-tag">{groupText.tagline}</p>
+                    </div>
                     <div className="pd-items">
-                      {group.items.map((id) => {
+                      {group.items.map((id, ii) => {
                         const text = t.panduan.features[id];
                         return (
                           <TopicCard
@@ -393,6 +399,7 @@ export default function PanduanPage() {
                             feature={FEATURES[id]}
                             title={text.title}
                             desc={text.desc}
+                            featured={ii === 0}
                             onNavigate={(href) => router.push(href)}
                           />
                         );

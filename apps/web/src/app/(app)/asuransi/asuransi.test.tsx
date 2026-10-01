@@ -443,11 +443,14 @@ describe("AsuransiPage — paid-ahead premium tooltip", () => {
 
     render(<AsuransiPage />);
 
-    // Wait for the policy card itself (not just the always-present header
-    // "Bayar Premi" button) before asserting on the card's own button — the
-    // policy number is unique on the page, unlike the policy name (which
-    // also appears in a chart legend/tooltip).
-    await screen.findByText("POL-1");
+    // Wait for the policy card's own "Bayar Premi" button (not just the
+    // always-present header one) before asserting on it — two
+    // "Bayar Premi" buttons render once the card loads, only one disabled.
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole("button", { name: /bayar premi/i }),
+      ).toHaveLength(2);
+    });
     const payButtons = screen.getAllByRole("button", {
       name: /bayar premi/i,
     });
@@ -508,7 +511,11 @@ describe("AsuransiPage — paid-ahead premium tooltip", () => {
 
     render(<AsuransiPage />);
 
-    await screen.findByText("POL-1");
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole("button", { name: /bayar premi/i }),
+      ).toHaveLength(2);
+    });
     const payButtons = screen.getAllByRole("button", { name: /bayar premi/i });
     const pay = payButtons.find(
       (btn) => (btn as HTMLButtonElement).disabled,

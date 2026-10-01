@@ -24,6 +24,10 @@ export type CoverData = {
   cashflow?: CashflowStatementDto;
   invSummary?: InvestmentSummaryDto;
   pph21?: Pph21ResultDto;
+  /** Today's report (rharian tab) — a separate fetch from `detail` (rdetail's
+   * period-wide report), already loaded by `laporan-inner` for the Harian
+   * section. */
+  daily?: DetailReportDto;
 };
 
 type Legend = { label: string; value: string; color: string };
@@ -69,15 +73,15 @@ export function coverFor(
   const flow = (s: ReportSummaryDto | undefined): Cover | null => {
     if (!s) return null;
     const legend = [
-      { label: v.income, value: money(s.totalIncome), color: LIME },
-      { label: v.expense, value: money(s.totalExpense), color: ORANGE },
-      { label: v.saved, value: money(s.netSavings), color: INK },
+      { label: v.income, value: money(s.totalIncome ?? 0), color: LIME },
+      { label: v.expense, value: money(s.totalExpense ?? 0), color: ORANGE },
+      { label: v.saved, value: money(s.netSavings ?? 0), color: INK },
     ];
-    if (s.netSavings < 0)
+    if ((s.netSavings ?? 0) < 0)
       return {
         headline: fill(
           v.hDeficit,
-          { amount: money(Math.abs(s.netSavings)) },
+          { amount: money(Math.abs(s.netSavings ?? 0)) },
           "amount",
         ),
         legend,
@@ -85,7 +89,10 @@ export function coverFor(
     return {
       headline: fill(
         v.hSaved,
-        { amount: money(s.netSavings), pct: String(Math.round(s.savingsRate)) },
+        {
+          amount: money(s.netSavings ?? 0),
+          pct: String(Math.round(s.savingsRate ?? 0)),
+        },
         "amount",
       ),
       legend,
@@ -94,11 +101,91 @@ export function coverFor(
   let cover: Cover | null = null;
   switch (tab) {
     case "rsum":
-    case "rbulanan":
-    case "rharian":
-    case "rperf":
       cover = flow(d.summary);
       break;
+    case "rbulanan": {
+      // This tab shows ONE month (the selected/latest point in the trend
+      // window), not the whole multi-month window `flow()` summarizes — use
+      // the last point so the headline matches the recap table below it.
+      const points = d.summary?.points ?? [];
+      const p = points[points.length - 1];
+      if (p) {
+        const legend = [
+          { label: v.income, value: money(p.income), color: LIME },
+          { label: v.expense, value: money(p.expense), color: ORANGE },
+          { label: v.saved, value: money(p.net), color: INK },
+        ];
+        cover = {
+          headline:
+            p.net < 0
+              ? fill(
+                  v.hBulanDeficit,
+                  { month: p.label, amount: money(Math.abs(p.net)) },
+                  "amount",
+                )
+              : fill(
+                  v.hBulanSaved,
+                  { month: p.label, amount: money(p.net) },
+                  "amount",
+                ),
+          legend,
+        };
+      }
+      break;
+    }
+    case "rharian": {
+      const daily = d.daily;
+      if (daily) {
+        cover =
+          daily.count > 0
+            ? {
+                headline: fill(
+                  v.hHarianSpend,
+                  {
+                    amount: money(daily.totalExpense),
+                    n: String(daily.count),
+                  },
+                  "amount",
+                ),
+                legend: [
+                  {
+                    label: v.income,
+                    value: money(daily.totalIncome),
+                    color: LIME,
+                  },
+                  {
+                    label: v.expense,
+                    value: money(daily.totalExpense),
+                    color: ORANGE,
+                  },
+                ],
+              }
+            : { headline: v.hHarianEmpty, legend: [] };
+      }
+      break;
+    }
+    case "rperf": {
+      const rate = d.summary?.savingsRate;
+      if (rate !== undefined && rate !== null) {
+        const pct = String(Math.round(rate ?? 0));
+        cover = {
+          headline: fill(
+            rate >= 30 ? v.hPerfAchieved : v.hPerfBelow,
+            { pct },
+            "pct",
+          ),
+          legend: [
+            {
+              label: t.laporan.savingsRateLabel,
+              value: `${pct}%`,
+              color: LIME,
+            },
+            { label: v.savingsRateTarget, value: "30%", color: MUTED },
+          ],
+        };
+      }
+      break;
+    }
     case "rtahunan":
       cover = flow(d.yearly);
       break;
@@ -108,18 +195,18 @@ export function coverFor(
         ? {
             headline: fill(
               v.hSpend,
-              { amount: money(d.summary.totalExpense) },
+              { amount: money(d.summary.totalExpense ?? 0) },
               "amount",
             ),
             legend: [
               {
                 label: v.income,
-                value: money(d.summary.totalIncome),
+                value: money(d.summary.totalIncome ?? 0),
                 color: LIME,
               },
               {
                 label: v.expense,
-                value: money(d.summary.totalExpense),
+                value: money(d.summary.totalExpense ?? 0),
                 color: ORANGE,
               },
             ],
@@ -179,7 +266,6 @@ export function coverFor(
         : null;
       break;
     case "rcashflow":
-    case "rkas":
       cover = d.cashflow
         ? {
             headline: fill(
@@ -192,6 +278,33 @@ export function coverFor(
                 label: v.closing,
                 value: money(d.cashflow.closingBalance),
                 color: INK,
+              },
+            ],
+          }
+        : null;
+      break;
+    case "rkas":
+      // Arus Kas's own period cashflow statement isn't fetched for this tab
+      // (only rcashflow enables that query) — `summary`'s netSavings is the
+      // same net cash movement the KasSection cards already show, so the
+      // headline gets a real number instead of the bare report name.
+      cover = d.summary
+        ? {
+            headline: fill(
+              v.hCash,
+              { amount: money(d.summary.netSavings ?? 0) },
+              "amount",
+            ),
+            legend: [
+              {
+                label: v.income,
+                value: money(d.summary.totalIncome ?? 0),
+                color: LIME,
+              },
+              {
+                label: v.expense,
+                value: money(d.summary.totalExpense ?? 0),
+                color: ORANGE,
               },
             ],
           }

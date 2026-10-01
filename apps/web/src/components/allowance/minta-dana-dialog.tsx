@@ -5,13 +5,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
+  DialogClose,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
+import { X } from "lucide-react";
+import { PillButton } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -45,7 +45,7 @@ export function MintaDanaDialog({
 }) {
   return (
     <Dialog open={!!source} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="dialog--sm">
+      <PanelContent variant="side" className="wm-form-panel">
         {/* Keyed by source id so amount/note reset per card. */}
         {source && (
           <MintaDanaForm
@@ -57,7 +57,7 @@ export function MintaDanaDialog({
             onClose={onClose}
           />
         )}
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -128,70 +128,81 @@ function MintaDanaForm({
 
   return (
     <>
-      <DialogHeader>
-        <DialogTitle>
-          {t.rekening.mintaDanaDialogTitle}: {source.name}
-        </DialogTitle>
-        <DialogDescription>{t.rekening.mintaDanaDialogDesc}</DialogDescription>
-      </DialogHeader>
-      <DialogBody>
-        <div className="field">
-          <label className="label" htmlFor={`${fieldId}-target`}>
-            {t.rekening.mintaDanaTargetLabel}
-          </label>
-          <select
-            id={`${fieldId}-target`}
-            className="select"
-            value={targetAccountId}
-            disabled={!hasTarget}
-            onChange={(e) => setTargetAccountId(e.target.value)}
+      <header className="wm-panel-head">
+        <div className="min-w-0">
+          <DialogTitle className="wm-panel-title">
+            {t.rekening.mintaDanaDialogTitle}: {source.name}
+          </DialogTitle>
+          <DialogDescription className="wm-panel-desc">
+            {t.rekening.mintaDanaDialogDesc}
+          </DialogDescription>
+        </div>
+        <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+          <X aria-hidden="true" />
+        </DialogClose>
+      </header>
+      <div className="flex min-h-0 flex-1 flex-col">
+        <div className="wm-panel-body wm-form">
+          <div className="wm-form__grid">
+            <div className="field">
+              <label className="label" htmlFor={`${fieldId}-target`}>
+                {t.rekening.mintaDanaTargetLabel}
+              </label>
+              <select
+                id={`${fieldId}-target`}
+                className="select"
+                value={targetAccountId}
+                disabled={!hasTarget}
+                onChange={(e) => setTargetAccountId(e.target.value)}
+              >
+                {!hasTarget && <option value="">-</option>}
+                {targets.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </select>
+              {!hasTarget && (
+                <p className="hint">{t.rekening.mintaDanaNoOwnAccountHint}</p>
+              )}
+            </div>
+            <div className="field">
+              <label className="label" htmlFor={`${fieldId}-amount`}>
+                {t.rekening.mintaDanaAmountLabel}
+              </label>
+              <MoneyInput field={amountField} id={`${fieldId}-amount`} />
+            </div>
+            <div className="field">
+              <label className="label" htmlFor={`${fieldId}-note`}>
+                {t.rekening.mintaDanaNoteLabel}
+              </label>
+              <input
+                id={`${fieldId}-note`}
+                type="text"
+                className="input"
+                placeholder={t.rekening.mintaDanaNotePlaceholder}
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+        <div className="wm-panel-foot">
+          <PillButton type="button" onClick={onClose}>
+            {t.common.cancel}
+          </PillButton>
+          <PillButton
+            type="button"
+            variant="primary"
+            onClick={handleSend}
+            disabled={isSaving || !hasTarget || amountField.resolved.isPending}
           >
-            {!hasTarget && <option value="">-</option>}
-            {targets.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </select>
-          {!hasTarget && (
-            <p className="hint">{t.rekening.mintaDanaNoOwnAccountHint}</p>
-          )}
+            {isSaving
+              ? t.rekening.mintaDanaSubmitting
+              : t.rekening.mintaDanaSubmitButton}
+          </PillButton>
         </div>
-        <div className="field">
-          <label className="label" htmlFor={`${fieldId}-amount`}>
-            {t.rekening.mintaDanaAmountLabel}
-          </label>
-          <MoneyInput field={amountField} id={`${fieldId}-amount`} />
-        </div>
-        <div className="field">
-          <label className="label" htmlFor={`${fieldId}-note`}>
-            {t.rekening.mintaDanaNoteLabel}
-          </label>
-          <input
-            id={`${fieldId}-note`}
-            type="text"
-            className="input"
-            placeholder={t.rekening.mintaDanaNotePlaceholder}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-          />
-        </div>
-      </DialogBody>
-      <DialogFooter>
-        <button type="button" className="btn btn--outline" onClick={onClose}>
-          {t.common.cancel}
-        </button>
-        <button
-          type="button"
-          className="btn btn--primary disabled:opacity-60"
-          onClick={handleSend}
-          disabled={isSaving || !hasTarget || amountField.resolved.isPending}
-        >
-          {isSaving
-            ? t.rekening.mintaDanaSubmitting
-            : t.rekening.mintaDanaSubmitButton}
-        </button>
-      </DialogFooter>
+      </div>
     </>
   );
 }

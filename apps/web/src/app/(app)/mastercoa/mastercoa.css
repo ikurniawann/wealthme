@@ -1,13 +1,116 @@
 /* Master COA (bento v2, docs/design/proto/mastercoa.html) */
 @layer components {
+  /* proto: .mc-hero{grid-column:1/9;row:1} .mc-groups{grid-column:9/13;row:1}
+     .mc-cats{grid-column:1/9;row:2/4} .mc-tips{grid-column:9/13;row:2/4}
+     The guide card (no prototype grid slot — it's a modal there) gets its
+     own full-width row between the hero row and the tiles/tips row so the
+     explainer stays inline instead of becoming a new dialog. */
   @media (min-width: 1181px) {
-    .mc-grid > .mc-hero,
-    .mc-grid > .mc-guide,
-    .mc-grid > .mc-list {
+    .mc-grid > .mc-hero {
+      grid-column: 1 / 9;
+      grid-row: 1;
+    }
+    .mc-grid > .mc-groups {
+      grid-column: 9 / 13;
+      grid-row: 1;
+    }
+    .mc-grid > .mc-guide {
       grid-column: 1 / 13;
+      grid-row: 2;
+    }
+    .mc-grid > .mc-cats {
+      grid-column: 1 / 9;
+      grid-row: 3 / 5;
+    }
+    .mc-grid > .mc-tips {
+      grid-column: 9 / 13;
+      grid-row: 3 / 5;
     }
   }
   .mc-grid > * {
     min-width: 0;
+  }
+
+  /* proto .mc-groups .mini-list li[aria-current="true"] — the wm MiniRow
+     component doesn't expose an active/current slot, so the active filter
+     is conveyed by its badge instead (see DIRECTION_BADGE_VARIANT usage in
+     page.tsx); the groups list otherwise keeps the stock wm-mini-list look. */
+  .mc-groups .wm-mini-list {
+    max-height: none;
+  }
+
+  /* Tile delete tool — sibling to the (button) tile itself, never nested
+     inside it, so the per-account delete affordance stays reachable without
+     an invalid button-in-button. */
+  .mc-tilewrap {
+    position: relative;
+    display: flex;
+    min-width: 0;
+  }
+  .mc-tilewrap > .wm-btile {
+    flex: 1;
+    padding-right: 34px;
+  }
+  .mc-tile-tools {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+  }
+  .mc-tile-del {
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    color: var(--wm-muted);
+    background: transparent;
+  }
+  .mc-tile-del:hover {
+    color: var(--wm-bad, #e5484d);
+    background: var(--wm-card-2, rgba(0, 0, 0, 0.05));
+  }
+
+  /* proto .btile .code — compact monospace code above the name. Overrides
+     the default BentoTile stat-tile stack (title row + 28px .wm-pv value)
+     which made the account name render oversized and wrap to two lines. */
+  .mc-tile-code {
+    display: block;
+    font-family: var(--wm-mono, ui-monospace, monospace);
+    font-size: 11px;
+    color: var(--wm-muted);
+  }
+  .mc-cats .wm-btile .mc-tile-name.wm-pv {
+    display: block;
+    margin-top: 2px;
+    overflow: hidden;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: normal;
+    line-height: 1.3;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .mc-empty {
+    color: var(--wm-muted);
+    font-size: var(--wm-type-13, 13px);
+    padding: 10px 0;
+  }
+  .mc-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+    padding: 32px 12px;
+    color: var(--wm-muted);
+  }
+  .mc-empty-state b {
+    color: var(--wm-ink, inherit);
+    font-size: 14px;
+  }
+  .mc-empty-state p {
+    margin: 0;
+    font-size: 13px;
   }
 }

@@ -130,4 +130,79 @@ describe("AccessService", () => {
       data: { accessRoleId: null, accessOverrides: Prisma.DbNull },
     });
   });
+  describe('"Lihat saldo" (canViewBalances)', () => {
+    it("stores the flag for another member", async () => {
+      prisma.member.findFirst.mockResolvedValue({
+        id: "m",
+        role: Role.member,
+        userId: "user-tina",
+      });
+      await service.setMemberAccess(FG, "m", OWNER, {
+        accessRoleId: null,
+        overrides: {},
+        canViewBalances: false,
+      });
+      expect(prisma.member.update).toHaveBeenLastCalledWith({
+        where: { id: "m" },
+        data: {
+          accessRoleId: null,
+          accessOverrides: Prisma.DbNull,
+          canViewBalances: false,
+        },
+      });
+    });
+
+    it("leaves the flag unchanged when omitted", async () => {
+      prisma.member.findFirst.mockResolvedValue({
+        id: "m",
+        role: Role.member,
+        userId: "user-tina",
+      });
+      await service.setMemberAccess(FG, "m", OWNER, {
+        accessRoleId: null,
+        overrides: {},
+      });
+      const call = prisma.member.update.mock.calls.at(-1)?.[0] as {
+        data: Record<string, unknown>;
+      };
+      expect(call.data).not.toHaveProperty("canViewBalances");
+    });
+
+    it("refuses a member flipping their own flag", async () => {
+      prisma.member.findFirst.mockResolvedValue({
+        id: "m",
+        role: Role.member,
+        userId: OWNER,
+      });
+      await expect(
+        service.setMemberAccess(FG, "m", OWNER, {
+          accessRoleId: null,
+          overrides: {},
+          canViewBalances: true,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(prisma.member.update).not.toHaveBeenCalled();
+    });
+
+    it("rejects a non-boolean flag", async () => {
+      await expect(
+        service.setMemberAccess(FG, "m", OWNER, {
+          accessRoleId: null,
+          overrides: {},
+          canViewBalances: "no",
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it("only a Master may change it", async () => {
+      prisma.member.findUnique.mockResolvedValue({ role: Role.member });
+      await expect(
+        service.setMemberAccess(FG, "m", "user-tina", {
+          accessRoleId: null,
+          overrides: {},
+          canViewBalances: true,
+        }),
+      ).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
 });

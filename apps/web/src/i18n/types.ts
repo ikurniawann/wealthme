@@ -816,6 +816,8 @@ export type I18nDictionary = {
    * out of this batch's scope.
    */
   iam: {
+    viewBalancesLabel: string;
+    viewBalancesHint: string;
     v2: {
       heroCap: string;
       addBtn: string;
@@ -834,6 +836,14 @@ export type I18nDictionary = {
       tabMembers: string;
       tabRoles: string;
       tabsNote: string;
+      chartAria: string;
+      chartUnit: string;
+      rolesCardTitle: string;
+      rolesCardCap: string;
+      rolesCardCreateBtn: string;
+      rolesCardEmpty: string;
+      stepsToggleShow: string;
+      stepsToggleHide: string;
     };
   };
   aksesSaya: {
@@ -898,6 +908,30 @@ export type I18nDictionary = {
       ariaLabel: string;
     };
     heroMemberSince: string;
+    heroEditProfileLabel: string;
+    avatar: {
+      change: string;
+      remove: string;
+      uploading: string;
+      invalidType: string;
+      tooLarge: string;
+      uploadFailed: string;
+      removeFailed: string;
+      removed: string;
+      updated: string;
+    };
+    usernameLoginHint: string;
+    heroKpiFamilyLabel: string;
+    heroKpiSessionsLabel: string;
+    heroKpiThemeLabel: string;
+    heroProgressTitle: string;
+    heroProgressSteps: {
+      basic: string;
+      account: string;
+      budget: string;
+      member: string;
+      goal: string;
+    };
     loadProfileError: string;
     familyGroupCardTitle: string;
     noFamilyGroup: string;
@@ -926,6 +960,7 @@ export type I18nDictionary = {
     menuTentangSub: string;
     subpageTitles: Record<AkunSubpageId, string>;
     profil: {
+      noticeTemplate: string;
       nameLabel: string;
       emailLabel: string;
       phoneLabel: string;
@@ -996,6 +1031,11 @@ export type I18nDictionary = {
       themeLabel: string;
       themeOptions: { light: string; dark: string; system: string };
       dataSectionTitle: string;
+      dataCardTitle: string;
+      englishLabel: string;
+      dangerZoneTitle: string;
+      dangerZoneCaption: string;
+      dangerZoneButton: string;
       hideBalanceLabel: string;
       hideBalanceSub: string;
       showDecimalLabel: string;
@@ -1542,6 +1582,9 @@ export type I18nDictionary = {
     payButtonLabel: string;
     cardEditButton: string;
     cardDeleteButton: string;
+    cardDetailButton: string;
+    cardOptionsAriaLabel: string;
+    coverageLineLabel: string;
     beneficiaryTableHeaderName: string;
     beneficiaryTableHeaderRelationship: string;
     beneficiaryTableHeaderMember: string;
@@ -1919,6 +1962,7 @@ export type I18nDictionary = {
       heroCapSuffix: string;
       rowCapital: string;
       noteDividends: string;
+      mosaicLabel: string;
     };
     goldPricePerGramTooHigh: string;
     typeLabels: Record<InvestasiTypeId, string>;
@@ -2108,6 +2152,20 @@ export type I18nDictionary = {
     buySellFieldAccountLabel: string;
     buySellAccountNoneOption: string;
     buySellSaveButton: string;
+    bsHoldingTitle: string;
+    bsHeldLabel: string;
+    bsAvgPriceLabel: string;
+    bsLastPriceLabel: string;
+    bsUseLastPrice: string;
+    bsSummaryTitle: string;
+    bsTotalBuy: string;
+    bsTotalSell: string;
+    bsRemainingLabel: string;
+    bsNewHoldingLabel: string;
+    bsNewAvgLabel: string;
+    bsEstPnlLabel: string;
+    bsOverSell: string;
+    bsSummaryEmpty: string;
     buySellSaving: string;
     toastBuySuccess: string;
     /** Template with a `{pnl}` placeholder. */
@@ -2553,6 +2611,8 @@ export type I18nDictionary = {
     categoryFooterHint: string;
     groups: Record<MasterDataGroupId, { title: string; label: string }>;
     categorySectionTitle: string;
+    categoryIncomeTitle: string;
+    categoryExpenseTitle: string;
     masterCoaLink: string;
     addLink: string;
     categoryLoading: string;
@@ -2595,6 +2655,20 @@ export type I18nDictionary = {
   /** EPIC-018 Task A5 — `/mastercoa` (chart of accounts) page copy. */
   mastercoa: {
     v2: { heroCap: string };
+    // bento v2 prototype port (docs/design/proto/mastercoa.html) — hero
+    // "Panduan" button, group mini-list card, tile grid card, and the
+    // unlinked-accounts tips card.
+    guideButton: string;
+    groupsCardTitle: string;
+    groupsCardCaption: string;
+    catsAllTitle: string;
+    catsCardCaption: string;
+    tipsTitleUnlinkedSuffix: string;
+    tipsTitleAllLinked: string;
+    tipsBodyUnlinked: string;
+    tipsBodyLinked: string;
+    emptyGroupTitle: string;
+    emptyGroupDesc: string;
     groupLabels: Record<MasterCoaGroupNum, string>;
     directionLabels: Record<MasterCoaDirectionId, string>;
     budgetTypeLabels: Record<MasterCoaBudgetTypeId, string>;
@@ -2618,6 +2692,7 @@ export type I18nDictionary = {
     linkedCategoriesDescSuffix: string;
     emptyCoaTitle: string;
     emptyCoaDesc: string;
+    emptyCoaDescAllLinked: string;
     usedInReportsTitle: string;
     viewLink: string;
     reportsBadgeText: string;
@@ -2768,6 +2843,9 @@ export type I18nDictionary = {
     infoNoticeBody: string;
     infoNoticeLinkLabel: string;
     infoNoticeSuffix: string;
+    bankInfoTitle: string;
+    bankInfoBody: string;
+    bankInfoLinkLabel: string;
     mutationsSectionTitle: string;
     mutationsViewAllLabel: string;
     mutationsEmptyLabel: string;
@@ -2825,6 +2903,7 @@ export type I18nDictionary = {
     incomeLabel: string;
     expenseLabel: string;
     surplusLabel: string;
+    avgNetPerMonthLabel: string;
     loadingLabel: string;
     topExpensesTitle: string;
     emptyTopExpenses: string;
@@ -2917,6 +2996,7 @@ export type I18nDictionary = {
       tipsWorstSuffix: string;
       tipsOkBody: string;
       tipsOverallPrefix: string;
+      tipsSeeTransactions: string;
     };
     statusLabels: Record<TujuanStatusId, string>;
     noTargetDate: string;
@@ -2926,6 +3006,7 @@ export type I18nDictionary = {
     collectedSuffix: string;
     targetPrefix: string;
     remainingPrefix: string;
+    remainingAmountSuffix: string;
     autoDebitPrefix: string;
     autoDebitSuffix: string;
     noAutoDebit: string;
@@ -3014,6 +3095,8 @@ export type I18nDictionary = {
     estimateLabel: string;
     calculatingLabel: string;
     calcErrorLabel: string;
+    heroNoPkpTitle: string;
+    heroNoPkpHint: string;
     pkpPrefix: string;
     effectiveRatePrefix: string;
     savingLabel: string;
@@ -3356,10 +3439,19 @@ export type I18nDictionary = {
     typeLabels: Record<DonationTypeId, string>;
     jenisOptionLabels: Record<DonationTypeId, string>;
     heroTitle: string;
+    /** Compact hero caption ("Total donasi tahun ini"), matching the
+     * prototype's `#heroVal` caption — replaces the longer
+     * heroTitle+count+year combo as the hero's caption line. */
+    heroCaptionThisYear: string;
     transactionsSuffix: string;
     yearRunningPrefix: string;
     subheaderDesc: string;
     recordDonationButton: string;
+    /** Hero KPI pair (prototype donation.html `#kCount`/`#kDed`) — a
+     * transaction count and a compact tax-deductible total, replacing the
+     * old deductible/voluntary KPI pair. */
+    statTransactionsLabel: string;
+    statDeductibleCompactLabel: string;
     zakatCalculatorTitle: string;
     zakatCalculatorSubtitle: string;
     fieldCashLabel: string;
@@ -3485,6 +3577,9 @@ export type I18nDictionary = {
       kpiAlloc: string;
       benCaption: string;
       benEmpty: string;
+      /** Point 1 — small "total" sub-label under the compact total figure
+       * inside the hero's composition stack (proto: "Rp 1,08 M total"). */
+      compTotalLabel: string;
     };
     heroTitle: string;
     assetsRegisteredSuffix: string;
@@ -3495,6 +3590,15 @@ export type I18nDictionary = {
     emptyState: string;
     insightTitle: string;
     insightDesc: string;
+    /** Dynamic tip-card copy (hero mirrors warisan.html's `WM.chart.donut`
+     * caption logic): no assets yet, fully allocated, or a running
+     * unallocated percentage. */
+    insightEmptyTitle: string;
+    insightEmptyDesc: string;
+    insightFullTitle: string;
+    insightFullDesc: string;
+    insightUnallocatedSuffix: string;
+    insightUnallocatedDesc: string;
     modalTitleEdit: string;
     fieldCategoryLabel: string;
     fieldNameLabel: string;
@@ -3547,6 +3651,11 @@ export type I18nDictionary = {
     // the already-fetched inheritance-assets list.
     heirAllocationChartTitle: string;
     heirAllocationUnallocatedLabel: string;
+    /** Point 3 — asset-list row allocation bar label line (proto
+     * warisan.html:108 `.wr-alloc .lbl`: "Alokasi ahli waris" · "Penuh"/"x%
+     * belum dialokasikan"). */
+    listRowAllocationLabel: string;
+    listRowAllocationFull: string;
     // EPIC-025 N3 restructure — 2-col layout: aggregated asset list card
     // title/caption and per-row "estimated value" sub-label / linked-asset
     // meta line prefix.
@@ -3879,6 +3988,13 @@ export type I18nDictionary = {
     detailButton: string;
     insightTitle: string;
     insightDesc: string;
+    tipTitleSuffix: string;
+    tipAllOnTrack: string;
+    tipNoActiveSplits: string;
+    tipRemainingPrefix: string;
+    tipRemainingMid: string;
+    tipRemainingPeopleSuffix: string;
+    tipInviteHint: string;
     badgeUnpaid: string;
     badgeNoPayoutAccount: string;
     badgeSettled: string;
@@ -3934,6 +4050,11 @@ export type I18nDictionary = {
     toastPayoutAccountUpdateFailedDefault: string;
     claimedBadge: string;
     revokeButton: string;
+    deleteSplitButton: string;
+    deleteSplitConfirmTitle: string;
+    deleteSplitConfirmMessage: string;
+    deleteSplitConfirmButton: string;
+    toastSplitDeleted: string;
     revokeConfirmMessage: string;
     toastRevoked: string;
     toastRevokeFailedDefault: string;
@@ -4018,6 +4139,22 @@ export type I18nDictionary = {
     remainderOverPrefix: string;
     remainderOverSuffix: string;
     splitRemainderButton: string;
+    /**
+     * Prototype structural port (docs/design/proto/splitbill.html) — the
+     * hero's bar-chart legend, the "Riwayat" (history) side panel for
+     * settled/revoked splits, and the "Split aktif" card-grid caption +
+     * trailing add-tile, replacing the old row-list + static tips-only
+     * layout.
+     */
+    legendCollected: string;
+    legendTotal: string;
+    historyTitle: string;
+    historyCountSuffix: string;
+    historyTotalCaption: string;
+    emptyHistory: string;
+    activeSplitsCaption: string;
+    addSplitTileLabel: string;
+    badgeRevoked: string;
   };
   /**
    * EPIC-018 Task A6 — `/rekonsiliasi` (bank reconciliation wizard) page
@@ -4196,6 +4333,11 @@ export type I18nDictionary = {
     suggestedLabel: string;
     confirmButton: string;
     notFoundLabel: string;
+    /** Carries a `{count}` placeholder. */
+    bulkConfirmBannerText: string;
+    bulkConfirmButton: string;
+    bulkConfirmPendingLabel: string;
+    toastBulkConfirmed: string;
     importAccountLabel: string;
     importEntryButton: string;
     importEntryAriaLabelPrefix: string;
@@ -4366,6 +4508,13 @@ export type I18nDictionary = {
       hInv: string;
       hTax: string;
       hDefault: string;
+      hBulanSaved: string;
+      hBulanDeficit: string;
+      hHarianSpend: string;
+      hHarianEmpty: string;
+      hPerfAchieved: string;
+      hPerfBelow: string;
+      savingsRateTarget: string;
     };
     subtitle: string;
     months: [
@@ -4487,6 +4636,14 @@ export type I18nDictionary = {
         colBulanIni: string;
         emptyState: string;
       };
+      // Prototype parity (rsum body) — "Ke mana uangnya" bar-rows card and
+      // "Dibanding bulan lalu" comparison card, replacing the removed
+      // KPI-tile row / category table / wealth & investment donut cards.
+      whereMoneyGoesTitle: string;
+      comparedLastMonthTitle: string;
+      // No prior month with data to compare against yet — shown instead of
+      // a fabricated 0-vs-0 comparison.
+      comparedLastMonthEmptyHint: string;
     };
     harian: {
       titlePrefix: string;
@@ -4497,6 +4654,7 @@ export type I18nDictionary = {
       txnCountLabel: string;
       txnTodayTitle: string;
       emptyToday: string;
+      emptyTodayHint: string;
     };
     bulanan: {
       title: string;

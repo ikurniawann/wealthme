@@ -185,19 +185,21 @@ export function CompositionBento({ data }: { data: RingkasanData }) {
       {isLoading ? null : donutSegments.length === 0 ? (
         <p className="wm-cap mt-4">{t.ringkasan.emptyComposition}</p>
       ) : (
-        <div className="mt-3 private">
-          <CompositionStack
-            label={t.ringkasan.compositionTitle}
-            center={money(totalAssets)}
-            sub={t.ringkasan.totalAssetsLabel}
-            format={money}
-            items={donutSegments.map((seg) => ({
-              label: seg.label,
-              value: seg.value,
-              color: seg.color,
-            }))}
-          />
-        </div>
+        <>
+          <div className="mt-3 private">
+            <CompositionStack
+              label={t.ringkasan.compositionTitle}
+              center={money(totalAssets)}
+              sub={t.ringkasan.totalAssetsLabel}
+              format={money}
+              items={donutSegments.map((seg) => ({
+                label: seg.label,
+                value: seg.value,
+                color: seg.color,
+              }))}
+            />
+          </div>
+        </>
       )}
     </BentoCard>
   );

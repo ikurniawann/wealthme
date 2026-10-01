@@ -43,16 +43,61 @@
     line-height: 1.35;
     white-space: normal;
   }
-  .as-tilewrap {
-    position: relative;
+
+  /* hero controls: Bayar premi / + Polis on the title row (top-right),
+     legend (Kesehatan/Jiwa/…) underneath — matches
+     docs/design/proto/asuransi.html .hero-ctrl + .legend. */
+  .as-hero-ctrl {
     display: flex;
     flex-direction: column;
+    align-items: flex-end;
     gap: 8px;
   }
-  .as-status {
-    position: absolute;
-    top: 12px;
-    right: 12px;
+  .as-hero-ctrl-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+  }
+
+  /* policy grid: 2 columns per proto (`.i-grid .btiles` is a 2-up flex
+     wrap), not the default 3-up `.wm-btiles`. */
+  .as-list .wm-btiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 640px) {
+    .as-list .wm-btiles {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  .as-tilewrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: auto;
+    padding: 14px;
+    border-radius: 18px;
+    background: var(--wm-card-2);
+  }
+  .as-tile-tt {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .as-tile-name {
+    overflow: hidden;
+    flex: 1;
+    min-width: 0;
+    font-size: var(--wm-type-14);
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .as-tile-amount {
+    margin-top: 4px;
+    font-size: var(--wm-type-20);
   }
   .as-period {
     margin-left: 2px;
@@ -60,66 +105,64 @@
     font-size: var(--wm-type-11);
     font-weight: 500;
   }
-  .as-facts {
-    display: grid;
-    gap: 8px;
-    margin: 10px 0 0;
-  }
-  .as-facts > div {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 6px;
-    font-size: var(--wm-type-12);
-  }
-  .as-facts dt {
-    color: var(--wm-muted);
-  }
-  .as-facts dd {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    margin: 0;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-  .as-ben {
+  .as-tile-meta {
     display: block;
-    margin-top: 8px;
     color: var(--wm-muted);
-    font-size: var(--wm-type-11);
+    font-size: var(--wm-type-12);
+    font-variant-numeric: tabular-nums;
   }
   .as-foot {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
   }
-  .as-foot button {
+  .as-detail {
+    padding: 0 12px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--wm-card);
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+    font-weight: 500;
+    min-height: 32px;
+    cursor: pointer;
+  }
+  .as-pay {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 6px 10px;
+    margin-left: auto;
+    padding: 0 12px;
+    border: 0;
     border-radius: 999px;
-    border: 1px solid var(--wm-line, rgb(0 0 0 / 0.1));
-    background: none;
-    color: inherit;
-    font-size: var(--wm-type-12);
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .as-foot .as-pay {
     background: var(--wm-lime);
     color: #0b1a0b;
-    border-color: transparent;
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    min-height: 32px;
+    cursor: pointer;
   }
-  .as-foot button:disabled {
-    opacity: 0.5;
+  .as-pay:disabled {
+    background: var(--wm-card-2);
+    color: var(--wm-muted);
     cursor: not-allowed;
+    opacity: 1;
   }
-  .as-foot .as-del {
-    color: var(--wm-bad);
-    margin-left: auto;
+  .as-opts {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: none;
+    color: var(--wm-muted);
+    cursor: pointer;
+  }
+  .as-opts:hover {
+    background: var(--wm-card);
   }
   .as-allocated {
     margin-bottom: 8px;

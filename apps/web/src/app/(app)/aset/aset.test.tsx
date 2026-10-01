@@ -489,9 +489,10 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
 
   // polish-j batch 6 item 1 — the modal used to be a hand-rolled
   // `fixed inset-0 ... bg-black/40` overlay with no way to cancel besides
-  // the X icon or the backdrop. It now renders through the shared Base UI
-  // `Dialog`/`DialogContent` (like every other add/edit dialog in the app)
-  // and exposes an explicit outline "Batal" button.
+  // the X icon or the backdrop. It now renders through the shared side-sheet
+  // `PanelContent` (like every other add/edit dialog in the app, see
+  // apps/web/CLAUDE.md "Form dialogs are already side sheets") and exposes
+  // an explicit outline "Batal" button.
   it("renders through the shared dialog system and offers a Batal button to cancel (batch 6 item 1)", async () => {
     const user = userEvent.setup();
     render(<AsetPage />);
@@ -499,7 +500,7 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     await user.click(screen.getByRole("button", { name: /tambah aset/i }));
 
     const dialog = await screen.findByRole("dialog");
-    expect(dialog).toHaveAttribute("data-slot", "dialog-content");
+    expect(dialog).toHaveAttribute("data-slot", "panel-content");
 
     const cancelButton = screen.getByRole("button", { name: "Batal" });
     await user.click(cancelButton);

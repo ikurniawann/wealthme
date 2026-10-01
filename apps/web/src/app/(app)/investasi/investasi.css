@@ -22,13 +22,50 @@
       grid-row: 3;
     }
   }
-  .iv-grid > .iv-tax {
+  .iv-grid > .iv-tax,
+  .iv-grid > .iv-note,
+  .iv-grid > .iv-comp {
     min-width: 0;
   }
   .iv-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
     margin-top: 12px;
-    max-width: 100%;
-    overflow-x: auto;
+    padding: 0;
+    background: transparent;
+  }
+  .iv-filters button {
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--wm-line, rgb(238 240 232 / 0.14));
+    border-radius: 999px;
+  }
+  .iv-legend {
+    display: flex;
+    flex-basis: 100%;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 4px;
+    font-size: var(--wm-type-11);
+    color: var(--wm-muted);
+  }
+  .iv-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .iv-legend i {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+  }
+  .iv-dot-cost {
+    background: var(--wm-ghost);
+  }
+  .iv-dot-value {
+    background: var(--wm-lime);
   }
   .iv-kdelta {
     display: inline-flex;
@@ -95,8 +132,14 @@
     text-align: right;
   }
   .iv-val b {
-    font-size: var(--wm-type-14);
+    font-size: var(--wm-type-16, 16px);
+    font-weight: 600;
+    letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
+  }
+  .iv-val small:nth-of-type(1) {
+    font-weight: 600;
+    align-self: flex-end;
   }
   .iv-val.is-up small:nth-of-type(1) {
     color: var(--wm-good, #15803d);
@@ -104,16 +147,61 @@
   .iv-val.is-down small:nth-of-type(1) {
     color: var(--wm-bad);
   }
+  /* proto `.irow .meta a` / `.prow` detail link — a plain inline text link,
+     not a pill button. */
   .iv-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     align-self: flex-start;
     padding: 0;
     background: none;
     border: 0;
-    color: inherit;
-    font-size: var(--wm-type-12);
+    border-radius: 0;
+    color: var(--wm-good, #15803d);
+    font-size: var(--wm-type-11);
     font-weight: 600;
-    text-decoration: underline;
+    text-decoration: none;
     cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .iv-link:hover {
+    opacity: 0.75;
+  }
+  .iv-link:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+  .iv-act {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  /* proto `.ibtn` — a plain outlined square icon button, used here for the
+     buy/sell action that sits alongside the shared RowActions edit/delete
+     pair. */
+  .iv-buysell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--wm-line, rgb(0 0 0 / 0.14));
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      border-color 0.15s;
+  }
+  .iv-buysell svg {
+    width: 13px;
+    height: 13px;
+  }
+  .iv-buysell:hover {
+    background: var(--wm-ghost);
+    border-color: var(--wm-muted);
   }
   .iv-state {
     margin-top: 12px;
@@ -127,6 +215,21 @@
     display: flex;
     flex-direction: column;
     align-items: stretch;
+    gap: 12px;
+    height: auto;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .iv-heat {
+    margin: 0;
+  }
+  .iv-heat figcaption {
+    margin-bottom: 8px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-11);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
   .iv-note h2 {
     display: flex;
@@ -144,26 +247,48 @@
     margin-top: 6px;
   }
   .iv-note .wm-mosaic {
-    grid-template-columns: repeat(9, 1fr);
+    grid-template-columns: repeat(9, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    flex: 1;
     width: 100%;
-    max-width: 260px;
-    margin-top: auto;
+    max-width: 100%;
+    min-width: 0;
+    margin-top: 14px;
     justify-self: stretch;
+    overflow: hidden;
   }
   .iv-note .wm-mosaic i {
-    width: auto;
+    width: 100%;
     height: auto;
+    min-width: 0;
     aspect-ratio: 1;
+    border-radius: 5px;
   }
   @media (max-width: 720px) {
     .iv-row {
       grid-template-columns: 36px minmax(0, 1fr) auto;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
+      border-radius: 16px;
+    }
+    .iv-row:last-child {
+      border-bottom: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
     }
     .iv-src {
       display: none;
     }
     .iv-act {
-      grid-column: 2 / 4;
+      grid-column: 1 / 4;
+      justify-content: flex-end;
+    }
+    .iv-act button,
+    .iv-act a {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .iv-link {
+      min-height: 44px;
     }
   }
 }
@@ -179,5 +304,163 @@
     position: relative;
     flex: 1;
     min-height: 150px;
+  }
+}
+
+@layer components {
+  /* Long full-Rupiah KPI values (with decimals on) need a wider rail than the
+     default 210px or they collide with the card edge. */
+  @media (min-width: 1181px) {
+    .iv-grid > .iv-hero.wm-hero {
+      grid-template-columns: minmax(0, 1fr) 270px;
+    }
+  }
+  .iv-hero .wm-kpi-v {
+    white-space: nowrap;
+  }
+}
+
+@layer components {
+  /* Beli / Jual side sheet */
+  .bs-pos {
+    padding: 14px 16px;
+    border-radius: 16px;
+    background: var(--wm-card-2);
+  }
+  .bs-pos-title,
+  .bs-sum-title {
+    color: var(--wm-muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .bs-pos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin: 10px 0 0;
+  }
+  .bs-pos-grid dt,
+  .bs-sum-rows dt {
+    color: var(--wm-muted);
+    font-size: 12px;
+  }
+  .bs-pos-grid dd,
+  .bs-sum-rows dd {
+    margin: 3px 0 0;
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .bs-side {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    padding: 5px;
+    border-radius: 16px;
+    background: var(--wm-card-2);
+  }
+  .bs-side button {
+    min-height: 44px;
+    border: 0;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--wm-muted);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color 0.15s,
+      color 0.15s;
+  }
+  .bs-side button[data-side="buy"][aria-selected="true"] {
+    background: var(--wm-lime);
+    color: #1a2208;
+  }
+  .bs-side button[data-side="sell"][aria-selected="true"] {
+    background: var(--wm-orange);
+    color: #2a1405;
+  }
+  .bs-chip {
+    align-self: flex-start;
+    padding: 4px 10px;
+    border: 1px solid var(--wm-line);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--wm-ink);
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .bs-chip:hover {
+    border-color: var(--wm-lime);
+  }
+  .bs-sum {
+    padding: 16px;
+    border: 1.5px solid var(--wm-line);
+    border-radius: 16px;
+  }
+  .bs-sum[data-side="buy"] {
+    border-color: color-mix(in srgb, var(--wm-lime) 55%, transparent);
+  }
+  .bs-sum[data-side="sell"] {
+    border-color: color-mix(in srgb, var(--wm-orange) 55%, transparent);
+  }
+  .bs-sum-total {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 8px;
+    color: var(--wm-muted);
+    font-size: 13px;
+  }
+  .bs-sum-total b {
+    color: var(--wm-ink);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .bs-sum-rows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--wm-line);
+  }
+  .bs-sum-empty {
+    margin: 8px 0 0;
+    color: var(--wm-muted);
+    font-size: 13px;
+  }
+  @media (max-width: 420px) {
+    .bs-pos-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+}
+
+@layer components {
+  @media (max-width: 720px) {
+    .iv-chartcol {
+      position: static;
+    }
+    .iv-plot {
+      flex: none;
+      height: 180px;
+    }
+  }
+}
+
+@layer components {
+  @media (max-width: 720px) {
+    .iv-hero .wm-chart-wrap {
+      flex: none;
+      min-height: 0;
+    }
   }
 }

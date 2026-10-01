@@ -184,10 +184,10 @@ export function useRingkasanData(
   const investmentsTotal = Number(netWorthData?.investmentsTotal ?? 0);
   const physicalAssetsTotal = Number(netWorthData?.assetsTotal ?? 0);
   const totalAssets = accountsTotal + investmentsTotal + physicalAssetsTotal;
-  const savingsRate = summary?.currentMonth.savingsRate ?? 0;
-  const monthIncome = summary?.currentMonth.income ?? 0;
-  const monthExpense = summary?.currentMonth.expense ?? 0;
-  const monthNet = summary?.currentMonth.net ?? 0;
+  const savingsRate = summary?.currentMonth?.savingsRate ?? 0;
+  const monthIncome = summary?.currentMonth?.income ?? 0;
+  const monthExpense = summary?.currentMonth?.expense ?? 0;
+  const monthNet = summary?.currentMonth?.net ?? 0;
 
   // liabilitiesTotal is a serialized decimal string; Number() tolerates
   // decimals/empties (BigInt would throw), and the value is display-only.
@@ -335,9 +335,9 @@ export function useRingkasanData(
   // EPIC-025 N3-C2 — CashflowChart mount, over `summary.cashflow` (the same
   // months/income/expense arrays `beranda`'s existing BarChart already
   // sums — no new endpoint).
-  const cashflowMonths = summary?.cashflow.months ?? [];
-  const cashflowIncome = summary?.cashflow.income ?? [];
-  const cashflowExpense = summary?.cashflow.expense ?? [];
+  const cashflowMonths = summary?.cashflow?.months ?? [];
+  const cashflowIncome = summary?.cashflow?.income ?? [];
+  const cashflowExpense = summary?.cashflow?.expense ?? [];
   const cashflowAriaLabel =
     cashflowMonths.length > 0
       ? `${t.ringkasan.cashFlowTitlePrefix}${cashflowMonths.at(-1) ?? ""}: ${t.ringkasan.incomeLabel} ${moneyFull(monthIncome)}, ${t.ringkasan.expenseLabel} ${moneyFull(monthExpense)}`

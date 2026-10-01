@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import { SectionCard } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
-import { computeBalanceSheetIdentity, formatJuta } from "@/lib/laporan-utils";
+import { computeBalanceSheetIdentity } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type {
   BalanceSheetDto,
@@ -10,6 +10,41 @@ import type {
 } from "@wealthme/contracts";
 import { formatLocaleDateLong } from "../date-helpers";
 import { ReconciliationBridgeCard, StatementRow } from "../atoms";
+import "./sections-b.css";
+
+const SEG_COLORS = [
+  "var(--wm-lime)",
+  "var(--wm-orange)",
+  "var(--primary)",
+  "var(--brand-purple, #8B5CF6)",
+  "var(--warning)",
+];
+
+function CompositionBar({
+  groups,
+  total,
+}: {
+  groups: { amount: number }[];
+  total: number;
+}) {
+  if (total <= 0) return null;
+  return (
+    <div className="lpb-composition">
+      {groups.map((g, i) =>
+        g.amount > 0 ? (
+          <div
+            key={i}
+            className="lpb-composition-seg"
+            style={{
+              width: `${(g.amount / total) * 100}%`,
+              background: SEG_COLORS[i % SEG_COLORS.length],
+            }}
+          />
+        ) : null,
+      )}
+    </div>
+  );
+}
 
 /* ───────────────────────── Section: Balance Sheet ───────────────────────── */
 
@@ -59,7 +94,9 @@ export function BalanceSection({
   const { totalLiabilitiesPlusEquity, diff, isBalanced } =
     computeBalanceSheetIdentity(
       balanceSheet ?? { totalLiabilities: 0, netWorth: 0 },
-      dashboardNetWorth,
+      dashboardNetWorth?.netWorth == null
+        ? null
+        : { netWorth: dashboardNetWorth.netWorth },
     );
   // EPIC-023 Task B retry (HIGH) — `dashboardNetWorth` is always LIVE (no
   // date param on `/dashboard/net-worth`), so this cross-check is only
@@ -73,22 +110,15 @@ export function BalanceSection({
     identityCheckApplicable &&
     (isDashboardNetWorthLoading || isBalanced === null);
 
+  // EPIC-023 B2 (closes EPIC-022 B11) — figures now come from a real
+  // `NetWorthSnapshot` when one exists (`isHistorical`); the "these are
+  // current balances, not historical" disclosure only applies to the
+  // live-fallback path (a family with no snapshot history yet).
+  const showCurrentBalanceDisclosure =
+    balanceSheet != null && hasData && !balanceSheet.isHistorical;
+
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div>
-        <div className="text-[15px] font-bold">
-          {t.laporan.balance.titlePrefix} {asOf}
-        </div>
-        {/* EPIC-023 B2 (closes EPIC-022 B11) — figures now come from a real
-            `NetWorthSnapshot` when one exists (`isHistorical`); the "these
-            are current balances, not historical" disclosure only applies to
-            the live-fallback path (a family with no snapshot history yet). */}
-        {balanceSheet && hasData && !balanceSheet.isHistorical && (
-          <div className="text-[10.5px] text-muted-foreground">
-            {t.laporan.balance.currentBalanceDisclosure}
-          </div>
-        )}
-      </div>
       {balanceSheet && !hasData && (
         <div className="flex items-start gap-3 rounded-[12px] border border-border bg-muted/40 p-3.5">
           <div className="text-[22px]">
@@ -119,7 +149,17 @@ export function BalanceSection({
                 {t.laporan.balance.assetLabel}
               </span>
             }
+            action={
+              <span className="text-[10.5px] font-normal text-muted-foreground">
+                {t.laporan.balance.titlePrefix} {asOf}
+              </span>
+            }
           >
+            {showCurrentBalanceDisclosure && (
+              <div className="mb-2 text-[10.5px] text-muted-foreground">
+                {t.laporan.balance.currentBalanceDisclosure}
+              </div>
+            )}
             <table className="w-full border-collapse text-[12.5px]">
               <tbody>
                 {balanceSheet?.assets.map((group) => (
@@ -127,12 +167,13 @@ export function BalanceSection({
                     <StatementRow
                       label={group.category}
                       labelClass="py-1.5 font-bold text-muted-foreground"
+                      value={money.format(group.amount)}
                     />
                     {group.items.map((item) => (
                       <StatementRow
                         key={item.name}
                         label={item.name}
-                        value={formatJuta(item.amount)}
+                        value={money.format(item.amount)}
                         indent
                       />
                     ))}
@@ -141,7 +182,7 @@ export function BalanceSection({
                 <StatementRow
                   label={t.laporan.totalAssetsLabel}
                   value={
-                    balanceSheet ? formatJuta(balanceSheet.totalAssets) : "—"
+                    balanceSheet ? money.format(balanceSheet.totalAssets) : "—"
                   }
                   className="border-t-2 border-success"
                   labelClass="py-2 font-extrabold"
@@ -149,6 +190,14 @@ export function BalanceSection({
                 />
               </tbody>
             </table>
+            {balanceSheet && (
+              <CompositionBar
+                groups={balanceSheet.assets.map((g) => ({
+                  amount: g.amount,
+                }))}
+                total={balanceSheet.totalAssets}
+              />
+            )}
           </SectionCard>
           <SectionCard
             title={
@@ -168,13 +217,14 @@ export function BalanceSection({
                     <StatementRow
                       label={group.category}
                       labelClass="py-1 text-[11px] text-muted-foreground"
+                      value={money.format(group.amount)}
                       indent
                     />
                     {group.items.map((item) => (
                       <StatementRow
                         key={item.name}
                         label={item.name}
-                        value={formatJuta(item.amount)}
+                        value={money.format(item.amount)}
                         indent
                       />
                     ))}
@@ -184,7 +234,7 @@ export function BalanceSection({
                   label={t.laporan.totalLiabilitiesLabel}
                   value={
                     balanceSheet
-                      ? formatJuta(balanceSheet.totalLiabilities)
+                      ? money.format(balanceSheet.totalLiabilities)
                       : "—"
                   }
                   className="border-b border-border"
@@ -197,13 +247,17 @@ export function BalanceSection({
                 />
                 <StatementRow
                   label={t.laporan.netWorthLabel}
-                  value={balanceSheet ? formatJuta(balanceSheet.netWorth) : "—"}
+                  value={
+                    balanceSheet ? money.format(balanceSheet.netWorth) : "—"
+                  }
                   indent
                 />
                 <StatementRow
                   label={t.laporan.balance.totalLPlusELabel}
                   value={
-                    balanceSheet ? formatJuta(totalLiabilitiesPlusEquity) : "—"
+                    balanceSheet
+                      ? money.format(totalLiabilitiesPlusEquity)
+                      : "—"
                   }
                   className="border-t-2 border-primary"
                   labelClass="py-2 font-extrabold"
@@ -211,6 +265,14 @@ export function BalanceSection({
                 />
               </tbody>
             </table>
+            {balanceSheet && (
+              <CompositionBar
+                groups={balanceSheet.liabilities.map((g) => ({
+                  amount: g.amount,
+                }))}
+                total={balanceSheet.totalLiabilities}
+              />
+            )}
           </SectionCard>
         </div>
       )}

@@ -42,12 +42,14 @@ export const AccountDtoSchema = z.object({
   type: AccountTypeSchema,
   institution: z.string().nullable(),
   maskedNumber: z.string().nullable(),
-  balance: z.string(),
+  /** null when the viewer's "Lihat saldo" is off (see balancesHidden). */
+  balance: z.string().nullable(),
   currency: z.string(),
   isPrivate: z.boolean(),
   ownerUserId: z.string().nullable(),
   ownerName: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  balancesHidden: z.boolean().optional(),
 });
 export type AccountDto = z.infer<typeof AccountDtoSchema>;

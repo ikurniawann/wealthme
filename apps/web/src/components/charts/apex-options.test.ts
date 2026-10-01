@@ -91,13 +91,12 @@ describe("buildDonutOptions", () => {
     expect(options.labels).toEqual(["Tabungan", "Investasi"]);
     expect(series).toEqual([60, 40]);
     expect(options.colors).toEqual(["#4f46e5", "#10b981"]);
-    expect(options.chart).toMatchObject({ type: "donut", height: 232 });
+    expect(options.chart).toMatchObject({ type: "pie", height: 232 });
   });
 
-  it("applies a custom center label and height", () => {
+  it("renders as a pie with the requested height", () => {
     const { options } = buildDonutOptions(segments, "Sisa Saldo", 300);
-    const donutLabels = options.plotOptions?.pie?.donut?.labels;
-    expect(donutLabels?.total?.label).toBe("Sisa Saldo");
+    expect(options.chart?.type).toBe("pie");
     expect(options.chart?.height).toBe(300);
   });
 
@@ -238,7 +237,7 @@ describe("C5: money formatter override (e.g. useMoney().format/formatCompact)", 
     expect(tooltipFmt(1500000)).toContain("Rp");
   });
 
-  it("buildDonutOptions uses the given formatter for the center total", () => {
+  it("buildDonutOptions uses the given formatter for the tooltip", () => {
     const segments: DonutSegment[] = [
       { label: "A", value: 150000, color: "#111" },
     ];
@@ -246,11 +245,9 @@ describe("C5: money formatter override (e.g. useMoney().format/formatCompact)", 
       format: usdFormat,
       formatCompact: usdCompact,
     });
-    const totalFmt = options.plotOptions?.pie?.donut?.labels?.total
-      ?.formatter as unknown as
-      | ((w: { globals: { seriesTotals: number[] } }) => string)
-      | undefined;
-    expect(totalFmt?.({ globals: { seriesTotals: [150000] } })).toBe("≈$10");
+    const tip = (options.tooltip?.y as { formatter?: (v: number) => string })
+      ?.formatter;
+    expect(tip?.(150000)).toBe(usdFormat(150000));
   });
 
   it("buildHBarOptions uses the given formatter for the x-axis and tooltip", () => {

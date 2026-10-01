@@ -59,6 +59,7 @@ import {
   HeroKpi,
   MiniList,
   MiniRow,
+  PillButton,
   Segmented,
   SectionCard,
   StatusBadge,
@@ -67,12 +68,10 @@ import {
 import "./persetujuan.css";
 import {
   Dialog,
-  DialogContent,
-  DialogBody,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
+  DialogClose,
+  PanelContent,
 } from "@/components/ui/dialog";
 import type { Locale } from "@/i18n";
 
@@ -657,33 +656,38 @@ function ApproveRequestDialog({
       {/* EPIC-026 Wave 8 — #dlg-setujui is the prototype's DEFAULT 480px
           `.dialog` (only #dlg-tolak, the reject confirm this app does not
           have, is `dialog--sm`), so the bespoke 420px override is gone. */}
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {t.akun.family.allowanceRequestApproveDialogTitle}
-          </DialogTitle>
-          {/* Prototype `.dialog__desc` — "<pemohon> — <jumlah> → <rekening
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {t.akun.family.allowanceRequestApproveDialogTitle}
+            </DialogTitle>
+            {/* Prototype `.dialog__desc` — "<pemohon> — <jumlah> → <rekening
               tujuan>" with the amount in `mono t-bold`
               (persetujuan.html:233-235). Rendered here rather than in the
               form below so Base UI wires it up as the dialog's
               `aria-describedby`. */}
-          {request && (
-            <DialogDescription>
-              {request.requesterName} ·{" "}
-              <span className="mono font-bold">
-                {money.format(Number(request.amount))}
-              </span>{" "}
-              → {request.targetAccountName}
-              {request.fromAccountName && (
-                <>
-                  {" "}
-                  ({t.akun.family.allowanceRequestRequestedFromPrefix}
-                  {request.fromAccountName})
-                </>
-              )}
-            </DialogDescription>
-          )}
-        </DialogHeader>
+            {request && (
+              <DialogDescription className="wm-panel-desc">
+                {request.requesterName} ·{" "}
+                <span className="mono font-bold">
+                  {money.format(Number(request.amount))}
+                </span>{" "}
+                → {request.targetAccountName}
+                {request.fromAccountName && (
+                  <>
+                    {" "}
+                    ({t.akun.family.allowanceRequestRequestedFromPrefix}
+                    {request.fromAccountName})
+                  </>
+                )}
+              </DialogDescription>
+            )}
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         {/* Keyed by request id (not an effect) so the source-account
             selection resets whenever a different request is being approved. */}
         {request && familyGroupId && (
@@ -699,7 +703,7 @@ function ApproveRequestDialog({
             onApproved={onApproved}
           />
         )}
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -760,64 +764,68 @@ function ApproveRequestForm({
   });
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col">
       {/* EPIC-026 Wave 8 — the prototype's #dlg-setujui body is a single
           `.field` (label + select + `.hint`) followed by the danger notice.
           The requester/amount/destination line moved up into the dialog's
           `.dialog__desc`, where the prototype puts it. */}
-      <DialogBody>
-        <div className="field">
-          <label className="label" htmlFor={fromAccountFieldId}>
-            {t.akun.family.allowanceRequestSourceAccountLabel}
-          </label>
-          <select
-            id={fromAccountFieldId}
-            className="select"
-            value={fromAccountId}
-            onChange={(e) => {
-              setFromAccountId(e.target.value);
-              // Mirrors the prototype: the stale error clears once another
-              // source account is picked (re-set on the next failed attempt).
-              setApproveError(null);
-            }}
-          >
-            <option value="">—</option>
-            {eligibleAccounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({money.format(Number(a.balance))})
-              </option>
-            ))}
-          </select>
-          <span className="hint">{t.persetujuan.approveSourceAccountHint}</span>
-        </div>
-        {approveError && (
-          /* Prototype `#setujui-error` — `.notice .notice--danger` with the
-             circle-alert icon (persetujuan.html:252). */
-          <div role="alert" className="notice notice--danger mt-3">
-            <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
-            <span>{approveError}</span>
+      <div className="wm-panel-body wm-form">
+        <div className="wm-form__grid">
+          <div className="field">
+            <label className="label" htmlFor={fromAccountFieldId}>
+              {t.akun.family.allowanceRequestSourceAccountLabel}
+            </label>
+            <select
+              id={fromAccountFieldId}
+              className="select"
+              value={fromAccountId}
+              onChange={(e) => {
+                setFromAccountId(e.target.value);
+                // Mirrors the prototype: the stale error clears once another
+                // source account is picked (re-set on the next failed attempt).
+                setApproveError(null);
+              }}
+            >
+              <option value="">—</option>
+              {eligibleAccounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} ({money.format(Number(a.balance))})
+                </option>
+              ))}
+            </select>
+            <span className="hint">
+              {t.persetujuan.approveSourceAccountHint}
+            </span>
           </div>
-        )}
-      </DialogBody>
+          {approveError && (
+            /* Prototype `#setujui-error` — `.notice .notice--danger` with the
+             circle-alert icon (persetujuan.html:252). */
+            <div role="alert" className="notice notice--danger mt-3">
+              <CircleAlert className="size-4 shrink-0" aria-hidden="true" />
+              <span>{approveError}</span>
+            </div>
+          )}
+        </div>
+      </div>
       {/* Prototype `.dialog__footer` — Batal (outline) + primary approve.
           The approve label stays `allowanceRequestApproveButton` ("Setujui"),
           not the prototype's "Setujui & Transfer": the colocated test
           queries the button by that exact accessible name and must pass
           unmodified. */}
-      <DialogFooter>
-        <button type="button" className="btn btn--outline" onClick={onClose}>
+      <div className="wm-panel-foot">
+        <PillButton type="button" onClick={onClose}>
           {t.common.cancel}
-        </button>
-        <button
+        </PillButton>
+        <PillButton
           type="button"
+          variant="primary"
           disabled={isSaving || !fromAccountId}
-          className="btn btn--primary"
           onClick={() => approve()}
         >
           <Check className="size-4" aria-hidden="true" />
           {isSaving ? "..." : t.akun.family.allowanceRequestApproveButton}
-        </button>
-      </DialogFooter>
-    </>
+        </PillButton>
+      </div>
+    </div>
   );
 }

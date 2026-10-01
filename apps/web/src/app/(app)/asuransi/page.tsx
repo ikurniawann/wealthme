@@ -8,6 +8,7 @@ import {
   Trash2,
   Banknote,
   Car,
+  EllipsisVertical,
   FileText,
   GraduationCap,
   HeartPulse,
@@ -23,23 +24,31 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogBody,
+  DialogClose,
   DialogContent,
+  PanelContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
+import {
   ARow,
   BentoCard,
   BentoGrid,
   BentoHero,
-  BentoTile,
   BentoTiles,
   CompositionStack,
   DateField,
   GhostButton,
   HeroKpi,
+  PillButton,
   StatusBadge,
   TipsCard,
 } from "@/components/wm";
@@ -137,15 +146,6 @@ function formatLocaleDate(iso: string | null, locale: Locale): string {
   });
 }
 
-function renewalBadgeVariant(
-  days: number | null,
-): "danger" | "warning" | "success" {
-  if (days === null) return "success";
-  if (days <= 7) return "danger";
-  if (days <= 30) return "warning";
-  return "success";
-}
-
 // Batch 4 item 1 — a negative `daysUntilRenewal` is a real, legitimate value
 // (daysUntil() in insurances.service.ts), but the badge/banner had no branch
 // for it and rendered e.g. "-16 hari" instead of a real overdue label.
@@ -196,72 +196,44 @@ function PolicyTile({ item, onEdit, onPay, onDelete }: PolicyTileProps) {
       : item.status === "kadaluarsa"
         ? "danger"
         : "warning";
-  const beneficiarySummary =
-    item.beneficiaries.length > 0
-      ? item.beneficiaries
-          .map((b) => `${b.name} (${b.sharePercent}%)`)
-          .join(", ")
-      : null;
 
   return (
     <div className="as-tilewrap">
-      <BentoTile
-        icon={<Icon aria-hidden="true" />}
-        title={item.name}
-        value={
-          <span className="wm-money">
-            {money.format(Number(BigInt(item.premiumAmount)))}
-            <small className="as-period">{periodLabel}</small>
-          </span>
-        }
-        foot={
-          <>
-            {item.provider ? `${item.provider} · ` : ""}
-            {typeLabel}
-          </>
-        }
-      >
-        <dl className="as-facts">
-          {item.coverageAmount && (
-            <div>
-              <dt>{t.asuransi.coverageLabel}</dt>
-              <dd className="wm-money">
-                {money.format(Number(BigInt(item.coverageAmount)))}
-              </dd>
-            </div>
-          )}
-          {item.renewalDate && (
-            <div>
-              <dt>{t.asuransi.renewalLabel}</dt>
-              <dd>
-                {formatLocaleDate(item.renewalDate, locale)}
-                {item.daysUntilRenewal !== null && (
-                  <StatusBadge
-                    variant={renewalBadgeVariant(item.daysUntilRenewal)}
-                  >
-                    {daysUntilRenewalLabel(item.daysUntilRenewal, t.asuransi)}
-                  </StatusBadge>
-                )}
-              </dd>
-            </div>
-          )}
-          {item.policyNumber && (
-            <div>
-              <dt>{t.asuransi.policyNumberLabel}</dt>
-              <dd>{item.policyNumber}</dd>
-            </div>
-          )}
-        </dl>
-        {beneficiarySummary && (
-          <small className="as-ben">
-            {t.asuransi.beneficiariesLabel}: {beneficiarySummary}
-          </small>
-        )}
-      </BentoTile>
-      <span className="as-status">
+      <div className="as-tile-tt">
+        <span className="wm-ci">
+          <Icon aria-hidden="true" />
+        </span>
+        <span className="as-tile-name">{item.name}</span>
         <StatusBadge variant={statusVariant}>{statusLabel}</StatusBadge>
+      </div>
+      <span className="wm-pv as-tile-amount">
+        <span className="wm-money">
+          {money.format(Number(BigInt(item.premiumAmount)))}
+        </span>
+        <small className="as-period">{periodLabel}</small>
       </span>
+      <small className="as-tile-meta">
+        {item.coverageAmount
+          ? `${t.asuransi.coverageLineLabel} ${money.formatCompact(Number(BigInt(item.coverageAmount)))} · ${typeLabel}`
+          : typeLabel}
+      </small>
+      {item.renewalDate && (
+        <small className="as-tile-meta">
+          {item.daysUntilRenewal !== null && (
+            <>
+              <span>
+                {daysUntilRenewalLabel(item.daysUntilRenewal, t.asuransi)}
+              </span>{" "}
+              ·{" "}
+            </>
+          )}
+          {formatLocaleDate(item.renewalDate, locale)}
+        </small>
+      )}
       <div className="as-foot">
+        <button type="button" className="as-detail" onClick={onEdit}>
+          {t.asuransi.cardDetailButton}
+        </button>
         <button
           type="button"
           className="as-pay"
@@ -280,14 +252,24 @@ function PolicyTile({ item, onEdit, onPay, onDelete }: PolicyTileProps) {
           <Banknote className="size-3.5" aria-hidden="true" />{" "}
           {t.asuransi.payButtonLabel}
         </button>
-        <button type="button" onClick={onEdit}>
-          <Pencil className="size-3.5" aria-hidden="true" />{" "}
-          {t.asuransi.cardEditButton}
-        </button>
-        <button type="button" className="as-del" onClick={onDelete}>
-          <Trash2 className="size-3.5" aria-hidden="true" />{" "}
-          {t.asuransi.cardDeleteButton}
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            aria-label={t.asuransi.cardOptionsAriaLabel}
+            render={<button type="button" className="as-opts" />}
+          >
+            <EllipsisVertical className="size-3.5" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-[140px]">
+            <DropdownMenuItem onClick={onEdit}>
+              <Pencil className="size-3.5" aria-hidden="true" />{" "}
+              {t.asuransi.cardEditButton}
+            </DropdownMenuItem>
+            <DropdownMenuItem variant="destructive" onClick={onDelete}>
+              <Trash2 className="size-3.5" aria-hidden="true" />{" "}
+              {t.asuransi.cardDeleteButton}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -447,7 +429,7 @@ function BeneficiaryEditor({
                 )
               )}
 
-              <div className="field-row mt-3">
+              <div className="wm-form__grid">
                 <div className="field mt-0">
                   <label
                     className="label"
@@ -762,213 +744,232 @@ function InsuranceModal({
     // `.dialog__desc`, four 2-up `.field-row` groups, then No. Polis, the
     // auto-renew switch row and Catatan.
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="dialog--wide">
-        <DialogTitle>
-          {editing ? t.asuransi.modalEditTitle : t.asuransi.modalTitle}
-        </DialogTitle>
-        <DialogDescription>{t.asuransi.modalDesc}</DialogDescription>
-
-        <DialogBody>
-          <div className="field-row">
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-name">
-                {t.asuransi.fieldNameLabel}
-              </label>
-              <input
-                id="ins-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t.asuransi.fieldNamePlaceholder}
-                className="input"
-              />
-            </div>
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-provider">
-                {t.asuransi.fieldProviderLabel}
-              </label>
-              <input
-                id="ins-provider"
-                type="text"
-                value={provider}
-                onChange={(e) => setProvider(e.target.value)}
-                placeholder={t.asuransi.fieldProviderPlaceholder}
-                className="input"
-              />
-            </div>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {editing ? t.asuransi.modalEditTitle : t.asuransi.modalTitle}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              {t.asuransi.modalDesc}
+            </DialogDescription>
           </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSave();
+          }}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="wm-panel-body wm-form">
+            <div className="wm-form__grid">
+              <div className="wm-form__grid">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-name">
+                    {t.asuransi.fieldNameLabel}
+                  </label>
+                  <input
+                    id="ins-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={t.asuransi.fieldNamePlaceholder}
+                    className="input"
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-provider">
+                    {t.asuransi.fieldProviderLabel}
+                  </label>
+                  <input
+                    id="ins-provider"
+                    type="text"
+                    value={provider}
+                    onChange={(e) => setProvider(e.target.value)}
+                    placeholder={t.asuransi.fieldProviderPlaceholder}
+                    className="input"
+                  />
+                </div>
+              </div>
 
-          <div className="field-row mt-3">
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-type">
-                {t.asuransi.fieldTypeLabel}
-              </label>
-              <select
-                id="ins-type"
-                value={type}
-                onChange={(e) => setType(e.target.value as InsuranceType)}
-                className="select"
-              >
-                {TYPE_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {t.asuransi.typeLabels[opt]}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-status">
-                {t.asuransi.fieldStatusLabel}
-              </label>
-              <select
-                id="ins-status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as InsuranceStatus)}
-                className="select"
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {t.asuransi.statusLabels[opt]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+              <div className="wm-form__grid">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-type">
+                    {t.asuransi.fieldTypeLabel}
+                  </label>
+                  <select
+                    id="ins-type"
+                    value={type}
+                    onChange={(e) => setType(e.target.value as InsuranceType)}
+                    className="select"
+                  >
+                    {TYPE_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {t.asuransi.typeLabels[opt]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-status">
+                    {t.asuransi.fieldStatusLabel}
+                  </label>
+                  <select
+                    id="ins-status"
+                    value={status}
+                    onChange={(e) =>
+                      setStatus(e.target.value as InsuranceStatus)
+                    }
+                    className="select"
+                  >
+                    {STATUS_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {t.asuransi.statusLabels[opt]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <div className="field-row mt-3">
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-premium">
-                {t.asuransi.fieldPremiumLabel}
-              </label>
-              <MoneyInput
-                field={premiumField}
-                id="ins-premium"
-                placeholder="0"
-              />
-            </div>
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-period">
-                {t.asuransi.fieldPeriodLabel}
-              </label>
-              <select
-                id="ins-period"
-                value={premiumPeriod}
-                onChange={(e) =>
-                  setPremiumPeriod(e.target.value as PremiumPeriod)
-                }
-                className="select"
-              >
-                {PERIOD_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {t.asuransi.periodOptionLabels[opt]}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+              <div className="wm-form__grid--two">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-premium">
+                    {t.asuransi.fieldPremiumLabel}
+                  </label>
+                  <MoneyInput
+                    field={premiumField}
+                    id="ins-premium"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-period">
+                    {t.asuransi.fieldPeriodLabel}
+                  </label>
+                  <select
+                    id="ins-period"
+                    value={premiumPeriod}
+                    onChange={(e) =>
+                      setPremiumPeriod(e.target.value as PremiumPeriod)
+                    }
+                    className="select"
+                  >
+                    {PERIOD_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt}>
+                        {t.asuransi.periodOptionLabels[opt]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <div className="field-row mt-3">
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-coverage">
-                {t.asuransi.fieldCoverageLabel}
-              </label>
-              <MoneyInput
-                field={coverageField}
-                id="ins-coverage"
-                placeholder="0"
-              />
-            </div>
-            <div className="field mt-0">
-              <label className="label" htmlFor="ins-renewal">
-                {t.asuransi.fieldRenewalDateLabel}
-              </label>
-              <DateField
-                id="ins-renewal"
-                value={renewalDate}
-                locale={locale}
-                label={t.asuransi.fieldRenewalDateLabel}
-                onChange={setRenewalDate}
-              />
-            </div>
-          </div>
+              <div className="wm-form__grid--two">
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-coverage">
+                    {t.asuransi.fieldCoverageLabel}
+                  </label>
+                  <MoneyInput
+                    field={coverageField}
+                    id="ins-coverage"
+                    placeholder="0"
+                  />
+                </div>
+                <div className="field mt-0">
+                  <label className="label" htmlFor="ins-renewal">
+                    {t.asuransi.fieldRenewalDateLabel}
+                  </label>
+                  <DateField
+                    id="ins-renewal"
+                    value={renewalDate}
+                    locale={locale}
+                    label={t.asuransi.fieldRenewalDateLabel}
+                    onChange={setRenewalDate}
+                  />
+                </div>
+              </div>
 
-          <div className="field">
-            <label className="label" htmlFor="ins-policy-number">
-              {t.asuransi.fieldPolicyNumberLabel}
-            </label>
-            <input
-              id="ins-policy-number"
-              type="text"
-              value={policyNumber}
-              onChange={(e) => setPolicyNumber(e.target.value)}
-              placeholder={t.asuransi.fieldPolicyNumberPlaceholder}
-              className="input mono"
-            />
-          </div>
+              <div className="field">
+                <label className="label" htmlFor="ins-policy-number">
+                  {t.asuransi.fieldPolicyNumberLabel}
+                </label>
+                <input
+                  id="ins-policy-number"
+                  type="text"
+                  value={policyNumber}
+                  onChange={(e) => setPolicyNumber(e.target.value)}
+                  placeholder={t.asuransi.fieldPolicyNumberPlaceholder}
+                  className="input mono"
+                />
+              </div>
 
-          {/* Prototype's `.row` + `.switch` auto-renew toggle
+              {/* Prototype's `.row` + `.switch` auto-renew toggle
               (asuransi.html:487). Still gated on a renewal date being set —
               `autoRenewDate` is only sent alongside `renewalDate`, so showing
               the switch without one would be a control that does nothing
               (Honest UI). */}
-          {renewalDate && (
-            <div className="row mt-3">
-              <Switch
-                checked={autoRenewDate}
-                onCheckedChange={setAutoRenewDate}
-                aria-labelledby="ins-auto-renew-label"
-              />
-              <span className="text-[13px]" id="ins-auto-renew-label">
-                {t.asuransi.autoRenewLabel}
-              </span>
-            </div>
-          )}
+              {renewalDate && (
+                <div className="row mt-3">
+                  <Switch
+                    checked={autoRenewDate}
+                    onCheckedChange={setAutoRenewDate}
+                    aria-labelledby="ins-auto-renew-label"
+                  />
+                  <span className="text-[13px]" id="ins-auto-renew-label">
+                    {t.asuransi.autoRenewLabel}
+                  </span>
+                </div>
+              )}
 
-          <div className="field">
-            <label className="label" htmlFor="ins-notes">
-              {t.asuransi.fieldNotesLabel}
-            </label>
-            <textarea
-              id="ins-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              placeholder={t.asuransi.fieldNotesPlaceholder}
-              className="textarea resize-none"
-            />
-          </div>
+              <div className="field">
+                <label className="label" htmlFor="ins-notes">
+                  {t.asuransi.fieldNotesLabel}
+                </label>
+                <textarea
+                  id="ins-notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder={t.asuransi.fieldNotesPlaceholder}
+                  className="textarea resize-none"
+                />
+              </div>
 
-          {/* polish-j batch 7a item 9 — beneficiaries are optional and were
+              {/* polish-j batch 7a item 9 — beneficiaries are optional and were
               bloating the add form open by default; collapsed behind a
               disclosure so the required fields above are what's visible
               first. */}
-          <AdvancedDisclosure
-            label={t.asuransi.beneficiariesOptionalLabel}
-            defaultOpen={beneficiaries.length > 0}
-          >
-            <BeneficiaryEditor
-              rows={beneficiaries}
-              onChange={setBeneficiaries}
-              familyMembers={familyMembers}
-              membersUnavailable={membersUnavailable}
-              showSectionTitle={false}
-            />
-          </AdvancedDisclosure>
-        </DialogBody>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSave}
-            disabled={mutation.isPending}
-          >
-            {mutation.isPending ? t.asuransi.saving : t.asuransi.saveButton}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+              <AdvancedDisclosure
+                label={t.asuransi.beneficiariesOptionalLabel}
+                defaultOpen={beneficiaries.length > 0}
+              >
+                <BeneficiaryEditor
+                  rows={beneficiaries}
+                  onChange={setBeneficiaries}
+                  familyMembers={familyMembers}
+                  membersUnavailable={membersUnavailable}
+                  showSectionTitle={false}
+                />
+              </AdvancedDisclosure>
+            </div>
+          </div>
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
+              {t.common.cancel}
+            </PillButton>
+            <PillButton
+              type="submit"
+              variant="primary"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? t.asuransi.saving : t.asuransi.saveButton}
+            </PillButton>
+          </div>
+        </form>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -1506,34 +1507,46 @@ export default function AsuransiPage() {
         <h1 className="sr-only">{t.shell.pageTitles.asuransi}</h1>
         <BentoHero
           className="as-hero"
-          currency={null}
+          currency={isLoading ? null : "Rp"}
           value={
             isLoading ? (
               "…"
             ) : (
               <span className="wm-money">
-                {money.format(monthlyPremiumNumber)}
+                {money.format(monthlyPremiumNumber).replace(/^Rp\s*/, "")}
               </span>
             )
           }
           caption={t.asuransi.v2.heroCaption}
           controls={
-            <>
-              <GhostButton
-                onClick={() => setPayPolicyPicker(true)}
-                disabled={!familyGroupId}
-              >
-                <Banknote className="size-4" aria-hidden="true" />{" "}
-                {t.asuransi.payButtonLabel}
-              </GhostButton>
-              <GhostButton
-                lit
-                onClick={() => setShowModal(true)}
-                disabled={!familyGroupId}
-              >
-                <Plus className="size-4" aria-hidden="true" /> {t.common.add}
-              </GhostButton>
-            </>
+            <div className="as-hero-ctrl">
+              <div className="as-hero-ctrl-row">
+                <GhostButton
+                  onClick={() => setPayPolicyPicker(true)}
+                  disabled={!familyGroupId}
+                >
+                  <Banknote className="size-4" aria-hidden="true" />{" "}
+                  {t.asuransi.payButtonLabel}
+                </GhostButton>
+                <GhostButton
+                  lit
+                  onClick={() => setShowModal(true)}
+                  disabled={!familyGroupId}
+                >
+                  <Plus className="size-4" aria-hidden="true" /> {t.common.add}
+                </GhostButton>
+              </div>
+              {compositionItems.length > 0 && (
+                <div className="wm-legend">
+                  {compositionItems.map((item) => (
+                    <span key={item.label}>
+                      <i style={{ background: item.color }} />
+                      {item.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
           }
           chart={
             <div className="as-plot">
@@ -1547,6 +1560,7 @@ export default function AsuransiPage() {
                       color: "var(--wm-lime)",
                     },
                   ]}
+                  highlight={premiumTrendData.length - 1}
                   format={money.formatCompact}
                   wide
                   ariaLabel={t.asuransi.v2.chartAria}

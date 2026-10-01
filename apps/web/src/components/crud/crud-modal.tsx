@@ -2,20 +2,18 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Save } from "lucide-react";
+import { X } from "lucide-react";
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
+  DialogClose,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { useLocale } from "@/hooks/use-locale";
 import { mergeReferenceOptions } from "@/hooks/reference-options";
 import { useReferenceItems } from "@/hooks/use-reference-items";
-import { DateField } from "@/components/wm";
+import { DateField, PillButton } from "@/components/wm";
 import { IconPickerField } from "./icon-picker-field";
 import {
   MoneyInput,
@@ -443,39 +441,51 @@ function CrudForm({
           confirm. No width override — `.dialog`'s own 480px default is what
           the prototype uses for the field-bearing reference dialog, and the
           former `min-[769px]:w-[min(448px,…)]` was an app invention. */}
-      <DialogContent>
-        <DialogTitle>
-          {state.mode === "edit" ? "Edit" : "Tambah"} {config.title}
-        </DialogTitle>
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {state.mode === "edit" ? "Edit" : "Tambah"} {config.title}
+            </DialogTitle>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label="Tutup">
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
 
-        <DialogBody>
-          {rows.map((row, i) =>
-            row.length === 2 ? (
-              // `.field-row` carries no margin of its own (only `.field +
-              // .field` does), so every row after the first restores the
-              // prototype's 12px gap — matching its inline
-              // `style="margin-top: 12px"`.
-              <div
-                key={row[0].key}
-                className={i === 0 ? "field-row" : "field-row mt-3"}
-              >
-                {row.map((f) => renderField(f, true))}
-              </div>
-            ) : (
-              renderField(row[0], false)
-            ),
-          )}
-        </DialogBody>
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="wm-panel-body wm-form">
+            {rows.map((row) =>
+              row.length === 2 ? (
+                <div
+                  key={row[0].key}
+                  className="wm-form__grid wm-form__grid--two"
+                >
+                  {row.map((f) => renderField(f, true))}
+                </div>
+              ) : (
+                <div key={row[0].key} className="wm-form__grid">
+                  {renderField(row[0], false)}
+                </div>
+              ),
+            )}
+          </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Batal
-          </Button>
-          <Button onClick={handleSave} disabled={isSaving}>
-            <Save className="size-4" /> {isSaving ? "Menyimpan..." : "Simpan"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
+              Batal
+            </PillButton>
+            <PillButton
+              type="button"
+              variant="primary"
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? "Menyimpan..." : "Simpan"}
+            </PillButton>
+          </div>
+        </div>
+      </PanelContent>
     </Dialog>
   );
 }

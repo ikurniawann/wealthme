@@ -173,7 +173,7 @@ describe("KeamananBody — Sesi Aktif + PIN honesty (EPIC-016 Task K)", () => {
     expect(screen.getByText("Akhiri")).toBeInTheDocument();
   });
 
-  it("shows the current device plus the 4 newest sessions and hides the rest behind 'Lihat semua'", async () => {
+  it("shows the current device plus the 2 newest sessions and hides the rest behind 'Lihat semua'", async () => {
     // Arrange: current session + 7 older sessions
     const others = Array.from({ length: 7 }, (_, i) => ({
       id: `session-${i}`,
@@ -202,9 +202,10 @@ describe("KeamananBody — Sesi Aktif + PIN honesty (EPIC-016 Task K)", () => {
     render(<KeamananBody />);
     await screen.findByText("iPhone");
 
-    // Assert: current device listed despite being oldest; 4 others visible
+    // Assert: current device listed despite being oldest; 2 others visible
+    // (prototype parity — sessions cap at 3 before "Lihat semua").
     expect(screen.getByText("Ini perangkatmu")).toBeInTheDocument();
-    expect(screen.getAllByText("Akhiri")).toHaveLength(4);
+    expect(screen.getAllByText("Akhiri")).toHaveLength(2);
     await userEvent.click(
       screen.getByRole("button", { name: "Lihat semua (8)" }),
     );

@@ -56,10 +56,16 @@ function render(ui: ReactElement) {
 
 // `Field` (kalkulator/page.tsx) renders a plain `<label>` (no `htmlFor`)
 // followed by its input as a sibling — `getByLabelText` has nothing to
-// associate them by, so locate the input via the label text instead.
+// associate them by, so locate the input via the label text instead. Money
+// fields render a `MoneyInput` (`@/components/wm`), whose `<input>` sits one
+// level deeper inside its `.wm-affix` wrapper span, so fall back to a
+// `querySelector` when the sibling itself isn't the `<input>`.
 function fieldInput(labelText: string): HTMLInputElement {
   const label = screen.getByText(labelText);
-  return label.nextElementSibling as HTMLInputElement;
+  const sibling = label.nextElementSibling as HTMLElement;
+  return (
+    sibling.tagName === "INPUT" ? sibling : sibling.querySelector("input")
+  ) as HTMLInputElement;
 }
 
 beforeEach(() => {
@@ -80,7 +86,7 @@ describe("Tabungan — unreachable target with a zero monthly deposit", () => {
     const user = userEvent.setup();
     render(<KalkulatorPage />);
 
-    await user.click(screen.getByRole("button", { name: "Tabungan" }));
+    await user.click(screen.getByRole("tab", { name: "Tabungan" }));
 
     const setorInput = fieldInput("Setoran per Bulan (Rp)");
     await user.clear(setorInput);
@@ -98,7 +104,7 @@ describe("Tabungan — unreachable target with a zero monthly deposit", () => {
     const user = userEvent.setup();
     render(<KalkulatorPage />);
 
-    await user.click(screen.getByRole("button", { name: "Tabungan" }));
+    await user.click(screen.getByRole("tab", { name: "Tabungan" }));
 
     expect(
       screen.queryByText(
@@ -114,7 +120,7 @@ describe("Split Group — Jumlah Orang 0 or negative", () => {
     const user = userEvent.setup();
     render(<KalkulatorPage />);
 
-    await user.click(screen.getByRole("button", { name: "Split Group" }));
+    await user.click(screen.getByRole("tab", { name: "Split Group" }));
 
     const peopleInput = fieldInput("Jumlah Orang");
     await user.clear(peopleInput);
@@ -132,7 +138,7 @@ describe("Split Group — Jumlah Orang 0 or negative", () => {
     const user = userEvent.setup();
     render(<KalkulatorPage />);
 
-    await user.click(screen.getByRole("button", { name: "Split Group" }));
+    await user.click(screen.getByRole("tab", { name: "Split Group" }));
 
     const peopleInput = fieldInput("Jumlah Orang");
     await user.clear(peopleInput);
@@ -147,7 +153,7 @@ describe("Split Group — Jumlah Orang 0 or negative", () => {
     const user = userEvent.setup();
     render(<KalkulatorPage />);
 
-    await user.click(screen.getByRole("button", { name: "Split Group" }));
+    await user.click(screen.getByRole("tab", { name: "Split Group" }));
 
     expect(
       screen.queryByText("Jumlah orang harus lebih dari 0."),

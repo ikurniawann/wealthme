@@ -1,6 +1,7 @@
 import {
   checkBudgetAlert,
   checkCashFlowAlert,
+  notifyTransaction,
 } from "./transaction-alerts.util";
 
 import type { NotificationSenderPort } from "../notifications/notification-sender.port";
@@ -210,5 +211,51 @@ describe("checkCashFlowAlert usage-percentage cap (batch-2 #5)", () => {
       body: string;
     };
     expect(body).toContain("90%");
+  });
+});
+
+describe("notifyTransaction — personal copy for row-scoped recorder", () => {
+  function prismaMock() {
+    return {
+      member: {
+        findFirst: jest.fn().mockResolvedValue({
+          user: { notificationPrefs: null },
+        }),
+      },
+      notification: { create: jest.fn().mockResolvedValue({}) },
+    };
+  }
+  const tx = { category: { name: "Makan" }, account: { name: "Kas" } };
+
+  it("adds a notification addressed to the recorder", async () => {
+    const prisma = prismaMock();
+    await notifyTransaction(
+      prisma as never,
+      "fg1",
+      "expense",
+      BigInt(50_000),
+      tx,
+      undefined,
+      "child-user",
+    );
+    expect(prisma.notification.create).toHaveBeenCalledTimes(2);
+    expect(prisma.notification.create.mock.calls[1][0].data.userId).toBe(
+      "child-user",
+    );
+  });
+
+  it("creates only the household row for other roles", async () => {
+    const prisma = prismaMock();
+    await notifyTransaction(
+      prisma as never,
+      "fg1",
+      "expense",
+      BigInt(50_000),
+      tx,
+    );
+    expect(prisma.notification.create).toHaveBeenCalledTimes(1);
+    expect(
+      prisma.notification.create.mock.calls[0][0].data.userId,
+    ).toBeUndefined();
   });
 });

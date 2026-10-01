@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import "./tujuan.css";
-import { Plus, Pencil, Trash2, PiggyBank, Wallet } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -22,9 +22,11 @@ import {
   BentoHero,
   BentoTiles,
   GhostButton,
+  GoalIcon,
   HeroKpi,
   MiniList,
   MiniRow,
+  SeeAll,
   TipsCard,
   Track,
 } from "@/components/wm";
@@ -36,7 +38,7 @@ import {
   ContributeDialog,
   type SourceAccountOption,
 } from "./_components/contribute-dialog";
-import { ContributionHistory } from "./_components/contribution-history";
+import { GoalDetailPanel } from "./_components/goal-detail-panel";
 
 import type { GoalDto, GoalStatus } from "@wealthme/contracts";
 
@@ -107,118 +109,60 @@ function GoalSkeleton() {
 
 interface GoalTileProps {
   goal: GoalDto;
-  onEdit: (goal: GoalDto) => void;
-  onDelete: (goal: GoalDto) => void;
-  onContribute: (goal: GoalDto) => void;
-  canManage: boolean;
-  familyGroupId: string;
-  token: string | undefined;
+  onOpenDetail: (goal: GoalDto) => void;
 }
 
-function GoalTile({
-  goal,
-  onEdit,
-  onDelete,
-  onContribute,
-  canManage,
-  familyGroupId,
-  token,
-}: GoalTileProps) {
+// EPIC-033 revision — the tile face is now ONLY icon, name, %, progress
+// bar, and one meta line, matching docs/design/proto/tujuan.html. The
+// "Perlu menabung" advice, Setor/Edit/Hapus actions, and Riwayat Setoran
+// moved into GoalDetailPanel, opened by clicking the tile (the whole tile
+// is the trigger, same as the proto's `data-tile` button).
+function GoalTile({ goal, onOpenDetail }: GoalTileProps) {
   const { t, locale } = useLocale();
   const money = useMoney();
-  const [showHistory, setShowHistory] = useState(false);
   const tone = goalTone(goal.status);
-  const hasAutoDebit = goal.autoDebitAmount != null;
-  const monthlyNeeded = monthlyNeededFor(goal);
+
+  const metaLine =
+    goal.remainingAmount > 0
+      ? `${money.formatCompact(goal.remainingAmount)}${t.tujuan.remainingAmountSuffix}`
+      : t.tujuan.collectedSuffix.trim();
+  const dateLine = goal.targetDate
+    ? formatTargetDate(goal.targetDate, t, locale).replace(
+        t.tujuan.targetDatePrefix,
+        "",
+      )
+    : null;
 
   return (
     <div className="wm-btile tj-tile" data-tone={tone}>
-      <span className="wm-btile-tt">
-        <span className="wm-ci">{goal.icon ?? "🎯"}</span>
-        <span className="tj-name">{goal.name}</span>
-        <span className="tj-status">{t.tujuan.statusLabels[goal.status]}</span>
-      </span>
-      <span className="wm-pv tj-pv">{goal.progressPercent}%</span>
-      <Track value={goal.progressPercent} fill={tone} />
-      <small>
-        {money.format(goal.currentAmount)}
-        {t.tujuan.collectedSuffix}
-        {" · "}
-        {t.tujuan.targetPrefix}
-        {money.format(goal.targetAmount)}
-      </small>
-      <small>{formatTargetDate(goal.targetDate, t, locale)}</small>
-      <small className="tj-foot">
-        {t.tujuan.remainingPrefix}
-        {money.format(goal.remainingAmount)}
-        {" · "}
-        {goal.autoDebitAmount != null
-          ? `${t.tujuan.autoDebitPrefix}${money.format(goal.autoDebitAmount)}${t.tujuan.autoDebitSuffix}${
-              goal.autoDebitDay != null
-                ? ` · ${t.tujuan.autoDebitDayPrefix}${goal.autoDebitDay}`
-                : ""
-            }`
-          : t.tujuan.noAutoDebit}
-      </small>
-
-      {monthlyNeeded != null && (
-        <span className="tj-notice" data-tone={hasAutoDebit ? tone : "bad"}>
-          <PiggyBank aria-hidden="true" />
-          <span>
-            {t.tujuan.noticeSavingsPrefix}
-            <strong>{money.format(monthlyNeeded)}</strong>
-            {hasAutoDebit
-              ? `${t.tujuan.noticeSavingsPerMonthMiddle}${monthsUntilTarget(goal.targetDate as string)}${t.tujuan.noticeSavingsMonthsSuffix}`
-              : t.tujuan.noticeSavingsNoAutoDebitSuffix}
-          </span>
-        </span>
-      )}
-
-      {canManage && (
-        <span className="tj-acts">
-          <button
-            type="button"
-            onClick={() => onContribute(goal)}
-            aria-label={`${t.tujuan.contributeButtonAriaPrefix}${goal.name}`}
-            data-primary="true"
-          >
-            <Wallet aria-hidden="true" /> {t.tujuan.contributeButton}
-          </button>
-          <button type="button" onClick={() => onEdit(goal)}>
-            <Pencil aria-hidden="true" /> {t.tujuan.editButton}
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(goal)}
-            data-danger="true"
-          >
-            <Trash2 aria-hidden="true" /> {t.tujuan.deleteButton}
-          </button>
-        </span>
-      )}
       <button
         type="button"
-        className="tj-history-toggle"
-        onClick={() => setShowHistory((open) => !open)}
-        aria-expanded={showHistory}
+        className="tj-tile-main"
+        onClick={() => onOpenDetail(goal)}
+        aria-label={`${goal.name}, ${goal.progressPercent}% ${t.tujuan.collectedSuffix.trim()}`}
       >
-        {showHistory ? t.tujuan.historyToggleHide : t.tujuan.historyToggleShow}
+        <span className="wm-btile-tt">
+          <span className="wm-ci tj-icon">
+            <GoalIcon icon={goal.icon} name={goal.name} size={16} />
+          </span>
+          <span className="tj-name">{goal.name}</span>
+          <span className="tj-status sr-only">
+            {t.tujuan.statusLabels[goal.status]}
+          </span>
+        </span>
+        <span className="wm-pv tj-pv">{goal.progressPercent}%</span>
+        <Track value={goal.progressPercent} fill={tone} />
+        <small className="tj-meta-line">
+          {metaLine}
+          {dateLine ? ` · ${dateLine}` : ""}
+        </small>
       </button>
-      {showHistory && (
-        <div className="tj-history">
-          <ContributionHistory
-            goalId={goal.id}
-            familyGroupId={familyGroupId}
-            token={token}
-          />
-        </div>
-      )}
     </div>
   );
 }
 
 export default function TujuanPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const money = useMoney();
   const { data: session } = useSession();
   const token = session?.accessToken;
@@ -246,6 +190,7 @@ export default function TujuanPage() {
   const [contributingGoal, setContributingGoal] = useState<GoalDto | null>(
     null,
   );
+  const [detailGoal, setDetailGoal] = useState<GoalDto | null>(null);
 
   const {
     data: goals,
@@ -288,10 +233,24 @@ export default function TujuanPage() {
   const sortedGoals = [...(goals ?? [])].sort(
     (a, b) => a.progressPercent - b.progressPercent,
   );
-  const attentionGoals = sortedGoals
+  // EPIC-033 revision — docs/design/proto/tujuan.html's "Perlu perhatian"
+  // list is never just the goals that are behind: it's `attn` (needs_boost
+  // / at_risk, at_risk sorted first) followed by every other goal sorted
+  // by progress descending, capped at MAX_ATTENTION_ROWS. The card always
+  // lists every goal as a row — "all good" is no longer a one-sentence
+  // empty state, it's just the natural result when nothing is behind.
+  const needsAttentionGoals = sortedGoals
     .filter((g) => NEEDS_ATTENTION.includes(g.status))
+    .sort((a, b) =>
+      a.status === b.status ? 0 : a.status === "at_risk" ? -1 : 1,
+    );
+  const restGoals = (goals ?? [])
+    .filter((g) => !NEEDS_ATTENTION.includes(g.status))
+    .sort((a, b) => b.progressPercent - a.progressPercent);
+  const attentionGoals = needsAttentionGoals
+    .concat(restGoals)
     .slice(0, MAX_ATTENTION_ROWS);
-  const worst = attentionGoals[0];
+  const worst = needsAttentionGoals[0];
   const worstMonthly = worst ? monthlyNeededFor(worst) : null;
   const lowestIndex = (goals ?? []).reduce(
     (m, g, k, arr) => (g.progressPercent < arr[m]!.progressPercent ? k : m),
@@ -462,11 +421,25 @@ export default function TujuanPage() {
             : `${t.tujuan.v2.heroCapPrefix}${goals?.length ?? 0}${t.tujuan.v2.heroCapSuffix}`
         }
         controls={
-          canManage ? (
-            <GhostButton lit onClick={openAdd} disabled={!familyGroupId}>
-              <Plus aria-hidden="true" /> {t.tujuan.addGoalButton}
-            </GhostButton>
-          ) : undefined
+          <div className="tj-hero-ctrl">
+            {canManage && (
+              <GhostButton lit onClick={openAdd} disabled={!familyGroupId}>
+                <Plus aria-hidden="true" /> {t.tujuan.addGoalButton}
+              </GhostButton>
+            )}
+            {goals && goals.length > 0 && (
+              <div className="tj-legend" aria-hidden="true">
+                <span>
+                  <i className="tj-legend-dot" data-tone="lime" />
+                  {t.tujuan.v2.legendSaved}
+                </span>
+                <span>
+                  <i className="tj-legend-dot" data-tone="ghost" />
+                  {t.tujuan.v2.legendTarget}
+                </span>
+              </div>
+            )}
+          </div>
         }
         chart={
           goals && goals.length > 0 ? (
@@ -513,9 +486,10 @@ export default function TujuanPage() {
               <div key={g.id} role="listitem" className="tj-att">
                 <MiniList>
                   <MiniRow
-                    icon={g.icon ?? "🎯"}
+                    icon={<GoalIcon icon={g.icon} name={g.name} size={16} />}
                     title={`${g.name} ${g.progressPercent}%`}
-                    meta={t.tujuan.statusLabels[g.status]}
+                    meta={`${g.progressPercent}% · ${t.tujuan.statusLabels[g.status]}`}
+                    amount={money.formatCompact(g.remainingAmount)}
                   />
                 </MiniList>
                 <Track value={g.progressPercent} fill={goalTone(g.status)} />
@@ -544,16 +518,7 @@ export default function TujuanPage() {
         {!isLoading && !isError && goals && (
           <BentoTiles>
             {sortedGoals.map((g) => (
-              <GoalTile
-                key={g.id}
-                goal={g}
-                onEdit={handleEdit}
-                onDelete={setDeletingGoal}
-                onContribute={setContributingGoal}
-                canManage={!!canManage}
-                familyGroupId={familyGroupId ?? ""}
-                token={token}
-              />
+              <GoalTile key={g.id} goal={g} onOpenDetail={setDetailGoal} />
             ))}
             {canManage && (
               <AddTile onClick={openAdd}>
@@ -572,6 +537,11 @@ export default function TujuanPage() {
             : t.tujuan.v2.tipsOkTitle
         }
         mosaic={mosaic}
+        action={
+          worst ? (
+            <SeeAll href="/transaksi">{t.tujuan.v2.tipsSeeTransactions}</SeeAll>
+          ) : undefined
+        }
       >
         {worst && worstMonthly != null
           ? `${t.tujuan.noticeSavingsPrefix}${money.format(worstMonthly)}${t.tujuan.noticeSavingsNoAutoDebitSuffix}`
@@ -593,6 +563,48 @@ export default function TujuanPage() {
           familyGroupId={familyGroupId}
           token={token}
           onClose={() => setContributingGoal(null)}
+        />
+      )}
+      {detailGoal && (
+        <GoalDetailPanel
+          key={detailGoal.id}
+          goal={detailGoal}
+          tone={goalTone(detailGoal.status)}
+          metaLine={
+            detailGoal.remainingAmount > 0
+              ? `${money.formatCompact(detailGoal.remainingAmount)}${t.tujuan.remainingAmountSuffix}`
+              : t.tujuan.collectedSuffix.trim()
+          }
+          dateLine={
+            detailGoal.targetDate
+              ? formatTargetDate(detailGoal.targetDate, t, locale).replace(
+                  t.tujuan.targetDatePrefix,
+                  "",
+                )
+              : null
+          }
+          monthlyNeeded={monthlyNeededFor(detailGoal)}
+          monthsUntilTarget={
+            detailGoal.targetDate
+              ? monthsUntilTarget(detailGoal.targetDate)
+              : null
+          }
+          canManage={!!canManage}
+          familyGroupId={familyGroupId ?? ""}
+          token={token}
+          onClose={() => setDetailGoal(null)}
+          onEdit={(g) => {
+            setDetailGoal(null);
+            handleEdit(g);
+          }}
+          onDelete={(g) => {
+            setDetailGoal(null);
+            setDeletingGoal(g);
+          }}
+          onContribute={(g) => {
+            setDetailGoal(null);
+            setContributingGoal(g);
+          }}
         />
       )}
       <ConfirmDeleteDialog

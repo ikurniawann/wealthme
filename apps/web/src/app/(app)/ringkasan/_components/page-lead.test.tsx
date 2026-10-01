@@ -15,8 +15,6 @@ function renderLead(displayCurrency: DisplayCurrency) {
   const onDisplayCurrencyChange = jest.fn();
   render(
     <RingkasanPageLead
-      familyName="Keluarga Demo"
-      todayLabel="25 September 2026"
       trendRange="12m"
       onTrendRangeChange={jest.fn()}
       customRange={{ from: "2026-06-25", to: "2026-09-25" }}
@@ -98,8 +96,6 @@ function renderTrendLead(
   const onCustomRangeChange = jest.fn();
   const result = render(
     <RingkasanPageLead
-      familyName="Keluarga Demo"
-      todayLabel="25 September 2026"
       trendRange={trendRange}
       onTrendRangeChange={jest.fn()}
       customRange={customRange}

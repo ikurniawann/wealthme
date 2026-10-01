@@ -2,19 +2,17 @@
 
 import { useId, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Crown, Eye, EyeOff } from "lucide-react";
+import { Crown, Eye, EyeOff, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
+  DialogClose,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
-import { InfoTip } from "@/components/wm";
+import { InfoTip, PillButton } from "@/components/wm";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
@@ -246,386 +244,394 @@ export function AddMemberDialog({
           prototype's; only the fields the API actually persists are
           rendered (see the omission note on "Rekening yang ditugaskan"
           below). Default 480px width, as in the prototype. */}
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {credentials
-              ? t.akun.addDependant.credentialsTitle
-              : t.akun.addDependant.dialogTitle}
-          </DialogTitle>
-          {!credentials && (
-            <DialogDescription>
-              {t.akun.addDependant.dialogDesc}
-            </DialogDescription>
-          )}
-        </DialogHeader>
-        {credentials ? (
-          <DialogBody key="credentials">
-            <p className="hint mt-0">
-              {t.akun.addDependant.passwordChangeRequiredHint}
-            </p>
-            <div className="field mt-0">
-              <label className="label">
-                {t.akun.copyCredentials.usernameRowLabel}
-              </label>
-              <div className="flex items-center gap-1.5">
-                <input
-                  className="input mono"
-                  readOnly
-                  value={credentials.username}
-                />
-                <CopyButton
-                  value={credentials.username}
-                  ariaLabel={t.akun.copyCredentials.usernameAriaLabel}
-                />
-              </div>
-            </div>
-            <div className="field mt-0">
-              <label className="label">
-                {t.akun.copyCredentials.passwordRowLabel}
-              </label>
-              <div className="flex items-center gap-1.5">
-                <div className="relative flex-1">
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {credentials
+                ? t.akun.addDependant.credentialsTitle
+                : t.akun.addDependant.dialogTitle}
+            </DialogTitle>
+            {!credentials && (
+              <DialogDescription className="wm-panel-desc">
+                {t.akun.addDependant.dialogDesc}
+              </DialogDescription>
+            )}
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {credentials ? (
+            <div className="wm-panel-body wm-form" key="credentials">
+              <p className="hint mt-0">
+                {t.akun.addDependant.passwordChangeRequiredHint}
+              </p>
+              <div className="field mt-0">
+                <label className="label">
+                  {t.akun.copyCredentials.usernameRowLabel}
+                </label>
+                <div className="flex items-center gap-1.5">
                   <input
-                    className="input mono pr-10"
+                    className="input mono"
                     readOnly
-                    type={showCredPassword ? "text" : "password"}
+                    value={credentials.username}
+                  />
+                  <CopyButton
+                    value={credentials.username}
+                    ariaLabel={t.akun.copyCredentials.usernameAriaLabel}
+                  />
+                </div>
+              </div>
+              <div className="field mt-0">
+                <label className="label">
+                  {t.akun.copyCredentials.passwordRowLabel}
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <div className="relative flex-1">
+                    <input
+                      className="input mono pr-10"
+                      readOnly
+                      type={showCredPassword ? "text" : "password"}
+                      value={credentials.password}
+                    />
+                    <button
+                      type="button"
+                      aria-label={
+                        showCredPassword
+                          ? t.akun.addDependant.hidePassword
+                          : t.akun.addDependant.showPassword
+                      }
+                      aria-pressed={showCredPassword}
+                      onClick={() => setShowCredPassword((s) => !s)}
+                      className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
+                    >
+                      {showCredPassword ? (
+                        <EyeOff className="size-3.5" />
+                      ) : (
+                        <Eye className="size-3.5" />
+                      )}
+                    </button>
+                  </div>
+                  <CopyButton
                     value={credentials.password}
+                    ariaLabel={t.akun.copyCredentials.passwordAriaLabel}
+                  />
+                </div>
+              </div>
+              <CopyButton
+                variant="full"
+                value={`Username: ${credentials.username}\nPassword: ${credentials.password}`}
+                ariaLabel={t.akun.copyCredentials.copyAllButton}
+                label={t.akun.copyCredentials.copyAllButton}
+              />
+              {credentials.pendingEmail && (
+                <p className="hint">
+                  {t.akun.addDependant.pendingEmailSentPrefix}
+                  {credentials.pendingEmail}.
+                </p>
+              )}
+            </div>
+          ) : (
+            <div className="wm-panel-body wm-form" key="form">
+              {/* polish-j batch 7a item 4 — Nama leads (was Hubungan); Hubungan
+              moved down next to Peran instead of being the first field.
+              Email and Hak akses (both genuinely optional / rarely
+              touched) collapse under "Opsi lanjutan" below. */}
+              <div className="field">
+                <label className="label" htmlFor={`${fieldId}-name`}>
+                  {t.akun.addDependant.nameLabel}
+                </label>
+                <input
+                  id={`${fieldId}-name`}
+                  ref={nameRef}
+                  className="input"
+                  placeholder={t.akun.addDependant.namePlaceholder}
+                  type="text"
+                  aria-invalid={fieldErrors.name}
+                  aria-describedby={
+                    fieldErrors.name ? `${fieldId}-name-error` : undefined
+                  }
+                  onChange={() =>
+                    setFieldErrors((e) => ({ ...e, name: false }))
+                  }
+                />
+                {fieldErrors.name && (
+                  <p
+                    id={`${fieldId}-name-error`}
+                    className="hint text-destructive"
+                  >
+                    {t.akun.addDependant.nameRequiredError}
+                  </p>
+                )}
+              </div>
+              <div className="field">
+                <label className="label" htmlFor={`${fieldId}-username`}>
+                  {t.akun.addDependant.usernameLabel}
+                </label>
+                <div className="flex items-stretch">
+                  <input
+                    id={`${fieldId}-username`}
+                    ref={usernameRef}
+                    className="input rounded-r-none"
+                    placeholder={t.akun.addDependant.usernamePlaceholder}
+                    type="text"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    aria-invalid={fieldErrors.username}
+                    aria-describedby={
+                      fieldErrors.username
+                        ? `${fieldId}-username-error`
+                        : undefined
+                    }
+                    onChange={() =>
+                      setFieldErrors((e) => ({ ...e, username: false }))
+                    }
+                  />
+                  <span className="mono grid shrink-0 place-items-center rounded-r-[9px] border border-l-0 bg-secondary px-2.5 text-[12.5px] text-muted-foreground">
+                    @{handle ?? "…"}
+                  </span>
+                </div>
+                {fieldErrors.username && (
+                  <p
+                    id={`${fieldId}-username-error`}
+                    className="hint text-destructive"
+                  >
+                    {t.akun.addDependant.usernameRequiredError}
+                  </p>
+                )}
+              </div>
+              <div className="field">
+                <label className="label" htmlFor={`${fieldId}-password`}>
+                  {t.akun.addDependant.passwordLabel}
+                </label>
+                <div className="relative">
+                  <input
+                    id={`${fieldId}-password`}
+                    ref={passwordRef}
+                    className="input pr-10"
+                    placeholder={t.akun.addDependant.passwordPlaceholder}
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="new-password"
+                    aria-invalid={fieldErrors.password}
+                    aria-describedby={
+                      fieldErrors.password
+                        ? `${fieldId}-password-error`
+                        : undefined
+                    }
+                    onChange={() =>
+                      setFieldErrors((e) => ({ ...e, password: false }))
+                    }
                   />
                   <button
                     type="button"
                     aria-label={
-                      showCredPassword
+                      showPassword
                         ? t.akun.addDependant.hidePassword
                         : t.akun.addDependant.showPassword
                     }
-                    aria-pressed={showCredPassword}
-                    onClick={() => setShowCredPassword((s) => !s)}
+                    aria-pressed={showPassword}
+                    onClick={() => setShowPassword((s) => !s)}
+                    // UI/UX audit fix (docs/uiux-beda) — muted-foreground on the
+                    // dark-theme input background reads as near-invisible; bump
+                    // to foreground/70 (still a subtle icon, but findable) and
+                    // give it a visible hit target background on hover/focus.
                     className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
                   >
-                    {showCredPassword ? (
+                    {showPassword ? (
                       <EyeOff className="size-3.5" />
                     ) : (
                       <Eye className="size-3.5" />
                     )}
                   </button>
                 </div>
-                <CopyButton
-                  value={credentials.password}
-                  ariaLabel={t.akun.copyCredentials.passwordAriaLabel}
-                />
-              </div>
-            </div>
-            <CopyButton
-              variant="full"
-              value={`Username: ${credentials.username}\nPassword: ${credentials.password}`}
-              ariaLabel={t.akun.copyCredentials.copyAllButton}
-              label={t.akun.copyCredentials.copyAllButton}
-            />
-            {credentials.pendingEmail && (
-              <p className="hint">
-                {t.akun.addDependant.pendingEmailSentPrefix}
-                {credentials.pendingEmail}.
-              </p>
-            )}
-          </DialogBody>
-        ) : (
-          <DialogBody key="form">
-            {/* polish-j batch 7a item 4 — Nama leads (was Hubungan); Hubungan
-              moved down next to Peran instead of being the first field.
-              Email and Hak akses (both genuinely optional / rarely
-              touched) collapse under "Opsi lanjutan" below. */}
-            <div className="field">
-              <label className="label" htmlFor={`${fieldId}-name`}>
-                {t.akun.addDependant.nameLabel}
-              </label>
-              <input
-                id={`${fieldId}-name`}
-                ref={nameRef}
-                className="input"
-                placeholder={t.akun.addDependant.namePlaceholder}
-                type="text"
-                aria-invalid={fieldErrors.name}
-                aria-describedby={
-                  fieldErrors.name ? `${fieldId}-name-error` : undefined
-                }
-                onChange={() => setFieldErrors((e) => ({ ...e, name: false }))}
-              />
-              {fieldErrors.name && (
-                <p
-                  id={`${fieldId}-name-error`}
-                  className="hint text-destructive"
-                >
-                  {t.akun.addDependant.nameRequiredError}
-                </p>
-              )}
-            </div>
-            <div className="field">
-              <label className="label" htmlFor={`${fieldId}-username`}>
-                {t.akun.addDependant.usernameLabel}
-              </label>
-              <div className="flex items-stretch">
-                <input
-                  id={`${fieldId}-username`}
-                  ref={usernameRef}
-                  className="input rounded-r-none"
-                  placeholder={t.akun.addDependant.usernamePlaceholder}
-                  type="text"
-                  autoCapitalize="none"
-                  autoCorrect="off"
-                  aria-invalid={fieldErrors.username}
-                  aria-describedby={
-                    fieldErrors.username
-                      ? `${fieldId}-username-error`
-                      : undefined
-                  }
-                  onChange={() =>
-                    setFieldErrors((e) => ({ ...e, username: false }))
-                  }
-                />
-                <span className="mono grid shrink-0 place-items-center rounded-r-[9px] border border-l-0 bg-secondary px-2.5 text-[12.5px] text-muted-foreground">
-                  @{handle ?? "…"}
-                </span>
-              </div>
-              {fieldErrors.username && (
-                <p
-                  id={`${fieldId}-username-error`}
-                  className="hint text-destructive"
-                >
-                  {t.akun.addDependant.usernameRequiredError}
-                </p>
-              )}
-            </div>
-            <div className="field">
-              <label className="label" htmlFor={`${fieldId}-password`}>
-                {t.akun.addDependant.passwordLabel}
-              </label>
-              <div className="relative">
-                <input
-                  id={`${fieldId}-password`}
-                  ref={passwordRef}
-                  className="input pr-10"
-                  placeholder={t.akun.addDependant.passwordPlaceholder}
-                  type={showPassword ? "text" : "password"}
-                  autoComplete="new-password"
-                  aria-invalid={fieldErrors.password}
-                  aria-describedby={
-                    fieldErrors.password
-                      ? `${fieldId}-password-error`
-                      : undefined
-                  }
-                  onChange={() =>
-                    setFieldErrors((e) => ({ ...e, password: false }))
-                  }
-                />
-                <button
-                  type="button"
-                  aria-label={
-                    showPassword
-                      ? t.akun.addDependant.hidePassword
-                      : t.akun.addDependant.showPassword
-                  }
-                  aria-pressed={showPassword}
-                  onClick={() => setShowPassword((s) => !s)}
-                  // UI/UX audit fix (docs/uiux-beda) — muted-foreground on the
-                  // dark-theme input background reads as near-invisible; bump
-                  // to foreground/70 (still a subtle icon, but findable) and
-                  // give it a visible hit target background on hover/focus.
-                  className="absolute right-3 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-full text-foreground/70 transition-colors hover:bg-accent hover:text-primary focus-visible:bg-accent focus-visible:text-primary focus-visible:outline-none"
-                >
-                  {showPassword ? (
-                    <EyeOff className="size-3.5" />
-                  ) : (
-                    <Eye className="size-3.5" />
-                  )}
-                </button>
-              </div>
-              {fieldErrors.password && (
-                <p
-                  id={`${fieldId}-password-error`}
-                  className="hint text-destructive"
-                >
-                  {t.akun.addDependant.passwordRequiredError}
-                </p>
-              )}
-            </div>
-            <div className="field">
-              <div className="flex items-center gap-1">
-                <label className="label" htmlFor={`${fieldId}-role`}>
-                  {t.akun.addDependant.roleLabel}
-                </label>
-                <InfoTip
-                  label={`${concepts.infoLabelPrefix}${concepts.systemRole}`}
-                >
-                  {concepts.systemRoleInfo}
-                </InfoTip>
-              </div>
-              <select
-                id={`${fieldId}-role`}
-                className="select"
-                value={role}
-                onChange={(e) => {
-                  const next = e.target.value as
-                    | "dependant"
-                    | "operational"
-                    | "member"
-                    | "spouse";
-                  setRole(next);
-                  // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
-                  // relationship picker below to "istri" (the API rejects any
-                  // other pairing with role owner); switching away clears it
-                  // back to editable.
-                  setRelationship(next === "spouse" ? "istri" : "");
-                  if (next === "spouse") setAccessRoleId("");
-                }}
-              >
-                <option value="spouse">
-                  {t.akun.addDependant.roleOptions.istriCoMaster}
-                </option>
-                <option value="dependant">
-                  {t.akun.addDependant.roleOptions.dependant}
-                </option>
-                <option value="operational">
-                  {t.akun.addDependant.roleOptions.operational}
-                </option>
-                <option value="member">
-                  {t.akun.addDependant.roleOptions.member}
-                </option>
-              </select>
-            </div>
-            {isIstriCoMaster && (
-              <div className="notice notice--warning mt-2.5">
-                <Crown className="size-4 shrink-0" aria-hidden />
-                <span>{t.akun.addDependant.istriCoMasterHint}</span>
-              </div>
-            )}
-            <div className="field">
-              <div className="flex items-center gap-1">
-                <label className="label" htmlFor={`${fieldId}-relationship`}>
-                  {t.akun.addDependant.relationshipLabel}
-                </label>
-                <InfoTip
-                  label={`${concepts.infoLabelPrefix}${concepts.relationship}`}
-                >
-                  {concepts.relationshipInfo}
-                </InfoTip>
-              </div>
-              <select
-                id={`${fieldId}-relationship`}
-                className="select"
-                value={relationship}
-                disabled={isIstriCoMaster}
-                onChange={(e) =>
-                  setRelationship(e.target.value as MemberRelationship | "")
-                }
-              >
-                <option value="">
-                  {t.akun.addDependant.relationshipNoneOption}
-                </option>
-                {MemberRelationshipSchema.options.map((r) => (
-                  <option key={r} value={r}>
-                    {r.charAt(0).toUpperCase() + r.slice(1)}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <AdvancedDisclosure label={t.common.advancedOptions}>
-              <div className="field mt-0">
-                <label className="label" htmlFor={`${fieldId}-email`}>
-                  {t.akun.addDependant.emailLabel}
-                </label>
-                <input
-                  id={`${fieldId}-email`}
-                  ref={emailRef}
-                  className="input"
-                  placeholder={t.akun.addDependant.emailPlaceholder}
-                  type="email"
-                  autoComplete="off"
-                  aria-describedby={`${fieldId}-email-hint`}
-                />
-                <p className="hint" id={`${fieldId}-email-hint`}>
-                  {t.akun.addDependant.emailHint}
-                </p>
-              </div>
-              <div className="field mt-0">
-                <div className="flex items-center gap-1">
-                  <label className="label" htmlFor={`${fieldId}-access-role`}>
-                    {t.akun.addDependant.accessRoleLabel}
-                  </label>
-                  <InfoTip
-                    label={`${concepts.infoLabelPrefix}${concepts.accessRole}`}
+                {fieldErrors.password && (
+                  <p
+                    id={`${fieldId}-password-error`}
+                    className="hint text-destructive"
                   >
-                    {concepts.accessRoleInfo}
-                  </InfoTip>
-                </div>
-                <select
-                  id={`${fieldId}-access-role`}
-                  className="select"
-                  value={accessRoleId}
-                  disabled={isIstriCoMaster}
-                  onChange={(e) => setAccessRoleId(e.target.value)}
-                  aria-describedby={
-                    roles.length === 0
-                      ? `${fieldId}-access-role-hint`
-                      : undefined
-                  }
-                >
-                  <option value="">
-                    {t.akun.addDependant.accessRoleDefaultOption}
-                  </option>
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-                {roles.length === 0 && (
-                  <p className="hint" id={`${fieldId}-access-role-hint`}>
-                    {t.akun.addDependant.accessRoleEmptyHint}
+                    {t.akun.addDependant.passwordRequiredError}
                   </p>
                 )}
               </div>
-            </AdvancedDisclosure>
-            {/* Honest UI — the prototype's "Rekening yang ditugaskan
+              <div className="field">
+                <div className="flex items-center gap-1">
+                  <label className="label" htmlFor={`${fieldId}-role`}>
+                    {t.akun.addDependant.roleLabel}
+                  </label>
+                  <InfoTip
+                    label={`${concepts.infoLabelPrefix}${concepts.systemRole}`}
+                  >
+                    {concepts.systemRoleInfo}
+                  </InfoTip>
+                </div>
+                <select
+                  id={`${fieldId}-role`}
+                  className="select"
+                  value={role}
+                  onChange={(e) => {
+                    const next = e.target.value as
+                      | "dependant"
+                      | "operational"
+                      | "member"
+                      | "spouse";
+                    setRole(next);
+                    // EPIC-024 A1 — selecting "Istri (Co-Master)" locks the
+                    // relationship picker below to "istri" (the API rejects any
+                    // other pairing with role owner); switching away clears it
+                    // back to editable.
+                    setRelationship(next === "spouse" ? "istri" : "");
+                    if (next === "spouse") setAccessRoleId("");
+                  }}
+                >
+                  <option value="spouse">
+                    {t.akun.addDependant.roleOptions.istriCoMaster}
+                  </option>
+                  <option value="dependant">
+                    {t.akun.addDependant.roleOptions.dependant}
+                  </option>
+                  <option value="operational">
+                    {t.akun.addDependant.roleOptions.operational}
+                  </option>
+                  <option value="member">
+                    {t.akun.addDependant.roleOptions.member}
+                  </option>
+                </select>
+              </div>
+              {isIstriCoMaster && (
+                <div className="notice notice--warning mt-2.5">
+                  <Crown className="size-4 shrink-0" aria-hidden />
+                  <span>{t.akun.addDependant.istriCoMasterHint}</span>
+                </div>
+              )}
+              <div className="field">
+                <div className="flex items-center gap-1">
+                  <label className="label" htmlFor={`${fieldId}-relationship`}>
+                    {t.akun.addDependant.relationshipLabel}
+                  </label>
+                  <InfoTip
+                    label={`${concepts.infoLabelPrefix}${concepts.relationship}`}
+                  >
+                    {concepts.relationshipInfo}
+                  </InfoTip>
+                </div>
+                <select
+                  id={`${fieldId}-relationship`}
+                  className="select"
+                  value={relationship}
+                  disabled={isIstriCoMaster}
+                  onChange={(e) =>
+                    setRelationship(e.target.value as MemberRelationship | "")
+                  }
+                >
+                  <option value="">
+                    {t.akun.addDependant.relationshipNoneOption}
+                  </option>
+                  {MemberRelationshipSchema.options.map((r) => (
+                    <option key={r} value={r}>
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <AdvancedDisclosure label={t.common.advancedOptions}>
+                <div className="field mt-0">
+                  <label className="label" htmlFor={`${fieldId}-email`}>
+                    {t.akun.addDependant.emailLabel}
+                  </label>
+                  <input
+                    id={`${fieldId}-email`}
+                    ref={emailRef}
+                    className="input"
+                    placeholder={t.akun.addDependant.emailPlaceholder}
+                    type="email"
+                    autoComplete="off"
+                    aria-describedby={`${fieldId}-email-hint`}
+                  />
+                  <p className="hint" id={`${fieldId}-email-hint`}>
+                    {t.akun.addDependant.emailHint}
+                  </p>
+                </div>
+                <div className="field mt-0">
+                  <div className="flex items-center gap-1">
+                    <label className="label" htmlFor={`${fieldId}-access-role`}>
+                      {t.akun.addDependant.accessRoleLabel}
+                    </label>
+                    <InfoTip
+                      label={`${concepts.infoLabelPrefix}${concepts.accessRole}`}
+                    >
+                      {concepts.accessRoleInfo}
+                    </InfoTip>
+                  </div>
+                  <select
+                    id={`${fieldId}-access-role`}
+                    className="select"
+                    value={accessRoleId}
+                    disabled={isIstriCoMaster}
+                    onChange={(e) => setAccessRoleId(e.target.value)}
+                    aria-describedby={
+                      roles.length === 0
+                        ? `${fieldId}-access-role-hint`
+                        : undefined
+                    }
+                  >
+                    <option value="">
+                      {t.akun.addDependant.accessRoleDefaultOption}
+                    </option>
+                    {roles.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </select>
+                  {roles.length === 0 && (
+                    <p className="hint" id={`${fieldId}-access-role-hint`}>
+                      {t.akun.addDependant.accessRoleEmptyHint}
+                    </p>
+                  )}
+                </div>
+              </AdvancedDisclosure>
+              {/* Honest UI — the prototype's "Rekening yang ditugaskan
               (opsional)" select is omitted: POST
               /family-groups/:id/members/dependant accepts only
               name/username/initialPassword/role/relationship, so an account
               picker here would silently drop the operator's choice. */}
-          </DialogBody>
-        )}
-        <DialogFooter>
-          {credentials ? (
-            <button
-              type="button"
-              className="btn btn--primary"
-              onClick={() => handleOpenChange(false)}
-            >
-              {t.akun.copyCredentials.doneButton}
-            </button>
-          ) : (
-            <>
-              <button
+            </div>
+          )}
+          <div className="wm-panel-foot">
+            {credentials ? (
+              <PillButton
                 type="button"
-                className="btn btn--outline"
+                variant="primary"
                 onClick={() => handleOpenChange(false)}
               >
-                {t.common.cancel}
-              </button>
-              <button
-                type="button"
-                disabled={isPending || !familyGroupId}
-                className="btn btn--primary disabled:opacity-60"
-                onClick={handleCreate}
-              >
-                {isPending
-                  ? t.akun.addDependant.creating
-                  : t.akun.addDependant.createButton}
-              </button>
-            </>
-          )}
-        </DialogFooter>
-      </DialogContent>
+                {t.akun.copyCredentials.doneButton}
+              </PillButton>
+            ) : (
+              <>
+                <PillButton
+                  type="button"
+                  onClick={() => handleOpenChange(false)}
+                >
+                  {t.common.cancel}
+                </PillButton>
+                <PillButton
+                  type="button"
+                  variant="primary"
+                  disabled={isPending || !familyGroupId}
+                  onClick={handleCreate}
+                >
+                  {isPending
+                    ? t.akun.addDependant.creating
+                    : t.akun.addDependant.createButton}
+                </PillButton>
+              </>
+            )}
+          </div>
+        </div>
+      </PanelContent>
     </Dialog>
   );
 }

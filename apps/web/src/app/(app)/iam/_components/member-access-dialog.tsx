@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import {
   LEGACY_ACCESS_PRESETS,
@@ -14,12 +15,13 @@ import {
 
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
+  DialogClose,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { PillButton } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
@@ -44,6 +46,8 @@ export type AccessMember = {
   role: string;
   accessRoleId?: string | null;
   accessOverrides?: AccessPermissions;
+  /** "Lihat saldo" — absent/true = balances visible (API default). */
+  canViewBalances?: boolean;
 };
 
 type MemberAccessDialogProps = {
@@ -97,6 +101,11 @@ export function MemberAccessDialog({
   const initialRoleId = member?.accessRoleId ?? null;
   const [memberType, setMemberType] = useState<MemberType>(initialType);
   const [roleId, setRoleId] = useState<string | null>(initialRoleId);
+  const [canViewBalances, setCanViewBalances] = useState<boolean>(
+    member?.canViewBalances ?? true,
+  );
+  // Master & Co-Master always see balances — the toggle would be a no-op.
+  const balanceToggleApplies = memberType !== "spouse";
   const [perms, setPerms] = useState<Record<AccessPage, AccessLevel>>(() => ({
     ...baselineFor(initialType, initialRoleId, roles).permissions,
     ...(member?.accessOverrides ?? {}),
@@ -133,7 +142,11 @@ export function MemberAccessDialog({
         {
           token,
           method: "PUT",
-          body: JSON.stringify({ accessRoleId: roleId, overrides }),
+          body: JSON.stringify({
+            accessRoleId: roleId,
+            overrides,
+            canViewBalances,
+          }),
         },
       );
     },
@@ -157,20 +170,30 @@ export function MemberAccessDialog({
       open={member !== null}
       onOpenChange={(o) => !o && !save.isPending && onClose()}
     >
-      <DialogContent className="dialog--wide">
-        <DialogTitle>Atur Akses: {member?.name}</DialogTitle>
-        <DialogDescription>
-          Tentukan halaman apa saja yang bisa dibuka anggota ini dan data siapa
-          yang dia lihat.
-        </DialogDescription>
+      <PanelContent variant="side" size="lg" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              Atur Akses: {member?.name}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              Tentukan halaman apa saja yang bisa dibuka anggota ini dan data
+              siapa yang dia lihat.
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label="Tutup">
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         <form
+          className="flex min-h-0 flex-1 flex-col"
           onSubmit={(e) => {
             e.preventDefault();
             save.mutate();
           }}
         >
-          <DialogBody>
-            <div className="field-row">
+          <div className="wm-panel-body wm-form">
+            <div className="wm-form__grid">
               <label className="field" htmlFor={`${fieldId}-type`}>
                 <span className="label">
                   1. {t.akun.memberConcepts.systemRole}
@@ -222,6 +245,23 @@ export function MemberAccessDialog({
               </label>
             </div>
 
+            {balanceToggleApplies && (
+              <div className="row row--between items-start gap-3">
+                <div className="pr-3">
+                  <div className="t-sm t-bold" id={`${fieldId}-balances`}>
+                    {t.iam.viewBalancesLabel}
+                  </div>
+                  <div className="t-xs t-muted">{t.iam.viewBalancesHint}</div>
+                </div>
+                <Switch
+                  aria-labelledby={`${fieldId}-balances`}
+                  checked={canViewBalances}
+                  disabled={save.isPending}
+                  onCheckedChange={(checked) => setCanViewBalances(checked)}
+                />
+              </div>
+            )}
+
             <div className="field">
               <div className="row row--between row--wrap">
                 <span className="label">
@@ -250,26 +290,25 @@ export function MemberAccessDialog({
                 disabled={save.isPending}
               />
             </div>
-          </DialogBody>
-          <DialogFooter>
-            <button
+          </div>
+          <div className="wm-panel-foot">
+            <PillButton
               type="button"
-              className="btn btn--outline"
               disabled={save.isPending}
               onClick={onClose}
             >
               Batal
-            </button>
-            <button
+            </PillButton>
+            <PillButton
+              variant="primary"
               type="submit"
-              className="btn btn--primary"
               disabled={save.isPending}
             >
               {save.isPending ? "Menyimpan…" : "Simpan Akses"}
-            </button>
-          </DialogFooter>
+            </PillButton>
+          </div>
         </form>
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }

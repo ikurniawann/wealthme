@@ -201,6 +201,7 @@ export class FamilyGroupsService {
       accessRoleId: m.accessRoleId,
       accessRoleName: m.accessRole?.name ?? null,
       accessOverrides: parsePermissions(m.accessOverrides),
+      canViewBalances: m.canViewBalances,
       createdAt: m.createdAt.toISOString(),
       largeTxnThreshold: m.largeTxnThreshold?.toString() ?? null,
     }));

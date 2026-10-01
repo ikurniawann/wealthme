@@ -2,11 +2,15 @@ import type { Dispatch, SetStateAction } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
+import { PillButton } from "@/components/wm";
+import { X } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
 import { MoneyInput } from "@/components/money";
 import type { MoneyField } from "@/components/money";
@@ -57,121 +61,134 @@ export function InvestmentDialogs({
 }) {
   const { t } = useLocale();
 
+  const closeInv = () => {
+    setShowAddInv(false);
+    setEditingInv(null);
+  };
+
   return (
     <>
       {/* Investment Add/Edit Dialog */}
       <Dialog
         open={showAddInv || editingInv !== null}
         onOpenChange={(open) => {
-          if (!open) {
-            setShowAddInv(false);
-            setEditingInv(null);
-          }
+          if (!open) closeInv();
         }}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingInv
-                ? t.investasi.modalTitleEdit
-                : t.investasi.modalTitleAdd}
-            </DialogTitle>
-          </DialogHeader>
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                {editingInv
+                  ? t.investasi.modalTitleEdit
+                  : t.investasi.modalTitleAdd}
+              </DialogTitle>
+            </div>
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
           <form
             onSubmit={(e) => {
               void handleInvSubmit(e);
             }}
-            className="space-y-3"
+            className="flex min-h-0 flex-1 flex-col"
           >
-            {(["ticker", "name"] as const).map((field) => (
-              <div key={field} className="space-y-1">
-                <label className="text-[12px] text-muted-foreground capitalize">
-                  {field === "ticker"
-                    ? t.investasi.fieldTickerLabel
-                    : t.investasi.fieldNameLabel}
-                </label>
-                <input
-                  required
-                  value={invForm[field]}
-                  onChange={(e) =>
-                    setInvForm((f) => ({ ...f, [field]: e.target.value }))
-                  }
-                  placeholder={
-                    field === "ticker"
-                      ? t.investasi.fieldTickerPlaceholder
-                      : t.investasi.fieldNamePlaceholder
-                  }
-                  className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            ))}
-            <div className="space-y-1">
-              <label className="text-[12px] text-muted-foreground">
-                {t.investasi.fieldTypeLabel}
-              </label>
-              <select
-                value={invForm.type}
-                onChange={(e) =>
-                  setInvForm((f) => ({
-                    ...f,
-                    type: e.target.value as InvestmentType,
-                  }))
-                }
-                className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-              >
-                {(
-                  [
-                    "saham",
-                    "reksa_dana",
-                    "obligasi",
-                    "emas",
-                    "kripto",
-                    "lainnya",
-                  ] as InvestmentType[]
-                ).map((typeOption) => (
-                  <option key={typeOption} value={typeOption}>
-                    {typeOption.replace("_", " ")}
-                  </option>
+            <div className="wm-panel-body wm-form">
+              <div className="wm-form__grid">
+                {(["ticker", "name"] as const).map((field) => (
+                  <div key={field} className="field">
+                    <label className="label">
+                      {field === "ticker"
+                        ? t.investasi.fieldTickerLabel
+                        : t.investasi.fieldNameLabel}
+                    </label>
+                    <input
+                      required
+                      value={invForm[field]}
+                      onChange={(e) =>
+                        setInvForm((f) => ({ ...f, [field]: e.target.value }))
+                      }
+                      placeholder={
+                        field === "ticker"
+                          ? t.investasi.fieldTickerPlaceholder
+                          : t.investasi.fieldNamePlaceholder
+                      }
+                      className="input"
+                    />
+                  </div>
                 ))}
-              </select>
+                <div className="field">
+                  <label className="label">{t.investasi.fieldTypeLabel}</label>
+                  <select
+                    value={invForm.type}
+                    onChange={(e) =>
+                      setInvForm((f) => ({
+                        ...f,
+                        type: e.target.value as InvestmentType,
+                      }))
+                    }
+                    className="select"
+                  >
+                    {(
+                      [
+                        "saham",
+                        "reksa_dana",
+                        "obligasi",
+                        "emas",
+                        "kripto",
+                        "lainnya",
+                      ] as InvestmentType[]
+                    ).map((typeOption) => (
+                      <option key={typeOption} value={typeOption}>
+                        {typeOption.replace("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="field">
+                  <label className="label">
+                    {t.investasi.fieldQuantityLabel}
+                  </label>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    required
+                    min="0"
+                    step="any"
+                    value={invForm.quantity}
+                    onChange={(e) =>
+                      setInvForm((f) => ({ ...f, quantity: e.target.value }))
+                    }
+                    className="input"
+                  />
+                </div>
+                <div className="field">
+                  <label className="label" htmlFor="laporan-cost-basis">
+                    {t.investasi.fieldCostBasisLabel}
+                  </label>
+                  <MoneyInput
+                    field={costBasisField}
+                    id="laporan-cost-basis"
+                    required
+                  />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-[12px] text-muted-foreground">
-                {t.investasi.fieldQuantityLabel}
-              </label>
-              <input
-                type="number"
-                inputMode="decimal"
-                required
-                min="0"
-                step="any"
-                value={invForm.quantity}
-                onChange={(e) =>
-                  setInvForm((f) => ({ ...f, quantity: e.target.value }))
-                }
-                className="w-full rounded-md border bg-background px-3 py-2 text-[13px] outline-none focus:ring-1 focus:ring-primary"
-              />
-            </div>
-            <div className="space-y-1">
-              <label
-                className="text-[12px] text-muted-foreground"
-                htmlFor="laporan-cost-basis"
+            <div className="wm-panel-foot">
+              <PillButton type="button" onClick={closeInv}>
+                {t.common.cancel}
+              </PillButton>
+              <PillButton
+                type="submit"
+                variant="primary"
+                disabled={invSubmitting}
               >
-                {t.investasi.fieldCostBasisLabel}
-              </label>
-              <MoneyInput
-                field={costBasisField}
-                id="laporan-cost-basis"
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit" disabled={invSubmitting} className="w-full">
                 {invSubmitting ? t.investasi.saving : t.investasi.saveButton}
-              </Button>
-            </DialogFooter>
+              </PillButton>
+            </div>
           </form>
-        </DialogContent>
+        </PanelContent>
       </Dialog>
 
       {/* Investment Delete Confirm Dialog */}

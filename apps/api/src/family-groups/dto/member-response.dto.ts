@@ -53,6 +53,10 @@ export class MemberResponseDto {
   })
   accessOverrides?: Record<string, string>;
 
+  // "Lihat saldo" (roster endpoint only). Ignored for owner/spouse.
+  @ApiPropertyOptional({ type: Boolean })
+  canViewBalances?: boolean;
+
   // EPIC-023 Task D (D3/D9, US-FAM-14) — per-member large-transaction
   // threshold, as string (BigInt-safe). Null = no gate (every pre-existing
   // member, backward compatible). Only meaningful for a row-scoped role

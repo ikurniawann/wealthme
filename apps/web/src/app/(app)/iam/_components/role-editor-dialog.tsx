@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import {
   LEGACY_ACCESS_PRESETS,
@@ -13,12 +14,12 @@ import {
 
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
+  DialogClose,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
+import { PillButton } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
@@ -48,6 +49,10 @@ type RoleEditorDialogProps = {
   onClose: () => void;
   familyGroupId: string | null;
   token: string | undefined;
+  /** EPIC-033 restyle — the "Role Akses" card's role tiles have no separate
+      delete action (iam.html's `openRoleForm` puts "Hapus" in the edit
+      panel's own footer); shown only while editing an existing role. */
+  onDelete?: (role: AccessRoleResponse) => void;
 };
 
 /**
@@ -60,6 +65,7 @@ export function RoleEditorDialog({
   onClose,
   familyGroupId,
   token,
+  onDelete,
 }: RoleEditorDialogProps) {
   const { t } = useLocale();
   const { handleError } = useApiError();
@@ -126,22 +132,30 @@ export function RoleEditorDialog({
       open={target !== null}
       onOpenChange={(o) => !o && !save.isPending && onClose()}
     >
-      <DialogContent className="dialog--wide">
-        <DialogTitle>
-          {editing ? `Edit Role: ${editing.name}` : "Buat Role"}
-        </DialogTitle>
-        <DialogDescription>
-          Role = kumpulan akses halaman. Satu role bisa dipakai banyak anggota;
-          mengubah role langsung berlaku untuk semuanya.
-        </DialogDescription>
+      <PanelContent variant="side" size="lg" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {editing ? `Edit Role: ${editing.name}` : "Buat Role"}
+            </DialogTitle>
+            <DialogDescription className="wm-panel-desc">
+              Role = kumpulan akses halaman. Satu role bisa dipakai banyak
+              anggota; mengubah role langsung berlaku untuk semuanya.
+            </DialogDescription>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label="Tutup">
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         <form
+          className="flex min-h-0 flex-1 flex-col"
           onSubmit={(e) => {
             e.preventDefault();
             if (canSave) save.mutate();
           }}
         >
-          <DialogBody>
-            <div className="field-row">
+          <div className="wm-panel-body wm-form">
+            <div className="wm-form__grid">
               <label className="field" htmlFor={`${fieldId}-name`}>
                 <span className="label">Nama role</span>
                 <input
@@ -233,30 +247,39 @@ export function RoleEditorDialog({
                 untuk semua anggota.
               </p>
             </div>
-          </DialogBody>
-          <DialogFooter>
-            <button
+          </div>
+          <div className="wm-panel-foot">
+            {editing && onDelete && (
+              <button
+                type="button"
+                className="btn btn--ghost btn--sm text-destructive"
+                style={{ marginRight: "auto" }}
+                disabled={save.isPending}
+                onClick={() => {
+                  onClose();
+                  onDelete(editing);
+                }}
+              >
+                Hapus
+              </button>
+            )}
+            <PillButton
               type="button"
-              className="btn btn--outline"
               disabled={save.isPending}
               onClick={onClose}
             >
               Batal
-            </button>
-            <button
-              type="submit"
-              className="btn btn--primary"
-              disabled={!canSave}
-            >
+            </PillButton>
+            <PillButton variant="primary" type="submit" disabled={!canSave}>
               {save.isPending
                 ? "Menyimpan…"
                 : editing
                   ? "Simpan Role"
                   : "Buat Role"}
-            </button>
-          </DialogFooter>
+            </PillButton>
+          </div>
         </form>
-      </DialogContent>
+      </PanelContent>
     </Dialog>
   );
 }

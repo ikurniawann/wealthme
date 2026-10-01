@@ -22,6 +22,7 @@ import {
 import { type AppAbility } from "../casl/casl-ability.factory";
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { redactAccount } from "../common/utils/balance-visibility.util";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
 import { accountBalanceSpec } from "../fx/fx-field-specs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -66,13 +67,18 @@ export class AccountsController {
     @Req() req: Request,
   ): Promise<AccountResponseDto[]> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.accountsService.findAll(
-      familyGroupId,
-      canSeePrivate,
-      query.owner,
-      req.tenantContext?.userId,
-      req.tenantContext?.member ?? null,
-    );
+    const member = req.tenantContext?.member ?? null;
+    return this.accountsService
+      .findAll(
+        familyGroupId,
+        canSeePrivate,
+        query.owner,
+        req.tenantContext?.userId,
+        member,
+      )
+      .then((rows) =>
+        rows.map((a) => redactAccount(a, member, req.tenantContext?.userId)),
+      );
   }
 
   @Post()
@@ -94,7 +100,15 @@ export class AccountsController {
         spec: accountBalanceSpec(dto.type),
       },
       (converted) =>
-        this.accountsService.create(familyGroupId, converted, actorOf(req)),
+        this.accountsService
+          .create(familyGroupId, converted, actorOf(req))
+          .then((a) =>
+            redactAccount(
+              a,
+              req.tenantContext?.member,
+              req.tenantContext?.userId,
+            ),
+          ),
     );
   }
 
@@ -111,13 +125,16 @@ export class AccountsController {
     @Req() req: Request,
   ): Promise<AccountResponseDto> {
     const canSeePrivate = canSeePrivateItems(req.tenantContext?.member?.role);
-    return this.accountsService.findOne(
-      familyGroupId,
-      id,
-      canSeePrivate,
-      req.tenantContext?.member ?? null,
-      req.tenantContext?.userId,
-    );
+    const member = req.tenantContext?.member ?? null;
+    return this.accountsService
+      .findOne(
+        familyGroupId,
+        id,
+        canSeePrivate,
+        member,
+        req.tenantContext?.userId,
+      )
+      .then((a) => redactAccount(a, member, req.tenantContext?.userId));
   }
 
   @Patch(":id")
@@ -162,7 +179,15 @@ export class AccountsController {
         spec: accountBalanceSpec(allowsNegative ? "cash" : undefined),
       },
       (converted) =>
-        this.accountsService.update(familyGroupId, id, converted, actorOf(req)),
+        this.accountsService
+          .update(familyGroupId, id, converted, actorOf(req))
+          .then((a) =>
+            redactAccount(
+              a,
+              req.tenantContext?.member,
+              req.tenantContext?.userId,
+            ),
+          ),
     );
   }
 

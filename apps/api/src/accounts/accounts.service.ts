@@ -42,7 +42,7 @@ function mapDuplicateAccountName(err: unknown, name: string): unknown {
     err.code === "P2002"
   ) {
     return new ConflictException(
-      `Nama "${name}" sudah dipakai akun lain di keluarga ini. Pakai nama yang berbeda.`,
+      `Akun "${name}" dengan nomor yang sama sudah ada di keluarga ini. Pakai nomor yang berbeda.`,
     );
   }
   return err;
@@ -146,6 +146,13 @@ export class AccountsService {
       await this.assertOwnerIsFamilyMember(familyGroupId, ownerUserId);
     }
 
+    await this.assertNoDuplicateNumber(
+      familyGroupId,
+      dto.type,
+      dto.institution ?? null,
+      dto.maskedNumber,
+    );
+
     try {
       const account = await this.prisma.account.create({
         data: {
@@ -166,6 +173,45 @@ export class AccountsService {
       return this.toDto(account);
     } catch (err: unknown) {
       throw mapDuplicateAccountName(err, dto.name);
+    }
+  }
+
+  /**
+   * Account identity is provider + number. maskedNumber is encrypted with a
+   * random IV, so the DB unique index can never see two equal numbers — the
+   * duplicate check has to decrypt and compare here.
+   */
+  private async assertNoDuplicateNumber(
+    familyGroupId: string,
+    type: string,
+    institution: string | null,
+    maskedNumber: string | null | undefined,
+    excludeId?: string,
+  ): Promise<void> {
+    const digits = (maskedNumber ?? "").replace(/\D/g, "");
+    if (!digits) return;
+    const siblings = await this.prisma.account.findMany({
+      where: {
+        familyGroupId,
+        type: type as never,
+        institution,
+        maskedNumber: { not: null },
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { maskedNumber: true, name: true },
+    });
+    for (const sib of siblings) {
+      let plain = "";
+      try {
+        plain = this.crypto.decrypt(sib.maskedNumber as string);
+      } catch {
+        continue;
+      }
+      if (plain.replace(/\D/g, "") === digits) {
+        throw new ConflictException(
+          `${institution ?? sib.name} dengan nomor ini sudah terdaftar di keluarga ini.`,
+        );
+      }
     }
   }
 
@@ -196,6 +242,24 @@ export class AccountsService {
     // non-member user id).
     if (ownerUserId) {
       await this.assertOwnerIsFamilyMember(familyGroupId, ownerUserId);
+    }
+
+    if (dto.maskedNumber !== undefined || dto.institution !== undefined) {
+      let currentNumber: string | null = null;
+      if (dto.maskedNumber === undefined && existing.maskedNumber) {
+        try {
+          currentNumber = this.crypto.decrypt(existing.maskedNumber);
+        } catch {
+          currentNumber = null;
+        }
+      }
+      await this.assertNoDuplicateNumber(
+        familyGroupId,
+        dto.type ?? existing.type,
+        dto.institution !== undefined ? dto.institution : existing.institution,
+        dto.maskedNumber !== undefined ? dto.maskedNumber : currentNumber,
+        id,
+      );
     }
 
     try {

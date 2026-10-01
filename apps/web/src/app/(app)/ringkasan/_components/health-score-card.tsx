@@ -1,9 +1,15 @@
 "use client";
 
-// EPIC-026 — prototype `ringkasan.html` block 5c: the "Health Score" card —
-// the `#c-health` radial mount (`WMCharts.radial(…, 176)`), a centered caption,
-// a status `.badge`, and a `.notice.notice--info` carrying the debt-ratio
-// insight.
+// EPIC-026 — prototype `ringkasan.html` block 5c: the "Skor kesehatan"
+// `.r-health` card (bento v2) — a `.gauge` mount beside a `.health-stat`
+// column (score, status pill, debt-ratio notice).
+//
+// `drawGauge()` draws a semicircle of 30 tick segments ("tick-style gauge,
+// matching the approved dashboard semicircle"), NOT a full circular ring —
+// a previous pass used `RadialChart` (a full-circle Apex radial), which
+// does not match. `/beranda`'s `HealthBento` already built this exact
+// pattern as `TickGauge` (`@/components/charts/bento-charts`) over the same
+// savings-rate shape; reused here as-is instead of duplicating it.
 //
 // Honest UI: the prototype hardcodes a 78 "Financial Health Score" from a
 // model this app does not have. The gauge therefore plots the real
@@ -12,13 +18,10 @@
 
 import { Sparkles } from "lucide-react";
 
-import { StatusBadge } from "@/components/wm";
-import { RadialChart } from "@/components/charts/apex-presets";
+import { BentoCard, StatusBadge } from "@/components/wm";
+import { TickGauge } from "@/components/charts/bento-charts";
 import { useLocale } from "@/hooks/use-locale";
 import { formatPercent1, type RingkasanData } from "./use-ringkasan-data";
-
-/** Prototype call-site height: `WMCharts.radial("#c-health", 78, "Skor", 176)`. */
-const RADIAL_HEIGHT = 176;
 
 export function HealthScoreCard({ data }: { data: RingkasanData }) {
   const { t } = useLocale();
@@ -26,23 +29,22 @@ export function HealthScoreCard({ data }: { data: RingkasanData }) {
   const score = Math.max(0, Math.min(100, savingsRate));
 
   return (
-    <article className="card">
-      <div className="card__header">
-        <h2 className="card__title">{t.ringkasan.healthScoreTitle}</h2>
-      </div>
-      <div className="card__body mx-auto flex max-w-[360px] flex-col justify-center">
-        <div className="chart">
-          <RadialChart
+    <BentoCard
+      className="rk2-health"
+      title={t.ringkasan.healthScoreTitle}
+      caption={t.ringkasan.financialHealthScoreLabel}
+    >
+      <div className="rk2-health-body">
+        <div className="rk2-health-gauge">
+          <TickGauge
             value={score}
-            label={t.ringkasan.healthScoreCenterLabel}
-            height={RADIAL_HEIGHT}
             ariaLabel={`${t.ringkasan.financialHealthScoreLabel}: ${savingsRate}`}
-          />
+          >
+            <b className="private">{score}%</b>
+            <small>{t.ringkasan.financialHealthScoreLabel}</small>
+          </TickGauge>
         </div>
-        <div className="t-xs t-muted text-center">
-          {t.ringkasan.financialHealthScoreLabel}
-        </div>
-        <div className="row justify-center" style={{ marginTop: 8 }}>
+        <div className="rk2-health-stat">
           <StatusBadge
             variant={
               savingsRate >= 20
@@ -51,6 +53,7 @@ export function HealthScoreCard({ data }: { data: RingkasanData }) {
                   ? "info"
                   : "danger"
             }
+            className="mt-2"
           >
             {savingsRate >= 20
               ? t.ringkasan.healthStatusGood
@@ -58,22 +61,22 @@ export function HealthScoreCard({ data }: { data: RingkasanData }) {
                 ? t.ringkasan.healthStatusFair
                 : t.ringkasan.healthStatusNeedsAttention}
           </StatusBadge>
+          {debtRatio !== null && (
+            <div className="notice notice--info" style={{ marginTop: 10 }}>
+              <Sparkles className="size-[15px] shrink-0" />
+              <span>
+                {t.ringkasan.healthDebtRatioNotePrefix}
+                <strong className="mono">
+                  {formatPercent1(debtRatio, dateLocale)}%
+                </strong>
+                {debtRatio <= 40
+                  ? t.ringkasan.healthDebtRatioNoteSuffixSafe
+                  : t.ringkasan.healthDebtRatioNoteSuffixAttention}
+              </span>
+            </div>
+          )}
         </div>
-        {debtRatio !== null && (
-          <div className="notice notice--info" style={{ marginTop: 12 }}>
-            <Sparkles className="size-[15px] shrink-0" />
-            <span>
-              {t.ringkasan.healthDebtRatioNotePrefix}
-              <strong className="mono">
-                {formatPercent1(debtRatio, dateLocale)}%
-              </strong>
-              {debtRatio <= 40
-                ? t.ringkasan.healthDebtRatioNoteSuffixSafe
-                : t.ringkasan.healthDebtRatioNoteSuffixAttention}
-            </span>
-          </div>
-        )}
       </div>
-    </article>
+    </BentoCard>
   );
 }

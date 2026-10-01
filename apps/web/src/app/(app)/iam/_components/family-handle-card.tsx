@@ -2,43 +2,37 @@
 
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AtSign, Pencil } from "lucide-react";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { FAMILY_HANDLE_PATTERN } from "@wealthme/contracts";
 
 import {
   Dialog,
-  DialogBody,
-  DialogContent,
+  DialogClose,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
+import { PillButton } from "@/components/wm";
 import { useApiError } from "@/hooks/use-api-error";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-
-type FamilyHandleCardProps = {
-  familyGroupId: string | null;
-  token: string | undefined;
-};
 
 /**
  * EPIC-031 — "kode keluarga": the part after "@" in every login the Master
  * creates (`budi@arsandi`). Renaming it rewrites those logins, so the dialog
  * says so before saving.
+ *
+ * iam.html's `editHandle`/`Ubah Kode` lives on the hero's "Kode: <handle>"
+ * ghost button (EPIC-033 restyle) — this card no longer renders its own
+ * trigger, it only owns the fetch + the edit dialog, fully controlled by
+ * the parent's `open`/`onOpenChange`.
  */
-export function FamilyHandleCard({
-  familyGroupId,
-  token,
-}: FamilyHandleCardProps) {
-  const { handleError } = useApiError();
-  const fieldId = useId();
-  const queryClient = useQueryClient();
+export function useFamilyHandle(
+  familyGroupId: string | null,
+  token: string | undefined,
+) {
   const key = queryKeys.familyGroups.loginHandle(familyGroupId ?? "");
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-
   const { data } = useQuery<{ handle: string }>({
     queryKey: key,
     queryFn: ({ signal }) =>
@@ -49,7 +43,37 @@ export function FamilyHandleCard({
     enabled: Boolean(token) && Boolean(familyGroupId),
     staleTime: 60_000,
   });
-  const handle = data?.handle;
+  return data?.handle;
+}
+
+type FamilyHandleDialogProps = {
+  familyGroupId: string | null;
+  token: string | undefined;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+export function FamilyHandleDialog({
+  familyGroupId,
+  token,
+  open,
+  onOpenChange,
+}: FamilyHandleDialogProps) {
+  const { handleError } = useApiError();
+  const fieldId = useId();
+  const queryClient = useQueryClient();
+  const key = queryKeys.familyGroups.loginHandle(familyGroupId ?? "");
+  const handle = useFamilyHandle(familyGroupId, token);
+  const [draft, setDraft] = useState("");
+  // Reset the draft to the current handle each time the dialog transitions
+  // from closed to open — "adjusting state when a prop changes", derived
+  // during render with plain state (no ref, no effect) per
+  // https://react.dev/learn/you-might-not-need-an-effect.
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open && draft !== (handle ?? "")) setDraft(handle ?? "");
+  }
 
   const save = useMutation({
     mutationFn: (next: string) =>
@@ -65,7 +89,7 @@ export function FamilyHandleCard({
       toast.success("Kode keluarga diubah", {
         description: `Anggota sekarang login dengan nama@${res.handle}.`,
       });
-      setEditing(false);
+      onOpenChange(false);
     },
     onError: handleError,
   });
@@ -75,60 +99,38 @@ export function FamilyHandleCard({
   const changed = normalized !== handle;
 
   return (
-    <section className="card">
-      <div
-        className="card__body row row--between row--wrap"
-        style={{ gap: 12 }}
-      >
-        <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
-          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-primary">
-            <AtSign size={15} aria-hidden="true" />
-          </span>
-          <div>
-            <div className="text-[13px] font-bold">
-              Kode keluarga:{" "}
-              <span className="mono text-primary">{handle ?? "…"}</span>
-            </div>
-            <p className="text-[12px] text-muted-foreground">
-              Anggota yang Anda buatkan akun login dengan{" "}
-              <span className="mono">nama@{handle ?? "kode"}</span>. Username
-              cukup unik di dalam keluarga ini.
-            </p>
-          </div>
-        </div>
-        <button
-          type="button"
-          className="btn btn--outline btn--sm"
-          disabled={!handle}
-          onClick={() => {
-            setDraft(handle ?? "");
-            setEditing(true);
-          }}
-        >
-          <Pencil size={14} aria-hidden="true" />
-          Ubah Kode
-        </button>
-      </div>
-
+    <>
       <Dialog
-        open={editing}
-        onOpenChange={(o) => !o && !save.isPending && setEditing(false)}
+        open={open}
+        onOpenChange={(o) => !o && !save.isPending && onOpenChange(false)}
       >
-        <DialogContent className="dialog--sm">
-          <DialogTitle>Ubah Kode Keluarga</DialogTitle>
-          <DialogDescription>
-            Semua login anggota yang Anda buatkan ikut berubah, misalnya{" "}
-            <span className="mono">budi@{handle}</span> menjadi{" "}
-            <span className="mono">budi@{valid ? normalized : "kodebaru"}</span>
-            . Beri tahu anggota setelah mengubahnya.
-          </DialogDescription>
+        <PanelContent variant="side" className="wm-form-panel">
+          <header className="wm-panel-head">
+            <div className="min-w-0">
+              <DialogTitle className="wm-panel-title">
+                Ubah Kode Keluarga
+              </DialogTitle>
+              <DialogDescription className="wm-panel-desc">
+                Semua login anggota yang Anda buatkan ikut berubah, misalnya{" "}
+                <span className="mono">budi@{handle}</span> menjadi{" "}
+                <span className="mono">
+                  budi@{valid ? normalized : "kodebaru"}
+                </span>
+                . Beri tahu anggota setelah mengubahnya.
+              </DialogDescription>
+            </div>
+            <DialogClose className="wm-panel-x" aria-label="Tutup">
+              <X aria-hidden="true" />
+            </DialogClose>
+          </header>
           <form
+            className="flex min-h-0 flex-1 flex-col"
             onSubmit={(e) => {
               e.preventDefault();
               if (valid && changed) save.mutate(normalized);
             }}
           >
-            <DialogBody>
+            <div className="wm-panel-body wm-form">
               <label className="field" htmlFor={`${fieldId}-handle`}>
                 <span className="label">Kode baru</span>
                 <input
@@ -151,27 +153,26 @@ export function FamilyHandleCard({
                   arsandi, keluarga-arsandi.
                 </span>
               </label>
-            </DialogBody>
-            <DialogFooter>
-              <button
+            </div>
+            <div className="wm-panel-foot">
+              <PillButton
                 type="button"
-                className="btn btn--outline"
                 disabled={save.isPending}
-                onClick={() => setEditing(false)}
+                onClick={() => onOpenChange(false)}
               >
                 Batal
-              </button>
-              <button
+              </PillButton>
+              <PillButton
+                variant="primary"
                 type="submit"
-                className="btn btn--primary"
                 disabled={!valid || !changed || save.isPending}
               >
                 {save.isPending ? "Menyimpan…" : "Simpan Kode"}
-              </button>
-            </DialogFooter>
+              </PillButton>
+            </div>
           </form>
-        </DialogContent>
+        </PanelContent>
       </Dialog>
-    </section>
+    </>
   );
 }

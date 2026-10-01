@@ -202,27 +202,52 @@ export default function AiPage() {
           </div>
         </div>
 
-        <div className="ai-chips" role="group" aria-label={t.ai.v2.chipsLabel}>
-          {t.ai.chips.map((chip) => (
-            <button
-              key={chip}
-              type="button"
-              onClick={() => send(chip)}
-              disabled={isStreaming}
-            >
-              {chip}
-            </button>
-          ))}
-        </div>
+        {hasConversation && (
+          <div
+            className="ai-chips"
+            role="group"
+            aria-label={t.ai.v2.chipsLabel}
+          >
+            {t.ai.chips.map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => send(chip)}
+                disabled={isStreaming}
+              >
+                {chip}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div ref={scrollRef} className="ai-body">
           {!hasConversation ? (
             <div className="ai-empty">
               <span className="ic" aria-hidden="true">
-                <Bot size={22} strokeWidth={1.6} />
+                <Bot size={34} strokeWidth={1.5} />
               </span>
               <b>{greeting}</b>
-              {t.ai.v2.emptyBody}
+              <p>{t.ai.v2.emptyBody}</p>
+              <div
+                className="ai-prompts"
+                role="group"
+                aria-label={t.ai.v2.chipsLabel}
+              >
+                {t.ai.chips.map((chip, i) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => send(chip)}
+                    disabled={isStreaming}
+                  >
+                    <span className="n" aria-hidden="true">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    {chip}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             messages.map((msg) =>
@@ -396,7 +421,7 @@ export default function AiPage() {
         title={t.ai.contextSummaryTitle}
         caption={t.ai.v2.summaryCap}
       >
-        <dl className="ai-kv">
+        <dl className="ai-kv ai-kv-big">
           <dt>{t.ai.contextNetWorthLabel}</dt>
           <dd>
             {dashboardSummary ? money.format(dashboardSummary.netWorth) : "—"}

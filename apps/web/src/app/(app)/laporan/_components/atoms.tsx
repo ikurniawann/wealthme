@@ -130,6 +130,19 @@ export function RingkasanStatCard({
   );
 }
 
+/** Up/down change pill — prototype's `chg()` helper (`.chg.up`/`.chg.dn`).
+ * `pct >= 0` renders a green "▲" pill, negative a red "▼" one; callers flip
+ * the sign before passing (e.g. a lower expense) so "good" always reads up. */
+export function ChgBadge({ pct }: { pct: number }) {
+  const up = pct >= 0;
+  return (
+    <span className="lp-chg" data-tone={up ? "up" : "down"}>
+      <span aria-hidden="true">{up ? "▲" : "▼"}</span>
+      {Math.abs(Math.round(pct))}%
+    </span>
+  );
+}
+
 export function StatementRow({
   label,
   value,

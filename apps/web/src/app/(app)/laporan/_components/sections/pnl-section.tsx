@@ -3,9 +3,37 @@ import { SectionCard } from "@/components/wm";
 import { formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import type { PnlDto } from "@wealthme/contracts";
-import { StatementRow } from "../atoms";
+import "./sections-b.css";
 
 /* ───────────────────────── Section: PNL ───────────────────────── */
+
+function LineItem({
+  label,
+  amount,
+  share,
+  color,
+}: {
+  label: string;
+  amount: number;
+  share: number;
+  color: string;
+}) {
+  return (
+    <div className="lpb-statement-row">
+      <div className="lpb-statement-label">{label}</div>
+      <div className="lpb-statement-value mono">{formatRupiah(amount)}</div>
+      <div className="lpb-statement-track">
+        <div
+          className="lpb-statement-track-fill"
+          style={{
+            width: `${Math.max(2, Math.min(100, share))}%`,
+            background: color,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
 
 export function PnlSection({
   pnl,
@@ -24,80 +52,92 @@ export function PnlSection({
     pnl && pnl.revenue > 0
       ? `${Math.round((pnl.netProfit / pnl.revenue) * 100 * 10) / 10}%`
       : "—";
+  const isPositive = (pnl?.netProfit ?? 0) >= 0;
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
-      <div className="text-[15px] font-bold">
-        {t.laporan.pnl.titlePrefix} {bulan}
-      </div>
-      {/* EPIC-023 A4 — honest disclosure of the accounting basis this report
-          uses, so a family reading "revenue" never assumes accrual timing. */}
-      <div className="text-[11px] text-muted-foreground">
-        {t.laporan.pnl.cashBasisNote}
-      </div>
-      <SectionCard>
-        <table className="w-full border-collapse text-[13px]">
-          <tbody>
-            <StatementRow
-              label={t.laporan.pnl.revenueLabel}
-              className="border-b-2 border-border"
-              labelClass="py-2.5 font-bold text-success"
-            />
-            {pnl?.revenueBreakdown.map((item) => (
-              <StatementRow
-                key={item.categoryName}
-                label={item.categoryName}
-                value={formatRupiah(item.amount)}
-                indent
-              />
-            ))}
-            <StatementRow
-              label={t.laporan.pnl.totalRevenueLabel}
-              value={pnl ? formatRupiah(pnl.revenue) : "Rp ·"}
-              className="border-b border-border"
-              labelClass="py-2 font-bold"
-              valueClass="font-extrabold text-success"
-            />
-            <StatementRow
-              label={t.laporan.pnl.expensesLabel}
-              className="border-b-2 border-border"
-              labelClass="py-2.5 font-bold text-destructive"
-            />
-            {pnl?.expenseBreakdown.map((item) => (
-              <StatementRow
-                key={item.categoryName}
-                label={item.categoryName}
-                value={formatRupiah(item.amount)}
-                indent
-              />
-            ))}
-            <StatementRow
-              label={t.laporan.pnl.totalExpensesLabel}
-              value={pnl ? formatRupiah(pnl.expenses) : "Rp ·"}
-              className="border-b border-border"
-              labelClass="py-2 font-bold"
-              valueClass="font-extrabold text-destructive"
-            />
-            <StatementRow
-              label={t.laporan.pnl.netProfitLabel}
-              value={pnl ? formatRupiah(pnl.netProfit) : "Rp ·"}
-              className="border-t-2 border-primary"
-              labelClass="py-3 text-[15px] font-extrabold"
-              valueClass={
-                "text-[16px] font-black " +
-                ((pnl?.netProfit ?? 0) >= 0
-                  ? "text-success"
-                  : "text-destructive")
-              }
-            />
-            <StatementRow
-              label={t.laporan.pnl.netMarginLabel}
-              value={netMargin}
-              labelClass="py-1 text-[11px] text-muted-foreground"
-              valueClass="text-[11px] text-muted-foreground"
-            />
-          </tbody>
-        </table>
+      <SectionCard
+        title={`${t.laporan.pnl.titlePrefix} ${bulan}`}
+        action={
+          <div className="wm-legend">
+            <span>
+              <i style={{ background: "var(--wm-lime)" }} />
+              {t.laporan.pnl.revenueLabel}
+            </span>
+            <span>
+              <i style={{ background: "var(--wm-orange)" }} />
+              {t.laporan.pnl.expensesLabel}
+            </span>
+          </div>
+        }
+      >
+        {/* EPIC-023 A4 — honest disclosure of the accounting basis this
+            report uses, so a family reading "revenue" never assumes accrual
+            timing. Period caption lives in the card title above. */}
+        <div className="mb-3 text-[11px] text-muted-foreground">
+          {t.laporan.pnl.cashBasisNote}
+        </div>
+        <div className="lpb-statement-group text-success">
+          {t.laporan.pnl.revenueLabel}
+        </div>
+        {pnl?.revenueBreakdown.map((item) => (
+          <LineItem
+            key={item.categoryName}
+            label={item.categoryName}
+            amount={item.amount}
+            share={pnl.revenue > 0 ? (item.amount / pnl.revenue) * 100 : 0}
+            color="var(--wm-lime)"
+          />
+        ))}
+        <div className="lpb-statement-row lpb-statement-subtotal">
+          <div className="lpb-statement-label">
+            {t.laporan.pnl.totalRevenueLabel}
+          </div>
+          <div className="lpb-statement-value mono text-success">
+            {pnl ? formatRupiah(pnl.revenue) : "Rp ·"}
+          </div>
+        </div>
+
+        <div className="lpb-statement-group mt-4 text-destructive">
+          {t.laporan.pnl.expensesLabel}
+        </div>
+        {pnl?.expenseBreakdown.map((item) => (
+          <LineItem
+            key={item.categoryName}
+            label={item.categoryName}
+            amount={item.amount}
+            share={pnl.expenses > 0 ? (item.amount / pnl.expenses) * 100 : 0}
+            color="var(--wm-orange)"
+          />
+        ))}
+        <div className="lpb-statement-row lpb-statement-subtotal">
+          <div className="lpb-statement-label">
+            {t.laporan.pnl.totalExpensesLabel}
+          </div>
+          <div className="lpb-statement-value mono text-destructive">
+            {pnl ? formatRupiah(pnl.expenses) : "Rp ·"}
+          </div>
+        </div>
+
+        <div className="lpb-statement-net">
+          <div>
+            <div className="lpb-statement-net-label">
+              {t.laporan.pnl.netProfitLabel}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {t.laporan.pnl.netMarginLabel} {netMargin}
+            </div>
+          </div>
+          <div
+            className={
+              "lpb-statement-net-value mono " +
+              (isPositive ? "text-success" : "text-destructive")
+            }
+          >
+            {pnl ? formatRupiah(pnl.netProfit) : "Rp ·"}
+          </div>
+        </div>
+
         <div className="mt-2 text-right text-[11px] text-muted-foreground">
           {t.laporan.pnl.directionNotePrefix}{" "}
           <button

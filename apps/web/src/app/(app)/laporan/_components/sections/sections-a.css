@@ -1,0 +1,291 @@
+/**
+ * Styling for the laporan report sections owned by this file:
+ * ringkasan, bulanan, harian, perf, tahunan, family, aliran, bank.
+ * Builds on bento.css tokens (--wm-*) — do not duplicate its rules, only
+ * add what those tabs need beyond the shared kit.
+ */
+
+/* ───────────── money / KPI nowrap (never let "Rp" wrap) ───────────── */
+
+.lap-a-kpi-value {
+  display: block;
+  font-size: clamp(18px, 1.6vw, 24px);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lap-a-amt {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ───────────── compact rekap table (bulanan) ───────────── */
+
+.lap-a-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.lap-a-table {
+  width: 100%;
+  min-width: 420px;
+  border-collapse: collapse;
+  font-size: var(--wm-type-12);
+}
+
+.lap-a-table thead th {
+  padding: 6px 8px;
+  color: var(--wm-muted);
+  font-size: var(--wm-type-11);
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--wm-line);
+}
+
+.lap-a-table thead th[data-num="true"] {
+  text-align: right;
+}
+
+.lap-a-table tbody tr {
+  height: 44px;
+  border-bottom: 1px solid var(--wm-line);
+}
+
+.lap-a-table tbody tr:hover {
+  background: var(--wm-card-2);
+}
+
+.lap-a-table tbody tr:last-child {
+  border-bottom: 0;
+}
+
+.lap-a-table td {
+  padding: 0 8px;
+  font-weight: 500;
+}
+
+.lap-a-table td[data-num="true"] {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.lap-a-table .lap-a-pos {
+  color: color-mix(in srgb, var(--wm-lime) 70%, black);
+}
+
+.lap-a-table .lap-a-neg {
+  color: var(--wm-orange);
+}
+
+.lap-a-table tr[data-subtotal="true"] {
+  font-weight: 700;
+  border-top: 2px solid var(--wm-ink);
+}
+
+/* ───────────── perf gauge + bars ───────────── */
+
+.lap-a-perf-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--wm-line);
+}
+
+.lap-a-perf-bar:last-child {
+  border-bottom: 0;
+}
+
+.lap-a-perf-bar-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lap-a-perf-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--wm-type-12);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ───────────── breakdown track rows (aliran) ───────────── */
+
+.lap-a-flow-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 8px 0;
+}
+
+.lap-a-flow-row + .lap-a-flow-row {
+  border-top: 1px solid var(--wm-line);
+}
+
+.lap-a-flow-name {
+  overflow: hidden;
+  font-size: var(--wm-type-12);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lap-a-flow-amt {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--wm-type-12);
+  font-weight: 700;
+}
+
+.lap-a-flow-track {
+  grid-column: 1 / -1;
+}
+
+/* ───────────── bank chips / rows ───────────── */
+
+.lap-a-bank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--wm-line);
+}
+
+.lap-a-bank-row:last-child {
+  border-bottom: 0;
+}
+
+.lap-a-bank-chip {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+  font-size: var(--wm-type-11);
+  font-weight: 700;
+}
+
+.lap-a-bank-meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.lap-a-bank-name {
+  overflow: hidden;
+  font-size: var(--wm-type-13);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lap-a-bank-sub {
+  overflow: hidden;
+  color: var(--wm-muted);
+  font-size: var(--wm-type-11);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lap-a-bank-balance {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--wm-type-13);
+  font-weight: 700;
+}
+
+.lap-a-bank-inout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.lap-a-bank-inout + .lap-a-bank-inout {
+  border-top: 1px solid var(--wm-line);
+}
+
+.lap-a-bank-inout-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--wm-type-12);
+}
+
+.lap-a-bank-inout-name {
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lap-a-bank-inout-amt {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.lap-a-bank-inout-bar {
+  display: flex;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--wm-ghost);
+}
+
+.lap-a-bank-inout-bar > i {
+  display: block;
+  height: 100%;
+}
+
+/* ───────────── empty state ───────────── */
+
+.lap-a-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 20px 4px;
+  color: var(--wm-muted);
+  font-size: var(--wm-type-12);
+  text-align: center;
+}
+
+.lap-a-empty b {
+  color: var(--wm-ink);
+  font-weight: 600;
+}
+
+/* ───────────── family member row ───────────── */
+
+.lap-a-member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--wm-line);
+}
+
+.lap-a-member-row:last-child {
+  border-bottom: 0;
+}
+
+@media (max-width: 760px) {
+  .lap-a-table {
+    min-width: 360px;
+  }
+}

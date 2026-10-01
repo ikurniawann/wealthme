@@ -1,38 +1,26 @@
 "use client";
 
-// EPIC-025 N3-C2 — HBarChart mount for the liability breakdown, over the same
-// `/liabilities` list `/liabilitas` already fetches. App-only: the prototype's
-// ringkasan has no liability chart, so this keeps the existing feature while
-// rendering on the prototype's `.card` surface, placed last so the five
-// prototype blocks above stay in their original order.
-//
-// Colour: previously hardcoded to `var(--destructive)` at this call site. Now
-// left unset so `HBarChart` falls back to the shared palette's `--chart-1`
-// (brand teal) — the destructive red is reserved for the top-expenses series
-// the prototype itself colours that way.
+// EPIC-025 N3-C2 / EPIC-026 bento v2 — liability breakdown over the same
+// `/liabilities` list `/liabilitas` already fetches. Maps onto the
+// prototype's `.r-liab` ("Liabilitas terbesar") bento card, placed alongside
+// the health-score card per `ringkasan.html`'s grid. `drawLiabilities()`
+// renders `#liabBars` as an `.hbars` list (name, amount in red, a thin red
+// track bar sized off the largest liability) — not an Apex hbar chart.
 
-import { HBarChart } from "@/components/charts/apex-presets";
+import { BentoCard, Track } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import type { RingkasanData } from "./use-ringkasan-data";
 
 export function LiabilityBreakdownCard({ data }: { data: RingkasanData }) {
   const { t } = useLocale();
-  const {
-    isLiabilitiesLoading,
-    liabilityBreakdown,
-    liabilityCategories,
-    liabilityData,
-    liabilityAriaLabel,
-    money,
-    moneyFull,
-  } = data;
+  const { isLiabilitiesLoading, liabilityBreakdown, liabilityData, moneyFull } =
+    data;
+
+  const maxAmount = liabilityData.reduce((max, v) => Math.max(max, v), 0);
 
   return (
-    <section className="card">
-      <div className="card__header">
-        <h2 className="card__title">{t.ringkasan.liabilityBreakdownTitle}</h2>
-      </div>
-      <div className="card__body">
+    <BentoCard className="rk2-liab" title={t.ringkasan.liabilityBreakdownTitle}>
+      <div className="stack private" style={{ gap: 10, marginTop: 12 }}>
         {isLiabilitiesLoading ? (
           <div className="h-[180px] animate-pulse rounded-md bg-muted" />
         ) : liabilityBreakdown.length === 0 ? (
@@ -40,16 +28,26 @@ export function LiabilityBreakdownCard({ data }: { data: RingkasanData }) {
             {t.ringkasan.emptyLiabilityBreakdown}
           </div>
         ) : (
-          <div className="chart private">
-            <HBarChart
-              categories={liabilityCategories}
-              data={liabilityData}
-              ariaLabel={liabilityAriaLabel}
-              money={{ format: moneyFull, formatCompact: money }}
-            />
-          </div>
+          liabilityBreakdown.map((l) => {
+            const amount = Number(l.remainingBalance);
+            return (
+              <div key={l.id}>
+                <div className="row row--between">
+                  <span className="t-xs t-bold truncate">{l.name}</span>
+                  <span className="t-xs t-danger mono shrink-0">
+                    {moneyFull(amount)}
+                  </span>
+                </div>
+                <Track
+                  value={maxAmount > 0 ? (amount / maxAmount) * 100 : 0}
+                  fill="bad"
+                  className="mt-[5px]"
+                />
+              </div>
+            );
+          })
         )}
       </div>
-    </section>
+    </BentoCard>
   );
 }

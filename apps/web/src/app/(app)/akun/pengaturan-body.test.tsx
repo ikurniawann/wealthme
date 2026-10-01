@@ -183,8 +183,8 @@ describe("PengaturanBody, Theme & Language Picker Wiring", () => {
       const selects = screen.getAllByRole("combobox");
       const themeSelect = selects[2]; // 0=language, 1=dateFormat, 2=theme
 
-      // Act — select "Gelap (Dark)"
-      await user.selectOptions(themeSelect, "Gelap (Dark)");
+      // Act — select "Gelap"
+      await user.selectOptions(themeSelect, "Gelap");
 
       // Assert — the real setTheme should have been called with "dark"
       // (Currently FAILS because PengaturanBody doesn't call setTheme)
@@ -200,7 +200,7 @@ describe("PengaturanBody, Theme & Language Picker Wiring", () => {
       const themeSelect = selects[2];
 
       // Act
-      await user.selectOptions(themeSelect, "Ikuti Sistem");
+      await user.selectOptions(themeSelect, "Ikuti sistem");
 
       // Assert
       expect(mockSetTheme).toHaveBeenCalledWith("system");
@@ -221,14 +221,14 @@ describe("PengaturanBody, Theme & Language Picker Wiring", () => {
       render(<PengaturanBody />);
 
       // Assert — the theme select should display the value for "dark"
-      // which corresponds to the option "🌙 Gelap (Dark)"
+      // which corresponds to the option "Gelap"
       const selects = screen.getAllByRole("combobox");
       const themeSelect = selects[2] as HTMLSelectElement;
 
       // Currently this FAILS because PengaturanBody reads from orphaned
-      // localStorage["wealthme_settings"], which defaults to "☀️ Terang (Light)"
+      // localStorage["wealthme_settings"], which defaults to "Terang"
       // regardless of what useTheme() returns
-      expect(themeSelect.value).toMatch(/Gelap.*Dark/);
+      expect(themeSelect.value).toMatch(/Gelap/);
     });
   });
 
@@ -341,9 +341,9 @@ describe("PengaturanBody, Theme & Language Picker Wiring", () => {
       const selects = screen.getAllByRole("combobox");
       const themeSelect = selects[2] as HTMLSelectElement;
 
-      // Currently FAILS: themeSelect.value === "☀️ Terang (Light)"
-      // (from orphaned settings default) instead of "🌙 Gelap (Dark)"
-      expect(themeSelect.value).toMatch(/Gelap.*Dark/);
+      // Currently FAILS: themeSelect.value === "Terang"
+      // (from orphaned settings default) instead of "Gelap"
+      expect(themeSelect.value).toMatch(/Gelap/);
     });
   });
 
@@ -459,8 +459,9 @@ describe("PengaturanBody, Currency Picker Wiring (EPIC-016 Task B2)", () => {
       // selectable row, so target the row container specifically (it's the
       // only ancestor div carrying "cursor-pointer") rather than the
       // immediate wrapping div, which is just the title's own text div.
-      expect(eurOption.closest("button.cursor-pointer")).toHaveClass(
-        "border-primary",
+      expect(eurOption.closest("button.cursor-pointer")).toHaveAttribute(
+        "aria-checked",
+        "true",
       );
     });
 
@@ -523,8 +524,9 @@ describe("PengaturanBody, Currency Picker Wiring (EPIC-016 Task B2)", () => {
       const idrOption = screen.getByText(/Rupiah Indonesia/);
       // See the EUR test above for why this targets the row container
       // specifically instead of the immediate (title-only) wrapping div.
-      expect(idrOption.closest("button.cursor-pointer")).toHaveClass(
-        "border-primary",
+      expect(idrOption.closest("button.cursor-pointer")).toHaveAttribute(
+        "aria-checked",
+        "true",
       );
     });
   });

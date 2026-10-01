@@ -253,6 +253,8 @@ export class CaslAbilityFactory {
         can("read", "TaxRecord");
         can("create", "Transaction");
         can("read", "Transaction");
+        // Recording a transaction needs the category picker; read-only.
+        can("read", "Category");
         break;
 
       // EPIC-023 Task C (D2) — a financial co-owner: full CRUD on every
@@ -324,6 +326,8 @@ export class CaslAbilityFactory {
         can("update", "Notification");
         can("create", "Transaction");
         can("read", "Transaction");
+        // Recording a transaction needs the category picker; read-only.
+        can("read", "Category");
         break;
 
       // EPIC-023 Task C (D5) — a helper/driver: their own account AND its
@@ -347,6 +351,8 @@ export class CaslAbilityFactory {
         can("update", "Notification");
         can("create", "Transaction");
         can("read", "Transaction");
+        // Recording a transaction needs the category picker; read-only.
+        can("read", "Category");
         break;
 
       default: {

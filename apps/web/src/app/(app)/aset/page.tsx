@@ -20,6 +20,7 @@ import {
   BarChart2,
   Building,
   type LucideIcon,
+  X,
 } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -35,9 +36,11 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogBody,
+  DialogClose,
   DialogContent,
   DialogFooter,
   DialogTitle,
+  PanelContent,
 } from "@/components/ui/dialog";
 import {
   AddTile,
@@ -53,6 +56,7 @@ import {
   HeroKpi,
   MiniList,
   MiniRow,
+  PillButton,
   SeeAll,
   TipsCard,
 } from "@/components/wm";
@@ -384,204 +388,223 @@ function AddAssetModal({
     // rendered through the shared Base UI Dialog like every other add/edit
     // dialog in the app (see Asuransi's local dialog for the same pattern).
     <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent>
-        <DialogTitle>
-          {editing ? t.aset.modalTitleEdit : t.aset.modalTitle}
-        </DialogTitle>
-
-        <DialogBody>
-          <form onSubmit={handleSubmit} id="asset-form" className="space-y-0">
-            <div className="field mt-0">
-              <label className="label" htmlFor="asset-name">
-                {t.aset.fieldNameLabel}
-              </label>
-              <input
-                id="asset-name"
-                className="input"
-                placeholder={t.aset.fieldNamePlaceholder}
-                maxLength={100}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="field">
-              <label className="label" htmlFor="asset-type">
-                {t.aset.fieldCategoryLabel}
-              </label>
-              <select
-                id="asset-type"
-                className="select"
-                value={type}
-                onChange={(e) => {
-                  const newType = e.target.value as AssetTypeId;
-                  setType(newType);
-                  // EPIC-023 D19/US-ASSET-4: pre-fill the rate field from the
-                  // per-type default only when the user hasn't typed one yet
-                  // — a suggestion, not a constraint; still freely editable.
-                  if (!valueChangeRatePct.trim()) {
-                    setValueChangeRatePct(
-                      String(DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[newType]),
-                    );
-                  }
-                }}
-              >
-                {ASSET_TYPES.map((assetType) => (
-                  <option key={assetType} value={assetType}>
-                    {t.aset.assetTypeLabels[assetType]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="field">
-              <label className="label" htmlFor="asset-value">
-                {t.aset.fieldValueLabel}
-              </label>
-              <MoneyInput
-                field={valueField}
-                id="asset-value"
-                placeholder={t.aset.fieldValuePlaceholder}
-              />
-            </div>
-
-            {/* Same shared segmented-control markup as Splitbill's
-                "Bagi Rata"/"Custom per Orang" toggle, not a bespoke
-                2-button block. */}
-            <div className="field">
-              <span className="label">{t.aset.fieldValueChangeModeLabel}</span>
-              <div
-                className="segmented w-full"
-                role="tablist"
-                aria-label={t.aset.fieldValueChangeModeLabel}
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={valueChangeMode === "percent"}
-                  onClick={() => setValueChangeMode("percent")}
-                  className="segmented__item flex-1"
-                >
-                  {t.aset.fieldValueChangeModePercentOption}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={valueChangeMode === "fixed"}
-                  onClick={() => setValueChangeMode("fixed")}
-                  className="segmented__item flex-1"
-                >
-                  {t.aset.fieldValueChangeModeFixedOption}
-                </button>
-              </div>
-            </div>
-
-            {valueChangeMode === "percent" ? (
-              <div className="field">
-                <label className="label" htmlFor="asset-rate">
-                  {t.aset.fieldValueChangeRateLabel}
+      <PanelContent variant="side" className="wm-form-panel">
+        <header className="wm-panel-head">
+          <div className="min-w-0">
+            <DialogTitle className="wm-panel-title">
+              {editing ? t.aset.modalTitleEdit : t.aset.modalTitle}
+            </DialogTitle>
+          </div>
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
+        <form
+          onSubmit={handleSubmit}
+          id="asset-form"
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div className="wm-panel-body wm-form">
+            <div className="wm-form__grid">
+              <div className="field mt-0">
+                <label className="label" htmlFor="asset-name">
+                  {t.aset.fieldNameLabel}
                 </label>
                 <input
-                  id="asset-rate"
-                  type="number"
+                  id="asset-name"
                   className="input"
-                  placeholder={t.aset.fieldValueChangeRatePlaceholder}
-                  inputMode="decimal"
-                  step="0.01"
-                  min={-100}
-                  max={100}
-                  value={valueChangeRatePct}
-                  onChange={(e) => setValueChangeRatePct(e.target.value)}
+                  placeholder={t.aset.fieldNamePlaceholder}
+                  maxLength={100}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
                 />
-                <span className="hint">
-                  {t.aset.defaultRateHelperPrefix}:{" "}
-                  {DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[type]}%
-                </span>
               </div>
-            ) : (
+
               <div className="field">
-                <label className="label" htmlFor="asset-value-change-amount">
-                  {t.aset.fieldValueChangeAmountLabel}
+                <label className="label" htmlFor="asset-type">
+                  {t.aset.fieldCategoryLabel}
+                </label>
+                <select
+                  id="asset-type"
+                  className="select"
+                  value={type}
+                  onChange={(e) => {
+                    const newType = e.target.value as AssetTypeId;
+                    setType(newType);
+                    // EPIC-023 D19/US-ASSET-4: pre-fill the rate field from the
+                    // per-type default only when the user hasn't typed one yet
+                    // — a suggestion, not a constraint; still freely editable.
+                    if (!valueChangeRatePct.trim()) {
+                      setValueChangeRatePct(
+                        String(DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[newType]),
+                      );
+                    }
+                  }}
+                >
+                  {ASSET_TYPES.map((assetType) => (
+                    <option key={assetType} value={assetType}>
+                      {t.aset.assetTypeLabels[assetType]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="field">
+                <label className="label" htmlFor="asset-value">
+                  {t.aset.fieldValueLabel}
                 </label>
                 <MoneyInput
-                  field={changeField}
-                  id="asset-value-change-amount"
-                  placeholder={t.aset.fieldValueChangeAmountPlaceholder}
+                  field={valueField}
+                  id="asset-value"
+                  placeholder={t.aset.fieldValuePlaceholder}
                 />
               </div>
-            )}
 
-            <div className="field">
-              <label className="label" htmlFor="asset-acquisition-date">
-                {t.aset.fieldAcquisitionDateLabel}
-              </label>
-              <DateField
-                id="asset-acquisition-date"
-                value={acquisitionDate}
-                locale={locale}
-                label={t.aset.fieldAcquisitionDateLabel}
-                max={wibTodayDateString()}
-                onChange={setAcquisitionDate}
-              />
-              <span className="hint">{t.aset.fieldAcquisitionDateHelper}</span>
-            </div>
+              {/* Same shared segmented-control markup as Splitbill's
+                "Bagi Rata"/"Custom per Orang" toggle, not a bespoke
+                2-button block. */}
+              <div className="field">
+                <span className="label">
+                  {t.aset.fieldValueChangeModeLabel}
+                </span>
+                <div
+                  className="segmented w-full"
+                  role="tablist"
+                  aria-label={t.aset.fieldValueChangeModeLabel}
+                >
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={valueChangeMode === "percent"}
+                    onClick={() => setValueChangeMode("percent")}
+                    className="segmented__item flex-1"
+                  >
+                    {t.aset.fieldValueChangeModePercentOption}
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={valueChangeMode === "fixed"}
+                    onClick={() => setValueChangeMode("fixed")}
+                    className="segmented__item flex-1"
+                  >
+                    {t.aset.fieldValueChangeModeFixedOption}
+                  </button>
+                </div>
+              </div>
 
-            {/* EPIC-033 p15 — the master-data category picker listed income/
-                expense transaction categories, which never fit a physical asset.
-                Removed until assets get their own master-data types (group 3). */}
-            <div className="field">
-              <label className="label" htmlFor="asset-notes">
-                {t.aset.fieldNotesLabel}
-              </label>
-              <input
-                id="asset-notes"
-                className="input"
-                placeholder={t.aset.fieldNotesPlaceholder}
-                maxLength={500}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
+              {valueChangeMode === "percent" ? (
+                <div className="field">
+                  <label className="label" htmlFor="asset-rate">
+                    {t.aset.fieldValueChangeRateLabel}
+                  </label>
+                  <input
+                    id="asset-rate"
+                    type="number"
+                    className="input"
+                    placeholder={t.aset.fieldValueChangeRatePlaceholder}
+                    inputMode="decimal"
+                    step="0.01"
+                    min={-100}
+                    max={100}
+                    value={valueChangeRatePct}
+                    onChange={(e) => setValueChangeRatePct(e.target.value)}
+                  />
+                  <span className="hint">
+                    {t.aset.defaultRateHelperPrefix}:{" "}
+                    {DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT[type]}%
+                  </span>
+                </div>
+              ) : (
+                <div className="field">
+                  <label className="label" htmlFor="asset-value-change-amount">
+                    {t.aset.fieldValueChangeAmountLabel}
+                  </label>
+                  <MoneyInput
+                    field={changeField}
+                    id="asset-value-change-amount"
+                    placeholder={t.aset.fieldValueChangeAmountPlaceholder}
+                  />
+                </div>
+              )}
 
-            {projectedIn5Years !== null && (
-              <div className="mt-3.5 flex items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
-                <Calculator className="size-4 shrink-0" aria-hidden="true" />
-                <span>
-                  Proyeksi 5 tahun:{" "}
-                  <strong className="wm-money mono">
-                    {money.format(projectedIn5Years)}
-                  </strong>{" "}
-                  dihitung dari nilai tercatat, mode perubahan, dan tanggal
-                  perolehan.
+              <div className="field">
+                <label className="label" htmlFor="asset-acquisition-date">
+                  {t.aset.fieldAcquisitionDateLabel}
+                </label>
+                <DateField
+                  id="asset-acquisition-date"
+                  value={acquisitionDate}
+                  locale={locale}
+                  label={t.aset.fieldAcquisitionDateLabel}
+                  max={wibTodayDateString()}
+                  onChange={setAcquisitionDate}
+                />
+                <span className="hint">
+                  {t.aset.fieldAcquisitionDateHelper}
                 </span>
               </div>
-            )}
 
-            <div className="field">
-              <label className="label" htmlFor="asset-document">
-                {t.aset.fieldDocumentLabel}
-              </label>
-              <input
-                id="asset-document"
-                type="file"
-                accept=".jpg,.jpeg,.png,.webp,.pdf"
-                className="input file:mr-3 file:h-full file:border-0 file:border-r file:bg-transparent file:px-3 file:text-[12.5px] file:font-semibold file:text-foreground"
-                onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
-              />
+              {/* EPIC-033 p15 — the master-data category picker listed income/
+                expense transaction categories, which never fit a physical asset.
+                Removed until assets get their own master-data types (group 3). */}
+              <div className="field">
+                <label className="label" htmlFor="asset-notes">
+                  {t.aset.fieldNotesLabel}
+                </label>
+                <input
+                  id="asset-notes"
+                  className="input"
+                  placeholder={t.aset.fieldNotesPlaceholder}
+                  maxLength={500}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              </div>
+
+              {projectedIn5Years !== null && (
+                <div className="mt-3.5 flex items-center gap-2.5 rounded-[11px] border border-primary/25 bg-accent p-3 text-[12.5px] text-accent-foreground">
+                  <Calculator className="size-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Proyeksi 5 tahun:{" "}
+                    <strong className="wm-money mono">
+                      {money.format(projectedIn5Years)}
+                    </strong>{" "}
+                    dihitung dari nilai tercatat, mode perubahan, dan tanggal
+                    perolehan.
+                  </span>
+                </div>
+              )}
+
+              <div className="field">
+                <label className="label" htmlFor="asset-document">
+                  {t.aset.fieldDocumentLabel}
+                </label>
+                <input
+                  id="asset-document"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.webp,.pdf"
+                  className="input file:mr-3 file:h-full file:border-0 file:border-r file:bg-transparent file:px-3 file:text-[12.5px] file:font-semibold file:text-foreground"
+                  onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
             </div>
-          </form>
-        </DialogBody>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onClose}>
-            {t.common.cancel}
-          </Button>
-          <Button type="submit" form="asset-form" disabled={mutation.isPending}>
-            {mutation.isPending ? t.aset.saving : t.aset.saveButton}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+          </div>
+          <div className="wm-panel-foot">
+            <PillButton type="button" onClick={onClose}>
+              {t.common.cancel}
+            </PillButton>
+            <PillButton
+              type="submit"
+              variant="primary"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? t.aset.saving : t.aset.saveButton}
+            </PillButton>
+          </div>
+        </form>
+      </PanelContent>
     </Dialog>
   );
 }
@@ -1109,26 +1132,34 @@ export default function AsetPage() {
           }
           chart={
             <div className="as-plot">
-              {isLoading ? null : hasRealAssetTrend ? (
-                <HatchedBarChart
-                  labels={assetTrendCategories}
-                  series={[
-                    {
-                      name: t.aset.v2.trendLegend,
-                      data: assetTrendValues,
-                      color: "var(--wm-lime)",
-                    },
-                  ]}
-                  format={money.formatCompact}
-                  wide
-                  ariaLabel={t.aset.v2.trendAria}
+              {/* proto `aset.html` hero chart is always the Aset fisik/
+                  Investasi/Rekening/Dana composition bar + breakdown rows
+                  (never a month-over-month trend) — CompositionStack is the
+                  primary view here. The real 6-month trend this page
+                  already computes is kept, not deleted, as a fallback for
+                  the (rare) case there's no composition data to show yet. */}
+              {isLoading ? null : compItems.length > 0 ? (
+                <CompositionStack
+                  items={compItems}
+                  center={money.formatCompact(grandTotal)}
+                  sub={t.aset.v2.compAria}
+                  label={t.aset.v2.compAria}
+                  format={money.format}
                 />
               ) : (
-                compItems.length > 0 && (
-                  <CompositionStack
-                    items={compItems}
-                    label={t.aset.v2.compAria}
-                    format={money.format}
+                hasRealAssetTrend && (
+                  <HatchedBarChart
+                    labels={assetTrendCategories}
+                    series={[
+                      {
+                        name: t.aset.v2.trendLegend,
+                        data: assetTrendValues,
+                        color: "var(--wm-lime)",
+                      },
+                    ]}
+                    format={money.formatCompact}
+                    wide
+                    ariaLabel={t.aset.v2.trendAria}
                   />
                 )
               )}
