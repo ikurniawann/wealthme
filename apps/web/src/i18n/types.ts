@@ -909,6 +909,18 @@ export type I18nDictionary = {
     };
     heroMemberSince: string;
     heroEditProfileLabel: string;
+    avatar: {
+      change: string;
+      remove: string;
+      uploading: string;
+      invalidType: string;
+      tooLarge: string;
+      uploadFailed: string;
+      removeFailed: string;
+      removed: string;
+      updated: string;
+    };
+    usernameLoginHint: string;
     heroKpiFamilyLabel: string;
     heroKpiSessionsLabel: string;
     heroKpiThemeLabel: string;

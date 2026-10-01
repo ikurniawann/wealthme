@@ -134,3 +134,22 @@ describe('"Lihat saldo" balance visibility', () => {
     });
   });
 });
+
+describe("redactAccount — own accounts stay visible", () => {
+  const hidden = { balancesHidden: true } as const;
+  it("keeps the balance of an account the viewer owns", () => {
+    const acc = { balance: "500", ownerUserId: "u1" };
+    expect(redactAccount(acc, hidden, "u1").balance).toBe("500");
+  });
+  it("hides a shared account", () => {
+    const acc = { balance: "500", ownerUserId: null };
+    expect(redactAccount(acc, hidden, "u1")).toMatchObject({
+      balance: null,
+      balancesHidden: true,
+    });
+  });
+  it("hides another member's account", () => {
+    const acc = { balance: "500", ownerUserId: "u2" };
+    expect(redactAccount(acc, hidden, "u1").balance).toBeNull();
+  });
+});

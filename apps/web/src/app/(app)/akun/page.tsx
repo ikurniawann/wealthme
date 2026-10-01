@@ -81,6 +81,10 @@ import {
 } from "lucide-react";
 import { ProfileHero } from "./profile-hero";
 import { toast } from "sonner";
+import { displayEmail as realEmailOf } from "@/lib/display-email";
+import { AvatarPhoto } from "@/components/avatar-photo";
+import { avatarFileError } from "@/hooks/avatar-file";
+import { useAvatarMutations } from "@/hooks/use-my-avatar";
 
 import { CrudModal, withCrudFx, type CrudModalState } from "@/components/crud";
 import {
@@ -150,6 +154,8 @@ type MeResponse = {
   id: string;
   email: string;
   name: string;
+  username?: string | null;
+  avatarUrl?: string | null;
 };
 
 // GET /auth/profile — full profile detail (name/email plus the fields
@@ -2779,7 +2785,7 @@ function MemberRow({
   sub,
   right,
 }: {
-  initials: string;
+  initials: React.ReactNode;
   gradient: string;
   /** Pastel avatars (akun.html's `.ak-av`) need dark text instead of white. */
   textColor?: string;
@@ -2791,7 +2797,7 @@ function MemberRow({
   return (
     <div className="flex items-center gap-3 border-b py-3 last:border-b-0">
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-extrabold"
+        className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-[13px] font-extrabold"
         style={{ background: gradient, color: textColor ?? "#fff" }}
       >
         {initials}
@@ -2918,7 +2924,9 @@ function FamilyBody({
                 </StatusBadge>
               ) : undefined
             }
-            sub={`${t.common.roleLabels[m.role] ?? m.role} · ${m.email}`}
+            sub={`${t.common.roleLabels[m.role] ?? m.role}${
+              realEmailOf(m.email) ? ` · ${m.email}` : ""
+            }`}
             right={
               <div className="flex items-center gap-1.5">
                 {m.userId !== myUserId && (
@@ -3013,7 +3021,7 @@ function FamilyBody({
                 {t.akun.family.adminBadge}
               </StatusBadge>
             }
-            sub={`Admin · ${m.email}`}
+            sub={`Admin${realEmailOf(m.email) ? ` · ${m.email}` : ""}`}
           />
         ))}
         {/* EPIC-024 A2 (D2, item 18) — "Tambah Admin/Staf" (email
@@ -3453,6 +3461,7 @@ export function FamilyMembersTableCard({
   displayInitials,
   displayName,
   displayEmail,
+  myAvatarUrl,
   isElevated,
   isOwner,
   onCategoryLimit,
@@ -3463,6 +3472,9 @@ export function FamilyMembersTableCard({
   displayInitials: string;
   displayName: string;
   displayEmail: string;
+  /** `/auth/me` avatarUrl — the members API has no images, so only the
+   * caller's own row can show a photo. */
+  myAvatarUrl?: string | null;
   isElevated: boolean;
   isOwner: boolean;
   onCategoryLimit: (member: FamilyMember) => void;
@@ -3481,12 +3493,14 @@ export function FamilyMembersTableCard({
       <div className="mt-1">
         {regularMembers.map((m, i) => {
           const isMe = m.userId === myUserId;
-          const initials = isMe ? displayInitials : memberInitials(m.name);
+          const initials = isMe ? (
+            <AvatarPhoto url={myAvatarUrl} fallback={displayInitials} />
+          ) : (
+            memberInitials(m.name)
+          );
           const pastel =
             MEMBER_PASTELS[i % MEMBER_PASTELS.length] ?? MEMBER_PASTELS[0]!;
-          const hasRealEmail = !m.email.endsWith(
-            "@members.internal.wealthme.invalid",
-          );
+          const email = realEmailOf(m.email);
           return (
             <MemberRow
               key={m.id}
@@ -3505,7 +3519,7 @@ export function FamilyMembersTableCard({
                 </>
               }
               sub={`${t.common.roleLabels[m.role] ?? m.role}${
-                hasRealEmail ? ` · ${m.email}` : ""
+                email ? ` · ${email}` : ""
               }`}
               right={
                 isMe ? undefined : (
@@ -3759,7 +3773,40 @@ export default function AkunPage() {
   });
 
   const displayName = me?.name ?? session?.user?.name ?? "—";
-  const displayEmail = me?.email ?? session?.user?.email ?? "—";
+  // Never the internal `member-…@members.internal…` placeholder: a real
+  // email, else the username login, else "—" (+ a hint where shown).
+  const realEmail = realEmailOf(me?.email ?? session?.user?.email);
+  const displayEmail = realEmail ?? (me?.username ? `@${me.username}` : "—");
+  const identityLine =
+    displayEmail === "—" ? (
+      <>
+        — <span className="ak-email-hint">{t.akun.usernameLoginHint}</span>
+      </>
+    ) : (
+      displayEmail
+    );
+
+  const { upload: avatarUpload, remove: avatarRemove } = useAvatarMutations();
+  const avatarBusy = avatarUpload.isPending || avatarRemove.isPending;
+  function pickAvatar(file: File) {
+    const problem = avatarFileError(file);
+    if (problem) {
+      toast.error(
+        problem === "type" ? t.akun.avatar.invalidType : t.akun.avatar.tooLarge,
+      );
+      return;
+    }
+    avatarUpload.mutate(file, {
+      onSuccess: () => toast.success(t.akun.avatar.updated),
+      onError: (err) => toast.error(err.message || t.akun.avatar.uploadFailed),
+    });
+  }
+  function removeAvatar() {
+    avatarRemove.mutate(undefined, {
+      onSuccess: () => toast.success(t.akun.avatar.removed),
+      onError: () => toast.error(t.akun.avatar.removeFailed),
+    });
+  }
   const displayInitials =
     displayName === "—"
       ? ""
@@ -3914,7 +3961,19 @@ export default function AkunPage() {
       <ProfileHero
         initials={meLoading ? "…" : displayInitials}
         displayName={displayName}
-        email={displayEmail}
+        email={identityLine}
+        avatar={{
+          url: me?.avatarUrl,
+          photo: me?.avatarUrl ? (
+            <AvatarPhoto url={me.avatarUrl} fallback={displayInitials} />
+          ) : undefined,
+          busy: avatarBusy,
+          changeLabel: t.akun.avatar.change,
+          removeLabel: t.akun.avatar.remove,
+          busyLabel: t.akun.avatar.uploading,
+          onPick: pickAvatar,
+          onRemove: removeAvatar,
+        }}
         role={
           primaryGroup
             ? (t.common.roleLabels[primaryGroup.myRole] ?? primaryGroup.myRole)
@@ -4047,7 +4106,16 @@ export default function AkunPage() {
                           {t.akun.profil.emailLabel}
                         </span>
                         <span className="truncate text-right text-[13.5px] font-bold text-foreground">
-                          {displayEmail}
+                          {displayEmail === "—" ? (
+                            <>
+                              —{" "}
+                              <span className="font-normal text-muted-foreground">
+                                {t.akun.usernameLoginHint}
+                              </span>
+                            </>
+                          ) : (
+                            displayEmail
+                          )}
                         </span>
                       </div>
                       {profileDetail?.phone && (
@@ -4118,6 +4186,7 @@ export default function AkunPage() {
                   displayInitials={displayInitials}
                   displayName={displayName}
                   displayEmail={displayEmail}
+                  myAvatarUrl={me?.avatarUrl}
                   isElevated={isElevated}
                   isOwner={primaryGroup?.myRole === "owner"}
                   onCategoryLimit={setCategoryLimitMember}

@@ -31,6 +31,16 @@ type MoneyContextValue = {
   // don't have to re-read the profile themselves.
   hideBalance: boolean;
   formatExact: (idr: string | bigint | null) => string;
+  /**
+   * A single account balance as the API returned it: null means the server
+   * withheld it ("Lihat saldo" off, not the viewer's own account) and renders
+   * masked; a number is shown even when aggregates are masked, because the
+   * API only sends it for accounts the viewer owns.
+   */
+  formatBalance: (
+    balance: string | number | null | undefined,
+    compact?: boolean,
+  ) => string;
 };
 
 const CURRENCY_LOCALES: Record<string, string> = {
@@ -131,7 +141,8 @@ export function DisplayCurrencyProvider({
   // the numbers (null + balancesHidden); every formatted amount renders
   // "••••••" so a nulled balance never shows as "Rp 0".
   const balancesHidden = useBalancesHidden();
-  const hideBalance = (privacyPrefs?.hideBalance ?? false) || balancesHidden;
+  const privacyHide = privacyPrefs?.hideBalance ?? false;
+  const hideBalance = privacyHide || balancesHidden;
   const showDecimal = privacyPrefs?.showDecimal ?? false;
 
   const value = useMemo<MoneyContextValue>(() => {
@@ -166,6 +177,24 @@ export function DisplayCurrencyProvider({
         : withDecimalsApplied;
       return hideBalance ? maskAmount(indicated) : indicated;
     };
+    const formatBalance = (
+      balance: string | number | null | undefined,
+      compact = false,
+    ): string => {
+      if (balance === null) return maskAmount("Rp 0");
+      const n =
+        typeof balance === "number" ? balance : parseFloat(balance ?? "0");
+      const base = compact
+        ? converts
+          ? `≈ ${formatMoney(n)}`
+          : formatRupiahCompact(n)
+        : converts
+          ? `≈ ${formatMoney(n)}`
+          : formatRupiah(n);
+      const shown =
+        !compact && showDecimal && !converts ? withDecimals(base) : base;
+      return privacyHide ? maskAmount(shown) : shown;
+    };
     return {
       currency,
       isIndicative,
@@ -174,6 +203,7 @@ export function DisplayCurrencyProvider({
       formatCompact,
       hideBalance,
       formatExact,
+      formatBalance,
     };
   }, [
     currency,
@@ -182,6 +212,7 @@ export function DisplayCurrencyProvider({
     isReady,
     rate,
     hideBalance,
+    privacyHide,
     showDecimal,
   ]);
 
@@ -211,5 +242,11 @@ export function useMoney(): MoneyContextValue {
       idr === null
         ? maskAmount("Rp 0")
         : formatExactCurrency(BigInt(idr), "IDR", 1),
+    formatBalance: (balance, compact = false) =>
+      balance === null
+        ? maskAmount("Rp 0")
+        : (compact ? formatRupiahCompact : formatRupiah)(
+            typeof balance === "number" ? balance : parseFloat(balance ?? "0"),
+          ),
   };
 }

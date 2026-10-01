@@ -31,6 +31,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AvatarPhoto } from "@/components/avatar-photo";
+import { useMe } from "@/hooks/use-my-avatar";
 import { useShell } from "./shell-context";
 import { NotificationsPopover } from "./notifications-popover";
 import { POP_CLASS, POP_ITEM_CLASS } from "./pop-classes";
@@ -77,6 +79,7 @@ export function MeMenu({ placement = "top" }: { placement?: "top" | "side" }) {
   const { logout } = useAuth();
   const router = useRouter();
   const name = session?.user.name;
+  const { data: me } = useMe();
   const roleLabel = myRole
     ? t.common.roleLabels[myRole as keyof typeof t.common.roleLabels]
     : undefined;
@@ -90,7 +93,7 @@ export function MeMenu({ placement = "top" }: { placement?: "top" | "side" }) {
         aria-label={`${t.shell.v2.accountMenu}: ${name ?? ""}`}
       >
         <span className="wm-avatar" aria-hidden="true">
-          {initialsOf(name)}
+          <AvatarPhoto url={me?.avatarUrl} fallback={initialsOf(name)} />
         </span>
         <div>
           <b>{name ?? "WealthMe"}</b>

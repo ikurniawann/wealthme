@@ -433,6 +433,12 @@ export class TransactionsService {
       // number nobody set. `?? undefined`: a `null` threshold (the normal
       // case) falls back to notifyTransaction's own default.
       actingMemberThreshold ?? undefined,
+      actingMember &&
+        (actingMember.rowScoped ??
+          (actingMember.role === "dependant" ||
+            actingMember.role === "operational"))
+        ? actingMember.userId
+        : undefined,
     );
 
     return this.toDto(created, actingMember);

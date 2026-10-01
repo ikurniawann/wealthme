@@ -133,6 +133,7 @@ type AccountCard = {
   number: string;
   balanceLabel: string;
   rawBalance: number;
+  balanceHidden: boolean;
   type: string;
   // EPIC-022 A2 — the original `AccountDto.type` ("bank" | "ewallet" | "cash"
   // | "investment" | "property"), kept alongside the display-formatted
@@ -238,6 +239,7 @@ function toCardData(
     number: safeMaskedNumber(account.maskedNumber) ?? "—",
     balanceLabel: t.rekening.balanceLabel,
     rawBalance,
+    balanceHidden: account.balance === null,
     type: account.institution
       ? `${typeLabel} · ${account.institution}`
       : typeLabel,
@@ -305,7 +307,9 @@ function AccountCardItem({
             : null
         }
         holder={account.type}
-        balance={money.format(account.rawBalance).replace(/,00$/, "")}
+        balance={money
+          .formatBalance(account.balanceHidden ? null : account.rawBalance)
+          .replace(/,00$/, "")}
         badge={
           <span className="rk-card-badges">
             {account.isPrivate && (
@@ -814,9 +818,7 @@ export default function RekeningPage() {
                       ? t.rekening.privateBadge
                       : (account.ownerName ?? "")
                   }
-                  balance={money.formatCompact(
-                    parseFloat(account.balance ?? "0"),
-                  )}
+                  balance={money.formatBalance(account.balance, true)}
                 />
               ))}
             </div>

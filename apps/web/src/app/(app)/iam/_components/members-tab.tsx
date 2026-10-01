@@ -9,13 +9,11 @@ import {
 
 import { StatusBadge } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+import { isInternalEmail } from "@/lib/display-email";
 
 import { MEMBER_PASTELS, SCOPE_COPY } from "./access-shared";
 import { CopyButton } from "./copy-button";
 import type { AccessRoleResponse } from "@wealthme/contracts";
-
-/** Placeholder mailbox for accounts created without an email (API-side). */
-const SYNTHETIC_EMAIL_SUFFIX = "@members.internal.wealthme.invalid";
 
 export type MemberRow = {
   id: string;
@@ -98,7 +96,7 @@ export function MembersTab({
           const scope = scopeOf(m, roles);
           // EPIC-031 — a Master-created member may have a username login
           // (`nama@kode`), a real email, or both.
-          const hasRealEmail = !m.email.endsWith(SYNTHETIC_EMAIL_SUFFIX);
+          const hasRealEmail = !isInternalEmail(m.email);
           const initials = m.name
             .split(" ")
             .slice(0, 2)

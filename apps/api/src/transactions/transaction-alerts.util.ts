@@ -241,6 +241,12 @@ export async function notifyTransaction(
   amount: bigint,
   tx: { category: { name: string } | null; account: { name: string } | null },
   bigThreshold: bigint = BigInt(5_000_000),
+  /**
+   * Row-scoped members (child/operational) only see notifications addressed
+   * to them, so the household row never reaches them; they also get a
+   * personal copy of the transaction they recorded.
+   */
+  personalRecipientUserId?: string,
 ): Promise<void> {
   try {
     const isIncome = type === "income";
@@ -254,16 +260,20 @@ export async function notifyTransaction(
 
     const label = isIncome ? "Transaksi masuk" : "Transaksi keluar";
     const catName = tx.category?.name ?? "Tanpa kategori";
-    await prisma.notification.create({
-      data: {
-        familyGroupId,
-        title: isBig ? `${label} besar` : label,
-        // EPIC-032 de-slop + EPIC-033 p31: thousand separators, no em-dash;
-        // the title already carries the direction.
-        body: `Rp ${Number(amount).toLocaleString("id-ID")} · ${catName}`,
-        icon: isIncome ? "📥" : "📤",
-      },
-    });
+    const data = {
+      familyGroupId,
+      title: isBig ? `${label} besar` : label,
+      // EPIC-032 de-slop + EPIC-033 p31: thousand separators, no em-dash;
+      // the title already carries the direction.
+      body: `Rp ${Number(amount).toLocaleString("id-ID")} · ${catName}`,
+      icon: isIncome ? "📥" : "📤",
+    };
+    await prisma.notification.create({ data });
+    if (personalRecipientUserId) {
+      await prisma.notification.create({
+        data: { ...data, userId: personalRecipientUserId },
+      });
+    }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.warn(`Transaction notification skipped: ${msg}`);

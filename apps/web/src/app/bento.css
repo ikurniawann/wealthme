@@ -3504,4 +3504,10 @@
       display: none !important;
     }
   }
+  /* Mobile dock spans the screen (16px gutters) with evenly spread items. */
+  .wm-dock {
+    width: min(460px, calc(100vw - 32px));
+    justify-content: space-between;
+    padding: 6px 10px;
+  }
 }

@@ -11,6 +11,7 @@ import { JwtService } from "@nestjs/jwt";
 import { buildReferenceItemSeed } from "@wealthme/contracts";
 import * as argon2 from "argon2";
 
+import { avatarUrlFor } from "../avatars/avatar.util";
 import {
   defaultCoaCodeForCategory,
   GENERIC_COA_CHART,
@@ -65,6 +66,10 @@ type UserProfile = {
   email: string;
   name: string;
   avatarInitials: string | null;
+  /** Only on getMe(): username login (null for email-only accounts). */
+  username?: string | null;
+  /** Only on getMe(): renderable profile picture URL (see avatar.util). */
+  avatarUrl?: string | null;
   createdAt: Date;
   familyGroupId: string | null;
   memberships: MembershipInfo[];
@@ -282,6 +287,8 @@ export class AuthService {
         email: true,
         name: true,
         avatarInitials: true,
+        username: true,
+        image: true,
         createdAt: true,
         // EPIC-024 A3 (Evidence #1) — same "oldest membership wins" fix as
         // PROFILE_DETAIL_SELECT above; getMe() keeps its own separate
@@ -301,8 +308,10 @@ export class AuthService {
         },
       },
     });
+    const { image, ...rest } = user;
     return {
-      ...user,
+      ...rest,
+      avatarUrl: avatarUrlFor(user.id, image),
       familyGroupId: user.memberships[0]?.familyGroupId ?? null,
     };
   }

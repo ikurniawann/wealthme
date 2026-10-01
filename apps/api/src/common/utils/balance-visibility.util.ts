@@ -35,11 +35,20 @@ export function assertBalancesVisible(member: ViewerMember): void {
   }
 }
 
-export function redactAccount<T extends Pick<AccountDto, "balance">>(
+/**
+ * Hides the balance of accounts the viewer does not own (family-shared or
+ * another member's). An account assigned to the viewer (ownerUserId) keeps
+ * its balance — the member manages that money herself.
+ */
+export function redactAccount<
+  T extends Pick<AccountDto, "balance"> & { ownerUserId?: string | null },
+>(
   account: T,
   member: ViewerMember,
+  viewerUserId?: string | null,
 ): T & { balancesHidden?: boolean } {
   if (!areBalancesHidden(member)) return account;
+  if (viewerUserId && account.ownerUserId === viewerUserId) return account;
   return { ...account, balance: null, balancesHidden: true };
 }
 

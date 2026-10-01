@@ -14,6 +14,7 @@ import { AuditInterceptor } from "./audit/audit.interceptor";
 import { AuditModule } from "./audit/audit.module";
 import { AuthModule } from "./auth/auth.module";
 import { BetterAuthGuard } from "./auth/guards/better-auth.guard";
+import { AvatarsModule } from "./avatars/avatars.module";
 import { BillingCycleModule } from "./billing-cycle/billing-cycle.module";
 import { BudgetsModule } from "./budgets/budgets.module";
 import { CalculatorsModule } from "./calculators/calculators.module";
@@ -121,6 +122,7 @@ import type { IncomingMessage } from "node:http";
     FxModule,
     GoldPriceModule,
     GdprModule,
+    AvatarsModule,
     ReconciliationModule,
     AllowanceRequestsModule,
     MemberCategoryAllowancesModule,

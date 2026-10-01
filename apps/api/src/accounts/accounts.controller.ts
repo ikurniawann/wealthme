@@ -76,7 +76,9 @@ export class AccountsController {
         req.tenantContext?.userId,
         member,
       )
-      .then((rows) => rows.map((a) => redactAccount(a, member)));
+      .then((rows) =>
+        rows.map((a) => redactAccount(a, member, req.tenantContext?.userId)),
+      );
   }
 
   @Post()
@@ -100,7 +102,13 @@ export class AccountsController {
       (converted) =>
         this.accountsService
           .create(familyGroupId, converted, actorOf(req))
-          .then((a) => redactAccount(a, req.tenantContext?.member)),
+          .then((a) =>
+            redactAccount(
+              a,
+              req.tenantContext?.member,
+              req.tenantContext?.userId,
+            ),
+          ),
     );
   }
 
@@ -126,7 +134,7 @@ export class AccountsController {
         member,
         req.tenantContext?.userId,
       )
-      .then((a) => redactAccount(a, member));
+      .then((a) => redactAccount(a, member, req.tenantContext?.userId));
   }
 
   @Patch(":id")
@@ -173,7 +181,13 @@ export class AccountsController {
       (converted) =>
         this.accountsService
           .update(familyGroupId, id, converted, actorOf(req))
-          .then((a) => redactAccount(a, req.tenantContext?.member)),
+          .then((a) =>
+            redactAccount(
+              a,
+              req.tenantContext?.member,
+              req.tenantContext?.userId,
+            ),
+          ),
     );
   }
 

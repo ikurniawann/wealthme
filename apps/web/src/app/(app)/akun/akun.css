@@ -31,22 +31,81 @@
     /* akun.html `.ak-av` — a soft ring around the hero avatar. */
     box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 14%, transparent);
   }
+  /* "Ganti foto" — the avatar is the picker; a camera badge says so. */
+  .ak-avatar--edit {
+    position: relative;
+    padding: 0;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    transition: box-shadow var(--duration-fast, 150ms) ease;
+  }
+  .ak-avatar--edit:hover,
+  .ak-avatar--edit:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 5px color-mix(in srgb, #a9d84c 45%, transparent);
+  }
+  .ak-avatar--edit:disabled {
+    cursor: progress;
+  }
+  .ak-avatar-cam {
+    position: absolute;
+    right: -2px;
+    bottom: -2px;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #a9d84c;
+    color: #1f2a07;
+    box-shadow: 0 0 0 3px var(--wm-ink, #14140f);
+  }
+  .ak-avatar-cam svg {
+    width: 13px;
+    height: 13px;
+  }
+  .ak-avatar-busy {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    background: rgba(0, 0, 0, 0.45);
+  }
   .ak-name {
     min-width: 0;
     overflow-wrap: anywhere;
     font-size: clamp(24px, 3vw, 34px);
   }
+  /* Role badge + identity sit on ONE line, aligned under the name (not
+     under the avatar): indent by avatar width + the name row's gap. */
+  .ak-hero .wm-cap {
+    padding-inline-start: calc(64px + 14px);
+  }
   .ak-meta {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
-    gap: 4px 10px;
+    gap: 10px;
+    min-width: 0;
+    line-height: 20px;
   }
   .ak-email {
-    overflow-wrap: anywhere;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ak-email-hint {
+    opacity: 0.6;
   }
   .ak-role {
-    padding: 1px 8px;
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    height: 20px;
+    white-space: nowrap;
+    padding: 0 8px;
     border-radius: 999px;
     /* Prototype `.card.dark .ak-meta .pill` — a lime-tinted pill, not a
        plain currentColor tint (the hero is always dark, regardless of the

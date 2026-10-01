@@ -28,6 +28,21 @@ export class UserProfileDto {
   })
   avatarInitials!: string | null;
 
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Username login (only on /auth/me)",
+  })
+  username?: string | null;
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description:
+      "Profile picture URL (only on /auth/me). An API-relative path is an authenticated stream; fetch it with the bearer token.",
+  })
+  avatarUrl?: string | null;
+
   // Only present on GET/PATCH /auth/profile — GET /auth/me omits these to
   // keep its Prisma query minimal (see AuthService.getMe).
   @ApiPropertyOptional({

@@ -289,7 +289,7 @@ function WalletRow({
             className="dn-row-amt num"
             data-negative={negative || undefined}
           >
-            {money.format(parseFloat(item.balance ?? "0"))}
+            {money.formatBalance(item.balance)}
           </span>
           {metaParts.length > 0 && <small>{metaParts.join(" · ")}</small>}
         </div>
