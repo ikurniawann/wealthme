@@ -598,18 +598,21 @@ describe("TujuanPage — edit auto-debit (Revisi F final-review Finding 1/3)", (
 });
 
 describe("TujuanPage — bento hero KPIs", () => {
-  it("shows the hero KPIs, and 'Perlu perhatian' lists the single on-track goal as a row", async () => {
-    // EPIC-033 revision — "Perlu perhatian" always lists every goal as a
-    // row (matching docs/design/proto/tujuan.html's `sideShow`), so a
-    // single on-track goal still appears here, not behind an "all good"
-    // sentence — that copy only shows when there are no goals at all.
+  it("shows the hero KPIs, and 'Perlu perhatian' shows the all-good state when every goal is on track", async () => {
+    // audit P1-5/AC-5 — "Perlu perhatian" must show exactly one unambiguous
+    // status signal: an on-track goal must never appear under a "needs
+    // attention" heading. With only an on-track goal, the panel shows the
+    // all-good empty state instead of padding in that goal as a row.
     mockSession("owner");
     render(<TujuanPage />);
 
     await screen.findByText("Dana Liburan");
     expect(screen.getByText("Sesuai rencana")).toBeInTheDocument();
     expect(screen.getByText("Perlu perhatian")).toBeInTheDocument();
-    expect(screen.getByText("Dana Liburan 10%")).toBeInTheDocument();
+    expect(
+      screen.getByText("Semua tujuan berjalan sesuai rencana."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Dana Liburan 10%")).not.toBeInTheDocument();
   });
 
   it("lists a goal that needs a push under 'Perlu perhatian'", async () => {

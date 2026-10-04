@@ -103,6 +103,6 @@ describe("TxTableRow — edit-rights lock (EPIC-036)", () => {
     );
 
     expect(screen.queryByText("Terkunci")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Edit" })).not.toBeDisabled();
+    expect(screen.getByRole("button", { name: "Ubah" })).not.toBeDisabled();
   });
 });

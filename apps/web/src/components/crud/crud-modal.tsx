@@ -481,7 +481,7 @@ function CrudForm({
               onClick={handleSave}
               disabled={isSaving}
             >
-              {isSaving ? "Menyimpan..." : "Simpan"}
+              {isSaving ? t.common.saving : t.common.save}
             </PillButton>
           </div>
         </div>

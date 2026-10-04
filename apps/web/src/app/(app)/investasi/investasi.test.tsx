@@ -222,7 +222,7 @@ describe("InvestasiPage — role gating (F3)", () => {
     const row = screen.getByText("Emas Batangan").closest("li");
     expect(row).not.toBeNull();
     expect(
-      within(row as HTMLElement).queryByRole("button", { name: "Edit" }),
+      within(row as HTMLElement).queryByRole("button", { name: "Ubah" }),
     ).not.toBeInTheDocument();
     expect(
       within(row as HTMLElement).queryByRole("button", { name: "Hapus" }),
@@ -241,7 +241,7 @@ describe("InvestasiPage — role gating (F3)", () => {
     const row = screen.getByText("Emas Batangan").closest("li");
     expect(row).not.toBeNull();
     expect(
-      within(row as HTMLElement).getByRole("button", { name: "Edit" }),
+      within(row as HTMLElement).getByRole("button", { name: "Ubah" }),
     ).toBeInTheDocument();
     expect(
       within(row as HTMLElement).getByRole("button", { name: "Hapus" }),
@@ -1011,7 +1011,7 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     const row = (await screen.findByText("Emas Batangan")).closest(
       "li",
     ) as HTMLElement;
-    await user.click(within(row).getByRole("button", { name: "Edit" }));
+    await user.click(within(row).getByRole("button", { name: "Ubah" }));
 
     expect(
       await screen.findByLabelText(idDict.investasi.fieldCostBasisLabel),

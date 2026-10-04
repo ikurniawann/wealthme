@@ -61,6 +61,7 @@ export function PageAccessMatrix({
                       key={o.level}
                       type="button"
                       data-level={o.level}
+                      aria-label={`Set semua ${title} ke ${o.label}`}
                       onClick={() => setGroup(group.pages, o.level)}
                     >
                       {o.label}

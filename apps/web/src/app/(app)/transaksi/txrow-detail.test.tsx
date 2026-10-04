@@ -189,7 +189,7 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
     );
 
     // Act
-    await user.click(screen.getByRole("button", { name: "Edit" }));
+    await user.click(screen.getByRole("button", { name: "Ubah" }));
 
     // Assert — onEditClick fired, but the detail heading never appeared.
     expect(onEditClick).toHaveBeenCalledTimes(1);
@@ -226,7 +226,7 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
     render(
       <TxRow tx={tx} onEditClick={onEditClick} onDeleteClick={onDeleteClick} />,
     );
-    const editIconButton = screen.getByRole("button", { name: "Edit" });
+    const editIconButton = screen.getByRole("button", { name: "Ubah" });
 
     // Act
     editIconButton.focus();
@@ -251,10 +251,12 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
       screen.getByRole("heading", { name: "Detail Transaksi" }),
     ).toBeInTheDocument();
 
-    // Act — click the "Edit" button inside the detail footer (not the
-    // RowActions icon — there are now two "Edit" buttons on screen).
-    const editButtons = screen.getAllByRole("button", { name: "Edit" });
-    await user.click(editButtons[editButtons.length - 1]!);
+    // Act — click the "Edit" button inside the detail footer. This is
+    // `t.transaksi.detailEditButton` ("Edit"), a different dict key from
+    // RowActions' own `t.common.edit` ("Ubah") — scope to the dialog so this
+    // doesn't collide with the row's own "Ubah" button.
+    const dialog = within(screen.getByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "Edit" }));
 
     // Assert
     expect(onEditClick).toHaveBeenCalledTimes(1);
@@ -324,7 +326,7 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
       <TxRow tx={tx} onEditClick={onEditClick} onDeleteClick={onDeleteClick} />,
     );
 
-    expect(screen.getByRole("button", { name: "Edit" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Ubah" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Hapus" })).toBeEnabled();
   });
 
@@ -352,6 +354,8 @@ describe("TxRow — read-only transaction detail view (EPIC-020 Task A)", () => 
         "Transaksi ini hanya bisa diubah oleh pencatatnya atau pemilik rekening.",
       ),
     ).toBeInTheDocument();
+    // The dialog footer's own buttons use `t.transaksi.detailEditButton`
+    // ("Edit"), a different dict key from RowActions' `t.common.edit`.
     expect(dialog.getByRole("button", { name: "Edit" })).toBeDisabled();
     expect(dialog.getByRole("button", { name: "Hapus" })).toBeDisabled();
   });

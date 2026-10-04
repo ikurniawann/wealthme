@@ -406,15 +406,16 @@
       margin: 10px 0 4px;
     }
     .beranda-mh-dots i {
-      width: 6px;
+      width: 16px;
       height: 6px;
-      border-radius: 50%;
+      border-radius: 3px;
       background: rgb(238 240 232 / 0.25);
-      transition: width 0.2s;
+      transform: scaleX(0.375);
+      transform-origin: center;
+      transition: transform 0.2s;
     }
     .beranda-mh-dots i[data-on] {
-      width: 16px;
-      border-radius: 3px;
+      transform: scaleX(1);
       background: #eef0e8;
     }
     .beranda-mh-badge {

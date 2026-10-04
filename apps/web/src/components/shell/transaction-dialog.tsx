@@ -225,6 +225,12 @@ export function TransactionDialog() {
   const [liabilityId, setLiabilityId] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [description, setDescription] = useState("");
+  // audit P2-4/AC-7 — inline, field-level validation errors, mirroring
+  // crud-modal.tsx's `requiredErrors` pattern. `saveTxn` replaces this
+  // wholesale with a single-key object per failed check (it returns on the
+  // first failure), which both surfaces the new error and clears any stale
+  // one from a previously-failed field on the next submit attempt.
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   // EPIC-027 B1-B4 (D8/D9/D10) — reviewed foundation exception, same basis
   // as the E3/E4 and held-expense comments in this file. What used to live
   // here was a simulation: two `setTimeout`s and a hardcoded Alfamart
@@ -540,6 +546,7 @@ export function TransactionDialog() {
     setDescription("");
     setDate(new Date().toISOString().slice(0, 10));
     setAttachmentFile(null);
+    setFieldErrors({});
   };
 
   const resetScan = () => {
@@ -745,7 +752,13 @@ export function TransactionDialog() {
     }
     const amountNum = moneyIdr(amountField, parseRupiah);
     if (!amountNum || amountNum <= 0) {
+      setFieldErrors({ amount: t.shell.transactionDialog.invalidAmount });
       toast.error(t.shell.transactionDialog.invalidAmount);
+      return;
+    }
+    if (!date) {
+      setFieldErrors({ date: t.shell.transactionDialog.dateRequiredError });
+      toast.error(t.shell.transactionDialog.dateRequiredError);
       return;
     }
     if (!fgId) {
@@ -758,9 +771,11 @@ export function TransactionDialog() {
     // LiabilitiesService.purchase() instead of TransactionsService.create().
     if (tabKind === "card") {
       if (!liabilityId) {
+        setFieldErrors({ card: t.shell.transactionDialog.selectCardFirst });
         toast.error(t.shell.transactionDialog.selectCardFirst);
         return;
       }
+      setFieldErrors({});
       purchaseMutation.mutate(
         withFxInputs(
           {
@@ -790,19 +805,27 @@ export function TransactionDialog() {
     }
 
     if (!accountId) {
+      setFieldErrors({ account: t.shell.transactionDialog.selectAccountFirst });
       toast.error(t.shell.transactionDialog.selectAccountFirst);
       return;
     }
     if (tabKind === "transfer") {
       if (!toAccountId) {
+        setFieldErrors({
+          destAccount: t.shell.transactionDialog.selectDestAccountFirst,
+        });
         toast.error(t.shell.transactionDialog.selectDestAccountFirst);
         return;
       }
       if (toAccountId === accountId) {
+        setFieldErrors({
+          destAccount: t.shell.transactionDialog.sameAccountError,
+        });
         toast.error(t.shell.transactionDialog.sameAccountError);
         return;
       }
     }
+    setFieldErrors({});
 
     const adminFeeNum = tabKind === "transfer" ? parseRupiah(adminFee) : 0;
 
@@ -925,12 +948,16 @@ export function TransactionDialog() {
                 id={amountFieldId}
                 label={t.shell.transactionDialog.amountLabel}
                 placeholder="250.000"
+                required
+                error={fieldErrors.amount}
               />
 
               {tabKind === "card" ? (
                 <Field
                   label={t.shell.transactionDialog.cardLabel}
                   htmlFor={cardFieldId}
+                  required
+                  error={fieldErrors.card}
                 >
                   <select
                     id={cardFieldId}
@@ -952,6 +979,8 @@ export function TransactionDialog() {
                 <>
                   <TileField
                     label={t.shell.transactionDialog.sourceAccountLabel}
+                    required
+                    error={fieldErrors.account}
                   >
                     <ChoiceTiles
                       variant="account"
@@ -967,7 +996,11 @@ export function TransactionDialog() {
                     />
                   </TileField>
 
-                  <TileField label={t.shell.transactionDialog.destAccountLabel}>
+                  <TileField
+                    label={t.shell.transactionDialog.destAccountLabel}
+                    required
+                    error={fieldErrors.destAccount}
+                  >
                     <ChoiceTiles
                       variant="account"
                       label={t.shell.transactionDialog.destAccountLabel}
@@ -1010,7 +1043,11 @@ export function TransactionDialog() {
                 </>
               ) : (
                 <>
-                  <TileField label={t.shell.transactionDialog.accountLabel}>
+                  <TileField
+                    label={t.shell.transactionDialog.accountLabel}
+                    required
+                    error={fieldErrors.account}
+                  >
                     <ChoiceTiles
                       variant="account"
                       label={t.shell.transactionDialog.accountLabel}
@@ -1067,6 +1104,8 @@ export function TransactionDialog() {
                   label={t.shell.transactionDialog.dateLabel}
                   htmlFor={dateFieldId}
                   className="!mt-0"
+                  required
+                  error={fieldErrors.date}
                 >
                   <DateField
                     id={dateFieldId}
@@ -1196,7 +1235,7 @@ export function TransactionDialog() {
                 disabled={isSaving}
                 className="btn btn--primary"
               >
-                {isSaving ? t.shell.transactionDialog.saving : "Simpan"}
+                {isSaving ? t.shell.transactionDialog.saving : t.common.save}
               </button>
             </DialogFooter>
           </>
@@ -1471,19 +1510,43 @@ export function TransactionDialog() {
 // caller must pair the label with the id it puts on its actual control
 // (see the `uid`-derived field ids above). No more silent bare labels.
 /** Label + control block for the tile pickers (a radiogroup names itself). */
+// audit P2-4/AC-7 — a required field's label grows a `*` marker (the only
+// marker that previously existed was the description field's "(opsional)"
+// suffix), and an `error` renders inline under the control — mirroring
+// crud-modal.tsx's requiredErrors/error-text pattern instead of leaving
+// validation to a transient toast alone.
+function RequiredMark() {
+  return (
+    <span aria-hidden="true" className="text-destructive">
+      {" "}
+      *
+    </span>
+  );
+}
+
 function TileField({
   label,
+  required,
+  error,
   children,
 }: {
   label: React.ReactNode;
+  required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="field tx-tile-field">
       <span className="label" aria-hidden="true">
         {label}
+        {required && <RequiredMark />}
       </span>
       {children}
+      {error && (
+        <p role="alert" className="error-text">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -1492,11 +1555,15 @@ function Field({
   label,
   htmlFor,
   className,
+  required,
+  error,
   children,
 }: {
   label: React.ReactNode;
   htmlFor: string;
   className?: string;
+  required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   // EPIC-026 Wave 8 — the prototype's `<label class="field"><span
@@ -1507,8 +1574,14 @@ function Field({
     <div className={cn("field", className)}>
       <label htmlFor={htmlFor} className="label">
         {label}
+        {required && <RequiredMark />}
       </label>
       {children}
+      {error && (
+        <p role="alert" className="error-text">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -143,7 +143,7 @@ export function RoleEditorDialog({
               anggota; mengubah role langsung berlaku untuk semuanya.
             </DialogDescription>
           </div>
-          <DialogClose className="wm-panel-x" aria-label="Tutup">
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
             <X aria-hidden="true" />
           </DialogClose>
         </header>

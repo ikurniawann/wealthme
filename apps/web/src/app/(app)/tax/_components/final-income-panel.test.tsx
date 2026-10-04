@@ -195,7 +195,7 @@ it("opening Edit prefills the entry's stored date, and saving unchanged keeps it
     ),
   );
   render(<FinalIncomePanel taxYear={2026} canManage />);
-  await userEvent.click(await screen.findByRole("button", { name: "Edit" }));
+  await userEvent.click(await screen.findByRole("button", { name: "Ubah" }));
   expect(screen.getByLabelText("Tanggal diterima")).toHaveValue("2026-03-10");
   await userEvent.click(screen.getByRole("button", { name: "Simpan" }));
   const patch = mockApiFetch.mock.calls.find(([, i]) => i?.method === "PATCH");

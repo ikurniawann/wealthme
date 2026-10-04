@@ -422,6 +422,7 @@ export type I18nDictionary = {
     expense: string;
     net: string;
     save: string;
+    saving: string;
     apply: string;
     cancel: string;
     loading: string;
@@ -449,6 +450,7 @@ export type I18nDictionary = {
     // Bento v2 shared actions.
     undo: string;
     close: string;
+    pay: string;
     optional: string;
     savingsRate: string;
     income2: string;
@@ -696,6 +698,8 @@ export type I18nDictionary = {
       sameAccountError: string;
       adminFeeLabel: string;
       dateLabel: string;
+      /** audit P2-4/AC-7 — inline error when the date field is cleared. */
+      dateRequiredError: string;
       descriptionLabel: string;
       optionalSuffix: string;
       descriptionPlaceholder: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import {
   resolveEffectiveAccess,
   type EffectiveAccess,
@@ -80,7 +80,7 @@ export function useBalancesHidden(): boolean {
   const familyGroupId = session?.familyGroupId ?? "";
   const { data } = useQuery<EffectiveAccess>({
     queryKey: [...queryKeys.familyGroups.myAccess(familyGroupId), token],
-    enabled: false,
+    queryFn: skipToken,
   });
   return data?.balancesHidden === true;
 }

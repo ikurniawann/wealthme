@@ -42,7 +42,7 @@ import { useDevices, useRevokeDevice } from "@/hooks/use-devices";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { parseRupiah } from "@/lib/format";
+import { formatAmountInput, parseRupiah } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { formatManualDate } from "@/components/consolidated-total-card";
 import { useShell } from "@/components/shell/shell-context";
@@ -430,7 +430,9 @@ export function buildProfileForm(
     // they actually choose something.
     gender: profile?.gender ?? "",
     jobTitle: profile?.jobTitle ?? "",
-    monthlyIncome: profile?.monthlyIncome ?? "",
+    monthlyIncome: profile?.monthlyIncome
+      ? formatAmountInput(profile.monthlyIncome)
+      : "",
   };
 }
 
@@ -504,7 +506,7 @@ export function ProfilBody({
     if (form.gender) payload.gender = form.gender;
     if (form.jobTitle.trim()) payload.jobTitle = form.jobTitle.trim();
     if (form.monthlyIncome.trim())
-      payload.monthlyIncome = form.monthlyIncome.trim();
+      payload.monthlyIncome = String(parseRupiah(form.monthlyIncome));
     try {
       await onSave(payload);
       // Only clear `dirty` once the save has actually resolved — the
@@ -595,8 +597,12 @@ export function ProfilBody({
       <Field label={t.akun.profil.monthlyIncomeLabel}>
         <input
           className="input"
+          type="text"
+          inputMode="numeric"
           value={form.monthlyIncome}
-          onChange={(e) => update("monthlyIncome", e.target.value)}
+          onChange={(e) =>
+            update("monthlyIncome", formatAmountInput(e.target.value))
+          }
           placeholder={t.akun.profil.monthlyIncomePlaceholder}
         />
       </Field>

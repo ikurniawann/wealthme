@@ -12,6 +12,8 @@ import {
   BookOpen,
   Briefcase,
   Car,
+  Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Coins,
@@ -38,6 +40,12 @@ import { useLocale } from "@/hooks/use-locale";
 import { MoneyHint } from "@/components/money/money-input";
 import type { MoneyField } from "@/components/money/use-money-field";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/components/ui/dropdown-menu";
 
 /**
  * Bento v2 add-transaction pieces (docs/design/proto `.tx` dialog): the big
@@ -242,11 +250,17 @@ export function AmountHero({
   id,
   label,
   placeholder,
+  required,
+  error,
 }: {
   field: MoneyField;
   id: string;
   label: ReactNode;
   placeholder: string;
+  /** audit P2-4/AC-7 — shows a `*` marker next to the label. */
+  required?: boolean;
+  /** audit P2-4/AC-7 — inline, field-level validation message. */
+  error?: string;
 }) {
   const { t } = useLocale();
   const code = field.currency;
@@ -254,6 +268,12 @@ export function AmountHero({
     <div className="tx-amount-field">
       <label htmlFor={id} className="label">
         {label}
+        {required && (
+          <span aria-hidden="true" className="text-destructive">
+            {" "}
+            *
+          </span>
+        )}
       </label>
       <div className="tx-amount">
         <span aria-hidden="true">{code === "IDR" ? "Rp" : code}</span>
@@ -270,22 +290,70 @@ export function AmountHero({
         label={`${t.money.currencyLabel} ${t.common.optional}`}
         defaultOpen={code !== "IDR"}
       >
-        <select
-          className="select"
-          aria-label={t.money.currencyLabel}
+        <CurrencyPicker
           value={code}
-          onChange={(event) =>
-            field.setCurrency(event.target.value as CurrencyCode)
-          }
-        >
-          {CURRENCIES.map((currency) => (
-            <option key={currency.code} value={currency.code}>
-              {`${currency.flag} ${currency.code}`}
-            </option>
-          ))}
-        </select>
+          onChange={(nextCode) => field.setCurrency(nextCode)}
+        />
       </AdvancedDisclosure>
       <MoneyHint field={field} />
+      {error && (
+        <p role="alert" className="error-text">
+          {error}
+        </p>
+      )}
     </div>
+  );
+}
+
+/** uiarc.dev money-input reference (user-supplied screenshot) — a trigger
+ * pill showing the current currency, opening a list of rows (flag, code
+ * bold, full name muted, a checkmark on the selected row). Built on the
+ * existing Base UI `DropdownMenu` primitive rather than adopting uiarc's
+ * component wholesale: WealthMe's `CURRENCIES`/`MoneyField` data shape and
+ * IDR-only default already cover this picker's needs. */
+function CurrencyPicker({
+  value,
+  onChange,
+}: {
+  value: CurrencyCode;
+  onChange: (code: CurrencyCode) => void;
+}) {
+  const { t } = useLocale();
+  const current = CURRENCIES.find((c) => c.code === value) ?? CURRENCIES[0]!;
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        className="input flex w-auto items-center gap-1.5 px-3 py-1.5 font-bold"
+        aria-label={t.money.currencyLabel}
+      >
+        <span aria-hidden="true">{current.flag}</span>
+        {current.code}
+        <ChevronDown aria-hidden="true" className="size-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="min-w-[220px]">
+        {CURRENCIES.map((currency) => {
+          const name = t.akun.pengaturan.currencies[currency.code].name;
+          const selected = currency.code === value;
+          return (
+            <DropdownMenuItem
+              key={currency.code}
+              onClick={() => onChange(currency.code)}
+              className="gap-2.5 py-2"
+            >
+              <span aria-hidden="true" className="text-base">
+                {currency.flag}
+              </span>
+              <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                <span className="font-bold">{currency.code}</span>
+                <span className="truncate text-muted-foreground">{name}</span>
+              </span>
+              {selected && (
+                <Check aria-hidden="true" className="size-4 shrink-0" />
+              )}
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

@@ -514,7 +514,7 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     render(<AsetPage />);
 
     await screen.findByText("Rumah Kelapa Gading");
-    await user.click(screen.getByRole("button", { name: /^edit$/i }));
+    await user.click(screen.getByRole("button", { name: /^ubah$/i }));
 
     await screen.findByRole("dialog");
     expect(screen.getByRole("button", { name: "Batal" })).toBeInTheDocument();
@@ -539,7 +539,7 @@ describe("/aset — physical asset edit/delete (EPIC-022 D5)", () => {
     render(<AsetPage />);
 
     await screen.findByText("Rumah Kelapa Gading");
-    await user.click(screen.getByRole("button", { name: /^edit$/i }));
+    await user.click(screen.getByRole("button", { name: /^ubah$/i }));
 
     const nameInput = await screen.findByDisplayValue("Rumah Kelapa Gading");
     await user.clear(nameInput);

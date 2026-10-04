@@ -2,6 +2,7 @@
 
 import type { MouseEvent } from "react";
 import { Pencil, Trash2, Banknote, Info } from "lucide-react";
+import { useLocale } from "@/hooks/use-locale";
 
 interface RowActionsProps {
   onEdit: () => void;
@@ -28,12 +29,14 @@ export function RowActions({
   disabled = false,
   disabledLabel,
 }: RowActionsProps) {
+  const { t } = useLocale();
   const handle = (fn: () => void) => (e: MouseEvent) => {
     e.stopPropagation();
     fn();
   };
-  const editLabel = disabled && disabledLabel ? disabledLabel : "Edit";
-  const deleteLabel = disabled && disabledLabel ? disabledLabel : "Hapus";
+  const editLabel = disabled && disabledLabel ? disabledLabel : t.common.edit;
+  const deleteLabel =
+    disabled && disabledLabel ? disabledLabel : t.common.delete;
   return (
     <div className={`flex shrink-0 gap-[5px] ${className ?? ""}`}>
       {/* Hardening batch G3 (P1) — 28px misses the 44px WCAG 2.2 AA touch
@@ -95,6 +98,7 @@ export function CardSideActions({
   payDisabled = false,
   payDisabledLabel,
 }: CardSideActionsProps) {
+  const { t } = useLocale();
   return (
     <div className="flex shrink-0 flex-col justify-center gap-1.5 border-l pl-2.5">
       {onDetail && (
@@ -110,8 +114,8 @@ export function CardSideActions({
       )}
       <button
         type="button"
-        aria-label="Edit"
-        title="Edit"
+        aria-label={t.common.edit}
+        title={t.common.edit}
         onClick={onEdit}
         className="flex size-[34px] items-center justify-center rounded-[9px] bg-accent text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
       >
@@ -121,9 +125,11 @@ export function CardSideActions({
         <button
           type="button"
           aria-label={
-            payDisabled && payDisabledLabel ? payDisabledLabel : "Bayar"
+            payDisabled && payDisabledLabel ? payDisabledLabel : t.common.pay
           }
-          title={payDisabled && payDisabledLabel ? payDisabledLabel : "Bayar"}
+          title={
+            payDisabled && payDisabledLabel ? payDisabledLabel : t.common.pay
+          }
           onClick={onPay}
           disabled={payDisabled}
           className="flex size-[34px] items-center justify-center rounded-[9px] bg-success/10 text-success transition-colors hover:bg-success hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-success/10 disabled:hover:text-success"
@@ -133,8 +139,8 @@ export function CardSideActions({
       )}
       <button
         type="button"
-        aria-label="Hapus"
-        title="Hapus"
+        aria-label={t.common.delete}
+        title={t.common.delete}
         onClick={onDelete}
         className="flex size-[34px] items-center justify-center rounded-[9px] bg-destructive/10 text-destructive transition-colors hover:bg-destructive hover:text-white"
       >

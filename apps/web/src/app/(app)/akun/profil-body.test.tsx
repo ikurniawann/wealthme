@@ -88,6 +88,10 @@ describe("ProfilBody", () => {
 
     await user.type(jobTitleInput, "Product Manager");
 
+    // task #10 (profile income thousand-separator formatting) — this field
+    // now live-formats via `formatAmountInput` and the payload is
+    // `parseRupiah`-normalized to a plain digit string, same round-trip as
+    // every other money field in the app (see `WM_CONVENTIONS.md`).
     await user.type(monthlyIncomeInput, "Rp 30.000.000");
 
     await user.click(saveButton);
@@ -101,7 +105,7 @@ describe("ProfilBody", () => {
           birthDate: "1990-01-01",
           gender: "Perempuan",
           jobTitle: "Product Manager",
-          monthlyIncome: "Rp 30.000.000",
+          monthlyIncome: "30000000",
         }),
       );
     });

@@ -67,16 +67,27 @@ function subscribe(onChange: () => void) {
   };
 }
 
-/** Default look by account type: bank lime, e-wallet forest, cash sand, else graphite. */
-export function defaultLook(type: string): CardLook {
-  const skin: CardSkin =
-    type === "bank"
-      ? "lime"
-      : type === "ewallet"
-        ? "forest"
-        : type === "cash"
-          ? "sand"
-          : "graphite";
+/** Per-type skin pools for default differentiation (audit P2-1): several
+ * un-customized accounts of the same type get different colors instead of
+ * all collapsing onto one flat default. */
+const SKIN_POOL_BY_TYPE: Record<string, readonly CardSkin[]> = {
+  bank: ["lime", "sky", "coral", "lilac"],
+  ewallet: ["forest", "midnight", "sand"],
+  cash: ["sand", "graphite", "lime"],
+};
+
+function hashId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+/** Default look by account type and id: a deterministic pick from the
+ * type's skin pool so same-type accounts differ by default, stable across
+ * reloads. `id` is optional only for callers with no account yet. */
+export function defaultLook(type: string, id?: string): CardLook {
+  const pool = SKIN_POOL_BY_TYPE[type] ?? (["graphite"] as const);
+  const skin = id ? pool[hashId(id) % pool.length]! : pool[0]!;
   return {
     skin,
     pattern: type === "bank" || type === "cash" ? "hatch" : "plain",
@@ -87,7 +98,7 @@ export function defaultLook(type: string): CardLook {
 export function useCardLooks() {
   const looks = useSyncExternalStore(subscribe, snapshot, () => EMPTY);
   const lookFor = useCallback(
-    (id: string, type: string): CardLook => looks[id] ?? defaultLook(type),
+    (id: string, type: string): CardLook => looks[id] ?? defaultLook(type, id),
     [looks],
   );
   const setLook = useCallback((id: string, look: CardLook | null) => {

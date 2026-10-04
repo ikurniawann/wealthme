@@ -164,7 +164,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     ).toBeInTheDocument();
     // "GoPay" renders twice for this row (name + institution subtitle).
     expect(screen.getAllByText("GoPay").length).toBeGreaterThan(0);
-    expect(screen.getAllByRole("button", { name: "Edit" })).toHaveLength(3);
+    expect(screen.getAllByRole("button", { name: "Ubah" })).toHaveLength(3);
     expect(screen.getAllByRole("button", { name: "Hapus" })).toHaveLength(3);
   });
 
@@ -262,7 +262,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     ]); // refetch
 
     // Act
-    await user.click(screen.getAllByRole("button", { name: "Edit" })[0]!);
+    await user.click(screen.getAllByRole("button", { name: "Ubah" })[0]!);
     const dialog = within(await screen.findByRole("dialog"));
     expect(
       dialog.getByRole("heading", { name: "Edit Kas Tunai" }),
@@ -335,7 +335,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     ]); // refetch
 
     // Act — edit only the name, never touching the amount field.
-    await user.click(screen.getAllByRole("button", { name: "Edit" })[0]!);
+    await user.click(screen.getAllByRole("button", { name: "Ubah" })[0]!);
     const dialog = within(await screen.findByRole("dialog"));
     // The amount field must display the existing negative balance, not a
     // sign-stripped positive one.

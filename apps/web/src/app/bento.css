@@ -466,10 +466,18 @@
       transform 0.32s cubic-bezier(0.16, 1, 0.3, 1),
       opacity 0.2s;
   }
+  /* Recede, don't vanish: the dock is a 60px pill, so clipping it off-screen
+     and keeping a 44px touch target are mutually exclusive — dim it instead
+     of translating it away. Position and tap targets stay exactly in place
+     (ui-ux-pro-max `persistent-nav` — core nav must stay reachable, never
+     hidden entirely in a sub-flow), only visual prominence recedes during a
+     reading scroll. */
   .wm-dock[data-hidden] {
-    opacity: 0;
-    pointer-events: none;
-    transform: translateX(-50%) translateY(calc(100% + 24px));
+    opacity: 0.45;
+  }
+  .wm-dock[data-hidden]:hover,
+  .wm-dock[data-hidden]:focus-within {
+    opacity: 1;
   }
   .dark .wm-dock {
     border: 1px solid rgb(255 255 255 / 0.08);
@@ -1861,17 +1869,9 @@
   }
   .wm-plate[data-pattern="waves"]::before {
     background:
-      radial-gradient(
-        120% 60% at 110% 120%,
-        currentColor 0 30%,
-        transparent 31%
-      ),
-      radial-gradient(
-        120% 60% at 110% 150%,
-        currentColor 0 30%,
-        transparent 31%
-      );
-    opacity: 0.12;
+      radial-gradient(90% 90% at 18% 115%, currentColor 0 46%, transparent 48%),
+      radial-gradient(90% 90% at 82% 125%, currentColor 0 46%, transparent 48%);
+    opacity: 0.14;
   }
   /* a soft sheen that follows hover */
   .wm-plate::after {

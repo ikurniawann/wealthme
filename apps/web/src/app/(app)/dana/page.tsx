@@ -286,7 +286,7 @@ function WalletRow({
         </div>
         <div className="dn-row-top">
           <span
-            className="dn-row-amt num"
+            className="dn-row-amt wm-num"
             data-negative={negative || undefined}
           >
             {money.formatBalance(item.balance)}

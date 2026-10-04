@@ -233,23 +233,19 @@ export default function TujuanPage() {
   const sortedGoals = [...(goals ?? [])].sort(
     (a, b) => a.progressPercent - b.progressPercent,
   );
-  // EPIC-033 revision — docs/design/proto/tujuan.html's "Perlu perhatian"
-  // list is never just the goals that are behind: it's `attn` (needs_boost
-  // / at_risk, at_risk sorted first) followed by every other goal sorted
-  // by progress descending, capped at MAX_ATTENTION_ROWS. The card always
-  // lists every goal as a row — "all good" is no longer a one-sentence
-  // empty state, it's just the natural result when nothing is behind.
+  // audit P1-5/AC-5 — "Perlu perhatian" must show exactly one unambiguous
+  // status signal: only goals actually behind plan (needs_boost/at_risk,
+  // at_risk sorted first), capped at MAX_ATTENTION_ROWS. Padding the list
+  // with on_track/achieved goals (the prior EPIC-033 behavior) made a card
+  // titled "needs attention" display an on-track goal's status in the same
+  // row — a direct contradiction. "All good" (attAllGood) is the empty
+  // state when nothing is behind.
   const needsAttentionGoals = sortedGoals
     .filter((g) => NEEDS_ATTENTION.includes(g.status))
     .sort((a, b) =>
       a.status === b.status ? 0 : a.status === "at_risk" ? -1 : 1,
     );
-  const restGoals = (goals ?? [])
-    .filter((g) => !NEEDS_ATTENTION.includes(g.status))
-    .sort((a, b) => b.progressPercent - a.progressPercent);
-  const attentionGoals = needsAttentionGoals
-    .concat(restGoals)
-    .slice(0, MAX_ATTENTION_ROWS);
+  const attentionGoals = needsAttentionGoals.slice(0, MAX_ATTENTION_ROWS);
   const worst = needsAttentionGoals[0];
   const worstMonthly = worst ? monthlyNeededFor(worst) : null;
   const lowestIndex = (goals ?? []).reduce(

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { PillButton } from "@/components/wm";
 import { useApiError } from "@/hooks/use-api-error";
+import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -60,6 +61,7 @@ export function FamilyHandleDialog({
   onOpenChange,
 }: FamilyHandleDialogProps) {
   const { handleError } = useApiError();
+  const { t } = useLocale();
   const fieldId = useId();
   const queryClient = useQueryClient();
   const key = queryKeys.familyGroups.loginHandle(familyGroupId ?? "");
@@ -119,7 +121,7 @@ export function FamilyHandleDialog({
                 . Beri tahu anggota setelah mengubahnya.
               </DialogDescription>
             </div>
-            <DialogClose className="wm-panel-x" aria-label="Tutup">
+            <DialogClose className="wm-panel-x" aria-label={t.common.close}>
               <X aria-hidden="true" />
             </DialogClose>
           </header>

@@ -460,7 +460,10 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
       "acc-1",
     );
 
-    const trigger = screen.getByLabelText(dateLabel);
+    // audit P2-4/AC-7 — the wrapping <label> now also carries a required
+    // "*" marker, so the trigger's accessible name is no longer an exact
+    // match of the bare label text.
+    const trigger = screen.getByLabelText(dateLabel, { exact: false });
     expect(trigger.tagName).toBe("BUTTON");
     await user.click(trigger);
     await user.click(
@@ -598,7 +601,10 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     await pick(user, accountSelect, "acc-1");
 
     await user.type(
-      screen.getByLabelText(mockDictionary.shell.transactionDialog.amountLabel),
+      screen.getByLabelText(
+        mockDictionary.shell.transactionDialog.amountLabel,
+        { exact: false },
+      ),
       "250000",
     );
     await user.click(
@@ -628,13 +634,15 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     });
     await pick(user, accountSelect, "acc-1");
 
-    await pick(
-      user,
-      screen.getByLabelText(mockDictionary.money.currencyLabel),
-      "USD",
-    );
+    // audit — the currency picker is now a DropdownMenu (uiarc.dev
+    // reference), not a <select>: open it, then pick the "USD" row.
+    await user.click(screen.getByLabelText(mockDictionary.money.currencyLabel));
+    await user.click(await screen.findByRole("menuitem", { name: /USD/ }));
     await user.type(
-      screen.getByLabelText(mockDictionary.shell.transactionDialog.amountLabel),
+      screen.getByLabelText(
+        mockDictionary.shell.transactionDialog.amountLabel,
+        { exact: false },
+      ),
       "10",
     );
     await user.click(
@@ -1066,7 +1074,9 @@ describe("TransactionDialog, receipt scan (EPIC-027 B1-B4)", () => {
     ).toHaveAttribute("data-value", "cat-1");
     const expectedDate = isoToDateInputValue(SCAN_RESULT.occurredAt, "");
     expect(
-      screen.getByLabelText(mockDictionary.shell.transactionDialog.dateLabel),
+      screen.getByLabelText(mockDictionary.shell.transactionDialog.dateLabel, {
+        exact: false,
+      }),
     ).toHaveAttribute("data-value", expectedDate);
 
     fetchSpy.mockRestore();
@@ -1665,7 +1675,9 @@ describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
     expect(
       await screen.findByRole("radiogroup", { name: "Kategori" }),
     ).toHaveAttribute("data-value", "cat-1");
-    expect(screen.getByLabelText(dict.dateLabel)).toHaveAttribute(
+    expect(
+      screen.getByLabelText(dict.dateLabel, { exact: false }),
+    ).toHaveAttribute(
       "data-value",
       isoToDateInputValue(SCAN_RESULT.occurredAt, ""),
     );

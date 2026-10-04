@@ -181,7 +181,7 @@ export function MemberAccessDialog({
               siapa yang dia lihat.
             </DialogDescription>
           </div>
-          <DialogClose className="wm-panel-x" aria-label="Tutup">
+          <DialogClose className="wm-panel-x" aria-label={t.common.close}>
             <X aria-hidden="true" />
           </DialogClose>
         </header>
