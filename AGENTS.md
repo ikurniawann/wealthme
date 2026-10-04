@@ -110,3 +110,10 @@ specialized:
 Every non-trivial task must finish with the actual files changed, verification
 commands and results, remaining risks, and whether escalation occurred. Never
 claim success from an unverified draft.
+
+### Memory and compaction
+
+- `MEMORY.md` is durable project memory. Keep it concise and update only verified, reusable facts.
+- Before compaction or handoff, write a checkpoint using `docs/agentic/CONTEXT-CHECKPOINT.md`.
+- After compaction, reload memory and the active checkpoint first, then read only the files needed for the next verification step.
+- Sub-agents return evidence capsules: findings, paths, commands, and uncertainties. Do not pass entire transcripts between agents.

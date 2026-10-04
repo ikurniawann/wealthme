@@ -55,3 +55,7 @@ approval.
 
 Return: route chosen, files changed, verification evidence, escalations used,
 and remaining risks.
+
+## Context checkpoint
+
+For work that spans compaction or handoff, write a concise checkpoint using `docs/agentic/CONTEXT-CHECKPOINT.md`. Reload `MEMORY.md` and that checkpoint before continuing; do not replay the full conversation or reread unrelated generated files.
