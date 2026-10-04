@@ -125,3 +125,9 @@ claim success from an unverified draft.
   `checks/approved/` and are read-only during the run.
 - Every run is bounded to two repair rounds and records evidence in
   `results.md`.
+
+### Automatic model routing
+
+Start tasks with `claude-route` when model selection should be automatic. It
+uses Sonnet by default and escalates to Opus for auth, security, database,
+migration, architecture, production, tenant, payment, or incident work.

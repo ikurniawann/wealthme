@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Cost-aware Claude launcher. The first argument may be --task; otherwise all
+# arguments are treated as the task. With no task, start an interactive Sonnet session.
+task="${*:-}"
+model="sonnet"
+route="standard"
+reason="standard implementation or review"
+
+case "$(printf '%s' "$task" | tr '[:upper:]' '[:lower:]')" in
+  *auth*|*security*|*database*|*migration*|*architecture*|*production*|*tenant*|*payment*|*money*|*incident*)
+    model="opus"; route="deep"; reason="security, data, architecture, or production risk" ;;
+  *rename*|*format*|*documentation*|*docs*|*grep*|*simple*|*summarize*|*summary*)
+    model="sonnet"; route="light"; reason="low-complexity documentation or inspection" ;;
+  *)
+    model="sonnet"; route="standard"; reason="normal implementation, UI, or testing" ;;
+esac
+
+printf 'Route: model=%s route=%s reason=%s\n' "$model" "$route" "$reason" >&2
+if [ -n "$task" ]; then
+  exec claude --model "$model" "$task"
+else
+  exec claude --model "$model"
+fi
