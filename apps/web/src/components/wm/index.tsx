@@ -66,3 +66,5 @@ export { EmojiPicker } from "./emoji-picker";
 export { InfoTip } from "./info-tip";
 // Revisi C — the one app-wide date picker (range + single date), portaled.
 export { DateField, DateRangeFilterField } from "./date-range-field";
+// uiarc.dev `context-menu` reference, adapted onto Base UI's own context-menu primitive.
+export { ContextMenu, type ContextMenuAction } from "./context-menu";

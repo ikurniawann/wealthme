@@ -36,10 +36,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { CURRENCIES, type CurrencyCode } from "@/hooks/currencies";
+import { formatAmountInput } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import { MoneyHint } from "@/components/money/money-input";
 import type { MoneyField } from "@/components/money/use-money-field";
-import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -262,7 +262,6 @@ export function AmountHero({
   /** audit P2-4/AC-7 — inline, field-level validation message. */
   error?: string;
 }) {
-  const { t } = useLocale();
   const code = field.currency;
   return (
     <div className="tx-amount-field">
@@ -276,7 +275,7 @@ export function AmountHero({
         )}
       </label>
       <div className="tx-amount">
-        <span aria-hidden="true">{code === "IDR" ? "Rp" : code}</span>
+        {code === "IDR" && <span aria-hidden="true">Rp</span>}
         <input
           id={id}
           inputMode={field.decimals > 0 ? "decimal" : "numeric"}
@@ -285,16 +284,14 @@ export function AmountHero({
           onChange={(event) => field.setRaw(event.target.value)}
           autoComplete="off"
         />
-      </div>
-      <AdvancedDisclosure
-        label={`${t.money.currencyLabel} ${t.common.optional}`}
-        defaultOpen={code !== "IDR"}
-      >
+        {/* uiarc.dev money-input reference — currency sits inline, to the
+            right of the amount, not behind a collapsed disclosure. */}
         <CurrencyPicker
           value={code}
           onChange={(nextCode) => field.setCurrency(nextCode)}
         />
-      </AdvancedDisclosure>
+      </div>
+      {code === "IDR" && <QuickAddChips field={field} />}
       <MoneyHint field={field} />
       {error && (
         <p role="alert" className="error-text">
@@ -304,6 +301,39 @@ export function AmountHero({
     </div>
   );
 }
+
+/** uiarc.dev money-input reference — quick-add chips. IDR-only: round
+ * increments (+10rb/+50rb/+100rb) aren't meaningful to guess for an
+ * arbitrary foreign currency the way they are for everyday Rupiah amounts. */
+function QuickAddChips({ field }: { field: MoneyField }) {
+  const { t } = useLocale();
+  const add = (amount: number) => {
+    const current = field.resolved.canonical
+      ? Number(field.resolved.canonical)
+      : 0;
+    field.setRaw(String(current + amount));
+  };
+  return (
+    <div
+      className="mt-2 flex gap-1.5"
+      role="group"
+      aria-label={t.shell.transactionDialog.quickAddAriaLabel}
+    >
+      {QUICK_ADD_IDR.map((amount) => (
+        <button
+          key={amount}
+          type="button"
+          className="btn btn--outline btn--sm"
+          onClick={() => add(amount)}
+        >
+          +{formatAmountInput(String(amount))}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const QUICK_ADD_IDR = [10_000, 50_000, 100_000];
 
 /** uiarc.dev money-input reference (user-supplied screenshot) — a trigger
  * pill showing the current currency, opening a list of rows (flag, code
@@ -323,7 +353,7 @@ function CurrencyPicker({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="input flex w-auto items-center gap-1.5 px-3 py-1.5 font-bold"
+        className="ml-auto flex shrink-0 w-auto items-center gap-1.5 self-center rounded-full border px-3 py-1.5 text-[13px] font-bold"
         aria-label={t.money.currencyLabel}
       >
         <span aria-hidden="true">{current.flag}</span>

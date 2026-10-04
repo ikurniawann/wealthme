@@ -17,6 +17,7 @@ import {
   Filter,
   Image as ImageIcon,
   ImagePlus,
+  Eye,
   Lock,
   Pencil,
   Search,
@@ -59,6 +60,7 @@ import {
   GhostButton,
   HeroKpi,
   PillButton,
+  ContextMenu,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { CategoryIcon } from "@/components/shell/tx-pickers";
@@ -326,55 +328,87 @@ export function TxRow({
           container is an ARIA "nested-interactive" violation, and a keydown
           on those buttons would otherwise bubble up and re-trigger this row's
           own Enter/Space handler, hijacking keyboard Edit/Hapus. */}
-      <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 transition-colors hover:bg-accent/40">
-        <div
-          role="button"
-          tabIndex={0}
-          onClick={openDetail}
-          onKeyDown={handleKeyDown}
-          aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
-          className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[8px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        >
-          <IconChip
-            icon={txIcon.icon}
-            className={txIcon.chip}
-            size={34}
-            rounded="rounded-full"
+      {/* uiarc.dev context-menu reference — right-click/long-press gives the
+          same Edit/Hapus/Lihat Detail set as the visible controls below, as
+          a supplementary desktop/power-user path. It does not replace them:
+          a context menu has no visible affordance, so RowActions and the
+          tap-to-detail trigger stay the accessible, discoverable baseline. */}
+      <ContextMenu
+        label={`${typeLabel} ${displayName}`}
+        items={[
+          {
+            id: "detail",
+            label: t.transaksi.detailDialogTitle,
+            icon: <Eye className="size-3.5" aria-hidden="true" />,
+            onSelect: openDetail,
+          },
+          {
+            id: "edit",
+            label: t.common.edit,
+            icon: <Pencil className="size-3.5" aria-hidden="true" />,
+            onSelect: onEditClick,
+            disabled: isEditLocked,
+          },
+          {
+            id: "delete",
+            label: t.common.delete,
+            icon: <Trash2 className="size-3.5" aria-hidden="true" />,
+            onSelect: onDeleteClick,
+            disabled: isEditLocked,
+            destructive: true,
+          },
+        ]}
+      >
+        <div className="flex w-full items-center gap-3 rounded-[12px] border bg-card py-3.5 px-3 transition-colors hover:bg-accent/40">
+          <div
+            role="button"
+            tabIndex={0}
+            onClick={openDetail}
+            onKeyDown={handleKeyDown}
+            aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[8px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          >
+            <IconChip
+              icon={txIcon.icon}
+              className={txIcon.chip}
+              size={34}
+              rounded="rounded-full"
+            />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-semibold">
+                {displayName}
+              </div>
+              <div className="truncate text-[11.5px] text-muted-foreground capitalize">
+                {subtitle}
+              </div>
+            </div>
+            <div className="text-right">
+              <div
+                className={
+                  "text-[13.5px] font-bold " +
+                  (isTransfer
+                    ? "text-muted-foreground"
+                    : isIncome
+                      ? "text-success"
+                      : "text-destructive")
+                }
+              >
+                {amountStr}
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {formatTime(tx.occurredAt)}
+              </div>
+            </div>
+          </div>
+          <RowActions
+            onEdit={onEditClick}
+            onDelete={onDeleteClick}
+            className="ml-1"
+            disabled={isEditLocked}
+            disabledLabel={editLockTooltip}
           />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-[13.5px] font-semibold">
-              {displayName}
-            </div>
-            <div className="truncate text-[11.5px] text-muted-foreground capitalize">
-              {subtitle}
-            </div>
-          </div>
-          <div className="text-right">
-            <div
-              className={
-                "text-[13.5px] font-bold " +
-                (isTransfer
-                  ? "text-muted-foreground"
-                  : isIncome
-                    ? "text-success"
-                    : "text-destructive")
-              }
-            >
-              {amountStr}
-            </div>
-            <div className="text-[11px] text-muted-foreground">
-              {formatTime(tx.occurredAt)}
-            </div>
-          </div>
         </div>
-        <RowActions
-          onEdit={onEditClick}
-          onDelete={onDeleteClick}
-          className="ml-1"
-          disabled={isEditLocked}
-          disabledLabel={editLockTooltip}
-        />
-      </div>
+      </ContextMenu>
       <TransactionDetailDialog
         tx={tx}
         open={detailOpen}
@@ -469,12 +503,45 @@ export function TxTableRow({
 
   return (
     <>
-      <tr
-        tabIndex={0}
-        onClick={openDetail}
-        onKeyDown={handleRowKeyDown}
-        aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
-        className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-accent/40 focus:outline-none focus-visible:bg-accent/40"
+      {/* uiarc.dev context-menu reference — `<tr>` can't be a child of
+          `ContextMenuTrigger`'s default `<div>` (invalid table markup), so
+          the trigger renders AS this row via Base UI's `render` prop
+          (same pattern as rekening/page.tsx's icon-button trigger) instead
+          of wrapping it. */}
+      <ContextMenu
+        label={`${typeLabel} ${displayName}`}
+        items={[
+          {
+            id: "detail",
+            label: t.transaksi.detailDialogTitle,
+            icon: <Eye className="size-3.5" aria-hidden="true" />,
+            onSelect: openDetail,
+          },
+          {
+            id: "edit",
+            label: t.common.edit,
+            icon: <Pencil className="size-3.5" aria-hidden="true" />,
+            onSelect: onEditClick,
+            disabled: isEditLocked,
+          },
+          {
+            id: "delete",
+            label: t.common.delete,
+            icon: <Trash2 className="size-3.5" aria-hidden="true" />,
+            onSelect: onDeleteClick,
+            disabled: isEditLocked,
+            destructive: true,
+          },
+        ]}
+        render={
+          <tr
+            tabIndex={0}
+            onClick={openDetail}
+            onKeyDown={handleRowKeyDown}
+            aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
+            className="cursor-pointer border-b transition-colors last:border-b-0 hover:bg-accent/40 focus:outline-none focus-visible:bg-accent/40"
+          />
+        }
       >
         <td className="px-3 py-3 align-top text-[11.5px] font-[family-name:var(--font-mono)] whitespace-nowrap">
           {formatShortDate(tx.occurredAt.slice(0, 10), locale)}
@@ -540,7 +607,7 @@ export function TxTableRow({
             disabledLabel={editLockTooltip}
           />
         </td>
-      </tr>
+      </ContextMenu>
       <TransactionDetailDialog
         tx={tx}
         open={detailOpen}
@@ -1195,14 +1262,52 @@ export function HistoryRow({
   ) : (
     <CategoryIcon name={tx.categoryName ?? ""} />
   );
+  // EPIC-023 group E / EPIC-036 — same lock as TxRow/TxTableRow above: an
+  // obligation-linked or edit-rights-locked transaction must not offer a
+  // live-looking Edit/Hapus, context menu included.
+  const isObligationLinked = !!tx.liabilityId || !!tx.insuranceId;
+  const isEditLocked = isObligationLinked || tx.canModify === false;
   return (
     <>
-      <button
-        type="button"
-        className="tx-row"
-        data-type={tx.type}
-        onClick={() => setOpen(true)}
-        aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabels[tx.type] ?? tx.type} ${title}, ${amountStr}`}
+      {/* uiarc.dev context-menu reference — right-click/long-press gives
+          Edit/Hapus/Lihat Detail without opening the detail dialog first.
+          This row has no visible RowActions (Edit/Hapus live in the
+          dialog), so the context menu is a genuinely new, additive path,
+          not a duplicate of an existing control. */}
+      <ContextMenu
+        label={`${typeLabels[tx.type] ?? tx.type} ${title}`}
+        items={[
+          {
+            id: "detail",
+            label: t.transaksi.detailDialogTitle,
+            icon: <Eye className="size-3.5" aria-hidden="true" />,
+            onSelect: () => setOpen(true),
+          },
+          {
+            id: "edit",
+            label: t.common.edit,
+            icon: <Pencil className="size-3.5" aria-hidden="true" />,
+            onSelect: onEditClick,
+            disabled: isEditLocked,
+          },
+          {
+            id: "delete",
+            label: t.common.delete,
+            icon: <Trash2 className="size-3.5" aria-hidden="true" />,
+            onSelect: onDeleteClick,
+            disabled: isEditLocked,
+            destructive: true,
+          },
+        ]}
+        render={
+          <button
+            type="button"
+            className="tx-row"
+            data-type={tx.type}
+            onClick={() => setOpen(true)}
+            aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabels[tx.type] ?? tx.type} ${title}, ${amountStr}`}
+          />
+        }
       >
         <span className="tx-row-ic" aria-hidden="true">
           {icon}
@@ -1212,7 +1317,7 @@ export function HistoryRow({
           <small>{meta}</small>
         </span>
         <span className="tx-row-amt wm-num">{amountStr}</span>
-      </button>
+      </ContextMenu>
       <TransactionDetailDialog
         tx={tx}
         open={open}

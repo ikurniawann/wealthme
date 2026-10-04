@@ -398,3 +398,85 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   (`docs/agentic/checkpoints/ui-restyle-backlog.md` #1-11, all done). The
   `apps/api` dependency advisories above are a separate, pre-existing,
   backend-scoped finding for a future task, not this frontend restyle backlog.
+
+## 2026-10-05 — uiarc.dev component adoption: money-input currency picker + context-menu (user request)
+
+- Checks: none drafted (direct implementation per standing authorization +
+  live user feedback mid-session, not a task-loop item).
+- Round: 1/2 (one live bug found and fixed during verification)
+- Result: PASS
+- Change:
+  - `apps/web/src/components/shell/tx-pickers.tsx` — `AmountHero`'s currency
+    picker moved from a collapsed "Currency (optional)" disclosure below the
+    amount to an inline pill to the right of the amount input (user-flagged:
+    "harusnya ada di section kanan text input angka bukan di bawah lagi"),
+    matching the uiarc.dev `money-input` reference screenshot. Added
+    `QuickAddChips` (+10.000/+50.000/+100.000, IDR-only — round increments
+    aren't meaningful to guess for an arbitrary foreign currency), adapted
+    from the same reference onto `MoneyField`'s existing string/IDR-first
+    model rather than adopting uiarc's minor-units/no-FX value model, which
+    would have silently discarded WealthMe's live ECB-rate FX conversion
+    (`resolved.canonical`/`withFxInputs`/the "1 USD = Rp X" hint) — a real
+    financial feature uiarc's generic component has no concept of.
+  - `apps/web/src/components/ui/context-menu.tsx` (new) — Base UI
+    `@base-ui/react/context-menu` wrapper, same structure/conventions as the
+    existing `dropdown-menu.tsx`.
+  - `apps/web/src/components/wm/context-menu.tsx` (new) — `ContextMenu`
+    component with the uiarc.dev `context-menu` reference's `items` API
+    (`{id, label, icon?, onSelect?, disabled?, destructive?}[]`), adapted
+    onto the Base UI primitive above instead of uiarc's own `motion` +
+    hand-rolled positioning/long-press code — Base UI's own
+    `ContextMenuTrigger` already opens on right-click _or_ long-press
+    natively, so there was nothing left to reimplement. Exported from
+    `components/wm/index.tsx`.
+  - Wired onto `apps/web/src/app/(app)/transaksi/page.tsx`'s `HistoryRow`
+    (the actual rendered row component — `TxRow`/`TxTableRow` in the same
+    file are exported+tested but never rendered anywhere in the app;
+    ContextMenu was added there too for consistency, but the live fix is on
+    `HistoryRow`) as a supplementary right-click/long-press path to the same
+    Detail/Ubah/Hapus actions, honoring the same `canModify`/obligation-link
+    locks as the row's own dialog buttons. Added to `TxTableRow` via Base
+    UI's `render` prop (`ContextMenuTrigger` can't default to a `<div>`
+    inside a `<table>`).
+  - `apps/web/src/components/ui/dropdown-menu.tsx` — **live bug fix**,
+    found during verification: `DropdownMenuContent`/`ContextMenuContent`
+    used `z-50`, while `Dialog`'s own overlay/content use `z-[60]`, so a
+    currency picker (or any dropdown/context menu) opened from inside a
+    Dialog had its clicks intercepted by the dialog's own backdrop —
+    exactly the "pilih currencies jadi ngebug gabisa diklik" the user
+    reported live. Bumped both menu primitives' popup/positioner to
+    `z-[70]` so they always render above a Dialog.
+  - `apps/web/jest.setup.ts` — new `DOMRect`/`DOMRect.fromRect` polyfill;
+    jsdom doesn't implement `DOMRect`, and Base UI's `ContextMenuTrigger`
+    calls `getBoundingClientRect()` on mount (before any interaction), so
+    every test rendering a `ContextMenu` crashed without it.
+  - `apps/web/src/components/wm/context-menu.test.tsx` (new) — 3 tests:
+    opens + fires `onSelect` on right-click, skips `onSelect` when
+    `disabled`, and renders via the `render` prop as a non-`<div>` element
+    (`<tr>`) with children projected inside it.
+- Commands:
+  - `pnpm --filter web exec tsc --noEmit` → clean throughout.
+  - `pnpm --filter web exec jest` → 154/154 suites, 1461/1463 tests passed
+    (2 pre-existing skips).
+  - `pnpm exec eslint` on every touched/new file → 0 errors/warnings.
+  - `.agents/skills/impeccable/scripts/impeccable detect --json --target <file>`
+    on every touched/new file → `[]` except `tx-pickers.tsx` (1) and
+    `transaksi/page.tsx` (4), all pre-existing per `git diff` (not on edited
+    lines).
+  - Live verification via `playwright-cli` against the running dev server
+    (`localhost:3000`, demo account): confirmed the currency picker is now
+    inline and clickable (caught the z-index bug here, fixed, re-verified
+    clean), the IDR/USD selection + "1 USD = Rp ..." hint still round-trips
+    correctly, the +50.000 quick-add chip sets the amount and updates the
+    converted-currency preview, and a real right-click on a Transaksi row
+    opens "Detail Transaksi / Ubah / Hapus" and each item works (clicked
+    "Detail Transaksi", confirmed the real dialog opens with correct data).
+- Evidence: see commands above; screenshots taken via playwright-cli during
+  the session (not retained as repo artifacts).
+- Follow-up: user separately asked about porting uiarc.dev's full 148-
+  component catalog; confirmed via `AskUserQuestion` the scope is "genuinely
+  missing primitives only," explicitly excluding anything already covered by
+  `components/ui`/`wm` and the DESIGN.md-banned Charts/Tables/Donut/Data Grid
+  categories. Context Menu (this entry) is the first. Other candidates
+  mentioned but not yet built: Hold to confirm, Swipe actions, Signature pad,
+  Tag input, Shortcut recorder — pick up on request.

@@ -687,6 +687,7 @@ export type I18nDictionary = {
       scanReceipt: string;
       newBadge: string;
       amountLabel: string;
+      quickAddAriaLabel: string;
       categoryLabel: string;
       accountLabel: string;
       /** EPIC-021 Group B (#23/#27) — two-account transfer fields, Transfer tab only. */

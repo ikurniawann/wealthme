@@ -398,6 +398,7 @@ export const id = {
       scanReceipt: "Scan Struk",
       newBadge: "Baru",
       amountLabel: "Jumlah",
+      quickAddAriaLabel: "Tambah cepat",
       categoryLabel: "Kategori",
       accountLabel: "Akun",
       sourceAccountLabel: "Sumber Dana",

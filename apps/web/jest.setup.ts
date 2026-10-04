@@ -60,3 +60,44 @@ if (typeof window !== "undefined" && !window.matchMedia) {
     } as unknown as MediaQueryList;
   };
 }
+
+// jsdom doesn't implement DOMRect — Base UI's context-menu trigger (and
+// floating-ui, which it positions through) calls `getBoundingClientRect()`
+// unconditionally as soon as the trigger mounts, even before any interaction.
+if (typeof window !== "undefined" && !window.DOMRect) {
+  window.DOMRect = class DOMRect {
+    x = 0;
+    y = 0;
+    width = 0;
+    height = 0;
+    constructor(x = 0, y = 0, width = 0, height = 0) {
+      this.x = x;
+      this.y = y;
+      this.width = width;
+      this.height = height;
+    }
+    get top() {
+      return this.y;
+    }
+    get left() {
+      return this.x;
+    }
+    get right() {
+      return this.x + this.width;
+    }
+    get bottom() {
+      return this.y + this.height;
+    }
+    toJSON() {
+      return this;
+    }
+    static fromRect(rect?: {
+      x?: number;
+      y?: number;
+      width?: number;
+      height?: number;
+    }) {
+      return new window.DOMRect(rect?.x, rect?.y, rect?.width, rect?.height);
+    }
+  } as unknown as typeof window.DOMRect;
+}

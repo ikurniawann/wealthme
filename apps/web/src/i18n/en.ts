@@ -391,6 +391,7 @@ export const en = {
       scanReceipt: "Scan Receipt",
       newBadge: "New",
       amountLabel: "Amount",
+      quickAddAriaLabel: "Quick add",
       categoryLabel: "Category",
       accountLabel: "Account",
       sourceAccountLabel: "Source of Funds",
