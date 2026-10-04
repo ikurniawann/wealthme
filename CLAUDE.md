@@ -17,13 +17,14 @@
 
 Always use available RTK and ECC capabilities before scanning the repository.
 
-This repo follows the user-level docs workflow at
-`/home/stealth/.agentic-workflows/claude-codex-docs-workflow.md`.
+This repo follows the tracked shared workflow at
+`docs/agentic/AGENTIC-WORKFLOW.md`. It is imported together with `AGENTS.md`
+so Claude Code and Codex use the same orchestration and cost discipline.
 
 Operating split:
 
-- **Claude Code** is the primary development runner: `/task-work`, `/epic-loop`,
-  project sub-agents, Ruflo swarm scoping, branch/PR flow, and DEV-only deploy
+- **Claude Code** is the primary development runner: `/orchestrate`, project
+  sub-agents, Ruflo scoping, branch/PR flow, and DEV-only deploy
   loops.
 - **Codex** is the workflow hygiene runner: `AGENTS.md`, `CLAUDE.md`, runbooks,
   status normalization, stale automation cleanup, focused verification, and
@@ -33,9 +34,8 @@ Operating split:
   `docs/AGENTIC-WORKFLOW.md`.
 
 If the user drops a raw task/enhancement without naming a command, default to
-the `/agentic-start` workflow before coding: classify, find/create an epic,
-build an evidence map, route ECC/Ruflo/Graphify, then start development only
-when the task is PR-sized.
+the `/orchestrate` workflow before non-trivial coding: classify, build a
+context capsule, route only useful specialists, then verify the result.
 
 Priority order:
 
@@ -194,14 +194,14 @@ Use MCP tools proactively — they are faster and cheaper than free-form web sea
 
 ### Custom Project Agents (created for this repo)
 
-| Agent               | File                                  | Purpose                                                                                                                                 |
-| ------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `epic-orchestrator` | `.claude/agents/epic-orchestrator.md` | Reads docs/epics/, drives the task loop                                                                                                 |
-| `code-agent`        | `.claude/agents/code-agent.md`        | Implements tasks (WM-conventions-aware)                                                                                                 |
-| `review-qa-agent`   | `.claude/agents/review-qa-agent.md`   | Project-specific QA: acceptance criteria + WM conventions + tenant scoping (complements `ecc:react-reviewer`/`ecc:typescript-reviewer`) |
-| `test-agent`        | `.claude/agents/test-agent.md`        | Runs scripts/test.sh + scripts/qa.sh                                                                                                    |
-| `deploy-agent`      | `.claude/agents/deploy-agent.md`      | DEV-only deploy via scripts/deploy-dev.sh                                                                                               |
-| `security-agent`    | `.claude/agents/security-agent.md`    | Runs scripts/security-check.sh + tenant-scoping (complements `ecc:security-reviewer`)                                                   |
+| Agent             | File                                                                  | Purpose                                                                                                                                 |
+| ----------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `orchestrator`    | `.codex/agents/orchestrator.toml` / `.claude/commands/orchestrate.md` | Task-first routing, context efficiency, verification, bounded escalation                                                                |
+| `code-agent`      | `.claude/agents/code-agent.md`                                        | Implements tasks (WM-conventions-aware)                                                                                                 |
+| `review-qa-agent` | `.claude/agents/review-qa-agent.md`                                   | Project-specific QA: acceptance criteria + WM conventions + tenant scoping (complements `ecc:react-reviewer`/`ecc:typescript-reviewer`) |
+| `test-agent`      | `.claude/agents/test-agent.md`                                        | Runs scripts/test.sh + scripts/qa.sh                                                                                                    |
+| `deploy-agent`    | `.claude/agents/deploy-agent.md`                                      | DEV-only deploy via scripts/deploy-dev.sh                                                                                               |
+| `security-agent`  | `.claude/agents/security-agent.md`                                    | Runs scripts/security-check.sh + tenant-scoping (complements `ecc:security-reviewer`)                                                   |
 
 > **How the gates use ECC.** The orchestrator/commands run from the main session and invoke the ECC
 > reviewers directly (sub-agents cannot spawn sub-agents). Generic React/TS/security quality is done by
@@ -209,19 +209,17 @@ Use MCP tools proactively — they are faster and cheaper than free-form web sea
 > `ecc:react-build`; the custom agents above cover only the project-specific slice. Neither side is
 > redundant. (Earlier docs said the custom agents "wrap" the ECC reviewers — they do not; the orchestrator does.)
 
-> **Agent routing rule.** `/agentic-start` should choose the smallest useful route from custom WealthMe
+> **Agent routing rule.** `/orchestrate` should choose the smallest useful route from custom WealthMe
 > agents, ECC agents/skills, Ruflo/AgentDB, and Graphify. Use ECC for generic expertise and gates, Ruflo
 > for broad discovery/memory, Graphify for architecture/file-relationship queries, and custom agents only
 > for WealthMe-specific behavior. Do not call every installed agent just because it exists.
 
 ### Custom Commands
 
-| Command          | File                                | Purpose                                                                                     |
-| ---------------- | ----------------------------------- | ------------------------------------------------------------------------------------------- |
-| `/agentic-start` | `.claude/commands/agentic-start.md` | Drop raw task/enhancement → evidence map → epic/task shaping → optional development start   |
-| `/epic-loop`     | `.claude/commands/epic-loop.md`     | Run a full epic end-to-end (all tasks) with ECC-wired gates, DEV deploy                     |
-| `/task-work`     | `.claude/commands/task-work.md`     | Work ONE task (`### group`) from an epic → ECC gates → auto branch/push/PR to `development` |
-| `/epic-new`      | `.claude/commands/epic-new.md`      | `/ecc:plan` → write a local `docs/epics/EPIC-XXX` file only (push/sync to GitHub manually)  |
+| Command        | File                              | Purpose                                                                              |
+| -------------- | --------------------------------- | ------------------------------------------------------------------------------------ |
+| `/orchestrate` | `.claude/commands/orchestrate.md` | Task-first routing, context trimming, batching, verification, and bounded escalation |
+| `/orchestrate` | `.claude/commands/orchestrate.md` | Route a task through the smallest useful workflow and verify it                      |
 
 ---
 
@@ -237,21 +235,21 @@ Only create project-specific agents when no equivalent exists.
 
 ---
 
-## Epic Loop
+## Task-first orchestration
 
 ### How to run
 
 ```
-/epic-loop docs/epics/EPIC-001.md
+/orchestrate "<task>"
 ```
 
-### How to add a new epic
+### How to scope larger work
 
-1. Generate it with `/epic-new "<feature>"` (runs `/ecc:plan`, writes `docs/epics/EPIC-XXX-*.md`
-   locally only) — or hand-write a file following the format below.
+1. Write a task brief with goal, acceptance criteria, affected paths, and
+   verification evidence.
 2. Review/edit the file; push & sync to GitHub manually (optionally via `scripts/setup-github-project.sh`).
-3. To run it: set `status: on-progress` and `/epic-loop docs/epics/EPIC-XXX.md`,
-   or work a single task with `/task-work EPIC-XXX <n>`.
+3. Run `/orchestrate "<task>"` and let the coordinator choose the smallest
+   useful route.
 
 For messy or cross-cutting tasks, normalize the task first using
 `docs/AGENTIC-WORKFLOW.md` (`Evidence`, `Scope`, `Acceptance Criteria`,
@@ -387,14 +385,12 @@ Run security review before deployment.
 
 **Epic & Planning**
 
-| Task                        | Use                                                                     |
-| --------------------------- | ----------------------------------------------------------------------- |
-| Drop raw task/enhancement   | `/agentic-start "<task>"`                                               |
-| Plan a feature              | `/ecc:plan`, `planner` agent                                            |
-| Design architecture         | `/ecc:blueprint`, `architect` agent, `/ecc:api-design`                  |
-| Generate a new epic (local) | `/epic-new "<feature>"` (writes `docs/epics/`, push manually)           |
-| Work ONE epic task → PR     | `/task-work EPIC-XXX <n>` (ECC gates → branch/push/PR to `development`) |
-| Run a whole epic            | `/epic-loop docs/epics/EPIC-XXX.md` (set `status: on-progress` first)   |
+| Task                     | Use                                                    |
+| ------------------------ | ------------------------------------------------------ |
+| Start non-trivial work   | `/orchestrate "<task>"`                                |
+| Plan a feature           | `/ecc:plan`, `planner` agent                           |
+| Design architecture      | `/ecc:blueprint`, `architect` agent, `/ecc:api-design` |
+| Start task orchestration | `/orchestrate "<task>"`                                |
 
 **Frontend (Next.js / React)**
 
@@ -463,12 +459,12 @@ Run security review before deployment.
 
 **Deploy & Infra**
 
-| Task                    | Use                                                        |
-| ----------------------- | ---------------------------------------------------------- |
-| DEV deployment          | `deploy-agent` (via `/epic-loop`) or `vercel:deploy` skill |
-| Deployment status       | `vercel:status` skill                                      |
-| Environment variables   | `vercel:env` skill                                         |
-| Full feature end-to-end | `/ecc:orch-add-feature`                                    |
+| Task                    | Use                                     |
+| ----------------------- | --------------------------------------- |
+| DEV deployment          | `deploy-agent` or `vercel:deploy` skill |
+| Deployment status       | `vercel:status` skill                   |
+| Environment variables   | `vercel:env` skill                      |
+| Full feature end-to-end | `/ecc:orch-add-feature`                 |
 
 ---
 
@@ -489,8 +485,8 @@ Goal: Maximum efficiency with minimum token consumption.
 ## What Remains Manual
 
 - Production deployment (always requires human trigger)
-- Epic creation and prioritization
-- QA sign-off on `ready-for-qa` epics
+- Task prioritization and product decisions
+- Human QA sign-off for user-facing changes
 - Security audit for CRITICAL findings
 - Infrastructure and database schema changes
 
@@ -503,9 +499,8 @@ re-running the setup skill is only needed to switch trackers or start over.
 
 ### Issue tracker
 
-Work is tracked as epic files under `docs/epics/`, **not** GitHub Issues —
-issues #1–79 are historical and closed. The unit of work is one `### task group`
-inside an epic. See [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
+Work is task-first. Use `docs/` for durable decisions and plans when useful;
+an epic file is optional and never a prerequisite for orchestration.
 
 ### Domain docs
 

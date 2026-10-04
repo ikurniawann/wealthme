@@ -1,0 +1,63 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Projects/wealthme-web/.codex/hooks/guardrail.sh'"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "rtk hook codex"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "startup|resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/home/stealth/.local/bin/headroom wrap selfheal --marker headroom-wrap-selfheal",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|apply_patch",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f '/home/stealth/.agents/skills/impeccable/scripts/impeccable' ] || '/home/stealth/.agents/skills/impeccable/scripts/impeccable' hook",
+            "commandWindows": "if exist \"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" (\"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" hook & exit /b)",
+            "timeout": 5,
+            "statusMessage": "Checking UI changes"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ ! -f '/home/stealth/.agents/skills/impeccable/scripts/impeccable' ] || '/home/stealth/.agents/skills/impeccable/scripts/impeccable' hook",
+            "commandWindows": "if exist \"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" (\"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" hook & exit /b)",
+            "timeout": 30,
+            "statusMessage": "Design deep pass"
+          }
+        ]
+      }
+    ]
+  }
+}

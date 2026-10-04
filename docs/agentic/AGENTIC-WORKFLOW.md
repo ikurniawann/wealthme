@@ -1,50 +1,58 @@
 # WealthMe Agentic Workflow
 
-This repo uses the user-level workflow at:
-
-`/home/stealth/.agentic-workflows/claude-codex-docs-workflow.md`
+This repo uses this tracked workflow as its source of truth. It is designed to
+be loaded by both `AGENTS.md` (Codex) and `CLAUDE.md` (Claude Code).
 
 Project-specific default:
 
 ```text
-docs task -> Ruflo/ECC scoping -> Claude Code development -> ECC gates -> Codex workflow tidy -> docs log
+task -> context capsule -> smallest route -> Claude/Codex execution -> focused gates -> handoff
 ```
+
+## GOAT default loop
+
+```text
+route -> trim/reuse context -> batch independent reads -> execute -> verify -> escalate only on evidence
+```
+
+The loop optimizes for correctness first, then latency and token use. It does
+not promise a fixed cost multiplier. Repeated context loading, unnecessary
+parallel agents, and avoidable rework are the primary waste sources to remove.
+
+Use the lightest capable route for simple work. Use stronger reasoning for
+ambiguous, architectural, security-sensitive, or failed work. Keep durable
+instructions here and in the entrypoint files; keep task-specific details in
+the current request so the stable prefix remains reusable.
 
 Detailed loop documentation: [`AGENTIC-AGENT-LOOP.md`](AGENTIC-AGENT-LOOP.md).
 
 New project setup checklist:
 [`AGENTIC-NEW-PROJECT-SETUP.md`](AGENTIC-NEW-PROJECT-SETUP.md).
 
-For raw tasks/enhancements in Claude Code, start with:
+For non-trivial tasks in Claude Code, start with:
 
 ```text
-/agentic-start "<task or enhancement>"
+/orchestrate "<task or enhancement>"
 ```
 
 ## Tool Split
 
 | Tool            | WealthMe role                                                                                       |
 | --------------- | --------------------------------------------------------------------------------------------------- |
-| Claude Code     | Development sessions, `/task-work`, `/epic-loop`, custom agents, Ruflo scoping, branch/PR execution |
+| Claude Code     | Development sessions, `/orchestrate`, custom agents, Ruflo scoping, branch/PR execution             |
 | Codex           | Workflow cleanup, instruction sync, status normalization, doc/runbook updates, focused verification |
 | Ruflo / AgentDB | Read-only exploration, swarm evidence maps, reusable memory                                         |
 | ECC             | Planning, reviewers, quality gates, security gates, framework-specific skills                       |
 
-## Working From `docs/`
+## Task-first work from `docs/`
 
-1. Pick one `###` task group from `docs/epics/EPIC-XXX-*.md`.
-2. Confirm the epic status:
-   - `backlog` means do not automate yet.
-   - `on-progress` means automation may run.
-   - `ready-for-qa` means implementation is complete and human QA is next.
-3. Extract the task's goal, sub-steps, acceptance criteria, affected area, and
-   expected test evidence.
-4. Scope with repository inspection. Use Ruflo swarm only when multiple areas
-   or uncertain dependencies make parallel exploration useful.
-5. Implement through Claude Code for substantial code changes.
-6. Run review, security, and test gates.
-7. Use Codex to tidy docs and workflow artifacts after implementation.
-8. Copy durable findings from Ruflo/AgentDB into the epic `Automation Log`.
+1. Extract the goal, acceptance criteria, affected area, and expected evidence.
+2. Build a compact context capsule before delegating.
+3. Use Ruflo, AgentDB, Graphify, or RTK only when they reduce uncertainty or
+   repeated work.
+4. Implement through Claude Code for substantial changes; use Codex for focused
+   review, verification, docs, and small patches.
+5. Run only the gates required by the blast radius and record the evidence.
 
 ## Epic Status Vocabulary
 
