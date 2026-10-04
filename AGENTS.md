@@ -117,3 +117,11 @@ claim success from an unverified draft.
 - Before compaction or handoff, write a checkpoint using `docs/agentic/CONTEXT-CHECKPOINT.md`.
 - After compaction, reload memory and the active checkpoint first, then read only the files needed for the next verification step.
 - Sub-agents return evidence capsules: findings, paths, commands, and uncertainties. Do not pass entire transcripts between agents.
+
+### Check-first task loops
+
+- Use `program.md` and `/task-loop` for repeatable feature or defect work.
+- Draft acceptance checks before implementation; approved checks live in
+  `checks/approved/` and are read-only during the run.
+- Every run is bounded to two repair rounds and records evidence in
+  `results.md`.
