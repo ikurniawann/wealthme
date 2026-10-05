@@ -1,5 +1,24 @@
 # Task loop results
 
+## 2026-10-05 — WealthMe Arc UI shared component map (Batch 0, Task 1)
+
+- Checks: `.superpowers/sdd/2026-10-05-uiarc-batch-0-inventory-spike/task-1-brief.md`
+- Round: 1/2
+- Result: PASS
+- Change: `docs/architecture/uiarc-component-map.md` maps all 65 production source
+  files from `ui/`, `wm/`, `shell/`, and `charts/` to their exports, Arc
+  candidates and catalog tiers, one of the five required decisions, risk,
+  representative consumers, and focused verification owner. Arc Pro remains
+  prohibited where no entitlement is evidenced. DESIGN.md was treated as
+  non-blocking; the potential global-token collision is recorded as a risk.
+- Commands:
+  - `rg --files apps/web/src/components/ui apps/web/src/components/wm apps/web/src/components/shell apps/web/src/components/charts` and the task-specified `rg -n "from [\"']@/components/(ui|wm|shell|charts)" apps/web/src --glob '*.tsx' --glob '*.ts'` — 82 total files including colocated tests; 241 matches in 120 files (one match was an alias rendered as `apps/...` in condensed output).
+  - Read `apps/web/components.json`, `apps/web/package.json`, approved migration spec, Arc public `catalog.json` (2026-10-04 generated metadata), `llms.txt`, and candidate Markdown references for required primitives, controls, and charts. Catalog reports 234 items / 127 free; all minimum requested candidates inspected are free. One Scroll area markdown fetch failed; catalog marks it free with no dependencies and the map records that limitation.
+  - Completeness checker (Python inline): enumerate non-test files in the four target directories, resolve row paths relative to `apps/web/src/components`, and reject missing/extra/duplicate paths or empty candidate/decision/risk and invalid decisions — `production_files=65 mapped_rows=65 missing=0 extra=0 duplicate=0 invalid_or_empty=0`.
+  - `git diff --check` — pending final pre-commit run.
+- Evidence: `docs/architecture/uiarc-component-map.md`; local Arc metadata/docs cached under `/tmp/uiarc-*` for this inventory only.
+- Follow-up: Arc compatibility adapters require separate batch implementation and focused tests/browser checks; no product code was changed in this inventory task.
+
 Append one compact entry per bounded loop. Keep evidence, not narration.
 
 Template:
