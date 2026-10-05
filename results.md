@@ -735,4 +735,5 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   - Temporary diagnostic route + Chromium Playwright at 1280×800 and 390×844 → 1/1 passed; verified 40px large avatar and no horizontal overflow. Temporary route/spec removed.
   - `impeccable detect` → unavailable; `.agents/skills/impeccable/scripts/impeccable` is absent from this checkout.
 - Scope: the 727 pre-existing `impeccable` advisory findings (font-size/radius/color) remain untouched and out of scope.
-- Escalation: none. Push and DEV redeploy pending final review.
+- Delivery: commit `34ea3729` pushed to `origin/development`; GitHub Actions run `37274127931` passed Lint/Build/Test and DEV image build/push. `bash scripts/deploy-dev.sh` completed in pull mode; API `/health` returned success and web/API/Nginx/Postgres/Redis/MinIO/MailHog were healthy. No clean-volume mode was used.
+- Escalation: none. Unrelated user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf` remain excluded from the task commit.
