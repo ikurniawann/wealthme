@@ -1,5 +1,18 @@
 # Task loop results
 
+## 2026-10-05 — Arc UI Button browser compatibility (Batch 0, Task 3)
+
+- Checks: `.superpowers/sdd/2026-10-05-uiarc-batch-0-inventory-spike/task-3-brief.md`.
+- Round: 1/2. Result: PASS with concerns.
+- Files: `apps/web/src/app/legal/arc-probe/page.tsx` (public, isolated harness), `apps/web/tests/e2e/arc-probe.spec.ts`, this entry, and `.superpowers/sdd/2026-10-05-uiarc-component-migration-spike/task-3-report.md`. No production primitive or page was migrated; no global Arc foundation CSS was imported.
+- Browser command: `BASE_URL=http://localhost:3199 pnpm --filter web exec playwright test tests/e2e/arc-probe.spec.ts --project=chromium --reporter=list` — 4/4 passed in Chromium. Existing `localhost:3000` compiled DEV stack returned 404 for the newly added route, so a temporary localhost Next dev server on 3199 served the current source; that process was stopped after verification. `/beranda` on 3000 redirected unauthenticated requests to `/login` (307); unrelated authenticated pages were not tested.
+- Desktop 1280×800: `Simpan` had a 2px keyboard focus outline; Enter and Space raised activation count to 2. Tab skipped the native disabled button and focused loading. Loading exposed `aria-busy=true`, `aria-disabled=true`, and live status `Memproses Memuat`; Enter, Space, and dispatched click left count at 2. A preliminary run failed because Playwright correctly refused a normal click on the aria-disabled loading button; the final check used a dispatched click to verify the callback guard.
+- Touch 390×844 (`isMobile`, `hasTouch`): measured button widths/heights were `89×44`, `109×44`, and `94×44` px; disabled/loading opacity was `0.6` without hover, with `not-allowed`/`progress` cursors. Document scroll width was at most 390px. Touch activation raised count to 1. Desktop and touch screenshots were attached during the Playwright run, but no binary screenshot was committed.
+- Reduced motion: `prefers-reduced-motion: reduce` produced incoming label style `opacity: 0; filter: blur(0px); transform: none`; spinner computed `animation-name: none`; activation remained responsive. Arc Button creates no portal, so portal compatibility is not exercised by this primitive.
+- Token/leakage: after client navigation from the probe to `/login`, sampled login submit background `rgb(156, 203, 59)`, text `rgb(31, 42, 7)`, Sora font, `--primary: #9ccb3b`, and `--ring: #9ccb3b` matched the pre-probe values. No `arc-foundation` stylesheet link appeared.
+- Static: scoped ESLint and `pnpm --filter web exec tsc --noEmit` exited 0; `git diff --check` exited 0 before evidence append. DEV console emitted a React hydration attribute warning while serving the probe; it was not traced further under the stop instruction.
+- Batch 1 recommendation: Button is a candidate for a reviewed adapter migration after the hydration warning and public harness lifecycle are resolved. No production migration is authorized by this evidence.
+
 ## 2026-10-05 — Arc UI Button compatibility probe (Batch 0, Task 2)
 
 - Checks: `.superpowers/sdd/2026-10-05-uiarc-batch-0-inventory-spike/task-2-brief.md`.
