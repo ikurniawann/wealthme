@@ -750,7 +750,7 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   - Full `pnpm --filter web test -- --runInBand` → 160 suites, 1,482 passed, 2 skipped; existing console warnings were emitted by unrelated suites.
   - ESLint on IAM TSX files and `git diff --check` → passed.
 - Scope: no permission behavior changed; no impeccable advisory cleanup attempted.
-- Delivery: pending commit, push, CI image build, and DEV redeploy.
+- Delivery: commit `af424c76` pushed to `origin/development`. CI run `37298804243` passed Lint/Build/Test and both DEV images after one rerun: its first test run had a single unrelated `liabilitas/currency-conversion.test.tsx` failure (159/160 suites passed), then the rerun passed. `bash scripts/deploy-dev.sh` completed in pull mode; API health returned `{"status":"ok"}`, web returned HTTP 200 after redirect, and Compose reported web/API/Nginx/Postgres/Redis/MinIO/MailHog healthy. No clean-volume mode was used.
 - Escalation: none.
 
 ## 2026-10-05 — UIArc component migration, task 7/N: Accordion
