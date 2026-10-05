@@ -790,5 +790,11 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   - `pnpm --filter web exec next typegen` then `pnpm --filter web exec ./node_modules/.bin/tsc -p tsconfig.json --noEmit` → passed after removing temporary live-check route and refreshing generated route types.
   - Temporary Chromium harness at 1280×800 and 390×844 → 2/2 passed: USD choice updates the visible symbol to `$`, picker remains usable, and field bounds stay within the viewport. Temporary route/spec removed.
   - `.agents/skills/impeccable/scripts/impeccable` is absent; targeted impeccable scan unavailable. The 727 pre-existing font-size/radius/color advisory findings remain untouched and out of scope.
-- Delivery: commit and development redeploy pending.
+- Delivery: commit `a2e16b10` pushed to `origin/development`; CI run
+  `37304027955` passed Lint/Build/Test and both DEV image pushes. The CI log
+  reported pre-existing lint warnings outside this task and GitHub Actions
+  Node 20 deprecation notices. `bash scripts/deploy-dev.sh` completed in pull
+  mode with no clean-volume operation; API, web, Nginx, Postgres, Redis,
+  MinIO, and MailHog were healthy, `/health` returned `{"status":"ok"}`,
+  and the web login endpoint returned HTTP 200.
 - Escalation: none. Existing user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf` remain excluded.
