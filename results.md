@@ -720,3 +720,19 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
 - Scope: 727 pre-existing `impeccable` advisory findings (font-size/radius/color) remain untouched and out of scope. No advisory cleanup or unrelated warning fix was attempted.
 - Delivery: commit `cbac5d6f` pushed to `origin/development`; GitHub Actions run `37270092449` passed both Lint/Build/Test and DEV image build/push jobs. `bash scripts/deploy-dev.sh` completed in pull mode; API, web, Nginx, Postgres, Redis, MinIO, and MailHog reported healthy, and `/health` on API returned success. No clean-volume mode was used.
 - Escalation: none; the isolated runtime check avoided demo-auth dependencies. Local branch still has unrelated user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf`; they were excluded from the task commit.
+
+## 2026-10-05 — UIArc component migration, task 6/N: Avatar
+
+- Result: PASS for focused behavior, types, lint, formatting, and live desktop/mobile rendering.
+- Finding: `ui/avatar.tsx` still used only utility-class styling and had no explicit Arc adapter marker or scoped token-driven visual layer. UIArc Avatar's free pattern uses a circular, token-based surface with differentiated sizes and composable fallback/status elements.
+- Change: retained Base UI's composable Root/Image/Fallback/Badge/Group API and replaced utility styling with scoped Arc-derived CSS. Added `data-uiarc="avatar"` and preserved default/sm/lg dimensions, group overlap, and consumer class overrides. Added contract tests for fallback, badge, size, and group count.
+- Files: `apps/web/src/components/ui/avatar.tsx`, `avatar.module.css`, and `avatar.test.tsx`.
+- Verification:
+  - `pnpm --filter web exec jest src/components/ui/avatar.test.tsx --runInBand` → 2/2 passed.
+  - `pnpm --filter web exec tsc --noEmit` → passed after temporary route removal.
+  - ESLint on touched TSX → clean.
+  - Prettier check and `git diff --check` → passed.
+  - Temporary diagnostic route + Chromium Playwright at 1280×800 and 390×844 → 1/1 passed; verified 40px large avatar and no horizontal overflow. Temporary route/spec removed.
+  - `impeccable detect` → unavailable; `.agents/skills/impeccable/scripts/impeccable` is absent from this checkout.
+- Scope: the 727 pre-existing `impeccable` advisory findings (font-size/radius/color) remain untouched and out of scope.
+- Escalation: none. Push and DEV redeploy pending final review.
