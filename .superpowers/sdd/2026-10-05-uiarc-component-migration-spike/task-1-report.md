@@ -39,7 +39,7 @@ duplicate=0 invalid_or_empty=0`.
 - `results.md` (append-only evidence)
 - `.superpowers/sdd/2026-10-05-uiarc-component-migration-spike/task-1-report.md`
 
-Commit: populated after the scoped documentation commit.
+Commit: `649b5bd026f003ad57786d72dd404f5bc55b1977` (`docs: map WealthMe components to Arc UI`).
 
 ## Concerns / follow-up
 
