@@ -480,3 +480,42 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   categories. Context Menu (this entry) is the first. Other candidates
   mentioned but not yet built: Hold to confirm, Swipe actions, Signature pad,
   Tag input, Shortcut recorder — pick up on request.
+
+## 2026-10-05 — ui-ux-pro-max audit loop, task 1/N: menu item touch-target size (44x44 WCAG 2.2 AA)
+
+- Checks: none drafted (audit-driven loop per user request, not a task-loop item).
+- Round: 1/1
+- Result: PASS
+- Change: `apps/web/src/components/ui/dropdown-menu.tsx` and
+  `apps/web/src/components/ui/context-menu.tsx` — every item variant
+  (`DropdownMenuItem`, `DropdownMenuSubTrigger`, `DropdownMenuCheckboxItem`,
+  `DropdownMenuRadioItem`, `ContextMenuItem`, `ContextMenuCheckboxItem`)
+  gained `[@media(pointer:coarse)]:min-h-11` (44px). These were plain
+  Tailwind utility classes (`px-1.5 py-1 text-sm`, ~28px tall) with no touch
+  override, unlike `.btn`/`.btn--sm` in `design-system.css`, which already
+  has the identical `@media (pointer: coarse) { min-height: 44px }` pattern
+  for the exact same reason (see that file's own "Hardening batch G3"
+  comment). `ui-ux-pro-max`'s `ux` domain flags sub-44px touch targets as
+  High severity / WCAG 2.2 AA. Directly relevant to the new `ContextMenu`
+  (components/wm/context-menu.tsx) shipped this session, reachable via
+  long-press — a touch-only gesture — but also fixes every other
+  `DropdownMenu` consumer in the app (rekening/liabilitas/asuransi pages)
+  for free, mouse/desktop sizing untouched (`@media (pointer: coarse)` only
+  matches real touchscreens).
+- Commands:
+  - `pnpm --filter web exec tsc --noEmit` → clean.
+  - `pnpm --filter web exec jest` → 154/154 suites, 1461/1463 passed.
+  - `pnpm exec eslint` on both files → 0 errors/warnings.
+  - Live verification via `playwright-cli` (iPhone 15 emulation): long-pressed
+    the Transaksi "Cicilan KPR BTN" row via a real CDP touch event (matching
+    the earlier long-press verification), then measured each menu item's
+    `getBoundingClientRect().height` directly — "Detail Transaksi"/"Ubah"/
+    "Hapus" all measured exactly 44px.
+- Evidence: see commands above.
+- Follow-up: `impeccable detect` across `src/` found 727 pre-existing
+  advisory-severity findings (font-size/radius/color drift), all predating
+  this session and spread across the whole app — not something a bounded
+  loop can responsibly clear item-by-item without a separate, explicitly
+  scoped design-token-reconciliation project. Continuing the loop with
+  `ui-ux-pro-max`'s other priority checks (animation timing, forms/feedback,
+  navigation) against this session's own additions instead.
