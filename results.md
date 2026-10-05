@@ -1,5 +1,12 @@
 # Task loop results
 
+## 2026-10-05 — Arc UI Button probe Task 3 review fix, round 1
+
+- Result: PASS with concern. Removed the public `/legal/arc-probe` harness; `apps/web/tests/e2e/arc-probe.spec.ts` now checks that the retired route returns 404, `/login` remains available, no Arc foundation stylesheet or probe heading appears there, and no hydration message is captured. Original interactive measurements remain in the Task 3 entry below and the prior commit history.
+- Hydration trace: the old warning diff included client-only `tabindex="0"`. Installed Motion 13.4.5 source at `motion.dev.js:6091-6104,6234-6240` adds tabindex only to non-native keyboard targets; `BUTTON` is explicitly native and `ArcButton` renders `motion.button`. Focused reruns of the old probe and login transition did not reproduce the warning. Its original source remains unconfirmed; the removed route plus zero production probe imports eliminates the committed harness render path. No suppression was added.
+- Commands: `BASE_URL=http://localhost:3199 pnpm --filter web exec playwright test tests/e2e/arc-probe.spec.ts --project=chromium --reporter=list --workers=1` — 1/1 passed; scoped ESLint and `pnpm --filter web exec tsc --noEmit` — exit 0; production import scan — no matches. The temporary Next dev server was stopped after verification.
+- Concern: the intermittent original hydration warning was not localized to another exact component. No public harness remains to expose it through this task.
+
 ## 2026-10-05 — Arc UI Button browser compatibility (Batch 0, Task 3)
 
 - Checks: `.superpowers/sdd/2026-10-05-uiarc-batch-0-inventory-spike/task-3-brief.md`.
