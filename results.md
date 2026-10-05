@@ -5,7 +5,7 @@
 - Checks: `.superpowers/sdd/2026-10-05-uiarc-batch-0-inventory-spike/task-1-brief.md`
 - Round: 1/2
 - Result: PASS
-- Change: `docs/architecture/uiarc-component-map.md` maps all 65 production source
+- Change: `docs/architecture/uiarc-component-map.md` maps all 66 production source
   files from `ui/`, `wm/`, `shell/`, and `charts/` to their exports, Arc
   candidates and catalog tiers, one of the five required decisions, risk,
   representative consumers, and focused verification owner. Arc Pro remains
@@ -14,10 +14,22 @@
 - Commands:
   - `rg --files apps/web/src/components/ui apps/web/src/components/wm apps/web/src/components/shell apps/web/src/components/charts` and the task-specified `rg -n "from [\"']@/components/(ui|wm|shell|charts)" apps/web/src --glob '*.tsx' --glob '*.ts'` — 82 total files including colocated tests; 241 matches in 120 files (one match was an alias rendered as `apps/...` in condensed output).
   - Read `apps/web/components.json`, `apps/web/package.json`, approved migration spec, Arc public `catalog.json` (2026-10-04 generated metadata), `llms.txt`, and candidate Markdown references for required primitives, controls, and charts. Catalog reports 234 items / 127 free; all minimum requested candidates inspected are free. One Scroll area markdown fetch failed; catalog marks it free with no dependencies and the map records that limitation.
-  - Completeness checker (Python inline): enumerate non-test files in the four target directories, resolve row paths relative to `apps/web/src/components`, and reject missing/extra/duplicate paths or empty candidate/decision/risk and invalid decisions — `production_files=65 mapped_rows=65 missing=0 extra=0 duplicate=0 invalid_or_empty=0`.
-  - `git diff --check` — pending final pre-commit run.
+  - Completeness checker (Python inline): enumerate non-test files recursively under the four target directories, resolve paths relative to `apps/web/src/components`, and reject missing/extra files, invalid/incomplete rows, and missing per-export `wm/bento.tsx` entries — `production_files=66 mapped_files=66 table_rows=92 missing=0 extra=0 incomplete_or_invalid=0 bento_exports=25/25`.
+  - `git diff --check` — PASS.
 - Evidence: `docs/architecture/uiarc-component-map.md`; local Arc metadata/docs cached under `/tmp/uiarc-*` for this inventory only.
 - Follow-up: Arc compatibility adapters require separate batch implementation and focused tests/browser checks; no product code was changed in this inventory task.
+
+## 2026-10-05 — Arc UI map review fixes (Task 1, round 2)
+
+- Checks: reviewer findings 1–4 on the Batch 0 component map.
+- Round: 2/2
+- Result: PASS
+- Change: split all 25 `wm/bento.tsx` named exports into individual mapping rows; separated Pro-only dock exclusions (`prohibited`) from retained WealthMe navigation rows for sidebar sections and sidebar; added nested production hook `ui/ai-chat-card-utils/use-typewriter.ts` and its hook/types; corrected this entry to record `git diff --check` as passed.
+- Commands:
+  - Focused Python completeness check: `production_files=66 mapped_files=66 table_rows=92 missing=0 extra=0 incomplete_or_invalid=0 bento_exports=25/25`.
+  - `git diff --check` — PASS (exit 0; no output).
+- Evidence: `docs/architecture/uiarc-component-map.md` and appended fix report in `.superpowers/sdd/2026-10-05-uiarc-component-migration-spike/task-1-report.md`.
+- Follow-up: none for the four reviewer findings.
 
 Append one compact entry per bounded loop. Keep evidence, not narration.
 
