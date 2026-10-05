@@ -48,6 +48,27 @@ describe("ContextMenu — uiarc.dev reference, adapted onto Base UI", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it("uses a responsive 200ms opening transition", async () => {
+    const user = userEvent.setup();
+    render(
+      <ContextMenu
+        label="Baris beranimasi"
+        items={[{ id: "detail", label: "Detail" }]}
+      >
+        <span>Baris beranimasi</span>
+      </ContextMenu>,
+    );
+
+    await user.pointer({
+      keys: "[MouseRight]",
+      target: screen.getByText("Baris beranimasi"),
+    });
+
+    expect(
+      (await screen.findByRole("menuitem", { name: "Detail" })).parentElement,
+    ).toHaveClass("duration-200");
+  });
+
   it("renders as the given element via `render` instead of its default <div>", async () => {
     const user = userEvent.setup();
     render(

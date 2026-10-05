@@ -555,3 +555,39 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
 - Follow-up: next audit pass should continue with the concrete forms/feedback,
   animation, or navigation finding once the verification environment is
   repaired/available.
+
+## 2026-10-05 — ui-ux-pro-max audit loop, task 3/N: ContextMenu animation timing
+
+- Result: PASS for the scoped regression; broader gates remain environment-blocked.
+- Finding: `apps/web/src/components/ui/context-menu.tsx` used
+  `duration-100` for the ContextMenu popup. The `ui-ux-pro-max` animation
+  timing rule recommends 150–300ms for micro-interactions; 100ms was below
+  that range on the new long-press/right-click menu.
+- Change: changed only the ContextMenu popup to `duration-200`, preserving its
+  existing transform/opacity animation and reduced-motion global overrides.
+  Added a regression assertion in `apps/web/src/components/wm/context-menu.test.tsx`.
+- Commands:
+  - RED: `pnpm --filter web exec jest src/components/wm/context-menu.test.tsx --runInBand`
+    → 3 passed, 1 failed exactly because `duration-200` was absent.
+  - GREEN: same command → 4/4 tests passed.
+  - `pnpm --filter web exec eslint src/components/ui/context-menu.tsx src/components/wm/context-menu.test.tsx`
+    → clean.
+  - `pnpm --filter web exec tsc --noEmit` → blocked by missing `motion/react`
+    in existing animate-ui/mobile-bars/use-is-in-view imports.
+  - `pnpm --filter web exec jest --runInBand` → 82 passed, 73 failed, 2
+    skipped; failures are the same missing `motion/react` module in existing
+    suites (plus existing console warnings).
+  - `.agents/skills/impeccable/scripts/impeccable detect ...` → executable
+    unavailable in the checkout.
+  - Mobile live check: Playwright Chromium at 390×844 with touch enabled ran
+    but timed out during demo login on `/login` before reaching the app/menu.
+- Hook diagnosis: daemon logs show the old `rtk hook codex` PreToolUse command
+  was rejected as an unknown RTK subcommand. Commit `add8b580` had already
+  replaced that invalid hook with the portable `.codex/hooks/guardrail.sh`;
+  current guardrail probe exits 0 and the current session no longer emits the
+  old error. No additional hook change was needed for this task.
+- Scope: the 727 pre-existing `impeccable` advisory findings remain untouched;
+  user-owned dirty files remain preserved.
+- Follow-up: continue with the next concrete forms/feedback or navigation
+  finding after the `motion/react`, impeccable, and demo-auth verification
+  prerequisites are restored.
