@@ -36,4 +36,24 @@ describe("AmountHero currency picker", () => {
       "[@media(pointer:coarse)]:min-h-11",
     );
   });
+
+  it("connects an inline validation error to the amount input", () => {
+    render(
+      <AmountHero
+        field={field}
+        id="amount-error"
+        label="Jumlah"
+        placeholder="0"
+        error="Jumlah wajib diisi"
+      />,
+    );
+
+    const input = screen.getByRole("textbox", { name: "Jumlah" });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAttribute("aria-describedby", "amount-error-error");
+    expect(screen.getByRole("alert")).toHaveAttribute(
+      "id",
+      "amount-error-error",
+    );
+  });
 });

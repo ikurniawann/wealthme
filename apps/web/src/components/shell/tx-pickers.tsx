@@ -283,6 +283,8 @@ export function AmountHero({
           value={field.raw}
           onChange={(event) => field.setRaw(event.target.value)}
           autoComplete="off"
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? `${id}-error` : undefined}
         />
         {/* uiarc.dev money-input reference — currency sits inline, to the
             right of the amount, not behind a collapsed disclosure. */}
@@ -294,7 +296,7 @@ export function AmountHero({
       {code === "IDR" && <QuickAddChips field={field} />}
       <MoneyHint field={field} />
       {error && (
-        <p role="alert" className="error-text">
+        <p id={`${id}-error`} role="alert" className="error-text">
           {error}
         </p>
       )}

@@ -591,3 +591,28 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
 - Follow-up: continue with the next concrete forms/feedback or navigation
   finding after the `motion/react`, impeccable, and demo-auth verification
   prerequisites are restored.
+
+## 2026-10-05 — ui-ux-pro-max audit loop, task 4/N: AmountHero validation semantics
+
+- Checks: audit-driven loop; no approved task-loop checks were drafted.
+- Round: 1/1
+- Result: PASS for the scoped regression; broader gates remain environment-blocked.
+- Finding: `AmountHero` rendered its field-level error below the amount input,
+  but the input had no `aria-invalid` state or `aria-describedby` link to that
+  error. This violated the `ui-ux-pro-max` Forms/Feedback rules for inline
+  error placement and accessible field feedback.
+- Change: `apps/web/src/components/shell/tx-pickers.tsx` now sets
+  `aria-invalid` when `error` is present, links the input to a stable
+  `${id}-error` element, and gives the alert paragraph that id. Added the
+  contract test in `apps/web/src/components/shell/tx-pickers.test.tsx`.
+- Commands:
+  - `python .agents/skills/ui-ux-pro-max/scripts/search.py "animation timing forms feedback navigation patterns" --domain ux --max-results 30 --format markdown` → returned the prioritized UX rules; selected the High/Medium forms feedback finding above.
+  - `pnpm --filter web exec jest src/components/shell/tx-pickers.test.tsx --runInBand` → 1/1 suite, 2/2 tests passed.
+  - `pnpm exec eslint src/components/shell/tx-pickers.tsx src/components/shell/tx-pickers.test.tsx` → clean.
+  - `pnpm --filter web exec jest --runInBand` → 82 passed, 73 failed, 2 skipped; all failures are pre-existing `Cannot find module 'motion/react'` dependency-state failures. The new suite passed.
+  - `pnpm --filter web exec tsc --noEmit` → blocked by the same pre-existing missing `motion/react` module in animate-ui/mobile-bars/use-is-in-view.
+  - `.agents/skills/impeccable/scripts/impeccable detect ...` → executable unavailable in this checkout; no global/local executable found.
+  - `pnpm --filter web exec playwright test tests/e2e/audit/a11y.spec.ts --project=chromium --workers=1` → `/login` loaded, but failed on 2 pre-existing serious contrast findings; authenticated pages timed out at demo login.
+  - Mobile live check → blocked: `playwright-cli` is not installed and Playwright config exposes only `chromium` (no `mobile` project); the prior mobile/auth limitation remains.
+- Scope: the 727 pre-existing `impeccable` advisory findings (font-size/radius/color) remain untouched. No contrast or dependency cleanup was attempted.
+- Follow-up: continue with the next concrete navigation or feedback finding once `motion/react`, impeccable executable, and demo auth/mobile browser prerequisites are restored.
