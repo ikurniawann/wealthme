@@ -1,7 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import {
   ArrowUpDown,
   BarChart3,
@@ -139,6 +144,46 @@ export function SearchDialog() {
     !showApi &&
     pages.length === 0;
 
+  // uiarc.dev reference — a command palette's results should be fully
+  // keyboard-navigable (Arrow Up/Down + Enter), not mouse-only. `.wm-pal-item`
+  // already had `aria-selected="true"` styling in bento.css with nothing
+  // ever setting it; this wires up the roving index that was missing.
+  const flatItems = [
+    ...pages.map((p) => ({ href: p.href })),
+    ...(showApi ? apiResults.map((r) => ({ href: r.href })) : []),
+  ];
+  const [activeIndex, setActiveIndex] = useState(0);
+  // Reset the active index whenever the result set itself changes — derived
+  // during render (no effect), same "adjusting state when a prop changes"
+  // pattern as family-handle-card.tsx's draft reset.
+  const resultsKey = `${query}:${showApi}:${pages.length}`;
+  const [prevResultsKey, setPrevResultsKey] = useState(resultsKey);
+  if (resultsKey !== prevResultsKey) {
+    setPrevResultsKey(resultsKey);
+    setActiveIndex(0);
+  }
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  useEffect(() => {
+    itemRefs.current[activeIndex]?.scrollIntoView({ block: "nearest" });
+  }, [activeIndex]);
+
+  const handleQueryKeyDown = (e: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (flatItems.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => (i + 1) % flatItems.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => (i - 1 + flatItems.length) % flatItems.length);
+    } else if (e.key === "Enter") {
+      const target = flatItems[activeIndex];
+      if (target) {
+        e.preventDefault();
+        go(target.href);
+      }
+    }
+  };
+
   return (
     <Dialog open={searchOpen} onOpenChange={handleOpenChange}>
       <DialogContent
@@ -155,20 +200,39 @@ export function SearchDialog() {
             aria-label={t.shell.searchDialog.ariaLabel}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleQueryKeyDown}
+            role="combobox"
+            aria-expanded={flatItems.length > 0}
+            aria-controls="search-dialog-listbox"
+            aria-activedescendant={
+              flatItems.length > 0
+                ? `search-dialog-item-${activeIndex}`
+                : undefined
+            }
             placeholder={t.shell.v2.searchShort}
           />
           <kbd className="wm-kbd">Esc</kbd>
         </div>
-        <div className="wm-pal-list max-h-[60dvh]">
+        <div
+          id="search-dialog-listbox"
+          role="listbox"
+          className="wm-pal-list max-h-[60dvh]"
+        >
           {pages.length > 0 && (
             <>
               <h4>{t.shell.v2.pagesGroup}</h4>
-              {pages.map((page) => {
+              {pages.map((page, i) => {
                 const Icon = page.icon;
                 return (
                   <button
                     key={page.href}
+                    id={`search-dialog-item-${i}`}
+                    ref={(el) => {
+                      itemRefs.current[i] = el;
+                    }}
                     type="button"
+                    role="option"
+                    aria-selected={i === activeIndex}
                     className="wm-pal-item"
                     onClick={() => go(page.href)}
                   >
@@ -185,12 +249,19 @@ export function SearchDialog() {
           {showApi && (
             <>
               <h4>{t.shell.searchDialog.financialResultsHeader}</h4>
-              {apiResults.map((d) => {
+              {apiResults.map((d, i) => {
                 const Icon = ICONS[d.icon] ?? Home;
+                const index = pages.length + i;
                 return (
                   <button
                     key={d.id}
+                    id={`search-dialog-item-${index}`}
+                    ref={(el) => {
+                      itemRefs.current[index] = el;
+                    }}
                     type="button"
+                    role="option"
+                    aria-selected={index === activeIndex}
                     className="wm-pal-item"
                     onClick={() => go(d.href)}
                   >
