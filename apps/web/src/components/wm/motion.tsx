@@ -78,10 +78,12 @@ export function AnimatedProgress({
   value,
   color = "var(--primary)",
   height = 7,
+  ariaLabel,
 }: {
   value: number;
   color?: string;
   height?: number;
+  ariaLabel?: string;
 }) {
   const reduced = useReducedMotionPreference();
   const [v, setV] = React.useState(0);
@@ -94,7 +96,14 @@ export function AnimatedProgress({
     const id = window.setTimeout(() => setV(value), 120);
     return () => window.clearTimeout(id);
   }, [value, reduced]);
-  return <ProgressBar value={v} color={color} height={height} />;
+  return (
+    <ProgressBar
+      value={v}
+      color={color}
+      height={height}
+      ariaLabel={ariaLabel}
+    />
+  );
 }
 
 /** Wrapper stagger entrance — beri index agar kartu muncul berurutan. */

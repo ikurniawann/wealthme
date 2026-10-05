@@ -703,3 +703,19 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   - Mobile live check → blocked: `playwright-cli` is not installed and Playwright config exposes only `chromium` (no `mobile` project); the prior mobile/auth limitation remains.
 - Scope: the 727 pre-existing `impeccable` advisory findings (font-size/radius/color) remain untouched. No contrast or dependency cleanup was attempted.
 - Follow-up: continue with the next concrete navigation or feedback finding once `motion/react`, impeccable executable, and demo auth/mobile browser prerequisites are restored.
+
+## 2026-10-05 — UIArc component migration, task 5/N: ProgressBar
+
+- Result: PASS for focused behavior, types, lint, formatting, and live desktop/mobile rendering.
+- Finding: the WealthMe `ProgressBar` still used the legacy `.progress` markup with no progressbar semantics, no accessible label contract, and no animated value updates. UIArc's Progress pattern provides determinate progress semantics and spring-based fill motion with reduced-motion support.
+- Change: adapted `ProgressBar` with scoped Arc-derived styling, clamped finite values, `role=progressbar` and value ARIA, spring animation/reduced-motion handling, and explicit label/labelled-by props. Updated every app call site to provide its visible contextual label, including the goal-card `AnimatedProgress` wrapper. Added focused component tests.
+- Files: `apps/web/src/components/wm/progress-bar.tsx`, `progress-bar.module.css`, `progress-bar.test.tsx`, `motion.tsx`, and ProgressBar call sites in `beranda/_components/goals-card.tsx`, `laporan/_components/atoms.tsx`, `rekonsiliasi/page.tsx`, `ringkasan/_components/trend-composition-section.tsx`, and `warisan/page.tsx`.
+- Verification:
+  - `pnpm --filter web exec jest src/components/wm/progress-bar.test.tsx --runInBand` → 2/2 passed.
+  - `pnpm --filter web exec tsc --noEmit` → passed.
+  - ESLint on all touched TS/TSX → 0 errors; one existing unused `amtNum` warning at `rekonsiliasi/page.tsx:3009`.
+  - Prettier check on touched files and `git diff --check` → passed.
+  - Temporary diagnostic route + Chromium Playwright live check at 1280×800 and 390×844 (including reduced motion) → 1/1 passed; temporary route/spec removed afterward.
+  - `impeccable detect` → unavailable because `.agents/skills/impeccable/scripts/impeccable` is absent in this checkout.
+- Scope: 727 pre-existing `impeccable` advisory findings (font-size/radius/color) remain untouched and out of scope. No advisory cleanup or unrelated warning fix was attempted.
+- Escalation: none; the isolated runtime check avoided demo-auth dependencies. Delivery to `development` and DEV redeploy remain pending until final review and commit.

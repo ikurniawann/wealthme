@@ -154,6 +154,7 @@ export function TrendCompositionSection({
                       value={c.pct}
                       color={c.color}
                       height={6}
+                      ariaLabel={c.label}
                       className="mt-[5px]"
                     />
                   </div>

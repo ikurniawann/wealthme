@@ -84,6 +84,7 @@ export function GoalsCard({
               <AnimatedProgress
                 value={g.progressPercent}
                 color={GOAL_STATUS_COLOR[g.status] ?? "var(--primary)"}
+                ariaLabel={g.name}
               />
             </div>
             {/* Hardening batch G5 (Goal-gradient effect) — verbal framing of

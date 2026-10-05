@@ -2752,6 +2752,7 @@ export default function RekonsiliasiPage() {
                 value={50}
                 height={10}
                 color="linear-gradient(90deg,var(--primary),var(--brand-purple))"
+                ariaLabel={t.rekonsiliasi.aiReadingTitle}
                 className="mb-2.5"
               />
               <div className="mb-5 text-[12px] text-muted-foreground">
@@ -2764,6 +2765,7 @@ export default function RekonsiliasiPage() {
                 value={100}
                 height={10}
                 color="linear-gradient(90deg,var(--primary),var(--brand-purple))"
+                ariaLabel={t.rekonsiliasi.aiReadingTitle}
                 className="mb-2.5"
               />
               <div className="flex items-center justify-center gap-2 text-[13px]">

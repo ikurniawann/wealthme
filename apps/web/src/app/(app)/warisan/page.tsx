@@ -320,7 +320,11 @@ function AssetCard({
                 : `${unallocated}${t.warisan.heirAllocationUnallocatedSuffix}`}
             </span>
           </div>
-          <ProgressBar value={clampedAllocated} color={barColor} />
+          <ProgressBar
+            value={clampedAllocated}
+            color={barColor}
+            ariaLabel={t.warisan.listRowAllocationLabel}
+          />
         </>
       )}
     </div>
@@ -598,6 +602,7 @@ function HeirEditor({
           <ProgressBar
             value={allocated}
             color={unallocated <= 0 ? "var(--success)" : "var(--warning)"}
+            ariaLabel={t.warisan.listRowAllocationLabel}
             className="mt-2"
           />
         </>

@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { ProgressBar, SectionCard } from "@/components/wm";
 import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
@@ -79,10 +81,19 @@ export function BarRow({
   value: number;
   color: string;
 }) {
+  const labelId = useId();
+
   return (
     <div className="lp-bar">
-      <span className="lp-bar-l">{label}</span>
-      <ProgressBar value={value} color={color} height={8} />
+      <span id={labelId} className="lp-bar-l">
+        {label}
+      </span>
+      <ProgressBar
+        value={value}
+        color={color}
+        height={8}
+        ariaLabelledBy={labelId}
+      />
       <span className="lp-bar-r">{right}</span>
     </div>
   );
