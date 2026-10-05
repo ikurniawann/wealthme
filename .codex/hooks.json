@@ -6,16 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '/Projects/wealthme-web/.codex/hooks/guardrail.sh'"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rtk hook codex"
+            "command": "bash \"$(git rev-parse --show-toplevel)/.codex/hooks/guardrail.sh\""
           }
         ]
       }
@@ -26,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/home/stealth/.local/bin/headroom wrap selfheal --marker headroom-wrap-selfheal",
+            "command": "if command -v headroom >/dev/null 2>&1; then headroom wrap selfheal --marker headroom-wrap-selfheal; fi",
             "timeout": 10
           }
         ]
@@ -38,8 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ ! -f '/home/stealth/.agents/skills/impeccable/scripts/impeccable' ] || '/home/stealth/.agents/skills/impeccable/scripts/impeccable' hook",
-            "commandWindows": "if exist \"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" (\"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" hook & exit /b)",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; tool=\"$root/.agents/skills/impeccable/scripts/impeccable\"; [ ! -x \"$tool\" ] || \"$tool\" hook",
             "timeout": 5,
             "statusMessage": "Checking UI changes"
           }
@@ -51,8 +41,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "[ ! -f '/home/stealth/.agents/skills/impeccable/scripts/impeccable' ] || '/home/stealth/.agents/skills/impeccable/scripts/impeccable' hook",
-            "commandWindows": "if exist \"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" (\"/home/stealth/.agents/skills/impeccable/scripts/impeccable.cmd\" hook & exit /b)",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null || pwd)\"; tool=\"$root/.agents/skills/impeccable/scripts/impeccable\"; [ ! -x \"$tool\" ] || \"$tool\" hook",
             "timeout": 30,
             "statusMessage": "Design deep pass"
           }
