@@ -738,6 +738,21 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
 - Delivery: commit `34ea3729` pushed to `origin/development`; GitHub Actions run `37274127931` passed Lint/Build/Test and DEV image build/push. `bash scripts/deploy-dev.sh` completed in pull mode; API `/health` returned success and web/API/Nginx/Postgres/Redis/MinIO/MailHog were healthy. No clean-volume mode was used.
 - Escalation: none. Unrelated user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf` remain excluded from the task commit.
 
+## 2026-10-05 — IAM role drawer footer scroll regression
+
+- Result: PASS. Reproduced by selecting each of the 22 individual `Kelola` options; at the fifth option, browser focus auto-scrolled the outer dialog (`scrollTop` 0 → 401) in addition to the intended scrollable body, moving the footer out of place.
+- Change: scoped `overflow: clip` to `.dialog.wm-panel.wm-form-panel` so focus scrolling remains inside the role form's body and cannot scroll the outer drawer.
+- Files: `apps/web/src/app/(app)/iam/iam.css`.
+- Verification:
+  - Temporary Chromium Playwright component harness at desktop 1280×800 and mobile 390×844; selected all 22 `Kelola` radios on both sizes → 2/2 passed after patch. Temporary route/spec removed.
+  - `pnpm --filter web exec tsc --noEmit` → passed after regenerating stale Next dev route types.
+  - `pnpm --filter web exec jest --runInBand iam` → 6 suites / 34 tests passed.
+  - Full `pnpm --filter web test -- --runInBand` → 160 suites, 1,482 passed, 2 skipped; existing console warnings were emitted by unrelated suites.
+  - ESLint on IAM TSX files and `git diff --check` → passed.
+- Scope: no permission behavior changed; no impeccable advisory cleanup attempted.
+- Delivery: pending commit, push, CI image build, and DEV redeploy.
+- Escalation: none.
+
 ## 2026-10-05 — UIArc component migration, task 7/N: Accordion
 
 - Result: PASS for focused behavior, types, lint, formatting, and live keyboard/mobile rendering.

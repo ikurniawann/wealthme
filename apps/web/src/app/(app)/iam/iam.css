@@ -236,6 +236,11 @@
     flex-direction: column;
     gap: 16px;
   }
+  /* Native radio focus can otherwise scroll the overflow-hidden dialog itself
+     when the focused permission is near the bottom of this long matrix. */
+  .dialog.wm-panel.wm-form-panel {
+    overflow: clip;
+  }
   .pam-head {
     display: flex;
     align-items: center;
