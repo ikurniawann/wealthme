@@ -32,3 +32,11 @@ At task start, `test -d apps/web/node_modules/motion` reported missing. `pnpm --
 - Existing unrelated deletions under `.claude/agents` and `.claude/hooks`, plus the untracked PDF, were present before this task and remain outside the commit.
 
 Escalation: none. No subagents were spawned. No deployment or push occurred.
+
+## Round 1 fix — reduced-motion test
+
+Reviewer finding: the original reduced-motion assertion only rejected one exact press transform. It could pass even if jsdom never ran press animation.
+
+Changed only `apps/web/src/components/arc-probe/arc-button-probe.test.tsx`. The replacement test drives Motion's real `matchMedia` listener through normal and reduced preferences, changes the label in each state, and inspects the incoming label's initial inline style. Normal motion must show `translateY(4px)` and `blur(4px)`; reduced motion must show `blur(0px)` and no 4px travel. This checks both branches through observable rendering. The test resets the media preference afterward. No production component or page changed.
+
+Focused verification: `pnpm --filter web exec jest src/components/arc-probe/arc-button-probe.test.tsx --runInBand` recorded 6/6 tests; `pnpm --filter web exec eslint src/components/arc-probe/arc-button-probe.test.tsx` exited 0; `pnpm --filter web exec tsc --noEmit` exited 0. Motion emitted its expected development warning when the test enabled reduced motion. Browser visual/CSS media-query verification remains Task 3 scope. No subagents or escalation.

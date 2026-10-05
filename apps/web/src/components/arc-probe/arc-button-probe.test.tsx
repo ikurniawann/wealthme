@@ -12,6 +12,65 @@ beforeAll(() => {
 });
 
 describe("ArcButtonProbe", () => {
+  // Motion captures matchMedia on first render, so exercise both preferences first.
+  it("removes label travel and blur when reduced motion is preferred", () => {
+    const original = window.matchMedia;
+    const listeners = new Set<EventListenerOrEventListenerObject>();
+    const preference = { matches: false };
+    const notifyPreferenceChange = () => {
+      const event = new Event("change");
+      listeners.forEach((listener) => {
+        if (typeof listener === "function") listener(event);
+        else listener.handleEvent(event);
+      });
+    };
+    window.matchMedia = (query) =>
+      ({
+        get matches() {
+          return preference.matches;
+        },
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: (
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+        ) => {
+          if (type === "change" && listener) listeners.add(listener);
+        },
+        removeEventListener: (
+          type: string,
+          listener: EventListenerOrEventListenerObject | null,
+        ) => {
+          if (type === "change" && listener) listeners.delete(listener);
+        },
+        dispatchEvent: () => false,
+      }) as MediaQueryList;
+
+    try {
+      const normal = render(<ArcButtonProbe label="Simpan" />);
+      normal.rerender(<ArcButtonProbe label="Tersimpan" />);
+      const normalStyle = screen.getByText("Tersimpan").getAttribute("style");
+      normal.unmount();
+
+      preference.matches = true;
+      notifyPreferenceChange();
+      const reduced = render(<ArcButtonProbe label="Simpan" />);
+      reduced.rerender(<ArcButtonProbe label="Tersimpan" />);
+      const reducedStyle = screen.getByText("Tersimpan").getAttribute("style");
+
+      expect(normalStyle).toContain("blur(4px)");
+      expect(normalStyle).toContain("translateY(4px)");
+      expect(reducedStyle).toContain("blur(0px)");
+      expect(reducedStyle).not.toContain("translateY(4px)");
+    } finally {
+      preference.matches = false;
+      notifyPreferenceChange();
+      window.matchMedia = original;
+    }
+  });
+
   it("keeps its supplied label as the button name", () => {
     render(<ArcButtonProbe label="Simpan" />);
     expect(screen.getByRole("button", { name: "Simpan" })).toBeVisible();
@@ -56,28 +115,5 @@ describe("ArcButtonProbe", () => {
     screen.getByRole("button", { name: "Simpan" }).focus();
     await user.keyboard(key);
     expect(onClick).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps the button stationary under reduced motion", async () => {
-    const original = window.matchMedia;
-    window.matchMedia = (query) => ({
-      matches: query.includes("prefers-reduced-motion"),
-      media: query,
-      onchange: null,
-      addListener: jest.fn(),
-      removeListener: jest.fn(),
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-      dispatchEvent: jest.fn(),
-    });
-    try {
-      const user = userEvent.setup();
-      render(<ArcButtonProbe label="Simpan" />);
-      const button = screen.getByRole("button", { name: "Simpan" });
-      await user.pointer({ keys: "[MouseLeft>]", target: button });
-      expect(button).not.toHaveStyle({ transform: "scale(0.97)" });
-    } finally {
-      window.matchMedia = original;
-    }
   });
 });
