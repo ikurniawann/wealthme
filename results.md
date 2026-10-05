@@ -1,5 +1,16 @@
 # Task loop results
 
+## 2026-10-05 — Arc UI Button compatibility probe (Batch 0, Task 2)
+
+- Checks: `.superpowers/sdd/2026-10-05-uiarc-batch-0-inventory-spike/task-2-brief.md`.
+- Round: 1/2.
+- Result: PASS with concerns.
+- Change: Added the `@uiarc` registry and isolated free Arc Button source adaptation, scoped styles, motion tokens, wrapper, and focused test under `arc-probe/`.
+- Dependency preflight: `motion` was declared in `apps/web/package.json` and `pnpm-lock.yaml` but absent from `apps/web/node_modules`; baseline `tsc --noEmit` failed on 19 existing `motion/react` imports. `pnpm install --filter web --frozen-lockfile` restored the package without tracked dependency changes; `tsc --noEmit` then passed.
+- Commands: focused Jest 6/6 passed; `pnpm --filter web exec tsc --noEmit` passed; corrected `pnpm --filter web exec eslint src/components/arc-probe components.json` had 0 errors and one ignored-JSON warning. The brief's `apps/web/components.json` lint path failed because `pnpm --filter web exec` runs from `apps/web`.
+- Evidence: `.superpowers/sdd/2026-10-05-uiarc-component-migration-spike/task-2-report.md`.
+- Follow-up: Browser-level reduced-motion and visual/token checks belong to Task 3; jsdom does not apply CSS media queries.
+
 ## 2026-10-05 — WealthMe Arc UI shared component map (Batch 0, Task 1)
 
 - Checks: `.superpowers/sdd/2026-10-05-uiarc-batch-0-inventory-spike/task-1-brief.md`
