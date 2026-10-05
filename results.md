@@ -737,3 +737,18 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
 - Scope: the 727 pre-existing `impeccable` advisory findings (font-size/radius/color) remain untouched and out of scope.
 - Delivery: commit `34ea3729` pushed to `origin/development`; GitHub Actions run `37274127931` passed Lint/Build/Test and DEV image build/push. `bash scripts/deploy-dev.sh` completed in pull mode; API `/health` returned success and web/API/Nginx/Postgres/Redis/MinIO/MailHog were healthy. No clean-volume mode was used.
 - Escalation: none. Unrelated user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf` remain excluded from the task commit.
+
+## 2026-10-05 — UIArc component migration, task 7/N: Accordion
+
+- Result: PASS for focused behavior, types, lint, formatting, and live keyboard/mobile rendering.
+- Finding: the shared Accordion trigger was below UIArc's large-control target and swapped two chevrons rather than rotating one, while the animation did not explicitly honor reduced motion.
+- Change: kept Base UI's controlled/composable disclosure contract and applied the Arc interaction treatment: 44px minimum trigger height, single rotating chevron with 200ms transition, explicit reduced-motion behavior, and UIArc component markers. Added regression test for ARIA state and expansion.
+- Files: `apps/web/src/components/ui/accordion.tsx` and `accordion.test.tsx`.
+- Verification:
+  - `pnpm --filter web exec jest src/components/ui/accordion.test.tsx --runInBand` → 1/1 passed.
+  - `pnpm --filter web exec tsc --noEmit` → passed after temporary route removal.
+  - ESLint, Prettier check, and `git diff --check` → passed.
+  - Temporary route + Chromium Playwright verified Enter-key expansion, expanded state, mobile trigger height ≥44px, and no 390px overflow → 1/1 passed; route/spec removed.
+  - `impeccable detect` → unavailable; executable absent from this checkout.
+- Scope: all 727 pre-existing `impeccable` advisory findings remain untouched and out of scope.
+- Escalation: none. Push and DEV redeploy pending final review.
