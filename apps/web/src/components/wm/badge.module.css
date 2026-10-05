@@ -1,0 +1,90 @@
+/* Adapted from Arc UI's free Badge: https://uiarc.dev/r/badge.json.
+   StatusBadge labels are usually static and appear in dense finance tables, so
+   this adapter keeps Arc's compact pill structure without per-instance motion
+   observers. WealthMe semantic tokens remain the source of color values. */
+.badge {
+  display: inline-flex;
+  min-height: 22px;
+  width: fit-content;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+  border: 1px solid var(--badge-border, var(--border));
+  border-radius: 999px;
+  padding: 0 8px;
+  color: var(--badge-foreground, var(--foreground));
+  background: var(--badge-background, var(--card));
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  white-space: nowrap;
+  transition:
+    border-color 200ms ease,
+    background-color 200ms ease,
+    color 200ms ease;
+}
+
+.neutral {
+  --badge-color: var(--muted-foreground);
+  --badge-foreground: var(--muted-foreground);
+  --badge-background: var(--secondary);
+  --badge-border: var(--border);
+}
+
+.success {
+  --badge-color: var(--success);
+  --badge-foreground: var(--success);
+  --badge-background: var(--success-soft);
+  --badge-border: color-mix(in oklab, var(--success) 25%, var(--border));
+}
+
+.info {
+  --badge-color: var(--accent-foreground);
+  --badge-foreground: var(--accent-foreground);
+  --badge-background: var(--accent);
+  --badge-border: color-mix(
+    in oklab,
+    var(--accent-foreground) 18%,
+    var(--accent)
+  );
+}
+
+.warning {
+  --badge-color: color-mix(in oklab, var(--warning) 80%, var(--foreground));
+  --badge-foreground: color-mix(
+    in oklab,
+    var(--warning) 80%,
+    var(--foreground)
+  );
+  --badge-background: var(--warning-soft);
+  --badge-border: color-mix(in oklab, var(--warning) 27%, var(--border));
+}
+
+.danger {
+  --badge-color: var(--destructive);
+  --badge-foreground: var(--destructive);
+  --badge-background: color-mix(in oklab, var(--destructive) 14%, transparent);
+  --badge-border: color-mix(in oklab, var(--destructive) 26%, var(--border));
+}
+
+.purple {
+  --badge-color: var(--brand-purple);
+  --badge-foreground: var(--brand-purple);
+  --badge-background: var(--brand-purple-soft);
+  --badge-border: color-mix(in oklab, var(--brand-purple) 25%, var(--border));
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .badge:hover {
+    border-color: color-mix(in oklab, var(--badge-color) 32%, var(--border));
+    background-color: color-mix(in oklab, var(--badge-color) 10%, var(--card));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .badge {
+    transition-duration: 1ms;
+  }
+}

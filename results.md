@@ -1,5 +1,30 @@
 # Task loop results
 
+## 2026-10-05 — Arc UI Batch 1, StatusBadge adapter
+
+- Result: PASS for the focused adapter; demo-auth live verification remained
+  unavailable because the local source server's login request failed to fetch
+  the API. No authenticated production route was changed.
+- Change: `apps/web/src/components/wm/badge.tsx` keeps the existing six
+  `StatusBadge` variants and children/className API, maps them to Arc tones,
+  and uses an isolated Arc-derived CSS module with WealthMe semantic tokens.
+  Purple stays a WealthMe extension. The adapter omits per-instance animation
+  observers because badges render densely in finance tables and their labels
+  are normally static.
+- Tests: `apps/web/src/components/wm/badge.test.tsx` covers all tone mappings,
+  inline span semantics, readable text, and custom classes.
+- Verification:
+  - `pnpm --filter web exec jest src/components/wm/badge.test.tsx --runInBand`
+    → 7/7 passed.
+  - `pnpm --filter web exec tsc --noEmit` → passed.
+  - Scoped ESLint, Prettier, and `git diff --check` → passed.
+  - Temporary local browser harness at `/legal/uiarc-badge-check` → Chromium
+    passed at desktop 1280×800 and mobile 390×844; no horizontal overflow.
+    The harness and temporary E2E spec were removed after the run.
+- Escalation: none. Full Jest, global impeccable detect, and authenticated
+  browser flows were not rerun; the 727 pre-existing impeccable advisories
+  remain out of scope.
+
 ## 2026-10-05 — Arc UI Button probe Task 3 review fix, round 1
 
 - Result: PASS with concern. Removed the public `/legal/arc-probe` harness; `apps/web/tests/e2e/arc-probe.spec.ts` now checks that the retired route returns 404, `/login` remains available, no Arc foundation stylesheet or probe heading appears there, and no hydration message is captured. Original interactive measurements remain in the Task 3 entry below and the prior commit history.
