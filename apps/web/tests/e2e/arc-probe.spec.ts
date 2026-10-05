@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-// The interactive Batch 0 probe was removed after its browser evidence was
-// recorded. Keep this guard so the diagnostic URL cannot ship publicly.
+// Historical interactive Batch 0 browser evidence was recorded before the
+// probe was retired. Keep this guard so the diagnostic URL cannot ship
+// publicly; Batch 1 must use a non-public interactive harness.
 test("retired Arc probe route is unavailable and login has no Arc CSS", async ({
   page,
 }) => {

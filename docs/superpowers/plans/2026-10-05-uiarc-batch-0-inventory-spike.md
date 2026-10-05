@@ -41,7 +41,7 @@
 - Consumes: current component file list, import fan-out, Arc catalog metadata, and the approved migration spec.
 - Produces: one row per shared component with `current path`, `public export`, `Arc candidate`, `catalog tier`, `decision`, `risk`, `key consumers`, and `verification owner`.
 
-- [ ] **Step 1: Inventory current shared exports and consumers**
+- [x] **Step 1: Inventory current shared exports and consumers**
 
 Run:
 
@@ -52,7 +52,7 @@ rg -n "from [\"']@/components/(ui|wm|shell|charts)" apps/web/src --glob '*.tsx' 
 
 Record shared components and high-fan-out consumers. Do not edit source files.
 
-- [ ] **Step 2: Read Arc metadata for candidate equivalents**
+- [x] **Step 2: Read Arc metadata for candidate equivalents**
 
 Use the machine-readable Arc catalog and each candidate's markdown reference.
 At minimum inspect the free candidates for button, input, textarea, dialog,
@@ -61,19 +61,19 @@ accordion, select/combobox, search-field, money-input, date-picker, and charts.
 Mark Pro-only items as `prohibited` unless an entitlement is explicitly
 available; never infer or copy their source.
 
-- [ ] **Step 3: Write the mapping table**
+- [x] **Step 3: Write the mapping table**
 
 For every shared export, choose exactly one decision: `adopt`, `adapt`,
 `retain`, `replace-with-free`, or `prohibited`. Add a one-sentence reason and
 name the focused test or browser check that owns the decision.
 
-- [ ] **Step 4: Verify mapping completeness**
+- [x] **Step 4: Verify mapping completeness**
 
 Run a small check that every file in the three shared directories appears in
 the mapping document and that no row has an empty decision, candidate, or risk.
 Record the command and result in `results.md`.
 
-- [ ] **Step 5: Commit the inventory**
+- [x] **Step 5: Commit the inventory**
 
 ```bash
 git add docs/architecture/uiarc-component-map.md results.md
@@ -95,7 +95,7 @@ git commit -m "docs: map WealthMe components to Arc UI"
 - Consumes: Arc's documented free Button API and existing WealthMe semantic labels/tokens.
 - Produces: an isolated probe export with no imports from production pages and a test proving keyboard, disabled, loading, and reduced-motion behavior.
 
-- [ ] **Step 1: Confirm dependency state before installing**
+- [x] **Step 1: Confirm dependency state before installing**
 
 Run:
 
@@ -108,7 +108,7 @@ If `motion/react` is missing, record the blocker and repair only the dependency
 state required for this probe in a separate explicit commit; do not workaround
 TypeScript by adding declarations or mock production modules.
 
-- [ ] **Step 2: Register Arc without overwriting WealthMe components**
+- [x] **Step 2: Register Arc without overwriting WealthMe components**
 
 Add:
 
@@ -121,11 +121,11 @@ with an explicit output path or copy the free Button source into the isolated
 `arc-probe` boundary. Confirm `git diff --name-only` before and after; the
 command must not modify `components/ui`, `components/wm`, or page files.
 
-- [ ] **Step 3: Implement the probe wrapper**
+- [x] **Step 3: Implement the probe wrapper**
 
 Export `ArcButtonProbe(props: { label: string; disabled?: boolean; loading?: boolean; onClick?: () => void })` from `arc-button-probe.tsx`. Keep it isolated and use the documented Arc Button props only. The wrapper must expose a semantic button, preserve disabled behavior, announce loading without replacing the label silently, and use existing WealthMe tokens rather than raw catalog colors.
 
-- [ ] **Step 4: Add the focused test**
+- [x] **Step 4: Add the focused test**
 
 In `arc-button-probe.test.tsx`, assert:
 
@@ -137,7 +137,7 @@ is keyboard activatable with Enter or Space;
 does not import or render any production page component.
 ```
 
-- [ ] **Step 5: Run focused verification**
+- [x] **Step 5: Run focused verification**
 
 ```bash
 pnpm --filter web exec jest src/components/arc-probe/arc-button-probe.test.tsx --runInBand
@@ -149,7 +149,7 @@ git diff --check
 Expected: the probe test and lint pass; TypeScript either passes or reports the
 known dependency blocker with no new errors; no production component is changed.
 
-- [ ] **Step 6: Commit the isolated probe**
+- [x] **Step 6: Commit the isolated probe**
 
 ```bash
 git add apps/web/components.json apps/web/src/components/arc-probe results.md
@@ -169,28 +169,28 @@ git commit -m "chore(web): add isolated Arc UI compatibility probe"
 - Consumes: the isolated `ArcButtonProbe` from Task 2.
 - Produces: desktop/mobile/reduced-motion evidence and a Batch 0 recommendation for the first production primitive family.
 
-- [ ] **Step 1: Run the dev server and desktop probe check**
+- [x] **Step 1: Run the dev server and desktop probe check**
 
 Verify the probe route or test harness at a desktop viewport. Check label,
 disabled/loading state, keyboard activation, focus behavior, and that no Arc
 foundation CSS changes appear on `/login` or another unchanged page.
 
-- [ ] **Step 2: Run the mobile probe check**
+- [x] **Step 2: Run the mobile probe check**
 
 Use a narrow touch viewport. Measure the target height, check no horizontal
 overflow, and verify the disabled/loading state remains clear without hover.
 
-- [ ] **Step 3: Run reduced-motion verification**
+- [x] **Step 3: Run reduced-motion verification**
 
 Emulate `prefers-reduced-motion: reduce` and confirm the probe has no travel or
 long transition that blocks input.
 
-- [ ] **Step 4: Record the decision**
+- [x] **Step 4: Record the decision**
 
 Add a Batch 0 evidence entry to `results.md` with the exact files, commands,
 screens/measurements, failures, and whether Button is recommended for Batch 1.
 
-- [ ] **Step 5: Commit evidence**
+- [x] **Step 5: Commit evidence**
 
 ```bash
 git add apps/web/tests/e2e/arc-probe.spec.ts results.md
@@ -199,10 +199,10 @@ git commit -m "test(web): verify Arc UI compatibility probe"
 
 ## Final Batch 0 Gate
 
-- [ ] Mapping document covers all shared `ui`, `wm`, and `shell` files.
-- [ ] Arc free/Pro boundaries are explicit.
-- [ ] The Arc registry does not overwrite production WealthMe components.
-- [ ] The isolated probe has focused Jest, ESLint, and TypeScript evidence.
-- [ ] Desktop, mobile, keyboard, and reduced-motion checks are recorded.
-- [ ] A recommendation is made for Batch 1; no production primitive is
+- [x] Mapping document covers all shared `ui`, `wm`, and `shell` files.
+- [x] Arc free/Pro boundaries are explicit.
+- [x] The Arc registry does not overwrite production WealthMe components.
+- [x] The isolated probe has focused Jest, ESLint, and TypeScript evidence.
+- [x] Desktop, mobile, keyboard, and reduced-motion checks are recorded.
+- [x] A recommendation is made for Batch 1; no production primitive is
       migrated until the next approved plan/task begins.
