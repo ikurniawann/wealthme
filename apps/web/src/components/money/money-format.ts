@@ -4,8 +4,24 @@ import {
   type FxCurrencyCode,
   type FxRatesResponse,
 } from "@wealthme/contracts";
+import type { CurrencyCode } from "@/hooks/currencies";
 
 import { formatRupiah } from "@/lib/format";
+
+export function currencySymbol(code: CurrencyCode, locale: "id" | "en") {
+  const intlLocale = locale === "en" ? "en-US" : "id-ID";
+  return (
+    new Intl.NumberFormat(intlLocale, {
+      style: "currency",
+      currency: code,
+      currencyDisplay: "narrowSymbol",
+      maximumFractionDigits: 0,
+      numberingSystem: "latn",
+    })
+      .formatToParts(0)
+      .find((part) => part.type === "currency")?.value ?? code
+  );
+}
 
 // E2E round-2 B1 — a decimal-capable field (decimals > 0) sometimes gets
 // USD/copy-paste input like "9500.50" instead of the id-ID "9500,50". A

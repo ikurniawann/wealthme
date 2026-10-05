@@ -1,11 +1,13 @@
 "use client";
 
-import { CURRENCIES, type CurrencyCode } from "@/hooks/currencies";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { useLocale } from "@/hooks/use-locale";
 import { cn } from "@/lib/utils";
 
+import { MoneyCurrencyPicker } from "./currency-picker";
+import styles from "./money-input.module.css";
 import {
+  currencySymbol,
   formatIdrPreview,
   formatRateDate,
   formatRatePerUnit,
@@ -34,39 +36,36 @@ export function MoneyInput({
   required,
   inputClassName,
 }: MoneyInputProps) {
-  const { t } = useLocale();
+  const { locale } = useLocale();
   const inputMode = field.allowNegative
     ? "text"
     : field.decimals > 0
       ? "decimal"
       : "numeric";
   return (
-    <div className="grid gap-1">
-      <div className="flex gap-2">
-        <select
-          className="select money-cur shrink-0"
-          aria-label={t.money.currencyLabel}
+    <div className={styles.field}>
+      <div className={styles.row}>
+        <div className={styles.amount}>
+          <span className={styles.symbol} aria-hidden="true">
+            {currencySymbol(field.currency, locale)}
+          </span>
+          <input
+            id={id}
+            aria-label={ariaLabel}
+            aria-describedby={ariaDescribedBy}
+            className={cn("input mono", styles.input, inputClassName)}
+            inputMode={inputMode}
+            placeholder={placeholder}
+            value={field.raw}
+            disabled={disabled}
+            required={required}
+            onChange={(e) => field.setRaw(e.target.value)}
+          />
+        </div>
+        <MoneyCurrencyPicker
           value={field.currency}
+          onChange={field.setCurrency}
           disabled={disabled}
-          onChange={(e) => field.setCurrency(e.target.value as CurrencyCode)}
-        >
-          {CURRENCIES.map((c) => (
-            <option key={c.code} value={c.code}>
-              {`${c.flag} ${c.code}`}
-            </option>
-          ))}
-        </select>
-        <input
-          id={id}
-          aria-label={ariaLabel}
-          aria-describedby={ariaDescribedBy}
-          className={cn("input mono min-w-0 flex-1", inputClassName)}
-          inputMode={inputMode}
-          placeholder={placeholder}
-          value={field.raw}
-          disabled={disabled}
-          required={required}
-          onChange={(e) => field.setRaw(e.target.value)}
         />
       </div>
       <MoneyHint field={field} />

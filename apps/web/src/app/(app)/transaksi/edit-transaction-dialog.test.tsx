@@ -6,6 +6,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "../../../components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { TransactionDto } from "@wealthme/contracts";
 
@@ -146,10 +147,7 @@ describe("EditTransactionDialog — revisi I multi-currency", () => {
       />,
     );
 
-    await userEvent.selectOptions(
-      await screen.findByLabelText("Mata uang"),
-      "JPY",
-    );
+    await selectMoneyCurrency("JPY");
     const amountInput = screen.getByDisplayValue("50.000") as HTMLInputElement;
     await userEvent.clear(amountInput);
     await userEvent.type(amountInput, "1500");

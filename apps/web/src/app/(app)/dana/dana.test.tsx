@@ -66,6 +66,7 @@ jest.mock("../../../components/money/use-fx-snapshot", () => ({
 }));
 
 import DanaPage from "./page";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 
 const FAMILY_GROUP_ID = "fg-1";
 const TOKEN = "test-token";
@@ -232,7 +233,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
       dialog.getByPlaceholderText("cth: Kas Tunai, Dompet Kerja"),
       "Kas Toko",
     );
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "-20");
     await user.click(dialog.getByRole("button", { name: /Simpan/i }));
 

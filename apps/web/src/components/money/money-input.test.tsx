@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 
 import { TEST_FX_RATES } from "./fx-test-rates";
 import { MoneyInput } from "./money-input";
+import { selectMoneyCurrency } from "./money-input.test-utils";
 import { useMoneyField, type MoneyField } from "./use-money-field";
 
 const mockFx = jest.fn();
@@ -63,15 +64,38 @@ describe("MoneyInput — revisi I", () => {
   it("defaults a create form to the display currency (USD)", async () => {
     mockPref.mockReturnValue(USD_PREF);
     render(<Harness />);
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("USD");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "USD",
+    );
     await userEvent.type(screen.getByLabelText("Jumlah"), "100");
     expect(latest?.resolved.fx).toEqual({ currency: "USD", amount: "100" });
+  });
+
+  it("shows a currency symbol beside the amount and updates it when currency changes", async () => {
+    render(<Harness />);
+    expect(screen.getByText("Rp", { exact: true })).toBeInTheDocument();
+    await selectMoneyCurrency("USD");
+    expect(screen.getByText("$", { exact: true })).toBeInTheDocument();
+  });
+
+  it("uses the currency menu pattern and marks its selected item", async () => {
+    render(<Harness />);
+    await userEvent.click(screen.getByRole("button", { name: "Mata uang" }));
+    const selected = await screen.findByRole("menuitemradio", { name: /IDR/ });
+    expect(selected).toHaveAttribute("aria-checked", "true");
+    await userEvent.click(
+      await screen.findByRole("menuitemradio", { name: /USD/ }),
+    );
+    expect(screen.getByText("$", { exact: true })).toBeInTheDocument();
+    expect(latest?.currency).toBe("USD");
   });
 
   it("edit prefill opens on IDR even for a USD-display user", () => {
     mockPref.mockReturnValue(USD_PREF);
     render(<EditHarness />);
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "IDR",
+    );
     expect(screen.getByLabelText("Jumlah")).toHaveValue("1.791.390");
     expect(latest?.resolved.fx).toBeNull();
   });
@@ -83,7 +107,9 @@ describe("MoneyInput — revisi I", () => {
       return <MoneyInput field={field} id="amt" ariaLabel="Jumlah" />;
     }
     render(<EmptyEdit />);
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "IDR",
+    );
   });
 
   it("a late-loading profile does not flip a field the user already typed in", async () => {
@@ -91,7 +117,9 @@ describe("MoneyInput — revisi I", () => {
     await userEvent.type(screen.getByLabelText("Jumlah"), "250000");
     mockPref.mockReturnValue(USD_PREF);
     rerender(<Harness />);
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "IDR",
+    );
     expect(latest?.resolved.fx).toBeNull();
   });
 
@@ -99,18 +127,24 @@ describe("MoneyInput — revisi I", () => {
     const { rerender } = render(<Harness />);
     mockPref.mockReturnValue(USD_PREF);
     rerender(<Harness />);
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("USD");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "USD",
+    );
   });
 
   it("an unsupported profile currency falls back to IDR", () => {
     mockPref.mockReturnValue({ ...USD_PREF, currency: "GBP" });
     render(<Harness />);
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "IDR",
+    );
   });
 
   it("defaults to IDR for an IDR-display user, groups digits like before, and shows no rate line", async () => {
     render(<Harness />);
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "IDR",
+    );
     await userEvent.type(screen.getByLabelText("Jumlah"), "1250000");
     expect(screen.getByLabelText("Jumlah")).toHaveValue("1.250.000");
     expect(screen.queryByText(/ECB/)).toBeNull();
@@ -120,7 +154,7 @@ describe("MoneyInput — revisi I", () => {
 
   it("USD: shows the IDR preview, the ECB rate line and the server note", async () => {
     render(<Harness />);
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await userEvent.type(screen.getByLabelText("Jumlah"), "1250,50");
     expect(screen.getByLabelText("Jumlah")).toHaveValue("1.250,50");
     expect(screen.getByText("≈ Rp 22.401.332")).toBeInTheDocument();
@@ -142,7 +176,7 @@ describe("MoneyInput — revisi I", () => {
       isError: false,
     });
     render(<Harness />);
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "SGD");
+    await selectMoneyCurrency("SGD");
     expect(
       screen.getByText(/Kurs terakhir tersedia 24 Sep 2026/),
     ).toBeInTheDocument();
@@ -154,14 +188,14 @@ describe("MoneyInput — revisi I", () => {
       isError: false,
     });
     render(<Harness />);
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "EUR");
+    await selectMoneyCurrency("EUR");
     expect(screen.getByText(/Kurs indikatif/)).toBeInTheDocument();
   });
 
   it("while the rate is loading, shows it and marks the value pending", async () => {
     mockFx.mockReturnValue({ data: undefined, isError: false });
     render(<Harness />);
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await userEvent.type(screen.getByLabelText("Jumlah"), "5");
     expect(screen.getByText("Memuat kurs…")).toBeInTheDocument();
     expect(latest?.resolved.isPending).toBe(true);
@@ -170,21 +204,21 @@ describe("MoneyInput — revisi I", () => {
   it("shows an error when the rate cannot be loaded", async () => {
     mockFx.mockReturnValue({ data: undefined, isError: true });
     render(<Harness />);
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     expect(screen.getByRole("alert")).toHaveTextContent("Kurs tidak tersedia");
   });
 
   it("switching to JPY reformats the typed value without decimals", async () => {
     render(<Harness />);
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await userEvent.type(screen.getByLabelText("Jumlah"), "1500,5");
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "JPY");
+    await selectMoneyCurrency("JPY");
     expect(screen.getByLabelText("Jumlah")).toHaveValue("15.005");
   });
 
   it("allowNegative keeps a leading minus in a foreign currency", async () => {
     render(<Harness allowNegative />);
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await userEvent.type(screen.getByLabelText("Jumlah"), "-20");
     expect(latest?.resolved.idrPreview).toBe(-BigInt(358_278));
   });

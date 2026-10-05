@@ -20,6 +20,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "../../../components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   LiabilityDto,
@@ -523,9 +524,12 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     await user.click(await screen.findByRole("button", { name: "Bayar" }));
 
     const dialog = within(await screen.findByRole("dialog"));
-    await userEvent.selectOptions(
-      screen.getAllByLabelText("Mata uang").at(-1)!,
+    await selectMoneyCurrency(
       "SGD",
+      screen
+        .getAllByLabelText("Mata uang")
+        .at(-1)!
+        .closest(".field") as HTMLElement,
     );
     await userEvent.clear(
       dialog.getByLabelText(idDict.liabilitas.payAmountLabel),

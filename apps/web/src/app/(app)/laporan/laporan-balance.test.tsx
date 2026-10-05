@@ -14,6 +14,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type {
   BalanceSheetDto,
@@ -403,7 +404,7 @@ describe("/laporan — revisi I multi-currency (investment dialog)", () => {
     fireEvent.change(screen.getByRole("spinbutton"), {
       target: { value: "10" },
     });
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "EUR");
+    await selectMoneyCurrency("EUR");
     await userEvent.type(
       screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
       "10",

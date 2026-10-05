@@ -33,7 +33,7 @@ describe("AmountHero currency picker", () => {
     );
 
     expect(screen.getByRole("button", { name: "Mata uang" })).toHaveClass(
-      "[@media(pointer:coarse)]:min-h-11",
+      "h-11",
     );
   });
 

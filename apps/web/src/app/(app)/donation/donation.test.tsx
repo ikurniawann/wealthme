@@ -26,6 +26,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { resolveEffectiveAccess } from "@wealthme/contracts";
@@ -502,7 +503,7 @@ describe("DonationPage — revisi I multi-currency", () => {
         name: mockDictionary.donation.recordDonationButton,
       }),
     );
-    await user.selectOptions(screen.getByLabelText("Mata uang"), "EUR");
+    await selectMoneyCurrency("EUR");
     await user.type(
       screen.getByLabelText(mockDictionary.donation.fieldJumlahLabel),
       "75,50",
@@ -584,7 +585,7 @@ describe("DonationPage — revisi I multi-currency", () => {
         name: mockDictionary.donation.recordDonationButton,
       }),
     );
-    await user.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await user.type(
       screen.getByLabelText(mockDictionary.donation.fieldJumlahLabel),
       "10",

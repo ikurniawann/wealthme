@@ -12,13 +12,9 @@
  */
 
 import type { ReactElement, ReactNode } from "react";
-import {
-  render as rtlRender,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 // Real Indonesian dictionary, reused as the mocked `useLocale().t` below —
 // `PengaturanBody` now reads `t.akun.pengaturan.*` for its own copy (EPIC-018
@@ -592,9 +588,9 @@ describe("PengaturanBody, gold price currency picker (revisi I)", () => {
     const goldPriceField = await screen.findByText(
       mockAkunDictionary.akun.pengaturan.goldPriceLabel,
     );
-    await userEvent.selectOptions(
-      within(goldPriceField.closest(".field")!).getByLabelText("Mata uang"),
+    await selectMoneyCurrency(
       "USD",
+      goldPriceField.closest(".field") as HTMLElement,
     );
     await userEvent.type(
       screen.getByLabelText(mockAkunDictionary.akun.pengaturan.goldPriceLabel),

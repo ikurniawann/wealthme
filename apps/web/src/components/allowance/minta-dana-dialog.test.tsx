@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { id as idDict } from "@/i18n/id";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { MintaDanaDialog } from "./minta-dana-dialog";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import type { AccountDto } from "@wealthme/contracts";
 
 const mockApiFetch = jest.fn();
@@ -73,7 +74,7 @@ describe("MintaDanaDialog — revisi I", () => {
 
   it("revisi I — JPY request sends the preview number + fxInputs", async () => {
     renderDialog();
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "JPY");
+    await selectMoneyCurrency("JPY");
     await userEvent.type(
       screen.getByLabelText(idDict.rekening.mintaDanaAmountLabel),
       "1500",

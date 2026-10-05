@@ -21,6 +21,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const mockUseSessionAuth = jest.fn();
@@ -419,7 +420,7 @@ describe("AnggaranPage — revisi I multi-currency", () => {
       within(dialog).getByLabelText("Kategori"),
       EXISTING_CATEGORY.id,
     );
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "SGD");
+    await selectMoneyCurrency("SGD", dialog);
     await user.type(
       within(dialog).getByLabelText("Budget per Bulan (Rp)"),
       "1500,25",
@@ -464,7 +465,7 @@ describe("AnggaranPage — revisi I multi-currency", () => {
       within(dialog).getByLabelText("Kategori"),
       EXISTING_CATEGORY.id,
     );
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "SGD");
+    await selectMoneyCurrency("SGD", dialog);
     await user.type(
       within(dialog).getByLabelText("Budget per Bulan (Rp)"),
       "1500",
@@ -500,7 +501,7 @@ describe("AnggaranPage — revisi I multi-currency", () => {
       }),
     );
     const dialog = await screen.findByRole("dialog", { name: "Edit Anggaran" });
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "SGD");
+    await selectMoneyCurrency("SGD", dialog);
     const amountInput = within(dialog).getByLabelText("Budget per Bulan (Rp)");
     await user.clear(amountInput);
     await user.type(amountInput, "1500");

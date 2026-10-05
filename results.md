@@ -768,3 +768,27 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
 - Scope: all 727 pre-existing `impeccable` advisory findings remain untouched and out of scope.
 - Delivery: commit `b88e2de5` pushed to `origin/development`; GitHub Actions run `37278249911` passed Lint/Build/Test and DEV image build/push. `bash scripts/deploy-dev.sh` completed in pull mode; API `/health` succeeded and web/API/Nginx/Postgres/Redis/MinIO/MailHog were healthy. No clean-volume mode was used.
 - Escalation: none. Unrelated user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf` remain excluded from the task commit.
+
+## 2026-10-05 — money-entry currency symbol and picker consistency
+
+- Scope: currency-switchable `MoneyInput` controls throughout finance forms,
+  plus the transaction `AmountHero` picker. IDR-only fields and canonical
+  IDR/FX payload semantics remain unchanged.
+- Finding: the shared finance `MoneyInput` exposed a native currency select
+  but no symbol beside the amount; transaction `AmountHero` showed `Rp` only
+  for IDR. Currency selection UI differed across those surfaces.
+- Change: added a shared Arc-style `MoneyCurrencyPicker` (flag/code trigger,
+  localized currency names, radio selection semantics, selected indicator),
+  an inline Intl currency symbol beside every amount field, and a scoped
+  responsive amount layout. `AmountHero` now reuses the picker and updates its
+  symbol for foreign currencies. Replaced picker interactions in affected
+  currency-form tests; removed obsolete `.money-cur` overrides.
+- Verification:
+  - `python .agents/skills/ui-ux-pro-max/scripts/search.py 'currency amount fields leading currency symbol and dropdown selection, animation timing forms feedback navigation' --domain ux --max-results 10 --format markdown` → prioritized UX guidance reviewed.
+  - `pnpm --filter web exec jest --runInBand` → initial run exposed a stale `menuitem` query in the transaction FX test and an obsolete touch-class assertion. Updated those tests to `menuitemradio` and the actual 44px `h-11` class; final rerun passed 160/160 suites, 1,484 tests passed, 2 skipped.
+  - Focused currency tests: `money-input.test.tsx` 18/18; affected app suites 77/77; transaction dialog and tx-picker targeted regressions passed after correcting the semantic role; ESLint scoped to all touched implementation/tests passed.
+  - `pnpm --filter web exec next typegen` then `pnpm --filter web exec ./node_modules/.bin/tsc -p tsconfig.json --noEmit` → passed after removing temporary live-check route and refreshing generated route types.
+  - Temporary Chromium harness at 1280×800 and 390×844 → 2/2 passed: USD choice updates the visible symbol to `$`, picker remains usable, and field bounds stay within the viewport. Temporary route/spec removed.
+  - `.agents/skills/impeccable/scripts/impeccable` is absent; targeted impeccable scan unavailable. The 727 pre-existing font-size/radius/color advisory findings remain untouched and out of scope.
+- Delivery: commit and development redeploy pending.
+- Escalation: none. Existing user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf` remain excluded.

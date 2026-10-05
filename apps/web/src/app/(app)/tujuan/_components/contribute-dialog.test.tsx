@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { id as idDict } from "@/i18n/id";
@@ -88,7 +89,7 @@ describe("ContributeDialog — revisi I", () => {
 
   it("USD sends the preview + fxInputs", async () => {
     renderDialog();
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await userEvent.type(
       screen.getByLabelText(idDict.tujuan.contributeAmountLabel),
       "10",

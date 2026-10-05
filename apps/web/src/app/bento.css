@@ -3474,24 +3474,6 @@
   .wm-kpi-v {
     white-space: nowrap;
   }
-  /* MoneyInput: compact currency picker so the amount field gets the room. */
-  .select.money-cur,
-  .dialog .select.money-cur,
-  .wm-form .select.money-cur {
-    width: 78px;
-    min-width: 0;
-    padding-left: 10px;
-    padding-right: 22px;
-    background-position: right 8px center;
-    font-size: 13px;
-  }
-  .money-cur + .input {
-    min-width: 110px;
-  }
-  .wm-panel--side:not(.wm-panel--lg)
-    :is(.wm-form__grid--two, .field-row, .grid):has(.money-cur) {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
   /* Floating bottom nav + "+" button: keep the last content clear of it. */
   @media (max-width: 720px) {
     .wm-main {

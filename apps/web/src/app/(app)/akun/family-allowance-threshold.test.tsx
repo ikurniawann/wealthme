@@ -11,6 +11,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { id as mockAkunDictionary } from "../../../i18n/id";
@@ -247,7 +248,7 @@ describe("ThresholdForm — per-member large-transaction threshold (EPIC-023 D3)
       />,
       queryClient,
     );
-    await user.selectOptions(screen.getByLabelText("Mata uang"), "SGD");
+    await selectMoneyCurrency("SGD");
     await user.type(screen.getByLabelText(t.thresholdLabel), "100");
     await user.click(
       screen.getByRole("button", { name: t.thresholdSaveButton }),
@@ -279,7 +280,9 @@ describe("ThresholdForm — per-member large-transaction threshold (EPIC-023 D3)
       />,
       queryClient,
     );
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "IDR",
+    );
     await user.click(
       screen.getByRole("button", { name: t.thresholdSaveButton }),
     );

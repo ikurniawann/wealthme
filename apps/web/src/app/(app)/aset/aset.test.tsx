@@ -23,6 +23,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "../../../components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { AssetDto } from "@wealthme/contracts";
 
@@ -381,13 +382,19 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     await user.click(screen.getByRole("tab", { name: "Rp per tahun" }));
 
     const [valueCur, changeCur] = screen.getAllByLabelText("Mata uang");
-    await userEvent.selectOptions(valueCur!, "CNY");
+    await selectMoneyCurrency(
+      "CNY",
+      valueCur!.closest(".field") as HTMLElement,
+    );
     await userEvent.clear(screen.getByLabelText(idDict.aset.fieldValueLabel));
     await userEvent.type(
       screen.getByLabelText(idDict.aset.fieldValueLabel),
       "5000",
     );
-    await userEvent.selectOptions(changeCur!, "JPY");
+    await selectMoneyCurrency(
+      "JPY",
+      changeCur!.closest(".field") as HTMLElement,
+    );
     await userEvent.clear(
       screen.getByLabelText(idDict.aset.fieldValueChangeAmountLabel),
     );

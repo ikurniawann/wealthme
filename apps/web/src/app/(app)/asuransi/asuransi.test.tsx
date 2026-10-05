@@ -10,6 +10,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "../../../components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const mockUseSessionAuth = jest.fn();
@@ -341,9 +342,11 @@ describe("AsuransiPage — beneficiary allocation validation (EPIC-022 D6)", () 
     const user = await openBeneficiaryEditor();
 
     await user.type(screen.getByLabelText(/nama asuransi/i), "Asuransi Jiwa");
-    await userEvent.selectOptions(
-      screen.getAllByLabelText("Mata uang")[0]!,
+    await selectMoneyCurrency(
       "AUD",
+      screen
+        .getAllByLabelText("Mata uang")[0]!
+        .closest(".field") as HTMLElement,
     );
     await userEvent.clear(
       screen.getByLabelText(idDict.asuransi.fieldPremiumLabel),

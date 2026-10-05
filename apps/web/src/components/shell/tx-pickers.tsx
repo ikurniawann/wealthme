@@ -12,8 +12,6 @@ import {
   BookOpen,
   Briefcase,
   Car,
-  Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Coins,
@@ -35,17 +33,12 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
-import { CURRENCIES, type CurrencyCode } from "@/hooks/currencies";
 import { formatAmountInput } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
+import { MoneyCurrencyPicker } from "@/components/money/currency-picker";
+import { currencySymbol } from "@/components/money/money-format";
 import { MoneyHint } from "@/components/money/money-input";
 import type { MoneyField } from "@/components/money/use-money-field";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
 
 /**
  * Bento v2 add-transaction pieces (docs/design/proto `.tx` dialog): the big
@@ -262,6 +255,7 @@ export function AmountHero({
   /** audit P2-4/AC-7 — inline, field-level validation message. */
   error?: string;
 }) {
+  const { locale } = useLocale();
   const code = field.currency;
   return (
     <div className="tx-amount-field">
@@ -275,7 +269,7 @@ export function AmountHero({
         )}
       </label>
       <div className="tx-amount">
-        {code === "IDR" && <span aria-hidden="true">Rp</span>}
+        <span aria-hidden="true">{currencySymbol(code, locale)}</span>
         <input
           id={id}
           inputMode={field.decimals > 0 ? "decimal" : "numeric"}
@@ -288,7 +282,7 @@ export function AmountHero({
         />
         {/* uiarc.dev money-input reference — currency sits inline, to the
             right of the amount, not behind a collapsed disclosure. */}
-        <CurrencyPicker
+        <MoneyCurrencyPicker
           value={code}
           onChange={(nextCode) => field.setCurrency(nextCode)}
         />
@@ -336,56 +330,3 @@ function QuickAddChips({ field }: { field: MoneyField }) {
 }
 
 const QUICK_ADD_IDR = [10_000, 50_000, 100_000];
-
-/** uiarc.dev money-input reference (user-supplied screenshot) — a trigger
- * pill showing the current currency, opening a list of rows (flag, code
- * bold, full name muted, a checkmark on the selected row). Built on the
- * existing Base UI `DropdownMenu` primitive rather than adopting uiarc's
- * component wholesale: WealthMe's `CURRENCIES`/`MoneyField` data shape and
- * IDR-only default already cover this picker's needs. */
-function CurrencyPicker({
-  value,
-  onChange,
-}: {
-  value: CurrencyCode;
-  onChange: (code: CurrencyCode) => void;
-}) {
-  const { t } = useLocale();
-  const current = CURRENCIES.find((c) => c.code === value) ?? CURRENCIES[0]!;
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        className="ml-auto flex shrink-0 w-auto items-center gap-1.5 self-center rounded-full border px-3 py-1.5 text-[13px] font-bold [@media(pointer:coarse)]:min-h-11"
-        aria-label={t.money.currencyLabel}
-      >
-        <span aria-hidden="true">{current.flag}</span>
-        {current.code}
-        <ChevronDown aria-hidden="true" className="size-3.5" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="min-w-[220px]">
-        {CURRENCIES.map((currency) => {
-          const name = t.akun.pengaturan.currencies[currency.code].name;
-          const selected = currency.code === value;
-          return (
-            <DropdownMenuItem
-              key={currency.code}
-              onClick={() => onChange(currency.code)}
-              className="gap-2.5 py-2"
-            >
-              <span aria-hidden="true" className="text-base">
-                {currency.flag}
-              </span>
-              <span className="flex min-w-0 flex-1 items-baseline gap-1.5">
-                <span className="font-bold">{currency.code}</span>
-                <span className="truncate text-muted-foreground">{name}</span>
-              </span>
-              {selected && (
-                <Check aria-hidden="true" className="size-4 shrink-0" />
-              )}
-            </DropdownMenuItem>
-          );
-        })}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}

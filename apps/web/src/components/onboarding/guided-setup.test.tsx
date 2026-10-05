@@ -157,6 +157,7 @@ jest.mock("../../hooks/use-currency-preference", () => ({
 }));
 
 import { GuidedSetup } from "./guided-setup";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { isOnboarded } from "./use-onboarded";
 import { getSetupProgress, setSetupProgress } from "./setup-progress";
 
@@ -557,7 +558,7 @@ describe("GuidedSetup, guided first setup (EPIC-023 H3)", () => {
     // Step 1 — account, but pick USD before typing the balance.
     await screen.findByText("Tambahkan rekening pertamamu");
     await user.type(screen.getByLabelText("Nama Rekening"), "BCA Tabungan");
-    await user.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await user.type(screen.getByLabelText("Saldo Saat Ini"), "100");
     await user.click(
       screen.getByRole("button", {

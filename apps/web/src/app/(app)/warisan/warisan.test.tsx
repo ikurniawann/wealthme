@@ -11,6 +11,7 @@
 import type { ReactElement, ReactNode } from "react";
 import { render as rtlRender, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const mockUseSessionAuth = jest.fn();
@@ -494,7 +495,7 @@ describe("WarisanPage — revisi I multi-currency", () => {
       screen.getByPlaceholderText(/rumah utama, deposito bca/i),
       "Rumah Utama",
     );
-    await user.selectOptions(screen.getByLabelText("Mata uang"), "EUR");
+    await selectMoneyCurrency("EUR");
     await userEvent.type(
       screen.getByLabelText(idDict.warisan.fieldValueLabel),
       "75,50",
@@ -565,7 +566,7 @@ describe("WarisanPage — revisi I multi-currency", () => {
       screen.getByPlaceholderText(/rumah utama, deposito bca/i),
       "Rumah Utama",
     );
-    await user.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await user.type(
       screen.getByLabelText(idDict.warisan.fieldValueLabel),
       "10",

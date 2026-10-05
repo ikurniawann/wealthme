@@ -637,7 +637,7 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     // audit — the currency picker is now a DropdownMenu (uiarc.dev
     // reference), not a <select>: open it, then pick the "USD" row.
     await user.click(screen.getByLabelText(mockDictionary.money.currencyLabel));
-    await user.click(await screen.findByRole("menuitem", { name: /USD/ }));
+    await user.click(await screen.findByRole("menuitemradio", { name: /USD/ }));
     await user.type(
       screen.getByLabelText(
         mockDictionary.shell.transactionDialog.amountLabel,

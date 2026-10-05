@@ -66,6 +66,7 @@ if (typeof window !== "undefined" && !window.PointerEvent) {
 
 import { setLocale } from "../../hooks/use-locale";
 import { CrudModal } from "./crud-modal";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 
 const FG = "fg-1";
 const STATIC_EWALLETS = ["GoPay", "OVO", "DANA", "LinkAja", "ShopeePay"];
@@ -359,7 +360,7 @@ describe("CrudModal — revisi I money", () => {
 
   it("revisi I — an amount field offers a currency select and hands the normalized IDR + __fx to onSubmit", async () => {
     const { onSubmit } = renderRekening({ mode: "add" });
-    await userEvent.selectOptions(screen.getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD");
     await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "100");
     await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
     const values = onSubmit.mock.calls[0][2];
@@ -373,7 +374,9 @@ describe("CrudModal — revisi I money", () => {
   it("revisi I — a USD-display user's new account opens on USD", async () => {
     mockPref.mockReturnValue(USD_PREF);
     const { onSubmit } = renderRekening({ mode: "add" });
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("USD");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "USD",
+    );
     await userEvent.type(screen.getByLabelText("Saldo Saat Ini"), "100");
     await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
     expect(JSON.parse(onSubmit.mock.calls[0][2].saldo__fx)).toEqual({
@@ -388,7 +391,9 @@ describe("CrudModal — revisi I money", () => {
       mode: "edit",
       initialValues: { nama: "BCA", saldo: "5000000" },
     });
-    expect(screen.getByLabelText("Mata uang")).toHaveValue("IDR");
+    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
+      "IDR",
+    );
     await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
     expect(onSubmit.mock.calls[0][2]).not.toHaveProperty("saldo__fx");
     expect(onSubmit.mock.calls[0][2].saldo).toBe("5.000.000");

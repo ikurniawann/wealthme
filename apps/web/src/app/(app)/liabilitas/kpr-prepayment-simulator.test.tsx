@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "../../../components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { id as idDict } from "../../../i18n/id";
@@ -405,10 +406,7 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
     await user.click(
       screen.getByRole("radio", { name: k.prepayModes.reduce_installment }),
     );
-    await user.selectOptions(
-      screen.getByLabelText(idDict.money.currencyLabel),
-      "EUR",
-    );
+    await selectMoneyCurrency("EUR");
     await user.type(screen.getByLabelText(k.prepayAmountLabel), "75,50");
     await user.click(screen.getByRole("button", { name: k.prepaySubmit }));
     await screen.findByText(/3\.409\.791/);
@@ -465,10 +463,7 @@ describe("KprPrepaymentSimulator (revisi K)", () => {
     await user.click(
       screen.getByRole("radio", { name: k.prepayModes.reduce_installment }),
     );
-    await user.selectOptions(
-      screen.getByLabelText(idDict.money.currencyLabel),
-      "USD",
-    );
+    await selectMoneyCurrency("USD");
     await user.type(screen.getByLabelText(k.prepayAmountLabel), "10");
 
     const submit = screen.getByRole("button", { name: k.prepaySubmit });

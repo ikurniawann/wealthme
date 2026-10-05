@@ -15,6 +15,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const mockUseSessionAuth = jest.fn();
@@ -368,7 +369,7 @@ describe("SplitBillPage — revisi I multi-currency", () => {
     render(<SplitBillPage />);
 
     const dialog = await openCreateDialogWithTitle(user);
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD", dialog);
     await user.type(
       within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
       "10",
@@ -449,7 +450,7 @@ describe("SplitBillPage — revisi I multi-currency", () => {
     render(<SplitBillPage />);
 
     const dialog = await openCreateDialogWithTitle(user);
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD", dialog);
     await user.type(
       within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
       "10",
@@ -484,7 +485,7 @@ describe("SplitBillPage — revisi I multi-currency", () => {
     render(<SplitBillPage />);
 
     const dialog = await openCreateDialogWithTitle(user);
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD", dialog);
     await user.type(
       within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
       "100",
@@ -516,7 +517,7 @@ describe("SplitBillPage — revisi I multi-currency", () => {
     render(<SplitBillPage />);
 
     const dialog = await openCreateDialogWithTitle(user);
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "JPY");
+    await selectMoneyCurrency("JPY", dialog);
     await user.type(
       within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
       "10000",
@@ -548,7 +549,7 @@ describe("SplitBillPage — revisi I multi-currency", () => {
     render(<SplitBillPage />);
 
     const dialog = await openCreateDialogWithTitle(user);
-    await user.selectOptions(within(dialog).getByLabelText("Mata uang"), "USD");
+    await selectMoneyCurrency("USD", dialog);
     await user.type(
       within(dialog).getByLabelText(idDict.splitbill.fieldTotalLabel),
       "9",

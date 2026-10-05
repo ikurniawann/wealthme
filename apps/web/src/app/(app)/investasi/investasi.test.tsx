@@ -20,6 +20,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { selectMoneyCurrency } from "@/components/money/money-input.test-utils";
 import { toast } from "sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { InvestmentDto, InvestmentSummaryDto } from "@wealthme/contracts";
@@ -903,13 +904,15 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     fireEvent.change(screen.getByLabelText("Jumlah Saham"), {
       target: { value: "10" },
     });
-    await userEvent.selectOptions(
+    await selectMoneyCurrency(
+      "USD",
       within(
         screen
           .getByLabelText(idDict.investasi.fieldCostBasisLabel)
           .closest(".field")!,
-      ).getByLabelText("Mata uang"),
-      "USD",
+      )
+        .getByLabelText("Mata uang")
+        .closest(".field") as HTMLElement,
     );
     await userEvent.type(
       screen.getByLabelText(idDict.investasi.fieldCostBasisLabel),
@@ -1034,9 +1037,12 @@ describe("InvestasiPage — revisi I multi-currency", () => {
     fireEvent.change(screen.getByLabelText(/Jumlah/), {
       target: { value: "1" },
     });
-    await userEvent.selectOptions(
-      screen.getAllByLabelText("Mata uang").at(-1)!,
+    await selectMoneyCurrency(
       "USD",
+      screen
+        .getAllByLabelText("Mata uang")
+        .at(-1)!
+        .closest(".field") as HTMLElement,
     );
     await userEvent.type(
       screen.getByLabelText(idDict.investasi.buySellFieldPriceLabel),
