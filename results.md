@@ -751,4 +751,5 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   - Temporary route + Chromium Playwright verified Enter-key expansion, expanded state, mobile trigger height ≥44px, and no 390px overflow → 1/1 passed; route/spec removed.
   - `impeccable detect` → unavailable; executable absent from this checkout.
 - Scope: all 727 pre-existing `impeccable` advisory findings remain untouched and out of scope.
-- Escalation: none. Push and DEV redeploy pending final review.
+- Delivery: commit `b88e2de5` pushed to `origin/development`; GitHub Actions run `37278249911` passed Lint/Build/Test and DEV image build/push. `bash scripts/deploy-dev.sh` completed in pull mode; API `/health` succeeded and web/API/Nginx/Postgres/Redis/MinIO/MailHog were healthy. No clean-volume mode was used.
+- Escalation: none. Unrelated user-owned `.claude/*` deletions and `Revisi WealthMe-1.pdf` remain excluded from the task commit.
