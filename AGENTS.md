@@ -1,8 +1,8 @@
 # WealthMe Agent Instructions
 
-This file is the Codex-facing entry point for the WealthMe repo. Claude Code
-still uses `CLAUDE.md` and project slash commands; Codex uses this file to keep
-the same operating model without pretending Claude-only commands exist here.
+This file is the shared operating entry point for WealthMe. Claude Code and
+Codex CLI share the same project contract here; host-specific commands and
+hooks are adapted through the portable skills under `.agents/skills/`.
 
 ## Load Order
 
@@ -18,8 +18,8 @@ Before changing code or workflow docs, read:
 
 | Tool            | Use for                                                                                                           |
 | --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Claude Code     | Main development sessions, `/orchestrate`, sub-agents, Ruflo scoping, branch/PR execution                         |
-| Codex           | Workflow hygiene, docs/runbook cleanup, status normalization, focused reviews, verification, small scoped patches |
+| Claude Code     | Main development sessions, `/orchestrate`, Claude sub-agents, Ruflo scoping, branch/PR execution                    |
+| Codex CLI       | `$orchestrate`, focused implementation/review, verification, workflow hygiene, branch/PR execution                  |
 | Ruflo / AgentDB | Parallel exploration and reusable memory; copy durable findings into tracked docs                                 |
 | Graphify        | Codebase relationship queries and cached architecture graph when `graphify-out/` exists                           |
 
@@ -27,7 +27,8 @@ Before changing code or workflow docs, read:
 
 - Start from `docs/` whenever the task references roadmap, epics, backlog, or
   product work.
-- Treat `/orchestrate "<task>"` as the shared entrypoint for non-trivial work.
+- Treat `/orchestrate "<task>"` in Claude Code and `$orchestrate` or `orchestrate:` in Codex CLI as the shared entrypoint for non-trivial work.
+- Use `.agents/skills/orchestrate/SKILL.md` as the portable route → execute → verify → escalate protocol; Claude's `.claude/commands/orchestrate.md` remains a host adapter.
 - Use a task and acceptance criteria as the unit of work; do not require an
   epic, status field, or epic loop before implementation.
 - Keep workflow changes small and auditable. Do not rewrite `CLAUDE.md` or
@@ -125,6 +126,12 @@ claim success from an unverified draft.
   `checks/approved/` and are read-only during the run.
 - Every run is bounded to two repair rounds and records evidence in
   `results.md`.
+
+### Host portability
+
+- Do not invoke Claude-only slash commands, Ruflo routes, or Claude-specific RTK hooks from Codex CLI.
+- Use RTK wrappers only when `rtk --help` confirms support for the current host; otherwise run the underlying project command directly.
+- Keep hooks and scripts project-relative. Never commit machine-specific paths such as `/Projects/...`, `/home/stealth/...`, or another user's home directory.
 
 ### Automatic model routing
 
