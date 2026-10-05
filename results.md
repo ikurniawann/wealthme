@@ -519,3 +519,39 @@ opacity:"0.45"}` — top stays well inside viewport, pointer-events never
   scoped design-token-reconciliation project. Continuing the loop with
   `ui-ux-pro-max`'s other priority checks (animation timing, forms/feedback,
   navigation) against this session's own additions instead.
+
+## 2026-10-05 — ui-ux-pro-max audit loop, task 2/N: currency picker touch target
+
+- Result: PASS for the scoped regression; broader gates are environment-blocked.
+- Finding: `CurrencyPicker`'s inline trigger in
+  `apps/web/src/components/shell/tx-pickers.tsx` was a ~34px pill on coarse
+  pointers (`py-1.5`) even though its dropdown items had been raised to 44px
+  in task 1. This violated `ui-ux-pro-max`'s high-severity touch-target rule
+  for the new mobile transaction flow.
+- Change: added `[@media(pointer:coarse)]:min-h-11` to the trigger only;
+  desktop sizing and the picker/menu behavior remain unchanged. Added
+  `apps/web/src/components/shell/tx-pickers.test.tsx` to lock the contract.
+- Commands:
+  - RED: targeted Jest initially failed because the expected coarse-pointer
+    utility was absent; after mocking the unrelated `MoneyHint` auth-heavy
+    import, the failure was the intended missing-class assertion.
+  - GREEN: `pnpm --filter web exec jest src/components/shell/tx-pickers.test.tsx --runInBand`
+    → 1/1 suite, 1/1 test passed.
+  - `pnpm --filter web exec eslint src/components/shell/tx-pickers.tsx src/components/shell/tx-pickers.test.tsx`
+    → clean.
+  - `pnpm --filter web exec tsc --noEmit` → blocked by pre-existing install
+    state: `motion/react` is missing from `node_modules` for existing animate-ui,
+    mobile-bars, and use-is-in-view files.
+  - `pnpm --filter web exec jest --runInBand` → blocked by the same missing
+    `motion/react` module in multiple existing suites; the focused suite passes.
+  - `.agents/skills/impeccable/scripts/impeccable detect ...` → tool path is
+    absent from this checkout; no global/local executable was available to run.
+  - Mobile live check: `cross-page-ux.mobile.spec.ts` ran at 390×844 with
+    touch enabled but stopped at demo login (`waitForURL` timeout; page stayed
+    on `/login`), before it could reach the transaction dialog. No code change
+    was made for that external auth failure.
+- Scope: the known 727 pre-existing `impeccable` advisory findings remain
+  untouched. User-owned dirty files were preserved.
+- Follow-up: next audit pass should continue with the concrete forms/feedback,
+  animation, or navigation finding once the verification environment is
+  repaired/available.

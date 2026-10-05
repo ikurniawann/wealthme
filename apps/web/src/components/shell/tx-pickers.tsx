@@ -353,7 +353,7 @@ function CurrencyPicker({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="ml-auto flex shrink-0 w-auto items-center gap-1.5 self-center rounded-full border px-3 py-1.5 text-[13px] font-bold"
+        className="ml-auto flex shrink-0 w-auto items-center gap-1.5 self-center rounded-full border px-3 py-1.5 text-[13px] font-bold [@media(pointer:coarse)]:min-h-11"
         aria-label={t.money.currencyLabel}
       >
         <span aria-hidden="true">{current.flag}</span>
