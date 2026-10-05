@@ -29,10 +29,11 @@ Detailed loop documentation: [`AGENTIC-AGENT-LOOP.md`](AGENTIC-AGENT-LOOP.md).
 New project setup checklist:
 [`AGENTIC-NEW-PROJECT-SETUP.md`](AGENTIC-NEW-PROJECT-SETUP.md).
 
-For non-trivial tasks in Claude Code, start with:
+For non-trivial tasks, start with the host adapter for the shared orchestrate skill:
 
 ```text
-/orchestrate "<task or enhancement>"
+Claude Code: /orchestrate "<task or enhancement>"
+Codex CLI:  $orchestrate <task or enhancement>
 ```
 
 ## Tool Split
@@ -40,7 +41,7 @@ For non-trivial tasks in Claude Code, start with:
 | Tool            | WealthMe role                                                                                       |
 | --------------- | --------------------------------------------------------------------------------------------------- |
 | Claude Code     | Development sessions, `/orchestrate`, custom agents, Ruflo scoping, branch/PR execution             |
-| Codex           | Workflow cleanup, instruction sync, status normalization, doc/runbook updates, focused verification |
+| Codex CLI       | `$orchestrate`, implementation/review, verification, workflow hygiene, branch/PR execution             |
 | Ruflo / AgentDB | Read-only exploration, swarm evidence maps, reusable memory                                         |
 | ECC             | Planning, reviewers, quality gates, security gates, framework-specific skills                       |
 
@@ -50,8 +51,9 @@ For non-trivial tasks in Claude Code, start with:
 2. Build a compact context capsule before delegating.
 3. Use Ruflo, AgentDB, Graphify, or RTK only when they reduce uncertainty or
    repeated work.
-4. Implement through Claude Code for substantial changes; use Codex for focused
-   review, verification, docs, and small patches.
+4. Implement through the smallest capable host: Claude Code may use custom
+   agents/Ruflo, while Codex uses the portable orchestrate skill and a
+   sequential primary session when no Codex equivalent exists.
 5. Run only the gates required by the blast radius and record the evidence.
 
 ## Epic Status Vocabulary
@@ -126,6 +128,15 @@ Use Ruflo for:
 
 Do not rely on `.swarm/` or `.claude-flow/` as the durable project record.
 Those are runtime artifacts and should stay out of git.
+
+## Host portability rules
+
+- Keep the route → execute → verify → escalate protocol in
+  `.agents/skills/orchestrate/SKILL.md`; host commands are adapters only.
+- Convert reusable Claude commands/agents into portable skills; do not require
+  Claude-only slash commands, Ruflo, or RTK hooks from Codex.
+- Keep hook and script paths relative to the repository; never commit paths
+  from a developer's machine.
 
 ## Codex Hygiene Pass Checklist
 
