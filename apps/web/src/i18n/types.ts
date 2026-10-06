@@ -812,6 +812,7 @@ export type I18nDictionary = {
       financialResultsHeader: string;
       noResultsFor: string;
       typeToSearchHint: string;
+      clearAriaLabel: string;
     };
   };
   /**

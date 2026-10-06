@@ -24,6 +24,7 @@ import {
   Target,
   User,
   Wallet,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
@@ -57,12 +58,19 @@ const ICONS: Record<string, LucideIcon> = {
   Bell,
 };
 
+// Batch 4 (Arc UI migration, 2026-10-06) — a visual-only clear-button pass
+// over the query input, matching Arc's search-field reference. Debounce,
+// the auth-filtered API query, and the keyboard/roving-index semantics
+// below are unchanged; `uiarc.dev/components/search-field` has no debounce
+// or async-results handling of its own, so only its clear-button affordance
+// was worth borrowing.
 export function SearchDialog() {
   const { searchOpen, setSearchOpen } = useShell();
   const router = useRouter();
   const { data: session } = useSession();
   const { t } = useLocale();
   const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Trim before debouncing so the fetch gate and the render gates below
   // agree on what counts as a >=2-char query (" a" must not fetch).
@@ -196,6 +204,7 @@ export function SearchDialog() {
         <div className="wm-pal-in">
           <Search className="size-[18px] shrink-0" aria-hidden="true" />
           <input
+            ref={inputRef}
             autoFocus
             aria-label={t.shell.searchDialog.ariaLabel}
             value={query}
@@ -211,6 +220,19 @@ export function SearchDialog() {
             }
             placeholder={t.shell.v2.searchShort}
           />
+          {query.length > 0 && (
+            <button
+              type="button"
+              className="wm-pal-clear"
+              aria-label={t.shell.searchDialog.clearAriaLabel}
+              onClick={() => {
+                setQuery("");
+                inputRef.current?.focus();
+              }}
+            >
+              <X className="size-4" aria-hidden="true" />
+            </button>
+          )}
           <kbd className="wm-kbd">Esc</kbd>
         </div>
         <div

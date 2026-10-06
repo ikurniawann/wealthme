@@ -1,5 +1,84 @@
 # Task loop results
 
+## 2026-10-06 — Arc UI Batch 4 (cards, shell, navigation): one adapt (SearchDialog clear button), rest retain with evidence
+
+- Result: PASS.
+- Map updated (`docs/architecture/uiarc-component-map.md`, 10 rows, `adapt`
+  → `retain`): `wm/bento.tsx` BentoCard/BentoHero/HeroKpi/BentoTiles/
+  BentoTile, `ui/tabs.tsx`, `wm/hero-card.tsx`, `wm/section-card.tsx`,
+  `wm/stat.tsx`, `shell/topbar.tsx` (MeMenu). `shell/mobile-bars.tsx`
+  (mobile nav) was already `prohibited` (Pro-only Arc candidates) —
+  untouched, matches the task's retain directive. `shell/nav-sheet.tsx` was
+  already `retain` from Batch 2 — untouched. No command-menu map row
+  exists (no Arc `command-menu` doc and no dedicated WealthMe component to
+  evaluate against) — nothing to change there.
+- Implemented: `shell/search-dialog.tsx` gets a visual-only clear button
+  (`X` icon, shown only once the query has text, clears the query and
+  refocuses the input) modeled on Arc's `search-field` reference, which has
+  no debounce or async-results handling of its own — only its clear-button
+  affordance was worth borrowing. The existing 300ms debounce, the
+  family-group-scoped authenticated API query, and the roving
+  Arrow-Up/Down/Enter keyboard index are all unchanged. Added
+  `t.shell.searchDialog.clearAriaLabel` to `src/i18n/{types,en,id}.ts`
+  ("Clear search" / "Hapus pencarian"). `apps/web/src/app/bento.css` adds
+  `.wm-pal-clear` with a reduced-motion-respecting scale/fade-in
+  (`@keyframes wm-pal-clear-in`, disabled under
+  `prefers-reduced-motion: reduce`), consistent with the Batch 1 GhostButton
+  precedent.
+- Evidence (fetched live from `https://uiarc.dev/components/<name>/markdown`):
+  - card: requires `@radix-ui/react-dialog` + `motion` as new dependencies
+    for its opt-in quick-look dialog — a new Radix dependency this repo
+    does not have.
+  - metric-card: accepts a raw `number` and "rolls up from zero on first
+    view, then between values" — explicitly incompatible with WealthMe's
+    pre-formatted Rupiah/locale currency strings (symbol, thousands
+    separator, FX), which cannot be re-parsed into a rolling-digit number
+    without a precision rewrite. This covers BentoHero, HeroKpi, BentoTile,
+    HeroCard, SectionCard (card; metric-card), and stat.tsx.
+  - tabs: requires `@radix-ui/react-tabs` + `motion` + `lucide-react` (new
+    Radix dependency) — moot anyway: `grep` for `TabsTrigger`/`TabsList`/
+    `TabsContent` outside `ui/tabs.tsx` itself returns zero real consumers,
+    the same dead-primitive situation as Batch 2's `ui/input.tsx`/
+    `ui/textarea.tsx`. Nothing to migrate with no caller to verify against.
+  - user-menu: `motion` + `lucide-react` are already installed (no new
+    dependency), but its API is a flat `items` array plus its own built-in
+    theme/presence/async-sign-out props — a different shape from `MeMenu`,
+    which is tied to this app's session/role/locale/mobile-placement
+    behavior. No safe, meaningful change without rewriting the
+    auth-coupled parts.
+  - search-field: `motion` + `lucide-react` only (already installed), has a
+    clear button in a reserved slot (no layout shift) but explicitly no
+    debounce or async-results handling — confirms the clear-button-only
+    scope the task specified.
+- Tests: `apps/web/src/components/shell/search-dialog.test.tsx` (new — no
+  test existed for this file before). Session/router are mocked (same
+  precedent as `mobile-bars.test.tsx`). 2 tests: the clear button is absent
+  until the query has text, then clears the query and returns focus to the
+  input on click; Escape still closes the whole dialog (not just the
+  query). 2/2 pass.
+- Verification:
+  - Focused Jest (`search-dialog.test.tsx`): 2/2 pass.
+  - `pnpm --filter web exec tsc --noEmit`: clean.
+  - Scoped ESLint and Prettier on the 6 changed/added code files: clean,
+    no changes needed. The 91-row component-map table is again
+    intentionally left out of the Prettier pass (same Batch 2/3
+    reformatting-pitfall reason); `git diff --check` on it is clean.
+  - `git diff --check` on all 6 changed code files: clean.
+  - Temporary isolated `/legal/arc-batch4-check` harness (removed after
+    verification, `ShellProvider` + `QueryClientProvider` wrapping
+    `SearchDialog` directly to bypass the login requirement): Playwright,
+    desktop 1280×800 — no horizontal overflow; clear button appears only
+    once the query has text, clears and refocuses on click;
+    keyboard-only Tab reaches the clear button and Enter activates it;
+    `prefers-reduced-motion: reduce` still shows/hides the button
+    correctly; `prefers-color-scheme: dark` renders with no overflow; a
+    real touch context (iPhone 15 viewport, `hasTouch`) shows no
+    horizontal overflow. 6/6 passed.
+- Harness removed: `apps/web/src/app/legal/arc-batch4-check/` and
+  `apps/web/tests/e2e/arc-batch4-check.spec.ts` deleted; `git status`
+  confirms only the 7 intended files remain changed (6 modified + 1 new
+  test file).
+
 ## 2026-10-06 — Arc UI Batch 3 (form controls): one adapt (Segmented), rest retain with evidence
 
 - Result: PASS.

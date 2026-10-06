@@ -852,6 +852,39 @@
     font: inherit;
     font-size: var(--wm-type-16);
   }
+  .wm-pal-clear {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--wm-muted);
+    cursor: pointer;
+    animation: wm-pal-clear-in 120ms ease-out;
+  }
+  .wm-pal-clear:hover {
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+  }
+  @keyframes wm-pal-clear-in {
+    from {
+      opacity: 0;
+      scale: 0.8;
+    }
+    to {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wm-pal-clear {
+      animation: none;
+    }
+  }
   .wm-pal-list {
     overflow-y: auto;
     padding: 8px;

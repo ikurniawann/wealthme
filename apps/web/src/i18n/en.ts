@@ -526,6 +526,7 @@ export const en = {
       financialResultsHeader: "Results from Financial Data",
       noResultsFor: "No results for",
       typeToSearchHint: "Type at least 2 characters to search",
+      clearAriaLabel: "Clear search",
     },
   },
   iam: {

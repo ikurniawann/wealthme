@@ -533,6 +533,7 @@ export const id = {
       financialResultsHeader: "Hasil dari Data Keuangan",
       noResultsFor: "Tidak ada hasil untuk",
       typeToSearchHint: "Ketik minimal 2 karakter untuk mencari",
+      clearAriaLabel: "Hapus pencarian",
     },
   },
   iam: {
