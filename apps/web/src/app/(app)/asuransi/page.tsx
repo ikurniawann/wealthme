@@ -1517,7 +1517,9 @@ export default function AsuransiPage() {
           className="as-hero"
           currency={isLoading ? null : "Rp"}
           value={
-            isLoading ? (
+            isError ? (
+              "—"
+            ) : isLoading ? (
               "…"
             ) : (
               <span className="wm-money">
@@ -1525,7 +1527,7 @@ export default function AsuransiPage() {
               </span>
             )
           }
-          caption={t.asuransi.v2.heroCaption}
+          caption={isError ? undefined : t.asuransi.v2.heroCaption}
           controls={
             <div className="as-hero-ctrl">
               <div className="as-hero-ctrl-row">

@@ -1,8 +1,8 @@
 import { useRouter } from "next/navigation";
 import { SectionCard } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
 import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import { useLocale } from "@/hooks/use-locale";
+import { useMoney } from "@/hooks/use-money";
 import type { PnlDto } from "@wealthme/contracts";
 import "./sections-b.css";
 
@@ -13,16 +13,18 @@ function LineItem({
   amount,
   share,
   color,
+  format,
 }: {
   label: string;
   amount: number;
   share: number;
   color: string;
+  format: (idr: number) => string;
 }) {
   return (
     <div className="lpb-statement-row">
       <div className="lpb-statement-label">{label}</div>
-      <div className="lpb-statement-value mono">{formatRupiah(amount)}</div>
+      <div className="lpb-statement-value mono">{format(amount)}</div>
       <div className="lpb-statement-track">
         <div
           className="lpb-statement-track-fill"
@@ -47,6 +49,7 @@ export function PnlSection({
 }) {
   const router = useRouter();
   const { t } = useLocale();
+  const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const bulan = periodLabel;
   const netMargin =
@@ -88,6 +91,7 @@ export function PnlSection({
             amount={item.amount}
             share={pnl.revenue > 0 ? (item.amount / pnl.revenue) * 100 : 0}
             color={INCOME_COLOR}
+            format={money.format}
           />
         ))}
         <div className="lpb-statement-row lpb-statement-subtotal">
@@ -95,7 +99,7 @@ export function PnlSection({
             {t.laporan.pnl.totalRevenueLabel}
           </div>
           <div className="lpb-statement-value mono text-success">
-            {pnl ? formatRupiah(pnl.revenue) : "Rp ·"}
+            {pnl ? money.format(pnl.revenue) : "Rp ·"}
           </div>
         </div>
 
@@ -112,6 +116,7 @@ export function PnlSection({
             amount={item.amount}
             share={pnl.expenses > 0 ? (item.amount / pnl.expenses) * 100 : 0}
             color={EXPENSE_COLOR}
+            format={money.format}
           />
         ))}
         <div className="lpb-statement-row lpb-statement-subtotal">
@@ -122,7 +127,7 @@ export function PnlSection({
             className="lpb-statement-value mono"
             style={{ color: EXPENSE_COLOR }}
           >
-            {pnl ? formatRupiah(pnl.expenses) : "Rp ·"}
+            {pnl ? money.format(pnl.expenses) : "Rp ·"}
           </div>
         </div>
 
@@ -141,7 +146,7 @@ export function PnlSection({
               (isPositive ? "text-success" : "text-destructive")
             }
           >
-            {pnl ? formatRupiah(pnl.netProfit) : "Rp ·"}
+            {pnl ? money.format(pnl.netProfit) : "Rp ·"}
           </div>
         </div>
 

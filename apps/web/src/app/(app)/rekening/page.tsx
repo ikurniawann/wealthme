@@ -692,11 +692,13 @@ export default function RekeningPage() {
             !(showSharedKpi || showOwnedKpi) && "rk-hero--solo",
           )}
           currency={null}
-          value={isLoading ? "…" : money.format(totalBalance)}
+          value={isError ? "—" : isLoading ? "…" : money.format(totalBalance)}
           caption={
             <>
-              {`${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}`}
+              {!isError &&
+                `${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}`}
               {!isLoading &&
+                !isError &&
                 fxRates?.rates["USD"] != null &&
                 ` · ${t.rekening.approxUsdPrefix}${formatUsd(totalBalance * fxRates.rates["USD"])}`}
             </>

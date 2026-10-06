@@ -1016,6 +1016,7 @@ export default function AsetPage() {
     Number(accountsTotalBig + assetsTotalBig) + investmentsTotal;
 
   const isLoading = assetsLoading || accountsLoading || investmentsLoading;
+  const isPageError = assetsError || accountsError || investmentsError;
 
   // EPIC-025 N3-F1: bento-metrics breakdown row + allocation donut — both
   // FOLD (J3): derived entirely from accounts/investments/assets already
@@ -1109,8 +1110,8 @@ export default function AsetPage() {
         <BentoHero
           className="as-hero"
           currency={null}
-          value={isLoading ? "…" : money.format(grandTotal)}
-          caption={isLoading ? "…" : heroCaption}
+          value={isPageError ? "—" : isLoading ? "…" : money.format(grandTotal)}
+          caption={isPageError ? undefined : isLoading ? "…" : heroCaption}
           controls={
             <>
               <GhostButton

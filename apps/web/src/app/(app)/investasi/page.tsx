@@ -1993,16 +1993,20 @@ export default function InvestasiPage() {
           className={cn("iv-hero", heroMore && "iv-hero--more")}
           currency={null}
           value={
-            isLoading
-              ? "…"
-              : summary?.totalCurrentValue != null
-                ? money.format(totalValueNum)
-                : "—"
+            isPageError
+              ? "—"
+              : isLoading
+                ? "…"
+                : summary?.totalCurrentValue != null
+                  ? money.format(totalValueNum)
+                  : "—"
           }
           caption={
-            isLoading
-              ? "…"
-              : `${holdings?.length ?? 0} ${t.investasi.v2.heroCapSuffix}`
+            isPageError
+              ? undefined
+              : isLoading
+                ? "…"
+                : `${holdings?.length ?? 0} ${t.investasi.v2.heroCapSuffix}`
           }
           controls={
             <>
