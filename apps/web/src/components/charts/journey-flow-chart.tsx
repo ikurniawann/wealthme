@@ -135,7 +135,11 @@ export function JourneyFlowChart({
   if (sources.length === 0 && destinations.length === 0) return null;
 
   return (
-    <div ref={ref} className={className} style={{ position: "relative" }}>
+    <div
+      ref={ref}
+      className={className}
+      style={{ position: "absolute", inset: 0 }}
+    >
       {box && (
         <svg
           viewBox={`0 0 ${box.w} ${box.h}`}

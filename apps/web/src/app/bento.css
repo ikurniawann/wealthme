@@ -566,7 +566,13 @@
     }
   }
 
-  /* floating AI button (desktop only; phones reach AI through the launcher) */
+  /* floating AI button (desktop only; phones reach AI through the launcher).
+     Request (2026-10-06): it was covering list content (e.g. a row's
+     percentage badge) while always fully visible at a fixed screen
+     position. Now dims to a low-opacity hint by default and only reaches
+     full opacity on hover/focus/when its own panel is open — never
+     opacity:0, so it stays keyboard-reachable and isn't invisible for a
+     mouse user who hasn't found it yet. */
   .wm-fai {
     position: fixed;
     right: 22px;
@@ -581,6 +587,26 @@
     background: var(--wm-dock);
     box-shadow: 0 14px 32px -12px rgb(20 30 5 / 0.55);
     cursor: pointer;
+    opacity: 0.32;
+    transition:
+      opacity 150ms ease-out,
+      transform 150ms ease-out;
+  }
+  .wm-fai:hover,
+  .wm-fai:focus-visible,
+  .wm-fai[aria-expanded="true"] {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .wm-fai {
+      transition: opacity 150ms ease-out;
+    }
+    .wm-fai:hover,
+    .wm-fai:focus-visible,
+    .wm-fai[aria-expanded="true"] {
+      transform: none;
+    }
   }
   .wm-fai i {
     display: grid;
