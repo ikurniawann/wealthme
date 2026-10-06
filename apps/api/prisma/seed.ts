@@ -1182,6 +1182,69 @@ export async function main(): Promise<void> {
     });
   }
 
+  // ── Bulk Transactions (500) for pagination testing ────────────────────────
+  // Data integrity: income rare (i%25===0, ~20 total), amounts deterministic,
+  // distributed across accounts/categories to avoid correlation, spread across
+  // 6-month window to preserve ratio analysis. Expenses dominate to match
+  // existing account balances.
+  const accountIds = [acBCA.id, acMandiri.id, acGoPay.id, acOVO.id, acCash.id];
+  const expenseCats = [
+    catMakan.id,
+    catTransport.id,
+    catTagihan.id,
+    catBelanja.id,
+    catHiburan.id,
+  ];
+  const incomeCats = [catGaji.id, catBonus.id];
+
+  for (let i = 0; i < 500; i++) {
+    const accountIdx = (i * 7) % accountIds.length; // stagger account selection
+    const accountId = accountIds[accountIdx];
+    const isIncome = i % 25 === 0; // rare: ~20 income, 480 expense
+
+    let categoryId: string;
+    let amount: bigint;
+    let type: "income" | "expense" | "transfer";
+
+    if (isIncome) {
+      categoryId = incomeCats[(i * 13) % incomeCats.length];
+      amount = BigInt(500_000 + ((i * 7919) % 1_500_000)); // 500k–2M
+      type = "income";
+    } else {
+      categoryId = expenseCats[(i * 11) % expenseCats.length];
+      amount = BigInt(50_000 + ((i * 7919) % 950_000)); // 50k–1M
+      type = "expense";
+    }
+
+    const monthOffset = i % 6; // spread across 6-month window
+    const dayNum = (i % 27) + 1; // 1–27 (fits any month)
+
+    await prisma.transaction.upsert({
+      where: { id: `seed-bulk-tx-${i}` },
+      update: {
+        accountId,
+        categoryId,
+        amount,
+        type,
+        description: `Bulk pagination test ${i}`,
+        occurredAt: monthsAgo(monthOffset, dayNum),
+      },
+      create: {
+        id: `seed-bulk-tx-${i}`,
+        familyGroupId: FG,
+        accountId,
+        categoryId,
+        amount,
+        type,
+        description: `Bulk pagination test ${i}`,
+        occurredAt: monthsAgo(monthOffset, dayNum),
+      },
+    });
+  }
+  process.stderr.write(
+    "✓ Seeded 500 bulk transactions for pagination testing\n",
+  );
+
   // ── Budgets ───────────────────────────────────────────────────────────────────
 
   const budgets = [
