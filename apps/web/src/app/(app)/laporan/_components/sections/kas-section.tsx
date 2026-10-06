@@ -10,6 +10,14 @@ import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
 import { ActItem } from "../atoms";
 
+/**
+ * Map category colors through semantic ramp: all categories use
+ * semantic income/expense colors, not hardcoded DB hex.
+ */
+function semanticCategoryColor(kind?: string): string {
+  return kind === "income" ? INCOME_COLOR : EXPENSE_COLOR;
+}
+
 /* ───────────────────────── Section: Arus Kas ───────────────────────── */
 
 export function KasSection({
@@ -36,7 +44,7 @@ export function KasSection({
       id: cat.categoryName,
       label: cat.categoryName,
       value: cat.amount,
-      color: cat.color ?? "var(--wm-lime)",
+      color: semanticCategoryColor("income"),
     }),
   );
   const expenseNodes: FlowNode[] = (summary?.topExpenseCategories ?? []).map(
@@ -44,7 +52,7 @@ export function KasSection({
       id: cat.categoryName,
       label: cat.categoryName,
       value: cat.amount,
-      color: cat.color ?? EXPENSE_COLOR,
+      color: semanticCategoryColor("expense"),
     }),
   );
   // A deficit (expenses > income) would make the destination column bigger
