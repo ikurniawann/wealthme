@@ -1,5 +1,83 @@
 # Task loop results
 
+## 2026-10-06 — Arc UI Batch 2 (overlays and menus): verified, retain-all with evidence
+
+- Result: PASS. Confirms the provisional assessment below with live Arc-doc
+  evidence, not just hypothesis.
+- Map updated (`docs/architecture/uiarc-component-map.md`, 13 rows, `adapt` →
+  `retain`): `ui/dialog`, `ui/sheet`, `ui/dropdown-menu`, `ui/tooltip`,
+  `wm/detail-panel`, `wm/financial-dialog`, `wm/info-tip`,
+  `shell/nav-sheet`, `shell/search-dialog` (dialog half only),
+  `shell/shell-loading`, plus the task's explicit Batch-1-adjacent retains:
+  `ui/button`, `ui/input`, `ui/textarea`. Each reason cell cites the live
+  Arc dependency/API evidence below. `ui/context-menu` and
+  `wm/context-menu` stay `adapt` (correctly — already built on Base UI, not
+  Radix; only their test gap needed closing). `ui/sonner.tsx` and
+  `shell/notifications-popover.tsx` were already `retain`, untouched.
+- Evidence (fetched live from `https://uiarc.dev/components/<name>/markdown`):
+  - dialog, sheet/drawer, popover, dropdown-menu, context-menu, tooltip all
+    require adding `@radix-ui/react-*` packages and/or `motion` as hard
+    runtime deps — this repo has zero Radix dependencies; adding any would
+    violate the no-new-dependency rule.
+  - dropdown-menu's Arc API is a flat `items` array (different consumer
+    shape from this repo's child-composition API used by every real
+    consumer: topbar, notifications, pickers, account/insurance pages).
+  - tooltip's Arc API only exposes `content`/`children`/`side` (top|bottom)
+    — fewer sides, no `align`/`alignOffset`, no arrow; the current
+    `ui/tooltip.tsx` consumer (`investasi` page) needs the fuller API.
+  - context-menu's Arc docs themselves warn plain click also opens the
+    menu, which breaks any target needing its own click action — directly
+    relevant since WealthMe uses context-menu row actions throughout.
+  - `ui/button.tsx` already has press feedback:
+    `design-system.css:4533` → `.btn:active { transform: scale(0.98); }`.
+  - `ui/input.tsx` and `ui/textarea.tsx` have zero non-test importers
+    (`grep -rl`) — every real form uses raw `<input class="input">` /
+    `<textarea class="textarea">` against the prototype CSS directly, so
+    there is nothing to migrate.
+  - `shell/shell-loading.tsx` is a full-screen brand+label loader, not a
+    content-shaped skeleton; there is no skeleton-shaped UI anywhere in the
+    repo for an Arc skeleton candidate to replace.
+- Test-coverage gap closed (none of these existed before this batch):
+  - `apps/web/src/components/ui/dialog.test.tsx` (new) — open on trigger
+    click, Escape closes + focus restores to trigger, close-button closes +
+    focus restores, disabled trigger does not open. 3/3 pass.
+  - `apps/web/src/components/ui/dropdown-menu.test.tsx` (new) — open +
+    select item, disabled item skipped, Escape closes + focus restores.
+    3/3 pass.
+  - `apps/web/src/components/ui/tooltip.test.tsx` (new) — shows on trigger
+    focus, hides when focus leaves, Escape dismisses without moving focus
+    off the trigger. 3/3 pass.
+  - `apps/web/src/components/wm/context-menu.test.tsx` (edited) — removed
+    the implementation-coupled `duration-200` class assertion (the hard
+    rule's named example) and replaced it with "closes the menu on
+    Escape"; kept the right-click-open, disabled-item, and `render`-prop
+    tests. 4/4 pass. (Focus is not asserted after Escape here: a
+    right-click trigger never held keyboard focus beforehand, so Base UI
+    correctly settles focus on `document`, unlike Dialog/DropdownMenu/
+    Tooltip which open from a focused/activated `<button>`.)
+- Verification:
+  - Focused Jest across the 4 changed/added spec files: 5 suites, 16 tests,
+    all passing.
+  - `pnpm --filter web exec tsc --noEmit`: clean.
+  - Scoped ESLint and Prettier on the 4 changed test files plus the map
+    doc: clean (one Prettier formatting pass needed on
+    `tooltip.test.tsx`, fixed).
+  - `git diff --check`: clean, no whitespace errors.
+  - Temporary isolated `/legal/arc-batch2-check` harness (removed after
+    verification, same pattern as Batch 1): Playwright, desktop 1280×800
+    and touch 390×844 — no horizontal overflow, all triggers ≥24px tall;
+    keyboard-only Enter opens Dialog and DropdownMenu, Escape closes both
+    and restores focus to the trigger; Tooltip shows on focus and
+    dismisses on Escape; ContextMenu opens on right-click and closes on
+    Escape; `prefers-reduced-motion: reduce` dialog still opens/closes
+    correctly; `prefers-color-scheme: dark` dialog renders with no
+    overflow. 8/8 passed (single-worker — 8-way parallel workers against
+    one Turbopack dev server produced one flaky run, not a component
+    defect; confirmed by an isolated rerun).
+- Harness and empty directories removed: `apps/web/src/app/legal/
+arc-batch2-check/` and `apps/web/tests/e2e/arc-batch2-check.spec.ts`
+  deleted; `git status` confirms only the 5 intended files remain changed.
+
 ## 2026-10-06 — Arc UI Batch 2 (overlays and menus): provisional, unverified read-only assessment
 
 - Result: PARKED before any edit; the user asked to push current work and continue from the server.

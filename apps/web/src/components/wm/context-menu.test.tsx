@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ContextMenu } from "./context-menu";
@@ -48,7 +48,14 @@ describe("ContextMenu — uiarc.dev reference, adapted onto Base UI", () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it("uses a responsive 200ms opening transition", async () => {
+  // Batch 2 — this used to assert a literal `duration-200` Tailwind class,
+  // which is implementation-coupled and not a public behavior. Replaced with
+  // the real accessibility contract: Escape dismisses the menu. Unlike
+  // Dialog/DropdownMenu/Tooltip, a context-menu trigger is opened by a
+  // pointer event (right-click), not a focused/activated button, so there is
+  // no prior keyboard focus on the trigger for Base UI to restore — focus
+  // correctly settles on the document instead, which is not asserted here.
+  it("closes the menu on Escape", async () => {
     const user = userEvent.setup();
     render(
       <ContextMenu
@@ -63,10 +70,15 @@ describe("ContextMenu — uiarc.dev reference, adapted onto Base UI", () => {
       keys: "[MouseRight]",
       target: screen.getByText("Baris beranimasi"),
     });
+    await screen.findByRole("menuitem", { name: "Detail" });
 
-    expect(
-      (await screen.findByRole("menuitem", { name: "Detail" })).parentElement,
-    ).toHaveClass("duration-200");
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("menuitem", { name: "Detail" }),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("renders as the given element via `render` instead of its default <div>", async () => {
