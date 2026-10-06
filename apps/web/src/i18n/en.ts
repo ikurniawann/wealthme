@@ -4684,6 +4684,7 @@ export const en = {
     totalIncomeLabel: "Total Income",
     totalExpenseLabel: "Total Expenses",
     surplusLabel: "Surplus",
+    deficitLabel: "Deficit",
     savingsRateLabel: "Savings Rate",
     totalAssetsLabel: "Total Assets",
     totalLiabilitiesLabel: "Total Liabilities",

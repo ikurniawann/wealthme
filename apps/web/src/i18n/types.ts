@@ -4568,6 +4568,7 @@ export type I18nDictionary = {
     totalIncomeLabel: string;
     totalExpenseLabel: string;
     surplusLabel: string;
+    deficitLabel: string;
     savingsRateLabel: string;
     totalAssetsLabel: string;
     totalLiabilitiesLabel: string;

@@ -4759,6 +4759,7 @@ export const id = {
     totalIncomeLabel: "Total Pemasukan",
     totalExpenseLabel: "Total Pengeluaran",
     surplusLabel: "Surplus",
+    deficitLabel: "Defisit",
     savingsRateLabel: "Savings Rate",
     totalAssetsLabel: "Total Aset",
     totalLiabilitiesLabel: "Total Liabilitas",
