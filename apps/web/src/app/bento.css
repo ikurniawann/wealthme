@@ -1279,6 +1279,21 @@
     min-height: 180px;
   }
 
+  /* "Arus Kas" journey-flow chart (request, 2026-10-06): its node count
+     (income categories + expense categories + Surplus/Defisit) can run to
+     7-8 on a real family's data, each needing real vertical label room —
+     a phone-width card is narrow, not short, so the extra room this chart
+     needs on mobile comes from height, not from the shared `.wm-chart`
+     default every other chart in this app still uses. */
+  .wm-chart--flow {
+    height: 340px;
+  }
+  @media (max-width: 480px) {
+    .wm-chart--flow {
+      height: 440px;
+    }
+  }
+
   .wm-chart-tip {
     position: absolute;
     top: 8px;

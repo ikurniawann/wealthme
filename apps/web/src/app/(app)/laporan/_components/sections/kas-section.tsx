@@ -121,7 +121,7 @@ export function KasSection({
           />
         </div>
         {hasFlowData && (
-          <div className="wm-chart" style={{ height: 340, marginTop: 16 }}>
+          <div className="wm-chart wm-chart--flow" style={{ marginTop: 16 }}>
             <JourneyFlowChart
               sources={flowSources}
               destinations={destinations}

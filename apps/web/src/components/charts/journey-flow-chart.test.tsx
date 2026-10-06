@@ -1,9 +1,10 @@
 // "Arus Kas" journey-flow chart (2026-10-06) — recreated locally since
 // uiarc.dev's `journey-flow` block is Pro-only. Behavior coverage: it
 // speaks through a single `role="img"` `aria-label` (same accessible-chart
-// contract as `bento-charts.tsx`), draws one rect per node, and renders
-// nothing when there is no data to show.
-import { render, screen } from "@testing-library/react";
+// contract as `bento-charts.tsx`), draws one rect per node, renders
+// nothing when there is no data to show, and dims every ribbon except the
+// one under the pointer on hover/tap.
+import { fireEvent, render, screen } from "@testing-library/react";
 
 import { JourneyFlowChart, type FlowNode } from "./journey-flow-chart";
 
@@ -58,6 +59,63 @@ describe("JourneyFlowChart", () => {
     // One flowing ribbon per source and per destination.
     const paths = container.querySelectorAll("path");
     expect(paths).toHaveLength(sources.length + destinations.length);
+  });
+
+  it("dims every other ribbon on hover, and only the hovered one — never a fabricated source-to-destination path", () => {
+    const { container } = render(
+      <JourneyFlowChart
+        sources={sources}
+        destinations={destinations}
+        totalLabel="Pemasukan"
+        totalValue={10_000_000}
+        format={(v) => `Rp${v}`}
+        ariaLabel="Arus Kas"
+      />,
+    );
+
+    const ribbons = container.querySelectorAll("path");
+    const [gajiRibbon] = ribbons;
+    fireEvent.pointerEnter(gajiRibbon);
+
+    const opacities = Array.from(ribbons).map((p) => p.getAttribute("opacity"));
+    // The hovered ribbon (gaji, index 0) is boosted; every other ribbon —
+    // including the ones on the opposite (destination) side — is dimmed.
+    // No ribbon on the destination side is ever boosted by hovering a
+    // source: this chart has no per-transaction data linking a specific
+    // income category to a specific expense category, so highlighting a
+    // "path" across the Total node would fabricate a connection the API
+    // doesn't provide.
+    expect(opacities[0]).toBe("0.9");
+    for (const opacity of opacities.slice(1)) {
+      expect(opacity).toBe("0.1");
+    }
+
+    fireEvent.pointerLeave(gajiRibbon);
+    for (const opacity of Array.from(ribbons).map((p) =>
+      p.getAttribute("opacity"),
+    )) {
+      expect(opacity).toBe("0.55");
+    }
+  });
+
+  it("tapping (click) toggles the same highlight a hover would, for touch devices", () => {
+    const { container } = render(
+      <JourneyFlowChart
+        sources={sources}
+        destinations={destinations}
+        totalLabel="Pemasukan"
+        totalValue={10_000_000}
+        format={(v) => `Rp${v}`}
+        ariaLabel="Arus Kas"
+      />,
+    );
+
+    const [gajiRibbon] = container.querySelectorAll("path");
+    fireEvent.click(gajiRibbon);
+    expect(gajiRibbon.getAttribute("opacity")).toBe("0.9");
+
+    fireEvent.click(gajiRibbon);
+    expect(gajiRibbon.getAttribute("opacity")).toBe("0.55");
   });
 
   it("renders nothing when there are no nodes on either side", () => {
