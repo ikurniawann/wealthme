@@ -988,6 +988,14 @@
   .wm-ghost-btn:hover {
     background: var(--wm-card-2);
   }
+  @media (prefers-reduced-motion: no-preference) {
+    .wm-ghost-btn:not(:disabled) {
+      transition: transform 120ms ease-out;
+    }
+    .wm-ghost-btn:not(:disabled):active {
+      transform: scale(0.98);
+    }
+  }
   .wm-ghost-btn[data-lit="true"] {
     border-color: var(--wm-lime);
     background: var(--wm-lime);
@@ -3183,6 +3191,9 @@
     .wm-ghost-btn,
     .wm-chip {
       min-width: 44px;
+      min-height: 44px;
+    }
+    .wm-dark .wm-ghost-btn {
       min-height: 44px;
     }
   }

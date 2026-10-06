@@ -1,5 +1,53 @@
 # Task loop results
 
+## 2026-10-06 — Arc UI Batch 1, GhostButton press feedback
+
+- Result: PASS for the scoped behavior and styling change.
+- Change: `apps/web/src/app/bento.css` adds a 0.98 active scale with a 120ms
+  ease-out only for enabled `.wm-ghost-btn` controls under
+  `prefers-reduced-motion: no-preference`. Existing neutral/lit styling and
+  `GhostButton` props remain intact. No Motion runtime, global foundation CSS,
+  route, or authorization behavior was added or changed.
+- Tests: `apps/web/src/components/wm/bento.test.tsx` covers native default
+  button type, caller override to submit, Enter/Space activation, and disabled
+  non-activation.
+- Verification:
+  - Focused Jest: 4/4 passed.
+  - `pnpm --filter web exec tsc --noEmit` passed after restarting Next to
+    refresh a generated route validator that still referenced the deleted
+    temporary harness.
+  - Scoped ESLint and Prettier on the changed TSX/CSS passed.
+  - Temporary isolated `/legal/ghost-button-check` harness: desktop Chromium
+    measured enabled pressed transform `matrix(0.980028, 0, 0, 0.980028, 0, 0)`,
+    release `none`, and disabled transform `none`; Enter and Space each
+    activated once, forced disabled click did not activate, reduced-motion
+    preference yielded no transform, and neutral/lit colors plus a 14×14px
+    Lucide icon were observed in light/dark themes.
+  - iPhone 15 emulation at 390×844 reported coarse pointer, no horizontal
+    overflow, and a successful touch activation. In the exercised `.wm-dark`
+    context all three buttons measured 40px high due to its existing
+    component-specific minimum-height rule; this change did not alter sizing.
+    The harness was removed and the temporary server/browser sessions stopped.
+- Concern: the isolated harness's AuthProvider attempted
+  `localhost:3000/api/auth/get-session`, which was unavailable; it rendered
+  independently and did not require authentication. The test did not exercise
+  a live authenticated route.
+- The initial mixed-file Prettier check also flagged
+  `docs/architecture/uiarc-component-map.md`; its inventory table was not
+  wholesale-reformatted. Scoped Prettier on the changed TSX/CSS passed.
+- Follow-up — coarse-pointer sizing correction: the existing `max-width: 720px`
+  `.wm-dark .wm-ghost-btn { min-height: 40px }` outranked the generic coarse
+  44px rule by specificity. The coarse rule now raises `.wm-dark .wm-ghost-btn`
+  to 44px, limited to coarse pointers. Post-fix iPhone 15 at 390×844 measured
+  neutral, lit, and disabled buttons at 44px in both light and dark themes,
+  with no horizontal overflow; neutral/lit touch each activated and disabled
+  touch left the count unchanged. Desktop 1280×800 stayed 34px for all three;
+  Enter/Space each activated once, disabled stayed inert, press reached
+  `scale(0.98)` then returned to none, and reduced motion remained transform
+  none. Updated the GhostButton map row with this target and verification.
+  Removed the empty harness directory, temporary route, and server/browser
+  sessions.
+
 ## 2026-10-05 — Arc UI Batch 1, StatusBadge adapter
 
 - Result: PASS for the focused adapter; demo-auth live verification remained
