@@ -3917,6 +3917,11 @@ export type I18nDictionary = {
     attachmentDeleteConfirmBody: string;
     attachmentDeletedToast: string;
     attachmentDeleteFailedToast: string;
+    attachmentUploadingLabel: string;
+    attachmentUploadedToast: string;
+    attachmentUploadFailedToast: string;
+    attachmentInvalidTypeToast: string;
+    attachmentTooLargeToast: string;
     /**
      * EPIC-025 N3-E4 — filter card + per-stat summary cards ported from
      * `docs/prototype/pages/transaksi.html`'s `.card.transaction-filter-section`

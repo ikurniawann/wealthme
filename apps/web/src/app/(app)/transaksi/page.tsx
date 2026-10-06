@@ -3,6 +3,8 @@
 import {
   useState,
   useEffect,
+  useId,
+  useRef,
   Suspense,
   type ChangeEvent,
   type KeyboardEvent,
@@ -75,10 +77,12 @@ import type { Locale } from "@/i18n";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useMoney } from "@/hooks/use-money";
-import type {
-  TransactionAttachmentDto,
-  TransactionDto,
-  TransactionListResponse,
+import {
+  ATTACHMENT_ACCEPTED_MIME_TYPES,
+  ATTACHMENT_MAX_FILE_BYTES,
+  type TransactionAttachmentDto,
+  type TransactionDto,
+  type TransactionListResponse,
 } from "@wealthme/contracts";
 import { getActiveTransactionFilterCount } from "./filter-count";
 
@@ -139,6 +143,38 @@ async function fetchAttachmentBlob(
     );
   }
   return res.blob();
+}
+
+// Same `multipart/form-data` constraint as `fetchAttachmentBlob` above:
+// `apiFetch` forces `Content-Type: application/json`, which breaks a file
+// upload (the browser must set its own boundary-bearing Content-Type from
+// the FormData body) — page-local raw `fetch`, per WM_CONVENTIONS.md.
+// Mirrors `uploadAttachment` in `shell/transaction-dialog.tsx` (the
+// post-create flow); duplicated rather than shared across page boundaries,
+// same convention as that file's own copy.
+async function uploadAttachment(
+  familyGroupId: string,
+  transactionId: string,
+  file: File,
+  token: string | undefined,
+): Promise<void> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(
+    `${API_URL}/family-groups/${familyGroupId}/transactions/${transactionId}/attachments`,
+    {
+      method: "POST",
+      body: form,
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    },
+  );
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    throw new AttachmentFetchError(
+      res.status,
+      body.message ?? (res.statusText.trim() || `HTTP ${res.status}`),
+    );
+  }
 }
 
 type TxnType = "income" | "expense" | "transfer" | "all";
@@ -678,6 +714,8 @@ export function AttachmentList({
   const queryClient = useQueryClient();
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [pendingViewId, setPendingViewId] = useState<string | null>(null);
+  const fileInputId = useId();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const attachmentsQueryKey = [
     "transactions",
@@ -717,6 +755,43 @@ export function AttachmentList({
     },
   });
 
+  const uploadMutation = useMutation({
+    mutationFn: (file: File) =>
+      uploadAttachment(familyGroupId, transactionId, file, token),
+    onSuccess: () => {
+      toast.success(t.transaksi.attachmentUploadedToast);
+      void queryClient.invalidateQueries({ queryKey: attachmentsQueryKey });
+    },
+    onError: (err) => {
+      toast.error(
+        extractApiErrorMessage(err, t.transaksi.attachmentUploadFailedToast),
+      );
+    },
+  });
+
+  // Client-side pre-check only — the server (attachments.service.ts) is
+  // authoritative and re-validates the sniffed content signature and byte
+  // size independently, same split as shell/transaction-dialog.tsx's
+  // handleAttachmentChange.
+  const handleFileSelected = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (
+      !ATTACHMENT_ACCEPTED_MIME_TYPES.includes(
+        file.type as (typeof ATTACHMENT_ACCEPTED_MIME_TYPES)[number],
+      )
+    ) {
+      toast.error(t.transaksi.attachmentInvalidTypeToast);
+      return;
+    }
+    if (file.size > ATTACHMENT_MAX_FILE_BYTES) {
+      toast.error(t.transaksi.attachmentTooLargeToast);
+      return;
+    }
+    uploadMutation.mutate(file);
+  };
+
   const handleView = async (attachmentId: string) => {
     setPendingViewId(attachmentId);
     try {
@@ -743,13 +818,30 @@ export function AttachmentList({
 
   if (!open) return null;
 
+  const uploading = uploadMutation.isPending;
+  const openFilePicker = () => fileInputRef.current?.click();
+
   return (
     <div className="mt-4">
       {/* Prototype #dlg-tx-detail uses a simple heading row plus a card-link
-          affordance. Upload is still routed through the create/edit flows, so
-          this card-link only gives the same informational cue as the HTML
-          prototype instead of pretending this read-only detail view can mutate
-          attachments directly. */}
+          affordance. Previously this card-link only showed a toast ("Pilih
+          file struk untuk diunggah") with no file picker behind it — the
+          create flow's attachment upload (shell/transaction-dialog.tsx) had
+          no equivalent for an already-created transaction, so there was no
+          way to add an attachment after the fact. Wired to the same
+          multipart POST the create flow uses. */}
+      {canModify && (
+        <input
+          ref={fileInputRef}
+          id={fileInputId}
+          data-testid="attachment-upload-input"
+          type="file"
+          className="sr-only"
+          accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+          onChange={handleFileSelected}
+          disabled={uploading}
+        />
+      )}
       <div className="row row--between mb-2">
         <span className="t-sm t-bold">
           {t.transaksi.attachmentsSectionLabel}
@@ -758,9 +850,12 @@ export function AttachmentList({
           <button
             type="button"
             className="card-link"
-            onClick={() => toast("Pilih file struk untuk diunggah")}
+            onClick={openFilePicker}
+            disabled={uploading}
           >
-            + Tambah Lampiran
+            {uploading
+              ? t.transaksi.attachmentUploadingLabel
+              : "+ Tambah Lampiran"}
           </button>
         )}
       </div>
@@ -779,13 +874,16 @@ export function AttachmentList({
         <button
           type="button"
           className="empty min-h-[78px] w-full cursor-pointer rounded-[11px] border border-dashed bg-transparent px-[18px] py-2.5"
-          onClick={() => toast("Pilih file struk untuk diunggah")}
+          onClick={openFilePicker}
+          disabled={uploading}
         >
           <span className="empty__icon text-[20px]">
             <ImagePlus className="size-5" aria-hidden="true" />
           </span>
           <span className="t-xs t-muted">
-            {t.transaksi.attachmentsEmptyLabel}
+            {uploading
+              ? t.transaksi.attachmentUploadingLabel
+              : t.transaksi.attachmentsEmptyLabel}
           </span>
         </button>
       )}

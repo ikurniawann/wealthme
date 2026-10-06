@@ -4031,6 +4031,12 @@ export const en = {
     attachmentDeleteConfirmBody: "This attachment cannot be recovered.",
     attachmentDeletedToast: "Attachment deleted",
     attachmentDeleteFailedToast: "Failed to delete the attachment",
+    attachmentUploadingLabel: "Uploading…",
+    attachmentUploadedToast: "Attachment added",
+    attachmentUploadFailedToast: "Failed to upload the attachment",
+    attachmentInvalidTypeToast:
+      "Unsupported file type (JPG, PNG, WEBP, or PDF).",
+    attachmentTooLargeToast: "File exceeds 5MB.",
     filterCardTitle: "Filter",
     mobileFilterToggleTemplate: "Filter ({count})",
     listSectionTitle: "Transaction List",

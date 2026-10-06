@@ -7,10 +7,19 @@
  *    and surfaces an honest error toast on failure — never a silent one
  *  - "Hapus" requires confirmation, then calls the DELETE endpoint and
  *    refreshes the list
+ *
+ * Defect fix (2026-10-06): "+ Tambah Lampiran" and the empty-state drop
+ * zone used to only show a toast ("Pilih file struk untuk diunggah") with
+ * no file picker or upload behind it — there was no way to add an
+ * attachment to an already-created transaction anywhere in the UI (the
+ * create flow's attachment upload in shell/transaction-dialog.tsx has no
+ * equivalent for an existing one). Both now trigger the same hidden file
+ * input, wired to the same multipart POST the create flow uses.
  */
 
 import type { ReactElement, ReactNode } from "react";
 import {
+  fireEvent,
   render as rtlRender,
   screen,
   waitFor,
@@ -275,5 +284,110 @@ describe("AttachmentList (EPIC-024 Task L3, US-TXN-9)", () => {
       screen.queryByRole("button", { name: "+ Tambah Lampiran" }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Lihat" })).toBeInTheDocument();
+  });
+
+  it("'+ Tambah Lampiran' uploads the picked file and refreshes the list", async () => {
+    const fetchSpy = jest
+      .spyOn(global, "fetch")
+      .mockResolvedValue({ ok: true } as Response);
+
+    render(
+      <AttachmentList
+        familyGroupId={FAMILY_GROUP_ID}
+        transactionId={TX_ID}
+        token={TOKEN}
+        open
+      />,
+    );
+
+    await screen.findByText("Foto");
+    const file = new File(["fake-bytes"], "struk.jpg", {
+      type: "image/jpeg",
+    });
+    const input = screen.getByTestId("attachment-upload-input");
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.stringContaining(
+          `/family-groups/${FAMILY_GROUP_ID}/transactions/${TX_ID}/attachments`,
+        ),
+        expect.objectContaining({
+          method: "POST",
+          headers: { Authorization: `Bearer ${TOKEN}` },
+        }),
+      );
+    });
+    const [, options] = fetchSpy.mock.calls[0];
+    expect(options?.body).toBeInstanceOf(FormData);
+    expect(mockToastSuccess).toHaveBeenCalledWith("Lampiran ditambahkan");
+    // Refetch after a successful upload — the GET mock only resolves the
+    // fixed `ATTACHMENTS` array either way, so this asserts the query was
+    // actually invalidated, not just that the toast fired.
+    expect(mockApiFetch).toHaveBeenCalledWith(
+      `/family-groups/${FAMILY_GROUP_ID}/transactions/${TX_ID}/attachments`,
+      { token: TOKEN },
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it("rejects an unsupported file type before ever calling the API", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch");
+
+    render(
+      <AttachmentList
+        familyGroupId={FAMILY_GROUP_ID}
+        transactionId={TX_ID}
+        token={TOKEN}
+        open
+      />,
+    );
+
+    await screen.findByText("Foto");
+    const file = new File(["not-a-receipt"], "notes.txt", {
+      type: "text/plain",
+    });
+    fireEvent.change(screen.getByTestId("attachment-upload-input"), {
+      target: { files: [file] },
+    });
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      "Tipe file tidak didukung (JPG, PNG, WEBP, atau PDF).",
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    fetchSpy.mockRestore();
+  });
+
+  it("surfaces an honest error toast when the upload itself fails", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      statusText: "Payload Too Large",
+      json: () => Promise.resolve({}),
+    } as Response);
+
+    render(
+      <AttachmentList
+        familyGroupId={FAMILY_GROUP_ID}
+        transactionId={TX_ID}
+        token={TOKEN}
+        open
+      />,
+    );
+
+    await screen.findByText("Foto");
+    const file = new File(["fake-bytes"], "struk.jpg", {
+      type: "image/jpeg",
+    });
+    fireEvent.change(screen.getByTestId("attachment-upload-input"), {
+      target: { files: [file] },
+    });
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Payload Too Large");
+    });
+
+    fetchSpy.mockRestore();
   });
 });

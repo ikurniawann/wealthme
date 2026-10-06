@@ -4106,6 +4106,12 @@ export const id = {
       "Lampiran yang dihapus tidak bisa dikembalikan.",
     attachmentDeletedToast: "Lampiran dihapus",
     attachmentDeleteFailedToast: "Gagal menghapus lampiran",
+    attachmentUploadingLabel: "Mengunggah…",
+    attachmentUploadedToast: "Lampiran ditambahkan",
+    attachmentUploadFailedToast: "Gagal mengunggah lampiran",
+    attachmentInvalidTypeToast:
+      "Tipe file tidak didukung (JPG, PNG, WEBP, atau PDF).",
+    attachmentTooLargeToast: "Ukuran file melebihi 5MB.",
     filterCardTitle: "Filter",
     mobileFilterToggleTemplate: "Filter ({count})",
     listSectionTitle: "Daftar Transaksi",
