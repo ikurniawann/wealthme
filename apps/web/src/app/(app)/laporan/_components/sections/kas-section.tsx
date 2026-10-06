@@ -139,8 +139,9 @@ export function KasSection({
               destinations={destinations}
               totalLabel={t.common.income}
               totalValue={flowTotal}
-              ariaLabel={cashflowChartAriaLabel}
+              formatFull={money.format}
               format={(v) => money.formatCompact(v)}
+              ariaLabel={cashflowChartAriaLabel}
             />
           </div>
         )}

@@ -36,14 +36,7 @@ describe("rollingMonths", () => {
       d.getFullYear(),
       d.getMonth(),
     ]);
-    expect(months).toEqual([
-      [2026, 4],
-      [2026, 5],
-      [2026, 6],
-      [2026, 7],
-      [2026, 8],
-      [2026, 9],
-    ]);
+    expect(months).toEqual([[2026, 9]]);
   });
 
   it("crosses the year boundary", () => {
@@ -51,8 +44,7 @@ describe("rollingMonths", () => {
       d.getFullYear(),
       d.getMonth(),
     ]);
-    expect(months[0]).toEqual([2025, 8]);
-    expect(months[5]).toEqual([2026, 1]);
+    expect(months).toEqual([[2026, 1]]);
   });
 });
 
@@ -82,7 +74,7 @@ describe("monthlyPremiumByType", () => {
 describe("premiumTrendValues", () => {
   it("ends on the real monthly premium", () => {
     const values = premiumTrendValues(250000);
-    expect(values).toHaveLength(6);
-    expect(values[5]).toBe(250000);
+    expect(values).toHaveLength(1);
+    expect(values[0]).toBe(250000);
   });
 });

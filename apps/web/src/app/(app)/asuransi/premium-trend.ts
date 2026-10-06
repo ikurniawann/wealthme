@@ -1,14 +1,12 @@
 import type { InsuranceDto, InsuranceType } from "@wealthme/contracts";
 
-/** Bars in the hero chart: a rolling window ending at the current month. */
-export const PREMIUM_TREND_MONTHS = 6;
+/** Bars in the hero chart: show only current month (no fabricated history). */
+export const PREMIUM_TREND_MONTHS = 1;
 
 /**
- * Shape of the 6-month premium estimate (oldest → current month). No premium
- * history exists, so the chart (labelled "estimasi") scales today's real
- * monthly premium by this fixed profile; the last bar is always the real value.
+ * Current month's premium. No history is fabricated; only real current value shown.
  */
-const PREMIUM_TREND_RATIOS = [0.82, 0.84, 1.02, 0.86, 0.98, 1];
+const PREMIUM_TREND_RATIOS = [1];
 
 /** First day of each month in the window, oldest first, ending at `now`'s month. */
 export function rollingMonths(

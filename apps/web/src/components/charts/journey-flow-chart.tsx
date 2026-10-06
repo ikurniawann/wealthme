@@ -180,6 +180,7 @@ export function JourneyFlowChart({
   totalValue,
   totalColor = "var(--wm-lime)",
   format,
+  formatFull,
   ariaLabel,
   className,
 }: {
@@ -191,6 +192,8 @@ export function JourneyFlowChart({
   totalValue: number;
   totalColor?: string;
   format: (value: number) => string;
+  /** Optional full-precision format for tooltips; if omitted, uses format(). */
+  formatFull?: (value: number) => string;
   ariaLabel: string;
   className?: string;
 }) {
@@ -218,8 +221,7 @@ export function JourneyFlowChart({
             {(() => {
               const nodeW = 10;
               // Below ~420px, fold the amount onto the label line and
-              // tighten spacing — the two-line-per-node layout was the
-              // main contributor to label crowding on a phone-width card.
+              // tighten spacing — the two-line-per-node layout was the main contributor to label crowding on a phone-width card.
               const compact = box.w < 420;
               const fontSize = compact ? 10 : 11;
               // Room for each side's longest label (Sora 11px ≈ 6.4px per
@@ -317,32 +319,36 @@ export function JourneyFlowChart({
                     const isOther = hoveredId !== null && hoveredId !== node.id;
                     const isActive = hoveredId === node.id;
                     return (
-                      <path
-                        key={`l-${node.id}`}
-                        d={ribbonPath(
-                          leftX + nodeW,
-                          node.y0,
-                          node.y1,
-                          midX - nodeW,
-                          y0,
-                          y1,
-                        )}
-                        fill={leftShades[i]}
-                        opacity={isOther ? 0.1 : isActive ? 0.9 : 0.55}
-                        stroke={leftShades[i]}
-                        strokeWidth={isActive ? 1.5 : 1}
-                        style={{
-                          transition: "opacity 120ms ease-out",
-                          cursor: "pointer",
-                        }}
-                        onPointerEnter={() => setHoveredId(node.id)}
-                        onPointerLeave={() => setHoveredId(null)}
-                        onClick={() =>
-                          setHoveredId((cur) =>
-                            cur === node.id ? null : node.id,
-                          )
-                        }
-                      />
+                      <g key={`l-${node.id}`}>
+                        <title>
+                          {node.label}: {(formatFull ?? format)(node.value)}
+                        </title>
+                        <path
+                          d={ribbonPath(
+                            leftX + nodeW,
+                            node.y0,
+                            node.y1,
+                            midX - nodeW,
+                            y0,
+                            y1,
+                          )}
+                          fill={leftShades[i]}
+                          opacity={isOther ? 0.1 : isActive ? 0.9 : 0.55}
+                          stroke={leftShades[i]}
+                          strokeWidth={isActive ? 1.5 : 1}
+                          style={{
+                            transition: "opacity 120ms ease-out",
+                            cursor: "pointer",
+                          }}
+                          onPointerEnter={() => setHoveredId(node.id)}
+                          onPointerLeave={() => setHoveredId(null)}
+                          onClick={() =>
+                            setHoveredId((cur) =>
+                              cur === node.id ? null : node.id,
+                            )
+                          }
+                        />
+                      </g>
                     );
                   })}
                   {right.map((node, i) => {
@@ -353,32 +359,36 @@ export function JourneyFlowChart({
                     const isOther = hoveredId !== null && hoveredId !== node.id;
                     const isActive = hoveredId === node.id;
                     return (
-                      <path
-                        key={`r-${node.id}`}
-                        d={ribbonPath(
-                          midX + nodeW,
-                          y0,
-                          y1,
-                          rightX - nodeW,
-                          node.y0,
-                          node.y1,
-                        )}
-                        fill={rightShades[i]}
-                        opacity={isOther ? 0.1 : isActive ? 0.9 : 0.55}
-                        stroke={rightShades[i]}
-                        strokeWidth={isActive ? 1.5 : 1}
-                        style={{
-                          transition: "opacity 120ms ease-out",
-                          cursor: "pointer",
-                        }}
-                        onPointerEnter={() => setHoveredId(node.id)}
-                        onPointerLeave={() => setHoveredId(null)}
-                        onClick={() =>
-                          setHoveredId((cur) =>
-                            cur === node.id ? null : node.id,
-                          )
-                        }
-                      />
+                      <g key={`r-${node.id}`}>
+                        <title>
+                          {node.label}: {(formatFull ?? format)(node.value)}
+                        </title>
+                        <path
+                          d={ribbonPath(
+                            midX + nodeW,
+                            y0,
+                            y1,
+                            rightX - nodeW,
+                            node.y0,
+                            node.y1,
+                          )}
+                          fill={rightShades[i]}
+                          opacity={isOther ? 0.1 : isActive ? 0.9 : 0.55}
+                          stroke={rightShades[i]}
+                          strokeWidth={isActive ? 1.5 : 1}
+                          style={{
+                            transition: "opacity 120ms ease-out",
+                            cursor: "pointer",
+                          }}
+                          onPointerEnter={() => setHoveredId(node.id)}
+                          onPointerLeave={() => setHoveredId(null)}
+                          onClick={() =>
+                            setHoveredId((cur) =>
+                              cur === node.id ? null : node.id,
+                            )
+                          }
+                        />
+                      </g>
                     );
                   })}
 
