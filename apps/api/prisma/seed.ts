@@ -1255,6 +1255,15 @@ export async function main(): Promise<void> {
       "✓ Seeded 500 bulk transactions for pagination testing (SEED_BULK=1)\n",
     );
   } else {
+    // Clean up any bulk transactions from previous seeding
+    const deletedCount = await prisma.transaction.deleteMany({
+      where: { id: { startsWith: "seed-bulk-tx-" } },
+    });
+    if (deletedCount.count > 0) {
+      process.stderr.write(
+        `⊘ Removed ${deletedCount.count} existing bulk transactions\n`,
+      );
+    }
     process.stderr.write(
       "⊘ Bulk transactions disabled (set SEED_BULK=1 for pagination testing)\n",
     );
