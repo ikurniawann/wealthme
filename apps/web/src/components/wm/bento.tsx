@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useId,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -12,6 +13,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -112,7 +114,15 @@ export function PillButton({
   );
 }
 
-/** Segmented filter (replaces tabs where a filter is enough). */
+/**
+ * Segmented filter (replaces tabs where a filter is enough). Batch 3 (Arc
+ * UI migration, 2026-10-06): a shared-`layoutId` pill now slides to the
+ * selected segment instead of jumping, following Arc's segmented-control
+ * technique — `motion` is already a dependency (see wm/progress-bar.tsx),
+ * so no new runtime dependency was added. The public API
+ * (value/onChange/options/label, generic `T`, `aria-pressed`) is
+ * unchanged.
+ */
 export function Segmented<T extends string>({
   value,
   onChange,
@@ -126,18 +136,34 @@ export function Segmented<T extends string>({
   label: string;
   className?: string;
 }) {
+  const groupId = useId();
+  const reduced = useReducedMotion();
   return (
     <div role="group" aria-label={label} className={cn("wm-seg", className)}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={option.value === value}
-          onClick={() => onChange(option.value)}
-        >
-          {option.label}
-        </button>
-      ))}
+      {options.map((option) => {
+        const selected = option.value === value;
+        return (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={selected}
+            onClick={() => onChange(option.value)}
+          >
+            {selected && (
+              <motion.span
+                layoutId={`wm-seg-indicator-${groupId}`}
+                className="wm-seg-indicator"
+                transition={
+                  reduced
+                    ? { duration: 0 }
+                    : { type: "spring", stiffness: 500, damping: 35 }
+                }
+              />
+            )}
+            <span className="wm-seg-label">{option.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }

@@ -1014,6 +1014,7 @@
     background: var(--wm-card-2);
   }
   .wm-seg button {
+    position: relative;
     min-height: 30px;
     padding: 0 12px;
     border: 0;
@@ -1025,10 +1026,20 @@
     cursor: pointer;
   }
   .wm-seg button[aria-pressed="true"] {
-    background: var(--wm-card);
-    box-shadow: var(--wm-shadow);
     color: var(--wm-ink);
     font-weight: 600;
+  }
+  .wm-seg-indicator {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: 9px;
+    background: var(--wm-card);
+    box-shadow: var(--wm-shadow);
+  }
+  .wm-seg-label {
+    position: relative;
+    z-index: 1;
   }
   .wm-big {
     margin: 0;
@@ -1125,8 +1136,10 @@
     background: rgb(238 240 232 / 0.08);
   }
   .wm-dark .wm-seg button[aria-pressed="true"] {
-    background: #eef0e8;
     color: #15170f;
+  }
+  .wm-dark .wm-seg-indicator {
+    background: #eef0e8;
   }
   .wm-dark .wm-hl {
     color: #a9d84c;

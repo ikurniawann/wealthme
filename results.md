@@ -1,5 +1,81 @@
 # Task loop results
 
+## 2026-10-06 — Arc UI Batch 3 (form controls): one adapt (Segmented), rest retain with evidence
+
+- Result: PASS.
+- Map updated (`docs/architecture/uiarc-component-map.md`, 5 rows):
+  - `wm/bento.tsx` Segmented: stays `adapt`, reason updated to record the
+    implemented change (see below).
+  - `wm/bento.tsx` MoneyInput, `ui/switch.tsx` Switch,
+    `wm/date-range-field.tsx`, `shell/tx-pickers.tsx` (ChoiceTiles/
+    AmountHero): `adapt` → `retain`, each with live Arc-doc evidence.
+  - `ui/select.tsx` was already `retain`; left untouched (task directive
+    matched existing map state, no change needed). No separate checkbox row
+    exists — no `ui/checkbox.tsx` wrapper and no consumer uses the
+    indeterminate state (only raw native `type="checkbox"` inputs), so
+    there was nothing to evaluate.
+- Implemented: `Segmented` (`apps/web/src/components/wm/bento.tsx`) now
+  renders a `motion.span` with a shared `layoutId` that slides to the
+  selected option, matching Arc's segmented-control technique. `motion` is
+  already a dependency (used by `wm/progress-bar.tsx` since Batch 1), so no
+  new runtime dependency was added. Public API (`value`/`onChange`/
+  `options`/`label`, generic `T`, `aria-pressed` on each button) is
+  unchanged. `prefers-reduced-motion` uses `duration: 0` instead of the
+  spring transition. `apps/web/src/app/bento.css` moves the selected-state
+  background/box-shadow from `.wm-seg button[aria-pressed="true"]` onto a
+  new `.wm-seg-indicator` element (and its `.wm-dark` override), with
+  `z-index` layering so the label text stays above the indicator.
+- Evidence (fetched live from `https://uiarc.dev/components/<name>/markdown`):
+  - segmented-control: free, `motion`-only dependency (no Radix), shared
+    `layoutId` pill, reduced-motion disables the spring — directly adoptable
+    as a technique since `motion` is already installed.
+  - switch: requires `@radix-ui/react-switch` + `motion` — a new Radix
+    dependency this repo has zero of; current Switch's CSS and 8 direct
+    consumers already depend on Base UI's `aria-checked`.
+  - money-input: stores value as minor-unit integers (`number | null`);
+    WealthMe's MoneyInput/AmountHero need canonical currency strings,
+    per-currency decimal precision and FX status — lossy to convert.
+  - date-picker: takes/returns `Date` objects, not ISO strings; timezone
+    handling is "not explicitly addressed" (inherits browser timezone) and
+    it requires `motion` + `lucide-react`. WealthMe's DateField/
+    DateRangeFilterField own ISO strings, id/en locale, timezone and
+    modal-host portal positioning — converting risks timezone bugs for no
+    functional gain.
+  - radio-cards: `description`/`meta` slots exist, but `ChoiceTiles` already
+    has `label`/`sub`/`caption`, plus category-icon mapping, horizontal-
+    scroll edge sync, and a limit/expand affordance Arc's generic grid
+    lacks — no meaningful, safe gain from adapting.
+  - checkbox: requires `@radix-ui/react-checkbox` + `motion` (new Radix
+    dependency); moot anyway since there is no checkbox wrapper or
+    indeterminate consumer in this repo.
+- Tests: `apps/web/src/components/wm/bento.test.tsx` adds a `Segmented`
+  describe block — only the selected option is `aria-pressed="true"` and
+  switches on click, the `.wm-seg-indicator` renders only inside the
+  selected button, and the group exposes `role="group"` with the given
+  label. 7/7 pass (4 existing GhostButton tests unaffected).
+- Verification:
+  - Focused Jest (`bento.test.tsx`): 7/7 pass.
+  - `pnpm --filter web exec tsc --noEmit`: clean.
+  - Scoped ESLint on the 2 changed TSX files: clean. Scoped Prettier needed
+    one `--write` pass on `bento.tsx`/`bento.test.tsx` (fixed); the 91-row
+    component-map table is intentionally left out of the Prettier pass
+    (reformatting it would rewrite every row's column width, same pitfall
+    avoided in Batch 2) — `git diff --check` on it is clean (no trailing
+    whitespace).
+  - `git diff --check` on all 3 changed code files: clean.
+  - Temporary isolated `/legal/arc-batch3-check` harness (removed after
+    verification): Playwright, desktop 1280×800 and touch 390×844 — no
+    horizontal overflow; click switches `aria-pressed` and moves the
+    indicator's bounding box; `prefers-reduced-motion: reduce` still
+    switches selection correctly with exactly one indicator present;
+    `prefers-color-scheme: dark` renders with no overflow; a real touch
+    context (`hasTouch`, iPhone 15 viewport) confirms the existing
+    `@media (pointer: coarse)` rule already gives `.wm-seg button` a 44px
+    minimum — pre-existing, unaffected by this change. 6/6 passed.
+- Harness removed: `apps/web/src/app/legal/arc-batch3-check/` and
+  `apps/web/tests/e2e/arc-batch3-check.spec.ts` deleted; `git status`
+  confirms only the 3 intended files remain changed.
+
 ## 2026-10-06 — Arc UI Batch 2 (overlays and menus): verified, retain-all with evidence
 
 - Result: PASS. Confirms the provisional assessment below with live Arc-doc
