@@ -68,11 +68,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 import { insuranceTypeColor } from "@/lib/viz-colors";
-import {
-  monthlyPremiumByType,
-  premiumTrendValues,
-  rollingMonths,
-} from "./premium-trend";
+import { monthlyPremiumByType, rollingMonths } from "./premium-trend";
 import { INSURANCE_RENEWAL_WINDOW_DAYS } from "@/lib/due-date";
 import {
   MoneyInput,
@@ -1384,7 +1380,7 @@ export default function AsuransiPage() {
   const premiumSeries: BarSeries[] = monthlyPremiumByType(insurances ?? []).map(
     ({ type, monthly }) => ({
       name: t.asuransi.typeLabels[type] ?? type,
-      data: premiumTrendValues(monthly),
+      data: [monthly],
       color: insuranceTypeColor(type),
     }),
   );

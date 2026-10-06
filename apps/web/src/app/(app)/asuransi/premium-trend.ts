@@ -3,11 +3,6 @@ import type { InsuranceDto, InsuranceType } from "@wealthme/contracts";
 /** Bars in the hero chart: show only current month (no fabricated history). */
 export const PREMIUM_TREND_MONTHS = 1;
 
-/**
- * Current month's premium. No history is fabricated; only real current value shown.
- */
-const PREMIUM_TREND_RATIOS = [1];
-
 /** First day of each month in the window, oldest first, ending at `now`'s month. */
 export function rollingMonths(
   now: Date,
@@ -44,9 +39,4 @@ export function monthlyPremiumByType(
   return Array.from(byType, ([type, monthly]) => ({ type, monthly })).filter(
     (row) => row.monthly > 0,
   );
-}
-
-/** Per-month values for one type: its current monthly premium × the estimate profile. */
-export function premiumTrendValues(monthly: number): number[] {
-  return PREMIUM_TREND_RATIOS.map((ratio) => Math.round(monthly * ratio));
 }

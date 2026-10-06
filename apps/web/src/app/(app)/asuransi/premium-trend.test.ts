@@ -1,9 +1,5 @@
 import type { InsuranceDto } from "@wealthme/contracts";
-import {
-  monthlyPremiumByType,
-  premiumTrendValues,
-  rollingMonths,
-} from "./premium-trend";
+import { monthlyPremiumByType, rollingMonths } from "./premium-trend";
 
 function policy(over: Partial<InsuranceDto>): InsuranceDto {
   return {
@@ -32,19 +28,27 @@ function policy(over: Partial<InsuranceDto>): InsuranceDto {
 
 describe("rollingMonths", () => {
   it("ends at the current month, oldest first", () => {
-    const months = rollingMonths(new Date(2026, 9, 7)).map((d) => [
+    const months = rollingMonths(new Date(2026, 9, 7), 6).map((d) => [
       d.getFullYear(),
       d.getMonth(),
     ]);
-    expect(months).toEqual([[2026, 9]]);
+    expect(months).toEqual([
+      [2026, 4],
+      [2026, 5],
+      [2026, 6],
+      [2026, 7],
+      [2026, 8],
+      [2026, 9],
+    ]);
   });
 
   it("crosses the year boundary", () => {
-    const months = rollingMonths(new Date(2026, 1, 28)).map((d) => [
+    const months = rollingMonths(new Date(2026, 1, 28), 6).map((d) => [
       d.getFullYear(),
       d.getMonth(),
     ]);
-    expect(months).toEqual([[2026, 1]]);
+    expect(months[0]).toEqual([2025, 8]);
+    expect(months[5]).toEqual([2026, 1]);
   });
 });
 
@@ -68,13 +72,5 @@ describe("monthlyPremiumByType", () => {
       { type: "jiwa", monthly: 200000 },
       { type: "kesehatan", monthly: 100000 },
     ]);
-  });
-});
-
-describe("premiumTrendValues", () => {
-  it("ends on the real monthly premium", () => {
-    const values = premiumTrendValues(250000);
-    expect(values).toHaveLength(1);
-    expect(values[0]).toBe(250000);
   });
 });

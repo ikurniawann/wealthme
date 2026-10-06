@@ -44,7 +44,7 @@ export function KasSection({
       id: cat.categoryName,
       label: cat.categoryName,
       value: cat.amount,
-      color: cat.color ?? "var(--wm-orange)",
+      color: cat.color ?? EXPENSE_COLOR,
     }),
   );
   // A deficit (expenses > income) would make the destination column bigger
@@ -70,7 +70,7 @@ export function KasSection({
             id: "__deficit",
             label: t.laporan.deficitLabel,
             value: -netSavings,
-            color: "var(--destructive)",
+            color: EXPENSE_COLOR,
           },
         ]
       : sources;
