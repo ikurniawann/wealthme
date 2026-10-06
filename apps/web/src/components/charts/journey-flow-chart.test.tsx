@@ -44,11 +44,16 @@ describe("JourneyFlowChart", () => {
     });
     expect(svg).toBeInTheDocument();
 
-    // One rect per source node, one for the total node, one per
-    // destination node — the drawn shapes stay out of the accessible
-    // name (aria-hidden), so this asserts structure, not duplicate text.
-    const rects = container.querySelectorAll("rect");
-    expect(rects).toHaveLength(sources.length + 1 + destinations.length);
+    // One node rect per source, one for the total node, one per
+    // destination node. Excludes each node's own 2-rect hatch-pattern
+    // definition (its tonal fill) — the drawn shapes stay out of the
+    // accessible name (aria-hidden), so this asserts structure, not
+    // duplicate text.
+    const allRects = container.querySelectorAll("rect");
+    const patternRects = container.querySelectorAll("pattern rect");
+    expect(allRects.length - patternRects.length).toBe(
+      sources.length + 1 + destinations.length,
+    );
 
     // One flowing ribbon per source and per destination.
     const paths = container.querySelectorAll("path");

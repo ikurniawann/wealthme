@@ -1,6 +1,12 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 
 /**
  * "Arus Kas" journey-flow chart (2026-10-06) — a from-scratch, two-stage
@@ -12,6 +18,18 @@ import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
  * `--ctext`/`--cgrid` CSS vars as `bento-charts.tsx`, same "measure the
  * real box, draw in real pixels" approach (own copy, not importing that
  * file's private helpers) so labels stay crisp at any card size.
+ *
+ * Bolder pass (2026-10-06): the first version drew every ribbon as a flat
+ * same-hue fill at a single low opacity, so a column of same-side nodes
+ * (every real category falls back to the same two brand tones — WealthMe
+ * deliberately keeps "lime is the single brand accent") fused into one
+ * undifferentiated blob instead of reading as distinct flows. This now
+ * reuses the chart library's own signature device — the diagonal hatch
+ * fill `bento-charts.tsx`'s `HatchedBarChart`/`HatchedAreaChart` already
+ * use everywhere else in this app — plus a same-hue tonal ramp
+ * (`color-mix` against the existing brand tokens, never a new color) so
+ * each ribbon in a stack is visually distinct without leaving the
+ * system's two-hue (income/expense) vocabulary.
  */
 
 export type FlowNode = {
@@ -48,6 +66,39 @@ const STRONG: CSSProperties = {
   fontSize: 11,
   fontWeight: 600,
 };
+
+/**
+ * Same diagonal-stripe recipe as `bento-charts.tsx`'s private `Hatch` —
+ * duplicated rather than imported (that file's helpers aren't exported;
+ * see the file header), one definition per node so each hatched ribbon
+ * can carry its own tonal shade (see `shade` below).
+ */
+function Hatch({ id, color }: { id: string; color: string }) {
+  return (
+    <pattern
+      id={id}
+      width="8"
+      height="8"
+      patternUnits="userSpaceOnUse"
+      patternTransform="rotate(45)"
+    >
+      <rect width="8" height="8" fill={color} />
+      <rect width="2" height="8" fill="rgba(255,255,255,.26)" />
+    </pattern>
+  );
+}
+
+/**
+ * A same-hue tonal ramp so a stack of nodes that all fall back to the same
+ * brand color (the common case — most categories carry no COA color) still
+ * reads as distinct bands. Mixes the existing token against the card
+ * background via `color-mix`, never introduces a new hex value.
+ */
+function shade(color: string, index: number, count: number): string {
+  if (count <= 1) return color;
+  const pct = 100 - index * (45 / Math.max(1, count - 1));
+  return `color-mix(in oklab, ${color} ${pct}%, var(--cbg))`;
+}
 
 /** Stacked vertical positions for a column of nodes, each sized by value. */
 function layoutColumn(
@@ -131,6 +182,7 @@ export function JourneyFlowChart({
   className?: string;
 }) {
   const { ref, box } = useBox();
+  const uid = useId().replaceAll(":", "");
 
   if (sources.length === 0 && destinations.length === 0) return null;
 
@@ -207,9 +259,38 @@ export function JourneyFlowChart({
               let cursorLeft = midTop;
               let cursorRight = midTop;
 
+              // Same-hue tonal ramp per column — the fix for the flat,
+              // undifferentiated-blob look: every real category falls back
+              // to the same two brand tones, so without this every ribbon
+              // on a side rendered as one indistinguishable mass.
+              const leftShades = left.map((n, i) =>
+                shade(n.color, i, left.length),
+              );
+              const rightShades = right.map((n, i) =>
+                shade(n.color, i, right.length),
+              );
+
               return (
                 <>
-                  {left.map((node) => {
+                  <defs>
+                    {left.map((node, i) => (
+                      <Hatch
+                        key={`hl-${node.id}`}
+                        id={`${uid}-l${i}`}
+                        color={leftShades[i]}
+                      />
+                    ))}
+                    {right.map((node, i) => (
+                      <Hatch
+                        key={`hr-${node.id}`}
+                        id={`${uid}-r${i}`}
+                        color={rightShades[i]}
+                      />
+                    ))}
+                    <Hatch id={`${uid}-total`} color={totalColor} />
+                  </defs>
+
+                  {left.map((node, i) => {
                     const height = node.y1 - node.y0;
                     const y0 = cursorLeft;
                     const y1 = cursorLeft + height;
@@ -225,12 +306,14 @@ export function JourneyFlowChart({
                           y0,
                           y1,
                         )}
-                        fill={node.color}
-                        opacity={0.35}
+                        fill={leftShades[i]}
+                        opacity={0.55}
+                        stroke={leftShades[i]}
+                        strokeWidth={1}
                       />
                     );
                   })}
-                  {right.map((node) => {
+                  {right.map((node, i) => {
                     const height = node.y1 - node.y0;
                     const y0 = cursorRight;
                     const y1 = cursorRight + height;
@@ -246,8 +329,10 @@ export function JourneyFlowChart({
                           node.y0,
                           node.y1,
                         )}
-                        fill={node.color}
-                        opacity={0.35}
+                        fill={rightShades[i]}
+                        opacity={0.55}
+                        stroke={rightShades[i]}
+                        strokeWidth={1}
                       />
                     );
                   })}
@@ -260,9 +345,9 @@ export function JourneyFlowChart({
                         <rect
                           x={leftX}
                           y={node.y0}
-                          width={nodeW}
+                          width={nodeW + 2}
                           height={Math.max(1, node.y1 - node.y0)}
-                          fill={node.color}
+                          fill={`url(#${uid}-l${i})`}
                           rx={2}
                         />
                         {Math.abs(labelCenter - nodeCenter) > 1 && (
@@ -296,11 +381,11 @@ export function JourneyFlowChart({
                   })}
 
                   <rect
-                    x={midX - nodeW}
+                    x={midX - nodeW - 1}
                     y={midTop}
-                    width={nodeW * 2}
+                    width={nodeW * 2 + 2}
                     height={Math.max(1, midBottom - midTop)}
-                    fill={totalColor}
+                    fill={`url(#${uid}-total)`}
                     rx={2}
                   />
                   <text
@@ -326,11 +411,11 @@ export function JourneyFlowChart({
                     return (
                       <g key={`rn-${node.id}`}>
                         <rect
-                          x={rightX - nodeW}
+                          x={rightX - nodeW - 2}
                           y={node.y0}
-                          width={nodeW}
+                          width={nodeW + 2}
                           height={Math.max(1, node.y1 - node.y0)}
-                          fill={node.color}
+                          fill={`url(#${uid}-r${i})`}
                           rx={2}
                         />
                         {Math.abs(labelCenter - nodeCenter) > 1 && (
