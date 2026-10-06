@@ -1387,9 +1387,8 @@ export default function AsuransiPage() {
 
   // EPIC-025 N3-F3 — coverage-by-type donut (FOLD): derived from the
   // already-fetched `insurances` list, same coverageAmount PolicyCard
-  // already renders per row. The premium trend uses the real current monthly
-  // premium as its anchor and a conservative 6-month projection so the page
-  // keeps the prototype's decision-support shape until premium history exists.
+  // already renders per row. The premium trend bar shows current month only
+  // (no fabricated history) until real payment history exists.
   const coverageByType = new Map<string, bigint>();
   for (const item of insurances ?? []) {
     if (!item.coverageAmount) continue;
