@@ -76,6 +76,7 @@ export function HeroStatsSection({
     monthExpense,
     accountTypeCount,
   } = data;
+  const isError = data.isError ?? false;
   const money = (v: number) =>
     formatInDisplayCurrency(v, displayCurrency, {
       formatIdr: moneyIdr,
@@ -105,12 +106,15 @@ export function HeroStatsSection({
       className="rk2-hero private-scope"
       currency={null}
       value={
-        <span className="private">{isLoading ? "..." : money(netWorth)}</span>
+        <span className="private">
+          {isError ? "—" : isLoading ? "..." : money(netWorth)}
+        </span>
       }
       caption={
         <span className="private rk2-hero-cap">
           <span>{t.ringkasan.totalNetWorthLabel}</span>
           {!isLoading &&
+            !isError &&
             (() => {
               // Shared delta rule (lib/delta.ts): arrow = direction of the
               // month's net change, colour + sr-only text = valence.
