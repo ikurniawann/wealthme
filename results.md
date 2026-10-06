@@ -1,5 +1,47 @@
 # Task loop results
 
+## 2026-10-06 — Arc UI Batch 5 (charts and feature composition): retain-all, no code change
+
+- Result: PASS. No implementation change — this batch is a confirmation
+  pass, not a migration.
+- Map updated (`docs/architecture/uiarc-component-map.md`, 1 row): only
+  `charts/chart-error.tsx` was not already `retain`. All six Apex/Bento
+  chart rows (`charts/apex-base.tsx`, `charts/apex-options.ts`,
+  `charts/apex-presets.tsx`, `charts/bento-charts.tsx`,
+  `charts/donut.tsx`, plus `wm/bento.tsx` HatchedBar/CompositionItem/
+  CompositionStack) were already `retain` before this session — correct
+  per the task's own directive ("retain all Apex/Bento charts until there
+  is proof of Rupiah-format parity, accessible labels, legend, and
+  tooltip"); left untouched.
+- `charts/chart-error.tsx` (`ChartError`/`ChartErrorBoundary`, tagged
+  "alert", was `adapt`) → `retain`. Evidence (fetched live from
+  `https://uiarc.dev/components/alert/markdown`): Arc's alert is a static
+  presentational component (`title`/`tone`/`children`/`open`/
+  `onDismiss`) that its own docs say explicitly "does not integrate with
+  React error boundaries" — `ChartErrorBoundary`'s class-component
+  catch/fallback logic (the actual thing being preserved per the map's
+  original reason text) has no Arc equivalent at all. `motion` +
+  `lucide-react` are already installed, but the only adoptable piece
+  (title crossfade, dismiss-collapse animation) has no product value for
+  a rare, non-dismissible chart-failure card — not a meaningful change,
+  so marked retain with reason per the task's own rule ("a change that
+  only adds markers or changes nothing is not a migration").
+- Page-local composition (the task's closing Batch 5 item): no page-level
+  composition migration was performed, and none was warranted. Batches
+  2-4 retained nearly every candidate; the only two real UI changes
+  across the whole initiative were `Segmented`'s sliding indicator
+  (Batch 3, pure internal implementation — no caller API changed) and
+  `SearchDialog`'s clear button (Batch 4, additive — no caller API
+  changed). No component's public interface changed in Batches 2-5, so
+  there is no page (transaction, account, settings, or otherwise) that
+  needs updating to adopt a new shared-component shape. This is the
+  correct outcome of "only change when meaningful and safe," not a
+  shortfall.
+- Verification: no code changed beyond the single map-row text edit, so
+  no Jest/tsc/lint/Prettier/browser check applies to this batch; the
+  table-structure checks from Batches 2-4 (10-cell rows, 91-row count
+  unchanged, `git diff --check` clean) were re-run and are clean.
+
 ## 2026-10-06 — Arc UI Batch 4 (cards, shell, navigation): one adapt (SearchDialog clear button), rest retain with evidence
 
 - Result: PASS.
