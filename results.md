@@ -1,5 +1,16 @@
 # Task loop results
 
+## 2026-10-06 — Arc UI Batch 2 (overlays and menus): provisional, unverified read-only assessment
+
+- Result: PARKED before any edit; the user asked to push current work and continue from the server.
+- Inspected: `ui/dialog`, `ui/sheet`, `ui/dropdown-menu`, `ui/context-menu`, `ui/tooltip`, `wm/info-tip` (Base UI popover), `wm/context-menu`, `wm/detail-panel`, `wm/financial-dialog`, `shell/notifications-popover`, `shell/nav-sheet`, `shell/search-dialog`, and the live Arc docs (`dialog`, `popover`, `dropdown-menu`, `context-menu`, `tooltip`, `drawer`, `bottom-sheet`).
+- Provisional decisions (no implementation, none verified in a browser):
+  - dialog, sheet, drawer/bottom-sheet: retain. Arc uses Radix + `motion` + spring/drag; WealthMe geometry is owned by `.dialog`/`.wm-panel` in `bento.css`/`design-system.css` and the Base UI valueless `data-open` landmine applies.
+  - popover (InfoTip, notifications): retain. Arc popover is Radix; Base UI popover/menu already provides focus return and Escape.
+  - dropdown-menu, tooltip: retain/adapt candidate. Only a visual motion or reduced-motion pass is plausible; no API change needed.
+  - context-menu: retain. Base UI already provides right-click, long-press and `render`; Arc's own click-opens-menu rule would break row click actions.
+- Existing coverage gap worth closing first on the server: no `ui/dialog`, `ui/dropdown-menu` or `ui/tooltip` behavior tests (Escape, focus restore, disabled); only `wm/context-menu.test.tsx` exists. `context-menu.test.tsx` also asserts a `duration-200` class, which is implementation-coupled.
+
 ## 2026-10-06 — Arc UI Batch 1, GhostButton press feedback
 
 - Result: PASS for the scoped behavior and styling change.
