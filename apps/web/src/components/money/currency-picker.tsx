@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 
 import { CURRENCIES, type CurrencyCode } from "@/hooks/currencies";
 import { useLocale } from "@/hooks/use-locale";
@@ -61,7 +61,6 @@ export function MoneyCurrencyPicker({
                   {t.akun.pengaturan.currencies[currency.code].name}
                 </span>
               </span>
-              <Check aria-hidden="true" className="size-4 shrink-0" />
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
