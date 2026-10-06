@@ -224,22 +224,32 @@
     gap: 8px;
     margin-left: auto;
   }
+  /* "ini jelek juga" (2026-10-06) — against the dark hero gradient,
+     `var(--wm-line)` resolves to `rgb(238 240 232 / 0.12)` (`.wm-dark`'s
+     override): a 12%-opacity near-white 1px border reads as nearly
+     invisible, so this button had no real surface next to the select's
+     visible pill and the solid-lime Print PDF button beside it — not a
+     deliberate "two primary, one quiet" hierarchy, just one control that
+     accidentally had no chrome. Gives it the same translucent-white fill
+     this class's own `:hover` state already uses (now a dimmer resting
+     value, brighter on hover) instead of inventing a new surface color. */
   .lp-cbtn {
     display: inline-flex;
     align-items: center;
     gap: 7px;
     min-height: 40px;
     padding: 0 13px;
-    border: 1px solid var(--wm-line);
+    border: 1px solid rgb(238 240 232 / 0.16);
     border-radius: 12px;
-    background: transparent;
+    background: rgb(255 255 255 / 0.05);
     color: var(--wm-ink);
     font-size: var(--wm-type-13);
     font-weight: 600;
     cursor: pointer;
   }
   .lp-cbtn:hover {
-    background: rgb(255 255 255 / 0.06);
+    border-color: rgb(238 240 232 / 0.24);
+    background: rgb(255 255 255 / 0.1);
   }
   .lp-cbtn[data-lit] {
     border-color: var(--wm-lime);
