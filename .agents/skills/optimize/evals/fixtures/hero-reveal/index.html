@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Northbound — Built for the long way round</title>
+<style>
+  :root { --bg: #f1ece2; --fg: #1d1b18; --accent: #c2410c; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--fg); font: 17px/1.55 Georgia, 'Times New Roman', serif; }
+  nav { display: flex; justify-content: space-between; padding: 22px 6vw; font: 600 13px/1 system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; }
+  .hero { min-height: 88vh; display: grid; align-content: center; padding: 0 6vw; }
+  .hero h1 { font-size: clamp(52px, 11vw, 150px); line-height: .96; letter-spacing: -.035em; font-weight: 400; max-width: 11ch; }
+  .hero h1 em { color: var(--accent); }
+  .hero p { margin-top: 26px; max-width: 38ch; }
+  .cta { display: inline-block; margin-top: 30px; padding: 14px 26px; border-radius: 999px; background: var(--fg); color: var(--bg); text-decoration: none; font: 600 14px/1 system-ui, sans-serif; }
+  /* Hidden until the reveal runs, so it never flashes in unstyled. */
+  .hero h1, .hero p, .cta { opacity: 0; }
+  .story { padding: 14vh 6vw; display: grid; gap: 8vh; }
+  .story article { max-width: 46ch; }
+  .story h2 { font-size: clamp(28px, 4.5vw, 52px); font-weight: 400; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<nav><span>Northbound</span><span>Menu</span></nav>
+<header class="hero">
+  <h1>Built for the <em>long</em> way round.</h1>
+  <p>Touring frames hand-brazed in Leeds, specced for the road you haven't planned yet.</p>
+  <a class="cta" href="#story">See the frames</a>
+</header>
+
+<section class="story" id="story">
+  <article><h2>Steel that forgives.</h2><p>Reynolds 853 tubing soaks up a thousand kilometres of chip seal so your wrists don't have to.</p></article>
+  <article><h2>Room for everything.</h2><p>Three bottle mounts, rack eyelets front and back, clearance for 50 mm tyres with guards.</p></article>
+  <article><h2>Made to order.</h2><p>Every frame is measured to its rider. Twelve weeks from fitting to first ride.</p></article>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.13.0/ScrollTrigger.min.js" defer></script>
+<script>
+  // Signature moment: once everything has loaded, the headline drifts up out of the page,
+  // then the copy and the button follow.
+  window.addEventListener('load', () => {
+    gsap.registerPlugin(ScrollTrigger);
+    gsap.timeline({ delay: 0.6, defaults: { ease: 'power3.out' } })
+      .fromTo('.hero h1', { opacity: 0, y: 60 }, { opacity: 1, y: 0, duration: 1.6 })
+      .fromTo('.hero p', { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 1 }, '-=1')
+      .fromTo('.cta', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.8 }, '-=0.7');
+
+    gsap.utils.toArray('.story article').forEach((el) => {
+      gsap.from(el, { opacity: 0, y: 40, duration: 1, ease: 'power2.out', scrollTrigger: { trigger: el, start: 'top 85%' } });
+    });
+  });
+</script>
+</body>
+</html>

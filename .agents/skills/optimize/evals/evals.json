@@ -1,0 +1,61 @@
+{
+  "skill_name": "optimize",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "The collection section on our landing page (evals/fixtures/gsap-scroll/index.html) stutters really badly when I scroll on my phone. The client loves the drifting dust and the way the cards open up, so keep the look, just make it smooth.",
+      "expected_output": "Measures a scroll flow on the mobile profile before editing, traces the jank to layout reads interleaved with style writes inside the ScrollTrigger onUpdate (not to GSAP itself, even though attribution names ScrollTrigger.min.js), moves the dust with transforms after a single read, re-measures with the same flow, confirms the look is unchanged from captures, and raises the card width animation's CLS as a design trade-off instead of silently changing it.",
+      "files": ["evals/fixtures/gsap-scroll/index.html"],
+      "expectations": [
+        "Measured scroll performance with a tool run (script, trace or profiler, not just reading code) before editing any code",
+        "Identified layout reads inside the ScrollTrigger onUpdate callback (offsetHeight/offsetTop/getBoundingClientRect interleaved with style writes) as the cause, not GSAP or ScrollTrigger themselves",
+        "The fix stops forcing a layout per element per frame (reads hoisted out of the loop, cached, or the dust moved off layout properties)",
+        "The hero word reveal, the pinned gallery, the card width and opacity effect, and the dust parallax all still exist in the final file",
+        "No global animation kill, no prefers-reduced-motion rule used for performance, and no blanket will-change was added",
+        "Re-measured the same scenario after the fix and reported before/after numbers (for example dropped frames, frame time or long frames)",
+        "Did not silently replace the card width animation with scale or transform; either left it alone or raised its CLS as a trade-off for the user",
+        "Checked the look is unchanged with before/after captures (screenshots or video) or a reviewer, not only by reading code",
+        "No measurement artifacts (traces, videos, screenshots, perf folders, copies of the original page) are left inside the folder that gets deployed"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Lighthouse says LCP is bad on mobile for evals/fixtures/hero-reveal/index.html. Fix it, but don't mess with the hero animation; the client loves how the headline floats up.",
+      "expected_output": "Measures LCP, finds the h1 is the LCP element with render delay as nearly all of it, explains the headline stays hidden until GSAP loads, the load event fires and a delay passes, then keeps the upward reveal while starting it sooner and/or painting the headline from the first frame with the motion on transform, tells the user about any visible change, and reports before/after LCP from the same profile.",
+      "files": ["evals/fixtures/hero-reveal/index.html"],
+      "expectations": [
+        "Measured LCP with a tool run (not just reading code) before editing, and identified the h1 as the LCP element",
+        "Explained that the headline is hidden (opacity 0) until GSAP loads and the load event plus a delay pass, so LCP waits for the reveal",
+        "The headline still visibly rises into place in the final file (the animation was not deleted)",
+        "Started the reveal earlier (no wait for load, no pre-delay on the headline) and/or painted the headline at first paint with its motion carried by transform",
+        "Told the user about any visible change to the reveal (for example the headline no longer fading) instead of making it silently",
+        "Did not use a near-zero starting opacity (such as 0.01) or similar trick to game LCP",
+        "Reported before/after LCP measured with the same profile",
+        "After the fix the LCP element is still the headline, or the report explicitly says LCP now measures a different element and why that number is misleading",
+        "The headline can no longer be left invisible when a script fails to load, or the report flags that risk",
+        "No measurement artifacts (traces, videos, screenshots, perf folders, copies of the original page) are left inside the folder that gets deployed"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Our product page scroll animation (evals/fixtures/scroll-sequence/index.html, frames in frames/) takes forever to load and keeps crashing Safari on my iPhone. Can you fix it? It's the centrepiece of the launch.",
+      "setup": "node evals/fixtures/scroll-sequence/make-frames.mjs",
+      "expected_output": "Keeps the scroll-scrubbed sequence. Computes decoded memory (150 × 1920 × 1080 × 4 ≈ 1.2 GB) as the likely crash, then works up the ladder: smaller frames and a lighter phone set, progressive or windowed loading and decoding, drawing only on frame change into a DPR-capped canvas, and a scrubbed video only if that still isn't enough. Marks the iPhone result Not verified because desktop can't reproduce it, and says how to test on a device.",
+      "files": [
+        "evals/fixtures/scroll-sequence/index.html",
+        "evals/fixtures/scroll-sequence/make-frames.mjs"
+      ],
+      "expectations": [
+        "Computed or stated the decoded memory of the sequence (frames × width × height × 4 bytes, about 1.2 GB) as the likely cause of the iPhone crash",
+        "Kept a scroll-scrubbed sequence (or an equivalent scrubbed video) instead of replacing it with a static image or removing it",
+        "Reduced the bytes phones download and decode per frame (cropped, resized or re-encoded frames, or a lighter phone set)",
+        "Bounds decoded memory: frames are loaded progressively and not all kept decoded at once (a decode budget with ImageBitmap.close, a byte cap, or an equivalent eviction), or the attempt measured that an explicit bound made peak memory worse and reported it",
+        "Draws only when the frame index changes, and keeps the canvas backing store no larger than needed (at most min(DPR 2, source size)), or the report justifies a larger one",
+        "Did not add loading=\"lazy\" to the frames or defer them as ordinary below-the-fold images",
+        "Stated that desktop measurement can't reproduce the iPhone memory crash, marked it Not verified, and explained how to test on a device",
+        "Measured before and after with a tool run and reported transfer size and/or frame metrics for both",
+        "No measurement artifacts (traces, videos, screenshots, perf folders, copies of the original page) are left inside the folder that gets deployed"
+      ]
+    }
+  ]
+}

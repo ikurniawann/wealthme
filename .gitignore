@@ -73,3 +73,7 @@ graphify-out/
 .agentic/loop.pause
 .claude/worktrees/
 .playwright-cli/
+# Local linked worktrees used for isolated agent changes.
+.worktrees/
+results.tsv
+.scores/

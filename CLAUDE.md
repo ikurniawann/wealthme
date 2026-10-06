@@ -202,6 +202,7 @@ Use MCP tools proactively — they are faster and cheaper than free-form web sea
 | `test-agent`      | `.claude/agents/test-agent.md`                                        | Runs scripts/test.sh + scripts/qa.sh                                                                                                    |
 | `deploy-agent`    | `.claude/agents/deploy-agent.md`                                      | DEV-only deploy via scripts/deploy-dev.sh                                                                                               |
 | `security-agent`  | `.claude/agents/security-agent.md`                                    | Runs scripts/security-check.sh + tenant-scoping (complements `ecc:security-reviewer`)                                                   |
+| `feature-builder` | `.claude/agents/feature-builder.md`                                   | Claude-only builder; Codex runs sequentially.                                                                                           |
 
 > **How the gates use ECC.** The orchestrator/commands run from the main session and invoke the ECC
 > reviewers directly (sub-agents cannot spawn sub-agents). Generic React/TS/security quality is done by
@@ -216,10 +217,15 @@ Use MCP tools proactively — they are faster and cheaper than free-form web sea
 
 ### Custom Commands
 
-| Command        | File                              | Purpose                                                                              |
-| -------------- | --------------------------------- | ------------------------------------------------------------------------------------ |
-| `/orchestrate` | `.claude/commands/orchestrate.md` | Task-first routing, context trimming, batching, verification, and bounded escalation |
-| `/orchestrate` | `.claude/commands/orchestrate.md` | Route a task through the smallest useful workflow and verify it                      |
+| Command                | File                                          | Purpose                                                                   |
+| ---------------------- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| `/orchestrate`         | `.claude/commands/orchestrate.md`             | Route a task through the smallest useful workflow and verify it           |
+| `/task-loop`           | `.claude/commands/task-loop.md`               | WealthMe's bounded checks-first feature/defect loop                       |
+| `/build`               | `.claude/skills/build/SKILL.md`               | Optional Claude-only Karpathy-style feature loop                          |
+| `/autoloop`            | `.claude/skills/autoloop/SKILL.md`            | Optional Claude-only coached feature loop                                 |
+| `/write-checks`        | `.claude/skills/write-checks/SKILL.md`        | Draft checks before feature implementation                                |
+| `/design-orchestrator` | `.claude/skills/design-orchestrator/SKILL.md` | Route UI work to installed skills; external sibling names are unavailable |
+| `/headstart`           | `.claude/skills/headstart/SKILL.md`           | Project strategy and research, with a gated prior-art pass                |
 
 ---
 
@@ -512,3 +518,17 @@ by `/domain-modeling` — their absence is not a problem to flag. See
 
 > No triage labels are configured: the `triage` skill is not installed in this
 > project. Add `docs/agents/triage-labels.md` if that changes.
+
+### Imported skills and workflow templates
+
+- Use `docs/agentic/ASSET-CATALOG.md` to choose among the installed design and
+  workflow skills; invoke Claude project skills through their `/skill-name`
+  command where applicable. Claude commands and agents are Claude-only.
+- For Codex, use the parallel portable skill at `.agents/skills/<name>/SKILL.md`
+  and follow it in the main session; do not claim that Codex can invoke Claude
+  slash commands or `.claude/agents` subagents.
+- The shared task-first start remains `/orchestrate "<task>"` here and
+  `$orchestrate <task>` in Codex. `/task-loop` is the WealthMe default for
+  bounded features/defects; imported Karpathy loop commands are optional.
+- Generic development prompt templates are in `docs/agentic/templates/`;
+  they must be adapted to the task and never impose example-project scope.

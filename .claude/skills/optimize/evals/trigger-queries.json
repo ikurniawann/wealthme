@@ -1,0 +1,122 @@
+[
+  {
+    "query": "my landing page scroll animation stutters on my iphone, can you fix it without killing the animation",
+    "should_trigger": true
+  },
+  {
+    "query": "Lighthouse mobile score is 38 and LCP is 6.1s, help",
+    "should_trigger": true
+  },
+  {
+    "query": "the filter dropdown on our dashboard takes like half a second to respond when I click it",
+    "should_trigger": true
+  },
+  {
+    "query": "the page jumps around while it's loading, fonts and images popping in",
+    "should_trigger": true
+  },
+  {
+    "query": "our next.js bundle is massive, can we get the JS down",
+    "should_trigger": true
+  },
+  {
+    "query": "the three.js hero makes my macbook fans spin up and drains the battery",
+    "should_trigger": true
+  },
+  {
+    "query": "before we launch can you do a performance pass? don't strip the motion",
+    "should_trigger": true
+  },
+  {
+    "query": "PageSpeed Insights says INP needs improvement on the product page",
+    "should_trigger": true
+  },
+  {
+    "query": "the image sequence on the product page crashes safari on mobile",
+    "should_trigger": true
+  },
+  {
+    "query": "site feels sluggish on mid-range android phones, not sure why",
+    "should_trigger": true
+  },
+  {
+    "query": "add a GSAP scroll-triggered reveal to the pricing section",
+    "should_trigger": false
+  },
+  {
+    "query": "build a landing page hero with a scroll-scrubbed product video",
+    "should_trigger": false
+  },
+  {
+    "query": "animate the settings modal opening with framer motion",
+    "should_trigger": false
+  },
+  {
+    "query": "our /api/orders endpoint takes 3 seconds, profile the postgres query",
+    "should_trigger": false
+  },
+  {
+    "query": "add prefers-reduced-motion support to the marketing site animations",
+    "should_trigger": false
+  },
+  {
+    "query": "write a design.md from our tailwind config",
+    "should_trigger": false
+  },
+  {
+    "query": "the build fails with a TypeScript error in the Button component",
+    "should_trigger": false
+  },
+  {
+    "query": "make the dashboard table look less cramped",
+    "should_trigger": false
+  },
+  {
+    "query": "reduce the docker image size for our node server",
+    "should_trigger": false
+  },
+  {
+    "query": "clone the hero section from linear.app",
+    "should_trigger": false
+  },
+  {
+    "query": "clicking 'add to cart' freezes the page for like a second on my phone, it's a react app",
+    "should_trigger": true
+  },
+  {
+    "query": "search console says CLS is 0.31 on our homepage, the hero image and the cookie banner shift everything down",
+    "should_trigger": true
+  },
+  {
+    "query": "our vite build spits out a 2.4mb index.js chunk, can you figure out what's in it and split it up",
+    "should_trigger": true
+  },
+  {
+    "query": "the parallax section on our site feels choppy when scrolling in safari",
+    "should_trigger": true
+  },
+  {
+    "query": "why does our marketing site take 8 seconds to show anything on 4g? it's next.js on vercel",
+    "should_trigger": true
+  },
+  {
+    "query": "make the hero on the landing page more dramatic with a staggered text reveal",
+    "should_trigger": false
+  },
+  {
+    "query": "our lambda cold starts are around 2 seconds, can we speed them up",
+    "should_trigger": false
+  },
+  {
+    "query": "convert the product photos in public/img to webp for the new gallery page",
+    "should_trigger": false
+  },
+  {
+    "query": "write a GSAP timeline for the onboarding illustration, three steps with a pause between each",
+    "should_trigger": false
+  },
+  {
+    "query": "the jest test suite takes 4 minutes to run in CI, make it faster",
+    "should_trigger": false
+  }
+]

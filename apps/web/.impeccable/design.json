@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-30T00:00:00.000Z",
+  "title": "Design System: WealthMe",
+  "extensions": {
+    "colorMeta": {
+      "background": {
+        "role": "neutral",
+        "displayName": "Warm Neutral Canvas",
+        "canonical": "#ECEDE8"
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Lime Accent",
+        "canonical": "#9CCB3B"
+      },
+      "forest-start": {
+        "role": "hero",
+        "displayName": "Forest Start",
+        "canonical": "#1A4B3B"
+      },
+      "forest-end": {
+        "role": "hero",
+        "displayName": "Forest End",
+        "canonical": "#0C2B22"
+      },
+      "dark-background": {
+        "role": "neutral",
+        "displayName": "Dark Canvas",
+        "canonical": "#09090A"
+      },
+      "dark-card": {
+        "role": "neutral",
+        "displayName": "Dark Card",
+        "canonical": "#131314"
+      }
+    },
+    "motion": [
+      {
+        "name": "ease-out-smooth",
+        "value": "cubic-bezier(0.32, 0.72, 0, 1)",
+        "purpose": "Short, calm transitions."
+      }
+    ],
+    "breakpoints": [
+      { "name": "phone-dock", "value": "900px" },
+      { "name": "icon-rail-start", "value": "901px" },
+      { "name": "full-sidebar-start", "value": "1440px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Dark Hero",
+      "kind": "card",
+      "refersTo": "dark-hero",
+      "description": "Page opening summary with real data and KPI column.",
+      "html": "<section class=\"ds-hero\"><strong>Rp 0</strong><p>Ringkasan keuangan keluarga</p></section>",
+      "css": ".ds-hero{background:linear-gradient(135deg,#1A4B3B,#0C2B22);color:#EEF0E8;border-radius:18px;padding:20px}.ds-hero strong{font:600 40px/1.1 Sora,sans-serif;font-variant-numeric:tabular-nums}.ds-hero p{color:#A3AA95;font:12px Sora,sans-serif}"
+    },
+    {
+      "name": "Money Input",
+      "kind": "input",
+      "description": "Filled 54px amount control with Rupiah prefix.",
+      "html": "<label class=\"ds-money\"><span>Rp</span><input aria-label=\"Jumlah\" inputmode=\"decimal\"></label>",
+      "css": ".ds-money{display:flex;align-items:center;gap:10px;min-height:54px;padding:0 12px;border-radius:12px;background:#F4F5F1}.ds-money span{border-radius:999px;background:#E4F1C4;padding:4px 9px}.ds-money input{min-width:0;flex:1;border:0;background:transparent;font:14px Sora,sans-serif}.ds-money input:focus-visible{outline:2px solid #9CCB3B;outline-offset:2px}"
+    },
+    {
+      "name": "Account Row",
+      "kind": "custom",
+      "description": "Compact tap-to-edit financial row.",
+      "html": "<div class=\"ds-row\"><span>🏦</span><span><b>Rekening</b><small>Bank utama</small></span><strong>Rp 0</strong></div>",
+      "css": ".ds-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #E2E4DC;font:13px Sora,sans-serif}.ds-row small{display:block;color:#666D5F}.ds-row strong{font-variant-numeric:tabular-nums}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Family Wealth Board",
+    "overview": "A practical, data-led financial workspace for a family. Warm neutrals, one lime accent, forest hero surfaces, and Sora typography establish the visual system.",
+    "keyCharacteristics": [
+      "Real financial data leads",
+      "Sora and tabular money figures",
+      "Compact bento rows and composition charts"
+    ],
+    "rules": [
+      {
+        "name": "The Lime Action Rule",
+        "body": "Use lime for active states and primary actions; keep other surfaces neutral.",
+        "section": "colors"
+      }
+    ],
+    "dos": ["Keep Indonesian copy concise", "Use undo for reversible deletes"],
+    "donts": [
+      "Do not fabricate data",
+      "Do not use mono for money",
+      "Do not use donut charts"
+    ]
+  }
+}

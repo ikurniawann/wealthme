@@ -1,0 +1,26 @@
+{
+  "ANTHROPIC_BASE_URL": {
+    "original": "http://127.0.0.1:8787",
+    "holders": [
+      {
+        "pid": 786490,
+        "start_src": "proc",
+        "start_time": 9172118.0,
+        "port": 8787,
+        "inherited": false
+      }
+    ]
+  },
+  "ENABLE_TOOL_SEARCH": {
+    "original": "true",
+    "holders": [
+      {
+        "pid": 786490,
+        "start_src": "proc",
+        "start_time": 9172118.0,
+        "port": null,
+        "inherited": false
+      }
+    ]
+  }
+}

@@ -1,8 +1,9 @@
 # WealthMe Agent Instructions
 
-This file is the shared operating entry point for WealthMe. Claude Code and
-Codex CLI share the same project contract here; host-specific commands and
-hooks are adapted through the portable skills under `.agents/skills/`.
+This file is the shared operating contract for Claude Code, Codex CLI, and OMP.
+Host adapters may add capabilities, while reusable project routing and
+acceptance criteria live in portable skills under `.agents/skills/` and tracked
+workflow docs.
 
 ## Load Order
 
@@ -11,24 +12,29 @@ Before changing code or workflow docs, read:
 1. `CLAUDE.md` — project operating system, ECC routing, custom agents, gates.
 2. `WM_CONVENTIONS.md` — global WealthMe conventions and web convention pointer.
 3. `apps/web/AGENTS.md` and `apps/web/WM_CONVENTIONS.md` when touching `apps/web`.
-4. `docs/agentic/AGENTIC-WORKFLOW.md` for the tracked Claude Code + Codex
-   workflow used by this pilot project.
+4. `docs/agentic/AGENTIC-WORKFLOW.md` for the tracked, host-neutral workflow
+   shared by Claude Code, Codex CLI, and OMP.
 
 ## Tool Responsibilities
 
-| Tool            | Use for                                                                                                           |
-| --------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Claude Code     | Main development sessions, `/orchestrate`, Claude sub-agents, Ruflo scoping, branch/PR execution                    |
-| Codex CLI       | `$orchestrate`, focused implementation/review, verification, workflow hygiene, branch/PR execution                  |
-| Ruflo / AgentDB | Parallel exploration and reusable memory; copy durable findings into tracked docs                                 |
-| Graphify        | Codebase relationship queries and cached architecture graph when `graphify-out/` exists                           |
+| Tool            | Use for                                                                                                          |
+| --------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Claude Code     | Main development sessions, `/orchestrate`, Claude sub-agents, Ruflo scoping, branch/PR execution                 |
+| Codex CLI       | `$orchestrate`, focused implementation/review, verification, workflow hygiene, branch/PR execution               |
+| OMP             | `orchestrate: <task>` entrypoint; shared workflow and portable project skills through available tools/resolution |
+| Ruflo / AgentDB | Parallel exploration and reusable memory; copy durable findings into tracked docs                                |
+| Graphify        | Codebase relationship queries and cached architecture graph when `graphify-out/` exists                          |
 
 ## Codex Defaults In This Repo
 
 - Start from `docs/` whenever the task references roadmap, epics, backlog, or
   product work.
-- Treat `/orchestrate "<task>"` in Claude Code and `$orchestrate` or `orchestrate:` in Codex CLI as the shared entrypoint for non-trivial work.
-- Use `.agents/skills/orchestrate/SKILL.md` as the portable route → execute → verify → escalate protocol; Claude's `.claude/commands/orchestrate.md` remains a host adapter.
+- Treat `/orchestrate "<task>"` in Claude Code, `$orchestrate <task>` in
+  Codex CLI, and `orchestrate: <task>` in OMP as the shared entrypoint for
+  non-trivial work.
+- Use `.agents/skills/orchestrate/SKILL.md` as the portable route → execute →
+  verify → escalate protocol; Claude's `.claude/commands/orchestrate.md`
+  remains a Claude-specific host adapter.
 - Use a task and acceptance criteria as the unit of work; do not require an
   epic, status field, or epic loop before implementation.
 - Keep workflow changes small and auditable. Do not rewrite `CLAUDE.md` or
@@ -51,13 +57,15 @@ and inspect `git diff` before reporting completion.
 ## GOAT orchestration and cost discipline
 
 This project uses a shared route → execute → verify → escalate loop across
-Claude Code and Codex. The default collaboration mode is deliberately
+Claude Code, Codex CLI, and OMP. The default collaboration mode is deliberately
 specialized:
 
 - Claude Code owns substantial implementation, project subagents, Ruflo
   exploration, branch work, and PR preparation.
 - Codex owns focused review, verification, workflow hygiene, documentation
   normalization, and small scoped patches.
+- OMP uses this same host-neutral contract and its configured tools; use a
+  primary session unless independent subagents are actually available.
 - Use one primary agent for a sequential task. Spawn parallel agents only for
   independent investigations or reviews whose coordination cost is justified.
 - Route simple work to the lightest capable model/effort. Reserve stronger
@@ -129,12 +137,37 @@ claim success from an unverified draft.
 
 ### Host portability
 
-- Do not invoke Claude-only slash commands, Ruflo routes, or Claude-specific RTK hooks from Codex CLI.
-- Use RTK wrappers only when `rtk --help` confirms support for the current host; otherwise run the underlying project command directly.
-- Keep hooks and scripts project-relative. Never commit machine-specific paths such as `/Projects/...`, `/home/stealth/...`, or another user's home directory.
+- Do not invoke Claude-only slash commands, Ruflo routes, or Claude-specific
+  RTK hooks from Codex CLI or OMP; use equivalents only when supported by that host.
+- OMP may use independent agents only through configured subagent tools that
+  are actually available in the current session; otherwise continue sequentially.
 
-### Automatic model routing
+### Claude Code model routing
 
-Start tasks with `claude-route` when model selection should be automatic. It
-uses Sonnet by default and escalates to Opus for auth, security, database,
-migration, architecture, production, tenant, payment, or incident work.
+Use `claude-route` only in Claude Code when its model-routing policy applies.
+OMP follows the model/runtime configured for its session; do not infer the
+provider from login status or claim automatic provider-based routing.
+
+### Skills and source workflow templates
+
+- Start non-trivial work through a host-appropriate entrypoint: Claude Code
+  `/orchestrate "<task>"`, Codex `$orchestrate <task>`, or OMP
+  `orchestrate: <task>`. Read `docs/agentic/ASSET-CATALOG.md` for available
+  skills, prerequisites, and host limits.
+- Use `.agents/skills/orchestrate/SKILL.md` as the shared route → execute →
+  verify → escalate protocol. OMP can load `skill://orchestrate` when that
+  resolver is available; otherwise read the portable file directly.
+- Claude Code loads project skills from `.claude/skills/` and custom agents
+  from `.claude/agents/`; Codex and OMP use portable skills in `.agents/skills/`.
+  OMP may resolve `skill://<name>` when supported; otherwise read
+  `.agents/skills/<name>/SKILL.md`.
+- Claude slash commands and custom subagents are Claude-only. They do not
+  become OMP capabilities by being listed in repository files. In OMP, spawn
+  independent agents only through actually available configured subagent tools;
+  if none are available, keep the work sequential in the primary agent.
+- Use `/task-loop` (Claude) or the equivalent `program.md` workflow (Codex/OMP)
+  as the WealthMe-default bounded loop. Imported `/build`, `/autoloop`, and
+  `/write-checks` skills are supplemental; never use destructive git cleanup
+  or commit automatically.
+- Source prompt templates live under `docs/agentic/templates/`. They are
+  generic examples, not product requirements.
