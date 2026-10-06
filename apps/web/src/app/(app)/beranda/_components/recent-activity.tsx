@@ -8,6 +8,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import type { DashboardSummaryDto } from "@wealthme/contracts";
+import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import { CardLink, SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import type { MoneyFormatters } from "./use-beranda-data";
@@ -25,8 +26,8 @@ const TYPE_ICON: Record<string, LucideIcon> = {
 };
 
 const TYPE_ICON_COLOR: Record<string, string> = {
-  income: "var(--success)",
-  expense: "var(--destructive)",
+  income: INCOME_COLOR,
+  expense: EXPENSE_COLOR,
   transfer: "var(--brand-purple)",
 };
 
