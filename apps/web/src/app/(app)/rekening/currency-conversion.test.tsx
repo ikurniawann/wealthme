@@ -104,8 +104,8 @@ describe("/rekening — Batch C display currency", () => {
   it("converts the account balance when profile.currency is USD", async () => {
     render(<RekeningPage />);
 
-    // 1,000,000 IDR * 0.0000615 = 61.50 -> "≈ $ 61.50", not "Rp 1.000.000".
-    const matches = await screen.findAllByText(/≈\s*\$\s*61\.50/);
+    // 1,000,000 IDR * 0.0000615 = 61,50 -> "≈ US$ 61,50", not "Rp 1.000.000".
+    const matches = await screen.findAllByText(/≈\s*US\$\s*61,50/);
     expect(matches.length).toBeGreaterThan(0);
     expect(screen.queryByText(/^Rp\s*1\.000\.000$/)).not.toBeInTheDocument();
   });

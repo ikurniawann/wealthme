@@ -1,5 +1,6 @@
 import { BentoCard } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
@@ -36,11 +37,11 @@ export function BulananSection({
           action={
             <span className="wm-legend">
               <span>
-                <i style={{ background: "var(--wm-lime)" }} />
+                <i style={{ background: INCOME_COLOR }} />
                 {t.common.income}
               </span>
               <span>
-                <i style={{ background: "var(--wm-orange)" }} />
+                <i style={{ background: EXPENSE_COLOR }} />
                 {t.common.expense}
               </span>
             </span>
@@ -53,15 +54,16 @@ export function BulananSection({
                 {
                   name: t.common.income,
                   data: chartIncome,
-                  color: "var(--wm-lime)",
+                  color: INCOME_COLOR,
                 },
                 {
                   name: t.common.expense,
                   data: chartExpense,
-                  color: "var(--wm-orange)",
+                  color: EXPENSE_COLOR,
                 },
               ]}
               format={(v) => money.formatCompact(v)}
+              formatFull={money.format}
               wide
               ariaLabel={cashflowChartAriaLabel}
             />
@@ -87,7 +89,7 @@ export function BulananSection({
                     <td data-num="true" className="lap-a-pos">
                       {money.format(p.income)}
                     </td>
-                    <td data-num="true" className="lap-a-neg">
+                    <td data-num="true" className="lap-a-exp">
                       {money.format(p.expense)}
                     </td>
                     <td

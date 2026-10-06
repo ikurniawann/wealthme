@@ -11,6 +11,7 @@ import { useApiError } from "@/hooks/use-api-error";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { apiFetch } from "@/lib/api-client";
 import { parseRupiah } from "@/lib/format";
+import { localIsoDate } from "@/lib/local-date";
 import { useMoney } from "@/hooks/use-money";
 import { buildGoalBody } from "@/lib/goals-utils";
 import {
@@ -380,7 +381,7 @@ export default function QuickInputPage() {
   const recentTransactions = recentResponse?.data;
   // Hero chart: the last 7 days of entries (a real per-day count).
   const [weekFrom] = useState(() =>
-    new Date(Date.now() - 6 * 86_400_000).toISOString().slice(0, 10),
+    localIsoDate(new Date(Date.now() - 6 * 86_400_000)),
   );
   const { data: weekResponse } = useQuery<TransactionListResponse>({
     queryKey: [
@@ -476,7 +477,6 @@ export default function QuickInputPage() {
 
   return (
     <BentoGrid className="qi-grid">
-      <h1 className="sr-only">{t.quickinput.pageTitle}</h1>
       <BentoHero
         className="qi-hero"
         currency={null}
@@ -536,10 +536,8 @@ export default function QuickInputPage() {
                   meta={tx.accountName ?? "—"}
                   amount={
                     <span className={inflow ? "wm-pos" : undefined}>
-                      {tx.type === "transfer" ? "" : inflow ? "+" : "−"}
-                      {money
-                        .formatCompact(parseFloat(tx.amount))
-                        .replace("Rp ", "")}
+                      {tx.type === "transfer" ? "" : inflow ? "+" : "-"}
+                      {money.format(parseFloat(tx.amount))}
                     </span>
                   }
                   onClick={() => router.push("/transaksi")}

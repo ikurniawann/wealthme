@@ -31,7 +31,7 @@ export function MoneyCurrencyPicker({
     <DropdownMenu>
       <DropdownMenuTrigger
         className={cn(
-          "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border bg-card px-3 text-[13px] font-bold text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+          "inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full border bg-card px-3 text-[13px] font-bold text-foreground hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring)",
           className,
         )}
         aria-label={t.money.currencyLabel}

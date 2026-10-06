@@ -16,6 +16,7 @@
     .as-grid > .as-tips {
       grid-column: 9 / 13;
       grid-row: 2;
+      align-self: start;
     }
     .as-grid > .as-benef {
       grid-column: 1 / 13;
@@ -134,17 +135,18 @@
     gap: 4px;
     margin-left: auto;
     padding: 0 12px;
-    border: 0;
+    border: 1px solid var(--wm-line);
     border-radius: 999px;
-    background: var(--wm-lime);
-    color: #0b1a0b;
+    background: transparent;
+    color: var(--wm-ink);
     font-size: var(--wm-type-12);
     font-weight: 600;
     min-height: 32px;
     cursor: pointer;
   }
   .as-pay:disabled {
-    background: var(--wm-card-2);
+    border-color: transparent;
+    background: transparent;
     color: var(--wm-muted);
     cursor: not-allowed;
     opacity: 1;
@@ -163,6 +165,19 @@
   }
   .as-opts:hover {
     background: var(--wm-card);
+  }
+  @media (max-width: 720px) {
+    .as-foot .as-detail,
+    .as-foot .as-pay {
+      min-height: 44px;
+    }
+    .as-foot .as-detail {
+      min-width: 44px;
+    }
+    .as-opts {
+      width: 44px;
+      height: 44px;
+    }
   }
   .as-allocated {
     margin-bottom: 8px;

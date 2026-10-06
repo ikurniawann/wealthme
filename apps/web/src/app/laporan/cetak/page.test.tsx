@@ -91,7 +91,7 @@ describe("/laporan/cetak", () => {
       .find((el) => el.tagName === "TD");
     const aprRow = aprCell!.closest("tr")!;
     expect(aprRow.textContent).toContain("—");
-    expect(aprRow.textContent).not.toContain("Rp 0");
+    expect(aprRow.textContent).not.toContain("Rp\u00A00");
   });
 
   it("shows the expense breakdown bar for the top category", async () => {

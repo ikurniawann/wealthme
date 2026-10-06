@@ -1,6 +1,7 @@
 import { useRouter } from "next/navigation";
 import { SectionCard } from "@/components/wm";
 import { formatRupiah } from "@/lib/format";
+import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import { useLocale } from "@/hooks/use-locale";
 import type { PnlDto } from "@wealthme/contracts";
 import "./sections-b.css";
@@ -61,11 +62,11 @@ export function PnlSection({
         action={
           <div className="wm-legend">
             <span>
-              <i style={{ background: "var(--wm-lime)" }} />
+              <i style={{ background: INCOME_COLOR }} />
               {t.laporan.pnl.revenueLabel}
             </span>
             <span>
-              <i style={{ background: "var(--wm-orange)" }} />
+              <i style={{ background: EXPENSE_COLOR }} />
               {t.laporan.pnl.expensesLabel}
             </span>
           </div>
@@ -86,7 +87,7 @@ export function PnlSection({
             label={item.categoryName}
             amount={item.amount}
             share={pnl.revenue > 0 ? (item.amount / pnl.revenue) * 100 : 0}
-            color="var(--wm-lime)"
+            color={INCOME_COLOR}
           />
         ))}
         <div className="lpb-statement-row lpb-statement-subtotal">
@@ -98,7 +99,10 @@ export function PnlSection({
           </div>
         </div>
 
-        <div className="lpb-statement-group mt-4 text-destructive">
+        <div
+          className="lpb-statement-group mt-4"
+          style={{ color: EXPENSE_COLOR }}
+        >
           {t.laporan.pnl.expensesLabel}
         </div>
         {pnl?.expenseBreakdown.map((item) => (
@@ -107,14 +111,17 @@ export function PnlSection({
             label={item.categoryName}
             amount={item.amount}
             share={pnl.expenses > 0 ? (item.amount / pnl.expenses) * 100 : 0}
-            color="var(--wm-orange)"
+            color={EXPENSE_COLOR}
           />
         ))}
         <div className="lpb-statement-row lpb-statement-subtotal">
           <div className="lpb-statement-label">
             {t.laporan.pnl.totalExpensesLabel}
           </div>
-          <div className="lpb-statement-value mono text-destructive">
+          <div
+            className="lpb-statement-value mono"
+            style={{ color: EXPENSE_COLOR }}
+          >
             {pnl ? formatRupiah(pnl.expenses) : "Rp ·"}
           </div>
         </div>

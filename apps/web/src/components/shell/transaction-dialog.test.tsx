@@ -221,6 +221,12 @@ function render(ui: ReactElement) {
   return { ...result, queryClient };
 }
 
+// The dialog remembers the last-used account/category in localStorage; a
+// previous test's save must never preselect anything in the next one.
+beforeEach(() => {
+  window.localStorage.clear();
+});
+
 /**
  * Bento v2: Akun / Kategori are tile radiogroups, the card picker is still a
  * <select>. `pick` chooses an option on either by its value.
@@ -239,28 +245,20 @@ async function pick(
   return user.click(tile);
 }
 
-describe("TransactionDialog, tab-strip scrolls at tablet/desktop, wraps below 400px (batch-3, revised batch-8 item 1)", () => {
-  it("the type-switch tablist scrolls horizontally by default and wraps only under the 400px breakpoint", async () => {
+describe("TransactionDialog, type tabs (one row of four on phones)", () => {
+  it("the type-switch tablist scrolls on tablets/desktop and is one four-column row on phones", async () => {
     render(<TransactionDialog />);
     const tablist = await screen.findByRole("tablist");
     expect(tablist.className).toMatch(/\boverflow-x-auto\b/);
-    // Batch 8 item 1 — "Kartu Kredit" clipped at 390px with no usable
-    // affordance; wrap into extra rows below 400px instead of relying on
-    // scroll-fade alone, matching /kalkulator and /investasi.
-    expect(tablist.className).toMatch(/\bmax-\[720px\]:grid-cols-2\b/);
+    expect(tablist.className).toMatch(/\bmax-\[720px\]:grid-cols-4\b/);
+    expect(tablist.className).not.toMatch(/grid-cols-2/);
     for (const tab of screen.getAllByRole("tab")) {
       expect(tab.className).toMatch(/\bshrink-0\b/);
       expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
     }
   });
 
-  // polish-j batch 7a item 6 — at 390px the strip must keep batch 3's
-  // scroll-fade affordance AND every tab label must stay fully reachable
-  // by scrolling (none clipped/hidden), so this pins both: the fade
-  // container classes on the scroll element itself, and that each tab
-  // (including "Kartu Kredit", the longest label) is a direct, non-wrapped
-  // child of that same scrollable element.
-  it("keeps the scroll-fade affordance and every tab (incl. Kartu Kredit) reachable inside the scroll container", async () => {
+  it("keeps the scroll-fade affordance and every tab reachable inside the strip", async () => {
     render(<TransactionDialog />);
     const tablist = await screen.findByRole("tablist");
     expect(tablist.className).toMatch(/\bscroll-fade-x\b/);
@@ -270,12 +268,22 @@ describe("TransactionDialog, tab-strip scrolls at tablet/desktop, wraps below 40
     expect(tabs).toHaveLength(4);
     for (const tab of tabs) {
       expect(tab.parentElement).toBe(tablist);
-      expect(tab.className).toMatch(/\bshrink-0\b/);
-      expect(tab.className).toMatch(/\bwhitespace-nowrap\b/);
     }
-    expect(
-      screen.getByRole("tab", { name: /Kartu Kredit/ }),
-    ).toBeInTheDocument();
+  });
+
+  it("shows short phone labels while the full names stay the accessible names", async () => {
+    render(<TransactionDialog />);
+    await screen.findByRole("tablist");
+    expect(screen.getByRole("tab", { name: "Pemasukan" })).toHaveTextContent(
+      "Masuk",
+    );
+    expect(screen.getByRole("tab", { name: "Pengeluaran" })).toHaveTextContent(
+      "Keluar",
+    );
+    expect(screen.getByRole("tab", { name: "Transfer" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Kartu Kredit" })).toHaveTextContent(
+      "Kartu",
+    );
   });
 });
 
@@ -341,6 +349,48 @@ describe("TransactionDialog, polish-j batch 7a item 6 (subtitle, pairing, Lampir
       within(details as HTMLElement).getByRole("link", { name: "Atur" }),
     ).toBeInTheDocument();
   });
+
+  // Base UI's own wrap goes through a focus guard + requestAnimationFrame, so
+  // on a page that isn't painting Tab from the last control parked focus on the
+  // guard <span> outside the sheet. The popup wraps synchronously instead.
+  // Tab order follows the visual order: the close button (top-right) comes
+  // first, then the type tabs, ... and Simpan is last.
+  it("wraps Tab from the last control to the first, and Shift+Tab back, synchronously", async () => {
+    render(<TransactionDialog />);
+    const dialog = await screen.findByRole("dialog");
+    const firstTab = within(dialog).getAllByRole("tab")[0];
+    const close = within(dialog).getByRole("button", { name: "Tutup dialog" });
+    const save = within(dialog).getByRole("button", { name: "Simpan" });
+
+    save.focus();
+    expect(fireEvent.keyDown(save, { key: "Tab" })).toBe(false);
+    expect(close).toHaveFocus();
+
+    expect(fireEvent.keyDown(close, { key: "Tab", shiftKey: true })).toBe(
+      false,
+    );
+    expect(save).toHaveFocus();
+
+    // Mid-order Tab is left to the browser.
+    firstTab.focus();
+    expect(fireEvent.keyDown(firstTab, { key: "Tab" })).toBe(true);
+  });
+
+  it("puts the close button before the type tabs and the footer in DOM (tab) order", async () => {
+    render(<TransactionDialog />);
+    const dialog = await screen.findByRole("dialog");
+    const close = within(dialog).getByRole("button", { name: "Tutup dialog" });
+    const firstTab = within(dialog).getAllByRole("tab")[0];
+    const save = within(dialog).getByRole("button", { name: "Simpan" });
+
+    expect(
+      close.compareDocumentPosition(firstTab) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      firstTab.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
 });
 
 describe("TransactionDialog, credit-card tab and transfer category removal (EPIC-023 E3/E4)", () => {
@@ -363,7 +413,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     await user.click(await screen.findByRole("tab", { name: /Kartu Kredit/ }));
 
     // Amount.
-    const amountInput = screen.getByPlaceholderText("250.000");
+    const amountInput = screen.getByPlaceholderText("0");
     await user.type(amountInput, "150000");
 
     // Pick the credit card (liability), NOT an account — `Field` now
@@ -408,7 +458,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     const invalidateSpy = jest.spyOn(queryClient, "invalidateQueries");
 
     await user.click(await screen.findByRole("tab", { name: /Kartu Kredit/ }));
-    await user.type(screen.getByPlaceholderText("250.000"), "150000");
+    await user.type(screen.getByPlaceholderText("0"), "150000");
     const cardSelect = await screen.findByRole("combobox", {
       name: "Kartu Kredit",
     });
@@ -431,7 +481,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
 
     // The prototype opens on Expense by default.
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    await user.type(screen.getByPlaceholderText("250.000"), "50000");
+    await user.type(screen.getByPlaceholderText("0"), "50000");
     const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
@@ -453,7 +503,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     const dateLabel = mockDictionary.shell.transactionDialog.dateLabel;
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    await user.type(screen.getByPlaceholderText("250.000"), "50000");
+    await user.type(screen.getByPlaceholderText("0"), "50000");
     await pick(
       user,
       await screen.findByRole("radiogroup", { name: "Akun" }),
@@ -475,7 +525,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
     expect(
       screen.queryByRole("dialog", { name: dateLabel }),
     ).not.toBeInTheDocument();
-    expect(screen.getByPlaceholderText("250.000")).toHaveValue("50.000");
+    expect(screen.getByPlaceholderText("0")).toHaveValue("50.000");
 
     await user.click(screen.getByRole("button", { name: "Simpan" }));
 
@@ -558,7 +608,7 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     render(<TransactionDialog />);
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    await user.type(screen.getByPlaceholderText("250.000"), "50000");
+    await user.type(screen.getByPlaceholderText("0"), "50000");
     const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
@@ -675,7 +725,7 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     render(<TransactionDialog />);
 
     await user.click(await screen.findByRole("tab", { name: /Pengeluaran/ }));
-    await user.type(screen.getByPlaceholderText("250.000"), "50000");
+    await user.type(screen.getByPlaceholderText("0"), "50000");
     const accountSelect = await screen.findByRole("radiogroup", {
       name: "Akun",
     });
@@ -1068,7 +1118,7 @@ describe("TransactionDialog, receipt scan (EPIC-027 B1-B4)", () => {
           opts?.method === "POST" && String(url).endsWith("/transactions"),
       ),
     ).toBe(false);
-    expect(screen.getByPlaceholderText("250.000")).toHaveValue("58.000");
+    expect(screen.getByPlaceholderText("0")).toHaveValue("58.000");
     expect(
       await screen.findByRole("radiogroup", { name: "Kategori" }),
     ).toHaveAttribute("data-value", "cat-1");
@@ -1671,7 +1721,7 @@ describe("TransactionDialog, receipt upload (EPIC-027 B9-B11)", () => {
 
     // Still nothing written — only the ordinary form is filled in.
     expect(created()).toBe(false);
-    expect(screen.getByPlaceholderText("250.000")).toHaveValue("58.000");
+    expect(screen.getByPlaceholderText("0")).toHaveValue("58.000");
     expect(
       await screen.findByRole("radiogroup", { name: "Kategori" }),
     ).toHaveAttribute("data-value", "cat-1");
@@ -1982,7 +2032,7 @@ describe("TransactionDialog, abandoned scan never steers the dialog (EPIC-027 gr
 
     // The user gives up while it is still decoding.
     await user.click(screen.getByRole("button", { name: "Batal" }));
-    expect(screen.getByPlaceholderText("250.000")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
 
     // …and only THEN does the decode land.
     await act(async () => {
@@ -2002,7 +2052,7 @@ describe("TransactionDialog, abandoned scan never steers the dialog (EPIC-027 gr
       ),
     ).toBe(false);
     expectNoReviewScreen();
-    expect(screen.getByPlaceholderText("250.000")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
 
     fetchSpy.mockRestore();
   });
@@ -2047,7 +2097,7 @@ describe("TransactionDialog, abandoned scan never steers the dialog (EPIC-027 gr
 
     // The request is in flight; the user backs out.
     await user.click(screen.getByRole("button", { name: "Batal" }));
-    expect(screen.getByPlaceholderText("250.000")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("0")).toBeInTheDocument();
 
     await act(async () => {
       finishScan({
@@ -2178,5 +2228,261 @@ describe("TransactionDialog, abandoned scan never steers the dialog (EPIC-027 gr
     expect(screen.queryByText(dict.scanErrorTimeout)).not.toBeInTheDocument();
 
     fetchSpy.mockRestore();
+  });
+});
+
+/**
+ * Record-a-transaction friction: the dialog preselects the last-used account
+ * and category per family group, orders categories by use, reports a missing
+ * required field through aria-disabled + an inline error (never the native
+ * `disabled`), and offers "Simpan & tambah lagi".
+ */
+describe("TransactionDialog, fast recording (last-used defaults, inline validation, save & add another)", () => {
+  const MEMORY_KEY = `wm.txn-memory.${FAMILY_GROUP_ID}`;
+  const TWO_ACCOUNTS = [
+    { id: "acc-1", name: "BCA Tabungan", institution: "BCA" },
+    { id: "acc-2", name: "Mandiri Giro", institution: "Mandiri" },
+  ];
+  const MANY_CATEGORIES = [
+    { id: "cat-a", name: "Belanja", kind: "expense", icon: null },
+    { id: "cat-b", name: "Makan & Minum", kind: "expense", icon: null },
+    { id: "cat-c", name: "Transport", kind: "expense", icon: null },
+    { id: "cat-gaji", name: "Gaji", kind: "income", icon: null },
+  ];
+
+  function serveLists() {
+    mockApiFetch.mockImplementation((url, options) => {
+      if (url.endsWith("/accounts")) return Promise.resolve(TWO_ACCOUNTS);
+      if (url.endsWith("/categories")) return Promise.resolve(MANY_CATEGORIES);
+      return defaultApiFetch(url, options);
+    });
+  }
+
+  function seedMemory(entry: unknown) {
+    window.localStorage.setItem(MEMORY_KEY, JSON.stringify(entry));
+  }
+
+  const radioNames = (group: HTMLElement) =>
+    within(group)
+      .getAllByRole("radio")
+      .map((radio) => radio.getAttribute("aria-label"));
+  const checkedRadios = (group: HTMLElement) =>
+    within(group).queryAllByRole("radio", { checked: true });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockApiFetch.mockImplementation(defaultApiFetch);
+    aiKeyStatus = {
+      configured: false,
+      provider: null,
+      keyHint: null,
+      scanAvailable: false,
+    };
+  });
+
+  it("preselects the remembered account but never the category, and lists categories most-used first", async () => {
+    serveLists();
+    seedMemory({
+      accountId: "acc-2",
+      categoryId: { income: null, expense: "cat-c" },
+      counts: { "cat-c": 3, "cat-b": 1 },
+    });
+    render(<TransactionDialog />);
+
+    const accounts = await screen.findByRole("radiogroup", { name: "Akun" });
+    await within(accounts).findByRole("radio", { name: /Mandiri/ });
+    expect(
+      checkedRadios(accounts).map((radio) => radio.getAttribute("aria-label")),
+    ).toEqual(["Mandiri Giro — Mandiri"]);
+
+    const categories = await screen.findByRole("radiogroup", {
+      name: "Kategori",
+    });
+    await within(categories).findByRole("radio", { name: "Transport" });
+    expect(radioNames(categories)).toEqual([
+      "Transport",
+      "Makan & Minum",
+      "Belanja",
+    ]);
+    expect(checkedRadios(categories)).toHaveLength(0);
+  });
+
+  it("ignores remembered ids that no longer exist and falls back to alphabetical categories", async () => {
+    serveLists();
+    seedMemory({
+      accountId: "acc-gone",
+      categoryId: { income: null, expense: "cat-gone" },
+      counts: { "cat-gone": 9 },
+    });
+    render(<TransactionDialog />);
+
+    const accounts = await screen.findByRole("radiogroup", { name: "Akun" });
+    await within(accounts).findByRole("radio", { name: /Mandiri/ });
+    expect(checkedRadios(accounts)).toHaveLength(0);
+
+    const categories = await screen.findByRole("radiogroup", {
+      name: "Kategori",
+    });
+    await within(categories).findByRole("radio", { name: "Transport" });
+    expect(checkedRadios(categories)).toHaveLength(0);
+    expect(radioNames(categories)).toEqual([
+      "Belanja",
+      "Makan & Minum",
+      "Transport",
+    ]);
+  });
+
+  it("survives corrupt stored data without preselecting anything", async () => {
+    serveLists();
+    window.localStorage.setItem(MEMORY_KEY, "{not json");
+    render(<TransactionDialog />);
+
+    const accounts = await screen.findByRole("radiogroup", { name: "Akun" });
+    await within(accounts).findByRole("radio", { name: /Mandiri/ });
+    expect(checkedRadios(accounts)).toHaveLength(0);
+  });
+
+  it("remembers what a save used: preselects the account, only ranks the category first", async () => {
+    serveLists();
+    const user = userEvent.setup();
+    function Reopen() {
+      const { setTxnOpen } = useShell();
+      return (
+        <button type="button" onClick={() => setTxnOpen(true)}>
+          buka lagi
+        </button>
+      );
+    }
+    render(
+      <>
+        <TransactionDialog />
+        <Reopen />
+      </>,
+    );
+
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Akun" }),
+      "acc-2",
+    );
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Kategori" }),
+      "cat-b",
+    );
+    await user.type(screen.getByPlaceholderText("0"), "25000");
+    await user.click(screen.getByRole("button", { name: "Simpan" }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      JSON.parse(window.localStorage.getItem(MEMORY_KEY) ?? "null"),
+    ).toEqual({
+      accountId: "acc-2",
+      categoryId: { income: null, expense: "cat-b" },
+      counts: { "cat-b": 1 },
+    });
+
+    await user.click(screen.getByRole("button", { name: "buka lagi" }));
+    const accounts = await screen.findByRole("radiogroup", { name: "Akun" });
+    await within(accounts).findByRole("radio", { name: /Mandiri/ });
+    expect(
+      checkedRadios(accounts).map((radio) => radio.getAttribute("aria-label")),
+    ).toEqual(["Mandiri Giro — Mandiri"]);
+    const categories = await screen.findByRole("radiogroup", {
+      name: "Kategori",
+    });
+    expect(radioNames(categories)[0]).toBe("Makan & Minum");
+    expect(checkedRadios(categories)).toHaveLength(0);
+  });
+
+  it("Simpan reports aria-disabled (never native disabled) while required fields are missing, and names the first missing field after an attempt", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    const save = await screen.findByRole("button", { name: "Simpan" });
+    await screen.findByRole("radio", { name: /BCA/ });
+    expect(save).toHaveAttribute("aria-disabled", "true");
+    expect(save).not.toBeDisabled();
+    // Nothing is flagged before the first attempt.
+    expect(screen.queryByText("Isi jumlah")).not.toBeInTheDocument();
+
+    await user.click(save);
+    const amountError = await screen.findByText("Isi jumlah");
+    expect(amountError).toHaveClass("error-text");
+    expect(screen.getByPlaceholderText("0")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(screen.getByPlaceholderText("0")).toHaveFocus();
+    expect(screen.queryByText("Pilih rekening")).not.toBeInTheDocument();
+    expect(
+      mockApiFetch.mock.calls.some(([, opts]) => opts?.method === "POST"),
+    ).toBe(false);
+
+    // With an amount the next missing field (the account) is the one named.
+    await user.type(screen.getByPlaceholderText("0"), "50000");
+    expect(screen.queryByText("Isi jumlah")).not.toBeInTheDocument();
+    expect(await screen.findByText("Pilih rekening")).toHaveClass("error-text");
+    expect(save).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(save);
+    expect(screen.getByRole("radio", { name: /BCA/ })).toHaveFocus();
+
+    await user.click(screen.getByRole("radio", { name: /BCA/ }));
+    expect(save).toHaveAttribute("aria-disabled", "false");
+    expect(screen.queryByText("Pilih rekening")).not.toBeInTheDocument();
+  });
+
+  it("Simpan & tambah lagi saves, keeps the dialog open, clears amount and description, and keeps type, account, category and date", async () => {
+    const user = userEvent.setup();
+    render(<TransactionDialog />);
+
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Akun" }),
+      "acc-1",
+    );
+    await pick(
+      user,
+      await screen.findByRole("radiogroup", { name: "Kategori" }),
+      "cat-1",
+    );
+    await user.type(screen.getByPlaceholderText("0"), "75000");
+    await user.type(screen.getByPlaceholderText("Tulis deskripsi..."), "Kopi");
+
+    await user.click(
+      screen.getByRole("button", { name: "Simpan & tambah lagi" }),
+    );
+
+    await waitFor(() => {
+      const post = mockApiFetch.mock.calls.find(
+        ([url, opts]) =>
+          opts?.method === "POST" && String(url).endsWith("/transactions"),
+      );
+      expect(post).toBeDefined();
+      expect(JSON.parse(String(post?.[1]?.body))).toMatchObject({
+        accountId: "acc-1",
+        categoryId: "cat-1",
+        amount: 75000,
+        description: "Kopi",
+      });
+    });
+    await waitFor(() =>
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        mockDictionary.shell.transactionDialog.savedAddMoreToast,
+      ),
+    );
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("0")).toHaveValue("");
+    expect(screen.getByPlaceholderText("Tulis deskripsi...")).toHaveValue("");
+    expect(screen.getByRole("tab", { name: /Pengeluaran/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByRole("radio", { name: /BCA/ })).toBeChecked();
+    expect(screen.getByRole("radio", { name: "Belanja" })).toBeChecked();
   });
 });

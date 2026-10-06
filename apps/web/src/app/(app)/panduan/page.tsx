@@ -334,7 +334,6 @@ export default function PanduanPage() {
   return (
     <div className="space-y-4" data-page="panduan">
       <BentoGrid className="pd-grid">
-        <h1 className="sr-only">{t.panduan.pageTitle}</h1>
         <section className="wm-card wm-dark pd-hero">
           <div className="pd-top">
             <div>

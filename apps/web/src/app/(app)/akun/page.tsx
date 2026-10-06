@@ -137,6 +137,7 @@ import {
   useAccountTab,
   type AccountTabId,
 } from "./account-tabs";
+import { localIsoDate } from "@/lib/local-date";
 
 type SubPageId =
   | "profil"
@@ -308,7 +309,9 @@ function SetRow({
       <div className="min-w-0 flex-1">
         <div className="text-[13.5px] font-bold text-foreground">{name}</div>
         {sub && (
-          <div className="mt-0.5 text-[12px] text-muted-foreground">{sub}</div>
+          <div className="mt-0.5 text-[12px] text-muted-foreground [overflow-wrap:anywhere]">
+            {sub}
+          </div>
         )}
       </div>
       {right}
@@ -563,7 +566,7 @@ export function ProfilBody({
           value={form.birthDate}
           locale={locale}
           label={t.akun.profil.birthDateLabel}
-          max={new Date().toISOString().slice(0, 10)}
+          max={localIsoDate()}
           onChange={(iso) => update("birthDate", iso)}
         />
       </Field>
@@ -607,7 +610,7 @@ export function ProfilBody({
         />
       </Field>
       <button
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
+        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--commit)] px-4 py-2.5 text-[13.5px] font-semibold text-[var(--commit-foreground)]"
         onClick={() => void handleSave()}
       >
         <Save className="size-4" /> {t.akun.profil.saveButton}
@@ -863,7 +866,7 @@ export function KeamananBody() {
               {t.common.cancel}
             </button>
             <button
-              className="flex-1 rounded-lg bg-primary py-2 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
+              className="flex-1 rounded-lg bg-[var(--commit)] py-2 text-[13px] font-semibold text-[var(--commit-foreground)] disabled:opacity-50"
               disabled={pwLoading || !currentPw || !newPw || !confirmPw}
               onClick={() => void handleChangePassword()}
             >
@@ -1339,7 +1342,7 @@ function localeLabelToValue(label: string): "id" | "en" {
 
 // Hardening batch G1 (P0 honesty) — shared instant-toggle + PATCH
 // /auth/profile mutation for the privacyPrefs map, used by both
-// PengaturanBody's "data" toggles (hideBalance/showDecimal/weeklySummary)
+// PengaturanBody's "data" toggles (hideBalance/weeklySummary)
 // and PrivasiBody's toggles. Same overrides-map + optimistic-rollback shape
 // as KeamananBody's toggleAuthPref above (notificationPrefs), just against
 // the privacyPrefs column instead.
@@ -1348,7 +1351,6 @@ function localeLabelToValue(label: string): "id" | "en" {
 // resolves — only hideBalance/hideFromFamily started life unchecked.
 const PRIVACY_PREF_DEFAULTS: Record<string, boolean> = {
   hideBalance: false,
-  showDecimal: true,
   weeklySummary: true,
   hideFromFamily: false,
   screenshotProtect: true,
@@ -1923,12 +1925,6 @@ export function PengaturanBody({
                 onCheckedChange: togglePrivacyPref("hideBalance"),
               },
               {
-                label: t.akun.pengaturan.showDecimalLabel,
-                sub: t.akun.pengaturan.showDecimalSub,
-                checked: isPrivacyOn("showDecimal"),
-                onCheckedChange: togglePrivacyPref("showDecimal"),
-              },
-              {
                 label: t.akun.pengaturan.weeklySummaryLabel,
                 sub: t.akun.pengaturan.weeklySummarySub,
                 checked: isPrivacyOn("weeklySummary"),
@@ -1988,7 +1984,7 @@ export function PengaturanBody({
                     type="button"
                     onClick={saveGoldPrice}
                     disabled={isGoldPriceUpdating}
-                    className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
+                    className="shrink-0 rounded-md bg-[var(--commit)] px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-[var(--commit-foreground)] disabled:opacity-60"
                   >
                     {t.akun.pengaturan.goldPriceSaveButton}
                   </button>
@@ -2069,7 +2065,7 @@ export function PengaturanBody({
                     type="button"
                     onClick={saveAiKey}
                     disabled={isSettingAiKey || !aiKeyInput.trim()}
-                    className="shrink-0 rounded-md bg-primary px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-primary-foreground disabled:opacity-60"
+                    className="shrink-0 rounded-md bg-[var(--commit)] px-3.5 py-2.5 text-[12.5px] font-semibold whitespace-nowrap text-[var(--commit-foreground)] disabled:opacity-60"
                   >
                     {t.akun.pengaturan.aiKeySaveButton}
                   </button>
@@ -2263,7 +2259,7 @@ export function PengaturanBody({
               </Field>
             </div>
             <button
-              className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
+              className="mt-3.5 flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--commit)] px-4 py-2.5 text-[13.5px] font-semibold text-[var(--commit-foreground)]"
               onClick={save}
             >
               <Save className="size-4" /> {t.akun.pengaturan.saveButton}
@@ -2424,7 +2420,7 @@ export function NotifSettingBody() {
         </p>
       </SetSection>
       <button
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--commit)] px-4 py-2.5 text-[13.5px] font-semibold text-[var(--commit-foreground)]"
         onClick={save}
         disabled={isPending}
       >
@@ -2695,7 +2691,7 @@ function HubungiBody() {
         </div>
         <button
           disabled={!feedback.trim()}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-4 py-2.5 text-[13.5px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
           onClick={handleSendFeedback}
         >
           <Send className="size-4" /> {t.akun.hubungi.feedbackButton}
@@ -2710,7 +2706,7 @@ function TentangBody() {
   return (
     <>
       <div className="px-0 pt-6 pb-5 text-center">
-        <div className="mx-auto mb-3 flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-primary text-[30px] font-black text-primary-foreground">
+        <div className="mx-auto mb-3 flex h-[72px] w-[72px] items-center justify-center rounded-[20px] bg-[#11382c] text-[30px] font-black text-[#eef0e8] ring-1 ring-white/10">
           W
         </div>
         <div className="text-[20px] font-extrabold text-foreground">
@@ -2834,7 +2830,7 @@ const MEMBER_GRADIENTS = [
 /* Anggota row list (akun.html's `.ak-av`) — pastel bg + dark fg instead of
    the vivid two-tone gradients FamilyBody's unreachable legacy rows use. */
 const MEMBER_PASTELS: { bg: string; fg: string }[] = [
-  { bg: "#DDEFB5", fg: "#1F2A07" },
+  { bg: "var(--wm-ghost)", fg: "var(--wm-ink)" },
   { bg: "#FDE2C8", fg: "#7A3A1F" },
   { bg: "#DDEBFD", fg: "#1F3A7A" },
   { bg: "#F5E1FD", fg: "#5A1F7A" },
@@ -2950,7 +2946,7 @@ function FamilyBody({
                   <button
                     type="button"
                     aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                    className="ak-tap flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                     onClick={() => setCategoryLimitMember(m)}
                   >
                     <Target className="size-4" />
@@ -2967,7 +2963,7 @@ function FamilyBody({
                     <button
                       type="button"
                       aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
-                      className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                      className="ak-tap flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                       onClick={() => setThresholdMember(m)}
                     >
                       <Gauge className="size-4" />
@@ -2998,7 +2994,7 @@ function FamilyBody({
         {group?.myRole === "owner" && (
           <Link
             href="/iam"
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-dashed border-primary-strong bg-card px-4 py-2.5 text-[13.5px] font-semibold text-primary-strong hover:bg-secondary"
           >
             <UserCog className="size-4" /> {t.akun.family.manageOnIamLink}
           </Link>
@@ -3537,7 +3533,7 @@ export function FamilyMembersTableCard({
                       <button
                         type="button"
                         aria-label={`${t.akun.family.categoryLimitButton} ${m.name}`}
-                        className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        className="ak-tap flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                         onClick={() => onCategoryLimit(m)}
                       >
                         <Target className="size-4" />
@@ -3548,7 +3544,7 @@ export function FamilyMembersTableCard({
                         <button
                           type="button"
                           aria-label={`${t.akun.family.thresholdButton} ${m.name}`}
-                          className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                          className="ak-tap flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                           onClick={() => onThreshold(m)}
                         >
                           <Gauge className="size-4" />
@@ -3572,7 +3568,7 @@ export function FamilyMembersTableCard({
            a centered text link under the list, not a filled button. */
         <Link
           href="/iam"
-          className="mt-3 flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-primary"
+          className="ak-tap-link mt-3 flex items-center justify-center gap-1.5 text-[12.5px] font-semibold text-primary-strong hover:underline"
         >
           <UserCog className="size-3.5" /> {t.akun.family.manageOnIamLink}
         </Link>
@@ -4355,7 +4351,7 @@ export default function AkunPage() {
                   </div>
                   <button
                     disabled={!feedback.trim()}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-semibold text-primary-foreground disabled:opacity-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-transparent px-4 py-2.5 text-[13.5px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
                     onClick={handleSendFeedback}
                   >
                     <Send className="size-4" /> {t.akun.hubungi.feedbackButton}

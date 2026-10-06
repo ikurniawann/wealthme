@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ChevronDown,
   Plus,
   ArrowDownLeft,
   CreditCard,
@@ -42,7 +43,7 @@ import {
   PanelContent,
 } from "@/components/ui/dialog";
 import { useShell } from "@/components/shell/shell-context";
-import { parseRupiah } from "@/lib/format";
+import { formatAxisCompact, parseRupiah } from "@/lib/format";
 import {
   MoneyInput,
   useMoneyField,
@@ -65,6 +66,7 @@ import {
   ContextMenu,
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import { CategoryIcon } from "@/components/shell/tx-pickers";
 import "./transaksi.css";
 import {
@@ -85,6 +87,7 @@ import {
   type TransactionListResponse,
 } from "@wealthme/contracts";
 import { getActiveTransactionFilterCount } from "./filter-count";
+import { localIsoDate } from "@/lib/local-date";
 
 // EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
 // `app/(app)/dana/page.tsx`'s own copy: never touch lib/api-client.ts.
@@ -402,7 +405,7 @@ export function TxRow({
             onClick={openDetail}
             onKeyDown={handleKeyDown}
             aria-label={`${t.transaksi.detailAriaLabelPrefix}${typeLabel} ${displayName}, ${amountStr}`}
-            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[8px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-[8px] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-(--focus-ring)"
           >
             <IconChip
               icon={txIcon.icon}
@@ -421,12 +424,15 @@ export function TxRow({
             <div className="text-right">
               <div
                 className={
-                  "text-[13.5px] font-bold " +
+                  "text-[13.5px] font-bold tabular-nums whitespace-nowrap " +
                   (isTransfer
                     ? "text-muted-foreground"
                     : isIncome
                       ? "text-success"
-                      : "text-destructive")
+                      : "")
+                }
+                style={
+                  isTransfer || isIncome ? undefined : { color: EXPENSE_COLOR }
                 }
               >
                 {amountStr}
@@ -624,13 +630,14 @@ export function TxTableRow({
         </td>
         <td
           className={cn(
-            "px-3 py-3 text-right align-top font-[family-name:var(--font-mono)] text-[13px] font-bold whitespace-nowrap",
+            "px-3 py-3 text-right align-top text-[13px] font-bold whitespace-nowrap tabular-nums",
             isTransfer
               ? "text-muted-foreground"
               : isIncome
                 ? "text-success"
-                : "text-destructive",
+                : "",
           )}
+          style={isTransfer || isIncome ? undefined : { color: EXPENSE_COLOR }}
         >
           {amountStr}
         </td>
@@ -1219,18 +1226,6 @@ export function EditTransactionDialog({
 
 /* ───────────── bento v2 ───────────── */
 
-/** Axis ticks without the currency: "25 jt", "1,5 M". */
-function compactAxis(value: number): string {
-  const abs = Math.abs(value);
-  const trim = (n: number) =>
-    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  const sign = value < 0 ? "-" : "";
-  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
-  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
-  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
-  return `${sign}${Math.round(abs)}`;
-}
-
 /**
  * Hero chart buckets over the same (type-filtered) rows as the list: weekly
  * when the chosen range is a month or less, otherwise monthly (the last six
@@ -1344,8 +1339,8 @@ export function HistoryRow({
   const amount = parseFloat(tx.amount);
   const isIncome = tx.type === "income";
   const isTransfer = tx.type === "transfer";
-  const plain = money.format(amount).replace(/,00$/, "");
-  const amountStr = isTransfer ? plain : (isIncome ? "+" : "−") + plain;
+  const plain = money.format(amount);
+  const amountStr = isTransfer ? plain : (isIncome ? "+" : "-") + plain;
   const withRoute = isTransfer && !!tx.toAccountName;
   const title = withRoute
     ? (tx.description ?? typeLabels.transfer)
@@ -1450,6 +1445,9 @@ function TransaksiPageInner() {
   const [filter, setFilter] = useState<FilterValue>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  // Phones (<=720px): the hero collapses to net + Pemasukan/Pengeluaran; the
+  // trend chart, transaction count and sub-captions sit behind this toggle.
+  const [heroMore, setHeroMore] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [editTarget, setEditTarget] = useState<TransactionDto | null>(null);
   // EPIC-025 restructure — real filter-card controls wired to the API's own
@@ -1462,8 +1460,8 @@ function TransaksiPageInner() {
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [[todayIso, yesterdayIso]] = useState(() => [
-    new Date().toISOString().slice(0, 10),
-    new Date(Date.now() - 86_400_000).toISOString().slice(0, 10),
+    localIsoDate(),
+    localIsoDate(new Date(Date.now() - 86_400_000)),
   ]);
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -1701,8 +1699,6 @@ function TransaksiPageInner() {
       : 0;
 
   const v2 = t.transaksi.v2;
-  /** Whole-rupiah display: the ",00" adds nothing on a summary figure. */
-  const whole = (n: number) => money.format(n).replace(/,00$/, "");
   const needle = query.trim().toLowerCase();
   const visible = needle
     ? sorted.filter((tx) =>
@@ -1765,7 +1761,7 @@ function TransaksiPageInner() {
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = `transaksi-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `transaksi-${localIsoDate()}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     toast.success(v2.exported.replace("{n}", String(visible.length)));
@@ -1798,17 +1794,18 @@ function TransaksiPageInner() {
     <div className="flex flex-col gap-4">
       <BentoGrid className="tx-grid">
         <BentoHero
-          className="tx-hero"
-          valueAs="h1"
-          currency={isLoading ? null : netBalance < 0 ? "−Rp" : "Rp"}
+          className={cn("tx-hero", heroMore && "tx-hero--more")}
+          currency={isLoading ? null : netBalance < 0 ? "-Rp" : "Rp"}
           value={
-            isLoading ? "…" : whole(Math.abs(netBalance)).replace(/^[^\d]*/, "")
+            isLoading
+              ? "…"
+              : money.format(Math.abs(netBalance)).replace(/^[^\d]*/, "")
           }
           caption={`${netBalance >= 0 ? v2.surplus : v2.deficit} · ${periodLabel}`}
           controls={
             <>
               <GhostButton onClick={exportCsv}>{v2.exportCsv}</GhostButton>
-              <GhostButton lit onClick={() => setTxnOpen(true)}>
+              <GhostButton onClick={() => setTxnOpen(true)}>
                 <Plus aria-hidden="true" /> {v2.record}
               </GhostButton>
             </>
@@ -1826,12 +1823,13 @@ function TransaksiPageInner() {
                   {
                     name: t.transaksi.totalExpenseLabel,
                     data: flow.expense,
-                    color: "var(--wm-orange)",
+                    color: EXPENSE_COLOR,
                   },
                 ]}
                 highlight={flow.peak}
                 format={money.formatCompact}
-                axis={compactAxis}
+                formatFull={money.format}
+                axis={formatAxisCompact}
                 ariaLabel={v2.chartAria}
               />
             ) : null
@@ -1840,14 +1838,12 @@ function TransaksiPageInner() {
             <>
               <HeroKpi
                 label={t.transaksi.totalIncomeLabel}
-                value={isLoading ? "…" : whole(totalIncome)}
-                short={money.formatCompact(totalIncome)}
+                value={isLoading ? "…" : money.format(totalIncome)}
                 delta={<small className="wm-cap">{incomeSubtext}</small>}
               />
               <HeroKpi
                 label={t.transaksi.totalExpenseLabel}
-                value={isLoading ? "…" : whole(totalExpense)}
-                short={money.formatCompact(totalExpense)}
+                value={isLoading ? "…" : money.format(totalExpense)}
                 delta={<small className="wm-cap">{expenseSubtext}</small>}
               />
               <HeroKpi
@@ -1859,6 +1855,15 @@ function TransaksiPageInner() {
                   ) : undefined
                 }
               />
+              <button
+                type="button"
+                className="tx-hero-more"
+                aria-expanded={heroMore}
+                onClick={() => setHeroMore((open) => !open)}
+              >
+                {heroMore ? v2.heroLess : v2.heroMore}
+                <ChevronDown aria-hidden="true" />
+              </button>
             </>
           }
         />
@@ -2043,8 +2048,8 @@ function TransaksiPageInner() {
                 <header>
                   <span>{dayLabel(group.day)}</span>
                   <span className={"wm-num " + (group.net > 0 ? "wm-pos" : "")}>
-                    {group.net > 0 ? "+" : group.net < 0 ? "−" : ""}
-                    {money.formatCompact(Math.abs(group.net))}
+                    {group.net > 0 ? "+" : group.net < 0 ? "-" : ""}
+                    {money.format(Math.abs(group.net))}
                   </span>
                 </header>
                 {group.rows.map((tx) => (

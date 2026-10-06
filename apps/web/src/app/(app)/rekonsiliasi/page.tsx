@@ -2089,7 +2089,6 @@ export default function RekonsiliasiPage() {
           show. Same two header actions and gates as before. */}
       <BentoHero
         className="rk-hero mb-4"
-        valueAs="h1"
         currency={null}
         value={
           totalEntriesCount > 0
@@ -2110,7 +2109,6 @@ export default function RekonsiliasiPage() {
                 </GhostButton>
               )}
               <GhostButton
-                lit
                 onClick={() => {
                   goto(1);
                   handleUploadAreaClick();
@@ -2292,7 +2290,7 @@ export default function RekonsiliasiPage() {
                 className="w-full cursor-pointer rounded-[14px] border-2 border-dashed border-primary/40 bg-accent/40 px-5 py-8 text-center transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-accent">
-                  <CloudUpload className="size-7 text-primary" />
+                  <CloudUpload className="size-7 text-primary-strong" />
                 </div>
                 <div className="mb-1.5 text-[15px] font-bold text-primary-strong">
                   {pdfBusy === "reading"
@@ -2310,7 +2308,7 @@ export default function RekonsiliasiPage() {
                 <div className="mb-4 text-[12.5px] text-muted-foreground">
                   {t.rekonsiliasi.orLabel}
                 </div>
-                <div className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-[11px] text-[13.5px] font-bold text-white">
+                <div className="inline-flex items-center gap-2 rounded-lg border bg-card px-6 py-[11px] text-[13.5px] font-bold text-foreground">
                   <ArrowUpFromLine className="size-4" />{" "}
                   {t.rekonsiliasi.chooseFileButton}
                 </div>
@@ -2555,7 +2553,7 @@ export default function RekonsiliasiPage() {
                 </div>
               </div>
               {selectedBankCode && (
-                <div className="mt-2.5 text-[11.5px] text-primary">
+                <div className="mt-2.5 text-[11.5px] text-primary-strong">
                   {templateBankCodes.has(selectedBankCode)
                     ? t.rekonsiliasi.bankSelectedWithTemplate
                     : t.rekonsiliasi.bankSelectedNoTemplate}
@@ -2594,7 +2592,7 @@ export default function RekonsiliasiPage() {
                   <button
                     type="button"
                     onClick={() => setTemplateManagerOpen(true)}
-                    className="rounded-md bg-primary px-4 py-2 text-[12.5px] font-bold text-white transition-opacity hover:opacity-90"
+                    className="btn btn--outline"
                   >
                     {t.rekonsiliasi.manageTemplatesLink}
                   </button>
@@ -2616,7 +2614,7 @@ export default function RekonsiliasiPage() {
             <button
               type="button"
               onClick={() => setStep(2)}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
+              className="btn btn--primary"
             >
               {t.rekonsiliasi.continueToMatchButton}{" "}
               <ArrowRight className="size-4" />
@@ -2737,7 +2735,7 @@ export default function RekonsiliasiPage() {
             className="mx-auto mb-4 flex size-[72px] items-center justify-center rounded-full border-[3px] border-primary"
             style={{ background: "var(--accent)" }}
           >
-            <Bot className="size-7 text-primary" />
+            <Bot className="size-7 text-primary-strong" />
           </div>
           <div className="mb-1.5 text-[16px] font-extrabold">
             {t.rekonsiliasi.aiReadingTitle}
@@ -2784,7 +2782,7 @@ export default function RekonsiliasiPage() {
               <button
                 type="button"
                 onClick={() => goto(3)}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
+                className="btn btn--primary"
               >
                 {t.rekonsiliasi.continueButton}{" "}
                 <ArrowRight className="size-4" />
@@ -2846,7 +2844,7 @@ export default function RekonsiliasiPage() {
                       onClick={() => setEntryFilter(value)}
                       className={`rounded-md px-3 py-1.5 text-[11.5px] font-semibold transition-colors ${
                         entryFilter === value
-                          ? "bg-primary text-white"
+                          ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:bg-accent"
                       }`}
                     >
@@ -2895,7 +2893,7 @@ export default function RekonsiliasiPage() {
                         importAllMutation.isPending ||
                         importEntryMutation.isPending
                       }
-                      className="btn btn--primary"
+                      className="btn btn--outline"
                     >
                       {importAllMutation.isPending
                         ? t.rekonsiliasi.importAllPendingLabel
@@ -2927,7 +2925,7 @@ export default function RekonsiliasiPage() {
                       type="button"
                       disabled={bulkConfirming}
                       onClick={handleBulkConfirm}
-                      className="btn btn--primary"
+                      className="btn btn--outline"
                     >
                       {bulkConfirming
                         ? t.rekonsiliasi.bulkConfirmPendingLabel
@@ -3094,7 +3092,7 @@ export default function RekonsiliasiPage() {
                                           });
                                         }
                                       }}
-                                      className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-60 [@media(pointer:coarse)]:min-h-11"
+                                      className="rounded-md border bg-card px-2.5 py-1 text-[11px] font-bold text-foreground transition-colors hover:bg-secondary disabled:opacity-60 [@media(pointer:coarse)]:min-h-11"
                                     >
                                       {t.rekonsiliasi.confirmButton}
                                     </button>
@@ -3174,7 +3172,7 @@ export default function RekonsiliasiPage() {
                   <button
                     type="button"
                     onClick={() => goto(4)}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-[12.5px] font-bold text-white transition-opacity hover:opacity-90"
+                    className="btn btn--primary"
                   >
                     <Save className="size-3.5" />{" "}
                     {t.rekonsiliasi.saveReconciliationButton}
@@ -3241,7 +3239,7 @@ export default function RekonsiliasiPage() {
                 autoMatchMutation.reset();
                 goto(1);
               }}
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-[13.5px] font-bold text-white transition-opacity hover:opacity-90"
+              className="btn btn--primary"
             >
               <RotateCw className="size-4" />{" "}
               {t.rekonsiliasi.newReconciliationButton}

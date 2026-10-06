@@ -18,6 +18,7 @@ import type { ReportSummaryDto } from "@wealthme/contracts";
 import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { formatRupiah } from "@/lib/format";
+import { localIsoDate } from "@/lib/local-date";
 
 type FamilyGroupMine = { id: string; name: string };
 
@@ -92,8 +93,7 @@ function LaporanCetakContent() {
   const familyGroupId = session?.familyGroupId ?? "";
 
   const months = Number(params.get("months") ?? "6") || 6;
-  const endDate =
-    params.get("endDate") ?? new Date().toISOString().slice(0, 10);
+  const endDate = params.get("endDate") ?? localIsoDate();
 
   const [summary, setSummary] = useState<ReportSummaryDto | null>(null);
   const [familyName, setFamilyName] = useState<string>("");

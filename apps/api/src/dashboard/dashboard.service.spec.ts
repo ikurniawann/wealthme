@@ -701,3 +701,108 @@ describe("DashboardService net-worth history — live today point", () => {
     });
   });
 });
+
+// Beranda's hero "Pengeluaran" (`currentMonth.expense`) and its "Analisis
+// pengeluaran" bento (`currentMonth.expenseByCategory`) MUST be one number.
+// The bento used to sum the first 100 rows of a client-side transaction list
+// by `type === "expense"`, which both truncated past 100 rows and counted
+// wealth-allocation rows (debt principal) the hero excludes.
+describe("DashboardService month spending breakdown", () => {
+  const NOW = new Date();
+
+  function tx(
+    id: string,
+    categoryId: string | null,
+    amount: bigint,
+    type: FakeTransaction["type"],
+  ): FakeTransaction {
+    return {
+      id,
+      accountId: "acc-visible",
+      categoryId,
+      amount,
+      type,
+      description: null,
+      occurredAt: NOW,
+      createdAt: NOW,
+    };
+  }
+
+  async function summaryFor(transactions: FakeTransaction[]) {
+    const { accounts } = buildFixtures();
+    const categories: FakeCategory[] = [
+      {
+        id: "cat-food",
+        name: "Makan",
+        isPrivate: false,
+        coaAccount: { direction: "EXPENSE" },
+      },
+      {
+        id: "cat-transport",
+        name: "Transport",
+        isPrivate: false,
+        coaAccount: { direction: "EXPENSE" },
+      },
+      // Debt principal repayment: stored as type "expense" but mapped to a
+      // TRANSFER-direction COA account — not spending.
+      {
+        id: "cat-debt",
+        name: "Utang — Pokok",
+        isPrivate: false,
+        coaAccount: { direction: "TRANSFER" },
+      },
+      {
+        id: "cat-salary",
+        name: "Gaji",
+        isPrivate: false,
+        coaAccount: { direction: "INCOME" },
+      },
+    ];
+    const prisma = makeFakePrisma(accounts, categories, transactions);
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        DashboardService,
+        { provide: PrismaService, useValue: prisma },
+      ],
+    }).compile();
+    return module.get(DashboardService).getSummary(FAMILY_GROUP_ID, true);
+  }
+
+  it("breakdown sums to currentMonth.expense with >100 rows, a transfer and debt principal present", async () => {
+    const rows: FakeTransaction[] = [];
+    for (let i = 0; i < 120; i++) {
+      rows.push(tx(`food-${i}`, "cat-food", 10n, "expense"));
+    }
+    for (let i = 0; i < 5; i++) {
+      rows.push(tx(`trn-${i}`, "cat-transport", 100n, "expense"));
+    }
+    // Category-less expense rows fall back to type → EXPENSE.
+    for (let i = 0; i < 3; i++) {
+      rows.push(tx(`none-${i}`, null, 7n, "expense"));
+    }
+    rows.push(tx("debt", "cat-debt", 9_999n, "expense"));
+    rows.push(tx("own-transfer", null, 5_000n, "transfer"));
+    rows.push(tx("salary", "cat-salary", 7_000n, "income"));
+    expect(rows.length).toBeGreaterThan(100);
+
+    const { currentMonth } = await summaryFor(rows);
+
+    expect(currentMonth.expense).toBe(120 * 10 + 5 * 100 + 3 * 7);
+    expect(
+      currentMonth.expenseByCategory.reduce((s, c) => s + c.amount, 0),
+    ).toBe(currentMonth.expense);
+    expect(currentMonth.expenseByCategory).toEqual([
+      { categoryName: "Makan", amount: 1200 },
+      { categoryName: "Transport", amount: 500 },
+      { categoryName: null, amount: 21 },
+    ]);
+  });
+
+  it("returns an empty breakdown when nothing was spent", async () => {
+    const { currentMonth } = await summaryFor([
+      tx("salary", "cat-salary", 7_000n, "income"),
+    ]);
+    expect(currentMonth.expense).toBe(0);
+    expect(currentMonth.expenseByCategory).toEqual([]);
+  });
+});

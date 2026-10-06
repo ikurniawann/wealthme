@@ -45,7 +45,6 @@ function NotConfiguredPanel({
 }) {
   return (
     <BentoGrid className="ai-grid">
-      <h1 className="sr-only">{t.shell.pageTitles.ai}</h1>
       <section className="wm-card wm-dark ai-empty-card">
         <span className="ai-empty-ic" aria-hidden="true">
           <Lock size={22} />
@@ -160,7 +159,6 @@ export default function AiPage() {
   if (!familyGroupId) {
     return (
       <BentoGrid className="ai-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.ai}</h1>
         <section className="wm-card wm-dark ai-empty-card">
           <span className="ai-empty-ic" aria-hidden="true">
             <Bot size={22} />
@@ -184,8 +182,6 @@ export default function AiPage() {
 
   return (
     <BentoGrid className="ai-grid">
-      <h1 className="sr-only">{t.shell.pageTitles.ai}</h1>
-
       <section className="wm-card wm-dark ai-hero">
         <div className="ai-top">
           <div className="min-w-0">

@@ -3,6 +3,7 @@
 import {
   Bell,
   CheckCircle2,
+  ChevronDown,
   Gauge,
   Receipt,
   Settings,
@@ -28,6 +29,7 @@ import {
   StatusBadge,
 } from "@/components/wm";
 import { cn } from "@/lib/utils";
+import { displayNotificationText } from "@/lib/format";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -53,10 +55,10 @@ const FILTER_IDS: Filter[] = [
 ];
 
 const CATEGORY_COLOR: Record<string, string> = {
-  transaksi: "var(--wm-lime)",
+  transaksi: "var(--wm-ink)",
   anggaran: "var(--wm-orange)",
   persetujuan: "var(--wm-sky)",
-  "jatuh-tempo": "var(--wm-bad)",
+  "jatuh-tempo": "var(--wm-yellow)",
   sistem: "var(--wm-muted)",
 };
 
@@ -85,6 +87,25 @@ function inferNotificationFilter(
     return "sistem";
   }
   return "transaksi";
+}
+
+const MONEY_SPLIT = /(-?Rp\s[\d.]*\d)/;
+
+/** Wraps each "Rp 1.234" figure in `.wm-amt` (tabular numerals, no wrapping). */
+function MoneyText({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(MONEY_SPLIT).map((part, i) =>
+        i % 2 === 1 ? (
+          <span key={i} className="wm-amt">
+            {part}
+          </span>
+        ) : (
+          part
+        ),
+      )}
+    </>
+  );
 }
 
 function formatRelativeTime(
@@ -157,13 +178,16 @@ function NotifRow({
   const markRead = () => {
     if (!n.isRead) onMarkRead(n.id);
   };
-  const Icon = n.isRead ? Bell : CATEGORY_ICON[inferNotificationFilter(n)];
+  const category = inferNotificationFilter(n);
+  const Icon = n.isRead ? Bell : CATEGORY_ICON[category];
   return (
     <div
       role={n.isRead ? undefined : "button"}
       tabIndex={n.isRead ? undefined : 0}
       aria-label={
-        n.isRead ? undefined : `${n.title}: ${t.notifikasi.markOneRead}`
+        n.isRead
+          ? undefined
+          : `${displayNotificationText(n.title)}: ${t.notifikasi.markOneRead}`
       }
       onClick={markRead}
       onKeyDown={(e) => {
@@ -174,12 +198,15 @@ function NotifRow({
       }}
       className={cn("nf-row", n.isRead ? "read" : "unread")}
     >
-      <span className="nf-ic" aria-hidden="true">
+      <span className="nf-ic" data-cat={category} aria-hidden="true">
         <Icon size={18} />
       </span>
       <span className="nf-body">
         <span className="nf-line block">
-          <b>{n.title}</b> <span>{n.body}</span>
+          <b>{displayNotificationText(n.title)}</b>{" "}
+          <span>
+            <MoneyText text={displayNotificationText(n.body)} />
+          </span>
         </span>
         <span className="nf-time block">
           {formatRelativeTime(n.createdAt, t, locale)}
@@ -187,10 +214,10 @@ function NotifRow({
       </span>
       {!n.isRead && (
         <span className="nf-side">
-          <StatusBadge variant="success">
+          <StatusBadge variant="info" className="nf-new">
             {t.notifikasi.unreadBadge}
           </StatusBadge>
-          <span className="nf-hint text-primary">
+          <span className="nf-hint text-primary-strong">
             {t.notifikasi.markOneRead}
           </span>
         </span>
@@ -219,7 +246,7 @@ function NotifGroup({
       <h2 className="nf-group-title">
         {title}
         {unreadCount > 0 && (
-          <StatusBadge variant="danger">
+          <StatusBadge variant="info">
             {unreadCount}
             {t.notifikasi.groupUnreadSuffix}
           </StatusBadge>
@@ -245,6 +272,7 @@ export default function NotifikasiPage() {
   const token = session?.accessToken;
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<Filter>("semua");
+  const [heroMore, setHeroMore] = useState(false);
 
   const {
     data: notifications,
@@ -382,9 +410,8 @@ export default function NotifikasiPage() {
   return (
     <div className="space-y-4" data-page="notifikasi">
       <BentoGrid className="nf-grid">
-        <h1 className="sr-only">{t.notifikasi.title}</h1>
         <BentoHero
-          className="nf-hero"
+          className={heroMore ? "nf-hero nf-hero--more" : "nf-hero"}
           currency={null}
           value={unreadCount}
           caption={v2.heroCap}
@@ -433,10 +460,6 @@ export default function NotifikasiPage() {
           kpis={
             <>
               <HeroKpi
-                label={v2.kpiTotal}
-                value={String(notifications?.length ?? 0)}
-              />
-              <HeroKpi
                 label={v2.kpiApproval}
                 value={String(categoryCounts.persetujuan ?? 0)}
               />
@@ -444,6 +467,17 @@ export default function NotifikasiPage() {
                 label={v2.kpiBill}
                 value={String(categoryCounts["jatuh-tempo"] ?? 0)}
               />
+              {categoryKeys.length > 0 && (
+                <button
+                  type="button"
+                  className="nf-hero-more"
+                  aria-expanded={heroMore}
+                  onClick={() => setHeroMore((open) => !open)}
+                >
+                  {heroMore ? t.transaksi.v2.heroLess : t.transaksi.v2.heroMore}
+                  <ChevronDown aria-hidden="true" />
+                </button>
+              )}
             </>
           }
         />

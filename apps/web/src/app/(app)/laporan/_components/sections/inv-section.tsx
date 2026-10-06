@@ -2,6 +2,9 @@ import { Pencil, Trash2 } from "lucide-react";
 import { SectionCard } from "@/components/wm";
 import { DonutChart } from "@/components/charts/apex-presets";
 import { useMoney } from "@/hooks/use-money";
+import { formatPercent } from "@/lib/format";
+import { DELTA_ARROW, deltaDirection } from "@/lib/delta";
+import { assetClassColor } from "@/lib/viz-colors";
 import { investmentCurrentValue } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type {
@@ -13,17 +16,6 @@ import { BarRow } from "../atoms";
 import "./sections-b.css";
 
 /* ───────────────────────── Section: Investasi ───────────────────────── */
-
-const INV_TYPE_COLORS: Record<InvestmentType, string> = {
-  saham: "var(--brand-cyan)",
-  reksa_dana: "var(--primary)",
-  obligasi: "var(--success)",
-  emas: "var(--warning)",
-  kripto: "#F97316",
-  lainnya: "#8B5CF6",
-  // EPIC-024 C2/C3 (D10).
-  deposito: "#0F766E",
-};
 
 export function InvSection({
   investments,
@@ -62,7 +54,7 @@ export function InvSection({
     .sort((a, b) => b[1] - a[1])
     .map(([type, value]) => ({
       label: t.laporan.investasi.typeLabels[type],
-      color: INV_TYPE_COLORS[type],
+      color: assetClassColor(type),
       value,
       pct: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0,
     }));
@@ -96,11 +88,15 @@ export function InvSection({
             <div
               className={
                 "mt-1 text-[12px] " +
-                (totalReturnRp >= 0 ? "text-success" : "text-destructive")
+                (deltaDirection(totalReturnPct, 2) === "flat"
+                  ? "text-muted-foreground"
+                  : totalReturnRp >= 0
+                    ? "text-success"
+                    : "text-destructive")
               }
             >
-              {totalReturnRp >= 0 ? "▲" : "▼"}{" "}
-              {Math.abs(totalReturnPct).toFixed(2)}% ·{" "}
+              {DELTA_ARROW[deltaDirection(totalReturnPct, 2)]}{" "}
+              {formatPercent(Math.abs(totalReturnPct))} ·{" "}
               {totalReturnRp >= 0 ? "+" : "-"}
               {money.format(Math.abs(totalReturnRp))}
             </div>
@@ -116,9 +112,7 @@ export function InvSection({
               (totalReturnPct >= 0 ? "text-success" : "text-destructive")
             }
           >
-            {invSummary
-              ? `${totalReturnPct >= 0 ? "+" : ""}${totalReturnPct.toFixed(2)}%`
-              : "—"}
+            {invSummary ? formatPercent(totalReturnPct, { signed: true }) : "—"}
           </div>
           <div className="mt-1 text-[12px] text-muted-foreground">
             {investments
@@ -216,7 +210,7 @@ export function InvSection({
                   const val = investmentCurrentValue(inv);
                   const ret = parseFloat(inv.returnRp ?? "0");
                   const typeLabel = t.laporan.investasi.typeLabels[inv.type];
-                  const typeColor = INV_TYPE_COLORS[inv.type];
+                  const typeColor = assetClassColor(inv.type);
                   return (
                     <tr key={inv.id} className="border-b last:border-0">
                       <td className="py-2.5">
@@ -262,7 +256,7 @@ export function InvSection({
                         }
                       >
                         {inv.returnPct !== null
-                          ? `${ret >= 0 ? "+" : ""}${(inv.returnPct ?? 0).toFixed(1)}%`
+                          ? formatPercent(inv.returnPct ?? 0, { signed: true })
                           : "—"}
                       </td>
                       {(onEdit ?? onDelete) && (

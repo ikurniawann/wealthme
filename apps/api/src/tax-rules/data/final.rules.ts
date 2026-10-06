@@ -19,7 +19,7 @@ export const FINAL_RULES: readonly AnyTaxRuleEntry[] = [
     legalBasis: "PP 131/2000; SE-01/PJ.43/2001",
     source: null,
     verified: false,
-    note: "R§6: 20% final; principal ≤ Rp7,5jt exempt (unverified).",
+    note: "Bunga deposito dikenai PPh final 20%; pokok sampai Rp 7,5 jt tidak dipotong (belum diverifikasi).",
   },
   {
     key: "final.savingsInterest",
@@ -29,7 +29,7 @@ export const FINAL_RULES: readonly AnyTaxRuleEntry[] = [
     legalBasis: "PP 131/2000; SE-01/PJ.43/2001",
     source: null,
     verified: false,
-    note: "R§6.",
+    note: "Bunga tabungan dikenai PPh final 20%; pokok sampai Rp 7,5 jt tidak dipotong (belum diverifikasi).",
   },
   {
     key: "final.dividend",

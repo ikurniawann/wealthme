@@ -110,7 +110,7 @@ export function idrPreview(
 export function formatIdrPreview(value: bigint, scale: 0 | 2): string {
   if (scale === 0) return formatRupiah(Number(value));
   const [intPart, frac] = formatScaled(value, 2).split(".");
-  return `Rp ${Number(intPart).toLocaleString("id-ID")},${frac}`;
+  return `Rp\u00A0${Number(intPart).toLocaleString("id-ID")},${frac}`;
 }
 
 export function formatRatePerUnit(idrPerUnit: string): string {

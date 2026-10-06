@@ -1,6 +1,6 @@
 import { Receipt } from "lucide-react";
 import { SectionCard } from "@/components/wm";
-import { formatRupiah } from "@/lib/format";
+import { formatPercent, formatRupiah } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import type { Pph21ResultDto } from "@wealthme/contracts";
 import { StatementRow, StatTile } from "../atoms";
@@ -39,11 +39,10 @@ export function PajakSection({
         <StatTile
           label={t.laporan.pajak.estimatedTaxLabel}
           value={pph21 ? formatRupiah(pph21.totalTax) : "Rp ·"}
-          valueClass="text-destructive"
         />
         <StatTile
           label={t.laporan.pajak.effectiveRateLabel}
-          value={pph21 ? `${(pph21.effectiveRate * 100).toFixed(2)}%` : "—"}
+          value={pph21 ? formatPercent(pph21.effectiveRate * 100) : "—"}
           valueClass="text-primary"
         />
       </SectionCard>
@@ -115,7 +114,7 @@ export function PajakSection({
                         {(b.rate * 100).toFixed(0)}%
                       </span>
                     </td>
-                    <td className="mono py-2.5 text-right text-destructive">
+                    <td className="mono py-2.5 text-right">
                       {formatRupiah(b.tax)}
                     </td>
                   </tr>
@@ -124,7 +123,7 @@ export function PajakSection({
                   <td className="py-2.5 font-extrabold" colSpan={3}>
                     {t.laporan.pajak.totalTaxYearLabel}
                   </td>
-                  <td className="mono py-2.5 text-right text-[14px] font-black text-destructive">
+                  <td className="mono py-2.5 text-right text-[14px] font-black">
                     {formatRupiah(pph21.totalTax)}
                   </td>
                 </tr>

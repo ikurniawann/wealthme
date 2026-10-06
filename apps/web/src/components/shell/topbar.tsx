@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
-import { canRecordTransaction } from "@/lib/nav";
+import { canRecordTransaction, isPageTitleId } from "@/lib/nav";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -156,6 +156,15 @@ export function Topbar() {
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
   const nested = pathname.split("/").filter(Boolean).length > 1;
+  // Desktop-only visible page title; the sr-only h1 (PageGreeting) stays the
+  // one heading, so this copy is aria-hidden.
+  const seg = pathname.split("/")[1] || "beranda";
+  const pageTitle =
+    seg === "beranda"
+      ? t.shell.v2.homeTitle
+      : isPageTitleId(seg)
+        ? t.shell.pageTitles[seg]
+        : null;
 
   const { data: unreadData } = useQuery<{ count: number }>({
     queryKey: queryKeys.notifications.unreadCount(familyGroupId ?? ""),
@@ -173,6 +182,11 @@ export function Topbar() {
       <Link href="/beranda" className="wm-mbrand">
         WealthMe
       </Link>
+      {pageTitle && (
+        <span className="wm-top-title" aria-hidden="true">
+          {pageTitle}
+        </span>
+      )}
       {nested && (
         <button
           type="button"

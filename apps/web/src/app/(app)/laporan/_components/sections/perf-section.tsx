@@ -1,5 +1,6 @@
 import { BentoCard, StatusBadge, Track } from "@/components/wm";
 import { TickGauge } from "@/components/charts/bento-charts";
+import { formatPercent } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import type {
   InvestmentSummaryDto,
@@ -36,7 +37,12 @@ export function PerfSection({
               ariaLabel={`${t.laporan.performa.savingsRateTargetLabel}: ${savingsRate}%`}
             >
               <b>{savingsRate}%</b>
-              <small>{t.laporan.savingsRateLabel}</small>
+              <small>
+                {t.laporan.savingsRateLabel}
+                {summary && summary.points.length > 0
+                  ? ` · ${t.laporan.windowMonthsTemplate.replace("{n}", String(summary.points.length))}`
+                  : ""}
+              </small>
             </TickGauge>
           </div>
         )}
@@ -89,7 +95,7 @@ export function PerfSection({
                         : "danger"
                   }
                 >
-                  {invReturn.toFixed(1)}%
+                  {formatPercent(invReturn)}
                   {invReturn >= 12 ? t.laporan.performa.exceededSuffix : ""}
                 </StatusBadge>
               </div>

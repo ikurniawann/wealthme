@@ -222,7 +222,7 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("lists a due liability and a paid insurance with their respective badges", async () => {
+  it("lists a due liability and a paid insurance with a single status each", async () => {
     renderWithClient(
       <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
       queryClient,
@@ -230,10 +230,10 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
 
     await screen.findByText(DUE_LIABILITY.name);
     expect(screen.getByText(PAID_INSURANCE.name)).toBeInTheDocument();
-    // EPIC-032 de-slop: the section title already says "Belum Dibayar", so
-    // the unpaid pill is no longer repeated per row; only paid rows carry one.
+    // One status per row: the section title already says "Belum Dibayar", so
+    // unpaid rows carry none; a paid row says "Sudah Lunas" once, no badge.
     expect(screen.queryByText(t.obligationsDueBadge)).not.toBeInTheDocument();
-    expect(screen.getByText(t.obligationsPaidBadge)).toBeInTheDocument();
+    expect(screen.getAllByText(t.obligationsAlreadyPaidButton)).toHaveLength(1);
   });
 
   // fix-round1 (Minor) — the obligations Pay list mapped the legacy
@@ -357,7 +357,7 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     await screen.findByText(FRACTIONAL_LIABILITY.name);
     // The row displays Rp 2.083.000 (truncated), never Rp 2.083.001
     // (Math.round of the raw fractional value).
-    expect(screen.getByText("Rp 2.083.000")).toBeInTheDocument();
+    expect(screen.getAllByText("Rp 2.083.000").length).toBeGreaterThan(0);
 
     const row = screen.getByText(FRACTIONAL_LIABILITY.name).closest("div")!
       .parentElement!.parentElement!;
@@ -366,7 +366,7 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     await screen.findByText(t.obligationsPayDialogTitle);
     // The dialog's own amount readout uses the same truncated value (row +
     // dialog both show it now, so two matches, not one).
-    expect(screen.getAllByText("Rp 2.083.000")).toHaveLength(2);
+    expect(screen.getAllByText("Rp 2.083.000")).toHaveLength(3);
 
     const select = screen.getByLabelText(t.obligationsSourceAccountLabel);
     await user.selectOptions(select, "acc-1");
@@ -411,7 +411,7 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     );
 
     await screen.findByText(KPR.name);
-    expect(screen.getByText("Rp 4.744.030")).toBeInTheDocument();
+    expect(screen.getAllByText("Rp 4.744.030").length).toBeGreaterThan(0);
     expect(screen.queryByText("Rp 3.299.779")).not.toBeInTheDocument();
   });
 
@@ -469,8 +469,7 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
   });
 
-  it("CRITICAL 1 — an already-paid obligation's Pay button is disabled and never opens the pay dialog or posts a second payment", async () => {
-    const user = userEvent.setup();
+  it("CRITICAL 1 — an already-paid obligation shows a non-actionable status (no Pay button) and never opens the pay dialog or posts a second payment", async () => {
     renderWithClient(
       <ObligationsSection familyGroupId={FAMILY_GROUP_ID} token={TOKEN} />,
       queryClient,
@@ -479,13 +478,16 @@ describe("ObligationsSection (EPIC-023 E2)", () => {
     await screen.findByText(PAID_INSURANCE.name);
     const row = screen.getByText(PAID_INSURANCE.name).closest("div")!
       .parentElement!.parentElement!;
-    const payButton = within(row).getByRole("button", {
-      name: t.obligationsAlreadyPaidButton,
-    });
 
-    expect(payButton).toBeDisabled();
-    await user.click(payButton);
-
+    expect(within(row).getByText(t.obligationsAlreadyPaidButton)).toBeVisible();
+    expect(
+      within(row).queryByRole("button", {
+        name: t.obligationsAlreadyPaidButton,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(row).queryByRole("button", { name: t.obligationsPayButton }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByText(t.obligationsPayDialogTitle),
     ).not.toBeInTheDocument();

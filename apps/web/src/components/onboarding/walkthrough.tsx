@@ -99,7 +99,7 @@ export function Walkthrough() {
                 onClick={() => setLocale("id")}
                 aria-pressed={locale === "id"}
                 className={cn(
-                  "flex-1 rounded-md py-1.5 text-[12.5px] font-semibold transition-colors",
+                  "min-h-11 flex-1 rounded-md py-1.5 text-[12.5px] font-semibold transition-colors",
                   locale === "id"
                     ? "bg-card text-primary shadow-sm"
                     : "text-muted-foreground",
@@ -116,7 +116,7 @@ export function Walkthrough() {
                 onClick={() => setLocale("en")}
                 aria-pressed={locale === "en"}
                 className={cn(
-                  "flex-1 rounded-md py-1.5 text-[12.5px] font-semibold transition-colors",
+                  "min-h-11 flex-1 rounded-md py-1.5 text-[12.5px] font-semibold transition-colors",
                   locale === "en"
                     ? "bg-card text-primary shadow-sm"
                     : "text-muted-foreground",
@@ -134,7 +134,7 @@ export function Walkthrough() {
                   setWelcomeView("none");
                   startTour();
                 }}
-                className="w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
+                className="min-h-11 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)]"
               >
                 {tr.startSetupButton}
               </button>
@@ -145,14 +145,14 @@ export function Walkthrough() {
                   setWelcomeView("none");
                   router.push("/panduan");
                 }}
-                className="w-full rounded-md border py-2.5 text-[13.5px] font-semibold transition-colors hover:bg-accent"
+                className="min-h-11 w-full rounded-md border py-2.5 text-[13.5px] font-semibold transition-colors hover:bg-accent"
               >
                 {tr.exploreAllButton}
               </button>
               <button
                 type="button"
                 onClick={dismissAsSkip}
-                className="w-full py-1.5 text-[12.5px] font-semibold text-muted-foreground hover:text-foreground"
+                className="min-h-11 w-full py-1.5 text-[12.5px] font-semibold text-muted-foreground hover:text-foreground"
               >
                 {tr.skipButton}
               </button>
@@ -182,7 +182,7 @@ export function Walkthrough() {
                   setWelcomeView("none");
                   startTour();
                 }}
-                className="w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
+                className="min-h-11 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)]"
               >
                 {tr.resumeContinueButton}
               </button>
@@ -193,7 +193,7 @@ export function Walkthrough() {
                   setWelcomeView("none");
                   startTour();
                 }}
-                className="w-full rounded-md border py-2.5 text-[13.5px] font-semibold transition-colors hover:bg-accent"
+                className="min-h-11 w-full rounded-md border py-2.5 text-[13.5px] font-semibold transition-colors hover:bg-accent"
               >
                 {tr.resumeRestartButton}
               </button>
@@ -203,7 +203,7 @@ export function Walkthrough() {
                   clearSetupProgress(userId);
                   dismissAsSkip();
                 }}
-                className="w-full py-1.5 text-[12.5px] font-semibold text-muted-foreground hover:text-foreground"
+                className="min-h-11 w-full py-1.5 text-[12.5px] font-semibold text-muted-foreground hover:text-foreground"
               >
                 {tr.resumeSkipButton}
               </button>

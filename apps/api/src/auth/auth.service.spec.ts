@@ -680,11 +680,12 @@ describe("AuthService", () => {
     });
 
     describe("[Privacy Preferences]", () => {
-      it("sanitizes privacyPrefs before persisting: unknown keys dropped, known keys kept", async () => {
-        // Arrange — dto includes a bogus key alongside a real one
+      it("sanitizes privacyPrefs before persisting: unknown keys (incl. retired showDecimal) dropped, known keys kept", async () => {
+        // Arrange — dto includes bogus/legacy keys alongside a real one
         const updateDto: UpdateProfileDto = {
           privacyPrefs: {
             hideBalance: true,
+            showDecimal: true,
             bogus: 1 as unknown as boolean,
           },
         };
@@ -692,7 +693,6 @@ describe("AuthService", () => {
           ...baseUser,
           privacyPrefs: {
             hideBalance: true,
-            showDecimal: true,
             weeklySummary: true,
             hideFromFamily: false,
             screenshotProtect: true,
@@ -705,7 +705,7 @@ describe("AuthService", () => {
         // Act
         const result = await service.updateProfile("user-1", updateDto);
 
-        // Assert — Prisma is called with exactly the 7 sanitized keys,
+        // Assert — Prisma is called with exactly the 6 sanitized keys,
         // hideBalance true, and no "bogus" key ever reaches the database.
         const [callArg] = mockPrisma.user.update.mock.calls[0] as [
           { data: Record<string, unknown> },
@@ -714,7 +714,6 @@ describe("AuthService", () => {
         expect(Object.keys(sentPrefs).sort()).toEqual(
           [
             "hideBalance",
-            "showDecimal",
             "weeklySummary",
             "hideFromFamily",
             "screenshotProtect",
@@ -727,7 +726,7 @@ describe("AuthService", () => {
         expect(result.privacyPrefs).toEqual(updated.privacyPrefs);
       });
 
-      it("returns all 7 keys defaulted when the stored value is null", async () => {
+      it("returns all 6 keys defaulted when the stored value is null", async () => {
         // Arrange — a user whose privacyPrefs column has never been set
         const userWithNullPrefs = { ...baseUser, privacyPrefs: null };
         mockPrisma.user.findUniqueOrThrow.mockResolvedValue(userWithNullPrefs);
@@ -738,7 +737,6 @@ describe("AuthService", () => {
         // Assert
         expect(result.privacyPrefs).toEqual({
           hideBalance: false,
-          showDecimal: true,
           weeklySummary: true,
           hideFromFamily: false,
           screenshotProtect: true,

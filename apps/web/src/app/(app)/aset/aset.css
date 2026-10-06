@@ -16,6 +16,7 @@
     .as-grid > .as-tips {
       grid-column: 9 / 13;
       grid-row: 2;
+      align-self: start;
     }
     .as-grid > .as-fisik {
       grid-column: 1 / 13;
@@ -49,7 +50,15 @@
   }
   .as-tilewrap > .wm-btile {
     flex: 1;
+  }
+  /* The edit/detail tools sit top-right: reserve room on the title row only,
+     so the full-Rupiah value below can use the whole tile width. */
+  .as-tilewrap .wm-btile-tt {
     padding-right: 76px;
+  }
+  .as-tilewrap .wm-pv {
+    font-size: clamp(14px, 3.6vw, var(--wm-type-28));
+    overflow-wrap: anywhere;
   }
   .as-tools {
     position: absolute;
@@ -97,6 +106,26 @@
   .as-adopt:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+  /* Phones: three 44px tools would swallow a 2-up tile, so they sit in a row
+     under the tile instead of over its title. */
+  @media (max-width: 720px) {
+    .as-tilewrap .wm-btile-tt {
+      padding-right: 0;
+    }
+    .as-tools {
+      position: static;
+      justify-content: flex-end;
+      padding: 2px 2px 0;
+    }
+    .as-tools .as-detail {
+      width: 44px;
+      height: 44px;
+    }
+    .as-adopt {
+      min-height: 44px;
+      padding-inline: 4px;
+    }
   }
   .as-tips .wm-mosaic {
     grid-template-columns: repeat(9, 1fr);

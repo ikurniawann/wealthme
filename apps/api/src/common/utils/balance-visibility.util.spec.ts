@@ -22,7 +22,13 @@ const summary: DashboardSummaryDto = {
   sparkline: [1, 2],
   allocation: [{ label: "Bank", value: 100, amount: 900, color: "#000" }],
   accountSummary: [{ type: "bank", label: "Bank", total: 900 }],
-  currentMonth: { income: 5, expense: 3, net: 2, savingsRate: 40 },
+  currentMonth: {
+    income: 5,
+    expense: 3,
+    net: 2,
+    savingsRate: 40,
+    expenseByCategory: [{ categoryName: "Makan", amount: 3 }],
+  },
   recentTransactions: [],
 };
 const netWorth: NetWorthDto = {

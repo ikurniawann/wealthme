@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { formatAmountInput } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { MoneyCurrencyPicker } from "@/components/money/currency-picker";
 import { currencySymbol } from "@/components/money/money-format";
 import { MoneyHint } from "@/components/money/money-input";
@@ -55,7 +56,11 @@ export type Choice = {
   name: string;
 };
 
+/** At most this many accounts render as a wrapped grid; more scroll with a visible count. */
+export const ACCOUNT_GRID_MAX = 6;
+
 export function ChoiceTiles({
+  id,
   label,
   value,
   onChange,
@@ -64,7 +69,12 @@ export function ChoiceTiles({
   empty,
   limit,
   moreLabel,
+  invalid,
+  errorId,
+  countLabel,
 }: {
+  /** Id of the radiogroup, so a failed submit can move focus into it (`focusChoiceTiles`). */
+  id?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
@@ -74,18 +84,36 @@ export function ChoiceTiles({
   /** Show only this many tiles until "more" is tapped (the selection always stays visible). */
   limit?: number;
   moreLabel?: string;
+  /** Marks the group invalid and points at the inline error for assistive tech. */
+  invalid?: boolean;
+  errorId?: string;
+  /** "3 dari 6": the cue that tiles are hidden when accounts scroll instead of wrap. */
+  countLabel?: (shown: number, total: number) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const [edges, setEdges] = useState({ start: true, end: true });
+  const [edges, setEdges] = useState({ start: true, end: true, shown: 0 });
+  // Phones: account tiles are one swipeable row of small chips, never a wrapped grid.
+  const compact = useMediaQuery("(max-width: 720px)");
+  const scrolls =
+    variant === "account" && (compact || choices.length > ACCOUNT_GRID_MAX);
   const sync = () => {
     const el = ref.current;
-    if (!el || variant !== "account") return;
+    if (!el || !scrolls) return;
     const start = el.scrollLeft <= 2;
     const end = el.scrollLeft + el.clientWidth >= el.scrollWidth - 2;
+    // A tile only counts as seen when it is wholly inside the scroller.
+    const box = el.getBoundingClientRect();
+    let shown = 0;
+    for (const tile of el.querySelectorAll<HTMLElement>(".tx-tile")) {
+      const rect = tile.getBoundingClientRect();
+      if (rect.left >= box.left - 2 && rect.right <= box.right + 2) shown += 1;
+    }
     // Only update on a real change: this runs after every render.
     setEdges((prev) =>
-      prev.start === start && prev.end === end ? prev : { start, end },
+      prev.start === start && prev.end === end && prev.shown === shown
+        ? prev
+        : { start, end, shown },
     );
   };
   useEffect(sync);
@@ -121,11 +149,20 @@ export function ChoiceTiles({
     <div className="tx-tiles-wrap" data-variant={variant}>
       <div
         ref={ref}
+        id={id}
         role="radiogroup"
         aria-label={label}
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? errorId : undefined}
         data-value={value}
         className="tx-tiles"
         data-variant={variant}
+        data-count={variant === "account" ? choices.length : undefined}
+        data-layout={
+          variant === "account" ? (scrolls ? "scroll" : "grid") : undefined
+        }
+        data-fade-start={scrolls && !edges.start ? "true" : undefined}
+        data-fade-end={scrolls && !edges.end ? "true" : undefined}
         onKeyDown={onKeyDown}
         onScroll={sync}
       >
@@ -150,8 +187,8 @@ export function ChoiceTiles({
                   {choice.icon}
                 </span>
               )}
-              {choice.caption && <small>{choice.caption}</small>}
               <b>{choice.label}</b>
+              {choice.caption && <small>{choice.caption}</small>}
               {choice.sub && <span className="tx-tile-sub">{choice.sub}</span>}
             </button>
           );
@@ -169,7 +206,7 @@ export function ChoiceTiles({
           </button>
         )}
       </div>
-      {variant === "account" && !edges.start && (
+      {scrolls && !edges.start && (
         <button
           type="button"
           tabIndex={-1}
@@ -183,7 +220,7 @@ export function ChoiceTiles({
           <ChevronLeft />
         </button>
       )}
-      {variant === "account" && !edges.end && (
+      {scrolls && !edges.end && (
         <button
           type="button"
           tabIndex={-1}
@@ -197,7 +234,125 @@ export function ChoiceTiles({
           <ChevronRight />
         </button>
       )}
+      {scrolls &&
+        countLabel &&
+        edges.shown > 0 &&
+        edges.shown < choices.length && (
+          <p className="tx-tiles-count" aria-hidden="true">
+            {countLabel(edges.shown, choices.length)}
+          </p>
+        )}
     </div>
+  );
+}
+
+/** Moves focus to the roving tile of a `ChoiceTiles` radiogroup (first invalid field after a failed submit). */
+export function focusChoiceTiles(id: string) {
+  document
+    .getElementById(id)
+    ?.querySelector<HTMLElement>('[role="radio"][tabindex="0"]')
+    ?.focus();
+}
+
+/** What the dialog remembers per family group between openings. */
+export type TxnMemory = {
+  accountId: string | null;
+  /** Last-used category per category kind: an income category is no default for an expense. */
+  categoryId: { income: string | null; expense: string | null };
+  /** How often each category was used (most-used categories lead the picker). */
+  counts: Record<string, number>;
+};
+
+const MAX_REMEMBERED_CATEGORIES = 200;
+
+export function emptyTxnMemory(): TxnMemory {
+  return {
+    accountId: null,
+    categoryId: { income: null, expense: null },
+    counts: {},
+  };
+}
+
+export function txnMemoryKey(familyGroupId: string): string {
+  return `wm.txn-memory.${familyGroupId}`;
+}
+
+function asId(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/** Reads the entry defensively: missing storage, bad JSON or wrong shapes all fall back to empty. */
+export function readTxnMemory(familyGroupId: string): TxnMemory {
+  const memory = emptyTxnMemory();
+  if (!familyGroupId || typeof window === "undefined") return memory;
+  try {
+    const parsed: unknown = JSON.parse(
+      window.localStorage.getItem(txnMemoryKey(familyGroupId)) ?? "null",
+    );
+    if (!parsed || typeof parsed !== "object") return memory;
+    const entry = parsed as Record<string, unknown>;
+    memory.accountId = asId(entry.accountId);
+    const categories = entry.categoryId;
+    if (categories && typeof categories === "object") {
+      const byKind = categories as Record<string, unknown>;
+      memory.categoryId = {
+        income: asId(byKind.income),
+        expense: asId(byKind.expense),
+      };
+    }
+    const counts = entry.counts;
+    if (counts && typeof counts === "object") {
+      for (const [categoryId, count] of Object.entries(counts)) {
+        if (typeof count === "number" && Number.isFinite(count) && count > 0)
+          memory.counts[categoryId] = Math.floor(count);
+      }
+    }
+  } catch {
+    return emptyTxnMemory();
+  }
+  return memory;
+}
+
+/** Stores the account/category a saved transaction used and bumps the category's use count. */
+export function recordTxnUsage(
+  familyGroupId: string,
+  usage: {
+    accountId?: string | null;
+    categoryId?: string | null;
+    kind: "income" | "expense";
+  },
+): void {
+  if (!familyGroupId || typeof window === "undefined") return;
+  const memory = readTxnMemory(familyGroupId);
+  if (usage.accountId) memory.accountId = usage.accountId;
+  if (usage.categoryId) {
+    memory.categoryId[usage.kind] = usage.categoryId;
+    memory.counts[usage.categoryId] =
+      (memory.counts[usage.categoryId] ?? 0) + 1;
+  }
+  const ranked = Object.entries(memory.counts).sort((a, b) => b[1] - a[1]);
+  memory.counts = Object.fromEntries(
+    ranked.slice(0, MAX_REMEMBERED_CATEGORIES),
+  );
+  try {
+    window.localStorage.setItem(
+      txnMemoryKey(familyGroupId),
+      JSON.stringify(memory),
+    );
+  } catch {
+    // Private mode or a full quota: remembering is a convenience, never a failure.
+  }
+}
+
+/** Most-used first, then alphabetical. Never mutates the input. */
+export function sortByUsage<T extends { id: string; name: string }>(
+  items: readonly T[],
+  counts: Record<string, number>,
+): T[] {
+  return [...items].sort(
+    (a, b) =>
+      (counts[b.id] ?? 0) - (counts[a.id] ?? 0) ||
+      a.name.localeCompare(b.name, "id"),
   );
 }
 
@@ -311,7 +466,7 @@ function QuickAddChips({ field }: { field: MoneyField }) {
   };
   return (
     <div
-      className="mt-2 flex gap-1.5"
+      className="tx-quick mt-2 flex gap-1.5 min-[721px]:mt-1.5"
       role="group"
       aria-label={t.shell.transactionDialog.quickAddAriaLabel}
     >

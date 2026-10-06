@@ -27,7 +27,7 @@ export function InfoTip({
       <Popover.Trigger
         aria-label={label}
         className={cn(
-          "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+          "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--focus-ring) max-[720px]:-m-2 max-[720px]:size-11",
           className,
         )}
       >

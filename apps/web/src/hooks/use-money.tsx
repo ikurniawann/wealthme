@@ -16,7 +16,11 @@
 
 import { createContext, useContext, useMemo } from "react";
 
-import { formatRupiah, formatRupiahCompact } from "@/lib/format";
+import {
+  currencyDisplay,
+  formatRupiah,
+  formatRupiahCompact,
+} from "@/lib/format";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { useBalancesHidden } from "@/hooks/use-my-access";
 
@@ -43,16 +47,6 @@ type MoneyContextValue = {
   ) => string;
 };
 
-const CURRENCY_LOCALES: Record<string, string> = {
-  IDR: "id-ID",
-  USD: "en-US",
-  SGD: "en-SG",
-  EUR: "en-US",
-  JPY: "ja-JP",
-  AUD: "en-AU",
-  CNY: "zh-CN",
-};
-
 function rateFraction(rate: number): [bigint, bigint] {
   const [mantissa, exponentText] = rate.toString().toLowerCase().split("e");
   const exponent = Number(exponentText ?? 0);
@@ -69,14 +63,14 @@ function formatExactCurrency(
   currency: string,
   rate: number,
 ): string {
-  const locale = CURRENCY_LOCALES[currency] ?? "id-ID";
+  const { symbol, decimals } = currencyDisplay(currency);
+  const negative = amount < BigInt(0);
+  const absolute = negative ? -amount : amount;
   if (currency === "IDR" && rate === 1) {
-    return `Rp ${new Intl.NumberFormat(locale).format(amount)}`;
+    return `${negative ? "-" : ""}Rp\u00A0${new Intl.NumberFormat("id-ID").format(absolute)}`;
   }
-  const decimals = currency === "IDR" || currency === "JPY" ? 0 : 2;
   const [rateNumerator, rateDenominator] = rateFraction(rate);
   const scale = BigInt(10) ** BigInt(decimals);
-  const absolute = amount < BigInt(0) ? -amount : amount;
   const scaledNumerator = absolute * rateNumerator * scale;
   const rounded =
     (scaledNumerator * BigInt(2) + rateDenominator) /
@@ -84,27 +78,13 @@ function formatExactCurrency(
   const whole = rounded / scale;
   const fraction = rounded % scale;
 
-  const parts = new Intl.NumberFormat(locale, {
-    style: "currency",
-    currency,
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).formatToParts(amount < BigInt(0) ? BigInt(-1) : BigInt(1));
-  const wholeText = new Intl.NumberFormat(locale).format(whole);
-  const fractionText = new Intl.NumberFormat(locale, {
-    minimumIntegerDigits: decimals || 1,
-    useGrouping: false,
-  })
-    .format(fraction)
-    .slice(-decimals);
-
-  return parts
-    .map((part) => {
-      if (part.type === "integer") return wholeText;
-      if (part.type === "fraction") return fractionText;
-      return part.value;
-    })
-    .join("");
+  // Digits group the id-ID way for every currency (period thousands, comma
+  // decimal); only the symbol differs, prepended like formatRupiah does.
+  const wholeText = new Intl.NumberFormat("id-ID").format(whole);
+  const fractionText =
+    decimals > 0 ? `,${fraction.toString().padStart(decimals, "0")}` : "";
+  const sign = negative && rounded > BigInt(0) ? "-" : "";
+  return `${sign}${symbol}\u00A0${wholeText}${fractionText}`;
 }
 
 const MoneyContext = createContext<MoneyContextValue | null>(null);
@@ -119,13 +99,6 @@ function maskAmount(formatted: string): string {
   return `${prefix}••••••`;
 }
 
-// "Tampilkan Desimal" only affects the plain IDR path (no conversion target)
-// — formatRupiah never prints decimals there. Converted amounts already
-// carry their currency's own decimal precision from CURRENCY_CONFIG.
-function withDecimals(formatted: string): string {
-  return /,\d\d$/.test(formatted) ? formatted : `${formatted},00`;
-}
-
 export function DisplayCurrencyProvider({
   children,
 }: {
@@ -133,17 +106,13 @@ export function DisplayCurrencyProvider({
 }) {
   const { currency, rate, formatMoney, isIndicative, isReady, privacyPrefs } =
     useCurrencyPreference();
-  // Conservative fallback while the profile hasn't resolved yet (or in a
-  // test harness that mocks useCurrencyPreference() directly, predating this
-  // field): behave exactly like before this batch, i.e. no decimals shown.
-  // Once the real profile loads, resolvePrivacyPrefs always fills both keys.
+  // IDR never prints decimals (design contract: "Rp 1.234.567", no ",00").
   // "Lihat saldo" off (set by the Master on /iam): the API already withholds
   // the numbers (null + balancesHidden); every formatted amount renders
   // "••••••" so a nulled balance never shows as "Rp 0".
   const balancesHidden = useBalancesHidden();
   const privacyHide = privacyPrefs?.hideBalance ?? false;
   const hideBalance = privacyHide || balancesHidden;
-  const showDecimal = privacyPrefs?.showDecimal ?? false;
 
   const value = useMemo<MoneyContextValue>(() => {
     // Until a non-IDR rate has actually loaded (or when it failed), show the
@@ -153,11 +122,7 @@ export function DisplayCurrencyProvider({
     const converts = isIndicative && isReady;
     const format = (idr: number): string => {
       const base = converts ? `≈ ${formatMoney(idr)}` : formatRupiah(idr);
-      const withDecimalsApplied =
-        showDecimal && !converts ? withDecimals(base) : base;
-      return hideBalance
-        ? maskAmount(withDecimalsApplied)
-        : withDecimalsApplied;
+      return hideBalance ? maskAmount(base) : base;
     };
     const formatCompact = (idr: number): string => {
       const base = converts
@@ -170,11 +135,7 @@ export function DisplayCurrencyProvider({
       if (idr === null) return maskAmount("Rp 0");
       const amount = typeof idr === "bigint" ? idr : BigInt(idr);
       const result = formatExactCurrency(amount, currency, rate);
-      const withDecimalsApplied =
-        showDecimal && !isIndicative ? withDecimals(result) : result;
-      const indicated = isIndicative
-        ? `≈ ${withDecimalsApplied}`
-        : withDecimalsApplied;
+      const indicated = isIndicative ? `≈ ${result}` : result;
       return hideBalance ? maskAmount(indicated) : indicated;
     };
     const formatBalance = (
@@ -191,9 +152,7 @@ export function DisplayCurrencyProvider({
         : converts
           ? `≈ ${formatMoney(n)}`
           : formatRupiah(n);
-      const shown =
-        !compact && showDecimal && !converts ? withDecimals(base) : base;
-      return privacyHide ? maskAmount(shown) : shown;
+      return privacyHide ? maskAmount(base) : base;
     };
     return {
       currency,
@@ -213,7 +172,6 @@ export function DisplayCurrencyProvider({
     rate,
     hideBalance,
     privacyHide,
-    showDecimal,
   ]);
 
   return (

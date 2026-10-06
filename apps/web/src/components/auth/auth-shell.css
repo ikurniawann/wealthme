@@ -36,6 +36,9 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  /* 44px tall hit box; the negative margin keeps the 30px mark's layout. */
+  min-height: 44px;
+  margin-block: -7px;
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -49,8 +52,9 @@
   width: 30px;
   height: 30px;
   border-radius: 9px;
-  background: var(--wm-lime);
-  color: var(--wm-lime-ink);
+  background: #11382c;
+  color: #eef0e8;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
 }
 .au-hl {
   margin: 20px 0 0;
@@ -149,7 +153,7 @@
 }
 .au-seg button {
   flex: 1;
-  min-height: 38px;
+  min-height: 44px;
   padding: 0 10px;
   border: 0;
   border-radius: 9px;
@@ -183,9 +187,9 @@
   width: 100%;
   min-height: 44px;
   padding: 0 14px;
-  border: 1.5px solid var(--wm-line);
+  border: 1.5px solid var(--field-border);
   border-radius: 12px;
-  background: var(--wm-bg);
+  background: var(--wm-card);
   font: inherit;
   font-size: 14px;
   color: var(--wm-ink);
@@ -195,11 +199,13 @@
     box-shadow 0.15s;
 }
 .au-field input::placeholder {
-  color: var(--wm-muted);
+  color: var(--placeholder);
+  opacity: 1;
 }
 .au-field input:focus-visible {
   border-color: var(--wm-lime);
-  box-shadow: 0 0 0 3px var(--wm-lime-soft);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 .au-field input[aria-invalid="true"] {
   border-color: var(--wm-bad);
@@ -212,12 +218,12 @@
 }
 .au-eye {
   position: absolute;
-  right: 6px;
-  top: 6px;
+  right: 0;
+  top: 0;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -320,11 +326,14 @@
 }
 .au-btn[data-variant="primary"] {
   border-color: transparent;
-  background: var(--wm-lime);
-  color: var(--wm-lime-ink);
+  background: var(--commit);
+  color: var(--commit-foreground);
 }
-.au-btn[data-variant="primary"]:hover {
-  filter: brightness(1.05);
+.au-btn[data-variant="primary"]:hover:not(:disabled) {
+  background: var(--commit-hover);
+}
+.au-btn[data-variant="primary"]:active:not(:disabled) {
+  background: var(--commit-pressed);
 }
 .au-btn:disabled {
   opacity: 0.55;
@@ -333,8 +342,11 @@
 .au-btn:focus-visible,
 .au-eye:focus-visible,
 .au-seg button:focus-visible {
-  outline: 2px solid var(--wm-lime);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+.au-cover :focus-visible {
+  outline-color: var(--wm-lime);
 }
 .au-foot {
   margin: 16px 0 0;
@@ -343,12 +355,17 @@
   color: var(--wm-muted);
 }
 .au-link {
-  padding: 0;
+  /* A real 44px-tall box (not just a ::after): the padding is cancelled by the
+     equal negative margin, so the sentence around it does not move. */
+  display: inline-flex;
+  align-items: center;
+  padding: 15px 8px;
+  margin: -15px -8px;
   border: 0;
   background: none;
   font: inherit;
   font-weight: 600;
-  color: var(--wm-good);
+  color: var(--primary-strong);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
@@ -380,7 +397,9 @@
 .au-legal a {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
   color: inherit;
   text-decoration: none;
 }
@@ -452,5 +471,14 @@
   .au-main {
     width: 58%;
     align-items: center;
+  }
+  .au-cover {
+    justify-content: center;
+  }
+  .au-cover .au-brand {
+    position: absolute;
+    top: 44px;
+    left: 40px;
+    margin-block: 0;
   }
 }

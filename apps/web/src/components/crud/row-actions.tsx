@@ -40,15 +40,15 @@ export function RowActions({
   return (
     <div className={`flex shrink-0 gap-[5px] ${className ?? ""}`}>
       {/* Hardening batch G3 (P1) — 28px misses the 44px WCAG 2.2 AA touch
-          target; the `[@media(pointer:coarse)]:` variant bumps only real
-          touchscreens, leaving mouse/trackpad desktop sizing untouched. */}
+          target; `[@media(pointer:coarse)]:` bumps real touchscreens and
+          `max-[720px]:` the phone-width layout, leaving desktop sizing alone. */}
       <button
         type="button"
         aria-label={editLabel}
         title={editLabel}
         onClick={handle(onEdit)}
         disabled={disabled}
-        className="flex size-7 items-center justify-center rounded-[7px] bg-accent text-primary transition-colors hover:bg-primary hover:text-primary-foreground disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-accent disabled:hover:text-primary [@media(pointer:coarse)]:size-11"
+        className="flex size-7 items-center justify-center rounded-[7px] bg-muted text-foreground transition-colors hover:bg-foreground hover:text-background disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-muted disabled:hover:text-foreground max-[720px]:size-11 [@media(pointer:coarse)]:size-11"
       >
         <Pencil className="size-3" />
       </button>
@@ -58,7 +58,7 @@ export function RowActions({
         title={deleteLabel}
         onClick={handle(onDelete)}
         disabled={disabled}
-        className="flex size-7 items-center justify-center rounded-[7px] bg-destructive/10 text-destructive transition-colors hover:bg-destructive hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-destructive/10 disabled:hover:text-destructive [@media(pointer:coarse)]:size-11"
+        className="flex size-7 items-center justify-center rounded-[7px] bg-destructive/10 text-destructive transition-colors hover:bg-destructive hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-destructive/10 disabled:hover:text-destructive max-[720px]:size-11 [@media(pointer:coarse)]:size-11"
       >
         <Trash2 className="size-3" />
       </button>
@@ -117,7 +117,7 @@ export function CardSideActions({
         aria-label={t.common.edit}
         title={t.common.edit}
         onClick={onEdit}
-        className="flex size-[34px] items-center justify-center rounded-[9px] bg-accent text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        className="flex size-[34px] items-center justify-center rounded-[9px] bg-muted text-foreground transition-colors hover:bg-foreground hover:text-background"
       >
         <Pencil className="size-3.5" />
       </button>

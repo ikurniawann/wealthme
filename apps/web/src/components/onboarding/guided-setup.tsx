@@ -591,7 +591,7 @@ export function GuidedSetup({
           <button
             type="button"
             onClick={() => setStep("budget")}
-            className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
+            className="mt-4 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)]"
           >
             {tr.continueButton}
           </button>
@@ -658,7 +658,7 @@ export function GuidedSetup({
             !accountNameField.trim() ||
             balanceMoney.resolved.isPending
           }
-          className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
+          className="mt-4 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)] disabled:opacity-60"
         >
           {isSaving ? tr.account.submitting : tr.account.submitButton}
         </button>
@@ -691,7 +691,7 @@ export function GuidedSetup({
           <button
             type="button"
             onClick={() => setStep("transaction")}
-            className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
+            className="mt-4 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)]"
           >
             {tr.continueButton}
           </button>
@@ -754,7 +754,7 @@ export function GuidedSetup({
             !limitMoney.raw ||
             limitMoney.resolved.isPending
           }
-          className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
+          className="mt-4 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)] disabled:opacity-60"
         >
           {isSaving ? tr.budget.submitting : tr.budget.submitButton}
         </button>
@@ -795,7 +795,7 @@ export function GuidedSetup({
           <button
             type="button"
             onClick={() => setStep("done")}
-            className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
+            className="mt-4 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)]"
           >
             {tr.continueButton}
           </button>
@@ -850,7 +850,7 @@ export function GuidedSetup({
             moneyIdr(txMoney, parseRupiah) <= 0 ||
             txMoney.resolved.isPending
           }
-          className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong disabled:opacity-60"
+          className="mt-4 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)] disabled:opacity-60"
         >
           {isSaving ? tr.transaction.submitting : tr.transaction.submitButton}
         </button>
@@ -910,7 +910,7 @@ export function GuidedSetup({
         <button
           type="button"
           onClick={finish}
-          className="mt-4 w-full rounded-md bg-primary py-2.5 text-[13.5px] font-bold text-white transition-colors hover:bg-primary-strong"
+          className="mt-4 w-full rounded-md bg-[var(--commit)] py-2.5 text-[13.5px] font-bold text-[var(--commit-foreground)] transition-colors hover:bg-[var(--commit-hover)] active:bg-[var(--commit-pressed)]"
         >
           {tr.done.finishButton}
         </button>

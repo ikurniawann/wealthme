@@ -61,6 +61,10 @@ export interface DashboardSummaryDto {
     expense: number;
     net: number;
     savingsRate: number;
+    // Month-to-date `expense` split by category name, largest first. Built
+    // in the same pass as `expense`, so the amounts always sum to it.
+    // `categoryName` is null for a category-less expense row.
+    expenseByCategory: { categoryName: string | null; amount: number }[];
   } | null;
   recentTransactions: {
     id: string;

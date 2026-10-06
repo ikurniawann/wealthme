@@ -35,27 +35,28 @@
 
 .success {
   --badge-color: var(--success);
-  --badge-foreground: var(--success);
+  --badge-foreground: color-mix(
+    in oklab,
+    var(--success) 70%,
+    var(--foreground)
+  );
   --badge-background: var(--success-soft);
   --badge-border: color-mix(in oklab, var(--success) 25%, var(--border));
 }
 
+/* Informational: ink on the neutral ghost tint. Lime marks ACTIVE state only. */
 .info {
-  --badge-color: var(--accent-foreground);
-  --badge-foreground: var(--accent-foreground);
-  --badge-background: var(--accent);
-  --badge-border: color-mix(
-    in oklab,
-    var(--accent-foreground) 18%,
-    var(--accent)
-  );
+  --badge-color: var(--foreground);
+  --badge-foreground: var(--foreground);
+  --badge-background: var(--wm-ghost);
+  --badge-border: color-mix(in oklab, var(--foreground) 14%, var(--wm-ghost));
 }
 
 .warning {
-  --badge-color: color-mix(in oklab, var(--warning) 80%, var(--foreground));
+  --badge-color: color-mix(in oklab, var(--warning) 70%, var(--foreground));
   --badge-foreground: color-mix(
     in oklab,
-    var(--warning) 80%,
+    var(--warning) 70%,
     var(--foreground)
   );
   --badge-background: var(--warning-soft);
@@ -64,14 +65,20 @@
 
 .danger {
   --badge-color: var(--destructive);
-  --badge-foreground: var(--destructive);
+  --badge-foreground: color-mix(
+    in oklab,
+    var(--destructive) 70%,
+    var(--foreground)
+  );
   --badge-background: color-mix(in oklab, var(--destructive) 14%, transparent);
   --badge-border: color-mix(in oklab, var(--destructive) 26%, var(--border));
 }
 
+/* Legacy class name: the category pill. Forest ink (preset-aware) on the warm
+   soft fill; lime is not a text color on light surfaces (1.64:1). */
 .purple {
-  --badge-color: var(--brand-purple);
-  --badge-foreground: var(--brand-purple);
+  --badge-color: var(--primary-strong);
+  --badge-foreground: var(--primary-strong);
   --badge-background: var(--brand-purple-soft);
   --badge-border: color-mix(in oklab, var(--brand-purple) 25%, var(--border));
 }

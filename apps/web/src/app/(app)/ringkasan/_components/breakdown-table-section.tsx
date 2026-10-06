@@ -102,7 +102,7 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                   <tr key={liability.id}>
                     <td className="t-bold">{liability.name}</td>
                     <td>
-                      <StatusBadge variant="danger">
+                      <StatusBadge variant="gray">
                         {t.ringkasan.breakdownBadgeLiabilitas}
                       </StatusBadge>
                     </td>
@@ -111,7 +111,7 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                         ? `${formatPercent1((Number(liability.remainingBalance) / totalLiabilities) * 100, dateLocale)}%`
                         : t.ringkasan.noDataDash}
                     </td>
-                    <td className="mono t-bold t-danger private">
+                    <td className="mono t-bold private">
                       {moneyFull(Number(liability.remainingBalance))}
                     </td>
                   </tr>
@@ -123,7 +123,7 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                     </td>
                     <td />
                     <td className="t-xs t-muted mono">100%</td>
-                    <td className="mono t-black t-danger private">
+                    <td className="mono t-black private">
                       {moneyFull(totalLiabilities)}
                     </td>
                   </tr>

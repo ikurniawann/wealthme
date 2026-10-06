@@ -64,7 +64,7 @@ export function useCurrencyPreference() {
     isRateLoading: isIndicative && isFxLoading,
     isRateError: isIndicative && isFxError,
     formatMoney,
-    // hardening G1 — exposed so useMoney() can read hideBalance/showDecimal
+    // hardening G1 — exposed so useMoney() can read hideBalance
     // without a second, independent useProfile() call (which would pull in
     // the auth-compat/auth-client module chain in call sites that only ever
     // mocked useCurrencyPreference itself).

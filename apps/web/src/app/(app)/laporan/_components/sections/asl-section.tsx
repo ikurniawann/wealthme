@@ -3,6 +3,7 @@ import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { BalanceSheetDto } from "@wealthme/contracts";
 import { BarRow } from "../atoms";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 
 /* ───────────────────────── Section: Aset & Liabilitas ───────────────────────── */
 
@@ -38,7 +39,7 @@ export function AslSection({
           <div className="mb-1 text-[11px] text-muted-foreground">
             {t.laporan.totalLiabilitiesLabel}
           </div>
-          <div className="text-[22px] font-black text-destructive">
+          <div className="text-[22px] font-black">
             {balanceSheet
               ? `-${money.format(balanceSheet.totalLiabilities)}`
               : "Rp ·"}
@@ -83,7 +84,7 @@ export function AslSection({
                   g.category as keyof typeof t.liabilitas.typeLabels
                 ] ?? g.category,
               amount: g.amount,
-              color: "var(--wm-orange)",
+              color: EXPENSE_COLOR,
             })),
           ];
           const maxAmount = Math.max(...rows.map((r) => r.amount), 0);
@@ -97,7 +98,7 @@ export function AslSection({
                     {t.laporan.balance.assetLabel}
                   </span>
                   <span>
-                    <i style={{ background: "var(--wm-orange)" }} />
+                    <i style={{ background: EXPENSE_COLOR }} />
                     {t.laporan.balance.liabilitiesLabel}
                   </span>
                 </div>

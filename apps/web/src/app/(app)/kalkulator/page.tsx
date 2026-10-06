@@ -16,6 +16,7 @@ import {
 import { useSession } from "@/lib/auth-compat";
 import { toast } from "sonner";
 import { BentoCard, BentoGrid, MoneyInput } from "@/components/wm";
+import { MoneyCompact } from "@/components/wm/money-compact";
 import "./kalkulator.css";
 import { Button } from "@/components/ui/button";
 import {
@@ -142,12 +143,12 @@ function CalcLayout({
 }
 
 // Leading currency symbol money.format()/formatRupiah() bake into the
-// string ("Rp 625.096.724,00", "≈ $ 123,45", a masked "Rp ••••••" …) — see
+// string ("Rp 625.096.724", "≈ $ 123,45", a masked "Rp ••••••" …) — see
 // CURRENCY_CONFIG in `@/lib/format`. Matched here so the hero can render it
 // as the small muted `.wm-cur` prefix (kalkulator.html's `hero()` macro)
 // instead of leaving it glued to the big number where it can wrap onto its
 // own line.
-const CURRENCY_PREFIX_RE = /^(≈\s)?(Rp|CN¥|A\$|S\$|\$|€|¥)\s/;
+const CURRENCY_PREFIX_RE = /^(≈\s)?(Rp|CN¥|US\$|A\$|S\$|€|¥)\s/;
 
 function splitMoneyValue(value: string): { prefix: string; amount: string } {
   const match = value.match(CURRENCY_PREFIX_RE);
@@ -511,16 +512,16 @@ function Pph21Tab({ token }: { token: string | undefined }) {
                   </div>
                   <Row
                     label={t.kalkulator.pph21.laborCostLabel}
-                    value={`−${formatRupiah(result.biayaJabatan)}`}
+                    value={`-${formatRupiah(result.biayaJabatan)}`}
                   />
                   <Row
                     label={t.kalkulator.pph21.ptkpLabel}
-                    value={`−${formatRupiah(result.ptkp)}`}
+                    value={`-${formatRupiah(result.ptkp)}`}
                   />
                   {result.zakatDeduction > 0 && (
                     <Row
                       label={t.kalkulator.pph21.zakatLabel}
-                      value={`−${formatRupiah(result.zakatDeduction)}`}
+                      value={`-${formatRupiah(result.zakatDeduction)}`}
                     />
                   )}
                 </div>
@@ -762,7 +763,7 @@ function InvestasiTab() {
                 point (kalkulator.html wm.js:3413-ish) — TrendChart has no
                 annotation prop, so this is a page-local overlay. */}
             <span className="kl-chart-tag" aria-hidden="true">
-              {money.formatCompact(fv)}
+              <MoneyCompact value={fv} />
             </span>
           </div>
           <div className="kl-block">
@@ -1272,7 +1273,6 @@ export default function KalkulatorPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="sr-only">{t.kalkulator.pageTitle}</h1>
       <BentoGrid>
         {/* Prototype `.k-picker` (kalkulator.html:37-40) — light card,
             title + caption, icon-tile picker below (not the pill-tab dark

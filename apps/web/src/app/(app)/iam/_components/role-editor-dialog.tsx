@@ -242,9 +242,9 @@ export function RoleEditorDialog({
                 disabled={save.isPending}
               />
               <p className="hint">
-                IAM Roles tidak bisa diberikan — hanya Master yang bisa mengatur
-                akses. Akun, Akses Saya, Notifikasi dan Panduan selalu terbuka
-                untuk semua anggota.
+                Peran &amp; Akses tidak bisa diberikan — hanya Master yang bisa
+                mengatur akses. Akun, Akses Saya, Notifikasi dan Panduan selalu
+                terbuka untuk semua anggota.
               </p>
             </div>
           </div>

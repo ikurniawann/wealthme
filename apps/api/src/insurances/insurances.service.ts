@@ -8,6 +8,10 @@ import {
 } from "@nestjs/common";
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
+import {
+  calendarDaysUntil,
+  isInsuranceRenewalSoon,
+} from "../common/utils/due-window.util";
 import { effectiveBudgetType } from "../common/utils/effective-budget-type.util";
 import { ownCategoryName } from "../common/utils/own-category-name.util";
 import {
@@ -92,10 +96,6 @@ type InsuranceRow = {
   beneficiaries?: BeneficiaryRow[];
 };
 
-function daysUntil(date: Date): number {
-  return Math.ceil((date.getTime() - Date.now()) / 86_400_000);
-}
-
 // EPIC-023 F1 (D14, US-INS-5) — live-link resolution. `Member.relationship`
 // is an 8-value enum (kinship) while `InsuranceBeneficiary.relationship` is
 // free text (also serving non-members) — reconciled by NOT changing the
@@ -166,7 +166,9 @@ function toInsuranceDto(
     renewalDate: row.renewalDate?.toISOString() ?? null,
     autoRenewDate: row.autoRenewDate,
     policyNumber: row.policyNumber,
-    daysUntilRenewal: row.renewalDate ? daysUntil(row.renewalDate) : null,
+    daysUntilRenewal: row.renewalDate
+      ? calendarDaysUntil(row.renewalDate)
+      : null,
     notes: row.notes,
     currency: row.currency,
     beneficiaries: (row.beneficiaries ?? []).map((b) =>
@@ -1004,8 +1006,8 @@ export class InsurancesService {
     renewalDate: Date | null,
   ): Promise<void> {
     if (!renewalDate) return;
-    const days = daysUntil(renewalDate);
-    if (days < 0 || days > 30) return;
+    const days = calendarDaysUntil(renewalDate);
+    if (!isInsuranceRenewalSoon(renewalDate)) return;
     try {
       const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
       if (!prefs.billDue) return;

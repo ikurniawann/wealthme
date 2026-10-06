@@ -27,7 +27,7 @@ const buttonVariants = cva(
         secondary: "btn--outline",
         ghost: "btn--ghost",
         destructive: "btn--destructive",
-        link: "btn--ghost text-primary underline-offset-4 hover:underline",
+        link: "btn--ghost text-primary-strong underline-offset-4 hover:underline",
       },
       size: {
         // `.btn` itself is the default (36px) size.

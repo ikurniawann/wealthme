@@ -1,5 +1,6 @@
 import { BentoCard, BentoTile, BentoTiles } from "@/components/wm";
 import { HatchedAreaChart } from "@/components/charts/bento-charts";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
@@ -30,7 +31,7 @@ export function TahunanSection({
             value={
               <span
                 className="lap-a-kpi-value"
-                style={{ color: "var(--wm-lime)" }}
+                style={{ color: "var(--wm-good)" }}
               >
                 {money.format(latest.income)}
               </span>
@@ -41,7 +42,7 @@ export function TahunanSection({
             value={
               <span
                 className="lap-a-kpi-value"
-                style={{ color: "var(--wm-orange)" }}
+                style={{ color: EXPENSE_COLOR }}
               >
                 {money.format(latest.expense)}
               </span>
@@ -53,8 +54,7 @@ export function TahunanSection({
               <span
                 className="lap-a-kpi-value"
                 style={{
-                  color:
-                    latest.net >= 0 ? "var(--wm-lime)" : "var(--wm-orange)",
+                  color: latest.net >= 0 ? "var(--wm-good)" : "var(--wm-bad)",
                 }}
               >
                 {(latest.net >= 0 ? "+" : "") + money.format(latest.net)}
@@ -62,7 +62,7 @@ export function TahunanSection({
             }
           />
           <BentoTile
-            title={t.laporan.savingsRateLabel}
+            title={`${t.laporan.savingsRateLabel} · ${latest.label}`}
             value={
               <span className="lap-a-kpi-value">
                 {latest.income > 0
@@ -90,6 +90,7 @@ export function TahunanSection({
               labels={points.map((p) => p.label)}
               values={points.map((p) => p.income)}
               format={(v) => money.formatCompact(v)}
+              formatFull={money.format}
               ariaLabel={`${t.laporan.tahunan.trendTitle}: ${points
                 .map((p) => `${p.label} ${money.format(p.income)}`)
                 .join(", ")}`}

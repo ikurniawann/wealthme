@@ -42,7 +42,7 @@ import {
 } from "@/components/money";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
-import { parseRupiah, formatRupiah } from "@/lib/format";
+import { formatAxisCompact, parseRupiah, formatRupiah } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -93,19 +93,6 @@ function computePct(split: SplitBillDto): number {
   const total = Number(BigInt(split.totalAmount));
   if (total === 0) return 0;
   return Math.round((computePaidAmount(split) / total) * 100);
-}
-
-/** Axis ticks: "6 jt" / "1,5 M", no currency or decimals (docs/design/proto
- * splitbill.html's chart y-axis; same pattern as rekening/anggaran). */
-function axisJt(value: number): string {
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "−" : "";
-  const trim = (n: number) =>
-    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
-  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
-  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
-  return `${sign}${Math.round(abs)}`;
 }
 
 export default function SplitBillPage() {
@@ -601,11 +588,10 @@ export default function SplitBillPage() {
 
   return (
     <BentoGrid className="sb-grid">
-      <h1 className="sr-only">{t.splitbill.pageTitle}</h1>
       <BentoHero
         className="sb-hero"
         currency={null}
-        value={money.format(totalDitalangin).replace(/,00$/, "")}
+        value={money.format(totalDitalangin)}
         caption={t.splitbill.headerDesc}
         controls={
           <>
@@ -650,7 +636,8 @@ export default function SplitBillPage() {
               ]}
               highlight={highlightIndex}
               format={money.formatCompact}
-              axis={axisJt}
+              formatFull={money.format}
+              axis={formatAxisCompact}
               wide
               ariaLabel={activeSplits
                 .slice(0, 5)
@@ -665,16 +652,14 @@ export default function SplitBillPage() {
           <>
             <HeroKpi
               label={t.splitbill.sudahDibayarLabel}
-              value={money.format(totalTerkumpul).replace(/,00$/, "")}
-              short={money.formatCompact(totalTerkumpul)}
+              value={money.format(totalTerkumpul)}
               delta={
                 <small className="wm-cap">{`${totalDitalangin > 0 ? Math.round((totalTerkumpul / totalDitalangin) * 100) : 0}${t.splitbill.pctCollectedSuffix}`}</small>
               }
             />
             <HeroKpi
               label={t.splitbill.belumDibayarLabel}
-              value={money.format(totalBelum).replace(/,00$/, "")}
-              short={money.formatCompact(totalBelum)}
+              value={money.format(totalBelum)}
               delta={
                 <small className="wm-cap">{`${belumBayarCount}${t.splitbill.peopleUnpaidSuffix}`}</small>
               }
@@ -695,14 +680,12 @@ export default function SplitBillPage() {
         caption={`${historySplits.length}${t.splitbill.historyCountSuffix}`}
       >
         <p className="wm-mid">
-          {money
-            .format(
-              historySplits.reduce(
-                (s, split) => s + Number(BigInt(split.totalAmount)),
-                0,
-              ),
-            )
-            .replace(/,00$/, "")}
+          {money.format(
+            historySplits.reduce(
+              (s, split) => s + Number(BigInt(split.totalAmount)),
+              0,
+            ),
+          )}
         </p>
         <p className="wm-cap">{t.splitbill.historyTotalCaption}</p>
         <MiniList label={t.splitbill.historyTitle}>

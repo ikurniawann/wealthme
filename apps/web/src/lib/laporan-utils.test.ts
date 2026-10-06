@@ -195,15 +195,15 @@ describe("computeBalanceSheetIdentity", () => {
 // colour.
 describe("formatSignedRupiah", () => {
   it("prefixes a positive amount with a real plus sign", () => {
-    expect(formatSignedRupiah(1_500_000)).toBe("+Rp 1.500.000");
+    expect(formatSignedRupiah(1_500_000)).toBe("+Rp\u00A01.500.000");
   });
 
   it("prefixes a negative amount with a real minus sign — never Math.abs()'d to a bare positive", () => {
-    expect(formatSignedRupiah(-1_500_000)).toBe("-Rp 1.500.000");
+    expect(formatSignedRupiah(-1_500_000)).toBe("-Rp\u00A01.500.000");
   });
 
   it("treats zero as non-negative (a real plus sign, not a minus)", () => {
-    expect(formatSignedRupiah(0)).toBe("+Rp 0");
+    expect(formatSignedRupiah(0)).toBe("+Rp\u00A00");
   });
 
   it("never returns the same string for a value and its negation", () => {

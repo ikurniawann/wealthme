@@ -1922,29 +1922,52 @@ export async function main(): Promise<void> {
 
   // ── Notifications ─────────────────────────────────────────────────────────────
 
+  // Every figure/date below is DERIVED from the seeded liabilities, budgets,
+  // goals and insurances above, so these rows can never contradict the
+  // computed screens (Beranda attention card, Liabilitas, Asuransi). The
+  // seeded installment is not due within 7 days and the seeded policy does not
+  // renew within 30 days (apps/api/src/common/utils/due-window.util.ts), so
+  // neither is worded as "segera". No spend percentage is claimed for the
+  // budget: actual spend moves with the seeded transactions.
+  const rupiah = (n: bigint): string =>
+    `Rp ${Number(n).toLocaleString("id-ID")}`;
+  const longDate = (d: Date): string =>
+    d.toLocaleDateString("id-ID", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  const kpr = liabilities[0];
+  const foodBudget = budgets[0]!;
+  const emergencyGoal = goals[0];
+  const vehicleInsurance = insurances[2];
+  const emergencyPct = Math.round(
+    (Number(emergencyGoal.current) / Number(emergencyGoal.target)) * 100,
+  );
+
   const notifs = [
     {
       id: "4db0112d-dd72-46c2-a7aa-cba048db1016",
-      title: "Cicilan KPR Jatuh Tempo",
-      body: "Cicilan KPR BTN sebesar Rp 4.200.000 jatuh tempo dalam 5 hari.",
+      title: "Jadwal Cicilan KPR",
+      body: `Cicilan KPR BTN sebesar ${rupiah(kpr.minPayment)} jatuh tempo pada ${longDate(kpr.due)}.`,
       icon: "🏠",
     },
     {
       id: "8df32578-2c72-4832-8391-de44a3703c56",
-      title: "Budget Makan & Minum 80%",
-      body: "Pengeluaran makan sudah mencapai 80% dari budget Rp 2.000.000.",
-      icon: "⚠️",
+      title: "Pantau Anggaran Makan & Minum",
+      body: `Anggaran bulanan Makan & Minum kamu ${rupiah(foodBudget.limit)}. Cek pemakaiannya di halaman Anggaran.`,
+      icon: "📊",
     },
     {
       id: "6c6a2b73-0de3-4e62-85f1-65318ed2e861",
-      title: "Goal Dana Darurat On Track",
-      body: "Dana darurat kamu sudah 70% dari target Rp 60.000.000.",
+      title: "Target Dana Darurat Sesuai Rencana",
+      body: `Dana darurat kamu sudah ${emergencyPct}% dari target ${rupiah(emergencyGoal.target)}.`,
       icon: "🛡️",
     },
     {
       id: "3cd0c242-bb4d-4dfe-87b4-19bab6af843c",
-      title: "Asuransi Kendaraan Renewal",
-      body: "Asuransi kendaraan akan jatuh tempo dalam 30 hari.",
+      title: "Jadwal Perpanjangan Asuransi Kendaraan",
+      body: `Asuransi kendaraan diperpanjang pada ${longDate(vehicleInsurance.renewal)}.`,
       icon: "🚗",
     },
   ];
@@ -1952,7 +1975,9 @@ export async function main(): Promise<void> {
   for (const n of notifs) {
     await prisma.notification.upsert({
       where: { id: n.id },
-      update: {},
+      // Re-seeding refreshes the demo copy so an older DB drops the
+      // contradictory static wording; read state is left untouched.
+      update: { title: n.title, body: n.body, icon: n.icon },
       create: {
         id: n.id,
         familyGroupId: FG,

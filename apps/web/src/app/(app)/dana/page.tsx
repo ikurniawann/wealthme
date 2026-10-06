@@ -37,12 +37,14 @@ import {
   TipsCard,
   ARow,
 } from "@/components/wm";
+import { MoneyCompact } from "@/components/wm/money-compact";
 import { HatchedAreaChart } from "@/components/charts/bento-charts";
 import "./dana.css";
 import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { parseRupiah } from "@/lib/format";
+import { formatAxisCompact, parseRupiah } from "@/lib/format";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
 import {
   CrudModal,
@@ -57,6 +59,7 @@ import type {
   TransactionDto,
   TransactionListResponse,
 } from "@wealthme/contracts";
+import { localIsoDate } from "@/lib/local-date";
 
 // EPIC-022 F — the API's ConflictException carries a message the user can act
 // on (e.g. a duplicate cash-account name); the generic toast threw it away and
@@ -196,7 +199,7 @@ function buildDanaTrend(
     values.push(value);
   }
   const lastDay = relevant[relevant.length - 1]?.occurredAt.slice(0, 10);
-  if (lastDay !== new Date().toISOString().slice(0, 10)) {
+  if (lastDay !== localIsoDate()) {
     labels.push(todayLabel);
     values.push(totalBalance);
   }
@@ -346,11 +349,9 @@ function MutationRow({
   const amountStr = isTransfer
     ? money.format(amount)
     : (isIncome ? "+" : "-") + money.format(amount);
-  const amountClass = isTransfer
-    ? ""
-    : isIncome
-      ? "text-success"
-      : "text-destructive";
+  const amountClass = !isTransfer && isIncome ? "text-success" : "";
+  const amountStyle =
+    !isTransfer && !isIncome ? { color: EXPENSE_COLOR } : undefined;
   // Prefer whichever side of the transaction is the dana account being
   // reported on (matters for a transfer touching one dana + one non-dana
   // account).
@@ -370,21 +371,13 @@ function MutationRow({
       badge={<Icon className="size-4" aria-hidden="true" />}
       title={tx.description ?? tx.categoryName ?? "—"}
       meta={`${formatShortDate(tx.occurredAt, locale)} · ${accountLabel ?? "—"}`}
-      amount={<span className={amountClass}>{amountStr}</span>}
+      amount={
+        <span className={amountClass} style={amountStyle}>
+          {amountStr}
+        </span>
+      }
     />
   );
-}
-
-/** Axis ticks: "20 jt", "500 rb". */
-function axisJt(value: number): string {
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "−" : "";
-  const trim = (n: number) =>
-    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
-  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
-  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
-  return `${sign}${Math.round(abs)}`;
 }
 
 export default function DanaPage() {
@@ -490,7 +483,7 @@ export default function DanaPage() {
   const [deleting, setDeleting] = useState<AccountDto | null>(null);
   const [requesting, setRequesting] = useState<AccountDto | null>(null);
   const [customizing, setCustomizing] = useState<AccountDto | null>(null);
-  const { lookFor, setLook } = useCardLooks();
+  const { lookFor, setLook } = useCardLooks(danaAccounts);
 
   // EPIC-033 R3 — "Pemilik" picker for cash/e-wallet, same shape as the
   // bank form on /rekening (family-shared = "").
@@ -665,7 +658,6 @@ export default function DanaPage() {
 
   return (
     <BentoGrid className="dn-grid">
-      <h1 className="sr-only">{t.shell.pageTitles.dana}</h1>
       <BentoHero
         className="dn-hero"
         currency={null}
@@ -674,7 +666,7 @@ export default function DanaPage() {
             ? t.dana.loadingLabel
             : isError
               ? "—"
-              : money.format(totalBalance).replace(/,00$/, "")
+              : money.format(totalBalance)
         }
         caption={`${t.dana.totalLabel} · ${danaAccounts.length}${t.dana.accountsConnectedSuffix}`}
         controls={
@@ -701,7 +693,8 @@ export default function DanaPage() {
                   : danaTrend.values
               }
               format={money.formatCompact}
-              axis={axisJt}
+              formatFull={money.format}
+              axis={formatAxisCompact}
               floor={Math.min(0, ...danaTrend.values)}
               ariaLabel={t.dana.totalLabel}
             />
@@ -711,7 +704,7 @@ export default function DanaPage() {
           <>
             <HeroKpi
               label={t.dana.cashStatLabel}
-              value={money.formatCompact(
+              value={money.format(
                 cashItems.reduce(
                   (sum, a) => sum + parseFloat(a.balance ?? "0"),
                   0,
@@ -723,7 +716,7 @@ export default function DanaPage() {
             />
             <HeroKpi
               label={t.dana.ewalletStatLabel}
-              value={money.formatCompact(
+              value={money.format(
                 ewalletItems.reduce(
                   (sum, a) => sum + parseFloat(a.balance ?? "0"),
                   0,
@@ -760,9 +753,10 @@ export default function DanaPage() {
           <div className="mt-3">
             <CompositionStack
               label={t.dana.compositionTitle}
-              center={money.formatCompact(totalBalance)}
+              center={<MoneyCompact value={totalBalance} />}
               sub={t.dana.compositionTotalLabel}
               format={money.formatCompact}
+              formatFull={money.format}
               items={compositionSegments.map((seg) => ({
                 label: seg.label,
                 value: seg.value,
@@ -803,7 +797,7 @@ export default function DanaPage() {
           "a",
         ]}
         action={
-          <a href="/rekening" className="dn-tip-link">
+          <a href="/rekening" className="dn-tip-link wm-textlink">
             {t.dana.bankInfoLinkLabel}
             <ArrowRight aria-hidden="true" className="size-3.5" />
           </a>
@@ -894,7 +888,7 @@ export default function DanaPage() {
       <div className="dn-full dn-saldo-note" role="note">
         <b>{t.dana.infoNoticeBold}</b>
         {t.dana.infoNoticeBody}
-        <a href="/rekening" className="font-bold">
+        <a href="/rekening" className="font-bold wm-textlink">
           {t.dana.infoNoticeLinkLabel}
         </a>
         {t.dana.infoNoticeSuffix}
@@ -910,7 +904,7 @@ export default function DanaPage() {
           action={
             <a
               href="/transaksi"
-              className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+              className="wm-textlink text-xs font-semibold whitespace-nowrap text-primary hover:underline"
             >
               {t.dana.mutationsViewAllLabel}
             </a>

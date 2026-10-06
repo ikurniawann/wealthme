@@ -32,6 +32,8 @@ import { apiFetch } from "@/lib/api-client";
 import { useMoney } from "@/hooks/use-money";
 import { uploadAssetDocument } from "@/lib/asset-attachments";
 import { queryKeys } from "@/lib/query-keys";
+import { assetGroupColor } from "@/lib/viz-colors";
+import { DELTA_ARROW, deltaDirection } from "@/lib/delta";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -989,10 +991,17 @@ export default function AsetPage() {
     BigInt(0),
   );
   // currentValue is a computed Decimal (quantity × price) and can be
-  // fractional — BigInt() throws on that, so sum it as a float instead
-  // (see the same note on InvestasiGroupCard above).
+  // fractional — BigInt() throws on that, so sum it as a float instead.
+  // A holding with no usable price yet (currentValue null) counts at cost
+  // basis × quantity — the same basis as the API net-worth rollup and the
+  // Investasi summary, so /aset, /investasi, /ringkasan and Beranda agree.
   const investmentsTotal = (investments ?? []).reduce(
-    (sum, inv) => sum + parseFloat(inv.currentValue ?? "0"),
+    (sum, inv) =>
+      sum +
+      (inv.currentValue != null
+        ? parseFloat(inv.currentValue)
+        : parseFloat(inv.costBasisPerUnit ?? "0") *
+          parseFloat(inv.quantity ?? "0")),
     0,
   );
   // EPIC-023 D19/US-ASSET-4: currentValue (recorded) is authoritative for
@@ -1057,7 +1066,7 @@ export default function AsetPage() {
   const investasiDeltaText =
     investasiDeltaPct === null
       ? undefined
-      : `${investasiDeltaPct >= 0 ? "↑" : "↓"} ${Math.abs(
+      : `${DELTA_ARROW[deltaDirection(investasiDeltaPct, 1)]} ${Math.abs(
           investasiDeltaPct,
         ).toLocaleString(locale === "en" ? "en-US" : "id-ID", {
           minimumFractionDigits: 1,
@@ -1073,22 +1082,22 @@ export default function AsetPage() {
     {
       label: t.aset.breakdownFisikLabel,
       value: Number(assetsTotalBig),
-      color: "var(--wm-orange, #ff9a52)",
+      color: assetGroupColor("physical"),
     },
     {
       label: t.aset.breakdownInvestasiLabel,
       value: investmentsTotal,
-      color: "var(--wm-lilac, #b9a7ff)",
+      color: assetGroupColor("investment"),
     },
     {
       label: t.aset.breakdownBankLabel,
       value: Number(bankTotal),
-      color: "var(--wm-sky, #7cc4ff)",
+      color: assetGroupColor("bank"),
     },
     {
       label: t.aset.breakdownCashLabel,
       value: Number(cashTotal),
-      color: "var(--wm-lime)",
+      color: assetGroupColor("cash"),
     },
   ].filter((item) => item.value > 0);
 
@@ -1097,13 +1106,10 @@ export default function AsetPage() {
   return (
     <div data-page="aset" className={cn("as-page", privacyOn && "as-priv")}>
       <BentoGrid className="as-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.aset}</h1>
-
         <BentoHero
           className="as-hero"
           currency={null}
-          value={isLoading ? "…" : money.format(grandTotal).replace(/,00$/, "")}
-          valueAs="p"
+          value={isLoading ? "…" : money.format(grandTotal)}
           caption={isLoading ? "…" : heroCaption}
           controls={
             <>
@@ -1141,7 +1147,7 @@ export default function AsetPage() {
               {isLoading ? null : compItems.length > 0 ? (
                 <CompositionStack
                   items={compItems}
-                  center={money.formatCompact(grandTotal)}
+                  center={money.format(grandTotal)}
                   sub={t.aset.v2.compAria}
                   label={t.aset.v2.compAria}
                   format={money.format}
@@ -1158,6 +1164,7 @@ export default function AsetPage() {
                       },
                     ]}
                     format={money.formatCompact}
+                    formatFull={money.format}
                     wide
                     ariaLabel={t.aset.v2.trendAria}
                   />
@@ -1236,7 +1243,7 @@ export default function AsetPage() {
             <p className="as-empty">{t.aset.emptyDanaRekening}</p>
           ) : (
             <MiniList label={t.aset.v2.accTitle}>
-              {allAccounts.slice(0, 5).map((account) => {
+              {allAccounts.map((account) => {
                 const Icon = (
                   ACCOUNT_TYPE_ICON[account.type] ?? { icon: Wallet }
                 ).icon;

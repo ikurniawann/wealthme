@@ -142,8 +142,9 @@
     width: 30px;
     height: 30px;
     border-radius: 9px;
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
+    background: #11382c;
+    color: #eef0e8;
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
   }
   .wm-nav {
     display: flex;
@@ -313,6 +314,23 @@
   .wm-spacer {
     flex: 1;
   }
+  /* desktop-only visible page title (the sr-only h1 stays the heading) */
+  .wm-top-title {
+    display: none;
+  }
+  @media (min-width: 721px) {
+    .wm-top-title {
+      display: block;
+      flex: none;
+      max-width: 28%;
+      overflow: hidden;
+      color: var(--wm-ink);
+      font-size: var(--wm-type-16, 16px);
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
   .wm-icon-btn {
     position: relative;
     display: grid;
@@ -410,7 +428,7 @@
     width: 32px;
     height: 32px;
     border-radius: 10px;
-    background: var(--wm-lime-soft);
+    background: var(--wm-card-2);
     color: var(--wm-ink);
     font-size: var(--wm-type-12);
     font-weight: 600;
@@ -424,15 +442,22 @@
     padding: 0 18px;
     border: 0;
     border-radius: 13px;
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
+    background: var(--commit);
+    color: var(--commit-foreground);
     font-size: var(--wm-type-14);
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
   }
   .wm-add:hover {
-    filter: brightness(1.04);
+    background: var(--commit-hover);
+  }
+  .wm-add:active {
+    background: var(--commit-pressed);
+  }
+  .wm-add:focus-visible {
+    outline: 2px solid var(--primary-strong);
+    outline-offset: 2px;
   }
   .wm-add svg {
     width: 16px;
@@ -442,6 +467,28 @@
   /* phone title (hidden above 720) */
   .wm-mtitle {
     display: none;
+  }
+  /* above 720 the page title stays the one h1 on every page, visually hidden */
+  @media (min-width: 721px) {
+    .wm-mtitle {
+      position: absolute;
+      display: block;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+    }
+    .wm-mtitle h1,
+    .wm-mtitle small {
+      margin: 0;
+      font-size: inherit;
+      font-weight: inherit;
+    }
   }
 
   /* liquid dock (<= 900): a compact pill; one lime blob glides to the active item */
@@ -455,11 +502,11 @@
     gap: 2px;
     padding: 6px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--wm-dock) 92%, transparent);
+    border: 1px solid var(--wm-line);
+    background: var(--wm-dock);
     box-shadow:
       0 18px 40px -16px rgb(10 20 5 / 0.55),
       inset 0 1px 0 rgb(255 255 255 / 0.06);
-    backdrop-filter: blur(14px) saturate(1.2);
     /* --vv-bottom: useVisualViewportInset keeps the dock above a collapsing URL bar. */
     transform: translateX(-50%) translateY(calc(-1 * var(--vv-bottom, 0px)));
     transition:
@@ -467,21 +514,19 @@
       opacity 0.2s;
   }
   /* Recede, don't vanish: the dock is a 60px pill, so clipping it off-screen
-     and keeping a 44px touch target are mutually exclusive — dim it instead
-     of translating it away. Position and tap targets stay exactly in place
-     (ui-ux-pro-max `persistent-nav` — core nav must stay reachable, never
-     hidden entirely in a sub-flow), only visual prominence recedes during a
-     reading scroll. */
+     and keeping a 44px touch target are mutually exclusive. It stays
+     (nearly) opaque so list rows never bleed through it; only a slight
+     dim signals a reading scroll. Position and tap targets stay put
+     (ui-ux-pro-max `persistent-nav`). */
   .wm-dock[data-hidden] {
-    opacity: 0.45;
+    opacity: 0.9;
   }
   .wm-dock[data-hidden]:hover,
   .wm-dock[data-hidden]:focus-within {
     opacity: 1;
   }
   .dark .wm-dock {
-    border: 1px solid rgb(255 255 255 / 0.08);
-    background: rgb(22 22 23 / 0.92);
+    box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6);
   }
   .wm-dock-item {
     position: relative;
@@ -507,6 +552,31 @@
   }
   .dark .wm-dock-item[data-active] {
     color: #10160a;
+  }
+  /* Active item only: a small text label under the icon, inside the 48px
+     target. The blob bleeds 8px either side so the label never clips, and
+     the item keeps its 48px layout width so nothing shifts. */
+  .wm-dock-ic:has(.wm-dock-label) {
+    flex-direction: column;
+    gap: 2px;
+  }
+  .wm-dock-label {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .wm-dock-item[data-active] .wm-dock-blob {
+    inset: 0 -8px;
+  }
+  @media (max-width: 359px) {
+    .wm-dock-label {
+      display: none;
+    }
+    .wm-dock-item[data-active] .wm-dock-blob {
+      inset: 0;
+    }
   }
   .wm-dock-blob {
     position: absolute;
@@ -608,12 +678,19 @@
     width: 36px;
     height: 36px;
     border-radius: 50%;
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
+    background: rgb(238 240 232 / 0.14);
+    color: #eef0e8;
   }
   .dark .wm-fai {
     border: 1px solid rgb(255 255 255 / 0.1);
     box-shadow: none;
+  }
+  /* Never float over an open dialog / side panel / bottom sheet: every Base UI
+     popup in the app carries `.dialog` + `data-open` (valueless attribute),
+     including `PanelContent`. The launcher's own panel is not a `.dialog`. */
+  body:has(.dialog[data-open]) :is(.wm-fai, .wm-fai-panel) {
+    visibility: hidden;
+    pointer-events: none;
   }
 
   /* launcher: grouped settings-style list */
@@ -1050,10 +1127,14 @@
     }
   }
   .wm-ghost-btn[data-lit="true"] {
-    border-color: var(--wm-lime);
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
+    border-color: var(--commit);
+    background: var(--commit);
+    color: var(--commit-foreground);
     font-weight: 600;
+  }
+  .wm-ghost-btn[data-lit="true"]:hover {
+    border-color: var(--commit-hover);
+    background: var(--commit-hover);
   }
   .wm-ghost-btn svg {
     width: 14px;
@@ -1130,6 +1211,9 @@
   .wm-delta[data-tone="bad"] {
     color: var(--wm-bad);
   }
+  .wm-delta[data-tone="neutral"] {
+    color: var(--wm-muted);
+  }
   .wm-delta em {
     color: var(--wm-muted);
     font-style: normal;
@@ -1138,7 +1222,7 @@
   /* dark hero card */
   .wm-dark {
     --wm-ink: #eef0e8;
-    --wm-muted: #a3aa95;
+    --wm-muted: #b4bca6;
     --wm-line: rgb(238 240 232 / 0.12);
     --wm-ghost: rgb(238 240 232 / 0.14);
     --wm-card: #113a2d;
@@ -1149,6 +1233,19 @@
     --cghost: rgb(238 240 232 / 0.16);
     --cstrong: #eef0e8;
     --cbg: #113a2d;
+    /* Categorical viz on the always-dark hero surface: the dark-theme set, so
+       light mode's #1a4b3b/#4b5046 don't vanish into the forest card. */
+    --viz-1: #3f9468;
+    --viz-2: #c6e48c;
+    --viz-3: #dcb461;
+    --viz-4: #d9826a;
+    --viz-5: #6fb3a6;
+    --viz-6: #a3a69c;
+    /* Semantic pos/neg for the always-dark hero surface (>=4.5:1 on the
+       lightest gradient stop incl. the lime glow); the light-theme
+       --wm-good/--wm-bad fail on forest. */
+    --wm-pos: #c6e88f;
+    --wm-neg: #ffd3c7;
     background:
       radial-gradient(
         90% 90% at 100% 100%,
@@ -1194,12 +1291,33 @@
   .wm-dark .wm-seg-indicator {
     background: #eef0e8;
   }
+  .wm-dark
+    .wm-seg
+    button:not([aria-pressed="true"]):not([aria-selected="true"]),
+  .wm-dark
+    .segmented__item:not([aria-selected="true"]):not([aria-checked="true"]) {
+    color: #c8cfba;
+  }
+  .wm-dark .wm-delta[data-tone="good"] {
+    color: var(--wm-pos);
+  }
+  .wm-dark .wm-delta[data-tone="bad"] {
+    color: var(--wm-neg);
+  }
   .wm-dark .wm-hl {
     color: #a9d84c;
     font-style: normal;
   }
-  .dark .wm-dark .wm-ghost-btn[data-lit="true"] {
-    color: #10160a;
+  /* Hero primary on a dark/forest surface: forest would vanish, so it inverts
+     to a pale fill with forest ink (not lime). */
+  .wm-dark .wm-ghost-btn[data-lit="true"] {
+    border-color: #eef0e8;
+    background: #eef0e8;
+    color: #15170f;
+  }
+  .wm-dark .wm-ghost-btn[data-lit="true"]:hover {
+    border-color: #fff;
+    background: #fff;
   }
 
   .wm-hero {
@@ -1429,6 +1547,14 @@
       transparent 2px 8px
     );
   }
+  .dark .wm-fill-lime,
+  .wm-dark .wm-fill-lime {
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--wm-lime) 55%, var(--wm-lime-ink)) 0 2px,
+      transparent 2px 8px
+    );
+  }
   .wm-fill-lime {
     background-color: var(--wm-lime);
   }
@@ -1437,6 +1563,25 @@
   }
   .wm-fill-bad {
     background-color: var(--wm-bad);
+  }
+  /* Pengeluaran fill: the shared expense ink (see EXPENSE_COLOR), hatched with
+     the card's own background so the stripe reads on light and dark cards. */
+  .wm-fill-ink {
+    background-color: color-mix(in srgb, var(--cstrong) 72%, var(--cbg));
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--cbg) 38%, transparent) 0 2px,
+      transparent 2px 8px
+    );
+  }
+  /* Chart hatch stripe: lifted in dark so muted series keep >=3:1 on #131314. */
+  .dark .wm-hatch-stripe {
+    fill: rgb(255 255 255 / 0.5);
+  }
+  /* Lime-family fills (income): a lighter stripe vanishes (1.09:1 on #c6e48c),
+     so on dark surfaces the stripe is a darker lime (~2.8:1 against the base). */
+  :is(.dark, .wm-dark) .wm-hatch-stripe[data-base="lime"] {
+    fill: color-mix(in srgb, var(--wm-lime) 55%, var(--wm-lime-ink));
   }
   .wm-bar-legend {
     display: flex;
@@ -1537,12 +1682,14 @@
     height: 17px;
   }
   .wm-mini-row b {
-    display: block;
+    display: -webkit-box;
     overflow: hidden;
     font-size: var(--wm-type-13);
     font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow-wrap: anywhere;
   }
   .wm-mini-row small {
     display: block;
@@ -1698,12 +1845,14 @@
     font-weight: 700;
   }
   .wm-arow b {
-    display: block;
+    display: -webkit-box;
     overflow: hidden;
     font-size: var(--wm-type-14);
     font-weight: 500;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow-wrap: anywhere;
   }
   .wm-arow small {
     color: var(--wm-muted);
@@ -1922,7 +2071,7 @@
   .wm-plate {
     --ac-bg: var(--wm-lime);
     --ac-ink: #1f2a07;
-    --ac-mute: rgb(31 42 7 / 0.66);
+    --ac-mute: rgb(31 42 7 / 0.82);
     position: relative;
     isolation: isolate;
     display: flex;
@@ -1984,37 +2133,37 @@
   .wm-plate[data-skin="forest"] {
     --ac-bg: linear-gradient(150deg, #1a4b3b, #0c2b22);
     --ac-ink: #eef0e8;
-    --ac-mute: rgb(238 240 232 / 0.66);
+    --ac-mute: rgb(238 240 232 / 0.82);
   }
   .wm-plate[data-skin="midnight"] {
     --ac-bg: linear-gradient(150deg, #1f2533, #0d1017);
     --ac-ink: #eef0e8;
-    --ac-mute: rgb(238 240 232 / 0.62);
+    --ac-mute: rgb(238 240 232 / 0.82);
   }
   .wm-plate[data-skin="graphite"] {
     --ac-bg: linear-gradient(150deg, #3a3b36, #1c1d19);
     --ac-ink: #f3f3f1;
-    --ac-mute: rgb(243 243 241 / 0.62);
+    --ac-mute: rgb(243 243 241 / 0.82);
   }
   .wm-plate[data-skin="sand"] {
     --ac-bg: #efdc4e;
     --ac-ink: #3a3106;
-    --ac-mute: rgb(58 49 6 / 0.66);
+    --ac-mute: rgb(58 49 6 / 0.82);
   }
   .wm-plate[data-skin="sky"] {
     --ac-bg: linear-gradient(150deg, #bfd8ef, #8fb7e0);
     --ac-ink: #0f2a47;
-    --ac-mute: rgb(15 42 71 / 0.66);
+    --ac-mute: rgb(15 42 71 / 0.82);
   }
   .wm-plate[data-skin="lilac"] {
     --ac-bg: linear-gradient(150deg, #e3cdef, #c8a2de);
     --ac-ink: #3a1850;
-    --ac-mute: rgb(58 24 80 / 0.66);
+    --ac-mute: rgb(58 24 80 / 0.82);
   }
   .wm-plate[data-skin="coral"] {
     --ac-bg: linear-gradient(150deg, #f6b69a, #f2a247);
     --ac-ink: #4a1d06;
-    --ac-mute: rgb(74 29 6 / 0.66);
+    --ac-mute: rgb(74 29 6 / 0.82);
   }
   .wm-plate-t {
     display: flex;
@@ -2026,7 +2175,7 @@
   .wm-plate-name {
     min-width: 0;
     overflow: hidden;
-    color: var(--ac-mute);
+    color: var(--ac-ink);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -2232,11 +2381,39 @@
     cursor: not-allowed;
     opacity: 0.5;
   }
+  /* shared compact "Bayar" row action (Liabilitas + Anggaran): outline pill;
+     forest commit stays reserved for the page-level primary. */
+  .wm-pill.wm-pay-sm {
+    min-height: 32px;
+    padding: 0 12px;
+    gap: 4px;
+    font-size: var(--wm-type-12);
+  }
+  .wm-pill.wm-pay-sm:hover:not(:disabled) {
+    background: var(--wm-card-2);
+  }
+  /* settled row: neutral, non-interactive status text */
+  .wm-paid-note {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 32px;
+    padding: 0 8px;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  @media (max-width: 720px) {
+    .wm-pill.wm-pay-sm {
+      min-height: 44px;
+    }
+  }
   .wm-pill[data-variant="primary"] {
-    border-color: var(--wm-cover-mid);
-    background: var(--wm-cover-mid);
+    border-color: var(--commit);
+    background: var(--commit);
     box-shadow: 0 10px 24px -12px rgb(20 30 5 / 0.6);
-    color: #eef0e8;
+    color: var(--commit-foreground);
   }
   .wm-pill[data-variant="primary"]::after {
     content: "";
@@ -2244,8 +2421,8 @@
     height: 22px;
     margin-left: 4px;
     border-radius: 50%;
-    background: var(--wm-lime)
-      url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%231F2A07%27 stroke-width=%273%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M5 12h14M13 6l6 6-6 6%27/%3E%3C/svg%3E")
+    background: #eef0e8
+      url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2311382C%27 stroke-width=%273%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M5 12h14M13 6l6 6-6 6%27/%3E%3C/svg%3E")
       no-repeat center;
   }
   .wm-pill[data-variant="primary"]:hover:not(:disabled) {
@@ -2257,9 +2434,9 @@
     color: #fff;
   }
   .dark .wm-pill[data-variant="primary"] {
-    border-color: var(--wm-lime);
-    background: var(--wm-lime);
-    color: #10160a;
+    border-color: var(--commit);
+    background: var(--commit);
+    color: var(--commit-foreground);
   }
   .dark .wm-pill[data-variant="primary"]::after {
     background-color: #10160a;
@@ -2324,35 +2501,63 @@
     --wm-head-bg: linear-gradient(160deg, #1c1c1e, #131314);
     border: 1px solid rgb(255 255 255 / 0.08);
   }
-  .dialog > [data-slot="dialog-header"]:first-child,
-  .dialog > .dialog__title:first-child {
+  .dialog
+    > [data-slot="dialog-header"]:is(
+      :first-child,
+      [data-slot="dialog-close"] + *
+    ),
+  .dialog > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *) {
     margin: 0 -24px 20px;
     padding: 24px 72px 22px 24px;
     background: var(--wm-head-bg);
     color: #eef0e8;
   }
-  .dialog > .dialog__title:first-child:has(+ .dialog__desc) {
+  .dialog
+    > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *):has(
+      + .dialog__desc
+    ) {
     margin-bottom: 0;
     padding-bottom: 4px;
   }
-  .dialog > .dialog__title:first-child + .dialog__desc {
+  .dialog
+    > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *)
+    + .dialog__desc {
     margin: 0 -24px 20px;
     padding: 2px 72px 22px 24px;
     background: var(--wm-head-bg);
     background-position: 0 -40px;
-    color: #a3aa95;
+    color: #b4bca6;
   }
-  .dialog > [data-slot="dialog-header"]:first-child .dialog__desc {
-    color: #a3aa95;
+  .dialog
+    > [data-slot="dialog-header"]:is(
+      :first-child,
+      [data-slot="dialog-close"] + *
+    )
+    .dialog__desc {
+    color: #b4bca6;
   }
-  .dark .dialog > .dialog__title:first-child,
-  .dark .dialog > [data-slot="dialog-header"]:first-child {
+  .dark
+    .dialog
+    > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *),
+  .dark
+    .dialog
+    > [data-slot="dialog-header"]:is(
+      :first-child,
+      [data-slot="dialog-close"] + *
+    ) {
     border-bottom: 1px solid rgb(255 255 255 / 0.06);
   }
-  .dark .dialog > .dialog__title:first-child:has(+ .dialog__desc) {
+  .dark
+    .dialog
+    > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *):has(
+      + .dialog__desc
+    ) {
     border-bottom: 0;
   }
-  .dark .dialog > .dialog__title:first-child + .dialog__desc {
+  .dark
+    .dialog
+    > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *)
+    + .dialog__desc {
     border-bottom: 1px solid rgb(255 255 255 / 0.06);
     color: #8e8e8b;
   }
@@ -2372,8 +2577,11 @@
   .dialog > [data-slot="dialog-close"] {
     top: 18px;
     right: 18px;
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    z-index: 1;
     border-radius: 50%;
     background: rgb(238 240 232 / 0.1);
     color: #eef0e8;
@@ -2392,7 +2600,7 @@
   :is(.dialog, body) :is(.input, .select, .textarea) {
     min-height: 46px;
     padding: 10px 12px;
-    border: 1.5px solid var(--wm-line);
+    border: 1.5px solid var(--field-border);
     border-radius: 12px;
     background-color: var(--wm-card);
     box-shadow: none;
@@ -2408,7 +2616,7 @@
     width: 100%;
     min-height: 46px;
     padding: 10px 12px;
-    border: 1.5px solid var(--wm-line);
+    border: 1.5px solid var(--field-border);
     border-radius: 12px;
     background-color: var(--wm-card);
     box-shadow: none;
@@ -2419,7 +2627,10 @@
   :is(.dialog, body) .date-field .date-range__trigger:focus-visible,
   :is(.dialog, body) .date-field .date-range__trigger[aria-expanded="true"] {
     border-color: var(--wm-lime);
-    outline: 0;
+  }
+  :is(.dialog, body) .date-field .date-range__trigger:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
   }
   .dialog .date-field .date-range__label {
     font-weight: 500;
@@ -2428,15 +2639,28 @@
     padding-right: 34px;
     background-position: right 12px center;
   }
-  :is(.dialog, body) :is(.input, .select, .textarea):focus,
-  :is(.dialog, body) :is(.input, .select, .textarea):focus-visible {
+  :is(.dialog, body) :is(.input, .select, .textarea):focus {
     border-color: var(--wm-lime);
     outline: 0;
     box-shadow: none;
   }
+  :is(.dialog, body) :is(.input, .select, .textarea):focus-visible {
+    border-color: var(--wm-lime);
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    box-shadow: none;
+  }
   :is(.dialog, body) :is(.input, .textarea)::placeholder {
-    color: color-mix(in srgb, var(--wm-muted) 70%, transparent);
+    color: var(--placeholder);
+    opacity: 1;
     font-weight: 400;
+  }
+  /* Bare search fields (topbar dialog, Transaksi, Laporan) had the UA's 50%
+     alpha placeholder, ~3.4:1. One tinted-neutral token for all of them. */
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--placeholder);
+    opacity: 1;
   }
   :is(.dialog, body) :is(.input, .select, .textarea)[aria-invalid="true"] {
     border-color: var(--wm-bad);
@@ -2457,10 +2681,10 @@
   }
   .dialog .dialog__footer .btn--primary {
     flex: 2;
-    border-color: var(--wm-cover-mid);
-    background: var(--wm-cover-mid);
+    border-color: var(--commit);
+    background: var(--commit);
     box-shadow: 0 10px 24px -12px rgb(20 30 5 / 0.6);
-    color: #eef0e8;
+    color: var(--commit-foreground);
   }
   .dialog .dialog__footer .btn--primary::after {
     content: "";
@@ -2469,17 +2693,17 @@
     height: 22px;
     margin-left: 4px;
     border-radius: 50%;
-    background: var(--wm-lime)
-      url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%231F2A07%27 stroke-width=%273%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M5 12h14M13 6l6 6-6 6%27/%3E%3C/svg%3E")
+    background: #eef0e8
+      url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%2311382C%27 stroke-width=%273%27 stroke-linecap=%27round%27%3E%3Cpath d=%27M5 12h14M13 6l6 6-6 6%27/%3E%3C/svg%3E")
       no-repeat center;
   }
   .dialog .dialog__footer .btn--primary:hover:not(:disabled) {
     filter: brightness(1.25);
   }
   .dark .dialog .dialog__footer .btn--primary {
-    border-color: var(--wm-lime);
-    background: var(--wm-lime);
-    color: #10160a;
+    border-color: var(--commit);
+    background: var(--commit);
+    color: var(--commit-foreground);
   }
   .dark .dialog .dialog__footer .btn--primary::after {
     background-color: #10160a;
@@ -2509,9 +2733,9 @@
     font-weight: 500;
   }
   .dialog .segmented[role="tablist"] .segmented__item[aria-selected="true"] {
-    background: var(--wm-ink);
+    background: var(--wm-lime);
     box-shadow: none;
-    color: var(--wm-card);
+    color: var(--wm-lime-ink);
     font-weight: 600;
   }
   .tx-amount-field {
@@ -2525,7 +2749,7 @@
     align-items: baseline;
     gap: 8px;
     padding: 4px 0 8px;
-    border-bottom: 3px solid var(--wm-line);
+    border-bottom: 3px solid var(--field-border);
     transition: border-color 0.15s;
   }
   .tx-amount:focus-within {
@@ -2550,7 +2774,13 @@
     font-variant-numeric: tabular-nums;
   }
   .tx-amount input::placeholder {
-    color: color-mix(in srgb, var(--wm-muted) 55%, transparent);
+    color: var(--placeholder);
+    opacity: 1;
+  }
+  .tx-amount input:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 4px;
+    border-radius: 6px;
   }
   .tx-amount-field details {
     margin-top: 6px;
@@ -2701,6 +2931,61 @@
   .tx-tiles-wrap .wm-rail-btn[data-side="next"] {
     right: -10px;
   }
+  /* up to six accounts wrap into a grid (2 columns on phones, 3 above), so
+     none is half-hidden; more scroll with a "3 dari 6" count and edge fades */
+  .tx-tiles[data-variant="account"][data-layout="grid"] {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
+  }
+  .tx-tiles[data-variant="account"][data-layout="grid"] .tx-tile {
+    width: auto;
+  }
+  .tx-tiles[data-layout="scroll"][data-fade-end="true"] {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 36px),
+      transparent
+    );
+    mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent);
+  }
+  .tx-tiles[data-layout="scroll"][data-fade-start="true"] {
+    -webkit-mask-image: linear-gradient(
+      to left,
+      #000 calc(100% - 36px),
+      transparent
+    );
+    mask-image: linear-gradient(to left, #000 calc(100% - 36px), transparent);
+  }
+  .tx-tiles[data-layout="scroll"][data-fade-start="true"][data-fade-end="true"] {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 36px,
+      #000 calc(100% - 36px),
+      transparent
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 36px,
+      #000 calc(100% - 36px),
+      transparent
+    );
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    .tx-tiles[data-layout="scroll"] {
+      -webkit-mask-image: none !important;
+      mask-image: none !important;
+    }
+  }
+  .tx-tiles-count {
+    margin: 6px 0 0;
+    color: var(--wm-muted);
+    font-size: var(--wm-type-12);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
   /* phones: scrolling stays, the bars go (dialogs, panels and every scroller inside them) */
   @media (max-width: 720px) {
     .dialog,
@@ -2715,7 +3000,7 @@
     }
   }
   @media (max-width: 480px) {
-    .dialog .segmented[role="tablist"] {
+    .dialog:not(.tx-dialog) .segmented[role="tablist"] {
       grid-auto-flow: row;
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -2724,17 +3009,260 @@
     .dialog .dialog__footer {
       flex-direction: row;
     }
-    .tx-tiles[data-variant="category"] {
-      display: flex;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    .tx-tiles[data-variant="category"] .tx-tile {
-      flex: none;
-      width: 84px;
+    /* phones: categories keep their 4-column grid; accounts are always ONE
+       swipeable row of small chips (nickname, institution caption; the balance
+       shows on desktop) so a Transfer's two pickers stay two rows. */
+    .tx-tiles[data-variant="account"] {
+      gap: 8px;
     }
     .tx-tiles[data-variant="account"] .tx-tile {
-      width: 150px;
+      justify-content: center;
+      width: 80px;
+      min-height: 56px;
+      gap: 1px;
+      padding: 6px 8px;
+      border-radius: 14px;
+    }
+    .tx-tiles[data-variant="account"] b {
+      display: -webkit-box;
+      font-size: var(--wm-type-13);
+      line-height: 1.2;
+      white-space: normal;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+    .tx-tiles[data-variant="account"] .tx-tile small {
+      font-size: var(--wm-type-12);
+      line-height: 1.2;
+    }
+    .tx-tiles[data-variant="account"] .tx-tile-sub {
+      display: none;
+    }
+    .tx-tiles-count {
+      margin-top: 2px;
+    }
+
+    /* Tambah Transaksi as a phone sheet: a slim fixed header and footer, the
+       form is the only thing that scrolls (the default tab fits ~1.5 screens). */
+    .dialog.tx-dialog {
+      display: flex;
+      flex-direction: column;
+      padding: 0 16px;
+      overflow: hidden;
+    }
+    .dialog.tx-dialog
+      > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *) {
+      flex: none;
+      margin: 0 -16px 12px;
+      padding: 16px 64px 14px 16px;
+      font-size: var(--wm-type-20);
+    }
+    .dialog.tx-dialog > [data-slot="dialog-close"] {
+      top: 10px;
+      right: 10px;
+    }
+    .dialog.tx-dialog .dialog__body {
+      flex: 1 1 auto;
+      min-height: 0;
+      max-height: none;
+      padding: 2px 2px 8px;
+      overflow-y: auto;
+    }
+    .tx-dialog .tx-amount-field {
+      margin-top: 12px;
+    }
+    .tx-dialog .tx-tile-field,
+    .tx-dialog .tx-amount-field ~ .field,
+    .tx-dialog .tx-amount-field ~ .field-row {
+      margin-top: 14px;
+    }
+    /* footer: Batal + Simpan on one row, "Simpan & tambah lagi" a slim text
+       button under them; the whole bar is <=110px */
+    .dialog.tx-dialog .dialog__footer {
+      position: static;
+      flex: none;
+      flex-flow: row wrap;
+      gap: 2px 8px;
+      margin: 0 -16px;
+      padding: 8px 16px calc(4px + env(safe-area-inset-bottom, 0px));
+      border-top: 1px solid var(--wm-line);
+      background: var(--wm-card);
+    }
+    .dialog.tx-dialog .dialog__footer .btn {
+      min-height: 48px;
+    }
+    .dialog.tx-dialog .dialog__footer .btn--outline {
+      flex: 1 1 0;
+    }
+    .dialog.tx-dialog .dialog__footer .btn--primary {
+      flex: 2 1 0;
+    }
+    .dialog.tx-dialog .dialog__footer .btn--ghost {
+      min-height: 44px;
+      border: 0;
+      border-radius: 12px;
+      color: var(--wm-ink);
+      font-size: var(--wm-type-13);
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+  /* add-transaction dialog, phones and touch screens: every target reaches
+     44px (quick-add chips were 38px, the Lampiran summary ~20px, the "Atur"
+     link 26x14). The layout itself is untouched. */
+  @media (max-width: 720px), (pointer: coarse) {
+    .tx-dialog .tx-quick .btn {
+      height: auto;
+      min-height: 44px;
+    }
+    .tx-dialog details > summary {
+      min-height: 44px;
+    }
+    .tx-dialog .hint a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+  /* add-transaction dialog, desktop (width only: touch laptops, tablets and
+     headless browsers report `pointer: coarse|none`, so the query must not
+     depend on the pointer): compact enough that the whole form and Simpan
+     sit in view at 1440x900 without scrolling. */
+  @media (min-width: 721px) {
+    .dialog.tx-dialog {
+      padding-bottom: 18px;
+    }
+    .dialog.tx-dialog > .dialog__title {
+      margin-bottom: 12px;
+      padding-top: 16px;
+      padding-bottom: 16px;
+      font-size: 22px;
+    }
+    .dialog.tx-dialog .dialog__body {
+      gap: 10px;
+    }
+    .dialog.tx-dialog .field {
+      gap: 4px;
+    }
+    .dialog.tx-dialog .segmented[role="tablist"] .segmented__item {
+      min-height: 40px;
+    }
+    .tx-dialog .tx-amount-field {
+      gap: 4px;
+    }
+    .tx-dialog .tx-amount {
+      align-items: center;
+      min-height: 56px;
+      padding: 0 0 3px;
+    }
+    .tx-dialog .tx-amount input {
+      line-height: 1.1;
+    }
+    /* tiles: tighter gaps */
+    .tx-dialog .tx-tiles[data-variant="account"] {
+      gap: 8px;
+    }
+    .tx-dialog .tx-tiles[data-variant="account"] .tx-tile {
+      justify-content: center;
+      min-height: 56px;
+      gap: 1px;
+      padding: 3px 12px;
+      border-radius: 14px;
+    }
+    /* exactly four accounts take four columns (one row); 1-3 and 5-6 use three */
+    .tx-dialog
+      .tx-tiles[data-variant="account"][data-layout="grid"][data-count="4"] {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    .tx-dialog
+      .tx-tiles[data-variant="account"][data-layout="grid"][data-count="4"]
+      .tx-tile {
+      padding-inline: 8px;
+    }
+    .tx-dialog .tx-tile small {
+      font-size: var(--wm-type-12);
+      line-height: 1.2;
+    }
+    .tx-dialog .tx-tiles[data-variant="account"] b {
+      font-size: var(--wm-type-14);
+      line-height: 1.25;
+    }
+    .tx-dialog .tx-tile-sub {
+      overflow: hidden;
+      margin-top: 0;
+      font-size: var(--wm-type-13);
+      line-height: 1.2;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .tx-dialog .tx-tiles[data-variant="category"] {
+      gap: 8px;
+    }
+    .tx-dialog .tx-tiles[data-variant="category"] .tx-tile {
+      min-height: 58px;
+      gap: 3px;
+      padding: 4px;
+      border-radius: 14px;
+    }
+    .tx-dialog .tx-tiles[data-variant="category"] b {
+      line-height: 1.15;
+    }
+    .tx-dialog .tx-tiles[data-variant="category"] .tx-tile-ic {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+    }
+    .tx-dialog .tx-tiles[data-variant="category"] .tx-tile-ic svg {
+      width: 14px;
+      height: 14px;
+    }
+    /* Lampiran: the shared disclosure carries a `mt-3` utility; the body gap
+       already spaces it */
+    .tx-dialog details {
+      margin-top: 0 !important;
+    }
+    .dialog.tx-dialog .dialog__footer {
+      margin-top: 12px;
+    }
+    /* Lampiran: two slim one-line rows instead of 88px icon-over-label tiles */
+    .tx-dialog .tx-attach {
+      gap: 8px;
+    }
+    .tx-dialog .tx-attach > label,
+    .tx-dialog .tx-attach > button {
+      flex-direction: row;
+      min-height: 48px;
+      padding: 4px 12px;
+      gap: 8px;
+      border-radius: 14px;
+      font-size: var(--wm-type-13);
+      line-height: 1.25;
+    }
+    /* Footer stays reachable when the popup scrolls: on the Transfer tab (two
+       account pickers), with Lampiran open, and on every tab in short windows. */
+    .dialog.tx-dialog .dialog__footer[data-sticky="true"],
+    .dialog.tx-dialog:has(details[open]) .dialog__footer {
+      position: sticky;
+      bottom: -18px;
+      z-index: 2;
+      margin: 12px -24px -18px;
+      padding: 10px 24px 18px;
+      border-top: 1px solid var(--wm-line);
+      background: var(--wm-card);
+    }
+    @media (max-height: 820px) {
+      .dialog.tx-dialog .dialog__footer {
+        position: sticky;
+        bottom: -18px;
+        z-index: 2;
+        margin: 12px -24px -18px;
+        padding: 10px 24px 18px;
+        border-top: 1px solid var(--wm-line);
+        background: var(--wm-card);
+      }
     }
   }
 
@@ -2809,7 +3337,7 @@
   }
   .wm-panel-desc {
     margin: 6px 0 0;
-    color: #a3aa95;
+    color: #b4bca6;
     font-size: var(--wm-type-13);
   }
   .dark .wm-panel-desc {
@@ -2996,6 +3524,7 @@
     }
     .wm-mbrand {
       display: flex;
+      min-height: 44px;
     }
     .wm-me--top {
       display: flex;
@@ -3076,7 +3605,7 @@
     .wm-app {
       background:
         radial-gradient(120% 60% at 0% 0%, #f4f8ef 0%, transparent 60%),
-        linear-gradient(180deg, #eef3e7 0%, #e3eadb 100%);
+        linear-gradient(180deg, #eef3e7 0%, #e9efe3 100%);
       background-attachment: fixed;
     }
     .dark .wm-app {
@@ -3113,9 +3642,9 @@
       font-size: var(--wm-type-13);
     }
     .wm-mtitle h1 {
-      max-width: 12ch;
+      max-width: none;
       margin: 2px 0 0;
-      font-size: var(--wm-type-40);
+      font-size: var(--wm-type-20);
       font-weight: 500;
       letter-spacing: -0.045em;
       line-height: 1.08;
@@ -3163,7 +3692,7 @@
       margin-left: 0;
     }
     .wm-dark .wm-ghost-btn {
-      min-height: 40px;
+      min-height: 44px;
       padding: 0 16px;
       border-radius: 99px;
       font-size: var(--wm-type-13);
@@ -3210,18 +3739,29 @@
     .dialog {
       border-radius: 22px 22px 0 0;
     }
-    .dialog > [data-slot="dialog-header"]:first-child,
-    .dialog > .dialog__title:first-child {
+    .dialog
+      > [data-slot="dialog-header"]:is(
+        :first-child,
+        [data-slot="dialog-close"] + *
+      ),
+    .dialog > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *) {
       position: relative;
       padding: 26px 64px 20px 18px;
       margin-inline: -18px;
     }
-    .dialog > .dialog__title:first-child + .dialog__desc {
+    .dialog
+      > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *)
+      + .dialog__desc {
       margin-inline: -18px;
       padding-inline: 18px 64px;
     }
-    .dialog > [data-slot="dialog-header"]:first-child::before,
-    .dialog > .dialog__title:first-child::before,
+    .dialog
+      > [data-slot="dialog-header"]:is(
+        :first-child,
+        [data-slot="dialog-close"] + *
+      )::before,
+    .dialog
+      > .dialog__title:is(:first-child, [data-slot="dialog-close"] + *)::before,
     .wm-panel-head::before {
       content: "";
       position: absolute;
@@ -3267,7 +3807,7 @@
       padding: 14px 18px calc(18px + env(safe-area-inset-bottom, 0px));
     }
   }
-  @media (pointer: coarse) {
+  @media (pointer: coarse), (max-width: 720px) {
     .wm-seg button,
     .wm-ghost-btn,
     .wm-chip {
@@ -3480,6 +4020,11 @@
     border-color: var(--wm-lime, #c6f432);
     outline: none;
   }
+  .wm-form :is(.input, .select, .date-field .date-range__trigger):focus-visible,
+  .wm-form .wm-affix:has(:focus-visible) {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+  }
   .wm-form .hint {
     margin-top: 0;
     font-size: 12px;
@@ -3532,7 +4077,7 @@
     .wm-kpi-v {
       display: block;
       overflow: hidden;
-      font-size: 15px;
+      font-size: clamp(12px, 4.1vw, 15px);
       text-overflow: ellipsis;
       white-space: nowrap;
     }
@@ -3542,10 +4087,37 @@
     }
   }
   @media (max-width: 720px) {
-    .wm-seg {
+    /* A segmented control never wraps on phones: one horizontally scrollable,
+       snapping row of 44px chips. (`--full` variants fill the row instead.) */
+    .wm-seg:not(.wm-seg--full, .ak-seg-full) {
       max-width: 100%;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       height: auto;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      scroll-padding-inline: 3px;
+      scrollbar-width: none;
+    }
+    .wm-seg:not(.wm-seg--full, .ak-seg-full)::-webkit-scrollbar {
+      display: none;
+    }
+    .wm-seg:not(.wm-seg--full, .ak-seg-full) button {
+      flex: none;
+      white-space: nowrap;
+      scroll-snap-align: start;
+    }
+    .wm-seg button:focus-visible {
+      outline-offset: -2px;
+    }
+    /* A card head whose control has 3+ options stacks: title + count on top,
+       the chip row below at full width (never squeezing the title). */
+    .wm-card-head:has(> .wm-seg > button:nth-child(3)) {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .wm-card-head:has(> .wm-seg > button:nth-child(3)) > .wm-seg {
+      align-self: flex-start;
     }
     .wm-card,
     .wm-hero,
@@ -3566,10 +4138,15 @@
   .wm-kpi-v {
     white-space: nowrap;
   }
-  /* Floating bottom nav + "+" button: keep the last content clear of it. */
+  /* Floating bottom nav + "+" button: keep the last content clear of it.
+     Dock top = 14px gap + 60px pill + 14px raised "+" ≈ 88px, plus the
+     safe-area inset the dock itself sits above; 120px leaves a row of air. */
+  .wm-main {
+    --wm-dock-clear: calc(120px + env(safe-area-inset-bottom, 0px));
+  }
   @media (max-width: 720px) {
     .wm-main {
-      padding-bottom: calc(120px + env(safe-area-inset-bottom)) !important;
+      padding-bottom: var(--wm-dock-clear) !important;
     }
   }
   /* Touch screens swipe the account rail; the arrows only covered card text. */

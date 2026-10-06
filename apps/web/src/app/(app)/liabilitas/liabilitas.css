@@ -16,6 +16,7 @@
     .li-grid > .li-tips {
       grid-column: 9 / 13;
       grid-row: 2;
+      align-self: start;
     }
     .li-grid > .li-proj {
       grid-column: 1 / 13;
@@ -169,33 +170,9 @@
     min-height: 32px;
     cursor: pointer;
   }
-  .li-pay {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
+  .li-foot > .wm-pay-sm,
+  .li-foot > .wm-paid-note {
     margin-left: auto;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--wm-lime);
-    color: #0b1a0b;
-    font-size: var(--wm-type-12);
-    font-weight: 600;
-    min-height: 32px;
-    cursor: pointer;
-  }
-  .li-paid {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-    padding: 0 12px;
-    border-radius: 999px;
-    color: var(--wm-muted);
-    font-size: var(--wm-type-12);
-    font-weight: 600;
-    min-height: 32px;
-    cursor: default;
   }
   .li-opts {
     display: grid;
@@ -211,6 +188,16 @@
   }
   .li-opts:hover {
     background: var(--wm-card);
+  }
+  @media (max-width: 720px) {
+    .li-detail {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .li-opts {
+      width: 44px;
+      height: 44px;
+    }
   }
   .li-disclaimer {
     margin-top: 8px;

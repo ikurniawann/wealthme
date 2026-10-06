@@ -9,7 +9,7 @@
  * when it actually differs from what the form was seeded with.
  */
 
-import { buildGoalBody, parseGoalFormValues } from "./goals-utils";
+import { buildGoalBody, goalPace, parseGoalFormValues } from "./goals-utils";
 
 describe("parseGoalFormValues", () => {
   it("maps form field names to API field names", () => {
@@ -125,5 +125,27 @@ describe("buildGoalBody", () => {
     const parsed = JSON.parse(body) as Record<string, unknown>;
     expect("currentAmount" in parsed).toBe(false);
     expect(parsed.name).toBe("Renamed only");
+  });
+});
+
+describe("goalPace", () => {
+  it("reads on_track as on plan", () => {
+    expect(goalPace({ status: "on_track", progressPercent: 40 })).toBe(
+      "onTrack",
+    );
+  });
+
+  it("reads both behind-plan statuses as late", () => {
+    expect(goalPace({ status: "needs_boost", progressPercent: 30 })).toBe(
+      "late",
+    );
+    expect(goalPace({ status: "at_risk", progressPercent: 5 })).toBe("late");
+  });
+
+  it("reads an achieved goal or a full bar as done", () => {
+    expect(goalPace({ status: "achieved", progressPercent: 100 })).toBe("done");
+    expect(goalPace({ status: "needs_boost", progressPercent: 100 })).toBe(
+      "done",
+    );
   });
 });

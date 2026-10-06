@@ -68,7 +68,7 @@ export function StatCards({
       icon: WalletCards,
       iconStyle: { background: "var(--success-soft)", color: "var(--success)" },
       label: t.shell.pageTitles.dana,
-      amount: fmt.moneyCompact(cashEwalletTotal),
+      amount: fmt.money(cashEwalletTotal),
       href: "/dana",
     },
     {
@@ -78,7 +78,7 @@ export function StatCards({
         color: "var(--accent-foreground)",
       },
       label: t.shell.pageTitles.rekening,
-      amount: fmt.moneyCompact(bankTotal),
+      amount: fmt.money(bankTotal),
       href: "/rekening",
     },
     {
@@ -88,7 +88,7 @@ export function StatCards({
         color: "var(--brand-purple)",
       },
       label: t.shell.pageTitles.investasi,
-      amount: fmt.moneyCompact(investasiTotal),
+      amount: fmt.money(investasiTotal),
       href: "/investasi",
     },
     {
@@ -98,7 +98,7 @@ export function StatCards({
         color: "var(--destructive)",
       },
       label: t.shell.pageTitles.liabilitas,
-      amount: fmt.moneyCompact(totalLiabilities),
+      amount: fmt.money(totalLiabilities),
       href: "/liabilitas",
     },
   ];

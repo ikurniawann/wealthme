@@ -96,7 +96,7 @@ export function RecentActivity({
             ? t.common.loading
             : isTransfer
               ? money(tx.amount)
-              : (isIncome ? "+" : "−") + money(tx.amount);
+              : (isIncome ? "+" : "-") + money(tx.amount);
 
           return (
             <div className="list-row" key={`${tx.occurredAt}-${i}`}>

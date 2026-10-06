@@ -93,7 +93,7 @@
   --wm-lime-soft: #e4f1c4;
   --wm-yellow: #efdc4e;
   --wm-orange: #f2a247;
-  --wm-good: #3f8f2f;
+  --wm-good: #2f7524;
   --wm-bad: #c2462b;
   --wm-sky: #8fb7e0;
   --wm-lilac: #c8a2de;
@@ -119,6 +119,12 @@
   --primary-foreground: #1f2a07;
   --primary-soft: #e4f1c4;
   --primary-strong: #1a4b3b;
+  /* Commit controls (btn--primary, wm-add, primary pills): preset-aware solid
+     fill. Default = brand forest; each [data-theme] preset overrides below. */
+  --commit: #11382c;
+  --commit-foreground: #eef0e8;
+  --commit-hover: #1a4b3b;
+  --commit-pressed: #0c2b22;
 
   --background: #ecede8;
   --foreground: #15170f;
@@ -137,9 +143,9 @@
   --destructive: #c2462b;
   --destructive-foreground: #ffffff;
 
-  --success: #3f8f2f;
+  --success: #2f7524;
   --success-foreground: #ffffff;
-  --success-soft: #e4f1c4;
+  --success-soft: #dcefd4; /* green tint, distinct from lime-soft (#e4f1c4 = active) */
   --warning: #b7791f;
   --warning-foreground: #ffffff;
   --warning-soft: #fef9c3;
@@ -152,12 +158,24 @@
   --border: #e2e4dc;
   --input: #e2e4dc;
   --ring: #9ccb3b;
+  /* Form-field rest edge (>=3:1 on canvas and card) and shared placeholder ink (>=4.5:1 on field fill). */
+  --field-border: #7f8677;
+  --placeholder: #5f6657;
 
   --chart-1: #9ccb3b;
   --chart-2: #3f8f2f;
   --chart-3: #efdc4e;
   --chart-4: #f2a247;
   --chart-5: #8fb7e0;
+
+  /* Data-viz categorical palette (light): brand hues, each >=3:1 on the white card.
+     Order keeps neighbours distinct: forest, lime, sand, clay, teal-forest, graphite. */
+  --viz-1: #1a4b3b; /* forest */
+  --viz-2: #6a9a1c; /* lime (deepened: #9ccb3b is 1.9:1 on white) */
+  --viz-3: #b8801f; /* sand / amber */
+  --viz-4: #b5593c; /* warm clay */
+  --viz-5: #4a8a78; /* muted teal-forest */
+  --viz-6: #4b5046; /* ink / graphite */
 
   /* Layout + elevation constants used by design-system.css. */
   --shadow-card: var(--wm-shadow);
@@ -194,6 +212,11 @@
   --primary-foreground: #10160a;
   --primary-soft: rgb(198 228 140 / 0.12);
   --primary-strong: #c6e48c;
+  /* Commit controls (btn--primary, wm-add): lime fill + dark ink on near-black. */
+  --commit: #c6e48c;
+  --commit-foreground: #10160a;
+  --commit-hover: color-mix(in oklab, #c6e48c 86%, white);
+  --commit-pressed: color-mix(in oklab, #c6e48c 88%, black);
 
   --background: #09090a;
   --foreground: #f3f3f1;
@@ -226,12 +249,22 @@
   --border: rgb(255 255 255 / 0.07);
   --input: rgb(255 255 255 / 0.07);
   --ring: #c6e48c;
+  --field-border: #6b6c68;
+  --placeholder: #a3a39f;
 
   --chart-1: #c6e48c;
   --chart-2: #aed97a;
   --chart-3: #e2d78a;
   --chart-4: #e9a56a;
   --chart-5: #8e8e8b;
+
+  /* Data-viz categorical palette (dark): the brand hues lifted to >=3:1 on #131314. */
+  --viz-1: #3f9468; /* forest */
+  --viz-2: #c6e48c; /* lime */
+  --viz-3: #dcb461; /* sand */
+  --viz-4: #d9826a; /* clay */
+  --viz-5: #6fb3a6; /* muted teal-forest */
+  --viz-6: #a3a69c; /* graphite */
 
   /* Dark mode separates surfaces with 1px borders, not shadows. */
   --shadow-card: none;
@@ -261,6 +294,10 @@
   --primary: #059669; /* emerald-600 */
   --primary-soft: #ecfdf5; /* emerald-50  */
   --primary-strong: #065f46; /* emerald-800 */
+  --commit: #065f46;
+  --commit-foreground: #eef0e8;
+  --commit-hover: color-mix(in oklab, #065f46 88%, white);
+  --commit-pressed: color-mix(in oklab, #065f46 88%, black);
   --accent: #ecfdf5; /* emerald-50  */
   --accent-foreground: #059669; /* emerald-600 */
   --ring: #059669; /* emerald-600 */
@@ -270,6 +307,10 @@
   --primary: #10b981; /* emerald-500 */
   --primary-soft: #022c22; /* emerald-950 */
   --primary-strong: #34d399; /* emerald-400 */
+  --commit: #34d399;
+  --commit-foreground: var(--wm-lime-ink);
+  --commit-hover: color-mix(in oklab, #34d399 86%, white);
+  --commit-pressed: color-mix(in oklab, #34d399 88%, black);
   --accent: #022c22; /* emerald-950 */
   --accent-foreground: #34d399; /* emerald-400 */
   --ring: #10b981; /* emerald-500 */
@@ -281,6 +322,10 @@
   --primary: #e11d48; /* rose-600 */
   --primary-soft: #fff1f2; /* rose-50  */
   --primary-strong: #9f1239; /* rose-800 */
+  --commit: #9f1239;
+  --commit-foreground: #eef0e8;
+  --commit-hover: color-mix(in oklab, #9f1239 88%, white);
+  --commit-pressed: color-mix(in oklab, #9f1239 88%, black);
   --accent: #fff1f2; /* rose-50  */
   --accent-foreground: #e11d48; /* rose-600 */
   --ring: #e11d48; /* rose-600 */
@@ -290,6 +335,10 @@
   --primary: #f43f5e; /* rose-500 */
   --primary-soft: #4c0519; /* rose-950 */
   --primary-strong: #fb7185; /* rose-400 */
+  --commit: #fb7185;
+  --commit-foreground: var(--wm-lime-ink);
+  --commit-hover: color-mix(in oklab, #fb7185 86%, white);
+  --commit-pressed: color-mix(in oklab, #fb7185 88%, black);
   --accent: #4c0519; /* rose-950 */
   --accent-foreground: #fb7185; /* rose-400 */
   --ring: #f43f5e; /* rose-500 */
@@ -301,6 +350,10 @@
   --primary: #d97706; /* amber-600 */
   --primary-soft: #fffbeb; /* amber-50  */
   --primary-strong: #92400e; /* amber-800 */
+  --commit: #92400e;
+  --commit-foreground: #eef0e8;
+  --commit-hover: color-mix(in oklab, #92400e 88%, white);
+  --commit-pressed: color-mix(in oklab, #92400e 88%, black);
   --accent: #fffbeb; /* amber-50  */
   --accent-foreground: #d97706; /* amber-600 */
   --ring: #d97706; /* amber-600 */
@@ -310,6 +363,10 @@
   --primary: #f59e0b; /* amber-500 */
   --primary-soft: #451a03; /* amber-950 */
   --primary-strong: #fbbf24; /* amber-400 */
+  --commit: #fbbf24;
+  --commit-foreground: var(--wm-lime-ink);
+  --commit-hover: color-mix(in oklab, #fbbf24 86%, white);
+  --commit-pressed: color-mix(in oklab, #fbbf24 88%, black);
   --accent: #451a03; /* amber-950 */
   --accent-foreground: #fbbf24; /* amber-400 */
   --ring: #f59e0b; /* amber-500 */
@@ -321,6 +378,10 @@
   --primary: #7c3aed; /* violet-600 */
   --primary-soft: #f5f3ff; /* violet-50  */
   --primary-strong: #5b21b6; /* violet-800 */
+  --commit: #5b21b6;
+  --commit-foreground: #eef0e8;
+  --commit-hover: color-mix(in oklab, #5b21b6 88%, white);
+  --commit-pressed: color-mix(in oklab, #5b21b6 88%, black);
   --accent: #f5f3ff; /* violet-50  */
   --accent-foreground: #7c3aed; /* violet-600 */
   --ring: #7c3aed; /* violet-600 */
@@ -330,6 +391,10 @@
   --primary: #8b5cf6; /* violet-500 */
   --primary-soft: #2e1065; /* violet-950 */
   --primary-strong: #a78bfa; /* violet-400 */
+  --commit: #a78bfa;
+  --commit-foreground: var(--wm-lime-ink);
+  --commit-hover: color-mix(in oklab, #a78bfa 86%, white);
+  --commit-pressed: color-mix(in oklab, #a78bfa 88%, black);
   --accent: #2e1065; /* violet-950 */
   --accent-foreground: #a78bfa; /* violet-400 */
   --ring: #8b5cf6; /* violet-500 */
@@ -341,6 +406,10 @@
   --primary: #475569; /* slate-600 */
   --primary-soft: #f8fafc; /* slate-50  */
   --primary-strong: #1e293b; /* slate-800 */
+  --commit: #1e293b;
+  --commit-foreground: #eef0e8;
+  --commit-hover: color-mix(in oklab, #1e293b 88%, white);
+  --commit-pressed: color-mix(in oklab, #1e293b 88%, black);
   --accent: #f8fafc; /* slate-50  */
   --accent-foreground: #475569; /* slate-600 */
   --ring: #475569; /* slate-600 */
@@ -350,6 +419,10 @@
   --primary: #64748b; /* slate-500 */
   --primary-soft: #020617; /* slate-950 */
   --primary-strong: #94a3b8; /* slate-400 */
+  --commit: #94a3b8;
+  --commit-foreground: var(--wm-lime-ink);
+  --commit-hover: color-mix(in oklab, #94a3b8 86%, white);
+  --commit-pressed: color-mix(in oklab, #94a3b8 88%, black);
   --accent: #020617; /* slate-950 */
   --accent-foreground: #94a3b8; /* slate-400 */
   --ring: #64748b; /* slate-500 */

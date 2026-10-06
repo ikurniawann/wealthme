@@ -3,26 +3,19 @@ import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { DetailReportDto } from "@wealthme/contracts";
 import { formatLocaleDateShort } from "../date-helpers";
+import { EXPENSE_COLOR, vizByIndex } from "@/lib/viz-colors";
 import "./sections-b.css";
 
 /* ───────────────────────── Section: Detail ───────────────────────── */
 
-// A small, stable palette for the ledger's category dot — deterministic by
-// name hash so the same category always gets the same dot colour within a
-// session, without needing a server-provided colour per category.
-const DOT_PALETTE = [
-  "var(--wm-lime)",
-  "var(--wm-orange)",
-  "var(--primary)",
-  "var(--brand-purple, #8B5CF6)",
-  "var(--brand-cyan, #06B6D4)",
-  "var(--warning)",
-];
+// Deterministic by name hash so the same category always gets the same dot
+// colour within a session, without needing a server-provided colour per
+// category.
 function dotColor(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++)
     hash = (hash * 31 + name.charCodeAt(i)) | 0;
-  return DOT_PALETTE[Math.abs(hash) % DOT_PALETTE.length];
+  return vizByIndex(Math.abs(hash));
 }
 
 export function DetailSection({
@@ -54,13 +47,13 @@ export function DetailSection({
           <div className="lpb-kpi">
             <div className="lpb-kpi-l">{t.common.income}</div>
             <div className="lpb-kpi-v text-success">
-              +{money.formatCompact(totalIn)}
+              +{money.format(totalIn)}
             </div>
           </div>
           <div className="lpb-kpi">
             <div className="lpb-kpi-l">{t.common.expense}</div>
-            <div className="lpb-kpi-v text-destructive">
-              -{money.formatCompact(totalOut)}
+            <div className="lpb-kpi-v" style={{ color: EXPENSE_COLOR }}>
+              -{money.format(totalOut)}
             </div>
           </div>
           <div className="lpb-kpi">
@@ -71,7 +64,7 @@ export function DetailSection({
               }
             >
               {net >= 0 ? "+" : ""}
-              {money.formatCompact(net)}
+              {money.format(net)}
             </div>
           </div>
         </div>
@@ -125,7 +118,12 @@ export function DetailSection({
                             ? "text-muted-foreground"
                             : isIncome
                               ? "text-success"
-                              : "text-destructive")
+                              : "")
+                        }
+                        style={
+                          !isTransfer && !isIncome
+                            ? { color: EXPENSE_COLOR }
+                            : undefined
                         }
                       >
                         {isTransfer ? "" : isIncome ? "+" : "-"}

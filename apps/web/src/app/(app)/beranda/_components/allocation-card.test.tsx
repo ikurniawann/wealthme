@@ -69,6 +69,6 @@ describe("AllocationCard — legend title attributes (batch-2 #4)", () => {
     render(<AllocationCard isLoading={false} allocation={[item]} />);
 
     const metaRp = screen.getByText("Rp 125.000.000");
-    expect(metaRp).toHaveAttribute("title", "Rp 125.000.000");
+    expect(metaRp).toHaveAttribute("title", "Rp\u00A0125.000.000");
   });
 });

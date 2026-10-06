@@ -37,15 +37,22 @@ export function SummaryCard({
       </div>
       <div>
         <div className="stat__label">{label}</div>
-        <div className="stat__value">{amount}</div>
+        <div className="stat__value wm-amt">{amount}</div>
       </div>
       {delta ? (
-        <div className={cn("stat__delta", deltaUp ? "t-success" : "t-danger")}>
+        <div
+          className={cn(
+            "stat__delta tabular-nums",
+            deltaUp ? "t-success" : "t-danger",
+          )}
+        >
           {delta}
         </div>
       ) : (
         caption && (
-          <div className="stat__delta stat__delta--neutral">{caption}</div>
+          <div className="stat__delta stat__delta--neutral tabular-nums">
+            {caption}
+          </div>
         )
       )}
     </article>
@@ -68,7 +75,7 @@ export function MoneyStat({
   return (
     <div className={className}>
       <div className="stat__label">{label}</div>
-      <div className={cn("stat__value", valueClass)}>{value}</div>
+      <div className={cn("stat__value wm-amt", valueClass)}>{value}</div>
     </div>
   );
 }

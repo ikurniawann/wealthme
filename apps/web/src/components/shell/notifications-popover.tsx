@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
+import { displayNotificationText } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
 import {
   DropdownMenu,
@@ -65,8 +66,8 @@ export function NotificationsPopover({ unreadCount }: { unreadCount: number }) {
             >
               <i aria-hidden="true" />
               <span className="min-w-0">
-                <b>{notification.title}</b>
-                <small>{notification.body}</small>
+                <b>{displayNotificationText(notification.title)}</b>
+                <small>{displayNotificationText(notification.body)}</small>
               </span>
             </span>
           </DropdownMenuItem>

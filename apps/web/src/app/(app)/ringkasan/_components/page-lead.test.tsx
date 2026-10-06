@@ -119,6 +119,31 @@ describe("RingkasanPageLead — custom trend range", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("hides the trend range select but keeps currency and privacy when showTrendRange is false", () => {
+    render(
+      <RingkasanPageLead
+        trendRange="12m"
+        onTrendRangeChange={jest.fn()}
+        customRange={{ from: "", to: "" }}
+        onCustomRangeChange={jest.fn()}
+        displayCurrency="IDR"
+        onDisplayCurrencyChange={jest.fn()}
+        privacyOn={false}
+        onTogglePrivacy={jest.fn()}
+        showTrendRange={false}
+      />,
+    );
+    expect(
+      screen.queryByRole("combobox", { name: /rentang tren/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "IDR" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: /sembunyikan nominal|tampilkan nominal/i,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("uses the shared range picker, not two native date inputs", async () => {
     const user = userEvent.setup();
     const { container, onCustomRangeChange } = renderTrendLead("custom");

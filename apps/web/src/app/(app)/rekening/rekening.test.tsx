@@ -369,7 +369,7 @@ describe("RekeningPage — indicative USD total is thousands-grouped (batch-2 #7
     });
   });
 
-  it('renders "≈ USD 16,308.70", not the un-grouped "16308.70"', async () => {
+  it('renders "≈ US$ 16.308,70", not the un-grouped "16308.70"', async () => {
     // 1.000.000 IDR total * 0.0163087 = 16308.7 exactly — chosen so the
     // grouped/un-grouped forms are unambiguously different strings.
     mockApiFetch.mockImplementation(
@@ -397,7 +397,7 @@ describe("RekeningPage — indicative USD total is thousands-grouped (batch-2 #7
 
     render(<RekeningPage />);
 
-    await screen.findByText(/USD 16,308\.70/);
+    await screen.findByText(/US\$ 16\.308,70/);
     expect(screen.queryByText(/16308\.70/)).not.toBeInTheDocument();
   });
 });

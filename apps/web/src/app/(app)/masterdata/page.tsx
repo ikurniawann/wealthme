@@ -428,7 +428,6 @@ export default function MasterDataPage() {
     <BentoGrid className="md-grid">
       <BentoHero
         className="md-hero"
-        valueAs="h1"
         currency={null}
         value={categoryList.length}
         caption={v2.heroCap}

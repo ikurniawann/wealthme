@@ -54,7 +54,7 @@ export function TopExpensesCard({ data }: { data: RingkasanData }) {
               </div>
               <Track
                 value={maxAmount > 0 ? (row.amount / maxAmount) * 100 : 0}
-                fill="bad"
+                fill="ink"
                 className="mt-[5px]"
               />
             </div>

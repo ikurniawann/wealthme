@@ -46,7 +46,7 @@ export default function PrivacyPolicyPage() {
         <p>
           Dalam satu grup keluarga, data keuangan dapat terlihat oleh anggota
           lain sesuai peran dan pengaturan visibilitas yang kamu pilih sendiri
-          (mis. &quot;Sembunyikan dari Anggota Family&quot; di Pengaturan
+          (mis. &quot;Sembunyikan dari Anggota Keluarga&quot; di Pengaturan
           Privasi).
         </p>
       </LegalSection>

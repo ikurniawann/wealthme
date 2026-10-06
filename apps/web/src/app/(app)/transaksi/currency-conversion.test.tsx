@@ -113,10 +113,10 @@ describe("/transaksi — Batch C display currency", () => {
   it("converts the row amount when profile.currency is USD", async () => {
     render(<TransaksiPage />);
 
-    // 1,000,000 IDR * 0.0000615 = 61.50 -> "≈ $ 61.50", not "Rp 1.000.000".
+    // 1,000,000 IDR * 0.0000615 = 61,50 -> "≈ US$ 61,50", not "Rp 1.000.000".
     // Both the mobile card and desktop table render the same row, so this
     // renders more than once.
-    const matches = await screen.findAllByText(/≈\s*\$\s*61\.50/);
+    const matches = await screen.findAllByText(/≈\s*US\$\s*61,50/);
     expect(matches.length).toBeGreaterThan(0);
     expect(screen.queryByText(/Rp\s*1\.000\.000/)).not.toBeInTheDocument();
   });

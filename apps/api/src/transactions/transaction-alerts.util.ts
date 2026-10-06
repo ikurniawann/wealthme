@@ -1,6 +1,7 @@
 import { Logger } from "@nestjs/common";
 
 import { budgetSpendWindow } from "../common/utils/budget-period.util";
+import { formatRupiah } from "../common/utils/rupiah.util";
 import {
   ownerNotifPrefs,
   resolveNotifPrefs,
@@ -265,7 +266,7 @@ export async function notifyTransaction(
       title: isBig ? `${label} besar` : label,
       // EPIC-032 de-slop + EPIC-033 p31: thousand separators, no em-dash;
       // the title already carries the direction.
-      body: `Rp ${Number(amount).toLocaleString("id-ID")} · ${catName}`,
+      body: `${formatRupiah(amount)} · ${catName}`,
       icon: isIncome ? "📥" : "📤",
     };
     await prisma.notification.create({ data });

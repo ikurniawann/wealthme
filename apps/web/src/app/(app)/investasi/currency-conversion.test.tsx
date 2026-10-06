@@ -131,8 +131,8 @@ describe("/investasi — Batch C display currency", () => {
   it("converts the total cost basis (summary card) when profile.currency is USD", async () => {
     render(<InvestasiPage />);
 
-    // totalCostBasis 1,000,000 IDR * 0.0000615 = 61.50 -> "≈ $ 61.50".
-    const matches = await screen.findAllByText(/≈\s*\$\s*61\.50/);
+    // totalCostBasis 1,000,000 IDR * 0.0000615 = 61,50 -> "≈ US$ 61,50".
+    const matches = await screen.findAllByText(/≈\s*US\$\s*61,50/);
     expect(matches.length).toBeGreaterThan(0);
     expect(screen.queryByText(/^Rp\s*1\.000\.000$/)).not.toBeInTheDocument();
   });

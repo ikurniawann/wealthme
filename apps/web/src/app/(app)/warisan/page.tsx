@@ -1010,7 +1010,6 @@ export default function WarisanPage() {
   return (
     <div className="space-y-4" data-page="warisan">
       <BentoGrid className="wr-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.warisan}</h1>
         <BentoHero
           className="wr-hero"
           currency={null}
@@ -1029,7 +1028,7 @@ export default function WarisanPage() {
               {compItems.length > 0 ? (
                 <CompositionStack
                   items={compItems}
-                  center={money.formatCompact(Number(totalValue))}
+                  center={money.format(Number(totalValue))}
                   sub={t.warisan.v2.compTotalLabel}
                   label={t.warisan.v2.chartAria}
                   format={money.format}

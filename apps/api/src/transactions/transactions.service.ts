@@ -23,6 +23,7 @@ import {
   transactionPrivacyWhere,
   type ScopeSubject,
 } from "../common/utils/privacy.util";
+import { formatRupiah } from "../common/utils/rupiah.util";
 import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
@@ -502,7 +503,7 @@ export class TransactionsService {
         data: {
           familyGroupId,
           title: "Transaksi besar menunggu persetujuan",
-          body: `${requesterName} mencoba mencatat pengeluaran Rp ${amount.toString()} yang melebihi batas dan menunggu persetujuan Anda.`,
+          body: `${requesterName} mencoba mencatat pengeluaran ${formatRupiah(amount)} yang melebihi batas dan menunggu persetujuan Anda.`,
           icon: "⏳",
         },
       });

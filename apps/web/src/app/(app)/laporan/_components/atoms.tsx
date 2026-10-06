@@ -3,6 +3,12 @@ import { useId } from "react";
 import { ProgressBar, SectionCard } from "@/components/wm";
 import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
+import {
+  DELTA_ARROW,
+  deltaSrText,
+  describeDelta,
+  type DeltaPolarity,
+} from "@/lib/delta";
 import type { ReconciliationBridgeDto } from "@wealthme/contracts";
 
 /* ───────────────────────── Small helpers ───────────────────────── */
@@ -141,15 +147,29 @@ export function RingkasanStatCard({
   );
 }
 
-/** Up/down change pill — prototype's `chg()` helper (`.chg.up`/`.chg.dn`).
- * `pct >= 0` renders a green "▲" pill, negative a red "▼" one; callers flip
- * the sign before passing (e.g. a lower expense) so "good" always reads up. */
-export function ChgBadge({ pct }: { pct: number }) {
-  const up = pct >= 0;
+/** Up/down change chip (prototype's `chg()`), driven by the shared delta rule
+ * (lib/delta.ts): the arrow is the direction previous → current, the tone and
+ * the sr-only text are the valence for `polarity` (spending that fell is a ↓
+ * in the good colour). Renders nothing when there is no base to compare. */
+export function ChgBadge({
+  previous,
+  current,
+  polarity,
+}: {
+  previous: number;
+  current: number;
+  polarity: DeltaPolarity;
+}) {
+  const { t } = useLocale();
+  const delta = describeDelta(previous, current, polarity);
+  if (!delta) return null;
   return (
-    <span className="lp-chg" data-tone={up ? "up" : "down"}>
-      <span aria-hidden="true">{up ? "▲" : "▼"}</span>
-      {Math.abs(Math.round(pct))}%
+    <span className="lp-chg" data-tone={delta.tone}>
+      <span aria-hidden="true">{DELTA_ARROW[delta.dir]}</span>
+      {Math.abs(Math.round(delta.pct))}%
+      <span className="sr-only">
+        {deltaSrText(delta.dir, delta.tone, t.common.delta)}
+      </span>
     </span>
   );
 }

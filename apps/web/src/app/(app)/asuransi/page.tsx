@@ -52,7 +52,11 @@ import {
   StatusBadge,
   TipsCard,
 } from "@/components/wm";
-import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { MoneyCompact } from "@/components/wm/money-compact";
+import {
+  HatchedBarChart,
+  type BarSeries,
+} from "@/components/charts/bento-charts";
 import "./asuransi.css";
 import { ConfirmDeleteDialog } from "@/components/crud";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
@@ -63,6 +67,13 @@ import type { ApiError } from "@/lib/api-client";
 import { apiFetch } from "@/lib/api-client";
 import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
+import { insuranceTypeColor } from "@/lib/viz-colors";
+import {
+  monthlyPremiumByType,
+  premiumTrendValues,
+  rollingMonths,
+} from "./premium-trend";
+import { INSURANCE_RENEWAL_WINDOW_DAYS } from "@/lib/due-date";
 import {
   MoneyInput,
   anyMoneyPending,
@@ -100,18 +111,6 @@ type FamilyMember = {
   name: string;
   relationship: MemberRelationship | null;
   role: Role;
-};
-
-// EPIC-025 N3-F3 — coverage-by-type donut (FOLD): distinct hex per type so
-// segments read clearly (INSURANCE_TYPE_BG's pastel tints are too close to
-// each other for a donut legend).
-const INSURANCE_TYPE_DONUT_COLOR: Record<string, string> = {
-  jiwa: "#7C3AED",
-  kesehatan: "#16A34A",
-  kendaraan: "#2563EB",
-  properti: "#D97706",
-  pendidikan: "#DB2777",
-  lainnya: "#6B7280",
 };
 
 const TYPE_OPTIONS: InsuranceType[] = [
@@ -213,9 +212,15 @@ function PolicyTile({ item, onEdit, onPay, onDelete }: PolicyTileProps) {
         <small className="as-period">{periodLabel}</small>
       </span>
       <small className="as-tile-meta">
-        {item.coverageAmount
-          ? `${t.asuransi.coverageLineLabel} ${money.formatCompact(Number(BigInt(item.coverageAmount)))} · ${typeLabel}`
-          : typeLabel}
+        {item.coverageAmount ? (
+          <>
+            {t.asuransi.coverageLineLabel}{" "}
+            <MoneyCompact value={Number(BigInt(item.coverageAmount))} /> ·{" "}
+            {typeLabel}
+          </>
+        ) : (
+          typeLabel
+        )}
       </small>
       {item.renewalDate && (
         <small className="as-tile-meta">
@@ -1371,9 +1376,17 @@ export default function AsuransiPage() {
   const monthlyPremiumNumber = summary?.totalMonthlyPremium
     ? Number(BigInt(summary.totalMonthlyPremium))
     : 0;
-  const premiumTrendMonths = ["Mar", "Apr", "Mei", "Jun", "Jul", "Agu"];
-  const premiumTrendData = [0.82, 0.84, 1.02, 0.86, 0.98, 1].map((ratio) =>
-    Math.round(monthlyPremiumNumber * ratio),
+  // Rolling 6-month window ending at the current month; one stacked segment
+  // per insurance type (same type → colour mapping as the coverage donut).
+  const premiumTrendMonths = rollingMonths(new Date()).map((d) =>
+    new Intl.DateTimeFormat(locale, { month: "short" }).format(d),
+  );
+  const premiumSeries: BarSeries[] = monthlyPremiumByType(insurances ?? []).map(
+    ({ type, monthly }) => ({
+      name: t.asuransi.typeLabels[type] ?? type,
+      data: premiumTrendValues(monthly),
+      color: insuranceTypeColor(type),
+    }),
   );
 
   // EPIC-025 N3-F3 — coverage-by-type donut (FOLD): derived from the
@@ -1406,7 +1419,7 @@ export default function AsuransiPage() {
     .map(({ type, label }) => ({
       label,
       value: Number(coverageByType.get(label) ?? BigInt(0)),
-      color: INSURANCE_TYPE_DONUT_COLOR[type] ?? "#6B7280",
+      color: insuranceTypeColor(type),
     }))
     .filter((seg) => seg.value > 0);
 
@@ -1417,7 +1430,8 @@ export default function AsuransiPage() {
     .filter((item) => item.status === "aktif" && item.daysUntilRenewal !== null)
     .sort((a, b) => (a.daysUntilRenewal ?? 0) - (b.daysUntilRenewal ?? 0))[0];
   const showRenewalWarning =
-    nearestRenewal && (nearestRenewal.daysUntilRenewal ?? 999) <= 30;
+    nearestRenewal &&
+    (nearestRenewal.daysUntilRenewal ?? 999) <= INSURANCE_RENEWAL_WINDOW_DAYS;
 
   // EPIC-025 N3 restructure — total pertanggungan (real header subtitle
   // segment), summed across active policies from the already-fetched list —
@@ -1504,7 +1518,6 @@ export default function AsuransiPage() {
   return (
     <div data-page="asuransi" className="as-page">
       <BentoGrid className="as-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.asuransi}</h1>
         <BentoHero
           className="as-hero"
           currency={isLoading ? null : "Rp"}
@@ -1536,12 +1549,12 @@ export default function AsuransiPage() {
                   <Plus className="size-4" aria-hidden="true" /> {t.common.add}
                 </GhostButton>
               </div>
-              {compositionItems.length > 0 && (
+              {premiumSeries.length > 0 && (
                 <div className="wm-legend">
-                  {compositionItems.map((item) => (
-                    <span key={item.label}>
+                  {premiumSeries.map((item) => (
+                    <span key={item.name}>
                       <i style={{ background: item.color }} />
-                      {item.label}
+                      {item.name}
                     </span>
                   ))}
                 </div>
@@ -1550,18 +1563,14 @@ export default function AsuransiPage() {
           }
           chart={
             <div className="as-plot">
-              {isLoading ? null : monthlyPremiumNumber > 0 ? (
+              {isLoading ? null : premiumSeries.length > 0 ? (
                 <HatchedBarChart
                   labels={premiumTrendMonths}
-                  series={[
-                    {
-                      name: t.asuransi.v2.legendPremium,
-                      data: premiumTrendData,
-                      color: "var(--wm-lime)",
-                    },
-                  ]}
-                  highlight={premiumTrendData.length - 1}
+                  series={premiumSeries}
+                  stacked
+                  highlight={premiumTrendMonths.length - 1}
                   format={money.formatCompact}
+                  formatFull={money.format}
                   wide
                   ariaLabel={t.asuransi.v2.chartAria}
                 />
@@ -1580,7 +1589,7 @@ export default function AsuransiPage() {
                 label={t.asuransi.v2.kpiCoverage}
                 value={
                   <span className="wm-money">
-                    {money.formatCompact(Number(totalCoverageAktif))}
+                    {money.format(Number(totalCoverageAktif))}
                   </span>
                 }
               />
@@ -1606,9 +1615,10 @@ export default function AsuransiPage() {
           >
             <CompositionStack
               label={t.asuransi.coverageAllocationTitle}
-              center={money.formatCompact(Number(totalCoverageAktif))}
+              center={<MoneyCompact value={Number(totalCoverageAktif)} />}
               sub={t.asuransi.coverageLabel}
               format={money.formatCompact}
+              formatFull={money.format}
               items={compositionItems}
             />
           </BentoCard>

@@ -14,6 +14,11 @@ import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { canRecordTransaction } from "@/lib/nav";
+import { DELTA_ARROW, deltaSrText, deltaTone } from "@/lib/delta";
+import {
+  monthCompareCaption,
+  type MonthCompareBase,
+} from "@/lib/month-compare";
 import { initials, memberTint, monthDelta } from "./bento-sections";
 import { bucketDays, useBerandaFlow } from "./use-beranda-flow";
 import type { BerandaMember, MoneyFormatters } from "./use-beranda-data";
@@ -51,6 +56,7 @@ export function MobileHome({
   members,
   currentMonth,
   cashflow,
+  monthCompare,
   transactions,
   goals,
   fmt,
@@ -60,6 +66,7 @@ export function MobileHome({
   members: BerandaMember[];
   currentMonth: DashboardSummaryDto["currentMonth"] | undefined;
   cashflow: DashboardSummaryDto["cashflow"] | undefined;
+  monthCompare?: MonthCompareBase;
   transactions: DashboardSummaryDto["recentTransactions"];
   goals: GoalDto[];
   fmt: MoneyFormatters;
@@ -70,11 +77,11 @@ export function MobileHome({
   const { setTxnOpen } = useShell();
   const { access } = useMyAccess();
   const [slide, setSlide] = useState(0);
-  const { lookFor } = useCardLooks();
+  const { lookFor } = useCardLooks(accounts);
   const ordered = [...accounts]
     .sort((a, b) => Number(b.balance) - Number(a.balance))
     .slice(0, 6);
-  const spendDelta = monthDelta(cashflow?.expense);
+  const spendDelta = monthDelta(cashflow?.expense, "expense", monthCompare);
   const last = transactions[0];
   const flow = useBerandaFlow(7);
   const days = bucketDays(flow.window, 7, flow.today, (date) =>
@@ -89,6 +96,11 @@ export function MobileHome({
   return (
     <section className="beranda-mhome" aria-label={t.beranda.title}>
       <div className="wm-card wm-dark beranda-mh-card">
+        <span className="beranda-mh-badge" aria-hidden="true">
+          Rp
+        </span>
+        <p className="beranda-mh-total wm-num">{fmt.money(netWorth)}</p>
+        <p className="beranda-mh-cap">{v2.heroCaption}</p>
         {ordered.length > 0 && (
           <>
             <div
@@ -116,7 +128,7 @@ export function MobileHome({
                         : null
                     }
                     holder={account.ownerName ?? ""}
-                    balance={fmt.moneyCompact(Number(account.balance))}
+                    balance={fmt.money(Number(account.balance))}
                   />
                 </Link>
               ))}
@@ -130,20 +142,19 @@ export function MobileHome({
             )}
           </>
         )}
-        <span className="beranda-mh-badge" aria-hidden="true">
-          Rp
-        </span>
-        <p className="beranda-mh-total wm-num">{fmt.money(netWorth)}</p>
-        <p className="beranda-mh-cap">{v2.heroCaption}</p>
         <div className="beranda-mh-acts">
           {canAdd && (
-            <button type="button" onClick={() => setTxnOpen(true)}>
+            <button
+              type="button"
+              data-solid="true"
+              onClick={() => setTxnOpen(true)}
+            >
               {v2.actRecord}
             </button>
           )}
           <button
             type="button"
-            data-solid="true"
+            data-solid={canAdd ? undefined : "true"}
             onClick={() => router.push("/transaksi")}
           >
             {v2.actHistory}
@@ -159,6 +170,7 @@ export function MobileHome({
               {v2.mExpense}
             </span>
             {spendDelta &&
+              spendDelta.dir !== "flat" &&
               (spendDelta.dir === "up" ? (
                 <TrendingUp aria-hidden="true" />
               ) : (
@@ -166,21 +178,50 @@ export function MobileHome({
               ))}
           </span>
           <span className="beranda-mh-v wm-num">
-            {fmt.moneyCompact(currentMonth?.expense ?? 0)}
+            {fmt.money(currentMonth?.expense ?? 0)}
             {spendDelta && (
-              <em data-tone={spendDelta.dir === "up" ? "bad" : "good"}>
-                {spendDelta.dir === "up" ? "+" : "−"}
+              <em data-tone={deltaTone(spendDelta.dir, "lower-better")}>
+                {spendDelta.dir !== "flat" && (
+                  <span aria-hidden="true">{DELTA_ARROW[spendDelta.dir]} </span>
+                )}
+                {spendDelta.dir === "up"
+                  ? "+"
+                  : spendDelta.dir === "down"
+                    ? "−"
+                    : ""}
                 {Math.round(spendDelta.pct)}%
+                <span className="sr-only">
+                  {deltaSrText(
+                    spendDelta.dir,
+                    deltaTone(spendDelta.dir, "lower-better"),
+                    t.common.delta,
+                  )}
+                </span>
               </em>
             )}
           </span>
-          <small>{t.beranda.thisMonth}</small>
+          <small>
+            {spendDelta
+              ? monthCompareCaption(
+                  spendDelta.comparison,
+                  {
+                    window: v2.compareWindow,
+                    fullMonth: v2.compareFullMonth,
+                    lastMonth: t.beranda.thisMonth,
+                  },
+                  t.beranda.dateLocale,
+                )
+              : t.beranda.thisMonth}
+          </small>
         </Link>
         <div className="beranda-mh-tile">
           <span className="beranda-mh-h">{v2.mLastTx}</span>
-          <small className="mt-auto line-clamp-2">
+          <small
+            className="mt-auto line-clamp-2 tabular-nums"
+            title={last ? fmt.money(Math.abs(last.amount)) : undefined}
+          >
             {last
-              ? `${last.description || last.categoryName || ""} · ${fmt.moneyCompact(Math.abs(last.amount))}`
+              ? `${last.description || last.categoryName || ""} · ${fmt.money(Math.abs(last.amount))}`
               : t.beranda.noTransactions}
           </small>
           <div className="beranda-mh-av">

@@ -10,6 +10,7 @@ import { CountUpRupiah, HeroCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { cn } from "@/lib/utils";
+import { MoneyCompact } from "@/components/wm/money-compact";
 import { formatGoldGrams } from "@/components/consolidated-total-card";
 import type { BerandaPeriod, MoneyFormatters } from "./use-beranda-data";
 import { NetWorthTrend } from "./net-worth-trend";
@@ -174,7 +175,15 @@ export function BerandaHero({
             {t.ringkasan.totalAssetsLabel}
           </span>
           <span className="bento-hero__metric-value mono">
-            {isLoading ? "…" : moneyCompact(assetsTotal)}
+            {isLoading ? (
+              "…"
+            ) : (
+              <MoneyCompact
+                value={assetsTotal}
+                compact={moneyCompact}
+                full={money}
+              />
+            )}
           </span>
         </div>
         <div className="bento-hero__metric">
@@ -182,7 +191,15 @@ export function BerandaHero({
             {t.ringkasan.totalLiabilitiesLabel}
           </span>
           <span className="bento-hero__metric-value mono">
-            {isLoading ? "…" : moneyCompact(totalLiabilities)}
+            {isLoading ? (
+              "…"
+            ) : (
+              <MoneyCompact
+                value={totalLiabilities}
+                compact={moneyCompact}
+                full={money}
+              />
+            )}
           </span>
         </div>
         <div className="bento-hero__metric">
@@ -190,7 +207,15 @@ export function BerandaHero({
             {t.beranda.cashflowThisMonth}
           </span>
           <span className="bento-hero__metric-value mono">
-            {isLoading ? "…" : moneyCompact(currentMonth?.net ?? 0)}
+            {isLoading ? (
+              "…"
+            ) : (
+              <MoneyCompact
+                value={currentMonth?.net ?? 0}
+                compact={moneyCompact}
+                full={money}
+              />
+            )}
           </span>
         </div>
       </div>

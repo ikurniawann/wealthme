@@ -71,6 +71,7 @@ import type {
   DonationType,
   ZakatResultDto,
 } from "@wealthme/contracts";
+import { localIsoDate } from "@/lib/local-date";
 
 const DONATION_TYPE_ICON: Record<string, string> = {
   zakat_maal: "🕌",
@@ -338,9 +339,7 @@ export default function DonationPage() {
     LEMBAGA_OPTIONS,
     lembaga,
   );
-  const [tanggal, setTanggal] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
+  const [tanggal, setTanggal] = useState(() => localIsoDate());
   const [isTaxDeductible, setIsTaxDeductible] = useState(false);
   const [accountId, setAccountId] = useState("");
   // E5 — only zakat (to an approved amil) may be marked tax deductible.
@@ -500,7 +499,6 @@ export default function DonationPage() {
   return (
     <div className="space-y-4">
       <BentoGrid className="dt-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.donation}</h1>
         <BentoHero
           className="dt-hero"
           currency={null}
@@ -530,6 +528,7 @@ export default function DonationPage() {
                   },
                 ]}
                 format={money.formatCompact}
+                formatFull={money.format}
                 wide
                 ariaLabel={t.donation.heroTitle}
               />
@@ -547,7 +546,7 @@ export default function DonationPage() {
               />
               <HeroKpi
                 label={t.donation.statDeductibleCompactLabel}
-                value={money.formatCompact(deductibleAmount)}
+                value={money.format(deductibleAmount)}
               />
             </>
           }

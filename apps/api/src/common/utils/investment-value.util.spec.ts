@@ -99,3 +99,39 @@ describe("emas follows the family gold price (Revisi D item 11)", () => {
     ).toBeNull();
   });
 });
+
+describe("valuation parity with InvestmentsService.findAll", () => {
+  it("never values a holding off a simulated `mock` price — cost basis instead", () => {
+    const result = investmentPositionValue({
+      type: "saham",
+      quantity: new Decimal(10),
+      costBasisPerUnit: new Decimal(1_000),
+      prices: [{ price: new Decimal(99_999), source: "mock" }],
+    });
+    expect(result.toString()).toBe("10000");
+  });
+
+  it("keeps a real stored price", () => {
+    const result = investmentPositionValue({
+      type: "saham",
+      quantity: new Decimal(10),
+      costBasisPerUnit: new Decimal(1_000),
+      prices: [{ price: new Decimal(1_200), source: "seed" }],
+    });
+    expect(result.toString()).toBe("12000");
+  });
+
+  it("accrues deposito simple interest instead of reading a price row", () => {
+    const result = investmentPositionValue({
+      type: "deposito",
+      quantity: new Decimal(1),
+      costBasisPerUnit: new Decimal(100_000_000),
+      prices: [],
+      interestRatePct: new Decimal(5),
+      purchasedAt: new Date("2026-01-01T00:00:00Z"),
+      maturityDate: null,
+      asOf: new Date("2026-07-01T00:00:00Z"),
+    });
+    expect(result.toString()).toBe("102500000");
+  });
+});

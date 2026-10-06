@@ -11,6 +11,7 @@ import {
   type AllowanceRequestStatus,
 } from "@prisma/client";
 
+import { formatRupiah } from "../common/utils/rupiah.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -415,7 +416,7 @@ export class AllowanceRequestsService {
           // the rest. Row-scoped roles never see household rows, so this does
           // not show one member's request to another child.
           title: "Permintaan dana baru",
-          body: `${requesterName} meminta Rp ${request.amount.toString()} untuk ${targetName}.`,
+          body: `${requesterName} meminta ${formatRupiah(request.amount)} untuk ${targetName}.`,
           icon: "🙏",
         },
       });
@@ -446,8 +447,8 @@ export class AllowanceRequestsService {
             ? "Permintaan dana disetujui"
             : "Permintaan dana ditolak",
           body: approved
-            ? `Permintaan dana Rp ${request.amount.toString()} untuk ${targetName} telah disetujui.`
-            : `Permintaan dana Rp ${request.amount.toString()} untuk ${targetName} ditolak.`,
+            ? `Permintaan dana ${formatRupiah(request.amount)} untuk ${targetName} telah disetujui.`
+            : `Permintaan dana ${formatRupiah(request.amount)} untuk ${targetName} ditolak.`,
           icon: approved ? "✅" : "🚫",
         },
       });

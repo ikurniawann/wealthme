@@ -27,6 +27,7 @@ import {
   getPeriodDateRange,
   getYearDateRange,
   REPORT_TIMEZONE_LABEL,
+  likeForLikeWindow,
   resolvePreset,
 } from "./laporan-period";
 
@@ -182,6 +183,55 @@ describe("getYearDateRange", () => {
     expect(new Date(y2025.endDate).getTime()).toBeLessThan(
       new Date(y2026.startDate).getTime(),
     );
+  });
+});
+
+describe("likeForLikeWindow", () => {
+  // Summary of 6 monthly points anchored on the end of October 2026 (WIB).
+  const anchorEnd = "2026-10-31T16:59:59.999Z";
+  // 2026-10-06 12:00 WIB.
+  const now = new Date("2026-10-06T05:00:00.000Z");
+
+  it("aligns the prior month to the same day-of-month while the month is running", () => {
+    const win = likeForLikeWindow({
+      anchorEnd,
+      pointCount: 6,
+      pointIndex: 5,
+      now,
+    });
+    expect(win).toEqual({
+      cutoffDay: 6,
+      priorCutoffDay: 6,
+      priorStartDate: "2026-08-31T17:00:00.000Z", // Sep 1 00:00 WIB
+      priorEndDate: "2026-09-06T16:59:59.999Z", // Sep 6 23:59:59.999 WIB
+    });
+  });
+
+  it("is null when the compared month is already complete", () => {
+    expect(
+      likeForLikeWindow({ anchorEnd, pointCount: 6, pointIndex: 4, now }),
+    ).toBeNull();
+    // today is the last day of the month: nothing left to align
+    expect(
+      likeForLikeWindow({
+        anchorEnd,
+        pointCount: 6,
+        pointIndex: 5,
+        now: new Date("2026-10-31T05:00:00.000Z"),
+      }),
+    ).toBeNull();
+  });
+
+  it("clamps the prior cut-off into a shorter prior month (30 Mar → 28 Feb)", () => {
+    const win = likeForLikeWindow({
+      anchorEnd: "2026-03-31T16:59:59.999Z",
+      pointCount: 6,
+      pointIndex: 5,
+      now: new Date("2026-03-30T05:00:00.000Z"),
+    });
+    expect(win?.cutoffDay).toBe(30);
+    expect(win?.priorCutoffDay).toBe(28);
+    expect(win?.priorEndDate).toBe("2026-02-28T16:59:59.999Z");
   });
 });
 

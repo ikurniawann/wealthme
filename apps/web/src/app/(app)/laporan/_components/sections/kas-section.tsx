@@ -4,6 +4,7 @@ import {
   type FlowNode,
 } from "@/components/charts/journey-flow-chart";
 import { CategoryIcon } from "@/components/shell/tx-pickers";
+import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
@@ -88,11 +89,11 @@ export function KasSection({
         action={
           <div className="wm-legend">
             <span>
-              <i style={{ background: "var(--wm-lime)" }} />
+              <i style={{ background: INCOME_COLOR }} />
               {t.common.income}
             </span>
             <span>
-              <i style={{ background: "var(--wm-orange)" }} />
+              <i style={{ background: EXPENSE_COLOR }} />
               {t.common.expense}
             </span>
           </div>
@@ -106,8 +107,15 @@ export function KasSection({
           />
           <MoneyStat
             label={t.common.expense}
-            value={summary ? money.format(summary.totalExpense ?? 0) : "Rp ·"}
-            valueClass="text-destructive"
+            value={
+              summary ? (
+                <span style={{ color: EXPENSE_COLOR }}>
+                  {money.format(summary.totalExpense ?? 0)}
+                </span>
+              ) : (
+                "Rp ·"
+              )
+            }
           />
           <MoneyStat
             label={t.laporan.surplusLabel}
@@ -115,7 +123,11 @@ export function KasSection({
             valueClass="text-success"
           />
           <MoneyStat
-            label={t.laporan.savingsRateLabel}
+            label={
+              summary && summary.points.length > 0
+                ? `${t.laporan.savingsRateLabel} · ${t.laporan.windowMonthsTemplate.replace("{n}", String(summary.points.length))}`
+                : t.laporan.savingsRateLabel
+            }
             value={summary ? `${summary.savingsRate}%` : "—"}
             valueClass="text-primary"
           />
@@ -127,8 +139,8 @@ export function KasSection({
               destinations={destinations}
               totalLabel={t.common.income}
               totalValue={flowTotal}
-              format={(v) => money.formatCompact(v)}
               ariaLabel={cashflowChartAriaLabel}
+              format={(v) => money.formatCompact(v)}
             />
           </div>
         )}

@@ -92,8 +92,8 @@ describe("idrPreview / formatIdrPreview — revisi I", () => {
   });
 
   it("formats whole rupiah and sen", () => {
-    expect(formatIdrPreview(BigInt(22_401_332), 0)).toBe("Rp 22.401.332");
-    expect(formatIdrPreview(BigInt(22_105_752), 2)).toBe("Rp 221.057,52");
+    expect(formatIdrPreview(BigInt(22_401_332), 0)).toBe("Rp\u00A022.401.332");
+    expect(formatIdrPreview(BigInt(22_105_752), 2)).toBe("Rp\u00A0221.057,52");
   });
 });
 

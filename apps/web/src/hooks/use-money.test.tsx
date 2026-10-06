@@ -46,9 +46,9 @@ describe("useMoney", () => {
 
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.isIndicative).toBe(false);
-    expect(result.current.format(1_000_000)).toBe("Rp 1.000.000");
+    expect(result.current.format(1_000_000)).toBe("Rp\u00A01.000.000");
     expect(result.current.formatExact("9007199254740993")).toBe(
-      "Rp 9.007.199.254.740.993",
+      "Rp\u00A09.007.199.254.740.993",
     );
     // Never fetches /fx/rates for an IDR-preference user.
     expect(mockApiFetch).toHaveBeenCalledTimes(1);
@@ -69,11 +69,11 @@ describe("useMoney", () => {
     await waitFor(() => expect(result.current.currency).toBe("USD"));
     await waitFor(() => expect(result.current.isReady).toBe(true));
     expect(result.current.isIndicative).toBe(true);
-    // 1,000,000 IDR * 0.0000615 = 61.50 -> "$ 61.50", prefixed "≈ " since
-    // it's an indicative conversion.
-    expect(result.current.format(1_000_000)).toBe("≈ $ 61.50");
-    expect(result.current.formatCompact(1_000_000)).toBe("≈ $ 61.50");
-    expect(result.current.formatExact("1000000")).toBe("≈ $61.50");
+    // 1,000,000 IDR * 0.0000615 = 61,50 -> "US$ 61,50" (id-ID digits), prefixed
+    // "≈ " since it's an indicative conversion.
+    expect(result.current.format(1_000_000)).toBe("≈ US$\u00A061,50");
+    expect(result.current.formatCompact(1_000_000)).toBe("≈ US$\u00A061,50");
+    expect(result.current.formatExact("1000000")).toBe("≈ US$\u00A061,50");
   });
 
   it("stays not-ready while the FX rate is still in flight, never a 1:1 fallback", async () => {
@@ -90,7 +90,7 @@ describe("useMoney", () => {
     await waitFor(() => expect(result.current.currency).toBe("USD"));
     expect(result.current.isReady).toBe(false);
     // The honest IDR figure, never an IDR-scale number under "$".
-    expect(result.current.format(10_000_000)).toBe("Rp 10.000.000");
+    expect(result.current.format(10_000_000)).toBe("Rp\u00A010.000.000");
     expect(result.current.format(10_000_000)).not.toContain("$");
   });
 
@@ -105,22 +105,32 @@ describe("useMoney", () => {
     // isReady is already true on mount for the IDR default (it doesn't gate
     // on privacyPrefs); wait for the profile fetch itself to resolve.
     await waitFor(() => expect(result.current.hideBalance).toBe(true));
-    expect(result.current.format(1_000_000)).toBe("Rp ••••••");
-    expect(result.current.formatCompact(1_000_000)).toBe("Rp ••••••");
-    expect(result.current.formatExact("1000000")).toBe("Rp ••••••");
+    expect(result.current.format(1_000_000)).toBe("Rp\u00A0••••••");
+    expect(result.current.formatCompact(1_000_000)).toBe("Rp\u00A0••••••");
+    expect(result.current.formatExact("1000000")).toBe("Rp\u00A0••••••");
   });
 
-  it("adds decimals to the plain IDR format when showDecimal is on", async () => {
+  it("never adds decimals to IDR", async () => {
     mockApiFetch.mockResolvedValue({
       currency: "IDR",
-      privacyPrefs: { showDecimal: true },
+      privacyPrefs: {},
     });
 
     const { result } = renderHook(() => useMoney(), { wrapper });
 
-    await waitFor(() =>
-      expect(result.current.format(1_000_000)).toBe("Rp 1.000.000,00"),
-    );
-    expect(result.current.formatExact("1000000")).toBe("Rp 1.000.000,00");
+    await waitFor(() => expect(mockApiFetch).toHaveBeenCalled());
+    expect(result.current.format(1_000_000)).toBe("Rp\u00A01.000.000");
+    expect(result.current.formatExact("1000000")).toBe("Rp\u00A01.000.000");
+    expect(result.current.formatBalance("1000000")).toBe("Rp\u00A01.000.000");
+  });
+
+  it("puts the sign of a negative before the symbol", async () => {
+    mockApiFetch.mockResolvedValue({ currency: "IDR", privacyPrefs: {} });
+
+    const { result } = renderHook(() => useMoney(), { wrapper });
+
+    await waitFor(() => expect(mockApiFetch).toHaveBeenCalled());
+    expect(result.current.format(-4_200_000)).toBe("-Rp\u00A04.200.000");
+    expect(result.current.formatExact("-4200000")).toBe("-Rp\u00A04.200.000");
   });
 });

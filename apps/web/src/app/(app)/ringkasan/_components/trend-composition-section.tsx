@@ -11,6 +11,7 @@ import { ProgressBar, StatusBadge, CardLink } from "@/components/wm";
 import { DonutChart, TrendChart } from "@/components/charts/apex-presets";
 import { BentoCard, CompositionStack, GhostButton } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+import { DELTA_ARROW, deltaDirection } from "@/lib/delta";
 import { formatPercent1, type RingkasanData } from "./use-ringkasan-data";
 import type { TrendRangeKey } from "./use-ringkasan-data";
 
@@ -55,12 +56,16 @@ export function TrendCompositionSection({
               spans close to a year — see `use-ringkasan-data.ts`. */}
           {yoyPct !== null && (
             <StatusBadge
-              variant={yoyPct >= 0 ? "success" : "danger"}
+              variant={
+                deltaDirection(yoyPct, 1) === "flat"
+                  ? "gray"
+                  : yoyPct >= 0
+                    ? "success"
+                    : "danger"
+              }
               className="card__action"
             >
-              {yoyPct >= 0
-                ? t.ringkasan.yoyUpPrefix
-                : t.ringkasan.yoyDownPrefix}
+              {DELTA_ARROW[deltaDirection(yoyPct, 1)]}{" "}
               {formatPercent1(Math.abs(yoyPct), dateLocale)}
               {t.ringkasan.yoySuffix}
             </StatusBadge>
@@ -172,7 +177,7 @@ export function TrendCompositionSection({
 export function CompositionBento({ data }: { data: RingkasanData }) {
   const { t } = useLocale();
   const router = useRouter();
-  const { isLoading, donutSegments, money, totalAssets } = data;
+  const { isLoading, donutSegments, money, moneyFull, totalAssets } = data;
   return (
     <BentoCard
       className="rk2-comp private-scope"
@@ -190,9 +195,10 @@ export function CompositionBento({ data }: { data: RingkasanData }) {
           <div className="mt-3 private">
             <CompositionStack
               label={t.ringkasan.compositionTitle}
-              center={money(totalAssets)}
+              center={moneyFull(totalAssets)}
               sub={t.ringkasan.totalAssetsLabel}
               format={money}
+              formatFull={moneyFull}
               items={donutSegments.map((seg) => ({
                 label: seg.label,
                 value: seg.value,

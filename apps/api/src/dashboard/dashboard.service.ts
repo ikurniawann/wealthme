@@ -262,9 +262,23 @@ export class DashboardService {
     const monthIncome = currentMonthTx
       .filter((tx) => txCoaDirection(tx) === CoaDirection.INCOME)
       .reduce((s, tx) => s + Number(tx.amount), 0);
-    const monthExpense = currentMonthTx
-      .filter((tx) => txCoaDirection(tx) === CoaDirection.EXPENSE)
-      .reduce((s, tx) => s + Number(tx.amount), 0);
+    // Month-to-date spending is ONE pass over the COA-EXPENSE rows: the
+    // headline `expense` and its category breakdown come from the same
+    // accumulation, so the breakdown can never disagree with the total
+    // (transfers, debt principal and other TRANSFER-direction rows are not
+    // EXPENSE and are excluded from both).
+    const expenseByCategory = new Map<string | null, number>();
+    let monthExpense = 0;
+    for (const tx of currentMonthTx) {
+      if (txCoaDirection(tx) !== CoaDirection.EXPENSE) continue;
+      const amount = Number(tx.amount);
+      monthExpense += amount;
+      const name = tx.category?.name ?? null;
+      expenseByCategory.set(name, (expenseByCategory.get(name) ?? 0) + amount);
+    }
+    const expenseBreakdown = Array.from(expenseByCategory.entries())
+      .map(([categoryName, amount]) => ({ categoryName, amount }))
+      .sort((a, b) => b.amount - a.amount);
     const savingsRate =
       monthIncome > 0
         ? Math.round(((monthIncome - monthExpense) / monthIncome) * 100)
@@ -295,6 +309,7 @@ export class DashboardService {
         expense: monthExpense,
         net: monthIncome - monthExpense,
         savingsRate,
+        expenseByCategory: expenseBreakdown,
       },
       recentTransactions,
     };
@@ -348,6 +363,9 @@ export class DashboardService {
             type: true,
             quantity: true,
             costBasisPerUnit: true,
+            interestRatePct: true,
+            purchasedAt: true,
+            maturityDate: true,
             prices: { orderBy: { recordedAt: "desc" }, take: 1 },
             familyGroup: { select: { goldPricePerGram: true } },
           },

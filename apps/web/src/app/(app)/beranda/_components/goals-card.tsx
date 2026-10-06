@@ -74,7 +74,10 @@ export function GoalsCard({
               <span className="bento-goal__icon">{g.icon ?? "🎯"}</span>
               <div className="min-w-0 flex-1">
                 <div className="t-sm t-bold truncate">{g.name}</div>
-                <div className="t-xs t-muted mono truncate">
+                <div
+                  className="t-xs t-muted mono truncate"
+                  title={`${fmt.money(g.currentAmount)} / ${fmt.money(g.targetAmount)}`}
+                >
                   {fmt.moneyCompact(g.currentAmount)} /{" "}
                   {fmt.moneyCompact(g.targetAmount)}
                 </div>
@@ -91,7 +94,7 @@ export function GoalsCard({
                 "how far to done" next to the existing %/Rp progress bar. */}
             <div className="mt-1 text-right text-[11px] text-muted-foreground">
               {g.remainingAmount > 0
-                ? `${t.beranda.goalRemainingPrefix}${fmt.moneyCompact(g.remainingAmount)}${t.beranda.goalRemainingSuffix}`
+                ? `${t.beranda.goalRemainingPrefix}${fmt.money(g.remainingAmount)}${t.beranda.goalRemainingSuffix}`
                 : t.beranda.goalAchieved}
             </div>
           </div>

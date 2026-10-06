@@ -101,9 +101,12 @@ function DialogContent({
           "dialog fixed bottom-0 left-1/2 z-[60] -translate-x-1/2 outline-none min-[769px]:top-1/2 min-[769px]:bottom-auto min-[769px]:-translate-y-1/2 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}
+        aria-modal={true}
         {...props}
       >
-        {children}
+        {/* First in DOM, absolutely placed top-right: tab order starts at the
+            close button, matching where it sits visually. bento.css header
+            rules treat `[data-slot="dialog-close"] + *` as the first child. */}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
@@ -116,9 +119,10 @@ function DialogContent({
             }
           >
             <XIcon />
-            <span className="sr-only">Close</span>
+            <span className="sr-only">Tutup dialog</span>
           </DialogPrimitive.Close>
         )}
+        {children}
       </DialogPrimitive.Popup>
     </DialogPortal>
   );
@@ -173,6 +177,7 @@ function PanelContent({
           size === "lg" && "wm-panel--lg",
           className,
         )}
+        aria-modal={true}
         {...props}
       >
         {children}

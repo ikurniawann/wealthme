@@ -297,7 +297,7 @@ describe("DonationPage — inline family religion prompt (EPIC-024 Group I)", ()
           (_, node) =>
             node?.textContent ===
             mockDictionary.donation.nisabNotReachedPrefix +
-              "Rp 100.000.000" +
+              "Rp 100.000.000" +
               mockDictionary.donation.nisabNotReachedSuffix,
         ),
       ).toBeInTheDocument();

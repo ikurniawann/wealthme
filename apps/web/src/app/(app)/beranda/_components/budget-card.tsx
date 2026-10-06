@@ -78,7 +78,10 @@ export function BudgetCard({
           <div key={b.id}>
             <div className="row row--between">
               <span className="t-sm t-bold">{b.categoryName}</span>
-              <span className="t-xs t-muted mono">
+              <span
+                className="t-xs t-muted mono"
+                title={`${money.format(b.spentAmount)} / ${money.format(b.limitAmount)}`}
+              >
                 {formatBudgetRow(
                   b.spentAmount,
                   b.limitAmount,

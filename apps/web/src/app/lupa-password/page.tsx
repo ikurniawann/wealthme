@@ -116,7 +116,7 @@ export default function LupaPasswordPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="nama@email.com"
-              hint="Reset lewat email hanya untuk akun ber-email. Login pakai username? Minta Master keluarga mengganti password Anda dari menu IAM Roles."
+              hint="Reset lewat email hanya untuk akun ber-email. Login pakai username? Minta Master keluarga mengganti password kamu dari menu Peran & Akses."
             />
             <button
               type="submit"

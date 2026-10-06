@@ -18,10 +18,23 @@
       grid-row: 3;
     }
   }
+  .ag-grid .wm-kpi small,
+  .ag-grid .wm-cap,
+  .ag-grid small {
+    font-variant-numeric: tabular-nums;
+  }
+  .ag-hero .wm-kpi {
+    min-width: 0;
+  }
   .ag-month {
     border: 0;
     background: var(--wm-card-2);
     pointer-events: none;
+  }
+  /* A static label, not a control: opt out of the 44px phone touch target. */
+  .ag-ctrl-row .ag-month {
+    min-width: 0;
+    min-height: 0;
   }
   /* Proto's `.hero-ctrl`/`.ctrl-row` (wm.css) — a column so the legend
      sits on its own line under the buttons, both right-aligned, instead
@@ -100,9 +113,7 @@
     margin-top: 8px;
   }
   .ag-ob-row .ag-ob-pay {
-    min-height: 32px;
-    padding: 0 12px;
-    font-size: var(--wm-type-12);
+    flex: none;
   }
   .ag-ob-row .ag-ob-paid {
     white-space: nowrap;

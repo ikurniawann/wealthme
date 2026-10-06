@@ -1,4 +1,8 @@
-import type { CreateGoalDto, UpdateGoalDto } from "@wealthme/contracts";
+import type {
+  CreateGoalDto,
+  GoalDto,
+  UpdateGoalDto,
+} from "@wealthme/contracts";
 
 function parseAmount(raw: string): number {
   return parseInt(raw.replace(/\./g, "").replace(/\D/g, "") || "0", 10);
@@ -56,4 +60,21 @@ export function buildGoalBody(
   originalCurrentAmount?: number,
 ): string {
   return JSON.stringify(parseGoalFormValues(values, originalCurrentAmount));
+}
+
+/** Plain-language pace of a goal: the text that backs the progress bar's colour. */
+export type GoalPace = "done" | "onTrack" | "late";
+
+/**
+ * Reads the pace from the API's own `status` (progress vs the straight-line
+ * pace from creation to `targetDate`, recomputed on every read; see
+ * `computeStatus` in the goals service) instead of a second client-side
+ * formula: `achieved` or a full bar is "done", `on_track` is on plan, and
+ * `needs_boost` / `at_risk` both read as "late".
+ */
+export function goalPace(
+  goal: Pick<GoalDto, "status" | "progressPercent">,
+): GoalPace {
+  if (goal.status === "achieved" || goal.progressPercent >= 100) return "done";
+  return goal.status === "on_track" ? "onTrack" : "late";
 }

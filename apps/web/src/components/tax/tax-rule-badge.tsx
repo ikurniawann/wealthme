@@ -9,7 +9,7 @@ export function TaxRuleBadge({ rules }: { rules: readonly TaxRuleRefDto[] }) {
   if (flagged.length === 0) return null;
   return (
     <details className="group inline-block text-[11px]">
-      <summary className="badge badge--warning cursor-pointer list-none">
+      <summary className="badge badge--warning cursor-pointer list-none max-[720px]:-my-3 max-[720px]:min-h-11">
         {t.tax.rules.unverifiedBadge}
       </summary>
       <div className="mt-1.5 space-y-1.5 rounded-[10px] border border-warning/30 bg-card p-2.5 text-muted-foreground shadow-sm">
@@ -24,7 +24,7 @@ export function TaxRuleBadge({ rules }: { rules: readonly TaxRuleRefDto[] }) {
                   href={r.source}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-primary hover:underline"
+                  className="wm-textlink font-medium text-primary hover:underline"
                 >
                   {r.legalBasis}
                 </a>

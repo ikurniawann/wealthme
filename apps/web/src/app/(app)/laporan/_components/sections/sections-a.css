@@ -22,6 +22,47 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* "Dibanding bulan lalu": the previous-month figure in the meta line wraps
+   (label, then number) instead of clipping at the card edge; below 480px the
+   current figure drops under the title instead of squeezing the meta. */
+.lap-a-cmp .wm-mini-row small {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+.lap-a-cmp .wm-mini-row small .wm-amt {
+  font-size: inherit;
+}
+/* Current figure with its own change chip, attached to the row's value: the
+   chip sits under the figure (right-aligned) on wide cards and beside it
+   (left-aligned, in the row's value line) once the figure drops below 480px. */
+.lap-a-cmp-amt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+}
+.lap-a-cmp-note {
+  margin: 0 0 4px;
+  color: var(--wm-muted);
+  font-size: var(--wm-type-12);
+}
+@media (max-width: 480px) {
+  .lap-a-cmp .wm-mini-row {
+    grid-template-columns: 36px minmax(0, 1fr);
+  }
+  .lap-a-cmp .wm-mini-row > .wm-amt {
+    grid-column: 2;
+    text-align: left;
+  }
+  .lap-a-cmp-amt {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+}
+
 /* ───────────── compact rekap table (bulanan) ───────────── */
 
 .lap-a-table-wrap {
@@ -76,11 +117,17 @@
 }
 
 .lap-a-table .lap-a-pos {
-  color: color-mix(in srgb, var(--wm-lime) 70%, black);
+  color: var(--wm-good);
 }
 
+/* Pengeluaran: the one shared expense tone (see EXPENSE_COLOR). */
+.lap-a-table .lap-a-exp {
+  color: color-mix(in srgb, var(--cstrong) 72%, var(--cbg));
+}
+
+/* Negative balance only. */
 .lap-a-table .lap-a-neg {
-  color: var(--wm-orange);
+  color: var(--wm-bad);
 }
 
 .lap-a-table tr[data-subtotal="true"] {

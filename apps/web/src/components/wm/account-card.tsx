@@ -1,6 +1,11 @@
 "use client";
 
-import { useCallback, useSyncExternalStore, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -10,7 +15,7 @@ import { cn } from "@/lib/utils";
  *
  * Skins are a presentation preference with no API field behind them (the
  * revamp does not change the API), so they are stored per browser in
- * localStorage and default to the account-type colour (`accountTone`).
+ * localStorage and default to a neutral/forest/brand skin (never lime).
  */
 
 export const CARD_SKINS = [
@@ -69,11 +74,12 @@ function subscribe(onChange: () => void) {
 
 /** Per-type skin pools for default differentiation (audit P2-1): several
  * un-customized accounts of the same type get different colors instead of
- * all collapsing onto one flat default. */
+ * all collapsing onto one flat default. Brand-first: forest, ink/graphite,
+ * sand and warm coral; sky/lilac stay available in the picker only. */
 const SKIN_POOL_BY_TYPE: Record<string, readonly CardSkin[]> = {
-  bank: ["lime", "sky", "coral", "lilac"],
-  ewallet: ["forest", "midnight", "sand"],
-  cash: ["sand", "graphite", "lime"],
+  bank: ["forest", "midnight", "graphite", "sand", "coral"],
+  ewallet: ["midnight", "graphite", "forest"],
+  cash: ["sand", "graphite"],
 };
 
 function hashId(id: string): number {
@@ -82,24 +88,56 @@ function hashId(id: string): number {
   return Math.abs(h);
 }
 
-/** Default look by account type and id: a deterministic pick from the
- * type's skin pool so same-type accounts differ by default, stable across
- * reloads. `id` is optional only for callers with no account yet. */
-export function defaultLook(type: string, id?: string): CardLook {
+/** The account fields a default skin is derived from. */
+export type CardLookAccount = { id: string; type: string };
+
+/**
+ * Default look by account type and slot. `slot` is the account's rank among
+ * the same-type accounts (ids sorted), so accounts of one type walk the pool
+ * in order and never repeat a skin until the pool is exhausted. Without a
+ * slot it falls back to a hash of `id` (stable, but two ids may collide).
+ */
+export function defaultLook(
+  type: string,
+  id?: string,
+  slot?: number,
+): CardLook {
   const pool = SKIN_POOL_BY_TYPE[type] ?? (["graphite"] as const);
-  const skin = id ? pool[hashId(id) % pool.length]! : pool[0]!;
+  const index = slot ?? (id ? hashId(id) : 0);
   return {
-    skin,
+    skin: pool[index % pool.length]!,
     pattern: type === "bank" || type === "cash" ? "hatch" : "plain",
   };
 }
 
-/** All saved looks plus a setter; re-renders every card on the page when one changes. */
-export function useCardLooks() {
+/** Rank of every account among the accounts of its own type, ids sorted. */
+function slotsByAccount(
+  accounts: readonly CardLookAccount[],
+): Map<string, number> {
+  const byType = new Map<string, string[]>();
+  for (const { id, type } of accounts) {
+    const ids = byType.get(type);
+    if (ids) ids.push(id);
+    else byType.set(type, [id]);
+  }
+  const slots = new Map<string, number>();
+  for (const ids of byType.values())
+    ids.sort().forEach((id, index) => slots.set(id, index));
+  return slots;
+}
+
+/**
+ * All saved looks plus a setter; re-renders every card on the page when one
+ * changes. Pass the page's full account list so un-customized cards of the
+ * same type get different default skins.
+ */
+export function useCardLooks(accounts?: readonly CardLookAccount[]) {
   const looks = useSyncExternalStore(subscribe, snapshot, () => EMPTY);
+  const slots = useMemo(() => slotsByAccount(accounts ?? []), [accounts]);
   const lookFor = useCallback(
-    (id: string, type: string): CardLook => looks[id] ?? defaultLook(type, id),
-    [looks],
+    (id: string, type: string): CardLook =>
+      looks[id] ?? defaultLook(type, id, slots.get(id)),
+    [looks, slots],
   );
   const setLook = useCallback((id: string, look: CardLook | null) => {
     const next = { ...readAll() };

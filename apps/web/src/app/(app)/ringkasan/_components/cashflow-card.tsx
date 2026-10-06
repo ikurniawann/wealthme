@@ -3,6 +3,7 @@
 import { BentoCard } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { useLocale } from "@/hooks/use-locale";
+import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import type { RingkasanData } from "./use-ringkasan-data";
 
 const MONTHS_SHOWN = 6;
@@ -45,11 +46,11 @@ export function CashflowCard({ data }: { data: RingkasanData }) {
       action={
         <div className="wm-legend">
           <span>
-            <i style={{ background: "var(--wm-lime)" }} />
+            <i style={{ background: INCOME_COLOR }} />
             {t.ringkasan.incomeLabel}
           </span>
           <span>
-            <i style={{ background: "var(--wm-orange)" }} />
+            <i style={{ background: EXPENSE_COLOR }} />
             {t.ringkasan.expenseLabel}
           </span>
         </div>
@@ -66,12 +67,12 @@ export function CashflowCard({ data }: { data: RingkasanData }) {
                 {
                   name: t.ringkasan.incomeLabel,
                   data: income,
-                  color: "var(--wm-lime)",
+                  color: INCOME_COLOR,
                 },
                 {
                   name: t.ringkasan.expenseLabel,
                   data: expense,
-                  color: "var(--wm-orange)",
+                  color: EXPENSE_COLOR,
                 },
               ]}
               highlight={refIndex}
@@ -87,7 +88,7 @@ export function CashflowCard({ data }: { data: RingkasanData }) {
             </div>
             <div>
               <dt>{t.ringkasan.expenseLabel}</dt>
-              <dd className="t-danger">{moneyFull(refExpense)}</dd>
+              <dd style={{ color: EXPENSE_COLOR }}>{moneyFull(refExpense)}</dd>
             </div>
             <div>
               <dt>{t.ringkasan.surplusLabel}</dt>
@@ -97,7 +98,9 @@ export function CashflowCard({ data }: { data: RingkasanData }) {
             </div>
             <div>
               <dt>{t.ringkasan.avgNetPerMonthLabel}</dt>
-              <dd className={avgNet >= 0 ? "" : "t-danger"}>{money(avgNet)}</dd>
+              <dd className={avgNet >= 0 ? "" : "t-danger"}>
+                {moneyFull(avgNet)}
+              </dd>
             </div>
           </dl>
         </>

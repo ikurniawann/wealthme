@@ -472,7 +472,6 @@ function TaxPageContent() {
   return (
     <div className="space-y-4" data-page="tax">
       <BentoGrid className="tx-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.tax}</h1>
         <BentoHero
           className="tx-hero"
           currency={null}

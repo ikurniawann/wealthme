@@ -6,6 +6,30 @@
     flex-wrap: wrap;
     justify-content: flex-end;
   }
+  /* Phones: [IDR | Emas | Valas] + one "Atur" button on a single row. */
+  .rk2-hero-ctrl-row--compact {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .rk2-hero-ctrl-row--compact .segmented {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .rk2-hero-ctrl-row--compact .segmented__item {
+    min-height: 44px;
+  }
+  .rk2-hero-atur {
+    flex: none;
+    gap: 6px;
+    min-height: 44px;
+  }
+  .rk2-atur-pop .segmented__item,
+  .rk2-atur-pop .btn {
+    min-height: 44px;
+  }
 
   /* `#hMonthDelta` + `#multiCur` — delta pill then the indicative multicur
      line, stacked under the "Total Kekayaan Bersih" caption text. */
@@ -17,10 +41,72 @@
   }
   .rk2-hero-delta {
     margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .rk2-hero .wm-kpi small.wm-cap {
+    font-variant-numeric: tabular-nums;
   }
   .rk2-hero-multicur {
     font-size: 12px;
     color: var(--wm-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Hero with <2 trend points: Aset vs Liabilitas stacked bar from the same
+     totals as the KPI column, the empty-state sentence as its caption. Lime
+     is a data fill here; the liability share stays neutral. */
+  .rk2-mix {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    padding: 0 4px;
+  }
+  .rk2-mix > .wm-cap {
+    text-align: left;
+  }
+  .rk2-mix-viz {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .rk2-mix-bar {
+    display: flex;
+    gap: 3px;
+    height: 28px;
+  }
+  .rk2-mix-seg {
+    min-width: 4px;
+    flex-basis: 0;
+    border-radius: 8px;
+  }
+  .rk2-mix-seg--asset,
+  .rk2-mix-dot--asset {
+    background: var(--wm-lime);
+  }
+  .rk2-mix-seg--liab,
+  .rk2-mix-dot--liab {
+    background: rgb(238 240 232 / 0.4);
+  }
+  .rk2-mix-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    font-size: 12px;
+    color: var(--wm-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .rk2-mix-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .rk2-mix-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 99px;
   }
 
   .rk2-top {

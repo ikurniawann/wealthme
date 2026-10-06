@@ -96,13 +96,16 @@ beforeEach(() => {
 });
 
 describe("QuickInputPage — page title (batch 4 item 4)", () => {
-  it("renders 'Input Cepat', not the English 'Quick Input'", async () => {
+  it("is titled 'Input Cepat' (shell h1), not the English 'Quick Input'", async () => {
     mockSession("owner");
     render(<QuickInputPage />);
 
     expect(
-      await screen.findByRole("heading", { name: idDict.quickinput.pageTitle }),
+      await screen.findByText(idDict.quickinput.v2.recordTitle),
     ).toBeInTheDocument();
+    // The shell's PageGreeting owns the page's one h1; the page renders none.
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
+    expect(idDict.shell.pageTitles.quickinput).toBe("Input Cepat");
     expect(idDict.quickinput.pageTitle).toBe("Input Cepat");
     expect(
       screen.queryByText(enDict.quickinput.pageTitle),
@@ -116,7 +119,7 @@ describe("QuickInputPage — Master/Co-Master-only page guard", () => {
     render(<QuickInputPage />);
 
     expect(
-      await screen.findByRole("heading", { name: idDict.quickinput.pageTitle }),
+      await screen.findByText(idDict.quickinput.v2.recordTitle),
     ).toBeInTheDocument();
   });
 
@@ -125,7 +128,7 @@ describe("QuickInputPage — Master/Co-Master-only page guard", () => {
     render(<QuickInputPage />);
 
     expect(
-      await screen.findByRole("heading", { name: idDict.quickinput.pageTitle }),
+      await screen.findByText(idDict.quickinput.v2.recordTitle),
     ).toBeInTheDocument();
   });
 
@@ -137,7 +140,7 @@ describe("QuickInputPage — Master/Co-Master-only page guard", () => {
       await screen.findByText(idDict.quickinput.notAllowedNotice),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("heading", { name: idDict.quickinput.pageTitle }),
+      screen.queryByText(idDict.quickinput.v2.recordTitle),
     ).not.toBeInTheDocument();
   });
 

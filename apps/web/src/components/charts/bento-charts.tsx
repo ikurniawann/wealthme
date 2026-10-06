@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
+
 /**
  * Bento v2 charts, ported from docs/design/proto/wm.js (`WM.chart.bars`,
  * `.area`, `.waterfall`). Hatched fills, dashed grid, Sora 11px labels.
@@ -50,14 +52,57 @@ export function niceCeil(value: number): number {
 }
 
 const fill = (color: string): CSSProperties => ({ fill: color });
-const LABEL: CSSProperties = { fill: "var(--ctext)", fontSize: 11 };
+const LABEL: CSSProperties = {
+  fill: "var(--ctext)",
+  fontSize: 11,
+  fontVariantNumeric: "tabular-nums",
+};
 const STRONG: CSSProperties = {
   fill: "var(--cstrong)",
   fontSize: 11,
   fontWeight: 500,
+  fontVariantNumeric: "tabular-nums",
 };
 
-function Hatch({ id, color }: { id: string; color: string }) {
+/** Opacity of the columns that are not hovered/selected: the SAME hue, quieter, never grey. */
+const DIM = 0.5;
+
+/**
+ * The Beranda hero's two bar series. Single source for the bars and the legend
+ * swatches so the two can never disagree: income lime, expense the shared
+ * Pengeluaran ink (`EXPENSE_COLOR`, the same tone on every page). The net
+ * ("Selisih") is read from the tooltip only: it is income - expense, not a
+ * third stacked amount.
+ */
+export const FLOW_COLORS = {
+  income: "var(--wm-lime)",
+  expense: EXPENSE_COLOR,
+} as const;
+
+/** Stripe for the (light) ink expense fill: the card's own background, so it reads on both surfaces. */
+const EXPENSE_STRIPE = "color-mix(in srgb, var(--cbg) 38%, transparent)";
+
+/** Lime-family fills (income lime, `--viz-2`): their stripe is darkened in dark surfaces (see `.wm-hatch-stripe[data-base]` in bento.css). */
+const LIME_FILL = /lime|--viz-2\b/;
+
+/**
+ * 8px hatch tile. The light stripe is lifted in dark mode (`.wm-hatch-stripe`
+ * in bento.css) so muted series keep >=3:1 against the near-black card. Fills
+ * that are themselves light get another stripe: ink (expense) takes the card
+ * background, lime a darker lime (`data-base="lime"`); a `stripe` colour
+ * overrides both.
+ */
+function Hatch({
+  id,
+  color,
+  stripe,
+}: {
+  id: string;
+  color: string;
+  stripe?: string;
+}) {
+  const stripeFill =
+    stripe ?? (color === FLOW_COLORS.expense ? EXPENSE_STRIPE : undefined);
   return (
     <pattern
       id={id}
@@ -67,7 +112,14 @@ function Hatch({ id, color }: { id: string; color: string }) {
       patternTransform="rotate(45)"
     >
       <rect width="8" height="8" style={fill(color)} />
-      <rect width="2" height="8" fill="rgba(255,255,255,.26)" />
+      <rect
+        className="wm-hatch-stripe"
+        data-base={!stripeFill && LIME_FILL.test(color) ? "lime" : undefined}
+        width="2"
+        height="8"
+        fill="rgba(255,255,255,.26)"
+        style={stripeFill ? fill(stripeFill) : undefined}
+      />
     </pattern>
   );
 }
@@ -143,7 +195,12 @@ function ValuePill({
         x={x + w / 2}
         y={y - 11}
         textAnchor="middle"
-        style={{ fill: "var(--cbg)", fontSize: 11, fontWeight: 600 }}
+        style={{
+          fill: "var(--cbg)",
+          fontSize: 11,
+          fontWeight: 600,
+          fontVariantNumeric: "tabular-nums",
+        }}
       >
         {text}
       </text>
@@ -189,16 +246,19 @@ function Frame({
 export type BarSeries = { name: string; data: number[]; color: string };
 
 /**
- * Grouped hatched bars. `highlight` greys every other column and puts a value
- * pill over the highlighted one (the "this week" look of the Beranda hero).
+ * Grouped hatched bars. `highlight` keeps one column at full strength (the
+ * others drop to the same hue at reduced opacity, never to grey) and puts a
+ * value pill over it (the "this week" look).
  */
 export function HatchedBarChart({
   labels,
   series,
   highlight,
   format,
+  formatFull,
   axis,
   wide = false,
+  stacked = false,
   ariaLabel,
   className,
 }: {
@@ -206,19 +266,28 @@ export function HatchedBarChart({
   series: BarSeries[];
   highlight?: number;
   format?: (value: number) => string;
+  /** Full-precision formatter for the bar tooltips; defaults to `format`. */
+  formatFull?: (value: number) => string;
   axis?: (value: number) => string;
   wide?: boolean;
+  /** Stack the series into one column per label instead of grouping them side by side (non-negative values). */
+  stacked?: boolean;
   ariaLabel: string;
   className?: string;
 }) {
   const { ref, box } = useBox();
+  const tipFormat = formatFull ?? format;
   const uid = useId().replaceAll(":", "");
   return (
     <Frame box={box} boxRef={ref} ariaLabel={ariaLabel} className={className}>
       {({ w, h }) => {
         const compact = w < 480;
+        const stackTotals = labels.map((_, i) =>
+          series.reduce((sum, s) => sum + Math.max(0, s.data[i] ?? 0), 0),
+        );
+        const all = stacked ? stackTotals : series.flatMap((s) => s.data);
         const tickSample = (axis ?? format ?? String)(
-          niceCeil(Math.max(1, ...series.flatMap((s) => s.data))),
+          niceCeil(Math.max(1, ...all)),
         );
         // room for the longest tick label (Sora 11px ≈ 6.4px per char)
         const left = compact
@@ -227,20 +296,21 @@ export function HatchedBarChart({
         const right = 4;
         const topPad = format && highlight != null ? 36 : 12;
         const bottomPad = 24;
-        const all = series.flatMap((s) => s.data);
         const top = niceCeil(Math.max(1, ...all));
         const rawBottom = Math.min(0, ...all);
         const bottom = rawBottom < 0 ? -niceCeil(-rawBottom) : 0;
         const y = (v: number) =>
           topPad + ((top - v) / (top - bottom)) * (h - topPad - bottomPad);
         const band = (w - left - right) / Math.max(1, labels.length);
-        const count = series.length;
+        const count = stacked ? 1 : series.length;
         const barW = Math.min(wide ? 64 : 32, (band * 0.72) / count);
         const gap = count > 1 ? 4 : 0;
         const tick = axis ?? format ?? ((v: number) => String(Math.round(v)));
         const peak =
           highlight != null
-            ? Math.max(...series.map((s) => s.data[highlight] ?? 0))
+            ? stacked
+              ? (stackTotals[highlight] ?? 0)
+              : Math.max(...series.map((s) => s.data[highlight] ?? 0))
             : 0;
         return (
           <>
@@ -248,7 +318,6 @@ export function HatchedBarChart({
               {series.map((s, j) => (
                 <Hatch key={s.name} id={`${uid}-s${j}`} color={s.color} />
               ))}
-              <Hatch id={`${uid}-ghost`} color="var(--cghost)" />
             </defs>
             {!compact && (
               <Grid
@@ -272,20 +341,35 @@ export function HatchedBarChart({
                 <g key={`${label}-${i}`}>
                   {series.map((s, j) => {
                     const v = s.data[i] ?? 0;
-                    const yTop = Math.min(y(v), y(0));
+                    if (stacked && v <= 0) return null;
+                    const base = stacked
+                      ? series
+                          .slice(0, j)
+                          .reduce(
+                            (sum, p) => sum + Math.max(0, p.data[i] ?? 0),
+                            0,
+                          )
+                      : 0;
+                    const yTop = Math.min(y(base + v), y(base));
+                    const barH = Math.abs(y(base + v) - y(base));
                     return (
                       <rect
                         key={s.name}
                         className="wm-chart-bar"
-                        x={x0 + j * (barW + gap)}
+                        x={x0 + (stacked ? 0 : j * (barW + gap))}
                         y={yTop}
                         width={barW}
-                        height={Math.max(3, Math.abs(y(v) - y(0)))}
-                        rx={Math.min(8, barW / 3)}
-                        fill={`url(#${uid}-${on ? `s${j}` : "ghost"})`}
-                        style={{ animationDelay: `${i * 35}ms` }}
+                        height={stacked ? barH : Math.max(3, barH)}
+                        rx={stacked ? 3 : Math.min(8, barW / 3)}
+                        fill={`url(#${uid}-s${j})`}
+                        stroke={stacked ? "var(--cbg)" : undefined}
+                        strokeWidth={stacked ? 1 : undefined}
+                        style={{
+                          animationDelay: `${i * 35}ms`,
+                          opacity: on ? undefined : DIM,
+                        }}
                       >
-                        <title>{`${label} · ${s.name}: ${format ? format(v) : v}`}</title>
+                        <title>{`${label} · ${s.name}: ${tipFormat ? tipFormat(v) : v}`}</title>
                       </rect>
                     );
                   })}
@@ -306,7 +390,11 @@ export function HatchedBarChart({
               <ValuePill
                 cx={left + band * highlight + band / 2}
                 y={y(peak) - 4}
-                text={format(series[0]?.data[highlight] ?? 0)}
+                text={format(
+                  stacked
+                    ? (stackTotals[highlight] ?? 0)
+                    : (series[0]?.data[highlight] ?? 0),
+                )}
                 width={w}
               />
             )}
@@ -323,6 +411,7 @@ export function HatchedAreaChart({
   values,
   compare,
   format,
+  formatFull,
   axis,
   floor = 0,
   ariaLabel,
@@ -332,12 +421,15 @@ export function HatchedAreaChart({
   values: number[];
   compare?: number[];
   format?: (value: number) => string;
+  /** Full-precision formatter for the point tooltips; defaults to `format`. */
+  formatFull?: (value: number) => string;
   axis?: (value: number) => string;
   floor?: number;
   ariaLabel: string;
   className?: string;
 }) {
   const { ref, box } = useBox();
+  const tipFormat = formatFull ?? format;
   const uid = useId().replaceAll(":", "");
   return (
     <Frame box={box} boxRef={ref} ariaLabel={ariaLabel} className={className}>
@@ -399,20 +491,24 @@ export function HatchedAreaChart({
             />
             {labels.map((label, i) => (
               <g key={`${label}-${i}`}>
-                <text
-                  x={x(i)}
-                  y={h - 6}
-                  textAnchor={
-                    compact && i === 0
-                      ? "start"
-                      : compact && i === n - 1
-                        ? "end"
-                        : "middle"
-                  }
-                  style={LABEL}
-                >
-                  {label}
-                </text>
+                {/* Narrow charts show every other tick (anchored on the last
+                    point) so adjacent date labels never overprint. */}
+                {(w >= 400 || (n - 1 - i) % 2 === 0) && (
+                  <text
+                    x={x(i)}
+                    y={h - 6}
+                    textAnchor={
+                      compact && i === 0
+                        ? "start"
+                        : compact && i === n - 1
+                          ? "end"
+                          : "middle"
+                    }
+                    style={LABEL}
+                  >
+                    {label}
+                  </text>
+                )}
                 <circle
                   cx={x(i)}
                   cy={y(values[i] ?? 0)}
@@ -423,7 +519,7 @@ export function HatchedAreaChart({
                   }}
                   strokeWidth={2}
                 >
-                  <title>{`${label}: ${format ? format(values[i] ?? 0) : values[i]}`}</title>
+                  <title>{`${label}: ${tipFormat ? tipFormat(values[i] ?? 0) : values[i]}`}</title>
                 </circle>
               </g>
             ))}
@@ -547,7 +643,7 @@ export function WaterfallChart({
                     style={STRONG}
                   >
                     {(p.total ? "" : p.value >= 0 ? "+" : "") +
-                      format(p.value).replace("Rp ", "")}
+                      format(p.value).replace(/Rp\s/, "")}
                   </text>
                   <text
                     x={x + barW / 2}
@@ -574,37 +670,41 @@ function tipX(width: number, count: number, index: number) {
 
 export type FlowDay = {
   label: string;
-  savings: number;
+  /** income - expense of the bucket (tooltip only). */
+  net: number;
   income: number;
   expense: number;
 };
 
 /**
- * Diverging stacked bars (prototype Beranda hero): savings stacked on income
- * above zero, expense below. `highlight` keeps one column in colour and greys
- * the rest; hovering or focusing a column shows its breakdown.
+ * Diverging bars (prototype Beranda hero): income above zero, expense below.
+ * Every series keeps its own hue (see
+ * `FLOW_COLORS`); hovering or focusing a column shows its breakdown and
+ * drops the other columns to the same hue at reduced opacity. Nothing is
+ * pinned by default.
  */
 export function FlowStackChart({
   days,
-  highlight,
   format,
+  formatFull,
   axis,
   labels,
   ariaLabel,
   className,
 }: {
   days: FlowDay[];
-  highlight?: number;
   format: (value: number) => string;
+  /** Full-precision formatter for tooltips / the hover readout; defaults to `format`. */
+  formatFull?: (value: number) => string;
   axis?: (value: number) => string;
-  labels: { savings: string; income: string; expense: string };
+  labels: { net: string; income: string; expense: string };
   ariaLabel: string;
   className?: string;
 }) {
   const { ref, box } = useBox();
   const uid = useId().replaceAll(":", "");
-  const [hover, setHover] = useState<number | null>(null);
-  const shown = hover ?? highlight ?? null;
+  const [shown, setShown] = useState<number | null>(null);
+  const full = formatFull ?? format;
   return (
     <>
       <Frame box={box} boxRef={ref} ariaLabel={ariaLabel} className={className}>
@@ -615,7 +715,7 @@ export function FlowStackChart({
           const topPad = 12;
           const bottomPad = 24;
           // Keep both halves readable: neither side shrinks below half the other.
-          const up = Math.max(0, ...days.map((d) => d.income + d.savings));
+          const up = Math.max(0, ...days.map((d) => d.income));
           const low = Math.max(0, ...days.map((d) => d.expense));
           const top = niceCeil(Math.max(1, up, low / 2));
           const bottom = low > 0 ? -niceCeil(Math.max(low, up / 2)) : 0;
@@ -630,6 +730,7 @@ export function FlowStackChart({
             to: number,
             fillId: string,
             i: number,
+            on: boolean,
           ) =>
             Math.abs(y(from) - y(to)) < 0.5 ? null : (
               <rect
@@ -641,16 +742,17 @@ export function FlowStackChart({
                 height={Math.max(2, Math.abs(y(from) - y(to)) - 2)}
                 rx={Math.min(8, barW / 4)}
                 fill={`url(#${uid}-${fillId})`}
-                style={{ animationDelay: `${i * 35}ms` }}
+                style={{
+                  animationDelay: `${i * 35}ms`,
+                  opacity: on ? undefined : DIM,
+                }}
               />
             );
           return (
             <>
               <defs>
-                <Hatch id={`${uid}-sav`} color="var(--wm-yellow)" />
-                <Hatch id={`${uid}-inc`} color="var(--wm-lime)" />
-                <Hatch id={`${uid}-exp`} color="var(--wm-orange)" />
-                <Hatch id={`${uid}-ghost`} color="var(--cghost)" />
+                <Hatch id={`${uid}-inc`} color={FLOW_COLORS.income} />
+                <Hatch id={`${uid}-exp`} color={FLOW_COLORS.expense} />
               </defs>
               {!compact && (
                 <Grid
@@ -670,10 +772,10 @@ export function FlowStackChart({
                   <g
                     key={`${d.label}-${i}`}
                     tabIndex={0}
-                    onMouseEnter={() => setHover(i)}
-                    onMouseLeave={() => setHover(null)}
-                    onFocus={() => setHover(i)}
-                    onBlur={() => setHover(null)}
+                    onMouseEnter={() => setShown(i)}
+                    onMouseLeave={() => setShown(null)}
+                    onFocus={() => setShown(i)}
+                    onBlur={() => setShown(null)}
                     style={{ outline: "none" }}
                   >
                     <rect
@@ -683,16 +785,8 @@ export function FlowStackChart({
                       height={h}
                       fill="transparent"
                     />
-                    {seg("i", x, 0, d.income, on ? "inc" : "ghost", i)}
-                    {seg(
-                      "s",
-                      x,
-                      d.income,
-                      d.income + d.savings,
-                      on ? "sav" : "ghost",
-                      i,
-                    )}
-                    {seg("e", x, 0, -d.expense, on ? "exp" : "ghost", i)}
+                    {seg("i", x, 0, d.income, "inc", i, on)}
+                    {seg("e", x, 0, -d.expense, "exp", i, on)}
                     {d.label !== "" && (
                       <text
                         x={x + barW / 2}
@@ -703,7 +797,7 @@ export function FlowStackChart({
                         {d.label}
                       </text>
                     )}
-                    <title>{`${d.label} · ${labels.savings} ${format(d.savings)} · ${labels.income} ${format(d.income)} · ${labels.expense} ${format(d.expense)}`}</title>
+                    <title>{`${d.label} · ${labels.net} ${full(d.net)} · ${labels.income} ${full(d.income)} · ${labels.expense} ${full(d.expense)}`}</title>
                   </g>
                 );
               })}
@@ -724,16 +818,16 @@ export function FlowStackChart({
         >
           <b>{days[shown].label}</b>
           <div>
-            <span>{labels.savings}</span>
-            <span>{format(days[shown].savings)}</span>
+            <span>{labels.net}</span>
+            <span>{full(days[shown].net)}</span>
           </div>
           <div>
             <span>{labels.income}</span>
-            <span>{format(days[shown].income)}</span>
+            <span>{full(days[shown].income)}</span>
           </div>
           <div>
             <span>{labels.expense}</span>
-            <span>{format(days[shown].expense)}</span>
+            <span>{full(days[shown].expense)}</span>
           </div>
         </div>
       )}

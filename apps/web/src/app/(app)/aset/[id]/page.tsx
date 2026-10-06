@@ -18,6 +18,7 @@ import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { apiFetch } from "@/lib/api-client";
+import { formatPercent } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { useMoney } from "@/hooks/use-money";
 import {
@@ -60,6 +61,7 @@ import {
   openAssetDocument,
   uploadAssetDocument,
 } from "@/lib/asset-attachments";
+import { localIsoDate } from "@/lib/local-date";
 
 /**
  * EPIC-033 group 3 (p16/p17) — one physical asset: its dated valuations
@@ -189,7 +191,6 @@ export default function AssetDetailPage() {
       <BentoGrid className="ad-grid">
         <BentoHero
           className="ad-hero"
-          valueAs="h1"
           currency={null}
           value={
             <span className="wm-money">
@@ -228,6 +229,7 @@ export default function AssetDetailPage() {
                     },
                   ]}
                   format={money.formatCompact}
+                  formatFull={money.format}
                   wide
                   ariaLabel={`${t.aset.detailChartTitle}: ${asset?.name ?? ""}`}
                 />
@@ -259,7 +261,7 @@ export default function AssetDetailPage() {
                 value={
                   sinceFirst === null
                     ? "—"
-                    : `${sinceFirst >= 0 ? "+" : ""}${sinceFirst.toFixed(2)}%`
+                    : formatPercent(sinceFirst, { signed: true })
                 }
               />
             </>
@@ -361,8 +363,7 @@ export default function AssetDetailPage() {
                         {money.format(Number(BigInt(h.value)))}
                         {pct !== null && (
                           <small className={pct >= 0 ? "ad-up" : "ad-down"}>
-                            {pct >= 0 ? "+" : ""}
-                            {pct.toFixed(2)}%
+                            {formatPercent(pct, { signed: true })}
                           </small>
                         )}
                       </span>
@@ -409,9 +410,7 @@ function AddHistoryDialog({
   const [mode, setMode] = useState<"value" | "percent">("value");
   const valueField = useMoneyField();
   const [percent, setPercent] = useState("");
-  const [recordedAt, setRecordedAt] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
+  const [recordedAt, setRecordedAt] = useState(() => localIsoDate());
   const [note, setNote] = useState("");
 
   const mutation = useMutation({
@@ -531,7 +530,7 @@ function AddHistoryDialog({
                   value={recordedAt}
                   locale={locale}
                   label={t.aset.historyDateLabel}
-                  max={new Date().toISOString().slice(0, 10)}
+                  max={localIsoDate()}
                   onChange={setRecordedAt}
                 />
               </div>

@@ -25,20 +25,20 @@ import { formatPercent1, type RingkasanData } from "./use-ringkasan-data";
 
 export function HealthScoreCard({ data }: { data: RingkasanData }) {
   const { t } = useLocale();
-  const { savingsRate, debtRatio, dateLocale } = data;
+  const { savingsRate, debtRatio, dateLocale, savingsWindowLabel } = data;
   const score = Math.max(0, Math.min(100, savingsRate));
 
   return (
     <BentoCard
       className="rk2-health"
       title={t.ringkasan.healthScoreTitle}
-      caption={t.ringkasan.financialHealthScoreLabel}
+      caption={`${t.ringkasan.financialHealthScoreLabel} · ${savingsWindowLabel}`}
     >
       <div className="rk2-health-body">
         <div className="rk2-health-gauge">
           <TickGauge
             value={score}
-            ariaLabel={`${t.ringkasan.financialHealthScoreLabel}: ${savingsRate}`}
+            ariaLabel={`${t.ringkasan.financialHealthScoreLabel} ${savingsWindowLabel}: ${savingsRate}`}
           >
             <b className="private">{score}%</b>
             <small>{t.ringkasan.financialHealthScoreLabel}</small>

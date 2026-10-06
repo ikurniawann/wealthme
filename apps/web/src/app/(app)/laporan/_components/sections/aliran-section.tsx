@@ -13,7 +13,7 @@ function FlowBars({
   ariaLabel,
 }: {
   bars: { label: string; amount: number }[];
-  tone: "lime" | "orange";
+  tone: "lime" | "ink";
   ariaLabel: string;
 }) {
   const max = Math.max(1, ...bars.map((b) => b.amount));
@@ -23,9 +23,7 @@ function FlowBars({
       {bars.map((b) => (
         <div key={b.label} className="lap-a-flow-row" aria-hidden="true">
           <span className="lap-a-flow-name">{b.label}</span>
-          <span className="lap-a-flow-amt">
-            {money.formatCompact(b.amount)}
-          </span>
+          <span className="lap-a-flow-amt">{money.format(b.amount)}</span>
           <div className="lap-a-flow-track">
             <Track value={(b.amount / max) * 100} fill={tone} />
           </div>
@@ -71,7 +69,7 @@ export function AliranSection({
             <BentoCard title={t.laporan.aliran.expenseAllocLabel}>
               <FlowBars
                 bars={expenseBars}
-                tone="orange"
+                tone="ink"
                 ariaLabel={`${t.laporan.aliran.expenseAllocLabel}: ${expenseBars
                   .map((b) => b.label)
                   .join(", ")}`}

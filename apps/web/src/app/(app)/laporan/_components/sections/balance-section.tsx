@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { SectionCard } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
 import { computeBalanceSheetIdentity } from "@/lib/laporan-utils";
+import { vizByIndex } from "@/lib/viz-colors";
 import { useLocale } from "@/hooks/use-locale";
 import type {
   BalanceSheetDto,
@@ -11,14 +12,6 @@ import type {
 import { formatLocaleDateLong } from "../date-helpers";
 import { ReconciliationBridgeCard, StatementRow } from "../atoms";
 import "./sections-b.css";
-
-const SEG_COLORS = [
-  "var(--wm-lime)",
-  "var(--wm-orange)",
-  "var(--primary)",
-  "var(--brand-purple, #8B5CF6)",
-  "var(--warning)",
-];
 
 function CompositionBar({
   groups,
@@ -37,7 +30,7 @@ function CompositionBar({
             className="lpb-composition-seg"
             style={{
               width: `${(g.amount / total) * 100}%`,
-              background: SEG_COLORS[i % SEG_COLORS.length],
+              background: vizByIndex(i),
             }}
           />
         ) : null,
@@ -200,11 +193,7 @@ export function BalanceSection({
             )}
           </SectionCard>
           <SectionCard
-            title={
-              <span className="text-destructive">
-                {t.laporan.balance.liabilityEquityLabel}
-              </span>
-            }
+            title={<span>{t.laporan.balance.liabilityEquityLabel}</span>}
           >
             <table className="w-full border-collapse text-[12.5px]">
               <tbody>
@@ -239,7 +228,7 @@ export function BalanceSection({
                   }
                   className="border-b border-border"
                   labelClass="py-1.5 font-bold"
-                  valueClass="font-bold text-destructive"
+                  valueClass="font-bold"
                 />
                 <StatementRow
                   label={t.laporan.balance.equityLabel}

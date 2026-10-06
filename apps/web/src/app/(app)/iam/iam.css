@@ -23,6 +23,7 @@
   }
   .iam-main {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
   }
 
@@ -32,6 +33,54 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  /* Compact hero: the member bar chart is short, so cap its box instead of
+     stretching to the default 230px (no empty band under the bars). */
+  .iam-hero .wm-chart-wrap {
+    flex: none;
+    min-height: 0;
+    height: 150px;
+  }
+  .iam-hero-more {
+    display: none;
+  }
+  @media (max-width: 720px) {
+    .iam-grid > .iam-hero.wm-hero .wm-hero-main {
+      padding: 18px 18px 4px;
+    }
+    .iam-grid > .iam-hero .wm-hero-head {
+      gap: 10px;
+    }
+    .iam-grid > .iam-hero .wm-kpis {
+      padding: 8px 18px 6px;
+    }
+    .iam-hero:not(.iam-hero--more) .wm-chart-wrap {
+      display: none;
+    }
+    .iam-hero-more {
+      display: flex;
+      grid-column: 1 / -1;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
+      border: 0;
+      background: transparent;
+      color: rgb(238 240 232 / 0.78);
+      font: inherit;
+      font-size: var(--wm-type-13);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .iam-hero-more svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.2s;
+    }
+    .iam-hero-more[aria-expanded="true"] svg {
+      transform: rotate(180deg);
+    }
   }
 
   .iam-note {
@@ -72,6 +121,7 @@
      a dense multi-column table. */
   .iam-member-list {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
   }
   .iam-mem-row {
     display: flex;
@@ -222,10 +272,10 @@
     background: var(--wm-card-2, var(--secondary));
   }
   .iam-mosaic__cell--lit {
-    background: var(--wm-lime);
+    background: var(--wm-ink);
   }
   .iam-mosaic__cell--dim {
-    background: color-mix(in oklab, var(--wm-lime) 35%, transparent);
+    background: color-mix(in oklab, var(--wm-ink) 30%, transparent);
   }
 }
 

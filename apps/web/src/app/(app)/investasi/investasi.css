@@ -85,7 +85,7 @@
   .iv-row {
     display: grid;
     grid-template-columns:
-      36px minmax(0, 1.6fr) minmax(0, 1.1fr) minmax(0, 1fr)
+      36px minmax(0, 1.6fr) minmax(0, 1.1fr) minmax(max-content, 1fr)
       auto;
     align-items: center;
     gap: 14px;
@@ -246,6 +246,23 @@
   .iv-more p {
     margin-top: 6px;
   }
+  /* Phones: 44px hit areas whose negative margin cancels the growth, so the
+     surrounding rows keep their rhythm. */
+  @media (max-width: 720px) {
+    .iv-info {
+      display: inline-grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      margin: -15px;
+    }
+    .iv-more summary {
+      display: flex;
+      align-items: center;
+      min-height: 44px;
+      margin-block: -13px;
+    }
+  }
   .iv-note .wm-mosaic {
     grid-template-columns: repeat(9, minmax(0, 1fr));
     grid-auto-rows: minmax(0, 1fr);
@@ -290,6 +307,9 @@
     .iv-link {
       min-height: 44px;
     }
+    .iv-filters button {
+      min-height: 44px;
+    }
   }
 }
 @layer components {
@@ -305,6 +325,11 @@
     flex: 1;
     min-height: 150px;
   }
+  /* chartcol is absolutely filled into the wrap: the wrap must fit the plot's
+     own minimum, or its x-axis labels overflow past the hero's bottom edge. */
+  .iv-hero .wm-chart-wrap {
+    min-height: 300px;
+  }
 }
 
 @layer components {
@@ -317,6 +342,24 @@
   }
   .iv-hero .wm-kpi-v {
     white-space: nowrap;
+  }
+  /* Money never splits "Rp" from its digits; tabular numerals on every
+     caption that carries a figure ("Modal Rp 1.000.000"). */
+  .iv-grid .wm-cap,
+  .iv-val small {
+    font-variant-numeric: tabular-nums;
+  }
+  .iv-val b {
+    white-space: nowrap;
+  }
+  /* 390px: the 2-col KPI rail is ~170px wide; shrink the figure with the
+     viewport instead of clipping it with an ellipsis. */
+  @media (max-width: 720px) {
+    .iv-hero .wm-kpi-v {
+      overflow: visible;
+      text-overflow: clip;
+      font-size: clamp(12px, 4.1vw, 15px);
+    }
   }
 }
 
@@ -462,5 +505,70 @@
       flex: none;
       min-height: 0;
     }
+  }
+}
+
+@layer components {
+  .iv-hero-more {
+    display: none;
+  }
+  @media (max-width: 720px) {
+    /* Condensed phone hero: value, the two buttons and the KPIs stay; the
+       bar chart and its legend fold behind the toggle so the first position
+       starts near the top. */
+    .iv-grid > .iv-hero.wm-hero .wm-hero-main {
+      padding: 18px 18px 4px;
+    }
+    .iv-grid > .iv-hero .wm-kpis {
+      padding: 8px 18px 6px;
+    }
+    .iv-hero:not(.iv-hero--more) .wm-chart-wrap,
+    .iv-hero:not(.iv-hero--more) .iv-legend {
+      display: none;
+    }
+    .iv-comp:not(.iv-comp--more) {
+      display: none;
+    }
+    .iv-hero-more {
+      display: flex;
+      grid-column: 1 / -1;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
+      border: 0;
+      background: transparent;
+      color: rgb(238 240 232 / 0.78);
+      font: inherit;
+      font-size: var(--wm-type-13);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .iv-hero-more svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.2s;
+    }
+    .iv-hero-more[aria-expanded="true"] svg {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+@layer components {
+  /* The type filter is a single scrollable row above the list at every width. */
+  .iv-chips-row {
+    display: block;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .iv-chips-row .iv-filters {
+    flex-wrap: nowrap;
+    width: max-content;
+    margin-top: 0;
+  }
+  .iv-chips-row .iv-filters button {
+    flex: none;
+    white-space: nowrap;
   }
 }

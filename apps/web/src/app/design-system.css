@@ -91,8 +91,8 @@
     transform: translateY(-150%);
     padding: 8px 12px;
     border-radius: 8px;
-    background: var(--primary);
-    color: var(--primary-foreground);
+    background: #11382c;
+    color: #ecede8;
     font-size: 12.5px;
     font-weight: 700;
     box-shadow: var(--shadow-pop);
@@ -136,8 +136,16 @@
     color: inherit;
   }
 
+  :root {
+    --focus-ring: var(--primary-strong);
+  }
+
+  .wm-dark {
+    --focus-ring: var(--wm-lime);
+  }
+
   :focus-visible {
-    outline: 2px solid var(--ring);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -545,12 +553,13 @@
     padding: 0;
     font-size: 12.5px;
     font-weight: 700;
-    color: var(--primary);
+    color: var(--primary-strong);
     cursor: pointer;
   }
 
   .card-link:hover {
-    color: var(--primary-strong);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   /* ─────────────────────────── Buttons ─────────────────────────── */
@@ -582,24 +591,39 @@
     cursor: not-allowed;
   }
 
+  /* Commit action: solid preset-aware fill from --commit / --commit-foreground
+     (globals.css). Default light = forest #11382c with #eef0e8 ink (~11:1);
+     dark = lime fill + dark ink; each [data-theme] preset supplies its own pair
+     (all >= 4.5:1). Lime stays reserved for active/selected state. */
   .btn--primary {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    box-shadow: 0 8px 18px -12px color-mix(in oklab, var(--primary) 62%, black);
+    background: var(--commit);
+    color: var(--commit-foreground);
+    box-shadow: 0 8px 18px -12px color-mix(in oklab, var(--commit) 62%, black);
   }
   .btn--primary:hover:not(:disabled) {
-    background: var(--primary-strong);
+    background: var(--commit-hover);
   }
-  /* A distinct fixed muted-teal fill, not opacity-derived from --primary, so
-     an enabled CTA and a disabled one read as different colors at a glance
-     instead of the enabled teal just looking washed out. #3f6b64 keeps
-     --primary-foreground (#fff) at ~6:1 contrast, above WCAG AA's 4.5:1.
-     Inlined here rather than a new --primary-disabled token in globals.css,
-     which this batch doesn't touch. */
+  .btn--primary:active:not(:disabled) {
+    background: var(--commit-pressed);
+  }
+  .btn--primary:focus-visible {
+    outline: 2px solid var(--primary-strong);
+    outline-offset: 2px;
+  }
+  /* Disabled is a distinct muted-forest fill rather than opacity on the
+     enabled one. #3f6b64 keeps #fff label text at ~6:1 (WCAG AA 4.5:1). */
   .btn--primary:disabled {
     opacity: 1;
     background: #3f6b64;
+    color: #fff;
     box-shadow: none;
+  }
+  .dark .btn--primary {
+    box-shadow: 0 8px 18px -12px color-mix(in oklab, var(--commit) 40%, black);
+  }
+  .dark .btn--primary:disabled {
+    background: rgb(255 255 255 / 0.1);
+    color: var(--muted-foreground);
   }
 
   .btn--outline {
@@ -644,9 +668,9 @@
      — "user allows overriding the design system where it blocks a better
      result") — every `.btn` variant falls short of the 44px WCAG 2.2 AA
      touch-target minimum on phones (`.btn` 36px, `.btn--sm`/icon-sm 30px).
-     Scoped to coarse pointers only (real touchscreens) so the mouse/trackpad
+     Scoped to coarse pointers and phone-width viewports so the mouse/trackpad
      desktop sizing above is untouched. */
-  @media (pointer: coarse) {
+  @media (pointer: coarse), (max-width: 720px) {
     .btn {
       min-height: 44px;
     }
@@ -691,13 +715,15 @@
     background: var(--warning-soft);
     color: color-mix(in oklab, var(--warning) 80%, var(--foreground));
   }
+  /* Informational: neutral ink on the ghost tint (lime marks ACTIVE only). */
   .badge--info {
-    background: var(--accent);
-    color: var(--accent-foreground);
+    background: var(--wm-ghost);
+    color: var(--foreground);
   }
+  /* Category pill: forest ink on the warm soft fill; lime is not text on light. */
   .badge--purple {
     background: var(--brand-purple-soft);
-    color: var(--brand-purple);
+    color: var(--primary-strong);
   }
   .badge--gray {
     background: var(--secondary);
@@ -740,7 +766,7 @@
     color: var(--destructive);
   }
   .t-primary {
-    color: var(--primary);
+    color: var(--primary-strong);
   }
   .t-warning {
     color: var(--warning);
@@ -1330,7 +1356,7 @@
 
   .goal-overall__value {
     display: block;
-    color: var(--primary);
+    color: var(--primary-strong);
     font-size: 28px;
     line-height: 1;
     letter-spacing: -0.03em;
@@ -1608,7 +1634,7 @@
     flex: 0 0 36px;
     border-radius: 10px;
     background: var(--card);
-    color: var(--primary);
+    color: var(--primary-strong);
   }
   .snapshot-row__body {
     min-width: 0;
@@ -1788,7 +1814,7 @@
     width: 30px;
     height: 30px;
     border-radius: 9px;
-    color: var(--primary);
+    color: var(--primary-strong);
     background: var(--card);
   }
 
@@ -2167,7 +2193,7 @@
     height: 18px;
     border-radius: 999px;
     background: var(--card);
-    color: var(--primary);
+    color: var(--primary-strong);
   }
 
   .prompt-label {
@@ -2393,8 +2419,8 @@
   .select,
   .textarea {
     width: 100%;
-    border: 1px solid var(--border);
-    background: var(--background);
+    border: 1px solid var(--field-border);
+    background: var(--card);
     color: var(--foreground);
     border-radius: 9px;
     padding: 9px 12px;
@@ -2409,9 +2435,16 @@
   .input:focus-visible,
   .select:focus-visible,
   .textarea:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
     border-color: var(--primary);
     background: var(--card);
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 18%, transparent);
+  }
+
+  .input::placeholder,
+  .textarea::placeholder {
+    color: var(--placeholder);
+    opacity: 1;
   }
 
   .textarea {
@@ -2419,19 +2452,19 @@
     resize: vertical;
   }
 
+  /* Native <select>: appearance none + one inline chevron (stroke #4a4d42 on
+     light, #c9ccc2 on dark). Height is set by the field rules above (44px). */
   .select {
     appearance: none;
-    background-image:
-      linear-gradient(45deg, transparent 50%, currentColor 50%),
-      linear-gradient(135deg, currentColor 50%, transparent 50%);
-    background-position:
-      calc(100% - 16px) calc(50% + 1px),
-      calc(100% - 11px) calc(50% + 1px);
-    background-size:
-      5px 5px,
-      5px 5px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%234a4d42' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-position: right 12px center;
+    background-size: 16px 16px;
     background-repeat: no-repeat;
-    padding-right: 32px;
+    padding-right: 36px;
+  }
+
+  .dark .select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%23c9ccc2' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
   }
 
   /* Date-range picker — trigger button + calendar popover (WM.mountDateRange). */
@@ -3282,9 +3315,9 @@
   }
 
   .notice--info {
-    background: var(--accent);
-    border-color: color-mix(in oklab, var(--primary) 26%, transparent);
-    color: var(--accent-foreground);
+    background: var(--wm-card-2);
+    border-color: var(--border);
+    color: var(--foreground);
   }
   .notice--warning {
     background: var(--warning-soft);
@@ -3832,7 +3865,7 @@
     a.card-link {
       display: inline-flex;
       align-items: center;
-      min-height: 34px;
+      min-height: 44px;
     }
 
     .list-row {
@@ -4280,6 +4313,16 @@
     fill: var(--muted-foreground) !important;
   }
 
+  /* Axis ticks, data labels and tooltip figures: same tabular Sora numerals
+     as every other money figure (apexcharts has no style key for this). */
+  .apexcharts-canvas text,
+  .apexcharts-tooltip,
+  .apexcharts-xaxistooltip,
+  .apexcharts-yaxistooltip {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
   .apexcharts-canvas foreignObject {
     overflow: hidden;
     pointer-events: none;
@@ -4535,13 +4578,16 @@
   }
   .btn--primary {
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.16),
-      0 10px 20px -14px color-mix(in oklab, var(--primary) 70%, black);
+      inset 0 1px 0 rgb(255 255 255 / 0.1),
+      0 10px 20px -14px color-mix(in oklab, var(--wm-cover-mid) 70%, black);
   }
-  .btn--primary:hover {
+  .btn--primary:hover:not(:disabled) {
     box-shadow:
-      inset 0 1px 0 rgb(255 255 255 / 0.16),
-      0 14px 26px -14px color-mix(in oklab, var(--primary) 70%, black);
+      inset 0 1px 0 rgb(255 255 255 / 0.1),
+      0 14px 26px -14px color-mix(in oklab, var(--wm-cover-mid) 70%, black);
+  }
+  .btn--primary:disabled {
+    box-shadow: none;
   }
   .input,
   .select,
@@ -4554,9 +4600,10 @@
   .input:focus-visible,
   .select:focus-visible,
   .textarea:focus-visible {
-    outline: none;
-    border-color: color-mix(in oklab, var(--primary) 55%, var(--border));
-    box-shadow: 0 0 0 3px color-mix(in oklab, var(--primary) 16%, transparent);
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
+    border-color: var(--primary);
+    box-shadow: none;
   }
 
   /* Sidebar: active state is a solid tint, no gradient; quieter headers. */
@@ -4676,7 +4723,7 @@
   }
 
   /* Touch controls need a comfortable hit area without changing desktop density. */
-  @media (pointer: coarse) {
+  @media (pointer: coarse), (max-width: 720px) {
     .input,
     .select,
     .textarea,
@@ -4707,5 +4754,42 @@
       height: 44px;
       min-height: 44px;
     }
+
+    button.card-link,
+    a.card-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+    }
+
+    /* Bare text links (15-20px tall) reach 44px through padding that the
+       equal negative margin cancels, so surrounding layout does not shift. */
+    .wm-textlink {
+      display: inline-flex;
+      align-items: center;
+      padding-block: 15px;
+      margin-block: -15px;
+    }
+  }
+}
+
+/* INTENTIONAL site-wide remap: Tailwind's `text-primary` does NOT render the
+   lime --primary. It is deliberately redirected to --primary-strong (preset-
+   aware forest/ink on light, lime tint on dark) so no text is ever lime on a
+   light surface. For lime fills use `bg-primary` / --primary (active state
+   only); for commit fills use --commit. */
+/* Lime is an active-state colour, never a text colour on light surfaces
+   (#9ccb3b on white is ~1.9:1). Every `text-primary` (links, accents) resolves
+   to --primary-strong: forest on light, lime on dark. Dark hero surfaces keep
+   lime ink. Declared after Tailwind's own utilities layer so it wins at equal
+   specificity. */
+@layer utilities {
+  .text-primary,
+  .hover\:text-primary:hover,
+  .focus-visible\:text-primary:focus-visible {
+    color: var(--primary-strong);
+  }
+  .wm-dark .text-primary {
+    color: var(--wm-lime);
   }
 }

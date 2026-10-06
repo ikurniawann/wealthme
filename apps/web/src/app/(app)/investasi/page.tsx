@@ -11,6 +11,7 @@ import { io } from "socket.io-client";
 import {
   ArrowLeftRight,
   Calculator,
+  ChevronDown,
   Info,
   PencilLine,
   Plus,
@@ -54,6 +55,8 @@ import {
 } from "@/components/ui/dialog";
 import { RowActions, ConfirmDeleteDialog } from "@/components/crud";
 import { formatManualDate } from "@/components/consolidated-total-card";
+import { formatPercent } from "@/lib/format";
+import { deltaDirection } from "@/lib/delta";
 import { InvestmentTaxCard } from "@/components/tax/investment-tax-card";
 import { useLocale } from "@/hooks/use-locale";
 import { useApiError } from "@/hooks/use-api-error";
@@ -63,6 +66,7 @@ import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { assetClassColor } from "@/lib/viz-colors";
 import {
   canonicalizeSahamQuantity,
   convertQuantityDisplay,
@@ -104,35 +108,21 @@ import type {
 import type { QuantityUnit } from "./quantity-conversion";
 import type { UnitLabels } from "./instrument-units";
 import { filterByOccurredAt } from "./history-filter";
+import { hasLiveFeedPrice, hasMarketPrice } from "./holding-price";
+import { localIsoDate } from "@/lib/local-date";
 
-const TYPE_BADGE_VARIANT: Record<
-  string,
-  "info" | "purple" | "warning" | "success" | "gray"
-> = {
+// Asset class is a category, not a status: neutral/category pills only
+// (success/warning are reserved for settled/due-soon states).
+const TYPE_BADGE_VARIANT: Record<string, "info" | "purple" | "gray"> = {
   saham: "info",
   reksa_dana: "purple",
-  obligasi: "success",
-  emas: "warning",
+  obligasi: "gray",
+  emas: "purple",
   kripto: "info",
   lainnya: "gray",
   // EPIC-024 C2/C3 (D10).
-  deposito: "success",
+  deposito: "gray",
 };
-
-const TYPE_LOGO_BG: Record<string, string> = {
-  saham: "#0061AF",
-  reksa_dana: "#7C3AED",
-  obligasi: "#1E3A5F",
-  emas: "#D97706",
-  kripto: "#F97316",
-  lainnya: "#6B7280",
-  deposito: "#0F766E",
-};
-
-// EPIC-025 N3-F2 — allocation-by-instrument donut (FOLD per J3): same
-// per-type colors as TYPE_LOGO_BG, reused so the donut and the holdings
-// table's ticker chips agree visually.
-const TYPE_DONUT_COLOR = TYPE_LOGO_BG;
 
 const INVESTMENT_TYPES = [
   "saham",
@@ -252,8 +242,7 @@ function makeFormatDecimalRupiah(
 
 function formatReturnPct(pct: number | null): string {
   if (pct === null) return "—";
-  const sign = pct >= 0 ? "+" : "";
-  return `${sign}${pct.toFixed(2)}%`;
+  return formatPercent(pct, { signed: true });
 }
 
 function formatLocaleDateTime(iso: string, locale: Locale): string {
@@ -1170,7 +1159,10 @@ function AddInvestmentModal({
                             )
                         : t.investasi.familyGoldPriceUnsetHint}
                     </span>{" "}
-                    <Link href="/akun" className="font-semibold text-primary">
+                    <Link
+                      href="/akun"
+                      className="font-semibold text-primary-strong hover:underline"
+                    >
                       {t.investasi.familyGoldPriceLinkLabel}
                     </Link>
                   </span>
@@ -1289,9 +1281,7 @@ function BuySellModal({
   // type — the foreign-currency preview must convert at scale 2, matching
   // moneyIdrDecimal's contract.
   const priceField = useMoneyField({ idrScale: 2 });
-  const [occurredAt, setOccurredAt] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
+  const [occurredAt, setOccurredAt] = useState(() => localIsoDate());
   // EPIC-033 p28 — optional settlement account: a buy debits it, a sell
   // credits the proceeds and books the realised gain as income.
   const [accountId, setAccountId] = useState("");
@@ -1656,7 +1646,7 @@ function BuySellModal({
                       <div>
                         <dt>{t.investasi.bsEstPnlLabel}</dt>
                         <dd className={estPnl >= 0 ? "t-success" : "t-danger"}>
-                          {estPnl >= 0 ? "+" : "−"}
+                          {estPnl >= 0 ? "+" : "-"}
                           {money.format(Math.abs(estPnl))}
                         </dd>
                       </div>
@@ -1686,7 +1676,7 @@ function BuySellModal({
               {submitting
                 ? t.investasi.buySellSaving
                 : hasPreview
-                  ? `${isSell ? t.investasi.buySellTypeSellLabel : t.investasi.buySellTypeBuyLabel} · ${money.formatCompact(total)}`
+                  ? `${isSell ? t.investasi.buySellTypeSellLabel : t.investasi.buySellTypeBuyLabel} · ${money.format(total)}`
                   : t.investasi.buySellSaveButton}
             </PillButton>
           </div>
@@ -1787,6 +1777,7 @@ export default function InvestasiPage() {
   );
   // EPIC-021 #19: filter tabs by type, matching the /aset tab pattern.
   const [activeFilter, setActiveFilter] = useState<FilterTabId>("semua");
+  const [heroMore, setHeroMore] = useState(false);
   const [detailHolding, setDetailHolding] = useState<InvestmentDto | null>(
     null,
   );
@@ -1963,20 +1954,18 @@ export default function InvestasiPage() {
     .map(({ type, label }) => ({
       label,
       value: allocationByType.get(label) ?? 0,
-      color: TYPE_DONUT_COLOR[type] ?? "#6B7280",
+      color: assetClassColor(type),
     }))
     .filter((seg) => seg.value > 0);
 
   // EPIC-024 #6/#7 pricing-source explainer: "only N positions priced live"
   // is derived from real holdings, never a static/invented count.
-  const livePositionsCount = (holdings ?? []).filter((h) =>
-    AUTOMATED_PRICE_TYPES.includes(h.type as InvestmentType),
-  ).length;
+  const livePositionsCount = (holdings ?? []).filter(hasLiveFeedPrice).length;
 
   const positionCount = filteredHoldings.length;
   const totalValueNum = parseFloat(summary?.totalCurrentValue ?? "0");
-  const returnUp = (summary?.totalReturnPct ?? 0) >= 0;
-  const todayUp = (summary?.todayReturnPct ?? 0) >= 0;
+  const returnDir = deltaDirection(summary?.totalReturnPct ?? 0, 2);
+  const todayDir = deltaDirection(summary?.todayReturnPct ?? 0, 2);
   const mosaicLive =
     (holdings?.length ?? 0) === 0
       ? 0
@@ -2000,16 +1989,14 @@ export default function InvestasiPage() {
   return (
     <>
       <BentoGrid className="iv-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.investasi}</h1>
-
         <BentoHero
-          className="iv-hero"
+          className={cn("iv-hero", heroMore && "iv-hero--more")}
           currency={null}
           value={
             isLoading
               ? "…"
               : summary?.totalCurrentValue != null
-                ? money.format(totalValueNum).replace(/,00$/, "")
+                ? money.format(totalValueNum)
                 : "—"
           }
           caption={
@@ -2057,19 +2044,6 @@ export default function InvestasiPage() {
           }
           chart={
             <div className="iv-chartcol">
-              <Segmented
-                className="iv-filters"
-                label={t.investasi.v2.filterLabel}
-                value={activeFilter}
-                onChange={setActiveFilter}
-                options={FILTER_TAB_IDS.map((id) => ({
-                  value: id,
-                  label:
-                    id === "semua"
-                      ? t.investasi.filterAllLabel
-                      : t.investasi.typeLabels[id],
-                }))}
-              />
               <div className="iv-plot">
                 {filteredHoldings.length > 0 ? (
                   <HatchedBarChart
@@ -2084,7 +2058,7 @@ export default function InvestasiPage() {
                             parseFloat(h.costBasisPerUnit) *
                             parseFloat(h.quantity),
                         ),
-                        color: "var(--wm-ghost)",
+                        color: "var(--viz-6)",
                       },
                       {
                         name: t.investasi.v2.legendValue,
@@ -2095,6 +2069,7 @@ export default function InvestasiPage() {
                       },
                     ]}
                     format={money.formatCompact}
+                    formatFull={money.format}
                     wide
                     ariaLabel={t.investasi.v2.chartAria}
                   />
@@ -2116,7 +2091,9 @@ export default function InvestasiPage() {
                 delta={
                   <span className="wm-cap">
                     {t.investasi.capitalInvestedPrefix}{" "}
-                    {formatDecimalRupiah(summary?.totalCostBasis ?? null)}
+                    <span className="wm-amt">
+                      {formatDecimalRupiah(summary?.totalCostBasis ?? null)}
+                    </span>
                   </span>
                 }
               />
@@ -2126,7 +2103,7 @@ export default function InvestasiPage() {
                 delta={
                   <span className="iv-kdelta">
                     <Delta
-                      dir={returnUp ? "up" : "down"}
+                      dir={returnDir}
                       value={formatReturnPct(summary?.totalReturnPct ?? null)}
                     />
                     {formulaText && (
@@ -2149,7 +2126,7 @@ export default function InvestasiPage() {
                 delta={
                   <span className="iv-kdelta">
                     <Delta
-                      dir={todayUp ? "up" : "down"}
+                      dir={todayDir}
                       value={formatReturnPct(summary?.todayReturnPct ?? null)}
                     />
                     <span className="wm-cap">
@@ -2159,25 +2136,53 @@ export default function InvestasiPage() {
                   </span>
                 }
               />
+              <button
+                type="button"
+                className="iv-hero-more"
+                aria-expanded={heroMore}
+                onClick={() => setHeroMore((open) => !open)}
+              >
+                {heroMore ? t.transaksi.v2.heroLess : t.transaksi.v2.heroMore}
+                <ChevronDown aria-hidden="true" />
+              </button>
             </>
           }
         />
 
         {!isLoading && allocationSegments.length > 0 && (
           <BentoCard
-            className="iv-comp"
+            className={cn("iv-comp", heroMore && "iv-comp--more")}
             title={t.investasi.v2.allocTitle}
             caption={t.investasi.v2.allocCaption}
           >
             <CompositionStack
               label={t.investasi.allocationTitle}
-              center={money.formatCompact(totalValueNum)}
+              center={money.format(totalValueNum)}
               sub={t.investasi.totalValueLabel}
               format={money.formatCompact}
+              formatFull={money.format}
               items={allocationSegments}
             />
           </BentoCard>
         )}
+
+        {/* The type filter lives right above the list as one scrollable row
+            (it used to sit inside the hero chart). */}
+        <div className="iv-chips-row">
+          <Segmented
+            className="iv-filters"
+            label={t.investasi.v2.filterLabel}
+            value={activeFilter}
+            onChange={setActiveFilter}
+            options={FILTER_TAB_IDS.map((id) => ({
+              value: id,
+              label:
+                id === "semua"
+                  ? t.investasi.filterAllLabel
+                  : t.investasi.typeLabels[id],
+            }))}
+          />
+        </div>
 
         <BentoCard
           className="iv-list"
@@ -2213,16 +2218,19 @@ export default function InvestasiPage() {
             {filteredHoldings.map((h) => {
               const variant = TYPE_BADGE_VARIANT[h.type] ?? "gray";
               const label = investmentClassLabel(t, h.type);
-              const logoBg = TYPE_LOGO_BG[h.type] ?? "#6B7280";
+              const logoBg = `color-mix(in srgb, ${assetClassColor(h.type)} 24%, var(--wm-card))`;
               const totalCost =
                 parseFloat(h.costBasisPerUnit) * parseFloat(h.quantity);
               const isUp = parseFloat(h.returnRp ?? "0") >= 0;
+              // No real price: the value is a cost-basis stand-in, so its
+              // return is unknown, not zero (the price cell says why).
+              const priced = hasMarketPrice(h);
 
               return (
                 <li key={h.id} className="iv-row">
                   <span
                     className="iv-logo"
-                    style={{ background: logoBg }}
+                    style={{ background: logoBg, color: "var(--wm-ink)" }}
                     aria-hidden="true"
                   >
                     {toLogoText(
@@ -2256,16 +2264,30 @@ export default function InvestasiPage() {
                     </span>
                     {formatPriceSourceCell(h, t, locale, money.format)}
                   </div>
-                  <div className={`iv-val ${isUp ? "is-up" : "is-down"}`}>
+                  <div
+                    className={`iv-val ${priced ? (isUp ? "is-up" : "is-down") : ""}`}
+                  >
                     <b className="mono">
                       {formatDecimalRupiah(h.currentValue)}
                     </b>
                     <small className="mono">
-                      {formatDecimalRupiah(h.returnRp)} ·{" "}
-                      {formatReturnPct(h.returnPct)}
+                      {priced ? (
+                        <>
+                          <span className="wm-amt">
+                            {formatDecimalRupiah(h.returnRp)}
+                          </span>{" "}
+                          ·{" "}
+                          <span className="wm-amt">
+                            {formatReturnPct(h.returnPct)}
+                          </span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
                     </small>
                     <small className="iv-cost mono">
-                      {t.investasi.v2.rowCapital} {money.format(totalCost)}
+                      {t.investasi.v2.rowCapital}{" "}
+                      <span className="wm-amt">{money.format(totalCost)}</span>
                     </small>
                   </div>
                   {canManage && (
@@ -2421,13 +2443,19 @@ export default function InvestasiPage() {
                     />
                     <DetailMetric
                       label={t.investasi.totalReturnSuffix}
-                      value={`${formatDecimalRupiah(detailHolding.returnRp)} (${formatReturnPct(
-                        detailHolding.returnPct,
-                      )})`}
+                      value={
+                        hasMarketPrice(detailHolding)
+                          ? `${formatDecimalRupiah(detailHolding.returnRp)} (${formatReturnPct(
+                              detailHolding.returnPct,
+                            )})`
+                          : "—"
+                      }
                       tone={
-                        parseFloat(detailHolding.returnRp ?? "0") >= 0
-                          ? "text-success"
-                          : "text-destructive"
+                        !hasMarketPrice(detailHolding)
+                          ? undefined
+                          : parseFloat(detailHolding.returnRp ?? "0") >= 0
+                            ? "text-success"
+                            : "text-destructive"
                       }
                     />
                     {/* EPIC-022 D2 — realized P/L, the sum of every SELL ever

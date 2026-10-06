@@ -411,7 +411,6 @@ export default function MasterCoaPage() {
     <BentoGrid className="mc-grid">
       <BentoHero
         className="mc-hero"
-        valueAs="h1"
         currency={null}
         value={isError ? "—" : accounts.length}
         caption={t.mastercoa.v2.heroCap}

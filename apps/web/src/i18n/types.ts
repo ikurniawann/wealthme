@@ -457,6 +457,14 @@ export type I18nDictionary = {
     expense2: string;
     transfer: string;
     sparkLabels: [string, string, string, string, string];
+    /** Screen-reader words for the shared delta rule (lib/delta.ts): direction + valence. */
+    delta: {
+      up: string;
+      down: string;
+      flat: string;
+      good: string;
+      bad: string;
+    };
     /** EPIC-023 Task C retry — see `MemberRoleId` above. */
     roleLabels: Record<MemberRoleId, string>;
     // A2 (revisi-2) — `useApiError`'s generic fallbacks. Never a status
@@ -484,6 +492,10 @@ export type I18nDictionary = {
       expense: string;
       saved: string;
       vsLastMonth: string;
+      compareWindow: string;
+      compareFullMonth: string;
+      expenseMonth: string;
+      dueOverdue: string;
       accountsTitle: string;
       accountsCap: string;
       addAccount: string;
@@ -520,6 +532,9 @@ export type I18nDictionary = {
       addGoal: string;
       goalLeft: string;
       goalDone: string;
+      goalPaceOnTrack: string;
+      goalPaceLate: string;
+      goalPaceDone: string;
       historyTitle: string;
       seeAllHistory: string;
       seeAll: string;
@@ -539,7 +554,6 @@ export type I18nDictionary = {
       days30: string;
       health30Note: string;
       today: string;
-      partial: string;
       uncategorized: string;
       mStats: string;
       prevAccount: string;
@@ -669,6 +683,10 @@ export type I18nDictionary = {
       tabExpense: string;
       tabTransfer: string;
       tabCreditCard: string;
+      tabIncomeShort: string;
+      tabExpenseShort: string;
+      tabTransferShort: string;
+      tabCreditCardShort: string;
       saveFailedPrefix: string;
       retryFallback: string;
       invalidAmount: string;
@@ -712,6 +730,8 @@ export type I18nDictionary = {
       saving: string;
       saveTransaction: string;
       saveAndAddMore: string;
+      /** Carries `{shown}` and `{total}` placeholders. */
+      tilesVisibleCount: string;
       scanTitle: string;
       scanSubtitle: string;
       scanGuidanceReady: string;
@@ -1044,8 +1064,6 @@ export type I18nDictionary = {
       dangerZoneButton: string;
       hideBalanceLabel: string;
       hideBalanceSub: string;
-      showDecimalLabel: string;
-      showDecimalSub: string;
       weeklySummaryLabel: string;
       weeklySummarySub: string;
       saveButton: string;
@@ -1469,7 +1487,6 @@ export type I18nDictionary = {
       kpiCoverage: string;
       kpiRenew: string;
       chartAria: string;
-      legendPremium: string;
       allocCaption: string;
       gridTitle: string;
       gridCount: string;
@@ -2772,7 +2789,6 @@ export type I18nDictionary = {
   notifikasi: {
     v2: {
       heroCap: string;
-      kpiTotal: string;
       kpiApproval: string;
       kpiBill: string;
       filterLabel: string;
@@ -2887,8 +2903,6 @@ export type I18nDictionary = {
   ringkasan: {
     errorLoad: string;
     totalNetWorthLabel: string;
-    monthDeltaUpPrefix: string;
-    monthDeltaDownPrefix: string;
     monthDeltaSuffix: string;
     totalAssetsLabel: string;
     accountTypesSuffix: string;
@@ -2948,14 +2962,14 @@ export type I18nDictionary = {
     currencyGold: string;
     netWorthTrendTitle12m: string;
     netWorthTrendTitleAll: string;
-    yoyUpPrefix: string;
-    yoyDownPrefix: string;
     yoySuffix: string;
     // "Sembunyikan nominal" privacy toggle (page-local, mirrors aset/page.tsx).
     hideAmountsButton: string;
     showAmountsButton: string;
     hideAmountsAriaLabel: string;
     showAmountsAriaLabel: string;
+    heroSettingsButton: string;
+    heroSettingsAriaLabel: string;
     // "Rincian Aset vs Liabilitas" table.
     breakdownTableTitle: string;
     breakdownColPos: string;
@@ -3347,7 +3361,7 @@ export type I18nDictionary = {
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
     v2: {
-      cardsTitle: string;
+      quickTitle: string;
       record: string;
       reconcile: string;
       mutations: string;
@@ -3774,7 +3788,6 @@ export type I18nDictionary = {
     /** EPIC-023 E2 — "this period's obligations" Pay list (D11, US-LIAB-3). */
     obligationsSectionTitle: string;
     obligationsDueBadge: string;
-    obligationsPaidBadge: string;
     obligationsPayButton: string;
     /** EPIC-023 Task E retry (CRITICAL 1) — shown + disabled instead of
      * `obligationsPayButton` once `paidThisPeriod` is true. */
@@ -3843,6 +3856,8 @@ export type I18nDictionary = {
       exportEmpty: string;
       exported: string;
       filtersToggle: string;
+      heroMore: string;
+      heroLess: string;
     };
     typeLabels: Record<TransaksiTypeId, string>;
     filterLabels: Record<TransaksiFilterId, string>;
@@ -4487,6 +4502,8 @@ export type I18nDictionary = {
   laporan: {
     v2: {
       rangeLabel: string;
+      exportLabel: string;
+      resetPeriod: string;
       filterTitle: string;
       filterCap: string;
       reportsTitle: string;
@@ -4570,6 +4587,8 @@ export type I18nDictionary = {
     surplusLabel: string;
     deficitLabel: string;
     savingsRateLabel: string;
+    /** "{n} bulan" — the window a ratio/total spans, appended to its label. */
+    windowMonthsTemplate: string;
     totalAssetsLabel: string;
     totalLiabilitiesLabel: string;
     netWorthLabel: string;
@@ -4656,6 +4675,8 @@ export type I18nDictionary = {
       // No prior month with data to compare against yet — shown instead of
       // a fabricated 0-vs-0 comparison.
       comparedLastMonthEmptyHint: string;
+      // Suffix for the prior month when only it is complete ("Sep penuh").
+      comparedFullMonthSuffix: string;
     };
     harian: {
       titlePrefix: string;

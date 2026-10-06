@@ -62,6 +62,7 @@ function renderHero(
         expense: 5_000_000 - net,
         net,
         savingsRate: 12,
+        expenseByCategory: [],
       }}
       historyPoints={historyPoints}
       isHistoryLoading={false}

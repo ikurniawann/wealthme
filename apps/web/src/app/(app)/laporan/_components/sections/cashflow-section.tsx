@@ -4,6 +4,7 @@ import { formatSignedRupiah } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { CashflowStatementDto } from "@wealthme/contracts";
 import { StatementRow } from "../atoms";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import "./sections-b.css";
 
 /* ───────────────────────── Section: Cashflow ───────────────────────── */
@@ -36,15 +37,15 @@ export function CashflowSection({
                 {t.laporan.cashflow.totalInflowLabel}
               </div>
               <div className="lpb-kpi-v text-success">
-                +{money.formatCompact(cashflow.operatingInflows)}
+                +{money.format(cashflow.operatingInflows)}
               </div>
             </div>
             <div className="lpb-kpi">
               <div className="lpb-kpi-l">
                 {t.laporan.cashflow.totalOutflowLabel}
               </div>
-              <div className="lpb-kpi-v text-destructive">
-                -{money.formatCompact(cashflow.operatingOutflows)}
+              <div className="lpb-kpi-v" style={{ color: EXPENSE_COLOR }}>
+                -{money.format(cashflow.operatingOutflows)}
               </div>
             </div>
             <div className="lpb-kpi">
@@ -85,7 +86,7 @@ export function CashflowSection({
                   : "Rp ·"
               }
               indent
-              valueColor="var(--destructive)"
+              valueColor={EXPENSE_COLOR}
             />
             <StatementRow
               label={t.laporan.cashflow.netOperatingLabel}

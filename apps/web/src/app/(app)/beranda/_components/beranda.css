@@ -49,19 +49,6 @@
     border-radius: 10px;
     background: var(--wm-card);
   }
-  .beranda-act:first-child {
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
-  }
-  .beranda-act:first-child > span {
-    background: rgb(255 255 255 / 0.45);
-  }
-  .dark .beranda-act:first-child {
-    color: #10160a;
-  }
-  .dark .beranda-act:first-child > span {
-    background: rgb(0 0 0 / 0.12);
-  }
   .beranda-act svg {
     width: 17px;
     height: 17px;
@@ -138,6 +125,13 @@
   .beranda-more svg {
     width: 14px;
     height: 14px;
+  }
+  @media (max-width: 720px) {
+    .beranda-more {
+      justify-content: flex-end;
+      min-width: 44px;
+      min-height: 44px;
+    }
   }
   .beranda-rate {
     margin: 14px 0 0;
@@ -271,6 +265,15 @@
   .beranda-goal small {
     color: var(--wm-muted);
     font-size: var(--wm-type-12);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Text status that backs the bar colour (colour is only the secondary cue). */
+  .beranda-goal-pace {
+    font-weight: 600;
+    color: var(--wm-good);
+  }
+  .beranda-goal-pace[data-pace="late"] {
+    color: color-mix(in oklab, var(--warning) 70%, var(--foreground));
   }
   .beranda-goal .wm-track {
     height: 8px;
@@ -364,7 +367,10 @@
     .beranda-mh-accs {
       display: flex;
       gap: 10px;
-      margin: 0 -2px;
+      /* The 2px focus ring of a card sits outside its box; padding keeps it
+         inside this scroller instead of being clipped by overflow-x. */
+      margin: 12px -6px 0;
+      padding: 4px 6px;
       overflow-x: auto;
       scroll-snap-type: x mandatory;
       scrollbar-width: none;
@@ -425,8 +431,8 @@
       height: 26px;
       margin: 10px auto 6px;
       border-radius: 50%;
-      background: var(--wm-lime);
-      color: var(--wm-lime-ink);
+      background: rgb(238 240 232 / 0.16);
+      color: #eef0e8;
       font-size: var(--wm-type-12);
       font-weight: 700;
     }
@@ -519,8 +525,8 @@
       width: 18px;
       height: 18px;
       border-radius: 50%;
-      background: var(--wm-lime);
-      color: var(--wm-lime-ink);
+      background: color-mix(in srgb, var(--wm-ink) 12%, transparent);
+      color: var(--wm-ink);
       font-size: 9px;
       font-style: normal;
       font-weight: 700;
@@ -531,7 +537,7 @@
       align-items: center;
       gap: 6px;
       margin-top: auto;
-      font-size: var(--wm-type-20);
+      font-size: clamp(15px, 4.8vw, var(--wm-type-20));
       font-weight: 600;
       letter-spacing: -0.03em;
       white-space: normal;
@@ -544,11 +550,17 @@
       font-weight: 600;
     }
     .beranda-mh-v em[data-tone="good"] {
-      background: var(--wm-lime-soft);
+      background: var(--success-soft);
       color: var(--wm-good);
     }
     .beranda-mh-v em[data-tone="bad"] {
-      background: color-mix(in srgb, var(--wm-bad) 12%, transparent);
+      /* #a8341b on this tint is >= 4.5:1 (the old --wm-bad #c2462b was 4.23:1);
+         same bad tone as .lp-chg in laporan.css. */
+      background: color-mix(in srgb, #a8341b 12%, var(--wm-card));
+      color: #a8341b;
+    }
+    .dark .beranda-mh-v em[data-tone="bad"] {
+      background: color-mix(in srgb, var(--wm-bad) 14%, var(--wm-card));
       color: var(--wm-bad);
     }
     .beranda-mh-av {
@@ -567,8 +579,8 @@
     .beranda-mh-av button {
       display: grid;
       place-items: center;
-      width: 36px;
-      height: 36px;
+      width: 44px;
+      height: 44px;
       margin-left: auto;
       border: 0;
       border-radius: 50%;

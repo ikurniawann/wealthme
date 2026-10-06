@@ -48,7 +48,7 @@ export function buildCashflowOptions(
   const formatCompact = money?.formatCompact ?? formatRupiahCompact;
   const options = mergeChartOptions(baseChartOptions(), {
     chart: { type: "bar", height: 260, stacked: false },
-    colors: [cssVar("--chart-2"), cssVar("--destructive")],
+    colors: [cssVar("--viz-2"), cssVar("--destructive")],
     plotOptions: {
       bar: {
         borderRadius: 5,

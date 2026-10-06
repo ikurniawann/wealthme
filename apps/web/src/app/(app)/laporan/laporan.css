@@ -24,41 +24,58 @@
     margin: 0 !important;
   }
 
-  /* filter */
-  .lp-filter.wm-card {
-    padding: 20px;
-  }
-  .lp-filter-row {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-    margin-top: 16px;
-  }
-  .lp-f {
+  /* Periode: ONE button at every width; its sheet holds Tahun / Bulan / Rentang. */
+  .lp-period-m {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
-  .lp-f > span {
-    color: var(--wm-muted);
-    font-size: var(--wm-type-13);
-    font-weight: 500;
-  }
-  .lp-f .select {
+  .lp-period-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
     width: 100%;
-    min-height: 42px;
-    border: 1px solid var(--wm-line);
-    border-radius: 12px;
-    background-color: var(--wm-card);
-    font-size: var(--wm-type-13);
+    min-height: 48px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 16px;
+    background: var(--wm-card);
+    box-shadow: var(--wm-shadow);
+    color: var(--wm-muted);
+    font: inherit;
+    font-size: var(--wm-type-14);
+    text-align: left;
+    cursor: pointer;
   }
-  .lp-filter .notice {
-    margin-top: 14px !important;
+  .lp-period-btn:focus-visible {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 2px;
   }
-  @media (max-width: 720px) {
-    .lp-filter-row {
-      grid-template-columns: 1fr;
-      gap: 12px;
+  .lp-period-btn b {
+    color: var(--wm-ink);
+    font-weight: 600;
+  }
+  .lp-period-btn svg {
+    flex: none;
+    width: 18px;
+    height: 18px;
+  }
+  .lp-period-note {
+    margin: 0;
+    padding: 0 4px;
+    color: var(--warning);
+  }
+  .lp-sheet-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  @media (min-width: 721px) {
+    .lp-period-btn {
+      width: auto;
+      min-width: 320px;
+      align-self: flex-start;
     }
   }
 
@@ -180,7 +197,7 @@
     box-shadow: var(--wm-shadow);
   }
   .lp-picker select {
-    min-height: 34px;
+    min-height: 44px;
     border: 0;
     background: transparent;
     color: var(--wm-ink);
@@ -221,6 +238,8 @@
   .lp-c-acts {
     display: flex;
     flex-wrap: wrap;
+    /* Buttons keep their own height beside the taller labelled select. */
+    align-items: flex-end;
     gap: 8px;
     margin-left: auto;
   }
@@ -252,48 +271,17 @@
     background: rgb(255 255 255 / 0.1);
   }
   .lp-cbtn[data-lit] {
-    border-color: var(--wm-lime);
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
+    border-color: #eef0e8;
+    background: #eef0e8;
+    color: #15170f;
   }
-  .dark .lp-cbtn[data-lit] {
-    color: #10160a;
+  .lp-cbtn[data-lit]:hover {
+    border-color: #fff;
+    background: #fff;
   }
   .lp-cbtn svg {
     width: 15px;
     height: 15px;
-  }
-  /* Honest export-type picker (Task 2) — a visible caption instead of a
-     bare select so it doesn't read as mirroring the active tab. */
-  .lp-export {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .lp-export > span {
-    padding: 0 2px;
-    color: rgb(238 240 232 / 0.5);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-  }
-  .lp-export .lp-cbtn-select {
-    color: inherit;
-  }
-  .lp-cbtn-select {
-    appearance: none;
-    padding-right: 28px;
-    background-image:
-      linear-gradient(45deg, transparent 50%, currentColor 50%),
-      linear-gradient(135deg, currentColor 50%, transparent 50%);
-    background-position:
-      calc(100% - 14px) center,
-      calc(100% - 9px) center;
-    background-size:
-      5px 5px,
-      5px 5px;
-    background-repeat: no-repeat;
   }
   .lp-headline {
     max-width: 24ch;
@@ -306,6 +294,7 @@
   .lp-headline em {
     color: #a9d84c;
     font-style: normal;
+    font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
   .dark .lp-headline em {
@@ -362,49 +351,10 @@
     .lp-layout {
       grid-template-columns: minmax(0, 1fr);
     }
-    /* Task 4 — nav becomes a horizontal scroll chip row instead of the
-       sticky vertical index; the search box and group headers don't fit
-       that shape, so they drop out (the native `.lp-picker` select below
-       keeps find/group-by-name working on phones). */
+    /* One report picker below 901px: the grouped dropdown replaces the whole
+       index (chips, search and group headers). */
     .lp-idx {
-      position: static;
-      max-height: none;
-      padding: 10px 10px 12px;
-      overflow: visible;
-    }
-    .lp-idx-h,
-    .lp-find,
-    .lp-grp h3 {
       display: none;
-    }
-    .lp-idx [role="tablist"] {
-      display: flex;
-      flex-wrap: nowrap;
-      gap: 6px;
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    .lp-grp {
-      display: flex;
-      flex: none;
-      gap: 6px;
-      margin-top: 0;
-    }
-    .lp-rep {
-      flex: none;
-      width: auto;
-      min-height: 32px;
-      padding: 0 12px;
-      border-left: 0;
-      border-radius: 999px;
-      background: var(--wm-card-2);
-      white-space: nowrap;
-    }
-    .lp-rep i {
-      display: none;
-    }
-    .lp-rep[aria-selected="true"] {
-      border-left: 0;
     }
     .lp-picker {
       display: flex;
@@ -420,6 +370,7 @@
     .lp-cbtn {
       flex: 1;
       justify-content: center;
+      min-height: 44px;
     }
     .lp-headline {
       font-size: 28px;
@@ -513,6 +464,7 @@
   margin-top: 4px;
   font-size: 12px;
   color: var(--wm-muted);
+  font-variant-numeric: tabular-nums;
 }
 .lp-bar {
   display: grid;
@@ -546,8 +498,15 @@
 .lp-act[data-last] {
   border-bottom: 0;
 }
-/* "Dibanding bulan lalu" change badges — prototype's `.chg.up`/`.chg.dn`. */
+/* "Dibanding bulan lalu" change chips. One delta rule (lib/delta.ts): the
+   arrow is the DIRECTION of the change, the tone (good/bad/neutral) is the
+   VALENCE. Contrast of each text/tint pair (computed): light bad #a8341b on
+   its 14% tint over white = 5.44:1, light good #2f7524 on #dcefd4 = 4.70:1;
+   dark bad #f07a63 on its 14% tint over #131314 = 5.57:1, dark good #aed97a
+   on its 12% tint = 9.01:1 (old light bad #c2462b was 4.10:1). */
 .lp-chg {
+  --lp-chg-good: var(--success);
+  --lp-chg-bad: #a8341b;
   display: inline-flex;
   align-items: center;
   gap: 3px;
@@ -555,17 +514,26 @@
   border-radius: 99px;
   font-size: 12px;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
-.lp-chg[data-tone="up"] {
+.dark .lp-chg {
+  --lp-chg-bad: var(--destructive);
+}
+.lp-chg[data-tone="good"] {
   background: var(
     --success-soft,
     color-mix(in oklab, var(--success) 14%, transparent)
   );
-  color: var(--success);
+  color: var(--lp-chg-good);
 }
-.lp-chg[data-tone="down"] {
-  background: color-mix(in oklab, var(--destructive) 14%, transparent);
-  color: var(--destructive);
+.lp-chg[data-tone="bad"] {
+  background: color-mix(in srgb, var(--lp-chg-bad) 14%, var(--wm-card));
+  color: var(--lp-chg-bad);
+}
+.lp-chg[data-tone="neutral"] {
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
 }
 @media (max-width: 720px) {
   .lp-bar {

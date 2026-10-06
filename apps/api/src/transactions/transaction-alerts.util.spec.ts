@@ -258,4 +258,29 @@ describe("notifyTransaction — personal copy for row-scoped recorder", () => {
       prisma.notification.create.mock.calls[0][0].data.userId,
     ).toBeUndefined();
   });
+
+  it("writes the amount with 'Rp ' + dot grouping, never 'Rp5000000'", async () => {
+    const prisma = prismaMock();
+    await notifyTransaction(
+      prisma as never,
+      "fg1",
+      "expense",
+      BigInt(5_000_000),
+      tx,
+    );
+    expect(prisma.notification.create.mock.calls[0][0].data.body).toBe(
+      "Rp 5.000.000 · Makan",
+    );
+  });
+
+  it("does not HTML-escape the category name in the in-app body", async () => {
+    const prisma = prismaMock();
+    await notifyTransaction(prisma as never, "fg1", "expense", BigInt(10_000), {
+      category: { name: "Tabungan & Investasi" },
+      account: null,
+    });
+    expect(prisma.notification.create.mock.calls[0][0].data.body).toBe(
+      "Rp 10.000 · Tabungan & Investasi",
+    );
+  });
 });

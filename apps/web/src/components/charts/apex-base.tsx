@@ -36,9 +36,9 @@ export function cssVar(name: string): string {
     .trim();
 }
 
-/** The shared 5-color chart palette, read live from `:root` so it follows the active theme. */
+/** The shared categorical data-viz palette (`--viz-1`..`--viz-6`: forest, lime, sand, clay, teal-forest, graphite), read live from `:root` so it follows the active theme. */
 export function chartPalette(): string[] {
-  return ["--chart-1", "--chart-2", "--chart-3", "--chart-4", "--chart-5"].map(
+  return ["--viz-1", "--viz-2", "--viz-3", "--viz-4", "--viz-5", "--viz-6"].map(
     cssVar,
   );
 }

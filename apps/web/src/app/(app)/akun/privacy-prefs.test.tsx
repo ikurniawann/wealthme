@@ -1,6 +1,6 @@
 /**
  * Hardening batch G1 (P0 honesty) — akun Pengaturan "data" toggles
- * (hideBalance/showDecimal/weeklySummary) and Privasi toggles
+ * (hideBalance/weeklySummary) and Privasi toggles
  * (hideFromFamily/screenshotProtect/sendAnalytics/aiPersonalization) used to
  * be uncontrolled `defaultChecked` Switches that saved nothing. These tests
  * verify they're now controlled by the real profile and persist via
@@ -125,7 +125,6 @@ beforeEach(() => {
       name: "Test User",
       privacyPrefs: {
         hideBalance: false,
-        showDecimal: true,
         weeklySummary: true,
         hideFromFamily: false,
         screenshotProtect: true,
@@ -179,7 +178,6 @@ describe("PengaturanBody data toggles persist privacyPrefs", () => {
           body: JSON.stringify({
             privacyPrefs: {
               hideBalance: true,
-              showDecimal: true,
               weeklySummary: true,
               hideFromFamily: false,
               screenshotProtect: true,
@@ -197,7 +195,7 @@ describe("PengaturanBody data toggles persist privacyPrefs", () => {
     const user = userEvent.setup();
     render(<PengaturanBody />);
     const toggle = await screen.findByRole("switch", {
-      name: mockAkunDictionary.akun.pengaturan.showDecimalLabel,
+      name: mockAkunDictionary.akun.pengaturan.weeklySummaryLabel,
     });
     expect(toggle).toBeChecked();
 
@@ -234,7 +232,6 @@ describe("PrivasiBody toggles persist privacyPrefs", () => {
           body: JSON.stringify({
             privacyPrefs: {
               hideBalance: false,
-              showDecimal: true,
               weeklySummary: true,
               hideFromFamily: false,
               screenshotProtect: true,

@@ -13,6 +13,7 @@ import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
+import { accountTypeColor, vizByIndex } from "@/lib/viz-colors";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { useLocale } from "@/hooks/use-locale";
 import type { StatusBadgeVariant } from "@/components/wm";
@@ -32,18 +33,6 @@ import {
 } from "./history-buckets";
 
 export type { TrendRangeKey } from "./history-buckets";
-
-/**
- * Prototype's asset-composition colours (`ringkasan.html`'s four
- * `.progress__bar` inline backgrounds), keyed by account type.
- */
-const COMPOSITION_COLOR: Record<string, string> = {
-  bank: "var(--brand-cyan)",
-  ewallet: "var(--success)",
-  investment: "var(--primary)",
-  property: "var(--warning)",
-  cash: "var(--muted-foreground)",
-};
 
 // ── Trend range segmented control ("6 Bln / 12 Bln / Semua") ───────────────
 // Mirrors `beranda/page.tsx`'s PERIOD_RANGE mapping onto the same
@@ -302,29 +291,38 @@ export function useRingkasanData(
     }
   }
 
-  const composition = (summary?.allocation ?? []).map((item) => ({
-    label: item.label,
-    value: `${money(item.amount)} · ${item.value}%`,
-    pct: item.value,
-    color:
-      COMPOSITION_COLOR[
+  // One distinct hue per legend row: preferred account-type hue first, then the
+  // next unused palette hue when two rows share a type (or an unknown type).
+  const compositionColors = (() => {
+    const used = new Set<string>();
+    return (summary?.allocation ?? []).map((item, index) => {
+      let color = accountTypeColor(
         (summary?.accountSummary ?? []).find((s) => s.label === item.label)
-          ?.type ?? ""
-      ] ?? item.color,
+          ?.type ?? "",
+        index,
+      );
+      for (let step = 1; used.has(color) && step <= 6; step++) {
+        color = vizByIndex(index + step);
+      }
+      used.add(color);
+      return color;
+    });
+  })();
+  const composition = (summary?.allocation ?? []).map((item, index) => ({
+    label: item.label,
+    value: `${moneyFull(item.amount)} · ${item.value}%`,
+    pct: item.value,
+    color: compositionColors[index],
   }));
 
   // EPIC-025 N3-C2 — DonutChart mount, reusing the existing `DonutSegment[]`
   // shape (never redefined) over the same allocation data `composition`
   // above already derives.
   const donutSegments: DonutSegment[] = (summary?.allocation ?? []).map(
-    (item) => ({
+    (item, index) => ({
       label: item.label,
       value: item.amount,
-      color:
-        COMPOSITION_COLOR[
-          (summary?.accountSummary ?? []).find((s) => s.label === item.label)
-            ?.type ?? ""
-        ] ?? item.color,
+      color: compositionColors[index],
     }),
   );
   const donutAriaLabel =
@@ -387,7 +385,7 @@ export function useRingkasanData(
       key: "physical",
       label: t.ringkasan.breakdownAssetPhysicalLabel,
       badgeLabel: t.ringkasan.breakdownBadgeAssetFisik,
-      badgeVariant: "success" as const,
+      badgeVariant: "info" as const,
       amount: physicalAssetsTotal,
     },
     {
@@ -408,7 +406,7 @@ export function useRingkasanData(
       key: "cash",
       label: t.ringkasan.breakdownAssetCashLabel,
       badgeLabel: t.ringkasan.breakdownBadgeKas,
-      badgeVariant: "success" as const,
+      badgeVariant: "info" as const,
       amount: cashAmount,
     },
   ].filter((row) => row.amount > 0);
@@ -437,6 +435,11 @@ export function useRingkasanData(
     totalAssets,
     totalLiabilities,
     savingsRate,
+    // The ratio is computed over the current calendar month ("Okt 2026").
+    savingsWindowLabel: new Date().toLocaleDateString(t.beranda.dateLocale, {
+      month: "short",
+      year: "numeric",
+    }),
     monthIncome,
     monthExpense,
     monthNet,

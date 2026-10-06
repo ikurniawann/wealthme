@@ -10,6 +10,7 @@ import {
   CircleCheck,
   ClipboardList,
   Landmark,
+  Home,
   Settings,
   Shield,
   Sparkles,
@@ -37,13 +38,6 @@ import type { AllowanceRequestDto } from "@wealthme/contracts";
  */
 export function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
-}
-
-/** The logo links home, so lists that sit beside it drop their own Beranda entry. */
-export function excludeBrandDuplicate<T extends { id: string }>(
-  items: readonly T[],
-): T[] {
-  return items.filter((item) => item.id !== "beranda");
 }
 
 /* ───────────── hub model (bento v2, docs/design/proto/wm.js `WM.NAV`) ───────────── */
@@ -196,17 +190,34 @@ function usePendingApprovals(enabled: boolean) {
 
 function HubList({
   hubs,
+  home = null,
   pathname,
   pending,
   t,
 }: {
   hubs: Hub[];
+  /** Beranda entry shown above the hubs (primary list only). */
+  home?: NavItem | null;
   pathname: string;
   pending: number;
   t: I18nDictionary;
 }) {
   return (
     <nav className="wm-nav" aria-label={t.shell.navMenuTitle}>
+      {home && (
+        <Link
+          href={home.href}
+          title={t.shell.navSections.beranda}
+          aria-label={t.shell.navSections.beranda}
+          className="wm-nav-link"
+          aria-current={
+            isNavItemActive(pathname, home.href) ? "page" : undefined
+          }
+        >
+          <Home aria-hidden="true" />
+          <span className="wm-nav-lbl">{t.shell.navSections.beranda}</span>
+        </Link>
+      )}
       {hubs.map((hub) => {
         const active = isHubActive(hub, pathname);
         const label = hubLabel(hub, t);
@@ -217,6 +228,11 @@ function HubList({
             <Link
               href={hub.href}
               title={label}
+              aria-label={
+                hub.id === "persetujuan" && pending > 0
+                  ? `${label} (${pending})`
+                  : label
+              }
               className="wm-nav-link"
               aria-current={active && leaf ? "page" : undefined}
               data-open={active && !leaf ? "true" : undefined}
@@ -258,9 +274,21 @@ export function SidebarSections() {
   const pending = usePendingApprovals(
     primary.some((hub) => hub.id === "persetujuan"),
   );
+  const { access } = useMyAccess();
+  const berandaItem = NAV_ITEMS.get("beranda");
+  const home =
+    berandaItem && isNavItemVisibleForAccess(berandaItem, access)
+      ? berandaItem
+      : null;
   return (
     <>
-      <HubList hubs={primary} pathname={pathname} pending={pending} t={t} />
+      <HubList
+        hubs={primary}
+        home={home}
+        pathname={pathname}
+        pending={pending}
+        t={t}
+      />
       {secondary.length > 0 && (
         <>
           <div className="wm-sep" role="separator" />

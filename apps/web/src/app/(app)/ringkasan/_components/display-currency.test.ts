@@ -48,7 +48,7 @@ describe("formatInDisplayCurrency", () => {
         rates: RATES,
         gramPrice: null,
       }),
-    ).toBe("≈ ¥ 9,500");
+    ).toBe("≈ ¥ 9.500");
   });
 
   it("converts EUR with 2 decimals", () => {
@@ -58,7 +58,7 @@ describe("formatInDisplayCurrency", () => {
         rates: RATES,
         gramPrice: null,
       }),
-    ).toBe("≈ € 58.00");
+    ).toBe("≈ € 58,00");
   });
 
   it("shows the loading placeholder while rates are unavailable", () => {

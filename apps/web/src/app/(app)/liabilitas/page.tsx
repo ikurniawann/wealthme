@@ -30,6 +30,8 @@ import { toast } from "sonner";
 import { useLocale } from "@/hooks/use-locale";
 import type { Locale } from "@/i18n";
 import { apiFetch } from "@/lib/api-client";
+import { DUE_SOON_DAYS, dueState } from "@/lib/due-date";
+import { formatPercent } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -73,6 +75,7 @@ import {
   PillButton,
   Track,
 } from "@/components/wm";
+import { MoneyCompact } from "@/components/wm/money-compact";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import "./liabilitas.css";
 import { TrendChart } from "@/components/charts/apex-presets";
@@ -319,19 +322,16 @@ function getDueDateStatus(
   locale: Locale,
 ): {
   text: string;
-  variant: "success" | "danger" | "warning";
+  variant: "gray" | "danger" | "warning";
 } {
-  if (!dueDate) return { text: t.liabilitas.statusOngoing, variant: "success" };
-  const due = new Date(dueDate);
-  const now = new Date();
-  const diffDays = Math.floor(
-    (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
-  );
-  const late = isLate ?? diffDays < 0;
-  if (late) return { text: t.liabilitas.statusOverdue, variant: "danger" };
+  if (!dueDate) return { text: t.liabilitas.statusOngoing, variant: "gray" };
+  const { state } = dueState(dueDate, { isLate });
+  if (state === "overdue")
+    return { text: t.liabilitas.statusOverdue, variant: "danger" };
   const text = `${t.liabilitas.statusDuePrefix}${formatLocaleDate(dueDate, locale)}`;
-  if (diffDays <= 7) return { text, variant: "warning" };
-  return { text, variant: "success" };
+  // Amber only when the installment falls due within DUE_SOON_DAYS; a later
+  // date is just information (neutral), never lime/green.
+  return { text, variant: state === "soon" ? "warning" : "gray" };
 }
 
 // ── Skeleton ──────────────────────────────────────────────────────────────────
@@ -925,7 +925,9 @@ function LiabilityTile({
     : 0;
   const installment = installmentDue(item);
   const progress = isCreditCard ? 100 - item.paymentRatio : item.paymentRatio;
-  const fill = progress >= 80 ? "lime" : progress >= 50 ? "orange" : "bad";
+  // Repayment is progress, not alarm: loans always fill lime (red is reserved
+  // for the overdue amount); a card's usage turns amber only near its limit.
+  const fill = isCreditCard && progress >= 80 ? "orange" : "lime";
   const Icon = (LIABILITY_TYPE_ICON[item.type] ?? { icon: CreditCard }).icon;
   const typeLabel =
     t.liabilitas.typeLabels[item.type as LiabilityTypeValue] ?? item.type;
@@ -941,7 +943,15 @@ function LiabilityTile({
           <Icon aria-hidden="true" />
         </span>
         <span className="li-tile-name">{item.name}</span>
-        <StatusBadge variant={status.variant}>{status.text}</StatusBadge>
+        <StatusBadge
+          variant={
+            item.paidThisPeriod && status.variant !== "danger"
+              ? "success"
+              : status.variant
+          }
+        >
+          {status.text}
+        </StatusBadge>
       </div>
       <span className="wm-pv li-tile-amount">
         <span className="wm-money li-remaining">{money.format(remaining)}</span>
@@ -951,9 +961,11 @@ function LiabilityTile({
         {progressLabel} {progress}%
       </small>
       <small className="li-tile-meta">
-        {installment > 0
-          ? `${money.formatCompact(installment)}/bln`
-          : typeLabel}
+        {installment > 0 ? (
+          <MoneyCompact value={installment} suffix="/bln" />
+        ) : (
+          typeLabel
+        )}
         {item.institution ? ` · ${item.institution}` : ""}
       </small>
       {isOverdue && (
@@ -969,12 +981,12 @@ function LiabilityTile({
           <FileText className="size-3.5" aria-hidden="true" /> Detail
         </button>
         {item.paidThisPeriod ? (
-          <span className="li-paid">
+          <span className="wm-paid-note">
             <CheckCircle2 className="size-3.5" aria-hidden="true" />{" "}
             {t.liabilitas.payAlreadyPaidTooltip}
           </span>
         ) : (
-          <button type="button" className="li-pay" onClick={onPay}>
+          <button type="button" className="wm-pill wm-pay-sm" onClick={onPay}>
             <Banknote className="size-3.5" aria-hidden="true" /> Bayar
           </button>
         )}
@@ -1776,7 +1788,7 @@ export default function LiabilitasPage() {
     : 0;
   const dtaRatio =
     assetsTotal > 0 ? (liabilitiesTotal / assetsTotal) * 100 : null;
-  const dtaDisplay = dtaRatio !== null ? `${dtaRatio.toFixed(1)}%` : "—";
+  const dtaDisplay = dtaRatio !== null ? formatPercent(dtaRatio) : "—";
   const dtaRisk =
     dtaRatio !== null
       ? getDtaRiskLabel(dtaRatio, t)
@@ -1877,7 +1889,7 @@ export default function LiabilitasPage() {
         locale,
       ),
     }))
-    .filter((x) => x.status.variant !== "success")
+    .filter((x) => x.status.variant !== "gray")
     .sort((a, b) => (a.due ?? "9999").localeCompare(b.due ?? "9999"))[0];
   const tipTitle = worstDue
     ? `${worstDue.item.name}${worstDue.status.variant === "danger" ? t.liabilitas.v2.tipOverdueSuffix : t.liabilitas.v2.tipSoonSuffix}`
@@ -1887,7 +1899,7 @@ export default function LiabilitasPage() {
   const tipBody = worstDue
     ? `${t.liabilitas.v2.tipInstallment} ${money.format(installmentDue(worstDue.item))} · ${worstDue.status.text}.`
     : (liabilities ?? []).length > 0
-      ? t.liabilitas.v2.tipOkBody
+      ? t.liabilitas.v2.tipOkBody.replace("{days}", String(DUE_SOON_DAYS))
       : t.liabilitas.v2.tipEmptyBody;
   const dtaFilled = Math.round((Math.min(100, dtaRatio ?? 0) / 100) * 18);
   const tipsMosaic = Array.from({ length: 18 }, (_, i) =>
@@ -1905,7 +1917,6 @@ export default function LiabilitasPage() {
   return (
     <div data-page="liabilitas" className="li-page">
       <BentoGrid className="li-grid">
-        <h1 className="sr-only">Liabilitas</h1>
         <BentoHero
           className="li-hero"
           currency={null}
@@ -1963,6 +1974,7 @@ export default function LiabilitasPage() {
                     },
                   ]}
                   format={money.formatCompact}
+                  formatFull={money.format}
                   wide
                   ariaLabel={t.liabilitas.v2.chartAria}
                 />

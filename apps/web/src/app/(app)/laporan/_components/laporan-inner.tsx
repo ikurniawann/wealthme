@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Download, Search } from "lucide-react";
+import { ChevronDown, Download, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useQueryClient } from "@tanstack/react-query";
@@ -13,7 +13,17 @@ import { useApiError } from "@/hooks/use-api-error";
 import { REPORT_TABS, type ReportTabId } from "@/lib/nav";
 import { useMoney } from "@/hooks/use-money";
 import { DateField, Segmented } from "@/components/wm";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import { coverFor } from "./report-cover";
 import { REPORT_ICONS } from "./report-icons";
 import {
@@ -37,11 +47,7 @@ import type {
   InvestmentDto,
   InvestmentType,
 } from "@wealthme/contracts";
-import {
-  EXPORT_REPORT_TYPE_IDS,
-  EXPORT_TYPE_FOR_TAB,
-  useExportJob,
-} from "./export-section";
+import { EXPORT_TYPE_FOR_TAB, useExportJob } from "./export-section";
 import { useLaporanReportQueries } from "./use-laporan-report-queries";
 import { InvestmentDialogs } from "./investment-dialogs";
 import { RangePresetSelect } from "./period-filter";
@@ -163,6 +169,45 @@ export function LaporanInner() {
     });
     setRangePreset("custom");
   }
+
+  // Phones (<=720px): the Tahun/Bulan/Rentang selects collapse into one
+  // "Periode" button that opens a bottom sheet. The sheet edits a DRAFT of the
+  // same inputs and commits through the exact handlers the desktop selects use
+  // (`pickMonth` / `setRangePreset`), so the report logic is untouched. The
+  // last control touched wins, mirroring the desktop semantics where picking a
+  // month flips the preset to "custom" and picking a preset overrides it.
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false);
+  const [draftYear, setDraftYear] = useState(filterYear);
+  const [draftMonth, setDraftMonth] = useState(filterMonth);
+  const [draftPreset, setDraftPreset] =
+    useState<ReportRangePreset>(rangePreset);
+  const [draftMode, setDraftMode] = useState<"month" | "preset">("preset");
+  function openPeriodSheet() {
+    setDraftYear(filterYear);
+    setDraftMonth(filterMonth);
+    setDraftPreset(rangePreset);
+    setDraftMode("preset");
+    setPeriodSheetOpen(true);
+  }
+  function applyPeriodSheet() {
+    if (draftMode === "month") pickMonth(draftYear, draftMonth);
+    else setRangePreset(draftPreset);
+    setPeriodSheetOpen(false);
+  }
+  function resetPeriodSheet() {
+    setCustomRange(null);
+    setRangePreset("last6Months");
+    setPeriodSheetOpen(false);
+  }
+
+  // Phones: the report chips scroll horizontally and the grouped dropdown is
+  // hidden, so keep the active chip in view after a switch.
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 900px)").matches) return;
+    document
+      .getElementById(`laporan-tab-${tab}`)
+      ?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [tab]);
 
   const presetRange = useMemo(() => {
     if (rangePreset !== "custom") return resolvePreset(rangePreset);
@@ -470,15 +515,13 @@ export function LaporanInner() {
       daily: dailyReport,
     },
     t,
-    moneyFmt.formatCompact,
+    moneyFmt.format,
   );
-  // Task 2 — the export-type select used to stay on "summary" ("Ringkasan")
-  // regardless of the active tab, which read as if it mirrored the current
-  // report. Default it to the tab's closest export type on every tab
-  // switch; the user can still pick a different one afterward.
+  // The export type follows the report being viewed (the report picker is the
+  // only report chooser); tabs without their own export type fall back to the
+  // summary export.
   useEffect(() => {
-    const mapped = EXPORT_TYPE_FOR_TAB[tab];
-    if (mapped) exportJob.setReportType(mapped);
+    exportJob.setReportType(EXPORT_TYPE_FOR_TAB[tab] ?? "summary");
     // eslint-disable-next-line react-hooks/exhaustive-deps -- re-sync only on tab change, not on every exportJob identity change.
   }, [tab]);
   const periodCaption =
@@ -632,6 +675,9 @@ export function LaporanInner() {
           <RingkasanSection
             summary={summary}
             isLoading={isSummaryLoading || isDetailLoading}
+            familyGroupId={familyGroupId}
+            token={token}
+            anchorEnd={summaryAnchorEnd}
           />
         );
     }
@@ -639,81 +685,94 @@ export function LaporanInner() {
 
   return (
     <div className="lp-page">
-      {/* Filter Laporan card (gap 2) — wraps the existing preset/period
-          selectors; logic is unchanged, only the presentation moved into a
-          proper card matching the prototype. */}
-      {/* Filter Laporan — prototype `section.card.report-filter-card`
-          (docs/prototype/pages/laporan.html): `.card__header` with title +
-          "Berlaku untuk semua tab" action, then a `.bento-filter` holding
-          exactly TWO fields — the Periode preset select and an always-visible
-          date-range picker. The app previously rendered a bespoke Tailwind box
-          whose second field was three year/month/day selects that only
-          appeared once "Custom" was chosen, i.e. four controls instead of two. */}
-      <section className="wm-card lp-filter">
-        <div className="wm-card-head">
-          <div>
-            <h2>{t.laporan.v2.filterTitle}</h2>
-            <p className="wm-cap">{t.laporan.v2.filterCap}</p>
-          </div>
-          <span className="wm-cap">
-            {REPORT_TABS.length} {t.laporan.v2.reportsTitle.toLowerCase()}
+      {/* ONE Periode control at every width: the button shows the active range
+          and opens the sheet holding Tahun / Bulan / Rentang (a bottom sheet on
+          phones, a centred dialog on desktop). Replaces the old filter card. */}
+      <div className="lp-period-m">
+        <button
+          type="button"
+          className="lp-period-btn"
+          aria-haspopup="dialog"
+          onClick={openPeriodSheet}
+        >
+          <span className="lp-period-txt">
+            {t.common.period}: <b>{periodLabel}</b>
           </span>
-        </div>
-        <div>
-          <div className="lp-filter-row">
-            <label className="lp-f">
-              <span>{t.laporan.periodFilter.yearAriaLabel}</span>
-              <select
-                className="select"
-                value={filterYear}
-                onChange={(e) => pickMonth(Number(e.target.value), filterMonth)}
-              >
-                {filterYears.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="lp-f">
-              <span>{t.laporan.periodFilter.monthAriaLabel}</span>
-              <select
-                className="select"
-                value={filterMonth}
-                onChange={(e) => pickMonth(filterYear, Number(e.target.value))}
-              >
-                {Array.from({ length: 12 }, (_, m) => (
-                  <option key={m} value={m + 1}>
-                    {new Date(2000, m, 1).toLocaleDateString(
-                      locale === "en" ? "en-US" : "id-ID",
-                      { month: "long" },
-                    )}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="lp-f">
-              <span>{t.laporan.v2.rangeLabel}</span>
-              <RangePresetSelect
-                preset={rangePreset}
-                onChange={setRangePreset}
-              />
-            </label>
-          </div>
-
-          {/* EPIC-023 Task B retry (HIGH) — rfamily (roster + net worth) and
-              rinv (current holdings) have no period semantics to filter by;
-              say so plainly instead of implying the selector does something. */}
-          {(tab === "rfamily" || tab === "rinv") && (
-            <div
-              className="t-xs"
-              style={{ marginTop: 4, color: "var(--warning)" }}
-            >
-              {t.laporan.periodFilter.periodNotApplicableNote}
+          <ChevronDown aria-hidden="true" />
+        </button>
+        {(tab === "rfamily" || tab === "rinv") && (
+          <p className="t-xs lp-period-note">
+            {t.laporan.periodFilter.periodNotApplicableNote}
+          </p>
+        )}
+      </div>
+      <Dialog open={periodSheetOpen} onOpenChange={setPeriodSheetOpen}>
+        <DialogContent>
+          <DialogTitle>{t.laporan.v2.filterTitle}</DialogTitle>
+          <DialogDescription>{t.laporan.v2.filterCap}</DialogDescription>
+          <DialogBody>
+            <div className="lp-sheet-fields">
+              <label className="field">
+                <span className="label">
+                  {t.laporan.periodFilter.yearAriaLabel}
+                </span>
+                <select
+                  className="select"
+                  value={draftYear}
+                  onChange={(e) => {
+                    setDraftYear(Number(e.target.value));
+                    setDraftMode("month");
+                  }}
+                >
+                  {filterYears.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">
+                  {t.laporan.periodFilter.monthAriaLabel}
+                </span>
+                <select
+                  className="select"
+                  value={draftMonth}
+                  onChange={(e) => {
+                    setDraftMonth(Number(e.target.value));
+                    setDraftMode("month");
+                  }}
+                >
+                  {Array.from({ length: 12 }, (_, m) => (
+                    <option key={m} value={m + 1}>
+                      {new Date(2000, m, 1).toLocaleDateString(
+                        locale === "en" ? "en-US" : "id-ID",
+                        { month: "long" },
+                      )}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">{t.laporan.v2.rangeLabel}</span>
+                <RangePresetSelect
+                  preset={draftPreset}
+                  onChange={(next) => {
+                    setDraftPreset(next);
+                    setDraftMode("preset");
+                  }}
+                />
+              </label>
             </div>
-          )}
-        </div>
-      </section>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetPeriodSheet}>
+              {t.laporan.v2.resetPeriod}
+            </Button>
+            <Button onClick={applyPeriodSheet}>{t.common.apply}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Phones: one picker instead of the index. */}
       <label className="lp-picker">
@@ -836,37 +895,6 @@ export function LaporanInner() {
                     onChange={handleHarianDateChange}
                   />
                 )}
-                {/* Real backend feature (bank/detail/pnl/balance-sheet/cashflow
-                    exports) the prototype doesn't model — kept as a compact
-                    select beside the export buttons instead of deleting it,
-                    per port rules (restyle, don't drop existing features).
-                    This selects the EXPORT job's report type, which can
-                    legitimately differ from the tab being viewed — labeled
-                    explicitly so it doesn't read as mirroring the active
-                    tab (Task 2); it re-syncs to the tab's closest type on
-                    every tab change but stays overridable. */}
-                <label className="lp-export">
-                  <span className="wm-cap">
-                    {t.laporan.export.reportTypeLabel}
-                  </span>
-                  <select
-                    className="lp-cbtn lp-cbtn-select"
-                    aria-label={t.laporan.export.reportTypeLabel}
-                    value={exportJob.reportType}
-                    onChange={(e) =>
-                      exportJob.setReportType(
-                        e.target.value as typeof exportJob.reportType,
-                      )
-                    }
-                    disabled={!!exportJob.isActive || exportJob.isSubmitting}
-                  >
-                    {EXPORT_REPORT_TYPE_IDS.map((id) => (
-                      <option key={id} value={id}>
-                        {t.laporan.export.reportTypeLabels[id]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
                 <button
                   type="button"
                   className="lp-cbtn"
@@ -891,7 +919,7 @@ export function LaporanInner() {
                 </button>
               </div>
             </div>
-            <h1 className="lp-headline">{cover.headline}</h1>
+            <p className="lp-headline">{cover.headline}</p>
             {/* Prototype parity (docs/design/proto/laporan.html `rsum.viz`)
                 — the trend chart lives INSIDE the dark hero, above the
                 legend chips, not in a separate card below it. The detailed
@@ -935,10 +963,11 @@ export function LaporanInner() {
                       {
                         name: t.laporan.v2.expense,
                         data: heroChartExpense,
-                        color: "var(--wm-orange)",
+                        color: EXPENSE_COLOR,
                       },
                     ]}
                     format={moneyFmt.formatCompact}
+                    formatFull={moneyFmt.format}
                     wide
                     ariaLabel={heroChartAriaLabel}
                   />

@@ -1295,7 +1295,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
 
     expect(
       await screen.findByRole("img", {
-        name: "Proyeksi Sisa Utang 6 Bulan: Rp 8.000.000 → Rp 0",
+        name: "Proyeksi Sisa Utang 6 Bulan: Rp\u00A08.000.000 → Rp\u00A00",
       }),
     ).toBeInTheDocument();
     expect(mockApiFetch).toHaveBeenCalledWith(

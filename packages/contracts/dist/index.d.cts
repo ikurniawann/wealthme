@@ -685,6 +685,10 @@ interface DashboardSummaryDto {
         expense: number;
         net: number;
         savingsRate: number;
+        expenseByCategory: {
+            categoryName: string | null;
+            amount: number;
+        }[];
     } | null;
     recentTransactions: {
         id: string;

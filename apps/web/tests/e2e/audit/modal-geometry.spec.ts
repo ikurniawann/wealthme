@@ -327,9 +327,9 @@ async function openFamilyPanel(page: Page): Promise<void> {
   await dismissOnboardingIfPresent(page, 2_000);
   // The family card is a <button> whose accessible name is the dynamic
   // family name + role + member count — not stable across seed data. The
-  // "Group Family" heading right above it IS stable; the button is the next
+  // "Grup Keluarga" heading right above it IS stable; the button is the next
   // interactive element after it in document order.
-  const heading = page.getByText("👨‍👩‍👧‍👦 Group Family", { exact: true });
+  const heading = page.getByText("👨‍👩‍👧‍👦 Grup Keluarga", { exact: true });
   await heading.waitFor({ state: "visible", timeout: 15_000 });
   await heading.locator("xpath=following::button[1]").click();
   await page

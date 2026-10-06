@@ -54,7 +54,9 @@ test.describe("WealthMe — UI journeys (headless)", () => {
 
     // The global add-transaction dialog is opened from the shell.
     const addButton = page
-      .locator('button[aria-label*="Tambah"], button:has-text("Tambah")')
+      .locator(
+        'button[aria-label*="Catat transaksi"], button:has-text("Catat transaksi")',
+      )
       .first();
     await addButton.click();
 
@@ -81,7 +83,9 @@ test.describe("WealthMe — UI journeys (headless)", () => {
   }) => {
     await page.goto("/transaksi", { waitUntil: "networkidle" });
     await page
-      .locator('button[aria-label*="Tambah"], button:has-text("Tambah")')
+      .locator(
+        'button[aria-label*="Catat transaksi"], button:has-text("Catat transaksi")',
+      )
       .first()
       .click();
 
@@ -158,10 +162,12 @@ test.describe("WealthMe — UI journeys (headless)", () => {
     await page.goto("/laporan", { waitUntil: "networkidle" });
     await page.waitForTimeout(2000);
 
-    const yearSelect = page.locator('select[aria-label="Tahun"]').first();
+    // Desktop: the three selects live in the `.lp-filter` card (Tahun, Bulan,
+    // Rentang); <=720px hides that card behind the "Periode" button.
+    const yearSelect = page.locator(".lp-filter select").nth(0);
     await expect(yearSelect).toBeVisible({ timeout: 10_000 });
 
-    const monthSelect = page.locator('select[aria-label="Bulan"]').first();
+    const monthSelect = page.locator(".lp-filter select").nth(1);
     await expect(monthSelect).toBeVisible();
 
     // Change the month and make sure the page re-renders without breaking.
@@ -176,6 +182,31 @@ test.describe("WealthMe — UI journeys (headless)", () => {
       path: `${SHOT_DIR}/laporan-filter.png`,
       fullPage: true,
     });
+  });
+
+  test("laporan period sheet on phones replaces the three selects", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/laporan", { waitUntil: "networkidle" });
+    await page.waitForTimeout(2000);
+
+    // One "Periode" button instead of three stacked selects.
+    await expect(page.locator(".lp-filter")).toBeHidden();
+    const periodBtn = page.locator(".lp-period-btn");
+    await expect(periodBtn).toBeVisible({ timeout: 10_000 });
+
+    await periodBtn.click();
+    const sheet = page.getByRole("dialog");
+    await expect(sheet.locator("select")).toHaveCount(3);
+    await sheet.locator("select").nth(1).selectOption({ index: 0 });
+    await sheet.getByRole("button", { name: "Terapkan" }).click();
+    await expect(sheet).toBeHidden();
+    await page.waitForTimeout(2500);
+
+    const body = await page.evaluate(() => document.body.innerText);
+    expect(body).not.toContain("Gagal memuat");
+    expect(body).not.toContain("application error");
   });
 
   test("transaction row opens a read-only detail dialog", async ({ page }) => {

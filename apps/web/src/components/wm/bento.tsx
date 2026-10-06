@@ -15,6 +15,14 @@ import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/hooks/use-locale";
+import {
+  DELTA_ARROW,
+  deltaSrText,
+  deltaTone,
+  type DeltaDirection,
+  type DeltaTone,
+} from "@/lib/delta";
 
 /**
  * Bento v2 kit (docs/design/proto: `.bento`, `.card.hero.dark`, `.kpis`,
@@ -96,7 +104,7 @@ export function GhostButton({
   );
 }
 
-/** Pill button for dialog/panel footers and inline actions. Primary is dark with a lime arrow. */
+/** Pill button for dialog/panel footers and inline actions. Primary is the forest commit action with a pale arrow. */
 export function PillButton({
   variant = "default",
   className,
@@ -184,11 +192,8 @@ export function BentoHero({
   area = "main",
   className,
   style,
-  valueAs: ValueTag = "p",
 }: {
   value: ReactNode;
-  /** Render the big number as the page's `h1` when the hero is the page head. */
-  valueAs?: "p" | "h1";
   /** Small prefix before the number; pass `null` for non-money heroes. */
   currency?: ReactNode;
   caption: ReactNode;
@@ -207,10 +212,10 @@ export function BentoHero({
       <div className="wm-hero-main">
         <div className="wm-hero-head">
           <div>
-            <ValueTag className="wm-big">
+            <p className="wm-big">
               {currency && <span className="wm-cur">{currency}</span>}
               {value}
-            </ValueTag>
+            </p>
             <p className="wm-cap">{caption}</p>
           </div>
           {controls && <div className="wm-hero-ctrl">{controls}</div>}
@@ -222,7 +227,7 @@ export function BentoHero({
   );
 }
 
-/** One KPI in the hero column. `short` replaces the value on phones (e.g. "Rp 39 jt"). */
+/** One KPI in the hero column. Money values stay full ("Rp 177.000.000"); on phones the value shrinks via clamp() instead of going compact. `short` is only an alternate phone-only label for non-money counts (e.g. Persetujuan's amount); its full string value stays reachable via `title`. */
 export function HeroKpi({
   label,
   value,
@@ -237,7 +242,11 @@ export function HeroKpi({
   return (
     <div className="wm-kpi">
       <small>{label}</small>
-      <div className="wm-kpi-v" data-short={short}>
+      <div
+        className="wm-kpi-v"
+        data-short={short}
+        title={short && typeof value === "string" ? value : undefined}
+      >
         {value}
       </div>
       {delta}
@@ -246,25 +255,28 @@ export function HeroKpi({
 }
 
 /**
- * Up/down change line under a number: "↑ 5,1% dari bulan lalu". The arrow
- * follows `dir`; the colour follows `good` (a rise in spending is an up arrow
- * in red), defaulting to up = good.
+ * Up/down change line under a number: "↑ 5,1% dari bulan lalu". The shared
+ * delta rule (lib/delta.ts): the arrow follows `dir` (direction of change);
+ * the colour and the sr-only text follow `tone` (valence — a rise in spending
+ * is an up arrow in the bad colour). `tone` defaults to up = good.
  */
 export function Delta({
   dir,
   value,
   suffix,
-  good = dir === "up",
+  tone = deltaTone(dir),
 }: {
-  dir: "up" | "down";
+  dir: DeltaDirection;
   value: ReactNode;
   suffix?: ReactNode;
-  good?: boolean;
+  tone?: DeltaTone;
 }) {
+  const { t } = useLocale();
   return (
-    <span className="wm-delta" data-tone={good ? "good" : "bad"}>
-      <span aria-hidden="true">{dir === "up" ? "↑" : "↓"}</span>
+    <span className="wm-delta" data-tone={tone}>
+      <span aria-hidden="true">{DELTA_ARROW[dir]}</span>
       {value}
+      <span className="sr-only">{deltaSrText(dir, tone, t.common.delta)}</span>
       {suffix && <em>{suffix}</em>}
     </span>
   );
@@ -272,7 +284,7 @@ export function Delta({
 
 /* ───────────── progress ───────────── */
 
-type Fill = "lime" | "orange" | "bad";
+type Fill = "lime" | "orange" | "bad" | "ink";
 
 /** Hatched progress bar with an optional legend row underneath. */
 export function HatchedBar({
@@ -335,12 +347,14 @@ export function Track({
 export function MiniList({
   children,
   label,
+  className,
 }: {
   children: ReactNode;
   label?: string;
+  className?: string;
 }) {
   return (
-    <ul className="wm-mini-list" aria-label={label}>
+    <ul className={cn("wm-mini-list", className)} aria-label={label}>
       {children}
     </ul>
   );
@@ -556,12 +570,15 @@ export function CompositionStack({
   sub,
   label,
   format,
+  formatFull,
 }: {
   items: CompositionItem[];
   center?: ReactNode;
   sub?: ReactNode;
   label: string;
   format: (value: number) => string;
+  /** Full-precision formatter: when `format` is compact, each row value carries the full amount in `title`. */
+  formatFull?: (value: number) => string;
 }) {
   const ranked = items
     .filter((item) => item.value > 0)
@@ -602,7 +619,12 @@ export function CompositionStack({
               <span className="wm-cs-dot" style={{ background: item.color }} />
               {/* Drawn by CSS: the bar's label carries the text for assistive tech, and the page's own list owns the names. */}
               <span className="wm-cs-l" data-label={item.label} />
-              <span className="wm-cs-v">{format(item.value)}</span>
+              <span
+                className="wm-cs-v"
+                title={formatFull ? formatFull(item.value) : undefined}
+              >
+                {format(item.value)}
+              </span>
               <span className="wm-cs-p">
                 {pct < 1 ? "<1" : Math.round(pct)}%
               </span>
@@ -792,9 +814,9 @@ export function ChipPicker<T extends string>({
 
 export type CardTone = "lime" | "dark" | "yellow" | "soft";
 
-/** Card colour by account type, so the type reads at a glance: bank lime, e-wallet dark green, cash yellow. */
+/** Card colour by account type, so the type reads at a glance: bank neutral, e-wallet dark green, cash yellow. */
 export function accountTone(type: string): CardTone {
-  if (type === "bank") return "lime";
+  if (type === "bank") return "soft";
   if (type === "ewallet") return "dark";
   if (type === "cash") return "yellow";
   return "soft";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import "./anggaran.css";
 import {
   Car,
@@ -30,10 +30,10 @@ import {
   PillButton,
   Segmented,
   SeeAll,
-  StatusBadge,
   TipsCard,
   Track,
 } from "@/components/wm";
+import { MoneyCompact } from "@/components/wm/money-compact";
 import { CategoryIcon } from "@/components/shell/tx-pickers";
 import { IconPickerField } from "@/components/crud/icon-picker-field";
 import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
@@ -53,7 +53,7 @@ import { Switch } from "@/components/ui/switch";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
-import { parseRupiah } from "@/lib/format";
+import { formatAxisCompact, parseRupiah } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -85,17 +85,6 @@ function budgetTone(dto: BudgetDto): "lime" | "orange" | "bad" {
 
 const ICON_OPTIONS = ["🎓", "🎨", "🎁", "🐶", "👶", "📚", "💪", "🙏"];
 
-/** Axis ticks: "20 jt", "500 rb". */
-function axisJt(value: number): string {
-  const abs = Math.abs(value);
-  const trim = (n: number) =>
-    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  if (abs >= 1e9) return `${trim(abs / 1e9)} M`;
-  if (abs >= 1e6) return `${trim(abs / 1e6)} jt`;
-  if (abs >= 1e3) return `${trim(abs / 1e3)} rb`;
-  return `${Math.round(abs)}`;
-}
-
 /** 1 / 2 / 2.5 / 5 / 10 × 10^n — the tick top the prototype rounds to. */
 function ceilNice(value: number): number {
   if (value <= 0) return 1;
@@ -110,16 +99,16 @@ function ceilNice(value: number): number {
  * a hatched bar on top for what's spent, only the tightest category lit.
  * Capped at the 6 highest-usage categories so bars/labels stay readable
  * (prototype's own data never exceeds a handful; this account can have 13+).
- *
- * Fixed viewBox + `preserveAspectRatio="none"`, NOT a `ResizeObserver`-
- * measured box: the measured version went fully blank in production when
- * every budget's `spentAmount` is 0 (fresh demo data) — ghost (limit) bars
- * must always draw regardless of spend; only the hatched overlay and the
+ * The SVG draws in real pixels: its box is measured (ResizeObserver) and used
+ * as the viewBox with the default `preserveAspectRatio`, so the 11px labels
+ * are never scaled non-uniformly. The box starts at a 700x230 fallback and is
+ * only replaced by a measured size > 0, so the ghost (limit) bars always draw
+ * even before/without a measurement (an earlier measured version went blank
+ * when every `spentAmount` was 0). Only the hatched overlay and the
  * top-category highlight are conditional on spend > 0. This SVG is a direct
  * child of `.wm-chart-wrap`, so it picks up the existing
  * `.wm-chart-wrap > svg { position:absolute; inset:0; width:100%; height:100% }`
- * rule the shared chart components already rely on (bento.css) — no custom
- * sizing CSS needed here. */
+ * rule the shared chart components already rely on (bento.css). */
 function BudgetHeroChart({
   budgets,
   ariaLabel,
@@ -129,7 +118,26 @@ function BudgetHeroChart({
   ariaLabel: string;
   emptyLabel: string;
 }) {
-  if (budgets.length === 0) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [box, setBox] = useState({ w: 700, h: 230 });
+  const hasData = budgets.length > 0;
+  useLayoutEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = Math.round(el.clientWidth);
+      const h = Math.round(el.clientHeight);
+      if (w > 0 && h > 0) {
+        setBox((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
+      }
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasData]);
+
+  if (!hasData) {
     return <p className="wm-cap">{emptyLabel}</p>;
   }
 
@@ -137,8 +145,7 @@ function BudgetHeroChart({
     .sort((a, b) => b.usagePercent - a.usagePercent)
     .slice(0, 6);
 
-  const W = 700;
-  const H = 230;
+  const { w: W, h: H } = box;
   const left = 42;
   const topPad = 34;
   const bottomPad = 26;
@@ -165,10 +172,26 @@ function BudgetHeroChart({
     -1,
   );
 
+  // Labels that would overlap are dropped, never squashed: the lit category
+  // keeps its label, the rest are added left to right while they fit.
+  const labelOf = (b: BudgetDto) => b.categoryName.split(" ")[0] ?? "";
+  const halfWidth = (i: number) =>
+    ((top6[i] ? labelOf(top6[i]).length : 0) * (i === hiIndex ? 6.9 : 6.4)) / 2;
+  const shownLabels: number[] = hiIndex >= 0 ? [hiIndex] : [];
+  top6.forEach((_, i) => {
+    if (i === hiIndex) return;
+    const fits = shownLabels.every(
+      (j) => Math.abs(i - j) * band >= halfWidth(i) + halfWidth(j) + 4,
+    );
+    if (fits) shownLabels.push(i);
+  });
+  const showLabel = (i: number) => shownLabels.includes(i);
+
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="none"
+      style={{ fontVariantNumeric: "tabular-nums" }}
       role="img"
       aria-label={ariaLabel}
     >
@@ -211,7 +234,7 @@ function BudgetHeroChart({
               textAnchor="end"
               style={{ fill: "var(--ctext)", fontSize: 11 }}
             >
-              {axisJt(t)}
+              {formatAxisCompact(t)}
             </text>
           </g>
         ))}
@@ -219,9 +242,10 @@ function BudgetHeroChart({
           const x = left + band * i + band / 2 - barW / 2;
           const on = i === hiIndex;
           const tone = b.isOverBudget ? "bad" : "orange";
-          const label = b.categoryName.split(" ")[0] ?? "";
+          const label = labelOf(b);
           return (
             <g key={b.id} style={{ animationDelay: `${i * 40}ms` }}>
+              <title>{b.categoryName}</title>
               <rect
                 x={x}
                 y={y(b.limitAmount)}
@@ -241,18 +265,24 @@ function BudgetHeroChart({
                   opacity={on ? 1 : 0.28}
                 />
               )}
-              <text
-                x={x + barW / 2}
-                y={H - 8}
-                textAnchor="middle"
-                style={
-                  on
-                    ? { fill: "var(--cstrong)", fontSize: 11, fontWeight: 500 }
-                    : { fill: "var(--ctext)", fontSize: 11 }
-                }
-              >
-                {label}
-              </text>
+              {showLabel(i) && (
+                <text
+                  x={x + barW / 2}
+                  y={H - 8}
+                  textAnchor="middle"
+                  style={
+                    on
+                      ? {
+                          fill: "var(--cstrong)",
+                          fontSize: 11,
+                          fontWeight: 500,
+                        }
+                      : { fill: "var(--ctext)", fontSize: 11 }
+                  }
+                >
+                  {label}
+                </text>
+              )}
               {on &&
                 (() => {
                   const text = `${b.usagePercent}%`;
@@ -307,7 +337,6 @@ function BudgetTile({
   onEdit: () => void;
 }) {
   const { t } = useLocale();
-  const money = useMoney();
   const tone = budgetTone(dto);
   return (
     <button
@@ -331,11 +360,19 @@ function BudgetTile({
       <span className="wm-pv ag-pv">{dto.usagePercent}%</span>
       <Track value={dto.usagePercent} fill={tone} />
       <small className="ag-foot">
-        {dto.isOverBudget
-          ? `${t.anggaran.categoryFooterOverBudgetPrefix}${money.formatCompact(dto.spentAmount - dto.limitAmount)}`
-          : `${t.anggaran.categoryFooterRemainingPrefix}${money.formatCompact(dto.remainingAmount)}`}
+        {dto.isOverBudget ? (
+          <MoneyCompact
+            prefix={t.anggaran.categoryFooterOverBudgetPrefix}
+            value={dto.spentAmount - dto.limitAmount}
+          />
+        ) : (
+          <MoneyCompact
+            prefix={t.anggaran.categoryFooterRemainingPrefix}
+            value={dto.remainingAmount}
+          />
+        )}
         {" · "}
-        {money.formatCompact(dto.limitAmount)}
+        <MoneyCompact value={dto.limitAmount} />
       </small>
     </button>
   );
@@ -567,7 +604,7 @@ function ObligationRow({
     ? formatDueShort(obligation.dueDate, locale)
     : null;
   // Proto's obligations row (anggaran.html's `obList`): a neutral line-icon
-  // square, ONE compact meta line ("Rp 545 rb · 4 Okt" — no year, no "jatuh
+  // square, ONE meta line ("Rp 545.000 · 4 Okt" — no year, no "jatuh
   // tempo" prefix), and a lime "Bayar" pill. Keeps the original `<div>`
   // nesting depth (row > icon + content > name-row/meta-row) rather than
   // `MiniRow`'s span-based shape, since several regression tests scope
@@ -583,31 +620,25 @@ function ObligationRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5 text-[13.5px] font-semibold">
             <span>{obligation.name}</span>
-            {obligation.paidThisPeriod && (
-              <StatusBadge variant="gray">
-                {t.anggaran.obligationsPaidBadge}
-              </StatusBadge>
-            )}
           </div>
           <div className="mono text-[11.5px] text-muted-foreground">
-            {money.formatCompact(obligation.amountDue)}
+            {money.format(obligation.amountDue)}
             {dueDateLabel && ` · ${dueDateLabel}`}
           </div>
         </div>
-        {/* EPIC-023 Task E retry (CRITICAL 1) — an already-paid obligation
-            must not accept a second Pay click: stays a real disabled
-            <button>, just restyled muted/lime-pill instead of the old
-            default/outline shadcn Button. */}
-        <PillButton
-          className="ag-ob-pay"
-          variant={obligation.paidThisPeriod ? "default" : "primary"}
-          disabled={obligation.paidThisPeriod}
-          onClick={onPay}
-        >
-          {obligation.paidThisPeriod
-            ? t.anggaran.obligationsAlreadyPaidButton
-            : t.anggaran.obligationsPayButton}
-        </PillButton>
+        {/* An already-paid obligation is a neutral, non-interactive status
+            (no second Pay click possible); an open one gets the shared
+            outline "Bayar" pill — forest commit is reserved for the page
+            primary, same rule as Liabilitas. */}
+        {obligation.paidThisPeriod ? (
+          <span className="wm-paid-note ag-ob-paid">
+            {t.anggaran.obligationsAlreadyPaidButton}
+          </span>
+        ) : (
+          <PillButton className="wm-pay-sm ag-ob-pay" onClick={onPay}>
+            {t.anggaran.obligationsPayButton}
+          </PillButton>
+        )}
       </div>
     </li>
   );
@@ -745,7 +776,7 @@ export function ObligationsSection({
       // "Riwayat" card's `wm-mid` pattern (splitbill/page.tsx:667).
       caption={`${unpaid.length}${t.anggaran.obligationsSummaryMidSuffix.replace(/\s*·\s*$/, "")}`}
     >
-      <p className="wm-mid">{money.format(unpaidTotal).replace(/,00$/, "")}</p>
+      <p className="wm-mid">{money.format(unpaidTotal)}</p>
       <ul className="wm-mini-list ag-ob-list">
         {obligations.map((o, i) => (
           <ObligationRow
@@ -1142,13 +1173,10 @@ export default function AnggaranPage() {
 
   return (
     <BentoGrid className="ag-grid">
-      <h1 className="sr-only">{t.shell.pageTitles.anggaran}</h1>
       <BentoHero
         className="ag-hero"
         currency={null}
-        value={money
-          .format(Math.abs(totalLimit - totalSpent))
-          .replace(/,00$/, "")}
+        value={money.format(Math.abs(totalLimit - totalSpent))}
         caption={`${totalLimit >= totalSpent ? t.anggaran.v2.leftCap : t.anggaran.v2.overCap} ${monthLabel}`}
         controls={
           // Proto's `.hero-ctrl` is itself a column (buttons row, legend
@@ -1192,7 +1220,7 @@ export default function AnggaranPage() {
           <>
             <HeroKpi
               label={t.anggaran.v2.kpiLimit}
-              value={money.formatCompact(totalLimit)}
+              value={money.format(totalLimit)}
               delta={
                 <small className="wm-cap">
                   {budgets?.length ?? 0}
@@ -1202,7 +1230,7 @@ export default function AnggaranPage() {
             />
             <HeroKpi
               label={t.anggaran.v2.kpiSpent}
-              value={money.formatCompact(totalSpent)}
+              value={money.format(totalSpent)}
               delta={
                 <small className="wm-cap">
                   {usagePct}% {t.anggaran.v2.ofLimit}
@@ -1211,7 +1239,7 @@ export default function AnggaranPage() {
             />
             <HeroKpi
               label={t.anggaran.v2.kpiSafe}
-              value={money.formatCompact(
+              value={money.format(
                 daysLeft > 0
                   ? Math.round(totalRemaining / daysLeft)
                   : totalRemaining,

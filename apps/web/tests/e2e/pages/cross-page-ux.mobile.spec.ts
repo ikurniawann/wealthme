@@ -197,7 +197,7 @@ test.describe("Cross-page UX on mobile", () => {
     await page.goto("/transaksi");
     const addTransaction = page
       .locator(
-        'button[aria-label*="Tambah"]:visible, button:has-text("Tambah"):visible',
+        'button[aria-label*="Catat transaksi"]:visible, button:has-text("Catat transaksi"):visible',
       )
       .first();
     await expect(addTransaction).toBeAttached({ timeout: 45_000 });

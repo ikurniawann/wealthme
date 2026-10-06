@@ -45,7 +45,7 @@
     width: 36px;
     height: 36px;
     border-radius: 11px;
-    background: var(--wm-lime-soft);
+    background: var(--wm-ghost);
     color: var(--wm-ink);
   }
   .qi-tiles .wm-ci svg {

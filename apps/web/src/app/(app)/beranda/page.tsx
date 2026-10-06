@@ -49,6 +49,7 @@ function BerandaPage() {
         members={data.members}
         currentMonth={data.currentMonth}
         cashflow={data.cashflow}
+        monthCompare={data.monthCompare}
         transactions={data.recentTransactions}
         goals={data.goals}
         fmt={fmt}
@@ -60,6 +61,7 @@ function BerandaPage() {
             netWorth={data.netWorth}
             currentMonth={data.currentMonth}
             cashflow={data.cashflow}
+            monthCompare={data.monthCompare}
             fmt={fmt}
           />
           <WalletCard
@@ -73,7 +75,7 @@ function BerandaPage() {
             pendingApprovalsCount={data.pendingApprovalsCount}
             nearestDueLiability={data.nearestDueLiability}
           />
-          <SpendingBento fmt={fmt} />
+          <SpendingBento currentMonth={data.currentMonth} fmt={fmt} />
           <HealthBento fmt={fmt} />
           <GoalsBento goals={data.goals} fmt={fmt} />
           <HistoryBento fmt={fmt} />

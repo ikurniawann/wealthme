@@ -33,6 +33,14 @@
     letter-spacing: -0.045em;
     line-height: 1;
   }
+  .pd-top > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .pd-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
   .pd-search {
     display: flex;
     align-items: center;

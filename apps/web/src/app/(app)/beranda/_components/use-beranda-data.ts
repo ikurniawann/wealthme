@@ -6,8 +6,11 @@ import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
+import { usePriorWindowTotals } from "@/hooks/use-prior-window-totals";
 import { useCurrencyPreference } from "@/hooks/use-currency-preference";
 import { formatRupiah, formatRupiahCompact } from "@/lib/format";
+import { nextDueWithin } from "@/lib/due-date";
+import { currentMonthWindow } from "@/lib/month-compare";
 import type {
   AccountDto,
   AllowanceRequestDto,
@@ -122,6 +125,21 @@ export function useBerandaData(period: BerandaPeriod) {
     enabled,
     staleTime: 60_000,
   });
+
+  // Like-for-like base for the month deltas: while the month is running,
+  // month-to-date is compared with the same day-of-month window of the prior
+  // month (Laporan's "Dibanding bulan lalu" uses the identical base).
+  const nowRef = useMemo(() => new Date(), []);
+  const monthWindow = useMemo(() => currentMonthWindow(nowRef), [nowRef]);
+  const priorWindowTotals = usePriorWindowTotals({
+    familyGroupId: familyGroupId ?? "",
+    token,
+    window: monthWindow,
+  });
+  const monthCompare = useMemo(
+    () => ({ window: monthWindow, prior: priorWindowTotals }),
+    [monthWindow, priorWindowTotals],
+  );
 
   const range = PERIOD_RANGE[period];
   // ponytail: inline key — lib/query-keys.ts is a protected foundation file.
@@ -305,14 +323,10 @@ export function useBerandaData(period: BerandaPeriod) {
   ).length;
 
   // E2E round 1 bug 2 — prefer the real `nextDueDate` over the legacy
-  // manual `dueDate` field the KPR form never sets.
-  const nearestDueLiability = (liabilities ?? [])
-    .filter((l) => l.nextDueDate ?? l.dueDate)
-    .sort((a, b) =>
-      (a.nextDueDate ?? a.dueDate ?? "").localeCompare(
-        b.nextDueDate ?? b.dueDate ?? "",
-      ),
-    )[0];
+  // manual `dueDate` field the KPR form never sets. Only an installment that
+  // is overdue or due within DUE_SOON_DAYS is a "perlu perhatian" notice —
+  // the same window /liabilitas uses for its warning pills and summary tip.
+  const nearestDueLiability = nextDueWithin(liabilities ?? []);
 
   return {
     isLoading,
@@ -320,6 +334,7 @@ export function useBerandaData(period: BerandaPeriod) {
     summary,
     currentMonth: summary?.currentMonth,
     cashflow: summary?.cashflow,
+    monthCompare,
     netWorth: summary?.netWorth ?? 0,
     recentTransactions: summary?.recentTransactions ?? [],
     assetsTotal,

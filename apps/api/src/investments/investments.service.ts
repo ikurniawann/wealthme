@@ -10,6 +10,7 @@ import { Decimal } from "@prisma/client/runtime/library";
 
 import {
   FAMILY_GOLD_PRICE_SOURCE,
+  computeDepositoCurrentValue,
   familyGoldUnitPrice,
 } from "../common/utils/investment-value.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
@@ -66,61 +67,6 @@ function computeProjectedAnnualYield(
 ): Decimal | null {
   if (!currentValue || !interestRatePct) return null;
   return currentValue.times(interestRatePct).dividedBy(100);
-}
-
-/**
- * EPIC-024 C3 (D10) — whole calendar months between `start` and `end`
- * (never negative). Deliberately ignores the day-of-month component (same
- * simplification already used by `monthsUntil` in
- * `apps/web/src/components/crud/crud-config.ts` for goal auto-debit math) —
- * both this epic's hand-computed golden values (2026-01-01 → 2026-07-01 =
- * exactly 6 months) and the goal-savings feature already rely on this
- * whole-month convention rather than a day-count/365 one.
- */
-function monthsBetween(start: Date, end: Date): number {
-  const months =
-    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 +
-    (end.getUTCMonth() - start.getUTCMonth());
-  return Math.max(0, months);
-}
-
-/**
- * EPIC-024 C3 (D10) — deposito current value via SIMPLE interest, pro-rata
- * by whole elapsed months: nominal × (1 + ratePct/100 × months/12).
- *
- * Hand-computed golden value (Definition of Done — money math is
- * test-first): Rp 100.000.000 at 5%/thn, purchasedAt 2026-01-01, viewed
- * 2026-07-01 → months = 6 → interest = 100_000_000 × 0.05 × 6/12 =
- * 2_500_000 → value = Rp 102.500.000. Verified in investments.service.spec.ts.
- *
- * - No rate set → returns `nominal` unchanged (principal is still a
- *   legitimate "current value" absent interest data; never null).
- * - No `purchasedAt` → returns `nominal` unchanged (no accrual start point
- *   to pro-rate from — matches "not yet dated" rather than guessing).
- * - Past `maturityDate` → interest STOPS accruing at maturity (a matured
- *   deposito does not keep earning simple interest indefinitely); the
- *   elapsed-months clock is capped at `purchasedAt` → `maturityDate`.
- */
-function computeDepositoCurrentValue(
-  nominal: Decimal,
-  ratePct: Decimal | null,
-  purchasedAt: Date | null,
-  asOf: Date,
-  maturityDate: Date | null,
-): Decimal {
-  if (!ratePct || !purchasedAt) return nominal;
-
-  const effectiveEnd =
-    maturityDate && asOf > maturityDate ? maturityDate : asOf;
-  if (effectiveEnd <= purchasedAt) return nominal;
-
-  const months = monthsBetween(purchasedAt, effectiveEnd);
-  const interest = nominal
-    .times(ratePct)
-    .dividedBy(100)
-    .times(months)
-    .dividedBy(12);
-  return nominal.plus(interest);
 }
 
 @Injectable()

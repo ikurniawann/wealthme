@@ -12,6 +12,7 @@ import {
 
 import { assertBankNotOverdrawn } from "../common/utils/bank-overdraft.util";
 import { ownCategoryName } from "../common/utils/own-category-name.util";
+import { formatRupiah } from "../common/utils/rupiah.util";
 import {
   runSerializableWithRetry,
   type TxClient,
@@ -574,7 +575,7 @@ export class GoalsService {
             data: {
               familyGroupId: due.familyGroupId,
               title: "Auto-debit tujuan",
-              body: `${result.goal.name} bertambah Rp${result.contribution.amount} dari auto-debit.`,
+              body: `${result.goal.name} bertambah ${formatRupiah(result.contribution.amount)} dari auto-debit.`,
               icon: result.goal.icon ?? "🎯",
             },
           });

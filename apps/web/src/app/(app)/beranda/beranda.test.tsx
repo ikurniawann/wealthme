@@ -202,9 +202,9 @@ describe("Beranda — Indicative Rate Labeling (EPIC-016 Task B2)", () => {
     // Act
     render(<BerandaPage />);
 
-    // Assert — find the net worth display (usually an h1 or prominent number)
+    // Assert — find the net worth display (the hero's big figure)
     // and verify it has an indicative marker nearby
-    const heroCard = screen.getByRole("heading", { level: 1 });
+    const heroCard = document.querySelector<HTMLElement>(".wm-big")!;
     const heroSection = heroCard.closest("div");
 
     const hasIndicativeMarker =
@@ -296,7 +296,7 @@ describe("Beranda — Indicative Rate Labeling (EPIC-016 Task B2)", () => {
 
     // Assert — the hero heading shows a loading placeholder, never the "$"
     // symbol paired with the raw (unconverted) magnitude.
-    const heroCard = screen.getByRole("heading", { level: 1 });
+    const heroCard = document.querySelector<HTMLElement>(".wm-big")!;
     expect(heroCard.textContent).toMatch(/Memuat|Loading/);
     expect(heroCard.textContent).not.toMatch(/\$/);
   });

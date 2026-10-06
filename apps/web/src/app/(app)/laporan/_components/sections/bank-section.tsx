@@ -1,4 +1,6 @@
 import { BentoCard } from "@/components/wm";
+import { MoneyCompact } from "@/components/wm/money-compact";
+import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { BankReportDto } from "@wealthme/contracts";
@@ -54,11 +56,11 @@ export function BankSection({
                 <div className="lap-a-bank-inout-head">
                   <span className="lap-a-bank-inout-name">{b.accountName}</span>
                   <span className="lap-a-bank-inout-amt">
-                    <span style={{ color: "var(--wm-lime)" }}>
-                      +{money.formatCompact(b.income)}
+                    <span style={{ color: "var(--wm-good)" }}>
+                      <MoneyCompact prefix="+" value={b.income} />
                     </span>{" "}
-                    <span style={{ color: "var(--wm-orange)" }}>
-                      -{money.formatCompact(b.expense)}
+                    <span style={{ color: EXPENSE_COLOR }}>
+                      <MoneyCompact prefix="-" value={b.expense} />
                     </span>
                   </span>
                 </div>
@@ -67,13 +69,11 @@ export function BankSection({
                   role="img"
                   aria-label={`${b.accountName}: ${t.common.income} ${money.format(b.income)}, ${t.common.expense} ${money.format(b.expense)}`}
                 >
-                  <i
-                    style={{ width: `${inPct}%`, background: "var(--wm-lime)" }}
-                  />
+                  <i style={{ width: `${inPct}%`, background: INCOME_COLOR }} />
                   <i
                     style={{
                       width: `${outPct}%`,
-                      background: "var(--wm-orange)",
+                      background: EXPENSE_COLOR,
                     }}
                   />
                 </div>

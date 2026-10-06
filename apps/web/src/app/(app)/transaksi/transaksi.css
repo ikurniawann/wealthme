@@ -200,11 +200,12 @@
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: color-mix(in srgb, var(--wm-orange) 14%, var(--wm-card));
-    color: color-mix(in srgb, var(--wm-orange) 80%, var(--wm-ink));
+    background: color-mix(in srgb, var(--wm-ink) 8%, var(--wm-card));
+    color: color-mix(in srgb, var(--cstrong) 72%, var(--cbg));
   }
+  /* Income tile: success green on its soft tint (lime marks active only). */
   .tx-row[data-type="income"] .tx-row-ic {
-    background: var(--wm-lime-soft);
+    background: var(--success-soft);
     color: var(--wm-good);
   }
   .tx-row[data-type="transfer"] .tx-row-ic {
@@ -218,6 +219,7 @@
   .tx-row-amt {
     font-size: var(--wm-type-14);
     font-weight: 600;
+    color: color-mix(in srgb, var(--cstrong) 72%, var(--cbg));
   }
   .tx-row[data-type="income"] .tx-row-amt {
     color: var(--wm-good);
@@ -241,6 +243,11 @@
     min-height: 38px;
     font-size: var(--wm-type-13);
   }
+  @media (max-width: 720px) {
+    .tx-pager .wm-pill {
+      min-height: 44px;
+    }
+  }
 
   /* detail side panel */
   .tx-detail-hero {
@@ -255,12 +262,12 @@
   .tx-detail-badge {
     padding: 3px 10px;
     border-radius: 99px;
-    background: color-mix(in srgb, var(--wm-orange) 18%, var(--wm-card));
+    background: color-mix(in srgb, var(--wm-ink) 8%, var(--wm-card));
     font-size: var(--wm-type-12);
     font-weight: 600;
   }
   .tx-detail-hero[data-type="income"] .tx-detail-badge {
-    background: var(--wm-lime-soft);
+    background: var(--success-soft);
     color: var(--wm-good);
   }
   .tx-detail-hero[data-type="transfer"] .tx-detail-badge {
@@ -294,14 +301,63 @@
     text-align: right;
   }
 
+  /* Phones: the hero's detail toggle only exists at <=720px. */
+  .tx-hero-more {
+    display: none;
+  }
+
   @media (max-width: 720px) {
-    .tx-hero .wm-kpi-v[data-short]::after {
-      font-size: var(--wm-type-14);
-    }
     .tx-hero .wm-kpi small {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+    }
+    /* Condensed hero: net + Pemasukan/Pengeluaran stay, the trend chart, the
+       transaction-count KPI and the sub-captions fold behind the toggle so
+       "Riwayat" starts inside the first viewport. Nothing is removed. */
+    .tx-grid > .tx-hero.wm-hero .wm-hero-main {
+      padding: 18px 18px 4px;
+    }
+    .tx-grid > .tx-hero .wm-hero-head {
+      gap: 10px;
+    }
+    .tx-grid > .tx-hero .wm-kpis {
+      padding: 8px 18px 6px;
+    }
+    .tx-hero:not(.tx-hero--more) .wm-chart-wrap,
+    .tx-hero:not(.tx-hero--more) .wm-kpi:nth-child(3),
+    .tx-hero:not(.tx-hero--more) .wm-kpi .wm-cap {
+      display: none;
+    }
+    .tx-hero-more {
+      display: flex;
+      grid-column: 1 / -1;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
+      border: 0;
+      background: transparent;
+      color: rgb(238 240 232 / 0.78);
+      font: inherit;
+      font-size: var(--wm-type-13);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tx-hero-more svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.2s;
+    }
+    .tx-hero-more[aria-expanded="true"] svg {
+      transform: rotate(180deg);
+    }
+    .tx-reset {
+      min-height: 44px;
+      padding: 0 10px;
+    }
+    .tx-types button {
+      min-height: 44px;
     }
     .tx-filters-toggle {
       display: flex;

@@ -58,7 +58,7 @@ export const SCOPE_COPY: Record<
 /** Pastel avatar colors (iam.html's `.ak-av`/avatar chips) cycled by row
  * index — akun's member list uses the same palette (see akun.css). */
 export const MEMBER_PASTELS: { bg: string; fg: string }[] = [
-  { bg: "#DDEFB5", fg: "#1F2A07" },
+  { bg: "var(--wm-ghost)", fg: "var(--wm-ink)" },
   { bg: "#FDE2C8", fg: "#7A3A1F" },
   { bg: "#DDEBFD", fg: "#1F3A7A" },
   { bg: "#F5E1FD", fg: "#5A1F7A" },

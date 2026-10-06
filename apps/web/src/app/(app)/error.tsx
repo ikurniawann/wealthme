@@ -35,9 +35,9 @@ export default function AppSegmentError({
             aria-hidden="true"
             className="size-8 text-destructive"
           />
-          <h1 className="text-lg font-bold text-foreground">
+          <h2 className="text-lg font-bold text-foreground">
             {t.errors.boundaryTitle}
-          </h1>
+          </h2>
           <p className="text-sm text-muted-foreground">
             {t.errors.boundaryBody}
           </p>

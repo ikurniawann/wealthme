@@ -7,6 +7,8 @@ import { isPageTitleId } from "@/lib/nav";
 import { useLocale } from "@/hooks/use-locale";
 import type { I18nDictionary } from "@/i18n/types";
 
+const DEFAULT_TITLE = "WealthMe, Personal Wealth OS";
+
 export function greetingFor(hour: number, t: I18nDictionary): string {
   if (hour < 11) return t.shell.v2.greetingMorning;
   if (hour < 15) return t.shell.v2.greetingAfternoon;
@@ -16,7 +18,8 @@ export function greetingFor(hour: number, t: I18nDictionary): string {
 
 /**
  * Phone-only page head (bento v2 `.mtitle-wrap`): a small greeting over a big
- * two-line page title. Hidden above 720px, where the dark hero is the page head.
+ * two-line page title. Above 720px it stays in the DOM visually hidden, so the
+ * page title is the one `h1` on every viewport and pages never render their own.
  */
 export function PageGreeting() {
   const pathname = usePathname();
@@ -36,6 +39,12 @@ export function PageGreeting() {
         ? t.shell.pageTitles[seg]
         : "WealthMe";
   const firstName = session?.user.name?.split(" ")[0];
+  const docTitle = isPageTitleId(seg) ? t.shell.pageTitles[seg] : null;
+  // Pages are client components, so the tab title follows the shell's page
+  // title here instead of per-page `metadata` (layout.tsx owns the default).
+  useEffect(() => {
+    document.title = docTitle ? `${docTitle} | WealthMe` : DEFAULT_TITLE;
+  }, [docTitle, pathname]);
 
   return (
     <div className="wm-mtitle">

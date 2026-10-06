@@ -346,3 +346,75 @@ export function resolvePreset(
     }
   }
 }
+
+/** Day-aligned comparison window for a month that is still running. */
+export interface LikeForLikeWindow {
+  /** Last day-of-month the running month covers so far (today, WIB). */
+  cutoffDay: number;
+  /** The same day-of-month cut-off in the prior month, clamped to its length. */
+  priorCutoffDay: number;
+  /** Prior month's 1st → `priorCutoffDay` bounds (WIB), for the report APIs. */
+  priorStartDate: string;
+  priorEndDate: string;
+}
+
+/**
+ * "Dibanding bulan lalu" compares two monthly buckets. When the newer one is
+ * the month in progress, a full prior month is an unfair base (a 6-day spend
+ * against a 30-day spend), so this returns the same day-of-month window of
+ * the prior month (1–6 Okt vs 1–6 Sep). `null` when the compared month is
+ * already complete (plain full-vs-full is like-for-like).
+ *
+ * @param anchorEnd  ISO end instant the summary was anchored on (its WIB
+ *                   month is the LAST point of the summary).
+ * @param pointCount number of monthly points in the summary.
+ * @param pointIndex index of the compared (current) point.
+ */
+export function likeForLikeWindow({
+  anchorEnd,
+  pointCount,
+  pointIndex,
+  now,
+}: {
+  anchorEnd: string;
+  pointCount: number;
+  pointIndex: number;
+  now: Date;
+}): LikeForLikeWindow | null {
+  const anchor = new Date(anchorEnd);
+  if (Number.isNaN(anchor.getTime()) || pointIndex < 0) return null;
+  const anchorParts = wibCalendarParts(anchor);
+  const current = shiftMonth(
+    anchorParts.year,
+    anchorParts.month,
+    pointIndex - (pointCount - 1),
+  );
+  const today = wibCalendarParts(now);
+  if (current.year !== today.year || current.month !== today.month) return null;
+  if (today.day >= daysInMonth(current.year, current.month)) return null;
+
+  const prior = shiftMonth(current.year, current.month, -1);
+  const priorCutoffDay = clampDayToMonth(prior.year, prior.month, today.day);
+  return {
+    cutoffDay: today.day,
+    priorCutoffDay,
+    priorStartDate: wibWallClockToIso(
+      prior.year,
+      prior.month - 1,
+      1,
+      0,
+      0,
+      0,
+      0,
+    ),
+    priorEndDate: wibWallClockToIso(
+      prior.year,
+      prior.month - 1,
+      priorCutoffDay,
+      23,
+      59,
+      59,
+      999,
+    ),
+  };
+}

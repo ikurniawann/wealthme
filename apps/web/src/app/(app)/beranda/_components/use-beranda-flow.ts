@@ -11,7 +11,7 @@ import type { FlowDay } from "@/components/charts/bento-charts";
 
 export type FlowRange = 7 | 30;
 
-/** The API caps a page at 100 rows; the UI says so when a window holds more. */
+/** The API caps a page at 100 rows. Windows here feed charts and lists only, never a headline total. */
 const PAGE = 100;
 
 const ymd = (date: Date) =>
@@ -37,8 +37,9 @@ function useTxWindow(key: string, from: Date, to: Date) {
 
 /**
  * Daily buckets for the hero chart. Income and expense are what they say;
- * "Tabungan" is money moved by transfer (to savings, goals, investments),
- * the only savings signal a transaction carries.
+ * `net` ("Selisih") is income - expense of the bucket, the same definition as
+ * the hero KPI (`currentMonth.net`). Transfers move money between the family's
+ * own accounts and are not part of any of the three.
  */
 export function bucketDays(
   transactions: readonly Pick<
@@ -60,7 +61,7 @@ export function bucketDays(
       start.getMonth(),
       start.getDate() + i,
     );
-    return { label: dayLabel(date), savings: 0, income: 0, expense: 0 };
+    return { label: dayLabel(date), net: 0, income: 0, expense: 0 };
   });
   for (const tx of transactions) {
     const at = new Date(tx.occurredAt);
@@ -73,28 +74,9 @@ export function bucketDays(
     const amount = Math.abs(Number(tx.amount));
     if (tx.type === "income") out[index].income += amount;
     else if (tx.type === "expense") out[index].expense += amount;
-    else if (tx.type === "transfer") out[index].savings += amount;
   }
+  for (const day of out) day.net = day.income - day.expense;
   return out;
-}
-
-/** Month-to-date expense by category, largest first. */
-export function spendByCategory(
-  transactions: readonly Pick<
-    TransactionDto,
-    "amount" | "type" | "categoryName"
-  >[],
-  otherLabel: string,
-) {
-  const totals = new Map<string, number>();
-  for (const tx of transactions) {
-    if (tx.type !== "expense") continue;
-    const name = tx.categoryName || otherLabel;
-    totals.set(name, (totals.get(name) ?? 0) + Math.abs(Number(tx.amount)));
-  }
-  return [...totals.entries()]
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value);
 }
 
 export function useBerandaFlow(range: FlowRange) {
@@ -104,16 +86,12 @@ export function useBerandaFlow(range: FlowRange) {
     today.getMonth(),
     today.getDate() - (range - 1),
   );
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
   const window = useTxWindow(`w${range}`, windowStart, today);
-  const month = useTxWindow("mtd", monthStart, today);
   return {
     today,
     window: window.data?.data ?? [],
     windowTotal: window.data?.meta.total ?? 0,
     windowSummary: window.data?.summary,
-    month: month.data?.data ?? [],
-    monthTotal: month.data?.meta.total ?? 0,
-    isLoading: window.isLoading || month.isLoading,
+    isLoading: window.isLoading,
   };
 }

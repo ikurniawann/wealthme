@@ -22,7 +22,10 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "WealthMe, Personal Wealth OS",
+  title: {
+    template: "%s | WealthMe",
+    default: "WealthMe, Personal Wealth OS",
+  },
   description:
     "Personal Wealth Operating System, kelola transaksi, investasi, aset, warisan, pajak, dan donasi dalam satu aplikasi.",
 };

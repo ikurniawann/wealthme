@@ -1170,9 +1170,10 @@ describe("InvestasiPage — polish batch 7b item 3 (notice disclosure + formula 
     render(<InvestasiPage />);
     await screen.findByText("Emas Batangan");
 
+    // formatRupiah puts a non-breaking space between "Rp" and the digits.
     const expectedFormula = idDict.investasi.returnFormulaLabel
-      .replace("{returnRp}", "Rp 100.000")
-      .replace("{costBasis}", "Rp 1.000.000");
+      .replace("{returnRp}", "Rp\u00a0100.000")
+      .replace("{costBasis}", "Rp\u00a01.000.000");
     expect(screen.queryByText(expectedFormula)).not.toBeInTheDocument();
     expect(
       await screen.findByRole("button", { name: expectedFormula }),

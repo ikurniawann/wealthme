@@ -205,12 +205,8 @@ describe("SplitBillPage (EPIC-023 F3/Group F)", () => {
     expect(
       screen.getByText(idDict.splitbill.sudahDibayarLabel),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", {
-        level: 1,
-        name: idDict.splitbill.pageTitle,
-      }),
-    ).toBeInTheDocument();
+    // The shell's PageGreeting owns the page's one h1; the page renders none.
+    expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     expect(document.querySelectorAll(".wm-kpi")).toHaveLength(3);
   });
 

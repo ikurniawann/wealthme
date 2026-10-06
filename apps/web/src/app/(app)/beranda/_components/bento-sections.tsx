@@ -41,34 +41,52 @@ import {
   useCardLooks,
 } from "@/components/wm";
 import {
+  FLOW_COLORS,
   FlowStackChart,
   HatchedAreaChart,
   TickGauge,
 } from "@/components/charts/bento-charts";
-import {
-  bucketDays,
-  spendByCategory,
-  useBerandaFlow,
-  type FlowRange,
-} from "./use-beranda-flow";
+import { bucketDays, useBerandaFlow, type FlowRange } from "./use-beranda-flow";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
+import { formatAxisCompact } from "@/lib/format";
 import { canRecordTransaction } from "@/lib/nav";
+import { vizByIndex, vizTint } from "@/lib/viz-colors";
+import { describeDelta, deltaTone, type DeltaDirection } from "@/lib/delta";
+import {
+  monthCompareCaption,
+  selectMonthComparison,
+  type MonthCompareBase,
+  type MonthComparison,
+  type MonthMetric,
+} from "@/lib/month-compare";
+import { goalPace } from "@/lib/goals-utils";
 import type { BerandaMember, MoneyFormatters } from "./use-beranda-data";
 
 /* ───────────── pure helpers (unit-tested) ───────────── */
 
-/** Month-over-month change of the last two points, or null when there is no base to compare. */
+/**
+ * Change of the latest month against its like-for-like base (see
+ * `selectMonthComparison`): the same day-of-month window of the prior month
+ * while the month is running, the full prior month otherwise. `pct` is the
+ * magnitude; `dir` is the direction (flat when it rounds to 0%), at the same
+ * whole-percent precision Laporan prints, so both screens agree.
+ */
 export function monthDelta(
   series: readonly number[] | undefined,
-): { dir: "up" | "down"; pct: number } | null {
-  if (!series || series.length < 2) return null;
-  const cur = series[series.length - 1];
-  const prev = series[series.length - 2];
-  if (!prev) return null;
-  const pct = ((cur - prev) / Math.abs(prev)) * 100;
-  return { dir: pct >= 0 ? "up" : "down", pct: Math.abs(pct) };
+  metric: MonthMetric,
+  base?: MonthCompareBase,
+): { dir: DeltaDirection; pct: number; comparison: MonthComparison } | null {
+  const comparison = selectMonthComparison(series, metric, base);
+  if (!comparison) return null;
+  const change = describeDelta(
+    comparison.previous,
+    comparison.current,
+    "higher-better",
+    0,
+  );
+  return change && { dir: change.dir, pct: Math.abs(change.pct), comparison };
 }
 
 /** "2026-09" → "Sep" in the viewer's locale; any other label passes through. */
@@ -81,16 +99,35 @@ export function monthLabel(raw: string, locale: string): string {
   );
 }
 
-/** Axis ticks: "12 jt" / "1,5 M" without the currency prefix. */
-export function axisCompact(value: number): string {
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "-" : "";
-  const trim = (n: number) =>
-    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
-  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
-  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
-  return `${sign}${Math.round(abs)}`;
+/** Current month and year, e.g. "Oktober 2026" (long) or "Okt 2026" (short). */
+export function monthName(locale: string, style: "long" | "short"): string {
+  return new Date().toLocaleDateString(locale, {
+    month: style,
+    year: "numeric",
+  });
+}
+
+/**
+ * Due date label (year only when it is not this year) plus whole days overdue
+ * (0 when the date is today or later).
+ */
+export function dueInfo(
+  due: Date,
+  now: Date,
+  locale: string,
+): { label: string; overdueDays: number } {
+  const startOf = (date: Date) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  const overdueDays = Math.max(
+    0,
+    Math.round((startOf(now) - startOf(due)) / 86_400_000),
+  );
+  const label = due.toLocaleDateString(locale, {
+    day: "numeric",
+    month: "short",
+    ...(due.getFullYear() !== now.getFullYear() && { year: "numeric" }),
+  });
+  return { label, overdueDays };
 }
 
 /** Split "Rp 1.234" / "≈ $ 12" into the small hero prefix and the number. */
@@ -133,19 +170,7 @@ export function installmentProgress(
   };
 }
 
-const pctFmt = (value: number, locale: string) =>
-  value.toLocaleString(locale, { maximumFractionDigits: 1 });
-
 /* ───────────── hero ───────────── */
-
-/** The latest day with any money movement (the column the hero highlights), else the last day. */
-export function lastActive(
-  days: readonly { income: number; expense: number; savings: number }[],
-): number {
-  for (let i = days.length - 1; i >= 0; i -= 1)
-    if (days[i].income || days[i].expense || days[i].savings) return i;
-  return days.length - 1;
-}
 
 /** "42 / 60 jt": current and target in the target's unit so the pair never mixes jt and M. */
 export function goalPair(current: number, target: number): string {
@@ -168,11 +193,13 @@ export function BerandaHeroCard({
   netWorth,
   currentMonth,
   cashflow,
+  monthCompare,
   fmt,
 }: {
   netWorth: number;
   currentMonth: DashboardSummaryDto["currentMonth"] | undefined;
   cashflow: DashboardSummaryDto["cashflow"] | undefined;
+  monthCompare?: MonthCompareBase;
   fmt: MoneyFormatters;
 }) {
   const { t } = useLocale();
@@ -199,21 +226,31 @@ export function BerandaHeroCard({
     label: string,
     value: number,
     series: number[] | undefined,
-    upIsGood: boolean,
+    metric: MonthMetric,
   ) => {
-    const delta = monthDelta(series);
+    const delta = monthDelta(series, metric, monthCompare);
     return (
       <HeroKpi
         label={label}
         value={fmt.money(value)}
-        short={fmt.moneyCompact(value)}
         delta={
           delta && (
             <Delta
               dir={delta.dir}
-              good={(delta.dir === "up") === upIsGood}
-              value={`${pctFmt(delta.pct, localeTag)}%`}
-              suffix={v2.vsLastMonth}
+              tone={deltaTone(
+                delta.dir,
+                metric === "expense" ? "lower-better" : "higher-better",
+              )}
+              value={`${Math.round(delta.pct)}%`}
+              suffix={monthCompareCaption(
+                delta.comparison,
+                {
+                  window: v2.compareWindow,
+                  fullMonth: v2.compareFullMonth,
+                  lastMonth: v2.vsLastMonth,
+                },
+                localeTag,
+              )}
             />
           )
         }
@@ -224,7 +261,6 @@ export function BerandaHeroCard({
   return (
     <BentoHero
       area="main"
-      valueAs="h1"
       className="beranda-hero"
       currency={splitCurrency(fmt.money(netWorth)).prefix}
       value={
@@ -268,31 +304,29 @@ export function BerandaHeroCard({
               <LineChartIcon aria-hidden="true" />
             </button>
           </div>
-          <div className="wm-legend" aria-hidden="true">
-            <span>
-              <i style={{ background: "var(--wm-yellow)" }} />
-              {v2.savings}
-            </span>
-            <span>
-              <i style={{ background: "var(--wm-lime)" }} />
-              {v2.income}
-            </span>
-            <span>
-              <i style={{ background: "var(--wm-orange)" }} />
-              {v2.expense}
-            </span>
-          </div>
+          {mode === "bars" && (
+            <div className="wm-legend" aria-hidden="true">
+              <span>
+                <i style={{ background: FLOW_COLORS.income }} />
+                {v2.income}
+              </span>
+              <span>
+                <i style={{ background: FLOW_COLORS.expense }} />
+                {v2.expense}
+              </span>
+            </div>
+          )}
         </div>
       }
       chart={
         mode === "bars" ? (
           <FlowStackChart
             days={days}
-            highlight={lastActive(days)}
             format={fmt.moneyCompact}
-            axis={axisCompact}
+            formatFull={fmt.money}
+            axis={formatAxisCompact}
             labels={{
-              savings: v2.savings,
+              net: v2.savings,
               income: v2.income,
               expense: v2.expense,
             }}
@@ -301,19 +335,25 @@ export function BerandaHeroCard({
         ) : (
           <HatchedAreaChart
             labels={days.map((day) => day.label)}
-            values={days.map((day) => day.income - day.expense)}
+            values={days.map((day) => day.net)}
             format={fmt.moneyCompact}
-            axis={axisCompact}
-            floor={Math.min(0, ...days.map((day) => day.income - day.expense))}
+            formatFull={fmt.money}
+            axis={formatAxisCompact}
+            floor={Math.min(0, ...days.map((day) => day.net))}
             ariaLabel={v2.flowAria}
           />
         )
       }
       kpis={
         <>
-          {kpi(v2.income, currentMonth?.income ?? 0, income, true)}
-          {kpi(v2.expense, currentMonth?.expense ?? 0, expense, false)}
-          {kpi(v2.saved, currentMonth?.net ?? 0, saved, true)}
+          {kpi(v2.income, currentMonth?.income ?? 0, income, "income")}
+          {kpi(
+            v2.expenseMonth.replace("{month}", monthName(localeTag, "short")),
+            currentMonth?.expense ?? 0,
+            expense,
+            "expense",
+          )}
+          {kpi(v2.saved, currentMonth?.net ?? 0, saved, "net")}
         </>
       }
     />
@@ -396,10 +436,10 @@ function CardRail({
 }
 
 const MEMBER_TINTS = [
-  ["var(--wm-lime-soft)", "var(--wm-ink)"],
-  ["#f6e7c9", "#5a3d07"],
-  ["#dce9f7", "#123b63"],
-  ["#ebddf3", "#472062"],
+  ["var(--wm-ghost)", "var(--wm-ink)"],
+  [vizTint(2), "var(--wm-ink)"],
+  [vizTint(4), "var(--wm-ink)"],
+  [vizTint(3), "var(--wm-ink)"],
   ["var(--wm-card-2)", "var(--wm-ink)"],
 ] as const;
 
@@ -424,7 +464,7 @@ export function WalletCard({
   const router = useRouter();
   const { setTxnOpen } = useShell();
   const { access } = useMyAccess();
-  const { lookFor } = useCardLooks();
+  const { lookFor } = useCardLooks(accounts);
   const ordered = [...accounts].sort(
     (a, b) => Number(b.balance) - Number(a.balance),
   );
@@ -488,7 +528,7 @@ export function WalletCard({
                     : null
                 }
                 holder={account.ownerName ?? ""}
-                balance={fmt.moneyCompact(Number(account.balance))}
+                balance={fmt.money(Number(account.balance))}
               />
             </Link>
           ))}
@@ -570,7 +610,10 @@ export function LimitCard({
     <BentoCard
       className="beranda-limit"
       title={v2.limitTitle}
-      caption={v2.limitCap}
+      caption={v2.limitCap.replace(
+        "{month}",
+        monthName(t.beranda.dateLocale, "long"),
+      )}
       action={
         <GhostButton onClick={() => router.push("/anggaran")}>
           {limit > 0 ? v2.limitEdit : v2.makeBudget}
@@ -648,19 +691,21 @@ export function AttentionTips({
     );
   }
   if (nearestDueLiability) {
-    const due = new Date(
-      (nearestDueLiability.nextDueDate ?? nearestDueLiability.dueDate)!,
-    ).toLocaleDateString(t.beranda.dateLocale, {
-      day: "numeric",
-      month: "short",
-    });
+    const { label: due, overdueDays } = dueInfo(
+      new Date(
+        (nearestDueLiability.nextDueDate ?? nearestDueLiability.dueDate)!,
+      ),
+      new Date(),
+      t.beranda.dateLocale,
+    );
     const progress = installmentProgress(nearestDueLiability);
     return (
       <TipsCard
         className="beranda-tips"
-        title={v2.dueTitle
+        title={(overdueDays > 0 ? v2.dueOverdue : v2.dueTitle)
           .replace("{name}", nearestDueLiability.name)
-          .replace("{date}", due)}
+          .replace("{date}", due)
+          .replace("{days}", String(overdueDays))}
         mosaic={MOSAIC}
         action={more("/liabilitas", v2.openLiabilities)}
       >
@@ -681,31 +726,57 @@ export function AttentionTips({
 
 /* ───────────── allocation · health · goals · history ───────────── */
 
-const SPEND_COLORS = [
-  "var(--wm-lime)",
-  "var(--wm-yellow)",
-  "var(--wm-orange)",
-  "var(--wm-ink)",
-  "#a9d86e",
-  "var(--wm-sky)",
-  "var(--wm-ghost)",
-];
+type SpendRow = { label: string; value: number };
 
-export function SpendingBento({ fmt }: { fmt: MoneyFormatters }) {
+/**
+ * Rows of the spending bento from the API's month-to-date breakdown
+ * (`currentMonth.expenseByCategory`) — the same accumulation that produces
+ * the hero's `currentMonth.expense`, so the rows always sum to it. Top six
+ * named categories, then one "other" row holding the remainder plus every
+ * category-less expense.
+ */
+export function spendRows(
+  breakdown: readonly { categoryName: string | null; amount: number }[],
+  otherLabel: string,
+): SpendRow[] {
+  const named = breakdown
+    .flatMap((item) =>
+      item.categoryName !== null && item.amount > 0
+        ? [{ label: item.categoryName, value: item.amount }]
+        : [],
+    )
+    .sort((a, b) => b.value - a.value);
+  const uncategorized = breakdown
+    .filter((item) => item.categoryName === null)
+    .reduce((sum, item) => sum + item.amount, 0);
+  const top = named.slice(0, 6);
+  const other =
+    named.slice(6).reduce((sum, item) => sum + item.value, 0) + uncategorized;
+  return other > 0 ? [...top, { label: otherLabel, value: other }] : top;
+}
+
+export function SpendingBento({
+  currentMonth,
+  fmt,
+}: {
+  currentMonth: DashboardSummaryDto["currentMonth"] | undefined;
+  fmt: MoneyFormatters;
+}) {
   const { t } = useLocale();
   const v2 = t.beranda.v2;
-  const flow = useBerandaFlow(7);
-  const cats = spendByCategory(flow.month, v2.uncategorized);
-  const total = cats.reduce((sum, cat) => sum + cat.value, 0);
-  const top = cats.slice(0, 6);
-  const rest = cats.slice(6).reduce((sum, cat) => sum + cat.value, 0);
-  const rows =
-    rest > 0 ? [...top, { label: v2.uncategorized, value: rest }] : top;
+  const localeTag = t.beranda.dateLocale;
+  // Headline and rows both come from the dashboard summary's month-to-date
+  // expense (COA direction EXPENSE) — never from a paged transaction list.
+  const total = currentMonth?.expense ?? 0;
+  const rows = spendRows(
+    currentMonth?.expenseByCategory ?? [],
+    v2.uncategorized,
+  );
   return (
     <BentoCard
       className="beranda-spend"
       title={v2.spendTitle}
-      caption={v2.spendCap}
+      caption={v2.spendCap.replace("{month}", monthName(localeTag, "long"))}
     >
       <p className="wm-mid">{fmt.money(total)}</p>
       {total > 0 ? (
@@ -713,21 +784,21 @@ export function SpendingBento({ fmt }: { fmt: MoneyFormatters }) {
           <div className="beranda-segbar" role="img" aria-label={v2.spendTitle}>
             {rows.map((row, index) => (
               <i
-                key={row.label}
+                key={`${row.label}-${index}`}
                 title={row.label}
                 style={{
                   flex: row.value,
-                  background: SPEND_COLORS[index % SPEND_COLORS.length],
+                  background: vizByIndex(index),
                 }}
               />
             ))}
           </div>
           <ul className="beranda-cats">
             {rows.map((row, index) => (
-              <li key={row.label}>
+              <li key={`${row.label}-${index}`}>
                 <i
                   style={{
-                    background: SPEND_COLORS[index % SPEND_COLORS.length],
+                    background: vizByIndex(index),
                   }}
                 />
                 <span className="truncate">{row.label}</span>
@@ -737,11 +808,6 @@ export function SpendingBento({ fmt }: { fmt: MoneyFormatters }) {
               </li>
             ))}
           </ul>
-          {flow.monthTotal > flow.month.length && (
-            <p className="wm-cap mt-auto pt-2">
-              {v2.partial.replace("{n}", String(flow.month.length))}
-            </p>
-          )}
         </>
       ) : (
         <p className="wm-cap mt-3">{v2.noSpend}</p>
@@ -761,8 +827,7 @@ export function HealthBento({ fmt }: { fmt: MoneyFormatters }) {
     <BentoCard
       className="beranda-health"
       title={v2.healthTitle}
-      caption={v2.healthCap}
-      action={<span className="beranda-pill">{v2.days30}</span>}
+      caption={`${v2.healthCap} · ${v2.days30}`}
     >
       <p className="wm-mid">{fmt.money(net)}</p>
       <TickGauge
@@ -809,6 +874,12 @@ export function GoalsBento({
                   { day: "numeric", month: "short", year: "numeric" },
                 )
               : null;
+            const pace = goalPace(goal);
+            const paceLabel = {
+              done: v2.goalPaceDone,
+              onTrack: v2.goalPaceOnTrack,
+              late: v2.goalPaceLate,
+            }[pace];
             return (
               <li key={goal.id}>
                 <button
@@ -822,20 +893,27 @@ export function GoalsBento({
                   <span className="min-w-0">
                     <span className="beranda-goal-t">
                       <b>{goal.name}</b>
-                      <small className="wm-num">
+                      <small
+                        className="wm-num"
+                        title={`${fmt.money(goal.currentAmount)} / ${fmt.money(goal.targetAmount)}`}
+                      >
                         {goalPair(goal.currentAmount, goal.targetAmount)}
                       </small>
                     </span>
                     <Track
                       value={goal.progressPercent}
-                      fill={goal.progressPercent >= 50 ? "lime" : "orange"}
+                      fill={pace === "late" ? "orange" : "lime"}
                     />
                     <small>
+                      <b className="beranda-goal-pace" data-pace={pace}>
+                        {paceLabel}
+                      </b>
+                      {" · "}
                       {[
                         goal.remainingAmount > 0
                           ? v2.goalLeft.replace(
                               "{amount}",
-                              fmt.moneyCompact(goal.remainingAmount),
+                              fmt.money(goal.remainingAmount),
                             )
                           : v2.goalDone,
                         date,
@@ -911,7 +989,7 @@ export function HistoryBento({ fmt }: { fmt: MoneyFormatters }) {
                 amount={
                   <span
                     className={inflow ? "wm-pos" : undefined}
-                  >{`${inflow ? "+" : tx.type === "expense" ? "−" : ""}${fmt.moneyCompact(amount).replace("Rp ", "")}`}</span>
+                  >{`${inflow ? "+" : tx.type === "expense" ? "-" : ""}${fmt.money(amount)}`}</span>
                 }
                 onClick={() => router.push("/transaksi")}
               />

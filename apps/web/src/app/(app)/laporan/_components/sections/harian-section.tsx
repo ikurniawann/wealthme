@@ -1,4 +1,5 @@
 import { BentoCard, BentoTile, BentoTiles } from "@/components/wm";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { DetailReportDto } from "@wealthme/contracts";
@@ -15,7 +16,7 @@ const TX_ICON: Record<string, string> = {
 };
 const TX_ICON_BG: Record<string, string> = {
   income: "#DCFCE7",
-  expense: "#FEF3C7",
+  expense: "color-mix(in srgb, var(--cstrong) 12%, var(--wm-card))",
   transfer: "#DBEAFE",
 };
 
@@ -45,7 +46,7 @@ export function HarianSection({
           value={
             <span
               className="lap-a-kpi-value"
-              style={{ color: "var(--wm-lime)" }}
+              style={{ color: "var(--wm-good)" }}
             >
               {dailyReport ? money.format(dailyReport.totalIncome) : "Rp ·"}
             </span>
@@ -54,10 +55,7 @@ export function HarianSection({
         <BentoTile
           title={t.laporan.harian.expenseTodayLabel}
           value={
-            <span
-              className="lap-a-kpi-value"
-              style={{ color: "var(--wm-orange)" }}
-            >
+            <span className="lap-a-kpi-value" style={{ color: EXPENSE_COLOR }}>
               {dailyReport ? money.format(dailyReport.totalExpense) : "Rp ·"}
             </span>
           }
@@ -68,7 +66,7 @@ export function HarianSection({
             <span
               className="lap-a-kpi-value"
               style={{
-                color: net >= 0 ? "var(--wm-lime)" : "var(--wm-orange)",
+                color: net >= 0 ? "var(--wm-good)" : "var(--wm-bad)",
               }}
             >
               {dailyReport
@@ -107,7 +105,12 @@ export function HarianSection({
                         ? "text-muted-foreground"
                         : isIncome
                           ? "text-success"
-                          : "text-destructive")
+                          : "")
+                    }
+                    style={
+                      !isTransfer && !isIncome
+                        ? { color: EXPENSE_COLOR }
+                        : undefined
                     }
                   >
                     {isTransfer ? "" : isIncome ? "+" : "-"}

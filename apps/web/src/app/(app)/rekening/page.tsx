@@ -48,7 +48,8 @@ import { useMyRole } from "@/hooks/use-my-role";
 import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { parseRupiah } from "@/lib/format";
+import { formatAxisCompact, parseRupiah } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { useMoney } from "@/hooks/use-money";
 
 import type { AccountDto } from "@wealthme/contracts";
@@ -66,15 +67,11 @@ function parseSignedRupiah(value: string | null | undefined): number {
   return isNegative ? -digits : digits;
 }
 
-// Batch 2 (#7) — the indicative USD total below used a bare `toFixed(2)`
-// ("USD 16308.70"), the only un-grouped currency figure on this page while
-// the Rupiah total right next to it goes through `formatRupiah`'s grouped
-// `toLocaleString`. `lib/format.ts` is a protected foundation file, so this
-// page-local helper follows the same "inline instead of touching lib/*"
-// convention as `parseSignedRupiah` above rather than adding a sibling
-// export there.
+// The indicative USD total uses id-ID grouping (period thousands, comma
+// decimal) like every other amount on the page; the "US$" prefix comes from
+// `t.rekening.approxUsdPrefix`.
 function formatUsd(value: number): string {
-  return value.toLocaleString("en-US", {
+  return value.toLocaleString("id-ID", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -104,17 +101,6 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 // like iv (12B/24 hex) + authTag (16B/32 hex) + ciphertext) and hides it — a
 // real masked number ("···9010") never matches this shape.
 const UNDECRYPTED_BLOB_RE = /^[0-9a-f]{24}:[0-9a-f]{32}:[0-9a-f]+$/i;
-/** Axis ticks: "200 jt" / "1,5 M", no currency or decimals. */
-function axisJt(value: number): string {
-  const abs = Math.abs(value);
-  const sign = value < 0 ? "−" : "";
-  const trim = (n: number) =>
-    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  if (abs >= 1e9) return `${sign}${trim(abs / 1e9)} M`;
-  if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
-  if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
-  return `${sign}${Math.round(abs)}`;
-}
 
 function safeMaskedNumber(value: string | null | undefined): string | null {
   if (!value) return null;
@@ -307,9 +293,9 @@ function AccountCardItem({
             : null
         }
         holder={account.type}
-        balance={money
-          .formatBalance(account.balanceHidden ? null : account.rawBalance)
-          .replace(/,00$/, "")}
+        balance={money.formatBalance(
+          account.balanceHidden ? null : account.rawBalance,
+        )}
         badge={
           <span className="rk-card-badges">
             {account.isPrivate && (
@@ -684,22 +670,29 @@ export default function RekeningPage() {
   // EPIC-033 R5 — every account the member owns (bank, cash, e-wallet) is a
   // valid destination for a fund request.
   const { setTxnOpen } = useShell();
-  const { lookFor, setLook } = useCardLooks();
+  const { lookFor, setLook } = useCardLooks(accounts);
   const [customizing, setCustomizing] = useState<AccountCard | null>(null);
   const myAccounts = (accounts ?? []).filter(
     (a) => !!myUserId && a.ownerUserId === myUserId,
   );
 
+  // A split KPI only says something when the family has BOTH shared and
+  // member-owned accounts; with one group it equals the headline total, and
+  // an empty group would read as a real "Rp 0 · 0 rekening".
+  const showSplitKpis = sharedCount > 0 && ownedCount > 0;
+  const showSharedKpi = showSplitKpis && sharedBalance !== totalBalance;
+  const showOwnedKpi = showSplitKpis && ownedBalance !== totalBalance;
+
   return (
     <div className="flex flex-col gap-4">
       <BentoGrid className="rk-grid">
-        <h1 className="sr-only">{t.shell.pageTitles.rekening}</h1>
         <BentoHero
-          className="rk-hero"
+          className={cn(
+            "rk-hero",
+            !(showSharedKpi || showOwnedKpi) && "rk-hero--solo",
+          )}
           currency={null}
-          value={
-            isLoading ? "…" : money.format(totalBalance).replace(/,00$/, "")
-          }
+          value={isLoading ? "…" : money.format(totalBalance)}
           caption={
             <>
               {`${scopedAccounts.length}${t.rekening.accountsConnectedSuffix}`}
@@ -765,64 +758,41 @@ export default function RekeningPage() {
                   0,
                 )}
                 format={money.formatCompact}
-                axis={axisJt}
+                formatFull={money.format}
+                axis={formatAxisCompact}
                 wide
                 ariaLabel={t.rekening.statBankBalanceLabel}
               />
             ) : null
           }
           kpis={
-            <>
-              <HeroKpi
-                label={t.rekening.statBankBalanceLabel}
-                value={money.format(totalBalance).replace(/,00$/, "")}
-                short={money.formatCompact(totalBalance)}
-              />
-              <HeroKpi
-                label={t.rekening.statSharedLabel}
-                value={money.format(sharedBalance).replace(/,00$/, "")}
-                short={money.formatCompact(sharedBalance)}
-                delta={
-                  <small className="wm-cap">{`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}</small>
-                }
-              />
-              <HeroKpi
-                label={t.rekening.statOwnedLabel}
-                value={money.format(ownedBalance).replace(/,00$/, "")}
-                short={money.formatCompact(ownedBalance)}
-                delta={
-                  <small className="wm-cap">{`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}</small>
-                }
-              />
-            </>
+            // A KPI that repeats the headline total adds nothing: drop the
+            // "Saldo Bank" trio head and any split that equals the total.
+            showSharedKpi || showOwnedKpi ? (
+              <>
+                {showSharedKpi && (
+                  <HeroKpi
+                    label={t.rekening.statSharedLabel}
+                    value={money.format(sharedBalance)}
+                    delta={
+                      <small className="wm-cap">{`${sharedCount}${t.rekening.statSharedDeltaSuffix}`}</small>
+                    }
+                  />
+                )}
+                {showOwnedKpi && (
+                  <HeroKpi
+                    label={t.rekening.statOwnedLabel}
+                    value={money.format(ownedBalance)}
+                    delta={
+                      <small className="wm-cap">{`${ownedCount}${t.rekening.statOwnedDeltaSuffix}`}</small>
+                    }
+                  />
+                )}
+              </>
+            ) : undefined
           }
         />
-        <BentoCard
-          className="rk-deck"
-          title={t.rekening.v2.cardsTitle}
-          caption={`${visibleAccounts.length}${t.rekening.accountsConnectedSuffix}`}
-        >
-          {visibleAccounts.length > 0 && (
-            <div className="wm-pcards rk-pcards">
-              {visibleAccounts.map((account) => (
-                <AccountCard
-                  key={account.id}
-                  decorative
-                  className="rk-deck-card"
-                  look={lookFor(account.id, account.type)}
-                  bank={account.institution ?? account.name}
-                  name={account.name}
-                  number={safeMaskedNumber(account.maskedNumber)}
-                  holder={
-                    account.isPrivate
-                      ? t.rekening.privateBadge
-                      : (account.ownerName ?? "")
-                  }
-                  balance={money.formatBalance(account.balance, true)}
-                />
-              ))}
-            </div>
-          )}
+        <BentoCard className="rk-deck" title={t.rekening.v2.quickTitle}>
           <div className="rk-qa">
             <button type="button" onClick={() => setTxnOpen(true)}>
               <span>
@@ -870,7 +840,7 @@ export default function RekeningPage() {
           {canManage && (
             <button
               type="button"
-              className="font-semibold text-primary"
+              className="font-semibold text-primary-strong hover:underline"
               onClick={openAdd}
             >
               {t.rekening.addNowButton}
@@ -950,9 +920,7 @@ export default function RekeningPage() {
                 bank: customizing.institution ?? customizing.logo,
                 number: customizing.rawMaskedNumber,
                 holder: customizing.type,
-                balance: money
-                  .format(customizing.rawBalance)
-                  .replace(/,00$/, ""),
+                balance: money.format(customizing.rawBalance),
               }
             : null
         }

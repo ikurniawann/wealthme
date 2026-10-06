@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, ShieldCheck, SlidersHorizontal, UserCog } from "lucide-react";
+import {
+  ChevronDown,
+  Plus,
+  ShieldCheck,
+  SlidersHorizontal,
+  UserCog,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AccessRoleResponse } from "@wealthme/contracts";
@@ -82,6 +88,7 @@ export default function IamRolesPage() {
   const token = session?.accessToken;
   const familyGroupId = session?.familyGroupId ?? null;
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [heroMore, setHeroMore] = useState(false);
   const [handleEditorOpen, setHandleEditorOpen] = useState(false);
   const familyHandle = useFamilyHandle(familyGroupId, token);
 
@@ -208,8 +215,7 @@ export default function IamRolesPage() {
   return (
     <BentoGrid className="iam-grid">
       <BentoHero
-        className="iam-hero"
-        valueAs="h1"
+        className={heroMore ? "iam-hero iam-hero--more" : "iam-hero"}
         currency={null}
         value={memberCount}
         caption={v2.heroCap}
@@ -249,6 +255,17 @@ export default function IamRolesPage() {
             <HeroKpi label={v2.kpiMaster} value={1} />
             <HeroKpi label={v2.kpiManaged} value={managedCount} />
             <HeroKpi label={v2.kpiCustom} value={customCount} />
+            {chartMembers.length > 0 && (
+              <button
+                type="button"
+                className="iam-hero-more"
+                aria-expanded={heroMore}
+                onClick={() => setHeroMore((open) => !open)}
+              >
+                {heroMore ? t.transaksi.v2.heroLess : t.transaksi.v2.heroMore}
+                <ChevronDown aria-hidden="true" />
+              </button>
+            )}
           </>
         }
       />

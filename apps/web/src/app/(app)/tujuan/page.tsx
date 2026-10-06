@@ -124,7 +124,7 @@ function GoalTile({ goal, onOpenDetail }: GoalTileProps) {
 
   const metaLine =
     goal.remainingAmount > 0
-      ? `${money.formatCompact(goal.remainingAmount)}${t.tujuan.remainingAmountSuffix}`
+      ? `${money.format(goal.remainingAmount)}${t.tujuan.remainingAmountSuffix}`
       : t.tujuan.collectedSuffix.trim();
   const dateLine = goal.targetDate
     ? formatTargetDate(goal.targetDate, t, locale).replace(
@@ -403,14 +403,10 @@ export default function TujuanPage() {
 
   return (
     <BentoGrid className="tj-grid">
-      <h1 className="sr-only">{t.shell.pageTitles.tujuan}</h1>
-
       <BentoHero
         className="tj-hero"
         currency={null}
-        value={
-          isLoading ? "…" : money.format(totalAllocated).replace(/,00$/, "")
-        }
+        value={isLoading ? "…" : money.format(totalAllocated)}
         caption={
           isLoading
             ? "…"
@@ -455,6 +451,7 @@ export default function TujuanPage() {
               ]}
               highlight={lowestIndex}
               format={money.formatCompact}
+              formatFull={money.format}
               wide
               ariaLabel={t.tujuan.v2.legendSaved}
             />
@@ -485,7 +482,7 @@ export default function TujuanPage() {
                     icon={<GoalIcon icon={g.icon} name={g.name} size={16} />}
                     title={`${g.name} ${g.progressPercent}%`}
                     meta={`${g.progressPercent}% · ${t.tujuan.statusLabels[g.status]}`}
-                    amount={money.formatCompact(g.remainingAmount)}
+                    amount={money.format(g.remainingAmount)}
                   />
                 </MiniList>
                 <Track value={g.progressPercent} fill={goalTone(g.status)} />
@@ -568,7 +565,7 @@ export default function TujuanPage() {
           tone={goalTone(detailGoal.status)}
           metaLine={
             detailGoal.remainingAmount > 0
-              ? `${money.formatCompact(detailGoal.remainingAmount)}${t.tujuan.remainingAmountSuffix}`
+              ? `${money.format(detailGoal.remainingAmount)}${t.tujuan.remainingAmountSuffix}`
               : t.tujuan.collectedSuffix.trim()
           }
           dateLine={

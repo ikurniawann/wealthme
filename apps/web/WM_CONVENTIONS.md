@@ -9,6 +9,7 @@ Stack & foundation are already built. You ONLY create page files (and page-local
 Each demo page `id="page-XYZ"` becomes `src/app/(app)/XYZ/page.tsx` with a default export.
 Add `"use client";` at the very top of every page (these are interactive).
 The route group `(app)` already provides the sidebar/topbar/mobile shell + page padding, so your page renders ONLY the inner content (what was inside `<div class="page" id="page-XYZ">`). Do NOT add sidebars, topbars, page titles, or outer padding — start directly with the page's content. Wrap multi-section pages in a `<div className="space-y-4">`.
+The shell's `PageGreeting` owns the page's one `<h1>` (visible on phones, visually hidden above 720px). Pages never render an `<h1>` of their own: hero values are `<p class="wm-big">` (`BentoHero`), headlines are `<p>`, section titles start at `<h2>`.
 
 ## Language & fidelity
 

@@ -7,7 +7,6 @@
 export const PRIVACY_PREF_KEYS = [
   // Pengaturan / data section
   "hideBalance",
-  "showDecimal",
   "weeklySummary",
   // Privasi tab
   "hideFromFamily",
@@ -23,7 +22,6 @@ export type PrivacyPrefs = Record<PrivacyPrefKey, boolean>;
 // column doesn't change any existing user's perceived default.
 export const DEFAULT_PRIVACY_PREFS: PrivacyPrefs = {
   hideBalance: false,
-  showDecimal: true,
   weeklySummary: true,
   hideFromFamily: false,
   screenshotProtect: true,

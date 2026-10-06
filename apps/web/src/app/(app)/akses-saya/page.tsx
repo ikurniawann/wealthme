@@ -128,7 +128,6 @@ export default function MyAccessPage() {
 
   return (
     <BentoGrid className="as-grid">
-      <h1 className="sr-only">{t.shell.pageTitles["akses-saya"]}</h1>
       <BentoHero
         className="as-hero"
         currency={null}

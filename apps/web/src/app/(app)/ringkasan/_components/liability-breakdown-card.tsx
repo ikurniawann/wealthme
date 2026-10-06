@@ -4,7 +4,7 @@
 // `/liabilities` list `/liabilitas` already fetches. Maps onto the
 // prototype's `.r-liab` ("Liabilitas terbesar") bento card, placed alongside
 // the health-score card per `ringkasan.html`'s grid. `drawLiabilities()`
-// renders `#liabBars` as an `.hbars` list (name, amount in red, a thin red
+// renders `#liabBars` as an `.hbars` list (name, amount, a thin ink
 // track bar sized off the largest liability) — not an Apex hbar chart.
 
 import { BentoCard, Track } from "@/components/wm";
@@ -34,13 +34,13 @@ export function LiabilityBreakdownCard({ data }: { data: RingkasanData }) {
               <div key={l.id}>
                 <div className="row row--between">
                   <span className="t-xs t-bold truncate">{l.name}</span>
-                  <span className="t-xs t-danger mono shrink-0">
+                  <span className="t-xs mono shrink-0">
                     {moneyFull(amount)}
                   </span>
                 </div>
                 <Track
                   value={maxAmount > 0 ? (amount / maxAmount) * 100 : 0}
-                  fill="bad"
+                  fill="ink"
                   className="mt-[5px]"
                 />
               </div>

@@ -29,6 +29,7 @@ import { useState } from "react";
 import "./ringkasan.css";
 
 import { useSession } from "@/lib/auth-compat";
+import { localIsoDate } from "@/lib/local-date";
 import { useLocale } from "@/hooks/use-locale";
 import { BentoGrid } from "@/components/wm";
 
@@ -60,8 +61,8 @@ export default function RingkasanPage() {
     const to = new Date();
     const from = new Date(to.getFullYear(), to.getMonth() - 3, to.getDate());
     return {
-      from: from.toISOString().slice(0, 10),
-      to: to.toISOString().slice(0, 10),
+      from: localIsoDate(from),
+      to: localIsoDate(to),
     };
   });
   const [displayCurrency, setDisplayCurrency] =

@@ -58,7 +58,7 @@ export function WealthSnapshot({
                 {t.beranda.liquidAssets} ({liquidPct}%)
               </span>
               <span className="snapshot-row__value mono">
-                {fmt.moneyCompact(liquidTotal)}
+                {fmt.money(liquidTotal)}
               </span>
             </span>
             <StatusBadge variant="success">
@@ -82,7 +82,7 @@ export function WealthSnapshot({
                 {t.beranda.nonLiquidAssets} ({nonLiquidPct}%)
               </span>
               <span className="snapshot-row__value mono">
-                {fmt.moneyCompact(nonLiquidTotal)}
+                {fmt.money(nonLiquidTotal)}
               </span>
             </span>
             <StatusBadge variant="purple">

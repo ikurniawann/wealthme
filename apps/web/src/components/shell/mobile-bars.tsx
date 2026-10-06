@@ -147,6 +147,11 @@ export function MobileNav() {
                   ) : (
                     <Menu aria-hidden="true" />
                   )}
+                  {active && (
+                    <span className="wm-dock-label" aria-hidden="true">
+                      {t.shell.hubs.menu}
+                    </span>
+                  )}
                 </span>
               </button>
             );
@@ -179,6 +184,11 @@ export function MobileNav() {
                 transition={{ type: "spring", stiffness: 520, damping: 14 }}
               >
                 <Icon aria-hidden="true" />
+                {active && (
+                  <span className="wm-dock-label" aria-hidden="true">
+                    {label}
+                  </span>
+                )}
               </motion.span>
             </Link>
           );

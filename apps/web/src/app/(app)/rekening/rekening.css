@@ -10,6 +10,10 @@
       grid-row: 1;
     }
   }
+  /* No KPI column when every split would just repeat the headline total. */
+  .wm-hero.rk-hero--solo {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .rk-hero .wm-ghost-btn svg {
     width: 14px;
     height: 14px;
@@ -17,11 +21,6 @@
   .rk-hero .wm-kpi .wm-cap {
     display: block;
     margin-top: 2px;
-  }
-  .rk-pcards .wm-pcard {
-    width: 100%;
-    max-width: none;
-    scroll-snap-align: center;
   }
   .rk-qa {
     display: grid;
@@ -92,7 +91,7 @@
     transform: translateY(-3px) rotate(-0.4deg);
   }
   .rk-card[data-mine] .wm-plate {
-    outline: 2px solid var(--wm-lime);
+    outline: 2px solid color-mix(in srgb, var(--wm-ink) 32%, transparent);
     outline-offset: 3px;
   }
   .rk-card-badges {
@@ -122,16 +121,14 @@
     cursor: pointer;
   }
   .rk-card-btn[data-lit] {
-    border-color: var(--wm-lime);
-    background: var(--wm-lime);
-    color: var(--wm-lime-ink);
+    border-color: var(--primary-strong);
+    color: var(--primary-strong);
   }
   .rk-card-btn:hover {
     background: var(--wm-card-2);
   }
   .rk-card-btn[data-lit]:hover {
-    filter: brightness(1.04);
-    background: var(--wm-lime);
+    background: var(--wm-card-2);
   }
   .rk-card-btn svg,
   .rk-card-icon svg {
@@ -153,6 +150,15 @@
   .rk-card-icon:hover {
     background: var(--wm-card-2);
   }
+  @media (max-width: 720px) {
+    .rk-card-btn {
+      min-height: 44px;
+    }
+    .rk-card-icon {
+      width: 44px;
+      height: 44px;
+    }
+  }
   .rk-add {
     display: flex;
     flex-direction: column;
@@ -169,16 +175,14 @@
     cursor: pointer;
   }
   .rk-add:hover {
-    border-color: var(--wm-lime);
+    border-color: var(--primary-strong);
     color: var(--wm-ink);
   }
   .rk-add svg {
     width: 22px;
     height: 22px;
   }
-  .rk-deck-card {
-    flex: none;
-    width: 100%;
-    scroll-snap-align: center;
+  .rk-grid > .rk-deck {
+    align-self: start;
   }
 }

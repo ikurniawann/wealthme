@@ -1,9 +1,12 @@
+import { useMemo } from "react";
 import { BentoCard, MiniList, MiniRow } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ReportSummaryDto } from "@wealthme/contracts";
-import { categoryBreakdownToDonut } from "@/lib/laporan-utils";
+import { likeForLikeWindow } from "@/lib/laporan-period";
+import { EXPENSE_COLOR, INCOME_COLOR, vizByIndex } from "@/lib/viz-colors";
 import { BarRow, ChgBadge } from "../atoms";
+import { usePriorWindowTotals } from "@/hooks/use-prior-window-totals";
 import "./sections-a.css";
 
 /* ───────────────────────── Section: Ringkasan ───────────────────────── */
@@ -21,22 +24,23 @@ import "./sections-a.css";
 export function RingkasanSection({
   summary,
   isLoading,
+  familyGroupId,
+  token,
+  anchorEnd,
 }: {
   summary?: ReportSummaryDto;
   isLoading?: boolean;
+  familyGroupId: string;
+  token: string | undefined;
+  /** ISO end instant the summary is anchored on (the last point's month). */
+  anchorEnd: string;
 }) {
   const { t } = useLocale();
   const money = useMoney();
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
 
-  // Same segments/colors `expenseDonut` used to feed the (now-removed)
-  // donut card — reused here only for a stable color per category name.
-  const expenseDonut = summary
-    ? categoryBreakdownToDonut(summary.topExpenseCategories)
-    : [];
-  const colorByCategory = new Map(
-    expenseDonut.map((seg) => [seg.label, seg.color]),
-  );
+  // Ranked bars take the shared brand palette by rank (the API's per-category
+  // color is a free-form user hex that sits outside it).
   const rankedExpenses = summary
     ? [...summary.topExpenseCategories]
         .filter((item) => item.amount > 0)
@@ -61,22 +65,59 @@ export function RingkasanSection({
     latestWithDataIndex >= 0 ? points[latestWithDataIndex] : undefined;
   const previousPoint =
     latestWithDataIndex > 0 ? points[latestWithDataIndex - 1] : undefined;
-  const incomeDeltaPct =
-    currentPoint && previousPoint && previousPoint.income > 0
-      ? ((currentPoint.income - previousPoint.income) / previousPoint.income) *
-        100
+  // While the latest month is still running, compare it with the SAME
+  // day-of-month window of the prior month (1–6 Okt vs 1–6 Sep), not a full
+  // prior month. If that window is not available (loading / failed), say so
+  // ("Sep penuh") and show no percentage rather than a misleading one.
+  const nowRef = useMemo(() => new Date(), []);
+  const likeWindow =
+    currentPoint && previousPoint
+      ? likeForLikeWindow({
+          anchorEnd,
+          pointCount: points.length,
+          pointIndex: latestWithDataIndex,
+          now: nowRef,
+        })
       : null;
-  const expenseDeltaPct =
-    currentPoint && previousPoint && previousPoint.expense > 0
-      ? ((currentPoint.expense - previousPoint.expense) /
-          previousPoint.expense) *
-        100
-      : null;
-  const savingsDeltaPct =
-    currentPoint && previousPoint && previousPoint.net !== 0
-      ? ((currentPoint.net - previousPoint.net) / Math.abs(previousPoint.net)) *
-        100
-      : null;
+  const priorWindow = usePriorWindowTotals({
+    familyGroupId,
+    token,
+    window: likeWindow,
+  });
+  const base = likeWindow ? priorWindow : previousPoint;
+  const currentTag =
+    currentPoint && likeWindow
+      ? `1–${likeWindow.cutoffDay} ${currentPoint.label}`
+      : currentPoint?.label;
+  const previousTag = previousPoint
+    ? likeWindow
+      ? priorWindow
+        ? `1–${likeWindow.priorCutoffDay} ${previousPoint.label}`
+        : `${previousPoint.label} ${t.laporan.ringkasan.comparedFullMonthSuffix}`
+      : previousPoint.label
+    : undefined;
+  // Direction is the arrow; valence is colour + sr-only text (lib/delta.ts):
+  // spending that fell is a ↓ in the good colour.
+  const compareRows = [
+    {
+      key: "income",
+      title: t.laporan.v2.income,
+      color: INCOME_COLOR,
+      polarity: "higher-better",
+    },
+    {
+      key: "expense",
+      title: t.laporan.v2.expense,
+      color: EXPENSE_COLOR,
+      polarity: "lower-better",
+    },
+    {
+      key: "net",
+      title: t.laporan.v2.saved,
+      color: "var(--primary)",
+      polarity: "higher-better",
+    },
+  ] as const;
 
   return (
     <div className={"grid grid-cols-1 gap-3.5 lg:grid-cols-12 " + loadingClass}>
@@ -84,19 +125,17 @@ export function RingkasanSection({
         <BentoCard title={t.laporan.ringkasan.whereMoneyGoesTitle}>
           {rankedExpenses.length > 0 ? (
             <div className="flex flex-col gap-1">
-              {rankedExpenses.map((item) => (
+              {rankedExpenses.map((item, index) => (
                 <BarRow
                   key={item.categoryName}
                   label={item.categoryName}
-                  right={money.formatCompact(item.amount)}
+                  right={money.format(item.amount)}
                   value={
                     maxExpenseAmount > 0
                       ? Math.round((item.amount / maxExpenseAmount) * 100)
                       : 0
                   }
-                  color={
-                    colorByCategory.get(item.categoryName) ?? "var(--primary)"
-                  }
+                  color={vizByIndex(index)}
                 />
               ))}
             </div>
@@ -111,55 +150,51 @@ export function RingkasanSection({
         <BentoCard title={t.laporan.ringkasan.comparedLastMonthTitle}>
           {currentPoint && previousPoint ? (
             <>
-              <p className="mb-1 text-[11px] text-muted-foreground">
-                {currentPoint.label} {t.laporan.ringkasan.statVsPrefix}{" "}
-                {previousPoint.label}
+              <p className="lap-a-cmp-note">
+                {currentTag} {t.laporan.ringkasan.statVsPrefix} {previousTag}
               </p>
-              <MiniList label={t.laporan.ringkasan.comparedLastMonthTitle}>
-                <MiniRow
-                  icon={
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ background: "var(--wm-lime)" }}
-                      aria-hidden="true"
-                    />
-                  }
-                  title={t.laporan.v2.income}
-                  meta={`${previousPoint.label}: ${money.format(previousPoint.income)}`}
-                  amount={money.format(currentPoint.income)}
-                />
-                <MiniRow
-                  icon={
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ background: "var(--wm-orange)" }}
-                      aria-hidden="true"
-                    />
-                  }
-                  title={t.laporan.v2.expense}
-                  meta={`${previousPoint.label}: ${money.format(previousPoint.expense)}`}
-                  amount={money.format(currentPoint.expense)}
-                />
-                <MiniRow
-                  icon={
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ background: "var(--primary)" }}
-                      aria-hidden="true"
-                    />
-                  }
-                  title={t.laporan.v2.saved}
-                  meta={`${previousPoint.label}: ${money.format(previousPoint.net)}`}
-                  amount={money.format(currentPoint.net)}
-                />
+              <MiniList
+                className="lap-a-cmp"
+                label={t.laporan.ringkasan.comparedLastMonthTitle}
+              >
+                {compareRows.map((row) => (
+                  <MiniRow
+                    key={row.key}
+                    icon={
+                      <span
+                        className="size-2.5 rounded-full"
+                        style={{ background: row.color }}
+                        aria-hidden="true"
+                      />
+                    }
+                    title={row.title}
+                    meta={
+                      <>
+                        {previousTag}:{" "}
+                        <span className="wm-amt">
+                          {money.format(
+                            (priorWindow && likeWindow
+                              ? priorWindow
+                              : previousPoint)[row.key],
+                          )}
+                        </span>
+                      </>
+                    }
+                    amount={
+                      <span className="lap-a-cmp-amt">
+                        <span>{money.format(currentPoint[row.key])}</span>
+                        {base && (
+                          <ChgBadge
+                            previous={base[row.key]}
+                            current={currentPoint[row.key]}
+                            polarity={row.polarity}
+                          />
+                        )}
+                      </span>
+                    }
+                  />
+                ))}
               </MiniList>
-              <div className="mt-2.5 flex flex-wrap gap-2">
-                {incomeDeltaPct !== null && <ChgBadge pct={incomeDeltaPct} />}
-                {expenseDeltaPct !== null && (
-                  <ChgBadge pct={-expenseDeltaPct} />
-                )}
-                {savingsDeltaPct !== null && <ChgBadge pct={savingsDeltaPct} />}
-              </div>
             </>
           ) : (
             <div className="lap-a-empty">

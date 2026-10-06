@@ -214,7 +214,6 @@ export default function PersetujuanPage() {
 
   return (
     <BentoGrid className="ps-grid">
-      <h1 className="sr-only">{t.shell.pageTitles.persetujuan}</h1>
       <BentoHero
         className="ps-hero"
         currency={null}

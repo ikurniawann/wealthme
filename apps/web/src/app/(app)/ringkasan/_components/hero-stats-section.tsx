@@ -14,7 +14,8 @@ import { StatusBadge } from "@/components/wm/badge";
 import { HatchedAreaChart } from "@/components/charts/bento-charts";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { apiFetch } from "@/lib/api-client";
-import { formatRupiah } from "@/lib/format";
+import { formatAxisCompact, formatRupiah } from "@/lib/format";
+import { DELTA_ARROW, deltaSrText, deltaTone } from "@/lib/delta";
 import type { RingkasanData } from "./use-ringkasan-data";
 import {
   formatInDisplayCurrency,
@@ -25,17 +26,6 @@ import type { TrendCustomRange, TrendRangeKey } from "./use-ringkasan-data";
 import { formatGoldGrams } from "@/components/consolidated-total-card";
 
 type FxRatesResponse = { base: string; rates: Record<string, number> };
-
-/** Axis ticks without currency: "12 jt", "1,5 M". */
-function compactAxis(value: number): string {
-  const abs = Math.abs(value);
-  const trim = (n: number) =>
-    n.toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  if (abs >= 1e9) return `${trim(value / 1e9)} M`;
-  if (abs >= 1e6) return `${trim(value / 1e6)} jt`;
-  if (abs >= 1e3) return `${trim(value / 1e3)} rb`;
-  return String(Math.round(value));
-}
 
 export function HeroStatsSection({
   data,
@@ -74,12 +64,15 @@ export function HeroStatsSection({
   const {
     isLoading,
     isNetWorthLoading,
-    money: moneyIdr,
+    // Headline/KPI figures are always full ("Rp 1.967.216.000"); compact is
+    // reserved for chart axes (see format.ts number-format policy).
+    moneyFull: moneyIdr,
     netWorth,
     monthNet,
     totalAssets,
     totalLiabilities,
     savingsRate,
+    savingsWindowLabel,
     monthExpense,
     accountTypeCount,
   } = data;
@@ -91,6 +84,16 @@ export function HeroStatsSection({
     });
 
   const trend = data.netWorthTrendValues;
+  const hasTrend = trend.filter((v) => v !== 0).length >= 2;
+  // No trend yet → Aset vs Liabilitas composition from the same totals the KPI
+  // column shows (no fabricated history).
+  const compAssets = Math.max(0, totalAssets);
+  const compLiabilities = Math.max(0, totalLiabilities);
+  const compTotal = compAssets + compLiabilities;
+  const compPct = (v: number) =>
+    v > 0 && v / compTotal < 0.01
+      ? "<1%"
+      : `${Math.round((v / compTotal) * 100)}%`;
   // Prototype `#multiCur` — indicative USD + gold-gram equivalent of the net
   // worth, always shown under the delta pill regardless of `displayCurrency`.
   const multiCur =
@@ -107,16 +110,32 @@ export function HeroStatsSection({
       caption={
         <span className="private rk2-hero-cap">
           <span>{t.ringkasan.totalNetWorthLabel}</span>
-          {!isLoading && (
-            <StatusBadge
-              variant={monthNet >= 0 ? "success" : "danger"}
-              className="rk2-hero-delta"
-            >
-              {monthNet >= 0
-                ? `${t.ringkasan.monthDeltaUpPrefix}${money(monthNet)}${t.ringkasan.monthDeltaSuffix}`
-                : `${t.ringkasan.monthDeltaDownPrefix}${money(Math.abs(monthNet))}${t.ringkasan.monthDeltaSuffix}`}
-            </StatusBadge>
-          )}
+          {!isLoading &&
+            (() => {
+              // Shared delta rule (lib/delta.ts): arrow = direction of the
+              // month's net change, colour + sr-only text = valence.
+              const dir = monthNet > 0 ? "up" : monthNet < 0 ? "down" : "flat";
+              const tone = deltaTone(dir);
+              return (
+                <StatusBadge
+                  variant={
+                    tone === "good"
+                      ? "success"
+                      : tone === "bad"
+                        ? "danger"
+                        : "gray"
+                  }
+                  className="rk2-hero-delta"
+                >
+                  <span aria-hidden="true">{DELTA_ARROW[dir]} </span>
+                  {money(Math.abs(monthNet))}
+                  {t.ringkasan.monthDeltaSuffix}
+                  <span className="sr-only">
+                    , {deltaSrText(dir, tone, t.common.delta)}
+                  </span>
+                </StatusBadge>
+              );
+            })()}
           {multiCur && <span className="rk2-hero-multicur">{multiCur}</span>}
         </span>
       }
@@ -130,22 +149,63 @@ export function HeroStatsSection({
           onDisplayCurrencyChange={onDisplayCurrencyChange}
           privacyOn={privacyOn}
           onTogglePrivacy={onTogglePrivacy}
+          // The range select only drives the trend. While no trend is drawn
+          // on the default window it would change nothing; any other window
+          // keeps it so the user can get back out.
+          showTrendRange={hasTrend || trendRange !== "12m"}
         />
       }
       chart={
-        trend.length >= 2 ? (
+        hasTrend ? (
           <div className="private wm-chart-fill">
             <HatchedAreaChart
               labels={data.netWorthTrendCategories}
               values={trend}
               format={(v) => money(v)}
-              axis={compactAxis}
+              axis={formatAxisCompact}
               floor={Math.min(0, ...trend)}
               ariaLabel={data.netWorthTrendAriaLabel}
             />
           </div>
         ) : (
-          <p className="wm-cap">{data.netWorthTrendAriaLabel}</p>
+          <div className="rk2-mix" role="status">
+            {!isLoading && !isNetWorthLoading && compTotal > 0 && (
+              <div className="rk2-mix-viz private">
+                <div
+                  className="rk2-mix-bar"
+                  role="img"
+                  aria-label={`${t.ringkasan.totalAssetsLabel} ${money(totalAssets)}, ${t.ringkasan.totalLiabilitiesLabel} ${money(totalLiabilities)}`}
+                >
+                  <span
+                    className="rk2-mix-seg rk2-mix-seg--asset"
+                    style={{ flexGrow: compAssets }}
+                    title={money(totalAssets)}
+                  />
+                  {compLiabilities > 0 && (
+                    <span
+                      className="rk2-mix-seg rk2-mix-seg--liab"
+                      style={{ flexGrow: compLiabilities }}
+                      title={money(totalLiabilities)}
+                    />
+                  )}
+                </div>
+                <div className="rk2-mix-legend" aria-hidden="true">
+                  <span title={money(totalAssets)}>
+                    <i className="rk2-mix-dot rk2-mix-dot--asset" />
+                    {t.ringkasan.totalAssetsLabel} {compPct(compAssets)}
+                  </span>
+                  <span title={money(totalLiabilities)}>
+                    <i className="rk2-mix-dot rk2-mix-dot--liab" />
+                    {t.ringkasan.totalLiabilitiesLabel}{" "}
+                    {compPct(compLiabilities)}
+                  </span>
+                </div>
+              </div>
+            )}
+            <p className="wm-cap">
+              {isNetWorthLoading ? "..." : t.ringkasan.emptyNetWorthTrend}
+            </p>
+          </div>
         )
       }
       kpis={
@@ -181,7 +241,7 @@ export function HeroStatsSection({
             }
           />
           <HeroKpi
-            label={t.ringkasan.savingsRateLabel}
+            label={`${t.ringkasan.savingsRateLabel} · ${savingsWindowLabel}`}
             value={isLoading ? "..." : `${savingsRate}%`}
             delta={
               <small className="wm-cap private">

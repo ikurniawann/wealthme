@@ -11,6 +11,7 @@ import type {
   Pph21ResultDto,
   ReportSummaryDto,
 } from "@wealthme/contracts";
+import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import type { ReportTabId } from "@/lib/nav";
 import type { I18nDictionary } from "@/i18n/types";
 
@@ -34,7 +35,8 @@ type Legend = { label: string; value: string; color: string };
 type Cover = { headline: ReactNode; legend: Legend[] };
 
 const LIME = "var(--wm-lime)";
-const ORANGE = "var(--wm-orange)";
+/** Expense on the hero's bar chart: same tone on every page. */
+const EXPENSE = EXPENSE_COLOR;
 const INK = "#eef0e8";
 const MUTED = "rgb(238 240 232 / 0.62)";
 
@@ -74,7 +76,7 @@ export function coverFor(
     if (!s) return null;
     const legend = [
       { label: v.income, value: money(s.totalIncome ?? 0), color: LIME },
-      { label: v.expense, value: money(s.totalExpense ?? 0), color: ORANGE },
+      { label: v.expense, value: money(s.totalExpense ?? 0), color: EXPENSE },
       { label: v.saved, value: money(s.netSavings ?? 0), color: INK },
     ];
     if ((s.netSavings ?? 0) < 0)
@@ -112,7 +114,7 @@ export function coverFor(
       if (p) {
         const legend = [
           { label: v.income, value: money(p.income), color: LIME },
-          { label: v.expense, value: money(p.expense), color: ORANGE },
+          { label: v.expense, value: money(p.expense), color: EXPENSE },
           { label: v.saved, value: money(p.net), color: INK },
         ];
         cover = {
@@ -156,7 +158,7 @@ export function coverFor(
                   {
                     label: v.expense,
                     value: money(daily.totalExpense),
-                    color: ORANGE,
+                    color: EXPENSE,
                   },
                 ],
               }
@@ -207,7 +209,7 @@ export function coverFor(
               {
                 label: v.expense,
                 value: money(d.summary.totalExpense ?? 0),
-                color: ORANGE,
+                color: EXPENSE,
               },
             ],
           }
@@ -225,7 +227,7 @@ export function coverFor(
           ),
           legend: [
             { label: v.income, value: money(b.totalIncome), color: LIME },
-            { label: v.expense, value: money(b.totalExpense), color: ORANGE },
+            { label: v.expense, value: money(b.totalExpense), color: EXPENSE },
           ],
         };
       }
@@ -244,7 +246,7 @@ export function coverFor(
               {
                 label: v.expense,
                 value: money(d.detail.totalExpense),
-                color: ORANGE,
+                color: EXPENSE,
               },
             ],
           }
@@ -260,7 +262,11 @@ export function coverFor(
             ),
             legend: [
               { label: v.income, value: money(d.pnl.revenue), color: LIME },
-              { label: v.expense, value: money(d.pnl.expenses), color: ORANGE },
+              {
+                label: v.expense,
+                value: money(d.pnl.expenses),
+                color: EXPENSE,
+              },
             ],
           }
         : null;
@@ -304,7 +310,7 @@ export function coverFor(
               {
                 label: v.expense,
                 value: money(d.summary.totalExpense ?? 0),
-                color: ORANGE,
+                color: EXPENSE,
               },
             ],
           }
@@ -328,7 +334,7 @@ export function coverFor(
               {
                 label: v.liabilities,
                 value: money(d.balance.totalLiabilities),
-                color: ORANGE,
+                color: EXPENSE,
               },
               { label: v.net, value: money(d.balance.netWorth), color: INK },
             ],
@@ -346,7 +352,7 @@ export function coverFor(
             { label: v.cost, value: money(cost), color: MUTED },
             {
               label: v.gain,
-              value: `${value >= cost ? "+" : "−"}${money(Math.abs(value - cost))}`,
+              value: `${value >= cost ? "+" : "-"}${money(Math.abs(value - cost))}`,
               color: LIME,
             },
           ],

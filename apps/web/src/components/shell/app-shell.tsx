@@ -41,6 +41,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           launcher must read/write the SAME conversation. */}
       <AiChatProvider>
         <div className="wm-app" data-rail={rail || undefined}>
+          <a href="#main-content" className="skip-link">
+            Lewati ke konten
+          </a>
           <Suspense fallback={null}>
             <SidebarNav rail={rail} onToggle={toggle} />
           </Suspense>
@@ -50,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Topbar />
               <PageGreeting />
             </Suspense>
-            <main className="page" id="main-content">
+            <main className="page" id="main-content" tabIndex={-1}>
               {children}
             </main>
           </div>

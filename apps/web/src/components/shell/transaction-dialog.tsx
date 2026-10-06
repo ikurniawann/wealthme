@@ -3,13 +3,25 @@
 import {
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
   type ChangeEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import Link from "next/link";
-import { Camera, Check, Paperclip, RotateCcw, Upload } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowLeftRight,
+  ArrowUpRight,
+  Camera,
+  Check,
+  CreditCard,
+  Paperclip,
+  RotateCcw,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,12 +33,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import {
-  formatAmountInput,
-  formatRupiah,
-  formatRupiahCompact,
-  parseRupiah,
-} from "@/lib/format";
+import { formatAmountInput, formatRupiah, parseRupiah } from "@/lib/format";
 import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
@@ -36,6 +43,11 @@ import {
   AmountHero,
   categoryIcon,
   ChoiceTiles,
+  emptyTxnMemory,
+  focusChoiceTiles,
+  readTxnMemory,
+  recordTxnUsage,
+  sortByUsage,
   type Choice,
 } from "./tx-pickers";
 import { useAiKeyStatus } from "@/hooks/use-ai-key";
@@ -66,6 +78,7 @@ import {
 } from "@wealthme/contracts";
 import { moneyIdr, useMoneyField, withFxInputs } from "@/components/money";
 import { useShell } from "./shell-context";
+import { localIsoDate } from "@/lib/local-date";
 
 // EPIC-023 Task E3/E4 (D12/D13) — reviewed foundation exception (this file
 // is protected per WM_CONVENTIONS.md; see the precedent comment below at
@@ -176,6 +189,15 @@ function extractApiErrorMessage(err: unknown, fallback: string): string {
 
 type View = "form" | "ocr-scan" | "ocr-result";
 
+// The first required field still missing, named inline after a submit attempt.
+type Problem = {
+  field: "amount" | "card" | "account" | "destAccount" | "date";
+  message: string;
+  /** Element (or, for tiles, radiogroup) that takes focus when Simpan is attempted. */
+  focusId: string;
+  tiles?: boolean;
+};
+
 // EPIC-027 B1 — one message per camera failure. A denied permission, a
 // device with no camera, plain HTTP and "another app already has it" each
 // need a different action from the user, so none of them share a message.
@@ -200,6 +222,49 @@ function stripLeadingIcon(value: string): string {
   return value.replace(/^[^A-Za-zÀ-ÿ0-9]+/u, "").trim();
 }
 
+const TABBABLE_SELECTOR =
+  'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex]';
+
+function isTabbableInDialog(el: HTMLElement): boolean {
+  if (el.tabIndex < 0 || el.closest("[inert]")) return false;
+  for (
+    let d = el.closest("details");
+    d;
+    d = d.parentElement?.closest("details") ?? null
+  ) {
+    // A closed <details> only exposes its own <summary>.
+    if (!d.open && !(el.tagName === "SUMMARY" && el.parentElement === d)) {
+      return false;
+    }
+  }
+  return typeof el.checkVisibility === "function"
+    ? el.checkVisibility({ visibilityProperty: true })
+    : true;
+}
+
+/**
+ * Synchronous Tab trap. Base UI's own wrap (focus guard -> `enqueueFocus`) hops
+ * through `requestAnimationFrame`, so whenever the page isn't painting (a
+ * backgrounded tab, a throttled mobile browser) focus stays parked on the
+ * `<span data-base-ui-focus-guard>` outside the dialog and the next Tab walks
+ * out into the page behind the sheet. Wrapping here, before the browser moves
+ * focus, never lets focus reach a guard.
+ */
+function wrapTabFocus(event: ReactKeyboardEvent<HTMLElement>) {
+  if (event.key !== "Tab" || event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+  const tabbables = Array.from(
+    event.currentTarget.querySelectorAll<HTMLElement>(TABBABLE_SELECTOR),
+  ).filter(isTabbableInDialog);
+  if (tabbables.length === 0) return;
+  const first = tabbables[0];
+  const last = tabbables[tabbables.length - 1];
+  if (document.activeElement !== (event.shiftKey ? first : last)) return;
+  event.preventDefault();
+  (event.shiftKey ? last : first).focus();
+}
+
 export function TransactionDialog() {
   const { txnOpen, setTxnOpen } = useShell();
   const { t, locale } = useLocale();
@@ -209,6 +274,15 @@ export function TransactionDialog() {
     t.shell.transactionDialog.tabTransfer,
     t.shell.transactionDialog.tabCreditCard,
   ];
+  // Phones show icon + short label so the four types fit one row; the full
+  // name stays on the tab's accessible name (and on screen from 721px).
+  const TAB_SHORT = [
+    t.shell.transactionDialog.tabIncomeShort,
+    t.shell.transactionDialog.tabExpenseShort,
+    t.shell.transactionDialog.tabTransferShort,
+    t.shell.transactionDialog.tabCreditCardShort,
+  ];
+  const TAB_ICONS = [ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard];
   const [view, setView] = useState<View>("form");
   const [tab, setTab] = useState(1);
   const amountField = useMoneyField();
@@ -223,14 +297,15 @@ export function TransactionDialog() {
   // EPIC-023 Task E3 — the credit card selected on the card tab, sourced
   // from liabilities (D12: a card is a liability, never an Account).
   const [liabilityId, setLiabilityId] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => localIsoDate());
   const [description, setDescription] = useState("");
-  // audit P2-4/AC-7 — inline, field-level validation errors, mirroring
-  // crud-modal.tsx's `requiredErrors` pattern. `saveTxn` replaces this
-  // wholesale with a single-key object per failed check (it returns on the
-  // first failure), which both surfaces the new error and clears any stale
-  // one from a previously-failed field on the next submit attempt.
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // Inline validation: nothing is flagged until the first submit attempt;
+  // then the first missing field names its problem and updates as it is fixed.
+  const [attempted, setAttempted] = useState(false);
+  // A scan result prefills the form; remembered defaults must not overwrite it.
+  const [prefilled, setPrefilled] = useState(false);
+  // Bumped after a save so the remembered usage counts are read again.
+  const [memoryVersion, setMemoryVersion] = useState(0);
   // EPIC-027 B1-B4 (D8/D9/D10) — reviewed foundation exception, same basis
   // as the E3/E4 and held-expense comments in this file. What used to live
   // here was a simulation: two `setTimeout`s and a hardcoded Alfamart
@@ -318,6 +393,9 @@ export function TransactionDialog() {
   const scanStatusId = `${uid}-scan-status`;
   const scanAlertId = `${uid}-scan-alert`;
   const scanUploadFieldId = `${uid}-scan-upload`;
+  const accountErrorId = `${accountFieldId}-error`;
+  const sourceErrorId = `${sourceAccountFieldId}-error`;
+  const destErrorId = `${destAccountFieldId}-error`;
 
   const { data: session } = useSession();
   const token = session?.accessToken as string | undefined;
@@ -363,27 +441,109 @@ export function TransactionDialog() {
   const creditCards = liabilities.filter((l) => l.type === "kartu_kredit");
 
   const tabKind: TabKind = TAB_KINDS[tab] ?? "expense";
-  const relevantCategories = categories.filter(
-    (c) => c.kind === CATEGORY_KIND_BY_TAB[tabKind] || c.kind === "both",
+  const categoryKind = CATEGORY_KIND_BY_TAB[tabKind];
+  // Last-used account/category and per-category use counts for this family
+  // group. Read only while the dialog is open (never during SSR);
+  // `memoryVersion` re-reads it after a save so the counts reorder at once.
+  const memory = useMemo(
+    () => (txnOpen ? readTxnMemory(fgId) : emptyTxnMemory()),
+    [fgId, txnOpen, memoryVersion],
   );
+  const relevantCategories = sortByUsage(
+    categories.filter((c) => c.kind === categoryKind || c.kind === "both"),
+    memory.counts,
+  );
+  // A remembered account is only a default while it still exists in the list
+  // the API returned for this user; a scan prefill opts out. The category is
+  // deliberately NOT preselected: a radio tile cannot be deselected, so a
+  // silent default would file expenses under the wrong category (budgets,
+  // Beranda and Laporan read them). Usage ordering surfaces it first instead.
+  const defaultAccountId =
+    !prefilled &&
+    memory.accountId &&
+    accounts.some((a) => a.id === memory.accountId)
+      ? memory.accountId
+      : "";
+  const selectedAccountId = accountId || defaultAccountId;
+  const selectedCategoryId = categoryId;
   // Bento v2 tile pickers (prototype `.tx` dialog): accounts as small cards
   // with balance, categories as icon tiles.
   const accountChoices: Choice[] = accounts.map((a) => ({
     value: a.id,
     name: a.institution ? `${a.name} — ${a.institution}` : a.name,
-    caption: a.name,
-    label: a.institution ?? a.name,
+    // Nickname leads (bold); the institution is the quiet caption under it.
+    caption: a.institution ?? undefined,
+    label: a.name,
     sub:
-      a.balance === null
-        ? "Rp ••••••"
-        : a.balance !== undefined
-          ? formatRupiahCompact(Number(a.balance))
-          : undefined,
+      a.balance === null ? (
+        "Rp ••••••"
+      ) : a.balance !== undefined ? (
+        <span>{formatRupiah(Number(a.balance))}</span>
+      ) : undefined,
   }));
   const categoryChoices: Choice[] = relevantCategories.map((c) => {
     const Icon = categoryIcon(c.name);
     return { value: c.id, name: c.name, label: c.name, icon: <Icon /> };
   });
+  const tilesCountLabel = (shown: number, total: number) =>
+    t.shell.transactionDialog.tilesVisibleCount
+      .replace("{shown}", String(shown))
+      .replace("{total}", String(total));
+
+  const amountNum = moneyIdr(amountField, parseRupiah);
+  const findProblem = (): Problem | null => {
+    const dlg = t.shell.transactionDialog;
+    // A foreign amount waiting on its rate is "not ready", not "missing".
+    if (!amountField.resolved.isPending && !(amountNum > 0))
+      return {
+        field: "amount",
+        message: dlg.invalidAmount,
+        focusId: amountFieldId,
+      };
+    if (tabKind === "card") {
+      if (!liabilityId)
+        return {
+          field: "card",
+          message: dlg.selectCardFirst,
+          focusId: cardFieldId,
+        };
+    } else {
+      if (!selectedAccountId)
+        return {
+          field: "account",
+          message: dlg.selectAccountFirst,
+          focusId:
+            tabKind === "transfer" ? sourceAccountFieldId : accountFieldId,
+          tiles: true,
+        };
+      if (tabKind === "transfer") {
+        if (!toAccountId)
+          return {
+            field: "destAccount",
+            message: dlg.selectDestAccountFirst,
+            focusId: destAccountFieldId,
+            tiles: true,
+          };
+        if (toAccountId === selectedAccountId)
+          return {
+            field: "destAccount",
+            message: dlg.sameAccountError,
+            focusId: destAccountFieldId,
+            tiles: true,
+          };
+      }
+    }
+    if (!date)
+      return {
+        field: "date",
+        message: dlg.dateRequiredError,
+        focusId: dateFieldId,
+      };
+    return null;
+  };
+  const problem = findProblem();
+  const fieldErrors: Partial<Record<Problem["field"], string>> =
+    attempted && problem ? { [problem.field]: problem.message } : {};
   // EPIC-027 B3 (D13) — the review screen shows the family category the
   // SERVER matched, resolved to its own name/icon. A null `categoryId` is
   // never re-guessed from `categoryHint` here; that matching already ran.
@@ -544,9 +704,23 @@ export function TransactionDialog() {
     setCategoryId("");
     setLiabilityId("");
     setDescription("");
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(localIsoDate());
     setAttachmentFile(null);
-    setFieldErrors({});
+    setAttempted(false);
+    setPrefilled(false);
+  };
+
+  // "Simpan & tambah lagi": the amount, description, transfer fee and receipt
+  // belong to the saved transaction and are cleared; type, account, category
+  // and date stay so the next entry starts where this one ended.
+  const resetForAnother = () => {
+    amountField.reset();
+    setDescription("");
+    setAdminFee("");
+    setAttachmentFile(null);
+    setAttempted(false);
+    setMemoryVersion((version) => version + 1);
+    document.getElementById(amountFieldId)?.focus();
   };
 
   const resetScan = () => {
@@ -701,6 +875,7 @@ export function TransactionDialog() {
     // A receipt is a purchase, so the result lands on the Expense tab —
     // where the category field (and the attachment field) actually exist.
     setTab(1);
+    setPrefilled(true);
     amountField.reset(String(Math.round(scanResult.amount)));
     setDate(isoToDateInputValue(scanResult.occurredAt, date));
     setDescription(scanResult.description);
@@ -722,6 +897,9 @@ export function TransactionDialog() {
     : null;
 
   const isSaving = createMutation.isPending || purchaseMutation.isPending;
+  // Simpan stays focusable and visually enabled; it reports the block to
+  // assistive tech through aria-disabled instead of the native attribute.
+  const saveBlocked = Boolean(problem) || isSaving;
 
   // EPIC-024 Task L3 (D15, US-TXN-9) — client-side pre-check only; the
   // server (`attachments.service.ts`) is authoritative and re-validates
@@ -746,19 +924,15 @@ export function TransactionDialog() {
   };
 
   const saveTxn = (addMore?: boolean) => {
+    if (isSaving) return;
+    if (problem) {
+      setAttempted(true);
+      if (problem.tiles) focusChoiceTiles(problem.focusId);
+      else document.getElementById(problem.focusId)?.focus();
+      return;
+    }
     if (amountField.resolved.isPending) {
       toast.error(t.money.rateNotReady);
-      return;
-    }
-    const amountNum = moneyIdr(amountField, parseRupiah);
-    if (!amountNum || amountNum <= 0) {
-      setFieldErrors({ amount: t.shell.transactionDialog.invalidAmount });
-      toast.error(t.shell.transactionDialog.invalidAmount);
-      return;
-    }
-    if (!date) {
-      setFieldErrors({ date: t.shell.transactionDialog.dateRequiredError });
-      toast.error(t.shell.transactionDialog.dateRequiredError);
       return;
     }
     if (!fgId) {
@@ -766,21 +940,15 @@ export function TransactionDialog() {
       return;
     }
 
-    // EPIC-023 Task E3 (D12) — the card tab has its own validation/save
-    // path: it picks a LIABILITY, never an account, and posts through
+    // EPIC-023 Task E3 (D12) — the card tab has its own save path: it picks a
+    // LIABILITY, never an account, and posts through
     // LiabilitiesService.purchase() instead of TransactionsService.create().
     if (tabKind === "card") {
-      if (!liabilityId) {
-        setFieldErrors({ card: t.shell.transactionDialog.selectCardFirst });
-        toast.error(t.shell.transactionDialog.selectCardFirst);
-        return;
-      }
-      setFieldErrors({});
       purchaseMutation.mutate(
         withFxInputs(
           {
             amount: String(amountNum),
-            ...(categoryId ? { categoryId } : {}),
+            ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
             ...(description ? { description } : {}),
             occurredAt: new Date(date).toISOString(),
           },
@@ -788,13 +956,17 @@ export function TransactionDialog() {
         ),
         {
           onSuccess: () => {
+            recordTxnUsage(fgId, {
+              categoryId: selectedCategoryId,
+              kind: categoryKind,
+            });
             toast.success(
               addMore
                 ? t.shell.transactionDialog.savedAddMoreToast
                 : t.shell.transactionDialog.savedToast,
             );
             if (addMore) {
-              resetForm();
+              resetForAnother();
             } else {
               handleOpenChange(false);
             }
@@ -804,36 +976,13 @@ export function TransactionDialog() {
       return;
     }
 
-    if (!accountId) {
-      setFieldErrors({ account: t.shell.transactionDialog.selectAccountFirst });
-      toast.error(t.shell.transactionDialog.selectAccountFirst);
-      return;
-    }
-    if (tabKind === "transfer") {
-      if (!toAccountId) {
-        setFieldErrors({
-          destAccount: t.shell.transactionDialog.selectDestAccountFirst,
-        });
-        toast.error(t.shell.transactionDialog.selectDestAccountFirst);
-        return;
-      }
-      if (toAccountId === accountId) {
-        setFieldErrors({
-          destAccount: t.shell.transactionDialog.sameAccountError,
-        });
-        toast.error(t.shell.transactionDialog.sameAccountError);
-        return;
-      }
-    }
-    setFieldErrors({});
-
     const adminFeeNum = tabKind === "transfer" ? parseRupiah(adminFee) : 0;
 
     createMutation.mutate(
       withFxInputs(
         {
-          accountId,
-          ...(categoryId ? { categoryId } : {}),
+          accountId: selectedAccountId,
+          ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
           amount: amountNum,
           type: tabKind,
           ...(description ? { description } : {}),
@@ -868,6 +1017,13 @@ export function TransactionDialog() {
               file: attachmentFile,
             });
           }
+          if (!wasHeld) {
+            recordTxnUsage(fgId, {
+              accountId: selectedAccountId,
+              categoryId: selectedCategoryId,
+              kind: categoryKind,
+            });
+          }
           toast[wasHeld ? "warning" : "success"](
             wasHeld
               ? t.shell.transactionDialog.heldToast
@@ -878,7 +1034,7 @@ export function TransactionDialog() {
           if (wasHeld) {
             handleOpenChange(false);
           } else if (addMore) {
-            resetForm();
+            resetForAnother();
           } else {
             handleOpenChange(false);
           }
@@ -891,9 +1047,15 @@ export function TransactionDialog() {
     <Dialog open={txnOpen} onOpenChange={handleOpenChange}>
       <CenteredDialogContent
         showCloseButton={view === "form"}
+        initialFocus={
+          view === "form"
+            ? () => document.getElementById(amountFieldId)
+            : undefined
+        }
+        onKeyDown={wrapTabFocus}
         className={
           view === "form"
-            ? "min-[721px]:w-[min(560px,calc(100%-24px))]"
+            ? "tx-dialog min-[721px]:w-[min(600px,calc(100%-24px))] min-[721px]:max-h-[92dvh]"
             : "overflow-x-hidden p-0"
         }
       >
@@ -908,7 +1070,7 @@ export function TransactionDialog() {
                 `.segmented__item` with `role="tablist"`/`role="tab"`
                 (shell.js:531-535). */}
               <div
-                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto max-[720px]:grid max-[720px]:grid-cols-2 max-[720px]:overflow-visible max-[720px]:[mask-image:none] max-[720px]:[-webkit-mask-image:none]"
+                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto min-[721px]:mb-0 max-[720px]:mb-[10px] max-[720px]:grid max-[720px]:grid-cols-4 max-[720px]:overflow-visible max-[720px]:[mask-image:none] max-[720px]:[-webkit-mask-image:none]"
                 role="tablist"
                 aria-label={t.shell.transactionDialog.typeSwitchLabel}
               >
@@ -918,9 +1080,11 @@ export function TransactionDialog() {
                     type="button"
                     role="tab"
                     aria-selected={tab === i}
-                    className="segmented__item shrink-0 whitespace-nowrap"
+                    aria-label={stripLeadingIcon(tabLabel)}
+                    className="segmented__item shrink-0 whitespace-nowrap max-[720px]:flex max-[720px]:flex-col max-[720px]:items-center max-[720px]:justify-center max-[720px]:gap-[2px] max-[720px]:!px-1 max-[720px]:!text-[13px]"
                     onClick={() => {
                       setTab(i);
+                      setAttempted(false);
                       // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,
                       // not an oversight: only the fields whose MEANING is
                       // tab-specific are cleared (a category id, an account
@@ -939,7 +1103,23 @@ export function TransactionDialog() {
                       setLiabilityId("");
                     }}
                   >
-                    {stripLeadingIcon(tabLabel)}
+                    {(() => {
+                      const TabIcon = TAB_ICONS[i];
+                      return (
+                        <>
+                          <TabIcon
+                            aria-hidden="true"
+                            className="size-4 min-[721px]:hidden"
+                          />
+                          <span className="max-[720px]:hidden">
+                            {stripLeadingIcon(tabLabel)}
+                          </span>
+                          <span className="min-[721px]:hidden">
+                            {TAB_SHORT[i]}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </button>
                 ))}
               </div>
@@ -947,7 +1127,7 @@ export function TransactionDialog() {
                 field={amountField}
                 id={amountFieldId}
                 label={t.shell.transactionDialog.amountLabel}
-                placeholder="250.000"
+                placeholder="0"
                 required
                 error={fieldErrors.amount}
               />
@@ -963,6 +1143,10 @@ export function TransactionDialog() {
                     id={cardFieldId}
                     className="select"
                     value={liabilityId}
+                    aria-invalid={Boolean(fieldErrors.card)}
+                    aria-describedby={
+                      fieldErrors.card ? `${cardFieldId}-error` : undefined
+                    }
                     onChange={(e) => setLiabilityId(e.target.value)}
                   >
                     <option value="">
@@ -981,13 +1165,18 @@ export function TransactionDialog() {
                     label={t.shell.transactionDialog.sourceAccountLabel}
                     required
                     error={fieldErrors.account}
+                    errorId={sourceErrorId}
                   >
                     <ChoiceTiles
+                      id={sourceAccountFieldId}
                       variant="account"
                       label={t.shell.transactionDialog.sourceAccountLabel}
-                      value={accountId}
+                      value={selectedAccountId}
                       choices={accountChoices}
                       empty={t.shell.transactionDialog.sourceAccountPlaceholder}
+                      invalid={Boolean(fieldErrors.account)}
+                      errorId={sourceErrorId}
+                      countLabel={tilesCountLabel}
                       onChange={(nextAccountId) => {
                         setAccountId(nextAccountId);
                         // Keep source/destination mutually exclusive.
@@ -1000,15 +1189,20 @@ export function TransactionDialog() {
                     label={t.shell.transactionDialog.destAccountLabel}
                     required
                     error={fieldErrors.destAccount}
+                    errorId={destErrorId}
                   >
                     <ChoiceTiles
+                      id={destAccountFieldId}
                       variant="account"
                       label={t.shell.transactionDialog.destAccountLabel}
                       value={toAccountId}
                       choices={accountChoices.filter(
-                        (choice) => choice.value !== accountId,
+                        (choice) => choice.value !== selectedAccountId,
                       )}
                       empty={t.shell.transactionDialog.destAccountPlaceholder}
+                      invalid={Boolean(fieldErrors.destAccount)}
+                      errorId={destErrorId}
+                      countLabel={tilesCountLabel}
                       onChange={setToAccountId}
                     />
                   </TileField>
@@ -1047,13 +1241,18 @@ export function TransactionDialog() {
                     label={t.shell.transactionDialog.accountLabel}
                     required
                     error={fieldErrors.account}
+                    errorId={accountErrorId}
                   >
                     <ChoiceTiles
+                      id={accountFieldId}
                       variant="account"
                       label={t.shell.transactionDialog.accountLabel}
-                      value={accountId}
+                      value={selectedAccountId}
                       choices={accountChoices}
                       empty={t.shell.transactionDialog.accountPlaceholder}
+                      invalid={Boolean(fieldErrors.account)}
+                      errorId={accountErrorId}
+                      countLabel={tilesCountLabel}
                       onChange={setAccountId}
                     />
                   </TileField>
@@ -1063,7 +1262,7 @@ export function TransactionDialog() {
                       limit={7}
                       moreLabel={t.common.viewAll}
                       label={t.shell.transactionDialog.categoryLabel}
-                      value={categoryId}
+                      value={selectedCategoryId}
                       choices={categoryChoices}
                       empty={t.shell.transactionDialog.categoryPlaceholder}
                       onChange={setCategoryId}
@@ -1089,7 +1288,7 @@ export function TransactionDialog() {
                     limit={7}
                     moreLabel={t.common.viewAll}
                     label={t.shell.transactionDialog.categoryLabel}
-                    value={categoryId}
+                    value={selectedCategoryId}
                     choices={categoryChoices}
                     empty={t.shell.transactionDialog.categoryPlaceholder}
                     onChange={setCategoryId}
@@ -1099,7 +1298,7 @@ export function TransactionDialog() {
 
               {/* Prototype pairs Tanggal and Deskripsi 2-up in a
                 `.field-row` (shell.js:558-568). */}
-              <div className="field-row mt-3">
+              <div className="field-row mt-3 min-[721px]:mt-0">
                 <Field
                   label={t.shell.transactionDialog.dateLabel}
                   htmlFor={dateFieldId}
@@ -1221,7 +1420,10 @@ export function TransactionDialog() {
 
             {/* Prototype `.dialog__footer` — outline Batal on the left,
                 primary Simpan on the right (shell.js:590-595). */}
-            <DialogFooter>
+            <DialogFooter
+              className="flex-row flex-wrap"
+              data-sticky={tabKind === "transfer" ? "true" : undefined}
+            >
               <button
                 type="button"
                 onClick={() => handleOpenChange(false)}
@@ -1229,11 +1431,25 @@ export function TransactionDialog() {
               >
                 {t.common.cancel}
               </button>
+              {/* Ghost second commit: saves, keeps the dialog (and type,
+                  account, category, date) and clears amount/description.
+                  Its own row on phones so the primary stays full-size. */}
+              <button
+                type="button"
+                onClick={() => saveTxn(true)}
+                aria-disabled={saveBlocked}
+                className="btn btn--ghost order-last basis-full min-[721px]:order-none min-[721px]:basis-0 min-[721px]:flex-[1.5]"
+              >
+                {t.shell.transactionDialog.saveAndAddMore}
+              </button>
               <button
                 type="button"
                 onClick={() => saveTxn()}
-                disabled={isSaving}
-                className="btn btn--primary"
+                aria-disabled={saveBlocked}
+                className={cn(
+                  "btn btn--primary",
+                  isSaving && "cursor-progress",
+                )}
               >
                 {isSaving ? t.shell.transactionDialog.saving : t.common.save}
               </button>
@@ -1383,7 +1599,7 @@ export function TransactionDialog() {
                   cameraErrorText || scanErrorText ? scanAlertId : scanStatusId
                 }
                 className={cn(
-                  "flex w-full cursor-pointer items-center justify-center gap-2 rounded-md py-2.5 text-[13.5px] font-bold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary",
+                  "flex w-full cursor-pointer items-center justify-center gap-2 rounded-md py-2.5 text-[13.5px] font-bold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-(--focus-ring)",
                   cameraSupported
                     ? "text-primary hover:bg-accent"
                     : "bg-primary text-white hover:bg-primary-strong",
@@ -1528,11 +1744,14 @@ function TileField({
   label,
   required,
   error,
+  errorId,
   children,
 }: {
   label: React.ReactNode;
   required?: boolean;
   error?: string;
+  /** Id of the inline error, referenced by the radiogroup's aria-describedby. */
+  errorId?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -1543,7 +1762,7 @@ function TileField({
       </span>
       {children}
       {error && (
-        <p role="alert" className="error-text">
+        <p id={errorId} role="alert" className="error-text">
           {error}
         </p>
       )}
@@ -1578,7 +1797,7 @@ function Field({
       </label>
       {children}
       {error && (
-        <p role="alert" className="error-text">
+        <p id={`${htmlFor}-error`} role="alert" className="error-text">
           {error}
         </p>
       )}

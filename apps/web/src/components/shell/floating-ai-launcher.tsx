@@ -52,7 +52,7 @@ export function FloatingAiLauncher() {
         <div
           role="dialog"
           aria-label={t.ai.floatingLauncher.panelTitle}
-          className="fixed right-[22px] bottom-[88px] z-[60] flex max-h-[min(70dvh,520px)] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-[18px] border bg-card shadow-lg"
+          className="wm-fai-panel fixed right-[22px] bottom-[88px] z-[60] flex max-h-[min(70dvh,520px)] w-[min(360px,calc(100vw-32px))] flex-col overflow-hidden rounded-[18px] border bg-card shadow-lg"
         >
           <div className="flex items-center justify-between gap-2 border-b px-3.5 py-2.5">
             <div className="flex items-center gap-2 text-[13px] font-bold">
