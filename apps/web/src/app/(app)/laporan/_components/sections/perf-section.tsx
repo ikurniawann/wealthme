@@ -34,16 +34,16 @@ export function PerfSection({
           <div className="mb-3.5 mx-auto max-w-[260px]">
             <TickGauge
               value={Math.max(0, Math.min(100, savingsRate))}
-              ariaLabel={`${t.laporan.performa.savingsRateTargetLabel}: ${savingsRate}%`}
-            >
-              <b>{savingsRate}%</b>
-              <small>
-                {t.laporan.savingsRateLabel}
-                {summary && summary.points.length > 0
-                  ? ` · ${t.laporan.windowMonthsTemplate.replace("{n}", String(summary.points.length))}`
-                  : ""}
-              </small>
-            </TickGauge>
+              label={t.laporan.savingsRateLabel}
+              detail={
+                summary && summary.points.length > 0
+                  ? t.laporan.windowMonthsTemplate.replace(
+                      "{n}",
+                      String(summary.points.length),
+                    )
+                  : undefined
+              }
+            />
           </div>
         )}
         <div className="flex flex-col">

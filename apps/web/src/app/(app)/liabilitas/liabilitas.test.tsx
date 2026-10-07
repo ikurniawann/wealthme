@@ -1293,8 +1293,10 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
   it("payoff projection is built from the server schedule rows (final fix 3)", async () => {
     render(<LiabilitasPage />);
 
+    // UIArc chart swap: TrendChart now renders Arc's LineChart, a <figure>
+    // (ARIA role "figure", not "img") carrying the same aria-label.
     expect(
-      await screen.findByRole("img", {
+      await screen.findByRole("figure", {
         name: "Proyeksi Sisa Utang 6 Bulan: Rp\u00A08.000.000 → Rp\u00A00",
       }),
     ).toBeInTheDocument();

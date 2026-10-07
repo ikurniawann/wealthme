@@ -1,4 +1,4 @@
-import { fireEvent, render } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { FlowStackChart, niceCeil } from "./bento-charts";
 
 describe("niceCeil (chart axis top, prototype `nice`)", () => {
@@ -37,32 +37,31 @@ describe("FlowStackChart (Beranda hero)", () => {
       />,
     );
 
-  test("pins no tooltip until a column is hovered or focused", () => {
-    const { container } = mount();
-    expect(container.querySelector(".wm-chart-tip")).toBeNull();
-    const column = container.querySelectorAll("g[tabindex='0']")[1];
-    fireEvent.mouseEnter(column);
-    expect(container.querySelector(".wm-chart-tip")).toHaveTextContent("Kam");
-    fireEvent.mouseLeave(column);
-    expect(container.querySelector(".wm-chart-tip")).toBeNull();
-    fireEvent.focus(column);
-    expect(container.querySelector(".wm-chart-tip")).toHaveTextContent("Kam");
-    expect(container.querySelector(".wm-chart-tip")).toHaveTextContent(
-      "SelisihRp 19",
-    );
+  // UIArc chart swap (uiarc.dev/components): FlowStackChart now renders
+  // Arc's Streamgraph, which exposes its data through an accessible sr-only
+  // <table> (not the old hover-tooltip div) and a legend with visible series
+  // labels, instead of raw SVG rects + a `.wm-chart-tip` div. `net` has no
+  // slot in Arc's per-series table/tooltip and is intentionally dropped —
+  // see the swap comment on `FlowStackChart` in bento-charts.tsx.
+  test("exposes income and expense for every day in the accessible data table", () => {
+    mount();
+    const table = screen.getByRole("table", { name: "Arus kas" });
+    const kamisRow = within(table).getByRole("row", { name: /Kam/ });
+    expect(
+      within(kamisRow).getByRole("cell", { name: "Rp 25" }),
+    ).toBeInTheDocument();
+    expect(
+      within(kamisRow).getByRole("cell", { name: "Rp 6" }),
+    ).toBeInTheDocument();
   });
 
-  test("keeps each series in its own hue; other columns only lose opacity", () => {
-    const { container } = mount();
-    const bars = () =>
-      Array.from(
-        container.querySelectorAll<SVGRectElement>("rect.wm-chart-bar"),
-      );
-    const before = bars().map((bar) => bar.getAttribute("fill"));
-    expect(before.some((fill) => fill?.includes("ghost"))).toBe(false);
-    fireEvent.mouseEnter(container.querySelectorAll("g[tabindex='0']")[1]);
-    expect(bars().map((bar) => bar.getAttribute("fill"))).toEqual(before);
-    expect(bars()[0].style.opacity).toBe("0.5");
-    expect(bars()[bars().length - 1].style.opacity).toBe("");
+  test("shows a legend toggle labeled for each series", () => {
+    mount();
+    expect(
+      screen.getByRole("button", { name: "Pemasukan" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Pengeluaran" }),
+    ).toBeInTheDocument();
   });
 });

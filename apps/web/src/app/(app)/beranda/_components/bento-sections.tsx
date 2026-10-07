@@ -830,13 +830,7 @@ export function HealthBento({ fmt }: { fmt: MoneyFormatters }) {
       caption={`${v2.healthCap} · ${v2.days30}`}
     >
       <p className="wm-mid">{fmt.money(net)}</p>
-      <TickGauge
-        value={rate}
-        ariaLabel={`${Math.round(rate)}% ${v2.savedShare}`}
-      >
-        <b>{Math.round(rate)}%</b>
-        <small>{v2.savedShare}</small>
-      </TickGauge>
+      <TickGauge value={rate} label={v2.savedShare} />
       <p className="beranda-note">{v2.health30Note}</p>
     </BentoCard>
   );

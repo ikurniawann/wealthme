@@ -1,0 +1,80 @@
+/**
+ * Token bridge: scopes UIArc chart components (arc/bar-chart, arc/streamgraph,
+ * arc/donut-chart, arc/gauge, arc/line-chart, arc/sparkline) to WealthMe's own
+ * design tokens instead of importing UIArc's own foundation.css (which ships
+ * Geist/Inter fonts, a different radius/color scale, and would clobber
+ * DESIGN.md's Sora-only / approved-scale rules if applied globally).
+ *
+ * Every custom property below is named to match what the installed chart CSS
+ * modules consume (see https://uiarc.dev/r/arc-foundation.json) — resolving
+ * each one to WealthMe's real token, not UIArc's. `--accent` defaults to
+ * `--viz-1` (forest), never `--primary` (lime), per DESIGN.md's Lime Active
+ * Rule — lime marks active/selected state only, not a decorative chart
+ * series default. Each preset wrapper overrides `--accent` or passes an
+ * explicit per-series `color` prop for anything that isn't the single-series
+ * default case.
+ */
+.bridge {
+  --accent: var(--viz-1);
+  --accent-strong: var(--primary-strong);
+  --surface: var(--card);
+  --surface-raised: var(--card);
+  --surface-muted: var(--muted);
+  --foreground: var(--card-foreground);
+  --text-secondary: var(--muted-foreground);
+  --text-muted: var(--muted-foreground);
+  --border: var(--border);
+  --border-strong: var(--border);
+  --success: var(--success);
+  --warning: var(--warning);
+  --danger: var(--destructive);
+  --focus-ring: transparent;
+
+  --font-display: var(--font-sans);
+  --font-body: var(--font-sans);
+  --text-xs: var(--wm-type-11);
+  --text-sm: var(--wm-type-12);
+  --text-base: var(--wm-type-13);
+  --text-lg: var(--wm-type-14);
+  --text-2xl: var(--wm-type-20);
+  --text-3xl: var(--wm-type-28);
+  --tracking-display: normal;
+  --tracking-body: normal;
+  --leading-display: 1.1;
+  --leading-body: 1.4;
+
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  --radius-control: 12px;
+  --radius-pill: 9999px;
+
+  --duration-instant: 0.12s;
+  --duration-fast: 0.16s;
+  --duration-standard: 0.24s;
+  --duration-considered: 0.48s;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --shadow-floating: var(--shadow-pop);
+
+  /* gauge-specific and donut-specific tokens the components fall back on */
+  --gauge-color: var(--accent);
+  --gauge-text: var(--foreground);
+  --series: var(--accent);
+  --slice: var(--accent);
+  --inner: var(--card);
+
+  color-scheme: light dark;
+}
+
+/* On a dark card/hero, WealthMe toggles via `.dark` (see globals.css) — the
+ * installed chart modules were rewritten to key off `.dark` too (not UIArc's
+ * own `[data-theme="dark"]`, which collides with WealthMe's brand-preset
+ * attribute of the same name). No extra override needed here: every token
+ * above already resolves through WealthMe's own `.dark`-scoped variables. */

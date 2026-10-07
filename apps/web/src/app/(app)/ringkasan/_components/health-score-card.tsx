@@ -38,11 +38,9 @@ export function HealthScoreCard({ data }: { data: RingkasanData }) {
         <div className="rk2-health-gauge">
           <TickGauge
             value={score}
-            ariaLabel={`${t.ringkasan.financialHealthScoreLabel} ${savingsWindowLabel}: ${savingsRate}`}
-          >
-            <b className="private">{score}%</b>
-            <small>{t.ringkasan.financialHealthScoreLabel}</small>
-          </TickGauge>
+            label={t.ringkasan.financialHealthScoreLabel}
+            detail={savingsWindowLabel}
+          />
         </div>
         <div className="rk2-health-stat">
           <StatusBadge

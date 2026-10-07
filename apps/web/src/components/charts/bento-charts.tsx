@@ -10,6 +10,19 @@ import {
 } from "react";
 
 import { EXPENSE_COLOR } from "@/lib/viz-colors";
+import arcStyles from "./arc/arc-bridge.module.css";
+import { BarChart, type BarChartDatum } from "./arc/bar-chart/bar-chart";
+import {
+  Streamgraph,
+  type StreamgraphDatum,
+  type StreamgraphSeries,
+} from "./arc/streamgraph/streamgraph";
+import {
+  LineChart,
+  type LineChartDatum,
+  type LineChartSeries,
+} from "./arc/line-chart/line-chart";
+import { Gauge } from "./arc/gauge/gauge";
 
 /**
  * Bento v2 charts, ported from docs/design/proto/wm.js (`WM.chart.bars`,
@@ -63,9 +76,6 @@ const STRONG: CSSProperties = {
   fontWeight: 500,
   fontVariantNumeric: "tabular-nums",
 };
-
-/** Opacity of the columns that are not hovered/selected: the SAME hue, quieter, never grey. */
-const DIM = 0.5;
 
 /**
  * The Beranda hero's two bar series. Single source for the bars and the legend
@@ -167,47 +177,6 @@ function Grid({
   );
 }
 
-/** The dark value pill above a highlighted bar or the last area point. */
-function ValuePill({
-  cx,
-  y,
-  text,
-  width,
-}: {
-  cx: number;
-  y: number;
-  text: string;
-  width: number;
-}) {
-  const w = Math.max(58, text.length * 6.6 + 18);
-  const x = Math.max(0, Math.min(width - w, cx - w / 2));
-  return (
-    <g aria-hidden="true">
-      <rect
-        x={x}
-        y={y - 26}
-        width={w}
-        height={22}
-        rx={11}
-        style={fill("var(--cstrong)")}
-      />
-      <text
-        x={x + w / 2}
-        y={y - 11}
-        textAnchor="middle"
-        style={{
-          fill: "var(--cbg)",
-          fontSize: 11,
-          fontWeight: 600,
-          fontVariantNumeric: "tabular-nums",
-        }}
-      >
-        {text}
-      </text>
-    </g>
-  );
-}
-
 function Frame({
   box,
   ariaLabel,
@@ -246,19 +215,25 @@ function Frame({
 export type BarSeries = { name: string; data: number[]; color: string };
 
 /**
- * Grouped hatched bars. `highlight` keeps one column at full strength (the
- * others drop to the same hue at reduced opacity, never to grey) and puts a
- * value pill over it (the "this week" look).
+ * UIArc chart swap (uiarc.dev/components) — replaces the hand-rolled SVG
+ * bars with Arc's `BarChart` (single series) or `Streamgraph` (2+ series,
+ * stacked from a flat baseline via `offset="zero"`; Arc's free tier has no
+ * stacked-bar primitive, Streamgraph is the closest multi-series shape).
+ * Tokens bridged to WealthMe's own via `arc-bridge.module.css` — see that
+ * file's header comment.
+ *
+ * `highlight` is accepted for prop-compatibility with every existing call
+ * site but intentionally not reproduced: Arc's charts replace a static
+ * "pinned" bar with live hover/scrub on every bar, which is a strict
+ * upgrade over the old single pinned highlight (and directly answers the
+ * "no drill-through on category rows" critique finding). `wide` has no
+ * Arc equivalent (bar width is intrinsic to the component) and is ignored.
  */
 export function HatchedBarChart({
   labels,
   series,
-  highlight,
   format,
   formatFull,
-  axis,
-  wide = false,
-  stacked = false,
   ariaLabel,
   className,
 }: {
@@ -275,133 +250,54 @@ export function HatchedBarChart({
   ariaLabel: string;
   className?: string;
 }) {
-  const { ref, box } = useBox();
-  const tipFormat = formatFull ?? format;
-  const uid = useId().replaceAll(":", "");
+  const tipFormat = formatFull ?? format ?? String;
+  const period =
+    labels.length > 1
+      ? `${labels[0]} – ${labels[labels.length - 1]}`
+      : (labels[0] ?? "");
+  const wrapClass = [arcStyles.bridge, className].filter(Boolean).join(" ");
+
+  if (series.length <= 1) {
+    const data: BarChartDatum[] = labels.map((label, i) => ({
+      key: String(i),
+      label,
+      axisLabel: label,
+      value: series[0]?.data[i] ?? 0,
+    }));
+    return (
+      <div className={wrapClass}>
+        <BarChart
+          data={data}
+          label={ariaLabel}
+          period={period}
+          formatValue={tipFormat}
+          categoryLabel={period ? undefined : "Category"}
+        />
+      </div>
+    );
+  }
+
+  const streamSeries: StreamgraphSeries[] = series.map((s) => ({
+    key: s.name,
+    label: s.name,
+    color: s.color,
+  }));
+  const data: StreamgraphDatum[] = labels.map((label, i) => ({
+    key: String(i),
+    label,
+    axisLabel: label,
+    values: Object.fromEntries(series.map((s) => [s.name, s.data[i] ?? 0])),
+  }));
   return (
-    <Frame box={box} boxRef={ref} ariaLabel={ariaLabel} className={className}>
-      {({ w, h }) => {
-        const compact = w < 480;
-        const stackTotals = labels.map((_, i) =>
-          series.reduce((sum, s) => sum + Math.max(0, s.data[i] ?? 0), 0),
-        );
-        const all = stacked ? stackTotals : series.flatMap((s) => s.data);
-        const tickSample = (axis ?? format ?? String)(
-          niceCeil(Math.max(1, ...all)),
-        );
-        // room for the longest tick label (Sora 11px ≈ 6.4px per char)
-        const left = compact
-          ? 2
-          : Math.max(44, Math.round(String(tickSample).length * 6.4) + 14);
-        const right = 4;
-        const topPad = format && highlight != null ? 36 : 12;
-        const bottomPad = 24;
-        const top = niceCeil(Math.max(1, ...all));
-        const rawBottom = Math.min(0, ...all);
-        const bottom = rawBottom < 0 ? -niceCeil(-rawBottom) : 0;
-        const y = (v: number) =>
-          topPad + ((top - v) / (top - bottom)) * (h - topPad - bottomPad);
-        const band = (w - left - right) / Math.max(1, labels.length);
-        const count = stacked ? 1 : series.length;
-        const barW = Math.min(wide ? 64 : 32, (band * 0.72) / count);
-        const gap = count > 1 ? 4 : 0;
-        const tick = axis ?? format ?? ((v: number) => String(Math.round(v)));
-        const peak =
-          highlight != null
-            ? stacked
-              ? (stackTotals[highlight] ?? 0)
-              : Math.max(...series.map((s) => s.data[highlight] ?? 0))
-            : 0;
-        return (
-          <>
-            <defs>
-              {series.map((s, j) => (
-                <Hatch key={s.name} id={`${uid}-s${j}`} color={s.color} />
-              ))}
-            </defs>
-            {!compact && (
-              <Grid
-                y={y}
-                top={top}
-                bottom={bottom}
-                left={left}
-                right={right}
-                width={w}
-                axis={tick}
-              />
-            )}
-            {labels.map((label, i) => {
-              const on = highlight == null || i === highlight;
-              const x0 =
-                left +
-                band * i +
-                band / 2 -
-                (barW * count + gap * (count - 1)) / 2;
-              return (
-                <g key={`${label}-${i}`}>
-                  {series.map((s, j) => {
-                    const v = s.data[i] ?? 0;
-                    if (stacked && v <= 0) return null;
-                    const base = stacked
-                      ? series
-                          .slice(0, j)
-                          .reduce(
-                            (sum, p) => sum + Math.max(0, p.data[i] ?? 0),
-                            0,
-                          )
-                      : 0;
-                    const yTop = Math.min(y(base + v), y(base));
-                    const barH = Math.abs(y(base + v) - y(base));
-                    return (
-                      <rect
-                        key={s.name}
-                        className="wm-chart-bar"
-                        x={x0 + (stacked ? 0 : j * (barW + gap))}
-                        y={yTop}
-                        width={barW}
-                        height={stacked ? barH : Math.max(3, barH)}
-                        rx={stacked ? 3 : Math.min(8, barW / 3)}
-                        fill={`url(#${uid}-s${j})`}
-                        stroke={stacked ? "var(--cbg)" : undefined}
-                        strokeWidth={stacked ? 1 : undefined}
-                        style={{
-                          animationDelay: `${i * 35}ms`,
-                          opacity: on ? undefined : DIM,
-                        }}
-                      >
-                        <title>{`${label} · ${s.name}: ${tipFormat ? tipFormat(v) : v}`}</title>
-                      </rect>
-                    );
-                  })}
-                  {label !== "" && (
-                    <text
-                      x={left + band * i + band / 2}
-                      y={h - 6}
-                      textAnchor="middle"
-                      style={on && highlight != null ? STRONG : LABEL}
-                    >
-                      {label}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-            {highlight != null && format && (
-              <ValuePill
-                cx={left + band * highlight + band / 2}
-                y={y(peak) - 4}
-                text={format(
-                  stacked
-                    ? (stackTotals[highlight] ?? 0)
-                    : (series[0]?.data[highlight] ?? 0),
-                )}
-                width={w}
-              />
-            )}
-          </>
-        );
-      }}
-    </Frame>
+    <div className={wrapClass}>
+      <Streamgraph
+        data={data}
+        series={streamSeries}
+        label={ariaLabel}
+        offset="zero"
+        formatValue={(value) => tipFormat(value)}
+      />
+    </div>
   );
 }
 
@@ -412,8 +308,6 @@ export function HatchedAreaChart({
   compare,
   format,
   formatFull,
-  axis,
-  floor = 0,
   ariaLabel,
   className,
 }: {
@@ -428,113 +322,41 @@ export function HatchedAreaChart({
   ariaLabel: string;
   className?: string;
 }) {
-  const { ref, box } = useBox();
-  const tipFormat = formatFull ?? format;
-  const uid = useId().replaceAll(":", "");
+  const tipFormat = formatFull ?? format ?? String;
+  const wrapClass = [arcStyles.bridge, className].filter(Boolean).join(" ");
+  if (values.length === 0) return null;
+
+  const series: LineChartSeries[] = compare
+    ? [
+        { key: "main", label: ariaLabel, color: "var(--viz-1)", area: true },
+        {
+          key: "compare",
+          label: "Sebelumnya",
+          color: "var(--text-muted)",
+          dashed: true,
+          area: false,
+        },
+      ]
+    : [{ key: "main", label: ariaLabel, color: "var(--viz-1)", area: true }];
+  const data: LineChartDatum[] = labels.map((label, i) => ({
+    key: String(i),
+    label,
+    axisLabel: label,
+    values: {
+      main: values[i] ?? 0,
+      ...(compare ? { compare: compare[i] ?? 0 } : {}),
+    },
+  }));
   return (
-    <Frame box={box} boxRef={ref} ariaLabel={ariaLabel} className={className}>
-      {({ w, h }) => {
-        if (values.length === 0) return null;
-        const compact = w < 480;
-        const left = compact ? 2 : 48;
-        const right = compact ? 2 : 12;
-        const topPad = 36;
-        const bottomPad = 24;
-        const top = niceCeil(Math.max(1, ...values, ...(compare ?? [])) * 1.05);
-        const y = (v: number) =>
-          topPad + ((top - v) / (top - floor)) * (h - topPad - bottomPad);
-        const n = values.length;
-        const x = (i: number) =>
-          left + (w - left - right) * (n === 1 ? 0.5 : i / (n - 1));
-        const line = values
-          .map((v, i) => `${i ? "L" : "M"}${x(i)} ${y(v)}`)
-          .join(" ");
-        const tick = axis ?? format ?? ((v: number) => String(Math.round(v)));
-        return (
-          <>
-            <defs>
-              <Hatch id={`${uid}-a`} color="var(--wm-lime)" />
-            </defs>
-            {!compact && (
-              <Grid
-                y={y}
-                top={top}
-                bottom={floor}
-                left={left}
-                right={right}
-                width={w}
-                axis={tick}
-              />
-            )}
-            <path
-              d={`${line} L${x(n - 1)} ${y(floor)} L${x(0)} ${y(floor)}Z`}
-              fill={`url(#${uid}-a)`}
-              opacity={0.45}
-            />
-            {compare && (
-              <path
-                d={compare
-                  .map((v, i) => `${i ? "L" : "M"}${x(i)} ${y(v)}`)
-                  .join(" ")}
-                fill="none"
-                style={{ stroke: "var(--ctext)" }}
-                strokeWidth={1.5}
-                strokeDasharray="5 5"
-              />
-            )}
-            <path
-              d={line}
-              fill="none"
-              style={{ stroke: "var(--wm-lime)" }}
-              strokeWidth={2.5}
-              strokeLinejoin="round"
-            />
-            {labels.map((label, i) => (
-              <g key={`${label}-${i}`}>
-                {/* Narrow charts show every other tick (anchored on the last
-                    point) so adjacent date labels never overprint. */}
-                {(w >= 400 || (n - 1 - i) % 2 === 0) && (
-                  <text
-                    x={x(i)}
-                    y={h - 6}
-                    textAnchor={
-                      compact && i === 0
-                        ? "start"
-                        : compact && i === n - 1
-                          ? "end"
-                          : "middle"
-                    }
-                    style={LABEL}
-                  >
-                    {label}
-                  </text>
-                )}
-                <circle
-                  cx={x(i)}
-                  cy={y(values[i] ?? 0)}
-                  r={i === n - 1 ? 5 : 3}
-                  style={{
-                    fill: i === n - 1 ? "var(--wm-lime)" : "var(--cbg)",
-                    stroke: "var(--wm-lime)",
-                  }}
-                  strokeWidth={2}
-                >
-                  <title>{`${label}: ${tipFormat ? tipFormat(values[i] ?? 0) : values[i]}`}</title>
-                </circle>
-              </g>
-            ))}
-            {format && (
-              <ValuePill
-                cx={x(n - 1)}
-                y={y(values[n - 1]) - 6}
-                text={format(values[n - 1])}
-                width={w}
-              />
-            )}
-          </>
-        );
-      }}
-    </Frame>
+    <div className={wrapClass}>
+      <LineChart
+        data={data}
+        series={series}
+        label={ariaLabel}
+        formatValue={(value) => tipFormat(value)}
+        legend={false}
+      />
+    </div>
   );
 }
 
@@ -663,11 +485,6 @@ export function WaterfallChart({
   );
 }
 
-function tipX(width: number, count: number, index: number) {
-  const left = width < 480 ? 2 : 44;
-  return left + ((width - left - 4) / Math.max(1, count)) * (index + 0.5);
-}
-
 export type FlowDay = {
   label: string;
   /** income - expense of the bucket (tooltip only). */
@@ -677,17 +494,20 @@ export type FlowDay = {
 };
 
 /**
- * Diverging bars (prototype Beranda hero): income above zero, expense below.
- * Every series keeps its own hue (see
- * `FLOW_COLORS`); hovering or focusing a column shows its breakdown and
- * drops the other columns to the same hue at reduced opacity. Nothing is
- * pinned by default.
+ * UIArc chart swap — income/expense as a two-layer `Streamgraph` (`offset:
+ * "zero"`, stacked from a flat baseline). The original drew income above
+ * zero and expense below (diverging bars); Arc's free tier has no diverging
+ * or stacked-bar primitive, so both series now stack upward together —
+ * a real, accepted visual-character change (see chart-swap decision).
+ * `net` was shown in a composite tooltip/side-panel readout; Arc's
+ * per-series tooltip has no slot for a derived third value, so `net` is
+ * dropped from the live chart (still available wherever the caller shows
+ * its own totals elsewhere on the page).
  */
 export function FlowStackChart({
   days,
   format,
   formatFull,
-  axis,
   labels,
   ariaLabel,
   className,
@@ -701,180 +521,55 @@ export function FlowStackChart({
   ariaLabel: string;
   className?: string;
 }) {
-  const { ref, box } = useBox();
-  const uid = useId().replaceAll(":", "");
-  const [shown, setShown] = useState<number | null>(null);
-  const full = formatFull ?? format;
+  const tipFormat = formatFull ?? format;
+  const wrapClass = [arcStyles.bridge, className].filter(Boolean).join(" ");
+
+  const series: StreamgraphSeries[] = [
+    { key: "income", label: labels.income, color: FLOW_COLORS.income },
+    { key: "expense", label: labels.expense, color: FLOW_COLORS.expense },
+  ];
+  const data: StreamgraphDatum[] = days.map((d, i) => ({
+    key: String(i),
+    label: d.label,
+    axisLabel: d.label,
+    values: { income: d.income, expense: d.expense },
+  }));
   return (
-    <>
-      <Frame box={box} boxRef={ref} ariaLabel={ariaLabel} className={className}>
-        {({ w, h }) => {
-          const compact = w < 480;
-          const left = compact ? 2 : 44;
-          const right = 4;
-          const topPad = 12;
-          const bottomPad = 24;
-          // Keep both halves readable: neither side shrinks below half the other.
-          const up = Math.max(0, ...days.map((d) => d.income));
-          const low = Math.max(0, ...days.map((d) => d.expense));
-          const top = niceCeil(Math.max(1, up, low / 2));
-          const bottom = low > 0 ? -niceCeil(Math.max(low, up / 2)) : 0;
-          const y = (v: number) =>
-            topPad + ((top - v) / (top - bottom)) * (h - topPad - bottomPad);
-          const band = (w - left - right) / Math.max(1, days.length);
-          const barW = Math.min(64, band * 0.62);
-          const seg = (
-            key: string,
-            x: number,
-            from: number,
-            to: number,
-            fillId: string,
-            i: number,
-            on: boolean,
-          ) =>
-            Math.abs(y(from) - y(to)) < 0.5 ? null : (
-              <rect
-                key={key}
-                className="wm-chart-bar"
-                x={x}
-                y={Math.min(y(from), y(to)) + 1}
-                width={barW}
-                height={Math.max(2, Math.abs(y(from) - y(to)) - 2)}
-                rx={Math.min(8, barW / 4)}
-                fill={`url(#${uid}-${fillId})`}
-                style={{
-                  animationDelay: `${i * 35}ms`,
-                  opacity: on ? undefined : DIM,
-                }}
-              />
-            );
-          return (
-            <>
-              <defs>
-                <Hatch id={`${uid}-inc`} color={FLOW_COLORS.income} />
-                <Hatch id={`${uid}-exp`} color={FLOW_COLORS.expense} />
-              </defs>
-              {!compact && (
-                <Grid
-                  y={y}
-                  top={top}
-                  bottom={bottom}
-                  left={left}
-                  right={right}
-                  width={w}
-                  axis={axis ?? format}
-                />
-              )}
-              {days.map((d, i) => {
-                const on = shown == null || i === shown;
-                const x = left + band * i + band / 2 - barW / 2;
-                return (
-                  <g
-                    key={`${d.label}-${i}`}
-                    tabIndex={0}
-                    onMouseEnter={() => setShown(i)}
-                    onMouseLeave={() => setShown(null)}
-                    onFocus={() => setShown(i)}
-                    onBlur={() => setShown(null)}
-                    style={{ outline: "none" }}
-                  >
-                    <rect
-                      x={left + band * i}
-                      y={0}
-                      width={band}
-                      height={h}
-                      fill="transparent"
-                    />
-                    {seg("i", x, 0, d.income, "inc", i, on)}
-                    {seg("e", x, 0, -d.expense, "exp", i, on)}
-                    {d.label !== "" && (
-                      <text
-                        x={x + barW / 2}
-                        y={h - 6}
-                        textAnchor="middle"
-                        style={i === shown ? STRONG : LABEL}
-                      >
-                        {d.label}
-                      </text>
-                    )}
-                    <title>{`${d.label} · ${labels.net} ${full(d.net)} · ${labels.income} ${full(d.income)} · ${labels.expense} ${full(d.expense)}`}</title>
-                  </g>
-                );
-              })}
-            </>
-          );
-        }}
-      </Frame>
-      {shown != null && days[shown] && box && (
-        <div
-          className="wm-chart-tip"
-          aria-hidden="true"
-          style={{
-            left: Math.min(
-              box.w - 190,
-              Math.max(0, tipX(box.w, days.length, shown) - 95),
-            ),
-          }}
-        >
-          <b>{days[shown].label}</b>
-          <div>
-            <span>{labels.net}</span>
-            <span>{full(days[shown].net)}</span>
-          </div>
-          <div>
-            <span>{labels.income}</span>
-            <span>{full(days[shown].income)}</span>
-          </div>
-          <div>
-            <span>{labels.expense}</span>
-            <span>{full(days[shown].expense)}</span>
-          </div>
-        </div>
-      )}
-    </>
+    <div className={wrapClass}>
+      <Streamgraph
+        data={data}
+        series={series}
+        label={ariaLabel}
+        offset="zero"
+        formatValue={(value) => tipFormat(value)}
+      />
+    </div>
   );
 }
 
-/** Semicircle tick gauge (prototype "Kesehatan finansial"): `value` 0..100 lights ticks yellow → lime. */
+/**
+ * UIArc chart swap — Arc's `Gauge` (arc semicircle, animated digit readout
+ * built in). It renders its own `value%` readout and `label`/`detail`
+ * caption, so the three call sites moved from a JSX-children composition
+ * (`<b>{value}%</b><small>{label}</small>`) to passing `label` as a plain
+ * string — the one call-site change this swap required (Arc's Gauge has no
+ * children slot to compose into).
+ */
 export function TickGauge({
   value,
-  ariaLabel,
-  children,
+  label,
+  detail,
 }: {
   value: number;
-  ariaLabel: string;
-  children?: ReactNode;
+  /** Visible caption under the digit readout (was the `<small>` child) —
+   * Arc's Gauge builds its own aria-label from this, so the old separate
+   * `ariaLabel` prop is no longer needed. */
+  label: string;
+  detail?: string;
 }) {
-  const ticks = 36;
-  const lit = Math.round((Math.max(0, Math.min(100, value)) / 100) * ticks);
   return (
-    <div className="wm-gauge" role="img" aria-label={ariaLabel}>
-      <svg viewBox="0 0 240 130" aria-hidden="true">
-        {Array.from({ length: ticks }, (_, i) => {
-          const a = Math.PI - (i / (ticks - 1)) * Math.PI;
-          const cx = 120 + Math.cos(a) * 92;
-          const cy = 120 - Math.sin(a) * 92;
-          const on = i < lit;
-          const t = i / (ticks - 1);
-          return (
-            <rect
-              key={i}
-              x={cx - 3.5}
-              y={cy - 14}
-              width={7}
-              height={28}
-              rx={3}
-              transform={`rotate(${90 - (a * 180) / Math.PI} ${cx} ${cy})`}
-              style={{
-                fill: on
-                  ? `color-mix(in srgb, var(--wm-lime) ${Math.round(t * 100)}%, var(--wm-yellow))`
-                  : "var(--wm-ghost)",
-              }}
-            />
-          );
-        })}
-      </svg>
-      <div className="wm-gauge-center">{children}</div>
+    <div className={arcStyles.bridge}>
+      <Gauge value={value} min={0} max={100} label={label} detail={detail} />
     </div>
   );
 }

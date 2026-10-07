@@ -6,14 +6,22 @@ import { ChartErrorBoundary } from "@/components/charts/chart-error";
 import type { DonutSegment } from "@/components/charts/donut";
 import {
   buildCashflowOptions,
-  buildDonutOptions,
   buildHBarOptions,
   buildRadialOptions,
   buildSparklineOptions,
-  buildTrendOptions,
   type ChartMoneyFormatter,
   type TrendSeries,
 } from "@/components/charts/apex-options";
+import arcStyles from "@/components/charts/arc/arc-bridge.module.css";
+import {
+  LineChart as ArcLineChart,
+  type LineChartDatum as ArcLineDatum,
+  type LineChartSeries as ArcLineSeries,
+} from "@/components/charts/arc/line-chart/line-chart";
+import {
+  DonutChart as ArcDonutChart,
+  type DonutChartDatum as ArcDonutDatum,
+} from "@/components/charts/arc/donut-chart/donut-chart";
 
 /**
  * ApexCharts presets — EPIC-025 N3-A3. One component per recurring chart
@@ -89,7 +97,10 @@ type TrendChartProps = {
   money?: ChartMoneyFormatter;
 };
 
-/** Gradient-filled area trend chart. Ports `trend()`. */
+/**
+ * UIArc chart swap (uiarc.dev/components) — Arc's `LineChart`, area-filled
+ * on the first series. Tokens bridged via `arc-bridge.module.css`.
+ */
 export function TrendChart({
   categories,
   series,
@@ -97,24 +108,30 @@ export function TrendChart({
   ariaLabel,
   money,
 }: TrendChartProps) {
-  const rebuildToken = useThemeRebuildToken();
-  const built = useMemo(
-    () => buildTrendOptions(categories, series, height, money),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [categories, series, height, money, rebuildToken],
-  );
+  const formatValue = money?.format ?? ((v: number) => String(v));
+  const lineSeries: ArcLineSeries[] = series.map((s, i) => ({
+    key: s.name,
+    label: s.name,
+    color: i === 0 ? "var(--viz-1)" : undefined,
+    area: i === 0,
+  }));
+  const data: ArcLineDatum[] = categories.map((label, i) => ({
+    key: String(i),
+    label,
+    axisLabel: label,
+    values: Object.fromEntries(series.map((s) => [s.name, s.data[i] ?? 0])),
+  }));
   return (
-    <ChartErrorBoundary label="Grafik tren">
-      <div role="img" aria-label={ariaLabel ?? "Grafik tren"}>
-        <ApexChart
-          type="area"
-          width="100%"
-          height={height}
-          options={built.options}
-          series={built.series}
-        />
-      </div>
-    </ChartErrorBoundary>
+    <div className={arcStyles.bridge}>
+      <ArcLineChart
+        data={data}
+        series={lineSeries}
+        label={ariaLabel ?? "Grafik tren"}
+        height={height}
+        formatValue={(value) => formatValue(value)}
+        legend={series.length > 1}
+      />
+    </div>
   );
 }
 
@@ -128,7 +145,12 @@ type DonutChartProps = {
   money?: ChartMoneyFormatter;
 };
 
-/** Pie chart (was donut). Accepts the existing `DonutSegment[]` shape. Ports `donut()`. */
+/**
+ * UIArc chart swap — Arc's `DonutChart`. Accepts the existing
+ * `DonutSegment[]` shape; `sub` (a per-segment subtitle in the old pie
+ * tooltip) has no Arc equivalent and is dropped — Arc's legend only shows
+ * label + value + share.
+ */
 export function DonutChart({
   segments,
   centerLabel = "Total",
@@ -136,24 +158,23 @@ export function DonutChart({
   ariaLabel,
   money,
 }: DonutChartProps) {
-  const rebuildToken = useThemeRebuildToken();
-  const { options, series } = useMemo(
-    () => buildDonutOptions(segments, centerLabel, height, money),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuildToken forces a recompute on theme flip; the builder re-reads cssVar() internally rather than referencing it directly.
-    [segments, centerLabel, height, money, rebuildToken],
-  );
+  const formatValue = money?.format ?? ((v: number) => String(v));
+  const data: ArcDonutDatum[] = segments.map((s, i) => ({
+    key: `${s.label}-${i}`,
+    label: s.label,
+    value: s.value,
+    color: s.color,
+  }));
   return (
-    <ChartErrorBoundary label="Grafik donat">
-      <div role="img" aria-label={ariaLabel ?? "Grafik donat"}>
-        <ApexChart
-          type="pie"
-          width="100%"
-          height={height}
-          options={options}
-          series={series}
-        />
-      </div>
-    </ChartErrorBoundary>
+    <div className={arcStyles.bridge}>
+      <ArcDonutChart
+        data={data}
+        label={ariaLabel ?? "Grafik donat"}
+        totalLabel={centerLabel}
+        size={height}
+        formatValue={(value) => formatValue(value)}
+      />
+    </div>
   );
 }
 
