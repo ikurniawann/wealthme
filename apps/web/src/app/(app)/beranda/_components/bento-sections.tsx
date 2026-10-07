@@ -871,7 +871,12 @@ export function GoalsBento({
             const date = goal.targetDate
               ? new Date(goal.targetDate).toLocaleDateString(
                   t.beranda.dateLocale,
-                  { day: "numeric", month: "short", year: "numeric" },
+                  {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  },
                 )
               : null;
             const pace = goalPace(goal);
@@ -980,7 +985,7 @@ export function HistoryBento({ fmt }: { fmt: MoneyFormatters }) {
                 meta={[
                   new Date(tx.occurredAt).toLocaleDateString(
                     t.beranda.dateLocale,
-                    { day: "numeric", month: "short" },
+                    { day: "numeric", month: "short", timeZone: "UTC" },
                   ),
                   tx.accountName,
                 ]

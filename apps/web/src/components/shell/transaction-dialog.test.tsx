@@ -529,7 +529,7 @@ describe("TransactionDialog, credit-card tab and transfer category removal (EPIC
 
     await user.click(screen.getByRole("button", { name: "Simpan" }));
 
-    // The dialog defaults to the UTC calendar day, so the calendar opens on that month.
+    // The dialog defaults to the local (WIB) calendar day, so the calendar opens on that month.
     const viewMonth = new Date().toISOString().slice(0, 7);
     await waitFor(() => {
       const post = mockApiFetch.mock.calls.find(

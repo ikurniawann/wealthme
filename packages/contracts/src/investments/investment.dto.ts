@@ -102,8 +102,8 @@ export interface InvestmentSummaryDto {
   totalCurrentValue: string;
   totalReturnRp: string;
   totalReturnPct: number;
-  todayReturnRp: string;
-  todayReturnPct: number;
+  todayReturnRp: string | null;
+  todayReturnPct: number | null;
 }
 
 // EPIC-023 G1 (D15) — response shape for POST .../investments/:id/price

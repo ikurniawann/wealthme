@@ -11,6 +11,7 @@ import type { DashboardSummaryDto } from "@wealthme/contracts";
 import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
 import { CardLink, SectionCard } from "@/components/wm";
 import { useLocale } from "@/hooks/use-locale";
+import { localIsoDate } from "@/lib/local-date";
 import type { MoneyFormatters } from "./use-beranda-data";
 
 /**
@@ -45,11 +46,20 @@ export function RecentActivity({
   const { money, isReady } = fmt;
 
   function formatRelativeDate(isoString: string): string {
+    // Parse ISO to local Date, then extract local calendar day
     const date = new Date(isoString);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / 86_400_000);
-    if (diffDays === 0) return t.common.today;
-    if (diffDays === 1) return t.common.yesterday;
+    const dateLocalString = localIsoDate(date);
+    const nowLocalString = localIsoDate();
+
+    // Compare calendar days (YYYY-MM-DD) as strings
+    if (dateLocalString === nowLocalString) return t.common.today;
+
+    // Check if yesterday by comparing local calendar days
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (dateLocalString === localIsoDate(yesterday)) return t.common.yesterday;
+
+    // For older dates, use locale formatting
     return date.toLocaleDateString(t.beranda.dateLocale, {
       day: "numeric",
       month: "short",

@@ -2128,16 +2128,22 @@ export default function InvestasiPage() {
                 label={t.investasi.todayReturnLabel}
                 value={formatDecimalRupiah(summary?.todayReturnRp ?? null)}
                 delta={
-                  <span className="iv-kdelta">
-                    <Delta
-                      dir={todayDir}
-                      value={formatReturnPct(summary?.todayReturnPct ?? null)}
-                    />
-                    <span className="wm-cap">
-                      {t.investasi.livePositionsOnlyPrefix} {livePositionsCount}{" "}
-                      {t.investasi.livePositionsSuffix}
+                  summary?.todayReturnPct == null ? (
+                    <span className="wm-delta" data-tone="neutral">
+                      —
                     </span>
-                  </span>
+                  ) : (
+                    <span className="iv-kdelta">
+                      <Delta
+                        dir={todayDir}
+                        value={formatReturnPct(summary.todayReturnPct)}
+                      />
+                      <span className="wm-cap">
+                        {t.investasi.livePositionsOnlyPrefix}{" "}
+                        {livePositionsCount} {t.investasi.livePositionsSuffix}
+                      </span>
+                    </span>
+                  )
                 }
               />
               <button

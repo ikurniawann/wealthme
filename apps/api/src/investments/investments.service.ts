@@ -324,14 +324,14 @@ export class InvestmentsService {
         ? Math.round((totalReturnRp.toNumber() / totalCostNum) * 10_000) / 100
         : 0;
 
-    // todayReturn not tracked separately (requires yesterday's snapshot) — default to 0
+    // todayReturn not tracked separately (requires yesterday's snapshot) — return null instead of 0
     return {
       totalCostBasis: decimalToString(totalCostBasis),
       totalCurrentValue: decimalToString(totalCurrentValue),
       totalReturnRp: decimalToString(totalReturnRp),
       totalReturnPct,
-      todayReturnRp: "0",
-      todayReturnPct: 0,
+      todayReturnRp: null,
+      todayReturnPct: null,
     };
   }
 

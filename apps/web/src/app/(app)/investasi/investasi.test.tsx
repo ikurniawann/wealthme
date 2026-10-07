@@ -115,8 +115,8 @@ const SUMMARY: InvestmentSummaryDto = {
   totalCurrentValue: "1100000",
   totalReturnRp: "100000",
   totalReturnPct: 10,
-  todayReturnRp: "0",
-  todayReturnPct: 0,
+  todayReturnRp: null,
+  todayReturnPct: null,
 };
 
 const queryClient = new QueryClient({
@@ -1178,5 +1178,70 @@ describe("InvestasiPage — polish batch 7b item 3 (notice disclosure + formula 
     expect(
       await screen.findByRole("button", { name: expectedFormula }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("InvestasiPage — P3: today return unavailable shows dash, not 0%", () => {
+  it("displays '—' for today return when todayReturnPct is null (not tracked)", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments/summary": {
+        totalCostBasis: "1000000",
+        totalCurrentValue: "1100000",
+        totalReturnRp: "100000",
+        totalReturnPct: 10,
+        todayReturnRp: null,
+        todayReturnPct: null,
+      },
+    });
+    render(<InvestasiPage />);
+
+    await screen.findByText("Emas Batangan");
+
+    // Find the "Perubahan Hari Ini" (Today Return) KPI row
+    const todayLabel = await screen.findByText(
+      idDict.investasi.todayReturnLabel,
+    );
+    // Get the KPI container (parent with the value display)
+    const todayKpi =
+      todayLabel.closest("[class*='kpi']") ||
+      todayLabel.closest("div[class*='rounded']") ||
+      todayLabel.parentElement;
+
+    // Assert that the delta shows "—" and does NOT show "0%"
+    expect(todayKpi).toHaveTextContent("—");
+    expect(
+      within(todayKpi as HTMLElement).queryByText(/0%/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("displays numeric percentage when todayReturnPct has a value", async () => {
+    mockSession("owner");
+    routeApi({
+      "/investments/summary": {
+        totalCostBasis: "1000000",
+        totalCurrentValue: "1100000",
+        totalReturnRp: "100000",
+        totalReturnPct: 10,
+        todayReturnRp: "50000",
+        todayReturnPct: 4.5,
+      },
+    });
+    render(<InvestasiPage />);
+
+    await screen.findByText("Emas Batangan");
+
+    // Find the "Perubahan Hari Ini" (Today Return) KPI row
+    const todayLabel = await screen.findByText(
+      idDict.investasi.todayReturnLabel,
+    );
+    const todayKpi =
+      todayLabel.closest("[class*='kpi']") ||
+      todayLabel.closest("div[class*='rounded']") ||
+      todayLabel.parentElement;
+
+    // Assert that numeric value is displayed
+    expect(todayKpi).toHaveTextContent("4,5%");
+    expect(todayKpi).not.toHaveTextContent("—");
   });
 });

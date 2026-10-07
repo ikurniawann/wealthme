@@ -85,7 +85,7 @@ export function NetWorthTrend({
   const coordinate = chart.coordinates[index]!;
   const date = new Date(selected.capturedAt).toLocaleDateString(
     t.beranda.dateLocale,
-    { day: "numeric", month: "short", year: "numeric" },
+    { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" },
   );
 
   function selectFromPointer(clientX: number) {
@@ -184,12 +184,14 @@ export function NetWorthTrend({
           {new Date(validPoints[0]!.capturedAt).toLocaleDateString(locale, {
             month: "short",
             year: "2-digit",
+            timeZone: "UTC",
           })}
         </span>
         <span>
           {new Date(validPoints.at(-1)!.capturedAt).toLocaleDateString(locale, {
             month: "short",
             year: "2-digit",
+            timeZone: "UTC",
           })}
         </span>
       </div>

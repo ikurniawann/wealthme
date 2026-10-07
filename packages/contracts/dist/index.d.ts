@@ -936,8 +936,8 @@ interface InvestmentSummaryDto {
     totalCurrentValue: string;
     totalReturnRp: string;
     totalReturnPct: number;
-    todayReturnRp: string;
-    todayReturnPct: number;
+    todayReturnRp: string | null;
+    todayReturnPct: number | null;
 }
 interface InvestmentPriceDto {
     id: string;

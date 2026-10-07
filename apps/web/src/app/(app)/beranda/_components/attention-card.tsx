@@ -114,6 +114,7 @@ export function AttentionCard({
                     ).toLocaleDateString(t.beranda.dateLocale, {
                       day: "numeric",
                       month: "short",
+                      timeZone: "UTC",
                     })}
                     .
                     {progress && (

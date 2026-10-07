@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { Plus } from "lucide-react";
 import type {
   AccountDto,
   DashboardSummaryDto,
@@ -169,13 +169,6 @@ export function MobileHome({
               <i>Rp</i>
               {v2.mExpense}
             </span>
-            {spendDelta &&
-              spendDelta.dir !== "flat" &&
-              (spendDelta.dir === "up" ? (
-                <TrendingUp aria-hidden="true" />
-              ) : (
-                <TrendingDown aria-hidden="true" />
-              ))}
           </span>
           <span className="beranda-mh-v wm-num">
             {fmt.money(currentMonth?.expense ?? 0)}
@@ -184,11 +177,6 @@ export function MobileHome({
                 {spendDelta.dir !== "flat" && (
                   <span aria-hidden="true">{DELTA_ARROW[spendDelta.dir]} </span>
                 )}
-                {spendDelta.dir === "up"
-                  ? "+"
-                  : spendDelta.dir === "down"
-                    ? "−"
-                    : ""}
                 {Math.round(spendDelta.pct)}%
                 <span className="sr-only">
                   {deltaSrText(
