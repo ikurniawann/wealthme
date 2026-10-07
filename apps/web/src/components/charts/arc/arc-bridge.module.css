@@ -17,14 +17,27 @@
 .bridge {
   --accent: var(--viz-1);
   --accent-strong: var(--primary-strong);
-  --surface: var(--card);
-  --surface-raised: var(--card);
-  --surface-muted: var(--muted);
-  --foreground: var(--card-foreground);
-  --text-secondary: var(--muted-foreground);
-  --text-muted: var(--muted-foreground);
-  --border: var(--border);
-  --border-strong: var(--border);
+  /* Card-scoped, not theme-scoped: WealthMe's --c* family (globals.css) is
+   * what every surrounding card/hero already uses for its own text and
+   * chrome (bento-charts.tsx's own header comment: "the same chart renders
+   * on a white card and on the dark hero" via these same vars). The old
+   * bridge used --card/--card-foreground/--muted-foreground — WealthMe's
+   * *global* light/dark-mode tokens, which only flip with `.dark` on the
+   * page. A hero card goes dark via a *local* `.wm-dark` class regardless
+   * of the page's own theme, so on a light-mode page with a dark hero,
+   * --card-foreground stayed dark-on-dark — unreadable (reported: axis
+   * labels/headline invisible on Rekening's dark hero bar chart). --c*
+   * already resolves correctly in both cases because `.wm-dark` (and
+   * `.dark .wm-dark`) redefine it locally; nothing in this file needs to
+   * know which context it's in. */
+  --surface: var(--cbg);
+  --surface-raised: var(--cbg);
+  --surface-muted: var(--cbg);
+  --foreground: var(--cstrong);
+  --text-secondary: var(--ctext);
+  --text-muted: var(--ctext);
+  --border: var(--cgrid);
+  --border-strong: var(--cghost);
   --success: var(--success);
   --warning: var(--warning);
   --danger: var(--destructive);
@@ -68,13 +81,14 @@
   --gauge-text: var(--foreground);
   --series: var(--accent);
   --slice: var(--accent);
-  --inner: var(--card);
+  --inner: var(--cbg);
 
   color-scheme: light dark;
 }
 
-/* On a dark card/hero, WealthMe toggles via `.dark` (see globals.css) — the
- * installed chart modules were rewritten to key off `.dark` too (not UIArc's
- * own `[data-theme="dark"]`, which collides with WealthMe's brand-preset
- * attribute of the same name). No extra override needed here: every token
- * above already resolves through WealthMe's own `.dark`-scoped variables. */
+/* Dark-mode selector: the installed chart modules were rewritten to key
+ * off WealthMe's `.dark` class (not UIArc's own `[data-theme="dark"]`,
+ * which collides with WealthMe's brand-preset attribute of the same name).
+ * That selector only matters for the few bar/line-fill rules that read
+ * `.dark` directly in the chart CSS modules themselves — every token above
+ * is card-scoped via --c* and needs no separate dark-mode override here. */
