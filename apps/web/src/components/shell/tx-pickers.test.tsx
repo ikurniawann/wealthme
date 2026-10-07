@@ -75,61 +75,31 @@ function accountChoices(count: number): Choice[] {
 }
 
 describe("ChoiceTiles account layout", () => {
-  it("wraps up to six accounts into a grid, with no scroll rails or count", () => {
+  it("keeps even a few accounts in one swipeable row, nickname first, institution as caption", () => {
     render(
       <ChoiceTiles
         variant="account"
         label="Akun"
         value="acc-0"
         onChange={jest.fn()}
-        choices={accountChoices(6)}
-        countLabel={(shown, total) => `${shown} dari ${total}`}
+        choices={[
+          {
+            value: "acc-0",
+            name: "Harian — BCA",
+            label: "Harian",
+            caption: "BCA",
+          },
+        ]}
       />,
     );
-
     expect(screen.getByRole("radiogroup", { name: "Akun" })).toHaveAttribute(
       "data-layout",
-      "grid",
+      "scroll",
     );
-    expect(screen.queryByText(/dari/)).not.toBeInTheDocument();
-  });
-
-  it("on phones keeps even a few accounts in one swipeable row, nickname first, institution as caption", () => {
-    const original = window.matchMedia;
-    window.matchMedia = ((query: string) => ({
-      matches: query === "(max-width: 720px)",
-      media: query,
-      addEventListener: jest.fn(),
-      removeEventListener: jest.fn(),
-    })) as unknown as typeof window.matchMedia;
-    try {
-      render(
-        <ChoiceTiles
-          variant="account"
-          label="Akun"
-          value="acc-0"
-          onChange={jest.fn()}
-          choices={[
-            {
-              value: "acc-0",
-              name: "Harian — BCA",
-              label: "Harian",
-              caption: "BCA",
-            },
-          ]}
-        />,
-      );
-      expect(screen.getByRole("radiogroup", { name: "Akun" })).toHaveAttribute(
-        "data-layout",
-        "scroll",
-      );
-      const tile = screen.getByRole("radio", { name: "Harian — BCA" });
-      expect(tile.firstElementChild).toHaveTextContent("Harian");
-      expect(tile.firstElementChild?.tagName).toBe("B");
-      expect(tile.lastElementChild).toHaveTextContent("BCA");
-    } finally {
-      window.matchMedia = original;
-    }
+    const tile = screen.getByRole("radio", { name: "Harian — BCA" });
+    expect(tile.firstElementChild).toHaveTextContent("Harian");
+    expect(tile.firstElementChild?.tagName).toBe("B");
+    expect(tile.lastElementChild).toHaveTextContent("BCA");
   });
 
   it("keeps the scroller for more than six accounts and states how many are fully visible", () => {

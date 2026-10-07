@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import { formatAmountInput } from "@/lib/format";
 import { useLocale } from "@/hooks/use-locale";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { MoneyCurrencyPicker } from "@/components/money/currency-picker";
 import { currencySymbol } from "@/components/money/money-format";
 import { MoneyHint } from "@/components/money/money-input";
@@ -55,9 +54,6 @@ export type Choice = {
   icon?: ReactNode;
   name: string;
 };
-
-/** At most this many accounts render as a wrapped grid; more scroll with a visible count. */
-export const ACCOUNT_GRID_MAX = 6;
 
 export function ChoiceTiles({
   id,
@@ -93,10 +89,11 @@ export function ChoiceTiles({
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true, shown: 0 });
-  // Phones: account tiles are one swipeable row of small chips, never a wrapped grid.
-  const compact = useMediaQuery("(max-width: 720px)");
-  const scrolls =
-    variant === "account" && (compact || choices.length > ACCOUNT_GRID_MAX);
+  // Account tiles are always one swipeable row of small chips, never a
+  // wrapped grid — request 2026-10-07: the grid (shown above 720px or at
+  // <=6 accounts) felt dense at every width it appeared at, not just a
+  // narrow one, so the row is now the only account layout.
+  const scrolls = variant === "account";
   const sync = () => {
     const el = ref.current;
     if (!el || !scrolls) return;
