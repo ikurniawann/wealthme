@@ -3513,9 +3513,17 @@
     .wm-kpis {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 12px;
+      gap: 10px;
+      padding: 14px;
       border-top: 1px solid var(--wm-line);
       border-left: 0;
+    }
+    /* Density pass (request 2026-10-07): the hero's own padding + its kpi
+       strip's padding stacked to ~75px of chrome above any real page
+       content on phones. Tighter on <=900px only — desktop keeps the
+       original 20px breathing room. */
+    .wm-hero-main {
+      padding: 14px 14px 10px;
     }
     .wm-tips {
       grid-template-columns: 1fr;
