@@ -950,28 +950,30 @@ export function BarChart({
           }}
         />
       </div>
-      <table className={styles.srOnly}>
-        <caption>
-          {label}, {period}
-        </caption>
-        <thead>
-          <tr>
-            <th scope="col">{categoryLabel}</th>
-            <th scope="col">{label}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((item) => (
-            <tr key={item.key}>
-              <th scope="row">{item.label}</th>
-              <td>
-                {formatValue(item.value)}
-                {suffix}
-              </td>
+      <div className={styles.srOnly}>
+        <table>
+          <caption>
+            {label}, {period}
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">{categoryLabel}</th>
+              <th scope="col">{label}</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((item) => (
+              <tr key={item.key}>
+                <th scope="row">{item.label}</th>
+                <td>
+                  {formatValue(item.value)}
+                  {suffix}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <p className={styles.srOnly} aria-live="polite" aria-atomic="true">
         {known.changes
           ? `${period}. ${averageLabel} ${formatValue(Math.round(average))}${suffix}.`

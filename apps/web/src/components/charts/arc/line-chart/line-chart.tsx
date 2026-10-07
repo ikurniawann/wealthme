@@ -394,7 +394,7 @@ export function LineChart({
         ]),
       ),
     [signature],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
   let low = Infinity,
     high = -Infinity;
   for (const line of visible)
@@ -963,31 +963,33 @@ export function LineChart({
       </div>
       <p className={styles.srOnly}>{summary}</p>
       {!empty && (
-        <table className={styles.srOnly}>
-          <caption>{label}</caption>
-          <thead>
-            <tr>
-              <th scope="col">{categoryLabel}</th>
-              {series.map((line) => (
-                <th key={line.key} scope="col">
-                  {line.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((item) => (
-              <tr key={item.key}>
-                <th scope="row">{item.label}</th>
+        <div className={styles.srOnly}>
+          <table>
+            <caption>{label}</caption>
+            <thead>
+              <tr>
+                <th scope="col">{categoryLabel}</th>
                 {series.map((line) => (
-                  <td key={line.key}>
-                    {format(item.values[line.key] ?? 0, line)}
-                  </td>
+                  <th key={line.key} scope="col">
+                    {line.label}
+                  </th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {data.map((item) => (
+                <tr key={item.key}>
+                  <th scope="row">{item.label}</th>
+                  {series.map((line) => (
+                    <td key={line.key}>
+                      {format(item.values[line.key] ?? 0, line)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <p className={styles.srOnly} aria-live="polite" aria-atomic="true">
         {loading ? "Loading" : ""}

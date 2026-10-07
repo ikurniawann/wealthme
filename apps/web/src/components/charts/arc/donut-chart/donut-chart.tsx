@@ -927,35 +927,37 @@ export function DonutChart({
         {announcement}
       </p>
       {total > 0 && (
-        <table className={styles.srOnly}>
-          <caption>{label}</caption>
-          <thead>
-            <tr>
-              <th scope="col">Segment</th>
-              <th scope="col">Value</th>
-              <th scope="col">Share</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visible
-              .flatMap((item) =>
-                item.members
-                  ? item.members.map((member) => ({
-                      key: member.key,
-                      label: `${member.label} (${otherLabel})`,
-                      value: member.value,
-                    }))
-                  : [item],
-              )
-              .map((item) => (
-                <tr key={item.key}>
-                  <th scope="row">{item.label}</th>
-                  <td>{format(item.value)}</td>
-                  <td>{shareText(item.value / total)}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+        <div className={styles.srOnly}>
+          <table>
+            <caption>{label}</caption>
+            <thead>
+              <tr>
+                <th scope="col">Segment</th>
+                <th scope="col">Value</th>
+                <th scope="col">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible
+                .flatMap((item) =>
+                  item.members
+                    ? item.members.map((member) => ({
+                        key: member.key,
+                        label: `${member.label} (${otherLabel})`,
+                        value: member.value,
+                      }))
+                    : [item],
+                )
+                .map((item) => (
+                  <tr key={item.key}>
+                    <th scope="row">{item.label}</th>
+                    <td>{format(item.value)}</td>
+                    <td>{shareText(item.value / total)}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </figure>
   );
