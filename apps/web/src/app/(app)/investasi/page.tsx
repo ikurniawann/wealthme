@@ -2603,7 +2603,7 @@ export default function InvestasiPage() {
                           >
                             <div className="flex items-center gap-1.5">
                               <StatusBadge
-                                variant={tx.type === "buy" ? "info" : "warning"}
+                                variant={tx.type === "buy" ? "info" : "gray"}
                               >
                                 {tx.type === "buy"
                                   ? t.investasi.historyBuyLabel

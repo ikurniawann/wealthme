@@ -9,18 +9,27 @@
  * `@/components/charts/apex-base` there.
  */
 
-const VIZ_COUNT = 6;
-
 type VizSlot = 1 | 2 | 3 | 4 | 5 | 6;
+
+/**
+ * `--viz-2` (lime) and `--viz-3` (amber) are reserved by the Semantic Ramp —
+ * lime means Pemasukan/active-state, amber means due-soon/budget-pressure.
+ * Every categorical (identity-only) assignment in this file draws from the
+ * remaining four tokens only, so an expense row, a spend category, or a
+ * balance group can never land on a reserved hue by index or slot luck.
+ */
+const SAFE_SLOTS: readonly VizSlot[] = [1, 4, 5, 6];
 
 function viz(slot: VizSlot): string {
   return `var(--viz-${slot})`;
 }
 
-/** Nth categorical color, wrapping after six. Use when the category has no fixed identity (spend rows, hashed names, balance groups). */
+/** Nth categorical color from the safe (non-reserved) set, wrapping after four. Use when the category has no fixed identity (spend rows, hashed names, balance groups). */
 export function vizByIndex(index: number): string {
-  const wrapped = ((Math.trunc(index) % VIZ_COUNT) + VIZ_COUNT) % VIZ_COUNT;
-  return viz((wrapped + 1) as VizSlot);
+  const wrapped =
+    ((Math.trunc(index) % SAFE_SLOTS.length) + SAFE_SLOTS.length) %
+    SAFE_SLOTS.length;
+  return viz(SAFE_SLOTS[wrapped]!);
 }
 
 /**
@@ -46,16 +55,18 @@ export const EXPENSE_COLOR =
 /** Pemasukan on a light card: the deepened lime (`--viz-2`; lime on the dark hero by scope). */
 export const INCOME_COLOR = viz(2);
 
-// Seven investment types over six tokens: deposito shares obligasi's teal
-// (both fixed income); "lainnya" is the neutral graphite.
+// Seven investment types over the four safe (non-reserved) tokens: deposito
+// shares obligasi's teal (both fixed income); lainnya shares reksa_dana's
+// clay (both pooled/mixed buckets); kripto shares emas's graphite (both
+// alternative/volatile assets). Icons differentiate within a shared color.
 const ASSET_CLASS_SLOT: Record<string, VizSlot> = {
   saham: 1,
-  reksa_dana: 2,
-  emas: 3,
-  kripto: 4,
+  reksa_dana: 4,
+  emas: 6,
+  kripto: 6,
   obligasi: 5,
   deposito: 5,
-  lainnya: 6,
+  lainnya: 4,
 };
 
 /** Investment type (`saham`, `reksa_dana`, …) → categorical color. */
@@ -63,12 +74,15 @@ export function assetClassColor(type: string): string {
   return viz(ASSET_CLASS_SLOT[type] ?? 6);
 }
 
+// Six insurance types over the four safe tokens: pendidikan shares jiwa's
+// forest (both long-horizon life planning); lainnya shares properti's
+// graphite. Icons differentiate within a shared color.
 const INSURANCE_TYPE_SLOT: Record<string, VizSlot> = {
   jiwa: 1,
-  kesehatan: 2,
-  kendaraan: 3,
-  properti: 4,
-  pendidikan: 5,
+  kesehatan: 4,
+  kendaraan: 5,
+  properti: 6,
+  pendidikan: 1,
   lainnya: 6,
 };
 
@@ -77,11 +91,12 @@ export function insuranceTypeColor(type: string): string {
   return viz(INSURANCE_TYPE_SLOT[type] ?? 6);
 }
 
+// Four groups fit the four safe tokens exactly, no sharing needed.
 const ASSET_GROUP_SLOT = {
-  physical: 3,
+  physical: 6,
   investment: 1,
   bank: 5,
-  cash: 2,
+  cash: 4,
 } as const satisfies Record<string, VizSlot>;
 
 /** Top-level asset composition groups on /aset. */
@@ -89,18 +104,19 @@ export function assetGroupColor(group: keyof typeof ASSET_GROUP_SLOT): string {
   return viz(ASSET_GROUP_SLOT[group]);
 }
 
+// ewallet shares cash's clay (both liquid/spendable balances).
 const ACCOUNT_TYPE_SLOT: Record<string, VizSlot> = {
   investment: 1,
-  cash: 2,
-  property: 3,
+  cash: 4,
+  property: 6,
   ewallet: 4,
   bank: 5,
 };
 
 /**
  * Ringkasan composition: account type → the same hue the matching /aset group
- * uses (bank teal, cash lime, property sand, investment forest). Unknown types
- * take the next palette hue by rank instead of the API's free-form hex.
+ * uses (bank teal, cash clay, property graphite, investment forest). Unknown
+ * types take the next palette hue by rank instead of the API's free-form hex.
  */
 export function accountTypeColor(type: string, rank: number): string {
   const slot = ACCOUNT_TYPE_SLOT[type];
