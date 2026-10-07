@@ -1264,7 +1264,12 @@ export default function AsetPage() {
               })}
             </MiniList>
           )}
-          <SeeAll href="/rekening">{t.aset.v2.accSeeAll}</SeeAll>
+          {rekeningAccounts.length > 0 && (
+            <SeeAll href="/rekening">{t.aset.v2.accSeeAllRekening}</SeeAll>
+          )}
+          {danaAccounts.length > 0 && (
+            <SeeAll href="/dana">{t.aset.v2.accSeeAllDana}</SeeAll>
+          )}
         </BentoCard>
 
         <TipsCard

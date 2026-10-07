@@ -2236,7 +2236,8 @@ export type I18nDictionary = {
       kpiFisik: string;
       accTitle: string;
       invSeeAll: string;
-      accSeeAll: string;
+      accSeeAllRekening: string;
+      accSeeAllDana: string;
       instrumentSuffix: string;
       accountSuffix: string;
       fisikCaption: string;
