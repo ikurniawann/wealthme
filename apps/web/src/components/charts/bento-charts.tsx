@@ -256,6 +256,12 @@ export function HatchedBarChart({
       ? `${labels[0]} – ${labels[labels.length - 1]}`
       : (labels[0] ?? "");
   const wrapClass = [arcStyles.bridge, className].filter(Boolean).join(" ");
+  // Arc components take a fixed-pixel `height` (default 176-260px); the old
+  // hand-rolled charts filled whatever box CSS gave them (`.wm-chart-wrap`
+  // is `flex: 1`, so its real height varies by card/viewport). Measure the
+  // actual box so the chart fills it instead of leaving dead space below a
+  // small Arc default.
+  const { ref, box } = useBox();
 
   if (series.length <= 1) {
     const data: BarChartDatum[] = labels.map((label, i) => ({
@@ -265,13 +271,14 @@ export function HatchedBarChart({
       value: series[0]?.data[i] ?? 0,
     }));
     return (
-      <div className={wrapClass}>
+      <div ref={ref} className={wrapClass} style={{ height: "100%" }}>
         <BarChart
           data={data}
           label={ariaLabel}
           period={period}
           formatValue={tipFormat}
           categoryLabel={period ? undefined : "Category"}
+          height={box?.h ?? 176}
         />
       </div>
     );
@@ -289,13 +296,14 @@ export function HatchedBarChart({
     values: Object.fromEntries(series.map((s) => [s.name, s.data[i] ?? 0])),
   }));
   return (
-    <div className={wrapClass}>
+    <div ref={ref} className={wrapClass} style={{ height: "100%" }}>
       <Streamgraph
         data={data}
         series={streamSeries}
         label={ariaLabel}
         offset="zero"
         formatValue={(value) => tipFormat(value)}
+        height={box?.h ?? 260}
       />
     </div>
   );
@@ -324,6 +332,10 @@ export function HatchedAreaChart({
 }) {
   const tipFormat = formatFull ?? format ?? String;
   const wrapClass = [arcStyles.bridge, className].filter(Boolean).join(" ");
+  // See the matching comment in HatchedBarChart: measure the real box so
+  // Arc's LineChart fills `.wm-chart-wrap`/`.wm-chart` instead of sitting at
+  // its own fixed default height inside a taller flex:1 container.
+  const { ref, box } = useBox();
   if (values.length === 0) return null;
 
   const series: LineChartSeries[] = compare
@@ -348,13 +360,14 @@ export function HatchedAreaChart({
     },
   }));
   return (
-    <div className={wrapClass}>
+    <div ref={ref} className={wrapClass} style={{ height: "100%" }}>
       <LineChart
         data={data}
         series={series}
         label={ariaLabel}
         formatValue={(value) => tipFormat(value)}
         legend={false}
+        height={box?.h ?? 220}
       />
     </div>
   );
@@ -523,6 +536,10 @@ export function FlowStackChart({
 }) {
   const tipFormat = formatFull ?? format;
   const wrapClass = [arcStyles.bridge, className].filter(Boolean).join(" ");
+  // See the matching comment in HatchedBarChart: measure the real box so
+  // Arc's Streamgraph fills `.wm-chart-wrap` instead of its own fixed
+  // default height.
+  const { ref, box } = useBox();
 
   const series: StreamgraphSeries[] = [
     { key: "income", label: labels.income, color: FLOW_COLORS.income },
@@ -535,13 +552,14 @@ export function FlowStackChart({
     values: { income: d.income, expense: d.expense },
   }));
   return (
-    <div className={wrapClass}>
+    <div ref={ref} className={wrapClass} style={{ height: "100%" }}>
       <Streamgraph
         data={data}
         series={series}
         label={ariaLabel}
         offset="zero"
         formatValue={(value) => tipFormat(value)}
+        height={box?.h ?? 260}
       />
     </div>
   );
