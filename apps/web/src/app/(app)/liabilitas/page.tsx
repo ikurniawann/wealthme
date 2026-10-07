@@ -195,14 +195,13 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-const LIABILITY_TYPE_ICON: Record<string, { icon: LucideIcon; chip: string }> =
-  {
-    kartu_kredit: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
-    pinjaman_pribadi: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
-    kpr: { icon: Landmark, chip: "bg-blue-100 text-blue-600" },
-    kendaraan: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
-    lainnya: { icon: CreditCard, chip: "bg-red-100 text-red-600" },
-  };
+const LIABILITY_TYPE_ICON: Record<string, { icon: LucideIcon }> = {
+  kartu_kredit: { icon: CreditCard },
+  pinjaman_pribadi: { icon: Landmark },
+  kpr: { icon: Landmark },
+  kendaraan: { icon: CreditCard },
+  lainnya: { icon: CreditCard },
+};
 
 const LIABILITY_TYPES = [
   "kartu_kredit",

@@ -105,48 +105,6 @@ export function BarRow({
   );
 }
 
-/** Headline stat card — prototype's `.card.stat` (gap 5): tinted icon,
- * label, value, and an optional delta sub-line. `delta` is only rendered
- * when the caller actually computed one from real data — never a
- * placeholder. */
-export function RingkasanStatCard({
-  icon,
-  iconBg,
-  iconColor,
-  label,
-  value,
-  valueClass,
-  delta,
-  deltaClass,
-}: {
-  icon: React.ReactNode;
-  iconBg: string;
-  iconColor: string;
-  label: string;
-  value: string;
-  valueClass?: string;
-  delta?: string;
-  deltaClass?: string;
-}) {
-  return (
-    <div className="lp-stat">
-      <div
-        className="lp-stat-ic"
-        style={{ background: iconBg, color: iconColor }}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="lp-stat-l">{label}</div>
-        <div className={"lp-stat-v " + (valueClass ?? "")}>{value}</div>
-        {delta && (
-          <div className={"lp-stat-d " + (deltaClass ?? "")}>{delta}</div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 /** Up/down change chip (prototype's `chg()`), driven by the shared delta rule
  * (lib/delta.ts): the arrow is the direction previous → current, the tone and
  * the sr-only text are the valence for `polarity` (spending that fell is a ↓

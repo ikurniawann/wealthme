@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Download, FileSpreadsheet } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
 import type {
@@ -194,96 +193,4 @@ export function useExportJob({
     isActive,
     isDone,
   };
-}
-
-/* ───────────────────────── Export Section ───────────────────────── */
-
-type ExportJobState = ReturnType<typeof useExportJob>;
-
-export function ExportSection({ exportJob }: { exportJob: ExportJobState }) {
-  const { t } = useLocale();
-  const {
-    reportType,
-    setReportType,
-    jobId,
-    status,
-    isSubmitting,
-    startExport,
-    handleDownload,
-    isActive,
-    isDone,
-  } = exportJob;
-
-  return (
-    <div className="rounded-[12px] border bg-card p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-[13px] font-bold">{t.laporan.export.title}</div>
-        {isDone && status?.downloadUrl && (
-          <button
-            onClick={handleDownload}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-[12px] font-semibold text-primary-foreground transition-colors hover:opacity-90"
-          >
-            <Download className="size-3.5" /> {t.laporan.export.downloadButton}
-          </button>
-        )}
-      </div>
-      <div className="flex flex-wrap items-end gap-2">
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] text-muted-foreground">
-            {t.laporan.export.reportTypeLabel}
-          </label>
-          <select
-            value={reportType}
-            onChange={(e) => setReportType(e.target.value as ExportReportType)}
-            disabled={!!isActive || isSubmitting}
-            className="rounded-md border bg-background px-3 py-[7px] text-[13px] outline-none focus:border-primary disabled:opacity-50"
-          >
-            {EXPORT_REPORT_TYPE_IDS.map((id) => (
-              <option key={id} value={id}>
-                {t.laporan.export.reportTypeLabels[id]}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          onClick={() => void startExport("pdf")}
-          disabled={!!isActive || isSubmitting}
-          className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Download className="size-3.5" /> {t.laporan.export.pdfButton}
-        </button>
-        <button
-          onClick={() => void startExport("excel")}
-          disabled={!!isActive || isSubmitting}
-          className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3.5 py-[8px] text-[12px] font-semibold transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <FileSpreadsheet className="size-3.5" /> {t.laporan.export.csvButton}
-        </button>
-      </div>
-      {status && (
-        <div className="mt-3 flex items-center gap-2 text-[12px]">
-          <span className="text-muted-foreground">
-            {t.laporan.export.statusLabel}
-          </span>
-          <span
-            className={
-              status.status === "done"
-                ? "font-semibold text-success"
-                : status.status === "failed"
-                  ? "font-semibold text-destructive"
-                  : "font-semibold text-primary"
-            }
-          >
-            {status.status === "pending" && t.laporan.export.statusPending}
-            {status.status === "processing" &&
-              t.laporan.export.statusProcessing}
-            {status.status === "done" && t.laporan.export.statusDone}
-            {status.status === "failed" &&
-              `${t.laporan.export.statusFailedPrefix} ${status.errorMessage ?? ""}`}
-          </span>
-          {jobId && <span className="text-muted-foreground">#{jobId}</span>}
-        </div>
-      )}
-    </div>
-  );
 }
