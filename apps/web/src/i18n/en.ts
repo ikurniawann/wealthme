@@ -2051,6 +2051,7 @@ export const en = {
     // stable.
     totalReturnSuffix: "Total Gain/Loss",
     todayReturnLabel: "Today's Change",
+    todayReturnNoSnapshotCaption: "No price snapshot yet today",
     vsYesterdaySuffix: "from yesterday",
     portfolioSectionTitle: "Holdings",
     addInvestmentLink: "+ Record Investment",
@@ -2397,6 +2398,8 @@ export const en = {
         "No liabilities yet. Add a mortgage, credit card or loan to start tracking.",
       riskTitle: "Debt ratio",
       riskCaption: "Against total assets",
+      riskTooltip:
+        "Debt-to-Asset ratio = total remaining debt divided by total family assets. Under 50% is considered healthy, 50–70% needs attention, above 70% is high-risk.",
       riskHealthy:
         "Remaining liabilities are healthy relative to family assets.",
       riskWarn: "Remaining liabilities are near or above the safe share.",
@@ -2485,6 +2488,11 @@ export const en = {
     detailPaidThisPeriodLabel: "Already paid this period",
     detailNotPaidThisPeriodLabel: "Not paid this period yet",
     detailCloseButton: "Close",
+    tileDetailButton: "Detail",
+    tileEditButton: "Edit",
+    tileDeleteButton: "Delete",
+    tilePayButton: "Pay",
+    tileMoreOptionsLabel: "More options",
     amortisationTitle: "Amortisation Summary",
     amortisationMonthlyInterestLabel: "Est. Interest/Month",
     amortisationMonthlyPrincipalLabel: "Est. Principal/Month",

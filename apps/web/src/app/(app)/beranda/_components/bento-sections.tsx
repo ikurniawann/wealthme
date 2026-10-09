@@ -116,16 +116,26 @@ export function dueInfo(
   now: Date,
   locale: string,
 ): { label: string; overdueDays: number } {
-  const startOf = (date: Date) =>
+  // `due` is a stored UTC calendar-day (matches the UTC-pin pattern used
+  // elsewhere in this file); `now` is the real current moment and must stay
+  // on LOCAL getters — using UTC getters for "now" would roll "today" back
+  // a day for part of the morning in Indonesia's positive UTC offsets,
+  // the mirror image of the bug being fixed here.
+  const startOfUTC = (date: Date) =>
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  const startOfLocal = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
   const overdueDays = Math.max(
     0,
-    Math.round((startOf(now) - startOf(due)) / 86_400_000),
+    Math.round((startOfLocal(now) - startOfUTC(due)) / 86_400_000),
   );
   const label = due.toLocaleDateString(locale, {
     day: "numeric",
     month: "short",
-    ...(due.getFullYear() !== now.getFullYear() && { year: "numeric" }),
+    timeZone: "UTC",
+    ...(due.getUTCFullYear() !== now.getFullYear() && {
+      year: "numeric",
+    }),
   });
   return { label, overdueDays };
 }

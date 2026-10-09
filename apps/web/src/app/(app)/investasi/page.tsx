@@ -2085,21 +2085,13 @@ export default function InvestasiPage() {
           }
           kpis={
             <>
+              {/* The hero's own big number already shows total value — this
+                  KPI used to repeat it verbatim with "modal ditanam" as a
+                  caption underneath. Promoted modal ditanam to the KPI's own
+                  headline instead, so nothing on the row duplicates the hero. */}
               <HeroKpi
-                label={t.investasi.totalValueLabel}
-                value={
-                  summary?.totalCurrentValue != null
-                    ? money.format(totalValueNum)
-                    : "—"
-                }
-                delta={
-                  <span className="wm-cap">
-                    {t.investasi.capitalInvestedPrefix}{" "}
-                    <span className="wm-amt">
-                      {formatDecimalRupiah(summary?.totalCostBasis ?? null)}
-                    </span>
-                  </span>
-                }
+                label={t.investasi.capitalInvestedPrefix}
+                value={formatDecimalRupiah(summary?.totalCostBasis ?? null)}
               />
               <HeroKpi
                 label={t.investasi.totalReturnSuffix}
@@ -2129,8 +2121,13 @@ export default function InvestasiPage() {
                 value={formatDecimalRupiah(summary?.todayReturnRp ?? null)}
                 delta={
                   summary?.todayReturnPct == null ? (
-                    <span className="wm-delta" data-tone="neutral">
-                      —
+                    <span className="iv-kdelta">
+                      <span className="wm-delta" data-tone="neutral">
+                        —
+                      </span>
+                      <span className="wm-cap">
+                        {t.investasi.todayReturnNoSnapshotCaption}
+                      </span>
                     </span>
                   ) : (
                     <span className="iv-kdelta">

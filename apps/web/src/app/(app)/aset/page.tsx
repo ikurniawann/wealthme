@@ -1161,7 +1161,12 @@ export default function AsetPage() {
                       {
                         name: t.aset.v2.trendLegend,
                         data: assetTrendValues,
-                        color: "var(--wm-lime)",
+                        // Single-series HatchedBarChart renders through
+                        // Arc's BarChart, which uses its own --accent token
+                        // (forest, see arc-bridge.module.css) — per-series
+                        // color here has no effect, kept only for the
+                        // BarSeries type's required field.
+                        color: "var(--viz-1)",
                       },
                     ]}
                     format={money.formatCompact}
@@ -1244,7 +1249,7 @@ export default function AsetPage() {
             <p className="as-empty">{t.aset.emptyDanaRekening}</p>
           ) : (
             <MiniList label={t.aset.v2.accTitle}>
-              {allAccounts.map((account) => {
+              {allAccounts.slice(0, 5).map((account) => {
                 const Icon = (
                   ACCOUNT_TYPE_ICON[account.type] ?? { icon: Wallet }
                 ).icon;

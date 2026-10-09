@@ -11,6 +11,7 @@ import {
   Trash2,
   Banknote,
   CheckCircle2,
+  Info,
   Split,
   StickyNote,
   TriangleAlert,
@@ -43,6 +44,11 @@ import {
 } from "@/components/money";
 import type { MoneyField } from "@/components/money";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 import {
   Dialog,
   DialogBody,
@@ -977,7 +983,8 @@ function LiabilityTile({
       )}
       <div className="li-foot">
         <button type="button" className="li-detail" onClick={onDetail}>
-          <FileText className="size-3.5" aria-hidden="true" /> Detail
+          <FileText className="size-3.5" aria-hidden="true" />{" "}
+          {t.liabilitas.tileDetailButton}
         </button>
         {item.paidThisPeriod ? (
           <span className="wm-paid-note">
@@ -986,22 +993,25 @@ function LiabilityTile({
           </span>
         ) : (
           <button type="button" className="wm-pill wm-pay-sm" onClick={onPay}>
-            <Banknote className="size-3.5" aria-hidden="true" /> Bayar
+            <Banknote className="size-3.5" aria-hidden="true" />{" "}
+            {t.liabilitas.tilePayButton}
           </button>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger
-            aria-label="Opsi lainnya"
+            aria-label={t.liabilitas.tileMoreOptionsLabel}
             render={<button type="button" className="li-opts" />}
           >
             <EllipsisVertical className="size-3.5" aria-hidden="true" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[140px]">
             <DropdownMenuItem onClick={onEdit}>
-              <Pencil className="size-3.5" aria-hidden="true" /> Edit
+              <Pencil className="size-3.5" aria-hidden="true" />{" "}
+              {t.liabilitas.tileEditButton}
             </DropdownMenuItem>
             <DropdownMenuItem variant="destructive" onClick={onDelete}>
-              <Trash2 className="size-3.5" aria-hidden="true" /> Hapus
+              <Trash2 className="size-3.5" aria-hidden="true" />{" "}
+              {t.liabilitas.tileDeleteButton}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -2012,7 +2022,20 @@ export default function LiabilitasPage() {
 
         <BentoCard
           className="li-risk"
-          title={t.liabilitas.v2.riskTitle}
+          title={
+            <span className="inline-flex items-center gap-1">
+              {t.liabilitas.v2.riskTitle}
+              <Tooltip>
+                <TooltipTrigger
+                  aria-label={t.liabilitas.v2.riskTooltip}
+                  className="inline-flex"
+                >
+                  <Info className="size-3.5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>{t.liabilitas.v2.riskTooltip}</TooltipContent>
+              </Tooltip>
+            </span>
+          }
           caption={t.liabilitas.v2.riskCaption}
         >
           <p className="li-dta" style={{ color: dtaRisk.color }}>

@@ -2033,6 +2033,7 @@ export type I18nDictionary = {
     totalValueLabel: string;
     totalReturnSuffix: string;
     todayReturnLabel: string;
+    todayReturnNoSnapshotCaption: string;
     vsYesterdaySuffix: string;
     portfolioSectionTitle: string;
     addInvestmentLink: string;
@@ -2387,6 +2388,7 @@ export type I18nDictionary = {
       chartEmpty: string;
       riskTitle: string;
       riskCaption: string;
+      riskTooltip: string;
       riskHealthy: string;
       riskWarn: string;
       gridTitle: string;
@@ -2467,6 +2469,11 @@ export type I18nDictionary = {
     detailPaidThisPeriodLabel: string;
     detailNotPaidThisPeriodLabel: string;
     detailCloseButton: string;
+    tileDetailButton: string;
+    tileEditButton: string;
+    tileDeleteButton: string;
+    tilePayButton: string;
+    tileMoreOptionsLabel: string;
     amortisationTitle: string;
     amortisationMonthlyInterestLabel: string;
     amortisationMonthlyPrincipalLabel: string;

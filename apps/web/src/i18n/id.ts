@@ -2097,6 +2097,7 @@ export const id = {
     // Ini". Value edited in place, key kept stable.
     totalReturnSuffix: "Untung / Rugi Total",
     todayReturnLabel: "Perubahan Hari Ini",
+    todayReturnNoSnapshotCaption: "Belum ada snapshot harga hari ini",
     vsYesterdaySuffix: "dari kemarin",
     portfolioSectionTitle: "Kepemilikan",
     addInvestmentLink: "+ Catat Investasi",
@@ -2442,6 +2443,8 @@ export const id = {
         "Belum ada liabilitas. Tambah KPR, kartu kredit, atau pinjaman untuk mulai memantau.",
       riskTitle: "Rasio utang",
       riskCaption: "Terhadap total aset",
+      riskTooltip:
+        "Rasio utang terhadap aset (Debt-to-Asset) = total sisa utang dibagi total aset keluarga. Di bawah 50% dianggap sehat, 50–70% perlu diwaspadai, di atas 70% berisiko tinggi.",
       riskHealthy: "Sisa liabilitas masih sehat dibanding aset keluarga.",
       riskWarn: "Sisa liabilitas mendekati atau melebihi porsi aman.",
       gridTitle: "Liabilitas",
@@ -2532,6 +2535,11 @@ export const id = {
     detailPaidThisPeriodLabel: "Sudah dibayar periode ini",
     detailNotPaidThisPeriodLabel: "Belum dibayar periode ini",
     detailCloseButton: "Tutup",
+    tileDetailButton: "Detail",
+    tileEditButton: "Edit",
+    tileDeleteButton: "Hapus",
+    tilePayButton: "Bayar",
+    tileMoreOptionsLabel: "Opsi lainnya",
     amortisationTitle: "Ringkasan Amortisasi",
     amortisationMonthlyInterestLabel: "Estimasi Bunga/Bulan",
     amortisationMonthlyPrincipalLabel: "Estimasi Pokok/Bulan",
