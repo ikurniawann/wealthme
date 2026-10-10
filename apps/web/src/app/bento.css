@@ -562,31 +562,8 @@
   .dark .wm-dock-item[data-active] {
     color: #10160a;
   }
-  /* Active item only: a small text label under the icon, inside the 48px
-     target. The blob bleeds 8px either side so the label never clips, and
-     the item keeps its 48px layout width so nothing shifts. */
-  .wm-dock-ic:has(.wm-dock-label) {
-    flex-direction: column;
-    gap: 2px;
-  }
-  .wm-dock-label {
-    font-size: 10px;
-    font-weight: 600;
-    line-height: 1;
-    letter-spacing: 0;
-    white-space: nowrap;
-  }
-  .wm-dock-item[data-active] .wm-dock-blob {
-    inset: 0 -8px;
-  }
-  @media (max-width: 359px) {
-    .wm-dock-label {
-      display: none;
-    }
-    .wm-dock-item[data-active] .wm-dock-blob {
-      inset: 0;
-    }
-  }
+  /* Icon-only dock: the item's name lives in its aria-label; a visible
+     label under each icon collided with its neighbours on phones. */
   .wm-dock-blob {
     position: absolute;
     inset: 0;
@@ -3021,34 +2998,36 @@
     .dialog .dialog__footer {
       flex-direction: row;
     }
-    /* phones: categories keep their 4-column grid; accounts are always ONE
-       swipeable row of small chips (nickname, institution caption; the balance
-       shows on desktop) so a Transfer's two pickers stay two rows. */
+    /* phones: categories keep their 4-column grid; accounts stay ONE
+       swipeable row, but as real cards (~2.5 visible, so the swipe is
+       obvious): full one-line nickname, institution caption and balance.
+       The old 80px chips clipped every name and hid the balance that is
+       what people actually choose an account by. */
     .tx-tiles[data-variant="account"] {
-      gap: 8px;
+      gap: 10px;
     }
     .tx-tiles[data-variant="account"] .tx-tile {
-      justify-content: center;
-      width: 80px;
-      min-height: 56px;
-      gap: 1px;
-      padding: 6px 8px;
-      border-radius: 14px;
+      justify-content: flex-start;
+      width: 152px;
+      min-height: 78px;
+      gap: 2px;
+      padding: 10px 12px;
+      border-radius: 18px;
     }
     .tx-tiles[data-variant="account"] b {
-      display: -webkit-box;
-      font-size: var(--wm-type-13);
-      line-height: 1.2;
-      white-space: normal;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
+      display: block;
+      font-size: var(--wm-type-14);
+      line-height: 1.25;
     }
     .tx-tiles[data-variant="account"] .tx-tile small {
       font-size: var(--wm-type-12);
-      line-height: 1.2;
+      line-height: 1.25;
     }
     .tx-tiles[data-variant="account"] .tx-tile-sub {
-      display: none;
+      margin-top: auto;
+      padding-top: 6px;
+      font-size: var(--wm-type-13);
+      font-weight: 600;
     }
     .tx-tiles-count {
       margin-top: 2px;
