@@ -561,41 +561,44 @@
   .dark .wm-dock {
     box-shadow: 0 18px 40px -16px rgb(0 0 0 / 0.6);
   }
+  /* Each item owns an equal column: icon over a small label, so labels
+     never collide; the current page turns lime. */
   .wm-dock-item {
     position: relative;
-    display: grid;
-    flex: none;
-    place-items: center;
-    width: 48px;
-    height: 48px;
-    padding: 0;
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    height: 56px;
+    padding: 0 2px;
     border: 0;
-    border-radius: 999px;
+    border-radius: 14px;
     background: transparent;
-    color: rgb(238 240 232 / 0.72);
+    color: rgb(238 240 232 / 0.55);
     text-decoration: none;
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
   .wm-dock-item:hover {
-    color: #eef0e8;
+    color: rgb(238 240 232 / 0.9);
   }
   .wm-dock-item[data-active] {
-    color: var(--wm-lime-ink);
+    color: var(--wm-lime);
   }
-  .dark .wm-dock-item[data-active] {
-    color: #10160a;
+  .wm-dock-label {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  /* Icon-only dock: the item's name lives in its aria-label; a visible
-     label under each icon collided with its neighbours on phones. */
-  .wm-dock-blob {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
-    border-radius: 999px;
-    background: var(--wm-lime);
-    box-shadow: 0 6px 16px -6px
-      color-mix(in srgb, var(--wm-lime) 70%, transparent);
+  .wm-dock-item[data-active] .wm-dock-label {
+    font-weight: 600;
   }
   .wm-dock-ic {
     position: relative;
@@ -609,26 +612,24 @@
     width: 20px;
     height: 20px;
   }
-  /* the + sits raised above the pill and turns into a × while the dialog is open */
+  /* the + is a ring button inside the bar (gradient edge, lime glyph) and
+     turns into a × while the dialog is open */
   .wm-dock-fab {
     display: grid;
     flex: none;
     place-items: center;
-    width: 54px;
-    height: 54px;
-    margin: -14px 4px 0;
-    border: 4px solid var(--wm-bg);
+    width: 52px;
+    height: 52px;
+    margin: 0 4px;
+    border: 2px solid transparent;
     border-radius: 50%;
-    background: #eef0e8;
-    box-shadow: 0 10px 22px -8px rgb(0 0 0 / 0.5);
-    color: #15170f;
+    background:
+      linear-gradient(var(--wm-dock), var(--wm-dock)) padding-box,
+      linear-gradient(140deg, #3fb38e, var(--wm-lime)) border-box;
+    box-shadow: 0 0 0 5px rgb(198 228 140 / 0.07);
+    color: var(--wm-lime);
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
-  }
-  .dark .wm-dock-fab {
-    border-color: var(--wm-bg);
-    background: #f3f3f1;
-    color: #111;
   }
   .wm-dock-fab svg {
     width: 22px;
@@ -638,12 +639,6 @@
     transform: scale(0.94);
   }
   @media (max-width: 720px) {
-    .wm-dock-fab {
-      border-color: #e6ecdf;
-    }
-    .dark .wm-dock-fab {
-      border-color: var(--wm-bg);
-    }
   }
 
   /* floating AI button (desktop only; phones reach AI through the launcher).

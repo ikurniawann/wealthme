@@ -62,9 +62,10 @@ function useDockHidden() {
 }
 
 /**
- * "Liquid dock": one round lime blob glides (shared layout) to the active
- * item, whose icon pops as it lands; the raised + turns into a × while the transaction
- * dialog is open; Menu turns into a × while the launcher is open.
+ * Full-width dock: every item is an icon over a small label in its own
+ * column; the active one turns lime and its icon pops. The centre + is a
+ * ring button that turns into a × while the transaction dialog is open;
+ * Menu turns into a × while the launcher is open.
  */
 export function MobileNav() {
   const pathname = usePathname();
@@ -88,15 +89,6 @@ export function MobileNav() {
   const spring = reduce
     ? { duration: 0 }
     : { type: "spring" as const, stiffness: 520, damping: 38, mass: 0.8 };
-
-  const blob = (
-    <motion.span
-      layoutId="wm-dock-blob"
-      className="wm-dock-blob"
-      transition={spring}
-      aria-hidden="true"
-    />
-  );
 
   return (
     <>
@@ -140,13 +132,15 @@ export function MobileNav() {
                 aria-current={!inDock ? "page" : undefined}
                 onClick={() => setMenuOpen(!menuOpen)}
               >
-                {active && blob}
                 <span className="wm-dock-ic">
                   {menuOpen ? (
                     <X aria-hidden="true" />
                   ) : (
                     <Menu aria-hidden="true" />
                   )}
+                </span>
+                <span className="wm-dock-label" aria-hidden="true">
+                  {t.shell.hubs.menu}
                 </span>
               </button>
             );
@@ -168,7 +162,6 @@ export function MobileNav() {
                   : undefined
               }
             >
-              {active && blob}
               <motion.span
                 key={active ? "on" : "off"}
                 className="wm-dock-ic"
@@ -180,6 +173,9 @@ export function MobileNav() {
               >
                 <Icon aria-hidden="true" />
               </motion.span>
+              <span className="wm-dock-label" aria-hidden="true">
+                {label}
+              </span>
             </Link>
           );
         })}
