@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import type {
   AccountDto,
@@ -11,6 +11,7 @@ import type {
 } from "@wealthme/contracts";
 import { AccountCard, GoalIcon, Track, useCardLooks } from "@/components/wm";
 import { useCountUp } from "@/components/wm/motion";
+import { useEnterMotionChildren } from "@/components/wm/use-enter-motion";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
@@ -81,6 +82,8 @@ export function MobileHome({
   const { lookFor } = useCardLooks(accounts);
   // The balance counts up once it loads (reduced motion: shown at once).
   const shownNetWorth = useCountUp(netWorth, 900);
+  const homeRef = useRef<HTMLElement>(null);
+  useEnterMotionChildren(homeRef);
   const ordered = [...accounts]
     .sort((a, b) => Number(b.balance) - Number(a.balance))
     .slice(0, 6);
@@ -97,7 +100,11 @@ export function MobileHome({
   const canAdd = canRecordTransaction(access);
 
   return (
-    <section className="beranda-mhome" aria-label={t.beranda.title}>
+    <section
+      ref={homeRef}
+      className="beranda-mhome"
+      aria-label={t.beranda.title}
+    >
       <div className="wm-card wm-dark beranda-mh-card">
         <span className="beranda-mh-badge" aria-hidden="true">
           Rp

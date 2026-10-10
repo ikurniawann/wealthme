@@ -16,6 +16,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/hooks/use-locale";
+import { useEnterMotion } from "./use-enter-motion";
 import {
   DELTA_ARROW,
   deltaSrText,
@@ -68,8 +69,11 @@ export function BentoCard({
   style?: CSSProperties;
   children?: ReactNode;
 }) {
+  const ref = useRef<HTMLElement>(null);
+  useEnterMotion(ref);
   return (
     <section
+      ref={ref}
       className={cn("wm-card", area && AREA_CLASS[area], className)}
       style={style}
     >
@@ -213,8 +217,11 @@ export function BentoHero({
   const [more, setMore] = useState(false);
   const foldable = collapse && Boolean(chart || kpis);
   const foldId = useId();
+  const ref = useRef<HTMLElement>(null);
+  useEnterMotion(ref);
   return (
     <section
+      ref={ref}
       className={cn("wm-card wm-dark wm-hero", AREA_CLASS[area], className)}
       style={style}
       data-fold={foldable ? (more ? "open" : "closed") : undefined}

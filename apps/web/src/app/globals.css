@@ -75,10 +75,10 @@
   --wm-type-13: 13px;
   --wm-type-14: 14px;
   --wm-type-16: 16px;
-  --wm-type-20: 20px;
-  --wm-type-28: 28px;
-  --wm-type-40: 40px;
-  --wm-type-52: 52px;
+  --wm-type-20: clamp(17px, 0.95rem + 0.3vw, 20px);
+  --wm-type-28: clamp(22px, 1.15rem + 0.7vw, 28px);
+  --wm-type-40: clamp(28px, 1.3rem + 1.4vw, 40px);
+  --wm-type-52: clamp(34px, 1.6rem + 2vw, 52px);
 
   /* Bento v2 surfaces (docs/design/proto/wm.css). The shadcn tokens below map onto these. */
   --wm-bg: #eef1ea;

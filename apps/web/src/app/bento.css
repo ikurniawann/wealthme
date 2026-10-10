@@ -48,7 +48,7 @@
   .wm-main {
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: clamp(10px, 0.5rem + 0.6vw, 16px);
     min-width: 0;
     padding-top: 16px;
   }
@@ -1071,7 +1071,7 @@
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     align-items: stretch;
-    gap: 16px;
+    gap: clamp(10px, 0.5rem + 0.6vw, 16px);
   }
   .wm-col-main {
     grid-column: 1 / 9;
@@ -1086,7 +1086,7 @@
     display: flex;
     flex-direction: column;
     min-width: 0;
-    padding: 20px;
+    padding: clamp(14px, 0.6rem + 0.8vw, 20px);
     border-radius: var(--radius);
     background: var(--wm-card);
     box-shadow: var(--wm-shadow);
@@ -4216,29 +4216,6 @@
       }
     }
     @media (max-width: 900px) {
-      .beranda-mhome > :first-child {
-        animation: wm-settle 0.46s cubic-bezier(0.32, 0.72, 0, 1) both;
-      }
-      .beranda-mhome > :not(:first-child),
-      .wm-bento > * {
-        animation: wm-rise-in 0.42s cubic-bezier(0.32, 0.72, 0, 1) both;
-      }
-      .beranda-mhome > :nth-child(2),
-      .wm-bento > :nth-child(1) {
-        animation-delay: 90ms;
-      }
-      .beranda-mhome > :nth-child(3),
-      .wm-bento > :nth-child(2) {
-        animation-delay: 150ms;
-      }
-      .beranda-mhome > :nth-child(4),
-      .wm-bento > :nth-child(3) {
-        animation-delay: 210ms;
-      }
-      .beranda-mhome > :nth-child(n + 5),
-      .wm-bento > :nth-child(n + 4) {
-        animation-delay: 260ms;
-      }
       :is(
         a.wm-card,
         .wm-pcard-link,
@@ -4264,18 +4241,6 @@
   @keyframes wm-sheet-in {
     from {
       transform: translateY(100%);
-    }
-  }
-  @keyframes wm-settle {
-    from {
-      opacity: 0;
-      transform: translateY(10px) scale(0.97);
-    }
-  }
-  @keyframes wm-rise-in {
-    from {
-      opacity: 0;
-      transform: translateY(18px);
     }
   }
 
