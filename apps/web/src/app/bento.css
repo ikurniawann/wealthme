@@ -3019,9 +3019,14 @@
       border-radius: 18px;
     }
     .tx-tiles[data-variant="account"] b {
-      display: block;
+      /* Two lines, so a masked number's last four digits (the part that
+         tells two accounts at one bank apart) is never the part cut off. */
+      display: -webkit-box;
       font-size: var(--wm-type-14);
       line-height: 1.25;
+      white-space: normal;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
     }
     .tx-tiles[data-variant="account"] .tx-tile small {
       font-size: var(--wm-type-12);

@@ -278,7 +278,8 @@ export function HatchedBarChart({
   }
 
   return (
-    <div className={wrapClass}>
+    // Fill the caller's chart box: percentages only, nothing measured.
+    <div className={wrapClass} style={{ height: "100%" }}>
       <GroupedBars
         labels={labels}
         series={series}
