@@ -1364,8 +1364,11 @@
   .wm-kpis {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: 14px;
+    /* One tight group read top-down (was space-between, which spread the
+       three figures across the hero's full height so they stopped reading
+       as a set). */
+    justify-content: flex-start;
+    gap: 22px;
     padding: 20px;
     border-left: 1px solid var(--wm-line);
   }
