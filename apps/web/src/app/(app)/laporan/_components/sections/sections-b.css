@@ -210,3 +210,26 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
+
+/* Detail ledger pager (mirrors the Transaksi pager). */
+.lpb-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+}
+.lpb-pager > div {
+  display: flex;
+  gap: 8px;
+}
+.lpb-pager .wm-pill {
+  min-height: 38px;
+  font-size: var(--wm-type-13);
+}
+@media (max-width: 720px) {
+  .lpb-pager .wm-pill {
+    min-height: 44px;
+  }
+}

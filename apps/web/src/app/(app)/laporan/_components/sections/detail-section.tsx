@@ -1,4 +1,5 @@
-import { SectionCard } from "@/components/wm";
+import { useRef, useState } from "react";
+import { PillButton, SectionCard } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import type { DetailReportDto } from "@wealthme/contracts";
@@ -17,6 +18,8 @@ function dotColor(name: string): string {
     hash = (hash * 31 + name.charCodeAt(i)) | 0;
   return vizByIndex(Math.abs(hash));
 }
+
+const PAGE_SIZE = 25;
 
 export function DetailSection({
   detailReport,
@@ -39,6 +42,24 @@ export function DetailSection({
     0,
   );
   const net = totalIn - totalOut;
+
+  // A month of household activity runs to hundreds of rows; render a page
+  // at a time. Totals above and the export still cover every row. The page
+  // belongs to its period, so switching the range starts from page 1
+  // without an effect.
+  const periodKey = detailReport
+    ? `${detailReport.startDate}|${detailReport.endDate}`
+    : "";
+  const [paging, setPaging] = useState({ key: periodKey, page: 1 });
+  const pages = Math.max(1, Math.ceil(txs.length / PAGE_SIZE));
+  const page = Math.min(paging.key === periodKey ? paging.page : 1, pages);
+  const first = (page - 1) * PAGE_SIZE;
+  const rows = txs.slice(first, first + PAGE_SIZE);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const goTo = (next: number) => {
+    setPaging({ key: periodKey, page: next });
+    tableRef.current?.scrollIntoView?.({ block: "nearest" });
+  };
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
@@ -70,7 +91,10 @@ export function DetailSection({
         </div>
       )}
       <SectionCard title={t.laporan.detail.title}>
-        <div className="w-full overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]">
+        <div
+          ref={tableRef}
+          className="w-full scroll-mt-24 overflow-x-auto [mask-image:linear-gradient(to_left,transparent,black_24px)]"
+        >
           <table className="lpb-ledger min-w-[580px]">
             <thead>
               <tr>
@@ -82,7 +106,7 @@ export function DetailSection({
             </thead>
             <tbody>
               {txs.length > 0 ? (
-                txs.map((tx) => {
+                rows.map((tx) => {
                   const isIncome = tx.type === "income";
                   // EPIC-022 B8 — a transfer is neither income nor expense;
                   // render it neutrally (no +/- sign, muted colour) instead
@@ -145,6 +169,28 @@ export function DetailSection({
             </tbody>
           </table>
         </div>
+        {txs.length > PAGE_SIZE && (
+          <footer className="lpb-pager">
+            <span className="wm-cap">
+              {t.transaksi.paginationShowingLabel}
+              {first + 1}–{first + rows.length}
+              {t.transaksi.paginationOfMid}
+              {txs.length}
+              {t.transaksi.transactionsCountSuffix}
+            </span>
+            <div>
+              <PillButton disabled={page <= 1} onClick={() => goTo(page - 1)}>
+                {t.transaksi.paginationPrevButton}
+              </PillButton>
+              <PillButton
+                disabled={page >= pages}
+                onClick={() => goTo(page + 1)}
+              >
+                {t.transaksi.paginationNextButton}
+              </PillButton>
+            </div>
+          </footer>
+        )}
       </SectionCard>
     </div>
   );
