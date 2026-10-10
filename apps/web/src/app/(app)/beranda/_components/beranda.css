@@ -816,4 +816,17 @@
     text-align: center;
     white-space: nowrap;
   }
+
+  /* Accent block (desktop reference): the accounts card is the page's one
+     lime surface, beside the forest hero. Tokens re-scoped so the card's own
+     text, hairlines and inner discs read on lime in both themes. */
+  .beranda-grid > .beranda-wallet {
+    --wm-ink: var(--wm-lime-ink);
+    --wm-muted: color-mix(in srgb, var(--wm-lime-ink) 72%, transparent);
+    --wm-line: color-mix(in srgb, var(--wm-lime-ink) 16%, transparent);
+    --wm-card-2: rgb(255 255 255 / 0.6);
+    --wm-ghost: rgb(255 255 255 / 0.8);
+    background: var(--wm-lime);
+    color: var(--wm-ink);
+  }
 }
