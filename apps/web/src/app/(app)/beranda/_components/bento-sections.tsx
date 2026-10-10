@@ -482,8 +482,10 @@ export function WalletCard({
   const actions = [
     canRecordTransaction(access) && {
       label: v2.actRecord,
+      short: v2.actRecordShort,
       icon: Plus,
       run: () => setTxnOpen(true),
+      primary: true,
     },
     {
       label: v2.actHistory,
@@ -500,7 +502,13 @@ export function WalletCard({
       icon: BarChart3,
       run: () => router.push("/laporan"),
     },
-  ].filter(Boolean) as { label: string; icon: typeof Plus; run: () => void }[];
+  ].filter(Boolean) as {
+    label: string;
+    short?: string;
+    icon: typeof Plus;
+    run: () => void;
+    primary?: boolean;
+  }[];
 
   return (
     <BentoCard
@@ -547,12 +555,16 @@ export function WalletCard({
               key={action.label}
               type="button"
               className="beranda-act"
+              data-primary={action.primary || undefined}
+              aria-label={action.label}
               onClick={action.run}
             >
-              <span>
+              <span className="beranda-act-dot">
                 <Icon aria-hidden="true" />
               </span>
-              {action.label}
+              <span className="beranda-act-label">
+                {action.short ?? action.label}
+              </span>
             </button>
           );
         })}

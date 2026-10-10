@@ -125,6 +125,7 @@ export const en = {
       noAccounts: "No accounts yet. Add your first.",
       accountsScroll: "Accounts, swipe to see all",
       actRecord: "Record transaction",
+      actRecordShort: "Record",
       actHistory: "History",
       actBudget: "Budget",
       actReport: "Reports",

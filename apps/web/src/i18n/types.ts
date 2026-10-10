@@ -502,6 +502,7 @@ export type I18nDictionary = {
       noAccounts: string;
       accountsScroll: string;
       actRecord: string;
+      actRecordShort: string;
       actHistory: string;
       actBudget: string;
       actReport: string;

@@ -128,6 +128,7 @@ export const id = {
       noAccounts: "Belum ada rekening. Tambahkan yang pertama.",
       accountsScroll: "Rekening, geser untuk melihat semua",
       actRecord: "Catat transaksi",
+      actRecordShort: "Catat",
       actHistory: "Riwayat",
       actBudget: "Anggaran",
       actReport: "Laporan",
