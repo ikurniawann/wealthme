@@ -233,3 +233,226 @@
     min-height: 44px;
   }
 }
+
+/* ── Ringkasan COA (tab rcoa) ─────────────────────────────────────────
+ * Compact day x month matrix ("Matriks") and per-month list ("Ringkas").
+ * Builds on the `.coa-matrix` base in design-system.css (sticky header,
+ * sticky date column); everything here is scoped to this tab.
+ */
+.coa-card-head {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.coa-matrix-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+.coa-matrix--compact th,
+.coa-matrix--compact td {
+  height: 32px;
+  padding: 4px 10px;
+  vertical-align: middle;
+}
+.coa-matrix--compact .coa-cell {
+  min-width: 84px;
+}
+.coa-matrix--compact tbody th.coa-date {
+  font-size: 11.5px;
+}
+
+/* TOTAL row: first body row, quiet lime highlight. The sticky date cell
+ * layers the tint over an opaque card fill so scrolled cells never show
+ * through it (--wm-lime-soft is translucent in dark mode). */
+.coa-total-row th,
+.coa-total-row td {
+  background:
+    linear-gradient(var(--wm-lime-soft), var(--wm-lime-soft)), var(--card);
+  font-weight: 700;
+  color: var(--foreground);
+}
+.coa-total-row th.coa-date {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+/* Magnitude tint: 5 steps of the forest viz token on a square-root scale.
+ * Steps 1-4 keep the default ink; step 5 switches to light ink so text
+ * stays above 4.5:1 in both themes. */
+.coa-matrix--compact .coa-cell--filled {
+  padding: 0;
+}
+.coa-cell--t1 {
+  background: color-mix(in oklab, var(--viz-1) 8%, var(--card));
+}
+.coa-cell--t2 {
+  background: color-mix(in oklab, var(--viz-1) 18%, var(--card));
+}
+.coa-cell--t3 {
+  background: color-mix(in oklab, var(--viz-1) 30%, var(--card));
+}
+.coa-cell--t4 {
+  background: color-mix(in oklab, var(--viz-1) 44%, var(--card));
+}
+.coa-cell--t5 {
+  background: color-mix(in oklab, var(--viz-1) 82%, var(--card));
+}
+.coa-cell--t4 .coa-amt {
+  color: var(--foreground);
+}
+.coa-cell--t5 .coa-amt {
+  color: var(--card);
+  font-weight: 600;
+}
+.dark .coa-cell--t5 .coa-amt {
+  color: var(--foreground);
+}
+.coa-cell__btn {
+  display: block;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  font: inherit;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.coa-cell__btn:hover {
+  box-shadow: inset 0 0 0 2px var(--ring);
+}
+.coa-cell__btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+/* Ringkas: KPI strip + one row per month. */
+.coa-summary {
+  display: grid;
+  gap: 14px;
+}
+.coa-months {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+.coa-month {
+  border-bottom: 1px solid var(--border);
+}
+.coa-month__row {
+  display: grid;
+  grid-template-columns: 92px minmax(60px, 1fr) auto 56px 16px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: var(--foreground);
+  text-align: left;
+  cursor: pointer;
+}
+.coa-month__row:hover:not(:disabled) {
+  background: var(--wm-card-2);
+}
+.coa-month__row:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.coa-month__row:disabled {
+  cursor: default;
+  color: var(--muted-foreground);
+}
+.coa-month__row:disabled .coa-month__chev {
+  visibility: hidden;
+}
+.coa-month__name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.coa-month__track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--wm-card-2);
+  overflow: hidden;
+}
+.coa-month__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--viz-1);
+}
+.coa-month__total {
+  font-size: 13px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+.coa-month__count {
+  text-align: right;
+  white-space: nowrap;
+}
+.coa-month__empty {
+  grid-column: span 2;
+  text-align: right;
+}
+.coa-month__chev {
+  color: var(--muted-foreground);
+}
+.coa-month__row[aria-expanded="true"] .coa-month__chev {
+  transform: rotate(180deg);
+}
+.coa-month__txs {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: var(--wm-card-2);
+}
+.coa-month__tx {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 4px;
+  font-size: 12.5px;
+  color: var(--foreground);
+  text-decoration: none;
+  border-radius: 6px;
+}
+.coa-month__tx:hover {
+  background: var(--wm-lime-soft);
+}
+.coa-month__tx:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+.coa-month__txs li + li {
+  border-top: 1px solid var(--border);
+}
+.coa-month__tx-desc {
+  overflow-wrap: anywhere;
+}
+.coa-month__tx-amt {
+  font-weight: 600;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .coa-month__row {
+    grid-template-columns: 64px minmax(40px, 1fr) auto 16px;
+    gap: 8px;
+  }
+  .coa-month__count {
+    display: none;
+  }
+  .coa-month__empty {
+    grid-column: span 1;
+  }
+}

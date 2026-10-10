@@ -1325,16 +1325,19 @@ export function HistoryRow({
   onEditClick,
   familyGroupId,
   token,
+  defaultOpen = false,
 }: {
   tx: TransactionDto;
   onDeleteClick: () => void;
   onEditClick: () => void;
   familyGroupId?: string;
   token?: string;
+  /** Open the detail dialog on mount (deep link `?tx=<id>`). */
+  defaultOpen?: boolean;
 }) {
   const { t } = useLocale();
   const money = useMoney();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const typeLabels: Record<string, string> = t.transaksi.typeLabels;
   const amount = parseFloat(tx.amount);
   const isIncome = tx.type === "income";
@@ -1439,8 +1442,18 @@ export default function TransaksiPage() {
   );
 }
 
+// Read-only deep-link params (e.g. from the Laporan "Ringkasan COA" tab):
+// `from`/`to` prefill the date range, `coa` narrows the list to categories
+// mapped to that COA account, `tx` opens that transaction's detail dialog.
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+function readIsoDayParam(value: string | null): string {
+  return value && ISO_DAY.test(value) ? value : "";
+}
+
 function TransaksiPageInner() {
   const { t, locale } = useLocale();
+  const searchParams = useSearchParams();
   const money = useMoney();
   const [filter, setFilter] = useState<FilterValue>("all");
   const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
@@ -1455,8 +1468,12 @@ function TransaksiPageInner() {
   // supports them); `accountId` reuses the existing URL-driven "mutasi" lens
   // below instead of a second, conflicting piece of state.
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(() =>
+    readIsoDayParam(searchParams.get("from")),
+  );
+  const [dateTo, setDateTo] = useState(() =>
+    readIsoDayParam(searchParams.get("to")),
+  );
   const [page, setPage] = useState(1);
   const [query, setQuery] = useState("");
   const [[todayIso, yesterdayIso]] = useState(() => [
@@ -1468,12 +1485,13 @@ function TransaksiPageInner() {
   const { setTxnOpen } = useShell();
   const queryClient = useQueryClient();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const accountId = searchParams.get("accountId");
+  const coaFilter = searchParams.get("coa");
+  const openTxId = searchParams.get("tx");
   const activeFilterCount = getActiveTransactionFilterCount({
     hasDateRange: Boolean(dateFrom || dateTo),
     hasAccount: Boolean(accountId),
-    hasCategory: Boolean(categoryFilter),
+    hasCategory: Boolean(categoryFilter || coaFilter),
     hasType: filter !== "all",
     hasSort: sortOrder !== "newest",
   });
@@ -1595,10 +1613,12 @@ function TransaksiPageInner() {
 
   // Filter card's "Kategori" select — same real endpoint
   // `transaction-dialog.tsx`'s own category picker already uses.
-  const { data: filterCategories } = useQuery<{ id: string; name: string }[]>({
+  const { data: filterCategories } = useQuery<
+    { id: string; name: string; coaAccountId?: string }[]
+  >({
     queryKey: ["categories", familyGroupId, "txn-filter"],
     queryFn: () =>
-      apiFetch<{ id: string; name: string }[]>(
+      apiFetch<{ id: string; name: string; coaAccountId?: string }[]>(
         `/family-groups/${familyGroupId}/categories`,
         { token },
       ),
@@ -1622,7 +1642,9 @@ function TransaksiPageInner() {
     setDateTo("");
     setSortOrder("newest");
     setPage(1);
-    if (accountId) router.replace("/transaksi", { scroll: false });
+    if (accountId || coaFilter || openTxId) {
+      router.replace("/transaksi", { scroll: false });
+    }
   };
 
   // EPIC-023 Task E retry (HIGH 4) — only fetched when the "Kartu Kredit"
@@ -1643,10 +1665,25 @@ function TransaksiPageInner() {
       .map((l) => l.id),
   );
 
-  const transactions = data?.data ?? [];
+  // `?coa=` lens: only rows whose category maps to that COA account. Until
+  // the categories load the mapping is unknown, so nothing is shown rather
+  // than every row.
+  const coaCategoryIds = coaFilter
+    ? new Set(
+        (filterCategories ?? [])
+          .filter((c) => c.coaAccountId === coaFilter)
+          .map((c) => c.id),
+      )
+    : null;
+  const fetchedTransactions = data?.data ?? [];
+  const transactions = coaCategoryIds
+    ? fetchedTransactions.filter(
+        (tx) => !!tx.categoryId && coaCategoryIds.has(tx.categoryId),
+      )
+    : fetchedTransactions;
   /** True when the hard fetch ceiling cut the list short. Says so out loud —
    *  a list that is quietly incomplete is exactly the bug this replaces. */
-  const truncated = (data?.meta?.total ?? 0) > transactions.length;
+  const truncated = (data?.meta?.total ?? 0) > fetchedTransactions.length;
   const summary = data?.summary;
 
   // Apply filter
@@ -2035,7 +2072,7 @@ function TransaksiPageInner() {
           {truncated && (
             <div className="tx-note" data-tone="warn">
               {t.transaksi.listTruncatedNote
-                .replace("{shown}", String(transactions.length))
+                .replace("{shown}", String(fetchedTransactions.length))
                 .replace("{total}", String(data?.meta?.total ?? 0))}
             </div>
           )}
@@ -2061,6 +2098,7 @@ function TransaksiPageInner() {
                     token={token}
                     onDeleteClick={() => setDeleteTarget(tx.id)}
                     onEditClick={() => setEditTarget(tx)}
+                    defaultOpen={tx.id === openTxId}
                   />
                 ))}
               </section>

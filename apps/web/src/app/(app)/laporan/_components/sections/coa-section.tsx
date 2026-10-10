@@ -1,23 +1,32 @@
 import { useState } from "react";
+import Link from "next/link";
 import { Maximize2 } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useMoney } from "@/hooks/use-money";
-import { formatJuta } from "@/lib/laporan-utils";
 import { useLocale } from "@/hooks/use-locale";
 import type { CoaMatrixDto } from "@wealthme/contracts";
 import type { CoaAccountOption } from "../types";
+import {
+  COA_DAYS,
+  COA_MONTHS,
+  activeDays,
+  cellTxs,
+  coaDayHref,
+  maxCellMagnitude,
+  monthSummaries,
+  sumTxs,
+  tintLevel,
+} from "./coa-matrix-model";
+import { CoaSummaryView } from "./coa-summary-view";
+import "./sections-b.css";
+
+type CoaView = "matrix" | "summary";
 
 /* ───────────────────────── COA Matrix Section ───────────────────────── */
 
 // EPIC-024 Task M (M2, D16, US-RPT-14) — Laporan COA: yearly matrix per COA
-// account, columns Jan-Des, rows tanggal 1-31, cell click shows the day's
-// transactions. Reuses the same `Dialog`/table primitives every other
-// section in this file already imports (no new shared component).
+// account, columns Jan-Des, rows tanggal 1-31. A filled cell links to
+// /transaksi filtered to this COA account and that single day.
 
 const COA_MATRIX_YEAR_WINDOW = 6;
 
@@ -49,11 +58,6 @@ export function CoaSection({
   const { t } = useLocale();
   const money = useMoney();
   const currentYear = new Date().getFullYear();
-  const [activeCell, setActiveCell] = useState<{
-    month: number;
-    day: number;
-  } | null>(null);
-
   const monthShortLabels = t.laporan.months.map((label) => label.slice(0, 3));
   const yearOptions = Array.from(
     { length: COA_MATRIX_YEAR_WINDOW },
@@ -71,6 +75,8 @@ export function CoaSection({
   };
   const hasCells = Object.keys(displayMatrix.cells).length > 0;
   const [fullscreen, setFullscreen] = useState(false);
+  const [view, setView] = useState<CoaView>("matrix");
+  const [showAllDays, setShowAllDays] = useState(false);
   // The prototype's "N transaksi" counter — every stacked amount in every
   // cell, not the number of filled cells (a day can hold several).
   const txCount = Object.values(displayMatrix.cells).reduce(
@@ -79,46 +85,70 @@ export function CoaSection({
     0,
   );
 
-  const activeCellTxs = activeCell
-    ? (displayMatrix.cells[activeCell.month]?.[activeCell.day] ?? [])
-    : [];
+  const months = monthSummaries(displayMatrix);
+  const maxMagnitude = maxCellMagnitude(displayMatrix);
+  const visibleDays = showAllDays ? COA_DAYS : activeDays(displayMatrix);
 
   // Prototype parity (docs/prototype/pages/laporan.html, panel rcoa): the
   // matrix table is rendered once and reused inside the fullscreen dialog the
-  // "Perbesar" button opens, so the two can never drift apart.
+  // "Perbesar" button opens, so the two can never drift apart. It keeps the
+  // day x month shape of the Excel export, but leads with a per-month TOTAL
+  // row and, by default, drops days with no transaction in any month.
   const matrixTable = (
-    <table className="coa-matrix">
+    <table className="coa-matrix coa-matrix--compact">
       <thead>
         <tr>
-          <th className="coa-date">{t.laporan.coa.colTanggal}</th>
+          <th scope="col" className="coa-date">
+            {t.laporan.coa.colTanggal}
+          </th>
           {monthShortLabels.map((label) => (
-            <th key={label}>{label}</th>
+            <th key={label} scope="col">
+              {label}
+            </th>
           ))}
         </tr>
       </thead>
       <tbody>
-        {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => (
+        <tr className="coa-total-row">
+          <th scope="row" className="coa-date">
+            {t.laporan.coa.totalRowLabel}
+          </th>
+          {months.map((m) => (
+            <td key={m.month} className="coa-cell mono">
+              {m.count > 0 ? money.formatCompact(m.total) : "–"}
+            </td>
+          ))}
+        </tr>
+        {visibleDays.map((day) => (
           <tr key={day}>
-            <td className="coa-date">{day}</td>
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
-              const cellTxs = displayMatrix.cells[month]?.[day] ?? [];
-              if (cellTxs.length === 0) {
+            <th scope="row" className="coa-date">
+              {day}
+            </th>
+            {COA_MONTHS.map((month) => {
+              const txs = cellTxs(displayMatrix, month, day);
+              if (txs.length === 0) {
                 return <td key={month} className="coa-cell" />;
               }
+              const level = tintLevel(sumTxs(txs), maxMagnitude);
               return (
                 <td
                   key={month}
-                  className="coa-cell coa-cell--filled"
-                  onClick={() => setActiveCell({ month, day })}
+                  className={`coa-cell coa-cell--filled coa-cell--t${level}`}
                 >
                   {/* The prototype stacks EVERY amount in the cell rather than
                       collapsing them to one sum with an "(3x)" suffix — one
                       `.coa-amt` line per transaction. */}
-                  {cellTxs.map((tx) => (
-                    <span key={tx.txId} className="coa-amt mono">
-                      {formatJuta(tx.amount)}
-                    </span>
-                  ))}
+                  <Link
+                    className="coa-cell__btn"
+                    href={coaDayHref(selectedAccountId, year, month, day)}
+                    aria-label={`${t.laporan.coa.viewTxAriaPrefix} ${day} ${t.laporan.months[month - 1]} ${year}`}
+                  >
+                    {txs.map((tx) => (
+                      <span key={tx.txId} className="coa-amt mono">
+                        {money.formatCompact(tx.amount)}
+                      </span>
+                    ))}
+                  </Link>
                 </td>
               );
             })}
@@ -156,7 +186,6 @@ export function CoaSection({
                 value={coaAccountId}
                 onChange={(e) => {
                   onCoaAccountIdChange(e.target.value);
-                  setActiveCell(null);
                 }}
               >
                 <option value="">{t.laporan.coa.accountPlaceholder}</option>
@@ -174,7 +203,6 @@ export function CoaSection({
                 value={year}
                 onChange={(e) => {
                   onYearChange(Number(e.target.value));
-                  setActiveCell(null);
                 }}
               >
                 {yearOptions.map((y) => (
@@ -213,30 +241,70 @@ export function CoaSection({
         </article>
       ) : (
         <article className="card">
-          <div className="card__header row--between">
-            <div className="row" style={{ gap: 10, minWidth: 0 }}>
-              <h2 className="card__title">{matrixTitle}</h2>
-              <span className="card__action t-xs t-muted">
-                {t.laporan.coa.scrollHint}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="btn btn--outline btn--sm"
-              onClick={() => setFullscreen(true)}
-              aria-label={t.laporan.coa.expandAriaLabel}
+          <div className="card__header row--between coa-card-head">
+            <h2 className="card__title">{matrixTitle}</h2>
+            <div
+              className="segmented"
+              role="radiogroup"
+              aria-label={t.laporan.coa.viewLabel}
             >
-              <Maximize2 size={15} />
-              {t.laporan.coa.expandButton}
-            </button>
+              {(["matrix", "summary"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  role="radio"
+                  aria-checked={view === v}
+                  className="segmented__item"
+                  onClick={() => setView(v)}
+                >
+                  {v === "matrix"
+                    ? t.laporan.coa.viewMatrix
+                    : t.laporan.coa.viewSummary}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="card__body">
             {!hasCells ? (
               <div className="empty t-sm t-muted">
                 {t.laporan.coa.emptyMatrix}
               </div>
+            ) : view === "summary" ? (
+              <CoaSummaryView
+                months={months}
+                year={year}
+                yearTotal={displayMatrix.total}
+                txCount={txCount}
+              />
             ) : (
-              <div className="coa-table-wrap">{matrixTable}</div>
+              <>
+                <div className="coa-matrix-tools">
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    aria-pressed={showAllDays}
+                    onClick={() => setShowAllDays((v) => !v)}
+                  >
+                    {showAllDays
+                      ? t.laporan.coa.hideEmptyDays
+                      : t.laporan.coa.showAllDays}
+                  </button>
+                  <span className="t-xs t-muted">
+                    {t.laporan.coa.scrollHint}
+                  </span>
+                  <div className="spacer" />
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm"
+                    onClick={() => setFullscreen(true)}
+                    aria-label={t.laporan.coa.expandAriaLabel}
+                  >
+                    <Maximize2 size={15} />
+                    {t.laporan.coa.expandButton}
+                  </button>
+                </div>
+                <div className="coa-table-wrap">{matrixTable}</div>
+              </>
             )}
           </div>
         </article>
@@ -248,40 +316,6 @@ export function CoaSection({
           <DialogTitle>{matrixTitle}</DialogTitle>
           <div className="coa-table-wrap" style={{ maxHeight: "70dvh" }}>
             {matrixTable}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={activeCell !== null}
-        onOpenChange={(open) => {
-          if (!open) setActiveCell(null);
-        }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {activeCell
-                ? `${t.laporan.coa.dialogTitlePrefix} ${activeCell.day} ${
-                    monthShortLabels[activeCell.month - 1]
-                  } ${year}`
-                : ""}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2">
-            {activeCellTxs.map((tx) => (
-              <div
-                key={tx.txId}
-                className="flex items-center justify-between gap-3 border-b pb-2 last:border-0"
-              >
-                <div className="text-[13px]">
-                  {tx.description ?? t.laporan.coa.dialogNoDesc}
-                </div>
-                <div className="mono shrink-0 text-[13px] font-semibold">
-                  {money.format(tx.amount)}
-                </div>
-              </div>
-            ))}
           </div>
         </DialogContent>
       </Dialog>

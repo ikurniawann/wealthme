@@ -4931,6 +4931,18 @@ export type I18nDictionary = {
       dialogTitlePrefix: string;
       dialogDescriptionPrefix: string;
       dialogNoDesc: string;
+      totalRowLabel: string;
+      showAllDays: string;
+      hideEmptyDays: string;
+      viewLabel: string;
+      viewMatrix: string;
+      viewSummary: string;
+      summaryListLabel: string;
+      summaryNoData: string;
+      trxSuffix: string;
+      kpiAvgActiveMonth: string;
+      kpiTxCount: string;
+      viewTxAriaPrefix: string;
     };
     export: {
       title: string;
