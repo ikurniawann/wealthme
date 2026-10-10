@@ -49,6 +49,7 @@ export function BulananSection({
         >
           <div className="wm-chart" style={{ height: 240 }}>
             <HatchedBarChart
+              legend={false}
               labels={chartMonths}
               series={[
                 {

@@ -11,12 +11,8 @@ import {
 
 import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import arcStyles from "./arc/arc-bridge.module.css";
+import { GroupedBars } from "./grouped-bars";
 import { BarChart, type BarChartDatum } from "./arc/bar-chart/bar-chart";
-import {
-  Streamgraph,
-  type StreamgraphDatum,
-  type StreamgraphSeries,
-} from "./arc/streamgraph/streamgraph";
 import {
   LineChart,
   type LineChartDatum,
@@ -215,10 +211,10 @@ function Frame({
 export type BarSeries = { name: string; data: number[]; color: string };
 
 /**
- * UIArc chart swap (uiarc.dev/components) — replaces the hand-rolled SVG
- * bars with Arc's `BarChart` (single series) or `Streamgraph` (2+ series,
- * stacked from a flat baseline via `offset="zero"`; Arc's free tier has no
- * stacked-bar primitive, Streamgraph is the closest multi-series shape).
+ * Single series renders Arc's `BarChart`; two or more series render
+ * `GroupedBars` (side-by-side, or stacked when `stacked`). The multi-series
+ * branch used Arc's `Streamgraph`, whose overlapping bands read as
+ * unlabeled blobs, so it was replaced with real bars.
  * Tokens bridged to WealthMe's own via `arc-bridge.module.css` — see that
  * file's header comment.
  *
@@ -234,6 +230,8 @@ export function HatchedBarChart({
   series,
   format,
   formatFull,
+  stacked,
+  legend = true,
   ariaLabel,
   className,
 }: {
@@ -247,6 +245,8 @@ export function HatchedBarChart({
   wide?: boolean;
   /** Stack the series into one column per label instead of grouping them side by side (non-negative values). */
   stacked?: boolean;
+  /** Multi-series only: draw the series legend. Off where the page renders its own. */
+  legend?: boolean;
   ariaLabel: string;
   className?: string;
 }) {
@@ -277,25 +277,16 @@ export function HatchedBarChart({
     );
   }
 
-  const streamSeries: StreamgraphSeries[] = series.map((s) => ({
-    key: s.name,
-    label: s.name,
-    color: s.color,
-  }));
-  const data: StreamgraphDatum[] = labels.map((label, i) => ({
-    key: String(i),
-    label,
-    axisLabel: label,
-    values: Object.fromEntries(series.map((s) => [s.name, s.data[i] ?? 0])),
-  }));
   return (
     <div className={wrapClass}>
-      <Streamgraph
-        data={data}
-        series={streamSeries}
-        label={ariaLabel}
-        offset="zero"
-        formatValue={(value) => tipFormat(value)}
+      <GroupedBars
+        labels={labels}
+        series={series}
+        stacked={stacked}
+        legend={legend}
+        format={format ?? String}
+        formatFull={tipFormat}
+        ariaLabel={ariaLabel}
       />
     </div>
   );
@@ -492,60 +483,6 @@ export type FlowDay = {
   income: number;
   expense: number;
 };
-
-/**
- * UIArc chart swap — income/expense as a two-layer `Streamgraph` (`offset:
- * "zero"`, stacked from a flat baseline). The original drew income above
- * zero and expense below (diverging bars); Arc's free tier has no diverging
- * or stacked-bar primitive, so both series now stack upward together —
- * a real, accepted visual-character change (see chart-swap decision).
- * `net` was shown in a composite tooltip/side-panel readout; Arc's
- * per-series tooltip has no slot for a derived third value, so `net` is
- * dropped from the live chart (still available wherever the caller shows
- * its own totals elsewhere on the page).
- */
-export function FlowStackChart({
-  days,
-  format,
-  formatFull,
-  labels,
-  ariaLabel,
-  className,
-}: {
-  days: FlowDay[];
-  format: (value: number) => string;
-  /** Full-precision formatter for tooltips / the hover readout; defaults to `format`. */
-  formatFull?: (value: number) => string;
-  axis?: (value: number) => string;
-  labels: { net: string; income: string; expense: string };
-  ariaLabel: string;
-  className?: string;
-}) {
-  const tipFormat = formatFull ?? format;
-  const wrapClass = [arcStyles.bridge, className].filter(Boolean).join(" ");
-
-  const series: StreamgraphSeries[] = [
-    { key: "income", label: labels.income, color: FLOW_COLORS.income },
-    { key: "expense", label: labels.expense, color: FLOW_COLORS.expense },
-  ];
-  const data: StreamgraphDatum[] = days.map((d, i) => ({
-    key: String(i),
-    label: d.label,
-    axisLabel: d.label,
-    values: { income: d.income, expense: d.expense },
-  }));
-  return (
-    <div className={wrapClass}>
-      <Streamgraph
-        data={data}
-        series={series}
-        label={ariaLabel}
-        offset="zero"
-        formatValue={(value) => tipFormat(value)}
-      />
-    </div>
-  );
-}
 
 /**
  * UIArc chart swap — Arc's `Gauge` (arc semicircle, animated digit readout

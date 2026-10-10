@@ -1,5 +1,5 @@
 import { render, screen, within } from "@testing-library/react";
-import { FlowStackChart, niceCeil } from "./bento-charts";
+import { HatchedBarChart, niceCeil } from "./bento-charts";
 
 describe("niceCeil (chart axis top, prototype `nice`)", () => {
   test.each([
@@ -18,50 +18,44 @@ describe("niceCeil (chart axis top, prototype `nice`)", () => {
   });
 });
 
-describe("FlowStackChart (Beranda hero)", () => {
-  const days = [
-    { label: "Sen", net: 6, income: 10, expense: 4 },
-    { label: "Kam", net: 19, income: 25, expense: 6 },
-  ];
-  const mount = () =>
+describe("HatchedBarChart, two or more series", () => {
+  const mount = (props: { legend?: boolean } = {}) =>
     render(
-      <FlowStackChart
-        days={days}
+      <HatchedBarChart
+        labels={["Mei", "Jun"]}
+        series={[
+          { name: "Pemasukan", data: [10, 25], color: "#9ccb3b" },
+          { name: "Pengeluaran", data: [4, -6], color: "#888" },
+        ]}
         format={(v) => `Rp ${v}`}
-        labels={{
-          net: "Selisih",
-          income: "Pemasukan",
-          expense: "Pengeluaran",
-        }}
         ariaLabel="Arus kas"
+        {...props}
       />,
     );
 
-  // UIArc chart swap (uiarc.dev/components): FlowStackChart now renders
-  // Arc's Streamgraph, which exposes its data through an accessible sr-only
-  // <table> (not the old hover-tooltip div) and a legend with visible series
-  // labels, instead of raw SVG rects + a `.wm-chart-tip` div. `net` has no
-  // slot in Arc's per-series table/tooltip and is intentionally dropped —
-  // see the swap comment on `FlowStackChart` in bento-charts.tsx.
-  test("exposes income and expense for every day in the accessible data table", () => {
+  test("exposes every series value per label in the accessible data table", () => {
     mount();
     const table = screen.getByRole("table", { name: "Arus kas" });
-    const kamisRow = within(table).getByRole("row", { name: /Kam/ });
+    const jun = within(table).getByRole("row", { name: /Jun/ });
     expect(
-      within(kamisRow).getByRole("cell", { name: "Rp 25" }),
+      within(jun).getByRole("cell", { name: "Rp 25" }),
     ).toBeInTheDocument();
     expect(
-      within(kamisRow).getByRole("cell", { name: "Rp 6" }),
+      within(jun).getByRole("cell", { name: "Rp -6" }),
     ).toBeInTheDocument();
   });
 
-  test("shows a legend toggle labeled for each series", () => {
-    mount();
+  test("labels each series in its legend, and drops it on request", () => {
+    const { container, unmount } = mount();
+    expect(container).toHaveTextContent("Pemasukan");
+    unmount();
+    const { container: bare } = mount({ legend: false });
+    // Only the sr-only table still names the series.
+    expect(bare.querySelectorAll("table th[scope=col]")).toHaveLength(3);
     expect(
-      screen.getByRole("button", { name: "Pemasukan" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Pengeluaran" }),
-    ).toBeInTheDocument();
+      [...bare.querySelectorAll("[aria-hidden=true] span")].map(
+        (el) => el.textContent,
+      ),
+    ).not.toContain("Pemasukan");
   });
 });

@@ -1,0 +1,133 @@
+/*
+ * Multi-series bars for HatchedBarChart (replaces the Arc Streamgraph branch,
+ * whose overlapping bands rendered as unlabeled blobs). Pure percentage
+ * layout inside the caller's box: nothing is measured, so the chart can
+ * never feed its own height back into its container.
+ * Card-scoped ink (--ctext/--cgrid) so the same chart reads on light cards
+ * and on .wm-dark hero cards.
+ */
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  min-height: 220px;
+}
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  color: var(--ctext);
+  font-size: var(--wm-type-12);
+}
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+.plot {
+  position: relative;
+  display: flex;
+  flex: 1;
+  gap: 10px;
+  min-height: 0;
+}
+.axis {
+  position: relative;
+  flex: none;
+  width: 46px;
+  color: var(--ctext);
+  font-size: var(--wm-type-11);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.axis span {
+  position: absolute;
+  right: 0;
+  white-space: nowrap;
+}
+.axis span[data-zero] {
+  transform: translateY(-50%);
+}
+.cols {
+  position: relative;
+  display: flex;
+  flex: 1;
+  gap: clamp(4px, 2%, 18px);
+  min-width: 0;
+}
+.zero {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--cgrid);
+}
+.group {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.up,
+.down {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+}
+.up {
+  align-items: flex-end;
+  padding-bottom: 1px;
+}
+.down {
+  align-items: flex-start;
+  padding-top: 1px;
+}
+.up > i,
+.down > i {
+  display: block;
+  flex: 1;
+  max-width: 20px;
+}
+.up > i {
+  border-radius: 5px 5px 2px 2px;
+}
+.down > i {
+  border-radius: 2px 2px 5px 5px;
+}
+.stack {
+  display: flex;
+  flex-direction: column-reverse;
+  width: min(100%, 28px);
+  height: 100%;
+}
+.stack > i {
+  display: block;
+  width: 100%;
+}
+.stack > i:last-child {
+  border-radius: 5px 5px 0 0;
+}
+.group:hover i {
+  filter: brightness(1.12);
+}
+.x {
+  display: flex;
+  gap: clamp(4px, 2%, 18px);
+  padding-left: 56px;
+  color: var(--ctext);
+  font-size: var(--wm-type-11);
+}
+.x span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+}

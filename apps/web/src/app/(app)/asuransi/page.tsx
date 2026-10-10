@@ -1562,6 +1562,7 @@ export default function AsuransiPage() {
             <div className="as-plot">
               {isLoading ? null : premiumSeries.length > 0 ? (
                 <HatchedBarChart
+                  legend={false}
                   labels={premiumTrendMonths}
                   series={premiumSeries}
                   stacked
