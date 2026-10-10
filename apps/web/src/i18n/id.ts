@@ -141,8 +141,6 @@ export const id = {
       limitAria: "Terpakai {spent} dari {limit}",
       noBudget: "Belum ada anggaran bulan ini.",
       makeBudget: "Buat anggaran",
-      calmTitle: "Semua aman bulan ini",
-      calmBody: "Tidak ada permintaan dana atau cicilan yang perlu ditindak.",
       approvalsTitle: "{count} permintaan dana menunggu",
       dueTitle: "{name} jatuh tempo {date}",
       openApprovals: "Buka Persetujuan",
@@ -153,6 +151,9 @@ export const id = {
       healthTitle: "Kesehatan finansial",
       healthCap: "Rasio selisih",
       savedShare: "selisih dari pemasukan",
+      healthDeficit:
+        "Pengeluaran melebihi pemasukan {pct}% dalam 30 hari terakhir.",
+      healthNoIncome: "Belum ada pemasukan tercatat dalam 30 hari terakhir.",
       healthNote: "Dari transaksi bulan ini.",
       goalsTitle: "Tujuan",
       addGoal: "+ Tujuan",

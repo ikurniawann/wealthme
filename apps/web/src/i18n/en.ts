@@ -138,8 +138,6 @@ export const en = {
       limitAria: "{spent} of {limit} spent",
       noBudget: "No budget this month yet.",
       makeBudget: "Create a budget",
-      calmTitle: "All clear this month",
-      calmBody: "No fund requests or installments need action.",
       approvalsTitle: "{count} fund requests waiting",
       dueTitle: "{name} is due {date}",
       openApprovals: "Open Approvals",
@@ -150,6 +148,9 @@ export const en = {
       healthTitle: "Financial health",
       healthCap: "Surplus rate",
       savedShare: "of income left over",
+      healthDeficit:
+        "Spending exceeded income by {pct}% over the last 30 days.",
+      healthNoIncome: "No income recorded in the last 30 days.",
       healthNote: "From this month’s transactions.",
       goalsTitle: "Goals",
       addGoal: "+ Goal",

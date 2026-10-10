@@ -156,9 +156,9 @@
   }
   .wm-sel {
     height: 34px;
-    padding: 0 26px 0 11px;
+    padding: 0 28px 0 14px;
     border: 1px solid var(--wm-line);
-    border-radius: 10px;
+    border-radius: 999px;
     background: var(--wm-card)
       url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27%23a3aa95%27 stroke-width=%273%27%3E%3Cpath d=%27M6 9l6 6 6-6%27/%3E%3C/svg%3E")
       no-repeat right 9px center;
@@ -343,6 +343,18 @@
     .beranda-grid > .beranda-hist {
       grid-column: 7 / 13 !important;
       grid-row: 5 !important;
+    }
+  }
+
+  /* No attention card (nothing pending/due): the limit card takes its slot. */
+  @media (min-width: 1181px) {
+    .beranda-grid:not(:has(> .beranda-tips)) > .beranda-limit {
+      grid-column: 1 / 10;
+    }
+  }
+  @media (min-width: 721px) and (max-width: 1180px) {
+    .beranda-grid:not(:has(> .beranda-tips)) > .beranda-limit {
+      grid-row: 2 / 4 !important;
     }
   }
 
@@ -660,5 +672,116 @@
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+  }
+
+  /* Health card in deficit: the shortfall stated in words, not a 0% gauge. */
+  .beranda-health .wm-mid[data-tone="bad"] {
+    color: var(--wm-bad);
+  }
+  .beranda-deficit {
+    margin: 14px 0 0;
+    padding: 14px 16px;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--wm-bad) 9%, var(--wm-card-2));
+    color: var(--wm-ink);
+    font-size: var(--wm-type-14);
+    font-weight: 500;
+    line-height: 1.45;
+  }
+
+  /* ── Hero cash-flow: diverging daily bars (income up / expense down) ── */
+  .flow-bars {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .flow-bars-plot {
+    position: relative;
+    display: flex;
+    flex: 1;
+    gap: 10px;
+    min-height: 0;
+  }
+  .flow-bars-axis {
+    position: relative;
+    flex: none;
+    width: 46px;
+    color: var(--ctext);
+    font-size: var(--wm-type-11);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .flow-bars-axis span {
+    position: absolute;
+    right: 0;
+    white-space: nowrap;
+  }
+  .flow-bars-axis span[data-zero] {
+    transform: translateY(-50%);
+  }
+  .flow-bars-cols {
+    position: relative;
+    display: flex;
+    flex: 1;
+    gap: clamp(3px, 1.4%, 12px);
+    min-width: 0;
+  }
+  .flow-bars-zero {
+    position: absolute;
+    right: 0;
+    left: 0;
+    height: 1px;
+    background: color-mix(in srgb, var(--ctext) 45%, transparent);
+  }
+  .flow-bars-col {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .flow-bars-up,
+  .flow-bars-down {
+    display: flex;
+    justify-content: center;
+  }
+  .flow-bars-up {
+    align-items: flex-end;
+    padding-bottom: 2px;
+  }
+  .flow-bars-down {
+    align-items: flex-start;
+    padding-top: 2px;
+  }
+  .flow-bars i {
+    display: block;
+    width: min(100%, 22px);
+    min-height: 3px;
+  }
+  .flow-bars i[data-kind="income"] {
+    border-radius: 6px 6px 2px 2px;
+    background: var(--wm-lime);
+  }
+  .flow-bars i[data-kind="expense"] {
+    border-radius: 2px 2px 6px 6px;
+    background: color-mix(in srgb, var(--cstrong) 32%, transparent);
+  }
+  .flow-bars-col:hover i {
+    filter: brightness(1.15);
+  }
+  .flow-bars-x {
+    display: flex;
+    gap: clamp(3px, 1.4%, 12px);
+    padding-left: 56px;
+    color: var(--ctext);
+    font-size: var(--wm-type-11);
+  }
+  .flow-bars-x span {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-align: center;
+    white-space: nowrap;
   }
 }

@@ -1115,7 +1115,7 @@
     min-height: 34px;
     padding: 6px 10px;
     border: 1px solid var(--wm-line);
-    border-radius: 10px;
+    border-radius: 999px;
     background: var(--wm-card);
     color: var(--wm-ink);
     font-size: var(--wm-type-12);
@@ -1153,7 +1153,7 @@
     display: inline-flex;
     gap: 2px;
     padding: 3px;
-    border-radius: 12px;
+    border-radius: 999px;
     background: var(--wm-card-2);
   }
   .wm-seg button {
@@ -1161,7 +1161,7 @@
     min-height: 30px;
     padding: 0 12px;
     border: 0;
-    border-radius: 9px;
+    border-radius: 999px;
     background: transparent;
     color: var(--wm-muted);
     font-size: var(--wm-type-13);
@@ -1176,7 +1176,7 @@
     position: absolute;
     inset: 0;
     z-index: 0;
-    border-radius: 9px;
+    border-radius: 999px;
     background: var(--wm-card);
     box-shadow: var(--wm-shadow);
   }
@@ -1472,7 +1472,7 @@
     width: 34px;
     height: 34px;
     border: 1px solid var(--wm-line);
-    border-radius: 10px;
+    border-radius: 999px;
     background: var(--wm-card);
     color: var(--wm-muted);
     cursor: pointer;

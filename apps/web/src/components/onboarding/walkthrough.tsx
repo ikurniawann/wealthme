@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import type { AccountDto } from "@wealthme/contracts";
+import { apiFetch } from "@/lib/api-client";
+import { queryKeys } from "@/lib/query-keys";
 import { useShell } from "@/components/shell/shell-context";
 import { useSession } from "@/lib/auth-compat";
 import { useLocale } from "@/hooks/use-locale";
@@ -33,13 +37,32 @@ export function Walkthrough() {
   // hydration mismatch. Scoped per userId: a browser that already
   // dismissed onboarding for one account must still show it to the next
   // account that signs in on that same device.
+  const token = session?.accessToken;
+  const familyGroupId = session?.familyGroupId ?? "";
+  const { data: accounts, isSuccess: accountsLoaded } = useQuery<AccountDto[]>({
+    queryKey: queryKeys.accounts.all(familyGroupId),
+    queryFn: () =>
+      apiFetch<AccountDto[]>(`/family-groups/${familyGroupId}/accounts`, {
+        token,
+      }),
+    enabled: !!token && !!familyGroupId,
+  });
+
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !accountsLoaded) return;
     if (isOnboarded(userId)) return;
+    // A family that already has accounts is past first-run: offering "set
+    // up your first account" to them is meaningless and, because the flag
+    // lives in localStorage, would otherwise re-interrupt every page on
+    // each new device/browser. Record them as onboarded instead.
+    if ((accounts?.length ?? 0) > 0) {
+      setOnboarded(userId);
+      return;
+    }
     const progress = getSetupProgress(userId);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWelcomeView(progress && progress.step !== "done" ? "resume" : "welcome");
-  }, [userId]);
+  }, [userId, accountsLoaded, accounts]);
 
   // Debug/QA shortcut — replay the welcome dialog on demand without
   // clearing localStorage. Triple-modifier combo (unlike the Cmd/Ctrl+K

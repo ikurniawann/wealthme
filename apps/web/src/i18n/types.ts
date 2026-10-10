@@ -515,8 +515,6 @@ export type I18nDictionary = {
       limitAria: string;
       noBudget: string;
       makeBudget: string;
-      calmTitle: string;
-      calmBody: string;
       approvalsTitle: string;
       dueTitle: string;
       openApprovals: string;
@@ -527,6 +525,8 @@ export type I18nDictionary = {
       healthTitle: string;
       healthCap: string;
       savedShare: string;
+      healthDeficit: string;
+      healthNoIncome: string;
       healthNote: string;
       goalsTitle: string;
       addGoal: string;

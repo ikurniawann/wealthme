@@ -68,7 +68,7 @@
 }
 
 :root {
-  --radius: 18px;
+  --radius: 26px;
   /* One type scale for the whole app (bento v2): 11 · 12 · 13 · 14 · 16 · 20 · 28 · 40 · 52. */
   --wm-type-11: 11px;
   --wm-type-12: 12px;
@@ -81,13 +81,13 @@
   --wm-type-52: 52px;
 
   /* Bento v2 surfaces (docs/design/proto/wm.css). The shadcn tokens below map onto these. */
-  --wm-bg: #ecede8;
-  --wm-card: #ffffff;
-  --wm-card-2: #f4f5f1;
+  --wm-bg: #f9f9f6;
+  --wm-card: #f1f2ec;
+  --wm-card-2: #ffffff;
   --wm-ghost: #e6e8e1;
   --wm-ink: #15170f;
-  --wm-muted: #666d5f;
-  --wm-line: #e2e4dc;
+  --wm-muted: #5f6658;
+  --wm-line: #e4e6de;
   --wm-lime: #9ccb3b;
   --wm-lime-ink: #1f2a07;
   --wm-lime-soft: #e4f1c4;
@@ -99,8 +99,8 @@
   --wm-lilac: #c8a2de;
   --wm-rose: #e6a6a0;
   --wm-gold: #e9c77b;
-  --wm-shadow:
-    0 1px 2px rgb(30 40 10 / 0.04), 0 6px 18px -8px rgb(30 40 10 / 0.1);
+  /* Flat surfaces (Kole reference): depth comes from tint, never shadow. */
+  --wm-shadow: none;
   /* Hero surfaces: deep forest green in light mode, neutral near-black in dark mode. */
   --wm-cover-start: #1a4b3b;
   --wm-cover-mid: #11382c;
@@ -126,17 +126,17 @@
   --commit-hover: #1a4b3b;
   --commit-pressed: #0c2b22;
 
-  --background: #ecede8;
+  --background: #f9f9f6;
   --foreground: #15170f;
-  --card: #ffffff;
+  --card: #f1f2ec;
   --card-foreground: #15170f;
   --popover: #ffffff;
   --popover-foreground: #15170f;
 
-  --secondary: #f4f5f1;
+  --secondary: #ffffff;
   --secondary-foreground: #15170f;
-  --muted: #f4f5f1;
-  --muted-foreground: #666d5f;
+  --muted: #e9ebe4;
+  --muted-foreground: #5f6658;
   --accent: #e4f1c4;
   --accent-foreground: #1f2a07;
 
@@ -155,7 +155,7 @@
   --brand-cyan: #2ca8a0;
   --brand-orange: #f97316;
 
-  --border: #e2e4dc;
+  --border: #e4e6de;
   --input: #e2e4dc;
   --ring: #9ccb3b;
   /* Form-field rest edge (>=3:1 on canvas and card) and shared placeholder ink (>=4.5:1 on field fill). */

@@ -4515,7 +4515,7 @@
        budget on every control that transitions (buttons, dialogs, sidebar,
        etc. all reference this one variable). */
     --dur-base: 0.22s;
-    --radius-control: 10px;
+    --radius-control: 14px;
     --radius-surface: 16px;
   }
 
@@ -4565,7 +4565,8 @@
 
   /* Controls: one radius, press feedback on every button. */
   .btn {
-    border-radius: var(--radius-control);
+    /* Every button is a pill (Kole reference); fields keep --radius-control. */
+    border-radius: 999px;
     transition:
       background var(--dur-fast) var(--ease-out-smooth),
       border-color var(--dur-fast) var(--ease-out-smooth),

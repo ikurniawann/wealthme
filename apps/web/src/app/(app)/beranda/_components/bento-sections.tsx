@@ -42,11 +42,11 @@ import {
 } from "@/components/wm";
 import {
   FLOW_COLORS,
-  FlowStackChart,
   HatchedAreaChart,
   TickGauge,
 } from "@/components/charts/bento-charts";
 import { bucketDays, useBerandaFlow, type FlowRange } from "./use-beranda-flow";
+import { FlowBars } from "./flow-bars";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
@@ -330,16 +330,11 @@ export function BerandaHeroCard({
       }
       chart={
         mode === "bars" ? (
-          <FlowStackChart
+          <FlowBars
             days={days}
             format={fmt.moneyCompact}
             formatFull={fmt.money}
-            axis={formatAxisCompact}
-            labels={{
-              net: v2.savings,
-              income: v2.income,
-              expense: v2.expense,
-            }}
+            labels={{ income: v2.income, expense: v2.expense }}
             ariaLabel={v2.flowAria}
           />
         ) : (
@@ -727,11 +722,10 @@ export function AttentionTips({
       </TipsCard>
     );
   }
-  return (
-    <TipsCard className="beranda-tips" title={v2.calmTitle} mosaic={MOSAIC}>
-      {v2.calmBody}
-    </TipsCard>
-  );
+  // Nothing to act on: render nothing rather than a full card holding one
+  // reassuring sentence — it took a primary bento slot while carrying no
+  // decision. The limit card widens into the space (beranda.css `:has`).
+  return null;
 }
 
 /* ───────────── allocation · health · goals · history ───────────── */
@@ -832,15 +826,32 @@ export function HealthBento({ fmt }: { fmt: MoneyFormatters }) {
   const flow = useBerandaFlow(30);
   const inc = Number(flow.windowSummary?.totalIncome ?? 0);
   const net = Number(flow.windowSummary?.netBalance ?? 0);
-  const rate = inc > 0 ? Math.max(0, Math.min(100, (net / inc) * 100)) : 0;
+  const ratio = inc > 0 ? (net / inc) * 100 : 0;
+  // A gauge clamped at 0 read as "0% saved" while the figure above it was a
+  // deficit — two answers to one question. In deficit (or with no income)
+  // the card states the shortfall in words instead of drawing a gauge.
+  const deficit = net < 0 || inc <= 0;
   return (
     <BentoCard
       className="beranda-health"
       title={v2.healthTitle}
       caption={`${v2.healthCap} · ${v2.days30}`}
     >
-      <p className="wm-mid">{fmt.money(net)}</p>
-      <TickGauge value={rate} label={v2.savedShare} />
+      <p className="wm-mid" data-tone={net < 0 ? "bad" : undefined}>
+        {fmt.money(net)}
+      </p>
+      {deficit ? (
+        <p className="beranda-deficit">
+          {inc <= 0
+            ? v2.healthNoIncome
+            : v2.healthDeficit.replace(
+                "{pct}",
+                String(Math.round(Math.abs(ratio))),
+              )}
+        </p>
+      ) : (
+        <TickGauge value={Math.min(100, ratio)} label={v2.savedShare} />
+      )}
       <p className="beranda-note">{v2.health30Note}</p>
     </BentoCard>
   );
