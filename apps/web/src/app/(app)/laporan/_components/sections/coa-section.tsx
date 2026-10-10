@@ -170,7 +170,7 @@ export function CoaSection({
       <article className="card">
         <div className="card__header">
           <h2 className="card__title">{t.laporan.coa.cardTitle}</h2>
-          <span className="card__action badge badge--purple">
+          <span className="card__action badge badge--purple coa-new">
             {t.laporan.coa.newBadge}
           </span>
         </div>

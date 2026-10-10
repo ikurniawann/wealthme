@@ -243,6 +243,11 @@
   flex-wrap: wrap;
   gap: 10px;
 }
+.coa-new {
+  width: max-content;
+  align-self: flex-start;
+  margin-left: auto;
+}
 .coa-matrix-tools {
   display: flex;
   flex-wrap: wrap;
@@ -251,7 +256,9 @@
   margin-bottom: 10px;
 }
 .coa-matrix--compact th,
-.coa-matrix--compact td {
+.coa-matrix--compact td,
+.lp-main #laporan-panel .coa-matrix--compact th,
+.lp-main #laporan-panel .coa-matrix--compact td {
   height: 32px;
   padding: 4px 10px;
   vertical-align: middle;
@@ -281,7 +288,8 @@
 /* Magnitude tint: 5 steps of the forest viz token on a square-root scale.
  * Steps 1-4 keep the default ink; step 5 switches to light ink so text
  * stays above 4.5:1 in both themes. */
-.coa-matrix--compact .coa-cell--filled {
+.coa-matrix--compact .coa-cell--filled,
+.lp-main #laporan-panel .coa-matrix--compact td.coa-cell--filled {
   padding: 0;
 }
 .coa-cell--t1 {
@@ -346,7 +354,7 @@
 }
 .coa-month__row {
   display: grid;
-  grid-template-columns: 92px minmax(60px, 1fr) auto 56px 16px;
+  grid-template-columns: 92px minmax(60px, 1fr) 112px 56px 16px;
   align-items: center;
   gap: 12px;
   width: 100%;
@@ -444,9 +452,14 @@
   font-weight: 600;
   white-space: nowrap;
 }
+@media (max-width: 720px) {
+  .coa-new {
+    margin-left: 0;
+  }
+}
 @media (max-width: 560px) {
   .coa-month__row {
-    grid-template-columns: 64px minmax(40px, 1fr) auto 16px;
+    grid-template-columns: 64px minmax(40px, 1fr) 100px 16px;
     gap: 8px;
   }
   .coa-month__count {
