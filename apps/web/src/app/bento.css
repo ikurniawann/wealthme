@@ -4278,4 +4278,41 @@
       transform: translateY(18px);
     }
   }
+
+  /* Phones: the hero is the number, its caption and its actions. Chart and
+     KPI column fold behind "Tren & detail" so the page's content starts on
+     the first screen instead of after a full screen of green. */
+  .wm-hero-fold {
+    display: none;
+  }
+  @media (max-width: 720px) {
+    .wm-hero-fold {
+      display: inline-flex;
+      align-items: center;
+      align-self: center;
+      gap: 6px;
+      min-height: 40px;
+      margin-top: 10px;
+      padding: 0 14px;
+      border: 1px solid var(--cgrid);
+      border-radius: 999px;
+      background: transparent;
+      color: var(--cstrong);
+      font: inherit;
+      font-size: var(--wm-type-13);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .wm-hero-fold svg {
+      width: 16px;
+      height: 16px;
+    }
+    .wm-hero-fold[aria-expanded="true"] svg {
+      transform: rotate(180deg);
+    }
+    .wm-hero[data-fold="closed"] .wm-chart-wrap,
+    .wm-hero[data-fold="closed"] > .wm-kpis {
+      display: none;
+    }
+  }
 }

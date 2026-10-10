@@ -215,6 +215,7 @@ export default function IamRolesPage() {
   return (
     <BentoGrid className="iam-grid">
       <BentoHero
+        collapse={false}
         className={heroMore ? "iam-hero iam-hero--more" : "iam-hero"}
         currency={null}
         value={memberCount}

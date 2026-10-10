@@ -411,6 +411,7 @@ export default function NotifikasiPage() {
     <div className="space-y-4" data-page="notifikasi">
       <BentoGrid className="nf-grid">
         <BentoHero
+          collapse={false}
           className={heroMore ? "nf-hero nf-hero--more" : "nf-hero"}
           currency={null}
           value={unreadCount}

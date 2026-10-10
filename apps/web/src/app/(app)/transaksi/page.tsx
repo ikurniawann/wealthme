@@ -1794,6 +1794,7 @@ function TransaksiPageInner() {
     <div className="flex flex-col gap-4">
       <BentoGrid className="tx-grid">
         <BentoHero
+          collapse={false}
           className={cn("tx-hero", heroMore && "tx-hero--more")}
           currency={isLoading ? null : netBalance < 0 ? "-Rp" : "Rp"}
           value={

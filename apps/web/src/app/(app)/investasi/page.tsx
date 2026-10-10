@@ -1990,6 +1990,7 @@ export default function InvestasiPage() {
     <>
       <BentoGrid className="iv-grid">
         <BentoHero
+          collapse={false}
           className={cn("iv-hero", heroMore && "iv-hero--more")}
           currency={null}
           value={

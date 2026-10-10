@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/hooks/use-locale";
@@ -192,8 +192,13 @@ export function BentoHero({
   area = "main",
   className,
   style,
+  collapse = true,
 }: {
   value: ReactNode;
+  /** Phones only: fold the chart and KPI column behind one "Tren & detail"
+   * toggle so the page's own content starts on the first screen. Pass
+   * `false` where the page already provides its own toggle. */
+  collapse?: boolean;
   /** Small prefix before the number; pass `null` for non-money heroes. */
   currency?: ReactNode;
   caption: ReactNode;
@@ -204,10 +209,15 @@ export function BentoHero({
   className?: string;
   style?: CSSProperties;
 }) {
+  const { t } = useLocale();
+  const [more, setMore] = useState(false);
+  const foldable = collapse && Boolean(chart || kpis);
+  const foldId = useId();
   return (
     <section
       className={cn("wm-card wm-dark wm-hero", AREA_CLASS[area], className)}
       style={style}
+      data-fold={foldable ? (more ? "open" : "closed") : undefined}
     >
       <div className="wm-hero-main">
         <div className="wm-hero-head">
@@ -220,9 +230,29 @@ export function BentoHero({
           </div>
           {controls && <div className="wm-hero-ctrl">{controls}</div>}
         </div>
-        {chart && <div className="wm-chart-wrap">{chart}</div>}
+        {chart && (
+          <div className="wm-chart-wrap" id={`${foldId}-chart`}>
+            {chart}
+          </div>
+        )}
+        {foldable && (
+          <button
+            type="button"
+            className="wm-hero-fold"
+            aria-expanded={more}
+            aria-controls={`${foldId}-chart ${foldId}-kpis`}
+            onClick={() => setMore((open) => !open)}
+          >
+            {more ? t.transaksi.v2.heroLess : t.transaksi.v2.heroMore}
+            <ChevronDown aria-hidden="true" />
+          </button>
+        )}
       </div>
-      {kpis && <div className="wm-kpis">{kpis}</div>}
+      {kpis && (
+        <div className="wm-kpis" id={`${foldId}-kpis`}>
+          {kpis}
+        </div>
+      )}
     </section>
   );
 }
