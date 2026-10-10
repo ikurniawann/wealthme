@@ -5,15 +5,18 @@
 // when their data lands at different times), and a card that mounts below
 // the fold waits until it scrolls into view. Transform and opacity only;
 // nothing runs under reduced motion or in tests.
+//
+// Below-fold cards are watched with IntersectionObserver rather than
+// ScrollTrigger: on phones and tablets the shell scrolls inside `.wm-main`,
+// not the window, and a window-bound trigger never fired there, leaving
+// every card past the first screen invisible.
 
 import { useEffect, useLayoutEffect, type RefObject } from "react";
 import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 
 const useIsoLayoutEffect =
   typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-let registered = false;
 let queued = 0;
 let resetScheduled = false;
 
@@ -41,25 +44,38 @@ export function useEnterMotion(ref: RefObject<HTMLElement | null>): void {
   useIsoLayoutEffect(() => {
     const el = ref.current;
     if (!el || !motionAllowed()) return;
-    if (!registered) {
-      gsap.registerPlugin(ScrollTrigger);
-      registered = true;
-    }
     const belowFold = el.getBoundingClientRect().top > window.innerHeight;
+    let observer: IntersectionObserver | null = null;
     const ctx = gsap.context(() => {
-      gsap.from(el, {
-        y: 18,
-        opacity: 0,
-        duration: 0.55,
-        ease: "power3.out",
-        delay: belowFold ? 0 : nextSlot() * 0.06,
-        clearProps: "transform,opacity",
-        scrollTrigger: belowFold
-          ? { trigger: el, start: "top 94%", once: true }
-          : undefined,
-      });
+      const enter = (delay: number) =>
+        gsap.from(el, {
+          y: 18,
+          opacity: 0,
+          duration: 0.55,
+          ease: "power3.out",
+          delay,
+          clearProps: "transform,opacity",
+        });
+      if (!belowFold || typeof IntersectionObserver !== "function") {
+        enter(nextSlot() * 0.06);
+        return;
+      }
+      gsap.set(el, { opacity: 0 });
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+          observer?.disconnect();
+          observer = null;
+          enter(0);
+        },
+        { rootMargin: "0px 0px -6% 0px" },
+      );
+      observer.observe(el);
     }, el);
-    return () => ctx.revert();
+    return () => {
+      observer?.disconnect();
+      ctx.revert();
+    };
   }, [ref]);
 }
 
