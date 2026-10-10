@@ -5099,8 +5099,6 @@ export const id = {
       colTanggal: "Tanggal",
       emptyAccount: "Pilih akun COA untuk melihat matriks tahunannya.",
       emptyMatrix: "Belum ada transaksi untuk akun COA ini pada tahun ini.",
-      dialogTitlePrefix: "Transaksi tanggal",
-      dialogDescriptionPrefix: "Akun COA",
       dialogNoDesc: "Tanpa deskripsi",
       totalRowLabel: "TOTAL",
       showAllDays: "Tampilkan semua tanggal",

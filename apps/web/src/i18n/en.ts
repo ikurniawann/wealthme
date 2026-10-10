@@ -5016,8 +5016,6 @@ export const en = {
       colTanggal: "Date",
       emptyAccount: "Select a COA account to view its yearly matrix.",
       emptyMatrix: "No transactions for this COA account in this year.",
-      dialogTitlePrefix: "Transactions on",
-      dialogDescriptionPrefix: "COA account",
       dialogNoDesc: "No description",
       totalRowLabel: "TOTAL",
       showAllDays: "Show all dates",

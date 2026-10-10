@@ -4928,8 +4928,6 @@ export type I18nDictionary = {
       colTanggal: string;
       emptyAccount: string;
       emptyMatrix: string;
-      dialogTitlePrefix: string;
-      dialogDescriptionPrefix: string;
       dialogNoDesc: string;
       totalRowLabel: string;
       showAllDays: string;
