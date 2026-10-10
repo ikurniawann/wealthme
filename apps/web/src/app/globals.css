@@ -81,9 +81,10 @@
   --wm-type-52: 52px;
 
   /* Bento v2 surfaces (docs/design/proto/wm.css). The shadcn tokens below map onto these. */
-  --wm-bg: #f9f9f6;
-  --wm-card: #f1f2ec;
-  --wm-card-2: #ffffff;
+  --wm-bg: #eef1ea;
+  --wm-glow: rgb(198 228 140 / 0.42);
+  --wm-card: #ffffff;
+  --wm-card-2: #f3f5ef;
   --wm-ghost: #e6e8e1;
   --wm-ink: #15170f;
   --wm-muted: #5f6658;
@@ -126,14 +127,14 @@
   --commit-hover: #1a4b3b;
   --commit-pressed: #0c2b22;
 
-  --background: #f9f9f6;
+  --background: #eef1ea;
   --foreground: #15170f;
-  --card: #f1f2ec;
+  --card: #ffffff;
   --card-foreground: #15170f;
   --popover: #ffffff;
   --popover-foreground: #15170f;
 
-  --secondary: #ffffff;
+  --secondary: #f3f5ef;
   --secondary-foreground: #15170f;
   --muted: #e9ebe4;
   --muted-foreground: #5f6658;
@@ -187,6 +188,7 @@
 .dark {
   /* Dark mode: neutral near-black, no green tint, lime only as the accent. */
   --wm-bg: #09090a;
+  --wm-glow: rgb(26 75 59 / 0.32);
   --wm-card: #131314;
   --wm-card-2: #1a1a1c;
   --wm-ghost: #242426;

@@ -10,6 +10,7 @@ import type {
   GoalDto,
 } from "@wealthme/contracts";
 import { AccountCard, GoalIcon, Track, useCardLooks } from "@/components/wm";
+import { useCountUp } from "@/components/wm/motion";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
@@ -78,6 +79,8 @@ export function MobileHome({
   const { access } = useMyAccess();
   const [slide, setSlide] = useState(0);
   const { lookFor } = useCardLooks(accounts);
+  // The balance counts up once it loads (reduced motion: shown at once).
+  const shownNetWorth = useCountUp(netWorth, 900);
   const ordered = [...accounts]
     .sort((a, b) => Number(b.balance) - Number(a.balance))
     .slice(0, 6);
@@ -99,7 +102,10 @@ export function MobileHome({
         <span className="beranda-mh-badge" aria-hidden="true">
           Rp
         </span>
-        <p className="beranda-mh-total wm-num">{fmt.money(netWorth)}</p>
+        <p className="beranda-mh-total wm-num">
+          <span aria-hidden="true">{fmt.money(shownNetWorth)}</span>
+          <span className="sr-only">{fmt.money(netWorth)}</span>
+        </p>
         <p className="beranda-mh-cap">{v2.heroCaption}</p>
         {ordered.length > 0 && (
           <>
