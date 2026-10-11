@@ -3143,7 +3143,7 @@ export const en = {
     },
     statusLabels: {
       achieved: "Achieved",
-      on_track: "On Track",
+      on_track: "On track",
       needs_boost: "Needs a Boost",
       at_risk: "At Risk",
     },

@@ -598,11 +598,16 @@ describe("TujuanPage — bento hero KPIs", () => {
     // status signal: an on-track goal must never appear under a "needs
     // attention" heading. With only an on-track goal, the panel shows the
     // all-good empty state instead of padding in that goal as a row.
-    mockSession("owner");
+    // On track means a plan that reaches the target: an auto-debit large
+    // enough to close the 9 jt gap by the target date.
+    mockSession("owner", {
+      goalOverrides: { autoDebitAmount: 9_000_000, autoDebitDay: 25 },
+    });
     render(<TujuanPage />);
 
     await screen.findByText("Dana Liburan");
-    expect(screen.getByText("Sesuai rencana")).toBeInTheDocument();
+    // The KPI label and the goal's own status chip now share the wording.
+    expect(screen.getAllByText("Sesuai rencana").length).toBeGreaterThan(0);
     expect(screen.getByText("Perlu perhatian")).toBeInTheDocument();
     expect(
       screen.getByText("Semua tujuan berjalan sesuai rencana."),

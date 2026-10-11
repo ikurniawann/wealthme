@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import "./tujuan.css";
 import { Plus } from "lucide-react";
 import { useSession } from "@/lib/auth-compat";
@@ -32,6 +32,7 @@ import {
 } from "@/components/wm";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { CrudModal, ConfirmDeleteDialog, withCrudFx } from "@/components/crud";
+import { effectiveGoalStatus } from "./_components/goal-status";
 import type { CrudModalState, CrudMode } from "@/components/crud";
 
 import {
@@ -193,7 +194,7 @@ export default function TujuanPage() {
   const [detailGoal, setDetailGoal] = useState<GoalDto | null>(null);
 
   const {
-    data: goals,
+    data: rawGoals,
     isLoading,
     isError,
   } = useQuery<GoalDto[]>({
@@ -207,6 +208,17 @@ export default function TujuanPage() {
       });
     },
   });
+
+  // One status per goal for the whole page (counts, attention list, chips,
+  // detail sheet): see effectiveGoalStatus.
+  const goals = useMemo(
+    () =>
+      rawGoals?.map((goal) => ({
+        ...goal,
+        status: effectiveGoalStatus(goal),
+      })),
+    [rawGoals],
+  );
 
   const { data: accounts = [] } = useQuery<SourceAccountOption[]>({
     queryKey: queryKeys.accounts.all(familyGroupId ?? ""),

@@ -110,15 +110,23 @@ export function GoalDetailPanel({
 
             {canManage && (
               <span className="tj-acts">
+                {/* A reached goal has nothing left to fund: Setor is not
+                    its primary action. Edit becomes the lead instead. */}
+                {goal.remainingAmount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => onContribute(goal)}
+                    aria-label={`${t.tujuan.contributeButtonAriaPrefix}${goal.name}`}
+                    data-primary="true"
+                  >
+                    <Wallet aria-hidden="true" /> {t.tujuan.contributeButton}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => onContribute(goal)}
-                  aria-label={`${t.tujuan.contributeButtonAriaPrefix}${goal.name}`}
-                  data-primary="true"
+                  onClick={() => onEdit(goal)}
+                  data-primary={goal.remainingAmount > 0 ? undefined : "true"}
                 >
-                  <Wallet aria-hidden="true" /> {t.tujuan.contributeButton}
-                </button>
-                <button type="button" onClick={() => onEdit(goal)}>
                   <Pencil aria-hidden="true" /> {t.tujuan.editButton}
                 </button>
                 <button

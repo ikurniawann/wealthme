@@ -3206,8 +3206,8 @@ export const id = {
     },
     statusLabels: {
       achieved: "Tercapai",
-      on_track: "On Track",
-      needs_boost: "Perlu Boost",
+      on_track: "Sesuai rencana",
+      needs_boost: "Perlu didorong",
       at_risk: "Berisiko",
     },
     noTargetDate: "Tanpa target",
