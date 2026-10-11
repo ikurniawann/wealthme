@@ -443,6 +443,7 @@ export default function MasterCoaPage() {
             ]}
             highlight={highestGroupIndex}
             wide
+            showAverage={false}
             ariaLabel={t.mastercoa.groupsCardTitle}
           />
         }

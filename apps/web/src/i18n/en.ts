@@ -3516,6 +3516,7 @@ export const en = {
     },
   },
   rekening: {
+    avgPerAccountLabel: "Average per account",
     v2: {
       quickTitle: "Quick actions",
       record: "Record transaction",

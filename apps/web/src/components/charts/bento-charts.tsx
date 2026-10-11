@@ -233,6 +233,8 @@ export function HatchedBarChart({
   axis,
   stacked,
   legend = true,
+  showAverage = true,
+  averageLabel,
   ariaLabel,
   className,
 }: {
@@ -248,6 +250,13 @@ export function HatchedBarChart({
   stacked?: boolean;
   /** Multi-series only: draw the series legend. Off where the page renders its own. */
   legend?: boolean;
+  /**
+   * Single series only: the dashed average line and its label. Turn it off
+   * where an average means nothing (counts of members, COA groups).
+   */
+  showAverage?: boolean;
+  /** Label for that average ("Rata-rata per rekening"); defaults to "Rata-rata". */
+  averageLabel?: string;
   ariaLabel: string;
   className?: string;
 }) {
@@ -273,7 +282,9 @@ export function HatchedBarChart({
           period={period}
           formatValue={tipFormat}
           formatTick={axis ?? format}
-          categoryLabel={period ? undefined : "Category"}
+          showAverage={showAverage}
+          averageLabel={averageLabel}
+          categoryLabel={period ? undefined : "Kategori"}
         />
       </div>
     );

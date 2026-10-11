@@ -246,6 +246,7 @@ export default function IamRolesPage() {
               ]}
               highlight={chartHighlight}
               format={(v) => v2.chartUnit.replace("{n}", String(v))}
+              showAverage={false}
               ariaLabel={v2.chartAria}
               wide
             />

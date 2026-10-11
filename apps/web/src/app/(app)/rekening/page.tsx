@@ -759,6 +759,7 @@ export default function RekeningPage() {
                 axis={money.formatAxis}
                 formatFull={money.format}
                 wide
+                averageLabel={t.rekening.avgPerAccountLabel}
                 ariaLabel={t.rekening.statBankBalanceLabel}
               />
             ) : null

@@ -3583,6 +3583,7 @@ export const id = {
     },
   },
   rekening: {
+    avgPerAccountLabel: "Rata-rata per rekening",
     v2: {
       quickTitle: "Aksi cepat",
       record: "Catat transaksi",

@@ -3371,6 +3371,8 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
+    /** Label of the average line on the per-account balance chart. */
+    avgPerAccountLabel: string;
     v2: {
       quickTitle: string;
       record: string;

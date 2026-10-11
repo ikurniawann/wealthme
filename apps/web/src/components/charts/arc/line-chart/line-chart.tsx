@@ -342,9 +342,9 @@ export function LineChart({
   onHiddenSeriesChange,
   onActiveChange,
   loading = false,
-  emptyLabel = "No data for this range",
+  emptyLabel = "Belum ada data untuk rentang ini",
   legend,
-  categoryLabel = "Date",
+  categoryLabel = "Tanggal",
   curve = "smooth",
   ref,
   className,
@@ -760,7 +760,7 @@ export function LineChart({
           style={{ height }}
           role="slider"
           tabIndex={empty ? -1 : 0}
-          aria-label={`${label}, explore by ${categoryLabel.toLowerCase()}`}
+          aria-label={`${label}, jelajahi per ${categoryLabel.toLowerCase()}`}
           aria-orientation="horizontal"
           aria-valuemin={1}
           aria-valuemax={Math.max(1, data.length)}
@@ -906,7 +906,7 @@ export function LineChart({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, transition: fadeFast }}
               >
-                {empty ? emptyLabel : "Choose a series to show"}
+                {empty ? emptyLabel : "Pilih seri untuk ditampilkan"}
               </motion.p>
             )}
             {loading && empty && (

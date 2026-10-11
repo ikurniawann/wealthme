@@ -534,9 +534,9 @@ export function BarChart({
   label,
   period,
   unit = "",
-  averageLabel = "Daily average",
+  averageLabel = "Rata-rata",
   valueLabel = "Total",
-  categoryLabel = "Day",
+  categoryLabel = "Hari",
   showAverage = true,
   height = 176,
   formatValue = (value) => grouped.format(value),
@@ -706,7 +706,7 @@ export function BarChart({
       Math.round(height - (mean.get() / scale.get()) * (height - TOP)) + 0.5,
   );
   const meanText = useTransform(
-    () => `Avg ${formatValue(Math.round(mean.get()))}`,
+    () => `Rata-rata ${formatValue(Math.round(mean.get()))}`,
   );
 
   const pointAt = (clientX: number) => {
@@ -765,7 +765,7 @@ export function BarChart({
     (best, item) => (!best || item.value < best.value ? item : best),
     null,
   );
-  const summary = `${label}, ${period}. ${averageLabel} ${formatValue(Math.round(average))}${suffix}.${highest ? ` Highest ${highest.label}, ${formatValue(highest.value)}${suffix}.` : ""}${lowest && lowest !== highest ? ` Lowest ${lowest.label}, ${formatValue(lowest.value)}${suffix}.` : ""}`;
+  const summary = `${label}, ${period}. ${averageLabel} ${formatValue(Math.round(average))}${suffix}.${highest ? ` Tertinggi ${highest.label}, ${formatValue(highest.value)}${suffix}.` : ""}${lowest && lowest !== highest ? ` Terendah ${lowest.label}, ${formatValue(lowest.value)}${suffix}.` : ""}`;
   const shown = inView || reduced;
   const avoid = showAverage ? meanY : null;
 
@@ -932,7 +932,7 @@ export function BarChart({
           className={styles.scrubber}
           role="slider"
           tabIndex={0}
-          aria-label={`${label}, explore by ${categoryLabel.toLowerCase()}`}
+          aria-label={`${label}, jelajahi per ${categoryLabel.toLowerCase()}`}
           aria-orientation="horizontal"
           aria-valuemin={1}
           aria-valuemax={Math.max(1, data.length)}
