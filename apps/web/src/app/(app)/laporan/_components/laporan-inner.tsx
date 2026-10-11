@@ -333,6 +333,7 @@ export function LaporanInner() {
     rangeStart,
     rangeEnd,
     summaryAnchorEnd,
+    summaryRangeStart: presetRange ? rangeStart : undefined,
     tahunanAnchorEnd,
   });
 

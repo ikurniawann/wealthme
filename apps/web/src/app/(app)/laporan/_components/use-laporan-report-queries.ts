@@ -38,6 +38,7 @@ export function useLaporanReportQueries({
   rangeStart,
   rangeEnd,
   summaryAnchorEnd,
+  summaryRangeStart,
   tahunanAnchorEnd,
 }: {
   familyGroupId: string;
@@ -48,6 +49,12 @@ export function useLaporanReportQueries({
   rangeStart: string;
   rangeEnd: string;
   summaryAnchorEnd: string;
+  /**
+   * Exact start of an active preset range. The summary then totals exactly
+   * [start, anchorEnd] like Bank/Detail/PNL do, instead of whole calendar
+   * months, so every tab shows the same income/expense for one period.
+   */
+  summaryRangeStart?: string;
   tahunanAnchorEnd: string;
 }) {
   const SUMMARY_MONTHS = 6;
@@ -62,11 +69,15 @@ export function useLaporanReportQueries({
         familyGroupId,
         SUMMARY_MONTHS,
         "monthly",
-        summaryAnchorEnd,
+        summaryRangeStart
+          ? `${summaryRangeStart}..${summaryAnchorEnd}`
+          : summaryAnchorEnd,
       ),
       queryFn: () =>
         apiFetch<ReportSummaryDto>(
-          `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}&endDate=${summaryAnchorEnd}`,
+          `/family-groups/${familyGroupId}/reports/summary?months=${SUMMARY_MONTHS}&endDate=${summaryAnchorEnd}${
+            summaryRangeStart ? `&startDate=${summaryRangeStart}` : ""
+          }`,
           { token },
         ),
       enabled,

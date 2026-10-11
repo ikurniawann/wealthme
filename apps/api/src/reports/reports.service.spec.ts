@@ -743,6 +743,67 @@ describe("ReportsService privacy enforcement", () => {
     expect(summary.topIncomeCategories[0]?.amount).toBe(1_000);
   });
 
+  it("getSummary with an explicit range totals exactly that range, not whole calendar months (UI audit W4)", async () => {
+    const accounts: FakeAccount[] = [
+      {
+        id: "a1",
+        balance: 0n,
+        type: "bank",
+        name: "A",
+        institution: null,
+        isPrivate: false,
+      },
+    ];
+    const categories: FakeCategory[] = [
+      {
+        id: "c-income",
+        name: "Gaji",
+        color: null,
+        isPrivate: false,
+        coaAccount: { direction: "INCOME" },
+      },
+    ];
+    const tx = (id: string, day: Date, amount: bigint): FakeTransaction => ({
+      id,
+      accountId: "a1",
+      categoryId: "c-income",
+      amount,
+      type: "income",
+      toAccountId: null,
+      description: null,
+      occurredAt: day,
+      createdAt: day,
+    });
+    const transactions: FakeTransaction[] = [
+      tx("before", new Date(2026, 3, 5), 100n), // 5 Apr: before the range start
+      tx("start", new Date(2026, 3, 11), 1_000n), // 11 Apr: first day
+      tx("mid", new Date(2026, 6, 1), 2_000n), // 1 Jul
+      tx("end", new Date(2026, 9, 11, 20), 3_000n), // 11 Okt evening: last day
+      tx("after", new Date(2026, 9, 20), 400n), // 20 Okt: after the range end
+    ];
+    const p = makeFakePrisma(accounts, categories, transactions);
+    const mod = await Test.createTestingModule({
+      providers: [ReportsService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get(ReportsService);
+
+    const summary = await svc.getSummary(
+      FAMILY_GROUP_ID,
+      "monthly",
+      6,
+      true,
+      new Date(2026, 9, 11, 23, 59, 59, 999),
+      new Date(2026, 3, 11),
+    );
+
+    expect(summary.totalIncome).toBe(6_000);
+    expect(summary.topIncomeCategories[0]?.amount).toBe(6_000);
+    // One point per month the range touches, April through October.
+    expect(summary.points.map((pt) => pt.label)).toHaveLength(7);
+    expect(summary.points[0]?.income).toBe(1_000);
+    expect(summary.points[6]?.income).toBe(3_000);
+  });
+
   // EPIC-023 Task A3 — regression tests proving a group-5 (Account Payable)
   // principal repayment no longer appears in P&L expenses and a group-4
   // (Account Receivable) loan disbursement no longer appears as P&L revenue
@@ -1097,6 +1158,28 @@ describe("ReportsService privacy enforcement", () => {
       expect(balanceSheet.netWorth).not.toBe(Number(LIVE_ACCOUNT_BALANCE));
       expect(balanceSheet.netWorth).not.toBe(80_000_000);
       expect(balanceSheet.netWorth).not.toBe(170_000_000);
+    });
+
+    it("a range ending today or later reports live balances, not the last daily snapshot (UI audit W4)", async () => {
+      const prisma = buildPrisma();
+      const mod: TestingModule = await Test.createTestingModule({
+        providers: [
+          ReportsService,
+          { provide: PrismaService, useValue: prisma },
+        ],
+      }).compile();
+      const svc = mod.get(ReportsService);
+
+      // The snapshots are all in the past; the range ends tomorrow.
+      const rangeEnd = new Date(Date.now() + 86_400_000);
+      const balanceSheet = await svc.getBalanceSheet(
+        FAMILY_GROUP_ID,
+        rangeEnd,
+        true,
+      );
+
+      expect(balanceSheet.isHistorical).toBe(false);
+      expect(balanceSheet.netWorth).toBe(Number(LIVE_ACCOUNT_BALANCE));
     });
 
     it("a range ending between two snapshots uses the most recent snapshot ON OR BEFORE that date — never a later one", async () => {

@@ -188,9 +188,27 @@ export function coverFor(
       }
       break;
     }
-    case "rtahunan":
-      cover = flow(d.yearly);
+    case "rtahunan": {
+      // The yearly summary spans several years for the trend; the cover
+      // speaks for the selected (latest) year only, like the body below it.
+      // Summing every year made "2026" look larger than it is.
+      const points = d.yearly?.points ?? [];
+      const year = points[points.length - 1];
+      cover =
+        d.yearly && year
+          ? flow({
+              ...d.yearly,
+              totalIncome: year.income,
+              totalExpense: year.expense,
+              netSavings: year.net,
+              savingsRate:
+                year.income > 0
+                  ? Math.round((year.net / year.income) * 100)
+                  : 0,
+            })
+          : null;
       break;
+    }
     case "rfamily":
     case "raliran":
       cover = d.summary

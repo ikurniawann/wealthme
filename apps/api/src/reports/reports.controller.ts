@@ -92,6 +92,14 @@ export class ReportsController {
       "callers re-query the summary trend for a past period, e.g. the last " +
       "N months ending at a selected month/year.",
   })
+  @ApiQuery({
+    name: "startDate",
+    required: false,
+    type: String,
+    description:
+      "Exact start of the range. With it the summary covers [startDate, " +
+      "endDate] instead of whole calendar months, matching the other reports.",
+  })
   @ApiOperation({ summary: "Get report summary with period points" })
   @ApiResponse({ status: 200, description: "Report summary data" })
   getSummary(
@@ -100,6 +108,7 @@ export class ReportsController {
     @Query("months") months?: string,
     @Query("period") period?: string,
     @Query("endDate") endDateStr?: string,
+    @Query("startDate") startDateStr?: string,
   ): Promise<ReportSummaryDto> {
     if (areBalancesHidden(req.tenantContext?.member)) {
       return Promise.resolve(hiddenReportSummary(period));
@@ -109,6 +118,9 @@ export class ReportsController {
     const safePeriod: ReportPeriod =
       period === "daily" || period === "yearly" ? period : "monthly";
     const anchor = parseDate(endDateStr, new Date());
+    const rangeStart = startDateStr
+      ? parseDate(startDateStr, anchor)
+      : undefined;
     // EPIC-023 Task C — reports.service.ts stays untouched (settled by Task
     // A); a family-wide P&L/balance-sheet/cashflow statement cannot be
     // narrowed to "my own" without producing a misleading result, so
@@ -121,6 +133,7 @@ export class ReportsController {
       parsedMonths,
       canSeePrivate,
       anchor,
+      rangeStart && rangeStart <= anchor ? rangeStart : undefined,
     );
   }
 

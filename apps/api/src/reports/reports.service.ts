@@ -117,6 +117,14 @@ export class ReportsService {
      * month/year instead of always ending at the real current date.
      */
     anchor: Date = new Date(),
+    /**
+     * Exact start of the selected range. With it, the window is
+     * [rangeStart, anchor] and `months` is ignored: totals and categories
+     * cover exactly the range the other report tabs (bank, detail, P&L) use,
+     * instead of snapping to whole calendar months, which made the same
+     * period show two different income/expense totals across tabs.
+     */
+    rangeStart?: Date,
   ): Promise<ReportSummaryDto> {
     // `period: "yearly"` used to be accepted and stored on the response but
     // never actually changed the bucketing below — every period bucketed by
@@ -135,12 +143,16 @@ export class ReportsService {
       );
     }
     const now = anchor;
-    const startDate = new Date(
-      now.getFullYear(),
-      now.getMonth() - (months - 1),
-      1,
-    );
-    startDate.setHours(0, 0, 0, 0);
+    if (rangeStart) {
+      months =
+        (now.getFullYear() - rangeStart.getFullYear()) * 12 +
+        (now.getMonth() - rangeStart.getMonth()) +
+        1;
+    }
+    const startDate = rangeStart
+      ? new Date(rangeStart)
+      : new Date(now.getFullYear(), now.getMonth() - (months - 1), 1);
+    if (!rangeStart) startDate.setHours(0, 0, 0, 0);
     // EPIC-022 finding 5 — bound the query to the same trailing-months
     // window `monthKeys` builds below (through the end of `anchor`'s
     // month). `totalIncome`/`totalExpense`/`points` were already implicitly
@@ -152,8 +164,10 @@ export class ReportsService {
     // `endDate` into this as the anchor for exports): a March export's
     // headline total would be correct, but its category breakdown would
     // leak April-onward data.
-    const endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    endDate.setHours(23, 59, 59, 999);
+    const endDate = rangeStart
+      ? new Date(now)
+      : new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    if (!rangeStart) endDate.setHours(23, 59, 59, 999);
 
     const transactions = await this.prisma.transaction.findMany({
       where: {
@@ -655,6 +669,18 @@ export class ReportsService {
     asOfDate: Date,
     canSeePrivate: boolean,
   ): Promise<BalanceSheetDto> {
+    // A range that ends today (or later) asks for the position NOW. The
+    // daily snapshot is captured once at 02:00 and never refreshed, so it
+    // lagged every balance change made since — the balance sheet disagreed
+    // with the live net worth on Beranda and Grup Keluarga. Snapshots are
+    // for past dates only.
+    if (asOfDate.getTime() >= Date.now()) {
+      return this.computeLiveBalanceSheet(
+        familyGroupId,
+        asOfDate,
+        canSeePrivate,
+      );
+    }
     const snapshot = await this.prisma.netWorthSnapshot.findFirst({
       where: { familyGroupId, date: { lte: asOfDate } },
       orderBy: { date: "desc" },

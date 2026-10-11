@@ -33,14 +33,11 @@ export function DetailSection({
   const loadingClass = isLoading ? "opacity-50 pointer-events-none" : "";
   const txs = detailReport?.transactions ?? [];
 
-  const totalIn = txs.reduce(
-    (sum, tx) => (tx.type === "income" ? sum + tx.amount : sum),
-    0,
-  );
-  const totalOut = txs.reduce(
-    (sum, tx) => (tx.type === "expense" ? sum + tx.amount : sum),
-    0,
-  );
+  // The API's totals classify by COA direction, like every other report and
+  // the hero above this strip. Re-summing by raw `tx.type` counted wealth
+  // allocations and debt principal as spending (a €2.156 gap on one screen).
+  const totalIn = detailReport?.totalIncome ?? 0;
+  const totalOut = detailReport?.totalExpense ?? 0;
   const net = totalIn - totalOut;
 
   // A month of household activity runs to hundreds of rows; render a page
