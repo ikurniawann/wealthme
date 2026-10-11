@@ -93,5 +93,8 @@ export function useBerandaFlow(range: FlowRange) {
     windowTotal: window.data?.meta.total ?? 0,
     windowSummary: window.data?.summary,
     isLoading: window.isLoading,
+    // A failed or throttled load is not an empty week: callers show an
+    // error instead of "Belum ada transaksi".
+    isError: window.isError,
   };
 }

@@ -992,7 +992,15 @@ export function HistoryBento({ fmt }: { fmt: MoneyFormatters }) {
         />
       }
     >
-      {rows.length === 0 ? (
+      {flow.isError ? (
+        <p className="wm-cap mt-4" role="alert">
+          {t.beranda.loadError}
+        </p>
+      ) : flow.isLoading ? (
+        <p className="wm-cap mt-4" aria-busy="true">
+          {t.common.loading}
+        </p>
+      ) : rows.length === 0 ? (
         <p className="wm-cap mt-4">{t.beranda.noTransactions}</p>
       ) : (
         <MiniList label={v2.historyTitle}>
