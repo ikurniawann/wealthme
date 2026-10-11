@@ -3828,6 +3828,7 @@ export const en = {
   },
   anggaran: {
     v2: {
+      otherPeriodsExcluded: "{n} weekly/yearly budgets not included",
       leftCap: "Budget left",
       overCap: "Over budget",
       legendSpent: "Spent",

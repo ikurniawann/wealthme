@@ -3897,6 +3897,7 @@ export const id = {
   },
   anggaran: {
     v2: {
+      otherPeriodsExcluded: "{n} anggaran mingguan/tahunan tidak dihitung",
       leftCap: "Sisa anggaran",
       overCap: "Lewat anggaran",
       legendSpent: "Terpakai",

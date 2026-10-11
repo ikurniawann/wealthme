@@ -3717,6 +3717,8 @@ export type I18nDictionary = {
   /** EPIC-018 Task A6 — `/anggaran` (budgets) page copy. */
   anggaran: {
     v2: {
+      /** Hero caption note when weekly/yearly budgets are left out of the monthly totals. */
+      otherPeriodsExcluded: string;
       leftCap: string;
       overCap: string;
       legendSpent: string;

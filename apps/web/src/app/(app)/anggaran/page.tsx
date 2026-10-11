@@ -54,6 +54,7 @@ import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { parseRupiah } from "@/lib/format";
+import { summarizeBudgets } from "./_components/budget-summary";
 import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -262,8 +263,25 @@ function BudgetHeroChart({
                   width={barW}
                   height={Math.max(3, y(0) - y(b.spentAmount))}
                   rx={8}
-                  fill={on ? `url(#ag-hatch-${tone})` : "var(--ctext)"}
-                  opacity={on ? 1 : 0.28}
+                  fill={
+                    on || b.isOverBudget
+                      ? `url(#ag-hatch-${tone})`
+                      : "var(--ctext)"
+                  }
+                  opacity={on || b.isOverBudget ? 1 : 0.28}
+                />
+              )}
+              {/* Over budget: the limit sits inside the spend bar, so mark it
+                  with a solid tick or the bar reads as an ordinary column. */}
+              {b.isOverBudget && (
+                <line
+                  x1={x - 3}
+                  x2={x + barW + 3}
+                  y1={y(b.limitAmount)}
+                  y2={y(b.limitAmount)}
+                  stroke="var(--cstrong)"
+                  strokeWidth={2}
+                  strokeLinecap="round"
                 />
               )}
               {showLabel(i) && (
@@ -1132,21 +1150,21 @@ export default function AnggaranPage() {
     );
   }
 
-  const totalLimit = budgets?.reduce((s, b) => s + b.limitAmount, 0) ?? 0;
-  const totalSpent = budgets?.reduce((s, b) => s + b.spentAmount, 0) ?? 0;
-  const totalRemaining = Math.max(0, totalLimit - totalSpent);
-  const overBudgetItems = budgets?.filter((b) => b.isOverBudget) ?? [];
-  const nearLimitItems = budgets?.filter((b) => b.isNearLimit) ?? [];
-
   const now = new Date();
+  const summary = summarizeBudgets(budgets ?? [], now);
+  const {
+    limit: totalLimit,
+    spent: totalSpent,
+    remaining: totalRemaining,
+    usagePct,
+    worst,
+  } = summary;
   const daysInMonth = new Date(
     now.getFullYear(),
     now.getMonth() + 1,
     0,
   ).getDate();
   const daysLeft = daysInMonth - now.getDate();
-  const usagePct =
-    totalLimit > 0 ? Math.round((totalSpent / totalLimit) * 100) : 0;
 
   const sortedBudgets = (budgets ?? [])
     .slice()
@@ -1158,7 +1176,6 @@ export default function AnggaranPage() {
   const monthLabel = now.toLocaleString(locale === "en" ? "en-US" : "id-ID", {
     month: "long",
   });
-  const worst = overBudgetItems[0] ?? nearLimitItems[0];
   const mosaicFilled = Math.round((Math.min(usagePct, 100) / 100) * 18);
   const mosaic = Array.from({ length: 18 }, (_, i) =>
     i < mosaicFilled
@@ -1178,7 +1195,11 @@ export default function AnggaranPage() {
         className="ag-hero"
         currency={null}
         value={money.format(Math.abs(totalLimit - totalSpent))}
-        caption={`${totalLimit >= totalSpent ? t.anggaran.v2.leftCap : t.anggaran.v2.overCap} ${monthLabel}`}
+        caption={`${totalLimit >= totalSpent ? t.anggaran.v2.leftCap : t.anggaran.v2.overCap} ${monthLabel}${
+          summary.excludedCount > 0
+            ? ` · ${t.anggaran.v2.otherPeriodsExcluded.replace("{n}", String(summary.excludedCount))}`
+            : ""
+        }`}
         controls={
           // Proto's `.hero-ctrl` is itself a column (buttons row, legend
           // row below, both right-aligned) — `wm-hero-ctrl` only right-
@@ -1199,12 +1220,20 @@ export default function AnggaranPage() {
               )}
             </div>
             <div className="wm-legend" aria-hidden="true">
+              {/* Swatches match the bars: spend is orange, spend past the
+                  limit is the danger hatch, the limit is the ghost column. */}
               <span>
-                <i style={{ background: "var(--wm-lime)" }} />
+                <i style={{ background: "var(--wm-orange)" }} />
                 {t.anggaran.v2.legendSpent}
               </span>
+              {summary.overCount > 0 && (
+                <span>
+                  <i style={{ background: "var(--wm-bad)" }} />
+                  {t.anggaran.v2.overCap}
+                </span>
+              )}
               <span>
-                <i style={{ background: "var(--wm-ghost)" }} />
+                <i style={{ background: "var(--cghost)" }} />
                 {t.anggaran.v2.legendLimit}
               </span>
             </div>
@@ -1240,11 +1269,7 @@ export default function AnggaranPage() {
             />
             <HeroKpi
               label={t.anggaran.v2.kpiSafe}
-              value={money.format(
-                daysLeft > 0
-                  ? Math.round(totalRemaining / daysLeft)
-                  : totalRemaining,
-              )}
+              value={money.format(Math.round(summary.safePerDay))}
               delta={
                 <small className="wm-cap">
                   {daysLeft}
