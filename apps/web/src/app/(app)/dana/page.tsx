@@ -43,7 +43,7 @@ import "./dana.css";
 import type { DonutSegment } from "@/components/charts/donut";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatAxisCompact, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
 import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
 import {
@@ -693,8 +693,8 @@ export default function DanaPage() {
                   : danaTrend.values
               }
               format={money.formatCompact}
+              axis={money.formatAxis}
               formatFull={money.format}
-              axis={formatAxisCompact}
               floor={Math.min(0, ...danaTrend.values)}
               ariaLabel={t.dana.totalLabel}
             />

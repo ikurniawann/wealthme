@@ -32,7 +32,7 @@ export function AslSection({
             {t.laporan.totalAssetsLabel}
           </div>
           <div className="text-[22px] font-black text-success">
-            {balanceSheet ? money.format(balanceSheet.totalAssets) : "Rp ·"}
+            {balanceSheet ? money.format(balanceSheet.totalAssets) : "…"}
           </div>
         </div>
         <div className="rounded-[12px] border bg-card p-4">
@@ -40,9 +40,7 @@ export function AslSection({
             {t.laporan.totalLiabilitiesLabel}
           </div>
           <div className="text-[22px] font-black">
-            {balanceSheet
-              ? `-${money.format(balanceSheet.totalLiabilities)}`
-              : "Rp ·"}
+            {balanceSheet ? money.format(-balanceSheet.totalLiabilities) : "…"}
           </div>
         </div>
       </div>

@@ -15,6 +15,7 @@ export function GroupedBars({
   legend = true,
   format,
   formatFull,
+  axis,
   ariaLabel,
 }: {
   labels: string[];
@@ -23,8 +24,11 @@ export function GroupedBars({
   legend?: boolean;
   format: (value: number) => string;
   formatFull: (value: number) => string;
+  /** Short tick formatter for the value axis; defaults to `format`. */
+  axis?: (value: number) => string;
   ariaLabel: string;
 }) {
+  const tick = axis ?? format;
   const value = (s: GroupedBarSeries, i: number) => s.data[i] ?? 0;
   const maxPos = Math.max(
     0,
@@ -56,11 +60,11 @@ export function GroupedBars({
       )}
       <div className={styles.plot}>
         <div className={styles.axis} aria-hidden="true">
-          {maxPos > 0 && <span style={{ top: 0 }}>{format(maxPos)}</span>}
+          {maxPos > 0 && <span style={{ top: 0 }}>{tick(maxPos)}</span>}
           <span data-zero style={{ top: `${up * 100}%` }}>
             0
           </span>
-          {maxNeg > 0 && <span style={{ bottom: 0 }}>-{format(maxNeg)}</span>}
+          {maxNeg > 0 && <span style={{ bottom: 0 }}>{tick(-maxNeg)}</span>}
         </div>
         <div className={styles.cols}>
           <div

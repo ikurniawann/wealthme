@@ -94,7 +94,7 @@
 .chart {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-columns: minmax(0, 1fr) 60px;
   grid-template-rows: auto 26px;
   min-width: 0;
 }

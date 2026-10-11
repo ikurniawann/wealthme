@@ -1983,6 +1983,7 @@ export default function LiabilitasPage() {
                     },
                   ]}
                   format={money.formatCompact}
+                  axis={money.formatAxis}
                   formatFull={money.format}
                   wide
                   ariaLabel={t.liabilitas.v2.chartAria}

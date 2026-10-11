@@ -826,7 +826,7 @@ export const id = {
       goldPriceSectionTitle: "Harga Emas",
       goldPriceHint:
         "Harga emas per gram (IDR) untuk menghitung setara emas dari kekayaan bersih. Tidak ada feed harga pasar real-time, nilai ini diinput manual oleh pemilik keluarga.",
-      goldPriceLabel: "Harga per Gram (Rp)",
+      goldPriceLabel: "Harga per Gram",
       goldPricePlaceholder: "Contoh: 1.150.000",
       goldPriceSaveButton: "Simpan Harga Emas",
       goldPriceUnsetLabel: "Belum diatur",
@@ -1561,9 +1561,9 @@ export const id = {
     fieldProviderPlaceholder: "cth: Prudential, AXA, Allianz",
     fieldTypeLabel: "Jenis",
     fieldStatusLabel: "Status",
-    fieldPremiumLabel: "Premi (Rp)",
+    fieldPremiumLabel: "Premi",
     fieldPeriodLabel: "Periode Premi",
-    fieldCoverageLabel: "Uang Pertanggungan (Rp, opsional)",
+    fieldCoverageLabel: "Uang Pertanggungan (opsional)",
     fieldRenewalDateLabel: "Tanggal Jatuh Tempo (opsional)",
     autoRenewLabel:
       "Perpanjang otomatis setiap periode premi setelah lewat jatuh tempo",
@@ -1693,10 +1693,10 @@ export const id = {
       cardTitle: "Kalkulator Zakat Maal",
       nisabAutoNote:
         "Nisab dihitung otomatis, dari harga emas keluarga (jika sudah diatur) atau harga acuan indikatif.",
-      fieldCash: "Kas & Tabungan (Rp)",
-      fieldInvestments: "Investasi (Rp)",
-      fieldGold: "Nilai Emas (Rp)",
-      fieldLiabilities: "Utang Jatuh Tempo (Rp)",
+      fieldCash: "Kas & Tabungan",
+      fieldInvestments: "Investasi",
+      fieldGold: "Nilai Emas",
+      fieldLiabilities: "Utang Jatuh Tempo",
       haulCheckboxLabel: "Harta sudah dimiliki penuh selama 1 tahun (haul)",
       calculateButton: "Hitung Zakat",
       errorCalculate: "Gagal menghitung zakat. Coba lagi.",
@@ -1725,7 +1725,7 @@ export const id = {
       ptkpNote:
         "PTKP TK/0: Rp 54.000.000 · Biaya jabatan: 5% maks Rp 6.000.000",
       fieldGross: "Penghasilan Bruto per Tahun (Rp)",
-      fieldZakatPaid: "Zakat yang Dibayar (Rp)",
+      fieldZakatPaid: "Zakat yang Dibayar",
       calculateButton: "Hitung PPh 21",
       errorCalculate: "Gagal menghitung PPh 21. Coba lagi.",
       resultLabel: "Total PPh 21 Terutang / Tahun",
@@ -1755,8 +1755,8 @@ export const id = {
     },
     investasi: {
       cardTitle: "Kalkulator Investasi",
-      fieldInitialCapital: "Modal Awal (Rp)",
-      fieldMonthlyDeposit: "Setoran Bulanan (Rp)",
+      fieldInitialCapital: "Modal Awal",
+      fieldMonthlyDeposit: "Setoran Bulanan",
       fieldAnnualReturn: "Return per Tahun (%)",
       fieldDuration: "Jangka Waktu (Tahun)",
       resultLabel: "Estimasi Nilai Akhir",
@@ -1774,7 +1774,7 @@ export const id = {
     },
     kredit: {
       cardTitle: "Kalkulator Kredit / KPR",
-      fieldLoanAmount: "Jumlah Pinjaman (Rp)",
+      fieldLoanAmount: "Jumlah Pinjaman",
       fieldAnnualInterest: "Bunga per Tahun (%)",
       fieldTenor: "Tenor (Tahun)",
       fieldDownPayment: "DP (%)",
@@ -1786,8 +1786,8 @@ export const id = {
       // Jumlah Pinjaman + DP(%). Same annuity math, just entered the way a
       // real mortgage is quoted.
       cardTitleAlt: "Simulasi KPR",
-      fieldPropertyPrice: "Harga Properti (Rp)",
-      fieldDownPaymentAmount: "Uang Muka (DP) (Rp)",
+      fieldPropertyPrice: "Harga Properti",
+      fieldDownPaymentAmount: "Uang Muka (DP)",
       dpPercentSuffix: "% dari harga properti",
       rowPrincipalLabel: "Pokok pinjaman",
       rowTotalInterestLabel: "Total bunga",
@@ -1802,7 +1802,7 @@ export const id = {
       cardTitle: "Kalkulator Dana Pensiun",
       fieldCurrentAge: "Usia Sekarang",
       fieldRetireAge: "Target Usia Pensiun",
-      fieldCurrentMonthlyExpense: "Pengeluaran/Bulan Saat Ini (Rp)",
+      fieldCurrentMonthlyExpense: "Pengeluaran/Bulan Saat Ini",
       fieldInvestmentReturn: "Return Investasi (%/thn)",
       calculateButton: "Hitung Dana Pensiun",
       errorCalculate: "Gagal menghitung dana pensiun. Coba lagi.",
@@ -1822,10 +1822,10 @@ export const id = {
     },
     tabungan: {
       cardTitle: "Kalkulator Tabungan",
-      fieldTarget: "Target Tabungan (Rp)",
-      fieldCurrentBalance: "Saldo Saat Ini (Rp)",
+      fieldTarget: "Target Tabungan",
+      fieldCurrentBalance: "Saldo Saat Ini",
       fieldAnnualInterest: "Bunga per Tahun (%)",
-      fieldMonthlyDeposit: "Setoran per Bulan (Rp)",
+      fieldMonthlyDeposit: "Setoran per Bulan",
       resultLabel: "Estimasi Tercapai",
       resultValueSuffix: "Bulan",
       detailTargetReachedPrefix: "Target tercapai sekitar:",
@@ -1840,7 +1840,7 @@ export const id = {
       cardTitle: "Kalkulator Split Bill Group",
       description:
         "Hitung patungan untuk acara cafe, makan bareng, atau trip rombongan.",
-      fieldTotalBill: "Total Tagihan (Rp)",
+      fieldTotalBill: "Total Tagihan",
       fieldPeopleCount: "Jumlah Orang",
       fieldTaxService: "Pajak / Service (%)",
       fieldExtraTip: "Tip Tambahan (%)",
@@ -2067,7 +2067,7 @@ export const id = {
     fieldTypeLabel: "Jenis",
     fieldQuantityLabel: "Jumlah (lot/unit)",
     fieldQuantityPlaceholder: "contoh: 10",
-    fieldCostBasisLabel: "Harga Beli per Unit (Rp)",
+    fieldCostBasisLabel: "Harga Beli per Unit",
     fieldCostBasisPlaceholder: "contoh: 9500",
     fieldInterestRateLabel: "Suku Bunga Tahunan (%), untuk Obligasi/Deposito",
     fieldInterestRatePlaceholder: "contoh: 6.5",
@@ -2085,7 +2085,7 @@ export const id = {
     // EPIC-024 C3 (D10) — deposito nominal (stored as quantity=1 ×
     // costBasisPerUnit=nominal) + jatuh tempo. Bunga reuses
     // fieldInterestRateLabel above.
-    fieldDepositoNominalLabel: "Nominal Deposito (Rp)",
+    fieldDepositoNominalLabel: "Nominal Deposito",
     fieldDepositoNominalPlaceholder: "contoh: 100000000",
     fieldMaturityDateLabel: "Tanggal Jatuh Tempo",
     // EPIC-024 C3 (D7) — "tanggal beli (new date picker)" for every type.
@@ -2175,7 +2175,7 @@ export const id = {
       "Ticker tidak ditemukan di penyedia harga otomatis. Nilai dihitung dari harga beli sampai kamu masukkan harga manual.",
     tickerNoLivePriceWarning:
       "Belum ada harga pasar untuk ticker ini. Nilai dihitung dari harga beli sampai kamu masukkan harga manual.",
-    fieldManualPriceLabel: "Harga Saat Ini (Rp, opsional)",
+    fieldManualPriceLabel: "Harga Saat Ini (opsional)",
     fieldManualPricePlaceholder: "contoh: 15250",
     fieldManualPriceDateLabel: "Per Tanggal",
     manualPriceNote:
@@ -2207,7 +2207,7 @@ export const id = {
     buySellTypeBuyLabel: "Beli",
     buySellTypeSellLabel: "Jual",
     buySellFieldQuantityLabel: "Jumlah",
-    buySellFieldPriceLabel: "Harga per Unit (Rp)",
+    buySellFieldPriceLabel: "Harga per Unit",
     buySellFieldDateLabel: "Tanggal Transaksi",
     buySellFieldAccountLabel: "Rekening (opsional)",
     buySellAccountNoneOption: "Hanya catat, tidak potong saldo",
@@ -2355,7 +2355,7 @@ export const id = {
     fieldNameLabel: "Nama Aset",
     fieldNamePlaceholder: "cth. Apartemen Kelapa Gading",
     fieldCategoryLabel: "Kategori",
-    fieldValueLabel: "Nilai Aset (Rp)",
+    fieldValueLabel: "Nilai Aset",
     fieldValuePlaceholder: "cth. 200.000.000",
     fieldValueChangeRateLabel: "Perubahan Nilai per Tahun (%)",
     fieldValueChangeRatePlaceholder:
@@ -2364,7 +2364,7 @@ export const id = {
     fieldValueChangeModeLabel: "Mode Perubahan Nilai",
     fieldValueChangeModePercentOption: "% per tahun",
     fieldValueChangeModeFixedOption: "Rp per tahun",
-    fieldValueChangeAmountLabel: "Perubahan Nilai per Tahun (Rp)",
+    fieldValueChangeAmountLabel: "Perubahan Nilai per Tahun",
     fieldValueChangeAmountPlaceholder:
       "cth. -5.000.000 untuk penyusutan, 5.000.000 untuk apresiasi",
     fieldAcquisitionDateLabel: "Tanggal Perolehan (opsional)",
@@ -2403,7 +2403,7 @@ export const id = {
     addHistoryDialogTitle: "Tambah Riwayat Nilai",
     historyModeValue: "Nilai baru",
     historyModePercent: "Persentase",
-    historyValueLabel: "Nilai (Rp)",
+    historyValueLabel: "Nilai",
     historyPercentLabel: "Perubahan (%)",
     historyPercentHint: "Negatif untuk turun, contoh -2,5",
     historyDateLabel: "Tanggal",
@@ -2492,11 +2492,11 @@ export const id = {
     fieldInstitutionLabel: "Institusi (opsional)",
     fieldInstitutionPlaceholder: "cth. BCA",
     fieldTypeLabel: "Jenis",
-    fieldTotalDebtLabel: "Total Utang / Limit (Rp)",
+    fieldTotalDebtLabel: "Total Utang / Limit",
     fieldTotalDebtPlaceholder: "30.000.000",
-    fieldRemainingLabel: "Sisa Tagihan (Rp)",
+    fieldRemainingLabel: "Sisa Tagihan",
     fieldRemainingPlaceholder: "8.000.000",
-    fieldMinPaymentLabel: "Min. Bayar (Rp, opsional)",
+    fieldMinPaymentLabel: "Min. Bayar (opsional)",
     fieldMinPaymentPlaceholder: "800.000",
     fieldInterestRateLabel: "Bunga % (opsional)",
     fieldInterestRatePlaceholder: "2.25",
@@ -2554,7 +2554,7 @@ export const id = {
     amortisationDisclaimer:
       "Estimasi kasar berdasarkan sisa saldo, bunga, dan min. bayar saat ini, bukan jadwal resmi.",
     payDialogTitle: "Bayar Liabilitas",
-    payAmountLabel: "Jumlah Bayar (Rp)",
+    payAmountLabel: "Jumlah Bayar",
     payPrincipalPreviewLabel: "Estimasi Pokok",
     payInterestPreviewLabel: "Estimasi Bunga",
     paySourceAccountLabel: "Rekening Sumber",
@@ -2606,7 +2606,7 @@ export const id = {
     fieldInterestMethodLabel: "Metode Bunga",
     fieldTenorLabel: "Tenor (bulan)",
     fieldStartDateLabel: "Tanggal Akad",
-    fieldInstallmentLabel: "Angsuran/Bulan (Rp)",
+    fieldInstallmentLabel: "Angsuran/Bulan",
     fieldInstallmentHint:
       "Kosongkan agar dihitung otomatis dari pokok, bunga, dan tenor.",
     toastInstallmentPrefix: "Angsuran/bulan: ",
@@ -2686,7 +2686,7 @@ export const id = {
         reduce_tenor: "Sebagian, tenor lebih pendek",
         reduce_installment: "Sebagian, cicilan lebih kecil",
       },
-      prepayAmountLabel: "Pokok yang dilunasi (Rp)",
+      prepayAmountLabel: "Pokok yang dilunasi",
       prepayPenaltyLabel: "Penalti (%)",
       prepayPenaltyHint:
         "Contoh 1%, umumnya 1–3% dari pokok yang dilunasi (bisa sampai 7%), sering lebih ringan di masa floating. Cek perjanjian kredit kamu.",
@@ -3257,7 +3257,7 @@ export const id = {
     contributeDialogTitlePrefix: "Setor ke ",
     contributeDialogDesc:
       "Jika memilih rekening, saldonya berkurang dan setoran tercatat sebagai transaksi.",
-    contributeAmountLabel: "Jumlah Setoran (Rp)",
+    contributeAmountLabel: "Jumlah Setoran",
     contributeAccountLabel: "Rekening Sumber",
     contributeNoAccountOption: "Tanpa rekening (hanya catat progres)",
     contributeDateLabel: "Tanggal Setoran",
@@ -3761,7 +3761,7 @@ export const id = {
       "Zakat yang dibayarkan ke lembaga resmi (BAZNAS/LAZ) bisa mengurangi penghasilan kena pajak. Cek di Pusat Pajak.",
     modalTitle: "Catat Donasi Keagamaan",
     fieldJenisLabel: "Jenis",
-    fieldJumlahLabel: "Jumlah (Rp)",
+    fieldJumlahLabel: "Jumlah",
     fieldLembagaLabel: "Lembaga / Penerima",
     fieldTanggalLabel: "Tanggal",
     fieldAccountLabel: "Bayar dari Rekening (opsional)",
@@ -3966,7 +3966,7 @@ export const id = {
     iconGroupAriaLabel: "Pilih ikon",
     iconLabel: "Ikon",
     iconAriaLabelPrefix: "Ikon ",
-    fieldAmountLabel: "Budget per Bulan (Rp)",
+    fieldAmountLabel: "Batas per periode",
     fieldPeriodLabel: "Periode",
     savingLabel: "Menyimpan...",
     saveCategoryButton: "Simpan Kategori",
@@ -5306,7 +5306,7 @@ export const id = {
       // Hardening batch G4 — unified with anggaran's own fieldAmountLabel
       // for the same field, per the UX-law audit's "Batas Bulanan" vs
       // "Budget per Bulan" consistency finding.
-      limitLabel: "Budget per Bulan (Rp)",
+      limitLabel: "Batas anggaran per bulan",
       requiredHint:
         "Nama kategori dan batas bulanan wajib diisi untuk melanjutkan.",
       submitButton: "Buat Anggaran",

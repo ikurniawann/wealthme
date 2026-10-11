@@ -42,7 +42,7 @@ import {
 } from "@/components/money";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
-import { formatAxisCompact, parseRupiah, formatRupiah } from "@/lib/format";
+import { parseRupiah, formatRupiah } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -178,7 +178,10 @@ export default function SplitBillPage() {
   const unitsLabel = (units: number): string =>
     billCurrency === "IDR"
       ? formatRupiah(units)
-      : `${billCurrency} ${formatScaled(BigInt(units), billDecimals).replace(".", ",")}`;
+      : formatRupiah(units / 10 ** billDecimals, {
+          code: billCurrency,
+          rate: 1,
+        });
   const participantIds = useMemo(
     () => participants.map((p) => p.localId),
     [participants],
@@ -636,8 +639,8 @@ export default function SplitBillPage() {
               ]}
               highlight={highlightIndex}
               format={money.formatCompact}
+              axis={money.formatAxis}
               formatFull={money.format}
-              axis={formatAxisCompact}
               wide
               ariaLabel={activeSplits
                 .slice(0, 5)

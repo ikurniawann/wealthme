@@ -9,6 +9,7 @@ jest.mock("next/navigation", () => ({
   usePathname: () => "/beranda",
 }));
 
+import { formatAxisMoney } from "@/lib/format";
 import type { ReactNode } from "react";
 import { render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -203,9 +204,15 @@ describe("Beranda prototype-parity helpers", () => {
     "./use-beranda-flow",
   ) as typeof import("./use-beranda-flow");
 
-  test("goalPair keeps both numbers in the target's unit", () => {
-    expect(goalPair(250_000_000, 1_000_000_000)).toBe("0,3 / 1 M");
-    expect(goalPair(42_000_000, 60_000_000)).toBe("42 / 60 jt");
+  test("goalPair formats both numbers with the display-currency axis formatter", () => {
+    const eur = (idr: number) => formatAxisMoney(idr / 20_000, "EUR");
+    expect(goalPair(42_000_000, 60_000_000, eur)).toBe(
+      "€\u00A02,1 rb / €\u00A03 rb",
+    );
+    const idr = (v: number) => formatAxisMoney(v, "IDR");
+    expect(goalPair(250_000_000, 1_000_000_000, idr)).toBe(
+      "Rp\u00A0250 jt / Rp\u00A01 M",
+    );
   });
 
   test("bucketDays sorts income and expense into their day and derives net = income - expense", () => {

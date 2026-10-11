@@ -35,6 +35,8 @@ export type ChartBuild = {
 export type ChartMoneyFormatter = {
   format?: (v: number) => string;
   formatCompact?: (v: number) => string;
+  /** Axis tick in the display currency ("€ 2,4 rb"); falls back to `formatCompact`. */
+  formatAxis?: (v: number) => string;
 };
 
 /** CashflowChart — grouped income/expense bars. Ports `cashflow()`. */
@@ -46,6 +48,7 @@ export function buildCashflowOptions(
 ): ChartBuild {
   const format = money?.format ?? formatRupiah;
   const formatCompact = money?.formatCompact ?? formatRupiahCompact;
+  const formatAxis = money?.formatAxis ?? formatCompact;
   const options = mergeChartOptions(baseChartOptions(), {
     chart: { type: "bar", height: 260, stacked: false },
     colors: [cssVar("--viz-2"), cssVar("--destructive")],
@@ -57,7 +60,7 @@ export function buildCashflowOptions(
       },
     },
     xaxis: { categories: months },
-    yaxis: { labels: { formatter: (v: number) => formatCompact(v) } },
+    yaxis: { labels: { formatter: (v: number) => formatAxis(v) } },
     tooltip: { y: { formatter: (v: number) => format(v) } },
   });
   return {
@@ -80,10 +83,11 @@ export function buildTrendOptions(
 ): ChartBuild {
   const format = money?.format ?? formatRupiah;
   const formatCompact = money?.formatCompact ?? formatRupiahCompact;
+  const formatAxis = money?.formatAxis ?? formatCompact;
   const options = mergeChartOptions(baseChartOptions(), {
     chart: { type: "area", height },
     xaxis: { categories },
-    yaxis: { labels: { formatter: (v: number) => formatCompact(v) } },
+    yaxis: { labels: { formatter: (v: number) => formatAxis(v) } },
     fill: {
       type: "gradient",
       gradient: {
@@ -107,6 +111,7 @@ export function buildDonutOptions(
 ): ChartBuild {
   const format = money?.format ?? formatRupiah;
   const formatCompact = money?.formatCompact ?? formatRupiahCompact;
+  const formatAxis = money?.formatAxis ?? formatCompact;
   const labels = segments.map((s) => s.label);
   const series = segments.map((s) => s.value);
   const colors = segments.map((s) => s.color);
@@ -159,6 +164,7 @@ export function buildHBarOptions(
 ): ChartBuild {
   const format = money?.format ?? formatRupiah;
   const formatCompact = money?.formatCompact ?? formatRupiahCompact;
+  const formatAxis = money?.formatAxis ?? formatCompact;
   const height = chartHeight ?? Math.max(190, categories.length * 38 + 34);
   const showXAxisLabels = config.showXAxisLabels ?? false;
   // `colors` (one per category) takes priority over the single `color` —
@@ -197,7 +203,7 @@ export function buildHBarOptions(
       labels: {
         show: showXAxisLabels,
         style: { fontSize: "11.5px", fontWeight: 500 },
-        formatter: (v: number) => formatCompact(Number(v)),
+        formatter: (v: number) => formatAxis(Number(v)),
       },
     },
     yaxis: {

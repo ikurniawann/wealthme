@@ -58,6 +58,8 @@ export interface BarChartProps {
   /** Plot height in pixels. */
   height?: number;
   formatValue?: (value: number) => string;
+  /** Formats the value-axis ticks; defaults to `formatValue`. */
+  formatTick?: (value: number) => string;
 }
 
 const { spring, duration, ease, blur, stagger } = motionTokens;
@@ -538,6 +540,7 @@ export function BarChart({
   showAverage = true,
   height = 176,
   formatValue = (value) => grouped.format(value),
+  formatTick,
 }: BarChartProps) {
   const reduced = useReducedMotionSafe();
   const figure = useRef<HTMLElement>(null);
@@ -877,7 +880,7 @@ export function BarChart({
                 scale={scale}
                 height={height}
                 avoid={avoid}
-                format={formatValue}
+                format={formatTick ?? formatValue}
               />
             ))}
           </AnimatePresence>

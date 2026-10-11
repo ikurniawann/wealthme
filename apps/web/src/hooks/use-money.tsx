@@ -18,6 +18,7 @@ import { createContext, useContext, useMemo } from "react";
 
 import {
   currencyDisplay,
+  formatAxisMoney,
   formatRupiah,
   formatRupiahCompact,
 } from "@/lib/format";
@@ -30,6 +31,12 @@ type MoneyContextValue = {
   isReady: boolean;
   format: (idr: number) => string;
   formatCompact: (idr: number) => string;
+  /**
+   * Chart-axis tick for an IDR value, in the display currency ("€ 2,4 rb").
+   * Every axis goes through this so a tick never shows raw IDR magnitudes
+   * beside amounts in another currency.
+   */
+  formatAxis: (idr: number) => string;
   // hardening G1 — real "Sembunyikan Saldo Default" state, so callers that
   // need to react to it directly (rare; most just call format/formatCompact)
   // don't have to re-read the profile themselves.
@@ -130,6 +137,12 @@ export function DisplayCurrencyProvider({
         : formatRupiahCompact(idr);
       return hideBalance ? maskAmount(base) : base;
     };
+    const formatAxis = (idr: number): string => {
+      if (hideBalance) return "";
+      return converts
+        ? formatAxisMoney(idr * rate, currency)
+        : formatAxisMoney(idr, "IDR");
+    };
     const formatExact = (idr: string | bigint | null): string => {
       if (!isReady) return "…";
       if (idr === null) return maskAmount("Rp 0");
@@ -160,6 +173,7 @@ export function DisplayCurrencyProvider({
       isReady,
       format,
       formatCompact,
+      formatAxis,
       hideBalance,
       formatExact,
       formatBalance,
@@ -195,6 +209,7 @@ export function useMoney(): MoneyContextValue {
     isReady: true,
     format: formatRupiah,
     formatCompact: formatRupiahCompact,
+    formatAxis: (idr) => formatAxisMoney(idr, "IDR"),
     hideBalance: false,
     formatExact: (idr) =>
       idr === null

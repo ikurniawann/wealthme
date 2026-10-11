@@ -87,6 +87,35 @@ export function displayNotificationText(raw: string): string {
     );
 }
 
+/**
+ * Rewrite every "Rp 1.234.567" embedded in stored text (notification bodies,
+ * server messages) through a display formatter, so a non-IDR user never reads
+ * raw Rupiah amounts. Grouped ("Rp 60.000.000"), no-break-space and legacy
+ * ungrouped ("Rp5000000") forms are all recognised; decimals are not used in
+ * stored IDR text.
+ */
+export function localizeMoneyText(
+  text: string,
+  format: (idr: number) => string,
+): string {
+  return text.replace(
+    /\bRp[ \u00A0]?(\d{1,3}(?:\.\d{3})+|\d+)(?![\d,])/g,
+    (_, digits: string) => format(Number(digits.replace(/\./g, ""))),
+  );
+}
+
+/**
+ * Prefix a sign to an already-formatted amount. An approximate amount keeps
+ * the "≈" first ("≈ -€ 45,22"), matching how `formatRupiah` signs a negative,
+ * instead of the "-≈ € 45,22" that plain concatenation produced.
+ */
+export function withSign(formatted: string, sign: "+" | "-" | ""): string {
+  if (!sign) return formatted;
+  return formatted.startsWith("≈ ")
+    ? `≈ ${sign}${formatted.slice(2)}`
+    : `${sign}${formatted}`;
+}
+
 /** Format a number with id-ID thousands separators (no currency prefix). */
 export function formatNumber(value: number): string {
   return Math.round(value).toLocaleString("id-ID");
@@ -155,6 +184,36 @@ export function formatAxisCompact(value: number): string {
   if (abs >= 1e6) return `${sign}${trim(abs / 1e6)} jt`;
   if (abs >= 1e3) return `${sign}${trim(abs / 1e3)} rb`;
   return `${sign}${Math.round(abs)}`;
+}
+
+/**
+ * Chart-axis tick in a display currency: the compact form above with that
+ * currency's symbol, so an axis never shows bare IDR magnitudes ("30M") next
+ * to a figure in another currency. `value` is already in `code`'s units
+ * (convert first). Zero stays a bare "0"; a negative signs before the symbol
+ * ("-€ 261"). No "≈": ticks are scale marks, not amounts.
+ */
+export function formatAxisMoney(value: number, code: string): string {
+  const body = formatAxisCompact(Math.abs(value));
+  if (body === "0") return "0";
+  const sign = value < 0 ? "-" : "";
+  return `${sign}${currencyDisplay(code).symbol}\u00A0${body}`;
+}
+
+/**
+ * Split a formatted amount ("Rp 1.234", "≈ € 12,50", "-Rp 5.000") into the
+ * small hero prefix and the number, keeping the sign on the number. Heroes
+ * render the prefix at a smaller size, so it must come from the same
+ * formatter as the number — never a hardcoded "Rp".
+ */
+export function splitCurrency(text: string): {
+  prefix: string | null;
+  amount: string;
+} {
+  const match = /^(-?)(Rp|≈\s*\S+)\s+(.*)$/.exec(text);
+  return match
+    ? { prefix: match[2], amount: `${match[1]}${match[3]}` }
+    : { prefix: null, amount: text };
 }
 
 /**

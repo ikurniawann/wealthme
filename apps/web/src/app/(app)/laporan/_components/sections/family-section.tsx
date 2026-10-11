@@ -1,3 +1,4 @@
+import { withSign } from "@/lib/format";
 import { BentoCard, BentoTile, BentoTiles, StatusBadge } from "@/components/wm";
 import { EXPENSE_COLOR } from "@/lib/viz-colors";
 import { useMoney } from "@/hooks/use-money";
@@ -80,7 +81,7 @@ export function FamilySection({
               >
                 {netWorth
                   ? money.format(parseFloat(netWorth.netWorth ?? "0") || 0)
-                  : "Rp ·"}
+                  : "…"}
               </span>
             }
           />
@@ -91,7 +92,7 @@ export function FamilySection({
                 className="lap-a-kpi-value"
                 style={{ color: "var(--wm-good)" }}
               >
-                {summary ? money.format(summary.totalIncome ?? 0) : "Rp ·"}
+                {summary ? money.format(summary.totalIncome ?? 0) : "…"}
               </span>
             }
           />
@@ -102,7 +103,7 @@ export function FamilySection({
                 className="lap-a-kpi-value"
                 style={{ color: EXPENSE_COLOR }}
               >
-                {summary ? money.format(summary.totalExpense ?? 0) : "Rp ·"}
+                {summary ? money.format(summary.totalExpense ?? 0) : "…"}
               </span>
             }
           />
@@ -118,7 +119,7 @@ export function FamilySection({
                       : "var(--wm-bad)",
                 }}
               >
-                {summary ? money.format(summary.netSavings ?? 0) : "Rp ·"}
+                {summary ? money.format(summary.netSavings ?? 0) : "…"}
               </span>
             }
           />
@@ -145,8 +146,10 @@ export function FamilySection({
                     (row.neg ? "text-destructive" : "text-foreground")
                   }
                 >
-                  {row.neg ? "-" : ""}
-                  {money.format(parseFloat(row.value ?? "0") || 0)}
+                  {withSign(
+                    money.format(parseFloat(row.value ?? "0") || 0),
+                    row.neg ? "-" : "",
+                  )}
                 </span>
               </div>
             ))}

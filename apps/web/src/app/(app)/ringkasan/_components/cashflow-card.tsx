@@ -1,6 +1,7 @@
 "use client";
 
 import { BentoCard } from "@/components/wm";
+import { useMoney } from "@/hooks/use-money";
 import { HatchedBarChart } from "@/components/charts/bento-charts";
 import { useLocale } from "@/hooks/use-locale";
 import { EXPENSE_COLOR, INCOME_COLOR } from "@/lib/viz-colors";
@@ -10,6 +11,7 @@ const MONTHS_SHOWN = 6;
 
 export function CashflowCard({ data }: { data: RingkasanData }) {
   const { t } = useLocale();
+  const { formatAxis } = useMoney();
   const {
     isLoading,
     moneyFull,
@@ -77,7 +79,7 @@ export function CashflowCard({ data }: { data: RingkasanData }) {
               ]}
               highlight={refIndex}
               format={money}
-              axis={money}
+              axis={formatAxis}
               ariaLabel={cashflowAriaLabel}
             />
           </div>

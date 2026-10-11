@@ -70,6 +70,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { insuranceTypeColor } from "@/lib/viz-colors";
 import { monthlyPremiumByType, rollingMonths } from "./premium-trend";
 import { INSURANCE_RENEWAL_WINDOW_DAYS } from "@/lib/due-date";
+import { splitCurrency } from "@/lib/format";
 import {
   MoneyInput,
   anyMoneyPending,
@@ -1515,7 +1516,11 @@ export default function AsuransiPage() {
       <BentoGrid className="as-grid">
         <BentoHero
           className="as-hero"
-          currency={isLoading ? null : "Rp"}
+          currency={
+            isLoading
+              ? null
+              : splitCurrency(money.format(monthlyPremiumNumber)).prefix
+          }
           value={
             isError ? (
               "—"
@@ -1523,7 +1528,7 @@ export default function AsuransiPage() {
               "…"
             ) : (
               <span className="wm-money">
-                {money.format(monthlyPremiumNumber).replace(/^Rp\s*/, "")}
+                {splitCurrency(money.format(monthlyPremiumNumber)).amount}
               </span>
             )
           }
@@ -1568,6 +1573,7 @@ export default function AsuransiPage() {
                   stacked
                   highlight={premiumTrendMonths.length - 1}
                   format={money.formatCompact}
+                  axis={money.formatAxis}
                   formatFull={money.format}
                   wide
                   ariaLabel={t.asuransi.v2.chartAria}

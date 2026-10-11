@@ -409,7 +409,7 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     expect(screen.queryByLabelText("Ticker")).not.toBeInTheDocument();
     const qty = screen.getByLabelText("Berat Emas (kg)");
     fireEvent.change(qty, { target: { value: "1.23456789" } });
-    fireEvent.change(screen.getByLabelText("Harga Beli per Unit (Rp)"), {
+    fireEvent.change(screen.getByLabelText("Harga Beli per Unit"), {
       target: { value: "1500000" },
     });
     fireEvent.submit(qty.closest("form") as HTMLFormElement);
@@ -433,7 +433,7 @@ describe("InvestasiPage — quantity unit follows the instrument (Revisi D item 
     });
     const qty = screen.getByLabelText("Berat Emas (kg)");
     fireEvent.change(qty, { target: { value: "0.025" } });
-    fireEvent.change(screen.getByLabelText("Harga Beli per Unit (Rp)"), {
+    fireEvent.change(screen.getByLabelText("Harga Beli per Unit"), {
       target: { value: "1500000" },
     });
     fireEvent.submit(qty.closest("form") as HTMLFormElement);
@@ -554,7 +554,7 @@ describe("InvestasiPage — Beli/Jual Lot⇄Lembar toggle (Revisi D item 8)", ()
   }
 
   function submitTrade(input: HTMLElement) {
-    fireEvent.change(screen.getByLabelText("Harga per Unit (Rp)"), {
+    fireEvent.change(screen.getByLabelText("Harga per Unit"), {
       target: { value: "9500" },
     });
     fireEvent.submit(input.closest("form") as HTMLFormElement);
@@ -695,7 +695,7 @@ describe("InvestasiPage — emas priced from the family gold price (Revisi D ite
     await user.selectOptions(await openAddModal(user), "emas");
 
     expect(
-      screen.queryByLabelText("Harga Saat Ini (Rp, opsional)"),
+      screen.queryByLabelText("Harga Saat Ini (opsional)"),
     ).not.toBeInTheDocument();
     expect(
       await screen.findByText(
@@ -719,7 +719,7 @@ describe("InvestasiPage — emas priced from the family gold price (Revisi D ite
       await screen.findByText(/Harga emas keluarga belum diatur/),
     ).toBeInTheDocument();
     expect(
-      screen.queryByLabelText("Harga Saat Ini (Rp, opsional)"),
+      screen.queryByLabelText("Harga Saat Ini (opsional)"),
     ).not.toBeInTheDocument();
   });
 
@@ -732,7 +732,7 @@ describe("InvestasiPage — emas priced from the family gold price (Revisi D ite
     await user.selectOptions(await openAddModal(user), "reksa_dana");
 
     expect(
-      screen.getByLabelText("Harga Saat Ini (Rp, opsional)"),
+      screen.getByLabelText("Harga Saat Ini (opsional)"),
     ).toBeInTheDocument();
   });
 

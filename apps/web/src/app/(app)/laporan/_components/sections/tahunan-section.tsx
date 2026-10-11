@@ -90,6 +90,7 @@ export function TahunanSection({
               labels={points.map((p) => p.label)}
               values={points.map((p) => p.income)}
               format={(v) => money.formatCompact(v)}
+              axis={money.formatAxis}
               formatFull={money.format}
               ariaLabel={`${t.laporan.tahunan.trendTitle}: ${points
                 .map((p) => `${p.label} ${money.format(p.income)}`)

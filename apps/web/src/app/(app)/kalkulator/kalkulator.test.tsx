@@ -88,7 +88,7 @@ describe("Tabungan — unreachable target with a zero monthly deposit", () => {
 
     await user.click(screen.getByRole("tab", { name: "Tabungan" }));
 
-    const setorInput = fieldInput("Setoran per Bulan (Rp)");
+    const setorInput = fieldInput("Setoran per Bulan");
     await user.clear(setorInput);
     await user.type(setorInput, "0");
 
@@ -111,7 +111,7 @@ describe("Tabungan — unreachable target with a zero monthly deposit", () => {
         "Target tidak akan tercapai dengan setoran bulanan ini, naikkan setoran per bulan atau bunga per tahun.",
       ),
     ).not.toBeInTheDocument();
-    expect(screen.getByText(/Bulan$/)).toBeInTheDocument();
+    expect(screen.getByText(/\d+ Bulan$/)).toBeInTheDocument();
   });
 });
 

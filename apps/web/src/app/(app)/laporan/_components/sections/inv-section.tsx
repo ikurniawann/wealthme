@@ -82,7 +82,7 @@ export function InvSection({
             {t.laporan.investasi.totalPortfolioLabel}
           </div>
           <div className="text-[22px] font-black text-primary">
-            {invSummary ? money.format(totalValue) : "Rp ·"}
+            {invSummary ? money.format(totalValue) : "…"}
           </div>
           {invSummary && totalValue > 0 && (
             <div

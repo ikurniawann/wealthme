@@ -230,6 +230,7 @@ export function HatchedBarChart({
   series,
   format,
   formatFull,
+  axis,
   stacked,
   legend = true,
   ariaLabel,
@@ -271,6 +272,7 @@ export function HatchedBarChart({
           label={ariaLabel}
           period={period}
           formatValue={tipFormat}
+          formatTick={axis ?? format}
           categoryLabel={period ? undefined : "Category"}
         />
       </div>
@@ -287,6 +289,7 @@ export function HatchedBarChart({
         legend={legend}
         format={format ?? String}
         formatFull={tipFormat}
+        axis={axis}
         ariaLabel={ariaLabel}
       />
     </div>
@@ -300,6 +303,7 @@ export function HatchedAreaChart({
   compare,
   format,
   formatFull,
+  axis,
   ariaLabel,
   className,
 }: {
@@ -346,6 +350,7 @@ export function HatchedAreaChart({
         series={series}
         label={ariaLabel}
         formatValue={(value) => tipFormat(value)}
+        formatTick={axis ?? format}
         legend={false}
       />
     </div>

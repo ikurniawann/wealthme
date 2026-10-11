@@ -64,6 +64,7 @@ export function BulananSection({
                 },
               ]}
               format={(v) => money.formatCompact(v)}
+              axis={money.formatAxis}
               formatFull={money.format}
               wide
               ariaLabel={cashflowChartAriaLabel}

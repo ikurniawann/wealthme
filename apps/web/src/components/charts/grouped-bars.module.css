@@ -41,7 +41,7 @@
 .axis {
   position: relative;
   flex: none;
-  width: 46px;
+  width: 58px;
   color: var(--ctext);
   font-size: var(--wm-type-11);
   font-variant-numeric: tabular-nums;
@@ -120,7 +120,7 @@
 .x {
   display: flex;
   gap: clamp(4px, 2%, 18px);
-  padding-left: 56px;
+  padding-left: 68px;
   color: var(--ctext);
   font-size: var(--wm-type-11);
 }

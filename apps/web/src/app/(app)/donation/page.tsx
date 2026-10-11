@@ -528,6 +528,7 @@ export default function DonationPage() {
                   },
                 ]}
                 format={money.formatCompact}
+                axis={money.formatAxis}
                 formatFull={money.format}
                 wide
                 ariaLabel={t.donation.heroTitle}

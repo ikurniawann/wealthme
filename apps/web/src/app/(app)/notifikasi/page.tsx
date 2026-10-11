@@ -29,7 +29,8 @@ import {
   StatusBadge,
 } from "@/components/wm";
 import { cn } from "@/lib/utils";
-import { displayNotificationText } from "@/lib/format";
+import { displayNotificationText, localizeMoneyText } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -91,14 +92,18 @@ function inferNotificationFilter(
 
 const MONEY_SPLIT = /(-?Rp\s[\d.]*\d)/;
 
-/** Wraps each "Rp 1.234" figure in `.wm-amt` (tabular numerals, no wrapping). */
+/**
+ * Wraps each "Rp 1.234" figure in `.wm-amt` (tabular numerals, no wrapping)
+ * and shows it in the display currency: the stored text is always IDR.
+ */
 function MoneyText({ text }: { text: string }) {
+  const money = useMoney();
   return (
     <>
       {text.split(MONEY_SPLIT).map((part, i) =>
         i % 2 === 1 ? (
           <span key={i} className="wm-amt">
-            {part}
+            {localizeMoneyText(part, money.format)}
           </span>
         ) : (
           part
@@ -172,6 +177,7 @@ function NotifRow({
   locale: Locale;
   onMarkRead: (id: string) => void;
 }) {
+  const money = useMoney();
   // Opening (clicking) an unread notification marks it read for THIS member
   // only — the server keeps a per-member receipt, so other family members
   // still see it as new until they read it themselves.
@@ -187,7 +193,7 @@ function NotifRow({
       aria-label={
         n.isRead
           ? undefined
-          : `${displayNotificationText(n.title)}: ${t.notifikasi.markOneRead}`
+          : `${localizeMoneyText(displayNotificationText(n.title), money.format)}: ${t.notifikasi.markOneRead}`
       }
       onClick={markRead}
       onKeyDown={(e) => {
@@ -203,7 +209,9 @@ function NotifRow({
       </span>
       <span className="nf-body">
         <span className="nf-line block">
-          <b>{displayNotificationText(n.title)}</b>{" "}
+          <b>
+            {localizeMoneyText(displayNotificationText(n.title), money.format)}
+          </b>{" "}
           <span>
             <MoneyText text={displayNotificationText(n.body)} />
           </span>

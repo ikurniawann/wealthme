@@ -200,7 +200,7 @@ describe("AnggaranPage — member picks an existing category, never creates one 
       EXISTING_CATEGORY.id,
     );
     await user.type(
-      within(dialog).getByLabelText("Budget per Bulan (Rp)"),
+      within(dialog).getByLabelText("Batas per periode"),
       "500000",
     );
     await user.click(
@@ -283,7 +283,7 @@ describe("AnggaranPage — edit and delete a budget (EPIC-022 C2)", () => {
       }),
     );
     const dialog = await screen.findByRole("dialog", { name: "Edit Anggaran" });
-    const amountInput = within(dialog).getByLabelText("Budget per Bulan (Rp)");
+    const amountInput = within(dialog).getByLabelText("Batas per periode");
     await user.clear(amountInput);
     await user.type(amountInput, "750000");
     await user.click(
@@ -422,7 +422,7 @@ describe("AnggaranPage — revisi I multi-currency", () => {
     );
     await selectMoneyCurrency("SGD", dialog);
     await user.type(
-      within(dialog).getByLabelText("Budget per Bulan (Rp)"),
+      within(dialog).getByLabelText("Batas per periode"),
       "1500,25",
     );
     await user.click(
@@ -466,10 +466,7 @@ describe("AnggaranPage — revisi I multi-currency", () => {
       EXISTING_CATEGORY.id,
     );
     await selectMoneyCurrency("SGD", dialog);
-    await user.type(
-      within(dialog).getByLabelText("Budget per Bulan (Rp)"),
-      "1500",
-    );
+    await user.type(within(dialog).getByLabelText("Batas per periode"), "1500");
 
     const saveButton = within(dialog).getByRole("button", {
       name: "Simpan Kategori",
@@ -502,7 +499,7 @@ describe("AnggaranPage — revisi I multi-currency", () => {
     );
     const dialog = await screen.findByRole("dialog", { name: "Edit Anggaran" });
     await selectMoneyCurrency("SGD", dialog);
-    const amountInput = within(dialog).getByLabelText("Budget per Bulan (Rp)");
+    const amountInput = within(dialog).getByLabelText("Batas per periode");
     await user.clear(amountInput);
     await user.type(amountInput, "1500");
 

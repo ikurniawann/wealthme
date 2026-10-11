@@ -53,7 +53,7 @@ import { Switch } from "@/components/ui/switch";
 import { useApiError } from "@/hooks/use-api-error";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
-import { formatAxisCompact, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
 import { useMoney } from "@/hooks/use-money";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
@@ -119,6 +119,7 @@ function BudgetHeroChart({
   emptyLabel: string;
 }) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const { formatAxis } = useMoney();
   const [box, setBox] = useState({ w: 700, h: 230 });
   const hasData = budgets.length > 0;
   useLayoutEffect(() => {
@@ -146,7 +147,7 @@ function BudgetHeroChart({
     .slice(0, 6);
 
   const { w: W, h: H } = box;
-  const left = 42;
+  const left = 58;
   const topPad = 34;
   const bottomPad = 26;
   // Ghost bars scale by max(limit, spent) across the visible set — always a
@@ -234,7 +235,7 @@ function BudgetHeroChart({
               textAnchor="end"
               style={{ fill: "var(--ctext)", fontSize: 11 }}
             >
-              {formatAxisCompact(t)}
+              {formatAxis(t)}
             </text>
           </g>
         ))}

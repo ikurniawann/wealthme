@@ -50,7 +50,7 @@ import { FlowBars } from "./flow-bars";
 import { useShell } from "@/components/shell/shell-context";
 import { useLocale } from "@/hooks/use-locale";
 import { useMyAccess } from "@/hooks/use-my-access";
-import { formatAxisCompact } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { canRecordTransaction } from "@/lib/nav";
 import { vizByIndex, vizTint } from "@/lib/viz-colors";
 import { describeDelta, deltaTone, type DeltaDirection } from "@/lib/delta";
@@ -140,16 +140,8 @@ export function dueInfo(
   return { label, overdueDays };
 }
 
-/** Split "Rp 1.234" / "≈ $ 12" into the small hero prefix and the number. */
-export function splitCurrency(text: string): {
-  prefix: string | null;
-  amount: string;
-} {
-  const match = /^(-?)(Rp|≈\s*\S+)\s+(.*)$/.exec(text);
-  return match
-    ? { prefix: match[2], amount: `${match[1]}${match[3]}` }
-    : { prefix: null, amount: text };
-}
+export { splitCurrency } from "@/lib/format";
+import { splitCurrency, withSign } from "@/lib/format";
 
 export function initials(name: string | null | undefined): string {
   if (!name) return "?";
@@ -182,19 +174,17 @@ export function installmentProgress(
 
 /* ───────────── hero ───────────── */
 
-/** "42 / 60 jt": current and target in the target's unit so the pair never mixes jt and M. */
-export function goalPair(current: number, target: number): string {
-  const [div, unit] =
-    target >= 1e9
-      ? [1e9, "M"]
-      : target >= 1e6
-        ? [1e6, "jt"]
-        : target >= 1e3
-          ? [1e3, "rb"]
-          : [1, ""];
-  const n = (value: number) =>
-    (value / div).toFixed(1).replace(/\.0$/, "").replace(".", ",");
-  return `${n(current)} / ${n(target)}${unit ? ` ${unit}` : ""}`;
+/**
+ * "Terkumpul / Target" for a goal row, in the display currency's compact axis
+ * form ("€ 2,1 rb / € 3 rb"). It used IDR units ("42 / 60 jt") before, which
+ * read wrong next to the converted amounts on the same row.
+ */
+export function goalPair(
+  current: number,
+  target: number,
+  axis: (idr: number) => string,
+): string {
+  return `${axis(current)} / ${axis(target)}`;
 }
 
 type ChartMode = "bars" | "line";
@@ -213,6 +203,7 @@ export function BerandaHeroCard({
   fmt: MoneyFormatters;
 }) {
   const { t } = useLocale();
+  const axisFormat = useMoney().formatAxis;
   const v2 = t.beranda.v2;
   const [mode, setMode] = useState<ChartMode>("bars");
   const [range, setRange] = useState<FlowRange>(7);
@@ -334,6 +325,7 @@ export function BerandaHeroCard({
             days={days}
             format={fmt.moneyCompact}
             formatFull={fmt.money}
+            axis={axisFormat}
             labels={{ income: v2.income, expense: v2.expense }}
             ariaLabel={v2.flowAria}
           />
@@ -343,7 +335,7 @@ export function BerandaHeroCard({
             values={days.map((day) => day.net)}
             format={fmt.moneyCompact}
             formatFull={fmt.money}
-            axis={formatAxisCompact}
+            axis={axisFormat}
             floor={Math.min(0, ...days.map((day) => day.net))}
             ariaLabel={v2.flowAria}
           />
@@ -877,6 +869,7 @@ export function GoalsBento({
   fmt: MoneyFormatters;
 }) {
   const { t } = useLocale();
+  const axisFormat = useMoney().formatAxis;
   const v2 = t.beranda.v2;
   const router = useRouter();
   const active = goals.filter((goal) => goal.status !== "achieved").slice(0, 4);
@@ -929,7 +922,11 @@ export function GoalsBento({
                         className="wm-num"
                         title={`${fmt.money(goal.currentAmount)} / ${fmt.money(goal.targetAmount)}`}
                       >
-                        {goalPair(goal.currentAmount, goal.targetAmount)}
+                        {goalPair(
+                          goal.currentAmount,
+                          goal.targetAmount,
+                          axisFormat,
+                        )}
                       </small>
                     </span>
                     <Track
@@ -1019,9 +1016,12 @@ export function HistoryBento({ fmt }: { fmt: MoneyFormatters }) {
                   .filter(Boolean)
                   .join(" · ")}
                 amount={
-                  <span
-                    className={inflow ? "wm-pos" : undefined}
-                  >{`${inflow ? "+" : tx.type === "expense" ? "-" : ""}${fmt.money(amount)}`}</span>
+                  <span className={inflow ? "wm-pos" : undefined}>
+                    {withSign(
+                      fmt.money(amount),
+                      inflow ? "+" : tx.type === "expense" ? "-" : "",
+                    )}
+                  </span>
                 }
                 onClick={() => router.push("/transaksi")}
               />

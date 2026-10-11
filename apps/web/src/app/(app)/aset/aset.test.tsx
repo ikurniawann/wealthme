@@ -306,7 +306,7 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     fireEvent.change(screen.getByLabelText("Nama Aset"), {
       target: { value: "Rumah Baru" },
     });
-    fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
+    fireEvent.change(screen.getByLabelText("Nilai Aset"), {
       target: { value: "500000000" },
     });
     const acquisitionTrigger = screen.getByLabelText(/Tanggal Perolehan/);
@@ -340,15 +340,14 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     fireEvent.change(screen.getByLabelText("Nama Aset"), {
       target: { value: "Mobil" },
     });
-    fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
+    fireEvent.change(screen.getByLabelText("Nilai Aset"), {
       target: { value: "200000000" },
     });
 
     await user.click(screen.getByRole("tab", { name: "Rp per tahun" }));
-    fireEvent.change(
-      screen.getByLabelText(/Perubahan Nilai per Tahun \(Rp\)/),
-      { target: { value: "-20000000" } },
-    );
+    fireEvent.change(screen.getByLabelText("Perubahan Nilai per Tahun"), {
+      target: { value: "-20000000" },
+    });
 
     await user.click(screen.getByRole("button", { name: /simpan aset/i }));
 
@@ -436,7 +435,7 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     fireEvent.change(screen.getByLabelText("Nama Aset"), {
       target: { value: "Rumah Baru" },
     });
-    fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
+    fireEvent.change(screen.getByLabelText("Nilai Aset"), {
       target: { value: "500000000" },
     });
     const acquisitionTrigger = screen.getByLabelText(/Tanggal Perolehan/);
@@ -477,7 +476,7 @@ describe("AddAssetModal (EPIC-023 Task H1 review, MEDIUM fix 4)", () => {
     fireEvent.change(screen.getByLabelText("Nama Aset"), {
       target: { value: "Logam Mulia 10 g" },
     });
-    fireEvent.change(screen.getByLabelText("Nilai Aset (Rp)"), {
+    fireEvent.change(screen.getByLabelText("Nilai Aset"), {
       target: { value: "15000000" },
     });
 

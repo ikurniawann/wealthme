@@ -451,6 +451,7 @@ export default function TujuanPage() {
               ]}
               highlight={lowestIndex}
               format={money.formatCompact}
+              axis={money.formatAxis}
               formatFull={money.format}
               wide
               ariaLabel={t.tujuan.v2.legendSaved}

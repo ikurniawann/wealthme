@@ -77,6 +77,7 @@ import {
   type FxInput,
 } from "@wealthme/contracts";
 import { moneyIdr, useMoneyField, withFxInputs } from "@/components/money";
+import { useMoney } from "@/hooks/use-money";
 import { useShell } from "./shell-context";
 import { localIsoDate } from "@/lib/local-date";
 
@@ -286,6 +287,7 @@ export function TransactionDialog() {
   const [view, setView] = useState<View>("form");
   const [tab, setTab] = useState(1);
   const amountField = useMoneyField();
+  const money = useMoney();
   const [accountId, setAccountId] = useState("");
   const [toAccountId, setToAccountId] = useState("");
   const [adminFee, setAdminFee] = useState("");
@@ -475,10 +477,8 @@ export function TransactionDialog() {
     caption: a.institution ?? undefined,
     label: a.name,
     sub:
-      a.balance === null ? (
-        "Rp ••••••"
-      ) : a.balance !== undefined ? (
-        <span>{formatRupiah(Number(a.balance))}</span>
+      a.balance !== undefined ? (
+        <span>{money.formatBalance(a.balance)}</span>
       ) : undefined,
   }));
   const categoryChoices: Choice[] = relevantCategories.map((c) => {

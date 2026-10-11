@@ -616,9 +616,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     const dialog = await openAddDialog(user);
 
     expect(dialog.getByLabelText("Bunga/Bulan (%)")).toBeInTheDocument();
-    expect(
-      dialog.getByLabelText("Min. Bayar (Rp, opsional)"),
-    ).toBeInTheDocument();
+    expect(dialog.getByLabelText("Min. Bayar (opsional)")).toBeInTheDocument();
     expect(dialog.queryByLabelText("Tenor (bulan)")).not.toBeInTheDocument();
     expect(dialog.queryByLabelText("Metode Bunga")).not.toBeInTheDocument();
   });
@@ -633,7 +631,7 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     dialog.getByRole("group", { name: "Bunga & Tenor" });
     expect(identity).toContainElement(dialog.getByLabelText("Nama"));
     expect(amount).toContainElement(
-      dialog.getByLabelText("Total Utang / Limit (Rp)"),
+      dialog.getByLabelText("Total Utang / Limit"),
     );
     expect(dialog.queryByLabelText("Skema KPR")).not.toBeInTheDocument();
 
@@ -650,14 +648,11 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
     await user.type(dialog.getByLabelText("Nama"), "Cicilan Mobil");
     await user.selectOptions(dialog.getByLabelText("Jenis"), "kendaraan");
     expect(
-      dialog.queryByLabelText("Min. Bayar (Rp, opsional)"),
+      dialog.queryByLabelText("Min. Bayar (opsional)"),
     ).not.toBeInTheDocument();
     expect(dialog.queryByLabelText("Metode Bunga")).not.toBeInTheDocument();
-    await user.type(
-      dialog.getByLabelText("Total Utang / Limit (Rp)"),
-      "200000000",
-    );
-    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "200000000");
+    await user.type(dialog.getByLabelText("Total Utang / Limit"), "200000000");
+    await user.type(dialog.getByLabelText("Sisa Tagihan"), "200000000");
     await user.type(dialog.getByLabelText("Bunga Flat/Tahun (%)"), "6");
     await user.type(dialog.getByLabelText("Tenor (bulan)"), "36");
 
@@ -708,11 +703,8 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
 
     await user.type(dialog.getByLabelText("Nama"), "Cicilan Mobil");
     await user.selectOptions(dialog.getByLabelText("Jenis"), "kendaraan");
-    await user.type(
-      dialog.getByLabelText("Total Utang / Limit (Rp)"),
-      "200000000",
-    );
-    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "200000000");
+    await user.type(dialog.getByLabelText("Total Utang / Limit"), "200000000");
+    await user.type(dialog.getByLabelText("Sisa Tagihan"), "200000000");
     await user.type(dialog.getByLabelText("Bunga Flat/Tahun (%)"), "6");
     await user.type(dialog.getByLabelText("Tenor (bulan)"), "36");
 
@@ -739,11 +731,8 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
 
     await user.type(dialog.getByLabelText("Nama"), "KPR BTN");
     await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
-    await user.type(
-      dialog.getByLabelText("Total Utang / Limit (Rp)"),
-      "500000000",
-    );
-    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "500000000");
+    await user.type(dialog.getByLabelText("Total Utang / Limit"), "500000000");
+    await user.type(dialog.getByLabelText("Sisa Tagihan"), "500000000");
     await user.type(dialog.getByLabelText("Tenor (bulan)"), "240");
     expect(
       dialog.queryByLabelText("Bunga Fixed/Tahun (%)"),
@@ -788,11 +777,8 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
 
     await user.type(dialog.getByLabelText("Nama"), "Rumah Subsidi");
     await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
-    await user.type(
-      dialog.getByLabelText("Total Utang / Limit (Rp)"),
-      "150000000",
-    );
-    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "150000000");
+    await user.type(dialog.getByLabelText("Total Utang / Limit"), "150000000");
+    await user.type(dialog.getByLabelText("Sisa Tagihan"), "150000000");
     await user.type(dialog.getByLabelText("Tenor (bulan)"), "480");
     await user.selectOptions(dialog.getByLabelText("Skema KPR"), "flpp_tapak");
 
@@ -843,11 +829,8 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
 
     await user.type(dialog.getByLabelText("Nama"), "KPR Muamalat");
     await user.selectOptions(dialog.getByLabelText("Jenis"), "kpr");
-    await user.type(
-      dialog.getByLabelText("Total Utang / Limit (Rp)"),
-      "300000000",
-    );
-    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "300000000");
+    await user.type(dialog.getByLabelText("Total Utang / Limit"), "300000000");
+    await user.type(dialog.getByLabelText("Sisa Tagihan"), "300000000");
     await user.type(dialog.getByLabelText("Tenor (bulan)"), "180");
 
     await user.selectOptions(
@@ -1009,14 +992,11 @@ describe("LiabilitasPage (EPIC-024 Group G review round 2)", () => {
         .map((o) => o.textContent),
     ).toEqual(["Flat", "Anuitas"]);
     await user.selectOptions(methodSelect, "anuitas");
-    await user.type(
-      dialog.getByLabelText("Total Utang / Limit (Rp)"),
-      "50000000",
-    );
-    await user.type(dialog.getByLabelText("Sisa Tagihan (Rp)"), "50000000");
+    await user.type(dialog.getByLabelText("Total Utang / Limit"), "50000000");
+    await user.type(dialog.getByLabelText("Sisa Tagihan"), "50000000");
     await user.type(dialog.getByLabelText("Bunga Anuitas/Tahun (%)"), "12");
     await user.type(dialog.getByLabelText("Tenor (bulan)"), "24");
-    await user.type(dialog.getByLabelText("Angsuran/Bulan (Rp)"), "2400000");
+    await user.type(dialog.getByLabelText("Angsuran/Bulan"), "2400000");
     await user.click(
       dialog.getByRole("button", { name: /simpan liabilitas/i }),
     );

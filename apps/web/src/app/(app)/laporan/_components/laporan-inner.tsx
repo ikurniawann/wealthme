@@ -967,6 +967,7 @@ export function LaporanInner() {
                       },
                     ]}
                     format={moneyFmt.formatCompact}
+                    axis={moneyFmt.formatAxis}
                     formatFull={moneyFmt.format}
                     wide
                     ariaLabel={heroChartAriaLabel}

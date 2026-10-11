@@ -14,7 +14,8 @@ import { StatusBadge } from "@/components/wm/badge";
 import { HatchedAreaChart } from "@/components/charts/bento-charts";
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import { apiFetch } from "@/lib/api-client";
-import { formatAxisCompact, formatRupiah } from "@/lib/format";
+import { formatAxisMoney, formatRupiah } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { DELTA_ARROW, deltaSrText, deltaTone } from "@/lib/delta";
 import type { RingkasanData } from "./use-ringkasan-data";
 import {
@@ -77,6 +78,20 @@ export function HeroStatsSection({
     accountTypeCount,
   } = data;
   const isError = data.isError ?? false;
+  const profileMoney = useMoney();
+  // Axis ticks follow the hero's own currency switch: a foreign pick converts
+  // with its rate, gold reads in grams, IDR falls back to the profile currency.
+  const axis = (v: number): string => {
+    if (displayCurrency === "GOLD") {
+      return gramPrice
+        ? `${formatAxisMoney(v / gramPrice, "IDR").replace("Rp\u00A0", "")} gr`
+        : "";
+    }
+    const rate = fx?.rates[displayCurrency];
+    if (displayCurrency !== "IDR" && rate)
+      return formatAxisMoney(v * rate, displayCurrency);
+    return profileMoney.formatAxis(v);
+  };
   const money = (v: number) =>
     formatInDisplayCurrency(v, displayCurrency, {
       formatIdr: moneyIdr,
@@ -166,7 +181,7 @@ export function HeroStatsSection({
               labels={data.netWorthTrendCategories}
               values={trend}
               format={(v) => money(v)}
-              axis={formatAxisCompact}
+              axis={axis}
               floor={Math.min(0, ...trend)}
               ariaLabel={data.netWorthTrendAriaLabel}
             />

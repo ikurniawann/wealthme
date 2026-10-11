@@ -17,6 +17,9 @@
 import {
   displayNotificationText,
   formatAxisCompact,
+  formatAxisMoney,
+  localizeMoneyText,
+  withSign,
   formatPercent,
   formatRupiah,
   formatRupiahCompact,
@@ -186,6 +189,51 @@ describe("formatAxisCompact", () => {
 
   it("signs a negative tick with an ASCII hyphen", () => {
     expect(formatAxisCompact(-2_500_000)).toBe("-2,5 jt");
+  });
+});
+
+describe("formatAxisMoney", () => {
+  it("prefixes the display-currency symbol to the compact tick", () => {
+    expect(formatAxisMoney(2_359.56, "EUR")).toBe("€\u00A02,4 rb");
+    expect(formatAxisMoney(25_000_000, "IDR")).toBe("Rp\u00A025 jt");
+    expect(formatAxisMoney(549, "EUR")).toBe("€\u00A0549");
+  });
+
+  it("keeps zero bare and signs a negative before the symbol", () => {
+    expect(formatAxisMoney(0, "EUR")).toBe("0");
+    expect(formatAxisMoney(-261.43, "EUR")).toBe("-€\u00A0261");
+  });
+});
+
+describe("localizeMoneyText", () => {
+  const eur = (idr: number) => `≈ €${idr / 20_000}`;
+  it("rewrites every embedded IDR amount through the display formatter", () => {
+    expect(
+      localizeMoneyText(
+        "Tagihan Rp 60.000.000 jatuh tempo, minimal Rp 2.000.000.",
+        eur,
+      ),
+    ).toBe("Tagihan ≈ €3000 jatuh tempo, minimal ≈ €100.");
+  });
+  it("handles a no-break space and a legacy ungrouped amount", () => {
+    expect(localizeMoneyText("Saldo Rp\u00A04.200.000", eur)).toBe(
+      "Saldo ≈ €210",
+    );
+    expect(localizeMoneyText("Bayar Rp5000000", eur)).toBe("Bayar ≈ €250");
+  });
+  it("leaves text without amounts untouched", () => {
+    expect(localizeMoneyText("Target tercapai", eur)).toBe("Target tercapai");
+  });
+});
+
+describe("withSign", () => {
+  it("puts the sign after the approximation mark", () => {
+    expect(withSign("≈ €\u00A045,22", "-")).toBe("≈ -€\u00A045,22");
+    expect(withSign("≈ €\u00A045,22", "+")).toBe("≈ +€\u00A045,22");
+  });
+  it("prefixes an exact amount and ignores an empty sign", () => {
+    expect(withSign("Rp\u00A05.000", "-")).toBe("-Rp\u00A05.000");
+    expect(withSign("Rp\u00A05.000", "")).toBe("Rp\u00A05.000");
   });
 });
 

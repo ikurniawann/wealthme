@@ -1,5 +1,6 @@
 "use client";
 
+import { currencyDisplay } from "@/lib/format";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -179,7 +180,7 @@ export function MobileHome({
         <Link href="/anggaran" className="beranda-mh-tile">
           <span className="beranda-mh-h">
             <span className="beranda-mh-d">
-              <i>Rp</i>
+              <i>{currencyDisplay(fmt.currency).symbol}</i>
               {v2.mExpense}
             </span>
           </span>

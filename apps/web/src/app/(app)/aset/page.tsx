@@ -1170,6 +1170,7 @@ export default function AsetPage() {
                       },
                     ]}
                     format={money.formatCompact}
+                    axis={money.formatAxis}
                     formatFull={money.format}
                     wide
                     ariaLabel={t.aset.v2.trendAria}

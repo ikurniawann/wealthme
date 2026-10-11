@@ -110,7 +110,7 @@ export function KasSection({
         <div className="grid grid-cols-2 gap-3.5 md:grid-cols-4">
           <MoneyStat
             label={t.common.income}
-            value={summary ? money.format(summary.totalIncome ?? 0) : "Rp ·"}
+            value={summary ? money.format(summary.totalIncome ?? 0) : "…"}
             valueClass="text-success"
           />
           <MoneyStat
@@ -121,13 +121,13 @@ export function KasSection({
                   {money.format(summary.totalExpense ?? 0)}
                 </span>
               ) : (
-                "Rp ·"
+                "…"
               )
             }
           />
           <MoneyStat
             label={t.laporan.surplusLabel}
-            value={summary ? money.format(summary.netSavings ?? 0) : "Rp ·"}
+            value={summary ? money.format(summary.netSavings ?? 0) : "…"}
             valueClass="text-success"
           />
           <MoneyStat

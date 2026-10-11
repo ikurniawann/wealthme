@@ -229,6 +229,7 @@ export default function AssetDetailPage() {
                     },
                   ]}
                   format={money.formatCompact}
+                  axis={money.formatAxis}
                   formatFull={money.format}
                   wide
                   ariaLabel={`${t.aset.detailChartTitle}: ${asset?.name ?? ""}`}

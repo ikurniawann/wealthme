@@ -43,7 +43,7 @@ import {
   PanelContent,
 } from "@/components/ui/dialog";
 import { useShell } from "@/components/shell/shell-context";
-import { formatAxisCompact, parseRupiah } from "@/lib/format";
+import { parseRupiah, splitCurrency, withSign } from "@/lib/format";
 import {
   MoneyInput,
   useMoneyField,
@@ -1833,11 +1833,11 @@ function TransaksiPageInner() {
         <BentoHero
           collapse={false}
           className={cn("tx-hero", heroMore && "tx-hero--more")}
-          currency={isLoading ? null : netBalance < 0 ? "-Rp" : "Rp"}
+          currency={
+            isLoading ? null : splitCurrency(money.format(netBalance)).prefix
+          }
           value={
-            isLoading
-              ? "…"
-              : money.format(Math.abs(netBalance)).replace(/^[^\d]*/, "")
+            isLoading ? "…" : splitCurrency(money.format(netBalance)).amount
           }
           caption={`${netBalance >= 0 ? v2.surplus : v2.deficit} · ${periodLabel}`}
           controls={
@@ -1866,8 +1866,8 @@ function TransaksiPageInner() {
                 ]}
                 highlight={flow.peak}
                 format={money.formatCompact}
+                axis={money.formatAxis}
                 formatFull={money.format}
-                axis={formatAxisCompact}
                 ariaLabel={v2.chartAria}
               />
             ) : null
@@ -2086,8 +2086,10 @@ function TransaksiPageInner() {
                 <header>
                   <span>{dayLabel(group.day)}</span>
                   <span className={"wm-num " + (group.net > 0 ? "wm-pos" : "")}>
-                    {group.net > 0 ? "+" : group.net < 0 ? "-" : ""}
-                    {money.format(Math.abs(group.net))}
+                    {withSign(
+                      money.format(Math.abs(group.net)),
+                      group.net > 0 ? "+" : group.net < 0 ? "-" : "",
+                    )}
                   </span>
                 </header>
                 {group.rows.map((tx) => (

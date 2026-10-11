@@ -17,15 +17,19 @@ export function FlowBars({
   days,
   format,
   formatFull,
+  axis,
   labels,
   ariaLabel,
 }: {
   days: FlowDay[];
   format: (value: number) => string;
   formatFull: (value: number) => string;
+  /** Short value-axis tick ("€ 2,4 rb"); defaults to `format`. */
+  axis?: (value: number) => string;
   labels: { income: string; expense: string };
   ariaLabel: string;
 }) {
+  const tick = axis ?? format;
   const maxIn = Math.max(0, ...days.map((day) => day.income));
   const maxOut = Math.max(0, ...days.map((day) => day.expense));
   const total = maxIn + maxOut;
@@ -38,13 +42,11 @@ export function FlowBars({
     <div className="flow-bars">
       <div className="flow-bars-plot">
         <div className="flow-bars-axis" aria-hidden="true">
-          <span style={{ top: 0 }}>{maxIn > 0 ? format(maxIn) : ""}</span>
+          <span style={{ top: 0 }}>{maxIn > 0 ? tick(maxIn) : ""}</span>
           <span data-zero style={{ top: `${upShare * 100}%` }}>
             0
           </span>
-          <span style={{ bottom: 0 }}>
-            {maxOut > 0 ? `-${format(maxOut)}` : ""}
-          </span>
+          <span style={{ bottom: 0 }}>{maxOut > 0 ? tick(-maxOut) : ""}</span>
         </div>
         <div className="flow-bars-cols">
           <div

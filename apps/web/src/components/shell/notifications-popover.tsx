@@ -6,7 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { displayNotificationText } from "@/lib/format";
+import { displayNotificationText, localizeMoneyText } from "@/lib/format";
+import { useMoney } from "@/hooks/use-money";
 import { useLocale } from "@/hooks/use-locale";
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ import { POP_CLASS, POP_ITEM_CLASS } from "./pop-classes";
 export function NotificationsPopover({ unreadCount }: { unreadCount: number }) {
   const { data: session } = useSession();
   const { t } = useLocale();
+  const money = useMoney();
   const router = useRouter();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;
@@ -66,8 +68,18 @@ export function NotificationsPopover({ unreadCount }: { unreadCount: number }) {
             >
               <i aria-hidden="true" />
               <span className="min-w-0">
-                <b>{displayNotificationText(notification.title)}</b>
-                <small>{displayNotificationText(notification.body)}</small>
+                <b>
+                  {localizeMoneyText(
+                    displayNotificationText(notification.title),
+                    money.format,
+                  )}
+                </b>
+                <small>
+                  {localizeMoneyText(
+                    displayNotificationText(notification.body),
+                    money.format,
+                  )}
+                </small>
               </span>
             </span>
           </DropdownMenuItem>

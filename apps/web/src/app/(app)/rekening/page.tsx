@@ -48,7 +48,7 @@ import { useMyRole } from "@/hooks/use-my-role";
 import { MintaDanaDialog } from "@/components/allowance/minta-dana-dialog";
 import { apiFetch } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
-import { formatAxisCompact, parseRupiah } from "@/lib/format";
+import { parseRupiah } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useMoney } from "@/hooks/use-money";
 
@@ -760,8 +760,8 @@ export default function RekeningPage() {
                   0,
                 )}
                 format={money.formatCompact}
+                axis={money.formatAxis}
                 formatFull={money.format}
-                axis={formatAxisCompact}
                 wide
                 ariaLabel={t.rekening.statBankBalanceLabel}
               />

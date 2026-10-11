@@ -248,7 +248,7 @@ describe("AsuransiPage — beneficiary allocation validation (EPIC-022 D6)", () 
     user: ReturnType<typeof userEvent.setup>,
   ) {
     await user.type(screen.getByLabelText(/nama asuransi/i), "Asuransi Jiwa");
-    await user.type(screen.getByLabelText(/premi \(rp\)/i), "100000");
+    await user.type(screen.getByLabelText(/^premi$/i), "100000");
   }
 
   it("blocks save when a beneficiary row has a share percentage but a blank name", async () => {

@@ -48,7 +48,7 @@ export function HarianSection({
               className="lap-a-kpi-value"
               style={{ color: "var(--wm-good)" }}
             >
-              {dailyReport ? money.format(dailyReport.totalIncome) : "Rp ·"}
+              {dailyReport ? money.format(dailyReport.totalIncome) : "…"}
             </span>
           }
         />
@@ -56,7 +56,7 @@ export function HarianSection({
           title={t.laporan.harian.expenseTodayLabel}
           value={
             <span className="lap-a-kpi-value" style={{ color: EXPENSE_COLOR }}>
-              {dailyReport ? money.format(dailyReport.totalExpense) : "Rp ·"}
+              {dailyReport ? money.format(dailyReport.totalExpense) : "…"}
             </span>
           }
         />
@@ -69,9 +69,7 @@ export function HarianSection({
                 color: net >= 0 ? "var(--wm-good)" : "var(--wm-bad)",
               }}
             >
-              {dailyReport
-                ? `${net >= 0 ? "+" : ""}${money.format(net)}`
-                : "Rp ·"}
+              {dailyReport ? `${net >= 0 ? "+" : ""}${money.format(net)}` : "…"}
             </span>
           }
         />

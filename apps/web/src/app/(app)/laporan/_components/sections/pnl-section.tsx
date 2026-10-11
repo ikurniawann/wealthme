@@ -99,7 +99,7 @@ export function PnlSection({
             {t.laporan.pnl.totalRevenueLabel}
           </div>
           <div className="lpb-statement-value mono text-success">
-            {pnl ? money.format(pnl.revenue) : "Rp ·"}
+            {pnl ? money.format(pnl.revenue) : "…"}
           </div>
         </div>
 
@@ -127,7 +127,7 @@ export function PnlSection({
             className="lpb-statement-value mono"
             style={{ color: EXPENSE_COLOR }}
           >
-            {pnl ? money.format(pnl.expenses) : "Rp ·"}
+            {pnl ? money.format(pnl.expenses) : "…"}
           </div>
         </div>
 
@@ -146,7 +146,7 @@ export function PnlSection({
               (isPositive ? "text-success" : "text-destructive")
             }
           >
-            {pnl ? money.format(pnl.netProfit) : "Rp ·"}
+            {pnl ? money.format(pnl.netProfit) : "…"}
           </div>
         </div>
 

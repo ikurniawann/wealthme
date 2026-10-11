@@ -2074,6 +2074,7 @@ export default function InvestasiPage() {
                       },
                     ]}
                     format={money.formatCompact}
+                    axis={money.formatAxis}
                     formatFull={money.format}
                     wide
                     ariaLabel={t.investasi.v2.chartAria}

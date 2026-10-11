@@ -294,7 +294,7 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "Setor ke Dana Liburan",
     });
-    const amount = within(dialog).getByLabelText("Jumlah Setoran (Rp)");
+    const amount = within(dialog).getByLabelText("Jumlah Setoran");
     await user.type(amount, "250000");
     expect(amount).toHaveValue("250.000");
     await user.selectOptions(
@@ -347,13 +347,10 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     });
     const save = within(dialog).getByRole("button", { name: "Simpan Setoran" });
     expect(save).toBeDisabled();
-    await user.type(within(dialog).getByLabelText("Jumlah Setoran (Rp)"), "0");
+    await user.type(within(dialog).getByLabelText("Jumlah Setoran"), "0");
     expect(save).toBeDisabled();
-    await user.clear(within(dialog).getByLabelText("Jumlah Setoran (Rp)"));
-    await user.type(
-      within(dialog).getByLabelText("Jumlah Setoran (Rp)"),
-      "5000",
-    );
+    await user.clear(within(dialog).getByLabelText("Jumlah Setoran"));
+    await user.type(within(dialog).getByLabelText("Jumlah Setoran"), "5000");
     await user.click(save);
 
     await waitFor(() => expect(mockToastSuccess).toHaveBeenCalled());
@@ -382,10 +379,7 @@ describe("TujuanPage — Setor into a goal (Revisi F item 5)", () => {
     const dialog = await screen.findByRole("dialog", {
       name: "Setor ke Dana Liburan",
     });
-    await user.type(
-      within(dialog).getByLabelText("Jumlah Setoran (Rp)"),
-      "250000",
-    );
+    await user.type(within(dialog).getByLabelText("Jumlah Setoran"), "250000");
     await user.click(
       within(dialog).getByRole("button", { name: "Simpan Setoran" }),
     );
