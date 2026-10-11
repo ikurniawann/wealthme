@@ -196,12 +196,16 @@ function CrudForm({
     // no-`onSubmit` demo-toast fallback below, so the demo path can't skip it.
     const requiredErrors: Record<string, string> = {};
     for (const f of visibleFields) {
-      if (f.required && !(values[f.key] ?? "").trim()) {
+      const value = values[f.key] ?? "";
+      if (f.required && !value.trim()) {
         requiredErrors[f.key] = t.crud.fieldRequired.replace(
           "{field}",
           labelOverrides?.[f.key] ?? f.label,
         );
+        continue;
       }
+      const ruleError = f.validate?.(value, values);
+      if (ruleError) requiredErrors[f.key] = ruleError;
     }
     setErrors(requiredErrors);
     if (Object.keys(requiredErrors).length > 0) return;
@@ -323,6 +327,19 @@ function CrudForm({
     );
   };
 
+  // An error replaces the field's hint; one style for every field type.
+  const fieldMessage = (
+    error: string | undefined,
+    hint: string | null | undefined,
+  ) =>
+    error ? (
+      <span className="error-text block" role="alert">
+        {error}
+      </span>
+    ) : (
+      hint && <span className="hint block">{hint}</span>
+    );
+
   const renderField = (f: CrudField, inRow: boolean) => {
     const label = labelOverrides?.[f.key] ?? f.label;
     const fieldClass = inRow ? "field mt-0" : "field";
@@ -367,7 +384,7 @@ function CrudForm({
             label={label}
             onChange={(iso) => setField(f.key, iso)}
           />
-          {hint && <span className="hint block">{hint}</span>}
+          {fieldMessage(error, hint)}
         </div>
       );
     }
@@ -410,7 +427,7 @@ function CrudForm({
             {label}
           </label>
           {renderControl(f)}
-          {hint && <span className="hint block">{hint}</span>}
+          {fieldMessage(error, hint)}
         </div>
       );
     }
@@ -419,13 +436,7 @@ function CrudForm({
       <label key={f.key} className={fieldClass}>
         <span className="label">{label}</span>
         {renderControl(f)}
-        {error ? (
-          <span className="t-xs text-destructive block" role="alert">
-            {error}
-          </span>
-        ) : (
-          hint && <span className="hint block">{hint}</span>
-        )}
+        {fieldMessage(error, hint)}
         {f.referenceGroup && <AddToMasterDataLink group={f.referenceGroup} />}
       </label>
     );

@@ -4276,3 +4276,23 @@
     }
   }
 }
+
+/* Inline message for HTML constraint validation (NativeValidationBridge in
+   components/shell/native-validation.tsx). Same look as `.error-text`. */
+@layer components {
+  [data-native-error]::after {
+    content: attr(data-native-error);
+    display: block;
+    flex-basis: 100%;
+    margin-top: 5px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--destructive);
+  }
+  [data-native-invalid].input,
+  [data-native-invalid].select,
+  [data-native-invalid].textarea,
+  [data-native-invalid] {
+    border-color: var(--destructive);
+  }
+}

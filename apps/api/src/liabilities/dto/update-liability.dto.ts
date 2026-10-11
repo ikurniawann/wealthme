@@ -65,8 +65,10 @@ export class UpdateLiabilityDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  @Matches(/^\d+(\.\d{1,2})?$/, {
-    message: "interestRate must be a decimal string",
+  // A percentage: 0–100 with at most two decimals. Larger values used to
+  // pass and then overflow the decimal column (a 500 instead of a 400).
+  @Matches(/^(100(\.0{1,2})?|\d{1,2}(\.\d{1,2})?)$/, {
+    message: "interestRate must be a percentage between 0 and 100",
   })
   interestRate?: string;
 

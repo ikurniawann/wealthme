@@ -145,3 +145,24 @@ describe("CreateLiabilityDto/UpdateLiabilityDto.name — E2E round 1 bug 1", () 
     );
   });
 });
+
+describe("Create/UpdateLiabilityDto — interest rate is a percentage", () => {
+  it.each(["0", "7.5", "11.25", "100", "100.00"])(
+    "accepts %s",
+    async (interestRate) => {
+      for (const cls of [CreateLiabilityDto, UpdateLiabilityDto]) {
+        expect(await invalidProps(cls, { ...BASE, interestRate })).toEqual([]);
+      }
+    },
+  );
+
+  // A value past 100 used to pass validation and then overflow the decimal
+  // column, surfacing as a 500 "Internal server error".
+  it.each(["100.01", "101", "1250000"])("rejects %s", async (interestRate) => {
+    for (const cls of [CreateLiabilityDto, UpdateLiabilityDto]) {
+      expect(await invalidProps(cls, { ...BASE, interestRate })).toContain(
+        "interestRate",
+      );
+    }
+  });
+});

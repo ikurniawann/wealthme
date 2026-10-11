@@ -19,6 +19,7 @@ export const id = {
     evening: "Selamat malam",
   },
   common: {
+    percentRangeError: "Isi persen antara 0 dan 100",
     emojiSearchPlaceholder: "Cari ikon… (cth: rumah, mobil, sekolah)",
     emojiNoResults: "Ikon tidak ditemukan. Coba kata lain.",
     emojiLoading: "Memuat daftar ikon…",

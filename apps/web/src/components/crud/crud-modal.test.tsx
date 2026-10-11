@@ -230,6 +230,11 @@ function localMonthPrefix(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function nextYearMonthPrefix(): string {
+  const now = new Date();
+  return `${now.getFullYear() + 1}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function renderTujuan(
   state:
     | { mode: "add" }
@@ -275,6 +280,7 @@ describe("CrudModal — date fields use the shared DateField", () => {
       within(dialog).getByPlaceholderText("cth: Dana Liburan"),
       "Dana Liburan",
     );
+    await user.type(within(dialog).getByLabelText("Target Jumlah"), "5000000");
     const trigger = within(dialog).getByLabelText("Target Tanggal");
     expect(trigger.tagName).toBe("BUTTON");
 
@@ -282,6 +288,11 @@ describe("CrudModal — date fields use the shared DateField", () => {
     const pop = screen.getByRole("dialog", { name: "Target Tanggal" });
     expect(dialog).toContainElement(pop);
 
+    // Next year, so the "not in the past" rule never depends on today's date.
+    await user.selectOptions(
+      within(pop).getByRole("combobox", { name: /tahun/i }),
+      String(new Date().getFullYear() + 1),
+    );
     await user.click(within(pop).getByRole("button", { name: /^20 / }));
     expect(
       screen.getByRole("dialog", { name: /tambah tujuan keuangan/i }),
@@ -292,8 +303,35 @@ describe("CrudModal — date fields use the shared DateField", () => {
     expect(onSubmit).toHaveBeenCalledWith(
       "tujuan",
       "add",
-      expect.objectContaining({ deadline: `${localMonthPrefix()}-20` }),
+      expect.objectContaining({ deadline: `${nextYearMonthPrefix()}-20` }),
     );
+  });
+
+  it("blocks a goal with no target, a past deadline or an auto-debit day outside 1–28", async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderTujuan({
+      mode: "edit",
+      initialValues: {
+        nama: "Liburan",
+        target: "0",
+        deadline: "2020-01-01",
+        autodebitDay: "35",
+      },
+    });
+    const dialog = await screen.findByRole("dialog");
+
+    await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
+
+    expect(
+      within(dialog).getByText("Target jumlah harus lebih dari 0."),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Target tanggal tidak boleh sebelum hari ini."),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Tanggal auto-debit harus antara 1 dan 28."),
+    ).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it("Escape closes only the picker, never the CRUD dialog around it", async () => {

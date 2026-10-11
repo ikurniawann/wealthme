@@ -174,6 +174,7 @@ describe("TujuanPage — failed saves surface the real message and keep the dial
       within(dialog).getByPlaceholderText("cth: Dana Liburan"),
       "Rumah Baru",
     );
+    await user.type(within(dialog).getByLabelText(/Target Jumlah/), "5000000");
     await user.click(within(dialog).getByRole("button", { name: "Simpan" }));
 
     // F1 — the real server message reaches the user, not a generic constant.

@@ -19,6 +19,7 @@ export const en = {
     evening: "Good evening",
   },
   common: {
+    percentRangeError: "Enter a percentage between 0 and 100",
     emojiSearchPlaceholder: "Search icons… (e.g. house, car, school)",
     emojiNoResults: "No icon found. Try another word.",
     emojiLoading: "Loading icons…",

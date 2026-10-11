@@ -398,6 +398,8 @@ export type I18nDictionary = {
     evening: string;
   };
   common: {
+    /** Inline error for a percentage field outside 0–100 (pattern title). */
+    percentRangeError: string;
     /** Searchable emoji picker (components/wm/emoji-picker.tsx) — shared by
      *  the CRUD modal's `iconpick` field and the budget dialog, which used to
      *  ship two different fixed emoji grids. */

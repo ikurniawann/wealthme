@@ -71,6 +71,18 @@ export interface CrudField {
    * flipping this on for them too would double-validate the same field.
    */
   required?: boolean;
+  /**
+   * Field-level rule run by CrudModal on Simpan, alongside `required`.
+   * Return the inline error, or null when the value is fine. Receives the
+   * raw form string (amounts still grouped: "1.250.000").
+   */
+  validate?: (value: string, values: Record<string, string>) => string | null;
+}
+
+/** Today as yyyy-mm-dd in local time, for date rules. */
+function todayIso(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 export interface CrudEntityConfig {
@@ -319,9 +331,23 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         // silently (201, success toast); CrudModal now blocks Simpan.
         required: true,
       },
-      { key: "target", label: "Target Jumlah", type: "amount" },
+      {
+        key: "target",
+        label: "Target Jumlah",
+        type: "amount",
+        validate: (v) =>
+          parseRupiah(v) > 0 ? null : "Target jumlah harus lebih dari 0.",
+      },
       { key: "terkumpul", label: "Sudah Terkumpul", type: "amount" },
-      { key: "deadline", label: "Target Tanggal", type: "date" },
+      {
+        key: "deadline",
+        label: "Target Tanggal",
+        type: "date",
+        validate: (v) =>
+          v && v < todayIso()
+            ? "Target tanggal tidak boleh sebelum hari ini."
+            : null,
+      },
       {
         key: "autodebit",
         label: "Auto-debit / Bulan",
@@ -349,6 +375,13 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Tanggal Auto-debit (1-28)",
         type: "number",
         placeholder: "cth: 25",
+        validate: (v) => {
+          if (!v.trim()) return null;
+          const day = Number(v);
+          return Number.isInteger(day) && day >= 1 && day <= 28
+            ? null
+            : "Tanggal auto-debit harus antara 1 dan 28.";
+        },
       },
       {
         // Revisi F — label comes from i18n via CrudModal `labelOverrides`; options via `dynamicOptions`.

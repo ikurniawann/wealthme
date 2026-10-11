@@ -14,6 +14,7 @@ import { MobileNav } from "./mobile-bars";
 import { SearchDialog } from "./search-dialog";
 import { TransactionDialog } from "./transaction-dialog";
 import { FloatingAiLauncher } from "./floating-ai-launcher";
+import { NativeValidationBridge } from "./native-validation";
 import { useSidebarRail } from "./use-sidebar-rail";
 import { Walkthrough } from "@/components/onboarding/walkthrough";
 
@@ -65,6 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <TransactionDialog />
         <Walkthrough />
         <FloatingAiLauncher />
+        <NativeValidationBridge />
       </AiChatProvider>
     </ShellProvider>
   );

@@ -57,6 +57,9 @@ export const EMPTY_FINAL_INCOME_FORM: FinalIncomeFormValue = {
   notes: "",
 };
 
+/** 0–100 with up to two decimals ("0,5", "10", "100"). */
+const PERCENT_PATTERN = "^(100([.,]0{1,2})?|\\d{1,2}([.,]\\d{1,2})?)$";
+
 export function FinalIncomeDialog({
   open,
   mode,
@@ -130,7 +133,13 @@ export function FinalIncomeDialog({
             <X aria-hidden="true" />
           </DialogClose>
         </header>
-        <div className="flex min-h-0 flex-1 flex-col">
+        <form
+          className="flex min-h-0 flex-1 flex-col"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+        >
           <div className="wm-panel-body wm-form">
             <div className="wm-form__grid">
               <div className="field">
@@ -160,6 +169,7 @@ export function FinalIncomeDialog({
                   id="final-gross"
                   type="text"
                   inputMode="numeric"
+                  required
                   className="input"
                   value={gross}
                   onChange={(e) =>
@@ -183,6 +193,7 @@ export function FinalIncomeDialog({
                 <input
                   id="final-date"
                   type="date"
+                  required
                   className="input"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
@@ -211,6 +222,8 @@ export function FinalIncomeDialog({
                   type="text"
                   inputMode="decimal"
                   className="input"
+                  pattern={PERCENT_PATTERN}
+                  title={t.common.percentRangeError}
                   value={rateOverridePct}
                   onChange={(e) =>
                     setRateOverridePct(e.target.value.replace(/[^0-9,.]/g, ""))
@@ -239,16 +252,11 @@ export function FinalIncomeDialog({
             <PillButton type="button" onClick={onClose}>
               {t.common.cancel}
             </PillButton>
-            <PillButton
-              type="button"
-              variant="primary"
-              disabled={submitting}
-              onClick={handleSubmit}
-            >
+            <PillButton type="submit" variant="primary" disabled={submitting}>
               {t.common.save}
             </PillButton>
           </div>
-        </div>
+        </form>
       </PanelContent>
     </Dialog>
   );

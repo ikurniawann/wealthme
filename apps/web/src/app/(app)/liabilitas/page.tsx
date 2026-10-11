@@ -757,6 +757,8 @@ function LiabilityModal({
                     className="input mono"
                     placeholder={t.liabilitas.fieldInterestRatePlaceholder}
                     inputMode="decimal"
+                    pattern={PERCENT_PATTERN}
+                    title={t.common.percentRangeError}
                     value={interestRate}
                     onChange={(e) => setInterestRate(e.target.value)}
                   />
@@ -1658,6 +1660,9 @@ function PayLiabilityDialog({
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
+
+/** 0–100 with up to two decimals ("7,5", "11.25", "100"). */
+const PERCENT_PATTERN = "^(100([.,]0{1,2})?|\\d{1,2}([.,]\\d{1,2})?)$";
 
 export default function LiabilitasPage() {
   const { t, locale } = useLocale();
