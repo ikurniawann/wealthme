@@ -88,6 +88,7 @@ import {
 } from "@wealthme/contracts";
 import { getActiveTransactionFilterCount } from "./filter-count";
 import { localIsoDate } from "@/lib/local-date";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // EPIC-024 Task L3 (D15, US-TXN-9) — page-local helper, same convention as
 // `app/(app)/dana/page.tsx`'s own copy: never touch lib/api-client.ts.
@@ -96,11 +97,6 @@ import { localIsoDate } from "@/lib/local-date";
 // the API at all), which is not fit to show a user; that shape falls back
 // to `fallback` here instead of rendering verbatim.
 const RAW_HTTP_STATUS_MESSAGE = /^HTTP \d{3}$/;
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  if (!err || typeof err !== "object" || !("message" in err)) return fallback;
-  const message = String((err as Partial<ApiError>).message);
-  return RAW_HTTP_STATUS_MESSAGE.test(message) ? fallback : message;
-}
 
 // `lib/api-client.ts` only exports an `ApiError` *type* (no class), so
 // `apiFetch`'s own error path throws a plain object literal too — not an

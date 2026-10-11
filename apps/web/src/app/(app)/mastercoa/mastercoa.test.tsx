@@ -289,7 +289,7 @@ describe("MasterCoaPage, COA code auto-gen + editable (EPIC-021 #4)", () => {
     // Assert
     await waitFor(() =>
       expect(mockToastError).toHaveBeenCalledWith(
-        'COA code "10001" must start with group number 2 (e.g. "20001")',
+        "Kode COA untuk grup ini harus diawali angka 2 (mis. 20001).",
       ),
     );
   });

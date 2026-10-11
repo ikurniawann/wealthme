@@ -745,7 +745,9 @@ describe("TransactionDialog, attachment upload (EPIC-024 Task L3, US-TXN-9)", ()
     // …but the failed attachment upload gets its own honest, distinct error
     // toast — never silently dropped.
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith("Unsupported file type");
+      expect(mockToastError).toHaveBeenCalledWith(
+        "Transaksi tersimpan, tapi lampiran gagal diunggah.",
+      );
     });
 
     fetchSpy.mockRestore();
@@ -2397,7 +2399,7 @@ describe("TransactionDialog, fast recording (last-used defaults, inline validati
     expect(checkedRadios(categories)).toHaveLength(0);
   });
 
-  it("Simpan reports aria-disabled (never native disabled) while required fields are missing, and names the first missing field after an attempt", async () => {
+  it("Simpan reports aria-disabled (never native disabled) while required fields are missing, flags every missing field after an attempt and focuses the first", async () => {
     const user = userEvent.setup();
     render(<TransactionDialog />);
 
@@ -2416,7 +2418,8 @@ describe("TransactionDialog, fast recording (last-used defaults, inline validati
       "true",
     );
     expect(screen.getByPlaceholderText("0")).toHaveFocus();
-    expect(screen.queryByText("Pilih rekening")).not.toBeInTheDocument();
+    // The account is missing too: both errors show after one attempt.
+    expect(screen.getByText("Pilih rekening")).toHaveClass("error-text");
     expect(
       mockApiFetch.mock.calls.some(([, opts]) => opts?.method === "POST"),
     ).toBe(false);

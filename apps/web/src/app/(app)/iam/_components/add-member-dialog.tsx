@@ -24,6 +24,7 @@ import type {
 } from "@wealthme/contracts";
 
 import { CopyButton } from "./copy-button";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 /** IAM copy-username/copy-password — the password only ever exists at the
  * moment it's set (hashed server-side after), so it's held only in this
@@ -46,11 +47,6 @@ type CreatedCredentials = {
  * ("username taken", "keluarga ini sudah memiliki istri") instead of a generic
  * toast.
  */
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 // EPIC-023 D1/D6 (US-FAM-12, US-AUTH-9) — head-created dependant/operational
 // member: name + username + initial password, no email; forced password

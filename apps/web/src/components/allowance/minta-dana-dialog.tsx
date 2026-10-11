@@ -23,6 +23,7 @@ import {
   withFxInputs,
 } from "@/components/money";
 import type { AccountDto } from "@wealthme/contracts";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 /**
  * EPIC-033 R5 — "Minta Dana": a member asks for money FROM a family-shared
@@ -60,12 +61,6 @@ export function MintaDanaDialog({
       </PanelContent>
     </Dialog>
   );
-}
-
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
 }
 
 function MintaDanaForm({

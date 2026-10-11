@@ -60,16 +60,12 @@ import type {
   TransactionListResponse,
 } from "@wealthme/contracts";
 import { localIsoDate } from "@/lib/local-date";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // EPIC-022 F — the API's ConflictException carries a message the user can act
 // on (e.g. a duplicate cash-account name); the generic toast threw it away and
 // left "Coba lagi" as the only guidance. Prefer the server's message and fall
 // back only when there isn't one.
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 /** E-wallet identity is provider + number: two GoPay wallets differ only by
  * phone, but account names are unique per family, so the label carries the

@@ -70,6 +70,7 @@ import type {
   Role,
   UpdateInheritanceAssetDto,
 } from "@wealthme/contracts";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // NOTE: these are the actual `assetType` values persisted on an inheritance
 // asset record (free-text category), not a translated enum — kept in
@@ -133,13 +134,6 @@ const ASSET_CLASS_BG: Record<AssetClassKey, string> = {
 // backend validation strings straight into the toast. Only trust `message`
 // when it is actually a string; anything else (array, object, etc.) falls
 // back to the caller's localized message.
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  if (err && typeof err === "object" && "message" in err) {
-    const message = (err as { message: unknown }).message;
-    if (typeof message === "string") return message;
-  }
-  return fallback;
-}
 
 // EPIC-021 Group D (#14) — mirrors the `FamilyMember` shape used on /akun for
 // the optional "link a heir to a family member" picker. EPIC-023 F1 (D14)

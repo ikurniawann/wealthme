@@ -138,6 +138,7 @@ import {
   type AccountTabId,
 } from "./account-tabs";
 import { localIsoDate } from "@/lib/local-date";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 type SubPageId =
   | "profil"
@@ -207,11 +208,6 @@ export type FamilyMember = {
  * be an email", a duplicate-invitation 409) instead of a generic toast.
  * Mirrors the identical page-local helper in mastercoa/page.tsx.
  */
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 /* ─────────────────── Shared field / row primitives ─────────────────── */
 

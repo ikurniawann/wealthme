@@ -336,6 +336,7 @@ describe("AllowanceRequestsPanel — held-expense vs funding approval branching 
         method === "PATCH"
       ) {
         return Promise.reject({
+          status: 400,
           message:
             'Saldo rekening bank "Akun Utama" tidak mencukupi untuk transaksi ini. Rekening bank tidak boleh memiliki saldo minus.',
         });

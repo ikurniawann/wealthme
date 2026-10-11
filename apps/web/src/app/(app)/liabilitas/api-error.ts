@@ -6,13 +6,7 @@
 // period" ConflictException in liabilities.service.ts names the liability
 // and gives guidance) — see liabilitas.test.tsx's "surfaces the real 409
 // 'already paid' server message" regression guard.
-export function extractApiErrorMessage(err: unknown, fallback: string): string {
-  // Only trust the message when the object also carries the ApiError shape's
-  // `status`, otherwise a raw network/abort error would leak verbatim.
-  return err && typeof err === "object" && "status" in err && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
+export { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // Batch 4 item 2 — unlike the conflict message above, the payment-preview
 // endpoint's 400s (guardPaymentAmount / splitLiabilityPayment in

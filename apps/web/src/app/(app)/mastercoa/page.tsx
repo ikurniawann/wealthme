@@ -45,6 +45,7 @@ import {
   LayoutGrid,
   BookOpenText,
 } from "lucide-react";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 type CoaDirection = "INCOME" | "EXPENSE" | "TRANSFER";
 type CoaBudgetType = "FIXED" | "VARIABLE" | "REIMBURSEMENT";
@@ -111,11 +112,6 @@ const EMPTY_FORM: FormState = {
  * EPIC-021 #4 — surface the API's validation message (prefix mismatch,
  * duplicate code, blank code) directly instead of a generic toast.
  */
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 /**
  * EPIC-023 Task H2 (D18) — plain-language explainer + worked examples for

@@ -76,17 +76,13 @@ import {
 import type { Locale } from "@/i18n";
 
 import type { AccountDto, AllowanceRequestDto } from "@wealthme/contracts";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 /**
  * EPIC-024 A5 (US-AUTH-11) — surfaces the server's real validation/business
  * message (e.g. the anti-overdraft 400) instead of a generic toast. Mirrors
  * the identical page-local helper in akun/page.tsx and mastercoa/page.tsx.
  */
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 // EPIC-025 N3 restructure — avatar initials for the pending-request card
 // (mirrors the same two-letter derivation used by akun/page.tsx's profile

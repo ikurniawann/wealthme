@@ -218,11 +218,10 @@ describe("AttachmentList (EPIC-024 Task L3, US-TXN-9)", () => {
 
     await user.click(await screen.findByRole("button", { name: "Lihat" }));
 
-    // `extractApiErrorMessage` prefers the thrown error's own `message`
-    // (here `res.statusText`) over the generic fallback — an honest,
-    // specific toast beats a vague one when the server actually said why.
+    // An HTTP status text ("Not Found") is not user copy: the toast stays
+    // honest (it names the failure) but in Indonesian.
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith("Not Found");
+      expect(mockToastError).toHaveBeenCalledWith("Gagal membuka lampiran");
     });
     expect(window.open).not.toHaveBeenCalled();
 
@@ -385,7 +384,7 @@ describe("AttachmentList (EPIC-024 Task L3, US-TXN-9)", () => {
     });
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith("Payload Too Large");
+      expect(mockToastError).toHaveBeenCalledWith("Gagal mengunggah lampiran");
     });
 
     fetchSpy.mockRestore();

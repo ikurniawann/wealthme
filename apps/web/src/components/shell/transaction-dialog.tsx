@@ -80,6 +80,7 @@ import { moneyIdr, useMoneyField, withFxInputs } from "@/components/money";
 import { useMoney } from "@/hooks/use-money";
 import { useShell } from "./shell-context";
 import { localIsoDate } from "@/lib/local-date";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // EPIC-023 Task E3/E4 (D12/D13) — reviewed foundation exception (this file
 // is protected per WM_CONVENTIONS.md; see the precedent comment below at
@@ -182,11 +183,6 @@ async function uploadAttachment(
 
 // Reused across this dialog's mutations — mirrors the identical helper in
 // other pages (e.g. `app/(app)/dana/page.tsx`) rather than touching lib/*.
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as Partial<ApiError>).message)
-    : fallback;
-}
 
 type View = "form" | "ocr-scan" | "ocr-result";
 
@@ -491,59 +487,65 @@ export function TransactionDialog() {
       .replace("{total}", String(total));
 
   const amountNum = moneyIdr(amountField, parseRupiah);
-  const findProblem = (): Problem | null => {
+  // Every missing field is reported at once, so one Simpan shows the whole
+  // list of what is left instead of revealing the next error on each try.
+  // The first problem still decides where focus goes.
+  const findProblems = (): Problem[] => {
     const dlg = t.shell.transactionDialog;
+    const out: Problem[] = [];
     // A foreign amount waiting on its rate is "not ready", not "missing".
     if (!amountField.resolved.isPending && !(amountNum > 0))
-      return {
+      out.push({
         field: "amount",
         message: dlg.invalidAmount,
         focusId: amountFieldId,
-      };
+      });
     if (tabKind === "card") {
       if (!liabilityId)
-        return {
+        out.push({
           field: "card",
           message: dlg.selectCardFirst,
           focusId: cardFieldId,
-        };
+        });
     } else {
       if (!selectedAccountId)
-        return {
+        out.push({
           field: "account",
           message: dlg.selectAccountFirst,
           focusId:
             tabKind === "transfer" ? sourceAccountFieldId : accountFieldId,
           tiles: true,
-        };
+        });
       if (tabKind === "transfer") {
         if (!toAccountId)
-          return {
+          out.push({
             field: "destAccount",
             message: dlg.selectDestAccountFirst,
             focusId: destAccountFieldId,
             tiles: true,
-          };
-        if (toAccountId === selectedAccountId)
-          return {
+          });
+        else if (toAccountId === selectedAccountId)
+          out.push({
             field: "destAccount",
             message: dlg.sameAccountError,
             focusId: destAccountFieldId,
             tiles: true,
-          };
+          });
       }
     }
     if (!date)
-      return {
+      out.push({
         field: "date",
         message: dlg.dateRequiredError,
         focusId: dateFieldId,
-      };
-    return null;
+      });
+    return out;
   };
-  const problem = findProblem();
-  const fieldErrors: Partial<Record<Problem["field"], string>> =
-    attempted && problem ? { [problem.field]: problem.message } : {};
+  const problems = findProblems();
+  const problem = problems[0] ?? null;
+  const fieldErrors: Partial<Record<Problem["field"], string>> = attempted
+    ? Object.fromEntries(problems.map((p) => [p.field, p.message]))
+    : {};
   // EPIC-027 B3 (D13) — the review screen shows the family category the
   // SERVER matched, resolved to its own name/icon. A null `categoryId` is
   // never re-guessed from `categoryHint` here; that matching already ran.

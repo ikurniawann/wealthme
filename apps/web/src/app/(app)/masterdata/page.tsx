@@ -42,6 +42,7 @@ import {
   type CrudMode,
   type CrudModalState,
 } from "@/components/crud";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // Only the lists that feed real form selects (Rekening, E-Wallet, Donasi); order = card grid.
 const REFERENCE_GROUP_ENTITIES: {
@@ -66,11 +67,6 @@ type CoaAccountOption = {
  * generic toast. Mirrors the identical page-local helper in
  * mastercoa/page.tsx and akun/page.tsx.
  */
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 export default function MasterDataPage() {
   const { t } = useLocale();

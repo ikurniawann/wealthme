@@ -11,15 +11,11 @@ import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { AuthField } from "@/components/auth/auth-fields";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 /** Same shape `apiFetch` throws (`{ status, message }`) — surfaces the
  *  server's real reason instead of one generic failure string. Mirrors the
  *  identically-named local helper in persetujuan/page.tsx. */
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 // EPIC-026 Wave 7 — markup rebuilt from
 // docs/prototype/pages/ubah-password-wajib.html (token-based `.auth`

@@ -53,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { useMoney } from "@/hooks/use-money";
 
 import type { AccountDto } from "@wealthme/contracts";
+import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
 // EPIC-022 A2 — "Data Kas bisa minus": `parseRupiah` (lib/format.ts, a
 // protected foundation file) strips every non-digit character including a
@@ -81,11 +82,6 @@ function formatUsd(value: number): string {
 // on (e.g. a duplicate account name); the generic toast threw it away and
 // left "Coba lagi" as the only guidance. Prefer the server's message and fall
 // back only when there isn't one.
-function extractApiErrorMessage(err: unknown, fallback: string): string {
-  return err && typeof err === "object" && "message" in err
-    ? String((err as { message: unknown }).message)
-    : fallback;
-}
 
 // EPIC-025 N3 audit fix — "two account cards render a raw UUID/hash as the
 // account subtitle, overflowing the card". Root cause: `Account.maskedNumber`

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { extractApiErrorMessage } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
 import type { ApiError } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
 
 /**
  * A2 (revisi-2) — "no technical junk in front of the user": this is the
@@ -43,14 +44,17 @@ export function useApiError() {
     (error: unknown) => {
       const apiError = error as Partial<ApiError>;
       console.error("[api] request failed:", error);
-      const message =
-        extractApiErrorMessage(apiError, t) ??
-        friendlyServerMessage(apiError) ??
-        (apiError.status === 401
+      const fallback =
+        apiError.status === 401
           ? t.common.apiError.sessionExpired
           : apiError.status === 403
             ? t.common.apiError.accessDenied
-            : t.common.apiError.generic);
+            : t.common.apiError.generic;
+      const message =
+        extractApiErrorMessage(apiError, t) ??
+        (friendlyServerMessage(apiError) === null
+          ? fallback
+          : apiErrorMessage(error, fallback));
       toast.error(message);
     },
     [t],
