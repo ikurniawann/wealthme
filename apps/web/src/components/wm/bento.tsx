@@ -1,5 +1,6 @@
 "use client";
 
+import { roundedShares } from "@/lib/shares";
 import {
   useEffect,
   useId,
@@ -621,6 +622,8 @@ export function CompositionStack({
     .filter((item) => item.value > 0)
     .sort((a, b) => b.value - a.value);
   const total = ranked.reduce((sum, item) => sum + item.value, 0) || 1;
+  // Whole percents that add up to 100, so the rows never read 63% + 38%.
+  const shares = roundedShares(ranked.map((item) => item.value));
   return (
     <div className="wm-cstack">
       {center !== undefined && (
@@ -637,7 +640,7 @@ export function CompositionStack({
         {ranked.map((item, index) => (
           <i
             key={item.label}
-            title={`${item.label} ${Math.round((item.value / total) * 100)}%`}
+            title={`${item.label} ${shares[index]}%`}
             style={
               {
                 flex: item.value,
@@ -649,7 +652,7 @@ export function CompositionStack({
         ))}
       </div>
       <div>
-        {ranked.map((item) => {
+        {ranked.map((item, index) => {
           const pct = (item.value / total) * 100;
           return (
             <div key={item.label} className="wm-cs-row" aria-hidden="true">
@@ -662,9 +665,7 @@ export function CompositionStack({
               >
                 {format(item.value)}
               </span>
-              <span className="wm-cs-p">
-                {pct < 1 ? "<1" : Math.round(pct)}%
-              </span>
+              <span className="wm-cs-p">{pct < 1 ? "<1" : shares[index]}%</span>
             </div>
           );
         })}

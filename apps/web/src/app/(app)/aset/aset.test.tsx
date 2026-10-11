@@ -189,10 +189,11 @@ describe("/aset — recorded currentValue is authoritative, projection is second
     render(<AsetPage />);
 
     // The recorded-value total (100jt + 20jt = 120jt) must appear — in the
-    // hero grand total, the composition head, the composition row and the
-    // Aset fisik KPI — and the buggy projected total must never appear.
+    // hero grand total, the composition row and the Aset fisik KPI (the
+    // composition no longer repeats the hero total as its own head) — and
+    // the buggy projected total must never appear.
     await waitFor(() => {
-      expect(screen.getAllByText("Rp 120.000.000")).toHaveLength(4);
+      expect(screen.getAllByText("Rp 120.000.000")).toHaveLength(3);
     });
     expect(screen.queryByText("Rp 170.000.000")).not.toBeInTheDocument();
   });

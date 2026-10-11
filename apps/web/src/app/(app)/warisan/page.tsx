@@ -1,5 +1,6 @@
 "use client";
 
+import { roundedShares } from "@/lib/shares";
 import { useState } from "react";
 import {
   Building,
@@ -987,7 +988,20 @@ export default function WarisanPage() {
   // (warisan.html's `draw()`: empty list → "start recording"; 100% → "all
   // allocated"; otherwise the running unallocated percentage, e.g.
   // "2% nilai belum dialokasikan").
-  const unallocatedPct = Math.max(0, 100 - allocatedPct);
+  // Same rounding as the composition rows above, so "x% belum
+  // dialokasikan" always equals the unallocated row's own percent.
+  const rankedComp = compItems
+    .filter((item) => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+  const unallocatedIndex = rankedComp.findIndex(
+    (item) => item.label === t.warisan.heirAllocationUnallocatedLabel,
+  );
+  const unallocatedPct =
+    unallocatedIndex >= 0
+      ? (roundedShares(rankedComp.map((item) => item.value))[
+          unallocatedIndex
+        ] ?? 0)
+      : Math.max(0, 100 - allocatedPct);
   const insightTitle =
     assets.length === 0
       ? t.warisan.insightEmptyTitle
@@ -1022,8 +1036,6 @@ export default function WarisanPage() {
               {compItems.length > 0 ? (
                 <CompositionStack
                   items={compItems}
-                  center={money.format(Number(totalValue))}
-                  sub={t.warisan.v2.compTotalLabel}
                   label={t.warisan.v2.chartAria}
                   format={money.format}
                 />

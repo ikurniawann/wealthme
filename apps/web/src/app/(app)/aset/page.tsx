@@ -1148,8 +1148,6 @@ export default function AsetPage() {
               {isLoading ? null : compItems.length > 0 ? (
                 <CompositionStack
                   items={compItems}
-                  center={money.format(grandTotal)}
-                  sub={t.aset.v2.compAria}
                   label={t.aset.v2.compAria}
                   format={money.format}
                 />
