@@ -1,6 +1,6 @@
 /**
  * Revisi E — the display-currency picker offers IDR, Emas and a select of
- * every foreign FX code (with flags). Default locale is "id".
+ * every foreign FX code (with symbols). Default locale is "id".
  */
 
 import { fireEvent, render, screen, within } from "@testing-library/react";
@@ -32,7 +32,7 @@ function renderLead(displayCurrency: DisplayCurrency) {
 }
 
 describe("RingkasanPageLead — display currency picker", () => {
-  it("offers IDR, Emas and every foreign FX currency with its flag", () => {
+  it("offers IDR, Emas and every foreign FX currency with its symbol", () => {
     const { select } = renderLead("IDR");
 
     expect(screen.getByRole("tab", { name: "IDR" })).toBeInTheDocument();
@@ -41,7 +41,14 @@ describe("RingkasanPageLead — display currency picker", () => {
       within(select)
         .getAllByRole("option")
         .map((o) => o.textContent),
-    ).toEqual(["🇺🇸 USD", "🇸🇬 SGD", "🇪🇺 EUR", "🇯🇵 JPY", "🇦🇺 AUD", "🇨🇳 CNY"]);
+    ).toEqual([
+      "USD (US$)",
+      "SGD (S$)",
+      "EUR (€)",
+      "JPY (¥)",
+      "AUD (A$)",
+      "CNY (CN¥)",
+    ]);
   });
 
   it("picking a foreign currency switches the display currency", () => {

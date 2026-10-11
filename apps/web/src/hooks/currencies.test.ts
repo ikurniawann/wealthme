@@ -3,6 +3,7 @@
  * /ringkasan (display picker). Must match apps/api/src/fx/fx-mock.service.ts.
  */
 
+import { currencyDisplay } from "@/lib/format";
 import { en } from "@/i18n/en";
 import { id } from "@/i18n/id";
 
@@ -21,10 +22,13 @@ describe("CURRENCIES", () => {
     ]);
   });
 
-  it("gives every code a distinct, non-empty flag", () => {
-    const flags = CURRENCIES.map((c) => c.flag);
-    expect(flags.every((f) => f.length > 0)).toBe(true);
-    expect(new Set(flags).size).toBe(flags.length);
+  it("gives every code a distinct, non-empty symbol that matches the formatter", () => {
+    const symbols = CURRENCIES.map((c) => c.symbol);
+    expect(symbols.every((s) => s.length > 0)).toBe(true);
+    expect(new Set(symbols).size).toBe(symbols.length);
+    for (const c of CURRENCIES) {
+      expect(c.symbol).toBe(currencyDisplay(c.code).symbol);
+    }
   });
 
   it("has a display name for every code in both locales", () => {

@@ -2,7 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, HandHeart, X } from "lucide-react";
+import {
+  Church,
+  Gift,
+  HandHeart,
+  Heart,
+  HeartHandshake,
+  Landmark,
+  Plus,
+  School,
+  Wheat,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import "./donation.css";
 import { useSession } from "@/lib/auth-compat";
 import {
@@ -73,15 +85,17 @@ import type {
 } from "@wealthme/contracts";
 import { localIsoDate } from "@/lib/local-date";
 
-const DONATION_TYPE_ICON: Record<string, string> = {
-  zakat_maal: "🕌",
-  zakat_fitrah: "🍚",
-  infaq: "💝",
-  sedekah: "💝",
-  wakaf: "🏫",
+// Line icons, not emoji: emoji render as empty boxes where no emoji font is
+// installed, and they never matched the app's lucide icon set.
+const DONATION_TYPE_ICON: Record<string, LucideIcon> = {
+  zakat_maal: Landmark,
+  zakat_fitrah: Wheat,
+  infaq: HeartHandshake,
+  sedekah: Heart,
+  wakaf: School,
   // EPIC-023 F2 (D20, US-DON-6/7) — the obligatory Christian contribution.
-  persepuluhan: "✝️",
-  lainnya: "🎗️",
+  persepuluhan: Church,
+  lainnya: Gift,
 };
 
 const DONATION_TYPE_BG: Record<string, string> = {
@@ -531,6 +545,9 @@ export default function DonationPage() {
                 axis={money.formatAxis}
                 formatFull={money.format}
                 wide
+                // One bar per donation type: an average across types (shown
+                // as "Daily average" before) is not a figure anyone asked for.
+                showAverage={false}
                 ariaLabel={t.donation.heroTitle}
               />
             ) : !isLoading ? (
@@ -597,7 +614,7 @@ export default function DonationPage() {
                         <div className="flex items-center gap-1.5">
                           <select
                             aria-label={t.akun.pengaturan.religionLabel}
-                            className="select h-8 max-w-[150px] text-xs"
+                            className="select h-8 min-w-[150px] max-w-[220px] text-xs"
                             value={pendingReligion}
                             disabled={isReligionUpdating}
                             onChange={(e) =>
@@ -843,7 +860,10 @@ export default function DonationPage() {
                       background: DONATION_TYPE_BG[d.type] ?? "#F3F4F6",
                     }}
                   >
-                    {DONATION_TYPE_ICON[d.type] ?? "🤲"}
+                    {(() => {
+                      const Icon = DONATION_TYPE_ICON[d.type] ?? HandHeart;
+                      return <Icon className="size-4" aria-hidden="true" />;
+                    })()}
                   </div>
                   {/* UI/UX audit fix (docs/uiux-beda) — flex-1 without min-w-0
                     lets this column's content dictate its width, so a long

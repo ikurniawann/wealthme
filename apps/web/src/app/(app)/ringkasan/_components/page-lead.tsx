@@ -114,7 +114,7 @@ export function RingkasanPageLead({
         </option>
         {FOREIGN_CURRENCIES.map((c) => (
           <option key={c.code} value={c.code}>
-            {`${c.flag} ${c.code}`}
+            {`${c.code} (${c.symbol})`}
           </option>
         ))}
       </select>

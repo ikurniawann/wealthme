@@ -1392,7 +1392,10 @@ export default function AsuransiPage() {
   // (no fabricated history) until real payment history exists.
   const coverageByType = new Map<string, bigint>();
   for (const item of insurances ?? []) {
-    if (!item.coverageAmount) continue;
+    // Same set as `totalCoverageAktif` below, which titles this card: an
+    // inactive policy covers nothing, and counting it made the rows sum to
+    // far more than the "aktif" total in the header.
+    if (!item.coverageAmount || item.status !== "aktif") continue;
     const label = t.asuransi.typeLabels[item.type] ?? item.type;
     coverageByType.set(
       label,

@@ -1,4 +1,6 @@
-// Structural only (code/flag); names resolve from `t.akun.pengaturan.currencies[code]`.
+// Structural only (code/symbol); names resolve from `t.akun.pengaturan.currencies[code]`.
+// `symbol` replaced emoji flags: flag emoji render as tofu boxes without an
+// emoji font and as bare letters on Windows ("EU EUR").
 export type CurrencyCode =
   | "IDR"
   | "USD"
@@ -10,19 +12,19 @@ export type CurrencyCode =
 
 export type ForeignCurrencyCode = Exclude<CurrencyCode, "IDR">;
 
-export const CURRENCIES: readonly { code: CurrencyCode; flag: string }[] = [
-  { code: "IDR", flag: "🇮🇩" },
-  { code: "USD", flag: "🇺🇸" },
-  { code: "SGD", flag: "🇸🇬" },
-  { code: "EUR", flag: "🇪🇺" },
-  { code: "JPY", flag: "🇯🇵" },
-  { code: "AUD", flag: "🇦🇺" },
-  { code: "CNY", flag: "🇨🇳" },
+export const CURRENCIES: readonly { code: CurrencyCode; symbol: string }[] = [
+  { code: "IDR", symbol: "Rp" },
+  { code: "USD", symbol: "US$" },
+  { code: "SGD", symbol: "S$" },
+  { code: "EUR", symbol: "€" },
+  { code: "JPY", symbol: "¥" },
+  { code: "AUD", symbol: "A$" },
+  { code: "CNY", symbol: "CN¥" },
 ];
 
 export const FOREIGN_CURRENCIES: readonly {
   code: ForeignCurrencyCode;
-  flag: string;
+  symbol: string;
 }[] = CURRENCIES.filter(
-  (c): c is { code: ForeignCurrencyCode; flag: string } => c.code !== "IDR",
+  (c): c is { code: ForeignCurrencyCode; symbol: string } => c.code !== "IDR",
 );
