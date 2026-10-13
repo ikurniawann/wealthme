@@ -57,6 +57,11 @@ export interface CrudField {
    * and silently dropped from every PATCH — a dead field with nothing real
    * behind it. Rather than fabricate a persisted value, it's hidden once
    * there's nothing for it to represent.
+   *
+   * Also the opening balance ("saldo") of rekening/ewallet/cash: after
+   * creation the balance is the running sum of transactions, and the API
+   * ignores `balance` on PATCH (2026-10-13 staging: retyping it erased an
+   * expense from the card).
    */
   hideOnEdit?: boolean;
   /** Select options come from this Master Data group; static `options` stay as the fallback. */
@@ -135,7 +140,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         type: "text",
         placeholder: "cth: 1234567890",
       },
-      { key: "saldo", label: "Saldo Saat Ini", type: "amount" },
+      {
+        key: "saldo",
+        label: "Saldo Saat Ini",
+        type: "amount",
+        hideOnEdit: true,
+      },
       {
         key: "jenis",
         label: "Jenis",
@@ -176,7 +186,12 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         type: "text",
         placeholder: "08xxxxxxxxxx",
       },
-      { key: "saldo", label: "Saldo Saat Ini", type: "amount" },
+      {
+        key: "saldo",
+        label: "Saldo Saat Ini",
+        type: "amount",
+        hideOnEdit: true,
+      },
       {
         // EPIC-033 R3 — options injected via CrudModal `dynamicOptions`.
         key: "ownerUserId",
@@ -207,6 +222,7 @@ export const CRUD_CONFIG: Record<CrudEntity, CrudEntityConfig> = {
         label: "Saldo Saat Ini",
         type: "amount",
         allowNegative: true,
+        hideOnEdit: true,
       },
       {
         // EPIC-033 R3 — options injected via CrudModal `dynamicOptions`.

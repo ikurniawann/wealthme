@@ -7,8 +7,16 @@ import { CreateAccountDto } from "./create-account.dto";
 // a class member's type can't be widened (to include `null`) when overriding
 // an inherited property, so PartialType(CreateAccountDto) alone can't express
 // "explicitly clear back to family-shared".
+//
+// `balance` (and the `fxInputs` that only ever converted it) are omitted on
+// purpose: after creation an account's balance is the running sum of its
+// transactions. Letting the edit form overwrite it silently erased every
+// transaction recorded before the overwrite (staging, 2026-10-13: a
+// Rp 212.000 expense vanished from a card after its balance was retyped).
+// The global ValidationPipe runs with `whitelist: true`, so an older client
+// that still sends `balance` has it stripped instead of failing the edit.
 class UpdateAccountBaseDto extends PartialType(
-  OmitType(CreateAccountDto, ["ownerUserId"] as const),
+  OmitType(CreateAccountDto, ["ownerUserId", "balance", "fxInputs"] as const),
 ) {}
 
 export class UpdateAccountDto extends UpdateAccountBaseDto {

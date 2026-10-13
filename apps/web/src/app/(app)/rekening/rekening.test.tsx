@@ -255,12 +255,13 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
       (call) => call[1]?.method === "PATCH",
     );
     expect(patchCall).toBeDefined();
-    const body = JSON.parse(patchCall![1].body as string) as {
-      balance: number;
-      type?: string;
-    };
-    // Unchanged pre-existing behavior — no `type` resend for non-cash edits.
-    expect(body.balance).toBe(1000000);
+    const body = JSON.parse(patchCall![1].body as string) as Record<
+      string,
+      unknown
+    >;
+    // No `type` resend for non-cash edits, and never a balance: it only
+    // moves through transactions.
+    expect(body).not.toHaveProperty("balance");
     expect(body.type).toBeUndefined();
   });
 
@@ -329,7 +330,7 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
     ).toBe("Bank Tes MD");
   });
 
-  it("revisi I — editing a saved account without touching the amount sends no fxInputs", async () => {
+  it("editing a saved account shows no Saldo field and sends no balance or fxInputs", async () => {
     mockApiRoutes([
       buildAccount({
         id: "acc-md",
@@ -345,13 +346,16 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
     await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
     await user.click(await screen.findByText("Edit"));
     const dialog = within(await screen.findByRole("dialog"));
-    await dialog.findByLabelText("Saldo Saat Ini");
+    await dialog.findByRole("button", { name: /Simpan/i });
+    expect(dialog.queryByLabelText("Saldo Saat Ini")).toBeNull();
 
     await user.click(dialog.getByRole("button", { name: /Simpan/i }));
     const patch = mockApiFetch.mock.calls.find(
       ([, init]) => init?.method === "PATCH",
     );
-    expect(JSON.parse(patch![1].body)).not.toHaveProperty("fxInputs");
+    const body = JSON.parse(patch![1].body);
+    expect(body).not.toHaveProperty("fxInputs");
+    expect(body).not.toHaveProperty("balance");
   });
 });
 

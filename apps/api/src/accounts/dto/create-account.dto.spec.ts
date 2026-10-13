@@ -63,28 +63,18 @@ describe("CreateAccountDto balance validation (#21/#22)", () => {
   });
 });
 
-describe("UpdateAccountDto balance validation (#21/#22, PartialType inheritance)", () => {
-  it("passes a negative balance update when type is resent as cash", async () => {
-    const dto = plainToInstance(UpdateAccountDto, {
-      type: "cash",
-      balance: -10000,
-    });
-    const errors = await validate(dto);
-    expect(errors.some((e) => e.property === "balance")).toBe(false);
-  });
-
-  it("fails a negative balance update when type is resent as bank", async () => {
-    const dto = plainToInstance(UpdateAccountDto, {
-      type: "bank",
-      balance: -10000,
-    });
-    const errors = await validate(dto);
-    expect(errors.some((e) => e.property === "balance")).toBe(true);
-  });
-
-  it("fails a negative balance update when type is omitted (safe default — caller must resend type: cash to unlock this)", async () => {
-    const dto = plainToInstance(UpdateAccountDto, { balance: -10000 });
-    const errors = await validate(dto);
-    expect(errors.some((e) => e.property === "balance")).toBe(true);
+describe("UpdateAccountDto has no balance (2026-10-13 staging incident)", () => {
+  it("strips balance and fxInputs under the app's whitelist ValidationPipe", async () => {
+    const { ValidationPipe } = await import("@nestjs/common");
+    const pipe = new ValidationPipe({ whitelist: true, transform: true });
+    const out = (await pipe.transform(
+      {
+        name: "BCA",
+        balance: 15_111_882,
+        fxInputs: [{ field: "balance", currency: "USD", amount: "1.00" }],
+      },
+      { type: "body", metatype: UpdateAccountDto },
+    )) as Record<string, unknown>;
+    expect(out).toEqual({ name: "BCA" });
   });
 });

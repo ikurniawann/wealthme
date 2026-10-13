@@ -274,7 +274,6 @@ export class AccountsService {
           ...(dto.maskedNumber !== undefined && {
             maskedNumber: this.crypto.encrypt(dto.maskedNumber),
           }),
-          ...(dto.balance !== undefined && { balance: BigInt(dto.balance) }),
           ...(dto.currency !== undefined && { currency: dto.currency }),
           ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
           ...(ownerUserId !== undefined && { ownerUserId }),

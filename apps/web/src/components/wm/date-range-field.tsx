@@ -676,7 +676,7 @@ export function DateField({
                 </span>
                 <select
                   aria-label={dict.common.datePickerYearLabel}
-                  className="select h-8 w-auto py-0 pr-7 pl-2 text-[12.5px]"
+                  className="select date-range__year"
                   value={view.year}
                   onChange={(event) =>
                     setView((current) => ({

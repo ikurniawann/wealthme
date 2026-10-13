@@ -55,19 +55,6 @@ import { useMoney } from "@/hooks/use-money";
 import type { AccountDto } from "@wealthme/contracts";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
-// EPIC-022 A2 — "Data Kas bisa minus": `parseRupiah` (lib/format.ts, a
-// protected foundation file) strips every non-digit character including a
-// leading "-", so it can never round-trip a negative cash balance. This
-// page-local helper mirrors /dana's (see WM_CONVENTIONS.md — inline a helper
-// here instead of touching lib/*) and is only used for the `cash` entity
-// below; every other account type keeps using the shared `parseRupiah`.
-function parseSignedRupiah(value: string | null | undefined): number {
-  if (!value) return 0;
-  const isNegative = value.trim().startsWith("-");
-  const digits = parseInt(value.replace(/\D/g, ""), 10) || 0;
-  return isNegative ? -digits : digits;
-}
-
 // The indicative USD total uses id-ID grouping (period thousands, comma
 // decimal) like every other amount on the page; the "US$" prefix comes from
 // `t.rekening.approxUsdPrefix`.
@@ -560,17 +547,12 @@ export default function RekeningPage() {
     // `type: undefined !== "cash"` and reject/clamp the balance to >= 0.
     if (entity === "cash" && mode === "edit" && editingId) {
       try {
-        const balance = parseSignedRupiah(values.saldo ?? "0");
         await apiFetch(
           `/family-groups/${familyGroupId}/accounts/${editingId}`,
           {
             token,
             method: "PATCH",
-            body: JSON.stringify(
-              withCrudFx({ name: values.nama, balance, type: "cash" }, values, {
-                saldo: "balance",
-              }),
-            ),
+            body: JSON.stringify({ name: values.nama, type: "cash" }),
           },
         );
         toast.success(t.rekening.toastUpdated);
@@ -596,23 +578,18 @@ export default function RekeningPage() {
           {
             token,
             method: "PATCH",
-            body: JSON.stringify(
-              withCrudFx(
-                {
-                  name: values.nama,
-                  // F6 — "Nama Bank"/"Nomor Rekening" used to be dropped
-                  // here entirely: an edit to either field was accepted by
-                  // the form and silently discarded on save.
-                  institution: values.bank || undefined,
-                  maskedNumber: values.norek || undefined,
-                  balance,
-                  isPrivate,
-                  ownerUserId,
-                },
-                values,
-                { saldo: "balance" },
-              ),
-            ),
+            // No `balance`: after creation it only moves through
+            // transactions (the API strips it from a PATCH anyway).
+            body: JSON.stringify({
+              name: values.nama,
+              // F6 — "Nama Bank"/"Nomor Rekening" used to be dropped
+              // here entirely: an edit to either field was accepted by
+              // the form and silently discarded on save.
+              institution: values.bank || undefined,
+              maskedNumber: values.norek || undefined,
+              isPrivate,
+              ownerUserId,
+            }),
           },
         );
         toast.success(t.rekening.toastUpdated);

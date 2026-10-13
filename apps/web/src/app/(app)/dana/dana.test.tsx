@@ -316,7 +316,7 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
     expect(body.balance).toBe(-50000);
   });
 
-  it("preserves an already-negative cash balance across an unrelated edit (no sign-flip regression)", async () => {
+  it("an unrelated edit never resends the balance (it only moves through transactions)", async () => {
     // Arrange — this account already went negative via an over-budget
     // expense transaction (the pre-existing, transaction-driven path).
     mockApiFetch.mockResolvedValue([
@@ -335,22 +335,23 @@ describe("DanaPage — multiple cash accounts as master data (EPIC-021 #3)", () 
       }),
     ]); // refetch
 
-    // Act — edit only the name, never touching the amount field.
+    // Act — edit the account; the form has no amount field to touch.
     await user.click(screen.getAllByRole("button", { name: "Ubah" })[0]!);
     const dialog = within(await screen.findByRole("dialog"));
-    // The amount field must display the existing negative balance, not a
-    // sign-stripped positive one.
-    expect(dialog.getByPlaceholderText("0")).toHaveValue("-75.000");
+    expect(dialog.queryByLabelText("Saldo Saat Ini")).toBeNull();
     await user.click(dialog.getByRole("button", { name: /Simpan/i }));
 
-    // Assert — the PATCH resubmits the SAME negative balance, not +75000.
+    // Assert — the PATCH carries no balance, so it cannot overwrite the
+    // transaction-derived -75.000.
     const patchCall = mockApiFetch.mock.calls.find(
       (call) => call[1]?.method === "PATCH",
     );
     expect(patchCall).toBeDefined();
-    const body = JSON.parse(patchCall![1].body as string) as {
-      balance: number;
-    };
-    expect(body.balance).toBe(-75000);
+    const body = JSON.parse(patchCall![1].body as string) as Record<
+      string,
+      unknown
+    >;
+    expect(body).not.toHaveProperty("balance");
+    expect(body).not.toHaveProperty("fxInputs");
   });
 });

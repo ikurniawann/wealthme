@@ -423,18 +423,15 @@ describe("CrudModal — revisi I money", () => {
     });
   });
 
-  it("revisi I — a USD-display user's edit form opens on IDR and sends no fxInputs", async () => {
+  it("an account's balance is not editable: the edit form has no Saldo field", async () => {
     mockPref.mockReturnValue(USD_PREF);
     const { onSubmit } = renderRekening({
       mode: "edit",
       initialValues: { nama: "BCA", saldo: "5000000" },
     });
-    expect(screen.getByRole("button", { name: "Mata uang" })).toHaveTextContent(
-      "IDR",
-    );
+    expect(screen.queryByLabelText("Saldo Saat Ini")).toBeNull();
     await userEvent.click(screen.getByRole("button", { name: /simpan/i }));
     expect(onSubmit.mock.calls[0][2]).not.toHaveProperty("saldo__fx");
-    expect(onSubmit.mock.calls[0][2].saldo).toBe("5.000.000");
   });
 
   it("revisi I — IDR amounts reach onSubmit exactly as typed (no __fx key)", async () => {

@@ -150,45 +150,13 @@ export class AccountsController {
     @Body() dto: UpdateAccountDto,
     @Req() req: Request,
   ): Promise<AccountResponseDto> {
-    // UpdateAccountDto is a PartialType, so `type` is optional and client-controlled. The negative
-    // allowance must come from the STORED account. Only look it up when a conversion is requested.
-    const storedType = dto.fxInputs?.length
-      ? (
-          await this.accountsService.findOne(
-            familyGroupId,
-            id,
-            canSeePrivateItems(req.tenantContext?.member?.role),
-            req.tenantContext?.member ?? null,
-            req.tenantContext?.userId,
-          )
-        ).type
-      : undefined;
-    // Both the STORED type and the type this request would leave the account as must be
-    // "cash" — `AccountsService.update` applies `dto.type` with no balance re-check, so a
-    // client sending `type: "bank"` alongside a negative foreign preview must not slip
-    // through just because the account was cash before this PATCH.
-    const effectiveType = dto.type ?? storedType;
-    const allowsNegative = storedType === "cash" && effectiveType === "cash";
-    return this.fxInputs.run(
-      {
-        familyGroupId,
-        userId: req.tenantContext?.userId ?? null,
-        entity: "Account",
-        entityId: id,
-        dto,
-        spec: accountBalanceSpec(allowsNegative ? "cash" : undefined),
-      },
-      (converted) =>
-        this.accountsService
-          .update(familyGroupId, id, converted, actorOf(req))
-          .then((a) =>
-            redactAccount(
-              a,
-              req.tenantContext?.member,
-              req.tenantContext?.userId,
-            ),
-          ),
-    );
+    // No fx conversion here: UpdateAccountDto carries no money field (the
+    // balance only moves through transactions — see update-account.dto.ts).
+    return this.accountsService
+      .update(familyGroupId, id, dto, actorOf(req))
+      .then((a) =>
+        redactAccount(a, req.tenantContext?.member, req.tenantContext?.userId),
+      );
   }
 
   @Delete(":id")

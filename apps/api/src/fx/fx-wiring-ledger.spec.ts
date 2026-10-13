@@ -124,49 +124,18 @@ describe("fx wiring — ledger routes (revisi I)", () => {
     expect(accounts.create).not.toHaveBeenCalled();
   });
 
-  it("cash edit without `type` still accepts USD -20 (type comes from the stored account)", async () => {
-    accounts.findOne.mockResolvedValue({ id: "acc-cash", type: "cash" });
+  it("PATCH ignores balance and fxInputs: an edit never rewrites the balance", async () => {
     await http()
       .patch(`/family-groups/${FG}/accounts/acc-cash`)
       .send({
+        name: "Dompet",
         balance: 0,
         fxInputs: [{ field: "balance", currency: "USD", amount: "-20.00" }],
       })
       .expect(200);
-    expect(accounts.findOne).toHaveBeenCalledWith(
-      FG,
-      "acc-cash",
-      expect.anything(),
-      expect.anything(),
-      "u-owner",
-    );
-    expect(accounts.update.mock.calls[0][2].balance).toBe(-358_278);
-  });
-
-  it('`type: "cash"` sent for a stored bank account does NOT allow a negative foreign balance', async () => {
-    accounts.findOne.mockResolvedValue({ id: "acc-1", type: "bank" });
-    const res = await http()
-      .patch(`/family-groups/${FG}/accounts/acc-1`)
-      .send({
-        type: "cash",
-        balance: 0,
-        fxInputs: [{ field: "balance", currency: "USD", amount: "-20.00" }],
-      });
-    expect(res.status).toBe(400);
-    expect(accounts.update).not.toHaveBeenCalled();
-  });
-
-  it("stored cash account switched to bank in the same PATCH does NOT allow a negative foreign balance", async () => {
-    accounts.findOne.mockResolvedValue({ id: "acc-cash", type: "cash" });
-    const res = await http()
-      .patch(`/family-groups/${FG}/accounts/acc-cash`)
-      .send({
-        type: "bank",
-        balance: 0,
-        fxInputs: [{ field: "balance", currency: "USD", amount: "-20.00" }],
-      });
-    expect(res.status).toBe(400);
-    expect(accounts.update).not.toHaveBeenCalled();
+    expect(accounts.update.mock.calls[0][2]).toEqual({ name: "Dompet" });
+    expect(accounts.findOne).not.toHaveBeenCalled();
+    expect(fx.prisma.fxConversion.createMany).not.toHaveBeenCalled();
   });
 
   it("PATCH without fxInputs never converts (editing keeps the stored IDR)", async () => {

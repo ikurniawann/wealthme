@@ -562,38 +562,29 @@ export default function DanaPage() {
           {
             token,
             method: "PATCH",
-            // EPIC-021 #21 — `type` must be resent so the API's negative-
-            // balance relaxation (cash only, see CreateAccountDto.balance)
-            // can see this is a cash account even on a partial update that
-            // doesn't otherwise touch `type`.
-            body: JSON.stringify(
-              withCrudFx(
-                {
-                  name:
-                    danaEntity === "ewallet"
-                      ? ewalletAccountName(values.nama, values.phone)
-                      : values.nama,
-                  // F6 — `nama` on the e-wallet form IS the provider select
-                  // (GoPay/OVO/...), exactly like at create time; only
-                  // sending `name` here let a provider change desync
-                  // `name` from the account's real `institution`, and any
-                  // picker keyed off `institution` (e.g. rekening's brand
-                  // logo lookup) kept showing the OLD provider after the
-                  // "rename".
-                  ...(danaEntity === "ewallet"
-                    ? {
-                        institution: values.nama,
-                        maskedNumber: values.phone || undefined,
-                      }
-                    : {}),
-                  balance,
-                  type: danaEntity,
-                  ownerUserId: values.ownerUserId || null,
-                },
-                values,
-                { saldo: "balance" },
-              ),
-            ),
+            // No `balance`: after creation it only moves through
+            // transactions (the API strips it from a PATCH anyway).
+            body: JSON.stringify({
+              name:
+                danaEntity === "ewallet"
+                  ? ewalletAccountName(values.nama, values.phone)
+                  : values.nama,
+              // F6 — `nama` on the e-wallet form IS the provider select
+              // (GoPay/OVO/...), exactly like at create time; only
+              // sending `name` here let a provider change desync
+              // `name` from the account's real `institution`, and any
+              // picker keyed off `institution` (e.g. rekening's brand
+              // logo lookup) kept showing the OLD provider after the
+              // "rename".
+              ...(danaEntity === "ewallet"
+                ? {
+                    institution: values.nama,
+                    maskedNumber: values.phone || undefined,
+                  }
+                : {}),
+              type: danaEntity,
+              ownerUserId: values.ownerUserId || null,
+            }),
           },
         );
         toast.success(`${label}${t.dana.toastUpdatedSuffix}`);
