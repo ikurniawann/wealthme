@@ -389,6 +389,8 @@ export const id = {
       panduan: "Panduan",
     },
     transactionDialog: {
+      noAssignedAccount:
+        "Belum ada rekening yang ditugaskan untukmu, jadi transaksi belum bisa dicatat. Minta Master menugaskan rekening dari halaman IAM.",
       tabIncome: "Pemasukan",
       tabExpense: "Pengeluaran",
       tabTransfer: "↕ Transfer",

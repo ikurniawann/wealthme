@@ -682,6 +682,8 @@ export type I18nDictionary = {
     pageTitles: Record<PageTitleId, string>;
     mobileNav: Record<MobileNavId, string>;
     transactionDialog: {
+      /** Account pickers, for an "own data" member who owns no account. */
+      noAssignedAccount: string;
       tabIncome: string;
       tabExpense: string;
       tabTransfer: string;

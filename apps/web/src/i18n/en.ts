@@ -382,6 +382,8 @@ export const en = {
       panduan: "Guide",
     },
     transactionDialog: {
+      noAssignedAccount:
+        "No account has been assigned to you yet, so you cannot record transactions. Ask the Master to assign one on the IAM page.",
       tabIncome: "Income",
       tabExpense: "Expense",
       tabTransfer: "↕ Transfer",

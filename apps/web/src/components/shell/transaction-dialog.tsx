@@ -78,6 +78,7 @@ import {
 } from "@wealthme/contracts";
 import { moneyIdr, useMoneyField, withFxInputs } from "@/components/money";
 import { useMoney } from "@/hooks/use-money";
+import { useMyAccess } from "@/hooks/use-my-access";
 import { useShell } from "./shell-context";
 import { localIsoDate } from "@/lib/local-date";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
@@ -112,6 +113,7 @@ type AccountDto = {
   name: string;
   institution: string | null;
   balance?: string;
+  ownerUserId?: string | null;
 };
 type CategoryDto = {
   id: string;
@@ -411,12 +413,25 @@ export function TransactionDialog() {
   });
   const fgId = me?.familyGroupId ?? "";
 
-  const { data: accounts = [] } = useQuery<AccountDto[]>({
+  const { data: visibleAccounts = [] } = useQuery<AccountDto[]>({
     queryKey: fgId ? queryKeys.accounts.all(fgId) : ["accounts-off"],
     queryFn: () =>
       apiFetch<AccountDto[]>(`/family-groups/${fgId}/accounts`, { token }),
     enabled: !!fgId && !!token,
   });
+  // An "own data" role may SEE the family-shared accounts but only POST on
+  // accounts it owns (TransactionsService.assertAccountOwnedByActingMember
+  // checks source and destination). Offering the shared ones let the member
+  // fill the whole form and then fail on Simpan with "This role may only
+  // record transactions on an account they own".
+  const { access } = useMyAccess();
+  const ownScope = access?.dataScope === "own";
+  const accounts = ownScope
+    ? visibleAccounts.filter((a) => a.ownerUserId === session?.userId)
+    : visibleAccounts;
+  const accountsEmptyLabel = ownScope
+    ? t.shell.transactionDialog.noAssignedAccount
+    : undefined;
 
   const { data: categories = [] } = useQuery<CategoryDto[]>({
     queryKey: fgId ? queryKeys.categories.all(fgId) : ["categories-off"],
@@ -1175,7 +1190,10 @@ export function TransactionDialog() {
                       label={t.shell.transactionDialog.sourceAccountLabel}
                       value={selectedAccountId}
                       choices={accountChoices}
-                      empty={t.shell.transactionDialog.sourceAccountPlaceholder}
+                      empty={
+                        accountsEmptyLabel ??
+                        t.shell.transactionDialog.sourceAccountPlaceholder
+                      }
                       invalid={Boolean(fieldErrors.account)}
                       errorId={sourceErrorId}
                       countLabel={tilesCountLabel}
@@ -1201,7 +1219,10 @@ export function TransactionDialog() {
                       choices={accountChoices.filter(
                         (choice) => choice.value !== selectedAccountId,
                       )}
-                      empty={t.shell.transactionDialog.destAccountPlaceholder}
+                      empty={
+                        accountsEmptyLabel ??
+                        t.shell.transactionDialog.destAccountPlaceholder
+                      }
                       invalid={Boolean(fieldErrors.destAccount)}
                       errorId={destErrorId}
                       countLabel={tilesCountLabel}
@@ -1251,7 +1272,10 @@ export function TransactionDialog() {
                       label={t.shell.transactionDialog.accountLabel}
                       value={selectedAccountId}
                       choices={accountChoices}
-                      empty={t.shell.transactionDialog.accountPlaceholder}
+                      empty={
+                        accountsEmptyLabel ??
+                        t.shell.transactionDialog.accountPlaceholder
+                      }
                       invalid={Boolean(fieldErrors.account)}
                       errorId={accountErrorId}
                       countLabel={tilesCountLabel}

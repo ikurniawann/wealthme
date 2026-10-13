@@ -2489,3 +2489,71 @@ describe("TransactionDialog, fast recording (last-used defaults, inline validati
     expect(screen.getByRole("radio", { name: "Belanja" })).toBeChecked();
   });
 });
+
+describe("TransactionDialog, own-data roles only post on their own accounts (staging report 2026-10-13)", () => {
+  const OWN_ACCESS = {
+    isMaster: false,
+    permissions: {},
+    dataScope: "own",
+    source: "custom-role",
+    hasOverrides: false,
+    role: "member",
+  };
+  function routeOwnScope(accounts: unknown[]) {
+    mockApiFetch.mockImplementation((url: string) => {
+      if (url.endsWith("/access/me")) return Promise.resolve(OWN_ACCESS);
+      if (url === "/family-groups/mine") {
+        return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "member" }]);
+      }
+      if (url.endsWith("/accounts")) return Promise.resolve(accounts);
+      return defaultApiFetch(url);
+    });
+  }
+  afterEach(() => mockApiFetch.mockImplementation(defaultApiFetch));
+
+  it("offers only the accounts the member owns, never the family-shared ones they can merely see", async () => {
+    routeOwnScope([
+      {
+        id: "acc-shared",
+        name: "BCA Keluarga",
+        institution: "BCA",
+        ownerUserId: null,
+      },
+      {
+        id: "acc-mine",
+        name: "Dompet Sita",
+        institution: null,
+        ownerUserId: "u-1",
+      },
+    ]);
+    render(<TransactionDialog />);
+
+    expect(
+      await screen.findByRole("radio", { name: /Dompet Sita/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: /BCA Keluarga/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("explains that the Master must assign an account when the member owns none", async () => {
+    routeOwnScope([
+      {
+        id: "acc-shared",
+        name: "BCA Keluarga",
+        institution: "BCA",
+        ownerUserId: null,
+      },
+    ]);
+    render(<TransactionDialog />);
+
+    expect(
+      await screen.findByText(
+        mockDictionary.shell.transactionDialog.noAssignedAccount,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: /BCA Keluarga/ }),
+    ).not.toBeInTheDocument();
+  });
+});
