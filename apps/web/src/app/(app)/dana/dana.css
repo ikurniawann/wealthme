@@ -1434,3 +1434,23 @@
   }
 }
 /* Reconcile dialog — END */
+
+/* Dark theme lift for the data-dense page (unlayered; light untouched). */
+.dark .kw {
+  --wm-card: #202124;
+  --wm-card-2: #2b2c30;
+  --wm-ghost: #36373c;
+  --wm-line: rgb(255 255 255 / 0.13);
+  --wm-muted: #b3b3ae;
+}
+.dark .kw .kw-summary {
+  background: linear-gradient(160deg, #24392f 0%, #202124 70%);
+  border-color: rgb(198 228 140 / 0.16);
+}
+.dark .kw .kw-row-head {
+  background: #30323a;
+  color: #c4c4bf;
+}
+.dark .kw .kw-row:not(.kw-row-head):hover {
+  background: rgb(255 255 255 / 0.05);
+}

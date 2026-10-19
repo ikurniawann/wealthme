@@ -1561,3 +1561,37 @@
 .rk3-pop [data-slot="dropdown-menu-separator"] {
   margin: 6px 4px;
 }
+
+/* Dark theme lift for the data-dense page (unlayered: must beat the
+   `.dark .wm-dark` hero token block in bento.css). Light theme untouched. */
+.dark .rk3 {
+  --wm-card: #202124;
+  --wm-card-2: #2b2c30;
+  --wm-ghost: #36373c;
+  --wm-line: rgb(255 255 255 / 0.13);
+  --wm-muted: #b3b3ae;
+}
+.dark .rk3 .wm-dark {
+  --wm-card: #1d4234;
+  --wm-card-2: #25513f;
+  --wm-line: rgb(238 240 232 / 0.16);
+  --wm-muted: #b4bca6;
+  --wm-cover-start: #214a3b;
+  --wm-cover-mid: #1a3d31;
+  --wm-cover-end: #143027;
+  --wm-cover-glow: rgb(198 228 140 / 0.1);
+  border-color: rgb(198 228 140 / 0.18);
+}
+.dark .rk3 .rk3-gh {
+  background: rgb(255 255 255 / 0.035);
+}
+.dark .rk3 .rk3-th {
+  background: #30323a;
+  color: #c4c4bf;
+}
+.dark .rk3 .rk3-tr:not(.rk3-th):hover {
+  background: rgb(255 255 255 / 0.05);
+}
+.dark .rk3 .rk3-tr[data-dim] {
+  opacity: 0.72;
+}
