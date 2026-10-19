@@ -169,6 +169,7 @@ export default function DanaPage() {
         hidden={hidden}
         onToggleHidden={() => setHidden((h) => !h)}
         loading={isLoading}
+        error={isError}
       />
       {isLoading && (
         <p className="kw-state" role="status">
@@ -179,6 +180,15 @@ export default function DanaPage() {
         <p className="kw-state kw-state-error" role="alert">
           {c.errorLoad}
         </p>
+      )}
+      {showContent && rows.length > 0 && (
+        <KasFilterBar
+          rows={rows}
+          filters={filters}
+          onChange={setFilters}
+          hidden={hidden}
+          onToggleHidden={() => setHidden((h) => !h)}
+        />
       )}
       <div className="kw-body">
         <div className="kw-main">
@@ -208,13 +218,6 @@ export default function DanaPage() {
           ) : (
             showContent && (
               <>
-                <KasFilterBar
-                  rows={rows}
-                  filters={filters}
-                  onChange={setFilters}
-                  hidden={hidden}
-                  onToggleHidden={() => setHidden((h) => !h)}
-                />
                 {filtered.length === 0 ? (
                   <section className="kw-card kw-empty">
                     <p>{c.noResults}</p>

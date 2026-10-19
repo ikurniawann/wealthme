@@ -1,7 +1,7 @@
 import type { AccountDto, FxRatesResponse } from "@wealthme/contracts";
 
 import {
-  findProvider,
+  matchProvider,
   walletCountry,
   type WalletProvider,
 } from "./wallet-directory";
@@ -76,7 +76,8 @@ export function toRows(
         kind,
         country,
         currency,
-        provider: kind === "ewallet" ? findProvider(a.institution) : undefined,
+        provider:
+          kind === "ewallet" ? matchProvider(a.institution, a.name) : undefined,
         idr,
         native,
         ownerKey: a.ownerUserId ?? "",

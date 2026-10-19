@@ -69,6 +69,9 @@ export interface DanaV3Copy {
     errorLoad: string;
     deleted: string;
     deleteFailed: string;
+    filtersLabel: string;
+    kindLabel: string;
+    viewOnlyNote: string;
   };
   form: {
     addCashTitle: string;
@@ -219,6 +222,9 @@ export const danaV3Id: DanaV3Copy = {
     errorLoad: "Data kas dan e-wallet gagal dimuat. Coba muat ulang halaman.",
     deleted: "Akun dihapus",
     deleteFailed: "Gagal menghapus akun",
+    filtersLabel: "Filter akun",
+    kindLabel: "Jenis akun",
+    viewOnlyNote: "Hanya pengelola akun yang bisa menambah akun baru.",
   },
   form: {
     addCashTitle: "Tambah Kas Tunai",
@@ -371,6 +377,9 @@ export const danaV3En: DanaV3Copy = {
     errorLoad: "Couldn't load cash and e-wallets. Try reloading the page.",
     deleted: "Account deleted",
     deleteFailed: "Couldn't delete the account",
+    filtersLabel: "Account filters",
+    kindLabel: "Account type",
+    viewOnlyNote: "Only account managers can add new accounts.",
   },
   form: {
     addCashTitle: "Add Cash",
