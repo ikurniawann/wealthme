@@ -43,7 +43,8 @@ primary session** (no Claude subagents, no slash commands).
   - API: `cd apps/api && set -a && . <devrun>/api.env && set +a && npx nest start --watch` (port 4100)
   - Web: `cd apps/web && set -a && . <devrun>/web.env && set +a && npx next dev -p 3100 -H 0.0.0.0`
   - env files live in `/tmp/claude-1000/-home-wit-WORK-vibes-wealthme-web/dd2d140b-ea4c-4be6-9b67-737e82a5acfd/scratchpad/devrun/` (`api.env`, `web.env`); if `/tmp` was cleared, rebuild them from `.env.example` + the dev DB container env — never print secrets.
-  - nginx reaches them via socat relays `wm-dev-api-relay` / `wm-dev-web-relay`.
+  - Both now run detached (`setsid nohup … &`), logs in `<devrun>/api.log` / `web.log`; they survive the Claude session. To restart one, find its PID with `pgrep -f "nest start"` / `pgrep -f "next dev"` and `kill <PID>` (never `pkill -f` in the same shell command — it matches the shell itself), then start it again the same way.
+- nginx reaches them via socat relays `wm-dev-api-relay` / `wm-dev-web-relay`.
   - Known issue: after `cd packages/contracts && npx tsup`, the nest watch
     caches stale declarations (new routes 404, "Found N errors") → restart
     the API process. Check `curl http://127.0.0.1:4100/health` → 200.
