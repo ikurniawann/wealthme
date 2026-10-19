@@ -50,6 +50,80 @@ function isUniqueViolation(err: unknown): boolean {
   );
 }
 
+const KEY_REUSED =
+  "idempotencyKey ini sudah dipakai untuk transaksi dengan isi berbeda. Muat ulang formulir lalu coba lagi.";
+const REPLAY_POLL_MS = 100;
+
+type StoredConversion = {
+  originalAmount: Prisma.Decimal;
+  originalCurrency: string;
+  idrPerUnit: Prisma.Decimal;
+  rateSource: string;
+};
+
+interface StoredTransfer {
+  amountIdr: bigint;
+  feeIdr: bigint;
+  source?: StoredConversion;
+  dest?: StoredConversion;
+  fee?: StoredConversion;
+}
+
+function requestIsForeign(dto: PocketTransferDto): boolean {
+  const hasFee = !new Prisma.Decimal(dto.fee ?? "0").isZero();
+  return (
+    dto.sourceCurrency !== "IDR" ||
+    dto.destCurrency !== "IDR" ||
+    (hasFee && (dto.feeCurrency ?? dto.sourceCurrency) !== "IDR")
+  );
+}
+
+function eqDec(a: Prisma.Decimal | bigint, b: string): boolean {
+  return new Prisma.Decimal(a.toString()).eq(new Prisma.Decimal(b));
+}
+
+/**
+ * R7 — does a replayed request describe the stored movement? Foreign
+ * transfers compare against their fx_conversions originals (amounts,
+ * currencies, actual rate); all-IDR transfers against the IDR rows.
+ */
+function samePayload(dto: PocketTransferDto, stored: StoredTransfer): boolean {
+  const fee = dto.fee ?? "0";
+  const feeZero = new Prisma.Decimal(fee).isZero();
+  const feeCurrency = dto.feeCurrency ?? dto.sourceCurrency;
+  if (!stored.source || !stored.dest) {
+    // Stored as all-IDR: the request must be all-IDR with the same numbers.
+    if (requestIsForeign(dto) || dto.fxRate !== undefined) return false;
+    if (!eqDec(stored.amountIdr, dto.sourceAmount)) return false;
+    if (!eqDec(stored.feeIdr, fee)) return false;
+    return (
+      dto.destAmount === undefined ||
+      eqDec(stored.amountIdr - stored.feeIdr, dto.destAmount)
+    );
+  }
+  const { source, dest } = stored;
+  if (
+    source.originalCurrency !== dto.sourceCurrency ||
+    !eqDec(source.originalAmount, dto.sourceAmount) ||
+    dest.originalCurrency !== dto.destCurrency ||
+    (dto.destAmount !== undefined &&
+      !eqDec(dest.originalAmount, dto.destAmount))
+  ) {
+    return false;
+  }
+  if (feeZero ? stored.fee !== undefined : !stored.fee) return false;
+  if (
+    stored.fee &&
+    (stored.fee.originalCurrency !== feeCurrency ||
+      !eqDec(stored.fee.originalAmount, fee))
+  ) {
+    return false;
+  }
+  const actual = [source, dest].find((c) => c.rateSource === "actual");
+  if (dto.fxRate === undefined) return actual === undefined;
+  return actual !== undefined && eqDec(actual.idrPerUnit, dto.fxRate);
+}
+
 /**
  * Investasi §4 — money into and out of a platform pocket. Both directions
  * are one real two-sided `transfer` written by TransactionsService.create
@@ -118,9 +192,13 @@ export class PocketTransfersService {
       : null;
     const amounts = computePocketTransferAmounts(amountsInput, snapshot);
 
-    if (direction === "withdraw") {
-      await this.assertAvailable(familyGroupId, pocket, amounts.amountIdr);
-    }
+    // R9 — whenever the SOURCE is a pocket (a withdrawal, or a top-up
+    // funded from another pocket) it may only spend settled cash. The
+    // pre-check gives the early message; `sourceFloor` re-checks under a
+    // row lock inside the write so concurrent debits cannot both pass.
+    const sourceFloor = source.platformAccountId
+      ? await this.assertAvailable(familyGroupId, source, amounts.amountIdr)
+      : undefined;
 
     let transactionId: string;
     try {
@@ -148,6 +226,7 @@ export class PocketTransfersService {
             direction === "top-up"
               ? TOP_UP_FEE_DESCRIPTION
               : WITHDRAW_FEE_DESCRIPTION,
+          ...(sourceFloor !== undefined ? { sourceFloor } : {}),
         },
       );
       if ("held" in created) {
@@ -157,7 +236,13 @@ export class PocketTransfersService {
       transactionId = created.id;
     } catch (err: unknown) {
       if (isUniqueViolation(err)) {
-        const again = await this.findReplay(familyGroupId, dto, legs, viewer);
+        const again = await this.findReplay(
+          familyGroupId,
+          dto,
+          legs,
+          viewer,
+          true,
+        );
         if (again) return again;
       }
       throw err;
@@ -227,22 +312,24 @@ export class PocketTransfersService {
   }
 
   /**
-   * §4 — a withdrawal may not take more than the pocket's available cash
-   * (recorded − unsettled proceeds). Checked before the write; the source
-   * debit itself runs inside TransactionsService.create's transaction.
+   * §4/R9 — a pocket may not give more than its available cash (recorded −
+   * unsettled proceeds). Returns the held IDR so the write re-checks it as
+   * `sourceFloor` under a row lock (TransactionsService.create).
    */
   private async assertAvailable(
     familyGroupId: string,
     pocket: Account,
     amountIdr: bigint,
-  ) {
+  ): Promise<bigint> {
     const held = await heldByPocket(this.prisma, familyGroupId, [pocket.id]);
-    const available = pocket.balance - (held.get(pocket.id)?.held ?? BigInt(0));
+    const heldIdr = held.get(pocket.id)?.held ?? BigInt(0);
+    const available = pocket.balance - heldIdr;
     if (amountIdr > available) {
       throw new BadRequestException(
-        `Dana tersedia di ${pocket.name} tidak mencukupi (tersedia Rp ${available.toString()}, dibutuhkan Rp ${amountIdr.toString()}). Dana hasil jual yang belum selesai (settlement) belum bisa ditarik.`,
+        `Dana tersedia di ${pocket.name} tidak mencukupi (tersedia Rp ${available.toString()}, dibutuhkan Rp ${amountIdr.toString()}). Dana hasil jual yang belum selesai (settlement) belum bisa dipakai.`,
       );
     }
+    return heldIdr;
   }
 
   private async liveSnapshot(): Promise<FxSnapshot> {
@@ -300,14 +387,21 @@ export class PocketTransfersService {
 
   /**
    * R7 replay — the original result for a used key, or null for a new key.
-   * A key already used for a different movement is a 409, never a silent
-   * success for the wrong transfer.
+   * The key must name the SAME movement: same legs, date and native
+   * amounts / currencies / fee / rate as stored (fx_conversions rows, or
+   * the IDR transaction rows when nothing was foreign). Anything else is a
+   * 409, never a silent 200 for a different transfer.
+   *
+   * `awaitConversions` (the concurrent-duplicate path): the winner writes
+   * its fx_conversions rows just after its commit, so a foreign request
+   * polls briefly for them before comparing.
    */
   private async findReplay(
     familyGroupId: string,
     dto: PocketTransferDto,
     legs: Legs,
     viewer: PlatformViewer,
+    awaitConversions = false,
   ): Promise<PocketTransferResultDto | null> {
     const tx = await this.prisma.transaction.findUnique({
       where: {
@@ -321,35 +415,45 @@ export class PocketTransfersService {
     if (
       tx.type !== "transfer" ||
       tx.accountId !== legs.sourceId ||
-      tx.toAccountId !== legs.destId
+      tx.toAccountId !== legs.destId ||
+      tx.occurredAt.getTime() !== new Date(dto.occurredAt).getTime()
     ) {
-      throw new ConflictException(
-        "idempotencyKey ini sudah dipakai untuk transaksi lain. Muat ulang formulir lalu coba lagi.",
-      );
+      throw new ConflictException(KEY_REUSED);
     }
-    const [feeRow, conversions] = await Promise.all([
-      this.prisma.transaction.findUnique({
-        where: {
-          familyGroupId_idempotencyKey: {
-            familyGroupId,
-            idempotencyKey: `${dto.idempotencyKey}:fee`,
-          },
-        },
-        select: { id: true, amount: true },
-      }),
-      this.prisma.fxConversion.findMany({
-        where: {
+    const feeRow = await this.prisma.transaction.findUnique({
+      where: {
+        familyGroupId_idempotencyKey: {
           familyGroupId,
-          entity: "Transaction",
-          entityId: tx.id,
-          field: { startsWith: `${FX_FIELD_PREFIX}.` },
+          idempotencyKey: `${dto.idempotencyKey}:fee`,
         },
-      }),
-    ]);
+      },
+      select: { id: true, amount: true },
+    });
+    let conversions = await this.loadConversions(familyGroupId, tx.id);
+    const foreignRequest = requestIsForeign(dto);
+    for (
+      let i = 0;
+      awaitConversions && foreignRequest && conversions.length === 0 && i < 5;
+      i++
+    ) {
+      await new Promise((r) => setTimeout(r, REPLAY_POLL_MS));
+      conversions = await this.loadConversions(familyGroupId, tx.id);
+    }
     const feeIdr = feeRow?.amount ?? BigInt(0);
     const byField = new Map(
       conversions.map((c) => [c.field.slice(FX_FIELD_PREFIX.length + 1), c]),
     );
+    if (
+      !samePayload(dto, {
+        amountIdr: tx.amount,
+        feeIdr,
+        source: byField.get("source"),
+        dest: byField.get("dest"),
+        fee: byField.get("fee"),
+      })
+    ) {
+      throw new ConflictException(KEY_REUSED);
+    }
     const src = byField.get("source");
     const dst = byField.get("dest");
     const fee = byField.get("fee");
@@ -375,5 +479,16 @@ export class PocketTransfersService {
         viewer,
       ),
     };
+  }
+
+  private loadConversions(familyGroupId: string, transactionId: string) {
+    return this.prisma.fxConversion.findMany({
+      where: {
+        familyGroupId,
+        entity: "Transaction",
+        entityId: transactionId,
+        field: { startsWith: `${FX_FIELD_PREFIX}.` },
+      },
+    });
   }
 }

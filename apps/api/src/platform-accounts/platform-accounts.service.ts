@@ -21,6 +21,11 @@ import {
   resolveOwnerForActor,
   type AccountActor,
 } from "../accounts/accounts.service";
+import {
+  POCKET_LABEL,
+  pocketCatalogEntry,
+  resolvePocketCurrency,
+} from "../accounts/pocket-rules.util";
 import { areBalancesHidden } from "../common/utils/balance-visibility.util";
 import {
   accountPrivacyWhere,
@@ -39,25 +44,13 @@ import type { CreatePlatformAccountDto } from "./dto/create-platform-account.dto
 import type { PlatformPocketItemDto } from "./dto/create-pocket.dto";
 import type { UpdatePlatformAccountDto } from "./dto/update-platform-account.dto";
 import type { TenantContext } from "../common/types/tenant-context";
-import type {
-  Account,
-  PlatformAccount,
-  PocketKind,
-  Prisma,
-} from "@prisma/client";
+import type { Account, PlatformAccount, Prisma } from "@prisma/client";
 
 /** Who is reading: drives privacy, row scope and "Lihat saldo" redaction. */
 export interface PlatformViewer {
   member: TenantContext["member"];
   userId?: string;
 }
-
-const POCKET_LABEL: Record<PocketKind, string> = {
-  rdn: "RDN",
-  crypto: "Dana Kripto",
-  usd: "Dana USD",
-  general: "Kas",
-};
 
 type PlatformRow = PlatformAccount & { owner: { name: string } | null };
 
@@ -242,7 +235,7 @@ export class PlatformAccountsService {
     actor: AccountActor | undefined,
     viewer: PlatformViewer,
   ): Promise<PlatformAccountDto> {
-    const platform = this.catalogEntry(dto.platformKey);
+    const platform = pocketCatalogEntry(dto.platformKey);
     const customName = cleanText(dto.customName);
     if (dto.platformKey === CUSTOM_PLATFORM_KEY && !customName) {
       throw new BadRequestException(
@@ -255,7 +248,11 @@ export class PlatformAccountsService {
     const pockets = dto.pockets ?? [];
     const seen = new Set<string>();
     for (const p of pockets) {
-      const currency = this.pocketCurrency(platform, p.pocketKind, p.currency);
+      const currency = resolvePocketCurrency(
+        platform,
+        p.pocketKind,
+        p.currency,
+      );
       const key = `${p.pocketKind}:${currency}`;
       if (seen.has(key)) {
         throw new BadRequestException(
@@ -400,26 +397,9 @@ export class PlatformAccountsService {
       platformAccountId,
       actor,
     );
-    const platform = this.catalogEntry(row.platformKey);
-    const currency = this.pocketCurrency(
-      platform,
-      dto.pocketKind,
-      dto.currency,
-    );
-    const duplicate = await this.prisma.account.findFirst({
-      where: {
-        familyGroupId,
-        platformAccountId,
-        pocketKind: dto.pocketKind,
-        currency,
-      },
-      select: { id: true },
-    });
-    if (duplicate) {
-      throw new ConflictException(
-        `Kantong ${POCKET_LABEL[dto.pocketKind]} ${currency} sudah ada di akun platform ini.`,
-      );
-    }
+    // The shared pocket rules (catalog kind, kind → currency, one pocket
+    // per (kind, currency), owner) run inside AccountsService.create.
+    const platform = pocketCatalogEntry(row.platformKey);
     const pocketId = await this.createPocketRow(
       familyGroupId,
       row,
@@ -462,40 +442,6 @@ export class PlatformAccountsService {
 
   // ── Helpers ──────────────────────────────────────────────────────────────
 
-  private catalogEntry(platformKey: string): InvestmentPlatform {
-    const entry = findInvestmentPlatform(platformKey);
-    if (!entry) {
-      throw new BadRequestException(
-        `Platform "${platformKey}" tidak ada di katalog. Pilih "Platform lain" untuk platform yang belum terdaftar.`,
-      );
-    }
-    return entry;
-  }
-
-  /**
-   * Validates the pocket kind against what the platform offers (§3: do not
-   * assume every platform holds every kind of cash) and resolves the
-   * pocket's native currency: usd → USD, rdn/crypto → IDR, general → any.
-   */
-  private pocketCurrency(
-    platform: InvestmentPlatform,
-    kind: PocketKind,
-    currency: string | undefined,
-  ): string {
-    if (!platform.pockets.includes(kind)) {
-      throw new BadRequestException(
-        `${platform.name} tidak menyediakan kantong ${POCKET_LABEL[kind]}.`,
-      );
-    }
-    const fixed = kind === "usd" ? "USD" : kind === "general" ? null : "IDR";
-    if (fixed && currency && currency !== fixed) {
-      throw new BadRequestException(
-        `Kantong ${POCKET_LABEL[kind]} harus bermata uang ${fixed}.`,
-      );
-    }
-    return fixed ?? currency ?? "IDR";
-  }
-
   private async createPocketRow(
     familyGroupId: string,
     row: PlatformAccount,
@@ -503,7 +449,7 @@ export class PlatformAccountsService {
     dto: PlatformPocketItemDto,
     actor: AccountActor | undefined,
   ): Promise<string> {
-    const currency = this.pocketCurrency(
+    const currency = resolvePocketCurrency(
       platform,
       dto.pocketKind,
       dto.currency,

@@ -212,10 +212,15 @@ export class TransactionsService {
     // the original up and replays it.
     // `feeDescription` overrides the admin-fee row's description (a pocket
     // withdrawal fee is not a "top-up" fee).
+    // `sourceFloor` (Investasi R9, platform pockets) — IDR the transfer's
+    // SOURCE must still hold after the debit (its unsettled proceeds). The
+    // source row is locked FOR UPDATE inside the transaction and re-read,
+    // so two concurrent debits cannot both pass; short → 400.
     options?: {
       enforceBankFloor?: boolean;
       idempotencyKey?: string;
       feeDescription?: string;
+      sourceFloor?: bigint;
     },
   ): Promise<TransactionResponseDto | HeldExpenseResponseDto> {
     const enforceBankFloor = options?.enforceBankFloor ?? true;
@@ -363,6 +368,15 @@ export class TransactionsService {
       });
 
       if (toAccount) {
+        if (options?.sourceFloor !== undefined) {
+          await this.assertSourceAboveFloor(
+            prisma,
+            familyGroupId,
+            dto.accountId,
+            BigInt(dto.amount),
+            options.sourceFloor,
+          );
+        }
         // Real two-sided transfer: debit source, credit destination
         // atomically within this same $transaction. Guards the SOURCE
         // account's debit leg with the caller's `enforceBankFloor` (EPIC-021
@@ -1231,6 +1245,33 @@ export class TransactionsService {
       where: { id: accountId, familyGroupId },
       data: { balance: { increment: -debitAmount } },
     });
+  }
+
+  /**
+   * Investasi R9 — locks the source account row (SELECT … FOR UPDATE) for
+   * the rest of the caller's transaction and requires
+   * `balance − amount ≥ floor`. A concurrent debit of the same account
+   * waits on the lock and then sees the committed balance, so READ
+   * COMMITTED cannot let two withdrawals both pass the check.
+   */
+  private async assertSourceAboveFloor(
+    prisma: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
+    familyGroupId: string,
+    accountId: string,
+    amount: bigint,
+    floor: bigint,
+  ): Promise<void> {
+    const rows = await prisma.$queryRaw<
+      Array<{ balance: bigint; name: string }>
+    >`SELECT "balance", "name" FROM "accounts" WHERE "id" = ${accountId} AND "familyGroupId" = ${familyGroupId} FOR UPDATE`;
+    const row = rows[0];
+    if (!row) throw new NotFoundException(`Account ${accountId} not found`);
+    const available = BigInt(row.balance) - floor;
+    if (available < amount) {
+      throw new BadRequestException(
+        `Dana tersedia di "${row.name}" tidak mencukupi (tersedia Rp ${available.toString()}, dibutuhkan Rp ${amount.toString()}). Dana hasil jual yang belum selesai (settlement) belum bisa dipakai.`,
+      );
+    }
   }
 
   /**

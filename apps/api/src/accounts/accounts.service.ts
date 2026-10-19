@@ -19,6 +19,8 @@ import { CryptoService } from "../crypto/crypto.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import { assertPocketLinkAllowed } from "./pocket-rules.util";
+
 import type { AccountBankDetailDto } from "./dto/account-bank-detail.dto";
 import type { AccountResponseDto } from "./dto/account-response.dto";
 import type { CreateAccountDto } from "./dto/create-account.dto";
@@ -233,47 +235,65 @@ export class AccountsService {
 
   /**
    * Investasi R2 — a pocket link (platformAccountId + pocketKind) is only
-   * valid on an `investment` account, and the platform account must belong
-   * to this family. A pocketKind without a platform account means nothing;
-   * a platform account without a kind defaults to "general".
+   * valid on an `investment` account. A pocketKind without a platform
+   * account means nothing; a link without a kind defaults to "general".
+   * Whenever a link is created or any of its inputs (platform, kind,
+   * currency, type) changes, the shared pocket rules run: same family,
+   * owner rule, catalog kind, kind → currency, one pocket per
+   * (kind, currency). Returns the link columns plus the resolved currency.
    */
   private async pocketLinkData(
     familyGroupId: string,
-    type: string,
-    platformAccountId: string | undefined,
-    pocketKind: PocketKind | undefined,
+    input: {
+      type: string;
+      platformAccountId: string | undefined;
+      pocketKind: PocketKind | undefined;
+      currency: string | undefined;
+      typeChanged: boolean;
+    },
+    actor: AccountActor | undefined,
     existing?: {
+      id: string;
       platformAccountId: string | null;
       pocketKind: PocketKind | null;
+      currency: string;
     },
-  ): Promise<{ platformAccountId?: string; pocketKind?: PocketKind }> {
-    const linkedTo = platformAccountId ?? existing?.platformAccountId ?? null;
-    if (pocketKind !== undefined && !linkedTo) {
+  ): Promise<{
+    platformAccountId?: string;
+    pocketKind?: PocketKind;
+    currency?: string;
+  }> {
+    const linkedTo =
+      input.platformAccountId ?? existing?.platformAccountId ?? null;
+    if (input.pocketKind !== undefined && !linkedTo) {
       throw new BadRequestException(
         "pocketKind hanya berlaku untuk kantong dana yang terhubung ke akun platform (platformAccountId).",
       );
     }
-    if (linkedTo && type !== "investment") {
+    if (!linkedTo) return {};
+    if (input.type !== "investment") {
       throw new BadRequestException(
         "Kantong dana platform harus bertipe investment.",
       );
     }
-    if (platformAccountId === undefined) {
-      return pocketKind !== undefined ? { pocketKind } : {};
-    }
-    const platform = await this.prisma.platformAccount.findFirst({
-      where: { id: platformAccountId, familyGroupId },
-      select: { id: true },
+    const touched =
+      !existing ||
+      input.platformAccountId !== undefined ||
+      input.pocketKind !== undefined ||
+      input.currency !== undefined ||
+      input.typeChanged;
+    if (!touched) return {};
+    const pocketKind =
+      input.pocketKind ?? existing?.pocketKind ?? ("general" as PocketKind);
+    const currency = await assertPocketLinkAllowed(this.prisma, {
+      familyGroupId,
+      platformAccountId: linkedTo,
+      pocketKind,
+      currency: input.currency ?? existing?.currency,
+      actor,
+      excludeAccountId: existing?.id,
     });
-    if (!platform) {
-      throw new BadRequestException(
-        "platformAccountId harus akun platform milik keluarga ini.",
-      );
-    }
-    return {
-      platformAccountId,
-      pocketKind: pocketKind ?? existing?.pocketKind ?? "general",
-    };
+    return { platformAccountId: linkedTo, pocketKind, currency };
   }
 
   /**
@@ -339,9 +359,14 @@ export class AccountsService {
     const detail = await this.bankDetailData(familyGroupId, dto);
     const pocketLink = await this.pocketLinkData(
       familyGroupId,
-      dto.type,
-      dto.platformAccountId,
-      dto.pocketKind,
+      {
+        type: dto.type,
+        platformAccountId: dto.platformAccountId,
+        pocketKind: dto.pocketKind,
+        currency: dto.currency,
+        typeChanged: false,
+      },
+      actor,
     );
     const shares = await this.normalizeShares(
       familyGroupId,
@@ -363,7 +388,7 @@ export class AccountsService {
             ? this.crypto.encrypt(dto.maskedNumber)
             : null,
           balance: BigInt(dto.balance),
-          currency: dto.currency ?? "IDR",
+          currency: pocketLink.currency ?? dto.currency ?? "IDR",
           isPrivate: dto.isPrivate ?? false,
           ownerUserId: ownerUserId ?? null,
           // The first balance is the opening balance; from here on only
@@ -479,9 +504,14 @@ export class AccountsService {
     const detail = await this.bankDetailData(familyGroupId, dto, id);
     const pocketLink = await this.pocketLinkData(
       familyGroupId,
-      dto.type ?? existing.type,
-      dto.platformAccountId,
-      dto.pocketKind,
+      {
+        type: dto.type ?? existing.type,
+        platformAccountId: dto.platformAccountId,
+        pocketKind: dto.pocketKind,
+        currency: dto.currency,
+        typeChanged: dto.type !== undefined && dto.type !== existing.type,
+      },
+      actor,
       existing,
     );
     const shares = await this.normalizeShares(
@@ -513,6 +543,9 @@ export class AccountsService {
             maskedNumber: this.crypto.encrypt(dto.maskedNumber),
           }),
           ...(dto.currency !== undefined && { currency: dto.currency }),
+          ...(pocketLink.currency !== undefined && {
+            currency: pocketLink.currency,
+          }),
           ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
           ...(ownerUserId !== undefined && { ownerUserId }),
         },
