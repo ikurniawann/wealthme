@@ -1824,9 +1824,14 @@
 }
 
 /* dark: --primary-strong turns lime, so selected chips need dark ink */
-.dark .rk3-chip--opt[aria-pressed="true"],
-.dark .rk3-kinds .segmented__item[aria-checked="true"] {
+.dark .rk3-chip--opt[aria-pressed="true"] {
   color: #15170f;
+}
+/* the kind tabs only take the lime fill as phone pills (≤720px) */
+@media (max-width: 720px) {
+  .dark .rk3-kinds .segmented__item[aria-checked="true"] {
+    color: #15170f;
+  }
 }
 /* dark: an unchecked switch in the form keeps a visible track */
 .dark .rkf-toggle [data-slot="switch"][data-unchecked] {
