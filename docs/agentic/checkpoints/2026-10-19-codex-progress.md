@@ -159,3 +159,16 @@ enforces IDX100 and actual MF sell settlement date. Permission review fixed
 holding write scope and cash-account permission rechecks on edit/void.
 API/web tsc --noEmit and changed TS/TSX eslint PASS, no Jest/E2E. No migrations.
 Next: commit12 with explicit paths, check health200 and ledger, then Task13–26.
+
+## Task 13 verified implementation
+
+Task12 committed10ad7b2, health200, ledger complete. Task13 price-form/table/results/unit
+wire header and holding menus. Manual preview required before bulk; preserved blank
+prices, source, date/time, reference, optional evidence. Evidence saved in existing
+InvestmentAttachment storage with tenant/scope/MIME5MB checks and authenticated
+list/download/delete routes, ready for Task14 Documents. Source refresh endpoint
+uses scheduler writer and age safeguards, reports per-row status, ignores mock.
+Price batch now owner/share scoped. Date-only older comparison aligned with reader
+ordering to avoid misleading preview. Optional FX panel displays real server snapshot;
+no invented frontend override. API/web tsc+changed ESLint PASS, no tests/migrations.
+Next: commit13 explicit paths, health and ledger, then Task14–26.

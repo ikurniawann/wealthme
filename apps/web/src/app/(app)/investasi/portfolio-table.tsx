@@ -243,12 +243,6 @@ export function PortfolioTable({
                                   (kind) => (
                                     <DropdownMenuItem
                                       key={kind}
-                                      disabled={kind === "price"}
-                                      title={
-                                        kind === "price"
-                                          ? c.futureTask
-                                          : undefined
-                                      }
                                       onClick={() =>
                                         onAction({ kind, investmentId: h.id })
                                       }

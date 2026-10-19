@@ -4,6 +4,7 @@ import { MARKETS } from "@wealthme/contracts";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../prisma/prisma.service";
+import { investmentAccessWhere } from "../investment-access";
 import {
   isValidTimeZone,
   isValidYmd,
@@ -13,8 +14,9 @@ import {
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentValuationService } from "./investment-valuation.service";
-import { jakartaYmd, valueHolding } from "./valuation-core";
+import { valueHolding } from "./valuation-core";
 
+import type { LedgerActor } from "../ledger/ledger-support";
 import type { PriceBatchDto, PriceBatchRowDto } from "./dto/price-batch.dto";
 import type { ValuedHolding } from "./investment-valuation.service";
 import type { ValuationFx, ValuationPrice } from "./valuation-core";
@@ -105,16 +107,23 @@ export class PriceBatchService {
   async preview(
     familyGroupId: string,
     dto: PriceBatchDto,
+    actor: LedgerActor,
   ): Promise<InvestmentPriceBatchResultDto> {
-    const { rows } = await this.evaluate(familyGroupId, dto, new Date());
+    const { rows } = await this.evaluate(familyGroupId, dto, new Date(), actor);
     return this.result(rows, false);
   }
 
   async bulk(
     familyGroupId: string,
     dto: PriceBatchDto,
+    actor: LedgerActor,
   ): Promise<InvestmentPriceBatchResultDto> {
-    const { rows, plans } = await this.evaluate(familyGroupId, dto, new Date());
+    const { rows, plans } = await this.evaluate(
+      familyGroupId,
+      dto,
+      new Date(),
+      actor,
+    );
     if (plans.length === 0) return this.result(rows, true);
     const created = await this.prisma.$transaction(
       plans.map((p) =>
@@ -154,11 +163,12 @@ export class PriceBatchService {
     familyGroupId: string,
     dto: PriceBatchDto,
     now: Date,
+    actor: LedgerActor,
   ): Promise<Evaluated> {
     const ids = [...new Set(dto.rows.map((r) => r.investmentId))];
     const valued = await this.valuation.valueFamily(
       familyGroupId,
-      { id: { in: ids } },
+      { AND: [{ id: { in: ids } }, investmentAccessWhere(actor, true)] },
       now,
     );
     const byId = new Map(valued.map((v) => [v.row.id, v]));
@@ -233,11 +243,9 @@ export class PriceBatchService {
       ) {
         return fail("skipped", "duplicate");
       }
-      // A date-only entry is compared by date, so today's manual price is
-      // not "older" than an automated quote stamped earlier today.
-      const older = asOfTime
-        ? asOf < oldAsOf
-        : row.asOfDate < jakartaYmd(oldAsOf);
+      // Keep preview consistent with effective-date ordering used by readers.
+      // Date-only means start of day; it cannot supersede a timed quote later that day.
+      const older = asOf < oldAsOf;
       if (older) return fail("skipped", "older_than_current");
     }
 

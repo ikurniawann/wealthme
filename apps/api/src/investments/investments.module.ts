@@ -5,8 +5,11 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { GoldPriceModule } from "../gold-price/gold-price.module";
 import { PlatformAccountsModule } from "../platform-accounts/platform-accounts.module";
 import { PrismaModule } from "../prisma/prisma.module";
+import { StorageModule } from "../storage/storage.module";
 
 import { CoinGeckoMarketDataAdapter } from "./coingecko-market-data.adapter";
+import { InvestmentAttachmentsController } from "./investment-attachments.controller";
+import { InvestmentAttachmentsService } from "./investment-attachments.service";
 import { InvestmentPositionsService } from "./investment-positions.service";
 import { InvestmentsController } from "./investments.controller";
 import { InvestmentsService } from "./investments.service";
@@ -29,6 +32,7 @@ import type { Env } from "../config/env";
 @Module({
   imports: [
     PrismaModule,
+    StorageModule,
     ConfigModule,
     // Task 8 — shared valuation (also imported by dashboard and reports),
     // platform cash for the summary, and the Antam gold reference cache.
@@ -44,9 +48,14 @@ import type { Env } from "../config/env";
     }),
     BullModule.registerQueue({ name: "price-refresh" }),
   ],
-  controllers: [InvestmentsController, InvestmentValuationController],
+  controllers: [
+    InvestmentsController,
+    InvestmentValuationController,
+    InvestmentAttachmentsController,
+  ],
   providers: [
     InvestmentsService,
+    InvestmentAttachmentsService,
     InvestmentPositionsService,
     InvestmentLedgerService,
     InvestmentPortfolioService,

@@ -3,7 +3,7 @@
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDownToLine,
   Plus,
@@ -21,6 +21,8 @@ import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import { useInvestmentInvalidation } from "./use-investment-invalidation";
+import { PriceForm } from "./price-form";
 import { TradeForm } from "./trade-form";
 import { PositionForm } from "./position-form";
 import { PlatformFunds } from "./platform-funds";
@@ -49,27 +51,14 @@ function InvestasiContent() {
   const fg = session?.familyGroupId;
   const { canManage } = useCanManage("Investment");
   const { myRole } = useMyRole();
-  const queryClient = useQueryClient();
+  const onSaved = useInvestmentInvalidation();
+  const [priceOpen, setPriceOpen] = useState<{ id?: string } | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
   const [positionOpen, setPositionOpen] = useState(false);
   const [tradeOpen, setTradeOpen] = useState<{
     id: string;
     kind: "buy" | "sell";
   } | null>(null);
-  const onSaved = () => {
-    for (const key of [
-      "investments-v3",
-      "platform-accounts",
-      "investment-valuation",
-      "investment-value-history",
-      "investment-activity",
-      "investment-pocket-history",
-      "investment-transfer-accounts",
-      "accounts",
-      "transactions",
-    ])
-      void queryClient.invalidateQueries({ queryKey: [key] });
-  };
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const searchParams = useSearchParams();
   const tab = ["portfolio", "funds", "history"].includes(
@@ -169,6 +158,10 @@ function InvestasiContent() {
       setTradeOpen({ id: action.investmentId, kind: action.kind });
       return;
     }
+    if (action.kind === "price") {
+      setPriceOpen({ id: action.investmentId });
+      return;
+    }
     if (action.kind === "add") {
       setPositionOpen(true);
       return;
@@ -202,8 +195,6 @@ function InvestasiContent() {
               </button>
               <button
                 className="btn btn--outline"
-                disabled
-                title={c.futureTask}
                 onClick={() => onAction({ kind: "price" })}
               >
                 <RefreshCw />
@@ -329,6 +320,18 @@ function InvestasiContent() {
           loading={activity.isPending}
           error={activity.isError}
           canManage={!!canManage}
+          onSaved={onSaved}
+        />
+      )}
+      {priceOpen && enabled && (
+        <PriceForm
+          initialId={priceOpen.id}
+          holdings={investments.data ?? []}
+          valuations={valuation.data?.holdings ?? []}
+          platforms={platforms.data ?? []}
+          fg={fg!}
+          token={token!}
+          onClose={() => setPriceOpen(null)}
           onSaved={onSaved}
         />
       )}

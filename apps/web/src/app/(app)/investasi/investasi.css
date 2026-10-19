@@ -614,3 +614,53 @@
   background: var(--commit);
   color: white;
 }
+
+.iv-price-dialog {
+  max-width: min(1120px, 96vw);
+  width: 96vw;
+}
+.iv-price-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.iv-price-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+.iv-price-table th,
+.iv-price-table td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.iv-price-table small {
+  display: block;
+}
+.iv-price-table td:first-child {
+  min-width: 160px;
+}
+.iv-price-table .input {
+  min-width: 140px;
+}
+.iv-price-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 12px;
+}
+.iv-price-results dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+@media (max-width: 640px) {
+  .iv-price-dialog {
+    width: 100vw;
+    max-width: 100vw;
+  }
+}

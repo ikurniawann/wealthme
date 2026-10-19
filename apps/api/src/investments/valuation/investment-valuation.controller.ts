@@ -20,17 +20,26 @@ import {
 import { CheckAbility } from "../../common/decorators/check-ability.decorator";
 import { PageAccess } from "../../common/decorators/page-access.decorator";
 import { BalancesVisibleGuard } from "../../common/guards/balances-visible.guard";
+import { investmentAccessWhere } from "../investment-access";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PriceRefreshProcessor } from "../price-refresh.processor";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PortfolioValuationQueryDto } from "./dto/portfolio-valuation-query.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PriceBatchDto } from "./dto/price-batch.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { RefreshPricesDto } from "./dto/refresh-prices.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentPortfolioService } from "./investment-portfolio.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentValuationService } from "./investment-valuation.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PortfolioHistoryService } from "./portfolio-history.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PriceBatchService } from "./price-batch.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PriceFeedStatusRegistry } from "./price-feed-status.registry";
 
 import type {
   InvestmentPortfolioValuationDto,
@@ -53,6 +62,9 @@ export class InvestmentValuationController {
     private readonly portfolio: InvestmentPortfolioService,
     private readonly prices: PriceBatchService,
     private readonly historyService: PortfolioHistoryService,
+    private readonly refresh: PriceRefreshProcessor,
+    private readonly valuationService: InvestmentValuationService,
+    private readonly feed: PriceFeedStatusRegistry,
   ) {}
 
   @Get("valuation")
@@ -93,8 +105,12 @@ export class InvestmentValuationController {
   preview(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: PriceBatchDto,
+    @Req() req: Request,
   ): Promise<InvestmentPriceBatchResultDto> {
-    return this.prices.preview(familyGroupId, dto);
+    return this.prices.preview(familyGroupId, dto, {
+      member: req.tenantContext?.member ?? null,
+      userId: req.tenantContext?.userId ?? null,
+    });
   }
 
   @Post("prices/bulk")
@@ -107,7 +123,64 @@ export class InvestmentValuationController {
   bulk(
     @Param("familyGroupId") familyGroupId: string,
     @Body() dto: PriceBatchDto,
+    @Req() req: Request,
   ): Promise<InvestmentPriceBatchResultDto> {
-    return this.prices.bulk(familyGroupId, dto);
+    return this.prices.bulk(familyGroupId, dto, {
+      member: req.tenantContext?.member ?? null,
+      userId: req.tenantContext?.userId ?? null,
+    });
+  }
+
+  @Post("prices/refresh")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  async refreshPrices(
+    @Param("familyGroupId") familyGroupId: string,
+    @Body() dto: RefreshPricesDto,
+    @Req() req: Request,
+  ) {
+    const actor = {
+      member: req.tenantContext?.member ?? null,
+      userId: req.tenantContext?.userId ?? null,
+    };
+    const where = {
+      AND: [
+        { id: { in: dto.investmentIds } },
+        investmentAccessWhere(actor, true),
+      ],
+    };
+    const before = await this.valuationService.valueFamily(
+      familyGroupId,
+      where,
+    );
+    const ids = before.map((h) => h.row.id);
+    await this.refresh.refreshFamily(familyGroupId, ids);
+    const after = await this.valuationService.valueFamily(familyGroupId, where);
+    return after.map((h) => {
+      const previous = before.find((v) => v.row.id === h.row.id)?.valuation
+        .price;
+      const current = h.valuation.price;
+      const feed = this.feed.get(h.row.id);
+      const manualOnly =
+        !["saham", "kripto"].includes(h.row.type) ||
+        (h.row.details !== null &&
+          typeof h.row.details === "object" &&
+          !Array.isArray(h.row.details) &&
+          h.row.details.manualInstrument === true);
+      const changed =
+        current !== null &&
+        (previous?.value !== current.value ||
+          previous.asOf !== current.asOf ||
+          previous.source !== current.source);
+      const status =
+        manualOnly || feed?.state === "simulated"
+          ? "skipped"
+          : feed?.state === "failed" || feed?.state === "no_route"
+            ? "failed"
+            : changed
+              ? "updated"
+              : "skipped";
+      return { investmentId: h.row.id, valuation: h.valuation, feed, status };
+    });
   }
 }

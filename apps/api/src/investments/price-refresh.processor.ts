@@ -92,6 +92,18 @@ export class PriceRefreshProcessor extends WorkerHost {
         details: true,
       },
     });
+    await this.refreshHoldings(investments);
+  }
+
+  /** Explicit refresh shares the scheduler writer and its quote-age safeguards. */
+  async refreshFamily(familyGroupId: string, ids: string[]): Promise<void> {
+    const investments = await this.prisma.investment.findMany({
+      where: { familyGroupId, id: { in: ids } },
+    });
+    await this.refreshHoldings(investments);
+  }
+
+  private async refreshHoldings(investments: Holding[]): Promise<void> {
     await this.pokeAntam(investments);
 
     // Manual-only types (reksa_dana, obligasi, emas, lainnya, deposito)
