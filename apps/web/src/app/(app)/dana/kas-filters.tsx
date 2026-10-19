@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, type KeyboardEvent } from "react";
 import { Eye, EyeOff, Search } from "lucide-react";
 
 import { useLocale } from "@/hooks/use-locale";
@@ -46,8 +47,28 @@ export function KasFilterBar({
 
   const ownerValue = filters.owner === null ? ALL : filters.owner || FAMILY;
 
+  // Radio group keyboard: one tab stop, arrows move and select.
+  const segRef = useRef<HTMLDivElement>(null);
+  function onSegKey(e: KeyboardEvent<HTMLDivElement>) {
+    const step =
+      e.key === "ArrowRight" || e.key === "ArrowDown"
+        ? 1
+        : e.key === "ArrowLeft" || e.key === "ArrowUp"
+          ? -1
+          : 0;
+    const jump = e.key === "Home" ? 0 : e.key === "End" ? kinds.length - 1 : -1;
+    if (!step && jump < 0) return;
+    e.preventDefault();
+    const at = kinds.findIndex((k) => k.key === filters.kind);
+    const next = jump >= 0 ? jump : (at + step + kinds.length) % kinds.length;
+    set({ kind: kinds[next]!.key });
+    segRef.current
+      ?.querySelectorAll<HTMLButtonElement>("[role=radio]")
+      [next]?.focus();
+  }
+
   return (
-    <section className="kw-filters" aria-label={c.listTitle}>
+    <section className="kw-filters" aria-label={c.filtersLabel}>
       <label className="kw-search">
         <Search aria-hidden="true" />
         <input
@@ -58,13 +79,20 @@ export function KasFilterBar({
           onChange={(e) => set({ q: e.target.value })}
         />
       </label>
-      <div className="kw-seg" role="radiogroup" aria-label={c.listTitle}>
+      <div
+        ref={segRef}
+        className="kw-seg"
+        role="radiogroup"
+        aria-label={c.kindLabel}
+        onKeyDown={onSegKey}
+      >
         {kinds.map((k) => (
           <button
             key={k.key}
             type="button"
             role="radio"
             aria-checked={filters.kind === k.key}
+            tabIndex={filters.kind === k.key ? 0 : -1}
             onClick={() => set({ kind: k.key })}
           >
             {k.label}
@@ -77,7 +105,7 @@ export function KasFilterBar({
         value={filters.country}
         onChange={(e) => set({ country: e.target.value })}
       >
-        <option value={ALL}>{c.allCountries}</option>
+        <option value={ALL}>{c.country}</option>
         {countries.map((code) => (
           <option key={code} value={code}>
             {walletCountry(code).name[locale]}
@@ -90,7 +118,7 @@ export function KasFilterBar({
         value={filters.currency}
         onChange={(e) => set({ currency: e.target.value })}
       >
-        <option value={ALL}>{c.allCurrencies}</option>
+        <option value={ALL}>{c.currency}</option>
         {currencies.map((cur) => (
           <option key={cur} value={cur}>
             {cur}
@@ -106,7 +134,7 @@ export function KasFilterBar({
           set({ owner: v === ALL ? null : v === FAMILY ? "" : v });
         }}
       >
-        <option value={ALL}>{c.allOwners}</option>
+        <option value={ALL}>{c.owner}</option>
         {[...owners.entries()].map(([key, label]) => (
           <option key={key || FAMILY} value={key || FAMILY}>
             {label}

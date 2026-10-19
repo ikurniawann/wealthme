@@ -3,6 +3,7 @@ import type { AccountDto } from "@wealthme/contracts";
 import {
   findProvider,
   maskIdentifier,
+  matchProvider,
   walletCountry,
 } from "./wallet-directory";
 
@@ -65,7 +66,9 @@ export function initialKasState(
 ): KasFormState {
   if (account) {
     const known =
-      kind === "ewallet" ? findProvider(account.institution) : undefined;
+      kind === "ewallet"
+        ? matchProvider(account.institution, account.name)
+        : undefined;
     return {
       name: account.name,
       nameTouched: true,
@@ -133,7 +136,11 @@ export function validateKas(
   if (!name) errors.name = "required";
   if (!s.owner) errors.owner = "required";
   if (kind === "ewallet") {
-    if (!providerName(s)) errors.provider = "required";
+    if (!providerName(s)) {
+      errors.provider = "required";
+      // The name defaults from the provider; one error is enough until then.
+      if (!s.name.trim()) delete errors.name;
+    }
     if (!s.identifier.trim()) errors.identifier = "required";
   }
   if (!isEdit) {

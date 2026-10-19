@@ -14,6 +14,8 @@ import {
   WALLET_COUNTRIES,
 } from "./wallet-directory";
 
+const TOP_PROVIDERS = 6;
+
 export function KasSidePanel({
   canManage,
   onOpen,
@@ -29,9 +31,12 @@ export function KasSidePanel({
 
   const cur = walletCountry(country);
   const needle = q.trim().toLowerCase();
-  const providers = providersForCountry(country).filter(
-    (p) => !needle || p.name.toLowerCase().includes(needle),
-  );
+  // The most-used few by default; the search reaches the rest.
+  const providers = needle
+    ? providersForCountry(country).filter((p) =>
+        p.name.toLowerCase().includes(needle),
+      )
+    : providersForCountry(country).slice(0, TOP_PROVIDERS);
   const open = (preset: { country: string; provider?: string }, k = kind) =>
     onOpen({ kind: k, mode: "add", account: null, preset });
 
@@ -73,6 +78,7 @@ export function KasSidePanel({
       {kind === "cash" ? (
         <div className="kw-side-cash">
           <p>{c.cashSideBody}</p>
+          {!canManage && <p>{c.viewOnlyNote}</p>}
           {canManage && (
             <button
               type="button"
@@ -99,14 +105,20 @@ export function KasSidePanel({
           <ul className="kw-prov">
             {providers.map((p) => (
               <li key={p.key}>
-                <button
-                  type="button"
-                  disabled={!canManage}
-                  onClick={() => open({ country, provider: p.key })}
-                >
-                  <BrandTile provider={p} size="sm" />
-                  {p.name}
-                </button>
+                {canManage ? (
+                  <button
+                    type="button"
+                    onClick={() => open({ country, provider: p.key })}
+                  >
+                    <BrandTile provider={p} size="sm" />
+                    {p.name}
+                  </button>
+                ) : (
+                  <span className="kw-prov-item">
+                    <BrandTile provider={p} size="sm" />
+                    {p.name}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -119,7 +131,9 @@ export function KasSidePanel({
               <Plus aria-hidden="true" /> {c.otherProvider}
             </button>
           )}
-          <p className="kw-side-note">{c.providerNote}</p>
+          <p className="kw-side-note">
+            {canManage ? c.providerNote : c.viewOnlyNote}
+          </p>
         </>
       )}
       <p className="kw-info">

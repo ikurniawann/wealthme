@@ -77,6 +77,17 @@ interface KasFormProps {
   isMasterLike: boolean;
 }
 
+/** Error key → the id suffix of its control, in on-screen order. */
+const FIELD_ID: Record<keyof KasErrors, string> = {
+  provider: "prov",
+  name: "name",
+  identifier: "ident",
+  owner: "owner",
+  balance: "bal",
+  date: "date",
+};
+const FIELD_ORDER = Object.keys(FIELD_ID) as (keyof KasErrors)[];
+
 /** Kas & E-Wallet — the cash and e-wallet form (add and edit). */
 export function KasForm(props: KasFormProps) {
   if (!props.open) return null;
@@ -164,7 +175,11 @@ function KasFormBody({
 
   // ── Money ───────────────────────────────────────────────────────────────
   const foreign = s.currency !== "IDR";
-  const { data: rates } = useFxSnapshot(foreign && !isEdit);
+  const { data: rates, isLoading: ratesLoading } = useFxSnapshot(
+    foreign && !isEdit,
+  );
+  // A foreign opening balance needs today's rate before it can be saved.
+  const waitingForRate = foreign && !isEdit && ratesLoading;
   function convert(): KasConverted | null {
     const canonical = toCanonicalAmount(s.balanceRaw) ?? "0";
     if (!foreign)
@@ -183,7 +198,11 @@ function KasFormBody({
   async function handleSave() {
     const found = validateKas(kind, s, isEdit, c.walletNameSuffix);
     setErrors(found);
-    if (Object.keys(found).length > 0) return;
+    const firstInvalid = FIELD_ORDER.find((k) => found[k]);
+    if (firstInvalid) {
+      document.getElementById(`${uid}-${FIELD_ID[firstInvalid]}`)?.focus();
+      return;
+    }
     if (!familyGroupId || !token) return;
     let converted: KasConverted | null = null;
     if (!isEdit) {
@@ -220,18 +239,28 @@ function KasFormBody({
         });
         toast.success(isWallet ? c.savedWallet : c.savedCash);
       }
-      await onSaved();
-      onClose();
     } catch (err: unknown) {
       toast.error(apiErrorMessage(err, c.failed));
-    } finally {
       setSaving(false);
+      return;
     }
+    // Saved: a failed list refresh must not read as a failed save.
+    try {
+      await onSaved();
+    } catch {
+      // the query refetches on its own; the account exists either way
+    }
+    setSaving(false);
+    onClose();
   }
 
   const err = (key: keyof KasErrors) =>
     errors[key] ? (
-      <span className="error-text block" role="alert">
+      <span
+        id={`${uid}-${FIELD_ID[key]}-err`}
+        className="error-text block"
+        role="alert"
+      >
         {errors[key] === "negativeWallet" ? c.negativeWallet : c.required}
       </span>
     ) : null;
@@ -253,6 +282,11 @@ function KasFormBody({
         ...CURRENCIES,
         { code: s.currency as FxCurrencyCode, symbol: s.currency },
       ];
+  // "Rp · Rupiah" → "Rupiah": the symbol already sits in the leading mark.
+  const currencyLabel = (code: string) =>
+    (currencyNames[code as keyof typeof currencyNames]?.name ?? code)
+      .split(" · ")
+      .pop() ?? code;
   const currencyMark =
     currencyOptions.find((x) => x.code === s.currency)?.symbol ?? s.currency;
   const idLabel =
@@ -274,6 +308,7 @@ function KasFormBody({
         value={s.name}
         placeholder={isWallet ? undefined : c.cashNamePh}
         aria-invalid={!!errors.name}
+        aria-describedby={errors.name ? `${uid}-name-err` : undefined}
         onChange={(e) => patch({ name: e.target.value, nameTouched: true })}
       />
       {err("name")}
@@ -337,9 +372,7 @@ function KasFormBody({
         >
           {currencyOptions.map((x) => (
             <option key={x.code} value={x.code}>
-              {x.code} —{" "}
-              {currencyNames[x.code as keyof typeof currencyNames]?.name ??
-                x.code}
+              {x.code} — {currencyLabel(x.code)}
             </option>
           ))}
         </select>
@@ -427,35 +460,43 @@ function KasFormBody({
                       />
                     </Field>
                   )}
-                  {nameField}
-                  <Field id={`${uid}-ident`} label={idLabel} required>
-                    <div className="kwf-ident">
-                      <span className="kwf-lead" aria-hidden="true">
-                        {idKind === "phone" ? <Phone /> : <User />}
-                        {idKind === "phone" && <b>{country.dial}</b>}
+                  <div className="kwf-grid">
+                    {nameField}
+                    <Field id={`${uid}-ident`} label={idLabel} required>
+                      <div className="kwf-ident">
+                        <span className="kwf-lead" aria-hidden="true">
+                          {idKind === "phone" ? <Phone /> : <User />}
+                          {idKind === "phone" && <b>{country.dial}</b>}
+                        </span>
+                        <input
+                          id={`${uid}-ident`}
+                          className="input"
+                          inputMode={
+                            idKind === "phone"
+                              ? "tel"
+                              : idKind === "email"
+                                ? "email"
+                                : "text"
+                          }
+                          autoComplete="off"
+                          value={s.identifier}
+                          aria-invalid={!!errors.identifier}
+                          aria-describedby={
+                            errors.identifier
+                              ? `${uid}-ident-hint ${uid}-ident-err`
+                              : `${uid}-ident-hint`
+                          }
+                          onChange={(e) =>
+                            patch({ identifier: e.target.value })
+                          }
+                        />
+                      </div>
+                      <span id={`${uid}-ident-hint`} className="hint block">
+                        {c.walletIdHint}
                       </span>
-                      <input
-                        id={`${uid}-ident`}
-                        className="input"
-                        inputMode={
-                          idKind === "phone"
-                            ? "tel"
-                            : idKind === "email"
-                              ? "email"
-                              : "text"
-                        }
-                        autoComplete="off"
-                        value={s.identifier}
-                        aria-invalid={!!errors.identifier}
-                        aria-describedby={`${uid}-ident-hint`}
-                        onChange={(e) => patch({ identifier: e.target.value })}
-                      />
-                    </div>
-                    <span id={`${uid}-ident-hint`} className="hint block">
-                      {c.walletIdHint}
-                    </span>
-                    {err("identifier")}
-                  </Field>
+                      {err("identifier")}
+                    </Field>
+                  </div>
                   <div className="kwf-grid">
                     {ownerField}
                     {currencyField}
@@ -499,6 +540,7 @@ function KasFormBody({
                   <Field id={`${uid}-bal`} label={c.balanceNow} required>
                     <BalanceInput
                       id={`${uid}-bal`}
+                      invalid={!!errors.balance}
                       raw={s.balanceRaw}
                       currency={s.currency}
                       allowNegative={!isWallet}
@@ -667,7 +709,8 @@ function KasFormBody({
             <button
               type="submit"
               className="btn btn--primary kwf-save"
-              disabled={saving}
+              disabled={saving || waitingForRate}
+              aria-busy={waitingForRate || undefined}
             >
               {saving ? c.saving : isWallet ? c.saveWallet : c.saveCash}
             </button>
@@ -738,6 +781,7 @@ function ProviderTile({ provider }: { provider: WalletProvider | undefined }) {
 
 function BalanceInput({
   id,
+  invalid,
   raw,
   currency,
   allowNegative,
@@ -745,6 +789,7 @@ function BalanceInput({
   onChange,
 }: {
   id: string;
+  invalid: boolean;
   raw: string;
   currency: string;
   allowNegative: boolean;
@@ -757,5 +802,15 @@ function BalanceInput({
     allowNegative,
     onChange: (next) => onChange(next.raw),
   });
-  return <MoneyInput field={field} id={id} ariaLabel={ariaLabel} />;
+  // The currency is chosen in the "Mata uang" field; the input only shows it.
+  return (
+    <div className="kwf-bal" data-invalid={invalid || undefined}>
+      <MoneyInput
+        field={field}
+        id={id}
+        ariaLabel={ariaLabel}
+        ariaDescribedBy={invalid ? `${id}-err` : undefined}
+      />
+    </div>
+  );
 }

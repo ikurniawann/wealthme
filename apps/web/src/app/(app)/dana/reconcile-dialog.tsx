@@ -12,11 +12,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  MoneyInput,
-  useControlledMoneyField,
-  useFxSnapshot,
-} from "@/components/money";
+import { MoneyInput, useControlledMoneyField } from "@/components/money";
 import { idrPreview, toCanonicalAmount } from "@/components/money/money-format";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
@@ -62,7 +58,14 @@ function ReconcileBody({
   const currency = row.currency;
   const foreign = currency !== "IDR";
   const isWallet = row.kind === "ewallet";
-  const { data: rates } = useFxSnapshot(foreign);
+  const field = useControlledMoneyField({
+    raw,
+    currency: currency as FxCurrencyCode,
+    allowNegative: !isWallet,
+    onChange: (next) => setRaw(next.raw),
+  });
+  // The money field already holds the rate snapshot; no second query hook.
+  const rates = field.rates;
 
   const canonical = raw.trim() === "" ? null : toCanonicalAmount(raw);
   let actualIdr: number | null = null;
@@ -76,6 +79,15 @@ function ReconcileBody({
         0,
       );
       actualIdr = preview === null ? null : Number(preview);
+      // Typing back the amount shown as "recorded" is a match, not a
+      // few-rupiah rounding difference.
+      if (
+        actualIdr !== null &&
+        row.native !== null &&
+        Number(canonical) === Number(row.native.toFixed(field.decimals))
+      ) {
+        actualIdr = row.idr;
+      }
     }
   }
   const recordedIdr = row.idr;
@@ -85,13 +97,6 @@ function ReconcileBody({
   const rateMissing = canonical !== null && foreign && actualIdr === null;
   const canSubmit =
     !saving && diff !== null && !negativeWallet && !!familyGroupId && !!token;
-
-  const field = useControlledMoneyField({
-    raw,
-    currency: currency as FxCurrencyCode,
-    allowNegative: !isWallet,
-    onChange: (next) => setRaw(next.raw),
-  });
 
   async function handleConfirm() {
     if (!canSubmit || actualIdr === null || canonical === null) return;
@@ -179,7 +184,7 @@ function ReconcileBody({
               )}
             </div>
 
-            <div className="field kwr-field">
+            <div className="field kwr-field kwf-bal">
               <label className="label" htmlFor={`${uid}-actual`}>
                 {c.counted}
               </label>

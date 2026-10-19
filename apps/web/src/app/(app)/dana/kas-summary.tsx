@@ -103,6 +103,7 @@ export function KasSummary({
   hidden,
   onToggleHidden,
   loading,
+  error = false,
 }: {
   rows: readonly KasRow[];
   totals: KasTotals;
@@ -110,12 +111,18 @@ export function KasSummary({
   hidden: boolean;
   onToggleHidden: () => void;
   loading: boolean;
+  /** Accounts failed to load: show "—", never a made-up Rp 0. */
+  error?: boolean;
 }) {
   const { t, locale } = useLocale();
   const c = t.dana.v3.page;
   const money = useMoney();
   const allIdr = rows.every((r) => r.currency === "IDR");
-  const show = (n: number) => (hidden ? MASK : money.format(n));
+  const unknown = loading || error;
+  const blank = loading ? "…" : "—";
+  const show = (n: number) =>
+    unknown ? blank : hidden ? MASK : money.format(n);
+  const count = (n: number) => (unknown ? blank : fill(c.accountsN, { n }));
   const rateNote =
     allIdr || !rates?.rateDate
       ? c.rateNoteNone
@@ -132,7 +139,6 @@ export function KasSummary({
           <button
             type="button"
             className="kw-eye"
-            aria-pressed={hidden}
             aria-label={hidden ? c.showBalance : c.hideBalance}
             onClick={onToggleHidden}
           >
@@ -143,11 +149,14 @@ export function KasSummary({
             )}
           </button>
         </p>
-        <p className="kw-sum-total wm-num">
-          {loading ? "…" : show(totals.total)}
-        </p>
+        <p className="kw-sum-total wm-num">{show(totals.total)}</p>
         <p className="kw-sum-meta">
-          {fill(c.accountsCurrencies, { n: rows.length, c: totals.currencies })}
+          {unknown
+            ? blank
+            : fill(c.accountsCurrencies, {
+                n: rows.length,
+                c: totals.currencies,
+              })}
         </p>
       </div>
       <div className="kw-stat">
@@ -157,9 +166,7 @@ export function KasSummary({
         <div>
           <p className="kw-stat-label">{c.cash}</p>
           <p className="kw-stat-val wm-num">{show(totals.cash)}</p>
-          <p className="kw-stat-n">
-            {fill(c.accountsN, { n: totals.cashCount })}
-          </p>
+          <p className="kw-stat-n">{count(totals.cashCount)}</p>
         </div>
       </div>
       <div className="kw-stat">
@@ -169,9 +176,7 @@ export function KasSummary({
         <div>
           <p className="kw-stat-label">{c.ewallet}</p>
           <p className="kw-stat-val wm-num">{show(totals.ewallet)}</p>
-          <p className="kw-stat-n">
-            {fill(c.accountsN, { n: totals.ewalletCount })}
-          </p>
+          <p className="kw-stat-n">{count(totals.ewalletCount)}</p>
         </div>
       </div>
       <div className="kw-rate">

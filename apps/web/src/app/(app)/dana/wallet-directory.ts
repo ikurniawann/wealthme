@@ -430,6 +430,26 @@ export function findProvider(
   );
 }
 
+/**
+ * The provider behind a saved e-wallet: its `institution` first, else an
+ * account name that starts with a provider's name ("GoPay Pribadi").
+ */
+export function matchProvider(
+  institution: string | null | undefined,
+  accountName: string | null | undefined,
+): WalletProvider | undefined {
+  const direct = findProvider(institution);
+  if (direct) return direct;
+  const n = (accountName ?? "").trim().toLowerCase();
+  if (!n) return undefined;
+  return [...WALLET_PROVIDERS]
+    .sort((a, b) => b.name.length - a.name.length)
+    .find((p) => {
+      const pn = p.name.toLowerCase();
+      return n === pn || n.startsWith(`${pn} `);
+    });
+}
+
 /** "+62 812 •••• 9012" / "c•••@mail.com" — enough to recognise, not to reuse. */
 export function maskIdentifier(value: string | null | undefined): string {
   const v = (value ?? "").trim();

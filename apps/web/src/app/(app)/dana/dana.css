@@ -201,10 +201,14 @@
     background: color-mix(in oklab, var(--wm-lilac) 24%, var(--wm-card));
     color: var(--wm-ink);
   }
+  .kw-stat > div {
+    min-width: 0;
+  }
   .kw-stat-val {
     font-size: var(--wm-type-20);
     font-weight: 800;
     color: var(--wm-ink);
+    overflow-wrap: anywhere;
   }
   .kw-rate {
     display: flex;
@@ -227,8 +231,14 @@
     align-items: center;
     gap: 10px;
   }
+  @media (min-width: 1280px) {
+    .kw-filters {
+      flex-wrap: nowrap;
+    }
+  }
   .kw-search {
-    flex: 1 1 240px;
+    flex: 1 1 220px;
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -255,6 +265,7 @@
     color: var(--wm-ink);
   }
   .kw-seg {
+    flex: none;
     display: inline-flex;
     padding: 4px;
     gap: 2px;
@@ -279,8 +290,9 @@
     color: var(--wm-ink);
   }
   .kw-select {
+    flex: none;
     min-height: 44px;
-    padding: 0 12px;
+    padding: 0 10px 0 14px;
     border-radius: 14px;
     border: 1px solid var(--wm-line);
     background: var(--wm-card);
@@ -290,6 +302,9 @@
     max-width: 100%;
   }
   .kw-toggle {
+    flex: none;
+    margin-left: auto;
+    white-space: nowrap;
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -354,8 +369,8 @@
   .kw-row {
     display: grid;
     grid-template-columns:
-      minmax(0, 2.3fr) minmax(0, 1.1fr) minmax(0, 1.1fr) minmax(0, 1.1fr)
-      minmax(0, 1.8fr) 44px;
+      minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1.2fr)
+      minmax(0, 1.9fr) 40px;
     align-items: center;
     gap: 12px;
     padding: 12px 10px;
@@ -464,7 +479,10 @@
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px;
+    gap: 4px 6px;
+  }
+  .kw-checked .kw-chip {
+    white-space: nowrap;
   }
   .kw-checked[data-state="fresh"] svg {
     color: var(--wm-good);
@@ -657,9 +675,14 @@
   .kw-prov button:hover:not(:disabled) {
     background: var(--wm-card-2);
   }
-  .kw-prov button:disabled {
-    cursor: default;
-    opacity: 0.7;
+  .kw-prov-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 52px;
+    padding: 4px 2px;
+    color: var(--wm-ink);
+    font-size: var(--wm-type-14);
   }
   .kw-other {
     min-height: 40px;
@@ -685,10 +708,26 @@
     margin-top: 2px;
   }
 
+  /* below desktop: the side panel sits under the list, providers in a grid */
+  @media (max-width: 1179px) {
+    .kw-prov {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      column-gap: 16px;
+    }
+    .kw-prov li + li {
+      border-top: 0;
+    }
+    .kw-prov li {
+      border-bottom: 1px solid var(--wm-line);
+    }
+  }
+
   /* tablet */
   @media (max-width: 1100px) {
     .kw-summary {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px 20px;
     }
     .kw-summary > * + * {
       border-left: 0;
@@ -696,51 +735,120 @@
     }
     .kw-summary > .kw-sum-main {
       grid-column: 1 / -1;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--wm-line);
+    }
+    .kw-summary > .kw-rate {
+      grid-column: 1 / -1;
+      padding-top: 12px;
+      border-top: 1px solid var(--wm-line);
     }
   }
 
-  /* phones: rows become stacked cards, no table */
+  /* below 1280 the bar folds: search, type, toggle / then the three selects */
+  @media (min-width: 761px) and (max-width: 1279px) {
+    .kw-filters .kw-search {
+      flex: 1 1 260px;
+    }
+    .kw-filters .kw-seg {
+      order: 1;
+    }
+    .kw-filters .kw-toggle {
+      order: 2;
+      margin-left: 0;
+    }
+    .kw-filters .kw-select {
+      order: 3;
+      flex: 1 1 30%;
+    }
+  }
+
+  /* tablet table: IDR over the native amount, one column fewer */
+  @media (min-width: 761px) and (max-width: 1100px) {
+    .kw-row {
+      grid-template-columns:
+        minmax(0, 1.8fr) minmax(0, 0.9fr) minmax(0, 1.2fr)
+        minmax(0, 1.5fr) 40px;
+      grid-template-areas:
+        "acc owner idr checked menu"
+        "acc owner native checked menu";
+      row-gap: 2px;
+    }
+    .kw-row-head {
+      grid-template-areas: "acc owner idr checked menu";
+    }
+    .kw-row > :nth-child(1) {
+      grid-area: acc;
+    }
+    .kw-row > :nth-child(2) {
+      grid-area: owner;
+    }
+    .kw-row > :nth-child(3) {
+      grid-area: native;
+      align-self: start;
+      color: var(--wm-muted);
+      font-size: var(--wm-type-12);
+    }
+    .kw-row > :nth-child(4) {
+      grid-area: idr;
+      align-self: end;
+    }
+    .kw-row > :nth-child(5) {
+      grid-area: checked;
+    }
+    .kw-row > :nth-child(6) {
+      grid-area: menu;
+    }
+    .kw-row-head > :nth-child(3) {
+      display: none;
+    }
+  }
+
+  /* phones: rows become cards, filters a compact grid */
   @media (max-width: 760px) {
     .kw-row-head {
       display: none;
     }
     .kw-row {
-      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       grid-template-areas:
-        "acc menu"
-        "owner owner"
-        "native native"
-        "idr idr"
-        "checked checked";
-      gap: 6px 10px;
-      padding: 14px 4px;
+        "acc acc menu"
+        "owner idr idr"
+        "checked native native";
+      gap: 10px 12px;
+      padding: 14px 2px;
     }
-    .kw-cell-acc {
+    .kw-row > .kw-cell:nth-child(1) {
       grid-area: acc;
     }
-    .kw-cell-menu {
+    .kw-row > .kw-cell:nth-child(6) {
       grid-area: menu;
-    }
-    .kw-cell[data-label] {
-      justify-content: space-between;
-      flex-wrap: nowrap;
-    }
-    .kw-cell[data-label]::before {
-      content: attr(data-label);
-      color: var(--wm-muted);
-      font-size: var(--wm-type-12);
+      align-self: start;
     }
     .kw-row > .kw-cell:nth-child(2) {
       grid-area: owner;
     }
     .kw-row > .kw-cell:nth-child(3) {
       grid-area: native;
+      justify-content: flex-end;
+      align-self: start;
+      color: var(--wm-muted);
+      font-size: var(--wm-type-12);
     }
     .kw-row > .kw-cell:nth-child(4) {
       grid-area: idr;
+      justify-content: flex-end;
+      align-self: end;
+      font-size: var(--wm-type-15, 15px);
     }
     .kw-row > .kw-cell:nth-child(5) {
       grid-area: checked;
+    }
+    .kw-row > .kw-cell:nth-child(2)::before {
+      content: attr(data-label);
+      flex-basis: 100%;
+      color: var(--wm-muted);
+      font-size: var(--wm-type-11, 11px);
     }
     .kw-act-row {
       grid-template-columns: 40px minmax(0, 1fr) auto;
@@ -754,23 +862,55 @@
     .kw-attn .kw-btn {
       width: 100%;
     }
-    .kw-seg {
-      width: 100%;
+    .kw-filters {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .kw-filters .kw-search,
+    .kw-filters .kw-seg,
+    .kw-filters .kw-toggle {
+      grid-column: 1 / -1;
+    }
+    .kw-filters .kw-toggle {
+      justify-content: center;
+      margin-left: 0;
     }
     .kw-seg button {
       flex: 1;
     }
-    .kw-select {
-      flex: 1 1 140px;
+    .kw-filters .kw-select {
+      width: 100%;
+      min-width: 0;
+      padding-left: 10px;
     }
-    .kw-summary {
-      grid-template-columns: minmax(0, 1fr);
+    .kw-summary > .kw-stat {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .kw-stat-ic {
+      width: 40px;
+      height: 40px;
+    }
+    .kw-stat-ic svg {
+      width: 20px;
+      height: 20px;
+    }
+    .kw-stat-val {
+      font-size: var(--wm-type-16);
+    }
+    .kw-sum-total {
+      font-size: var(--wm-type-32, 32px);
     }
     .kw-head-actions {
       width: 100%;
     }
     .kw-head-actions .kw-btn {
       flex: 1;
+    }
+    .kw-prov {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 }
@@ -961,6 +1101,11 @@
   color: #fff;
   font-size: 10px;
   font-weight: 800;
+}
+.kwf .kwf-tile-empty {
+  width: 18px;
+  height: 18px;
+  color: var(--wm-muted);
 }
 .kwf .kwf-adorn:has(.kwf-tile) > .select {
   padding-left: 52px;
@@ -1226,8 +1371,9 @@
   border-radius: 999px;
 }
 
-/* phones: full-screen sheet, one column, reachable save */
-@media (max-width: 767px) {
+/* phones: full-screen sheet, one column, reachable save
+   (768 = the shared dialog's own bottom-sheet boundary) */
+@media (max-width: 768px) {
   .dialog.kwf {
     top: 0;
     bottom: 0;
@@ -1239,8 +1385,11 @@
     border-radius: 0;
     right: 0;
     transform: none;
-    /* Tailwind's -translate-x-1/2 emits the standalone `translate` property */
-    translate: none;
+    /* Tailwind's -translate-x-1/2 drives the standalone `translate` property
+       through these variables; `translate: none` alone gets folded into
+       `transform` by the CSS minifier and the sheet ends up half off-screen. */
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
   }
   .kwf .kwf-head {
     padding: 16px 16px 24px;
@@ -1257,6 +1406,15 @@
   .kwf .kwf-save {
     flex: 1 1 auto;
   }
+}
+/* The amount's currency is set by the "Mata uang" field (form) or fixed by
+   the account (reconcile); the money input's own picker would be a dead
+   control, so it is hidden here. */
+.kwf-bal [aria-haspopup="menu"] {
+  display: none;
+}
+.kwf-bal[data-invalid] [class*="amount"] {
+  border-color: var(--destructive);
 }
 /* Kas form — END */
 
@@ -1418,19 +1576,21 @@
   min-height: 44px;
   border-radius: 999px;
 }
-@media (max-width: 640px) {
+/* phones: a bottom sheet sized to its short content */
+@media (max-width: 768px) {
   .dialog.kwr {
-    top: 0;
+    top: auto;
     bottom: 0;
     left: 0;
     right: 0;
     width: 100%;
     max-width: none;
-    height: 100dvh;
-    max-height: none;
-    border-radius: 0;
+    height: auto;
+    max-height: 94dvh;
+    border-radius: 24px 24px 0 0;
     transform: none;
-    translate: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
   }
 }
 /* Reconcile dialog — END */
