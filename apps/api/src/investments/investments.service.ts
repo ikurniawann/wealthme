@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   BadRequestException,
   ConflictException,
@@ -19,18 +21,25 @@ import { PrismaService } from "../prisma/prisma.service";
 
 import { UnmappedTickerError } from "./coingecko-market-data.adapter";
 import { deriveInternalCode } from "./internal-code.util";
+import {
+  decimalToString,
+  decimalToStringOrNull,
+  toTransactionDto,
+} from "./investment-transaction.mapper";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentLedgerService } from "./ledger/investment-ledger.service";
+import { cashKeyParts } from "./ledger/ledger-dates";
 import { isAutomatedPriceType, MARKET_DATA_PORT } from "./market-data.port";
 
 import type { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
 import type { CreateInvestmentDto } from "./dto/create-investment.dto";
 import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
+import type { LedgerActor } from "./ledger/investment-ledger.service";
 import type { MarketDataPort } from "./market-data.port";
-import type { TxClient } from "../common/utils/serializable-retry.util";
 import type {
   Investment as InvestmentRow,
   InvestmentPrice as InvestmentPriceRow,
-  InvestmentTransaction as InvestmentTransactionRow,
   InvestmentType,
 } from "@prisma/client";
 import type {
@@ -107,56 +116,6 @@ function toPriceDto(r: InvestmentPriceRow): InvestmentPriceDto {
   };
 }
 
-function dbDateToString(d: Date | null): string | null {
-  return d ? d.toISOString().slice(0, 10) : null;
-}
-
-function toTransactionDto(
-  r: InvestmentTransactionRow,
-): InvestmentTransactionDto {
-  return {
-    id: r.id,
-    investmentId: r.investmentId,
-    type: r.type,
-    quantity: decimalToString(r.quantity),
-    pricePerUnit: decimalToString(r.pricePerUnit),
-    occurredAt: r.occurredAt.toISOString(),
-    realizedPnl: decimalToStringOrNull(r.realizedPnl),
-    createdAt: r.createdAt.toISOString(),
-    kind: r.kind,
-    effectiveDate: r.effectiveDate.toISOString().slice(0, 10),
-    effectiveTime: r.effectiveTime,
-    timeZone: r.timeZone,
-    grossAmount: decimalToString(r.grossAmount),
-    fee: decimalToString(r.fee),
-    tax: decimalToString(r.tax),
-    netAmount: decimalToString(r.netAmount),
-    currency: r.currency,
-    feeCurrency: r.feeCurrency,
-    fxRate: decimalToStringOrNull(r.fxRate),
-    settlementDate: dbDateToString(r.settlementDate),
-    cashAccountId: r.cashAccountId,
-    cashTransactionId: r.cashTransactionId,
-    idempotencyKey: r.idempotencyKey,
-    status: r.status,
-    voidedAt: r.voidedAt?.toISOString() ?? null,
-    voidReason: r.voidReason,
-    note: r.note,
-    updatedAt: r.updatedAt.toISOString(),
-  };
-}
-
-function decimalToString(d: Decimal | null): string {
-  return d?.toString() ?? "0";
-}
-
-/** Unlike decimalToString, never fabricates "0" — null stays null (e.g. "no
- * sell has ever been recorded" must read differently from "sold at exactly
- * break-even"). */
-function decimalToStringOrNull(d: Decimal | null): string | null {
-  return d ? d.toString() : null;
-}
-
 /**
  * Simple projected annual yield for interest-bearing instruments (obligasi,
  * deposito): currentValue × interestRatePct / 100. Null when either input is
@@ -177,6 +136,7 @@ export class InvestmentsService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject(MARKET_DATA_PORT) private readonly marketData: MarketDataPort,
+    private readonly ledger: InvestmentLedgerService,
   ) {}
 
   async findAll(familyGroupId: string): Promise<InvestmentDto[]> {
@@ -205,7 +165,8 @@ export class InvestmentsService {
             by: ["investmentId"],
             where: {
               investmentId: { in: investments.map((inv) => inv.id) },
-              type: "sell",
+              kind: "sell",
+              status: "active",
             },
             _sum: { realizedPnl: true },
           })
@@ -528,6 +489,7 @@ export class InvestmentsService {
     familyGroupId: string,
     id: string,
     dto: UpdateInvestmentDto,
+    actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentDto> {
     const existing = await this.prisma.investment.findUnique({
       where: { id, familyGroupId },
@@ -538,31 +500,21 @@ export class InvestmentsService {
 
     this.assertValidInterestRatePct(dto.interestRatePct);
 
-    // Security review HIGH (EPIC-022 D2 retry) — `quantity`/`costBasisPerUnit`
-    // must NEVER be settable through this generic edit endpoint for a
-    // lot-tracked holding: that's exactly the silent, unvalidated,
-    // un-audited overwrite `recordTransaction()` was built to replace, and
-    // the frontend disabling those inputs is UI-only (a direct API call
-    // bypasses it entirely). Deposito is the sole exception — it has no
-    // lot/buy-sell concept and its "costBasisPerUnit" is just a
-    // typo-correctable nominal — and even then the value must still be
-    // positive/non-negative (see assertValidQuantity/assertValidCostBasis).
-    // Gated on the type explicitly here, never trusted from the DTO alone.
-    const effectiveType = dto.type ?? existing.type;
-    if (
-      (dto.quantity !== undefined || dto.costBasisPerUnit !== undefined) &&
-      effectiveType !== "deposito"
-    ) {
-      throw new BadRequestException(
-        "quantity and costBasisPerUnit can only be changed via a buy/sell transaction (POST .../investments/:id/transactions) for this investment type",
-      );
-    }
+    // Investasi Task 7 — quantity/costBasisPerUnit are owned by the ledger:
+    // every holding has an `opening` row, so overwriting them here would
+    // desync the replay. For EVERY type (deposito included) the change is
+    // routed through the ledger instead: it edits the holding's sole
+    // `opening` (or creates one when the ledger is empty), replayed and
+    // audited; once other ledger rows exist it is refused (409) and must be
+    // corrected through the transaction history. Validated here first so a
+    // negative value is a 400 before any lock is taken.
     if (dto.quantity !== undefined) {
       this.assertValidQuantity(dto.quantity);
     }
     if (dto.costBasisPerUnit !== undefined) {
       this.assertValidCostBasis(dto.costBasisPerUnit);
     }
+    const effectiveType = dto.type ?? existing.type;
 
     const effectiveName = dto.name ?? existing.name;
     const ticker = this.resolveTickerForUpdate(
@@ -573,31 +525,40 @@ export class InvestmentsService {
       effectiveName,
     );
 
-    const updated = await this.prisma.investment.update({
-      where: { id, familyGroupId },
-      data: {
-        ticker,
-        name: dto.name ?? existing.name,
-        type: dto.type ?? existing.type,
-        quantity: dto.quantity ? new Decimal(dto.quantity) : existing.quantity,
-        costBasisPerUnit: dto.costBasisPerUnit
-          ? new Decimal(dto.costBasisPerUnit)
-          : existing.costBasisPerUnit,
-        currency: dto.currency ?? existing.currency,
-        notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
-        interestRatePct:
-          dto.interestRatePct !== undefined
-            ? dto.interestRatePct
-            : existing.interestRatePct,
-        purchasedAt:
-          dto.purchasedAt !== undefined
-            ? new Date(dto.purchasedAt)
-            : existing.purchasedAt,
-        maturityDate:
-          dto.maturityDate !== undefined
-            ? new Date(dto.maturityDate)
-            : existing.maturityDate,
-      },
+    const positionChanged =
+      dto.quantity !== undefined || dto.costBasisPerUnit !== undefined;
+    const updated = await runSerializableWithRetry(this.prisma, async (tx) => {
+      if (positionChanged) {
+        await this.ledger.reviseOpeningPosition(
+          tx,
+          familyGroupId,
+          id,
+          { quantity: dto.quantity, costBasisPerUnit: dto.costBasisPerUnit },
+          actor,
+        );
+      }
+      return tx.investment.update({
+        where: { id, familyGroupId },
+        data: {
+          ticker,
+          name: dto.name ?? existing.name,
+          type: dto.type ?? existing.type,
+          currency: dto.currency ?? existing.currency,
+          notes: dto.notes !== undefined ? (dto.notes ?? null) : existing.notes,
+          interestRatePct:
+            dto.interestRatePct !== undefined
+              ? dto.interestRatePct
+              : existing.interestRatePct,
+          purchasedAt:
+            dto.purchasedAt !== undefined
+              ? new Date(dto.purchasedAt)
+              : existing.purchasedAt,
+          maturityDate:
+            dto.maturityDate !== undefined
+              ? new Date(dto.maturityDate)
+              : existing.maturityDate,
+        },
+      });
     });
 
     return {
@@ -751,8 +712,10 @@ export class InvestmentsService {
     // The `opening` row only restates the holding's own starting position
     // (written by create() and the migration backfill, no cash leg), so it
     // alone must not block deletion — it cascades with the holding.
+    // Voided rows no longer move cash or units (their cash leg is gone);
+    // their audit trail stays in audit_logs.
     const txCount = await this.prisma.investmentTransaction.count({
-      where: { investmentId: id, kind: { not: "opening" } },
+      where: { investmentId: id, kind: { not: "opening" }, status: "active" },
     });
     if (txCount > 0) {
       throw new ConflictException(
@@ -812,268 +775,48 @@ export class InvestmentsService {
   }
 
   /**
-   * EPIC-022 D2 — the honest replacement for editing quantity/costBasisPerUnit
-   * directly: a BUY grows the position and recomputes a weighted-average
-   * cost (`newAvgCost = (oldQty*oldAvgCost + addedQty*addedCost) /
-   * (oldQty+addedQty)`); a SELL shrinks it, books a realized P/L for the
-   * sold portion (`(sellPrice - costBasisPerUnit) × soldQty`), and — the
-   * disposal-path guard — refuses to sell more than is currently held.
-   * Every call appends one InvestmentTransaction row: this table is the
-   * real history the old whole-record overwrite destroyed.
-   *
-   * CRITICAL/HIGH (EPIC-022 D2 retry) — the current `quantity`/
-   * `costBasisPerUnit` are read and the guards evaluated INSIDE the
-   * Serializable transaction (`runRecordTransaction`), never outside it:
-   * two concurrent buy/sell calls against the same holding would otherwise
-   * both read the same starting state, both pass their own guards
-   * (including the oversell guard) independently, and both commit —
-   * silently losing one call's effect while still recording its
-   * InvestmentTransaction audit row. `runSerializableWithRetry` (the same
-   * helper `LiabilitiesService.pay()` uses for the identical read-then-
-   * write-a-balance shape) runs this at Serializable isolation so Postgres
-   * itself catches the conflicting concurrent write and the loser retries
-   * against the winner's committed state.
+   * EPIC-022 D2 — legacy buy/sell endpoint (POST .../investments/:id/
+   * transactions) kept for the pre-rebuild web. Since Task 7 it is a thin
+   * adapter over the ledger engine (InvestmentLedgerService): the trade is
+   * replayed with the holding's whole history (weighted average, R1),
+   * checked for holdings and cash at its effective point and every later
+   * point (409 on conflict), and `accountId` becomes the cash leg — a buy
+   * is a one-sided transfer out, a sell a transfer in of the proceeds (the
+   * realized P/L stays on the ledger row; no separate income/loss rows).
+   * The legacy body carries IDR prices (fxInputs are converted before this
+   * point), so the row is IDR. `occurredAt` maps to its Asia/Jakarta date
+   * and HH:MM (midnight = date-only).
    */
   async recordTransaction(
     familyGroupId: string,
     id: string,
     dto: CreateInvestmentTransactionDto,
+    actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentTransactionDto> {
-    const qty = new Decimal(dto.quantity);
-    // NOTE: Decimal#isPositive() treats 0 as positive (sign bit only) — use
-    // an explicit `> 0` comparison so a zero quantity is correctly rejected.
-    if (!qty.greaterThan(0)) {
-      throw new BadRequestException("quantity must be greater than 0");
-    }
-    const price = new Decimal(dto.pricePerUnit);
-    if (price.lessThan(0)) {
-      throw new BadRequestException("pricePerUnit must not be negative");
-    }
     const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
-
-    const created = await runSerializableWithRetry(this.prisma, (tx) =>
-      this.runRecordTransaction(
-        tx,
-        familyGroupId,
-        id,
-        dto.type,
-        qty,
-        price,
-        occurredAt,
-        dto.accountId ?? null,
-      ),
+    const { effectiveDate, effectiveTime } = cashKeyParts(occurredAt);
+    const result = await this.ledger.create(
+      familyGroupId,
+      id,
+      {
+        kind: dto.type,
+        idempotencyKey: dto.idempotencyKey ?? randomUUID(),
+        effectiveDate,
+        effectiveTime,
+        timeZone: effectiveTime ? "Asia/Jakarta" : null,
+        quantity: dto.quantity,
+        pricePerUnit: dto.pricePerUnit,
+        currency: "IDR",
+        cashAccountId: dto.accountId ?? null,
+      },
+      actor,
     );
 
     this.logger.log(
-      `Recorded ${dto.type} of ${qty.toString()} unit(s) for investment ${id}`,
+      `Recorded ${dto.type} of ${dto.quantity} unit(s) for investment ${id}`,
     );
 
-    return toTransactionDto(created);
-  }
-
-  /** The tx-scoped body of recordTransaction() — see that method's doc
-   * comment for why the read + guards must live inside the Serializable
-   * transaction rather than before it. */
-  private async runRecordTransaction(
-    tx: TxClient,
-    familyGroupId: string,
-    id: string,
-    type: CreateInvestmentTransactionDto["type"],
-    qty: Decimal,
-    price: Decimal,
-    occurredAt: Date,
-    accountId: string | null = null,
-  ) {
-    const existing = await tx.investment.findUnique({
-      where: { id, familyGroupId },
-    });
-    if (!existing) {
-      throw new NotFoundException("Investment not found");
-    }
-    const settleAccount = accountId
-      ? await tx.account.findUnique({ where: { id: accountId, familyGroupId } })
-      : null;
-    if (accountId && !settleAccount) {
-      throw new NotFoundException(`Account ${accountId} not found`);
-    }
-
-    const oldQty = existing.quantity;
-    const oldAvgCost = existing.costBasisPerUnit;
-
-    let newQty: Decimal;
-    let newAvgCost: Decimal;
-    let realizedPnl: Decimal | null = null;
-
-    if (type === "buy") {
-      newQty = oldQty.plus(qty);
-      newAvgCost = oldQty
-        .times(oldAvgCost)
-        .plus(qty.times(price))
-        .dividedBy(newQty);
-    } else {
-      // Disposal-path guard — never let a sell drive the position negative.
-      // Re-checked against the tx-scoped `oldQty` on every retry, so a
-      // concurrent sell that already committed is reflected here.
-      if (qty.greaterThan(oldQty)) {
-        throw new BadRequestException(
-          `Cannot sell ${qty.toString()} unit(s) — only ${oldQty.toString()} currently held`,
-        );
-      }
-      newQty = oldQty.minus(qty);
-      // Remaining lots keep the SAME average cost — a sale never changes
-      // what the still-held units cost, only the realized result of the
-      // portion sold.
-      newAvgCost = oldAvgCost;
-      realizedPnl = price.minus(oldAvgCost).times(qty);
-    }
-
-    await tx.investment.update({
-      where: { id, familyGroupId },
-      data: { quantity: newQty, costBasisPerUnit: newAvgCost },
-    });
-
-    let cashTransactionId: string | null = null;
-    // EPIC-033 p28 — money actually moves when a settlement account is
-    // named. A buy is an allocation (transfer out, never an expense); a sell
-    // returns the cost through a transfer in and books the realised gain as
-    // "Hasil Investasi" income so the P&L sees it.
-    if (settleAccount) {
-      // A foreign pricePerUnit was already rounded to sen (≤0.005 IDR/unit) before
-      // this point — that per-unit rounding is intentional and consistent with how
-      // avg cost/PnL is also carried at sen precision.
-      const gross = BigInt(qty.times(price).toFixed(0));
-      const label = `${qty.toString()} ${existing.ticker} @ ${price.toString()}`;
-      if (type === "buy") {
-        await tx.account.update({
-          where: { id: settleAccount.id },
-          data: { balance: { decrement: gross } },
-        });
-        const cashLeg = await tx.transaction.create({
-          data: {
-            familyGroupId,
-            accountId: settleAccount.id,
-            toAccountId: null,
-            type: "transfer",
-            amount: gross,
-            description: `Beli ${label}`,
-            occurredAt,
-          },
-          select: { id: true },
-        });
-        cashTransactionId = cashLeg.id;
-      } else {
-        const pnl = BigInt((realizedPnl ?? new Decimal(0)).toFixed(0));
-        const gain = pnl > BigInt(0) ? pnl : BigInt(0);
-        const loss = pnl < BigInt(0) ? -pnl : BigInt(0);
-        await tx.account.update({
-          where: { id: settleAccount.id },
-          data: { balance: { increment: gross } },
-        });
-        const cashLeg = await tx.transaction.create({
-          data: {
-            familyGroupId,
-            accountId: null,
-            toAccountId: settleAccount.id,
-            type: "transfer",
-            amount: gross - gain + loss,
-            description: `Jual ${label}`,
-            occurredAt,
-          },
-          select: { id: true },
-        });
-        cashTransactionId = cashLeg.id;
-        if (loss > BigInt(0)) {
-          // The cost portion transferred back exceeds the proceeds; the
-          // difference is a realised loss, booked as an expense so the P&L
-          // and the account balance agree.
-          const lossCategory = await this.resolveLossCategoryId(
-            tx,
-            familyGroupId,
-          );
-          await tx.transaction.create({
-            data: {
-              familyGroupId,
-              accountId: settleAccount.id,
-              categoryId: lossCategory,
-              type: "expense",
-              amount: loss,
-              description: `Rugi jual ${label}`,
-              occurredAt,
-            },
-          });
-        }
-        if (gain > BigInt(0)) {
-          const incomeCategory = await tx.category.findFirst({
-            where: { familyGroupId, kind: "income", name: "Hasil Investasi" },
-            select: { id: true },
-          });
-          await tx.transaction.create({
-            data: {
-              familyGroupId,
-              accountId: settleAccount.id,
-              categoryId: incomeCategory?.id ?? null,
-              type: "income",
-              amount: gain,
-              description: `Untung jual ${label}`,
-              occurredAt,
-            },
-          });
-        }
-      }
-    }
-
-    // Investasi foundation — fill the ledger columns the rebuild reads. This
-    // legacy path has no fee/tax/FX input: amounts are IDR and gross = net.
-    // The replay-based write path replaces this in a later task.
-    const grossAmount = qty.times(price).toDecimalPlaces(2);
-    return tx.investmentTransaction.create({
-      data: {
-        investmentId: id,
-        familyGroupId,
-        type,
-        kind: type,
-        quantity: qty,
-        pricePerUnit: price,
-        occurredAt,
-        effectiveDate: jakartaDate(occurredAt),
-        grossAmount,
-        netAmount: grossAmount,
-        currency: "IDR",
-        cashAccountId: settleAccount?.id ?? null,
-        cashTransactionId,
-        realizedPnl,
-      },
-    });
-  }
-
-  /**
-   * EPIC-033 p28 — "Rugi Investasi" expense category, created on first use
-   * against the family's catch-all expense COA account (20099) when missing.
-   */
-  private async resolveLossCategoryId(
-    tx: TxClient,
-    familyGroupId: string,
-  ): Promise<string | null> {
-    const existing = await tx.category.findFirst({
-      where: { familyGroupId, kind: "expense", name: "Rugi Investasi" },
-      select: { id: true },
-    });
-    if (existing) return existing.id;
-    const coa = await tx.coaAccount.findFirst({
-      where: { familyGroupId, code: "20099" },
-      select: { id: true },
-    });
-    if (!coa) return null;
-    const created = await tx.category.create({
-      data: {
-        familyGroupId,
-        name: "Rugi Investasi",
-        kind: "expense",
-        coaAccountId: coa.id,
-      },
-      select: { id: true },
-    });
-    return created.id;
+    return result.transaction;
   }
 
   /** EPIC-033 p18 — every recorded price for one holding, most recent first. */
@@ -1107,9 +850,17 @@ export class InvestmentsService {
       throw new NotFoundException("Investment not found");
     }
 
+    // Investasi R6, newest first: effectiveDate, effectiveTime (date-only
+    // rows count as start of day, so they come last within a day here),
+    // createdAt, id. Voided rows are included (status "void").
     const rows = await this.prisma.investmentTransaction.findMany({
       where: { investmentId: id },
-      orderBy: { occurredAt: "desc" },
+      orderBy: [
+        { effectiveDate: "desc" },
+        { effectiveTime: { sort: "desc", nulls: "last" } },
+        { createdAt: "desc" },
+        { id: "desc" },
+      ],
     });
 
     return rows.map(toTransactionDto);

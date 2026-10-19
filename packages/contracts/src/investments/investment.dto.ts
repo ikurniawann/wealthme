@@ -385,3 +385,108 @@ export interface InvestmentPriceDto {
  * history explains. The UI shows it as "Dari data lama — lengkapi riwayat".
  */
 export const LEGACY_RESIDUAL_NOTE = "legacy-residual";
+
+// ── Investasi ledger engine (Task 7) ─────────────────────────────────────────
+
+/** Ledger kinds a client may create through POST .../investments/:id/ledger. */
+export type InvestmentLedgerCreateKind = InvestmentTxKind;
+
+/**
+ * POST .../investments/:id/ledger — one ledger event. Amounts are decimal
+ * strings in `currency`; `fxRate` (IDR per 1 unit of `currency`) is required
+ * when `currency` is not IDR. Quantity is in base units (lembar/share/unit/
+ * gram), never lots. `idempotencyKey` is a uuid generated when the form opens
+ * (R7): a retry with the same key returns the original result with HTTP 200.
+ *
+ * - buy / opening / sell: `quantity` > 0 and `pricePerUnit` ≥ 0 required.
+ *   `grossAmount` defaults to quantity × pricePerUnit.
+ * - dividend / coupon / interest: `grossAmount` > 0 required; quantity is 0.
+ * - corporate_action: `quantity` is the signed change in units (split/bonus
+ *   +, reverse split −); cost basis is carried unchanged.
+ * - `cashAccountId`: kantong dana (or any cash account) the cash leg moves.
+ *   Omitted → the holding's default cashAccountId; null → no cash leg.
+ *   `opening` and `corporate_action` never move cash.
+ */
+export interface CreateInvestmentLedgerInput {
+  kind: InvestmentLedgerCreateKind;
+  idempotencyKey: string;
+  /** yyyy-mm-dd, the event's own date; never in the future. */
+  effectiveDate: string;
+  /** "HH:MM" only when actually known. */
+  effectiveTime?: string | null;
+  timeZone?: string | null;
+  quantity?: string;
+  pricePerUnit?: string;
+  grossAmount?: string;
+  fee?: string;
+  tax?: string;
+  currency: string;
+  /** Only null or equal to `currency` is supported. */
+  feeCurrency?: string | null;
+  fxRate?: string | null;
+  /** Sell only. Default: trade date + the market's settlement days. */
+  settlementDate?: string | null;
+  cashAccountId?: string | null;
+  note?: string | null;
+}
+
+/** PATCH .../investments/:id/ledger/:txId — any subset; kind is fixed. */
+export type UpdateInvestmentLedgerInput = Partial<
+  Omit<CreateInvestmentLedgerInput, "kind" | "idempotencyKey">
+> & {
+  /** Why the row is corrected; stored in the audit row. */
+  reason?: string | null;
+};
+
+/** POST .../investments/:id/ledger/:txId/void */
+export interface VoidInvestmentLedgerInput {
+  reason?: string | null;
+}
+
+export interface InvestmentLedgerHoldingState {
+  id: string;
+  /** Base units after the full replay. */
+  quantity: string;
+  /** Weighted-average cost per base unit, IDR (R1). */
+  costBasisPerUnit: string;
+  /** Σ realizedPnl of active sells, IDR; null when nothing was sold. */
+  realizedPnlRp: string | null;
+}
+
+export interface InvestmentLedgerResultDto {
+  /** True when an earlier request with the same idempotencyKey answered. */
+  replayed: boolean;
+  transaction: InvestmentTransactionDto;
+  holding: InvestmentLedgerHoldingState;
+}
+
+export type InvestmentLedgerConflictCode =
+  | "INSUFFICIENT_FUNDS"
+  | "INSUFFICIENT_HOLDINGS"
+  | "HISTORY_CONFLICT";
+
+export interface InvestmentLedgerConflictItem {
+  /** InvestmentTransaction id, or the cash Transaction id for other cash rows. */
+  transactionId: string;
+  /** yyyy-mm-dd (plus " HH:MM" when the row has a time). */
+  date: string;
+  reason: string;
+}
+
+/**
+ * HTTP 409 body of every ledger write that would make funds or holdings
+ * negative at the effective point or at any later point. No auto top-up,
+ * no clamping, no margin.
+ */
+export interface InvestmentLedgerConflictDto {
+  statusCode: 409;
+  code: InvestmentLedgerConflictCode;
+  message: string;
+  /** The point that fails: yyyy-mm-dd (plus " HH:MM" when timed). */
+  at: string;
+  /** IDR (funds) or base units (holdings), decimal string. */
+  needed: string;
+  available: string;
+  unit: "IDR" | "units";
+  conflicts: InvestmentLedgerConflictItem[];
+}

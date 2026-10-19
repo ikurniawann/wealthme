@@ -7,6 +7,7 @@ import { PrismaModule } from "../prisma/prisma.module";
 import { CoinGeckoMarketDataAdapter } from "./coingecko-market-data.adapter";
 import { InvestmentsController } from "./investments.controller";
 import { InvestmentsService } from "./investments.service";
+import { InvestmentLedgerService } from "./ledger/investment-ledger.service";
 import { MARKET_DATA_PORT } from "./market-data.port";
 import { MockMarketDataAdapter } from "./mock-market-data.adapter";
 import { PriceRefreshProcessor } from "./price-refresh.processor";
@@ -33,6 +34,7 @@ import type { Env } from "../config/env";
   controllers: [InvestmentsController],
   providers: [
     InvestmentsService,
+    InvestmentLedgerService,
     {
       // EPIC-023 G1 (D15) — behind the same MARKET_DATA_PORT token, route by
       // instrument type: crypto → CoinGecko, IDX equities → Yahoo `.JK`
@@ -55,6 +57,6 @@ import type { Env } from "../config/env";
     PriceRefreshScheduler,
     PricesGateway,
   ],
-  exports: [InvestmentsService],
+  exports: [InvestmentsService, InvestmentLedgerService],
 })
 export class InvestmentsModule {}

@@ -1511,6 +1511,95 @@ interface InvestmentPriceDto {
  * history explains. The UI shows it as "Dari data lama — lengkapi riwayat".
  */
 declare const LEGACY_RESIDUAL_NOTE = "legacy-residual";
+/** Ledger kinds a client may create through POST .../investments/:id/ledger. */
+type InvestmentLedgerCreateKind = InvestmentTxKind;
+/**
+ * POST .../investments/:id/ledger — one ledger event. Amounts are decimal
+ * strings in `currency`; `fxRate` (IDR per 1 unit of `currency`) is required
+ * when `currency` is not IDR. Quantity is in base units (lembar/share/unit/
+ * gram), never lots. `idempotencyKey` is a uuid generated when the form opens
+ * (R7): a retry with the same key returns the original result with HTTP 200.
+ *
+ * - buy / opening / sell: `quantity` > 0 and `pricePerUnit` ≥ 0 required.
+ *   `grossAmount` defaults to quantity × pricePerUnit.
+ * - dividend / coupon / interest: `grossAmount` > 0 required; quantity is 0.
+ * - corporate_action: `quantity` is the signed change in units (split/bonus
+ *   +, reverse split −); cost basis is carried unchanged.
+ * - `cashAccountId`: kantong dana (or any cash account) the cash leg moves.
+ *   Omitted → the holding's default cashAccountId; null → no cash leg.
+ *   `opening` and `corporate_action` never move cash.
+ */
+interface CreateInvestmentLedgerInput {
+    kind: InvestmentLedgerCreateKind;
+    idempotencyKey: string;
+    /** yyyy-mm-dd, the event's own date; never in the future. */
+    effectiveDate: string;
+    /** "HH:MM" only when actually known. */
+    effectiveTime?: string | null;
+    timeZone?: string | null;
+    quantity?: string;
+    pricePerUnit?: string;
+    grossAmount?: string;
+    fee?: string;
+    tax?: string;
+    currency: string;
+    /** Only null or equal to `currency` is supported. */
+    feeCurrency?: string | null;
+    fxRate?: string | null;
+    /** Sell only. Default: trade date + the market's settlement days. */
+    settlementDate?: string | null;
+    cashAccountId?: string | null;
+    note?: string | null;
+}
+/** PATCH .../investments/:id/ledger/:txId — any subset; kind is fixed. */
+type UpdateInvestmentLedgerInput = Partial<Omit<CreateInvestmentLedgerInput, "kind" | "idempotencyKey">> & {
+    /** Why the row is corrected; stored in the audit row. */
+    reason?: string | null;
+};
+/** POST .../investments/:id/ledger/:txId/void */
+interface VoidInvestmentLedgerInput {
+    reason?: string | null;
+}
+interface InvestmentLedgerHoldingState {
+    id: string;
+    /** Base units after the full replay. */
+    quantity: string;
+    /** Weighted-average cost per base unit, IDR (R1). */
+    costBasisPerUnit: string;
+    /** Σ realizedPnl of active sells, IDR; null when nothing was sold. */
+    realizedPnlRp: string | null;
+}
+interface InvestmentLedgerResultDto {
+    /** True when an earlier request with the same idempotencyKey answered. */
+    replayed: boolean;
+    transaction: InvestmentTransactionDto;
+    holding: InvestmentLedgerHoldingState;
+}
+type InvestmentLedgerConflictCode = "INSUFFICIENT_FUNDS" | "INSUFFICIENT_HOLDINGS" | "HISTORY_CONFLICT";
+interface InvestmentLedgerConflictItem {
+    /** InvestmentTransaction id, or the cash Transaction id for other cash rows. */
+    transactionId: string;
+    /** yyyy-mm-dd (plus " HH:MM" when the row has a time). */
+    date: string;
+    reason: string;
+}
+/**
+ * HTTP 409 body of every ledger write that would make funds or holdings
+ * negative at the effective point or at any later point. No auto top-up,
+ * no clamping, no margin.
+ */
+interface InvestmentLedgerConflictDto {
+    statusCode: 409;
+    code: InvestmentLedgerConflictCode;
+    message: string;
+    /** The point that fails: yyyy-mm-dd (plus " HH:MM" when timed). */
+    at: string;
+    /** IDR (funds) or base units (holdings), decimal string. */
+    needed: string;
+    available: string;
+    unit: "IDR" | "units";
+    conflicts: InvestmentLedgerConflictItem[];
+}
 
 type LiabilityType = "kartu_kredit" | "pinjaman_pribadi" | "kpr" | "kendaraan" | "lainnya";
 type InterestMethod = "efektif" | "flat" | "anuitas";
@@ -2754,7 +2843,7 @@ type AccessLevel = z.infer<typeof AccessLevelSchema>;
 declare const AccessDataScopeSchema: z.ZodEnum<["all", "own"]>;
 type AccessDataScope = z.infer<typeof AccessDataScopeSchema>;
 /** Sparse page → level map. A page that is absent means `none`. */
-declare const AccessPermissionsSchema: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+declare const AccessPermissionsSchema: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
 type AccessPermissions = Partial<Record<AccessPage, AccessLevel>>;
 type MemberRoleKey = "owner" | "spouse" | "member" | "admin_staff" | "dependant" | "operational";
 /**
@@ -2811,11 +2900,11 @@ declare const AccessRoleInputSchema: z.ZodObject<{
     name: z.ZodString;
     description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     dataScope: z.ZodEnum<["all", "own"]>;
-    permissions: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+    permissions: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     dataScope: "all" | "own";
-    permissions: Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
+    permissions: Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
     description?: string | null | undefined;
 }, {
     name: string;
@@ -2837,7 +2926,7 @@ declare const MemberAccessInputSchema: z.ZodObject<{
     /** null = no custom role (use the built-in role's preset). */
     accessRoleId: z.ZodNullable<z.ZodString>;
     /** Sparse overrides on top of the role; {} clears them. */
-    overrides: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+    overrides: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
     /**
      * "Lihat saldo". Omit to leave unchanged. false = member can still record
      * transactions but never sees balance figures.
@@ -2845,7 +2934,7 @@ declare const MemberAccessInputSchema: z.ZodObject<{
     canViewBalances: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     accessRoleId: string | null;
-    overrides: Partial<Record<"beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "tax" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
+    overrides: Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
     canViewBalances?: boolean | undefined;
 }, {
     accessRoleId: string | null;
@@ -2969,4 +3058,4 @@ declare function accountTypeToAssetClass(type: string): AssetClassKey;
  */
 declare function warisanAssetTypeToAssetClass(assetType: string): AssetClassKey;
 
-export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASS_KEYS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClassKey, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InterestMethod, type InvestmentBaseUnit, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentMarket, type InvestmentPlatform, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };
+export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASS_KEYS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClassKey, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateInvestmentLedgerInput, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InterestMethod, type InvestmentBaseUnit, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentLedgerConflictCode, type InvestmentLedgerConflictDto, type InvestmentLedgerConflictItem, type InvestmentLedgerCreateKind, type InvestmentLedgerHoldingState, type InvestmentLedgerResultDto, type InvestmentMarket, type InvestmentPlatform, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateInvestmentLedgerInput, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type VoidInvestmentLedgerInput, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };

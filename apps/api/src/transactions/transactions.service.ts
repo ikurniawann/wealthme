@@ -1093,6 +1093,21 @@ export class TransactionsService {
         `Transaksi ini terkait setoran tujuan "${linkedContribution.goal.name}" — tidak dapat diedit atau dihapus di sini. Sesuaikan tujuan terkait terlebih dahulu, lalu koreksi transaksi ini.`,
       );
     }
+    // Investasi Task 7 — the cash leg of a buy/sell/dividend is owned by its
+    // InvestmentTransaction (`cashTransactionId`, onDelete SetNull). Editing
+    // or deleting it here would silently unlink it and desync the pocket
+    // from the replayed ledger; the investment row must be corrected or
+    // voided instead (that recomputes the holding and moves the cash back).
+    const linkedInvestmentTx =
+      await this.prisma.investmentTransaction.findFirst({
+        where: { cashTransactionId: tx.id },
+        select: { investment: { select: { name: true } } },
+      });
+    if (linkedInvestmentTx) {
+      throw new ConflictException(
+        `Transaksi ini adalah arus kas transaksi investasi "${linkedInvestmentTx.investment.name}" — tidak dapat diedit atau dihapus di sini. Ubah atau batalkan (void) transaksi investasinya di halaman Investasi.`,
+      );
+    }
   }
 
   /**

@@ -40,11 +40,20 @@ export class CreateInvestmentTransactionDto {
   @ApiPropertyOptional({
     description:
       "EPIC-033 p28 — settle the trade against this account: a buy debits it " +
-      "(transfer out), a sell credits the proceeds and books the realised gain as income.",
+      "(transfer out), a sell credits the net proceeds (transfer in). Since the " +
+      "Investasi ledger (Task 7) the realised P/L stays on the ledger row.",
   })
   @IsOptional()
   @IsUUID()
   accountId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Investasi R7 — uuid generated when the form opens; a retry with the same key returns the original row instead of recording the trade twice.",
+  })
+  @IsOptional()
+  @IsUUID()
+  idempotencyKey?: string;
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];

@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Request,
+  Res,
   UseGuards,
 } from "@nestjs/common";
 import {
@@ -19,11 +20,15 @@ import {
 } from "@nestjs/swagger";
 import {
   type InvestmentDto,
+  type InvestmentLedgerResultDto,
   type InvestmentPriceDto,
   type InvestmentSummaryDto,
   type InvestmentTransactionDto,
 } from "@wealthme/contracts";
-import { type Request as ExpressRequest } from "express";
+import {
+  type Request as ExpressRequest,
+  type Response as ExpressResponse,
+} from "express";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
@@ -37,11 +42,28 @@ import { CreateInvestmentTransactionDto } from "./dto/create-investment-transact
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvestmentDto } from "./dto/create-investment.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import {
+  CreateInvestmentLedgerDto,
+  UpdateInvestmentLedgerDto,
+  VoidInvestmentLedgerDto,
+} from "./dto/investment-ledger.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SetManualPriceDto } from "./dto/set-manual-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateInvestmentDto } from "./dto/update-investment.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentsService } from "./investments.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentLedgerService } from "./ledger/investment-ledger.service";
+
+import type { LedgerActor } from "./ledger/investment-ledger.service";
+
+function actorOf(req: ExpressRequest): LedgerActor {
+  return {
+    userId: req.tenantContext?.userId ?? null,
+    member: req.tenantContext?.member ?? null,
+  };
+}
 
 @ApiTags("investments")
 @ApiBearerAuth()
@@ -53,6 +75,7 @@ export class InvestmentsController {
   constructor(
     private readonly investmentsService: InvestmentsService,
     private readonly fxInputs: FxInputService,
+    private readonly ledger: InvestmentLedgerService,
   ) {}
 
   @Get()
@@ -115,7 +138,12 @@ export class InvestmentsController {
         spec: FX_FIELD_SPECS.investment,
       },
       (converted) =>
-        this.investmentsService.update(req.params.familyGroupId, id, converted),
+        this.investmentsService.update(
+          req.params.familyGroupId,
+          id,
+          converted,
+          actorOf(req),
+        ),
     );
   }
 
@@ -189,6 +217,7 @@ export class InvestmentsController {
           req.params.familyGroupId,
           id,
           converted,
+          actorOf(req),
         ),
     );
   }
@@ -214,6 +243,81 @@ export class InvestmentsController {
     return this.investmentsService.findTransactions(
       req.params.familyGroupId,
       id,
+    );
+  }
+
+  // ── Investasi ledger engine (Task 7) ────────────────────────────────────
+
+  @Post(":id/ledger")
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  @ApiOperation({
+    summary:
+      "Record a ledger event (buy, sell, opening, dividend, coupon, interest, corporate_action). Replayed with the full history; 409 INSUFFICIENT_FUNDS / INSUFFICIENT_HOLDINGS / HISTORY_CONFLICT. Idempotent per idempotencyKey (replay → 200).",
+  })
+  @ApiResponse({ status: 201, description: "InvestmentLedgerResultDto" })
+  @ApiResponse({ status: 200, description: "Idempotent replay" })
+  @ApiResponse({ status: 409, description: "InvestmentLedgerConflictDto" })
+  async createLedgerEntry(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+    @Body() dto: CreateInvestmentLedgerDto,
+    @Res({ passthrough: true }) res: ExpressResponse,
+  ): Promise<InvestmentLedgerResultDto> {
+    const result = await this.ledger.create(
+      req.params.familyGroupId,
+      id,
+      dto,
+      actorOf(req),
+    );
+    // R7 — a replay wrote nothing new: 200, not 201 Created.
+    if (result.replayed) res.status(HttpStatus.OK);
+    return result;
+  }
+
+  @Patch(":id/ledger/:transactionId")
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  @ApiOperation({
+    summary:
+      "Correct a ledger event (kind is fixed). Recomputes the holding and every realized P/L; audited.",
+  })
+  @ApiResponse({ status: 200, description: "InvestmentLedgerResultDto" })
+  @ApiResponse({ status: 409, description: "InvestmentLedgerConflictDto" })
+  updateLedgerEntry(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+    @Param("transactionId") transactionId: string,
+    @Body() dto: UpdateInvestmentLedgerDto,
+  ): Promise<InvestmentLedgerResultDto> {
+    return this.ledger.update(
+      req.params.familyGroupId,
+      id,
+      transactionId,
+      dto,
+      actorOf(req),
+    );
+  }
+
+  @Post(":id/ledger/:transactionId/void")
+  @HttpCode(HttpStatus.OK)
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  @ApiOperation({
+    summary:
+      "Void a ledger event: removes its cash leg, keeps the row (status void), recomputes the holding; audited. Voiding twice is a no-op.",
+  })
+  @ApiResponse({ status: 200, description: "InvestmentLedgerResultDto" })
+  @ApiResponse({ status: 409, description: "InvestmentLedgerConflictDto" })
+  voidLedgerEntry(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Param("id") id: string,
+    @Param("transactionId") transactionId: string,
+    @Body() dto: VoidInvestmentLedgerDto,
+  ): Promise<InvestmentLedgerResultDto> {
+    return this.ledger.void(
+      req.params.familyGroupId,
+      id,
+      transactionId,
+      dto,
+      actorOf(req),
     );
   }
 }
