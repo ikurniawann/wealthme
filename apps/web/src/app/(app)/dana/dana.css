@@ -221,3 +221,485 @@
     color: var(--wm-ink);
   }
 }
+
+/* Kas form — BEGIN (self-contained; keep when rewriting the rest of this file) */
+.dialog.kwf {
+  display: flex;
+  flex-direction: column;
+  width: min(720px, calc(100% - 32px));
+  max-height: 94dvh;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 26px;
+  background: var(--wm-card, #fff);
+}
+.kwf .kwf-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 24px 26px;
+}
+.kwf .kwf-head-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+}
+.kwf .kwf-head-ic svg {
+  width: 26px;
+  height: 26px;
+}
+.kwf .kwf-head-text {
+  min-width: 0;
+  flex: 1;
+}
+.kwf .kwf-title {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.kwf .kwf-sub {
+  margin: 3px 0 0;
+  color: var(--wm-muted);
+  font-size: 14px;
+}
+.kwf .kwf-x {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+  cursor: pointer;
+}
+.kwf .kwf-x:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+.kwf .kwf-x:focus-visible {
+  outline: 2px solid var(--wm-lime, #a9d84c);
+  outline-offset: 2px;
+}
+.kwf .kwf-x svg {
+  width: 20px;
+  height: 20px;
+}
+
+.kwf .kwf-form {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  /* the band's rounded lip: body overlaps the header by 18px */
+  margin-top: -18px;
+  border-radius: 22px 22px 0 0;
+  background: var(--wm-card, #fff);
+  position: relative;
+}
+.kwf .kwf-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+  padding: 22px 28px 12px;
+  overflow-y: auto;
+}
+.kwf .kwf-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.kwf .kwf-sec-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
+  color: var(--wm-ink, inherit);
+  font-size: 17px;
+  font-weight: 800;
+}
+.kwf .kwf-sec-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--wm-line, rgb(0 0 0 / 0.08));
+}
+.kwf .kwf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+.kwf .kwf-field {
+  min-width: 0;
+  margin: 0 !important;
+}
+.kwf .kwf-field .label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.kwf .kwf-field .label em {
+  color: var(--wm-muted);
+  font-style: normal;
+}
+.kwf .kwf-req {
+  color: var(--destructive, #c0392b);
+}
+.kwf .input,
+.kwf .select {
+  min-height: 44px;
+  border-radius: 12px;
+}
+
+/* leading icon / tile inside a control */
+.kwf .kwf-adorn {
+  position: relative;
+}
+.kwf .kwf-adorn-ic {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  display: grid;
+  place-items: center;
+  transform: translateY(-50%);
+  color: var(--wm-muted);
+  pointer-events: none;
+}
+.kwf .kwf-adorn-ic svg {
+  width: 18px;
+  height: 18px;
+}
+.kwf .kwf-adorn > .input,
+.kwf .kwf-adorn > .select {
+  width: 100%;
+  padding-left: 48px;
+}
+.kwf .kwf-mark {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--wm-ghost, rgb(0 0 0 / 0.06));
+  color: var(--wm-ink, inherit);
+  font-size: 11px;
+  font-weight: 700;
+}
+.kwf .kwf-tile {
+  display: grid;
+  place-items: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 4px;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+}
+.kwf .kwf-adorn:has(.kwf-tile) > .select {
+  padding-left: 52px;
+}
+
+/* e-wallet id with dial prefix */
+.kwf .kwf-ident {
+  position: relative;
+}
+.kwf .kwf-lead {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateY(-50%);
+  color: var(--wm-muted);
+  pointer-events: none;
+}
+.kwf .kwf-lead svg {
+  width: 18px;
+  height: 18px;
+}
+.kwf .kwf-lead b {
+  color: var(--wm-ink, inherit);
+  font-weight: 600;
+}
+.kwf .kwf-ident .input {
+  width: 100%;
+  padding-left: 96px;
+}
+
+/* opening-balance note */
+.kwf .kwf-note {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 16px;
+  border-radius: 14px;
+  background: var(--wm-lime-soft, rgb(169 216 76 / 0.16));
+  color: var(--wm-ink, inherit);
+  font-size: 13px;
+}
+.kwf .kwf-note > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+}
+.kwf .kwf-note p {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.kwf .kwf-note span {
+  color: var(--wm-muted);
+}
+.kwf .kwf-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--wm-ink, inherit);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.kwf .kwf-link:focus-visible {
+  outline: 2px solid var(--wm-lime, #a9d84c);
+  outline-offset: 2px;
+}
+
+/* sharing chips */
+.kwf .kwf-share {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.kwf .kwf-share-pick {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.kwf .kwf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 4px 6px 4px 6px;
+  border-radius: 999px;
+  background: var(--wm-ghost, rgb(0 0 0 / 0.06));
+  font-size: 14px;
+  font-weight: 600;
+}
+.kwf .kwf-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #3949ab;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.kwf .kwf-chip button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--wm-muted);
+  cursor: pointer;
+}
+.kwf .kwf-chip button:hover {
+  background: var(--wm-ghost, rgb(0 0 0 / 0.08));
+}
+.kwf .kwf-chip button:focus-visible {
+  outline: 2px solid var(--wm-lime, #a9d84c);
+}
+.kwf .kwf-chip button svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* net-worth checkbox */
+.kwf .kwf-check {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-height: 44px;
+  cursor: pointer;
+}
+.kwf .kwf-check input {
+  position: absolute;
+  opacity: 0;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+}
+.kwf .kwf-check-box {
+  flex: none;
+  position: relative;
+  width: 24px;
+  height: 24px;
+  margin-top: 2px;
+  border: 2px solid var(--wm-line-strong, rgb(0 0 0 / 0.3));
+  border-radius: 7px;
+  background: var(--wm-card, #fff);
+}
+.kwf .kwf-check input:checked + .kwf-check-box {
+  border-color: var(--wm-forest, #113a2d);
+  background: var(--wm-forest, #113a2d);
+}
+.kwf .kwf-check input:checked + .kwf-check-box::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 7px;
+  width: 6px;
+  height: 11px;
+  border: solid #fff;
+  border-width: 0 2.5px 2.5px 0;
+  transform: rotate(45deg);
+}
+.kwf .kwf-check input:focus-visible + .kwf-check-box {
+  outline: 2px solid var(--wm-lime, #a9d84c);
+  outline-offset: 2px;
+}
+.kwf .kwf-check b {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.kwf .kwf-check small {
+  display: block;
+  color: var(--wm-muted);
+  font-size: 13px;
+}
+
+/* collapsible notes + manual strip */
+.kwf .kwf-more-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--wm-ghost, rgb(0 0 0 / 0.05));
+  color: var(--wm-ink, inherit);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kwf .kwf-more-btn:focus-visible {
+  outline: 2px solid var(--wm-lime, #a9d84c);
+  outline-offset: 2px;
+}
+.kwf .kwf-more-btn span {
+  flex: 1;
+}
+.kwf .kwf-more-btn em {
+  color: var(--wm-muted);
+  font-style: normal;
+}
+.kwf .kwf-more-btn svg {
+  width: 18px;
+  height: 18px;
+  color: var(--wm-muted);
+}
+.kwf .kwf-more-btn svg[data-open="true"] {
+  transform: rotate(180deg);
+}
+.kwf .kwf-notes {
+  width: 100%;
+  margin-top: 8px;
+  resize: vertical;
+}
+.kwf .kwf-strip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: 12px;
+  background: var(--wm-ghost, rgb(0 0 0 / 0.05));
+  color: var(--wm-muted);
+  font-size: 13px;
+}
+.kwf .kwf-strip svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+/* sticky footer */
+.kwf .kwf-foot {
+  display: flex;
+  flex: none;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 14px 28px 20px;
+  border-top: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
+  background: var(--wm-card, #fff);
+}
+.kwf .kwf-cancel {
+  min-width: 120px;
+  min-height: 44px;
+  border-radius: 999px;
+}
+.kwf .kwf-save {
+  flex: 0 1 280px;
+  min-height: 44px;
+  border-radius: 999px;
+}
+
+/* phones: full-screen sheet, one column, reachable save */
+@media (max-width: 767px) {
+  .dialog.kwf {
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    transform: none;
+  }
+  .kwf .kwf-head {
+    padding: 16px 16px 24px;
+  }
+  .kwf .kwf-body {
+    padding: 20px 16px 12px;
+  }
+  .kwf .kwf-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .kwf .kwf-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  }
+  .kwf .kwf-save {
+    flex: 1 1 auto;
+  }
+}
+/* Kas form — END */

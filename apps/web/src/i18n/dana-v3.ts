@@ -95,6 +95,7 @@ export interface DanaV3Copy {
     providerCustom: string;
     providerCustomPh: string;
     walletName: string;
+    walletNameSuffix: string;
     walletIdPhone: string;
     walletIdEmail: string;
     walletIdOther: string;
@@ -244,6 +245,7 @@ export const danaV3Id: DanaV3Copy = {
     providerCustom: "Nama penyedia",
     providerCustomPh: "Tulis nama penyedia",
     walletName: "Nama dompet",
+    walletNameSuffix: "Pribadi",
     walletIdPhone: "Nomor ponsel terdaftar",
     walletIdEmail: "Email terdaftar",
     walletIdOther: "ID akun / nomor terdaftar",
@@ -395,6 +397,7 @@ export const danaV3En: DanaV3Copy = {
     providerCustom: "Provider name",
     providerCustomPh: "Type the provider name",
     walletName: "Wallet name",
+    walletNameSuffix: "Personal",
     walletIdPhone: "Registered phone number",
     walletIdEmail: "Registered email",
     walletIdOther: "Account ID / registered number",
