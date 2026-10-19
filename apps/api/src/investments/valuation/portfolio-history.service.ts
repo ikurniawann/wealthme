@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../prisma/prisma.service";
+import { investmentAccessWhere } from "../investment-access";
 import { dbDateToYmd, ledgerInstant } from "../ledger/ledger-dates";
 import { replayLedger } from "../ledger/replay";
 
@@ -11,6 +12,7 @@ import { InvestmentValuationService } from "./investment-valuation.service";
 import { ledgerFactsByHolding } from "./ledger-facts";
 import { jakartaYmd, valueHolding } from "./valuation-core";
 
+import type { LedgerActor } from "../ledger/ledger-support";
 import type { PortfolioValuationQueryDto } from "./dto/portfolio-valuation-query.dto";
 
 /** R10: replay positions at actual stored quote instants. No interpolated prices
@@ -24,8 +26,14 @@ export class PortfolioHistoryService {
     private readonly valuation: InvestmentValuationService,
   ) {}
 
-  async history(familyGroupId: string, query: PortfolioValuationQueryDto) {
+  async history(
+    familyGroupId: string,
+    query: PortfolioValuationQueryDto,
+    actor: LedgerActor,
+  ) {
     const holdings = await this.valuation.valueFamily(familyGroupId, {
+      AND: [investmentAccessWhere(actor)],
+      ...(query.investmentId ? { id: query.investmentId } : {}),
       ...(query.ownerUserId ? { ownerUserId: query.ownerUserId } : {}),
       ...(query.platformAccountId
         ? { platformAccountId: query.platformAccountId }

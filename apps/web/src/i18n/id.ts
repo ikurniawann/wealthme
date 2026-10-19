@@ -1,3 +1,4 @@
+import { investmentDetailId } from "./investment-detail";
 import { investmentPricesId } from "./investment-prices";
 import { investmentFormsId } from "./investment-forms";
 import { investasiV3Id } from "./investasi-v3";
@@ -2061,6 +2062,7 @@ export const id = {
   investasi: {
     forms: investmentFormsId,
     prices: investmentPricesId,
+    detail: investmentDetailId,
     v3: investasiV3Id,
     v2: {
       allocTitle: "Kepemilikan",

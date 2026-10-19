@@ -1,3 +1,4 @@
+import { investmentDetailEn } from "./investment-detail";
 import { investmentPricesEn } from "./investment-prices";
 import { investmentFormsEn } from "./investment-forms";
 import { investasiV3En } from "./investasi-v3";
@@ -2018,6 +2019,7 @@ export const en = {
   investasi: {
     forms: investmentFormsEn,
     prices: investmentPricesEn,
+    detail: investmentDetailEn,
     v3: investasiV3En,
     v2: {
       allocTitle: "Holdings",

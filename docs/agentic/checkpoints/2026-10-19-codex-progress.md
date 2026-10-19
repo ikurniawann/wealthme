@@ -172,3 +172,22 @@ Price batch now owner/share scoped. Date-only older comparison aligned with read
 ordering to avoid misleading preview. Optional FX panel displays real server snapshot;
 no invented frontend override. API/web tsc+changed ESLint PASS, no tests/migrations.
 Next: commit13 explicit paths, health and ledger, then Task14–26.
+
+## Task14 verified implementation (2026-10-20)
+
+Task13 committed b2b9eec, health200, ledger complete. Task14 adds [id]/page +
+detail-calculation/events/documents/transactions, all TSX<400. Data via new
+GET :id/detail (scoped reuse shared valuation); value-history accepts investmentId
+and now actor scope. Buy/sell/price reuse dialogs; income and corporate-action
+creation with stable UUID; docs authenticated upload/download/delete use Task13 API.
+LedgerCorrection now supports actual FX and explicit unknown opening completion.
+completeCostBasis contract+DTO flag updates marker with replay/audit atomically
+when exactly one active opening. Contracts tsup PASS.
+Review fixed percent-of-par bond normalization for explicitly marked NEW bonds
+(quantityIsPrincipal); opening/edit now divide100. Legacy patch costBasisPerUnit
+rejects these new bonds to avoid unit ambiguity. Legacy data remains unchanged.
+API/web tsc + changed TS/TSX eslint PASS, health200, no tests/migrations.
+Next: commit14 explicit paths, health/ledger, Task15 integration (owner scope of
+old list/summary/write/read routes, legacy metadata completion, history percent
+price labels), then16–26. User asked why slow; answered Task14 in progress,
+8–13 complete,15–26 remaining. No pause/cancel requested.

@@ -215,7 +215,7 @@ export class InvestmentLedgerService {
     return runSerializableWithRetry(
       this.prisma,
       async (tx) => {
-        const investment = await this.lockInvestment(
+        let investment = await this.lockInvestment(
           tx,
           familyGroupId,
           investmentId,
@@ -226,6 +226,50 @@ export class InvestmentLedgerService {
           throw new ConflictException(
             "Transaksi yang sudah dibatalkan tidak dapat diubah",
           );
+        }
+        if (input.completeCostBasis) {
+          const details =
+            investment.details &&
+            typeof investment.details === "object" &&
+            !Array.isArray(investment.details)
+              ? investment.details
+              : {};
+          if (
+            existing.kind !== "opening" ||
+            details.costBasisKnown !== false ||
+            input.pricePerUnit === undefined
+          ) {
+            throw new BadRequestException(
+              "Lengkapi modal melalui kepemilikan awal dengan harga aktual.",
+            );
+          }
+          const openings = await tx.investmentTransaction.count({
+            where: { investmentId, status: "active", kind: "opening" },
+          });
+          if (openings !== 1)
+            throw new BadRequestException(
+              "Periksa seluruh kepemilikan awal sebelum melengkapi modal.",
+            );
+          investment = await tx.investment.update({
+            where: { id: investmentId },
+            data: { details: { ...details, costBasisKnown: true } },
+          });
+          if (actor.userId)
+            await tx.auditLog.create({
+              data: {
+                userId: actor.userId,
+                familyGroupId,
+                entity: "Investment",
+                entityId: investmentId,
+                action: "complete_cost_basis",
+                before: { costBasisKnown: false },
+                after: {
+                  costBasisKnown: true,
+                  openingTransactionId: transactionId,
+                  reason: input.reason ?? null,
+                },
+              },
+            });
         }
         const row = normalizeLedgerInput(
           mergeEdit(existing, input),
@@ -303,6 +347,10 @@ export class InvestmentLedgerService {
       investmentId,
       actor,
     );
+    if (holdingConfig(investment).priceDivisor === 100)
+      throw new ConflictException(
+        "Koreksi obligasi bernominal melalui riwayat transaksi dengan harga persen aktual.",
+      );
     const active = await tx.investmentTransaction.findMany({
       where: { investmentId, status: "active" },
     });

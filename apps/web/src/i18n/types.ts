@@ -1,3 +1,4 @@
+import type { InvestmentDetailCopy } from "./investment-detail";
 import type { InvestmentPricesCopy } from "./investment-prices";
 import type { InvestmentFormsCopy } from "./investment-forms";
 import type { InvestasiV3Copy } from "./investasi-v3";
@@ -2029,6 +2030,7 @@ export type I18nDictionary = {
   investasi: {
     forms: InvestmentFormsCopy;
     prices: InvestmentPricesCopy;
+    detail: InvestmentDetailCopy;
     v3: InvestasiV3Copy;
     v2: {
       allocTitle: string;

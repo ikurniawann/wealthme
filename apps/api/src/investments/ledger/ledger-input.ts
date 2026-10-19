@@ -62,6 +62,8 @@ export interface ProposedRow {
 }
 
 export interface LedgerHoldingConfig {
+  /** New bonds use nominal quantity and percent-of-par execution price. */
+  priceDivisor?: number;
   market: InvestmentMarket | null;
   allowFraction: boolean | null;
   cashAccountId: string | null;
@@ -163,6 +165,7 @@ export function normalizeLedgerInput(
     assertQuantityShape(quantity, holding);
     const computed = quantity
       .times(pricePerUnit)
+      .dividedBy(holding.priceDivisor ?? 1)
       .toDecimalPlaces(SCALE, D.ROUND_HALF_UP);
     grossAmount = kind === "opening" ? computed : (grossIn ?? computed);
     if (grossAmount.lessThan(0)) bad("Nilai transaksi tidak boleh negatif");

@@ -25,6 +25,10 @@ export class PortfolioValuationQueryDto implements InvestmentPortfolioValuationQ
   @IsIn(FX_CURRENCY_CODES as readonly string[])
   displayCurrency?: string;
 
+  @IsOptional()
+  @IsUUID()
+  investmentId?: string;
+
   // User ids come from the auth provider; not assumed to be uuids.
   @ApiPropertyOptional()
   @IsOptional()

@@ -32,6 +32,7 @@ import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import type { LedgerActor } from "./ledger/investment-ledger.service";
 import type {
+  Prisma,
   Investment as InvestmentRow,
   InvestmentPrice as InvestmentPriceRow,
   InvestmentType,
@@ -135,8 +136,11 @@ export class InvestmentsService {
    * from `valuation`: `currentValue` is the IDR market value, null when the
    * holding is unpriced (R8 — never 0); `currentPrice` is IDR per unit.
    */
-  async findAll(familyGroupId: string): Promise<InvestmentDto[]> {
-    const valued = await this.valuation.valueFamily(familyGroupId);
+  async findAll(
+    familyGroupId: string,
+    where: Prisma.InvestmentWhereInput = {},
+  ): Promise<InvestmentDto[]> {
+    const valued = await this.valuation.valueFamily(familyGroupId, where);
     return valued.map(({ row: inv, valuation: v }) => {
       const currentValue = v.marketValueIdr
         ? new Decimal(v.marketValueIdr)

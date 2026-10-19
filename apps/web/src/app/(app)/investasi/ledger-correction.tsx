@@ -18,6 +18,8 @@ export function LedgerCorrection({
   token,
   onClose,
   onSaved,
+  percentPrice = false,
+  holdingCurrency,
 }: {
   row: InvestmentTransactionDto;
   voiding: boolean;
@@ -25,6 +27,8 @@ export function LedgerCorrection({
   token: string;
   onClose: () => void;
   onSaved: () => void;
+  percentPrice?: boolean;
+  holdingCurrency?: string;
 }) {
   const { t } = useLocale();
   const f = t.investasi.forms;
@@ -39,15 +43,30 @@ export function LedgerCorrection({
   );
   const [fee, setFee] = useState(canonicalToTyping(row.fee ?? "0", 2));
   const [tax, setTax] = useState(canonicalToTyping(row.tax ?? "0", 2));
+  const [confirmBasis, setConfirmBasis] = useState(false);
+  const [fx, setFx] = useState(canonicalToTyping(row.fxRate ?? "", 6));
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [failure, setFailure] = useState<unknown>(null);
   const kind = row.kind ?? row.type;
+  const currency =
+    row.costBasisKnown === false && kind === "opening"
+      ? (holdingCurrency ?? row.currency ?? "IDR")
+      : (row.currency ?? "IDR");
   const income = kind && ["dividend", "interest", "coupon"].includes(kind);
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
+    if (
+      !voiding &&
+      row.costBasisKnown === false &&
+      kind === "opening" &&
+      !confirmBasis
+    ) {
+      setError(t.investasi.detail.confirmBasis);
+      return;
+    }
     setBusy(true);
     setError("");
     setFailure(null);
@@ -61,6 +80,12 @@ export function LedgerCorrection({
             ? { reason }
             : {
                 reason,
+                ...(row.costBasisKnown === false && kind === "opening"
+                  ? { completeCostBasis: true, pricePerUnit: amount(price) }
+                  : {}),
+                ...(currency !== "IDR"
+                  ? { currency, fxRate: amount(fx), feeCurrency: currency }
+                  : {}),
                 effectiveDate: date,
                 effectiveTime: time || null,
                 timeZone: time ? (row.timeZone ?? "Asia/Jakarta") : null,
@@ -128,7 +153,7 @@ export function LedgerCorrection({
                 {income ? (
                   <AmountInput
                     label={f.transactionValue}
-                    currency={row.currency ?? "IDR"}
+                    currency={currency}
                     value={gross}
                     onChange={setGross}
                   />
@@ -147,22 +172,43 @@ export function LedgerCorrection({
                     </label>
                     <AmountInput
                       label={f.executionPrice}
-                      currency={row.currency ?? "IDR"}
+                      currency={percentPrice ? "%" : currency}
                       value={price}
                       decimals={8}
                       onChange={setPrice}
                     />
                   </>
                 )}
+                {currency !== "IDR" && (
+                  <AmountInput
+                    label={f.actualRate}
+                    currency="IDR"
+                    value={fx}
+                    decimals={6}
+                    onChange={setFx}
+                    required
+                  />
+                )}
+                {row.costBasisKnown === false && kind === "opening" && (
+                  <label className="iv-check">
+                    <input
+                      type="checkbox"
+                      checked={confirmBasis}
+                      required
+                      onChange={(e) => setConfirmBasis(e.target.checked)}
+                    />
+                    {t.investasi.detail.confirmBasis}
+                  </label>
+                )}
                 <AmountInput
                   label={f.fee}
-                  currency={row.currency ?? "IDR"}
+                  currency={currency}
                   value={fee}
                   onChange={setFee}
                 />
                 <AmountInput
                   label={f.tax}
-                  currency={row.currency ?? "IDR"}
+                  currency={currency}
                   value={tax}
                   onChange={setTax}
                 />

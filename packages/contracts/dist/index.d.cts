@@ -1867,6 +1867,8 @@ interface CreateInvestmentLedgerInput {
 }
 /** PATCH .../investments/:id/ledger/:txId — any subset; kind is fixed. */
 type UpdateInvestmentLedgerInput = Partial<Omit<CreateInvestmentLedgerInput, "kind" | "idempotencyKey">> & {
+    /** Confirm an unknown-cost opening after supplying actual opening terms. */
+    completeCostBasis?: boolean;
     /** Why the row is corrected; stored in the audit row. */
     reason?: string | null;
 };

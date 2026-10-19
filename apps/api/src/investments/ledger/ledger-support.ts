@@ -43,6 +43,7 @@ import type {
   InvestmentLedgerConflictDto,
   InvestmentMarket,
   UpdateInvestmentLedgerInput,
+  InvestmentDetails,
 } from "@wealthme/contracts";
 
 /**
@@ -279,7 +280,13 @@ export async function loadCashTimeline(
 }
 
 export function holdingConfig(inv: Investment): LedgerHoldingConfig {
+  const details = inv.details as InvestmentDetails | null;
   return {
+    priceDivisor:
+      details?.bond?.quantityIsPrincipal &&
+      details.bond.priceConvention === "percent_of_par"
+        ? 100
+        : 1,
     market: inv.market as InvestmentMarket | null,
     allowFraction: inv.allowFraction,
     cashAccountId: inv.cashAccountId,

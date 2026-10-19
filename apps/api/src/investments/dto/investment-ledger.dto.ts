@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { FX_CURRENCY_CODES } from "@wealthme/contracts";
 import {
   IsIn,
+  IsBoolean,
   IsOptional,
   IsString,
   IsUUID,
@@ -122,6 +123,10 @@ export class CreateInvestmentLedgerDto implements CreateInvestmentLedgerInput {
 
 /** PATCH .../investments/:id/ledger/:txId — kind and key are fixed. */
 export class UpdateInvestmentLedgerDto implements UpdateInvestmentLedgerInput {
+  @IsOptional()
+  @IsBoolean()
+  completeCostBasis?: boolean;
+
   @ApiPropertyOptional()
   @IsOptional()
   @Matches(DATE)

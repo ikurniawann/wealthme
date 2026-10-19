@@ -90,8 +90,12 @@ export class InvestmentValuationController {
   history(
     @Param("familyGroupId") familyGroupId: string,
     @Query() query: PortfolioValuationQueryDto,
+    @Req() req: Request,
   ) {
-    return this.historyService.history(familyGroupId, query);
+    return this.historyService.history(familyGroupId, query, {
+      member: req.tenantContext?.member ?? null,
+      userId: req.tenantContext?.userId ?? null,
+    });
   }
 
   @Post("prices/preview")

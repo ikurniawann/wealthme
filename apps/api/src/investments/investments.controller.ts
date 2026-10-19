@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  NotFoundException,
   Patch,
   Post,
   Request,
@@ -53,6 +54,7 @@ import {
 import { SetManualPriceDto } from "./dto/set-manual-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateInvestmentDto } from "./dto/update-investment.dto";
+import { investmentAccessWhere } from "./investment-access";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentPositionsService } from "./investment-positions.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -101,6 +103,20 @@ export class InvestmentsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
   ): Promise<InvestmentSummaryDto> {
     return this.investmentsService.getSummary(req.params.familyGroupId);
+  }
+
+  @Get(":id/detail")
+  @CheckAbility((ab) => ab.can("read", "Investment"))
+  async findOne(
+    @Request() req: ExpressRequest,
+    @Param("familyGroupId") fg: string,
+    @Param("id") id: string,
+  ) {
+    const rows = await this.investmentsService.findAll(fg, {
+      AND: [{ id }, investmentAccessWhere(actorOf(req))],
+    });
+    if (!rows[0]) throw new NotFoundException("Investment not found");
+    return rows[0];
   }
 
   @Post()
