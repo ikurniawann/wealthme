@@ -491,12 +491,16 @@ function KasFormBody({
                           }
                         />
                       </div>
-                      <span id={`${uid}-ident-hint`} className="hint block">
-                        {c.walletIdHint}
-                      </span>
                       {err("identifier")}
                     </Field>
                   </div>
+                  {/* below the row, so "Nama dompet" and the ID input line up */}
+                  <span
+                    id={`${uid}-ident-hint`}
+                    className="hint block kwf-row-hint"
+                  >
+                    {c.walletIdHint}
+                  </span>
                   <div className="kwf-grid">
                     {ownerField}
                     {currencyField}
