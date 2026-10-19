@@ -683,6 +683,28 @@ export type I18nDictionary = {
     pageTitles: Record<PageTitleId, string>;
     mobileNav: Record<MobileNavId, string>;
     transactionDialog: {
+      autoFillTitle: string;
+      autoFillBody: string;
+      fromReceipt: string;
+      timeLabel: string;
+      recentCategories: string;
+      allCategories: string;
+      receiptTitle: string;
+      receiptScanned: string;
+      receiptAttached: string;
+      receiptView: string;
+      receiptRescan: string;
+      receiptRemove: string;
+      receiptCheck: string;
+      receiptEmpty: string;
+      summaryTitle: string;
+      summaryType: string;
+      summaryAccount: string;
+      summaryCategory: string;
+      availableBalance: string;
+      pickAccount: string;
+      pickCategory: string;
+      charCount: string;
       /** Redesign — subtitle under the dialog title. */
       subtitle: string;
       /** Redesign — label of the balance-after-this-transaction line. */

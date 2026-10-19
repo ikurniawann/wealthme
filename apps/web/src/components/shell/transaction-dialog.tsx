@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
   type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
 } from "react";
 import Link from "next/link";
 import {
@@ -17,10 +18,15 @@ import {
   ArrowUpRight,
   Camera,
   Check,
+  ChevronDown,
   CreditCard,
+  Eye,
+  FileText,
   Paperclip,
   RotateCcw,
+  ScanLine,
   Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-compat";
@@ -38,7 +44,6 @@ import { apiFetch, type ApiError } from "@/lib/api-client";
 import { queryKeys } from "@/lib/query-keys";
 import { useLocale } from "@/hooks/use-locale";
 import { DateField } from "@/components/wm";
-import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
 import {
   AmountHero,
   categoryIcon,
@@ -81,6 +86,7 @@ import { useMoney } from "@/hooks/use-money";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { useShell } from "./shell-context";
 import "./transaction-dialog.css";
+import { findKnownBank } from "@/app/(app)/rekening/bank-directory";
 import { localIsoDate } from "@/lib/local-date";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
@@ -214,6 +220,18 @@ const CAMERA_ERROR_MESSAGES: Record<
 };
 
 /** EPIC-027 B11 — a never-changing external "store" (see `cameraSupported`). */
+/**
+ * The picked calendar day plus the optional time on that same day. The time
+ * is stored on the UTC day of `date` (a "floating" wall-clock time), so
+ * reports keep bucketing the row on the day the user picked — a WIB time
+ * before 07:00 would otherwise land on the previous UTC day. No time means
+ * midnight, exactly what the dialog stored before it had a time field.
+ */
+function occurredAtIso(date: string, time: string): string {
+  const hhmm = /^\d{2}:\d{2}$/.test(time) ? time : "00:00";
+  return new Date(`${date}T${hhmm}:00.000Z`).toISOString();
+}
+
 function subscribeToNothing(): () => void {
   return () => undefined;
 }
@@ -291,10 +309,40 @@ export function TransactionDialog() {
   const [toAccountId, setToAccountId] = useState("");
   const [adminFee, setAdminFee] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  // Redesign — optional wall-clock time, which fields a receipt scan filled
+  // ("Dari struk"), and which picker panel (account/category) is open.
+  const [time, setTime] = useState("");
+  const NO_SCAN = { amount: false, date: false, description: false };
+  const [scanFilled, setScanFilled] = useState(NO_SCAN);
+  const [openPicker, setOpenPicker] = useState<string | null>(null);
+  // A picker panel closes on a click anywhere outside it.
+  useEffect(() => {
+    if (!openPicker) return;
+    const onDown = (e: PointerEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (!el?.closest?.(`[data-picker="${openPicker}"]`)) setOpenPicker(null);
+    };
+    document.addEventListener("pointerdown", onDown);
+    return () => document.removeEventListener("pointerdown", onDown);
+  }, [openPicker]);
   // EPIC-024 Task L3 (D15, US-TXN-9) — receipt/photo picked on the manual
   // form; uploaded only after the transaction it belongs to actually
   // exists (the attachments endpoint is nested under a real transactionId).
   const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+  // Local preview of the picked/scanned receipt (revoked when it changes).
+  const attachmentUrl = useMemo(
+    () =>
+      attachmentFile && typeof URL.createObjectURL === "function"
+        ? URL.createObjectURL(attachmentFile)
+        : null,
+    [attachmentFile],
+  );
+  useEffect(
+    () => () => {
+      if (attachmentUrl) URL.revokeObjectURL(attachmentUrl);
+    },
+    [attachmentUrl],
+  );
   // EPIC-023 Task E3 — the credit card selected on the card tab, sourced
   // from liabilities (D12: a card is a liability, never an Account).
   const [liabilityId, setLiabilityId] = useState("");
@@ -389,6 +437,8 @@ export function TransactionDialog() {
   const accountFieldId = `${uid}-account`;
   const dateFieldId = `${uid}-date`;
   const descriptionFieldId = `${uid}-description`;
+  const timeFieldId = `${uid}-time`;
+  const categoryPickerId = `${uid}-category-picker`;
   const attachmentFieldId = `${uid}-attachment`;
   const scanHintId = `${uid}-scan-hint`;
   const scanStatusId = `${uid}-scan-status`;
@@ -736,6 +786,9 @@ export function TransactionDialog() {
     setLiabilityId("");
     setDescription("");
     setDate(localIsoDate());
+    setTime("");
+    setScanFilled(NO_SCAN);
+    setOpenPicker(null);
     setAttachmentFile(null);
     setAttempted(false);
     setPrefilled(false);
@@ -749,6 +802,7 @@ export function TransactionDialog() {
     setDescription("");
     setAdminFee("");
     setAttachmentFile(null);
+    setScanFilled(NO_SCAN);
     setAttempted(false);
     setMemoryVersion((version) => version + 1);
     document.getElementById(amountFieldId)?.focus();
@@ -910,6 +964,13 @@ export function TransactionDialog() {
     amountField.reset(String(Math.round(scanResult.amount)));
     setDate(isoToDateInputValue(scanResult.occurredAt, date));
     setDescription(scanResult.description);
+    const scannedAt = new Date(scanResult.occurredAt);
+    if (!Number.isNaN(scannedAt.getTime())) {
+      setTime(
+        `${String(scannedAt.getHours()).padStart(2, "0")}:${String(scannedAt.getMinutes()).padStart(2, "0")}`,
+      );
+    }
+    setScanFilled({ amount: true, date: true, description: true });
     // D13 — `categoryId` was matched against the family's REAL categories
     // server-side. No match means blank; the raw `categoryHint` is never
     // re-guessed client-side.
@@ -958,8 +1019,11 @@ export function TransactionDialog() {
     if (isSaving) return;
     if (problem) {
       setAttempted(true);
-      if (problem.tiles) focusChoiceTiles(problem.focusId);
-      else document.getElementById(problem.focusId)?.focus();
+      if (problem.tiles) {
+        // The tiles live in a collapsible picker: open it, then focus.
+        setOpenPicker(problem.focusId);
+        requestAnimationFrame(() => focusChoiceTiles(problem.focusId));
+      } else document.getElementById(problem.focusId)?.focus();
       return;
     }
     if (amountField.resolved.isPending) {
@@ -981,7 +1045,7 @@ export function TransactionDialog() {
             amount: String(amountNum),
             ...(selectedCategoryId ? { categoryId: selectedCategoryId } : {}),
             ...(description ? { description } : {}),
-            occurredAt: new Date(date).toISOString(),
+            occurredAt: occurredAtIso(date, time),
           },
           [["amount", amountField]],
         ),
@@ -1017,7 +1081,7 @@ export function TransactionDialog() {
           amount: amountNum,
           type: tabKind,
           ...(description ? { description } : {}),
-          occurredAt: new Date(date).toISOString(),
+          occurredAt: occurredAtIso(date, time),
           ...(tabKind === "transfer" ? { toAccountId } : {}),
           ...(adminFeeNum > 0 ? { adminFee: adminFeeNum } : {}),
         },
@@ -1074,12 +1138,13 @@ export function TransactionDialog() {
     );
   };
 
-  // Redesign — the footer reads the transaction back before it is saved,
-  // and the source account shows what its balance becomes.
+  // Redesign — the summary card reads the transaction back before it is
+  // saved, and the source account shows what its balance becomes.
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
   const selectedCategory = relevantCategories.find(
     (c) => c.id === selectedCategoryId,
   );
+  const destAccount = accounts.find((a) => a.id === toAccountId);
   const balanceAfter =
     selectedAccount?.balance !== undefined &&
     selectedAccount.balance !== null &&
@@ -1088,31 +1153,10 @@ export function TransactionDialog() {
       ? Number(selectedAccount.balance) +
         (tabKind === "income" ? amountNum : -amountNum)
       : null;
-  const destAccount = accounts.find((a) => a.id === toAccountId);
-  const summary =
-    amountNum > 0
-      ? [
-          stripLeadingIcon(TABS[tab]),
-          money.format(amountNum),
-          selectedAccount
-            ? `${tabKind === "income" ? t.shell.transactionDialog.summaryTo : t.shell.transactionDialog.summaryFrom} ${selectedAccount.name}`
-            : null,
-          tabKind === "transfer" && destAccount
-            ? `${t.shell.transactionDialog.summaryTo} ${destAccount.name}`
-            : null,
-          selectedCategory
-            ? `${t.shell.transactionDialog.summaryFor} ${
-                isGenerated(selectedCategory.name)
-                  ? selectedCategory.name.slice(
-                      selectedCategory.name.indexOf(": ") + 2,
-                    )
-                  : selectedCategory.name
-              }`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(" ")
-      : null;
+  // "Terakhir digunakan" — the categories this family actually reaches for.
+  const recentCategories = relevantCategories
+    .filter((c) => memory.counts[c.id])
+    .slice(0, 3);
 
   return (
     <Dialog open={txnOpen} onOpenChange={handleOpenChange}>
@@ -1124,305 +1168,435 @@ export function TransactionDialog() {
             : undefined
         }
         onKeyDown={wrapTabFocus}
-        className={
-          view === "form"
-            ? "tx-dialog tx2 min-[721px]:w-[min(820px,calc(100%-32px))] min-[721px]:max-h-[94dvh]"
-            : "overflow-x-hidden p-0"
-        }
+        className={view === "form" ? "tx-dialog tx3" : "overflow-x-hidden p-0"}
       >
         {view === "form" && (
           <>
-            <div className="tx2-head wm-dark">
-              <div className="tx2-titles">
-                <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
-                <p className="tx2-sub">{t.shell.transactionDialog.subtitle}</p>
-              </div>
+            <div className="tx3-head wm-dark">
+              <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
+              <p className="tx3-sub">{t.shell.transactionDialog.subtitle}</p>
+            </div>
 
-              {/* Prototype field order (shell.js:536-570): type switch → Jumlah
-                → Akun → Kategori → [Tanggal | Deskripsi] → Lampiran. */}
-              {/* Prototype's 4-way type switch — `.segmented` /
-                `.segmented__item` with `role="tablist"`/`role="tab"`
-                (shell.js:531-535). */}
+            <DialogBody className="tx3-body">
+              {/* Type switch: a light segmented strip (2×2 with icons on phones). */}
               <div
-                className="segmented hide-scrollbar scroll-fade-x mb-[14px] max-w-full overflow-x-auto min-[721px]:mb-0 max-[720px]:mb-[10px] max-[720px]:grid max-[720px]:grid-cols-4 max-[720px]:overflow-visible max-[720px]:[mask-image:none] max-[720px]:[-webkit-mask-image:none]"
+                className="segmented hide-scrollbar scroll-fade-x max-w-full overflow-x-auto tx3-types max-[720px]:grid max-[720px]:grid-cols-4"
                 role="tablist"
                 aria-label={t.shell.transactionDialog.typeSwitchLabel}
               >
-                {TABS.map((tabLabel, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === i}
-                    aria-label={stripLeadingIcon(tabLabel)}
-                    className="segmented__item shrink-0 whitespace-nowrap max-[720px]:flex max-[720px]:flex-col max-[720px]:items-center max-[720px]:justify-center max-[720px]:gap-[2px] max-[720px]:!px-1 max-[720px]:!text-[13px]"
-                    onClick={() => {
-                      setTab(i);
-                      setAttempted(false);
-                      // EPIC-023 Task E retry (MEDIUM 10) — deliberate split,
-                      // not an oversight: only the fields whose MEANING is
-                      // tab-specific are cleared (a category id, an account
-                      // id, a liability id, or an admin fee are only valid
-                      // relative to the tab that produced them, and a stale
-                      // one could silently reference a now-wrong target).
-                      // `amount`/`description`/`date` answer "how much /
-                      // what / when", which stay meaningful across every
-                      // tab, so they're kept as a convenience — switching
-                      // Expense -> Kartu Kredit to record the same purchase
-                      // differently shouldn't force retyping the amount.
-                      setCategoryId("");
-                      setToAccountId("");
-                      setAdminFee("");
-                      setAccountId("");
-                      setLiabilityId("");
-                    }}
-                  >
-                    {(() => {
-                      const TabIcon = TAB_ICONS[i];
-                      return (
-                        <>
-                          <TabIcon
-                            aria-hidden="true"
-                            className="size-4 min-[721px]:hidden"
-                          />
-                          <span className="max-[720px]:hidden">
-                            {stripLeadingIcon(tabLabel)}
-                          </span>
-                          <span className="min-[721px]:hidden">
-                            {TAB_SHORT[i]}
-                          </span>
-                        </>
-                      );
-                    })()}
-                  </button>
-                ))}
+                {TABS.map((tabLabel, i) => {
+                  const TabIcon = TAB_ICONS[i];
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === i}
+                      aria-label={stripLeadingIcon(tabLabel)}
+                      className="segmented__item shrink-0 whitespace-nowrap"
+                      onClick={() => {
+                        setTab(i);
+                        setAttempted(false);
+                        // EPIC-023 Task E retry (MEDIUM 10) — only the fields
+                        // whose meaning is tab-specific are cleared; amount,
+                        // description and date stay across tabs.
+                        setCategoryId("");
+                        setToAccountId("");
+                        setAdminFee("");
+                        setAccountId("");
+                        setLiabilityId("");
+                        setOpenPicker(null);
+                      }}
+                    >
+                      <TabIcon aria-hidden="true" className="tx3-type-ic" />
+                      <span className="tx3-type-long">
+                        {stripLeadingIcon(tabLabel)}
+                      </span>
+                      <span className="tx3-type-short">{TAB_SHORT[i]}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <AmountHero
-                field={amountField}
-                id={amountFieldId}
-                label={t.shell.transactionDialog.amountLabel}
-                placeholder="0"
-                required
-                error={fieldErrors.amount}
-              />
-            </div>
 
-            <DialogBody className="tx2-body">
-              {tabKind === "card" ? (
-                <div className="tx2-full">
-                  <Field
-                    label={t.shell.transactionDialog.cardLabel}
-                    htmlFor={cardFieldId}
-                    required
-                    error={fieldErrors.card}
-                  >
-                    <select
-                      id={cardFieldId}
-                      className="select"
-                      value={liabilityId}
-                      aria-invalid={Boolean(fieldErrors.card)}
-                      aria-describedby={
-                        fieldErrors.card ? `${cardFieldId}-error` : undefined
-                      }
-                      onChange={(e) => setLiabilityId(e.target.value)}
-                    >
-                      <option value="">
-                        {t.shell.transactionDialog.cardPlaceholder}
-                      </option>
-                      {creditCards.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.name}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-              ) : tabKind === "transfer" ? (
-                <>
-                  <div className="tx2-full">
-                    <TileField
-                      label={t.shell.transactionDialog.sourceAccountLabel}
-                      required
-                      error={fieldErrors.account}
-                      errorId={sourceErrorId}
-                    >
-                      <ChoiceTiles
-                        id={sourceAccountFieldId}
-                        variant="account"
-                        label={t.shell.transactionDialog.sourceAccountLabel}
-                        value={selectedAccountId}
-                        choices={accountChoices}
-                        empty={
-                          accountsEmptyLabel ??
-                          t.shell.transactionDialog.sourceAccountPlaceholder
-                        }
-                        invalid={Boolean(fieldErrors.account)}
-                        errorId={sourceErrorId}
-                        countLabel={tilesCountLabel}
-                        onChange={(nextAccountId) => {
-                          setAccountId(nextAccountId);
-                          // Keep source/destination mutually exclusive.
-                          if (toAccountId === nextAccountId) setToAccountId("");
-                        }}
-                      />
-                    </TileField>
-
-                    <TileField
-                      label={t.shell.transactionDialog.destAccountLabel}
-                      required
-                      error={fieldErrors.destAccount}
-                      errorId={destErrorId}
-                    >
-                      <ChoiceTiles
-                        id={destAccountFieldId}
-                        variant="account"
-                        label={t.shell.transactionDialog.destAccountLabel}
-                        value={toAccountId}
-                        choices={accountChoices.filter(
-                          (choice) => choice.value !== selectedAccountId,
-                        )}
-                        empty={
-                          accountsEmptyLabel ??
-                          t.shell.transactionDialog.destAccountPlaceholder
-                        }
-                        invalid={Boolean(fieldErrors.destAccount)}
-                        errorId={destErrorId}
-                        countLabel={tilesCountLabel}
-                        onChange={setToAccountId}
-                      />
-                    </TileField>
-                  </div>
-                  <div className="tx2-col">
-                    <Field
-                      label={
+              {/* Receipt scan, promoted: it fills the form, so it comes first. */}
+              {tabKind !== "card" && (
+                <div className="tx3-scan">
+                  <span className="tx3-scan-ic" aria-hidden="true">
+                    <ScanLine />
+                  </span>
+                  <div className="min-w-0">
+                    <b>{t.shell.transactionDialog.autoFillTitle}</b>
+                    <span id={scanHintId}>
+                      {scanAvailable ? (
+                        t.shell.transactionDialog.autoFillBody
+                      ) : (
                         <>
-                          {t.shell.transactionDialog.adminFeeLabel}{" "}
-                          <span className="font-normal text-muted-foreground">
-                            {t.shell.transactionDialog.optionalSuffix}
-                          </span>
+                          {t.shell.transactionDialog.scanUnavailable}{" "}
+                          <Link href="/akun" className="font-bold text-primary">
+                            {t.shell.transactionDialog.scanUnavailableLink}
+                          </Link>
                         </>
-                      }
-                      htmlFor={adminFeeFieldId}
-                    >
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                          Rp
-                        </span>
-                        <input
-                          id={adminFeeFieldId}
-                          inputMode="numeric"
-                          value={adminFee}
-                          onChange={(e) =>
-                            setAdminFee(formatAmountInput(e.target.value))
-                          }
-                          placeholder="0"
-                          className="input pl-[38px]"
-                        />
-                      </div>
-                    </Field>
+                      )}
+                    </span>
                   </div>
-                </>
-              ) : (
-                <>
-                  <div className="tx2-full">
+                  {/* EPIC-027 B1 — gated on `scanAvailable`; disabled with the
+                      reason rather than offered and then failing. */}
+                  <button
+                    type="button"
+                    ref={scanTriggerRef}
+                    onClick={startScan}
+                    disabled={!scanAvailable}
+                    aria-describedby={scanHintId}
+                    className="tx3-scan-btn"
+                  >
+                    <Camera className="size-4" aria-hidden="true" />
+                    {t.shell.transactionDialog.scanReceipt}
+                  </button>
+                </div>
+              )}
+
+              <div className="tx3-cols">
+                <div className="tx3-col">
+                  <div className="tx3-amount">
+                    {scanFilled.amount && <ReceiptBadge t={t} />}
+                    <AmountHero
+                      field={amountField}
+                      id={amountFieldId}
+                      label={t.shell.transactionDialog.amountLabel}
+                      placeholder="0"
+                      required
+                      error={fieldErrors.amount}
+                    />
+                  </div>
+
+                  {tabKind === "card" ? (
+                    <Field
+                      label={t.shell.transactionDialog.cardLabel}
+                      htmlFor={cardFieldId}
+                      required
+                      error={fieldErrors.card}
+                    >
+                      <select
+                        id={cardFieldId}
+                        className="select"
+                        value={liabilityId}
+                        aria-invalid={Boolean(fieldErrors.card)}
+                        aria-describedby={
+                          fieldErrors.card ? `${cardFieldId}-error` : undefined
+                        }
+                        onChange={(e) => setLiabilityId(e.target.value)}
+                      >
+                        <option value="">
+                          {t.shell.transactionDialog.cardPlaceholder}
+                        </option>
+                        {creditCards.map((l) => (
+                          <option key={l.id} value={l.id}>
+                            {l.name}
+                          </option>
+                        ))}
+                      </select>
+                    </Field>
+                  ) : tabKind === "transfer" ? (
+                    <>
+                      <TileField
+                        label={t.shell.transactionDialog.sourceAccountLabel}
+                        required
+                        error={fieldErrors.account}
+                        errorId={sourceErrorId}
+                      >
+                        <PickerShell
+                          pickerId={sourceAccountFieldId}
+                          open={openPicker === sourceAccountFieldId}
+                          onToggle={setOpenPicker}
+                          invalid={Boolean(fieldErrors.account)}
+                          trigger={
+                            <AccountFace
+                              account={accounts.find(
+                                (a) => a.id === selectedAccountId,
+                              )}
+                              placeholder={
+                                t.shell.transactionDialog.pickAccount
+                              }
+                              balanceLabel={
+                                t.shell.transactionDialog.availableBalance
+                              }
+                              format={money.formatBalance}
+                            />
+                          }
+                        >
+                          <ChoiceTiles
+                            id={sourceAccountFieldId}
+                            variant="account"
+                            label={t.shell.transactionDialog.sourceAccountLabel}
+                            value={selectedAccountId}
+                            choices={accountChoices}
+                            empty={
+                              accountsEmptyLabel ??
+                              t.shell.transactionDialog.sourceAccountPlaceholder
+                            }
+                            invalid={Boolean(fieldErrors.account)}
+                            errorId={sourceErrorId}
+                            countLabel={tilesCountLabel}
+                            onChange={(nextAccountId) => {
+                              setAccountId(nextAccountId);
+                              if (toAccountId === nextAccountId)
+                                setToAccountId("");
+                              setOpenPicker(null);
+                            }}
+                          />
+                        </PickerShell>
+                      </TileField>
+
+                      <TileField
+                        label={t.shell.transactionDialog.destAccountLabel}
+                        required
+                        error={fieldErrors.destAccount}
+                        errorId={destErrorId}
+                      >
+                        <PickerShell
+                          pickerId={destAccountFieldId}
+                          open={openPicker === destAccountFieldId}
+                          onToggle={setOpenPicker}
+                          invalid={Boolean(fieldErrors.destAccount)}
+                          trigger={
+                            <AccountFace
+                              account={accounts.find(
+                                (a) => a.id === toAccountId,
+                              )}
+                              placeholder={
+                                t.shell.transactionDialog.pickAccount
+                              }
+                              balanceLabel={
+                                t.shell.transactionDialog.availableBalance
+                              }
+                              format={money.formatBalance}
+                            />
+                          }
+                        >
+                          <ChoiceTiles
+                            id={destAccountFieldId}
+                            variant="account"
+                            label={t.shell.transactionDialog.destAccountLabel}
+                            value={toAccountId}
+                            choices={accountChoices.filter(
+                              (choice) => choice.value !== selectedAccountId,
+                            )}
+                            empty={
+                              accountsEmptyLabel ??
+                              t.shell.transactionDialog.destAccountPlaceholder
+                            }
+                            invalid={Boolean(fieldErrors.destAccount)}
+                            errorId={destErrorId}
+                            countLabel={tilesCountLabel}
+                            onChange={(next) => {
+                              setToAccountId(next);
+                              setOpenPicker(null);
+                            }}
+                          />
+                        </PickerShell>
+                      </TileField>
+
+                      <Field
+                        label={
+                          <>
+                            {t.shell.transactionDialog.adminFeeLabel}{" "}
+                            <span className="font-normal text-muted-foreground">
+                              {t.shell.transactionDialog.optionalSuffix}
+                            </span>
+                          </>
+                        }
+                        htmlFor={adminFeeFieldId}
+                      >
+                        <div className="relative">
+                          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                            Rp
+                          </span>
+                          <input
+                            id={adminFeeFieldId}
+                            inputMode="numeric"
+                            value={adminFee}
+                            onChange={(e) =>
+                              setAdminFee(formatAmountInput(e.target.value))
+                            }
+                            placeholder="0"
+                            className="input pl-[38px]"
+                          />
+                        </div>
+                      </Field>
+                    </>
+                  ) : (
                     <TileField
                       label={t.shell.transactionDialog.accountLabel}
                       required
                       error={fieldErrors.account}
                       errorId={accountErrorId}
                     >
-                      <ChoiceTiles
-                        id={accountFieldId}
-                        variant="account"
-                        label={t.shell.transactionDialog.accountLabel}
-                        value={selectedAccountId}
-                        choices={accountChoices}
-                        empty={
-                          accountsEmptyLabel ??
-                          t.shell.transactionDialog.accountPlaceholder
-                        }
+                      <PickerShell
+                        pickerId={accountFieldId}
+                        open={openPicker === accountFieldId}
+                        onToggle={setOpenPicker}
                         invalid={Boolean(fieldErrors.account)}
-                        errorId={accountErrorId}
-                        countLabel={tilesCountLabel}
-                        onChange={setAccountId}
-                      />
+                        trigger={
+                          <AccountFace
+                            account={selectedAccount}
+                            placeholder={t.shell.transactionDialog.pickAccount}
+                            balanceLabel={
+                              t.shell.transactionDialog.availableBalance
+                            }
+                            format={money.formatBalance}
+                          />
+                        }
+                      >
+                        <ChoiceTiles
+                          id={accountFieldId}
+                          variant="account"
+                          label={t.shell.transactionDialog.accountLabel}
+                          value={selectedAccountId}
+                          choices={accountChoices}
+                          empty={
+                            accountsEmptyLabel ??
+                            t.shell.transactionDialog.accountPlaceholder
+                          }
+                          invalid={Boolean(fieldErrors.account)}
+                          errorId={accountErrorId}
+                          countLabel={tilesCountLabel}
+                          onChange={(next) => {
+                            setAccountId(next);
+                            setOpenPicker(null);
+                          }}
+                        />
+                      </PickerShell>
                     </TileField>
-                    {balanceAfter !== null && (
-                      <p className="tx2-after">
-                        <span>
-                          {t.shell.transactionDialog.balanceAfterLabel}
-                        </span>
-                        <b className="wm-num">
-                          {money.formatBalance(balanceAfter)}
-                        </b>
-                      </p>
-                    )}
-                  </div>
-                  <div className="tx2-col">
+                  )}
+
+                  {/* EPIC-023 E4 — no category on Transfer (moving your own
+                      money is neither income nor expense). */}
+                  {tabKind !== "transfer" && (
                     <TileField label={t.shell.transactionDialog.categoryLabel}>
-                      <ChoiceTiles
-                        variant="category"
-                        limit={7}
-                        moreLabel={t.common.viewAll}
-                        label={t.shell.transactionDialog.categoryLabel}
-                        value={selectedCategoryId}
-                        choices={categoryChoices}
-                        empty={t.shell.transactionDialog.categoryPlaceholder}
-                        onChange={setCategoryId}
-                      />
+                      <PickerShell
+                        pickerId={categoryPickerId}
+                        open={openPicker === categoryPickerId}
+                        onToggle={setOpenPicker}
+                        trigger={
+                          <span className="tx3-face">
+                            {selectedCategory ? (
+                              <>
+                                <span
+                                  className="tx3-face-ic"
+                                  aria-hidden="true"
+                                >
+                                  {(() => {
+                                    const Icon = categoryIcon(
+                                      selectedCategory.name,
+                                    );
+                                    return <Icon />;
+                                  })()}
+                                </span>
+                                <b>
+                                  {shortCategoryName(selectedCategory.name)}
+                                </b>
+                              </>
+                            ) : (
+                              <span className="tx3-face-ph">
+                                {t.shell.transactionDialog.pickCategory}
+                              </span>
+                            )}
+                          </span>
+                        }
+                      >
+                        <ChoiceTiles
+                          variant="category"
+                          label={t.shell.transactionDialog.categoryLabel}
+                          value={selectedCategoryId}
+                          choices={categoryChoices}
+                          empty={t.shell.transactionDialog.categoryPlaceholder}
+                          onChange={(next) => {
+                            setCategoryId(next);
+                            setOpenPicker(null);
+                          }}
+                        />
+                      </PickerShell>
+                      {recentCategories.length > 0 && (
+                        <div className="tx3-recent">
+                          <span>
+                            {t.shell.transactionDialog.recentCategories}
+                          </span>
+                          <div>
+                            {recentCategories.map((c) => {
+                              const Icon = categoryIcon(c.name);
+                              return (
+                                <button
+                                  key={c.id}
+                                  type="button"
+                                  className="tx3-chip"
+                                  aria-pressed={selectedCategoryId === c.id}
+                                  onClick={() => setCategoryId(c.id)}
+                                >
+                                  <Icon aria-hidden="true" />
+                                  {shortCategoryName(c.name)}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        className="tx3-link"
+                        aria-expanded={openPicker === categoryPickerId}
+                        onClick={() =>
+                          setOpenPicker(
+                            openPicker === categoryPickerId
+                              ? null
+                              : categoryPickerId,
+                          )
+                        }
+                      >
+                        {t.shell.transactionDialog.allCategories} ›
+                      </button>
                     </TileField>
-                  </div>
-                </>
-              )}
+                  )}
 
-              {/* EPIC-023 Task E4 (D13) — reviewed foundation exception (see
-                the E3 comment above the TAB_KINDS declaration): the
-                Transfer tab loses its category entirely. Moving money
-                between your own accounts is neither income nor expense
-                (CategoryKind is only "income" | "expense" — schema.prisma),
-                so this select was previously ALWAYS empty on that tab; the
-                category belongs on the tab where the money is actually
-                spent. The card tab's own Kartu Kredit select isn't the same
-                "Akun" concept, so its Kategori field stays standalone
-                rather than pairing into a field-row. */}
-              {tabKind === "card" && (
-                <div className="tx2-col">
-                  <TileField label={t.shell.transactionDialog.categoryLabel}>
-                    <ChoiceTiles
-                      variant="category"
-                      limit={7}
-                      moreLabel={t.common.viewAll}
-                      label={t.shell.transactionDialog.categoryLabel}
-                      value={selectedCategoryId}
-                      choices={categoryChoices}
-                      empty={t.shell.transactionDialog.categoryPlaceholder}
-                      onChange={setCategoryId}
-                    />
-                  </TileField>
-                </div>
-              )}
-
-              <div className="tx2-col tx2-col--details">
-                {/* Prototype pairs Tanggal and Deskripsi 2-up in a
-                `.field-row` (shell.js:558-568). */}
-                <div className="field-row mt-3 min-[721px]:mt-0">
-                  <Field
-                    label={t.shell.transactionDialog.dateLabel}
-                    htmlFor={dateFieldId}
-                    className="!mt-0"
-                    required
-                    error={fieldErrors.date}
-                  >
-                    <DateField
-                      id={dateFieldId}
-                      value={date}
-                      locale={locale}
-                      label={t.shell.transactionDialog.dateLabel}
+                  <div className="tx3-when">
+                    <Field
+                      label={
+                        <>
+                          {t.shell.transactionDialog.dateLabel}
+                          {scanFilled.date && <ReceiptBadge t={t} />}
+                        </>
+                      }
+                      htmlFor={dateFieldId}
                       required
-                      onChange={setDate}
-                    />
-                  </Field>
+                      error={fieldErrors.date}
+                    >
+                      <DateField
+                        id={dateFieldId}
+                        value={date}
+                        locale={locale}
+                        label={t.shell.transactionDialog.dateLabel}
+                        required
+                        onChange={(next) => {
+                          setDate(next);
+                          setScanFilled((f) => ({ ...f, date: false }));
+                        }}
+                      />
+                    </Field>
+                    <Field
+                      label={t.shell.transactionDialog.timeLabel}
+                      htmlFor={timeFieldId}
+                    >
+                      <input
+                        id={timeFieldId}
+                        type="time"
+                        className="input"
+                        value={time}
+                        onChange={(e) => setTime(e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                </div>
 
+                <div className="tx3-col">
                   <Field
                     label={
                       <>
@@ -1430,116 +1604,176 @@ export function TransactionDialog() {
                         <span className="font-normal text-muted-foreground">
                           {t.shell.transactionDialog.optionalSuffix}
                         </span>
+                        {scanFilled.description && <ReceiptBadge t={t} />}
                       </>
                     }
                     htmlFor={descriptionFieldId}
-                    className="!mt-0"
                   >
-                    <input
+                    <textarea
                       id={descriptionFieldId}
                       placeholder={
                         t.shell.transactionDialog.descriptionPlaceholder
                       }
                       value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      className="input"
+                      maxLength={500}
+                      rows={3}
+                      onChange={(e) => {
+                        setDescription(e.target.value);
+                        setScanFilled((f) => ({ ...f, description: false }));
+                      }}
+                      className="textarea"
                     />
+                    <span className="tx3-count" aria-live="off">
+                      {t.shell.transactionDialog.charCount.replace(
+                        "{n}",
+                        String(description.length),
+                      )}
+                    </span>
                   </Field>
-                </div>
 
-                {/* EPIC-024 Task L3 (D15, US-TXN-9) — the card tab has no
-                attachment field: `purchaseMutation` posts through
-                `LiabilitiesService.purchase()`, which never returns a
-                transactionId to attach the file to (see the mutation's own
-                doc comment above). */}
-                {tabKind !== "card" && (
-                  // polish-j batch 7a item 6 — Lampiran + the AI-scan control
-                  // (and its setup notice) collapse under their own
-                  // disclosure instead of always occupying dialog space.
-                  <AdvancedDisclosure
-                    label={t.shell.transactionDialog.attachmentLabel}
-                  >
-                    <div className="field mt-0">
-                      <div className="tx-attach">
-                        <label
-                          htmlFor={attachmentFieldId}
-                          className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
-                        >
-                          <Paperclip
-                            className="size-4 shrink-0"
-                            aria-hidden="true"
-                          />
-                          <span className="min-w-0 leading-tight">
-                            {attachmentFile
-                              ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
-                              : "Unggah foto struk atau PDF, maks 5 MB"}
+                  {/* EPIC-024 Task L3 (D15) — no attachment on the card tab:
+                      purchase() returns no transactionId to attach to. */}
+                  {tabKind !== "card" && (
+                    <div className="field tx3-receipt-field">
+                      <span className="label">
+                        {t.shell.transactionDialog.receiptTitle}
+                      </span>
+                      {attachmentFile ? (
+                        <div className="tx3-receipt">
+                          <div className="tx3-thumb" aria-hidden="true">
+                            {attachmentUrl &&
+                            attachmentFile.type.startsWith("image/") ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- a local object URL preview
+                              <img src={attachmentUrl} alt="" />
+                            ) : (
+                              <Paperclip />
+                            )}
+                          </div>
+                          <div className="tx3-receipt-meta">
+                            <b>{attachmentFile.name}</b>
+                            <span
+                              className={prefilled ? "tx3-ok" : "tx3-muted"}
+                            >
+                              {prefilled ? (
+                                <>
+                                  <Check aria-hidden="true" />
+                                  {t.shell.transactionDialog.receiptScanned}
+                                </>
+                              ) : (
+                                t.shell.transactionDialog.receiptAttached
+                              )}
+                            </span>
+                            {attachmentUrl && (
+                              <a
+                                href={attachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="tx3-action"
+                              >
+                                <Eye aria-hidden="true" />
+                                {t.shell.transactionDialog.receiptView}
+                              </a>
+                            )}
+                            {scanAvailable && (
+                              <button
+                                type="button"
+                                className="tx3-action"
+                                onClick={startScan}
+                              >
+                                <RotateCcw aria-hidden="true" />
+                                {t.shell.transactionDialog.receiptRescan}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="tx3-action tx3-action--danger"
+                              onClick={() => setAttachmentFile(null)}
+                            >
+                              <X aria-hidden="true" />
+                              {t.shell.transactionDialog.receiptRemove}
+                            </button>
+                            {prefilled && (
+                              <small>
+                                {t.shell.transactionDialog.receiptCheck}
+                              </small>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <label htmlFor={attachmentFieldId} className="tx3-drop">
+                          <Upload aria-hidden="true" />
+                          <span>
+                            <b>{t.shell.transactionDialog.attachmentLabel}</b>
+                            {t.shell.transactionDialog.receiptEmpty}
                           </span>
                         </label>
-                        {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
-                        key from a vision-capable provider). Disabled with
-                        the reason and a link to Pengaturan rather than
-                        offered and then failing: a control either does what
-                        it implies or says plainly that it can't. */}
-                        <button
-                          type="button"
-                          ref={scanTriggerRef}
-                          onClick={startScan}
-                          disabled={!scanAvailable}
-                          aria-describedby={scanHintId}
-                          className={cn(
-                            "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
-                            scanAvailable
-                              ? "cursor-pointer"
-                              : "cursor-not-allowed opacity-60",
-                          )}
-                        >
-                          <Camera
-                            className="size-4 shrink-0"
-                            aria-hidden="true"
-                          />
-                          <span>{t.shell.transactionDialog.scanReceipt}</span>
-                        </button>
-                        <input
-                          id={attachmentFieldId}
-                          data-testid="attachment-file-input"
-                          type="file"
-                          accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
-                          onChange={handleAttachmentChange}
-                          className="sr-only"
-                        />
-                      </div>
-                      <span className="hint" id={scanHintId}>
-                        {scanAvailable ? (
-                          t.shell.transactionDialog.scanHint
-                        ) : (
-                          <>
-                            {t.shell.transactionDialog.scanUnavailable}{" "}
-                            <Link
-                              href="/akun"
-                              className="font-bold text-primary"
-                            >
-                              {t.shell.transactionDialog.scanUnavailableLink}
-                            </Link>
-                          </>
-                        )}
-                      </span>
+                      )}
+                      <input
+                        id={attachmentFieldId}
+                        data-testid="attachment-file-input"
+                        type="file"
+                        accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+                        onChange={handleAttachmentChange}
+                        className="sr-only"
+                      />
                     </div>
-                  </AdvancedDisclosure>
-                )}
+                  )}
+
+                  <section
+                    className="tx3-summary"
+                    aria-label={t.shell.transactionDialog.summaryTitle}
+                  >
+                    <h3>
+                      <FileText aria-hidden="true" />
+                      {t.shell.transactionDialog.summaryTitle}
+                    </h3>
+                    <dl>
+                      <div>
+                        <dt>{t.shell.transactionDialog.summaryType}</dt>
+                        <dd>{stripLeadingIcon(TABS[tab])}</dd>
+                      </div>
+                      {amountNum > 0 && (
+                        <div>
+                          <dt>{t.shell.transactionDialog.amountLabel}</dt>
+                          <dd className="wm-num">{money.format(amountNum)}</dd>
+                        </div>
+                      )}
+                      <div>
+                        <dt>{t.shell.transactionDialog.summaryAccount}</dt>
+                        <dd>
+                          {tabKind === "card"
+                            ? (creditCards.find((l) => l.id === liabilityId)
+                                ?.name ?? "—")
+                            : (selectedAccount?.name ?? "—")}
+                          {tabKind === "transfer" && destAccount
+                            ? ` → ${destAccount.name}`
+                            : ""}
+                        </dd>
+                      </div>
+                      {selectedCategory && (
+                        <div>
+                          <dt>{t.shell.transactionDialog.summaryCategory}</dt>
+                          <dd>{shortCategoryName(selectedCategory.name)}</dd>
+                        </div>
+                      )}
+                      {balanceAfter !== null && (
+                        <div className="tx3-strong">
+                          <dt>{t.shell.transactionDialog.balanceAfterLabel}</dt>
+                          <dd className="wm-num">
+                            {money.formatBalance(balanceAfter)}
+                          </dd>
+                        </div>
+                      )}
+                    </dl>
+                  </section>
+                </div>
               </div>
             </DialogBody>
 
-            {/* Prototype `.dialog__footer` — outline Batal on the left,
-                primary Simpan on the right (shell.js:590-595). */}
             <DialogFooter
-              className="tx2-foot flex-row flex-wrap"
+              className="tx3-foot flex-row flex-wrap"
               data-sticky={tabKind === "transfer" ? "true" : undefined}
             >
-              {summary && (
-                <p className="tx2-sum" aria-live="polite">
-                  {summary}
-                </p>
-              )}
               <button
                 type="button"
                 onClick={() => handleOpenChange(false)}
@@ -1547,14 +1781,13 @@ export function TransactionDialog() {
               >
                 {t.common.cancel}
               </button>
-              {/* Ghost second commit: saves, keeps the dialog (and type,
-                  account, category, date) and clears amount/description.
-                  Its own row on phones so the primary stays full-size. */}
+              <span className="tx3-foot-gap" aria-hidden="true" />
+              {/* Saves, keeps type/account/category/date, clears the rest. */}
               <button
                 type="button"
                 onClick={() => saveTxn(true)}
                 aria-disabled={saveBlocked}
-                className="btn btn--ghost order-last basis-full min-[721px]:order-none min-[721px]:basis-0 min-[721px]:flex-[1.5]"
+                className="btn btn--ghost"
               >
                 {t.shell.transactionDialog.saveAndAddMore}
               </button>
@@ -1947,5 +2180,130 @@ function OcrRow({
       </div>
       {trailing}
     </div>
+  );
+}
+
+/** Auto-created categories read "Group: specific"; show the specific part. */
+function shortCategoryName(name: string): string {
+  return name.includes(": ") ? name.slice(name.indexOf(": ") + 2) : name;
+}
+
+/** "Dari struk" — marks a field a receipt scan filled in. */
+function ReceiptBadge({ t }: { t: I18nDictionary }) {
+  return (
+    <span className="tx3-badge">
+      <FileText aria-hidden="true" />
+      {t.shell.transactionDialog.fromReceipt}
+    </span>
+  );
+}
+
+/**
+ * A dropdown-style picker: the trigger shows the current choice, the panel
+ * holds the existing tile radiogroup (same roles and names as before). The
+ * panel opens inline below the trigger, so it is never clipped by the
+ * dialog's scroll container.
+ */
+function PickerShell({
+  pickerId,
+  open,
+  onToggle,
+  trigger,
+  invalid,
+  children,
+}: {
+  pickerId: string;
+  open: boolean;
+  onToggle: (next: string | null) => void;
+  trigger: ReactNode;
+  invalid?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="tx3-pick"
+      data-picker={pickerId}
+      data-open={open || undefined}
+      data-invalid={invalid || undefined}
+    >
+      <button
+        type="button"
+        className="tx3-pick-trigger"
+        aria-expanded={open}
+        aria-controls={`${pickerId}-panel`}
+        onClick={() => onToggle(open ? null : pickerId)}
+      >
+        {trigger}
+        <ChevronDown aria-hidden="true" className="tx3-pick-chev" />
+      </button>
+      <div
+        id={`${pickerId}-panel`}
+        className="tx3-pick-panel"
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.stopPropagation();
+            onToggle(null);
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** The account trigger face: logo chip, name, available balance. */
+function AccountFace({
+  account,
+  placeholder,
+  balanceLabel,
+  format,
+}: {
+  account?: {
+    name: string;
+    institution?: string | null;
+    balance?: string | null;
+  };
+  placeholder: string;
+  balanceLabel: string;
+  format: (n: number | null) => string;
+}) {
+  if (!account) {
+    return (
+      <span className="tx3-face">
+        <span className="tx3-face-ph">{placeholder}</span>
+      </span>
+    );
+  }
+  const known = findKnownBank(account.institution ?? account.name);
+  const source = (account.institution || account.name).trim();
+  const words = source.split(/\s+/);
+  const logo =
+    known?.short ??
+    (words.length > 1
+      ? words
+          .slice(0, 2)
+          .map((w) => w[0]?.toUpperCase() ?? "")
+          .join("")
+      : source.slice(0, 4).toUpperCase());
+  return (
+    <span className="tx3-face">
+      <span
+        className="tx3-face-logo"
+        aria-hidden="true"
+        style={known ? { background: known.color } : undefined}
+      >
+        {logo}
+      </span>
+      <span className="min-w-0">
+        <b>{account.name}</b>
+        {account.balance !== undefined && (
+          <small>
+            {balanceLabel}{" "}
+            {format(account.balance === null ? null : Number(account.balance))}
+          </small>
+        )}
+      </span>
+    </span>
   );
 }

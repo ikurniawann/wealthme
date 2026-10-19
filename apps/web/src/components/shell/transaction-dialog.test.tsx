@@ -327,26 +327,28 @@ describe("TransactionDialog, polish-j batch 7a item 6 (subtitle, pairing, Lampir
     ).toHaveLength(0);
   });
 
-  it("collapses Lampiran under a disclosure that is closed by default and opens on click", async () => {
-    const user = userEvent.setup();
+  it("offers receipt upload as an open drop zone and the scan in a banner that explains why it is unavailable", async () => {
     render(<TransactionDialog />);
     await screen.findByRole("tablist");
 
-    const summary = screen.getByText("Lampiran");
-    const details = summary.closest("details");
-    expect(details).not.toBeNull();
-    expect(details).not.toHaveAttribute("open");
+    // Redesign v2 — Lampiran is no longer hidden behind a disclosure.
+    expect(screen.queryByText("Lampiran")?.closest("details")).toBeFalsy();
+    const input = screen.getByTestId("attachment-file-input");
+    expect(input).toBeInTheDocument();
+    expect(
+      document.querySelector(`label[for="${input.id}"]`),
+    ).toHaveTextContent("Lampiran");
 
-    await user.click(summary);
-    expect(details).toHaveAttribute("open");
+    // The scan sits in the "Isi otomatis dari struk" banner, disabled with
+    // the reason and a link to settings when no AI key is configured.
+    const banner = screen.getByText("Isi otomatis dari struk").closest("div")
+      ?.parentElement as HTMLElement;
     expect(
-      within(details as HTMLElement).getByTestId("attachment-file-input"),
-    ).toBeInTheDocument();
+      within(banner).getByRole("button", { name: "Scan Struk" }),
+    ).toBeDisabled();
+    expect(within(banner).getByText(/Butuh API key AI\./)).toBeInTheDocument();
     expect(
-      within(details as HTMLElement).getByText(/Butuh API key AI\./),
-    ).toBeInTheDocument();
-    expect(
-      within(details as HTMLElement).getByRole("link", { name: "Atur" }),
+      within(banner).getByRole("link", { name: "Atur" }),
     ).toBeInTheDocument();
   });
 
