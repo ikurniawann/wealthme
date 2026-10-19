@@ -10,6 +10,7 @@ import { StorageModule } from "../storage/storage.module";
 import { CoinGeckoMarketDataAdapter } from "./coingecko-market-data.adapter";
 import { InvestmentAttachmentsController } from "./investment-attachments.controller";
 import { InvestmentAttachmentsService } from "./investment-attachments.service";
+import { InvestmentMetadataService } from "./investment-metadata.service";
 import { InvestmentPositionsService } from "./investment-positions.service";
 import { InvestmentsController } from "./investments.controller";
 import { InvestmentsService } from "./investments.service";
@@ -57,6 +58,7 @@ import type { Env } from "../config/env";
     InvestmentsService,
     InvestmentAttachmentsService,
     InvestmentPositionsService,
+    InvestmentMetadataService,
     InvestmentLedgerService,
     InvestmentPortfolioService,
     PriceBatchService,

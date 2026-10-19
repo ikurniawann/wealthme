@@ -1,5 +1,6 @@
 import {
   Body,
+  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -41,8 +42,6 @@ import { FxInputService } from "../fx/fx-input.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { CreateInvestmentDto } from "./dto/create-investment.dto";
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreatePositionDto } from "./dto/create-position.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
@@ -53,8 +52,12 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SetManualPriceDto } from "./dto/set-manual-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { UpdateInvestmentMetadataDto } from "./dto/update-investment-metadata.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import { investmentAccessWhere } from "./investment-access";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentMetadataService } from "./investment-metadata.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentPositionsService } from "./investment-positions.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -81,6 +84,7 @@ export class InvestmentsController {
   constructor(
     private readonly investmentsService: InvestmentsService,
     private readonly positions: InvestmentPositionsService,
+    private readonly metadata: InvestmentMetadataService,
     private readonly fxInputs: FxInputService,
     private readonly ledger: InvestmentLedgerService,
   ) {}
@@ -92,7 +96,10 @@ export class InvestmentsController {
   findAll(
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
   ): Promise<InvestmentDto[]> {
-    return this.investmentsService.findAll(req.params.familyGroupId);
+    return this.investmentsService.findAll(
+      req.params.familyGroupId,
+      investmentAccessWhere(actorOf(req)),
+    );
   }
 
   @Get("summary")
@@ -102,7 +109,10 @@ export class InvestmentsController {
   getSummary(
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
   ): Promise<InvestmentSummaryDto> {
-    return this.investmentsService.getSummary(req.params.familyGroupId);
+    return this.investmentsService.getSummary(
+      req.params.familyGroupId,
+      investmentAccessWhere(actorOf(req)),
+    );
   }
 
   @Get(":id/detail")
@@ -121,22 +131,13 @@ export class InvestmentsController {
 
   @Post()
   @CheckAbility((ab) => ab.can("manage", "Investment"))
-  @ApiOperation({ summary: "Create a new investment holding" })
-  @ApiResponse({ status: 201, description: "Created investment" })
-  create(
-    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
-    @Body() dto: CreateInvestmentDto,
-  ): Promise<InvestmentDto> {
-    return this.fxInputs.run(
-      {
-        familyGroupId: req.params.familyGroupId,
-        userId: req.tenantContext?.userId ?? null,
-        entity: "Investment",
-        dto,
-        spec: FX_FIELD_SPECS.investment,
-      },
-      (converted) =>
-        this.investmentsService.create(req.params.familyGroupId, converted),
+  @ApiOperation({
+    summary:
+      "Legacy holding creation retired; use POST positions for atomic metadata and opening/purchase",
+  })
+  create(): never {
+    throw new BadRequestException(
+      "Gunakan formulir Tambah investasi (/investments/positions) dengan pasar dan kunci transaksi yang eksplisit.",
     );
   }
 
@@ -154,6 +155,17 @@ export class InvestmentsController {
     );
     if (result.replayed) res.status(HttpStatus.OK);
     return result;
+  }
+
+  @Patch(":id/metadata")
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  classify(
+    @Request() req: ExpressRequest,
+    @Param("familyGroupId") fg: string,
+    @Param("id") id: string,
+    @Body() dto: UpdateInvestmentMetadataDto,
+  ) {
+    return this.metadata.update(fg, id, dto, actorOf(req));
   }
 
   @Patch(":id")
@@ -193,7 +205,11 @@ export class InvestmentsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Param("id") id: string,
   ): Promise<void> {
-    return this.investmentsService.remove(req.params.familyGroupId, id);
+    return this.investmentsService.remove(
+      req.params.familyGroupId,
+      id,
+      actorOf(req),
+    );
   }
 
   @Post(":id/price")
@@ -223,6 +239,7 @@ export class InvestmentsController {
           req.params.familyGroupId,
           id,
           converted,
+          actorOf(req),
         ),
     );
   }
@@ -266,7 +283,11 @@ export class InvestmentsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Param("id") id: string,
   ): Promise<InvestmentPriceDto[]> {
-    return this.investmentsService.findPrices(req.params.familyGroupId, id);
+    return this.investmentsService.findPrices(
+      req.params.familyGroupId,
+      id,
+      actorOf(req),
+    );
   }
 
   @Get(":id/transactions")
@@ -280,6 +301,7 @@ export class InvestmentsController {
     return this.investmentsService.findTransactions(
       req.params.familyGroupId,
       id,
+      actorOf(req),
     );
   }
 

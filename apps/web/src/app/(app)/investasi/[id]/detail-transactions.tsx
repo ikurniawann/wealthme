@@ -126,7 +126,11 @@ export function DetailTransactions({
                         "corporate_action",
                       ].includes(kind)
                         ? "—"
-                        : fmt(r.pricePerUnit, r.currency)}
+                        : v.bond?.convention === "percent_of_par"
+                          ? hideBalance
+                            ? "••••"
+                            : `${r.pricePerUnit}%`
+                          : fmt(r.pricePerUnit, r.currency)}
                     </td>
                     <td>{unknown ? "—" : fmt(r.grossAmount, r.currency)}</td>
                     <td>{fmt(add(r.fee ?? "0", r.tax ?? "0"), r.currency)}</td>

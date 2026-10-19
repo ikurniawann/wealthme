@@ -13,6 +13,8 @@ import { money } from "./portfolio-model";
 
 export interface PortfolioActivity extends InvestmentTransactionDto {
   holdingName: string;
+  holdingCurrency?: string;
+  percentPrice?: boolean;
 }
 export function PortfolioChart({
   data,
@@ -201,7 +203,13 @@ export function mergeActivity(
 ): PortfolioActivity[] {
   return histories
     .flatMap((rows, i) =>
-      rows.map((row) => ({ ...row, holdingName: holdings[i]?.name ?? "—" })),
+      rows.map((row) => ({
+        ...row,
+        holdingName: holdings[i]?.name ?? "—",
+        holdingCurrency: holdings[i]?.currency,
+        percentPrice:
+          holdings[i]?.details?.bond?.priceConvention === "percent_of_par",
+      })),
     )
     .sort(
       (a, b) =>

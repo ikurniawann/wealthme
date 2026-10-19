@@ -9,6 +9,7 @@ import type {
   PlatformAccountDto,
 } from "@wealthme/contracts";
 import { useLocale } from "@/hooks/use-locale";
+import { useMyRole } from "@/hooks/use-my-role";
 import { useMoney } from "@/hooks/use-money";
 import { useCanManage } from "@/hooks/use-role-permissions";
 import { useSession } from "@/lib/auth-compat";
@@ -21,6 +22,7 @@ import { PortfolioChart } from "../portfolio-overview";
 import { TradeForm } from "../trade-form";
 import { PriceForm } from "../price-form";
 import { percentPrice } from "../price-unit";
+import { DetailMetadata } from "./detail-metadata";
 import { DetailCalculation } from "./detail-calculation";
 import { DetailTransactions } from "./detail-transactions";
 import { DetailDocuments } from "./detail-documents";
@@ -33,6 +35,7 @@ export default function InvestmentDetailPage() {
   const c = t.investasi.v3;
   const d = t.investasi.detail;
   const { hideBalance } = useMoney();
+  const { myRole } = useMyRole();
   const { canManage } = useCanManage("Investment");
   const { data: session } = useSession();
   const fg = session?.familyGroupId;
@@ -45,7 +48,7 @@ export default function InvestmentDetailPage() {
     "summary",
   );
   const [action, setAction] = useState<
-    "buy" | "sell" | "price" | "income" | "corporate" | null
+    "buy" | "sell" | "price" | "income" | "corporate" | "metadata" | null
   >(null);
   const holding = useQuery({
     queryKey: ["investments-v3", fg, token, id],
@@ -138,9 +141,9 @@ export default function InvestmentDetailPage() {
       </nav>
       <header className="iv-header">
         <div>
-          <h1 className="iv-title">
+          <p className="iv-title">
             {h.name} <span className="iv-ticker">{h.ticker}</span>
-          </h1>
+          </p>
           <p>
             {h.market ?? c.completeMarket} · {c[h.type]} · {h.currency}
           </p>
@@ -157,6 +160,12 @@ export default function InvestmentDetailPage() {
         </div>
         {canManage && (
           <div className="iv-header-actions">
+            <button
+              className="btn btn--outline"
+              onClick={() => setAction("metadata")}
+            >
+              {d.completeMetadata}
+            </button>
             <button
               className="btn btn--primary"
               onClick={() => setAction("buy")}
@@ -318,6 +327,18 @@ export default function InvestmentDetailPage() {
           fg={fg!}
           token={token!}
           canManage={!!canManage}
+        />
+      )}
+      {action === "metadata" && (
+        <DetailMetadata
+          holding={h}
+          platforms={platforms.data ?? []}
+          members={members.data ?? []}
+          isMaster={myRole === "owner" || myRole === "spouse"}
+          fg={fg!}
+          token={token!}
+          onSaved={onSaved}
+          onClose={() => setAction(null)}
         />
       )}
       {(action === "buy" || action === "sell") && (

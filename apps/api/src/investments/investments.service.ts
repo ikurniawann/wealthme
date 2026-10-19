@@ -14,6 +14,7 @@ import { runSerializableWithRetry } from "../common/utils/serializable-retry.uti
 import { PrismaService } from "../prisma/prisma.service";
 
 import { deriveInternalCode } from "./internal-code.util";
+import { investmentAccessWhere } from "./investment-access";
 import {
   decimalToString,
   toTransactionDto,
@@ -200,8 +201,11 @@ export class InvestmentsService {
    * (R8, as before). The /investasi page uses GET …/valuation instead,
    * which separates them and flags the total incomplete.
    */
-  async getSummary(familyGroupId: string): Promise<InvestmentSummaryDto> {
-    const valued = await this.valuation.valueFamily(familyGroupId);
+  async getSummary(
+    familyGroupId: string,
+    where: Prisma.InvestmentWhereInput = {},
+  ): Promise<InvestmentSummaryDto> {
+    const valued = await this.valuation.valueFamily(familyGroupId, where);
 
     let totalCostBasis = ZERO;
     let totalCurrentValue = ZERO;
@@ -238,6 +242,7 @@ export class InvestmentsService {
   async create(
     familyGroupId: string,
     dto: CreateInvestmentDto,
+    actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentDto> {
     this.assertValidInterestRatePct(dto.interestRatePct);
     this.assertValidQuantity(dto.quantity);
@@ -255,6 +260,7 @@ export class InvestmentsService {
     const investment = await this.prisma.investment.create({
       data: {
         familyGroupId,
+        ownerUserId: actor.member?.userId ?? null,
         ticker,
         name: dto.name,
         type: dto.type,
@@ -328,8 +334,8 @@ export class InvestmentsService {
     dto: UpdateInvestmentDto,
     actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentDto> {
-    const existing = await this.prisma.investment.findUnique({
-      where: { id, familyGroupId },
+    const existing = await this.prisma.investment.findFirst({
+      where: { id, familyGroupId, AND: [investmentAccessWhere(actor, true)] },
     });
     if (!existing) {
       throw new NotFoundException("Investment not found");
@@ -362,9 +368,27 @@ export class InvestmentsService {
       effectiveName,
     );
 
+    if (
+      (dto.type !== undefined && dto.type !== existing.type) ||
+      (dto.currency !== undefined && dto.currency !== existing.currency)
+    )
+      throw new BadRequestException(
+        "Jenis dan mata uang kepemilikan tidak dapat ditafsir ulang melalui formulir lama.",
+      );
     const positionChanged =
       dto.quantity !== undefined || dto.costBasisPerUnit !== undefined;
     const updated = await runSerializableWithRetry(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "investments" WHERE "id" = ${id} AND "familyGroupId" = ${familyGroupId} FOR UPDATE`;
+      if (
+        !(await tx.investment.findFirst({
+          where: {
+            id,
+            familyGroupId,
+            AND: [investmentAccessWhere(actor, true)],
+          },
+        }))
+      )
+        throw new NotFoundException("Investment not found");
       if (positionChanged) {
         await this.ledger.reviseOpeningPosition(
           tx,
@@ -538,29 +562,44 @@ export class InvestmentsService {
    * only safe BECAUSE this guard makes that cascade unreachable in
    * practice — see the doc comment on that FK.
    */
-  async remove(familyGroupId: string, id: string): Promise<void> {
-    const existing = await this.prisma.investment.findUnique({
-      where: { id, familyGroupId },
+  async remove(
+    familyGroupId: string,
+    id: string,
+    actor: LedgerActor = { userId: null, member: null },
+  ): Promise<void> {
+    await runSerializableWithRetry(this.prisma, async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "investments" WHERE "id" = ${id} AND "familyGroupId" = ${familyGroupId} FOR UPDATE`;
+      const existing = await tx.investment.findFirst({
+        where: { id, familyGroupId, AND: [investmentAccessWhere(actor, true)] },
+      });
+      if (!existing) throw new NotFoundException("Investment not found");
+      const txCount = await tx.investmentTransaction.count({
+        where: { investmentId: id, kind: { not: "opening" }, status: "active" },
+      });
+      const docs = await tx.investmentAttachment.count({
+        where: { investmentId: id, familyGroupId },
+      });
+      if (txCount > 0 || docs > 0)
+        throw new ConflictException(
+          "Tidak dapat menghapus investasi dengan riwayat aktif atau dokumen; koreksi melalui riwayat dan periksa dokumennya.",
+        );
+      await tx.investment.delete({ where: { id, familyGroupId } });
+      if (actor.userId)
+        await tx.auditLog.create({
+          data: {
+            userId: actor.userId,
+            familyGroupId,
+            entity: "Investment",
+            entityId: id,
+            action: "delete",
+            before: {
+              name: existing.name,
+              quantity: existing.quantity.toString(),
+              costBasisPerUnit: existing.costBasisPerUnit.toString(),
+            },
+          },
+        });
     });
-    if (!existing) {
-      throw new NotFoundException("Investment not found");
-    }
-
-    // The `opening` row only restates the holding's own starting position
-    // (written by create() and the migration backfill, no cash leg), so it
-    // alone must not block deletion — it cascades with the holding.
-    // Voided rows no longer move cash or units (their cash leg is gone);
-    // their audit trail stays in audit_logs.
-    const txCount = await this.prisma.investmentTransaction.count({
-      where: { investmentId: id, kind: { not: "opening" }, status: "active" },
-    });
-    if (txCount > 0) {
-      throw new ConflictException(
-        `Tidak dapat menghapus "${existing.name}" — riwayat transaksi (beli/jual) sudah ada dan tidak boleh dihapus diam-diam`,
-      );
-    }
-
-    await this.prisma.investment.delete({ where: { id, familyGroupId } });
   }
 
   /**
@@ -575,19 +614,26 @@ export class InvestmentsService {
     familyGroupId: string,
     id: string,
     dto: SetManualPriceDto,
+    actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentPriceDto> {
     // Hardening audit (validation, HIGH) — `@IsNumberString()` accepts
     // "-15250"; this used to be persisted unchecked via `new Decimal(...)`,
     // corrupting the holding's valuation.
     this.assertValidManualPrice(dto.price);
-    const existing = await this.prisma.investment.findUnique({
-      where: { id, familyGroupId },
+    const existing = await this.prisma.investment.findFirst({
+      where: { id, familyGroupId, AND: [investmentAccessWhere(actor, true)] },
     });
     if (!existing) {
       throw new NotFoundException("Investment not found");
     }
 
     const asOf = dto.asOf ? new Date(dto.asOf) : new Date();
+    if (asOf > new Date())
+      throw new BadRequestException("Tanggal harga tidak boleh di masa depan.");
+    if (existing.type === "deposito")
+      throw new BadRequestException(
+        "Deposito memakai metode pokok dan bunga berjalan.",
+      );
     const created = await this.prisma.investmentPrice.create({
       data: {
         investmentId: id,
@@ -630,7 +676,23 @@ export class InvestmentsService {
     dto: CreateInvestmentTransactionDto,
     actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentTransactionDto> {
-    const occurredAt = dto.occurredAt ? new Date(dto.occurredAt) : new Date();
+    if (actor.userId && !dto.idempotencyKey)
+      throw new BadRequestException(
+        "Kunci transaksi wajib diisi untuk mencegah pencatatan ganda.",
+      );
+    const replay = dto.idempotencyKey
+      ? await this.prisma.investmentTransaction.findUnique({
+          where: {
+            familyGroupId_idempotencyKey: {
+              familyGroupId,
+              idempotencyKey: dto.idempotencyKey,
+            },
+          },
+        })
+      : null;
+    const occurredAt = dto.occurredAt
+      ? new Date(dto.occurredAt)
+      : (replay?.occurredAt ?? new Date());
     const { effectiveDate, effectiveTime } = cashKeyParts(occurredAt);
     const result = await this.ledger.create(
       familyGroupId,
@@ -662,9 +724,10 @@ export class InvestmentsService {
   async findPrices(
     familyGroupId: string,
     id: string,
+    actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentPriceDto[]> {
-    const existing = await this.prisma.investment.findUnique({
-      where: { id, familyGroupId },
+    const existing = await this.prisma.investment.findFirst({
+      where: { id, familyGroupId, AND: [investmentAccessWhere(actor, false)] },
     });
     if (!existing) {
       throw new NotFoundException("Investment not found");
@@ -681,9 +744,10 @@ export class InvestmentsService {
   async findTransactions(
     familyGroupId: string,
     id: string,
+    actor: LedgerActor = { userId: null, member: null },
   ): Promise<InvestmentTransactionDto[]> {
-    const existing = await this.prisma.investment.findUnique({
-      where: { id, familyGroupId },
+    const existing = await this.prisma.investment.findFirst({
+      where: { id, familyGroupId, AND: [investmentAccessWhere(actor, false)] },
     });
     if (!existing) {
       throw new NotFoundException("Investment not found");

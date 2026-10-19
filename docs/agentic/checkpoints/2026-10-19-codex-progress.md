@@ -191,3 +191,26 @@ Next: commit14 explicit paths, health/ledger, Task15 integration (owner scope of
 old list/summary/write/read routes, legacy metadata completion, history percent
 price labels), then16–26. User asked why slow; answered Task14 in progress,
 8–13 complete,15–26 remaining. No pause/cancel requested.
+
+## Task15 verified implementation
+
+Task14 committed27fff3c, health200, ledger complete. Task15 integration adds
+InvestmentMetadataService + DTO + PATCH :id/metadata and detail-metadata form.
+Explicit legacy market selection, platform catalog/currency/pocket/owner scope;
+no quantity/currency reinterpretation. Name/source metadata audited. Old list,
+summary, valuation, price/transaction reads, generic writes now owner/share scoped.
+Delete uses row lock+history/doc guards+audit. Old public POST /investments now400
+with instruction to use /positions (R5/R7); legacy servicecreate remains for old
+unit tests only. Old trade route requires key for public actor; retries reuse
+original timestamp when occurredAt omitted. External legacy clients must migrate.
+Fixed page h1 convention, CSS layering, dark header foreground, bond percent
+labels and correction props through portfolio activity, hides deposit price menu.
+All changed runtime files since base linted (API41/web44), API/web tsc PASS;
+latest files eslint PASS; contracts rebuilt (no dist diff). No tests/migrations.
+Transient health000 during watch restart recovered200, metadataPATCH401 confirms
+route loaded; no restart required.
+Next: commit15 explicit paths, health/ledger then Task16–26 sequentially. Task16
+starts Aset specs/audit/refs + A1–A7 plan rulings; no Aset files changed yet.
+Remaining risks for26: legacy helper tests/controllers need updates for new APIs;
+cash top-up edit/delete path soft-void gap; deferred ledger/pocket issues in ledger;
+browser desktop1440/tablet820/mobile390 light/dark still ONLY at26.

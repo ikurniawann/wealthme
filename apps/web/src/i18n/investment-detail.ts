@@ -1,4 +1,7 @@
 export const investmentDetailId = {
+  metadataSaved: "Data kepemilikan diperbarui",
+  metadataEffect:
+    "Kuantitas dan transaksi lama tetap memakai catatan aslinya. Pilih pasar dan platform sesuai kepemilikan sebenarnya.",
   delayed: "Harga tertunda/tidak resmi",
   summary: "Ringkasan",
   transactions: "Transaksi",
@@ -63,6 +66,9 @@ export const investmentDetailId = {
 };
 export type InvestmentDetailCopy = typeof investmentDetailId;
 export const investmentDetailEn: InvestmentDetailCopy = {
+  metadataSaved: "Holding data updated",
+  metadataEffect:
+    "Quantities and past transactions retain their original records. Choose the market and platform that match the actual holding.",
   delayed: "Delayed/unofficial price",
   summary: "Summary",
   transactions: "Transactions",

@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PlatformAccountsService } from "../../platform-accounts/platform-accounts.service";
+import { investmentAccessWhere } from "../investment-access";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentValuationService } from "./investment-valuation.service";
@@ -171,6 +172,12 @@ export class InvestmentPortfolioService {
       this.valuation.valueFamily(
         familyGroupId,
         {
+          AND: [
+            investmentAccessWhere({
+              member: viewer.member,
+              userId: viewer.userId ?? null,
+            }),
+          ],
           ...(query.ownerUserId ? { ownerUserId: query.ownerUserId } : {}),
           ...(query.platformAccountId
             ? { platformAccountId: query.platformAccountId }

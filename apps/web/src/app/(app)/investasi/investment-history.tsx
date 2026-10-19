@@ -312,6 +312,8 @@ export function InvestmentHistory({
           token={token}
           onClose={() => setEdit(null)}
           onSaved={onSaved}
+          percentPrice={edit.row.percentPrice}
+          holdingCurrency={edit.row.holdingCurrency}
         />
       )}
     </section>

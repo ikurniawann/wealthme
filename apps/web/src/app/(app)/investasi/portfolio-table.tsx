@@ -9,6 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu";
+import { percentPrice } from "./price-unit";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
 import type {
@@ -171,13 +172,17 @@ export function PortfolioTable({
                       <small>IDR · {c.perUnit}</small>
                     </td>
                     <td data-label={c.price}>
-                      {money(
-                        v?.price?.value,
-                        v?.price?.currency ?? "IDR",
-                        locale,
-                        hideBalance,
-                        8,
-                      )}
+                      {percentPrice(h) && v?.price
+                        ? hideBalance
+                          ? "••••"
+                          : `${v.price.value}%`
+                        : money(
+                            v?.price?.value,
+                            v?.price?.currency ?? "IDR",
+                            locale,
+                            hideBalance,
+                            8,
+                          )}
                       <small>
                         {v?.price
                           ? `${v.price.source} · ${new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", { dateStyle: "medium", timeZone: "Asia/Jakarta" }).format(new Date(v.price.asOf))}`
@@ -239,8 +244,12 @@ export function PortfolioTable({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
                               <DropdownMenuGroup>
-                                {(["buy", "sell", "price"] as const).map(
-                                  (kind) => (
+                                {(["buy", "sell", "price"] as const)
+                                  .filter(
+                                    (kind) =>
+                                      kind !== "price" || h.type !== "deposito",
+                                  )
+                                  .map((kind) => (
                                     <DropdownMenuItem
                                       key={kind}
                                       onClick={() =>
@@ -251,8 +260,7 @@ export function PortfolioTable({
                                         ? c.updatePrice
                                         : c[kind]}
                                     </DropdownMenuItem>
-                                  ),
-                                )}
+                                  ))}
                               </DropdownMenuGroup>
                             </DropdownMenuContent>
                           </DropdownMenu>
