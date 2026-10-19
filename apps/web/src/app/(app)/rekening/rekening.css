@@ -600,6 +600,8 @@
   @media (min-width: 1181px) {
     .rk3-groups {
       grid-template-columns: repeat(2, minmax(0, 1fr));
+      /* a half-width bank fills the hole a wide one left behind */
+      grid-auto-flow: row dense;
     }
     .rk3-group[data-span="wide"] {
       grid-column: 1 / -1;

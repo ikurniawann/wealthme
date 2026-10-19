@@ -389,7 +389,7 @@ export function RekeningFilterPanel(props: FiltersProps) {
         >
           {(["balance", "name", "newest"] as const).map((k) => (
             <option key={k} value={k}>
-              {c.page.sort[k]}
+              {c.page.sortLabel}: {c.page.sort[k]}
             </option>
           ))}
         </select>
