@@ -390,6 +390,11 @@ export const id = {
       panduan: "Panduan",
     },
     transactionDialog: {
+      subtitle: "Catat uang masuk, keluar, atau pindah rekening.",
+      balanceAfterLabel: "Saldo setelah transaksi",
+      summaryFrom: "dari",
+      summaryTo: "ke",
+      summaryFor: "untuk",
       noAssignedAccount:
         "Belum ada rekening yang ditugaskan untukmu, jadi transaksi belum bisa dicatat. Minta Master menugaskan rekening dari halaman IAM.",
       tabIncome: "Pemasukan",

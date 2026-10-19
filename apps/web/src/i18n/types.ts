@@ -683,6 +683,14 @@ export type I18nDictionary = {
     pageTitles: Record<PageTitleId, string>;
     mobileNav: Record<MobileNavId, string>;
     transactionDialog: {
+      /** Redesign — subtitle under the dialog title. */
+      subtitle: string;
+      /** Redesign — label of the balance-after-this-transaction line. */
+      balanceAfterLabel: string;
+      /** Redesign — footer summary connectives. */
+      summaryFrom: string;
+      summaryTo: string;
+      summaryFor: string;
       /** Account pickers, for an "own data" member who owns no account. */
       noAssignedAccount: string;
       tabIncome: string;

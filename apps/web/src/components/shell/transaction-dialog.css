@@ -1,0 +1,367 @@
+/*
+ * Tambah Transaksi — redesign (approved comp, 2026-10-19).
+ * A forest header carries the type switch and the amount as the hero; the
+ * body is two columns on desktop (account row full width, category left,
+ * date/description/attachment right); the footer reads the transaction
+ * back before it is saved.
+ *
+ * Deliberately UNLAYERED: the older `.tx-dialog` rules live in
+ * `@layer components` (bento.css) and the markup still carries Tailwind
+ * utilities from the previous layout; unlayered rules win over both, so the
+ * redesign does not have to fight specificity rule by rule.
+ */
+
+.dialog.tx2 {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 28px;
+}
+
+/* ── header ────────────────────────────────────────────────────────────── */
+.tx2 .tx2-head {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px 24px 20px;
+  color: var(--wm-ink);
+}
+.tx2 .tx2-titles {
+  padding-right: 48px;
+}
+.tx2 .tx2-head .dialog__title {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: var(--wm-ink);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.tx2 .tx2-sub {
+  margin-top: 3px;
+  color: var(--wm-muted);
+  font-size: 12.5px;
+}
+.dialog.tx2 > [data-slot="dialog-close"] {
+  top: 18px;
+  right: 18px;
+  z-index: 2;
+  border-color: transparent;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+}
+.dialog.tx2 > [data-slot="dialog-close"]:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+
+/* type switch on the forest header */
+.tx2 .tx2-head .segmented[role="tablist"] {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 5px;
+  border: 0;
+  border-radius: 16px;
+  background: rgb(255 255 255 / 0.08);
+  overflow: visible;
+  mask-image: none;
+}
+.tx2 .tx2-head .segmented__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  border-radius: 12px;
+  background: transparent;
+  color: rgb(238 240 232 / 0.78);
+  font-size: 13.5px;
+  font-weight: 700;
+}
+.tx2 .tx2-head .segmented__item:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+.tx2 .tx2-head .segmented__item[aria-selected="true"] {
+  background: #fff;
+  color: #10231b;
+  box-shadow: 0 6px 16px -10px rgb(0 0 0 / 0.5);
+}
+.tx2 .tx2-head .segmented__item:focus-visible {
+  outline: 2px solid var(--wm-lime);
+  outline-offset: 2px;
+}
+
+/* amount as the hero */
+.tx2 .tx2-head .tx-amount-field {
+  gap: 8px;
+  margin: 0;
+}
+.tx2 .tx2-head .tx-amount-field > .label {
+  color: var(--wm-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.tx2 .tx2-head .tx-amount {
+  align-items: center;
+  min-height: 0;
+  padding: 0 0 6px;
+  border-bottom: 2px solid rgb(255 255 255 / 0.16);
+}
+.tx2 .tx2-head .tx-amount:focus-within {
+  border-color: var(--wm-lime);
+}
+.tx2 .tx2-head .tx-amount > span {
+  color: var(--wm-muted);
+  font-size: 26px;
+  font-weight: 700;
+}
+.tx2 .tx2-head .tx-amount input {
+  color: #fff;
+  font-size: clamp(34px, 1.6rem + 1.6vw, 48px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  caret-color: var(--wm-lime);
+}
+.tx2 .tx2-head .tx-amount input::placeholder {
+  color: rgb(238 240 232 / 0.35);
+}
+.tx2 .tx2-head .tx-amount input:focus-visible {
+  outline: 0;
+}
+.tx2 .tx2-head .tx-amount button {
+  border-color: transparent;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+}
+.tx2 .tx2-head .tx-quick .btn,
+.tx2 .tx2-head .tx-quick button {
+  min-height: 34px;
+  height: auto;
+  padding: 6px 13px;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.tx2 .tx2-head .tx-quick .btn:hover,
+.tx2 .tx2-head .tx-quick button:hover {
+  background: rgb(255 255 255 / 0.18);
+}
+.tx2 .tx2-head .t-muted,
+.tx2 .tx2-head .t-xs {
+  color: var(--wm-muted);
+}
+.tx2 .tx2-head .error-text {
+  color: var(--wm-neg);
+}
+
+/* ── body ──────────────────────────────────────────────────────────────── */
+.dialog.tx2 .tx2-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-content: start;
+  gap: 20px 24px;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  margin: 0;
+  padding: 20px 24px 12px;
+  overflow-y: auto;
+}
+.tx2 .tx2-full {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.tx2 .tx2-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.tx2 .tx2-body .tx-tile-field,
+.tx2 .tx2-body .field,
+.tx2 .tx2-body .field-row,
+.tx2 .tx2-body details {
+  margin-top: 0 !important;
+}
+.tx2 .tx2-body .label,
+.tx2 .tx2-body .tx-tile-field > :first-child {
+  font-size: 13px;
+  font-weight: 800;
+}
+/* date and description stack inside their column */
+.tx2 .tx2-col .field-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.tx2 .tx2-body .input,
+.tx2 .tx2-body .select {
+  min-height: 46px;
+  border-radius: 13px;
+}
+
+/* account tiles: roomy cards, a checked one tinted lime */
+.tx2 .tx-tiles[data-variant="account"] .tx-tile {
+  min-height: 72px;
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+.tx2 .tx-tile[aria-checked="true"] {
+  background: var(--wm-lime-soft);
+}
+.tx2 .tx2-after {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 0 2px;
+  color: var(--wm-muted);
+  font-size: 12.5px;
+}
+.tx2 .tx2-after b {
+  color: var(--wm-ink);
+  font-weight: 700;
+}
+
+/* category tiles: icon + label on one line, two across so names stay whole */
+.tx2 .tx-tiles[data-variant="category"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.tx2 .tx-tiles[data-variant="category"] .tx-tile {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 9px;
+  min-height: 50px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  text-align: left;
+}
+.tx2 .tx-tiles[data-variant="category"] b {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  -webkit-line-clamp: unset;
+  display: block;
+}
+.tx2 .tx-tiles[data-variant="category"] .tx-tile-ic {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+}
+
+/* attachment: a dashed drop zone instead of a thin disclosure line */
+.tx2 .tx2-body details {
+  padding: 12px 14px !important;
+  border: 1.5px dashed var(--field-border, #c7d0ca) !important;
+  border-radius: 16px !important;
+}
+
+/* ── footer ────────────────────────────────────────────────────────────── */
+.dialog.tx2 .tx2-foot {
+  position: static;
+  flex: none;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 24px;
+  border-top: 1px solid var(--wm-line);
+  background: var(--wm-card);
+}
+.tx2 .tx2-sum {
+  flex: 1;
+  min-width: 0;
+  margin: 0 8px 0 0;
+  color: var(--wm-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.dialog.tx2 .tx2-foot .btn {
+  flex: none;
+  order: 0;
+  flex-basis: auto;
+  min-height: 46px;
+  padding-inline: 20px;
+  border-radius: 999px;
+}
+.dialog.tx2 .tx2-foot .btn--ghost {
+  border: 1.5px solid var(--wm-line);
+  text-decoration: none;
+}
+.dialog.tx2 .tx2-foot .btn--primary {
+  min-width: 140px;
+}
+.tx2 .tx2-sum ~ .btn--outline {
+  display: none;
+}
+
+/* ── phones ────────────────────────────────────────────────────────────── */
+@media (max-width: 720px) {
+  .dialog.tx2 {
+    border-radius: 24px 24px 0 0;
+  }
+  .tx2 .tx2-head {
+    gap: 12px;
+    padding: 16px 16px 16px;
+  }
+  .tx2 .tx2-head .dialog__title {
+    font-size: 20px;
+  }
+  .tx2 .tx2-sub {
+    display: none;
+  }
+  .dialog.tx2 > [data-slot="dialog-close"] {
+    top: 12px;
+    right: 12px;
+  }
+  /* keep the title row as tall as the close button above the tabs */
+  .tx2 .tx2-titles {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+  .tx2 .tx2-head .segmented__item {
+    flex-direction: column;
+    gap: 2px;
+    min-height: 48px;
+    padding: 0 2px;
+    font-size: 12px;
+  }
+  .dialog.tx2 .tx2-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 18px;
+    padding: 16px 16px 12px;
+  }
+  .tx2 .tx-tiles[data-variant="category"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dialog.tx2 .tx2-foot {
+    flex-wrap: wrap;
+    padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .tx2 .tx2-sum {
+    flex-basis: 100%;
+    margin: 0;
+  }
+  .dialog.tx2 .tx2-foot .btn--primary {
+    flex: 1;
+  }
+}

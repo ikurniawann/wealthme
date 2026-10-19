@@ -383,6 +383,11 @@ export const en = {
       panduan: "Guide",
     },
     transactionDialog: {
+      subtitle: "Record money in, money out, or a move between accounts.",
+      balanceAfterLabel: "Balance after this transaction",
+      summaryFrom: "from",
+      summaryTo: "to",
+      summaryFor: "for",
       noAssignedAccount:
         "No account has been assigned to you yet, so you cannot record transactions. Ask the Master to assign one on the IAM page.",
       tabIncome: "Income",

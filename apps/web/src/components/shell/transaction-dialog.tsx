@@ -80,6 +80,7 @@ import { moneyIdr, useMoneyField, withFxInputs } from "@/components/money";
 import { useMoney } from "@/hooks/use-money";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { useShell } from "./shell-context";
+import "./transaction-dialog.css";
 import { localIsoDate } from "@/lib/local-date";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
@@ -462,9 +463,17 @@ export function TransactionDialog() {
     () => (txnOpen ? readTxnMemory(fgId) : emptyTxnMemory()),
     [fgId, txnOpen, memoryVersion],
   );
+  // Categories the app generated for one policy or debt ("Asset & Other
+  // Insurance: Allianz…", "Utang: KPR…") follow the everyday ones unless the
+  // family actually uses them; usage order is otherwise kept.
+  const isGenerated = (name: string) => name.includes(": ");
   const relevantCategories = sortByUsage(
     categories.filter((c) => c.kind === categoryKind || c.kind === "both"),
     memory.counts,
+  ).sort(
+    (a, b) =>
+      Number(isGenerated(a.name) && !memory.counts[a.id]) -
+      Number(isGenerated(b.name) && !memory.counts[b.id]),
   );
   // A remembered account is only a default while it still exists in the list
   // the API returned for this user; a scan prefill opts out. The category is
@@ -494,7 +503,12 @@ export function TransactionDialog() {
   }));
   const categoryChoices: Choice[] = relevantCategories.map((c) => {
     const Icon = categoryIcon(c.name);
-    return { value: c.id, name: c.name, label: c.name, icon: <Icon /> };
+    // Auto-created categories read "Asset & Other Insurance: Allianz…"; the
+    // tile shows the specific part, the full name stays the accessible one.
+    const short = isGenerated(c.name)
+      ? c.name.slice(c.name.indexOf(": ") + 2)
+      : c.name;
+    return { value: c.id, name: c.name, label: short, icon: <Icon /> };
   });
   const tilesCountLabel = (shown: number, total: number) =>
     t.shell.transactionDialog.tilesVisibleCount
@@ -1060,6 +1074,46 @@ export function TransactionDialog() {
     );
   };
 
+  // Redesign — the footer reads the transaction back before it is saved,
+  // and the source account shows what its balance becomes.
+  const selectedAccount = accounts.find((a) => a.id === selectedAccountId);
+  const selectedCategory = relevantCategories.find(
+    (c) => c.id === selectedCategoryId,
+  );
+  const balanceAfter =
+    selectedAccount?.balance !== undefined &&
+    selectedAccount.balance !== null &&
+    amountNum > 0 &&
+    tabKind !== "card"
+      ? Number(selectedAccount.balance) +
+        (tabKind === "income" ? amountNum : -amountNum)
+      : null;
+  const destAccount = accounts.find((a) => a.id === toAccountId);
+  const summary =
+    amountNum > 0
+      ? [
+          stripLeadingIcon(TABS[tab]),
+          money.format(amountNum),
+          selectedAccount
+            ? `${tabKind === "income" ? t.shell.transactionDialog.summaryTo : t.shell.transactionDialog.summaryFrom} ${selectedAccount.name}`
+            : null,
+          tabKind === "transfer" && destAccount
+            ? `${t.shell.transactionDialog.summaryTo} ${destAccount.name}`
+            : null,
+          selectedCategory
+            ? `${t.shell.transactionDialog.summaryFor} ${
+                isGenerated(selectedCategory.name)
+                  ? selectedCategory.name.slice(
+                      selectedCategory.name.indexOf(": ") + 2,
+                    )
+                  : selectedCategory.name
+              }`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ")
+      : null;
+
   return (
     <Dialog open={txnOpen} onOpenChange={handleOpenChange}>
       <CenteredDialogContent
@@ -1072,17 +1126,20 @@ export function TransactionDialog() {
         onKeyDown={wrapTabFocus}
         className={
           view === "form"
-            ? "tx-dialog min-[721px]:w-[min(600px,calc(100%-24px))] min-[721px]:max-h-[92dvh]"
+            ? "tx-dialog tx2 min-[721px]:w-[min(820px,calc(100%-32px))] min-[721px]:max-h-[94dvh]"
             : "overflow-x-hidden p-0"
         }
       >
         {view === "form" && (
           <>
-            <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
+            <div className="tx2-head wm-dark">
+              <div className="tx2-titles">
+                <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
+                <p className="tx2-sub">{t.shell.transactionDialog.subtitle}</p>
+              </div>
 
-            {/* Prototype field order (shell.js:536-570): type switch → Jumlah
+              {/* Prototype field order (shell.js:536-570): type switch → Jumlah
                 → Akun → Kategori → [Tanggal | Deskripsi] → Lampiran. */}
-            <DialogBody>
               {/* Prototype's 4-way type switch — `.segmented` /
                 `.segmented__item` with `role="tablist"`/`role="tab"`
                 (shell.js:531-535). */}
@@ -1148,152 +1205,173 @@ export function TransactionDialog() {
                 required
                 error={fieldErrors.amount}
               />
+            </div>
 
+            <DialogBody className="tx2-body">
               {tabKind === "card" ? (
-                <Field
-                  label={t.shell.transactionDialog.cardLabel}
-                  htmlFor={cardFieldId}
-                  required
-                  error={fieldErrors.card}
-                >
-                  <select
-                    id={cardFieldId}
-                    className="select"
-                    value={liabilityId}
-                    aria-invalid={Boolean(fieldErrors.card)}
-                    aria-describedby={
-                      fieldErrors.card ? `${cardFieldId}-error` : undefined
-                    }
-                    onChange={(e) => setLiabilityId(e.target.value)}
+                <div className="tx2-full">
+                  <Field
+                    label={t.shell.transactionDialog.cardLabel}
+                    htmlFor={cardFieldId}
+                    required
+                    error={fieldErrors.card}
                   >
-                    <option value="">
-                      {t.shell.transactionDialog.cardPlaceholder}
-                    </option>
-                    {creditCards.map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name}
+                    <select
+                      id={cardFieldId}
+                      className="select"
+                      value={liabilityId}
+                      aria-invalid={Boolean(fieldErrors.card)}
+                      aria-describedby={
+                        fieldErrors.card ? `${cardFieldId}-error` : undefined
+                      }
+                      onChange={(e) => setLiabilityId(e.target.value)}
+                    >
+                      <option value="">
+                        {t.shell.transactionDialog.cardPlaceholder}
                       </option>
-                    ))}
-                  </select>
-                </Field>
+                      {creditCards.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
               ) : tabKind === "transfer" ? (
                 <>
-                  <TileField
-                    label={t.shell.transactionDialog.sourceAccountLabel}
-                    required
-                    error={fieldErrors.account}
-                    errorId={sourceErrorId}
-                  >
-                    <ChoiceTiles
-                      id={sourceAccountFieldId}
-                      variant="account"
+                  <div className="tx2-full">
+                    <TileField
                       label={t.shell.transactionDialog.sourceAccountLabel}
-                      value={selectedAccountId}
-                      choices={accountChoices}
-                      empty={
-                        accountsEmptyLabel ??
-                        t.shell.transactionDialog.sourceAccountPlaceholder
-                      }
-                      invalid={Boolean(fieldErrors.account)}
+                      required
+                      error={fieldErrors.account}
                       errorId={sourceErrorId}
-                      countLabel={tilesCountLabel}
-                      onChange={(nextAccountId) => {
-                        setAccountId(nextAccountId);
-                        // Keep source/destination mutually exclusive.
-                        if (toAccountId === nextAccountId) setToAccountId("");
-                      }}
-                    />
-                  </TileField>
-
-                  <TileField
-                    label={t.shell.transactionDialog.destAccountLabel}
-                    required
-                    error={fieldErrors.destAccount}
-                    errorId={destErrorId}
-                  >
-                    <ChoiceTiles
-                      id={destAccountFieldId}
-                      variant="account"
-                      label={t.shell.transactionDialog.destAccountLabel}
-                      value={toAccountId}
-                      choices={accountChoices.filter(
-                        (choice) => choice.value !== selectedAccountId,
-                      )}
-                      empty={
-                        accountsEmptyLabel ??
-                        t.shell.transactionDialog.destAccountPlaceholder
-                      }
-                      invalid={Boolean(fieldErrors.destAccount)}
-                      errorId={destErrorId}
-                      countLabel={tilesCountLabel}
-                      onChange={setToAccountId}
-                    />
-                  </TileField>
-
-                  <Field
-                    label={
-                      <>
-                        {t.shell.transactionDialog.adminFeeLabel}{" "}
-                        <span className="font-normal text-muted-foreground">
-                          {t.shell.transactionDialog.optionalSuffix}
-                        </span>
-                      </>
-                    }
-                    htmlFor={adminFeeFieldId}
-                  >
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
-                        Rp
-                      </span>
-                      <input
-                        id={adminFeeFieldId}
-                        inputMode="numeric"
-                        value={adminFee}
-                        onChange={(e) =>
-                          setAdminFee(formatAmountInput(e.target.value))
+                    >
+                      <ChoiceTiles
+                        id={sourceAccountFieldId}
+                        variant="account"
+                        label={t.shell.transactionDialog.sourceAccountLabel}
+                        value={selectedAccountId}
+                        choices={accountChoices}
+                        empty={
+                          accountsEmptyLabel ??
+                          t.shell.transactionDialog.sourceAccountPlaceholder
                         }
-                        placeholder="0"
-                        className="input pl-[38px]"
+                        invalid={Boolean(fieldErrors.account)}
+                        errorId={sourceErrorId}
+                        countLabel={tilesCountLabel}
+                        onChange={(nextAccountId) => {
+                          setAccountId(nextAccountId);
+                          // Keep source/destination mutually exclusive.
+                          if (toAccountId === nextAccountId) setToAccountId("");
+                        }}
                       />
-                    </div>
-                  </Field>
+                    </TileField>
+
+                    <TileField
+                      label={t.shell.transactionDialog.destAccountLabel}
+                      required
+                      error={fieldErrors.destAccount}
+                      errorId={destErrorId}
+                    >
+                      <ChoiceTiles
+                        id={destAccountFieldId}
+                        variant="account"
+                        label={t.shell.transactionDialog.destAccountLabel}
+                        value={toAccountId}
+                        choices={accountChoices.filter(
+                          (choice) => choice.value !== selectedAccountId,
+                        )}
+                        empty={
+                          accountsEmptyLabel ??
+                          t.shell.transactionDialog.destAccountPlaceholder
+                        }
+                        invalid={Boolean(fieldErrors.destAccount)}
+                        errorId={destErrorId}
+                        countLabel={tilesCountLabel}
+                        onChange={setToAccountId}
+                      />
+                    </TileField>
+                  </div>
+                  <div className="tx2-col">
+                    <Field
+                      label={
+                        <>
+                          {t.shell.transactionDialog.adminFeeLabel}{" "}
+                          <span className="font-normal text-muted-foreground">
+                            {t.shell.transactionDialog.optionalSuffix}
+                          </span>
+                        </>
+                      }
+                      htmlFor={adminFeeFieldId}
+                    >
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                          Rp
+                        </span>
+                        <input
+                          id={adminFeeFieldId}
+                          inputMode="numeric"
+                          value={adminFee}
+                          onChange={(e) =>
+                            setAdminFee(formatAmountInput(e.target.value))
+                          }
+                          placeholder="0"
+                          className="input pl-[38px]"
+                        />
+                      </div>
+                    </Field>
+                  </div>
                 </>
               ) : (
                 <>
-                  <TileField
-                    label={t.shell.transactionDialog.accountLabel}
-                    required
-                    error={fieldErrors.account}
-                    errorId={accountErrorId}
-                  >
-                    <ChoiceTiles
-                      id={accountFieldId}
-                      variant="account"
+                  <div className="tx2-full">
+                    <TileField
                       label={t.shell.transactionDialog.accountLabel}
-                      value={selectedAccountId}
-                      choices={accountChoices}
-                      empty={
-                        accountsEmptyLabel ??
-                        t.shell.transactionDialog.accountPlaceholder
-                      }
-                      invalid={Boolean(fieldErrors.account)}
+                      required
+                      error={fieldErrors.account}
                       errorId={accountErrorId}
-                      countLabel={tilesCountLabel}
-                      onChange={setAccountId}
-                    />
-                  </TileField>
-                  <TileField label={t.shell.transactionDialog.categoryLabel}>
-                    <ChoiceTiles
-                      variant="category"
-                      limit={7}
-                      moreLabel={t.common.viewAll}
-                      label={t.shell.transactionDialog.categoryLabel}
-                      value={selectedCategoryId}
-                      choices={categoryChoices}
-                      empty={t.shell.transactionDialog.categoryPlaceholder}
-                      onChange={setCategoryId}
-                    />
-                  </TileField>
+                    >
+                      <ChoiceTiles
+                        id={accountFieldId}
+                        variant="account"
+                        label={t.shell.transactionDialog.accountLabel}
+                        value={selectedAccountId}
+                        choices={accountChoices}
+                        empty={
+                          accountsEmptyLabel ??
+                          t.shell.transactionDialog.accountPlaceholder
+                        }
+                        invalid={Boolean(fieldErrors.account)}
+                        errorId={accountErrorId}
+                        countLabel={tilesCountLabel}
+                        onChange={setAccountId}
+                      />
+                    </TileField>
+                    {balanceAfter !== null && (
+                      <p className="tx2-after">
+                        <span>
+                          {t.shell.transactionDialog.balanceAfterLabel}
+                        </span>
+                        <b className="wm-num">
+                          {money.formatBalance(balanceAfter)}
+                        </b>
+                      </p>
+                    )}
+                  </div>
+                  <div className="tx2-col">
+                    <TileField label={t.shell.transactionDialog.categoryLabel}>
+                      <ChoiceTiles
+                        variant="category"
+                        limit={7}
+                        moreLabel={t.common.viewAll}
+                        label={t.shell.transactionDialog.categoryLabel}
+                        value={selectedCategoryId}
+                        choices={categoryChoices}
+                        empty={t.shell.transactionDialog.categoryPlaceholder}
+                        onChange={setCategoryId}
+                      />
+                    </TileField>
+                  </div>
                 </>
               )}
 
@@ -1308,148 +1386,160 @@ export function TransactionDialog() {
                 "Akun" concept, so its Kategori field stays standalone
                 rather than pairing into a field-row. */}
               {tabKind === "card" && (
-                <TileField label={t.shell.transactionDialog.categoryLabel}>
-                  <ChoiceTiles
-                    variant="category"
-                    limit={7}
-                    moreLabel={t.common.viewAll}
-                    label={t.shell.transactionDialog.categoryLabel}
-                    value={selectedCategoryId}
-                    choices={categoryChoices}
-                    empty={t.shell.transactionDialog.categoryPlaceholder}
-                    onChange={setCategoryId}
-                  />
-                </TileField>
+                <div className="tx2-col">
+                  <TileField label={t.shell.transactionDialog.categoryLabel}>
+                    <ChoiceTiles
+                      variant="category"
+                      limit={7}
+                      moreLabel={t.common.viewAll}
+                      label={t.shell.transactionDialog.categoryLabel}
+                      value={selectedCategoryId}
+                      choices={categoryChoices}
+                      empty={t.shell.transactionDialog.categoryPlaceholder}
+                      onChange={setCategoryId}
+                    />
+                  </TileField>
+                </div>
               )}
 
-              {/* Prototype pairs Tanggal and Deskripsi 2-up in a
+              <div className="tx2-col tx2-col--details">
+                {/* Prototype pairs Tanggal and Deskripsi 2-up in a
                 `.field-row` (shell.js:558-568). */}
-              <div className="field-row mt-3 min-[721px]:mt-0">
-                <Field
-                  label={t.shell.transactionDialog.dateLabel}
-                  htmlFor={dateFieldId}
-                  className="!mt-0"
-                  required
-                  error={fieldErrors.date}
-                >
-                  <DateField
-                    id={dateFieldId}
-                    value={date}
-                    locale={locale}
+                <div className="field-row mt-3 min-[721px]:mt-0">
+                  <Field
                     label={t.shell.transactionDialog.dateLabel}
+                    htmlFor={dateFieldId}
+                    className="!mt-0"
                     required
-                    onChange={setDate}
-                  />
-                </Field>
+                    error={fieldErrors.date}
+                  >
+                    <DateField
+                      id={dateFieldId}
+                      value={date}
+                      locale={locale}
+                      label={t.shell.transactionDialog.dateLabel}
+                      required
+                      onChange={setDate}
+                    />
+                  </Field>
 
-                <Field
-                  label={
-                    <>
-                      {t.shell.transactionDialog.descriptionLabel}{" "}
-                      <span className="font-normal text-muted-foreground">
-                        {t.shell.transactionDialog.optionalSuffix}
-                      </span>
-                    </>
-                  }
-                  htmlFor={descriptionFieldId}
-                  className="!mt-0"
-                >
-                  <input
-                    id={descriptionFieldId}
-                    placeholder={
-                      t.shell.transactionDialog.descriptionPlaceholder
+                  <Field
+                    label={
+                      <>
+                        {t.shell.transactionDialog.descriptionLabel}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          {t.shell.transactionDialog.optionalSuffix}
+                        </span>
+                      </>
                     }
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    className="input"
-                  />
-                </Field>
-              </div>
+                    htmlFor={descriptionFieldId}
+                    className="!mt-0"
+                  >
+                    <input
+                      id={descriptionFieldId}
+                      placeholder={
+                        t.shell.transactionDialog.descriptionPlaceholder
+                      }
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="input"
+                    />
+                  </Field>
+                </div>
 
-              {/* EPIC-024 Task L3 (D15, US-TXN-9) — the card tab has no
+                {/* EPIC-024 Task L3 (D15, US-TXN-9) — the card tab has no
                 attachment field: `purchaseMutation` posts through
                 `LiabilitiesService.purchase()`, which never returns a
                 transactionId to attach the file to (see the mutation's own
                 doc comment above). */}
-              {tabKind !== "card" && (
-                // polish-j batch 7a item 6 — Lampiran + the AI-scan control
-                // (and its setup notice) collapse under their own
-                // disclosure instead of always occupying dialog space.
-                <AdvancedDisclosure
-                  label={t.shell.transactionDialog.attachmentLabel}
-                >
-                  <div className="field mt-0">
-                    <div className="tx-attach">
-                      <label
-                        htmlFor={attachmentFieldId}
-                        className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
-                      >
-                        <Paperclip
-                          className="size-4 shrink-0"
-                          aria-hidden="true"
-                        />
-                        <span className="min-w-0 leading-tight">
-                          {attachmentFile
-                            ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
-                            : "Unggah foto struk atau PDF, maks 5 MB"}
-                        </span>
-                      </label>
-                      {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
+                {tabKind !== "card" && (
+                  // polish-j batch 7a item 6 — Lampiran + the AI-scan control
+                  // (and its setup notice) collapse under their own
+                  // disclosure instead of always occupying dialog space.
+                  <AdvancedDisclosure
+                    label={t.shell.transactionDialog.attachmentLabel}
+                  >
+                    <div className="field mt-0">
+                      <div className="tx-attach">
+                        <label
+                          htmlFor={attachmentFieldId}
+                          className="notice m-0 min-h-[48px] min-w-[150px] flex-1 cursor-pointer items-center text-left"
+                        >
+                          <Paperclip
+                            className="size-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span className="min-w-0 leading-tight">
+                            {attachmentFile
+                              ? `${t.shell.transactionDialog.attachmentSelected}${attachmentFile.name}`
+                              : "Unggah foto struk atau PDF, maks 5 MB"}
+                          </span>
+                        </label>
+                        {/* EPIC-027 B1 — gated on `scanAvailable` (a family AI
                         key from a vision-capable provider). Disabled with
                         the reason and a link to Pengaturan rather than
                         offered and then failing: a control either does what
                         it implies or says plainly that it can't. */}
-                      <button
-                        type="button"
-                        ref={scanTriggerRef}
-                        onClick={startScan}
-                        disabled={!scanAvailable}
-                        aria-describedby={scanHintId}
-                        className={cn(
-                          "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
-                          scanAvailable
-                            ? "cursor-pointer"
-                            : "cursor-not-allowed opacity-60",
-                        )}
-                      >
-                        <Camera
-                          className="size-4 shrink-0"
-                          aria-hidden="true"
+                        <button
+                          type="button"
+                          ref={scanTriggerRef}
+                          onClick={startScan}
+                          disabled={!scanAvailable}
+                          aria-describedby={scanHintId}
+                          className={cn(
+                            "notice notice--info m-0 min-h-[48px] min-w-[150px] flex-1 items-center text-left",
+                            scanAvailable
+                              ? "cursor-pointer"
+                              : "cursor-not-allowed opacity-60",
+                          )}
+                        >
+                          <Camera
+                            className="size-4 shrink-0"
+                            aria-hidden="true"
+                          />
+                          <span>{t.shell.transactionDialog.scanReceipt}</span>
+                        </button>
+                        <input
+                          id={attachmentFieldId}
+                          data-testid="attachment-file-input"
+                          type="file"
+                          accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
+                          onChange={handleAttachmentChange}
+                          className="sr-only"
                         />
-                        <span>{t.shell.transactionDialog.scanReceipt}</span>
-                      </button>
-                      <input
-                        id={attachmentFieldId}
-                        data-testid="attachment-file-input"
-                        type="file"
-                        accept={ATTACHMENT_ACCEPTED_MIME_TYPES.join(",")}
-                        onChange={handleAttachmentChange}
-                        className="sr-only"
-                      />
+                      </div>
+                      <span className="hint" id={scanHintId}>
+                        {scanAvailable ? (
+                          t.shell.transactionDialog.scanHint
+                        ) : (
+                          <>
+                            {t.shell.transactionDialog.scanUnavailable}{" "}
+                            <Link
+                              href="/akun"
+                              className="font-bold text-primary"
+                            >
+                              {t.shell.transactionDialog.scanUnavailableLink}
+                            </Link>
+                          </>
+                        )}
+                      </span>
                     </div>
-                    <span className="hint" id={scanHintId}>
-                      {scanAvailable ? (
-                        t.shell.transactionDialog.scanHint
-                      ) : (
-                        <>
-                          {t.shell.transactionDialog.scanUnavailable}{" "}
-                          <Link href="/akun" className="font-bold text-primary">
-                            {t.shell.transactionDialog.scanUnavailableLink}
-                          </Link>
-                        </>
-                      )}
-                    </span>
-                  </div>
-                </AdvancedDisclosure>
-              )}
+                  </AdvancedDisclosure>
+                )}
+              </div>
             </DialogBody>
 
             {/* Prototype `.dialog__footer` — outline Batal on the left,
                 primary Simpan on the right (shell.js:590-595). */}
             <DialogFooter
-              className="flex-row flex-wrap"
+              className="tx2-foot flex-row flex-wrap"
               data-sticky={tabKind === "transfer" ? "true" : undefined}
             >
+              {summary && (
+                <p className="tx2-sum" aria-live="polite">
+                  {summary}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => handleOpenChange(false)}
