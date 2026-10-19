@@ -216,11 +216,19 @@ export class TransactionsService {
     // SOURCE must still hold after the debit (its unsettled proceeds). The
     // source row is locked FOR UPDATE inside the transaction and re-read,
     // so two concurrent debits cannot both pass; short → 400.
+    // `withinTransaction` runs inside the same DB transaction right after
+    // the balances move, with the new row's id: a caller's companion rows
+    // (e.g. pocket transfer fx_conversions) commit or roll back atomically
+    // with the transaction, so a replay never sees one without the other.
     options?: {
       enforceBankFloor?: boolean;
       idempotencyKey?: string;
       feeDescription?: string;
       sourceFloor?: bigint;
+      withinTransaction?: (
+        prisma: Parameters<Parameters<PrismaService["$transaction"]>[0]>[0],
+        transactionId: string,
+      ) => Promise<void>;
     },
   ): Promise<TransactionResponseDto | HeldExpenseResponseDto> {
     const enforceBankFloor = options?.enforceBankFloor ?? true;
@@ -442,6 +450,10 @@ export class TransactionsService {
           "add",
           enforceBankFloor,
         );
+      }
+
+      if (options?.withinTransaction) {
+        await options.withinTransaction(prisma, tx.id);
       }
 
       return tx;

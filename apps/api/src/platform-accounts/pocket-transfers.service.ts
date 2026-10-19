@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
-  Logger,
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
@@ -44,6 +43,8 @@ interface Legs {
   destId: string;
 }
 
+type TxClient = Parameters<Parameters<PrismaService["$transaction"]>[0]>[0];
+
 function isUniqueViolation(err: unknown): boolean {
   return (
     err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002"
@@ -52,7 +53,6 @@ function isUniqueViolation(err: unknown): boolean {
 
 const KEY_REUSED =
   "idempotencyKey ini sudah dipakai untuk transaksi dengan isi berbeda. Muat ulang formulir lalu coba lagi.";
-const REPLAY_POLL_MS = 100;
 
 type StoredConversion = {
   originalAmount: Prisma.Decimal;
@@ -139,8 +139,6 @@ function samePayload(dto: PocketTransferDto, stored: StoredTransfer): boolean {
  */
 @Injectable()
 export class PocketTransfersService {
-  private readonly logger = new Logger(PocketTransfersService.name);
-
   constructor(
     private readonly prisma: PrismaService,
     private readonly fx: FxPort,
@@ -227,6 +225,16 @@ export class PocketTransfersService {
               ? TOP_UP_FEE_DESCRIPTION
               : WITHDRAW_FEE_DESCRIPTION,
           ...(sourceFloor !== undefined ? { sourceFloor } : {}),
+          // R7 — the native amounts/rate commit atomically with the
+          // transfer, so any replay that sees the row also sees them.
+          withinTransaction: (client, id) =>
+            this.recordConversions(
+              client,
+              familyGroupId,
+              id,
+              amounts,
+              viewer.userId ?? null,
+            ),
         },
       );
       if ("held" in created) {
@@ -236,24 +244,12 @@ export class PocketTransfersService {
       transactionId = created.id;
     } catch (err: unknown) {
       if (isUniqueViolation(err)) {
-        const again = await this.findReplay(
-          familyGroupId,
-          dto,
-          legs,
-          viewer,
-          true,
-        );
+        const again = await this.findReplay(familyGroupId, dto, legs, viewer);
         if (again) return again;
       }
       throw err;
     }
 
-    await this.recordConversions(
-      familyGroupId,
-      transactionId,
-      amounts,
-      viewer.userId ?? null,
-    );
     const feeRow = await this.prisma.transaction.findUnique({
       where: {
         familyGroupId_idempotencyKey: {
@@ -350,39 +346,37 @@ export class PocketTransfersService {
    * rate, fee) on the fx_conversions table FxInputService already writes:
    * entity "Transaction", entityId = the transfer row, fields
    * `pocketTransfer.source|dest|fee`; `rateSource` "actual" marks the
-   * user's own rate. Written after commit like FxInputService.record, so a
-   * failure is logged and never turns a committed transfer into an error.
+   * user's own rate.
+   *
+   * Unlike FxInputService.record (post-commit, best effort: its rows are an
+   * audit of a DTO conversion), these rows are the stored payload R7
+   * replays compare against, so they are written through the transfer's
+   * own transaction client: a failure rolls the transfer back.
    */
   private async recordConversions(
+    client: TxClient,
     familyGroupId: string,
     transactionId: string,
     amounts: PocketTransferAmounts,
     userId: string | null,
-  ) {
+  ): Promise<void> {
     if (amounts.conversions.length === 0) return;
-    try {
-      await this.prisma.fxConversion.createMany({
-        data: amounts.conversions.map((c) => ({
-          familyGroupId,
-          entity: "Transaction",
-          entityId: transactionId,
-          field: `${FX_FIELD_PREFIX}.${c.field}`,
-          originalAmount: c.originalAmount,
-          originalCurrency: c.originalCurrency,
-          idrAmount: c.idrAmount,
-          idrPerUnit: c.idrPerUnit,
-          rateDate: new Date(`${c.rateDate}T00:00:00.000Z`),
-          rateSource: c.rateSource,
-          rateStale: c.rateStale,
-          createdByUserId: userId,
-        })),
-      });
-    } catch (err: unknown) {
-      this.logger.error(
-        `fx_conversions insert failed after commit (transaction ${transactionId})`,
-        err instanceof Error ? err.stack : String(err),
-      );
-    }
+    await client.fxConversion.createMany({
+      data: amounts.conversions.map((c) => ({
+        familyGroupId,
+        entity: "Transaction",
+        entityId: transactionId,
+        field: `${FX_FIELD_PREFIX}.${c.field}`,
+        originalAmount: c.originalAmount,
+        originalCurrency: c.originalCurrency,
+        idrAmount: c.idrAmount,
+        idrPerUnit: c.idrPerUnit,
+        rateDate: new Date(`${c.rateDate}T00:00:00.000Z`),
+        rateSource: c.rateSource,
+        rateStale: c.rateStale,
+        createdByUserId: userId,
+      })),
+    });
   }
 
   /**
@@ -390,18 +384,14 @@ export class PocketTransfersService {
    * The key must name the SAME movement: same legs, date and native
    * amounts / currencies / fee / rate as stored (fx_conversions rows, or
    * the IDR transaction rows when nothing was foreign). Anything else is a
-   * 409, never a silent 200 for a different transfer.
-   *
-   * `awaitConversions` (the concurrent-duplicate path): the winner writes
-   * its fx_conversions rows just after its commit, so a foreign request
-   * polls briefly for them before comparing.
+   * 409, never a silent 200 for a different transfer. The fx rows commit
+   * with the transfer (recordConversions), so no polling is needed.
    */
   private async findReplay(
     familyGroupId: string,
     dto: PocketTransferDto,
     legs: Legs,
     viewer: PlatformViewer,
-    awaitConversions = false,
   ): Promise<PocketTransferResultDto | null> {
     const tx = await this.prisma.transaction.findUnique({
       where: {
@@ -429,16 +419,7 @@ export class PocketTransfersService {
       },
       select: { id: true, amount: true },
     });
-    let conversions = await this.loadConversions(familyGroupId, tx.id);
-    const foreignRequest = requestIsForeign(dto);
-    for (
-      let i = 0;
-      awaitConversions && foreignRequest && conversions.length === 0 && i < 5;
-      i++
-    ) {
-      await new Promise((r) => setTimeout(r, REPLAY_POLL_MS));
-      conversions = await this.loadConversions(familyGroupId, tx.id);
-    }
+    const conversions = await this.loadConversions(familyGroupId, tx.id);
     const feeIdr = feeRow?.amount ?? BigInt(0);
     const byField = new Map(
       conversions.map((c) => [c.field.slice(FX_FIELD_PREFIX.length + 1), c]),
