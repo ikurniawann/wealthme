@@ -204,9 +204,22 @@ export class TransactionsService {
     // guarantee), so the live-overspend guard produces false positives on
     // real history. See bank-overdraft.util.ts's own doc for the invariant
     // this option is deliberately allowed to skip.
-    options?: { enforceBankFloor?: boolean },
+    //
+    // Investasi R7 — `idempotencyKey` (internal callers only, e.g. pocket
+    // top-up/withdraw) is stored on the main row; a transfer's admin-fee
+    // expense gets `<key>:fee` so a replay can find both. A duplicate key
+    // raises Prisma P2002 and rolls back the whole write; the caller looks
+    // the original up and replays it.
+    // `feeDescription` overrides the admin-fee row's description (a pocket
+    // withdrawal fee is not a "top-up" fee).
+    options?: {
+      enforceBankFloor?: boolean;
+      idempotencyKey?: string;
+      feeDescription?: string;
+    },
   ): Promise<TransactionResponseDto | HeldExpenseResponseDto> {
     const enforceBankFloor = options?.enforceBankFloor ?? true;
+    const idempotencyKey = options?.idempotencyKey ?? null;
     const account = await this.prisma.account.findUnique({
       where: { id: dto.accountId, familyGroupId },
     });
@@ -340,6 +353,7 @@ export class TransactionsService {
           // non-member-facing caller, exactly like every other actingMember
           // default in this file).
           createdByUserId: actingMember?.userId ?? null,
+          idempotencyKey,
         },
         include: {
           category: { select: { name: true } },
@@ -382,9 +396,10 @@ export class TransactionsService {
               categoryId: null,
               amount: BigInt(dto.adminFee),
               type: "expense",
-              description: ADMIN_FEE_DESCRIPTION,
+              description: options?.feeDescription ?? ADMIN_FEE_DESCRIPTION,
               occurredAt: new Date(dto.occurredAt),
               createdByUserId: actingMember?.userId ?? null,
+              idempotencyKey: idempotencyKey ? `${idempotencyKey}:fee` : null,
             },
           });
           // EPIC-021 #22 — admin fee is itself a debit against the (bank)

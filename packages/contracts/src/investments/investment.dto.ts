@@ -1,4 +1,5 @@
 import type { InvestmentMarket } from "./markets.js";
+import type { PocketKind } from "./platforms.js";
 
 export type InvestmentType =
   | "saham"
@@ -169,6 +170,128 @@ export interface PlatformAccountDto {
   syncMode: "manual";
   createdAt: string;
   updatedAt: string;
+  /** Catalog name, or `customName` for "custom" (falls back to the key). */
+  platformName?: string;
+  /** Owner display name (null = family-shared). */
+  ownerName?: string | null;
+  /** Cash pockets the viewer may see (Accounts of type `investment`). */
+  pockets?: PlatformPocketDto[];
+  /** Holdings (Investment rows) linked to this platform account. */
+  holdingsCount?: number;
+}
+
+/**
+ * Investasi R2/R9 — a cash pocket ("kantong dana") at a platform account. It
+ * IS an `Account` of type `investment` (id = account id), so its balance is
+ * the IDR book balance and it is counted once in net worth via the accounts
+ * sum. All money fields are IDR integers serialized as strings.
+ */
+export interface PlatformPocketDto {
+  id: string;
+  name: string;
+  pocketKind: PocketKind;
+  /** Native currency of the pocket (IDR, USD, ...). The balance is IDR. */
+  currency: string;
+  ownerUserId: string | null;
+  isPrivate: boolean;
+  status: string;
+  /**
+   * Kas tercatat — Account.balance (IDR). The three balances are null with
+   * `balancesHidden: true` when the viewer's "Lihat saldo" is off and the
+   * pocket is not theirs.
+   */
+  recordedBalance: string | null;
+  /** Dana tertahan — sell proceeds with settlementDate > today (R9), IDR. */
+  heldBalance: string | null;
+  /** Dana tersedia = recorded − held. */
+  availableBalance: string | null;
+  balancesHidden?: boolean;
+  /**
+   * True when some unsettled foreign proceeds carry no fxRate and could not
+   * be valued in IDR (then `heldBalance` understates what is held).
+   */
+  heldIncomplete: boolean;
+  /** Holdings funded from this pocket. */
+  holdingsCount: number;
+}
+
+/** Body of POST …/platform-accounts/:id/pockets (and `pockets[]` on create). */
+export interface CreatePlatformPocketInput {
+  pocketKind: PocketKind;
+  /** ISO 4217; defaults to "USD" for a usd pocket, else "IDR". */
+  currency?: string;
+  /** Display name; default "<platform> · <kind label>". */
+  name?: string;
+  /** Opening balance, IDR integer (send `fxInputs` for a foreign amount). */
+  balance?: number;
+  isPrivate?: boolean;
+}
+
+export interface CreatePlatformAccountInput {
+  platformKey: string;
+  /** Required when platformKey = "custom". */
+  customName?: string;
+  ownerUserId?: string;
+  label?: string;
+  accountRef?: string;
+  pockets?: CreatePlatformPocketInput[];
+}
+
+export interface UpdatePlatformAccountInput {
+  customName?: string | null;
+  label?: string | null;
+  accountRef?: string | null;
+  ownerUserId?: string | null;
+}
+
+/**
+ * Body of POST …/pockets/:pocketId/top-up (bank → pocket) and /withdraw
+ * (pocket → bank). Amounts are canonical decimal strings in their own
+ * currency ("1500000", "100.25").
+ * - `sourceAmount`: total that leaves the source account.
+ * - `destAmount`: net that lands in the destination after `fee`.
+ * - `fxRate`: the actual rate used. When exactly one side is IDR it is IDR
+ *   per 1 unit of the foreign currency; when both sides are foreign it is
+ *   destCurrency per 1 sourceCurrency. Omit for same-currency transfers.
+ * - `fee` (in `feeCurrency`, default sourceCurrency) is booked as a separate
+ *   expense on the destination (the admin-fee pattern); it is never income.
+ */
+export interface PocketTransferInput {
+  /** The bank/e-wallet/cash account on the other side. */
+  counterAccountId: string;
+  sourceAmount: string;
+  sourceCurrency: string;
+  destAmount?: string;
+  destCurrency: string;
+  fxRate?: string;
+  fee?: string;
+  feeCurrency?: string;
+  occurredAt: string;
+  description?: string;
+  /** uuid generated when the form opens (R7). */
+  idempotencyKey: string;
+}
+
+export interface PocketTransferResultDto {
+  /** True when the idempotencyKey was already used: nothing new was written. */
+  replayed: boolean;
+  /** The transfer Transaction id (type transfer, accountId → toAccountId). */
+  transactionId: string;
+  /** The linked fee expense Transaction id, or null when there was no fee. */
+  feeTransactionId: string | null;
+  /** IDR moved by the transfer row (debited from the source). */
+  amountIdr: string;
+  /** IDR fee expense booked on the destination. */
+  feeIdr: string;
+  /** Native amounts + actual rate (also stored in fx_conversions). */
+  sourceAmount: string;
+  sourceCurrency: string;
+  destAmount: string;
+  destCurrency: string;
+  fxRate: string | null;
+  fee: string;
+  feeCurrency: string;
+  pocket: PlatformPocketDto;
 }
 
 // EPIC-022 D2 — the only two investment-transaction kinds. Buy grows the

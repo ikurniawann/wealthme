@@ -318,11 +318,12 @@ var INVESTMENT_PLATFORMS = [
     country: "ID",
     color: "#1E5EFF",
     mark: "Aj",
-    // Saham, reksa dana, kripto and saham AS (via Ajaib Alpha, Feb 2025)
-    // per ajaib.co.id; obligasi FR via "Ajaib Bond". Fractional US shares
-    // not confirmed.
-    products: ["saham_idx", "saham_us", "reksa_dana", "obligasi", "kripto"],
-    pockets: ["rdn", "crypto", "general"],
+    // Saham, reksa dana and saham AS (via Ajaib Alpha, Feb 2025) per
+    // ajaib.co.id. Kripto is a separate app (Ajaib Kripto — record it under
+    // "custom") and obligasi could not be verified, so both are left out.
+    // Fractional US shares not confirmed.
+    products: ["saham_idx", "saham_us", "reksa_dana"],
+    pockets: ["rdn", "general"],
     fractionalUsShares: false,
     syncMode: "manual",
     source: "https://ajaib.co.id"
@@ -373,7 +374,7 @@ var INVESTMENT_PLATFORMS = [
     country: "ID",
     color: "#0F9D58",
     mark: "Bk",
-    // bareksa.com: saham, reksa dana, SBN, emas.
+    // bareksa.com (re-checked 2026-10-19): Saham, Reksa Dana, SBN, Emas.
     products: ["saham_idx", "reksa_dana", "obligasi", "emas"],
     pockets: ["general"],
     fractionalUsShares: false,

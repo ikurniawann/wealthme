@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, type Role } from "@prisma/client";
+import { Prisma, type PocketKind, type Role } from "@prisma/client";
 
 import {
   accountOwnerWhere,
@@ -56,6 +56,30 @@ export interface AccountActor {
 }
 
 const MASTER_LIKE_ROLES: ReadonlySet<Role> = new Set<Role>(["owner", "spouse"]);
+
+/** Master/Co-Master — may set any owner and edit any account. */
+export function isMasterLike(actor: AccountActor | undefined): boolean {
+  return !actor || MASTER_LIKE_ROLES.has(actor.role);
+}
+
+/**
+ * EPIC-033 R3 follow-up — only Master/Co-Master may create or reassign
+ * accounts for someone else (or for the family). Any other role is pinned
+ * to itself as owner. Shared with PlatformAccountsService so a platform
+ * account and its pockets follow the exact same owner rule.
+ */
+export function resolveOwnerForActor(
+  actor: AccountActor | undefined,
+  ownerUserId: string | null | undefined,
+): string | null | undefined {
+  if (isMasterLike(actor)) return ownerUserId;
+  if (ownerUserId === undefined || ownerUserId === actor!.userId) {
+    return actor!.userId;
+  }
+  throw new ForbiddenException(
+    "Only Master or Co-Master can set another owner on an account",
+  );
+}
 
 /**
  * Relations every account read returns: the owner's and holder's display
@@ -204,13 +228,94 @@ export class AccountsService {
     actor: AccountActor | undefined,
     ownerUserId: string | null | undefined,
   ): string | null | undefined {
-    if (!actor || MASTER_LIKE_ROLES.has(actor.role)) return ownerUserId;
-    if (ownerUserId === undefined || ownerUserId === actor.userId) {
-      return actor.userId;
+    return resolveOwnerForActor(actor, ownerUserId);
+  }
+
+  /**
+   * Investasi R2 — a pocket link (platformAccountId + pocketKind) is only
+   * valid on an `investment` account, and the platform account must belong
+   * to this family. A pocketKind without a platform account means nothing;
+   * a platform account without a kind defaults to "general".
+   */
+  private async pocketLinkData(
+    familyGroupId: string,
+    type: string,
+    platformAccountId: string | undefined,
+    pocketKind: PocketKind | undefined,
+    existing?: {
+      platformAccountId: string | null;
+      pocketKind: PocketKind | null;
+    },
+  ): Promise<{ platformAccountId?: string; pocketKind?: PocketKind }> {
+    const linkedTo = platformAccountId ?? existing?.platformAccountId ?? null;
+    if (pocketKind !== undefined && !linkedTo) {
+      throw new BadRequestException(
+        "pocketKind hanya berlaku untuk kantong dana yang terhubung ke akun platform (platformAccountId).",
+      );
     }
-    throw new ForbiddenException(
-      "Only Master or Co-Master can set another owner on an account",
-    );
+    if (linkedTo && type !== "investment") {
+      throw new BadRequestException(
+        "Kantong dana platform harus bertipe investment.",
+      );
+    }
+    if (platformAccountId === undefined) {
+      return pocketKind !== undefined ? { pocketKind } : {};
+    }
+    const platform = await this.prisma.platformAccount.findFirst({
+      where: { id: platformAccountId, familyGroupId },
+      select: { id: true },
+    });
+    if (!platform) {
+      throw new BadRequestException(
+        "platformAccountId harus akun platform milik keluarga ini.",
+      );
+    }
+    return {
+      platformAccountId,
+      pocketKind: pocketKind ?? existing?.pocketKind ?? "general",
+    };
+  }
+
+  /**
+   * Investasi R2 — a pocket is the cash leg of the investment ledger:
+   * Investment.cashAccountId and InvestmentTransaction.cashAccountId are
+   * SetNull, so deleting a pocket that still has history or holdings would
+   * silently orphan them. Refuse with a clear 409 instead. Shared by
+   * DELETE /accounts/:id and DELETE /platform-accounts/:id/pockets/:pocketId.
+   */
+  async assertPocketDeletable(
+    familyGroupId: string,
+    account: { id: string; balance: bigint },
+  ): Promise<void> {
+    if (account.balance !== BigInt(0)) {
+      throw new ConflictException(
+        "Kantong dana ini masih memiliki saldo. Tarik atau pindahkan dananya hingga saldo nol sebelum menghapus.",
+      );
+    }
+    const [cashTx, investTx, holdings] = await Promise.all([
+      this.prisma.transaction.count({
+        where: {
+          familyGroupId,
+          OR: [{ accountId: account.id }, { toAccountId: account.id }],
+        },
+      }),
+      this.prisma.investmentTransaction.count({
+        where: { familyGroupId, cashAccountId: account.id },
+      }),
+      this.prisma.investment.count({
+        where: { familyGroupId, cashAccountId: account.id },
+      }),
+    ]);
+    if (holdings > 0) {
+      throw new ConflictException(
+        "Kantong dana ini masih terhubung ke aset investasi. Pindahkan atau hapus aset tersebut terlebih dahulu.",
+      );
+    }
+    if (cashTx > 0 || investTx > 0) {
+      throw new ConflictException(
+        "Kantong dana ini sudah memiliki riwayat transaksi, jadi tidak bisa dihapus. Ubah statusnya menjadi ditutup bila tidak dipakai lagi.",
+      );
+    }
   }
 
   async create(
@@ -232,6 +337,12 @@ export class AccountsService {
     );
 
     const detail = await this.bankDetailData(familyGroupId, dto);
+    const pocketLink = await this.pocketLinkData(
+      familyGroupId,
+      dto.type,
+      dto.platformAccountId,
+      dto.pocketKind,
+    );
     const shares = await this.normalizeShares(
       familyGroupId,
       dto.shares,
@@ -243,6 +354,7 @@ export class AccountsService {
       const account = await this.prisma.account.create({
         data: {
           ...(detail as Prisma.AccountUncheckedCreateInput),
+          ...pocketLink,
           familyGroupId,
           name: dto.name,
           type: dto.type,
@@ -365,6 +477,13 @@ export class AccountsService {
     }
 
     const detail = await this.bankDetailData(familyGroupId, dto, id);
+    const pocketLink = await this.pocketLinkData(
+      familyGroupId,
+      dto.type ?? existing.type,
+      dto.platformAccountId,
+      dto.pocketKind,
+      existing,
+    );
     const shares = await this.normalizeShares(
       familyGroupId,
       dto.shares,
@@ -377,6 +496,7 @@ export class AccountsService {
         where: { id, familyGroupId },
         data: {
           ...detail,
+          ...pocketLink,
           // A private account is visible only to Master/Co-Master, so
           // making it private also ends every share on it.
           ...(dto.isPrivate === true
@@ -587,6 +707,9 @@ export class AccountsService {
     });
     if (!existing) {
       throw new NotFoundException("Account not found");
+    }
+    if (existing.platformAccountId) {
+      await this.assertPocketDeletable(familyGroupId, existing);
     }
 
     // EPIC-021 Group B — an account that is the SOURCE of a real two-sided

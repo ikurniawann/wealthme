@@ -13,5 +13,7 @@ import { AccountsService } from "./accounts.service";
   imports: [PrismaModule, TransactionsModule],
   controllers: [AccountsController],
   providers: [AccountsService, AccountReconcileService],
+  // PlatformAccountsModule creates pockets through the same owner rules.
+  exports: [AccountsService],
 })
 export class AccountsModule {}

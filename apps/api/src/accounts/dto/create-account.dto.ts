@@ -1,11 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { AccountType } from "@prisma/client";
+import { AccountType, PocketKind } from "@prisma/client";
 import {
   IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
   IsString,
+  IsUUID,
   Length,
   Max,
   MaxLength,
@@ -109,6 +110,24 @@ export class CreateAccountDto extends AccountBankDetailDto {
   @IsString()
   @MinLength(1)
   ownerUserId?: string;
+
+  @ApiPropertyOptional({
+    type: String,
+    description:
+      "Investasi R2 — link this `investment` account as a cash pocket of a platform account of the same family.",
+  })
+  @IsOptional()
+  @IsUUID()
+  platformAccountId?: string;
+
+  @ApiPropertyOptional({
+    enum: PocketKind,
+    description:
+      "Investasi R2 — pocket kind (rdn | crypto | usd | general). Requires platformAccountId; defaults to general.",
+  })
+  @IsOptional()
+  @IsEnum(PocketKind)
+  pocketKind?: PocketKind;
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];

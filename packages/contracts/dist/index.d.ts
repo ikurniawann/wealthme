@@ -1180,6 +1180,51 @@ interface MarketConfig {
 }
 declare const MARKETS: Record<InvestmentMarket, MarketConfig>;
 
+/**
+ * Investasi R3 — platform catalog. A code constant (not a table) so it ships
+ * with the app and is reviewed like code. A user's account at a platform is a
+ * `PlatformAccount` row referencing `key`; anything missing uses "custom".
+ *
+ * Honesty rules:
+ * - `syncMode` is "manual" for every entry: WealthMe has NO integration with
+ *   any platform. A logo/mark is not a claim of integration.
+ * - `products` lists only what the platform's official site (or, where the
+ *   site could not be read, its own announcements) showed on 2026-10-19.
+ *   When a product could not be confirmed it is left out — the user can still
+ *   record it under a "custom" platform. Re-verify before widening a list.
+ * - `pockets` lists the cash pockets a user is likely to keep there; "general"
+ *   is the fallback when the platform's cash model was not confirmed.
+ * - `fractionalUsShares` is true only where the platform states fractional
+ *   US shares.
+ */
+declare const INVESTMENT_PRODUCT_KEYS: readonly ["saham_idx", "saham_us", "reksa_dana", "obligasi", "emas", "kripto", "deposito"];
+type InvestmentProduct = (typeof INVESTMENT_PRODUCT_KEYS)[number];
+/** Mirrors the Prisma enum `PocketKind`. */
+declare const POCKET_KINDS: readonly ["rdn", "crypto", "usd", "general"];
+type PocketKind = (typeof POCKET_KINDS)[number];
+/** Mirrors the Prisma enum `PlatformSyncMode`. */
+type PlatformSyncMode = "manual";
+interface InvestmentPlatform {
+    key: string;
+    name: string;
+    /** ISO 3166-1 alpha-2 of the operating entity. */
+    country: string;
+    /** Brand-neutral tint for the monogram chip (not a logo). */
+    color: string;
+    /** 1–2 letter monogram shown instead of a logo. */
+    mark: string;
+    products: readonly InvestmentProduct[];
+    pockets: readonly PocketKind[];
+    fractionalUsShares: boolean;
+    syncMode: PlatformSyncMode;
+    /** Where the product list was checked; null for "custom". */
+    source: string | null;
+}
+declare const CUSTOM_PLATFORM_KEY = "custom";
+declare const INVESTMENT_PLATFORMS: readonly InvestmentPlatform[];
+/** Catalog lookup; undefined for an unknown key (treat as custom). */
+declare function findInvestmentPlatform(key: string): InvestmentPlatform | undefined;
+
 type InvestmentType = "saham" | "reksa_dana" | "obligasi" | "emas" | "kripto" | "lainnya" | "deposito";
 interface InvestmentDto {
     id: string;
@@ -1284,6 +1329,122 @@ interface PlatformAccountDto {
     syncMode: "manual";
     createdAt: string;
     updatedAt: string;
+    /** Catalog name, or `customName` for "custom" (falls back to the key). */
+    platformName?: string;
+    /** Owner display name (null = family-shared). */
+    ownerName?: string | null;
+    /** Cash pockets the viewer may see (Accounts of type `investment`). */
+    pockets?: PlatformPocketDto[];
+    /** Holdings (Investment rows) linked to this platform account. */
+    holdingsCount?: number;
+}
+/**
+ * Investasi R2/R9 — a cash pocket ("kantong dana") at a platform account. It
+ * IS an `Account` of type `investment` (id = account id), so its balance is
+ * the IDR book balance and it is counted once in net worth via the accounts
+ * sum. All money fields are IDR integers serialized as strings.
+ */
+interface PlatformPocketDto {
+    id: string;
+    name: string;
+    pocketKind: PocketKind;
+    /** Native currency of the pocket (IDR, USD, ...). The balance is IDR. */
+    currency: string;
+    ownerUserId: string | null;
+    isPrivate: boolean;
+    status: string;
+    /**
+     * Kas tercatat — Account.balance (IDR). The three balances are null with
+     * `balancesHidden: true` when the viewer's "Lihat saldo" is off and the
+     * pocket is not theirs.
+     */
+    recordedBalance: string | null;
+    /** Dana tertahan — sell proceeds with settlementDate > today (R9), IDR. */
+    heldBalance: string | null;
+    /** Dana tersedia = recorded − held. */
+    availableBalance: string | null;
+    balancesHidden?: boolean;
+    /**
+     * True when some unsettled foreign proceeds carry no fxRate and could not
+     * be valued in IDR (then `heldBalance` understates what is held).
+     */
+    heldIncomplete: boolean;
+    /** Holdings funded from this pocket. */
+    holdingsCount: number;
+}
+/** Body of POST …/platform-accounts/:id/pockets (and `pockets[]` on create). */
+interface CreatePlatformPocketInput {
+    pocketKind: PocketKind;
+    /** ISO 4217; defaults to "USD" for a usd pocket, else "IDR". */
+    currency?: string;
+    /** Display name; default "<platform> · <kind label>". */
+    name?: string;
+    /** Opening balance, IDR integer (send `fxInputs` for a foreign amount). */
+    balance?: number;
+    isPrivate?: boolean;
+}
+interface CreatePlatformAccountInput {
+    platformKey: string;
+    /** Required when platformKey = "custom". */
+    customName?: string;
+    ownerUserId?: string;
+    label?: string;
+    accountRef?: string;
+    pockets?: CreatePlatformPocketInput[];
+}
+interface UpdatePlatformAccountInput {
+    customName?: string | null;
+    label?: string | null;
+    accountRef?: string | null;
+    ownerUserId?: string | null;
+}
+/**
+ * Body of POST …/pockets/:pocketId/top-up (bank → pocket) and /withdraw
+ * (pocket → bank). Amounts are canonical decimal strings in their own
+ * currency ("1500000", "100.25").
+ * - `sourceAmount`: total that leaves the source account.
+ * - `destAmount`: net that lands in the destination after `fee`.
+ * - `fxRate`: the actual rate used. When exactly one side is IDR it is IDR
+ *   per 1 unit of the foreign currency; when both sides are foreign it is
+ *   destCurrency per 1 sourceCurrency. Omit for same-currency transfers.
+ * - `fee` (in `feeCurrency`, default sourceCurrency) is booked as a separate
+ *   expense on the destination (the admin-fee pattern); it is never income.
+ */
+interface PocketTransferInput {
+    /** The bank/e-wallet/cash account on the other side. */
+    counterAccountId: string;
+    sourceAmount: string;
+    sourceCurrency: string;
+    destAmount?: string;
+    destCurrency: string;
+    fxRate?: string;
+    fee?: string;
+    feeCurrency?: string;
+    occurredAt: string;
+    description?: string;
+    /** uuid generated when the form opens (R7). */
+    idempotencyKey: string;
+}
+interface PocketTransferResultDto {
+    /** True when the idempotencyKey was already used: nothing new was written. */
+    replayed: boolean;
+    /** The transfer Transaction id (type transfer, accountId → toAccountId). */
+    transactionId: string;
+    /** The linked fee expense Transaction id, or null when there was no fee. */
+    feeTransactionId: string | null;
+    /** IDR moved by the transfer row (debited from the source). */
+    amountIdr: string;
+    /** IDR fee expense booked on the destination. */
+    feeIdr: string;
+    /** Native amounts + actual rate (also stored in fx_conversions). */
+    sourceAmount: string;
+    sourceCurrency: string;
+    destAmount: string;
+    destCurrency: string;
+    fxRate: string | null;
+    fee: string;
+    feeCurrency: string;
+    pocket: PlatformPocketDto;
 }
 type InvestmentTxType = "buy" | "sell";
 type InvestmentTxKind = "buy" | "sell" | "opening" | "dividend" | "coupon" | "interest" | "corporate_action";
@@ -1350,51 +1511,6 @@ interface InvestmentPriceDto {
  * history explains. The UI shows it as "Dari data lama — lengkapi riwayat".
  */
 declare const LEGACY_RESIDUAL_NOTE = "legacy-residual";
-
-/**
- * Investasi R3 — platform catalog. A code constant (not a table) so it ships
- * with the app and is reviewed like code. A user's account at a platform is a
- * `PlatformAccount` row referencing `key`; anything missing uses "custom".
- *
- * Honesty rules:
- * - `syncMode` is "manual" for every entry: WealthMe has NO integration with
- *   any platform. A logo/mark is not a claim of integration.
- * - `products` lists only what the platform's official site (or, where the
- *   site could not be read, its own announcements) showed on 2026-10-19.
- *   When a product could not be confirmed it is left out — the user can still
- *   record it under a "custom" platform. Re-verify before widening a list.
- * - `pockets` lists the cash pockets a user is likely to keep there; "general"
- *   is the fallback when the platform's cash model was not confirmed.
- * - `fractionalUsShares` is true only where the platform states fractional
- *   US shares.
- */
-declare const INVESTMENT_PRODUCT_KEYS: readonly ["saham_idx", "saham_us", "reksa_dana", "obligasi", "emas", "kripto", "deposito"];
-type InvestmentProduct = (typeof INVESTMENT_PRODUCT_KEYS)[number];
-/** Mirrors the Prisma enum `PocketKind`. */
-declare const POCKET_KINDS: readonly ["rdn", "crypto", "usd", "general"];
-type PocketKind = (typeof POCKET_KINDS)[number];
-/** Mirrors the Prisma enum `PlatformSyncMode`. */
-type PlatformSyncMode = "manual";
-interface InvestmentPlatform {
-    key: string;
-    name: string;
-    /** ISO 3166-1 alpha-2 of the operating entity. */
-    country: string;
-    /** Brand-neutral tint for the monogram chip (not a logo). */
-    color: string;
-    /** 1–2 letter monogram shown instead of a logo. */
-    mark: string;
-    products: readonly InvestmentProduct[];
-    pockets: readonly PocketKind[];
-    fractionalUsShares: boolean;
-    syncMode: PlatformSyncMode;
-    /** Where the product list was checked; null for "custom". */
-    source: string | null;
-}
-declare const CUSTOM_PLATFORM_KEY = "custom";
-declare const INVESTMENT_PLATFORMS: readonly InvestmentPlatform[];
-/** Catalog lookup; undefined for an unknown key (treat as custom). */
-declare function findInvestmentPlatform(key: string): InvestmentPlatform | undefined;
 
 type LiabilityType = "kartu_kredit" | "pinjaman_pribadi" | "kpr" | "kendaraan" | "lainnya";
 type InterestMethod = "efektif" | "flat" | "anuitas";
@@ -2853,4 +2969,4 @@ declare function accountTypeToAssetClass(type: string): AssetClassKey;
  */
 declare function warisanAssetTypeToAssetClass(assetType: string): AssetClassKey;
 
-export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASS_KEYS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClassKey, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InterestMethod, type InvestmentBaseUnit, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentMarket, type InvestmentPlatform, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };
+export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASS_KEYS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClassKey, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InterestMethod, type InvestmentBaseUnit, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentMarket, type InvestmentPlatform, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };

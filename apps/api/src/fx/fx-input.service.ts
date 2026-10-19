@@ -26,6 +26,9 @@ export type FxEntity =
   | "GoalContribution"
   | "Asset"
   | "Investment"
+  // Investasi R2 — opening balances sent with POST /platform-accounts
+  // (fields `pockets.<i>.balance`, i = order of the request's pockets).
+  | "PlatformAccount"
   | "Liability"
   | "Insurance"
   | "InheritanceAsset"

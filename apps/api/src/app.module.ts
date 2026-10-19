@@ -44,6 +44,7 @@ import { InvestmentsModule } from "./investments/investments.module";
 import { LiabilitiesModule } from "./liabilities/liabilities.module";
 import { MemberCategoryAllowancesModule } from "./member-category-allowances/member-category-allowances.module";
 import { NotificationsModule } from "./notifications/notifications.module";
+import { PlatformAccountsModule } from "./platform-accounts/platform-accounts.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 import { RedisModule } from "./redis/redis.module";
@@ -112,6 +113,7 @@ import type { IncomingMessage } from "node:http";
     DonationsModule,
     InheritanceModule,
     InvestmentsModule,
+    PlatformAccountsModule,
     InsurancesModule,
     LiabilitiesModule,
     BillingCycleModule,
