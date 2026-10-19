@@ -371,16 +371,80 @@
     right: -5px;
   }
 
+  /* bank pill rail: thin visible scrollbar, faded edges, ‹ › buttons */
+  .rk3-rail {
+    position: relative;
+    min-width: 0;
+  }
   .rk3-banks {
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding-bottom: 2px;
+    padding-bottom: 8px;
     scroll-snap-type: x proximity;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--wm-ink) 22%, transparent)
+      transparent;
   }
   .rk3-banks::-webkit-scrollbar {
-    display: none;
+    height: 6px;
+  }
+  .rk3-banks::-webkit-scrollbar-thumb {
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--wm-ink) 22%, transparent);
+  }
+  .rk3-rail[data-end] .rk3-banks {
+    mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent);
+  }
+  .rk3-rail[data-start] .rk3-banks {
+    mask-image: linear-gradient(to right, transparent, #000 64px);
+  }
+  .rk3-rail[data-start][data-end] .rk3-banks {
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      #000 64px,
+      #000 calc(100% - 64px),
+      transparent
+    );
+  }
+  .rk3-rail-btn {
+    position: absolute;
+    top: calc(50% - 4px);
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border: 1px solid var(--wm-line);
+    border-radius: 50%;
+    background: var(--wm-card);
+    box-shadow: 0 6px 16px -8px rgb(0 0 0 / 0.35);
+    color: var(--wm-ink);
+    cursor: pointer;
+    transform: translateY(-50%);
+  }
+  .rk3-rail-btn:hover {
+    background: var(--wm-card-2);
+  }
+  .rk3-rail-btn:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+  }
+  .rk3-rail-btn svg {
+    width: 17px;
+    height: 17px;
+  }
+  .rk3-rail-btn--prev {
+    left: -4px;
+  }
+  .rk3-rail-btn--next {
+    right: -4px;
+  }
+  /* touch: the swipe and the fade already say it; no buttons */
+  @media (pointer: coarse) {
+    .rk3-rail-btn {
+      display: none;
+    }
   }
   .rk3-bp {
     display: flex;

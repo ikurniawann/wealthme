@@ -189,6 +189,8 @@ export interface RekeningV3Copy {
     access: Record<"all" | "mine" | "sharedWithMe" | "family", string>;
     status: Record<"open" | "all" | "closed", string>;
     clearFilters: string;
+    scrollPrev: string;
+    scrollNext: string;
     moreFilters: string;
     sortLabel: string;
     sort: Record<"balance" | "name" | "newest", string>;
@@ -461,6 +463,8 @@ export const rekeningV3Id: RekeningV3Copy = {
     },
     status: { open: "Belum ditutup", all: "Semua", closed: "Ditutup" },
     clearFilters: "Reset filter",
+    scrollPrev: "Bank sebelumnya",
+    scrollNext: "Bank berikutnya",
     moreFilters: "Filter lainnya",
     sortLabel: "Urutkan",
     sort: {
@@ -737,6 +741,8 @@ export const rekeningV3En: RekeningV3Copy = {
     },
     status: { open: "Not closed", all: "All", closed: "Closed" },
     clearFilters: "Reset filters",
+    scrollPrev: "Previous banks",
+    scrollNext: "More banks",
     moreFilters: "More filters",
     sortLabel: "Sort",
     sort: {

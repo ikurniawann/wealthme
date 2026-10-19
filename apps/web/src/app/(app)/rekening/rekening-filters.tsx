@@ -27,6 +27,7 @@ import { useMoney } from "@/hooks/use-money";
 import { fill } from "@/i18n/rekening-v3";
 
 import { bankShortLabel } from "./bank-directory";
+import { ScrollRail } from "./scroll-rail";
 import {
   EMPTY_FILTERS,
   type AccessFilter,
@@ -185,7 +186,12 @@ export function RekeningFilterPanel(props: FiltersProps) {
   const dirty = chips.length > 0 || f.query !== "" || !f.hideEmpty;
 
   const bankPills = (
-    <div className="rk3-banks" role="group" aria-label={c.page.filterBank}>
+    <ScrollRail
+      className="rk3-banks"
+      label={c.page.filterBank}
+      prevLabel={c.page.scrollPrev}
+      nextLabel={c.page.scrollNext}
+    >
       <button
         type="button"
         className="rk3-bp rk3-bp--all"
@@ -226,7 +232,7 @@ export function RekeningFilterPanel(props: FiltersProps) {
           </span>
         </button>
       ))}
-    </div>
+    </ScrollRail>
   );
 
   const kindTabs = (
