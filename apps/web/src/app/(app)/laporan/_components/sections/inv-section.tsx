@@ -49,6 +49,8 @@ export function InvSection({
   const totalValue = parseFloat(invSummary?.totalCurrentValue ?? "0");
   const totalReturnRp = parseFloat(invSummary?.totalReturnRp ?? "0");
   const totalReturnPct = invSummary?.totalReturnPct ?? 0;
+  const hasReturn =
+    invSummary?.totalReturnRp != null && invSummary?.totalReturnPct != null;
 
   const typeRows = Array.from(byType.entries())
     .sort((a, b) => b[1] - a[1])
@@ -63,6 +65,9 @@ export function InvSection({
 
   return (
     <div className={"space-y-3.5 " + loadingClass}>
+      {invSummary?.costIncomplete && (
+        <p role="status">{t.investasi.forms.costUnknown}</p>
+      )}
       <SectionCard
         title={t.laporan.investasi.sectionTitle}
         action={
@@ -84,7 +89,7 @@ export function InvSection({
           <div className="text-[22px] font-black text-primary">
             {invSummary ? money.format(totalValue) : "…"}
           </div>
-          {invSummary && totalValue > 0 && (
+          {invSummary && hasReturn && totalValue > 0 && (
             <div
               className={
                 "mt-1 text-[12px] " +
@@ -112,7 +117,7 @@ export function InvSection({
               (totalReturnPct >= 0 ? "text-success" : "text-destructive")
             }
           >
-            {invSummary ? formatPercent(totalReturnPct, { signed: true }) : "—"}
+            {hasReturn ? formatPercent(totalReturnPct, { signed: true }) : "—"}
           </div>
           <div className="mt-1 text-[12px] text-muted-foreground">
             {investments

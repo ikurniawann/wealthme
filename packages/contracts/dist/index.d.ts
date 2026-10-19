@@ -1290,7 +1290,7 @@ declare const AUTOMATED_PRICE_SOURCES: readonly ["yahoo-finance", "coingecko", "
 /** Never a valuation basis (dev/demo MockMarketDataAdapter). */
 declare const SIMULATED_PRICE_SOURCE = "mock";
 /** Why a holding has no usable valuation (unpriced / failed / cost_basis). */
-type InvestmentValuationReason = "no_price" | "no_feed" | "feed_failed" | "fx_unavailable" | "simulated_price_ignored" | "deposit_terms_missing" | "bond_no_price" | "fixed_cost";
+type InvestmentValuationReason = "no_price" | "no_feed" | "feed_failed" | "fx_unavailable" | "simulated_price_ignored" | "deposit_terms_missing" | "bond_no_price" | "fixed_cost" | "cost_unknown";
 interface InvestmentValuationPriceDto {
     /** Per `unitLabel`, in `currency`. For bonds in % of par when so labelled. */
     value: string;
@@ -1368,7 +1368,8 @@ interface InvestmentValuationDto {
         unrealized: string | null;
     };
     /** Remaining cost basis (weighted average, R1), rupiah. */
-    costRemainingIdr: string;
+    costRemainingIdr: string | null;
+    costBasisKnown?: boolean;
     /**
      * Remaining cost in the price currency when every active ledger row is in
      * that currency (else null). Lets the UI split price and FX effects.
@@ -1431,14 +1432,15 @@ interface InvestmentPortfolioTotalsDto {
     /** assetValue + platformCash.recorded. */
     total: InvestmentMoneyDto;
     /** Modal aset tersisa — every holding. */
-    costRemaining: InvestmentMoneyDto;
+    costRemaining: InvestmentMoneyDto | null;
+    costIncomplete?: boolean;
     /** Remaining cost of the valued holdings (the base of `unrealized`). */
     pricedCostRemaining: InvestmentMoneyDto;
-    unpricedCost: InvestmentMoneyDto;
-    unrealized: InvestmentMoneyDto;
+    unpricedCost: InvestmentMoneyDto | null;
+    unrealized: InvestmentMoneyDto | null;
     /** Null when pricedCostRemaining is 0. */
     unrealizedPct: number | null;
-    realized: InvestmentMoneyDto;
+    realized: InvestmentMoneyDto | null;
     income: InvestmentMoneyDto;
     /** What net worth counts for investments (unpriced at cost). */
     netWorthValue: InvestmentMoneyDto;
@@ -1572,6 +1574,8 @@ interface InvestmentDto {
 }
 type BondPriceConvention = "percent_of_par" | "per_unit";
 interface BondDetails {
+    /** New positions record quantity in nominal principal units. */
+    quantityIsPrincipal?: boolean;
     /** ISIN / series code (FR0100, ORI025). */
     instrumentCode?: string;
     issuer?: string;
@@ -1614,6 +1618,10 @@ interface OtherDetails {
 }
 /** Investment.details — keyed by the slice that applies to the holding's type. */
 interface InvestmentDetails {
+    /** Explicit unknown opening cost; never render it as zero profit or cost. */
+    costBasisKnown?: boolean;
+    /** User records an instrument without a verified price-feed identity. */
+    manualInstrument?: boolean;
     bond?: BondDetails;
     gold?: GoldDetails;
     deposit?: DepositDetails;
@@ -1753,6 +1761,7 @@ type InvestmentTxType = "buy" | "sell";
 type InvestmentTxKind = "buy" | "sell" | "opening" | "dividend" | "coupon" | "interest" | "corporate_action";
 type InvestmentTxStatus = "active" | "void";
 interface InvestmentTransactionDto {
+    costBasisKnown?: boolean;
     id: string;
     investmentId: string;
     /** Legacy direction; null for income and corporate-action rows. Use `kind`. */
@@ -1787,10 +1796,12 @@ interface InvestmentTransactionDto {
     updatedAt?: string;
 }
 interface InvestmentSummaryDto {
+    /** Legacy aggregate of known cost only; incomplete when costIncomplete. */
     totalCostBasis: string;
     totalCurrentValue: string;
-    totalReturnRp: string;
-    totalReturnPct: number;
+    totalReturnRp: string | null;
+    totalReturnPct: number | null;
+    costIncomplete?: boolean;
     todayReturnRp: string | null;
     todayReturnPct: number | null;
 }
@@ -1868,7 +1879,8 @@ interface InvestmentLedgerHoldingState {
     /** Base units after the full replay. */
     quantity: string;
     /** Weighted-average cost per base unit, IDR (R1). */
-    costBasisPerUnit: string;
+    costBasisPerUnit: string | null;
+    costBasisKnown?: boolean;
     /** Σ realizedPnl of active sells, IDR; null when nothing was sold. */
     realizedPnlRp: string | null;
 }

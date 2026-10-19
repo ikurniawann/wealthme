@@ -7,6 +7,7 @@ import { PlatformAccountsModule } from "../platform-accounts/platform-accounts.m
 import { PrismaModule } from "../prisma/prisma.module";
 
 import { CoinGeckoMarketDataAdapter } from "./coingecko-market-data.adapter";
+import { InvestmentPositionsService } from "./investment-positions.service";
 import { InvestmentsController } from "./investments.controller";
 import { InvestmentsService } from "./investments.service";
 import { InvestmentLedgerService } from "./ledger/investment-ledger.service";
@@ -46,6 +47,7 @@ import type { Env } from "../config/env";
   controllers: [InvestmentsController, InvestmentValuationController],
   providers: [
     InvestmentsService,
+    InvestmentPositionsService,
     InvestmentLedgerService,
     InvestmentPortfolioService,
     PriceBatchService,

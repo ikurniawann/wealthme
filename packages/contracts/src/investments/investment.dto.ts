@@ -106,6 +106,8 @@ export interface InvestmentDto {
 export type BondPriceConvention = "percent_of_par" | "per_unit";
 
 export interface BondDetails {
+  /** New positions record quantity in nominal principal units. */
+  quantityIsPrincipal?: boolean;
   /** ISIN / series code (FR0100, ORI025). */
   instrumentCode?: string;
   issuer?: string;
@@ -155,6 +157,10 @@ export interface OtherDetails {
 
 /** Investment.details — keyed by the slice that applies to the holding's type. */
 export interface InvestmentDetails {
+  /** Explicit unknown opening cost; never render it as zero profit or cost. */
+  costBasisKnown?: boolean;
+  /** User records an instrument without a verified price-feed identity. */
+  manualInstrument?: boolean;
   bond?: BondDetails;
   gold?: GoldDetails;
   deposit?: DepositDetails;
@@ -322,6 +328,7 @@ export type InvestmentTxStatus = "active" | "void";
 // are this EVENT's own terms, never the holding's post-transaction state.
 // `realizedPnl` is set only for a sell (null for every buy).
 export interface InvestmentTransactionDto {
+  costBasisKnown?: boolean;
   id: string;
   investmentId: string;
   /** Legacy direction; null for income and corporate-action rows. Use `kind`. */
@@ -358,10 +365,12 @@ export interface InvestmentTransactionDto {
 }
 
 export interface InvestmentSummaryDto {
+  /** Legacy aggregate of known cost only; incomplete when costIncomplete. */
   totalCostBasis: string;
   totalCurrentValue: string;
-  totalReturnRp: string;
-  totalReturnPct: number;
+  totalReturnRp: string | null;
+  totalReturnPct: number | null;
+  costIncomplete?: boolean;
   todayReturnRp: string | null;
   todayReturnPct: number | null;
 }
@@ -454,7 +463,8 @@ export interface InvestmentLedgerHoldingState {
   /** Base units after the full replay. */
   quantity: string;
   /** Weighted-average cost per base unit, IDR (R1). */
-  costBasisPerUnit: string;
+  costBasisPerUnit: string | null;
+  costBasisKnown?: boolean;
   /** Σ realizedPnl of active sells, IDR; null when nothing was sold. */
   realizedPnlRp: string | null;
 }

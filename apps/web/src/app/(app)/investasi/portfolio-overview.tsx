@@ -169,7 +169,9 @@ export function PortfolioActivityList({
               </Link>
               <span>
                 {money(
-                  row.netAmount ?? row.grossAmount,
+                  row.costBasisKnown === false && row.kind === "opening"
+                    ? null
+                    : (row.netAmount ?? row.grossAmount),
                   row.currency ?? "IDR",
                   locale,
                   hideBalance,

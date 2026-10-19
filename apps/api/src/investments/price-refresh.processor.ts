@@ -20,7 +20,7 @@ import type {
   MarketDataQuote,
   MarketDataRequest,
 } from "./market-data.port";
-import type { InvestmentMarket, InvestmentType } from "@prisma/client";
+import type { InvestmentMarket, InvestmentType, Prisma } from "@prisma/client";
 import type { Job } from "bullmq";
 
 /** An unchanged quote is re-stored at most this often (keeps asOf honest). */
@@ -38,6 +38,7 @@ interface Holding {
   market: InvestmentMarket | null;
   priceSymbol: string | null;
   currency: string;
+  details: Prisma.JsonValue;
 }
 
 interface StoredQuote {
@@ -88,14 +89,22 @@ export class PriceRefreshProcessor extends WorkerHost {
         market: true,
         priceSymbol: true,
         currency: true,
+        details: true,
       },
     });
     await this.pokeAntam(investments);
 
     // Manual-only types (reksa_dana, obligasi, emas, lainnya, deposito)
     // never get an automated quote.
-    const automated = investments.filter((inv) =>
-      isAutomatedPriceType(inv.type),
+    const automated = investments.filter(
+      (inv) =>
+        isAutomatedPriceType(inv.type) &&
+        !(
+          inv.details &&
+          typeof inv.details === "object" &&
+          !Array.isArray(inv.details) &&
+          inv.details.manualInstrument === true
+        ),
     );
     if (automated.length === 0) return;
 

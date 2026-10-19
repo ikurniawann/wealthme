@@ -363,14 +363,21 @@ export function coverFor(
       const s = d.invSummary;
       if (s) {
         const value = Number(s.totalCurrentValue);
-        const cost = Number(s.totalCostBasis);
+        const cost = s.costIncomplete ? null : Number(s.totalCostBasis);
         cover = {
           headline: fill(v.hInv, { amount: money(value) }, "amount"),
           legend: [
-            { label: v.cost, value: money(cost), color: MUTED },
+            {
+              label: v.cost,
+              value: cost === null ? "—" : money(cost),
+              color: MUTED,
+            },
             {
               label: v.gain,
-              value: `${value >= cost ? "+" : "-"}${money(Math.abs(value - cost))}`,
+              value:
+                cost === null
+                  ? "—"
+                  : `${value >= cost ? "+" : "-"}${money(Math.abs(value - cost))}`,
               color: LIME,
             },
           ],

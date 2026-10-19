@@ -81,7 +81,8 @@ export type InvestmentValuationReason =
   | "simulated_price_ignored"
   | "deposit_terms_missing"
   | "bond_no_price"
-  | "fixed_cost";
+  | "fixed_cost"
+  | "cost_unknown";
 
 export interface InvestmentValuationPriceDto {
   /** Per `unitLabel`, in `currency`. For bonds in % of par when so labelled. */
@@ -164,7 +165,8 @@ export interface InvestmentValuationDto {
     unrealized: string | null;
   };
   /** Remaining cost basis (weighted average, R1), rupiah. */
-  costRemainingIdr: string;
+  costRemainingIdr: string | null;
+  costBasisKnown?: boolean;
   /**
    * Remaining cost in the price currency when every active ledger row is in
    * that currency (else null). Lets the UI split price and FX effects.
@@ -230,14 +232,15 @@ export interface InvestmentPortfolioTotalsDto {
   /** assetValue + platformCash.recorded. */
   total: InvestmentMoneyDto;
   /** Modal aset tersisa — every holding. */
-  costRemaining: InvestmentMoneyDto;
+  costRemaining: InvestmentMoneyDto | null;
+  costIncomplete?: boolean;
   /** Remaining cost of the valued holdings (the base of `unrealized`). */
   pricedCostRemaining: InvestmentMoneyDto;
-  unpricedCost: InvestmentMoneyDto;
-  unrealized: InvestmentMoneyDto;
+  unpricedCost: InvestmentMoneyDto | null;
+  unrealized: InvestmentMoneyDto | null;
   /** Null when pricedCostRemaining is 0. */
   unrealizedPct: number | null;
-  realized: InvestmentMoneyDto;
+  realized: InvestmentMoneyDto | null;
   income: InvestmentMoneyDto;
   /** What net worth counts for investments (unpriced at cost). */
   netWorthValue: InvestmentMoneyDto;

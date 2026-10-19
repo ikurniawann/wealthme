@@ -388,6 +388,7 @@ export function valueHolding(
   const staleAfterDays = MARKETS[market].staleAfterDays;
   const todayYmd = jakartaYmd(ctx.now);
   const costIdr = inv.quantity.times(inv.costBasisPerUnit);
+  const costKnown = inv.details?.costBasisKnown !== false;
   const ledger = inv.ledger;
 
   const base = {
@@ -397,8 +398,10 @@ export function valueHolding(
     marketInferred: inv.market === null,
     holdingCurrency: inv.currency,
     quantity: inv.quantity.toString(),
-    costRemainingIdr: money(costIdr),
-    realizedIdr: ledger?.realizedIdr ? money(ledger.realizedIdr) : null,
+    costRemainingIdr: costKnown ? money(costIdr) : null,
+    costBasisKnown: costKnown,
+    realizedIdr:
+      costKnown && ledger?.realizedIdr ? money(ledger.realizedIdr) : null,
     incomeIdr: money(ledger?.incomeIdr ?? ZERO),
     feedStatus: inv.feed?.state ?? null,
   };
@@ -427,7 +430,14 @@ export function valueHolding(
     };
   }
 
-  const valued = valueByMethod(inv, market, costIdr, todayYmd);
+  const valued =
+    !costKnown &&
+    (inv.type === "deposito" ||
+      market === "DEPOSIT" ||
+      (!inv.latestPrice && (inv.type === "obligasi" || market === "BOND_ID")) ||
+      inv.details?.other?.valuationMethod === "fixed_cost")
+      ? null
+      : valueByMethod(inv, market, costIdr, todayYmd);
   const rate = valued ? idrPerUnit(ctx.fx, valued.currency) : null;
   if (!valued || !rate) {
     const basis: InvestmentValuationBasis =
@@ -436,7 +446,11 @@ export function valueHolding(
       ...base,
       basis,
       method: "none",
-      reason: valued ? "fx_unavailable" : missingReason(inv),
+      reason: valued
+        ? "fx_unavailable"
+        : !costKnown
+          ? "cost_unknown"
+          : missingReason(inv),
       price: null,
       valuationFx: null,
       marketValue: null,
@@ -461,8 +475,9 @@ export function valueHolding(
   const valueIdr = valued.value.times(rate);
   const unrealized = valueIdr.minus(costIdr);
 
-  const native =
-    valued.currency === "IDR"
+  const native = !costKnown
+    ? null
+    : valued.currency === "IDR"
       ? { currency: "IDR", amount: costIdr }
       : ledger?.costNative?.currency === valued.currency
         ? ledger.costNative
@@ -501,8 +516,8 @@ export function valueHolding(
       native && valued.currency !== "IDR" && native.amount.greaterThan(0)
         ? costIdr.dividedBy(native.amount).toDecimalPlaces(6).toString()
         : null,
-    unrealizedIdr: money(unrealized),
-    unrealizedPct: pct(unrealized, costIdr),
+    unrealizedIdr: costKnown ? money(unrealized) : null,
+    unrealizedPct: costKnown ? pct(unrealized, costIdr) : null,
     priceEffectIdr: priceEffect ? money(priceEffect) : null,
     fxEffectIdr: fxEffect ? money(fxEffect) : null,
     netWorthIdr: wholeRupiah(valueIdr).toFixed(0),

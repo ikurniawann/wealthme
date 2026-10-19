@@ -88,9 +88,13 @@ function totalsOf(
   let realized = ZERO;
   let income = ZERO;
   let netWorth = ZERO;
+  const costIncomplete = holdings.some((v) => v.costRemainingIdr === null);
+  const unpricedCostIncomplete = holdings.some(
+    (v) => v.marketValueIdr === null && v.costRemainingIdr === null,
+  );
   const count = { unpriced: 0, failed: 0, stale: 0, cost: 0 };
   for (const v of holdings) {
-    const cost = new D(v.costRemainingIdr);
+    const cost = new D(v.costRemainingIdr ?? "0");
     costRemaining = costRemaining.plus(cost);
     realized = realized.plus(v.realizedIdr ?? "0");
     income = income.plus(v.incomeIdr);
@@ -117,12 +121,13 @@ function totalsOf(
     assetValue: money(assetValue),
     platformCash: cash,
     total: money(assetValue.plus(cash.recorded.idr)),
-    costRemaining: money(costRemaining),
+    costRemaining: costIncomplete ? null : money(costRemaining),
+    costIncomplete,
     pricedCostRemaining: money(pricedCost),
-    unpricedCost: money(unpricedCost),
-    unrealized: money(unrealized),
-    unrealizedPct: pct(unrealized, pricedCost),
-    realized: money(realized),
+    unpricedCost: unpricedCostIncomplete ? null : money(unpricedCost),
+    unrealized: costIncomplete ? null : money(unrealized),
+    unrealizedPct: costIncomplete ? null : pct(unrealized, pricedCost),
+    realized: costIncomplete ? null : money(realized),
     income: money(income),
     netWorthValue: money(netWorth),
   };

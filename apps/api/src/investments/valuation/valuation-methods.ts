@@ -30,11 +30,16 @@ function validYmd(v: string | null | undefined): string | null {
   return v && isValidYmd(v) ? v : null;
 }
 
-function positiveDecimal(v: string | null | undefined): Decimal | null {
+function positiveDecimal(
+  v: string | null | undefined,
+  allowZero = false,
+): Decimal | null {
   if (v === null || v === undefined || v.trim() === "") return null;
   try {
     const d = new D(v);
-    return d.greaterThan(0) ? d : null;
+    return (allowZero ? d.greaterThanOrEqualTo(0) : d.greaterThan(0))
+      ? d
+      : null;
   } catch {
     return null;
   }
@@ -58,7 +63,7 @@ export function depositTerms(
   },
 ): DepositTerms {
   return {
-    ratePct: positiveDecimal(details?.ratePct) ?? legacy.interestRatePct,
+    ratePct: positiveDecimal(details?.ratePct, true) ?? legacy.interestRatePct,
     startDate: validYmd(details?.startDate) ?? legacy.purchasedYmd,
     maturityDate: validYmd(details?.maturityDate) ?? legacy.maturityYmd,
   };
@@ -143,7 +148,9 @@ export function bondValue(
   priceUnitLabel: string,
   todayYmd: string,
 ): { value: Decimal; dto: InvestmentBondValuationDto } {
-  const principal = positiveDecimal(details?.principal);
+  const principal = details?.quantityIsPrincipal
+    ? quantity
+    : positiveDecimal(details?.principal);
   const percentConvention =
     details?.priceConvention === "percent_of_par" ||
     (details?.priceConvention === undefined && priceUnitLabel.includes("%"));

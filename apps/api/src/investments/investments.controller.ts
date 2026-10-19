@@ -42,6 +42,8 @@ import { CreateInvestmentTransactionDto } from "./dto/create-investment-transact
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { CreateInvestmentDto } from "./dto/create-investment.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CreatePositionDto } from "./dto/create-position.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import {
   CreateInvestmentLedgerDto,
   UpdateInvestmentLedgerDto,
@@ -51,6 +53,8 @@ import {
 import { SetManualPriceDto } from "./dto/set-manual-price.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateInvestmentDto } from "./dto/update-investment.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentPositionsService } from "./investment-positions.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentsService } from "./investments.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -74,6 +78,7 @@ function actorOf(req: ExpressRequest): LedgerActor {
 export class InvestmentsController {
   constructor(
     private readonly investmentsService: InvestmentsService,
+    private readonly positions: InvestmentPositionsService,
     private readonly fxInputs: FxInputService,
     private readonly ledger: InvestmentLedgerService,
   ) {}
@@ -117,6 +122,22 @@ export class InvestmentsController {
       (converted) =>
         this.investmentsService.create(req.params.familyGroupId, converted),
     );
+  }
+
+  @Post("positions")
+  @CheckAbility((ab) => ab.can("manage", "Investment"))
+  async createPosition(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Body() dto: CreatePositionDto,
+    @Res({ passthrough: true }) res: ExpressResponse,
+  ) {
+    const result = await this.positions.create(
+      req.params.familyGroupId,
+      dto,
+      actorOf(req),
+    );
+    if (result.replayed) res.status(HttpStatus.OK);
+    return result;
   }
 
   @Patch(":id")

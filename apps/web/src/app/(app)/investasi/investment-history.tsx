@@ -97,7 +97,10 @@ export function InvestmentHistory({
               : row.settlementDate && row.settlementDate > today()
                 ? "pending"
                 : "settled",
-          value: row.netAmount ?? row.grossAmount ?? null,
+          value:
+            row.costBasisKnown === false && row.kind === "opening"
+              ? null
+              : (row.netAmount ?? row.grossAmount ?? null),
           currency: row.currency ?? "IDR",
           ledger: row,
           cash: null as TransactionDto | null,

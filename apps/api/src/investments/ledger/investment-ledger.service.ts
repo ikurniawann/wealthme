@@ -107,71 +107,81 @@ export class InvestmentLedgerService {
     actor: LedgerActor,
     options: { strictPocket?: boolean } = {},
   ): Promise<InvestmentLedgerResultDto> {
-    const strictPocket = options.strictPocket ?? true;
     return runSerializableWithRetry(
       this.prisma,
-      async (tx) => {
-        const existing = await tx.investmentTransaction.findUnique({
-          where: {
-            familyGroupId_idempotencyKey: {
-              familyGroupId,
-              idempotencyKey: input.idempotencyKey,
-            },
-          },
-        });
-        if (existing) {
-          if (
-            existing.investmentId !== investmentId ||
-            existing.kind !== input.kind ||
-            !(await this.samePayload(tx, existing, input))
-          ) {
-            throw new ConflictException({
-              statusCode: 409,
-              code: "IDEMPOTENCY_KEY_REUSED",
-              message:
-                "idempotencyKey ini sudah dipakai untuk transaksi dengan isi berbeda. Buka ulang formulir untuk membuat kunci baru.",
-            });
-          }
-          return {
-            replayed: true,
-            transaction: toTransactionDto(existing),
-            holding: await this.holdingState(tx, investmentId),
-          };
-        }
-
-        const investment = await this.lockInvestment(
+      (tx) =>
+        this.createWithinTransaction(
           tx,
           familyGroupId,
           investmentId,
-        );
-        const row = normalizeLedgerInput(
           input,
-          holdingConfig(investment),
-          jakartaTodayYmd(),
-        );
-        const written = await this.applyChange(
-          tx,
-          familyGroupId,
-          investment,
-          {
-            type: "create",
-            id: randomUUID(),
-            createdAt: new Date(),
-            row,
-            idempotencyKey: input.idempotencyKey,
-          },
           actor,
-          null,
-          strictPocket,
-        );
-        return {
-          replayed: false,
-          transaction: toTransactionDto(written),
-          holding: await this.holdingState(tx, investmentId),
-        };
-      },
+          options,
+        ),
       LEDGER_TX_ATTEMPTS,
     );
+  }
+
+  /** Compose a new holding and its first ledger event atomically. */
+  async createWithinTransaction(
+    tx: TxClient,
+    familyGroupId: string,
+    investmentId: string,
+    input: CreateInvestmentLedgerInput,
+    actor: LedgerActor,
+    options: { strictPocket?: boolean } = {},
+  ): Promise<InvestmentLedgerResultDto> {
+    const strictPocket = options.strictPocket ?? true;
+    const existing = await tx.investmentTransaction.findUnique({
+      where: {
+        familyGroupId_idempotencyKey: {
+          familyGroupId,
+          idempotencyKey: input.idempotencyKey,
+        },
+      },
+    });
+    if (existing) {
+      if (
+        existing.investmentId !== investmentId ||
+        existing.kind !== input.kind ||
+        !(await this.samePayload(tx, existing, input))
+      ) {
+        throw new ConflictException({
+          statusCode: 409,
+          code: "IDEMPOTENCY_KEY_REUSED",
+          message:
+            "idempotencyKey ini sudah dipakai untuk transaksi dengan isi berbeda. Buka ulang formulir untuk membuat kunci baru.",
+        });
+      }
+      return this.result(tx, investmentId, existing, true);
+    }
+
+    const investment = await this.lockInvestment(
+      tx,
+      familyGroupId,
+      investmentId,
+    );
+    const row = normalizeLedgerInput(
+      input,
+      holdingConfig(investment),
+      jakartaTodayYmd(),
+    );
+    const written = await this.applyChange(
+      tx,
+      familyGroupId,
+      investment,
+      {
+        type: "create",
+        id: randomUUID(),
+        createdAt: new Date(),
+        row,
+        idempotencyKey: input.idempotencyKey,
+      },
+      actor,
+      null,
+      strictPocket,
+    );
+    return this.result(tx, investmentId, written, false);
   }
 
   async update(
@@ -208,11 +218,7 @@ export class InvestmentLedgerService {
           actor,
           input.reason ?? null,
         );
-        return {
-          replayed: false,
-          transaction: toTransactionDto(written),
-          holding: await this.holdingState(tx, investmentId),
-        };
+        return this.result(tx, investmentId, written, false);
       },
       LEDGER_TX_ATTEMPTS,
     );
@@ -236,11 +242,7 @@ export class InvestmentLedgerService {
         const existing = await this.findRow(tx, investmentId, transactionId);
         if (existing.status === "void") {
           // Voiding twice is a no-op (a retried click), not an error.
-          return {
-            replayed: true,
-            transaction: toTransactionDto(existing),
-            holding: await this.holdingState(tx, investmentId),
-          };
+          return this.result(tx, investmentId, existing, true);
         }
         const written = await this.applyChange(
           tx,
@@ -250,11 +252,7 @@ export class InvestmentLedgerService {
           actor,
           input.reason ?? null,
         );
-        return {
-          replayed: false,
-          transaction: toTransactionDto(written),
-          holding: await this.holdingState(tx, investmentId),
-        };
+        return this.result(tx, investmentId, written, false);
       },
       LEDGER_TX_ATTEMPTS,
     );
@@ -745,25 +743,58 @@ export class InvestmentLedgerService {
     return row;
   }
 
+  private async result(
+    tx: TxClient,
+    investmentId: string,
+    row: InvestmentTransaction,
+    replayed: boolean,
+  ): Promise<InvestmentLedgerResultDto> {
+    const holding = await this.holdingState(tx, investmentId);
+    return {
+      replayed,
+      holding,
+      transaction: {
+        ...toTransactionDto(row),
+        costBasisKnown: holding.costBasisKnown,
+        realizedPnl:
+          holding.costBasisKnown === false
+            ? null
+            : (row.realizedPnl?.toString() ?? null),
+      },
+    };
+  }
+
   private async holdingState(
     tx: TxClient,
     investmentId: string,
   ): Promise<InvestmentLedgerResultDto["holding"]> {
     const inv = await tx.investment.findUniqueOrThrow({
       where: { id: investmentId },
-      select: { id: true, quantity: true, costBasisPerUnit: true },
+      select: {
+        id: true,
+        quantity: true,
+        costBasisPerUnit: true,
+        details: true,
+      },
     });
     const sells = await tx.investmentTransaction.aggregate({
       where: { investmentId, kind: "sell", status: "active" },
       _sum: { realizedPnl: true },
       _count: { _all: true },
     });
+    const known = !(
+      inv.details &&
+      typeof inv.details === "object" &&
+      !Array.isArray(inv.details) &&
+      inv.details.costBasisKnown === false
+    );
     return {
       id: inv.id,
+      costBasisKnown: known,
       quantity: inv.quantity.toString(),
-      costBasisPerUnit: inv.costBasisPerUnit.toString(),
+      costBasisPerUnit: known ? inv.costBasisPerUnit.toString() : null,
       realizedPnlRp:
-        sells._count._all > 0
+        known && sells._count._all > 0
           ? (sells._sum.realizedPnl ?? new D(0)).toString()
           : null,
     };

@@ -159,7 +159,15 @@ export function PortfolioTable({
                       {hideBalance ? "••••" : quantity(h, c, locale)}
                     </td>
                     <td data-label={c.average}>
-                      {money(h.costBasisPerUnit, "IDR", locale, hideBalance, 2)}
+                      {money(
+                        h.details?.costBasisKnown === false
+                          ? null
+                          : h.costBasisPerUnit,
+                        "IDR",
+                        locale,
+                        hideBalance,
+                        2,
+                      )}
                       <small>IDR · {c.perUnit}</small>
                     </td>
                     <td data-label={c.price}>

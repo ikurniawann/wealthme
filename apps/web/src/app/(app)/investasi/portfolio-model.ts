@@ -55,7 +55,7 @@ export function money(
   }).format(Number(value));
 }
 export function portfolioMoney(
-  value: InvestmentMoneyDto | undefined,
+  value: InvestmentMoneyDto | null | undefined,
   currency: string,
   locale: string,
   hidden = false,

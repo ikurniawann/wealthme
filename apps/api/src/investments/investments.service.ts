@@ -202,24 +202,29 @@ export class InvestmentsService {
     let totalCostBasis = ZERO;
     let totalCurrentValue = ZERO;
     for (const { valuation: v } of valued) {
-      totalCostBasis = totalCostBasis.plus(v.costRemainingIdr);
+      totalCostBasis = totalCostBasis.plus(v.costRemainingIdr ?? "0");
       totalCurrentValue = totalCurrentValue.plus(v.netWorthIdr);
     }
 
+    const costIncomplete = valued.some(
+      (v) => v.valuation.costRemainingIdr === null,
+    );
     const totalReturnRp = totalCurrentValue.minus(totalCostBasis);
-    const totalReturnPct = totalCostBasis.isZero()
-      ? 0
-      : totalReturnRp
-          .dividedBy(totalCostBasis)
-          .times(100)
-          .toDecimalPlaces(2)
-          .toNumber();
+    const totalReturnPct =
+      totalCostBasis.isZero() || costIncomplete
+        ? null
+        : totalReturnRp
+            .dividedBy(totalCostBasis)
+            .times(100)
+            .toDecimalPlaces(2)
+            .toNumber();
 
     // todayReturn not tracked separately (requires yesterday's snapshot) — return null instead of 0
     return {
       totalCostBasis: decimalToString(totalCostBasis),
+      costIncomplete,
       totalCurrentValue: decimalToString(totalCurrentValue),
-      totalReturnRp: decimalToString(totalReturnRp),
+      totalReturnRp: costIncomplete ? null : decimalToString(totalReturnRp),
       totalReturnPct,
       todayReturnRp: null,
       todayReturnPct: null,
@@ -693,6 +698,15 @@ export class InvestmentsService {
       ],
     });
 
-    return rows.map(toTransactionDto);
+    return rows.map((row) => ({
+      ...toTransactionDto(row),
+      costBasisKnown:
+        (existing.details as InvestmentDto["details"])?.costBasisKnown !==
+        false,
+      realizedPnl:
+        (existing.details as InvestmentDto["details"])?.costBasisKnown === false
+          ? null
+          : (row.realizedPnl?.toString() ?? null),
+    }));
   }
 }

@@ -23,6 +23,11 @@ export function PortfolioSummary({
   const last = prices?.[0];
   return (
     <>
+      {totals?.costIncomplete && (
+        <p className="iv-notice" role="status">
+          {t.investasi.forms.costUnknown}
+        </p>
+      )}
       <section className="iv-card iv-summary" aria-label={c.total}>
         <div className="iv-total">
           <span>{c.total}</span>
@@ -40,7 +45,7 @@ export function PortfolioSummary({
         <div>
           <span>{c.unrealized}</span>
           <strong>
-            {totals && Number(totals.unrealized.idr) > 0 && !hideBalance
+            {totals && Number(totals.unrealized?.idr) > 0 && !hideBalance
               ? "+"
               : ""}
             {fmt(totals?.unrealized)}

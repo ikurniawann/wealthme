@@ -21,6 +21,7 @@ import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import { PositionForm } from "./position-form";
 import { PlatformFunds } from "./platform-funds";
 import { PocketTransfer } from "./pocket-transfer";
 import { InvestmentHistory } from "./investment-history";
@@ -49,6 +50,7 @@ function InvestasiContent() {
   const { myRole } = useMyRole();
   const queryClient = useQueryClient();
   const [transferOpen, setTransferOpen] = useState(false);
+  const [positionOpen, setPositionOpen] = useState(false);
   const onSaved = () => {
     for (const key of [
       "investments-v3",
@@ -155,6 +157,10 @@ function InvestasiContent() {
   );
   // The action URL is the stable hand-off to the forms added in Tasks 10–13.
   const onAction = (action: InvestmentAction) => {
+    if (action.kind === "add") {
+      setPositionOpen(true);
+      return;
+    }
     if (action.kind === "topup") {
       setTransferOpen(true);
       return;
@@ -193,8 +199,6 @@ function InvestasiContent() {
               </button>
               <button
                 className="btn btn--primary"
-                disabled
-                title={c.futureTask}
                 onClick={() => onAction({ kind: "add" })}
               >
                 <Plus />
@@ -313,6 +317,18 @@ function InvestasiContent() {
           loading={activity.isPending}
           error={activity.isError}
           canManage={!!canManage}
+          onSaved={onSaved}
+        />
+      )}
+      {positionOpen && enabled && (
+        <PositionForm
+          fg={fg!}
+          token={token!}
+          myUserId={session?.userId ?? ""}
+          isMaster={myRole === "owner" || myRole === "spouse"}
+          members={members.data ?? []}
+          platforms={platforms.data ?? []}
+          onClose={() => setPositionOpen(false)}
           onSaved={onSaved}
         />
       )}
