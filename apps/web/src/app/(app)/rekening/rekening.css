@@ -722,7 +722,7 @@
     display: flex;
     flex-direction: column;
     gap: 5px;
-    width: 180px;
+    width: 210px;
     font-size: 12px;
     color: var(--wm-muted);
   }
@@ -864,8 +864,8 @@
   .rk3-tr {
     display: grid;
     grid-template-columns:
-      minmax(0, 2.3fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.1fr)
-      minmax(0, 1.5fr) minmax(0, 1.3fr) 40px;
+      minmax(0, 2.2fr) minmax(0, 1fr) minmax(0, 1.1fr) minmax(0, 0.9fr)
+      minmax(0, 1.5fr) minmax(0, 1.6fr) 40px;
     align-items: center;
     gap: 12px;
     min-height: 60px;
@@ -901,7 +901,11 @@
     font-weight: 600;
   }
   .rk3-bal {
+    min-width: 0;
     white-space: nowrap;
+  }
+  .rk3-bal small {
+    white-space: normal;
   }
   .rk3-tname small,
   .rk3-bal small,
@@ -956,7 +960,7 @@
     align-items: center;
     justify-content: center;
     gap: 6px;
-    min-height: 38px;
+    min-height: 40px;
     border: 1px solid var(--wm-line);
     border-radius: 12px;
     background: var(--wm-card);
@@ -982,13 +986,17 @@
     display: grid;
     flex: none;
     place-items: center;
-    width: 38px;
-    height: 38px;
+    width: 40px;
+    height: 40px;
     border: 1px solid var(--wm-line);
     border-radius: 12px;
     background: var(--wm-card);
     color: var(--wm-ink);
     cursor: pointer;
+  }
+  /* action rows line up across a bank even when the meta lines differ */
+  .rk3-cw > .rk-card-acts {
+    margin-top: auto;
   }
 
   /* ── form ─────────────────────────────────────────────────────────────── */
@@ -1435,6 +1443,113 @@
       grid-template-columns: 1fr;
     }
   }
+  /* ── Task 29 polish: tablet / desktop rhythm ────────────────────────── */
+  /* hero reads total → KPIs → composition (approved comp); the bar sits on
+     the hero's bottom edge when the attention list makes the row taller */
+  @media (min-width: 721px) {
+    .rk3-kpis {
+      order: 1;
+      margin-top: 0;
+    }
+    .rk3-comp {
+      order: 2;
+      margin-top: auto;
+    }
+  }
+  /* wide desktop: kinds, holders and "Akses & status" share one line */
+  @media (min-width: 1300px) {
+    .rk3-f-row--wrap {
+      flex-wrap: nowrap;
+    }
+    .rk3-f-row--wrap .rk3-kinds.segmented {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .rk3-f-row--wrap .rk3-kinds .segmented__item {
+      flex: none;
+      padding-inline: 11px;
+    }
+    .rk3-f-row--wrap > .rk3-desk {
+      flex: none;
+    }
+  }
+  /* two cards per row on tablet and in half-width banks; an add tile that
+     lands alone on a new row turns into a slim full-width button instead
+     of a card-sized empty box */
+  @media (min-width: 721px) and (max-width: 1180px) {
+    .rk3-cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .rk3-cards > .rk3-addc:nth-child(odd) {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      aspect-ratio: auto;
+      min-height: 56px;
+    }
+  }
+  @media (min-width: 1181px) {
+    /* half-width banks: a slimmer meter leaves room for the bank name */
+    .rk3-group[data-span="half"] .rk3-lps {
+      width: 140px;
+    }
+    .rk3-group[data-span="half"] .rk3-gtot {
+      margin-left: 10px;
+    }
+    .rk3-group[data-span="half"] .rk3-cards > .rk3-addc:nth-child(odd) {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      aspect-ratio: auto;
+      min-height: 56px;
+    }
+  }
+  /* tablet: the deposit-guarantee meter stays in the bank header, slimmer */
+  @media (min-width: 721px) and (max-width: 900px) {
+    .rk3-lps {
+      display: flex;
+      width: 150px;
+    }
+    .rk3-lps small {
+      display: -webkit-box;
+      overflow: hidden;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+  }
+  /* phone: type tabs become a compact swipeable pill row (filter v2) */
+  @media (max-width: 720px) {
+    .rk3-kinds.segmented {
+      display: flex;
+      gap: 6px;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+    .rk3-kinds .segmented__item {
+      flex: none;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 1px solid var(--wm-line);
+      border-radius: 999px;
+      background: var(--wm-card);
+      box-shadow: none;
+      font-size: var(--wm-type-12);
+      line-height: 1;
+    }
+    .rk3-kinds .segmented__item[aria-checked="true"] {
+      border-color: var(--primary-strong, #0f3d2e);
+      background: var(--primary-strong, #0f3d2e);
+      color: #fff;
+    }
+    .rk3-hero .rk3-total {
+      font-size: clamp(26px, 7.4vw, 34px);
+    }
+    /* one card in view at a time: actions follow their own card's meta */
+    .rk3-cw > .rk-card-acts {
+      margin-top: 0;
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     .rk3-cw .wm-plate,
     .rk3-attn-item,
@@ -1583,7 +1698,7 @@
   border-color: rgb(198 228 140 / 0.18);
 }
 .dark .rk3 .rk3-gh {
-  background: rgb(255 255 255 / 0.035);
+  background: rgb(255 255 255 / 0.06);
 }
 .dark .rk3 .rk3-th {
   background: #30323a;
@@ -1593,5 +1708,157 @@
   background: rgb(255 255 255 / 0.05);
 }
 .dark .rk3 .rk3-tr[data-dim] {
-  opacity: 0.72;
+  opacity: 0.8;
+}
+
+/* ── Task 29: filter sheet + account form on phones (unlayered: these beat
+   the shared .wm-panel rules in bento.css and Tailwind's translate) ────── */
+/* "Filter lainnya": light sheet like the approved mobile filter comp */
+.wm-panel.rk3-sheet .wm-panel-head {
+  align-items: center;
+  padding: 20px 20px 8px;
+  border-bottom: 0;
+  background: transparent;
+  color: var(--wm-ink);
+}
+.wm-panel.rk3-sheet .wm-panel-title {
+  color: var(--wm-ink);
+  font-size: var(--wm-type-18, 18px);
+  letter-spacing: -0.02em;
+}
+.wm-panel.rk3-sheet .wm-panel-head::before {
+  background: color-mix(in srgb, var(--wm-ink) 22%, transparent);
+}
+.wm-panel.rk3-sheet .wm-panel-x {
+  width: 40px;
+  height: 40px;
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+}
+.wm-panel.rk3-sheet .wm-panel-x:hover {
+  background: color-mix(in srgb, var(--wm-ink) 12%, transparent);
+}
+.wm-panel.rk3-sheet .rk3-sheet-body {
+  gap: 18px;
+  padding: 8px 20px 12px;
+}
+.wm-panel.rk3-sheet .rk3-sheet-body legend,
+.wm-panel.rk3-sheet .rk3-who-label {
+  margin: 0 0 8px;
+  color: var(--wm-ink);
+  font-size: var(--wm-type-13);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.wm-panel.rk3-sheet .rk3-who {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.wm-panel.rk3-sheet .rk3-who-label {
+  flex-basis: 100%;
+  margin-bottom: 0;
+}
+.wm-panel.rk3-sheet .rk3-av {
+  width: 40px;
+  height: 40px;
+}
+.wm-panel.rk3-sheet .rk3-chips {
+  gap: 8px;
+}
+.wm-panel.rk3-sheet .rk3-chip--opt {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: var(--wm-type-13);
+}
+/* "Sembunyikan saldo Rp 0": a switch row, not a bare checkbox */
+.wm-panel.rk3-sheet .rk3-check {
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 8px 14px;
+  border: 1px solid var(--wm-line);
+  border-radius: 14px;
+  cursor: pointer;
+}
+.wm-panel.rk3-sheet .rk3-check input {
+  order: 2;
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 24px;
+  margin: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--wm-ink) 22%, transparent);
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.wm-panel.rk3-sheet .rk3-check input::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s ease;
+}
+.wm-panel.rk3-sheet .rk3-check input:checked {
+  background: var(--primary-strong, #0f3d2e);
+}
+.wm-panel.rk3-sheet .rk3-check input:checked::after {
+  transform: translateX(18px);
+}
+.wm-panel.rk3-sheet .rk3-check input:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--wm-lime));
+  outline-offset: 2px;
+}
+.wm-panel.rk3-sheet .wm-panel-foot {
+  padding: 12px 20px calc(18px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--wm-line);
+  background: var(--wm-card);
+}
+.wm-panel.rk3-sheet .wm-panel-foot > .wm-pill {
+  min-height: 48px;
+}
+
+/* dark: --primary-strong turns lime, so selected chips need dark ink */
+.dark .rk3-chip--opt[aria-pressed="true"],
+.dark .rk3-kinds .segmented__item[aria-checked="true"] {
+  color: #15170f;
+}
+/* dark: an unchecked switch in the form keeps a visible track */
+.dark .rkf-toggle [data-slot="switch"][data-unchecked] {
+  background: #4a4b50;
+}
+
+/* phone: the account form is a full-screen sheet with the save button
+   pinned in reach. Tailwind's translate utilities drive the standalone
+   `translate` property through these variables; `translate: none` alone gets
+   folded into `transform` by the minifier, so zero the variables too. */
+@media (max-width: 720px) {
+  .dialog.wm-panel.rkf {
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
+    translate: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+  .wm-panel.rkf .wm-panel-head {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 10px;
+  }
+  .wm-panel.rkf .wm-panel-head::before {
+    display: none;
+  }
+  .wm-panel.rkf .wm-panel-body {
+    padding: 4px 16px 16px;
+  }
+  .wm-panel.rkf .wm-panel-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
 }
