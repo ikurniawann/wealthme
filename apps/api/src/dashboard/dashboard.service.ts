@@ -2,7 +2,6 @@ import { Injectable } from "@nestjs/common";
 import { CoaDirection } from "@prisma/client";
 
 import { txCoaDirection } from "../common/utils/coa-classify.util";
-import { investmentPositionValue } from "../common/utils/investment-value.util";
 import {
   accountPrivacyWhere,
   restrictedAccountWhere,
@@ -11,6 +10,8 @@ import {
   isRowScoped,
   type ScopeSubject,
 } from "../common/utils/privacy.util";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentValuationService } from "../investments/valuation/investment-valuation.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -59,7 +60,10 @@ const MONTH_LABELS = [
 
 @Injectable()
 export class DashboardService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly investmentValuation: InvestmentValuationService,
+  ) {}
 
   /**
    * `viewerRole`/`viewerUserId` (EPIC-023 Task C, D5) — a `dependant`/
@@ -353,35 +357,14 @@ export class DashboardService {
         });
     const totalAssets = assets.reduce((sum, a) => sum + a.currentValue, 0n);
 
-    // EPIC-QA-sweep #2 / EPIC-022 (adversarial review round 3) — value at
-    // the latest recorded price via the shared `investmentPositionValue`
-    // helper, falling back to cost basis only when no price row exists yet.
-    // Same valuation basis as investments.service and ReportsService's
-    // balance sheet (see investment-value.util.ts), minus a live
-    // market-data refresh — this only reads already-stored prices.
-    const investments = isRestricted
-      ? []
-      : await this.prisma.investment.findMany({
-          where: { familyGroupId },
-          select: {
-            type: true,
-            quantity: true,
-            costBasisPerUnit: true,
-            interestRatePct: true,
-            purchasedAt: true,
-            maturityDate: true,
-            prices: { orderBy: { recordedAt: "desc" }, take: 1 },
-            familyGroup: { select: { goldPricePerGram: true } },
-          },
-        });
-    const totalInvestments = BigInt(
-      Math.round(
-        investments.reduce(
-          (sum, inv) => sum + investmentPositionValue(inv).toNumber(),
-          0,
-        ),
-      ),
-    );
+    // Investasi Task 8 — the shared InvestmentValuationService (the one
+    // valuation formula, also behind ReportsService's balance sheet and the
+    // investments list): market value at today's valuation FX, unpriced
+    // holdings at remaining cost (R8, labelled on /investasi). Reads stored
+    // prices only — never a live market-data call.
+    const totalInvestments = isRestricted
+      ? 0n
+      : await this.investmentValuation.netWorthTotal(familyGroupId);
 
     const liabilityRecords = isRestricted
       ? []

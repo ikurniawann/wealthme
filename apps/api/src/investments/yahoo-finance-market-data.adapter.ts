@@ -6,7 +6,11 @@ import {
   withTimeout,
 } from "../common/utils/external-fetch.util";
 
-import type { MarketDataPort, MarketDataQuote } from "./market-data.port";
+import type {
+  MarketDataPort,
+  MarketDataQuote,
+  MarketDataRequest,
+} from "./market-data.port";
 import type { InvestmentType } from "@prisma/client";
 
 const yf = new YahooFinance();
@@ -40,7 +44,29 @@ export function toIdxTicker(ticker: string): string {
 }
 
 /**
- * EPIC-023 G1 (D15) — Yahoo `.JK` equities. Yahoo's free quote endpoint is
+ * Task 8 (R4) — the Yahoo symbol for a holding. An explicit `priceSymbol`
+ * wins as typed. Otherwise by market: IDX → `TICKER.JK`; NASDAQ/NYSE →
+ * plain `TICKER` (Yahoo serves US listings unsuffixed). A legacy row with no
+ * market keeps `.JK` only when its currency is IDR — a USD holding is never
+ * looked up on the Jakarta exchange again (the NVDA.JK bug).
+ */
+export function toYahooSymbol(
+  ticker: string,
+  request?: MarketDataRequest,
+): string {
+  const explicit = request?.priceSymbol?.trim();
+  if (explicit) return explicit.toUpperCase();
+  const market = request?.market ?? null;
+  if (market === "NASDAQ" || market === "NYSE") return ticker.toUpperCase();
+  if (market === null && request && request.currency !== "IDR") {
+    return ticker.toUpperCase();
+  }
+  return toIdxTicker(ticker);
+}
+
+/**
+ * EPIC-023 G1 (D15) — Yahoo equities (IDX `.JK` and, since Task 8, US
+ * listings by plain symbol). Yahoo's free quote endpoint is
  * exchange-delayed (typically ~15-20 minutes for IDX) and not an official
  * exchange feed, so every quote from this adapter is labelled `delayed:
  * true` — the UI must render this as "delayed & unofficial", never as a
@@ -56,30 +82,35 @@ export class YahooFinanceMarketDataAdapter implements MarketDataPort {
   async getPrice(
     ticker: string,
     _type: InvestmentType,
+    request?: MarketDataRequest,
   ): Promise<MarketDataQuote> {
-    const idxTicker = toIdxTicker(ticker);
+    const symbol = toYahooSymbol(ticker, request);
     try {
       const quote = await withTimeout(
-        yf.quote(idxTicker, undefined, {
+        yf.quote(symbol, undefined, {
           fetchOptions: { signal: AbortSignal.timeout(this.timeoutMs) },
         }),
         this.timeoutMs,
-        `Yahoo Finance request for ${idxTicker}`,
+        `Yahoo Finance request for ${symbol}`,
       );
       const price = quote.regularMarketPrice;
       if (price === undefined || price === null) {
-        throw new Error(`Market price unavailable for ${idxTicker}`);
+        throw new Error(`Market price unavailable for ${symbol}`);
       }
       return {
         price,
         source: "yahoo-finance",
         asOf: quote.regularMarketTime ?? new Date(),
         delayed: true,
+        // Yahoo reports the listing currency; `.JK` quotes are IDR.
+        currency: (
+          quote.currency ?? (symbol.endsWith(IDX_SUFFIX) ? "IDR" : "USD")
+        ).toUpperCase(),
       };
     } catch (err: unknown) {
       if (err instanceof ExternalRequestTimeoutError) throw err;
       const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`Market data error for ${idxTicker}: ${msg}`);
+      throw new Error(`Market data error for ${symbol}: ${msg}`);
     }
   }
 }

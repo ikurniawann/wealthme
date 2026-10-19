@@ -2,12 +2,13 @@ import { Injectable } from "@nestjs/common";
 import { CoaDirection } from "@prisma/client";
 
 import { txCoaDirection } from "../common/utils/coa-classify.util";
-import { investmentPositionValue } from "../common/utils/investment-value.util";
 import {
   accountPrivacyWhere,
   nestedTransactionCategoryPrivacyWhere,
   transactionPrivacyWhere,
 } from "../common/utils/privacy.util";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentValuationService } from "../investments/valuation/investment-valuation.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -104,7 +105,10 @@ function wealthAllocationCashEffect(
 
 @Injectable()
 export class ReportsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly investmentValuation: InvestmentValuationService,
+  ) {}
 
   async getSummary(
     familyGroupId: string,
@@ -876,31 +880,11 @@ export class ReportsService {
           where: { familyGroupId },
           select: { name: true, type: true, remainingBalance: true },
         }),
-        // EPIC-022 (adversarial review round 3, finding 1, CRITICAL) —
-        // investments were never queried here at all, so any family holding
-        // investments had its balance sheet under-report totalAssets/
-        // netWorth by the entire portfolio while /ringkasan and /beranda
-        // (dashboard.service.ts's computeNetWorthBreakdown) reported
-        // correctly — and the ✅ "Seimbang" banner printed over the
-        // discrepancy. No `isPrivate` field exists on Investment (matches
-        // computeNetWorthBreakdown, which also applies no privacy filter
-        // here), so nothing to scope. Same read-only, no-live-refresh price
-        // basis as the dashboard — see investment-value.util.ts.
-        this.prisma.investment.findMany({
-          where: { familyGroupId },
-          select: {
-            name: true,
-            ticker: true,
-            type: true,
-            quantity: true,
-            costBasisPerUnit: true,
-            interestRatePct: true,
-            purchasedAt: true,
-            maturityDate: true,
-            prices: { orderBy: { recordedAt: "desc" }, take: 1 },
-            familyGroup: { select: { goldPricePerGram: true } },
-          },
-        }),
+        // EPIC-022 (adversarial review round 3, finding 1, CRITICAL) — the
+        // portfolio belongs on the balance sheet. Investasi Task 8: valued by
+        // the shared InvestmentValuationService, the same per-holding whole-
+        // rupiah figures DashboardService sums (unpriced at cost, R8).
+        this.investmentValuation.netWorthPositions(familyGroupId),
       ]);
 
     // Group account balances into "Kas & Setara Kas"
@@ -920,14 +904,12 @@ export class ReportsService {
       })),
     });
 
-    // Investment portfolio bucket — valued on the same basis as the rest of
-    // the app (investmentPositionValue: latest recorded price × quantity,
-    // falling back to cost basis), rounded to the nearest rupiah to match
-    // every other (BigInt-backed) balance-sheet figure.
+    // Investment portfolio bucket — the shared valuation's net-worth figure
+    // per holding (whole rupiah), so the bucket equals the dashboard total.
     if (investmentsList.length > 0) {
       const investmentItems = investmentsList.map((inv) => ({
         name: `${inv.ticker} — ${inv.name}`,
-        amount: Math.round(investmentPositionValue(inv).toNumber()),
+        amount: Number(inv.valueIdr),
       }));
       assetsGrouped.set("Investasi", {
         amount: investmentItems.reduce((s, i) => s + i.amount, 0),

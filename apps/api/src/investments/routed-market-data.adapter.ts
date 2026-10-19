@@ -3,7 +3,11 @@ import { Injectable } from "@nestjs/common";
 import { type CoinGeckoMarketDataAdapter } from "./coingecko-market-data.adapter";
 import { type YahooFinanceMarketDataAdapter } from "./yahoo-finance-market-data.adapter";
 
-import type { MarketDataPort, MarketDataQuote } from "./market-data.port";
+import type {
+  MarketDataPort,
+  MarketDataQuote,
+  MarketDataRequest,
+} from "./market-data.port";
 import type { InvestmentType } from "@prisma/client";
 
 /**
@@ -28,12 +32,13 @@ export class RoutedMarketDataAdapter implements MarketDataPort {
   async getPrice(
     ticker: string,
     type: InvestmentType,
+    request?: MarketDataRequest,
   ): Promise<MarketDataQuote> {
     switch (type) {
       case "kripto":
-        return this.coinGecko.getPrice(ticker, type);
+        return this.coinGecko.getPrice(ticker, type, request);
       case "saham":
-        return this.yahoo.getPrice(ticker, type);
+        return this.yahoo.getPrice(ticker, type, request);
       default:
         throw new Error(
           `"${type}" is a manual-only instrument type — it must never reach MarketDataPort.getPrice`,

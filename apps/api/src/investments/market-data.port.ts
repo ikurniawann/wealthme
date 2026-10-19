@@ -1,4 +1,4 @@
-import type { InvestmentType } from "@prisma/client";
+import type { InvestmentMarket, InvestmentType } from "@prisma/client";
 
 /**
  * EPIC-023 G1 (D15) — widened from `{price, source}`: every automated quote
@@ -16,15 +16,38 @@ export interface MarketDataQuote {
   source: string;
   asOf: Date;
   delayed: boolean;
+  /**
+   * Task 8 — ISO currency of `price` as the provider reports it (Yahoo
+   * `quote.currency`: IDR for `.JK`, USD for US listings; CoinGecko is asked
+   * for IDR). Stored on InvestmentPrice.currency and valued at today's FX.
+   */
+  currency: string;
+}
+
+/**
+ * Task 8 — market-aware routing inputs (R4). `priceSymbol` is the provider
+ * symbol kept apart from the user's ticker (BBCA.JK, NVDA, bitcoin); when it
+ * is null the adapter derives one from `market` (IDX → TICKER.JK, NASDAQ/
+ * NYSE → TICKER). Optional so legacy callers keep the old behaviour.
+ */
+export interface MarketDataRequest {
+  market: InvestmentMarket | null;
+  priceSymbol: string | null;
+  /** Holding currency — only used to classify legacy rows with no market. */
+  currency: string;
 }
 
 export interface MarketDataPort {
   /**
-   * `type` selects the routing behind the port (crypto → CoinGecko, saham →
-   * Yahoo `.JK`). Callers must never invoke this for a type in
+   * `type`/`request.market` select the routing behind the port (crypto →
+   * CoinGecko, saham → Yahoo with a market-aware symbol). Callers must never invoke this for a type in
    * `AUTOMATED_PRICE_TYPES`'s complement — see investments.service.ts.
    */
-  getPrice(ticker: string, type: InvestmentType): Promise<MarketDataQuote>;
+  getPrice(
+    ticker: string,
+    type: InvestmentType,
+    request?: MarketDataRequest,
+  ): Promise<MarketDataQuote>;
 }
 
 export const MARKET_DATA_PORT = "MARKET_DATA_PORT";

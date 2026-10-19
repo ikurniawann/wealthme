@@ -1,5 +1,6 @@
 import type { InvestmentMarket } from "./markets.js";
 import type { PocketKind } from "./platforms.js";
+import type { InvestmentValuationDto } from "./valuation.js";
 
 export type InvestmentType =
   | "saham"
@@ -90,6 +91,11 @@ export interface InvestmentDto {
   platformAccountId?: string | null;
   cashAccountId?: string | null;
   details?: InvestmentDetails | null;
+  /**
+   * Task 8 — the shared valuation (basis, price age, FX, net-worth value).
+   * Sent by GET …/investments; absent on write responses.
+   */
+  valuation?: InvestmentValuationDto;
   createdAt: string;
   updatedAt: string;
 }

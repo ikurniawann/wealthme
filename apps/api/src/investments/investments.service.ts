@@ -3,40 +3,34 @@ import { randomUUID } from "node:crypto";
 import {
   BadRequestException,
   ConflictException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { Decimal } from "@prisma/client/runtime/library";
 
-import {
-  FAMILY_GOLD_PRICE_SOURCE,
-  computeDepositoCurrentValue,
-  familyGoldUnitPrice,
-} from "../common/utils/investment-value.util";
 import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import { UnmappedTickerError } from "./coingecko-market-data.adapter";
 import { deriveInternalCode } from "./internal-code.util";
 import {
   decimalToString,
-  decimalToStringOrNull,
   toTransactionDto,
 } from "./investment-transaction.mapper";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentLedgerService } from "./ledger/investment-ledger.service";
 import { cashKeyParts } from "./ledger/ledger-dates";
-import { isAutomatedPriceType, MARKET_DATA_PORT } from "./market-data.port";
+import { isAutomatedPriceType } from "./market-data.port";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InvestmentValuationService } from "./valuation/investment-valuation.service";
+import { DEPOSIT_ACCRUAL_SOURCE } from "./valuation/valuation-core";
 
 import type { CreateInvestmentTransactionDto } from "./dto/create-investment-transaction.dto";
 import type { CreateInvestmentDto } from "./dto/create-investment.dto";
 import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import type { LedgerActor } from "./ledger/investment-ledger.service";
-import type { MarketDataPort } from "./market-data.port";
 import type {
   Investment as InvestmentRow,
   InvestmentPrice as InvestmentPriceRow,
@@ -52,12 +46,6 @@ import type {
 const ZERO = new Decimal(0);
 const MIN_INTEREST_RATE_PCT = 0;
 const MAX_INTEREST_RATE_PCT = 100;
-
-function startOfDay(date: Date): Date {
-  const d = new Date(date);
-  d.setUTCHours(0, 0, 0, 0);
-  return d;
-}
 
 /**
  * Investasi R6 — an instant's calendar date in Asia/Jakarta, as a UTC-midnight
@@ -135,257 +123,97 @@ export class InvestmentsService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Inject(MARKET_DATA_PORT) private readonly marketData: MarketDataPort,
     private readonly ledger: InvestmentLedgerService,
+    private readonly valuation: InvestmentValuationService,
   ) {}
 
+  /**
+   * Investasi Task 8 — the holdings list, valued by the shared
+   * InvestmentValuationService (the same formula as net worth and reports).
+   * A GET never fetches or stores a price any more: prices change only via
+   * the refresh job and manual entry. The legacy flat fields are derived
+   * from `valuation`: `currentValue` is the IDR market value, null when the
+   * holding is unpriced (R8 — never 0); `currentPrice` is IDR per unit.
+   */
   async findAll(familyGroupId: string): Promise<InvestmentDto[]> {
-    const investments = await this.prisma.investment.findMany({
-      where: { familyGroupId },
-      orderBy: { createdAt: "asc" },
-      include: {
-        prices: {
-          orderBy: { recordedAt: "desc" },
-          take: 1,
-        },
-        familyGroup: {
-          select: { goldPricePerGram: true, goldPriceUpdatedAt: true },
-        },
-      },
-    });
-
-    const today = startOfDay(new Date());
-
-    // EPIC-022 D2 — realized P/L per holding: sum of `realizedPnl` across
-    // every SELL ever recorded against it. One grouped query for the whole
-    // page rather than N+1 per-holding queries.
-    const realizedTotals =
-      investments.length > 0
-        ? await this.prisma.investmentTransaction.groupBy({
-            by: ["investmentId"],
-            where: {
-              investmentId: { in: investments.map((inv) => inv.id) },
-              kind: "sell",
-              status: "active",
-            },
-            _sum: { realizedPnl: true },
-          })
-        : [];
-    const realizedPnlByInvestment = new Map(
-      realizedTotals.map((r) => [r.investmentId, r._sum.realizedPnl]),
-    );
-
-    const results = await Promise.all(
-      investments.map(async (inv) => {
-        let latestPrice = inv.prices[0] ?? null;
-        // EPIC-023 Task G retry (MEDIUM finding) — true only when THIS
-        // request attempted a fresh quote and it failed, so the UI can say
-        // "refresh failed, showing the last known price" instead of
-        // presenting a retained price identically to a fresh one.
-        let priceRefreshFailed = false;
-        // EPIC-024 C1 (D8) — true only for UnmappedTickerError: a PERMANENT
-        // "no automated route exists" state, never set for a transient
-        // failure (those still set priceRefreshFailed above).
-        let automatedPriceUnmapped = false;
-
-        // EPIC-023 G1 (D15) — only saham/kripto ever get an automated quote.
-        // Mutual funds, bonds, gold and "lainnya" are manual-only: if no
-        // manual price has been entered yet, this stays null rather than
-        // fabricating one (see setManualPrice + the investasi page's
-        // "diinput manual, per <date>" prompt for the no-price case).
-        if (
-          isAutomatedPriceType(inv.type) &&
-          (!latestPrice || latestPrice.recordedAt < today)
-        ) {
-          try {
-            const { price, source, asOf, delayed } =
-              await this.marketData.getPrice(inv.ticker, inv.type);
-            latestPrice = await this.prisma.investmentPrice.create({
-              data: {
-                investmentId: inv.id,
-                price: new Decimal(price),
-                source,
-                asOf,
-                delayed,
-              },
-            });
-          } catch (err) {
-            // A down/rate-limited external feed must not break the whole
-            // portfolio view — fall back to the last known price (possibly
-            // still null) rather than throwing out of findAll().
-            if (err instanceof UnmappedTickerError) {
-              // EPIC-024 C1 (D8) — permanent, not transient: this ticker has
-              // no automated route at all. Label it as a manual-price
-              // fallback rather than a failed refresh — logging every
-              // request as a "warn" for an inherently unmapped ticker would
-              // be noise, not signal.
-              automatedPriceUnmapped = true;
-            } else {
-              priceRefreshFailed = true;
-              this.logger.warn(
-                `Price fetch failed for ${inv.ticker} (${inv.type}); keeping last known price`,
-                err,
-              );
-            }
-          }
-        }
-
-        const quantity = inv.quantity;
-        const costBasis = inv.costBasisPerUnit;
-
-        // EPIC-024 C3 (D10) — deposito is valued by SIMPLE INTEREST
-        // pro-rata, never by a stored/fetched price row: it has no market,
-        // automated or manual. `costBasisPerUnit` doubles as the nominal;
-        // quantity is expected to be "1" (the form enforces this).
-        const isDeposito = inv.type === "deposito";
-        const depositoAsOf = isDeposito ? new Date() : null;
-        const familyGoldPrice = familyGoldUnitPrice(inv);
-        const familyGoldAsOf = familyGoldPrice
-          ? inv.familyGroup.goldPriceUpdatedAt
+    const valued = await this.valuation.valueFamily(familyGroupId);
+    return valued.map(({ row: inv, valuation: v }) => {
+      const currentValue = v.marketValueIdr
+        ? new Decimal(v.marketValueIdr)
+        : null;
+      const currentPrice =
+        currentValue && !inv.quantity.isZero()
+          ? currentValue.dividedBy(inv.quantity)
           : null;
-        // Batch B6 — MockMarketDataAdapter (dev/demo, no USE_REAL_MARKET_DATA)
-        // fabricates a deterministic-but-fake price for ANY ticker, including
-        // ones that don't exist. Client report: "QQ" showed a real-looking
-        // "Live" current value driven entirely by this simulated number. A
-        // real holding must never be valued off a source we know is fake —
-        // treat a "mock"-sourced price exactly like "no automated price
-        // found": current value falls back to cost basis, and `currentPrice`
-        // stays null so the UI's existing "price unavailable" honesty path
-        // renders instead of a fabricated figure with a "Live" badge.
-        const isSimulatedPrice =
-          !isDeposito && !familyGoldPrice && latestPrice?.source === "mock";
-        let currentPrice = isDeposito
-          ? null
-          : (familyGoldPrice ??
-            (isSimulatedPrice ? null : latestPrice?.price) ??
-            (inv.type === "emas" ? costBasis : null));
-
-        let currentValue: Decimal | null = null;
-        let returnRp: Decimal | null = null;
-        let returnPct: number | null = null;
-
-        if (isDeposito) {
-          currentValue = computeDepositoCurrentValue(
-            costBasis,
-            inv.interestRatePct,
-            inv.purchasedAt,
-            depositoAsOf as Date,
-            inv.maturityDate,
-          );
-          currentPrice = quantity.isZero()
-            ? null
-            : currentValue.dividedBy(quantity);
-        } else if (currentPrice) {
-          currentValue = currentPrice.times(quantity);
-        } else if (isSimulatedPrice) {
-          currentValue = costBasis.times(quantity);
-        }
-
-        if (currentValue) {
-          const totalCost = costBasis.times(quantity);
-          returnRp = currentValue.minus(totalCost);
-          const totalCostNum = totalCost.toNumber();
-          returnPct =
-            totalCostNum !== 0
-              ? (returnRp.toNumber() / totalCostNum) * 100
-              : null;
-        }
-
-        const projectedAnnualYield = computeProjectedAnnualYield(
-          currentValue,
-          inv.interestRatePct,
-        );
-
-        return {
-          id: inv.id,
-          familyGroupId: inv.familyGroupId,
-          ticker: inv.ticker,
-          name: inv.name,
-          type: inv.type,
-          quantity: decimalToString(quantity),
-          costBasisPerUnit: decimalToString(costBasis),
-          currentPrice: currentPrice ? decimalToString(currentPrice) : null,
-          currentValue: currentValue ? decimalToString(currentValue) : null,
-          returnRp: returnRp ? decimalToString(returnRp) : null,
-          returnPct:
-            returnPct !== null ? Math.round(returnPct * 100) / 100 : null,
-          currency: inv.currency,
-          notes: inv.notes,
-          // EPIC-024 C3 (D10) — deposito's "price" is a live-computed
-          // simple-interest value, never a stored InvestmentPrice row: its
-          // provenance fields are synthesized ("computed-interest",
-          // never delayed) rather than read from `latestPrice`.
-          latestPriceRecordedAt: isDeposito
-            ? (depositoAsOf as Date).toISOString()
-            : familyGoldPrice
-              ? (familyGoldAsOf?.toISOString() ?? null)
-              : (latestPrice?.recordedAt.toISOString() ?? null),
-          latestPriceSource: isDeposito
-            ? "computed-interest"
-            : familyGoldPrice
-              ? FAMILY_GOLD_PRICE_SOURCE
-              : (latestPrice?.source ?? null),
-          // EPIC-023 G1 (D15) — as-of time + delayed flag, so the UI can
-          // label every automated price with its source and delay honestly.
-          // `asOf` falls back to `recordedAt` for legacy rows written before
-          // this column existed (never null-vs-unknown ambiguity on screen).
-          latestPriceAsOf: isDeposito
-            ? (depositoAsOf as Date).toISOString()
-            : familyGoldPrice
-              ? (familyGoldAsOf?.toISOString() ?? null)
-              : ((
-                  latestPrice?.asOf ?? latestPrice?.recordedAt
-                )?.toISOString() ?? null),
-          latestPriceDelayed:
-            isDeposito || familyGoldPrice
-              ? false
-              : (latestPrice?.delayed ?? null),
-          priceRefreshFailed,
-          automatedPriceUnmapped,
-          automatedPriceSimulated: isSimulatedPrice,
-          interestRatePct: inv.interestRatePct?.toString() ?? null,
-          projectedAnnualYield: projectedAnnualYield
-            ? decimalToString(projectedAnnualYield)
-            : null,
-          purchasedAt: inv.purchasedAt?.toISOString() ?? null,
-          maturityDate: inv.maturityDate?.toISOString() ?? null,
-          realizedPnlRp: decimalToStringOrNull(
-            realizedPnlByInvestment.get(inv.id) ?? null,
-          ),
-          ...holdingRebuildFields(inv),
-          createdAt: inv.createdAt.toISOString(),
-          updatedAt: inv.updatedAt.toISOString(),
-        } satisfies InvestmentDto;
-      }),
-    );
-
-    return results;
+      const projectedAnnualYield = computeProjectedAnnualYield(
+        currentValue,
+        inv.interestRatePct,
+      );
+      const isDeposit = v.method === "deposit_accrual";
+      const priceAt = isDeposit
+        ? new Date().toISOString()
+        : (v.price?.asOf ?? null);
+      return {
+        id: inv.id,
+        familyGroupId: inv.familyGroupId,
+        ticker: inv.ticker,
+        name: inv.name,
+        type: inv.type,
+        quantity: decimalToString(inv.quantity),
+        costBasisPerUnit: decimalToString(inv.costBasisPerUnit),
+        currentPrice: currentPrice ? decimalToString(currentPrice) : null,
+        currentValue: currentValue ? decimalToString(currentValue) : null,
+        returnRp: v.unrealizedIdr,
+        returnPct: v.unrealizedPct,
+        currency: inv.currency,
+        notes: inv.notes,
+        latestPriceRecordedAt: priceAt,
+        latestPriceSource: isDeposit
+          ? DEPOSIT_ACCRUAL_SOURCE
+          : (v.price?.source ?? null),
+        latestPriceAsOf: priceAt,
+        latestPriceDelayed: isDeposit ? false : (v.price?.delayed ?? null),
+        priceRefreshFailed: v.feedStatus === "failed",
+        automatedPriceUnmapped: v.feedStatus === "no_route",
+        automatedPriceSimulated: v.feedStatus === "simulated",
+        interestRatePct: inv.interestRatePct?.toString() ?? null,
+        projectedAnnualYield: projectedAnnualYield
+          ? decimalToString(projectedAnnualYield)
+          : null,
+        purchasedAt: inv.purchasedAt?.toISOString() ?? null,
+        maturityDate: inv.maturityDate?.toISOString() ?? null,
+        realizedPnlRp: v.realizedIdr,
+        ...holdingRebuildFields(inv),
+        valuation: v,
+        createdAt: inv.createdAt.toISOString(),
+        updatedAt: inv.updatedAt.toISOString(),
+      } satisfies InvestmentDto;
+    });
   }
 
+  /**
+   * Legacy summary, on the net-worth basis: unpriced holdings count at cost
+   * (R8, as before). The /investasi page uses GET …/valuation instead,
+   * which separates them and flags the total incomplete.
+   */
   async getSummary(familyGroupId: string): Promise<InvestmentSummaryDto> {
-    const holdings = await this.findAll(familyGroupId);
+    const valued = await this.valuation.valueFamily(familyGroupId);
 
     let totalCostBasis = ZERO;
     let totalCurrentValue = ZERO;
-
-    for (const h of holdings) {
-      const qty = new Decimal(h.quantity);
-      const cost = new Decimal(h.costBasisPerUnit);
-      totalCostBasis = totalCostBasis.plus(cost.times(qty));
-
-      if (h.currentValue) {
-        totalCurrentValue = totalCurrentValue.plus(new Decimal(h.currentValue));
-      } else {
-        totalCurrentValue = totalCurrentValue.plus(cost.times(qty));
-      }
+    for (const { valuation: v } of valued) {
+      totalCostBasis = totalCostBasis.plus(v.costRemainingIdr);
+      totalCurrentValue = totalCurrentValue.plus(v.netWorthIdr);
     }
 
     const totalReturnRp = totalCurrentValue.minus(totalCostBasis);
-    const totalCostNum = totalCostBasis.toNumber();
-    const totalReturnPct =
-      totalCostNum !== 0
-        ? Math.round((totalReturnRp.toNumber() / totalCostNum) * 10_000) / 100
-        : 0;
+    const totalReturnPct = totalCostBasis.isZero()
+      ? 0
+      : totalReturnRp
+          .dividedBy(totalCostBasis)
+          .times(100)
+          .toDecimalPlaces(2)
+          .toNumber();
 
     // todayReturn not tracked separately (requires yesterday's snapshot) — return null instead of 0
     return {

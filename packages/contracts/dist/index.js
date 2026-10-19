@@ -919,7 +919,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "lembar",
     displayUnit: "lot",
-    priceUnitLabel: "per lembar"
+    priceUnitLabel: "per lembar",
+    staleAfterDays: 3
   },
   NASDAQ: {
     key: "NASDAQ",
@@ -933,7 +934,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "share",
     displayUnit: "share",
-    priceUnitLabel: "per share"
+    priceUnitLabel: "per share",
+    staleAfterDays: 3
   },
   NYSE: {
     key: "NYSE",
@@ -947,7 +949,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "share",
     displayUnit: "share",
-    priceUnitLabel: "per share"
+    priceUnitLabel: "per share",
+    staleAfterDays: 3
   },
   CRYPTO: {
     key: "CRYPTO",
@@ -961,7 +964,8 @@ var MARKETS = {
     settlementBusinessDays: false,
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "per unit"
+    priceUnitLabel: "per unit",
+    staleAfterDays: 1
   },
   MUTUAL_FUND_ID: {
     key: "MUTUAL_FUND_ID",
@@ -975,7 +979,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "NAB per unit"
+    priceUnitLabel: "NAB per unit",
+    staleAfterDays: 3
   },
   BOND_ID: {
     key: "BOND_ID",
@@ -992,7 +997,8 @@ var MARKETS = {
     // InvestmentDetails.bond.priceConvention.
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "per unit"
+    priceUnitLabel: "per unit",
+    staleAfterDays: 7
   },
   GOLD: {
     key: "GOLD",
@@ -1006,7 +1012,8 @@ var MARKETS = {
     settlementBusinessDays: false,
     baseUnit: "gram",
     displayUnit: "gram",
-    priceUnitLabel: "per gram"
+    priceUnitLabel: "per gram",
+    staleAfterDays: 3
   },
   DEPOSIT: {
     key: "DEPOSIT",
@@ -1021,7 +1028,8 @@ var MARKETS = {
     // Legacy deposito rows store quantity = 1 and costBasisPerUnit = nominal.
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "nominal"
+    priceUnitLabel: "nominal",
+    staleAfterDays: null
   },
   OTHER: {
     key: "OTHER",
@@ -1035,9 +1043,61 @@ var MARKETS = {
     settlementBusinessDays: false,
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "per unit"
+    priceUnitLabel: "per unit",
+    staleAfterDays: 30
   }
 };
+function effectiveMarketFor(type, market, currency) {
+  if (market) return market;
+  switch (type) {
+    case "saham":
+      return currency === "IDR" ? "IDX" : "NASDAQ";
+    case "kripto":
+      return "CRYPTO";
+    case "reksa_dana":
+      return "MUTUAL_FUND_ID";
+    case "obligasi":
+      return "BOND_ID";
+    case "emas":
+      return "GOLD";
+    case "deposito":
+      return "DEPOSIT";
+    default:
+      return "OTHER";
+  }
+}
+
+// src/investments/valuation.ts
+var INVESTMENT_VALUATION_BASES = [
+  "market",
+  "manual",
+  "stale",
+  "cost_basis",
+  "unpriced",
+  "failed",
+  "zero_valid"
+];
+var PRICED_VALUATION_BASES = [
+  "market",
+  "manual",
+  "stale",
+  "cost_basis",
+  "zero_valid"
+];
+var AUTOMATED_PRICE_SOURCES = [
+  "yahoo-finance",
+  "coingecko",
+  "emasantam"
+];
+var SIMULATED_PRICE_SOURCE = "mock";
+var MANUAL_PRICE_SOURCES = [
+  "manual",
+  "broker_statement",
+  "fund_factsheet",
+  "bank_statement",
+  "exchange_website",
+  "other"
+];
 
 // src/member-category-allowances/index.ts
 import { z as z10 } from "zod";
@@ -1488,6 +1548,7 @@ export {
   ASSET_CLASS_KEYS,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
+  AUTOMATED_PRICE_SOURCES,
   AccessDataScopeSchema,
   AccessLevelSchema,
   AccessPageSchema,
@@ -1539,10 +1600,12 @@ export {
   INVESTMENT_MARKET_KEYS,
   INVESTMENT_PLATFORMS,
   INVESTMENT_PRODUCT_KEYS,
+  INVESTMENT_VALUATION_BASES,
   LEGACY_ACCESS_PRESETS,
   LEGACY_RESIDUAL_NOTE,
   LOGIN_USERNAME_PATTERN,
   LoginInputSchema,
+  MANUAL_PRICE_SOURCES,
   MARKETS,
   MAX_LOGIN_USERNAME_LENGTH,
   MEMBER_USERNAME_PATTERN,
@@ -1550,6 +1613,7 @@ export {
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
   POCKET_KINDS,
+  PRICED_VALUATION_BASES,
   PocketKindSchema,
   REFERENCE_ITEM_DEFAULTS,
   ReferenceItemDtoSchema,
@@ -1558,6 +1622,7 @@ export {
   RoleSchema,
   RoutingCodeKindSchema,
   RupiahSchema,
+  SIMULATED_PRICE_SOURCE,
   SetMemberCategoryAllowanceInputSchema,
   ShariaContractSchema,
   TransactionAttachmentDtoSchema,
@@ -1579,6 +1644,7 @@ export {
   defaultRoleForRelationship,
   deriveIdrPerUnit,
   divRoundHalfUp,
+  effectiveMarketFor,
   estimateNetInterest,
   findInvestmentPlatform,
   formatScaled,

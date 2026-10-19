@@ -27,6 +27,7 @@ __export(index_exports, {
   ASSET_CLASS_KEYS: () => ASSET_CLASS_KEYS,
   ATTACHMENT_ACCEPTED_MIME_TYPES: () => ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES: () => ATTACHMENT_MAX_FILE_BYTES,
+  AUTOMATED_PRICE_SOURCES: () => AUTOMATED_PRICE_SOURCES,
   AccessDataScopeSchema: () => AccessDataScopeSchema,
   AccessLevelSchema: () => AccessLevelSchema,
   AccessPageSchema: () => AccessPageSchema,
@@ -78,10 +79,12 @@ __export(index_exports, {
   INVESTMENT_MARKET_KEYS: () => INVESTMENT_MARKET_KEYS,
   INVESTMENT_PLATFORMS: () => INVESTMENT_PLATFORMS,
   INVESTMENT_PRODUCT_KEYS: () => INVESTMENT_PRODUCT_KEYS,
+  INVESTMENT_VALUATION_BASES: () => INVESTMENT_VALUATION_BASES,
   LEGACY_ACCESS_PRESETS: () => LEGACY_ACCESS_PRESETS,
   LEGACY_RESIDUAL_NOTE: () => LEGACY_RESIDUAL_NOTE,
   LOGIN_USERNAME_PATTERN: () => LOGIN_USERNAME_PATTERN,
   LoginInputSchema: () => LoginInputSchema,
+  MANUAL_PRICE_SOURCES: () => MANUAL_PRICE_SOURCES,
   MARKETS: () => MARKETS,
   MAX_LOGIN_USERNAME_LENGTH: () => MAX_LOGIN_USERNAME_LENGTH,
   MEMBER_USERNAME_PATTERN: () => MEMBER_USERNAME_PATTERN,
@@ -89,6 +92,7 @@ __export(index_exports, {
   MemberCategoryAllowanceDtoSchema: () => MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema: () => MemberRelationshipSchema,
   POCKET_KINDS: () => POCKET_KINDS,
+  PRICED_VALUATION_BASES: () => PRICED_VALUATION_BASES,
   PocketKindSchema: () => PocketKindSchema,
   REFERENCE_ITEM_DEFAULTS: () => REFERENCE_ITEM_DEFAULTS,
   ReferenceItemDtoSchema: () => ReferenceItemDtoSchema,
@@ -97,6 +101,7 @@ __export(index_exports, {
   RoleSchema: () => RoleSchema,
   RoutingCodeKindSchema: () => RoutingCodeKindSchema,
   RupiahSchema: () => RupiahSchema,
+  SIMULATED_PRICE_SOURCE: () => SIMULATED_PRICE_SOURCE,
   SetMemberCategoryAllowanceInputSchema: () => SetMemberCategoryAllowanceInputSchema,
   ShariaContractSchema: () => ShariaContractSchema,
   TransactionAttachmentDtoSchema: () => TransactionAttachmentDtoSchema,
@@ -118,6 +123,7 @@ __export(index_exports, {
   defaultRoleForRelationship: () => defaultRoleForRelationship,
   deriveIdrPerUnit: () => deriveIdrPerUnit,
   divRoundHalfUp: () => divRoundHalfUp,
+  effectiveMarketFor: () => effectiveMarketFor,
   estimateNetInterest: () => estimateNetInterest,
   findInvestmentPlatform: () => findInvestmentPlatform,
   formatScaled: () => formatScaled,
@@ -1057,7 +1063,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "lembar",
     displayUnit: "lot",
-    priceUnitLabel: "per lembar"
+    priceUnitLabel: "per lembar",
+    staleAfterDays: 3
   },
   NASDAQ: {
     key: "NASDAQ",
@@ -1071,7 +1078,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "share",
     displayUnit: "share",
-    priceUnitLabel: "per share"
+    priceUnitLabel: "per share",
+    staleAfterDays: 3
   },
   NYSE: {
     key: "NYSE",
@@ -1085,7 +1093,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "share",
     displayUnit: "share",
-    priceUnitLabel: "per share"
+    priceUnitLabel: "per share",
+    staleAfterDays: 3
   },
   CRYPTO: {
     key: "CRYPTO",
@@ -1099,7 +1108,8 @@ var MARKETS = {
     settlementBusinessDays: false,
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "per unit"
+    priceUnitLabel: "per unit",
+    staleAfterDays: 1
   },
   MUTUAL_FUND_ID: {
     key: "MUTUAL_FUND_ID",
@@ -1113,7 +1123,8 @@ var MARKETS = {
     settlementBusinessDays: true,
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "NAB per unit"
+    priceUnitLabel: "NAB per unit",
+    staleAfterDays: 3
   },
   BOND_ID: {
     key: "BOND_ID",
@@ -1130,7 +1141,8 @@ var MARKETS = {
     // InvestmentDetails.bond.priceConvention.
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "per unit"
+    priceUnitLabel: "per unit",
+    staleAfterDays: 7
   },
   GOLD: {
     key: "GOLD",
@@ -1144,7 +1156,8 @@ var MARKETS = {
     settlementBusinessDays: false,
     baseUnit: "gram",
     displayUnit: "gram",
-    priceUnitLabel: "per gram"
+    priceUnitLabel: "per gram",
+    staleAfterDays: 3
   },
   DEPOSIT: {
     key: "DEPOSIT",
@@ -1159,7 +1172,8 @@ var MARKETS = {
     // Legacy deposito rows store quantity = 1 and costBasisPerUnit = nominal.
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "nominal"
+    priceUnitLabel: "nominal",
+    staleAfterDays: null
   },
   OTHER: {
     key: "OTHER",
@@ -1173,9 +1187,61 @@ var MARKETS = {
     settlementBusinessDays: false,
     baseUnit: "unit",
     displayUnit: "unit",
-    priceUnitLabel: "per unit"
+    priceUnitLabel: "per unit",
+    staleAfterDays: 30
   }
 };
+function effectiveMarketFor(type, market, currency) {
+  if (market) return market;
+  switch (type) {
+    case "saham":
+      return currency === "IDR" ? "IDX" : "NASDAQ";
+    case "kripto":
+      return "CRYPTO";
+    case "reksa_dana":
+      return "MUTUAL_FUND_ID";
+    case "obligasi":
+      return "BOND_ID";
+    case "emas":
+      return "GOLD";
+    case "deposito":
+      return "DEPOSIT";
+    default:
+      return "OTHER";
+  }
+}
+
+// src/investments/valuation.ts
+var INVESTMENT_VALUATION_BASES = [
+  "market",
+  "manual",
+  "stale",
+  "cost_basis",
+  "unpriced",
+  "failed",
+  "zero_valid"
+];
+var PRICED_VALUATION_BASES = [
+  "market",
+  "manual",
+  "stale",
+  "cost_basis",
+  "zero_valid"
+];
+var AUTOMATED_PRICE_SOURCES = [
+  "yahoo-finance",
+  "coingecko",
+  "emasantam"
+];
+var SIMULATED_PRICE_SOURCE = "mock";
+var MANUAL_PRICE_SOURCES = [
+  "manual",
+  "broker_statement",
+  "fund_factsheet",
+  "bank_statement",
+  "exchange_website",
+  "other"
+];
 
 // src/member-category-allowances/index.ts
 var import_zod10 = require("zod");
@@ -1627,6 +1693,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   ASSET_CLASS_KEYS,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
+  AUTOMATED_PRICE_SOURCES,
   AccessDataScopeSchema,
   AccessLevelSchema,
   AccessPageSchema,
@@ -1678,10 +1745,12 @@ function warisanAssetTypeToAssetClass(assetType) {
   INVESTMENT_MARKET_KEYS,
   INVESTMENT_PLATFORMS,
   INVESTMENT_PRODUCT_KEYS,
+  INVESTMENT_VALUATION_BASES,
   LEGACY_ACCESS_PRESETS,
   LEGACY_RESIDUAL_NOTE,
   LOGIN_USERNAME_PATTERN,
   LoginInputSchema,
+  MANUAL_PRICE_SOURCES,
   MARKETS,
   MAX_LOGIN_USERNAME_LENGTH,
   MEMBER_USERNAME_PATTERN,
@@ -1689,6 +1758,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
   POCKET_KINDS,
+  PRICED_VALUATION_BASES,
   PocketKindSchema,
   REFERENCE_ITEM_DEFAULTS,
   ReferenceItemDtoSchema,
@@ -1697,6 +1767,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   RoleSchema,
   RoutingCodeKindSchema,
   RupiahSchema,
+  SIMULATED_PRICE_SOURCE,
   SetMemberCategoryAllowanceInputSchema,
   ShariaContractSchema,
   TransactionAttachmentDtoSchema,
@@ -1718,6 +1789,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   defaultRoleForRelationship,
   deriveIdrPerUnit,
   divRoundHalfUp,
+  effectiveMarketFor,
   estimateNetInterest,
   findInvestmentPlatform,
   formatScaled,

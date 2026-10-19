@@ -59,9 +59,10 @@ export class PricesGateway implements OnGatewayConnection {
     ticker: string,
     price: number,
     investmentId: string,
+    currency = "IDR",
   ): void {
     this.server
       .to(familyGroupId)
-      .emit("priceUpdate", { ticker, price, investmentId });
+      .emit("priceUpdate", { ticker, price, investmentId, currency });
   }
 }

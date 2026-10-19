@@ -21,6 +21,11 @@
  *   broker/bank confirmation date.
  *
  * Every default is editable on the transaction ("sesuai broker").
+ *
+ * Price staleness (Task 8, `staleAfterDays`): daily-quoted markets (IDX, US,
+ * mutual-fund NAB, gold) are stale after 3 days so a Friday close is still
+ * current on Monday; crypto trades every day, so 1 day; manually priced bonds
+ * 7 days; "other" 30 days; deposits are never stale (accrued to today).
  */
 
 export const INVESTMENT_MARKET_KEYS = [
@@ -72,6 +77,13 @@ export interface MarketConfig {
   displayUnit: InvestmentDisplayUnit;
   /** What one price buys, shown next to every price ("per lembar"). */
   priceUnitLabel: string;
+  /**
+   * Task 8 — a valuation price older than this many calendar days (price
+   * date vs today, Asia/Jakarta) is flagged stale. It still values the
+   * holding, with its own date. null = never stale (deposits are accrued to
+   * today, not priced).
+   */
+  staleAfterDays: number | null;
 }
 
 export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
@@ -88,6 +100,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "lembar",
     displayUnit: "lot",
     priceUnitLabel: "per lembar",
+    staleAfterDays: 3,
   },
   NASDAQ: {
     key: "NASDAQ",
@@ -102,6 +115,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "share",
     displayUnit: "share",
     priceUnitLabel: "per share",
+    staleAfterDays: 3,
   },
   NYSE: {
     key: "NYSE",
@@ -116,6 +130,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "share",
     displayUnit: "share",
     priceUnitLabel: "per share",
+    staleAfterDays: 3,
   },
   CRYPTO: {
     key: "CRYPTO",
@@ -130,6 +145,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "unit",
     displayUnit: "unit",
     priceUnitLabel: "per unit",
+    staleAfterDays: 1,
   },
   MUTUAL_FUND_ID: {
     key: "MUTUAL_FUND_ID",
@@ -144,6 +160,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "unit",
     displayUnit: "unit",
     priceUnitLabel: "NAB per unit",
+    staleAfterDays: 3,
   },
   BOND_ID: {
     key: "BOND_ID",
@@ -161,6 +178,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "unit",
     displayUnit: "unit",
     priceUnitLabel: "per unit",
+    staleAfterDays: 7,
   },
   GOLD: {
     key: "GOLD",
@@ -175,6 +193,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "gram",
     displayUnit: "gram",
     priceUnitLabel: "per gram",
+    staleAfterDays: 3,
   },
   DEPOSIT: {
     key: "DEPOSIT",
@@ -190,6 +209,7 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "unit",
     displayUnit: "unit",
     priceUnitLabel: "nominal",
+    staleAfterDays: null,
   },
   OTHER: {
     key: "OTHER",
@@ -204,5 +224,36 @@ export const MARKETS: Record<InvestmentMarket, MarketConfig> = {
     baseUnit: "unit",
     displayUnit: "unit",
     priceUnitLabel: "per unit",
+    staleAfterDays: 30,
   },
 };
+
+/**
+ * The market a holding is valued and staleness-checked under. Legacy rows
+ * may have `market = null` (R5); they fall back by type, never by guessing a
+ * US listing (an unclassified saham is treated as IDX only when its currency
+ * is IDR, else NASDAQ — both have the same daily staleness rule).
+ */
+export function effectiveMarketFor(
+  type: string,
+  market: InvestmentMarket | null | undefined,
+  currency: string,
+): InvestmentMarket {
+  if (market) return market;
+  switch (type) {
+    case "saham":
+      return currency === "IDR" ? "IDX" : "NASDAQ";
+    case "kripto":
+      return "CRYPTO";
+    case "reksa_dana":
+      return "MUTUAL_FUND_ID";
+    case "obligasi":
+      return "BOND_ID";
+    case "emas":
+      return "GOLD";
+    case "deposito":
+      return "DEPOSIT";
+    default:
+      return "OTHER";
+  }
+}

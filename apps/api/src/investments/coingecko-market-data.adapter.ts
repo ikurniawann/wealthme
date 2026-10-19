@@ -6,7 +6,11 @@ import {
   fetchWithTimeout,
 } from "../common/utils/external-fetch.util";
 
-import type { MarketDataPort, MarketDataQuote } from "./market-data.port";
+import type {
+  MarketDataPort,
+  MarketDataQuote,
+  MarketDataRequest,
+} from "./market-data.port";
 import type { InvestmentType } from "@prisma/client";
 
 const COINGECKO_API_BASE = "https://api.coingecko.com/api/v3";
@@ -112,8 +116,15 @@ export class CoinGeckoMarketDataAdapter implements MarketDataPort {
   async getPrice(
     ticker: string,
     _type: InvestmentType,
+    request?: MarketDataRequest,
   ): Promise<MarketDataQuote> {
-    const coinId = toCoinGeckoId(ticker);
+    // Task 8 (R4) — an explicit priceSymbol IS the CoinGecko coin id
+    // ("bitcoin"); otherwise the ticker map below.
+    const explicit = request?.priceSymbol?.trim().toLowerCase();
+    const coinId =
+      explicit && /^[a-z0-9-]{1,64}$/.test(explicit)
+        ? explicit
+        : toCoinGeckoId(ticker);
     if (!coinId) {
       throw new UnmappedTickerError(ticker);
     }
@@ -175,6 +186,7 @@ export class CoinGeckoMarketDataAdapter implements MarketDataPort {
         ? new Date(entry.last_updated_at * 1000)
         : new Date(),
       delayed: false,
+      currency: VS_CURRENCY.toUpperCase(),
     };
   }
 }

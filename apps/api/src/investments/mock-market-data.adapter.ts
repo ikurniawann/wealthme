@@ -33,6 +33,12 @@ export class MockMarketDataAdapter implements MarketDataPort {
     // than a fabricated number that holds still, because only the moving one
     // looks like the ledger is broken.
     const price = deterministicBasePrice(ticker);
-    return { price, source: "mock", asOf: new Date(), delayed: false };
+    return {
+      price,
+      source: "mock",
+      asOf: new Date(),
+      delayed: false,
+      currency: "IDR",
+    };
   }
 }
