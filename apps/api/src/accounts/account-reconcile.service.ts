@@ -3,15 +3,16 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
-import {
-  type TransactionsService,
-  type ActingMember,
-} from "../transactions/transactions.service";
+// Value imports: Nest DI reads these constructor types at runtime.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { TransactionsService } from "../transactions/transactions.service";
 
-import { type AccountsService } from "./accounts.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AccountsService } from "./accounts.service";
 
 import type { AccountResponseDto } from "./dto/account-response.dto";
 import type { CreateTransactionDto } from "../transactions/dto/create-transaction.dto";
+import type { ActingMember } from "../transactions/transactions.service";
 
 export const RECONCILE_DESCRIPTION = "Penyesuaian saldo (cocokkan saldo)";
 
