@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 
+import { isValidYmd } from "../ledger/ledger-dates";
+
 import type {
   BondDetails,
   DepositDetails,
@@ -25,8 +27,7 @@ function ymdDays(fromYmd: string, toYmd: string): number {
 }
 
 function validYmd(v: string | null | undefined): string | null {
-  if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null;
-  return Number.isNaN(Date.parse(`${v}T00:00:00.000Z`)) ? null : v;
+  return v && isValidYmd(v) ? v : null;
 }
 
 function positiveDecimal(v: string | null | undefined): Decimal | null {
@@ -168,9 +169,10 @@ export function bondValue(
   const frequency = details?.couponFrequency;
   const maturity = validYmd(details?.maturityDate);
   if (!includesAccrued && couponPct && frequency && maturity) {
-    const last = lastCouponYmd(maturity, frequency, todayYmd);
+    const accruedTo = todayYmd > maturity ? maturity : todayYmd;
+    const last = lastCouponYmd(maturity, frequency, accruedTo);
     if (last) {
-      const days = Math.max(0, ymdDays(last, todayYmd));
+      const days = Math.max(0, ymdDays(last, accruedTo));
       accrued = principal
         .times(couponPct)
         .dividedBy(100)

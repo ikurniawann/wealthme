@@ -46,6 +46,7 @@ interface StoredQuote {
   currency: string;
   source: string;
   recordedAt: Date;
+  asOf: Date | null;
 }
 
 type FetchResult =
@@ -152,6 +153,13 @@ export class PriceRefreshProcessor extends WorkerHost {
         inv.type,
         this.request(inv),
       );
+      if (
+        !Number.isFinite(quote.price) ||
+        quote.price <= 0 ||
+        Number.isNaN(quote.asOf.getTime())
+      ) {
+        throw new Error("Invalid market quote");
+      }
       return { ok: true, quote };
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
@@ -183,6 +191,8 @@ export class PriceRefreshProcessor extends WorkerHost {
     prev: StoredQuote | undefined,
     now: Date,
   ): Promise<void> {
+    // A delayed feed must not replace a newer broker/manual observation.
+    if (prev && quote.asOf < (prev.asOf ?? prev.recordedAt)) return;
     if (this.shouldStore(quote, prev, now)) {
       try {
         const market = effectiveMarketFor(inv.type, inv.market, inv.currency);
@@ -218,12 +228,12 @@ export class PriceRefreshProcessor extends WorkerHost {
   /** Latest stored (non-mock) quote per holding — one index walk each. */
   private async latestStored(ids: string[]): Promise<Map<string, StoredQuote>> {
     const rows = await this.prisma.$queryRaw<StoredQuote[]>`
-      SELECT p."investmentId", p."price", p."currency", p."source", p."recordedAt"
+      SELECT p."investmentId", p."price", p."currency", p."source", p."recordedAt", p."asOf"
       FROM unnest(${ids}::text[]) AS h(id)
       CROSS JOIN LATERAL (
         SELECT * FROM "investment_prices" ip
         WHERE ip."investmentId" = h.id AND ip."source" <> 'mock'
-        ORDER BY ip."recordedAt" DESC
+        ORDER BY COALESCE(ip."asOf", ip."recordedAt") DESC, ip."recordedAt" DESC, ip."id" DESC
         LIMIT 1
       ) p`;
     return new Map(

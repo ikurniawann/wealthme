@@ -183,9 +183,9 @@ export class InvestmentValuationService {
   }
 
   /**
-   * Latest non-simulated price per holding, by `recordedAt` (the index
-   * order). A LATERAL LIMIT 1 per holding keeps this an index walk even with
-   * a long price history.
+   * Latest non-simulated observation by effective price date. Recording an
+   * older observation later must not replace a newer price. Recording time
+   * and id break ties deterministically.
    */
   private async latestPrices(
     ids: string[],
@@ -198,7 +198,7 @@ export class InvestmentValuationService {
       CROSS JOIN LATERAL (
         SELECT * FROM "investment_prices" ip
         WHERE ip."investmentId" = h.id AND ip."source" <> 'mock'
-        ORDER BY ip."recordedAt" DESC
+        ORDER BY COALESCE(ip."asOf", ip."recordedAt") DESC, ip."recordedAt" DESC, ip."id" DESC
         LIMIT 1
       ) p`;
     return new Map(
