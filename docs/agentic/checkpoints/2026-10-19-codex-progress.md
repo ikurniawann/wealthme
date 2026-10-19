@@ -148,3 +148,14 @@ completion in Task14 must mark costBasisKnown=true explicitly. Old investment
 paths still lack owner row scoping: close in Task15. Task10 cash edit uses
 canonical transaction detail; final Task26 must review soft-void semantics gap.
 User reset only their 5-hour usage limit; no git/server reset requested.
+
+## Task 12 verified implementation
+
+Task11 committed 1eb9d114, health200, ledger complete. Task12 adds trade-form,
+trade-state and trade-preview; wires portfolio buy/sell; shared IDX unit switch
+preserves quantity. Actual execution price/FX, fees/tax, effective time, settlement,
+exact summaries, stable idempotency key and structured409. Backend strict ledger
+enforces IDX100 and actual MF sell settlement date. Permission review fixed
+holding write scope and cash-account permission rechecks on edit/void.
+API/web tsc --noEmit and changed TS/TSX eslint PASS, no Jest/E2E. No migrations.
+Next: commit12 with explicit paths, check health200 and ledger, then Task13–26.

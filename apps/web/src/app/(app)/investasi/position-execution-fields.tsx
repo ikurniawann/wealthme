@@ -1,7 +1,9 @@
 "use client";
-import { formatMoneyTyping } from "@/components/money";
+import { formatMoneyTyping, canonicalToTyping } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
 import { AmountInput, today } from "./investment-fields";
+import { positionNumbers } from "./position-state";
+import { divide } from "./decimal";
 import type { PositionState } from "./position-state";
 export function PositionExecutionFields({
   value: s,
@@ -67,13 +69,20 @@ export function PositionExecutionFields({
             <select
               className="select"
               value={s.unit}
-              onChange={(e) =>
+              onChange={(e) => {
+                const unit = e.target.value as "lot" | "base";
+                const base = positionNumbers(s).quantity;
                 set({
                   ...s,
-                  unit: e.target.value as "lot" | "base",
-                  quantity: "",
-                })
-              }
+                  unit,
+                  quantity: s.quantity
+                    ? canonicalToTyping(
+                        unit === "lot" ? divide(base, "100") : base,
+                        8,
+                      )
+                    : "",
+                });
+              }}
             >
               <option value="lot">{c.lot}</option>
               <option value="base">{c.lembar}</option>

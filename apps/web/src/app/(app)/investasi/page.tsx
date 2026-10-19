@@ -21,6 +21,7 @@ import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import { TradeForm } from "./trade-form";
 import { PositionForm } from "./position-form";
 import { PlatformFunds } from "./platform-funds";
 import { PocketTransfer } from "./pocket-transfer";
@@ -51,6 +52,10 @@ function InvestasiContent() {
   const queryClient = useQueryClient();
   const [transferOpen, setTransferOpen] = useState(false);
   const [positionOpen, setPositionOpen] = useState(false);
+  const [tradeOpen, setTradeOpen] = useState<{
+    id: string;
+    kind: "buy" | "sell";
+  } | null>(null);
   const onSaved = () => {
     for (const key of [
       "investments-v3",
@@ -157,6 +162,13 @@ function InvestasiContent() {
   );
   // The action URL is the stable hand-off to the forms added in Tasks 10–13.
   const onAction = (action: InvestmentAction) => {
+    if (
+      (action.kind === "buy" || action.kind === "sell") &&
+      action.investmentId
+    ) {
+      setTradeOpen({ id: action.investmentId, kind: action.kind });
+      return;
+    }
     if (action.kind === "add") {
       setPositionOpen(true);
       return;
@@ -317,6 +329,18 @@ function InvestasiContent() {
           loading={activity.isPending}
           error={activity.isError}
           canManage={!!canManage}
+          onSaved={onSaved}
+        />
+      )}
+      {tradeOpen && enabled && !!investments.data?.length && (
+        <TradeForm
+          initialId={tradeOpen.id}
+          kind={tradeOpen.kind}
+          holdings={investments.data}
+          platforms={platforms.data ?? []}
+          fg={fg!}
+          token={token!}
+          onClose={() => setTradeOpen(null)}
           onSaved={onSaved}
         />
       )}

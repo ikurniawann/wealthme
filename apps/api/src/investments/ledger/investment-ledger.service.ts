@@ -9,6 +9,7 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
+import { isRowScoped } from "../../common/utils/privacy.util";
 import { runSerializableWithRetry } from "../../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../prisma/prisma.service";
@@ -132,6 +133,13 @@ export class InvestmentLedgerService {
     options: { strictPocket?: boolean } = {},
   ): Promise<InvestmentLedgerResultDto> {
     const strictPocket = options.strictPocket ?? true;
+    const investment = await this.lockInvestment(
+      tx,
+      familyGroupId,
+      investmentId,
+      actor,
+    );
+
     const existing = await tx.investmentTransaction.findUnique({
       where: {
         familyGroupId_idempotencyKey: {
@@ -156,16 +164,29 @@ export class InvestmentLedgerService {
       return this.result(tx, investmentId, existing, true);
     }
 
-    const investment = await this.lockInvestment(
-      tx,
-      familyGroupId,
-      investmentId,
-    );
     const row = normalizeLedgerInput(
       input,
       holdingConfig(investment),
       jakartaTodayYmd(),
     );
+    if (
+      strictPocket &&
+      ["buy", "sell"].includes(input.kind) &&
+      investment.market === "IDX" &&
+      !row.quantity.modulo(100).isZero()
+    )
+      throw new BadRequestException(
+        "Transaksi saham IDX pasar reguler harus kelipatan 100 lembar (1 lot).",
+      );
+    if (
+      strictPocket &&
+      input.kind === "sell" &&
+      investment.market === "MUTUAL_FUND_ID" &&
+      !input.settlementDate
+    )
+      throw new BadRequestException(
+        "Masukkan tanggal penyelesaian sesuai konfirmasi reksa dana.",
+      );
     const written = await this.applyChange(
       tx,
       familyGroupId,
@@ -198,6 +219,7 @@ export class InvestmentLedgerService {
           tx,
           familyGroupId,
           investmentId,
+          actor,
         );
         const existing = await this.findRow(tx, investmentId, transactionId);
         if (existing.status === "void") {
@@ -238,6 +260,7 @@ export class InvestmentLedgerService {
           tx,
           familyGroupId,
           investmentId,
+          actor,
         );
         const existing = await this.findRow(tx, investmentId, transactionId);
         if (existing.status === "void") {
@@ -278,6 +301,7 @@ export class InvestmentLedgerService {
       tx,
       familyGroupId,
       investmentId,
+      actor,
     );
     const active = await tx.investmentTransaction.findMany({
       where: { investmentId, status: "active" },
@@ -431,17 +455,15 @@ export class InvestmentLedgerService {
       change.type === "create" ? null : change.existing.cashAccountId;
     const previousCurrency =
       change.type === "create" ? null : change.existing.currency;
-    if (
-      nextCashAccountId &&
-      change.type !== "void" &&
-      (nextCashAccountId !== previousCashAccountId ||
-        (strictPocket && change.row.currency !== previousCurrency))
-    ) {
+    if (nextCashAccountId && change.type !== "void") {
       await assertUsableCashAccount(
         tx,
         accounts.get(nextCashAccountId),
         actor,
-        strictPocket
+        strictPocket &&
+          (change.type === "create" ||
+            nextCashAccountId !== previousCashAccountId ||
+            change.row.currency !== previousCurrency)
           ? {
               currency: change.row.currency,
               platformAccountId: investment.platformAccountId,
@@ -449,6 +471,16 @@ export class InvestmentLedgerService {
           : null,
       );
     }
+    if (
+      oldLeg &&
+      (change.type === "void" || oldLeg.accountId !== nextCashAccountId)
+    )
+      await assertUsableCashAccount(
+        tx,
+        accounts.get(oldLeg.accountId),
+        actor,
+        null,
+      );
     const selfKeyAfter =
       change.type === "void"
         ? null
@@ -718,6 +750,7 @@ export class InvestmentLedgerService {
     tx: TxClient,
     familyGroupId: string,
     investmentId: string,
+    actor: LedgerActor,
   ): Promise<Investment> {
     await tx.$queryRaw`
       SELECT "id" FROM "investments"
@@ -727,6 +760,23 @@ export class InvestmentLedgerService {
       where: { id: investmentId, familyGroupId },
     });
     if (!investment) throw new NotFoundException("Investment not found");
+    if (
+      isRowScoped(actor.member) &&
+      investment.ownerUserId !== actor.member?.userId
+    ) {
+      const shared = investment.cashAccountId
+        ? await tx.account.findFirst({
+            where: {
+              id: investment.cashAccountId,
+              familyGroupId,
+              isPrivate: false,
+              shares: { some: { userId: actor.member?.userId, canPost: true } },
+            },
+            select: { id: true },
+          })
+        : null;
+      if (!shared) throw new NotFoundException("Investment not found");
+    }
     return investment;
   }
 

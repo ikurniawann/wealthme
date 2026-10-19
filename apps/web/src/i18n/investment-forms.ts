@@ -1,4 +1,11 @@
 export interface InvestmentFormsCopy {
+  settlementDate: string;
+  brokerDate: string;
+  pendingProceeds: string;
+  netProceeds: string;
+  remainingHoldings: string;
+  savedTrade: string;
+
   proof: string;
   proofLimit: string;
   savedProofFailed: string;
@@ -105,6 +112,13 @@ export interface InvestmentFormsCopy {
   openingZero: string;
 }
 export const investmentFormsId: InvestmentFormsCopy = {
+  settlementDate: "Tanggal penyelesaian",
+  brokerDate: "Sesuai broker — dapat diubah",
+  pendingProceeds: "Hasil jual belum tersedia sampai tanggal penyelesaian.",
+  netProceeds: "Hasil bersih penjualan",
+  remainingHoldings: "Sisa kepemilikan",
+  savedTrade: "Transaksi investasi berhasil dicatat.",
+
   proof: "Bukti transaksi (opsional)",
   proofLimit: "Pilih JPG, PNG, WEBP, atau PDF, maksimal 5 MB.",
   savedProofFailed:
@@ -222,6 +236,13 @@ export const investmentFormsId: InvestmentFormsCopy = {
     "Kantong baru dimulai dari nol. Gunakan top up untuk memindahkan dana.",
 };
 export const investmentFormsEn: InvestmentFormsCopy = {
+  settlementDate: "Settlement date",
+  brokerDate: "As confirmed by broker — editable",
+  pendingProceeds: "Sale proceeds stay held until the settlement date.",
+  netProceeds: "Net sale proceeds",
+  remainingHoldings: "Remaining holdings",
+  savedTrade: "Investment transaction recorded.",
+
   proof: "Transaction proof (optional)",
   proofLimit: "Choose JPG, PNG, WEBP or PDF, up to 5 MB.",
   savedProofFailed:

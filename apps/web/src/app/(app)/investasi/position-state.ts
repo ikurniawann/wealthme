@@ -7,12 +7,19 @@ import type {
   CreateInvestmentLedgerInput,
 } from "@wealthme/contracts";
 import { amount, today } from "./investment-fields";
-import { multiply, add, divide, positive, roundWhole } from "./decimal";
+import {
+  multiply,
+  add,
+  divide,
+  positive,
+  roundWhole,
+  subtract,
+} from "./decimal";
 
 export interface PositionState {
   type: InvestmentType;
   market: InvestmentMarket;
-  mode: "buy" | "opening";
+  mode: "buy" | "opening" | "sell";
   name: string;
   ticker: string;
   manual: boolean;
@@ -107,7 +114,10 @@ export function positionNumbers(s: PositionState) {
     s.type === "obligasi" && s.details.priceConvention === "percent_of_par"
       ? divide(multiply(quantity, price), "100")
       : multiply(quantity, price);
-  const debit = add(add(gross, amount(s.fee)), amount(s.tax));
+  const debit =
+    s.mode === "sell"
+      ? subtract(gross, add(amount(s.fee), amount(s.tax)))
+      : add(add(gross, amount(s.fee)), amount(s.tax));
   const debitIdr =
     s.currency === "IDR"
       ? roundWhole(debit)

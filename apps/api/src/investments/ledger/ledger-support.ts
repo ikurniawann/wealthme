@@ -6,7 +6,10 @@ import {
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
-import { isRowScoped } from "../../common/utils/privacy.util";
+import {
+  isRowScoped,
+  canSeePrivateItems,
+} from "../../common/utils/privacy.util";
 
 import {
   cashKeyParts,
@@ -662,8 +665,13 @@ export async function assertUsableCashAccount(
     );
   }
   const member = actor.member;
-  if (!member || !isRowScoped(member)) return;
+  if (!member) return;
   if (account.ownerUserId === member.userId) return;
+  if (account.isPrivate && !canSeePrivateItems(member))
+    throw new ForbiddenException(
+      "Rekening pribadi ini tidak dapat dipakai oleh anggota ini.",
+    );
+  if (!isRowScoped(member)) return;
   if (!account.isPrivate) {
     const share = await tx.accountShare.findUnique({
       where: {
