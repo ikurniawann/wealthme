@@ -39,6 +39,7 @@ export function KasHeader({
 }) {
   const { t } = useLocale();
   const c = t.dana.v3.page;
+  const f = t.dana.v3.form;
   return (
     <header className="kw-head">
       <div className="kw-head-text">
@@ -58,12 +59,24 @@ export function KasHeader({
             >
               <Plus aria-hidden="true" /> {c.addAccount}
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="kw-addmenu">
               <DropdownMenuItem onClick={() => onAdd("cash")}>
-                <Banknote aria-hidden="true" /> {c.addCash}
+                <span className="kw-addmenu-ic" data-kind="cash">
+                  <Banknote aria-hidden="true" />
+                </span>
+                <span className="kw-addmenu-txt">
+                  <b>{c.addCash}</b>
+                  <small>{f.addCashSub}</small>
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => onAdd("ewallet")}>
-                <Wallet aria-hidden="true" /> {c.addEwallet}
+                <span className="kw-addmenu-ic" data-kind="ewallet">
+                  <Wallet aria-hidden="true" />
+                </span>
+                <span className="kw-addmenu-txt">
+                  <b>{c.addEwallet}</b>
+                  <small>{f.addWalletSub}</small>
+                </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
