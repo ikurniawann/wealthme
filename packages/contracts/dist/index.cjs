@@ -79,6 +79,7 @@ __export(index_exports, {
   INVESTMENT_PLATFORMS: () => INVESTMENT_PLATFORMS,
   INVESTMENT_PRODUCT_KEYS: () => INVESTMENT_PRODUCT_KEYS,
   LEGACY_ACCESS_PRESETS: () => LEGACY_ACCESS_PRESETS,
+  LEGACY_RESIDUAL_NOTE: () => LEGACY_RESIDUAL_NOTE,
   LOGIN_USERNAME_PATTERN: () => LOGIN_USERNAME_PATTERN,
   LoginInputSchema: () => LoginInputSchema,
   MARKETS: () => MARKETS,
@@ -1027,6 +1028,9 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   // no assumption
 };
 
+// src/investments/investment.dto.ts
+var LEGACY_RESIDUAL_NOTE = "legacy-residual";
+
 // src/investments/markets.ts
 var INVESTMENT_MARKET_KEYS = [
   "IDX",
@@ -1674,6 +1678,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   INVESTMENT_PLATFORMS,
   INVESTMENT_PRODUCT_KEYS,
   LEGACY_ACCESS_PRESETS,
+  LEGACY_RESIDUAL_NOTE,
   LOGIN_USERNAME_PATTERN,
   LoginInputSchema,
   MARKETS,

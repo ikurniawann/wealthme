@@ -255,3 +255,10 @@ export interface InvestmentPriceDto {
   /** False when only the date of `asOf` is known. */
   hasTime?: boolean;
 }
+
+/**
+ * `InvestmentTransaction.note` of the synthetic `opening` the migration wrote
+ * for a legacy holding whose stored quantity exceeded what its buy/sell
+ * history explains. The UI shows it as "Dari data lama — lengkapi riwayat".
+ */
+export const LEGACY_RESIDUAL_NOTE = "legacy-residual";

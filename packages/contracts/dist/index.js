@@ -890,6 +890,9 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   // no assumption
 };
 
+// src/investments/investment.dto.ts
+var LEGACY_RESIDUAL_NOTE = "legacy-residual";
+
 // src/investments/markets.ts
 var INVESTMENT_MARKET_KEYS = [
   "IDX",
@@ -1536,6 +1539,7 @@ export {
   INVESTMENT_PLATFORMS,
   INVESTMENT_PRODUCT_KEYS,
   LEGACY_ACCESS_PRESETS,
+  LEGACY_RESIDUAL_NOTE,
   LOGIN_USERNAME_PATTERN,
   LoginInputSchema,
   MARKETS,
