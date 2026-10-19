@@ -321,7 +321,7 @@ function AccountFormBody({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <PanelContent variant="side" className="wm-form-panel rkf">
+      <PanelContent variant="side" size="lg" className="wm-form-panel rkf">
         <header className="wm-panel-head">
           <div className="min-w-0">
             <DialogTitle className="wm-panel-title">{title}</DialogTitle>
