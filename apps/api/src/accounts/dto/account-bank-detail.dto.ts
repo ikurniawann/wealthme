@@ -180,6 +180,17 @@ export class AccountBankDetailDto {
   @ApiPropertyOptional({ type: String, nullable: true })
   @ValidateIf(present)
   @IsString()
+  @MaxLength(120)
+  storageLocation?: string | null;
+
+  @ApiPropertyOptional({ type: Boolean })
+  @IsOptional()
+  @IsBoolean()
+  includeInNetWorth?: boolean;
+
+  @ApiPropertyOptional({ type: String, nullable: true })
+  @ValidateIf(present)
+  @IsString()
   @MinLength(1)
   beneficiaryUserId?: string | null;
 

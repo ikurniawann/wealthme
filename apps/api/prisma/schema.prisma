@@ -789,6 +789,15 @@ model Account {
   // Maturity date the reminder notification was already raised for, so the
   // lazy reminder (NotificationsService) fires once per maturity.
   maturityReminderSentFor   DateTime?                   @db.Date
+  // ── Kas & E-Wallet ────────────────────────────────────────────────────────
+  // Where a cash pile physically sits ("Brankas rumah", "Laci kantor").
+  storageLocation           String?                     @db.VarChar(120)
+  // "Masukkan ke total kekayaan": false keeps the balance on its own page
+  // but out of net worth (petty cash held for someone else, a float).
+  includeInNetWorth         Boolean                     @default(true)
+  // Last time someone confirmed the recorded balance matches reality
+  // ("Cocokkan saldo"). Null = never checked.
+  lastReconciledAt          DateTime?
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
   familyGroup               FamilyGroup                 @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)

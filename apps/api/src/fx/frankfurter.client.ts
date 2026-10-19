@@ -11,7 +11,7 @@ import { fetchWithTimeout } from "../common/utils/external-fetch.util";
 
 export const FRANKFURTER_SOURCE = "frankfurter";
 const FRANKFURTER_URL =
-  "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=IDR,USD,SGD,JPY,AUD,CNY";
+  "https://api.frankfurter.dev/v1/latest?base=EUR&symbols=IDR,USD,SGD,JPY,AUD,CNY,GBP,HKD,MYR,THB,PHP,KRW,INR";
 const FX_TIMEOUT_MS = 5_000;
 
 const positiveRate = z.number().positive().finite();
@@ -25,6 +25,13 @@ const ResponseSchema = z.object({
     JPY: positiveRate,
     AUD: positiveRate,
     CNY: positiveRate,
+    GBP: positiveRate,
+    HKD: positiveRate,
+    MYR: positiveRate,
+    THB: positiveRate,
+    PHP: positiveRate,
+    KRW: positiveRate,
+    INR: positiveRate,
   }),
 });
 
@@ -68,6 +75,13 @@ export class FrankfurterClient {
         JPY: cross(body.rates.JPY),
         AUD: cross(body.rates.AUD),
         CNY: cross(body.rates.CNY),
+        GBP: cross(body.rates.GBP),
+        HKD: cross(body.rates.HKD),
+        MYR: cross(body.rates.MYR),
+        THB: cross(body.rates.THB),
+        PHP: cross(body.rates.PHP),
+        KRW: cross(body.rates.KRW),
+        INR: cross(body.rates.INR),
       },
     };
   }

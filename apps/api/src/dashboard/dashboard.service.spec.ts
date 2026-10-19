@@ -17,6 +17,8 @@ interface FakeAccount {
   // EPIC-023 Task C — per-member ownership, needed by the row-scoped
   // viewer tests below. Optional so every pre-existing fixture stays valid.
   ownerUserId?: string | null;
+  // "Masukkan ke total kekayaan" — absent means true, like the column default.
+  includeInNetWorth?: boolean;
 }
 
 interface FakeCategory {
@@ -149,6 +151,7 @@ function makeFakePrisma(
         }: {
           where: {
             isPrivate?: boolean;
+            includeInNetWorth?: boolean;
             ownerUserId?: string;
             OR?: Array<{
               ownerUserId?: string | null;
@@ -161,6 +164,9 @@ function makeFakePrisma(
             where.isPrivate === false
               ? accounts.filter((a) => !a.isPrivate)
               : accounts;
+          if (where.includeInNetWorth === true) {
+            rows = rows.filter((a) => a.includeInNetWorth !== false);
+          }
           // EPIC-023 Task C — restrictedAccountWhere's ownership filter, now
           // an OR of "owned" / "shared with me" (Rekening v3) / "family
           // shared" legs. No fixture account is shared with anyone.
@@ -335,6 +341,30 @@ describe("DashboardService privacy enforcement", () => {
     expect(summary.recentTransactions.map((t) => t.id).sort()).toEqual(
       ["tx-private-account", "tx-private-category", "tx-visible"].sort(),
     );
+  });
+
+  it("keeps an account opted out of net worth out of every net-worth figure", async () => {
+    const accounts: FakeAccount[] = [
+      { id: "a1", balance: 300n, type: "cash", name: "A", isPrivate: false },
+      {
+        id: "a2",
+        balance: 900n,
+        type: "cash",
+        name: "Titipan",
+        isPrivate: false,
+        includeInNetWorth: false,
+      },
+    ];
+    const p = makeFakePrisma(accounts, [], []);
+    const mod = await Test.createTestingModule({
+      providers: [DashboardService, { provide: PrismaService, useValue: p }],
+    }).compile();
+    const svc = mod.get<DashboardService>(DashboardService);
+
+    const netWorth = await svc.getNetWorth(FAMILY_GROUP_ID, true);
+    expect(netWorth.accountsTotal).toBe("300");
+    const summary = await svc.getSummary(FAMILY_GROUP_ID, true);
+    expect(summary.netWorth).toBe(300);
   });
 
   it("classifies income/expense by COA direction, not tx.type (EPIC-017)", async () => {

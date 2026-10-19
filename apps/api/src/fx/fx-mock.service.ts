@@ -26,6 +26,13 @@ export class FxMockService extends FxPort {
     JPY: 0.0095,
     AUD: 0.000097,
     CNY: 0.000448,
+    GBP: 0.000048,
+    HKD: 0.00049,
+    MYR: 0.00029,
+    THB: 0.0021,
+    PHP: 0.0035,
+    KRW: 0.085,
+    INR: 0.0052,
   };
 
   async getRate(from: string, to: string): Promise<number> {

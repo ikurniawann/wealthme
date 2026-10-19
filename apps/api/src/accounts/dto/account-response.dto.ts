@@ -131,6 +131,11 @@ export class AccountResponseDto {
   @ApiPropertyOptional({ type: String, nullable: true }) notes?: string | null;
   @ApiPropertyOptional({ type: Boolean }) reportInTaxReturn?: boolean;
   @ApiPropertyOptional({ type: String, nullable: true })
+  storageLocation?: string | null;
+  @ApiPropertyOptional({ type: Boolean }) includeInNetWorth?: boolean;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  lastReconciledAt?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
   beneficiaryUserId?: string | null;
   @ApiPropertyOptional({ type: String, nullable: true })
   beneficiaryName?: string | null;

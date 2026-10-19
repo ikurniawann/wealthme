@@ -284,7 +284,7 @@ function wrapTabFocus(event: ReactKeyboardEvent<HTMLElement>) {
 }
 
 export function TransactionDialog() {
-  const { txnOpen, setTxnOpen } = useShell();
+  const { txnOpen, setTxnOpen, txnTab } = useShell();
   const { t, locale } = useLocale();
   const TABS = [
     t.shell.transactionDialog.tabIncome,
@@ -303,6 +303,15 @@ export function TransactionDialog() {
   const TAB_ICONS = [ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CreditCard];
   const [view, setView] = useState<View>("form");
   const [tab, setTab] = useState(1);
+  // A page can open the dialog on a given type ("Transfer" on Kas & E-Wallet):
+  // applied once per opening, during render (no effect cascade).
+  const [appliedTab, setAppliedTab] = useState<number | null>(null);
+  if (txnOpen && txnTab !== null && appliedTab !== txnTab) {
+    setAppliedTab(txnTab);
+    setTab(txnTab);
+  } else if (!txnOpen && appliedTab !== null) {
+    setAppliedTab(null);
+  }
   const amountField = useMoneyField();
   const money = useMoney();
   const [accountId, setAccountId] = useState("");

@@ -46,7 +46,7 @@ interface SearchResponseDto {
 }
 
 /** Revisi I — the input/display currency universe (matches apps/web/src/hooks/currencies.ts). */
-declare const FX_CURRENCY_CODES: readonly ["IDR", "USD", "SGD", "EUR", "JPY", "AUD", "CNY"];
+declare const FX_CURRENCY_CODES: readonly ["IDR", "USD", "SGD", "EUR", "JPY", "AUD", "CNY", "GBP", "HKD", "MYR", "THB", "PHP", "KRW", "INR"];
 type FxCurrencyCode = (typeof FX_CURRENCY_CODES)[number];
 type ForeignFxCurrencyCode = Exclude<FxCurrencyCode, "IDR">;
 declare const FOREIGN_FX_CURRENCY_CODES: ForeignFxCurrencyCode[];
@@ -219,6 +219,10 @@ declare const AccountDtoSchema: z.ZodObject<{
     isPrimary: z.ZodOptional<z.ZodBoolean>;
     notes: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     reportInTaxReturn: z.ZodOptional<z.ZodBoolean>;
+    storageLocation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    includeInNetWorth: z.ZodOptional<z.ZodBoolean>;
+    /** ISO timestamp of the last "Cocokkan saldo", or null. */
+    lastReconciledAt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     beneficiaryUserId: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     beneficiaryName: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     depositNumber: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -279,6 +283,9 @@ declare const AccountDtoSchema: z.ZodObject<{
     isPrimary?: boolean | undefined;
     notes?: string | null | undefined;
     reportInTaxReturn?: boolean | undefined;
+    storageLocation?: string | null | undefined;
+    includeInNetWorth?: boolean | undefined;
+    lastReconciledAt?: string | null | undefined;
     beneficiaryUserId?: string | null | undefined;
     beneficiaryName?: string | null | undefined;
     depositNumber?: string | null | undefined;
@@ -330,6 +337,9 @@ declare const AccountDtoSchema: z.ZodObject<{
     isPrimary?: boolean | undefined;
     notes?: string | null | undefined;
     reportInTaxReturn?: boolean | undefined;
+    storageLocation?: string | null | undefined;
+    includeInNetWorth?: boolean | undefined;
+    lastReconciledAt?: string | null | undefined;
     beneficiaryUserId?: string | null | undefined;
     beneficiaryName?: string | null | undefined;
     depositNumber?: string | null | undefined;
@@ -2538,18 +2548,18 @@ declare function convertToIdr(input: {
 /** IDR per 1 unit of X from two EUR-based ECB quotes, at FX_RATE_SCALE. */
 declare function deriveIdrPerUnit(eurToIdr: string, eurToX: string): string;
 
-declare const FxCurrencyCodeSchema: z.ZodEnum<["IDR", "USD", "SGD", "EUR", "JPY", "AUD", "CNY"]>;
+declare const FxCurrencyCodeSchema: z.ZodEnum<["IDR", "USD", "SGD", "EUR", "JPY", "AUD", "CNY", "GBP", "HKD", "MYR", "THB", "PHP", "KRW", "INR"]>;
 /** One money field typed in a foreign currency; the server converts it and overwrites `field`. */
 declare const FxInputSchema: z.ZodObject<{
     field: z.ZodString;
-    currency: z.ZodEnum<["USD", "SGD", "EUR", "JPY", "AUD", "CNY"]>;
+    currency: z.ZodEnum<["USD", "SGD", "EUR", "JPY", "AUD", "CNY", "GBP", "HKD", "MYR", "THB", "PHP", "KRW", "INR"]>;
     amount: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    currency: "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY";
+    currency: "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY" | "GBP" | "HKD" | "MYR" | "THB" | "PHP" | "KRW" | "INR";
     amount: string;
     field: string;
 }, {
-    currency: "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY";
+    currency: "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY" | "GBP" | "HKD" | "MYR" | "THB" | "PHP" | "KRW" | "INR";
     amount: string;
     field: string;
 }>;

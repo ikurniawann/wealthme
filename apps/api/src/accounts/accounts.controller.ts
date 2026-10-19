@@ -24,10 +24,18 @@ import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
 import { redactAccount } from "../common/utils/balance-visibility.util";
 import { canSeePrivateItems } from "../common/utils/privacy.util";
-import { accountBalanceSpec } from "../fx/fx-field-specs";
+import {
+  RECONCILE_BALANCE_SPEC,
+  accountBalanceSpec,
+} from "../fx/fx-field-specs";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FxInputService } from "../fx/fx-input.service";
 
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import {
+  AccountReconcileService,
+  type ReconcileResult,
+} from "./account-reconcile.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AccountsService, type AccountActor } from "./accounts.service";
 import { AccountResponseDto } from "./dto/account-response.dto";
@@ -35,6 +43,8 @@ import { AccountResponseDto } from "./dto/account-response.dto";
 import { CreateAccountDto } from "./dto/create-account.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ListAccountsQueryDto } from "./dto/list-accounts-query.dto";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { ReconcileAccountDto } from "./dto/reconcile-account.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { UpdateAccountDto } from "./dto/update-account.dto";
 
@@ -54,6 +64,7 @@ export class AccountsController {
   constructor(
     private readonly accountsService: AccountsService,
     private readonly fxInputs: FxInputService,
+    private readonly reconciler: AccountReconcileService,
   ) {}
 
   @Get()
@@ -157,6 +168,51 @@ export class AccountsController {
       .then((a) =>
         redactAccount(a, req.tenantContext?.member, req.tenantContext?.userId),
       );
+  }
+
+  @Post(":id/reconcile")
+  @CheckAbility((ab: AppAbility) => ab.can("manage", "Account"))
+  @ApiParam({ name: "familyGroupId", type: String })
+  @ApiParam({ name: "id", type: String })
+  @ApiOperation({
+    summary:
+      "Cocokkan saldo — book the difference to the counted balance and mark the account checked",
+  })
+  @ApiResponse({ status: 201 })
+  reconcile(
+    @Param("familyGroupId") familyGroupId: string,
+    @Param("id") id: string,
+    @Body() dto: ReconcileAccountDto,
+    @Req() req: Request,
+  ): Promise<ReconcileResult> {
+    const member = req.tenantContext?.member;
+    return this.fxInputs.run(
+      {
+        familyGroupId,
+        userId: req.tenantContext?.userId ?? null,
+        entity: "Account",
+        entityId: id,
+        dto,
+        spec: RECONCILE_BALANCE_SPEC,
+      },
+      (converted) =>
+        this.reconciler
+          .reconcile(
+            familyGroupId,
+            id,
+            converted.actualBalance,
+            member,
+            req.tenantContext?.userId,
+          )
+          .then((r) => ({
+            ...r,
+            account: redactAccount(
+              r.account,
+              member,
+              req.tenantContext?.userId,
+            ),
+          })),
+    );
   }
 
   @Delete(":id")

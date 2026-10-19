@@ -19,6 +19,13 @@ const CURRENCY_OPTIONS = [
   "JPY",
   "AUD",
   "CNY",
+  "GBP",
+  "HKD",
+  "MYR",
+  "THB",
+  "PHP",
+  "KRW",
+  "INR",
 ] as const;
 
 export class UpdateProfileDto {

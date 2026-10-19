@@ -1,3 +1,4 @@
+import { danaV3Id } from "./dana-v3";
 import { rekeningV3Id } from "./rekening-v3";
 import type { I18nDictionary } from "./types";
 
@@ -829,6 +830,13 @@ export const id = {
         JPY: { title: "JPY, Japanese Yen", name: "¥ · Yen Jepang" },
         AUD: { title: "AUD, Dollar Australia", name: "A$ · Dollar Australia" },
         CNY: { title: "CNY, Yuan Tiongkok", name: "CN¥ · Yuan Tiongkok" },
+        GBP: { title: "GBP, Pound Sterling", name: "£ · Pound Sterling" },
+        HKD: { title: "HKD, Dolar Hong Kong", name: "HK$ · Dolar Hong Kong" },
+        MYR: { title: "MYR, Ringgit Malaysia", name: "RM · Ringgit Malaysia" },
+        THB: { title: "THB, Baht Thailand", name: "฿ · Baht Thailand" },
+        PHP: { title: "PHP, Peso Filipina", name: "₱ · Peso Filipina" },
+        KRW: { title: "KRW, Won Korea", name: "₩ · Won Korea" },
+        INR: { title: "INR, Rupee India", name: "₹ · Rupee India" },
       },
       displaySectionTitle: "Bahasa & Tampilan",
       languageLabel: "Bahasa",
@@ -3042,6 +3050,7 @@ export const id = {
     groupOlder: "Lebih Lama",
   },
   dana: {
+    v3: danaV3Id,
     v2: {
       connected: "Akun terhubung",
       perInstrument: "Per instrumen",

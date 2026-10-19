@@ -31,6 +31,13 @@ const CURRENCY_SYMBOLS: Record<CurrencyCode, string> = {
   JPY: "¥",
   AUD: "A$",
   CNY: "CN¥",
+  GBP: "£",
+  HKD: "HK$",
+  MYR: "RM",
+  THB: "฿",
+  PHP: "₱",
+  KRW: "₩",
+  INR: "₹",
 };
 import { useGoldPrice } from "@/hooks/use-gold-price";
 import {

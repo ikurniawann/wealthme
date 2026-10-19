@@ -1,3 +1,4 @@
+import { danaV3En } from "./dana-v3";
 import { rekeningV3En } from "./rekening-v3";
 import type { I18nDictionary } from "./types";
 
@@ -822,6 +823,16 @@ export const en = {
           name: "A$ · Australian Dollar",
         },
         CNY: { title: "CNY, Chinese Yuan", name: "CN¥ · Chinese Yuan" },
+        GBP: { title: "GBP, British Pound", name: "£ · British Pound" },
+        HKD: { title: "HKD, Hong Kong Dollar", name: "HK$ · Hong Kong Dollar" },
+        MYR: {
+          title: "MYR, Malaysian Ringgit",
+          name: "RM · Malaysian Ringgit",
+        },
+        THB: { title: "THB, Thai Baht", name: "฿ · Thai Baht" },
+        PHP: { title: "PHP, Philippine Peso", name: "₱ · Philippine Peso" },
+        KRW: { title: "KRW, South Korean Won", name: "₩ · South Korean Won" },
+        INR: { title: "INR, Indian Rupee", name: "₹ · Indian Rupee" },
       },
       displaySectionTitle: "Language & Display",
       languageLabel: "Language",
@@ -2982,6 +2993,7 @@ export const en = {
     groupOlder: "Older",
   },
   dana: {
+    v3: danaV3En,
     v2: {
       connected: "Linked accounts",
       perInstrument: "Per instrument",

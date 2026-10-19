@@ -87,6 +87,10 @@ export const AccountDtoSchema = z.object({
   isPrimary: z.boolean().optional(),
   notes: z.string().nullable().optional(),
   reportInTaxReturn: z.boolean().optional(),
+  storageLocation: z.string().nullable().optional(),
+  includeInNetWorth: z.boolean().optional(),
+  /** ISO timestamp of the last "Cocokkan saldo", or null. */
+  lastReconciledAt: z.string().nullable().optional(),
   beneficiaryUserId: z.string().nullable().optional(),
   beneficiaryName: z.string().nullable().optional(),
   depositNumber: z.string().nullable().optional(),

@@ -355,6 +355,10 @@ var AccountDtoSchema = import_zod4.z.object({
   isPrimary: import_zod4.z.boolean().optional(),
   notes: import_zod4.z.string().nullable().optional(),
   reportInTaxReturn: import_zod4.z.boolean().optional(),
+  storageLocation: import_zod4.z.string().nullable().optional(),
+  includeInNetWorth: import_zod4.z.boolean().optional(),
+  /** ISO timestamp of the last "Cocokkan saldo", or null. */
+  lastReconciledAt: import_zod4.z.string().nullable().optional(),
   beneficiaryUserId: import_zod4.z.string().nullable().optional(),
   beneficiaryName: import_zod4.z.string().nullable().optional(),
   depositNumber: import_zod4.z.string().nullable().optional(),
@@ -1088,7 +1092,14 @@ var FX_CURRENCY_CODES = [
   "EUR",
   "JPY",
   "AUD",
-  "CNY"
+  "CNY",
+  "GBP",
+  "HKD",
+  "MYR",
+  "THB",
+  "PHP",
+  "KRW",
+  "INR"
 ];
 var FOREIGN_FX_CURRENCY_CODES = FX_CURRENCY_CODES.filter(
   (c) => c !== "IDR"
@@ -1100,7 +1111,14 @@ var FX_CURRENCY_DECIMALS = {
   EUR: 2,
   JPY: 0,
   AUD: 2,
-  CNY: 2
+  CNY: 2,
+  GBP: 2,
+  HKD: 2,
+  MYR: 2,
+  THB: 2,
+  PHP: 2,
+  KRW: 0,
+  INR: 2
 };
 var FX_RATE_SCALE = 6;
 

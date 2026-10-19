@@ -27,6 +27,13 @@ const CURRENCY_CONFIG: Record<string, CurrencyConfig> = {
   AUD: { symbol: "A$", decimals: 2 },
   // "CN¥" (not a bare "¥") so it never reads as JPY at a glance.
   CNY: { symbol: "CN¥", decimals: 2 },
+  GBP: { symbol: "£", decimals: 2 },
+  HKD: { symbol: "HK$", decimals: 2 },
+  MYR: { symbol: "RM", decimals: 2 },
+  THB: { symbol: "฿", decimals: 2 },
+  PHP: { symbol: "₱", decimals: 2 },
+  KRW: { symbol: "₩", decimals: 0 },
+  INR: { symbol: "₹", decimals: 2 },
 };
 
 /** Display symbol + decimal count for a currency code (IDR fallback). */

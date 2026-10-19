@@ -861,7 +861,11 @@ export class ReportsService {
     const [accounts, assetsList, liabilitiesList, investmentsList] =
       await Promise.all([
         this.prisma.account.findMany({
-          where: { familyGroupId, ...accountPrivacyWhere(canSeePrivate) },
+          where: {
+            familyGroupId,
+            ...accountPrivacyWhere(canSeePrivate),
+            includeInNetWorth: true,
+          },
           select: { name: true, type: true, balance: true },
         }),
         this.prisma.asset.findMany({

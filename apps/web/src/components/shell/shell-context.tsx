@@ -11,6 +11,10 @@ import {
 type ShellState = {
   txnOpen: boolean;
   setTxnOpen: (v: boolean) => void;
+  /** Tab the dialog opens on (0 income, 1 expense, 2 transfer, 3 card);
+   * null = its own default. Set by `openTxnAt`, consumed on open. */
+  txnTab: number | null;
+  openTxnAt: (tab: number) => void;
   searchOpen: boolean;
   setSearchOpen: (v: boolean) => void;
   /**
@@ -32,7 +36,16 @@ type ShellState = {
 const ShellContext = createContext<ShellState | null>(null);
 
 export function ShellProvider({ children }: { children: React.ReactNode }) {
-  const [txnOpen, setTxnOpen] = useState(false);
+  const [txnOpen, setTxnOpenState] = useState(false);
+  const [txnTab, setTxnTab] = useState<number | null>(null);
+  const setTxnOpen = useCallback((v: boolean) => {
+    setTxnOpenState(v);
+    if (!v) setTxnTab(null);
+  }, []);
+  const openTxnAt = useCallback((tab: number) => {
+    setTxnTab(tab);
+    setTxnOpenState(true);
+  }, []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [tourOpen, setTourOpen] = useState(false);
 
@@ -43,13 +56,24 @@ export function ShellProvider({ children }: { children: React.ReactNode }) {
     () => ({
       txnOpen,
       setTxnOpen,
+      txnTab,
+      openTxnAt,
       searchOpen,
       setSearchOpen,
       tourOpen,
       startTour,
       endTour,
     }),
-    [txnOpen, searchOpen, tourOpen, startTour, endTour],
+    [
+      txnOpen,
+      setTxnOpen,
+      txnTab,
+      openTxnAt,
+      searchOpen,
+      tourOpen,
+      startTour,
+      endTour,
+    ],
   );
 
   return (

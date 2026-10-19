@@ -82,6 +82,9 @@ export class DashboardService {
         familyGroupId,
         ...accountPrivacyWhere(canSeePrivate),
         ...restrictedAccountWhere(viewerRole, viewerUserId),
+        // "Masukkan ke total kekayaan" off: the account keeps its own page
+        // but stays out of every net-worth figure.
+        includeInNetWorth: true,
       },
       select: { balance: true, type: true, name: true },
     });
@@ -336,6 +339,7 @@ export class DashboardService {
         familyGroupId,
         ...accountPrivacyWhere(canSeePrivate),
         ...restrictedAccountWhere(viewerRole, viewerUserId),
+        includeInNetWorth: true,
       },
       select: { balance: true },
     });

@@ -466,6 +466,10 @@ export class AccountsService {
     if (dto.notes !== undefined) data.notes = cleanText(dto.notes);
     if (dto.reportInTaxReturn !== undefined)
       data.reportInTaxReturn = dto.reportInTaxReturn;
+    if (dto.storageLocation !== undefined)
+      data.storageLocation = cleanText(dto.storageLocation);
+    if (dto.includeInNetWorth !== undefined)
+      data.includeInNetWorth = dto.includeInNetWorth;
     if (dto.depositNumber !== undefined) {
       const bilyet = cleanText(dto.depositNumber);
       data.depositNumber = bilyet ? this.crypto.encrypt(bilyet) : null;
@@ -698,6 +702,11 @@ export class AccountsService {
       isPrimary: account.isPrimary ?? false,
       notes: account.notes ?? null,
       reportInTaxReturn: account.reportInTaxReturn ?? false,
+      storageLocation: account.storageLocation ?? null,
+      includeInNetWorth: account.includeInNetWorth ?? true,
+      lastReconciledAt: account.lastReconciledAt
+        ? account.lastReconciledAt.toISOString()
+        : null,
       beneficiaryUserId: account.beneficiaryUserId ?? null,
       beneficiaryName: account.beneficiaryName ?? null,
       depositNumber: decryptOrNull(account.depositNumber),

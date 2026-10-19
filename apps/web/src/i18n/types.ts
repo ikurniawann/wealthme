@@ -1,3 +1,4 @@
+import type { DanaV3Copy } from "./dana-v3";
 import type { RekeningV3Copy } from "./rekening-v3";
 import type {
   MobileNavId,
@@ -26,7 +27,21 @@ type AkunSubpageId =
   | "family";
 
 // EPIC-021 Group F (#1) — AUD + CNY added to the supported currency list.
-type AkunCurrencyCode = "IDR" | "USD" | "SGD" | "EUR" | "JPY" | "AUD" | "CNY";
+type AkunCurrencyCode =
+  | "IDR"
+  | "USD"
+  | "SGD"
+  | "EUR"
+  | "JPY"
+  | "AUD"
+  | "CNY"
+  | "GBP"
+  | "HKD"
+  | "MYR"
+  | "THB"
+  | "PHP"
+  | "KRW"
+  | "INR";
 
 /** A FAQ / help-copy answer with at most one bolded mid-sentence phrase. */
 type AkunRichAnswer = {
@@ -2870,6 +2885,8 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A6 — `/dana` (cash & e-wallet) page copy. */
   dana: {
+    /** Kas & E-Wallet v3 (dana-v3.ts). */
+    v3: DanaV3Copy;
     v2: {
       connected: string;
       perInstrument: string;

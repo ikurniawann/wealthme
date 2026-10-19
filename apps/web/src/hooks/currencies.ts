@@ -8,7 +8,14 @@ export type CurrencyCode =
   | "EUR"
   | "JPY"
   | "AUD"
-  | "CNY";
+  | "CNY"
+  | "GBP"
+  | "HKD"
+  | "MYR"
+  | "THB"
+  | "PHP"
+  | "KRW"
+  | "INR";
 
 export type ForeignCurrencyCode = Exclude<CurrencyCode, "IDR">;
 
@@ -20,6 +27,13 @@ export const CURRENCIES: readonly { code: CurrencyCode; symbol: string }[] = [
   { code: "JPY", symbol: "¥" },
   { code: "AUD", symbol: "A$" },
   { code: "CNY", symbol: "CN¥" },
+  { code: "GBP", symbol: "£" },
+  { code: "HKD", symbol: "HK$" },
+  { code: "MYR", symbol: "RM" },
+  { code: "THB", symbol: "฿" },
+  { code: "PHP", symbol: "₱" },
+  { code: "KRW", symbol: "₩" },
+  { code: "INR", symbol: "₹" },
 ];
 
 export const FOREIGN_CURRENCIES: readonly {

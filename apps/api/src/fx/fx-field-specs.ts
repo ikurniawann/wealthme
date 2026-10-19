@@ -62,3 +62,8 @@ export const FX_FIELD_SPECS = {
   goldPrice: { pricePerGram: { kind: "int", positive: true } },
   memberThreshold: { largeTxnThreshold: { kind: "int", positive: true } },
 } as const satisfies Record<string, FxFieldSpec>;
+
+/** "Cocokkan saldo" — the counted balance; cash may sit below zero. */
+export const RECONCILE_BALANCE_SPEC: FxFieldSpec = {
+  actualBalance: { kind: "int", allowNegative: true },
+};
