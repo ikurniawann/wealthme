@@ -26,7 +26,7 @@ const DEFAULT_MAX_ATTEMPTS = 3;
  * where a third call site should reach for the pattern instead of
  * re-inlining it a second time.
  *
- * Retryable errors: P2034 (serialization failure Postgres raises when
+ * Retryable errors (see isRetryableTxError): P2034 (serialization failure Postgres raises when
  * Serializable isolation detects a conflicting concurrent write) and
  * P2002 (a concurrent unique-constraint race, e.g. two callers both
  * self-healing the same missing row) — both are rolled back and retried
@@ -35,6 +35,25 @@ const DEFAULT_MAX_ATTEMPTS = 3;
  * `createCategoryOrUseRaceWinner` comment). Any other error is rethrown
  * immediately; both known codes are rethrown once `maxAttempts` is spent.
  */
+/** SQLSTATEs of a lost Serializable race: serialization failure, deadlock. */
+const RETRYABLE_SQLSTATES = new Set(["40001", "40P01"]);
+
+/**
+ * P2034 / P2002 as above, plus P2010 — Prisma's "raw query failed" — when
+ * the raw query (e.g. `SELECT … FOR UPDATE` waiting on a row a concurrent
+ * transaction updated) failed with a serialization failure (40001) or a
+ * deadlock (40P01). Prisma reports those as P2010 with the SQLSTATE in
+ * `meta.code` rather than as P2034, but they are the same transient
+ * conflict: the whole transaction rolled back and is safe to re-run.
+ */
+export function isRetryableTxError(err: unknown): boolean {
+  if (!(err instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (err.code === "P2034" || err.code === "P2002") return true;
+  if (err.code !== "P2010") return false;
+  const meta = err.meta as { code?: unknown } | undefined;
+  return typeof meta?.code === "string" && RETRYABLE_SQLSTATES.has(meta.code);
+}
+
 export async function runSerializableWithRetry<T>(
   prisma: PrismaService,
   fn: (tx: TxClient) => Promise<T>,
@@ -46,9 +65,7 @@ export async function runSerializableWithRetry<T>(
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (err) {
-      const isRetryable =
-        err instanceof Prisma.PrismaClientKnownRequestError &&
-        (err.code === "P2034" || err.code === "P2002");
+      const isRetryable = isRetryableTxError(err);
       if (!isRetryable || attempt === maxAttempts) {
         throw err;
       }

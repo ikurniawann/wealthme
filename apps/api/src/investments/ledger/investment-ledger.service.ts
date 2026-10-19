@@ -3,14 +3,12 @@ import { randomUUID } from "node:crypto";
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
-import { isRowScoped } from "../../common/utils/privacy.util";
 import { runSerializableWithRetry } from "../../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../../prisma/prisma.service";
@@ -34,8 +32,11 @@ import {
   loadCashTimeline,
   lockAccounts,
   mergeEdit,
+  payloadMatches,
   proposedToLedgerRow,
   removeCashLeg,
+  removeLegacySiblings,
+  assertUsableCashAccount,
   round2,
   rowKey,
   storedToLedgerRow,
@@ -54,6 +55,7 @@ import type {
   InvestmentLedgerConflictCode,
   InvestmentLedgerConflictItem,
   InvestmentLedgerResultDto,
+  InvestmentTransactionDto,
   UpdateInvestmentLedgerInput,
   VoidInvestmentLedgerInput,
 } from "@wealthme/contracts";
@@ -62,6 +64,8 @@ export type { LedgerActor } from "./ledger-support";
 
 const D = Prisma.Decimal;
 const AUDIT_ENTITY = "investment_transaction";
+/** Lock waits on a busy pocket can lose several Serializable races. */
+const LEDGER_TX_ATTEMPTS = 5;
 
 type Change =
   | {
@@ -101,65 +105,73 @@ export class InvestmentLedgerService {
     investmentId: string,
     input: CreateInvestmentLedgerInput,
     actor: LedgerActor,
+    options: { strictPocket?: boolean } = {},
   ): Promise<InvestmentLedgerResultDto> {
-    return runSerializableWithRetry(this.prisma, async (tx) => {
-      const existing = await tx.investmentTransaction.findUnique({
-        where: {
-          familyGroupId_idempotencyKey: {
-            familyGroupId,
+    const strictPocket = options.strictPocket ?? true;
+    return runSerializableWithRetry(
+      this.prisma,
+      async (tx) => {
+        const existing = await tx.investmentTransaction.findUnique({
+          where: {
+            familyGroupId_idempotencyKey: {
+              familyGroupId,
+              idempotencyKey: input.idempotencyKey,
+            },
+          },
+        });
+        if (existing) {
+          if (
+            existing.investmentId !== investmentId ||
+            existing.kind !== input.kind ||
+            !(await this.samePayload(tx, existing, input))
+          ) {
+            throw new ConflictException({
+              statusCode: 409,
+              code: "IDEMPOTENCY_KEY_REUSED",
+              message:
+                "idempotencyKey ini sudah dipakai untuk transaksi dengan isi berbeda. Buka ulang formulir untuk membuat kunci baru.",
+            });
+          }
+          return {
+            replayed: true,
+            transaction: toTransactionDto(existing),
+            holding: await this.holdingState(tx, investmentId),
+          };
+        }
+
+        const investment = await this.lockInvestment(
+          tx,
+          familyGroupId,
+          investmentId,
+        );
+        const row = normalizeLedgerInput(
+          input,
+          holdingConfig(investment),
+          jakartaTodayYmd(),
+        );
+        const written = await this.applyChange(
+          tx,
+          familyGroupId,
+          investment,
+          {
+            type: "create",
+            id: randomUUID(),
+            createdAt: new Date(),
+            row,
             idempotencyKey: input.idempotencyKey,
           },
-        },
-      });
-      if (existing) {
-        if (
-          existing.investmentId !== investmentId ||
-          existing.kind !== input.kind
-        ) {
-          throw new ConflictException({
-            statusCode: 409,
-            code: "IDEMPOTENCY_KEY_REUSED",
-            message:
-              "idempotencyKey ini sudah dipakai untuk transaksi lain. Buka ulang formulir untuk membuat kunci baru.",
-          });
-        }
+          actor,
+          null,
+          strictPocket,
+        );
         return {
-          replayed: true,
-          transaction: toTransactionDto(existing),
+          replayed: false,
+          transaction: toTransactionDto(written),
           holding: await this.holdingState(tx, investmentId),
         };
-      }
-
-      const investment = await this.lockInvestment(
-        tx,
-        familyGroupId,
-        investmentId,
-      );
-      const row = normalizeLedgerInput(
-        input,
-        holdingConfig(investment),
-        jakartaTodayYmd(),
-      );
-      const written = await this.applyChange(
-        tx,
-        familyGroupId,
-        investment,
-        {
-          type: "create",
-          id: randomUUID(),
-          createdAt: new Date(),
-          row,
-          idempotencyKey: input.idempotencyKey,
-        },
-        actor,
-        null,
-      );
-      return {
-        replayed: false,
-        transaction: toTransactionDto(written),
-        holding: await this.holdingState(tx, investmentId),
-      };
-    });
+      },
+      LEDGER_TX_ATTEMPTS,
+    );
   }
 
   async update(
@@ -169,37 +181,41 @@ export class InvestmentLedgerService {
     input: UpdateInvestmentLedgerInput,
     actor: LedgerActor,
   ): Promise<InvestmentLedgerResultDto> {
-    return runSerializableWithRetry(this.prisma, async (tx) => {
-      const investment = await this.lockInvestment(
-        tx,
-        familyGroupId,
-        investmentId,
-      );
-      const existing = await this.findRow(tx, investmentId, transactionId);
-      if (existing.status === "void") {
-        throw new ConflictException(
-          "Transaksi yang sudah dibatalkan tidak dapat diubah",
+    return runSerializableWithRetry(
+      this.prisma,
+      async (tx) => {
+        const investment = await this.lockInvestment(
+          tx,
+          familyGroupId,
+          investmentId,
         );
-      }
-      const row = normalizeLedgerInput(
-        mergeEdit(existing, input),
-        holdingConfig(investment),
-        jakartaTodayYmd(),
-      );
-      const written = await this.applyChange(
-        tx,
-        familyGroupId,
-        investment,
-        { type: "edit", existing, row },
-        actor,
-        input.reason ?? null,
-      );
-      return {
-        replayed: false,
-        transaction: toTransactionDto(written),
-        holding: await this.holdingState(tx, investmentId),
-      };
-    });
+        const existing = await this.findRow(tx, investmentId, transactionId);
+        if (existing.status === "void") {
+          throw new ConflictException(
+            "Transaksi yang sudah dibatalkan tidak dapat diubah",
+          );
+        }
+        const row = normalizeLedgerInput(
+          mergeEdit(existing, input),
+          holdingConfig(investment),
+          jakartaTodayYmd(),
+        );
+        const written = await this.applyChange(
+          tx,
+          familyGroupId,
+          investment,
+          { type: "edit", existing, row },
+          actor,
+          input.reason ?? null,
+        );
+        return {
+          replayed: false,
+          transaction: toTransactionDto(written),
+          holding: await this.holdingState(tx, investmentId),
+        };
+      },
+      LEDGER_TX_ATTEMPTS,
+    );
   }
 
   async void(
@@ -209,35 +225,39 @@ export class InvestmentLedgerService {
     input: VoidInvestmentLedgerInput,
     actor: LedgerActor,
   ): Promise<InvestmentLedgerResultDto> {
-    return runSerializableWithRetry(this.prisma, async (tx) => {
-      const investment = await this.lockInvestment(
-        tx,
-        familyGroupId,
-        investmentId,
-      );
-      const existing = await this.findRow(tx, investmentId, transactionId);
-      if (existing.status === "void") {
-        // Voiding twice is a no-op (a retried click), not an error.
+    return runSerializableWithRetry(
+      this.prisma,
+      async (tx) => {
+        const investment = await this.lockInvestment(
+          tx,
+          familyGroupId,
+          investmentId,
+        );
+        const existing = await this.findRow(tx, investmentId, transactionId);
+        if (existing.status === "void") {
+          // Voiding twice is a no-op (a retried click), not an error.
+          return {
+            replayed: true,
+            transaction: toTransactionDto(existing),
+            holding: await this.holdingState(tx, investmentId),
+          };
+        }
+        const written = await this.applyChange(
+          tx,
+          familyGroupId,
+          investment,
+          { type: "void", existing, reason: input.reason ?? null },
+          actor,
+          input.reason ?? null,
+        );
         return {
-          replayed: true,
-          transaction: toTransactionDto(existing),
+          replayed: false,
+          transaction: toTransactionDto(written),
           holding: await this.holdingState(tx, investmentId),
         };
-      }
-      const written = await this.applyChange(
-        tx,
-        familyGroupId,
-        investment,
-        { type: "void", existing, reason: input.reason ?? null },
-        actor,
-        input.reason ?? null,
-      );
-      return {
-        replayed: false,
-        transaction: toTransactionDto(written),
-        holding: await this.holdingState(tx, investmentId),
-      };
-    });
+      },
+      LEDGER_TX_ATTEMPTS,
+    );
   }
 
   /**
@@ -326,6 +346,42 @@ export class InvestmentLedgerService {
     );
   }
 
+  /**
+   * R7 — a replayed key must carry the same request. The original request
+   * is the `create` audit row's payload (the row itself may have been
+   * edited since), else the stored row. Compared after normalization, so
+   * "100" and "100.00" or an omitted default match.
+   */
+  private async samePayload(
+    tx: TxClient,
+    existing: InvestmentTransaction,
+    input: CreateInvestmentLedgerInput,
+  ): Promise<boolean> {
+    const investment = await tx.investment.findUnique({
+      where: { id: existing.investmentId },
+    });
+    if (!investment) return false;
+    let row: ProposedRow;
+    try {
+      row = normalizeLedgerInput(
+        input,
+        holdingConfig(investment),
+        jakartaTodayYmd(),
+      );
+    } catch {
+      return false;
+    }
+    const audit = await tx.auditLog.findFirst({
+      where: { entity: AUDIT_ENTITY, entityId: existing.id, action: "create" },
+      orderBy: { createdAt: "asc" },
+      select: { after: true },
+    });
+    const original =
+      (audit?.after as Partial<InvestmentTransactionDto> | null) ??
+      toTransactionDto(existing);
+    return payloadMatches(row, original);
+  }
+
   // ── core ──────────────────────────────────────────────────────────────────
 
   private async applyChange(
@@ -335,6 +391,10 @@ export class InvestmentLedgerService {
     change: Change,
     actor: LedgerActor,
     reason: string | null,
+    // /ledger writes must use a kantong dana of the trade currency on the
+    // holding's platform; only the legacy buy/sell endpoint keeps the old
+    // "any non-property cash account" rule.
+    strictPocket = true,
   ): Promise<InvestmentTransaction> {
     const selfId = change.type === "create" ? change.id : change.existing.id;
     const selfCreatedAt =
@@ -371,11 +431,24 @@ export class InvestmentLedgerService {
     const accounts = await lockAccounts(tx, familyGroupId, accountIds);
     const previousCashAccountId =
       change.type === "create" ? null : change.existing.cashAccountId;
-    if (nextCashAccountId && nextCashAccountId !== previousCashAccountId) {
-      await this.assertUsableCashAccount(
+    const previousCurrency =
+      change.type === "create" ? null : change.existing.currency;
+    if (
+      nextCashAccountId &&
+      change.type !== "void" &&
+      (nextCashAccountId !== previousCashAccountId ||
+        (strictPocket && change.row.currency !== previousCurrency))
+    ) {
+      await assertUsableCashAccount(
         tx,
         accounts.get(nextCashAccountId),
         actor,
+        strictPocket
+          ? {
+              currency: change.row.currency,
+              platformAccountId: investment.platformAccountId,
+            }
+          : null,
       );
     }
     const selfKeyAfter =
@@ -396,6 +469,10 @@ export class InvestmentLedgerService {
         oldKey: oldLeg?.accountId === accountId ? selfKeyBefore : null,
         newKey: newLegBase?.accountId === accountId ? selfKeyAfter : null,
         newDelta: newLegBase?.accountId === accountId ? newLegBase.delta : null,
+        dropIds:
+          oldLeg?.accountId === accountId
+            ? oldLeg.legacySiblings.map((x) => x.id)
+            : [],
         newHeld:
           newLegBase?.accountId === accountId &&
           change.type !== "void" &&
@@ -419,6 +496,7 @@ export class InvestmentLedgerService {
     const before = change.type === "create" ? null : change.existing;
     let written: InvestmentTransaction;
     if (change.type === "void") {
+      await removeLegacySiblings(tx, familyGroupId, oldLeg);
       await removeCashLeg(tx, familyGroupId, oldLeg);
       written = await tx.investmentTransaction.update({
         where: { id: selfId },
@@ -431,6 +509,7 @@ export class InvestmentLedgerService {
         },
       });
     } else {
+      await removeLegacySiblings(tx, familyGroupId, oldLeg);
       const cashTransactionId = await writeCashLeg(
         tx,
         familyGroupId,
@@ -552,39 +631,6 @@ export class InvestmentLedgerService {
 
   // ── cash ──────────────────────────────────────────────────────────────────
 
-  private async assertUsableCashAccount(
-    tx: TxClient,
-    account: LockedAccount | undefined,
-    actor: LedgerActor,
-  ): Promise<void> {
-    if (!account) throw new NotFoundException("Kantong dana tidak ditemukan");
-    if (account.status === "closed") {
-      throw new BadRequestException(
-        "Rekening ini sudah ditutup. Ubah statusnya dulu untuk mencatat transaksi baru.",
-      );
-    }
-    if (account.type === "property") {
-      throw new BadRequestException(
-        "Akun properti tidak dapat dipakai sebagai sumber dana investasi",
-      );
-    }
-    const member = actor.member;
-    if (!member || !isRowScoped(member)) return;
-    if (account.ownerUserId === member.userId) return;
-    if (!account.isPrivate) {
-      const share = await tx.accountShare.findUnique({
-        where: {
-          accountId_userId: { accountId: account.id, userId: member.userId },
-        },
-        select: { canPost: true },
-      });
-      if (share?.canPost) return;
-    }
-    throw new ForbiddenException(
-      "This role may only record transactions on an account they own",
-    );
-  }
-
   /**
    * Rebuilds `account`'s timeline from the earliest changed point and
    * refuses the write when available cash goes negative there or later.
@@ -599,16 +645,30 @@ export class InvestmentLedgerService {
       newKey: LedgerSortKey | null;
       newDelta: bigint | null;
       newHeld: { settlementDate: string; proceeds: bigint } | null;
+      /** Legacy gain/loss sibling rows the write deletes. */
+      dropIds: string[];
     },
   ): Promise<void> {
     const keys = [p.oldKey, p.newKey].filter(
       (k): k is LedgerSortKey => k !== null,
     );
-    const [from] = keys.sort(compareLedgerKey);
-    if (!from) return;
-    const before = await loadCashTimeline(tx, familyGroupId, account.id, from);
+    const [earliest] = keys.sort(compareLedgerKey);
+    if (!earliest) return;
+    const before = await loadCashTimeline(
+      tx,
+      familyGroupId,
+      account.id,
+      earliest,
+    );
+    const dropped = new Set([p.selfId, ...p.dropIds]);
+    // A dropped legacy sibling may sort before the row's own key (it has a
+    // time, the row may be date-only): check from whichever comes first.
+    const from = [
+      earliest,
+      ...before.movements.filter((m) => dropped.has(m.id)).map((m) => m.key),
+    ].sort(compareLedgerKey)[0] as LedgerSortKey;
     const after: CashTimeline = {
-      movements: before.movements.filter((m) => m.id !== p.selfId),
+      movements: before.movements.filter((m) => !dropped.has(m.id)),
       held: before.held.filter((h) => h.id !== p.selfId),
     };
     if (p.newKey && p.newDelta !== null) {

@@ -810,6 +810,8 @@ export class InvestmentsService {
         cashAccountId: dto.accountId ?? null,
       },
       actor,
+      // Legacy form: any non-property cash account (a bank account too).
+      { strictPocket: false },
     );
 
     this.logger.log(

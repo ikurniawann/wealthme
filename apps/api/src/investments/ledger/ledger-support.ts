@@ -1,5 +1,12 @@
-import { ConflictException, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
 import { Prisma } from "@prisma/client";
+
+import { isRowScoped } from "../../common/utils/privacy.util";
 
 import {
   cashKeyParts,
@@ -29,6 +36,7 @@ import type {
   TransactionType,
 } from "@prisma/client";
 import type {
+  InvestmentTransactionDto,
   InvestmentLedgerConflictDto,
   InvestmentMarket,
   UpdateInvestmentLedgerInput,
@@ -63,7 +71,16 @@ export interface CashLeg {
   delta: bigint;
   txType: TransactionType;
   cashTransactionId: string | null;
+  /**
+   * Pre-Task 7 sells: the unlinked "Untung jual …" income / "Rugi jual …"
+   * expense row the old endpoint wrote next to the leg. Removed together
+   * with the leg on edit/void so the gain is never counted twice.
+   */
+  legacySiblings: { id: string; delta: bigint }[];
 }
+
+/** A leg about to be written (no stored row yet). */
+export type NewCashLeg = Omit<CashLeg, "cashTransactionId" | "legacySiblings">;
 
 export interface LockedAccount {
   id: string;
@@ -73,6 +90,8 @@ export interface LockedAccount {
   status: string;
   ownerUserId: string | null;
   isPrivate: boolean;
+  currency: string;
+  platformAccountId: string | null;
 }
 
 export function round2(d: Prisma.Decimal): Prisma.Decimal {
@@ -138,9 +157,7 @@ export function proposedToLedgerRow(
 }
 
 /** IDR cash leg a proposed row moves, or null (no pocket / nothing moves). */
-export function legOf(
-  row: ProposedRow,
-): Omit<CashLeg, "cashTransactionId"> | null {
+export function legOf(row: ProposedRow): NewCashLeg | null {
   if (!row.cashAccountId) return null;
   if (row.kind === "opening" || row.kind === "corporate_action") return null;
   const amount = cashIdr(row.netAmount, row.currency, row.fxRate);
@@ -170,7 +187,8 @@ export async function lockAccounts(
   if (ids.length === 0) return out;
   const rows = await tx.$queryRaw<LockedAccount[]>`
     SELECT "id", "balance", "name", "type"::text AS "type",
-           "status"::text AS "status", "ownerUserId", "isPrivate"
+           "status"::text AS "status", "ownerUserId", "isPrivate",
+           "currency", "platformAccountId"
     FROM "accounts"
     WHERE "id" IN (${Prisma.join(ids)}) AND "familyGroupId" = ${familyGroupId}
     ORDER BY "id"
@@ -377,7 +395,13 @@ export async function existingCashLeg(
   if (!row.cashAccountId || !row.cashTransactionId) return null;
   const cash = await tx.transaction.findUnique({
     where: { id: row.cashTransactionId },
-    select: { id: true, amount: true, type: true },
+    select: {
+      id: true,
+      amount: true,
+      type: true,
+      description: true,
+      occurredAt: true,
+    },
   });
   if (!cash) return null;
   const out = row.kind === "buy";
@@ -386,7 +410,82 @@ export async function existingCashLeg(
     delta: out ? -cash.amount : cash.amount,
     txType: cash.type,
     cashTransactionId: cash.id,
+    legacySiblings:
+      row.kind === "sell"
+        ? await legacySellSiblings(tx, row, row.cashAccountId, cash)
+        : [],
   };
+}
+
+/**
+ * The old buy/sell endpoint (Task 5 → Task 7) booked a sell as a transfer
+ * leg of `gross − gain + loss` (the cost portion) plus an unlinked
+ * "Untung jual <label>" income or "Rugi jual <label>" expense row on the
+ * same account at the same occurredAt. A leg whose amount already equals
+ * the row's net proceeds is the current shape (no sibling). Otherwise the
+ * sibling must be identified exactly — one row, and leg ± sibling = net
+ * proceeds — or the write is refused (409) for a manual correction.
+ */
+async function legacySellSiblings(
+  tx: TxClient,
+  row: InvestmentTransaction,
+  accountId: string,
+  cash: { amount: bigint; description: string | null; occurredAt: Date },
+): Promise<{ id: string; delta: bigint }[]> {
+  const expected = cashIdr(row.netAmount, row.currency, row.fxRate);
+  if (expected === null || cash.amount === expected) return [];
+  const label = cash.description?.startsWith("Jual ")
+    ? cash.description.slice("Jual ".length)
+    : null;
+  const candidates = label
+    ? await tx.transaction.findMany({
+        where: {
+          familyGroupId: row.familyGroupId,
+          accountId,
+          occurredAt: cash.occurredAt,
+          OR: [
+            { type: "income", description: `Untung jual ${label}` },
+            { type: "expense", description: `Rugi jual ${label}` },
+          ],
+        },
+        select: { id: true, type: true, amount: true },
+      })
+    : [];
+  const [sibling] = candidates;
+  const siblingDelta = sibling
+    ? sibling.type === "income"
+      ? sibling.amount
+      : -sibling.amount
+    : BigInt(0);
+  if (
+    candidates.length !== 1 ||
+    !sibling ||
+    cash.amount + siblingDelta !== expected
+  ) {
+    throw new ConflictException({
+      statusCode: 409,
+      code: "LEGACY_CASH_LEG",
+      message:
+        "Arus kas penjualan ini dicatat dengan format lama dan baris untung/rugi pendampingnya tidak dapat dikenali dengan pasti. Koreksi manual diperlukan: sesuaikan transaksi kas terkait, lalu ulangi.",
+    });
+  }
+  return [{ id: sibling.id, delta: siblingDelta }];
+}
+
+/** Deletes a legacy sell's gain/loss sibling rows and reverts their effect. */
+export async function removeLegacySiblings(
+  tx: TxClient,
+  familyGroupId: string,
+  leg: CashLeg | null,
+): Promise<void> {
+  if (!leg) return;
+  for (const sibling of leg.legacySiblings) {
+    await tx.transaction.delete({ where: { id: sibling.id } });
+    await tx.account.update({
+      where: { id: leg.accountId, familyGroupId },
+      data: { balance: { increment: -sibling.delta } },
+    });
+  }
 }
 
 export async function removeCashLeg(
@@ -409,7 +508,7 @@ export async function writeCashLeg(
   investment: Investment,
   row: ProposedRow,
   oldLeg: CashLeg | null,
-  newLeg: Omit<CashLeg, "cashTransactionId"> | null,
+  newLeg: NewCashLeg | null,
   actor: LedgerActor,
 ): Promise<string | null> {
   const occurredAt = ledgerInstant(
@@ -490,4 +589,91 @@ function cashDescription(investment: Investment, row: ProposedRow): string {
   if (label) return `${label} ${investment.ticker}`;
   const verb = row.kind === "buy" ? "Beli" : "Jual";
   return `${verb} ${row.quantity.toString()} ${investment.ticker} @ ${row.pricePerUnit.toString()} ${row.currency}`;
+}
+
+/** R7 — does a normalized request equal the stored original payload? */
+export function payloadMatches(
+  row: ProposedRow,
+  o: Partial<InvestmentTransactionDto>,
+): boolean {
+  const decEq = (
+    a: Prisma.Decimal | null,
+    b: string | null | undefined,
+  ): boolean =>
+    a === null ? b === null || b === undefined : !!b && a.equals(new D(b));
+  return (
+    decEq(row.quantity, o.quantity) &&
+    decEq(row.pricePerUnit, o.pricePerUnit) &&
+    decEq(row.grossAmount, o.grossAmount) &&
+    decEq(row.fee, o.fee) &&
+    decEq(row.tax, o.tax) &&
+    decEq(row.fxRate, o.fxRate) &&
+    row.currency === o.currency &&
+    row.effectiveDate === o.effectiveDate &&
+    row.effectiveTime === (o.effectiveTime ?? null) &&
+    row.cashAccountId === (o.cashAccountId ?? null) &&
+    row.settlementDate === (o.settlementDate ?? null)
+  );
+}
+
+/**
+ * The account a write moves cash on. Always: exists in the family, open,
+ * not property, and a row-scoped member may post on it (owner or canPost
+ * share, as in TransactionsService). With `pocketRule` (every /ledger
+ * write) it must also be a kantong dana: an `investment` account linked to
+ * a platform, in the trade currency, on the holding's platform when the
+ * holding has one.
+ */
+export async function assertUsableCashAccount(
+  tx: TxClient,
+  account: LockedAccount | undefined,
+  actor: LedgerActor,
+  pocketRule: { currency: string; platformAccountId: string | null } | null,
+): Promise<void> {
+  if (!account) throw new NotFoundException("Kantong dana tidak ditemukan");
+  if (pocketRule) {
+    if (account.type !== "investment" || !account.platformAccountId) {
+      throw new BadRequestException(
+        "Pilih kantong dana platform (rekening dana investasi), bukan rekening bank/e-wallet/kas. Pindahkan dana lewat top up.",
+      );
+    }
+    if (account.currency !== pocketRule.currency) {
+      throw new BadRequestException(
+        `Mata uang kantong dana (${account.currency}) harus sama dengan mata uang transaksi (${pocketRule.currency})`,
+      );
+    }
+    if (
+      pocketRule.platformAccountId &&
+      account.platformAccountId !== pocketRule.platformAccountId
+    ) {
+      throw new BadRequestException(
+        "Kantong dana harus berasal dari akun platform yang sama dengan investasi ini",
+      );
+    }
+  }
+  if (account.status === "closed") {
+    throw new BadRequestException(
+      "Rekening ini sudah ditutup. Ubah statusnya dulu untuk mencatat transaksi baru.",
+    );
+  }
+  if (account.type === "property") {
+    throw new BadRequestException(
+      "Akun properti tidak dapat dipakai sebagai sumber dana investasi",
+    );
+  }
+  const member = actor.member;
+  if (!member || !isRowScoped(member)) return;
+  if (account.ownerUserId === member.userId) return;
+  if (!account.isPrivate) {
+    const share = await tx.accountShare.findUnique({
+      where: {
+        accountId_userId: { accountId: account.id, userId: member.userId },
+      },
+      select: { canPost: true },
+    });
+    if (share?.canPost) return;
+  }
+  throw new ForbiddenException(
+    "This role may only record transactions on an account they own",
+  );
 }
