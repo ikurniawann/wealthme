@@ -1,17 +1,12 @@
 /**
- * EPIC-022 A2 — "Negative cash balance sign is silently flipped". /rekening
- * lists every account type (including `cash`), but always opened the
- * "Rekening Bank" CRUD entity for editing — whose "Saldo" field has no
- * `allowNegative`, so a cash account holding e.g. -Rp 75.000 pre-filled the
- * edit form as +75.000, and an untouched save re-persisted the positive
- * sign with a success toast. This locks in the fix: a `cash` account now
- * opens the "cash" CRUD entity (the one already used correctly by /dana),
- * preserves the sign, and resends `type: "cash"` on the PATCH so the API's
- * per-type negative-balance allowance still applies on a partial update.
+ * Rekening v3 — /rekening as a wealth register: accounts grouped per bank,
+ * filter v2, "Perlu perhatian", and the banking form (holder, product,
+ * deposit terms, shares). Balances never travel on an edit.
  */
 
 import { ShellProvider } from "../../../components/shell/shell-context";
 import type { ReactElement, ReactNode } from "react";
+import { toast } from "sonner";
 import { resolveEffectiveAccess } from "@wealthme/contracts";
 import {
   render as rtlRender,
@@ -142,14 +137,23 @@ function buildAccount(overrides: Partial<AccountDto> = {}): AccountDto {
 function mockApiRoutes(
   accounts: AccountDto[],
   referenceItems: ReferenceItemDto[] = [],
+  members: Array<Record<string, unknown>> = [
+    { userId: "user-1", name: "Test User", role: "owner", dataScope: "all" },
+    {
+      userId: "user-rina",
+      name: "Rina S.",
+      role: "operational",
+      dataScope: "own",
+    },
+  ],
 ) {
   mockApiFetch.mockImplementation(
     (path: string, options?: { method?: string }) => {
-      if (options?.method === "PATCH") {
-        return Promise.resolve({ id: "acc-1" });
+      if (options?.method === "PATCH" || options?.method === "POST") {
+        return Promise.resolve({ id: "acc-new" });
       }
       if (path.endsWith("/members")) {
-        return Promise.resolve([]);
+        return Promise.resolve(members);
       }
       if (path.startsWith("/fx/rates")) {
         return Promise.resolve({ base: "IDR", rates: {} });
@@ -185,13 +189,26 @@ function buildBankItem(
   };
 }
 
-describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
+function callsWith(method: string) {
+  return mockApiFetch.mock.calls.filter((call) => call[1]?.method === method);
+}
+
+function bodyOf(call: unknown[]): Record<string, unknown> {
+  return JSON.parse((call[1] as { body: string }).body) as Record<
+    string,
+    unknown
+  >;
+}
+
+describe("RekeningPage — Rekening v3", () => {
   beforeEach(() => {
-    // `resetAllMocks` (not `clearAllMocks`) — a prior test's queued
-    // `mockResolvedValueOnce`/`mockImplementation` must not survive.
     jest.resetAllMocks();
     queryClient.clear();
-
+    try {
+      window.localStorage.clear();
+    } catch {
+      /* ignore */
+    }
     mockUseSessionAuth.mockReturnValue({
       data: {
         session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
@@ -201,207 +218,239 @@ describe("RekeningPage, ownership labels and bank edit (EPIC-022 A2)", () => {
     });
   });
 
-  // Revisi — a family-shared account is labelled "Bersama"; an owned one
-  // shows its owner instead.
-  it("labels a family-shared account 'Bersama' and an owned one by owner", async () => {
+  it("groups accounts per bank with the bank total, and labels family-shared ones", async () => {
     mockApiRoutes([
-      buildAccount({ id: "acc-shared", name: "Tabungan Keluarga" }),
+      buildAccount({ id: "a1", name: "Tabungan Keluarga", balance: "300000" }),
       buildAccount({
-        id: "acc-owned",
+        id: "a2",
         name: "Rekening Adit",
+        balance: "200000",
         ownerUserId: "user-2",
         ownerName: "Adit",
       }),
+      buildAccount({
+        id: "a3",
+        name: "Mandiri Gaji",
+        institution: "Mandiri",
+        balance: "100000",
+      }),
     ]);
     render(<RekeningPage />);
-    await screen.findByText("Tabungan Keluarga");
-    const sharedCard = screen
+    const bca = await screen.findByRole("region", { name: "BCA" });
+    expect(within(bca).getByText("Tabungan Keluarga")).toBeInTheDocument();
+    expect(within(bca).getByText("Rekening Adit")).toBeInTheDocument();
+    expect(within(bca).getByText(/Rp\s*500\.000/)).toBeInTheDocument();
+    const shared = within(bca)
       .getByText("Tabungan Keluarga")
-      .closest("article, li, div.card, [class*='card']") as HTMLElement;
-    expect(within(sharedCard).getByText("Bersama")).toBeInTheDocument();
-    const ownedCard = screen
+      .closest("article") as HTMLElement;
+    expect(within(shared).getByText("Bersama")).toBeInTheDocument();
+    const owned = within(bca)
       .getByText("Rekening Adit")
-      .closest("article, li, div.card, [class*='card']") as HTMLElement;
-    expect(within(ownedCard).queryByText("Bersama")).not.toBeInTheDocument();
+      .closest("article") as HTMLElement;
+    expect(within(owned).queryByText("Bersama")).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Mandiri" })).toBeInTheDocument();
   });
 
-  // EPIC-033 p24 — cash accounts moved off this page (Cash & E-Wallet owns
-  // them), so the negative-cash edit case now lives in dana.test.tsx.
+  it("filters by bank through the bank pills and echoes a removable chip", async () => {
+    mockApiRoutes([
+      buildAccount({ id: "a1", name: "Tabungan BCA", balance: "300000" }),
+      buildAccount({
+        id: "a3",
+        name: "Mandiri Gaji",
+        institution: "Mandiri",
+        balance: "100000",
+      }),
+    ]);
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+    await screen.findByText("Tabungan BCA");
+    const pills = screen.getByRole("group", { name: "Bank" });
+    await user.click(within(pills).getByRole("button", { name: /Mandiri/ }));
+    expect(
+      screen.queryByRole("region", { name: "BCA" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Mandiri" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset filter" }));
+    expect(
+      await screen.findByRole("region", { name: "BCA" }),
+    ).toBeInTheDocument();
+  });
 
-  it("still edits a bank account through the 'Rekening Bank' form (non-cash unaffected)", async () => {
+  it("folds zero-balance accounts away until asked", async () => {
+    mockApiRoutes([
+      buildAccount({ id: "a1", name: "Tabungan Isi", balance: "300000" }),
+      buildAccount({ id: "a2", name: "Tabungan Kosong", balance: "0" }),
+    ]);
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+    await screen.findByText("Tabungan Isi");
+    expect(screen.queryByText("Tabungan Kosong")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /saldo Rp 0 disembunyikan/ }),
+    );
+    expect(screen.getByText("Tabungan Kosong")).toBeInTheDocument();
+  });
+
+  it("Mutasi opens Transaksi filtered to that account", async () => {
+    mockApiRoutes([buildAccount()]);
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+    await screen.findByText("Tabungan Utama");
+    await user.click(
+      screen.getByRole("button", { name: "Mutasi Tabungan Utama" }),
+    );
+    expect(mockPush).toHaveBeenCalledWith("/transaksi?accountId=acc-1");
+  });
+
+  it("flags a deposit maturing soon under Perlu perhatian", async () => {
+    const placement = new Date();
+    placement.setMonth(placement.getMonth() - 3);
+    placement.setDate(placement.getDate() + 5);
+    mockApiRoutes([
+      buildAccount({
+        id: "dep",
+        name: "Deposito Mandiri",
+        institution: "Mandiri",
+        balance: "300000000",
+        productKind: "time_deposit",
+        placementDate: placement.toISOString().slice(0, 10),
+        tenorMonths: 3,
+        maturityInstruction: "aro_plus",
+      }),
+    ]);
+    render(<RekeningPage />);
+    const attn = (
+      await screen.findByRole("heading", { name: "Perlu perhatian" })
+    ).closest("section") as HTMLElement;
+    expect(
+      await within(attn).findByText(
+        /Deposito Mandiri jatuh tempo \d+ hari lagi/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("adds an account: picking a bank fills its codes, and the POST carries the banking detail", async () => {
+    mockApiRoutes([]);
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Tambah rekening" }))[0],
+    );
+    const dialog = within(await screen.findByRole("dialog"));
+    expect(
+      dialog.getByRole("heading", { name: "Tambah Rekening Bank" }),
+    ).toBeInTheDocument();
+
+    await user.selectOptions(
+      dialog.getByRole("combobox", { name: /^Bank\s*pilih/ }),
+      "BCA",
+    );
+    expect(dialog.getByText("SWIFT CENAIDJA")).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Tahapan Xpresi" }));
+    await user.type(dialog.getByLabelText("Saldo awal 1"), "10000000");
+    await user.type(dialog.getByLabelText(/Bunga p\.a\./), "0,75");
+    await user.selectOptions(
+      dialog.getByLabelText("Dibagikan kepada Rina S."),
+      "post",
+    );
+    await user.click(dialog.getByRole("button", { name: "Simpan rekening" }));
+
+    await waitFor(() => expect(callsWith("POST")).toHaveLength(1));
+    const body = bodyOf(callsWith("POST")[0]);
+    expect(body).toMatchObject({
+      type: "bank",
+      name: "BCA Tahapan Xpresi",
+      institution: "BCA",
+      bankCode: "014",
+      swiftCode: "CENAIDJA",
+      productKind: "savings",
+      productName: "Tahapan Xpresi",
+      balance: 10_000_000,
+      interestRate: 0.75,
+      holderUserId: "user-1",
+      shares: [{ userId: "user-rina", canPost: true }],
+    });
+    expect(toast.success).toHaveBeenCalled();
+  });
+
+  it("requires a bank before saving", async () => {
+    mockApiRoutes([]);
+    const user = userEvent.setup();
+    render(<RekeningPage />);
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Tambah rekening" }))[0],
+    );
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "Simpan rekening" }));
+    expect(dialog.getAllByRole("alert").length).toBeGreaterThan(0);
+    expect(callsWith("POST")).toHaveLength(0);
+  });
+
+  it("editing shows no opening balance and sends no balance or fxInputs", async () => {
     mockApiRoutes([
       buildAccount({
         id: "acc-2",
         name: "BCA Tahapan",
-        type: "bank",
-        institution: "BCA",
         balance: "1000000",
+        holderName: "Anak",
       }),
     ]);
     const user = userEvent.setup();
     render(<RekeningPage />);
     await screen.findByText("BCA Tahapan");
-
-    await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
+    await user.click(
+      screen.getByRole("button", { name: "Opsi rekening BCA Tahapan" }),
+    );
     await user.click(await screen.findByText("Edit"));
-
     const dialog = within(await screen.findByRole("dialog"));
     expect(
       dialog.getByRole("heading", { name: "Edit Rekening Bank" }),
     ).toBeInTheDocument();
-    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
+    expect(dialog.queryByLabelText(/Saldo awal/)).not.toBeInTheDocument();
+    expect(dialog.getByDisplayValue("Anak")).toBeInTheDocument();
+    await user.click(dialog.getByRole("button", { name: "Simpan rekening" }));
 
-    const patchCall = mockApiFetch.mock.calls.find(
-      (call) => call[1]?.method === "PATCH",
-    );
-    expect(patchCall).toBeDefined();
-    const body = JSON.parse(patchCall![1].body as string) as Record<
-      string,
-      unknown
-    >;
-    // No `type` resend for non-cash edits, and never a balance: it only
-    // moves through transactions.
+    await waitFor(() => expect(callsWith("PATCH")).toHaveLength(1));
+    const body = bodyOf(callsWith("PATCH")[0]);
     expect(body).not.toHaveProperty("balance");
-    expect(body.type).toBeUndefined();
-  });
-
-  it("Mutasi footer button opens Transaksi filtered to that account", async () => {
-    mockApiRoutes([buildAccount()]);
-    const user = userEvent.setup();
-    render(<RekeningPage />);
-
-    const card = (await screen.findByText("Tabungan Utama")).closest(
-      "article, li, div.card, [class*='card']",
-    ) as HTMLElement;
-    await user.click(
-      within(card).getByRole("button", { name: /lihat mutasi/i }),
-    );
-
-    expect(mockPush).toHaveBeenCalledWith("/transaksi?accountId=acc-1");
-  });
-
-  it("explains what Privat means on the badge", async () => {
-    mockApiRoutes([buildAccount({ isPrivate: true })]);
-    render(<RekeningPage />);
-
-    expect(
-      await screen.findByTitle(/hanya master & co-master/i),
-    ).toBeInTheDocument();
-  });
-
-  it("edits an account whose bank was added in Master Data without resetting it to 'Bank Lainnya' (Revisi H)", async () => {
-    mockApiRoutes(
-      [
-        buildAccount({
-          id: "acc-md",
-          name: "Rekening MD",
-          institution: "Bank Tes MD",
-        }),
-      ],
-      [
-        buildBankItem("ref-bca", "BCA", true),
-        buildBankItem("ref-md", "Bank Tes MD", false),
-      ],
-    );
-    const user = userEvent.setup();
-    render(<RekeningPage />);
-    await screen.findByText("Rekening MD");
-
-    await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
-    await user.click(await screen.findByText("Edit"));
-    const dialog = within(await screen.findByRole("dialog"));
-
-    const bankSelect = dialog.getByRole("combobox", { name: /^Nama Bank/ });
-    await waitFor(() => expect(bankSelect).toHaveValue("Bank Tes MD"));
-    expect(
-      within(bankSelect).getByRole("option", { name: "Bank Lainnya" }),
-    ).toBeInTheDocument();
-    expect(
-      await dialog.findByRole("link", { name: "+ Tambah ke Master Data" }),
-    ).toHaveAttribute("href", "/masterdata#bank");
-
-    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
-    const patchCall = mockApiFetch.mock.calls.find(
-      (call) => call[1]?.method === "PATCH",
-    );
-    expect(
-      (JSON.parse(patchCall![1].body as string) as { institution: string })
-        .institution,
-    ).toBe("Bank Tes MD");
-  });
-
-  it("editing a saved account shows no Saldo field and sends no balance or fxInputs", async () => {
-    mockApiRoutes([
-      buildAccount({
-        id: "acc-md",
-        name: "Rekening MD",
-        institution: "Bank Tes MD",
-        balance: "5000000",
-      }),
-    ]);
-    const user = userEvent.setup();
-    render(<RekeningPage />);
-    await screen.findByText("Rekening MD");
-
-    await user.click(screen.getByRole("button", { name: "Opsi rekening" }));
-    await user.click(await screen.findByText("Edit"));
-    const dialog = within(await screen.findByRole("dialog"));
-    await dialog.findByRole("button", { name: /Simpan/i });
-    expect(dialog.queryByLabelText("Saldo Saat Ini")).toBeNull();
-
-    await user.click(dialog.getByRole("button", { name: /Simpan/i }));
-    const patch = mockApiFetch.mock.calls.find(
-      ([, init]) => init?.method === "PATCH",
-    );
-    const body = JSON.parse(patch![1].body);
     expect(body).not.toHaveProperty("fxInputs");
-    expect(body).not.toHaveProperty("balance");
-  });
-});
-
-describe("RekeningPage — indicative USD total is thousands-grouped (batch-2 #7)", () => {
-  beforeEach(() => {
-    jest.resetAllMocks();
-    queryClient.clear();
-
-    mockUseSessionAuth.mockReturnValue({
-      data: {
-        session: { token: TOKEN, familyGroupId: FAMILY_GROUP_ID },
-        user: { id: "user-1", name: "Test User", email: "user@example.com" },
-      },
-      isPending: false,
+    expect(body).toMatchObject({
+      name: "BCA Tahapan",
+      holderUserId: null,
+      holderName: "Anak",
     });
   });
 
-  it('renders "≈ US$ 16.308,70", not the un-grouped "16308.70"', async () => {
-    // 1.000.000 IDR total * 0.0163087 = 16308.7 exactly — chosen so the
-    // grouped/un-grouped forms are unambiguously different strings.
-    mockApiFetch.mockImplementation(
-      (path: string, options?: { method?: string }) => {
-        if (options?.method === "PATCH") return Promise.resolve({});
-        if (path.endsWith("/members")) return Promise.resolve([]);
-        if (path.startsWith("/fx/rates")) {
-          return Promise.resolve({
-            base: "IDR",
-            rates: { USD: 0.0163087 },
-          });
-        }
-        if (path.endsWith("/access/me")) {
-          return Promise.resolve(resolveEffectiveAccess({ role: "owner" }));
-        }
-        if (path.endsWith("/family-groups/mine")) {
-          return Promise.resolve([{ id: FAMILY_GROUP_ID, myRole: "owner" }]);
-        }
-        if (path.endsWith("/reference-items")) return Promise.resolve([]);
-        return Promise.resolve([
-          buildAccount({ id: "acc-1", balance: "1000000" }),
-        ]);
-      },
+  it("keeps a Master Data bank selectable when editing (Revisi H)", async () => {
+    mockApiRoutes(
+      [
+        buildAccount({
+          id: "acc-3",
+          name: "Kas Koperasi",
+          institution: "Koperasi Sejahtera",
+        }),
+      ],
+      [buildBankItem("ref-1", "Koperasi Sejahtera", false)],
     );
-
+    const user = userEvent.setup();
     render(<RekeningPage />);
+    await screen.findByText("Kas Koperasi");
+    await user.click(
+      screen.getByRole("button", { name: "Opsi rekening Kas Koperasi" }),
+    );
+    await user.click(await screen.findByText("Edit"));
+    const dialog = within(await screen.findByRole("dialog"));
+    await user.click(dialog.getByRole("button", { name: "Simpan rekening" }));
+    await waitFor(() => expect(callsWith("PATCH")).toHaveLength(1));
+    expect(bodyOf(callsWith("PATCH")[0]).institution).toBe(
+      "Koperasi Sejahtera",
+    );
+  });
 
-    await screen.findByText(/US\$ 16\.308,70/);
-    expect(screen.queryByText(/16308\.70/)).not.toBeInTheDocument();
+  it("shows the indicative USD total thousands-grouped", async () => {
+    mockApiRoutes([buildAccount({ balance: "292144000" })]);
+    render(<RekeningPage />);
+    // 292.144.000 / 17.913,899851 ≈ 16.308
+    expect(await screen.findByText(/≈ US\$ 16\.308/)).toBeInTheDocument();
   });
 });

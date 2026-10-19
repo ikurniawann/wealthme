@@ -49,7 +49,13 @@ export function redactAccount<
 ): T & { balancesHidden?: boolean } {
   if (!areBalancesHidden(member)) return account;
   if (viewerUserId && account.ownerUserId === viewerUserId) return account;
-  return { ...account, balance: null, balancesHidden: true };
+  // Rekening v3 — the opening balance is a balance figure too.
+  return {
+    ...account,
+    balance: null,
+    ...("openingBalance" in account ? { openingBalance: null } : {}),
+    balancesHidden: true,
+  };
 }
 
 export function redactNetWorth(

@@ -48,6 +48,55 @@ enum AccountType {
   property
 }
 
+// Rekening v3 — banking detail of a `bank` account. Every column below is
+// nullable/defaulted so pre-existing accounts (and every non-bank account
+// type) keep working untouched.
+enum BankInstitutionKind {
+  commercial
+  digital
+  sharia
+  rural
+  foreign_branch
+  foreign
+}
+
+enum BankProductKind {
+  savings
+  current
+  time_deposit
+  planned_savings
+  multi_currency
+}
+
+enum AccountOwnershipForm {
+  individual
+  joint
+  qq
+}
+
+enum AccountStatus {
+  active
+  dormant
+  blocked
+  closed
+}
+
+enum ShariaContract {
+  wadiah
+  mudharabah
+}
+
+enum DepositInterestPayout {
+  at_maturity
+  monthly
+}
+
+enum DepositMaturityInstruction {
+  aro
+  aro_plus
+  non_aro
+}
+
 enum CategoryKind {
   income
   expense
@@ -383,7 +432,7 @@ model User {
   // Per-user privacy/display toggles (hardening batch G1). Nullable JSON map
   // of the 7 known keys → boolean; null = never set → use defaults. Stored
   // sanitized by resolvePrivacyPrefs (privacy-prefs.ts).
-  privacyPrefs              Json?
+  privacyPrefs             Json?
   createdAt                DateTime           @default(now())
   updatedAt                DateTime           @updatedAt
   memberships              Member[]
@@ -392,6 +441,11 @@ model User {
   // EPIC-019 Task A — accounts this user personally owns within a family
   // group (nullable Account.ownerUserId; null = family-shared, unchanged).
   ownedAccounts            Account[]          @relation("AccountOwner")
+  // Rekening v3 — accounts held in this user's name ("Atas nama"), accounts
+  // naming them as beneficiary, and accounts explicitly shared with them.
+  heldAccounts             Account[]          @relation("AccountHolder")
+  beneficiaryAccounts      Account[]          @relation("AccountBeneficiary")
+  accountShares            AccountShare[]
   // EPIC-019 Task B — allowance requests this user filed / decided.
   allowanceRequestsMade    AllowanceRequest[] @relation("AllowanceRequestRequester")
   allowanceRequestsDecided AllowanceRequest[] @relation("AllowanceRequestDecider")
@@ -669,17 +723,17 @@ model Member {
 }
 
 model Account {
-  id                        String             @id @default(uuid())
+  id                        String                      @id @default(uuid())
   familyGroupId             String
   name                      String
   type                      AccountType
   institution               String?
   maskedNumber              String?
   balance                   BigInt
-  currency                  String             @default("IDR")
+  currency                  String                      @default("IDR")
   // Owner-set flag: hides this account (and its transactions transitively)
   // from `member` viewers in shared family views. Owner/admin_staff always see it.
-  isPrivate                 Boolean            @default(false)
+  isPrivate                 Boolean                     @default(false)
   // EPIC-019 Task A — nullable per-member ownership. Null = family-shared
   // (today's behavior, unchanged); non-null must reference a Member of the
   // SAME familyGroupId (enforced in AccountsService, not the DB, since a
@@ -687,20 +741,74 @@ model Account {
   // onDelete: SetNull so removing the owning user never destroys the account
   // itself — it just reverts to family-shared.
   ownerUserId               String?
-  createdAt                 DateTime           @default(now())
-  updatedAt                 DateTime           @updatedAt
-  familyGroup               FamilyGroup        @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  owner                     User?              @relation("AccountOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  // ── Rekening v3 (bank detail) ─────────────────────────────────────────────
+  // ISO 3166-1 alpha-2 country of the bank ("ID" for every legacy row).
+  country                   String                      @default("ID") @db.VarChar(2)
+  institutionKind           BankInstitutionKind?
+  isSharia                  Boolean                     @default(false)
+  // Domestic clearing code (BI 3-digit for Indonesia) and SWIFT/BIC.
+  bankCode                  String?                     @db.VarChar(16)
+  swiftCode                 String?                     @db.VarChar(11)
+  // Country-specific routing identifier: IBAN, UK sort code, US ABA, AU BSB.
+  routingCode               String?                     @db.VarChar(64)
+  routingCodeKind           String?                     @db.VarChar(16)
+  productKind               BankProductKind?
+  // Free-text product name as the bank sells it ("Tahapan Xpresi").
+  productName               String?                     @db.VarChar(120)
+  // "Atas nama" — the name on the passbook. A family member (holderUserId)
+  // or free text for someone without a login (a child, a parent).
+  holderUserId              String?
+  holderName                String?                     @db.VarChar(120)
+  ownershipForm             AccountOwnershipForm        @default(individual)
+  status                    AccountStatus               @default(active)
+  // Opening balance as of a date: after creation `balance` only moves
+  // through transactions, so reports need to know when the first figure
+  // was true.
+  openingBalance            BigInt?
+  openingBalanceDate        DateTime?                   @db.Date
+  // Nominal rate, % per annum (conventional) — or the customer's nisbah
+  // share, % (sharia mudharabah).
+  interestRate              Decimal?                    @db.Decimal(6, 3)
+  shariaContract            ShariaContract?
+  branch                    String?                     @db.VarChar(120)
+  isPrimary                 Boolean                     @default(false)
+  notes                     String?                     @db.VarChar(1000)
+  // Foreign accounts: an Indonesian taxpayer reports them in the SPT.
+  reportInTaxReturn         Boolean                     @default(false)
+  beneficiaryUserId         String?
+  beneficiaryName           String?                     @db.VarChar(120)
+  // Time deposit (productKind = time_deposit). depositNumber (bilyet) is
+  // encrypted like maskedNumber.
+  depositNumber             String?
+  placementDate             DateTime?                   @db.Date
+  tenorMonths               Int?
+  interestPayout            DepositInterestPayout?
+  maturityInstruction       DepositMaturityInstruction?
+  payoutAccountId           String?
+  maturityReminder          Boolean                     @default(false)
+  // Maturity date the reminder notification was already raised for, so the
+  // lazy reminder (NotificationsService) fires once per maturity.
+  maturityReminderSentFor   DateTime?                   @db.Date
+  createdAt                 DateTime                    @default(now())
+  updatedAt                 DateTime                    @updatedAt
+  familyGroup               FamilyGroup                 @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  owner                     User?                       @relation("AccountOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  holder                    User?                       @relation("AccountHolder", fields: [holderUserId], references: [id], onDelete: SetNull)
+  beneficiary               User?                       @relation("AccountBeneficiary", fields: [beneficiaryUserId], references: [id], onDelete: SetNull)
+  payoutAccount             Account?                    @relation("DepositPayoutAccount", fields: [payoutAccountId], references: [id], onDelete: SetNull)
+  depositsPayingHere        Account[]                   @relation("DepositPayoutAccount")
+  // People this account is explicitly shared with ("Dibagikan kepada").
+  shares                    AccountShare[]
   // Two relations to Transaction (source leg + transfer destination leg —
   // EPIC-021 Group B / #23/#27/#28) require explicit relation names so Prisma
   // can disambiguate which FK each list represents.
-  transactions              Transaction[]      @relation("TransactionSourceAccount")
-  transfersIn               Transaction[]      @relation("TransactionDestinationAccount")
+  transactions              Transaction[]               @relation("TransactionSourceAccount")
+  transfersIn               Transaction[]               @relation("TransactionDestinationAccount")
   // EPIC-019 Task B — this account as the target (member's account being
   // funded) or the chosen source (owner's master account) of a funding
   // request. Explicit relation names to disambiguate the two FKs.
-  allowanceRequestsAsTarget AllowanceRequest[] @relation("AllowanceRequestTarget")
-  allowanceRequestsAsSource AllowanceRequest[] @relation("AllowanceRequestSource")
+  allowanceRequestsAsTarget AllowanceRequest[]          @relation("AllowanceRequestTarget")
+  allowanceRequestsAsSource AllowanceRequest[]          @relation("AllowanceRequestSource")
   goalsAsSource             Goal[]
   goalContributions         GoalContribution[]
   taxFinalIncomeEntries     TaxFinalIncomeEntry[]
@@ -711,6 +819,24 @@ model Account {
   @@index([familyGroupId])
   @@index([ownerUserId])
   @@map("accounts")
+}
+
+// Rekening v3 — "Dibagikan kepada". Grants a member access to one account
+// beyond what their role already gives: an "own data" (row-scoped) member
+// sees it, and with canPost may record transactions on it. Roles that
+// already see every account gain nothing from a row here.
+model AccountShare {
+  id        String   @id @default(uuid())
+  accountId String
+  userId    String
+  canPost   Boolean  @default(false)
+  createdAt DateTime @default(now())
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, userId])
+  @@index([userId])
+  @@map("account_shares")
 }
 
 model Category {
@@ -1188,34 +1314,34 @@ model NetWorthSnapshot {
 }
 
 model Investment {
-  id               String                  @id @default(uuid())
-  familyGroupId    String
-  ticker           String
-  name             String
-  type             InvestmentType
-  quantity         Decimal                 @db.Decimal(18, 8)
-  costBasisPerUnit Decimal                 @db.Decimal(18, 2)
-  currency         String                  @default("IDR")
-  notes            String?
+  id                    String                  @id @default(uuid())
+  familyGroupId         String
+  ticker                String
+  name                  String
+  type                  InvestmentType
+  quantity              Decimal                 @db.Decimal(18, 8)
+  costBasisPerUnit      Decimal                 @db.Decimal(18, 2)
+  currency              String                  @default("IDR")
+  notes                 String?
   // EPIC-021 #20: interest rate for interest-bearing instruments (obligasi,
   // deposito). Optional — only meaningful for those types. Used to derive a
   // simple projected-annual-yield display (currentValue × rate).
-  interestRatePct  Decimal?                @db.Decimal(5, 2)
+  interestRatePct       Decimal?                @db.Decimal(5, 2)
   // EPIC-024 C2 (D7, D10) — "tanggal beli" for every type; deposito's
   // "jatuh tempo". Both nullable/additive: existing rows keep working, the
   // simple-interest valuation (investasi/page.tsx) treats a missing
   // purchasedAt as "not yet dated" rather than guessing a date.
-  purchasedAt      DateTime?
-  maturityDate     DateTime?
-  cryptoExchange   CryptoExchangeKind?
-  createdAt        DateTime                @default(now())
-  updatedAt        DateTime                @updatedAt
-  familyGroup      FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  prices           InvestmentPrice[]
+  purchasedAt           DateTime?
+  maturityDate          DateTime?
+  cryptoExchange        CryptoExchangeKind?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  familyGroup           FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  prices                InvestmentPrice[]
   // EPIC-022 D2 — real buy/sell history, the honest counterpart to the
   // generic "edit" that used to silently overwrite quantity/costBasisPerUnit
   // with no trace of what changed or any realized P/L.
-  transactions     InvestmentTransaction[]
+  transactions          InvestmentTransaction[]
   taxFinalIncomeEntries TaxFinalIncomeEntry[]
 
   @@index([familyGroupId])
@@ -1593,16 +1719,16 @@ model Donation {
 }
 
 model TaxRecord {
-  id             String      @id @default(uuid())
-  familyGroupId  String
-  taxYear        Int
-  grossIncome    BigInt
-  ptkp           BigInt
-  zakatDeduction BigInt      @default(0)
-  netTax         BigInt      @default(0)
-  sptStatus      SptStatus   @default(belum_lapor)
-  documentUrl    String?
-  notes          String?
+  id                  String            @id @default(uuid())
+  familyGroupId       String
+  taxYear             Int
+  grossIncome         BigInt
+  ptkp                BigInt
+  zakatDeduction      BigInt            @default(0)
+  netTax              BigInt            @default(0)
+  sptStatus           SptStatus         @default(belum_lapor)
+  documentUrl         String?
+  notes               String?
   // Revisi L — legacy rows keep today's (gross, ptkp, zakat) formula; detailed rows use the full PPh OP engine.
   calcMode            TaxCalcMode       @default(legacy)
   maritalStatus       TaxMaritalStatus?
@@ -1613,9 +1739,9 @@ model TaxRecord {
   otherNetIncome      BigInt?
   withheldPph21       BigInt?
   sptFiledAt          DateTime?
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  familyGroup    FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  familyGroup         FamilyGroup       @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@unique([familyGroupId, taxYear])
   @@index([familyGroupId])
@@ -1627,13 +1753,13 @@ model TaxRecord {
 // (familyGroupId, taxYear) rather than a TaxRecord FK so a document can be
 // uploaded before any TaxRecord row exists for that year.
 model TaxDocument {
-  id            String   @id @default(uuid())
+  id            String      @id @default(uuid())
   familyGroupId String
   taxYear       Int
   path          String
   mimeType      String
   size          Int
-  createdAt     DateTime @default(now())
+  createdAt     DateTime    @default(now())
   familyGroup   FamilyGroup @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
 
   @@index([familyGroupId, taxYear])

@@ -212,7 +212,13 @@ export class TransactionsService {
     });
     if (!account)
       throw new NotFoundException(`Account ${dto.accountId} not found`);
-    this.assertAccountOwnedByActingMember(account, actingMember);
+    await this.assertAccountOwnedByActingMember(account, actingMember);
+    // Rekening v3 — a closed account keeps its history but takes no new rows.
+    if (account.status === "closed") {
+      throw new BadRequestException(
+        "Rekening ini sudah ditutup. Ubah statusnya dulu untuk mencatat transaksi baru.",
+      );
+    }
 
     // EPIC-021 Group B (#23/#27/#28) — real source -> destination transfers.
     // toAccountId/adminFee are only meaningful on a transfer; reject the
@@ -244,7 +250,7 @@ export class TransactionsService {
       });
       if (!toAccount)
         throw new NotFoundException(`Account ${dto.toAccountId} not found`);
-      this.assertAccountOwnedByActingMember(toAccount, actingMember);
+      await this.assertAccountOwnedByActingMember(toAccount, actingMember);
     }
 
     let resolvedCategoryId = dto.categoryId ?? null;
@@ -542,7 +548,7 @@ export class TransactionsService {
     const existing = await this.prisma.transaction.findFirst({
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
       include: {
-        account: { select: { ownerUserId: true } },
+        account: { select: { ownerUserId: true, isPrivate: true } },
         toAccount: { select: { ownerUserId: true } },
       },
     });
@@ -556,6 +562,11 @@ export class TransactionsService {
       throw new ForbiddenException(TRANSACTION_EDIT_RIGHTS_DENIED_MESSAGE);
     }
     await this.assertNotObligationLinked(existing);
+    // Review fix (Rekening v3) — the write rule holds on edits too: a
+    // row-scoped member may only touch transactions on an account they own
+    // or may post on NOW (a revoked share revokes edits), and may not move a
+    // transaction onto someone else's account.
+    await this.assertMayWriteExisting(existing, actingMember);
 
     if (dto.accountId) {
       const acct = await this.prisma.account.findUnique({
@@ -563,6 +574,7 @@ export class TransactionsService {
       });
       if (!acct)
         throw new NotFoundException(`Account ${dto.accountId} not found`);
+      await this.assertAccountOwnedByActingMember(acct, actingMember);
     }
     if (dto.categoryId) {
       const cat = await this.prisma.category.findUnique({
@@ -750,7 +762,7 @@ export class TransactionsService {
     const existing = await this.prisma.transaction.findFirst({
       where: { id, familyGroupId, ...transactionPrivacyWhere(canSeePrivate) },
       include: {
-        account: { select: { ownerUserId: true } },
+        account: { select: { ownerUserId: true, isPrivate: true } },
         toAccount: { select: { ownerUserId: true } },
       },
     });
@@ -759,6 +771,7 @@ export class TransactionsService {
       throw new ForbiddenException(TRANSACTION_EDIT_RIGHTS_DENIED_MESSAGE);
     }
     await this.assertNotObligationLinked(existing);
+    await this.assertMayWriteExisting(existing, actingMember);
 
     await this.prisma.$transaction(async (prisma) => {
       // Mirrors create()/update() — a real two-sided transfer must reverse
@@ -1050,18 +1063,75 @@ export class TransactionsService {
    * context (internal caller) is also unrestricted, matching every other
    * `actingMember` default in this file.
    */
-  private assertAccountOwnedByActingMember(
-    account: { ownerUserId: string | null },
+  /**
+   * Review fix (Rekening v3) — the write rule on EXISTING rows: a row-scoped
+   * member must still be able to post on one leg of the transaction (owns
+   * it, or holds a canPost share on it now). Either leg suffices, matching
+   * the EPIC-036 edit-rights decision that a transfer's destination owner
+   * may edit it; a revoked share therefore revokes the edit as well.
+   */
+  private async assertMayWriteExisting(
+    existing: {
+      accountId: string | null;
+      toAccountId: string | null;
+      account: { ownerUserId: string | null; isPrivate: boolean } | null;
+      toAccount: { ownerUserId: string | null } | null;
+    },
     actingMember?: ActingMember,
-  ): void {
+  ): Promise<void> {
+    if (!actingMember || !isRowScoped(actingMember)) return;
+    const legs: Array<{
+      id: string;
+      ownerUserId: string | null;
+      isPrivate?: boolean;
+    }> = [];
+    if (existing.accountId && existing.account)
+      legs.push({ id: existing.accountId, ...existing.account });
+    if (existing.toAccountId && existing.toAccount)
+      legs.push({ id: existing.toAccountId, ...existing.toAccount });
+    // A card purchase (no account leg) is governed by edit-rights alone.
+    if (legs.length === 0) return;
+    let denial: unknown = null;
+    for (const leg of legs) {
+      try {
+        await this.assertAccountOwnedByActingMember(leg, actingMember);
+        return;
+      } catch (err: unknown) {
+        denial = err;
+      }
+    }
+    throw denial;
+  }
+
+  private async assertAccountOwnedByActingMember(
+    account: { id: string; ownerUserId: string | null; isPrivate?: boolean },
+    actingMember?: ActingMember,
+  ): Promise<void> {
     // EPIC-030 — effective scope: a Master-customised "own data" role is held
     // to its own accounts on writes too, not only on reads.
     if (!actingMember || !isRowScoped(actingMember)) return;
-    if (account.ownerUserId !== actingMember.userId) {
+    if (account.ownerUserId === actingMember.userId) return;
+    // Rekening v3 — a Master can share an account with posting rights
+    // ("Dibagikan kepada · Bisa catat"); a view-only share is not enough,
+    // and a private account (hidden from this member) grants nothing.
+    if (account.isPrivate) {
       throw new ForbiddenException(
         "This role may only record transactions on an account they own",
       );
     }
+    const share = await this.prisma.accountShare.findUnique({
+      where: {
+        accountId_userId: {
+          accountId: account.id,
+          userId: actingMember.userId,
+        },
+      },
+      select: { canPost: true },
+    });
+    if (share?.canPost) return;
+    throw new ForbiddenException(
+      "This role may only record transactions on an account they own",
+    );
   }
 
   /**

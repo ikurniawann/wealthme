@@ -10,6 +10,7 @@ import { Prisma, type Role } from "@prisma/client";
 import {
   accountOwnerWhere,
   accountPrivacyWhere,
+  isRowScoped,
   restrictedAccountWhere,
   type ScopeSubject,
 } from "../common/utils/privacy.util";
@@ -18,6 +19,7 @@ import { CryptoService } from "../crypto/crypto.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import type { AccountBankDetailDto } from "./dto/account-bank-detail.dto";
 import type { AccountResponseDto } from "./dto/account-response.dto";
 import type { CreateAccountDto } from "./dto/create-account.dto";
 import type { AccountOwnerFilter } from "./dto/list-accounts-query.dto";
@@ -55,6 +57,40 @@ export interface AccountActor {
 
 const MASTER_LIKE_ROLES: ReadonlySet<Role> = new Set<Role>(["owner", "spouse"]);
 
+/**
+ * Relations every account read returns: the owner's and holder's display
+ * names, and the share list ("Dibagikan kepada").
+ */
+export const ACCOUNT_INCLUDE = {
+  owner: { select: { name: true } },
+  holder: { select: { name: true } },
+  shares: {
+    select: { userId: true, canPost: true, user: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  },
+} satisfies Prisma.AccountInclude;
+
+type AccountRow = Prisma.AccountGetPayload<{ include: typeof ACCOUNT_INCLUDE }>;
+
+/** yyyy-mm-dd → a UTC midnight Date for a `@db.Date` column; null clears. */
+function toDbDate(value: string | null | undefined): Date | null | undefined {
+  if (value === undefined) return undefined;
+  return value === null ? null : new Date(`${value}T00:00:00.000Z`);
+}
+
+function fromDbDate(value: Date | null | undefined): string | null {
+  return value ? value.toISOString().slice(0, 10) : null;
+}
+
+/** Trims a free-text field; an empty string clears it like `null`. */
+function cleanText(
+  value: string | null | undefined,
+): string | null | undefined {
+  if (value === undefined || value === null) return value;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
 @Injectable()
 export class AccountsService {
   constructor(
@@ -82,13 +118,54 @@ export class AccountsService {
       where: {
         familyGroupId,
         ...accountPrivacyWhere(canSeePrivate),
-        ...accountOwnerWhere(ownerFilter, requestingUserId),
+        // A row-scoped viewer's own scope (owned + shared with them) is the
+        // whole lens; the me/family filter only narrows unrestricted roles.
+        ...(isRowScoped(viewerRole)
+          ? {}
+          : accountOwnerWhere(ownerFilter, requestingUserId)),
         ...restrictedAccountWhere(viewerRole, requestingUserId),
       },
-      include: { owner: { select: { name: true } } },
+      include: ACCOUNT_INCLUDE,
       orderBy: { createdAt: "asc" },
     });
-    return accounts.map((a) => this.toDto(a));
+    const activity = await this.lastActivityByAccount(
+      familyGroupId,
+      accounts.map((a) => a.id),
+    );
+    return accounts.map((a) => this.toDto(a, activity.get(a.id) ?? null));
+  }
+
+  /**
+   * Rekening v3 — latest transaction date (either leg of a transfer) per
+   * account, so the page can flag an account drifting toward dormancy.
+   */
+  private async lastActivityByAccount(
+    familyGroupId: string,
+    ids: string[],
+  ): Promise<Map<string, string>> {
+    const out = new Map<string, string>();
+    if (ids.length === 0) return out;
+    const [sources, destinations] = await Promise.all([
+      this.prisma.transaction.groupBy({
+        by: ["accountId"],
+        where: { familyGroupId, accountId: { in: ids } },
+        _max: { occurredAt: true },
+      }),
+      this.prisma.transaction.groupBy({
+        by: ["toAccountId"],
+        where: { familyGroupId, toAccountId: { in: ids } },
+        _max: { occurredAt: true },
+      }),
+    ]);
+    const note = (id: string | null, at: Date | null) => {
+      if (!id || !at) return;
+      const iso = at.toISOString().slice(0, 10);
+      const prev = out.get(id);
+      if (!prev || iso > prev) out.set(id, iso);
+    };
+    for (const r of sources) note(r.accountId, r._max.occurredAt);
+    for (const r of destinations) note(r.toAccountId, r._max.occurredAt);
+    return out;
   }
 
   async findOne(
@@ -109,7 +186,7 @@ export class AccountsService {
         id,
         familyGroupId,
       },
-      include: { owner: { select: { name: true } } },
+      include: ACCOUNT_INCLUDE,
     });
     if (!account) {
       throw new NotFoundException("Account not found");
@@ -151,11 +228,21 @@ export class AccountsService {
       dto.type,
       dto.institution ?? null,
       dto.maskedNumber,
+      dto.currency ?? "IDR",
+    );
+
+    const detail = await this.bankDetailData(familyGroupId, dto);
+    const shares = await this.normalizeShares(
+      familyGroupId,
+      dto.shares,
+      actor,
+      ownerUserId ?? null,
     );
 
     try {
       const account = await this.prisma.account.create({
         data: {
+          ...(detail as Prisma.AccountUncheckedCreateInput),
           familyGroupId,
           name: dto.name,
           type: dto.type,
@@ -167,8 +254,17 @@ export class AccountsService {
           currency: dto.currency ?? "IDR",
           isPrivate: dto.isPrivate ?? false,
           ownerUserId: ownerUserId ?? null,
+          // The first balance is the opening balance; from here on only
+          // transactions move `balance`.
+          openingBalance: BigInt(dto.balance),
+          openingBalanceDate:
+            toDbDate(dto.openingBalanceDate) ??
+            toDbDate(new Date().toISOString().slice(0, 10)),
+          ...(shares && shares.length > 0
+            ? { shares: { create: shares } }
+            : {}),
         },
-        include: { owner: { select: { name: true } } },
+        include: ACCOUNT_INCLUDE,
       });
       return this.toDto(account);
     } catch (err: unknown) {
@@ -186,6 +282,7 @@ export class AccountsService {
     type: string,
     institution: string | null,
     maskedNumber: string | null | undefined,
+    currency: string,
     excludeId?: string,
   ): Promise<void> {
     const digits = (maskedNumber ?? "").replace(/\D/g, "");
@@ -198,9 +295,13 @@ export class AccountsService {
         maskedNumber: { not: null },
         ...(excludeId ? { id: { not: excludeId } } : {}),
       },
-      select: { maskedNumber: true, name: true },
+      select: { maskedNumber: true, name: true, currency: true },
     });
     for (const sib of siblings) {
+      // A multi-currency account is one passbook number with one row per
+      // currency (Rekening v3), so the same number in another currency is
+      // not a duplicate.
+      if ((sib.currency ?? "IDR") !== currency) continue;
       let plain = "";
       try {
         plain = this.crypto.decrypt(sib.maskedNumber as string);
@@ -258,14 +359,31 @@ export class AccountsService {
         dto.type ?? existing.type,
         dto.institution !== undefined ? dto.institution : existing.institution,
         dto.maskedNumber !== undefined ? dto.maskedNumber : currentNumber,
+        dto.currency ?? existing.currency,
         id,
       );
     }
+
+    const detail = await this.bankDetailData(familyGroupId, dto, id);
+    const shares = await this.normalizeShares(
+      familyGroupId,
+      dto.shares,
+      actor,
+      ownerUserId !== undefined ? ownerUserId : existing.ownerUserId,
+    );
 
     try {
       const updated = await this.prisma.account.update({
         where: { id, familyGroupId },
         data: {
+          ...detail,
+          // A private account is visible only to Master/Co-Master, so
+          // making it private also ends every share on it.
+          ...(dto.isPrivate === true
+            ? { shares: { deleteMany: {} } }
+            : shares !== undefined && {
+                shares: { deleteMany: {}, create: shares },
+              }),
           ...(dto.name !== undefined && { name: dto.name }),
           ...(dto.type !== undefined && { type: dto.type }),
           ...(dto.institution !== undefined && {
@@ -278,7 +396,7 @@ export class AccountsService {
           ...(dto.isPrivate !== undefined && { isPrivate: dto.isPrivate }),
           ...(ownerUserId !== undefined && { ownerUserId }),
         },
-        include: { owner: { select: { name: true } } },
+        include: ACCOUNT_INCLUDE,
       });
       return this.toDto(updated);
     } catch (err: unknown) {
@@ -294,6 +412,7 @@ export class AccountsService {
   private async assertOwnerIsFamilyMember(
     familyGroupId: string,
     ownerUserId: string,
+    field = "ownerUserId",
   ): Promise<void> {
     const member = await this.prisma.member.findUnique({
       where: { userId_familyGroupId: { userId: ownerUserId, familyGroupId } },
@@ -301,9 +420,161 @@ export class AccountsService {
     });
     if (!member) {
       throw new BadRequestException(
-        "ownerUserId must belong to a member of this family group",
+        `${field} must belong to a member of this family group`,
       );
     }
+  }
+
+  /**
+   * Rekening v3 — validates and maps the banking detail into Prisma data,
+   * keeping only the keys the DTO actually carries (so a partial PATCH
+   * leaves every other column untouched). Member references must belong to
+   * this family; a payout account must be another account of this family.
+   */
+  private async bankDetailData(
+    familyGroupId: string,
+    dto: AccountBankDetailDto,
+    selfId?: string,
+  ): Promise<Prisma.AccountUncheckedUpdateInput> {
+    const data: Prisma.AccountUncheckedUpdateInput = {};
+
+    if (dto.country) data.country = dto.country.toUpperCase();
+    if (dto.institutionKind !== undefined)
+      data.institutionKind = dto.institutionKind;
+    if (dto.isSharia !== undefined) data.isSharia = dto.isSharia;
+    if (dto.bankCode !== undefined) data.bankCode = cleanText(dto.bankCode);
+    if (dto.swiftCode !== undefined)
+      data.swiftCode = dto.swiftCode ? dto.swiftCode.toUpperCase() : null;
+    if (dto.routingCode !== undefined)
+      data.routingCode = cleanText(dto.routingCode);
+    if (dto.routingCodeKind !== undefined)
+      data.routingCodeKind = dto.routingCodeKind;
+    if (dto.productKind !== undefined) data.productKind = dto.productKind;
+    if (dto.productName !== undefined)
+      data.productName = cleanText(dto.productName);
+    if (dto.ownershipForm !== undefined) data.ownershipForm = dto.ownershipForm;
+    if (dto.status !== undefined) data.status = dto.status;
+    if (dto.openingBalanceDate !== undefined)
+      data.openingBalanceDate = toDbDate(dto.openingBalanceDate);
+    if (dto.interestRate !== undefined)
+      data.interestRate =
+        dto.interestRate === null ? null : new Prisma.Decimal(dto.interestRate);
+    if (dto.shariaContract !== undefined)
+      data.shariaContract = dto.shariaContract;
+    if (dto.branch !== undefined) data.branch = cleanText(dto.branch);
+    if (dto.isPrimary !== undefined) data.isPrimary = dto.isPrimary;
+    if (dto.notes !== undefined) data.notes = cleanText(dto.notes);
+    if (dto.reportInTaxReturn !== undefined)
+      data.reportInTaxReturn = dto.reportInTaxReturn;
+    if (dto.depositNumber !== undefined) {
+      const bilyet = cleanText(dto.depositNumber);
+      data.depositNumber = bilyet ? this.crypto.encrypt(bilyet) : null;
+    }
+    if (dto.placementDate !== undefined)
+      data.placementDate = toDbDate(dto.placementDate);
+    if (dto.tenorMonths !== undefined) data.tenorMonths = dto.tenorMonths;
+    if (dto.interestPayout !== undefined)
+      data.interestPayout = dto.interestPayout;
+    if (dto.maturityInstruction !== undefined)
+      data.maturityInstruction = dto.maturityInstruction;
+    if (dto.maturityReminder !== undefined)
+      data.maturityReminder = dto.maturityReminder;
+
+    // "Atas nama": a member OR typed text, never both — the member wins.
+    if (dto.holderUserId) {
+      await this.assertOwnerIsFamilyMember(
+        familyGroupId,
+        dto.holderUserId,
+        "holderUserId",
+      );
+      data.holderUserId = dto.holderUserId;
+      data.holderName = null;
+    } else if (dto.holderName !== undefined || dto.holderUserId === null) {
+      data.holderUserId = null;
+      if (dto.holderName !== undefined)
+        data.holderName = cleanText(dto.holderName);
+    }
+
+    if (dto.beneficiaryUserId) {
+      await this.assertOwnerIsFamilyMember(
+        familyGroupId,
+        dto.beneficiaryUserId,
+        "beneficiaryUserId",
+      );
+      data.beneficiaryUserId = dto.beneficiaryUserId;
+      data.beneficiaryName = null;
+    } else if (
+      dto.beneficiaryName !== undefined ||
+      dto.beneficiaryUserId === null
+    ) {
+      data.beneficiaryUserId = null;
+      if (dto.beneficiaryName !== undefined)
+        data.beneficiaryName = cleanText(dto.beneficiaryName);
+    }
+
+    if (dto.payoutAccountId) {
+      if (dto.payoutAccountId === selfId) {
+        throw new BadRequestException(
+          "payoutAccountId cannot be the account itself",
+        );
+      }
+      const payout = await this.prisma.account.findFirst({
+        where: { id: dto.payoutAccountId, familyGroupId },
+        select: { id: true },
+      });
+      if (!payout) {
+        throw new BadRequestException(
+          "payoutAccountId must be an account of this family group",
+        );
+      }
+      data.payoutAccountId = dto.payoutAccountId;
+    } else if (dto.payoutAccountId === null) {
+      data.payoutAccountId = null;
+    }
+
+    return data;
+  }
+
+  /**
+   * Rekening v3 — "Dibagikan kepada". Only Master/Co-Master may set who an
+   * account is shared with (a member could otherwise grant themselves
+   * posting rights). Deduplicates, drops the owner (who already has full
+   * access), and requires every user to be a member of this family.
+   * `undefined` = leave the stored list unchanged.
+   */
+  private async normalizeShares(
+    familyGroupId: string,
+    shares: AccountBankDetailDto["shares"],
+    actor: AccountActor | undefined,
+    ownerUserId: string | null,
+  ): Promise<Array<{ userId: string; canPost: boolean }> | undefined> {
+    if (shares === undefined) return undefined;
+    if (actor && !MASTER_LIKE_ROLES.has(actor.role)) {
+      throw new ForbiddenException(
+        "Only Master or Co-Master can share an account",
+      );
+    }
+    const byUser = new Map<string, boolean>();
+    for (const share of shares) {
+      if (share.userId === ownerUserId) continue;
+      byUser.set(share.userId, share.canPost);
+    }
+    const userIds = [...byUser.keys()];
+    if (userIds.length > 0) {
+      const members = await this.prisma.member.findMany({
+        where: { familyGroupId, userId: { in: userIds } },
+        select: { userId: true },
+      });
+      if (members.length !== userIds.length) {
+        throw new BadRequestException(
+          "shares must only name members of this family group",
+        );
+      }
+    }
+    return userIds.map((userId) => ({
+      userId,
+      canPost: byUser.get(userId) ?? false,
+    }));
   }
 
   async remove(familyGroupId: string, id: string): Promise<void> {
@@ -361,30 +632,38 @@ export class AccountsService {
     }
   }
 
-  private toDto(account: {
-    id: string;
-    familyGroupId: string;
-    name: string;
-    type: string;
-    institution: string | null;
-    maskedNumber: string | null;
-    balance: bigint;
-    currency: string;
-    isPrivate: boolean;
-    ownerUserId: string | null;
-    owner?: { name: string } | null;
-    createdAt: Date;
-    updatedAt: Date;
-  }): AccountResponseDto {
+  /**
+   * Accepts the full row (ACCOUNT_INCLUDE) but tolerates older partial rows:
+   * every Rekening v3 field falls back to its column default.
+   */
+  private toDto(
+    account: Pick<
+      AccountRow,
+      | "id"
+      | "familyGroupId"
+      | "name"
+      | "type"
+      | "institution"
+      | "maskedNumber"
+      | "balance"
+      | "currency"
+      | "isPrivate"
+      | "ownerUserId"
+      | "createdAt"
+      | "updatedAt"
+    > &
+      Partial<AccountRow> & { owner?: { name: string } | null },
+    lastActivityAt: string | null = null,
+  ): AccountResponseDto {
+    const decryptOrNull = (value: string | null | undefined) =>
+      value ? this.crypto.decrypt(value) : null;
     return {
       id: account.id,
       familyGroupId: account.familyGroupId,
       name: account.name,
       type: account.type as AccountResponseDto["type"],
       institution: account.institution,
-      maskedNumber: account.maskedNumber
-        ? this.crypto.decrypt(account.maskedNumber)
-        : null,
+      maskedNumber: decryptOrNull(account.maskedNumber),
       balance: account.balance.toString(),
       currency: account.currency,
       isPrivate: account.isPrivate,
@@ -392,6 +671,48 @@ export class AccountsService {
       ownerName: account.owner?.name ?? null,
       createdAt: account.createdAt.toISOString(),
       updatedAt: account.updatedAt.toISOString(),
+      country: account.country ?? "ID",
+      institutionKind: account.institutionKind ?? null,
+      isSharia: account.isSharia ?? false,
+      bankCode: account.bankCode ?? null,
+      swiftCode: account.swiftCode ?? null,
+      routingCode: account.routingCode ?? null,
+      routingCodeKind: account.routingCodeKind ?? null,
+      productKind: account.productKind ?? null,
+      productName: account.productName ?? null,
+      holderUserId: account.holderUserId ?? null,
+      holderName: account.holder?.name ?? account.holderName ?? null,
+      ownershipForm: account.ownershipForm ?? "individual",
+      status: account.status ?? "active",
+      openingBalance:
+        account.openingBalance === null || account.openingBalance === undefined
+          ? null
+          : account.openingBalance.toString(),
+      openingBalanceDate: fromDbDate(account.openingBalanceDate),
+      interestRate:
+        account.interestRate === null || account.interestRate === undefined
+          ? null
+          : Number(account.interestRate),
+      shariaContract: account.shariaContract ?? null,
+      branch: account.branch ?? null,
+      isPrimary: account.isPrimary ?? false,
+      notes: account.notes ?? null,
+      reportInTaxReturn: account.reportInTaxReturn ?? false,
+      beneficiaryUserId: account.beneficiaryUserId ?? null,
+      beneficiaryName: account.beneficiaryName ?? null,
+      depositNumber: decryptOrNull(account.depositNumber),
+      placementDate: fromDbDate(account.placementDate),
+      tenorMonths: account.tenorMonths ?? null,
+      interestPayout: account.interestPayout ?? null,
+      maturityInstruction: account.maturityInstruction ?? null,
+      payoutAccountId: account.payoutAccountId ?? null,
+      maturityReminder: account.maturityReminder ?? false,
+      shares: (account.shares ?? []).map((sh) => ({
+        userId: sh.userId,
+        name: sh.user.name,
+        canPost: sh.canPost,
+      })),
+      lastActivityAt,
     };
   }
 }

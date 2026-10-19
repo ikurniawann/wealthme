@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+import {
+  AccountOwnershipFormSchema,
+  AccountStatusSchema,
+  BankInstitutionKindSchema,
+  BankProductKindSchema,
+  DepositInterestPayoutSchema,
+  DepositMaturityInstructionSchema,
+  RoutingCodeKindSchema,
+  ShariaContractSchema,
+} from "./banking.js";
+
+export * from "./banking.js";
+
 export const AccountTypeSchema = z.enum([
   "bank",
   "ewallet",
@@ -51,5 +64,54 @@ export const AccountDtoSchema = z.object({
   createdAt: z.string(),
   updatedAt: z.string(),
   balancesHidden: z.boolean().optional(),
+  // ── Rekening v3 — optional so older fixtures/callers still type-check ──
+  country: z.string().optional(),
+  institutionKind: BankInstitutionKindSchema.nullable().optional(),
+  isSharia: z.boolean().optional(),
+  bankCode: z.string().nullable().optional(),
+  swiftCode: z.string().nullable().optional(),
+  routingCode: z.string().nullable().optional(),
+  routingCodeKind: RoutingCodeKindSchema.nullable().optional(),
+  productKind: BankProductKindSchema.nullable().optional(),
+  productName: z.string().nullable().optional(),
+  holderUserId: z.string().nullable().optional(),
+  /** Display name for "Atas nama": the holder member's name, else the typed name. */
+  holderName: z.string().nullable().optional(),
+  ownershipForm: AccountOwnershipFormSchema.optional(),
+  status: AccountStatusSchema.optional(),
+  openingBalance: z.string().nullable().optional(),
+  openingBalanceDate: z.string().nullable().optional(),
+  interestRate: z.number().nullable().optional(),
+  shariaContract: ShariaContractSchema.nullable().optional(),
+  branch: z.string().nullable().optional(),
+  isPrimary: z.boolean().optional(),
+  notes: z.string().nullable().optional(),
+  reportInTaxReturn: z.boolean().optional(),
+  beneficiaryUserId: z.string().nullable().optional(),
+  beneficiaryName: z.string().nullable().optional(),
+  depositNumber: z.string().nullable().optional(),
+  placementDate: z.string().nullable().optional(),
+  tenorMonths: z.number().nullable().optional(),
+  interestPayout: DepositInterestPayoutSchema.nullable().optional(),
+  maturityInstruction: DepositMaturityInstructionSchema.nullable().optional(),
+  payoutAccountId: z.string().nullable().optional(),
+  maturityReminder: z.boolean().optional(),
+  shares: z
+    .array(
+      z.object({
+        userId: z.string(),
+        name: z.string(),
+        canPost: z.boolean(),
+      }),
+    )
+    .optional(),
+  /** Date (yyyy-mm-dd) of the latest transaction on either leg, or null. */
+  lastActivityAt: z.string().nullable().optional(),
 });
 export type AccountDto = z.infer<typeof AccountDtoSchema>;
+
+export const AccountShareInputSchema = z.object({
+  userId: z.string().min(1),
+  canPost: z.boolean(),
+});
+export type AccountShareInput = z.infer<typeof AccountShareInputSchema>;

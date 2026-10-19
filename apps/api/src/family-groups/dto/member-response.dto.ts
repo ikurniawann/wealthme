@@ -48,6 +48,13 @@ export class MemberResponseDto {
   accessRoleName?: string | null;
 
   @ApiPropertyOptional({
+    enum: ["all", "own"],
+    description:
+      "Effective data scope: own = sees only rows they own or that were shared with them",
+  })
+  dataScope?: "all" | "own";
+
+  @ApiPropertyOptional({
     type: Object,
     description: "Per-member page overrides (page → none|view|manage)",
   })

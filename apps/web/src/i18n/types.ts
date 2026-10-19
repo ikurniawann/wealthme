@@ -1,3 +1,4 @@
+import type { RekeningV3Copy } from "./rekening-v3";
 import type {
   MobileNavId,
   NavItemId,
@@ -3374,6 +3375,8 @@ export type I18nDictionary = {
   /** EPIC-018 Task A6 — `/rekening` (bank accounts) page copy. */
   rekening: {
     /** Label of the average line on the per-account balance chart. */
+    /** Rekening v3 — bank-account form and /rekening page (rekening-v3.ts). */
+    v3: RekeningV3Copy;
     avgPerAccountLabel: string;
     v2: {
       quickTitle: string;

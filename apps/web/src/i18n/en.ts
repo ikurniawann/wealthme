@@ -1,3 +1,4 @@
+import { rekeningV3En } from "./rekening-v3";
 import type { I18nDictionary } from "./types";
 
 export const en = {
@@ -3519,6 +3520,7 @@ export const en = {
   },
   rekening: {
     avgPerAccountLabel: "Average per account",
+    v3: rekeningV3En,
     v2: {
       quickTitle: "Quick actions",
       record: "Record transaction",

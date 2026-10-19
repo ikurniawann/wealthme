@@ -10,7 +10,7 @@ import { Prisma, Role } from "@prisma/client";
 import { CryptoService } from "../crypto/crypto.service";
 import { PrismaService } from "../prisma/prisma.service";
 
-import { AccountsService } from "./accounts.service";
+import { ACCOUNT_INCLUDE, AccountsService } from "./accounts.service";
 import { AccountOwnerFilter } from "./dto/list-accounts-query.dto";
 
 const FAMILY_GROUP_ID = "fg-1";
@@ -33,7 +33,10 @@ function makePrisma() {
     // EPIC-021 Group B — remove() checks this before attempting the delete.
     // Default to 0 (no outgoing transfers) so pre-existing tests that don't
     // care about transfers keep passing unmodified.
-    transaction: { count: jest.fn().mockResolvedValue(0) },
+    transaction: {
+      count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
+    },
     $transaction: jest.fn(async (ops: Array<Promise<unknown>>) =>
       Promise.all(ops),
     ),
@@ -233,8 +236,9 @@ describe("AccountsService privacy flag", () => {
 
     expect(prisma.account.update).toHaveBeenCalledWith({
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
-      data: { isPrivate: true },
-      include: { owner: { select: { name: true } } },
+      // Rekening v3 — going private also ends every share.
+      data: { isPrivate: true, shares: { deleteMany: {} } },
+      include: ACCOUNT_INCLUDE,
     });
     expect(result.isPrivate).toBe(true);
   });
@@ -263,7 +267,7 @@ describe("AccountsService privacy flag", () => {
     expect(prisma.account.update).toHaveBeenCalledWith({
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
       data: { name: "Renamed" },
-      include: { owner: { select: { name: true } } },
+      include: ACCOUNT_INCLUDE,
     });
   });
 });
@@ -323,6 +327,7 @@ function buildFixtureAccounts(): FakeAccount[] {
  */
 function makeFakePrisma(accounts: FakeAccount[]) {
   return {
+    transaction: { groupBy: jest.fn().mockResolvedValue([]) },
     account: {
       findMany: jest.fn(({ where }: { where: { isPrivate?: boolean } }) => {
         const rows =
@@ -593,7 +598,7 @@ describe("AccountsService ownership assignment", () => {
     expect(prisma.account.update).toHaveBeenCalledWith({
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
       data: { ownerUserId: MEMBER_USER_ID },
-      include: { owner: { select: { name: true } } },
+      include: ACCOUNT_INCLUDE,
     });
     expect(result.ownerUserId).toBe(MEMBER_USER_ID);
   });
@@ -627,7 +632,7 @@ describe("AccountsService ownership assignment", () => {
     expect(prisma.account.update).toHaveBeenCalledWith({
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
       data: { ownerUserId: null },
-      include: { owner: { select: { name: true } } },
+      include: ACCOUNT_INCLUDE,
     });
     expect(result.ownerUserId).toBeNull();
     expect(result.ownerName).toBeNull();
@@ -660,7 +665,7 @@ describe("AccountsService ownership assignment", () => {
     expect(prisma.account.update).toHaveBeenCalledWith({
       where: { id: ACCOUNT_ID, familyGroupId: FAMILY_GROUP_ID },
       data: { name: "Renamed" },
-      include: { owner: { select: { name: true } } },
+      include: ACCOUNT_INCLUDE,
     });
   });
 });
@@ -680,19 +685,48 @@ interface OwnedFakeAccount {
   updatedAt: Date;
 }
 
+/** Rekening v3 — no transactions in these fixtures: lastActivityAt stays null. */
+const NO_ACTIVITY = { groupBy: jest.fn().mockResolvedValue([]) };
+
+/**
+ * Minimal in-memory evaluator for the `where` shapes the service builds
+ * (equality, OR/AND, `shares: { some: { userId } }`), so the row-scoping
+ * tests exercise real filtering instead of call shapes.
+ */
+function matchesWhere(
+  row: Record<string, unknown>,
+  where: Record<string, unknown>,
+): boolean {
+  return Object.entries(where).every(([key, cond]) => {
+    if (key === "OR")
+      return (cond as Array<Record<string, unknown>>).some((c) =>
+        matchesWhere(row, c),
+      );
+    if (key === "AND")
+      return (cond as Array<Record<string, unknown>>).every((c) =>
+        matchesWhere(row, c),
+      );
+    if (key === "shares") {
+      const userId = (cond as { some: { userId: string } }).some.userId;
+      const shares = (row.shares as Array<{ userId: string }>) ?? [];
+      return shares.some((sh) => sh.userId === userId);
+    }
+    return row[key] === cond;
+  });
+}
+
 function makeOwnerFilterPrisma(accounts: OwnedFakeAccount[]) {
   return {
     account: {
-      findMany: jest.fn(
-        ({ where }: { where: { ownerUserId?: string | null } }) => {
-          const rows =
-            where.ownerUserId === undefined
-              ? accounts
-              : accounts.filter((a) => a.ownerUserId === where.ownerUserId);
-          return Promise.resolve(rows);
-        },
+      findMany: jest.fn(({ where }: { where: Record<string, unknown> }) =>
+        Promise.resolve(
+          accounts.filter((a) =>
+            matchesWhere(a as unknown as Record<string, unknown>, where),
+          ),
+        ),
       ),
     },
+    transaction: NO_ACTIVITY,
   };
 }
 

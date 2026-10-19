@@ -37,11 +37,17 @@ export class SearchService {
       this.prisma.account.findMany({
         where: {
           familyGroupId,
-          OR: [
-            { name: { contains: trimmed, mode: "insensitive" } },
-            { institution: { contains: trimmed, mode: "insensitive" } },
+          // AND, not a spread: restrictedAccountWhere contributes its own
+          // top-level OR, which a spread would let clobber the text match.
+          AND: [
+            {
+              OR: [
+                { name: { contains: trimmed, mode: "insensitive" } },
+                { institution: { contains: trimmed, mode: "insensitive" } },
+              ],
+            },
+            restrictedAccountWhere(viewerRole, viewerUserId),
           ],
-          ...restrictedAccountWhere(viewerRole, viewerUserId),
         },
         take: 5,
       }),

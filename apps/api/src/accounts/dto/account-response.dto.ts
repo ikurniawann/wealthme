@@ -1,5 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { AccountType } from "@prisma/client";
+import {
+  AccountOwnershipForm,
+  AccountStatus,
+  AccountType,
+  BankInstitutionKind,
+  BankProductKind,
+  DepositInterestPayout,
+  DepositMaturityInstruction,
+  ShariaContract,
+} from "@prisma/client";
+
+export class AccountShareResponseDto {
+  @ApiProperty({ type: String }) userId!: string;
+  @ApiProperty({ type: String }) name!: string;
+  @ApiProperty({ type: Boolean }) canPost!: boolean;
+}
 
 export class AccountResponseDto {
   @ApiProperty({ type: String, description: "Account UUID" })
@@ -72,4 +87,72 @@ export class AccountResponseDto {
 
   @ApiProperty({ type: String, format: "date-time" })
   updatedAt!: string;
+
+  // ── Rekening v3 — banking detail (see AccountBankDetailDto) ───────────────
+  @ApiPropertyOptional({ type: String }) country?: string;
+  @ApiPropertyOptional({ enum: BankInstitutionKind, nullable: true })
+  institutionKind?: BankInstitutionKind | null;
+  @ApiPropertyOptional({ type: Boolean }) isSharia?: boolean;
+  @ApiPropertyOptional({ type: String, nullable: true }) bankCode?:
+    | string
+    | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) swiftCode?:
+    | string
+    | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  routingCode?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  routingCodeKind?: string | null;
+  @ApiPropertyOptional({ enum: BankProductKind, nullable: true })
+  productKind?: BankProductKind | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  productName?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  holderUserId?: string | null;
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Holder member's name, else the typed passbook name",
+  })
+  holderName?: string | null;
+  @ApiPropertyOptional({ enum: AccountOwnershipForm })
+  ownershipForm?: AccountOwnershipForm;
+  @ApiPropertyOptional({ enum: AccountStatus }) status?: AccountStatus;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  openingBalance?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  openingBalanceDate?: string | null;
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  interestRate?: number | null;
+  @ApiPropertyOptional({ enum: ShariaContract, nullable: true })
+  shariaContract?: ShariaContract | null;
+  @ApiPropertyOptional({ type: String, nullable: true }) branch?: string | null;
+  @ApiPropertyOptional({ type: Boolean }) isPrimary?: boolean;
+  @ApiPropertyOptional({ type: String, nullable: true }) notes?: string | null;
+  @ApiPropertyOptional({ type: Boolean }) reportInTaxReturn?: boolean;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  beneficiaryUserId?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  beneficiaryName?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  depositNumber?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  placementDate?: string | null;
+  @ApiPropertyOptional({ type: Number, nullable: true })
+  tenorMonths?: number | null;
+  @ApiPropertyOptional({ enum: DepositInterestPayout, nullable: true })
+  interestPayout?: DepositInterestPayout | null;
+  @ApiPropertyOptional({ enum: DepositMaturityInstruction, nullable: true })
+  maturityInstruction?: DepositMaturityInstruction | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  payoutAccountId?: string | null;
+  @ApiPropertyOptional({ type: Boolean }) maturityReminder?: boolean;
+  @ApiPropertyOptional({ type: [AccountShareResponseDto] })
+  shares?: AccountShareResponseDto[];
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    description: "Date of the latest transaction on either leg",
+  })
+  lastActivityAt?: string | null;
 }

@@ -76,12 +76,16 @@ describe("GdprService.exportUserData", () => {
       ({
         where,
       }: {
-        where: { familyGroupId: string; ownerUserId?: string };
+        where: {
+          familyGroupId: string;
+          ownerUserId?: string;
+          OR?: Array<Record<string, unknown>>;
+        };
       }) => {
         if (where.familyGroupId === "fg-child-household") {
           // DENIAL half — restrictedAccountWhere must have added the
           // ownership filter for the row-scoped membership.
-          expect(where.ownerUserId).toBe(USER_ID);
+          expect(where.OR).toContainEqual({ ownerUserId: USER_ID });
           return Promise.resolve([
             {
               id: "acc-child-own",
@@ -96,6 +100,7 @@ describe("GdprService.exportUserData", () => {
         // PERMISSION half — an owner membership must NOT be filtered by
         // ownerUserId; the household's shared accounts are exported too.
         expect(where.ownerUserId).toBeUndefined();
+        expect(where.OR).toBeUndefined();
         return Promise.resolve([
           {
             id: "acc-owner-shared",

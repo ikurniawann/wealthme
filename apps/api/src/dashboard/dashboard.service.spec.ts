@@ -112,6 +112,8 @@ function makeFakePrisma(
             acc.ownerUserId !== cond.ownerUserId
           )
             return false;
+          // Rekening v3 — no fixture account is shared with anyone.
+          if ((cond as { shares?: unknown }).shares) return false;
           return true;
         }
         case "categoryId":
@@ -145,15 +147,37 @@ function makeFakePrisma(
         ({
           where,
         }: {
-          where: { isPrivate?: boolean; ownerUserId?: string };
+          where: {
+            isPrivate?: boolean;
+            ownerUserId?: string;
+            OR?: Array<{
+              ownerUserId?: string | null;
+              isPrivate?: boolean;
+              shares?: { some: { userId: string } };
+            }>;
+          };
         }) => {
           let rows =
             where.isPrivate === false
               ? accounts.filter((a) => !a.isPrivate)
               : accounts;
-          // EPIC-023 Task C — restrictedAccountWhere's ownerUserId filter.
+          // EPIC-023 Task C — restrictedAccountWhere's ownership filter, now
+          // an OR of "owned" / "shared with me" (Rekening v3) / "family
+          // shared" legs. No fixture account is shared with anyone.
           if (where.ownerUserId !== undefined) {
             rows = rows.filter((a) => a.ownerUserId === where.ownerUserId);
+          }
+          if (where.OR) {
+            rows = rows.filter((a) =>
+              where.OR!.some(
+                (leg) =>
+                  !leg.shares &&
+                  leg.ownerUserId !== undefined &&
+                  a.ownerUserId === leg.ownerUserId &&
+                  (leg.isPrivate === undefined ||
+                    a.isPrivate === leg.isPrivate),
+              ),
+            );
           }
           return Promise.resolve(rows);
         },

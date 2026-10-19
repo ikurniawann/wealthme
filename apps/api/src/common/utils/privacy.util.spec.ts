@@ -101,13 +101,19 @@ describe("isRowScopedRole", () => {
 describe("restrictedAccountWhere", () => {
   it("restricts a dependant to accounts they own", () => {
     expect(restrictedAccountWhere(Role.dependant, "user-child")).toEqual({
-      ownerUserId: "user-child",
+      OR: [
+        { ownerUserId: "user-child" },
+        { shares: { some: { userId: "user-child" } } },
+      ],
     });
   });
 
   it("restricts an operational member to accounts they own", () => {
     expect(restrictedAccountWhere(Role.operational, "user-driver")).toEqual({
-      ownerUserId: "user-driver",
+      OR: [
+        { ownerUserId: "user-driver" },
+        { shares: { some: { userId: "user-driver" } } },
+      ],
     });
   });
 
@@ -120,7 +126,7 @@ describe("restrictedAccountWhere", () => {
 
   it("matches nothing (never falls back to all) when a row-scoped role has no userId", () => {
     expect(restrictedAccountWhere(Role.dependant, undefined)).toEqual({
-      ownerUserId: "",
+      OR: [{ ownerUserId: "" }, { shares: { some: { userId: "" } } }],
     });
   });
 });
@@ -192,6 +198,8 @@ describe("restrictedTransactionWhere", () => {
         { account: { ownerUserId: "user-child" } },
         { createdByUserId: "user-child" },
         { toAccount: { ownerUserId: "user-child" } },
+        { account: { shares: { some: { userId: "user-child" } } } },
+        { toAccount: { shares: { some: { userId: "user-child" } } } },
       ],
     });
   });
@@ -224,7 +232,25 @@ describe("restrictedTransactionWhere", () => {
         { account: { ownerUserId: "" } },
         { createdByUserId: "" },
         { toAccount: { ownerUserId: "" } },
+        { account: { shares: { some: { userId: "" } } } },
+        { toAccount: { shares: { some: { userId: "" } } } },
       ],
+    });
+  });
+});
+
+describe("Rekening v3 — accounts shared with a row-scoped member", () => {
+  it("lets a dependant see an account explicitly shared with them", () => {
+    expect(
+      restrictedAccountWhere(Role.dependant, "user-child").OR,
+    ).toContainEqual({ shares: { some: { userId: "user-child" } } });
+  });
+
+  it("lets a dependant read the history of an account shared with them", () => {
+    expect(
+      restrictedTransactionWhere(Role.dependant, "user-child").OR,
+    ).toContainEqual({
+      account: { shares: { some: { userId: "user-child" } } },
     });
   });
 });
@@ -272,6 +298,7 @@ describe("shared family accounts for own-data members", () => {
     expect(restrictedAccountWhere(withShared, "user-child")).toEqual({
       OR: [
         { ownerUserId: "user-child" },
+        { shares: { some: { userId: "user-child" } } },
         { ownerUserId: null, isPrivate: false },
       ],
     });
@@ -279,13 +306,19 @@ describe("shared family accounts for own-data members", () => {
 
   it("accounts: no shared leg without the page grant", () => {
     expect(restrictedAccountWhere(withoutShared, "user-child")).toEqual({
-      ownerUserId: "user-child",
+      OR: [
+        { ownerUserId: "user-child" },
+        { shares: { some: { userId: "user-child" } } },
+      ],
     });
   });
 
   it("accounts: a bare role keeps the pre-revision rule (own only)", () => {
     expect(restrictedAccountWhere(Role.dependant, "user-child")).toEqual({
-      ownerUserId: "user-child",
+      OR: [
+        { ownerUserId: "user-child" },
+        { shares: { some: { userId: "user-child" } } },
+      ],
     });
   });
 

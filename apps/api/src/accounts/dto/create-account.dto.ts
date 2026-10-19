@@ -17,11 +17,15 @@ import {
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
+import { AccountBankDetailDto } from "./account-bank-detail.dto";
+
 // Hardening audit (validation, MEDIUM) — `balance` had no `@Max`, matching
 // the bound already used on transactions/budgets/goals.
 const MAX_ACCOUNT_BALANCE = 999_999_999_999;
 
-export class CreateAccountDto {
+// Rekening v3 — the banking detail (product, holder, deposit terms, shares)
+// lives in AccountBankDetailDto so create and update validate it identically.
+export class CreateAccountDto extends AccountBankDetailDto {
   @ApiProperty({ enum: AccountType, description: "Account type" })
   @IsEnum(AccountType)
   type!: AccountType;

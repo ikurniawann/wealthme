@@ -1,3 +1,4 @@
+import { rekeningV3Id } from "./rekening-v3";
 import type { I18nDictionary } from "./types";
 
 export const id = {
@@ -3586,6 +3587,7 @@ export const id = {
   },
   rekening: {
     avgPerAccountLabel: "Rata-rata per rekening",
+    v3: rekeningV3Id,
     v2: {
       quickTitle: "Aksi cepat",
       record: "Catat transaksi",

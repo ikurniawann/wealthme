@@ -51,6 +51,7 @@ function makePrisma() {
     // allow-list (unrestricted) so every pre-existing test that never passes
     // actingMember keeps working unmodified.
     memberCategoryAllowance: { findMany: jest.fn().mockResolvedValue([]) },
+    accountShare: { findUnique: jest.fn().mockResolvedValue(null) },
     // EPIC-023 E1 — tenant-scoped lookups for the optional obligation links.
     liability: { findUnique: jest.fn() },
     insurance: { findUnique: jest.fn() },
@@ -1952,8 +1953,14 @@ function makeFakePrivacyPrisma(
           return t.accountId === null;
         case "account": {
           const acc = t.accountId ? accountById.get(t.accountId) : undefined;
-          const cond = value as { isPrivate?: boolean; ownerUserId?: string };
+          const cond = value as {
+            isPrivate?: boolean;
+            ownerUserId?: string;
+            shares?: { some: { userId: string } };
+          };
           if (!acc) return false;
+          // Rekening v3 — no fixture account is shared with anyone.
+          if (cond.shares) return false;
           if (cond.isPrivate !== undefined && acc.isPrivate !== cond.isPrivate)
             return false;
           if (
@@ -2646,6 +2653,110 @@ describe("TransactionsService.create — row-scoped roles and createdByUserId (E
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  // Rekening v3 — "Dibagikan kepada": a view-only share grants no write.
+  it("DENIAL — a view-only share does not let a dependant post on the account", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: OTHER_ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: "user-someone-else",
+    });
+    prisma.accountShare.findUnique.mockResolvedValue({ canPost: false });
+
+    await expect(
+      service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: OTHER_ACCOUNT_ID,
+          amount: 50_000,
+          type: "expense",
+          occurredAt: new Date().toISOString(),
+        },
+        { id: "member-child", userId: CHILD_USER_ID, role: Role.dependant },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.accountShare.findUnique).toHaveBeenCalledWith({
+      where: {
+        accountId_userId: {
+          accountId: OTHER_ACCOUNT_ID,
+          userId: CHILD_USER_ID,
+        },
+      },
+      select: { canPost: true },
+    });
+  });
+
+  it("DENIAL — a closed account takes no new transactions, for any role", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: OTHER_ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: null,
+      status: "closed",
+    });
+    await expect(
+      service.create(FAMILY_GROUP_ID, {
+        accountId: OTHER_ACCOUNT_ID,
+        amount: 50_000,
+        type: "expense",
+        occurredAt: new Date().toISOString(),
+      }),
+    ).rejects.toThrow(/sudah ditutup/);
+  });
+
+  it("DENIAL — a share grants nothing on an account made private", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: OTHER_ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: "user-someone-else",
+      isPrivate: true,
+    });
+    prisma.accountShare.findUnique.mockResolvedValue({ canPost: true });
+    await expect(
+      service.create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: OTHER_ACCOUNT_ID,
+          amount: 50_000,
+          type: "expense",
+          occurredAt: new Date().toISOString(),
+        },
+        { id: "member-child", userId: CHILD_USER_ID, role: Role.dependant },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+  });
+
+  it("ALLOW — a share with canPost passes the ownership gate", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: OTHER_ACCOUNT_ID,
+      familyGroupId: FAMILY_GROUP_ID,
+      ownerUserId: "user-someone-else",
+    });
+    prisma.accountShare.findUnique.mockResolvedValue({ canPost: true });
+
+    // Whatever happens after the gate (fixtures here stop short of a full
+    // write), it must not be the ownership ForbiddenException.
+    const outcome = await service
+      .create(
+        FAMILY_GROUP_ID,
+        {
+          accountId: OTHER_ACCOUNT_ID,
+          amount: 50_000,
+          type: "expense",
+          occurredAt: new Date().toISOString(),
+        },
+        { id: "member-child", userId: CHILD_USER_ID, role: Role.dependant },
+      )
+      .then(
+        () => null,
+        (err: unknown) => err,
+      );
+    expect(
+      outcome instanceof ForbiddenException &&
+        /only record transactions on an account they own/.test(
+          (outcome as Error).message,
+        ),
+    ).toBe(false);
+  });
+
   // EPIC-030 — the Master's effective data scope, not the built-in type.
   it("DENIAL — a 'member' the Master scoped to own data cannot post on someone else's account", async () => {
     prisma.account.findUnique.mockResolvedValue({
@@ -3299,6 +3410,51 @@ describe("TransactionsService.update/remove edit-rights enforcement (EPIC-036)",
         { id: "m3", userId: ANAK, role: Role.dependant },
       ),
     ).resolves.toBeDefined();
+  });
+
+  // Rekening v3 review fix — a revoked share revokes edits too: the creator
+  // of a row on a shared account loses write access once the share is gone.
+  it("update() DENIES a row-scoped creator whose share on the account was revoked", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      createdByUserId: ANAK,
+      account: { ownerUserId: AYAH, isPrivate: false },
+      toAccount: null,
+    });
+    prisma.accountShare.findUnique.mockResolvedValue(null);
+    const service = await buildService(prisma);
+
+    await expect(
+      service.update(
+        FAMILY_GROUP_ID,
+        "tx-1",
+        { description: "renamed" },
+        { id: "m3", userId: ANAK, role: Role.dependant },
+      ),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.transaction.update).not.toHaveBeenCalled();
+  });
+
+  it("remove() DENIES a row-scoped creator whose share on the account was revoked", async () => {
+    const prisma = makePrisma();
+    prisma.transaction.findFirst.mockResolvedValue({
+      ...baseTxRow(),
+      createdByUserId: ANAK,
+      account: { ownerUserId: AYAH, isPrivate: false },
+      toAccount: null,
+    });
+    prisma.accountShare.findUnique.mockResolvedValue({ canPost: false });
+    const service = await buildService(prisma);
+
+    await expect(
+      service.remove(FAMILY_GROUP_ID, "tx-1", true, {
+        id: "m3",
+        userId: ANAK,
+        role: Role.dependant,
+      }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it("update() DENIES Master on someone else's private-account transaction", async () => {

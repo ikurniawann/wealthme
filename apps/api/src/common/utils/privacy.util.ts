@@ -172,7 +172,14 @@ export function restrictedAccountWhere(
 ): Prisma.AccountWhereInput {
   if (!isRowScoped(subject)) return {};
   const own = { ownerUserId: userId ?? "" };
-  return seesShared(subject) ? { OR: [own, SHARED_VISIBLE_ACCOUNT] } : own;
+  // Rekening v3 — an account explicitly shared with this member
+  // ("Dibagikan kepada") is theirs to see too.
+  const sharedWithMe = { shares: { some: { userId: userId ?? "" } } };
+  return {
+    OR: seesShared(subject)
+      ? [own, sharedWithMe, SHARED_VISIBLE_ACCOUNT]
+      : [own, sharedWithMe],
+  };
 }
 
 /**
@@ -207,6 +214,9 @@ export function restrictedTransactionWhere(
       { account: { ownerUserId: userId ?? "" } },
       { createdByUserId: userId ?? "" },
       { toAccount: { ownerUserId: userId ?? "" } },
+      // Rekening v3 — history of an account explicitly shared with them.
+      { account: { shares: { some: { userId: userId ?? "" } } } },
+      { toAccount: { shares: { some: { userId: userId ?? "" } } } },
       // Read-only history of family-shared accounts (writes stay own-only:
       // TransactionsService.assertAccountOwnedByActingMember).
       ...(seesShared(subject) ? [{ account: SHARED_VISIBLE_ACCOUNT }] : []),

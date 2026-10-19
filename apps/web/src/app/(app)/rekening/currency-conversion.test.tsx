@@ -86,7 +86,11 @@ beforeEach(() => {
   apiFetch.mockImplementation((path: string) => {
     if (path === "/auth/profile") return Promise.resolve({ currency: "USD" });
     if (path.startsWith("/fx/rates")) {
-      return Promise.resolve({ base: "IDR", rates: { USD: 0.0000615 } });
+      return Promise.resolve({
+        base: "IDR",
+        rates: { USD: 0.0000615 },
+        idrPerUnit: { IDR: "1", USD: "16260.162602" },
+      });
     }
     if (path.endsWith("/members")) return Promise.resolve([]);
     if (path.endsWith("/access/me")) {

@@ -1,8 +1,11 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
+import { daysBetween, isoDate, nextMaturityDate } from "@wealthme/contracts";
 
 import { isRowScoped, type ScopeSubject } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
+
+import { ownerNotifPrefs } from "./notification-prefs";
 
 import type { MarkReadDto } from "./dto/mark-read.dto";
 import type { Prisma } from "@prisma/client";
@@ -52,15 +55,114 @@ function visibilityWhere(
   };
 }
 
+/** Days before a deposit matures that its reminder appears. */
+export const DEPOSIT_REMINDER_DAYS = 7;
+
 @Injectable()
 export class NotificationsService {
+  private readonly logger = new Logger(NotificationsService.name);
+
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Rekening v3 — "Ingatkan 7 hari sebelum jatuh tempo". There is no job
+   * scheduler in this app, so the reminder is raised lazily: whenever a
+   * member opens the bell (list or unread badge), every opted-in deposit
+   * maturing within DEPOSIT_REMINDER_DAYS gets one notification per
+   * maturity date. `maturityReminderSentFor` is claimed with a conditional
+   * updateMany first, so two concurrent bell loads cannot both create it.
+   * A private deposit is addressed only to Master/Co-Master, the roles that
+   * may see it. Failures are logged, never thrown: a reminder must not
+   * break the notification list itself.
+   */
+  async raiseDepositMaturityReminders(familyGroupId: string): Promise<void> {
+    try {
+      const prefs = await ownerNotifPrefs(this.prisma, familyGroupId);
+      if (!prefs.billDue) return;
+      // Calendar day in Indonesia (WIB, UTC+7): the reminder window must not
+      // shift a day between 00:00 and 07:00 local time.
+      const today = isoDate(new Date(Date.now() + 7 * 3_600_000));
+      const deposits = await this.prisma.account.findMany({
+        where: {
+          familyGroupId,
+          productKind: "time_deposit",
+          maturityReminder: true,
+          status: { not: "closed" },
+          placementDate: { not: null },
+          tenorMonths: { not: null },
+        },
+        select: {
+          id: true,
+          name: true,
+          isPrivate: true,
+          placementDate: true,
+          tenorMonths: true,
+          maturityInstruction: true,
+          maturityReminderSentFor: true,
+        },
+      });
+      for (const dep of deposits) {
+        const maturity = nextMaturityDate(
+          dep.placementDate ? isoDate(dep.placementDate) : null,
+          dep.tenorMonths,
+          dep.maturityInstruction,
+          today,
+        );
+        if (!maturity) continue;
+        const days = daysBetween(today, maturity);
+        if (days < 0 || days > DEPOSIT_REMINDER_DAYS) continue;
+        const maturityDate = new Date(`${maturity}T00:00:00.000Z`);
+        const title = "Deposito segera jatuh tempo";
+        const body =
+          days === 0
+            ? `Deposito ${dep.name} jatuh tempo hari ini (${maturity}).`
+            : `Deposito ${dep.name} jatuh tempo ${maturity}, ${days} hari lagi.`;
+        const recipients: Array<string | null> = dep.isPrivate
+          ? (
+              await this.prisma.member.findMany({
+                where: { familyGroupId, role: { in: ["owner", "spouse"] } },
+                select: { userId: true },
+              })
+            ).map((m) => m.userId)
+          : [null];
+        // Claim and notify in one transaction: a failed insert rolls the
+        // claim back, so the reminder is retried instead of silently lost.
+        await this.prisma.$transaction(async (tx) => {
+          const claimed = await tx.account.updateMany({
+            where: {
+              id: dep.id,
+              OR: [
+                { maturityReminderSentFor: null },
+                { maturityReminderSentFor: { not: maturityDate } },
+              ],
+            },
+            data: { maturityReminderSentFor: maturityDate },
+          });
+          if (claimed.count !== 1) return;
+          await tx.notification.createMany({
+            data: recipients.map((userId) => ({
+              familyGroupId,
+              userId,
+              title,
+              body,
+              icon: "📅",
+            })),
+          });
+        });
+      }
+    } catch (err: unknown) {
+      this.logger.warn(
+        `Deposit maturity reminders failed for ${familyGroupId}: ${String(err)}`,
+      );
+    }
+  }
 
   async findAll(
     familyGroupId: string,
     viewerUserId: string,
     role: ScopeSubject,
   ): Promise<NotificationDto[]> {
+    await this.raiseDepositMaturityReminders(familyGroupId);
     const rows = await this.prisma.notification.findMany({
       where: visibilityWhere(familyGroupId, viewerUserId, role),
       orderBy: { createdAt: "desc" },
@@ -87,6 +189,7 @@ export class NotificationsService {
     viewerUserId: string,
     role: ScopeSubject,
   ): Promise<{ count: number }> {
+    await this.raiseDepositMaturityReminders(familyGroupId);
     const count = await this.prisma.notification.count({
       where: {
         ...visibilityWhere(familyGroupId, viewerUserId, role),

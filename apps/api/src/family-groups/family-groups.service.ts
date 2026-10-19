@@ -20,7 +20,10 @@ import {
 } from "@wealthme/contracts";
 import * as argon2 from "argon2";
 
-import { parsePermissions } from "../access/member-access.util";
+import {
+  effectiveAccessForMember,
+  parsePermissions,
+} from "../access/member-access.util";
 import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
@@ -182,12 +185,17 @@ export class FamilyGroupsService {
       where: { familyGroupId },
       include: {
         user: { select: MEMBER_USER_SELECT },
-        accessRole: { select: { name: true } },
+        accessRole: {
+          select: { name: true, permissions: true, dataScope: true },
+        },
       },
       orderBy: { createdAt: "asc" },
     });
 
     return members.map((m) => ({
+      // Rekening v3 — tells the account form who an explicit share
+      // ("Dibagikan kepada") actually changes anything for.
+      dataScope: effectiveAccessForMember(m).dataScope,
       id: m.id,
       userId: m.userId,
       familyGroupId: m.familyGroupId,

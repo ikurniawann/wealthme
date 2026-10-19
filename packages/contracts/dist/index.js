@@ -16,103 +16,293 @@ var AuthUserSchema = z2.object({
 });
 
 // src/accounts/index.ts
+import { z as z4 } from "zod";
+
+// src/accounts/banking.ts
 import { z as z3 } from "zod";
-var AccountTypeSchema = z3.enum([
+var BankInstitutionKindSchema = z3.enum([
+  "commercial",
+  "digital",
+  "sharia",
+  "rural",
+  "foreign_branch",
+  "foreign"
+]);
+var BankProductKindSchema = z3.enum([
+  "savings",
+  "current",
+  "time_deposit",
+  "planned_savings",
+  "multi_currency"
+]);
+var AccountOwnershipFormSchema = z3.enum(["individual", "joint", "qq"]);
+var AccountStatusSchema = z3.enum([
+  "active",
+  "dormant",
+  "blocked",
+  "closed"
+]);
+var ShariaContractSchema = z3.enum(["wadiah", "mudharabah"]);
+var DepositInterestPayoutSchema = z3.enum(["at_maturity", "monthly"]);
+var DepositMaturityInstructionSchema = z3.enum([
+  "aro",
+  "aro_plus",
+  "non_aro"
+]);
+var RoutingCodeKindSchema = z3.enum([
+  "bank_code",
+  "iban",
+  "aba",
+  "bsb"
+]);
+var INDONESIA = {
+  code: "ID",
+  currency: "IDR",
+  routingKind: "bank_code",
+  insurer: "LPS",
+  insuranceCap: 2e9
+};
+var BANK_COUNTRIES = [
+  INDONESIA,
+  {
+    code: "SG",
+    currency: "SGD",
+    routingKind: "bank_code",
+    insurer: "SDIC",
+    insuranceCap: 1e5
+  },
+  {
+    code: "US",
+    currency: "USD",
+    routingKind: "aba",
+    insurer: "FDIC",
+    insuranceCap: 25e4
+  },
+  {
+    code: "AU",
+    currency: "AUD",
+    routingKind: "bsb",
+    insurer: "FCS",
+    insuranceCap: 25e4
+  },
+  {
+    code: "JP",
+    currency: "JPY",
+    routingKind: "bank_code",
+    insurer: "DICJ",
+    insuranceCap: 1e7
+  },
+  {
+    code: "CN",
+    currency: "CNY",
+    routingKind: "bank_code",
+    insurer: "DIS",
+    insuranceCap: 5e5
+  },
+  {
+    code: "DE",
+    currency: "EUR",
+    routingKind: "iban",
+    insurer: "EdB",
+    insuranceCap: 1e5
+  },
+  {
+    code: "NL",
+    currency: "EUR",
+    routingKind: "iban",
+    insurer: "DGS",
+    insuranceCap: 1e5
+  },
+  {
+    code: "FR",
+    currency: "EUR",
+    routingKind: "iban",
+    insurer: "FGDR",
+    insuranceCap: 1e5
+  }
+];
+function bankCountry(code) {
+  return BANK_COUNTRIES.find((c) => c.code === (code ?? "ID").toUpperCase()) ?? INDONESIA;
+}
+var ID_INTEREST_TAX_RATE = 0.2;
+var ID_INTEREST_TAX_FREE_BALANCE = 75e5;
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+function addMonthsUtc(iso, months) {
+  const [y = 1970, m = 1, d = 1] = iso.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const lastDay = new Date(
+    Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)
+  ).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return isoDate(target);
+}
+function nextMaturityDate(placementDate, tenorMonths, instruction, today) {
+  if (!placementDate || !tenorMonths || tenorMonths <= 0) return null;
+  let periods = 1;
+  let maturity = addMonthsUtc(placementDate, tenorMonths);
+  if (instruction === "non_aro") return maturity;
+  while (maturity < today && periods < 600) {
+    periods += 1;
+    maturity = addMonthsUtc(placementDate, tenorMonths * periods);
+  }
+  return maturity;
+}
+function daysBetween(fromIso, toIso) {
+  return Math.round(
+    (Date.parse(`${toIso}T00:00:00Z`) - Date.parse(`${fromIso}T00:00:00Z`)) / 864e5
+  );
+}
+function estimateNetInterest(balance, ratePct, months, taxed = true) {
+  if (!(balance > 0) || !(ratePct > 0) || !(months > 0)) return 0;
+  const gross = balance * (ratePct / 100) * months / 12;
+  const withheld = taxed && balance > ID_INTEREST_TAX_FREE_BALANCE ? gross * ID_INTEREST_TAX_RATE : 0;
+  return Math.round(gross - withheld);
+}
+
+// src/accounts/index.ts
+var AccountTypeSchema = z4.enum([
   "bank",
   "ewallet",
   "cash",
   "investment",
   "property"
 ]);
-var CreateAccountInputSchema = z3.object({
-  name: z3.string().min(1),
+var CreateAccountInputSchema = z4.object({
+  name: z4.string().min(1),
   type: AccountTypeSchema,
-  institution: z3.string().optional(),
-  maskedNumber: z3.string().optional(),
-  balance: z3.number().int(),
-  currency: z3.string().default("IDR"),
-  isPrivate: z3.boolean().optional(),
+  institution: z4.string().optional(),
+  maskedNumber: z4.string().optional(),
+  balance: z4.number().int(),
+  currency: z4.string().default("IDR"),
+  isPrivate: z4.boolean().optional(),
   // EPIC-019 Task A — owning member's user id; omit for family-shared.
-  ownerUserId: z3.string().uuid().optional()
+  ownerUserId: z4.string().uuid().optional()
 });
 var UpdateAccountInputSchema = CreateAccountInputSchema.partial().extend({
   // Overrides the inherited (non-nullable) optional field: `null` explicitly
   // clears ownership back to family-shared; `undefined` (omitted) leaves it
   // unchanged.
-  ownerUserId: z3.string().uuid().nullable().optional()
+  ownerUserId: z4.string().uuid().nullable().optional()
 });
-var AccountOwnerFilterSchema = z3.enum(["me", "family", "all"]);
-var AccountDtoSchema = z3.object({
-  id: z3.string(),
-  familyGroupId: z3.string(),
-  name: z3.string(),
+var AccountOwnerFilterSchema = z4.enum(["me", "family", "all"]);
+var AccountDtoSchema = z4.object({
+  id: z4.string(),
+  familyGroupId: z4.string(),
+  name: z4.string(),
   type: AccountTypeSchema,
-  institution: z3.string().nullable(),
-  maskedNumber: z3.string().nullable(),
+  institution: z4.string().nullable(),
+  maskedNumber: z4.string().nullable(),
   /** null when the viewer's "Lihat saldo" is off (see balancesHidden). */
-  balance: z3.string().nullable(),
-  currency: z3.string(),
-  isPrivate: z3.boolean(),
-  ownerUserId: z3.string().nullable(),
-  ownerName: z3.string().nullable(),
-  createdAt: z3.string(),
-  updatedAt: z3.string(),
-  balancesHidden: z3.boolean().optional()
+  balance: z4.string().nullable(),
+  currency: z4.string(),
+  isPrivate: z4.boolean(),
+  ownerUserId: z4.string().nullable(),
+  ownerName: z4.string().nullable(),
+  createdAt: z4.string(),
+  updatedAt: z4.string(),
+  balancesHidden: z4.boolean().optional(),
+  // ── Rekening v3 — optional so older fixtures/callers still type-check ──
+  country: z4.string().optional(),
+  institutionKind: BankInstitutionKindSchema.nullable().optional(),
+  isSharia: z4.boolean().optional(),
+  bankCode: z4.string().nullable().optional(),
+  swiftCode: z4.string().nullable().optional(),
+  routingCode: z4.string().nullable().optional(),
+  routingCodeKind: RoutingCodeKindSchema.nullable().optional(),
+  productKind: BankProductKindSchema.nullable().optional(),
+  productName: z4.string().nullable().optional(),
+  holderUserId: z4.string().nullable().optional(),
+  /** Display name for "Atas nama": the holder member's name, else the typed name. */
+  holderName: z4.string().nullable().optional(),
+  ownershipForm: AccountOwnershipFormSchema.optional(),
+  status: AccountStatusSchema.optional(),
+  openingBalance: z4.string().nullable().optional(),
+  openingBalanceDate: z4.string().nullable().optional(),
+  interestRate: z4.number().nullable().optional(),
+  shariaContract: ShariaContractSchema.nullable().optional(),
+  branch: z4.string().nullable().optional(),
+  isPrimary: z4.boolean().optional(),
+  notes: z4.string().nullable().optional(),
+  reportInTaxReturn: z4.boolean().optional(),
+  beneficiaryUserId: z4.string().nullable().optional(),
+  beneficiaryName: z4.string().nullable().optional(),
+  depositNumber: z4.string().nullable().optional(),
+  placementDate: z4.string().nullable().optional(),
+  tenorMonths: z4.number().nullable().optional(),
+  interestPayout: DepositInterestPayoutSchema.nullable().optional(),
+  maturityInstruction: DepositMaturityInstructionSchema.nullable().optional(),
+  payoutAccountId: z4.string().nullable().optional(),
+  maturityReminder: z4.boolean().optional(),
+  shares: z4.array(
+    z4.object({
+      userId: z4.string(),
+      name: z4.string(),
+      canPost: z4.boolean()
+    })
+  ).optional(),
+  /** Date (yyyy-mm-dd) of the latest transaction on either leg, or null. */
+  lastActivityAt: z4.string().nullable().optional()
+});
+var AccountShareInputSchema = z4.object({
+  userId: z4.string().min(1),
+  canPost: z4.boolean()
 });
 
 // src/allowance-requests/index.ts
-import { z as z4 } from "zod";
-var AllowanceRequestStatusSchema = z4.enum([
+import { z as z5 } from "zod";
+var AllowanceRequestStatusSchema = z5.enum([
   "pending",
   "approved",
   "rejected"
 ]);
-var AllowanceRequestKindSchema = z4.enum(["funding", "held_expense"]);
-var CreateAllowanceRequestInputSchema = z4.object({
-  targetAccountId: z4.string().uuid(),
-  amount: z4.number().int().positive(),
-  note: z4.string().optional()
+var AllowanceRequestKindSchema = z5.enum(["funding", "held_expense"]);
+var CreateAllowanceRequestInputSchema = z5.object({
+  targetAccountId: z5.string().uuid(),
+  amount: z5.number().int().positive(),
+  note: z5.string().optional()
 });
-var ApproveAllowanceRequestInputSchema = z4.object({
+var ApproveAllowanceRequestInputSchema = z5.object({
   // EPIC-023 Task D (D3/D9) — required only to approve a `funding` request;
   // a `held_expense` request already carries its own account and needs no
   // choice at approval time.
-  fromAccountId: z4.string().uuid().optional()
+  fromAccountId: z5.string().uuid().optional()
 });
-var RejectAllowanceRequestInputSchema = z4.object({
-  reason: z4.string().optional()
+var RejectAllowanceRequestInputSchema = z5.object({
+  reason: z5.string().optional()
 });
-var AllowanceRequestDtoSchema = z4.object({
-  id: z4.string(),
+var AllowanceRequestDtoSchema = z5.object({
+  id: z5.string(),
   kind: AllowanceRequestKindSchema,
-  familyGroupId: z4.string(),
-  requesterUserId: z4.string(),
-  requesterName: z4.string(),
-  targetAccountId: z4.string(),
-  targetAccountName: z4.string(),
-  fromAccountId: z4.string().nullable(),
-  fromAccountName: z4.string().nullable(),
-  amount: z4.string(),
-  note: z4.string().nullable(),
+  familyGroupId: z5.string(),
+  requesterUserId: z5.string(),
+  requesterName: z5.string(),
+  targetAccountId: z5.string(),
+  targetAccountName: z5.string(),
+  fromAccountId: z5.string().nullable(),
+  fromAccountName: z5.string().nullable(),
+  amount: z5.string(),
+  note: z5.string().nullable(),
   // EPIC-023 Task D (D3/D9) — held_expense only; always null for funding.
-  categoryId: z4.string().nullable(),
-  categoryName: z4.string().nullable(),
-  description: z4.string().nullable(),
+  categoryId: z5.string().nullable(),
+  categoryName: z5.string().nullable(),
+  description: z5.string().nullable(),
   status: AllowanceRequestStatusSchema,
-  createdAt: z4.string(),
-  decidedAt: z4.string().nullable(),
-  decidedByUserId: z4.string().nullable(),
-  decidedByName: z4.string().nullable()
+  createdAt: z5.string(),
+  decidedAt: z5.string().nullable(),
+  decidedByUserId: z5.string().nullable(),
+  decidedByName: z5.string().nullable()
 });
-var HeldExpenseResponseSchema = z4.object({
-  held: z4.literal(true),
-  allowanceRequestId: z4.string(),
-  amount: z4.string()
+var HeldExpenseResponseSchema = z5.object({
+  held: z5.literal(true),
+  allowanceRequestId: z5.string(),
+  amount: z5.string()
 });
 
 // src/members/index.ts
-import { z as z5 } from "zod";
-var MemberRelationshipSchema = z5.enum([
+import { z as z6 } from "zod";
+var MemberRelationshipSchema = z6.enum([
   "istri",
   "anak",
   "kakek",
@@ -122,7 +312,7 @@ var MemberRelationshipSchema = z5.enum([
   "sekretaris",
   "bendahara"
 ]);
-var RoleSchema = z5.enum([
+var RoleSchema = z6.enum([
   "owner",
   "member",
   "admin_staff",
@@ -147,19 +337,19 @@ function defaultRoleForRelationship(relationship) {
 }
 
 // src/categories/index.ts
-import { z as z6 } from "zod";
-var CategoryKindSchema = z6.enum(["income", "expense"]);
-var CategoryDtoSchema = z6.object({
-  id: z6.string().uuid(),
-  familyGroupId: z6.string().uuid(),
-  name: z6.string(),
+import { z as z7 } from "zod";
+var CategoryKindSchema = z7.enum(["income", "expense"]);
+var CategoryDtoSchema = z7.object({
+  id: z7.string().uuid(),
+  familyGroupId: z7.string().uuid(),
+  name: z7.string(),
   kind: CategoryKindSchema,
   // EPIC-017: mandatory COA link (same family group).
-  coaAccountId: z6.string().uuid(),
-  color: z6.string().nullable(),
-  icon: z6.string().nullable(),
-  isPrivate: z6.boolean(),
-  createdAt: z6.string()
+  coaAccountId: z7.string().uuid(),
+  color: z7.string().nullable(),
+  icon: z7.string().nullable(),
+  isPrivate: z7.boolean(),
+  createdAt: z7.string()
 });
 
 // src/coa/index.ts
@@ -410,91 +600,91 @@ function defaultCoaCodeForCategory(kind, name) {
 }
 
 // src/transactions/index.ts
-import { z as z7 } from "zod";
-var TransactionTypeSchema = z7.enum(["income", "expense", "transfer"]);
-var CreateTransactionInputSchema = z7.object({
-  accountId: z7.string().uuid(),
-  categoryId: z7.string().uuid().optional(),
-  amount: z7.number().int().positive(),
+import { z as z8 } from "zod";
+var TransactionTypeSchema = z8.enum(["income", "expense", "transfer"]);
+var CreateTransactionInputSchema = z8.object({
+  accountId: z8.string().uuid(),
+  categoryId: z8.string().uuid().optional(),
+  amount: z8.number().int().positive(),
   type: TransactionTypeSchema,
-  description: z7.string().optional(),
-  occurredAt: z7.string(),
-  toAccountId: z7.string().uuid().optional(),
+  description: z8.string().optional(),
+  occurredAt: z8.string(),
+  toAccountId: z8.string().uuid().optional(),
   // EPIC-021 Group B #28 — e-wallet top-up admin fee. Only meaningful when
   // type = transfer with a toAccountId; deducted from the DESTINATION
   // account as a separate linked expense (see transactions.service.ts).
-  adminFee: z7.number().int().min(0).optional()
+  adminFee: z8.number().int().min(0).optional()
 });
-var TransactionDtoSchema = z7.object({
-  id: z7.string().uuid(),
-  familyGroupId: z7.string().uuid(),
+var TransactionDtoSchema = z8.object({
+  id: z8.string().uuid(),
+  familyGroupId: z8.string().uuid(),
   // EPIC-023 E3 (D12) — null for a credit-card purchase (it touches no
   // account); see liabilityId instead.
-  accountId: z7.string().uuid().nullable(),
-  toAccountId: z7.string().uuid().nullable(),
-  categoryId: z7.string().uuid().nullable(),
+  accountId: z8.string().uuid().nullable(),
+  toAccountId: z8.string().uuid().nullable(),
+  categoryId: z8.string().uuid().nullable(),
   // EPIC-023 E1/E3 — set for a liability payment or a credit-card purchase.
-  liabilityId: z7.string().uuid().nullable(),
+  liabilityId: z8.string().uuid().nullable(),
   // EPIC-023 E1 / group E retry (MEDIUM 6) — set for an insurance premium
   // payment, symmetric with liabilityId above.
-  insuranceId: z7.string().uuid().nullable(),
-  amount: z7.string(),
+  insuranceId: z8.string().uuid().nullable(),
+  amount: z8.string(),
   type: TransactionTypeSchema,
-  description: z7.string().nullable(),
-  categoryName: z7.string().nullable(),
+  description: z8.string().nullable(),
+  categoryName: z8.string().nullable(),
   // EPIC-023 Task E retry (MEDIUM 5) — was `z.string()` even though
   // `accountId` beside it went nullable for a card purchase (E3): a
   // service-layer `?? ""` laundered the "no account" case into an empty
   // string, which reads as blank data everywhere the DTO is displayed. Now
   // consistently `null` — see the service-layer `toDto`/mapper functions
   // this schema documents.
-  accountName: z7.string().nullable(),
-  toAccountName: z7.string().nullable(),
-  occurredAt: z7.string(),
-  createdAt: z7.string(),
+  accountName: z8.string().nullable(),
+  toAccountName: z8.string().nullable(),
+  occurredAt: z8.string(),
+  createdAt: z8.string(),
   // Edit-rights decision 2026-09-28 ("Pembuat + pemilik rekening") — whether
   // the CURRENT viewer may PATCH/DELETE this row: its creator, or the owner
   // of a private account on either leg. Everyone else (incl. Master/
   // Co-Master) is read-only.
-  canModify: z7.boolean()
+  canModify: z8.boolean()
 });
-var TransactionSummarySchema = z7.object({
-  totalIncome: z7.string(),
-  totalExpense: z7.string(),
-  netBalance: z7.string(),
-  period: z7.object({
-    from: z7.string().nullable(),
-    to: z7.string().nullable()
+var TransactionSummarySchema = z8.object({
+  totalIncome: z8.string(),
+  totalExpense: z8.string(),
+  netBalance: z8.string(),
+  period: z8.object({
+    from: z8.string().nullable(),
+    to: z8.string().nullable()
   })
 });
-var TransactionListResponseSchema = z7.object({
-  data: z7.array(TransactionDtoSchema),
-  meta: z7.object({
-    total: z7.number(),
-    page: z7.number(),
-    limit: z7.number()
+var TransactionListResponseSchema = z8.object({
+  data: z8.array(TransactionDtoSchema),
+  meta: z8.object({
+    total: z8.number(),
+    page: z8.number(),
+    limit: z8.number()
   }),
   summary: TransactionSummarySchema
 });
 
 // src/goals/index.ts
-import { z as z8 } from "zod";
-var GoalContributionSourceSchema = z8.enum(["manual", "auto"]);
-var CreateGoalContributionInputSchema = z8.object({
-  amount: z8.string().regex(/^[1-9]\d{0,11}$/),
-  accountId: z8.string().uuid().optional(),
-  occurredAt: z8.string().datetime().optional()
+import { z as z9 } from "zod";
+var GoalContributionSourceSchema = z9.enum(["manual", "auto"]);
+var CreateGoalContributionInputSchema = z9.object({
+  amount: z9.string().regex(/^[1-9]\d{0,11}$/),
+  accountId: z9.string().uuid().optional(),
+  occurredAt: z9.string().datetime().optional()
 });
-var GoalContributionDtoSchema = z8.object({
-  id: z8.string(),
-  goalId: z8.string(),
-  amount: z8.string(),
-  accountId: z8.string().nullable(),
-  accountName: z8.string().nullable(),
-  transactionId: z8.string().nullable(),
-  occurredAt: z8.string(),
+var GoalContributionDtoSchema = z9.object({
+  id: z9.string(),
+  goalId: z9.string(),
+  amount: z9.string(),
+  accountId: z9.string().nullable(),
+  accountName: z9.string().nullable(),
+  transactionId: z9.string().nullable(),
+  occurredAt: z9.string(),
   source: GoalContributionSourceSchema,
-  createdAt: z8.string()
+  createdAt: z9.string()
 });
 
 // src/assets/index.ts
@@ -514,23 +704,23 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
 };
 
 // src/member-category-allowances/index.ts
-import { z as z9 } from "zod";
-var SetMemberCategoryAllowanceInputSchema = z9.object({
-  categoryIds: z9.array(z9.string().uuid())
+import { z as z10 } from "zod";
+var SetMemberCategoryAllowanceInputSchema = z10.object({
+  categoryIds: z10.array(z10.string().uuid())
 });
-var AllowedCategoryDtoSchema = z9.object({
-  id: z9.string(),
-  name: z9.string()
+var AllowedCategoryDtoSchema = z10.object({
+  id: z10.string(),
+  name: z10.string()
 });
-var MemberCategoryAllowanceDtoSchema = z9.object({
-  memberId: z9.string(),
+var MemberCategoryAllowanceDtoSchema = z10.object({
+  memberId: z10.string(),
   // Empty = unrestricted (backward compatible default for every member).
-  categories: z9.array(AllowedCategoryDtoSchema)
+  categories: z10.array(AllowedCategoryDtoSchema)
 });
 
 // src/reference-items/index.ts
-import { z as z10 } from "zod";
-var ReferenceItemGroupSchema = z10.enum([
+import { z as z11 } from "zod";
+var ReferenceItemGroupSchema = z11.enum([
   "bank",
   "ewallet",
   "txntype",
@@ -544,18 +734,18 @@ var ACTIVE_REFERENCE_ITEM_GROUPS = [
   "ewallet",
   "lembaga"
 ];
-var CreateReferenceItemDtoSchema = z10.object({
+var CreateReferenceItemDtoSchema = z11.object({
   group: ReferenceItemGroupSchema,
-  label: z10.string().min(1).max(100)
+  label: z11.string().min(1).max(100)
 });
-var ReferenceItemDtoSchema = z10.object({
-  id: z10.string().uuid(),
-  familyGroupId: z10.string().uuid(),
+var ReferenceItemDtoSchema = z11.object({
+  id: z11.string().uuid(),
+  familyGroupId: z11.string().uuid(),
   group: ReferenceItemGroupSchema,
-  label: z10.string(),
-  sortOrder: z10.number().int(),
-  isSystem: z10.boolean(),
-  createdAt: z10.string()
+  label: z11.string(),
+  sortOrder: z11.number().int(),
+  isSystem: z11.boolean(),
+  createdAt: z11.string()
 });
 var REFERENCE_ITEM_DEFAULTS = {
   bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
@@ -573,13 +763,13 @@ function buildReferenceItemSeed() {
 }
 
 // src/attachments/index.ts
-import { z as z11 } from "zod";
-var TransactionAttachmentDtoSchema = z11.object({
-  id: z11.string().uuid(),
-  transactionId: z11.string().uuid(),
-  mimeType: z11.string(),
-  size: z11.number().int().nonnegative(),
-  createdAt: z11.string()
+import { z as z12 } from "zod";
+var TransactionAttachmentDtoSchema = z12.object({
+  id: z12.string().uuid(),
+  transactionId: z12.string().uuid(),
+  mimeType: z12.string(),
+  size: z12.number().int().nonnegative(),
+  createdAt: z12.string()
 });
 var ATTACHMENT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 var ATTACHMENT_ACCEPTED_MIME_TYPES = [
@@ -590,7 +780,7 @@ var ATTACHMENT_ACCEPTED_MIME_TYPES = [
 ];
 
 // src/access/index.ts
-import { z as z12 } from "zod";
+import { z as z13 } from "zod";
 var ACCESS_PAGES = [
   "beranda",
   "ringkasan",
@@ -615,7 +805,7 @@ var ACCESS_PAGES = [
   "mastercoa",
   "masterdata"
 ];
-var AccessPageSchema = z12.enum(ACCESS_PAGES);
+var AccessPageSchema = z13.enum(ACCESS_PAGES);
 var ALWAYS_OPEN_PAGES = [
   "akun",
   "akses-saya",
@@ -623,9 +813,9 @@ var ALWAYS_OPEN_PAGES = [
   "panduan"
 ];
 var ACCESS_LEVELS = ["none", "view", "manage"];
-var AccessLevelSchema = z12.enum(ACCESS_LEVELS);
-var AccessDataScopeSchema = z12.enum(["all", "own"]);
-var AccessPermissionsSchema = z12.record(z12.string(), AccessLevelSchema).transform((raw) => {
+var AccessLevelSchema = z13.enum(ACCESS_LEVELS);
+var AccessDataScopeSchema = z13.enum(["all", "own"]);
+var AccessPermissionsSchema = z13.record(z13.string(), AccessLevelSchema).transform((raw) => {
   const clean = {};
   for (const [page, level] of Object.entries(raw)) {
     if (AccessPageSchema.safeParse(page).success) {
@@ -722,22 +912,22 @@ function resolveEffectiveAccess(input) {
 function canAccessPage(access, page, need = "view") {
   return access.isMaster || levelAtLeast(access.permissions[page], need);
 }
-var AccessRoleInputSchema = z12.object({
-  name: z12.string().trim().min(1).max(60),
-  description: z12.string().trim().max(200).nullable().optional(),
+var AccessRoleInputSchema = z13.object({
+  name: z13.string().trim().min(1).max(60),
+  description: z13.string().trim().max(200).nullable().optional(),
   dataScope: AccessDataScopeSchema,
   permissions: AccessPermissionsSchema
 });
-var MemberAccessInputSchema = z12.object({
+var MemberAccessInputSchema = z13.object({
   /** null = no custom role (use the built-in role's preset). */
-  accessRoleId: z12.string().min(1).nullable(),
+  accessRoleId: z13.string().min(1).nullable(),
   /** Sparse overrides on top of the role; {} clears them. */
   overrides: AccessPermissionsSchema,
   /**
    * "Lihat saldo". Omit to leave unchanged. false = member can still record
    * transactions but never sees balance figures.
    */
-  canViewBalances: z12.boolean().optional()
+  canViewBalances: z13.boolean().optional()
 });
 
 // src/family-login/index.ts
@@ -759,7 +949,7 @@ function slugifyHandleBase(name) {
 }
 
 // src/fx/index.ts
-import { z as z13 } from "zod";
+import { z as z14 } from "zod";
 
 // src/fx/currencies.ts
 var FX_CURRENCY_CODES = [
@@ -836,19 +1026,19 @@ function deriveIdrPerUnit(eurToIdr, eurToX) {
 }
 
 // src/fx/index.ts
-var FxCurrencyCodeSchema = z13.enum(FX_CURRENCY_CODES);
-var FxInputSchema = z13.object({
-  field: z13.string().min(1).max(96),
+var FxCurrencyCodeSchema = z14.enum(FX_CURRENCY_CODES);
+var FxInputSchema = z14.object({
+  field: z14.string().min(1).max(96),
   currency: FxCurrencyCodeSchema.exclude(["IDR"]),
-  amount: z13.string().regex(/^-?\d{1,13}(\.\d{1,2})?$/)
+  amount: z14.string().regex(/^-?\d{1,13}(\.\d{1,2})?$/)
 });
-var FxRatesResponseSchema = z13.object({
-  base: z13.string(),
-  rates: z13.record(z13.number()),
-  rateDate: z13.string(),
-  source: z13.enum(["frankfurter", "indicative"]),
-  stale: z13.boolean(),
-  idrPerUnit: z13.record(z13.string())
+var FxRatesResponseSchema = z14.object({
+  base: z14.string(),
+  rates: z14.record(z14.number()),
+  rateDate: z14.string(),
+  source: z14.enum(["frankfurter", "indicative"]),
+  stale: z14.boolean(),
+  idrPerUnit: z14.record(z14.string())
 });
 
 // src/taxonomy/asset-class.ts
@@ -955,6 +1145,9 @@ export {
   AccessRoleInputSchema,
   AccountDtoSchema,
   AccountOwnerFilterSchema,
+  AccountOwnershipFormSchema,
+  AccountShareInputSchema,
+  AccountStatusSchema,
   AccountTypeSchema,
   AllowanceRequestDtoSchema,
   AllowanceRequestKindSchema,
@@ -962,6 +1155,9 @@ export {
   AllowedCategoryDtoSchema,
   ApproveAllowanceRequestInputSchema,
   AuthUserSchema,
+  BANK_COUNTRIES,
+  BankInstitutionKindSchema,
+  BankProductKindSchema,
   CONTRACTS_VERSION,
   CategoryDtoSchema,
   CategoryKindSchema,
@@ -972,6 +1168,8 @@ export {
   CreateTransactionInputSchema,
   DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT,
   DEFAULT_ROLE_BY_RELATIONSHIP,
+  DepositInterestPayoutSchema,
+  DepositMaturityInstructionSchema,
   FAMILY_HANDLE_PATTERN,
   FOREIGN_FX_CURRENCY_CODES,
   FX_CURRENCY_CODES,
@@ -984,6 +1182,9 @@ export {
   GoalContributionDtoSchema,
   GoalContributionSourceSchema,
   HeldExpenseResponseSchema,
+  ID_INTEREST_TAX_FREE_BALANCE,
+  ID_INTEREST_TAX_RATE,
+  INDONESIA,
   LEGACY_ACCESS_PRESETS,
   LOGIN_USERNAME_PATTERN,
   LoginInputSchema,
@@ -997,8 +1198,10 @@ export {
   ReferenceItemGroupSchema,
   RejectAllowanceRequestInputSchema,
   RoleSchema,
+  RoutingCodeKindSchema,
   RupiahSchema,
   SetMemberCategoryAllowanceInputSchema,
+  ShariaContractSchema,
   TransactionAttachmentDtoSchema,
   TransactionDtoSchema,
   TransactionListResponseSchema,
@@ -1006,21 +1209,27 @@ export {
   TransactionTypeSchema,
   UpdateAccountInputSchema,
   accountTypeToAssetClass,
+  addMonthsUtc,
   assetTypeToAssetClass,
+  bankCountry,
   buildFamilyLoginId,
   buildReferenceItemSeed,
   canAccessPage,
   convertToIdr,
+  daysBetween,
   defaultCoaCodeForCategory,
   defaultRoleForRelationship,
   deriveIdrPerUnit,
   divRoundHalfUp,
+  estimateNetInterest,
   formatScaled,
   investmentTypeToAssetClass,
   isFamilyLoginId,
   isFxCurrency,
   isMasterOrCoMaster,
+  isoDate,
   levelAtLeast,
+  nextMaturityDate,
   parseMinor,
   parseScaled,
   resolveEffectiveAccess,

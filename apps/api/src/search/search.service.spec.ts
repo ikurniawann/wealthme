@@ -29,6 +29,34 @@ interface FakeTransaction {
 }
 
 /** A minimal in-memory Prisma stand-in honoring `ownerUserId`/`OR` filters. */
+/**
+ * In-memory evaluator for the account `where` the service builds: equality,
+ * AND/OR, `contains` (always true — see below), and `shares: { some: { userId } }`
+ * (no fixture account is shared, so that leg never matches).
+ */
+function matchesWhere(
+  row: Record<string, unknown>,
+  where: Record<string, unknown>,
+): boolean {
+  return Object.entries(where).every(([key, cond]) => {
+    if (key === "OR")
+      return (cond as Array<Record<string, unknown>>).some((c) =>
+        matchesWhere(row, c),
+      );
+    if (key === "AND")
+      return (cond as Array<Record<string, unknown>>).every((c) =>
+        matchesWhere(row, c),
+      );
+    if (key === "shares") return false;
+    if (key === "familyGroupId") return true;
+    // Text matching is not under test here (fixtures are found by the
+    // row-scoping alone), so a `contains` clause always matches.
+    if (cond !== null && typeof cond === "object" && "contains" in cond)
+      return true;
+    return row[key] === cond;
+  });
+}
+
 function makeFakePrisma(
   accounts: FakeAccount[],
   transactions: FakeTransaction[],
@@ -37,13 +65,13 @@ function makeFakePrisma(
 
   return {
     account: {
-      findMany: jest.fn(({ where }: { where: { ownerUserId?: string } }) => {
-        const rows =
-          where.ownerUserId === undefined
-            ? accounts
-            : accounts.filter((a) => a.ownerUserId === where.ownerUserId);
-        return Promise.resolve(rows);
-      }),
+      findMany: jest.fn(({ where }: { where: Record<string, unknown> }) =>
+        Promise.resolve(
+          accounts.filter((a) =>
+            matchesWhere(a as unknown as Record<string, unknown>, where),
+          ),
+        ),
+      ),
     },
     category: { findMany: jest.fn(() => Promise.resolve([])) },
     transaction: {
