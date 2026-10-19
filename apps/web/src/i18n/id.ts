@@ -1,3 +1,4 @@
+import { investasiV3Id } from "./investasi-v3";
 import { danaV3Id } from "./dana-v3";
 import { rekeningV3Id } from "./rekening-v3";
 import type { I18nDictionary } from "./types";
@@ -2056,6 +2057,7 @@ export const id = {
     },
   },
   investasi: {
+    v3: investasiV3Id,
     v2: {
       allocTitle: "Kepemilikan",
       listTitle: "Portofolio",

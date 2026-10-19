@@ -1361,6 +1361,12 @@ interface InvestmentValuationDto {
     marketValueCurrency: string | null;
     /** Rupiah at the valuation FX. Null when unpriced/failed (never 0). */
     marketValueIdr: string | null;
+    /** Present on portfolio responses; converted server-side at displayFx. */
+    display?: {
+        currency: string;
+        marketValue: string | null;
+        unrealized: string | null;
+    };
     /** Remaining cost basis (weighted average, R1), rupiah. */
     costRemainingIdr: string;
     /**

@@ -196,7 +196,22 @@ export class InvestmentPortfolioService {
       asOf: now.toISOString(),
       displayCurrency,
       displayFx: displayFxDto(fx, displayCurrency, rate),
-      holdings,
+      holdings: holdings.map((v) => {
+        const convert = (value: string | null) =>
+          value === null
+            ? null
+            : displayCurrency === "IDR"
+              ? value
+              : money(new D(value)).display;
+        return {
+          ...v,
+          display: {
+            currency: displayCurrency,
+            marketValue: convert(v.marketValueIdr),
+            unrealized: convert(v.unrealizedIdr),
+          },
+        };
+      }),
       totals: totalsOf(holdings, platformCash(visiblePlatforms, money), money),
     };
   }

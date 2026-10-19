@@ -28,6 +28,8 @@ import { PriceBatchDto } from "./dto/price-batch.dto";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentPortfolioService } from "./investment-portfolio.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PortfolioHistoryService } from "./portfolio-history.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PriceBatchService } from "./price-batch.service";
 
 import type {
@@ -50,6 +52,7 @@ export class InvestmentValuationController {
   constructor(
     private readonly portfolio: InvestmentPortfolioService,
     private readonly prices: PriceBatchService,
+    private readonly historyService: PortfolioHistoryService,
   ) {}
 
   @Get("valuation")
@@ -68,6 +71,15 @@ export class InvestmentValuationController {
       member: req.tenantContext?.member ?? null,
       userId: req.tenantContext?.userId,
     });
+  }
+
+  @Get("value-history")
+  @CheckAbility((ab) => ab.can("read", "Investment"))
+  history(
+    @Param("familyGroupId") familyGroupId: string,
+    @Query() query: PortfolioValuationQueryDto,
+  ) {
+    return this.historyService.history(familyGroupId, query);
   }
 
   @Post("prices/preview")

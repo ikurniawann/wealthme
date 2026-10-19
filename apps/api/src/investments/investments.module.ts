@@ -19,6 +19,7 @@ import { RoutedMarketDataAdapter } from "./routed-market-data.adapter";
 import { InvestmentPortfolioService } from "./valuation/investment-portfolio.service";
 import { InvestmentValuationController } from "./valuation/investment-valuation.controller";
 import { InvestmentValuationModule } from "./valuation/investment-valuation.module";
+import { PortfolioHistoryService } from "./valuation/portfolio-history.service";
 import { PriceBatchService } from "./valuation/price-batch.service";
 import { YahooFinanceMarketDataAdapter } from "./yahoo-finance-market-data.adapter";
 
@@ -48,6 +49,7 @@ import type { Env } from "../config/env";
     InvestmentLedgerService,
     InvestmentPortfolioService,
     PriceBatchService,
+    PortfolioHistoryService,
     {
       // EPIC-023 G1 (D15) — behind the same MARKET_DATA_PORT token, route by
       // instrument type: crypto → CoinGecko, equities → Yahoo with a

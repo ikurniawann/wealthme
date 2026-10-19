@@ -1,3 +1,4 @@
+import type { InvestasiV3Copy } from "./investasi-v3";
 import type { DanaV3Copy } from "./dana-v3";
 import type { RekeningV3Copy } from "./rekening-v3";
 import type {
@@ -2024,6 +2025,7 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/investasi` (investment portfolio) page copy. */
   investasi: {
+    v3: InvestasiV3Copy;
     v2: {
       allocTitle: string;
       listTitle: string;

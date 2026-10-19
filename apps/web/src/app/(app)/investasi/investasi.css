@@ -1,574 +1,394 @@
-/* Investasi (bento v2, docs/design/proto/investasi.html) */
+/* Investasi — scoped product surfaces; the app shell owns outer spacing. */
 @layer components {
-  @media (min-width: 1181px) {
-    .iv-grid > .iv-hero {
-      grid-column: 1 / 9;
-      grid-row: 1;
-    }
-    .iv-grid > .iv-comp {
-      grid-column: 9 / 13;
-      grid-row: 1;
-    }
-    .iv-grid > .iv-list {
-      grid-column: 1 / 9;
-      grid-row: 2;
-    }
-    .iv-grid > .iv-note {
-      grid-column: 9 / 13;
-      grid-row: 2;
-    }
-    .iv-grid > .iv-tax {
-      grid-column: 1 / 13;
-      grid-row: 3;
-    }
-  }
-  .iv-grid > .iv-tax,
-  .iv-grid > .iv-note,
-  .iv-grid > .iv-comp {
-    min-width: 0;
-  }
-  .iv-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 12px;
-    padding: 0;
-    background: transparent;
-  }
-  .iv-filters button {
-    min-height: 36px;
-    padding: 0 14px;
-    border: 1px solid var(--wm-line, rgb(238 240 232 / 0.14));
-    border-radius: 999px;
-  }
-  .iv-legend {
-    display: flex;
-    flex-basis: 100%;
-    justify-content: flex-end;
-    gap: 12px;
-    margin-top: 4px;
-    font-size: var(--wm-type-11);
-    color: var(--wm-muted);
-  }
-  .iv-legend span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .iv-legend i {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-    display: inline-block;
-  }
-  .iv-dot-cost {
-    background: var(--wm-ghost);
-  }
-  .iv-dot-value {
-    background: var(--wm-lime);
-  }
-  .iv-kdelta {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-  }
-  .iv-info {
-    color: inherit;
-    opacity: 0.7;
-  }
-  .iv-rows {
-    list-style: none;
-    margin: 6px 0 0;
-    padding: 0;
-  }
-  .iv-row {
-    display: grid;
-    grid-template-columns:
-      36px minmax(0, 1.6fr) minmax(0, 1.1fr) minmax(max-content, 1fr)
-      auto;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
-  }
-  .iv-row:last-child {
-    border-bottom: 0;
-  }
-  .iv-logo {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 999px;
-    color: #fff;
-    font-size: var(--wm-type-11);
-    font-weight: 700;
-  }
-  .iv-id,
-  .iv-src,
-  .iv-val {
-    display: flex;
-    min-width: 0;
-    flex-direction: column;
-    gap: 3px;
-    font-size: var(--wm-type-12);
-  }
-  .iv-id small,
-  .iv-val small {
-    color: var(--wm-muted);
-    font-size: var(--wm-type-11);
-  }
-  .iv-name {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px;
-    font-size: var(--wm-type-14);
-  }
-  .iv-val {
-    align-items: flex-end;
-    text-align: right;
-  }
-  .iv-val b {
-    font-size: var(--wm-type-16, 16px);
-    font-weight: 600;
-    letter-spacing: -0.02em;
-    font-variant-numeric: tabular-nums;
-  }
-  .iv-val small:nth-of-type(1) {
-    font-weight: 600;
-    align-self: flex-end;
-  }
-  .iv-val.is-up small:nth-of-type(1) {
-    color: var(--wm-good, #15803d);
-  }
-  .iv-val.is-down small:nth-of-type(1) {
-    color: var(--wm-bad);
-  }
-  /* proto `.irow .meta a` / `.prow` detail link — a plain inline text link,
-     not a pill button. */
-  .iv-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    align-self: flex-start;
-    padding: 0;
-    background: none;
-    border: 0;
-    border-radius: 0;
-    color: var(--wm-good, #15803d);
-    font-size: var(--wm-type-11);
-    font-weight: 600;
-    text-decoration: none;
-    cursor: pointer;
-    transition: opacity 0.15s;
-  }
-  .iv-link:hover {
-    opacity: 0.75;
-  }
-  .iv-link:focus-visible {
-    outline: 2px solid currentColor;
-    outline-offset: 2px;
-  }
-  .iv-act {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  /* proto `.ibtn` — a plain outlined square icon button, used here for the
-     buy/sell action that sits alongside the shared RowActions edit/delete
-     pair. */
-  .iv-buysell {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 1px solid var(--wm-line, rgb(0 0 0 / 0.14));
-    border-radius: 7px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    transition:
-      background 0.15s,
-      border-color 0.15s;
-  }
-  .iv-buysell svg {
-    width: 13px;
-    height: 13px;
-  }
-  .iv-buysell:hover {
-    background: var(--wm-ghost);
-    border-color: var(--wm-muted);
-  }
-  .iv-state {
-    margin-top: 12px;
-    color: var(--wm-muted);
-    font-size: var(--wm-type-13);
-  }
-  .iv-state-bad {
-    color: var(--wm-bad);
-  }
-  .iv-note {
+  .iv {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-    height: auto;
+    gap: 16px;
     min-width: 0;
-    overflow: hidden;
+    color: var(--wm-ink);
   }
-  .iv-heat {
+  .iv p,
+  .iv h2 {
     margin: 0;
   }
-  .iv-heat figcaption {
-    margin-bottom: 8px;
-    color: var(--wm-muted);
-    font-size: var(--wm-type-11);
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+  .iv h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 12px;
   }
-  .iv-note h2 {
+  .iv svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .iv-card {
+    background: var(--wm-card);
+    border: 1px solid var(--wm-line);
+    border-radius: 20px;
+    padding: 20px;
+    min-width: 0;
+  }
+  .iv-header,
+  .iv-section-head {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 6px;
+    gap: 16px;
+    flex-wrap: wrap;
   }
-  .iv-more summary {
-    cursor: pointer;
-    list-style: none;
-    font-size: var(--wm-type-12);
-    font-weight: 600;
-    text-decoration: underline;
+  .iv-header p:not(.iv-title),
+  .iv small {
+    color: var(--wm-muted);
   }
-  .iv-more p {
-    margin-top: 6px;
+  .iv .iv-title {
+    font-size: 28px;
+    font-weight: 750;
+    letter-spacing: -0.04em;
   }
-  /* Phones: 44px hit areas whose negative margin cancels the growth, so the
-     surrounding rows keep their rhythm. */
-  @media (max-width: 720px) {
-    .iv-info {
-      display: inline-grid;
-      place-items: center;
-      width: 44px;
-      height: 44px;
-      margin: -15px;
-    }
-    .iv-more summary {
-      display: flex;
-      align-items: center;
-      min-height: 44px;
-      margin-block: -13px;
-    }
-  }
-  .iv-note .wm-mosaic {
-    grid-template-columns: repeat(9, minmax(0, 1fr));
-    grid-auto-rows: minmax(0, 1fr);
-    flex: 1;
-    width: 100%;
-    max-width: 100%;
-    min-width: 0;
-    margin-top: 14px;
-    justify-self: stretch;
-    overflow: hidden;
-  }
-  .iv-note .wm-mosaic i {
-    width: 100%;
-    height: auto;
-    min-width: 0;
-    aspect-ratio: 1;
-    border-radius: 5px;
-  }
-  @media (max-width: 720px) {
-    .iv-row {
-      grid-template-columns: 36px minmax(0, 1fr) auto;
-      padding: 14px;
-      margin-bottom: 10px;
-      border: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
-      border-radius: 16px;
-    }
-    .iv-row:last-child {
-      border-bottom: 1px solid var(--wm-line, rgb(0 0 0 / 0.08));
-    }
-    .iv-src {
-      display: none;
-    }
-    .iv-act {
-      grid-column: 1 / 4;
-      justify-content: flex-end;
-    }
-    .iv-act button,
-    .iv-act a {
-      min-width: 44px;
-      min-height: 44px;
-    }
-    .iv-link {
-      min-height: 44px;
-    }
-    .iv-filters button {
-      min-height: 44px;
-    }
-  }
-}
-@layer components {
-  .iv-chartcol {
-    position: absolute;
-    inset: 0;
+  .iv-header-actions,
+  .iv-tools,
+  .iv-row-actions {
     display: flex;
-    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .iv-header-actions {
+    justify-content: flex-end;
+  }
+  .iv .btn {
+    min-height: 42px;
     gap: 8px;
   }
-  .iv-plot {
-    position: relative;
-    flex: 1;
-    min-height: 150px;
-  }
-  /* chartcol is absolutely filled into the wrap: the wrap must fit the plot's
-     own minimum, or its x-axis labels overflow past the hero's bottom edge. */
-  .iv-hero .wm-chart-wrap {
-    min-height: 300px;
-  }
-}
-
-@layer components {
-  /* Long full-Rupiah KPI values (with decimals on) need a wider rail than the
-     default 210px or they collide with the card edge. */
-  @media (min-width: 1181px) {
-    .iv-grid > .iv-hero.wm-hero {
-      grid-template-columns: minmax(0, 1fr) 270px;
-    }
-  }
-  .iv-hero .wm-kpi-v {
-    white-space: nowrap;
-  }
-  /* Money never splits "Rp" from its digits; tabular numerals on every
-     caption that carries a figure ("Modal Rp 1.000.000"). */
-  .iv-grid .wm-cap,
-  .iv-val small {
-    font-variant-numeric: tabular-nums;
-  }
-  .iv-val b {
-    white-space: nowrap;
-  }
-  /* 390px: the 2-col KPI rail is ~170px wide; shrink the figure with the
-     viewport instead of clipping it with an ellipsis. */
-  @media (max-width: 720px) {
-    .iv-hero .wm-kpi-v {
-      overflow: visible;
-      text-overflow: clip;
-      font-size: clamp(12px, 4.1vw, 15px);
-    }
-  }
-}
-
-@layer components {
-  /* Beli / Jual side sheet */
-  .bs-pos {
-    padding: 14px 16px;
-    border-radius: 16px;
-    background: var(--wm-card-2);
-  }
-  .bs-pos-title,
-  .bs-sum-title {
-    color: var(--wm-muted);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-  }
-  .bs-pos-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
-    margin: 10px 0 0;
-  }
-  .bs-pos-grid dt,
-  .bs-sum-rows dt {
-    color: var(--wm-muted);
+  .iv-manual {
     font-size: 12px;
-  }
-  .bs-pos-grid dd,
-  .bs-sum-rows dd {
-    margin: 3px 0 0;
-    font-size: 15px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-  .bs-side {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    padding: 5px;
-    border-radius: 16px;
+    padding: 6px 12px;
+    border-radius: 100px;
     background: var(--wm-card-2);
-  }
-  .bs-side button {
-    min-height: 44px;
-    border: 0;
-    border-radius: 12px;
-    background: transparent;
-    color: var(--wm-muted);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition:
-      background-color 0.15s,
-      color 0.15s;
-  }
-  .bs-side button[data-side="buy"][aria-selected="true"] {
-    background: var(--wm-lime);
-    color: #1a2208;
-  }
-  .bs-side button[data-side="sell"][aria-selected="true"] {
-    background: var(--wm-orange);
-    color: #2a1405;
-  }
-  .bs-chip {
-    align-self: flex-start;
-    padding: 4px 10px;
-    border: 1px solid var(--wm-line);
-    border-radius: 999px;
-    background: transparent;
     color: var(--wm-ink);
-    font-size: 12px;
-    cursor: pointer;
   }
-  .bs-chip:hover {
-    border-color: var(--wm-lime);
+  .iv-summary {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1.2fr 1fr;
+    gap: 20px;
   }
-  .bs-sum {
-    padding: 16px;
-    border: 1.5px solid var(--wm-line);
-    border-radius: 16px;
-  }
-  .bs-sum[data-side="buy"] {
-    border-color: color-mix(in srgb, var(--wm-lime) 55%, transparent);
-  }
-  .bs-sum[data-side="sell"] {
-    border-color: color-mix(in srgb, var(--wm-orange) 55%, transparent);
-  }
-  .bs-sum-total {
+  .iv-summary > div {
     display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 12px;
-    margin-top: 8px;
-    color: var(--wm-muted);
-    font-size: 13px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+    min-width: 0;
   }
-  .bs-sum-total b {
-    color: var(--wm-ink);
-    font-size: 24px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+  .iv-summary > div + div {
+    border-left: 1px solid var(--wm-line);
+    padding-left: 20px;
+  }
+  .iv-summary span,
+  .iv-summary small {
+    font-size: 12px;
+  }
+  .iv-summary strong {
+    font-size: 19px;
+    overflow-wrap: anywhere;
     font-variant-numeric: tabular-nums;
-    white-space: nowrap;
   }
-  .bs-sum-rows {
+  .iv-summary .iv-date {
+    font-size: 14px;
+  }
+  .iv-total p {
+    font-size: 30px;
+    line-height: 1.2;
+    font-weight: 750;
+    letter-spacing: -0.04em;
+    overflow-wrap: anywhere;
+  }
+  .iv-filters {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin: 12px 0 0;
-    padding-top: 12px;
-    border-top: 1px solid var(--wm-line);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 14px;
   }
-  .bs-sum-empty {
-    margin: 8px 0 0;
+  .iv-filters .select {
+    width: 100%;
+    min-width: 0;
+  }
+  .iv-tabs {
+    display: flex;
+    gap: 4px;
+    border: 1px solid var(--wm-line);
+    background: var(--wm-card);
+    border-radius: 16px;
+    padding: 4px;
+  }
+  .iv-tabs a {
+    flex: 1;
+    text-align: center;
+    padding: 12px 8px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  .iv-tabs a[aria-current="page"] {
+    background: var(--wm-lime, #d1f073);
+    color: var(--primary-strong);
+    font-weight: 700;
+  }
+  .iv-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(250px, 1fr);
+    gap: 16px;
+  }
+  .iv-chart {
+    min-height: 260px;
+  }
+  .iv-chart > small {
+    display: block;
+    font-size: 11px;
+  }
+  .iv-empty {
+    min-height: 130px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
     color: var(--wm-muted);
-    font-size: 13px;
   }
-  @media (max-width: 420px) {
-    .bs-pos-grid {
+  .iv-notice {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--wm-card-2);
+    border: 1px solid var(--wm-line);
+    border-radius: 12px;
+    font-size: 12px;
+  }
+  .iv-pocket {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--wm-line);
+    margin-bottom: 12px;
+  }
+  .iv-pocket span {
+    font-size: 12px;
+  }
+  .iv-tools {
+    margin-bottom: 12px;
+  }
+  .iv-search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .iv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .iv-table th {
+    text-align: left;
+    font-size: 11px;
+    color: var(--wm-muted);
+    font-weight: 600;
+    background: var(--wm-card-2);
+    padding: 10px;
+  }
+  .iv-table td {
+    padding: 14px 10px;
+    border-bottom: 1px solid var(--wm-line);
+    vertical-align: middle;
+    overflow-wrap: anywhere;
+  }
+  .iv-table td small,
+  .iv-table td span:not(.iv-instrument-mark) {
+    display: block;
+    margin-top: 4px;
+  }
+  .iv-table tr:hover td {
+    background: var(--wm-card-2);
+  }
+  .iv-instrument {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 130px;
+  }
+  .iv-instrument-mark {
+    display: grid;
+    place-items: center;
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    font-weight: 700;
+    flex-shrink: 0;
+    font-size: 10px;
+  }
+  .iv-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 16px;
+    font-size: 12px;
+  }
+  .iv-types {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .iv-types .btn {
+    white-space: normal;
+    padding: 10px;
+  }
+  .iv-types [aria-pressed="true"] {
+    background: var(--wm-lime, #d1f073);
+    color: var(--primary-strong);
+  }
+  .iv-activities {
+    padding: 0;
+    margin: 0;
+    list-style: none;
+  }
+  .iv-activities li {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.8fr 1fr 1fr;
+    gap: 14px;
+    padding: 14px 0;
+    border-top: 1px solid var(--wm-line);
+    font-size: 12px;
+  }
+  .iv-activities small {
+    display: block;
+    margin-top: 4px;
+  }
+  .iv :is(button, a, input, select):focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 3px;
+  }
+  .dark .iv-card,
+  .dark .iv-tabs {
+    background: oklch(0.21 0.012 155);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+  .dark .iv-table th {
+    background: oklch(0.25 0.012 155);
+  }
+  .dark .iv-table td,
+  .dark .iv-activities li {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+  .dark .iv small,
+  .dark .iv-header p:not(.iv-title),
+  .dark .iv-table th {
+    color: oklch(0.78 0.008 155);
+  }
+  .dark .iv-table tr:hover td {
+    background: rgba(255, 255, 255, 0.045);
+  }
+  @media (max-width: 1180px) {
+    .iv-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .iv-summary > div + div {
+      border: 0;
+      padding: 0;
+    }
+    .iv-filters {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .iv-table,
+    .iv-table tbody,
+    .iv-table tr,
+    .iv-table td {
+      display: block;
+    }
+    .iv-table thead {
+      display: none;
+    }
+    .iv-table tbody {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .iv-table tr {
+      border: 1px solid var(--wm-line);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .iv-table td {
+      padding: 10px 14px;
+    }
+    .iv-table td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      color: var(--wm-muted);
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .iv-types {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  @media (max-width: 820px) {
+    .iv-overview {
+      grid-template-columns: 1fr;
+    }
+    .iv-filters {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .iv-activities li {
       grid-template-columns: 1fr 1fr;
     }
-  }
-}
-
-@layer components {
-  @media (max-width: 720px) {
-    .iv-chartcol {
-      position: static;
+    .iv-summary strong {
+      font-size: 17px;
     }
-    .iv-plot {
-      flex: none;
-      height: 180px;
+    .iv-total p {
+      font-size: 25px;
     }
   }
-}
-
-@layer components {
-  @media (max-width: 720px) {
-    .iv-hero .wm-chart-wrap {
-      flex: none;
-      min-height: 0;
+  @media (max-width: 560px) {
+    .iv-card {
+      padding: 16px;
+      border-radius: 16px;
     }
-  }
-}
-
-@layer components {
-  .iv-hero-more {
-    display: none;
-  }
-  @media (max-width: 720px) {
-    /* Condensed phone hero: value, the two buttons and the KPIs stay; the
-       bar chart and its legend fold behind the toggle so the first position
-       starts near the top. */
-    .iv-grid > .iv-hero.wm-hero .wm-hero-main {
-      padding: 18px 18px 4px;
+    .iv-header-actions {
+      justify-content: flex-start;
     }
-    .iv-grid > .iv-hero .wm-kpis {
-      padding: 8px 18px 6px;
+    .iv-summary {
+      grid-template-columns: 1fr;
+      gap: 18px;
     }
-    .iv-hero:not(.iv-hero--more) .wm-chart-wrap,
-    .iv-hero:not(.iv-hero--more) .iv-legend {
-      display: none;
+    .iv-summary > div + div {
+      border-top: 1px solid var(--wm-line);
+      padding-top: 14px;
     }
-    .iv-comp:not(.iv-comp--more) {
-      display: none;
+    .iv-filters {
+      grid-template-columns: 1fr;
     }
-    .iv-hero-more {
-      display: flex;
-      grid-column: 1 / -1;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      min-height: 44px;
-      border: 0;
-      background: transparent;
-      color: rgb(238 240 232 / 0.78);
-      font: inherit;
-      font-size: var(--wm-type-13);
-      font-weight: 600;
-      cursor: pointer;
+    .iv-table tbody {
+      grid-template-columns: 1fr;
     }
-    .iv-hero-more svg {
-      width: 16px;
-      height: 16px;
-      transition: transform 0.2s;
+    .iv-tools {
+      width: 100%;
     }
-    .iv-hero-more[aria-expanded="true"] svg {
-      transform: rotate(180deg);
+    .iv-search,
+    .iv-search .input {
+      width: 100%;
+      min-width: 0;
     }
-  }
-}
-
-@layer components {
-  /* The type filter is a single scrollable row above the list at every width. */
-  .iv-chips-row {
-    display: block;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .iv-chips-row .iv-filters {
-    flex-wrap: nowrap;
-    width: max-content;
-    margin-top: 0;
-  }
-  .iv-chips-row .iv-filters button {
-    flex: none;
-    white-space: nowrap;
+    .iv-types {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .iv-pagination {
+      justify-content: space-between;
+      gap: 5px;
+    }
+    .iv-tabs a {
+      font-size: 12px;
+    }
   }
 }

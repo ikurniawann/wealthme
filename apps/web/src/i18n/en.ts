@@ -1,3 +1,4 @@
+import { investasiV3En } from "./investasi-v3";
 import { danaV3En } from "./dana-v3";
 import { rekeningV3En } from "./rekening-v3";
 import type { I18nDictionary } from "./types";
@@ -2013,6 +2014,7 @@ export const en = {
     },
   },
   investasi: {
+    v3: investasiV3En,
     v2: {
       allocTitle: "Holdings",
       listTitle: "Portfolio",
