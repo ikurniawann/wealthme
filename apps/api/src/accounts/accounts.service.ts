@@ -707,6 +707,8 @@ export class AccountsService {
       lastReconciledAt: account.lastReconciledAt
         ? account.lastReconciledAt.toISOString()
         : null,
+      platformAccountId: account.platformAccountId ?? null,
+      pocketKind: account.pocketKind ?? null,
       beneficiaryUserId: account.beneficiaryUserId ?? null,
       beneficiaryName: account.beneficiaryName ?? null,
       depositNumber: decryptOrNull(account.depositNumber),

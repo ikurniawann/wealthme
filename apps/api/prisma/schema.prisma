@@ -161,6 +161,56 @@ enum InvestmentTxType {
   sell
 }
 
+// Investasi rebuild (R2–R7) — what a ledger row IS. `kind` is the canonical
+// classification; the older `type` column (InvestmentTxType) is kept as the
+// legacy quantity direction (buy/opening → "buy", sell → "sell", null for
+// income and corporate-action rows).
+enum InvestmentTxKind {
+  buy
+  sell
+  // Kepemilikan awal: a position the user already held. Never debits cash.
+  opening
+  dividend
+  coupon
+  interest
+  corporate_action
+}
+
+// A voided row stays in the table (audit trail) but drops out of the replay.
+enum InvestmentTxStatus {
+  active
+  void
+}
+
+// R4 — where an instrument trades. Drives lot size, fraction default,
+// settlement days and the display unit (MARKETS in @wealthme/contracts).
+// Null on legacy rows that could not be classified safely (R5).
+enum InvestmentMarket {
+  IDX
+  NASDAQ
+  NYSE
+  CRYPTO
+  MUTUAL_FUND_ID
+  BOND_ID
+  GOLD
+  DEPOSIT
+  OTHER
+}
+
+// R2 — the kind of cash pocket (kantong dana) an `investment` Account is at
+// a platform. Balances of different currencies/products never share a pocket.
+enum PocketKind {
+  rdn
+  crypto
+  usd
+  general
+}
+
+// R3 — every platform is recorded manually today; no integration exists.
+enum PlatformSyncMode {
+  manual
+}
+
 enum LiabilityType {
   kartu_kredit
   pinjaman_pribadi
@@ -462,6 +512,8 @@ model User {
   notifications            Notification[]
   notificationReads        NotificationRead[]
   fxConversionsCreated     FxConversion[]     @relation("FxConversionCreatedBy")
+  ownedPlatformAccounts    PlatformAccount[]  @relation("PlatformAccountOwner")
+  ownedInvestments         Investment[]       @relation("InvestmentOwner")
 
   @@map("users")
 }
@@ -611,6 +663,9 @@ model FamilyGroup {
   // EPIC-024 Task L2 — denormalized tenant scope on TransactionAttachment
   // (see that model's comment for why).
   transactionAttachments  TransactionAttachment[]
+  platformAccounts        PlatformAccount[]
+  investmentTransactions  InvestmentTransaction[]
+  investmentAttachments   InvestmentAttachment[]
   goalContributions       GoalContribution[]
   fxConversions           FxConversion[]
 
@@ -798,9 +853,22 @@ model Account {
   // Last time someone confirmed the recorded balance matches reality
   // ("Cocokkan saldo"). Null = never checked.
   lastReconciledAt          DateTime?
+  // ── Investasi: kantong dana (R2) ──────────────────────────────────────────
+  // An `investment`-type account can be a cash pocket at a platform account
+  // (RDN, crypto IDR wallet, USD wallet). Its balance is cash like any other
+  // account and is counted once in net worth through the accounts sum; the
+  // holdings bought from it are valued separately (never added here).
+  // NoAction (checked at statement end) so a family-wide cascade delete
+  // still works, while deleting a platform account that still has pockets
+  // fails instead of silently orphaning them.
+  platformAccountId         String?
+  pocketKind                PocketKind?
   createdAt                 DateTime                    @default(now())
   updatedAt                 DateTime                    @updatedAt
   familyGroup               FamilyGroup                 @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  platformAccount           PlatformAccount?            @relation(fields: [platformAccountId], references: [id], onDelete: NoAction)
+  investmentsFunded         Investment[]                @relation("InvestmentCashAccount")
+  investmentCashLegs        InvestmentTransaction[]     @relation("InvestmentTxCashAccount")
   owner                     User?                       @relation("AccountOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
   holder                    User?                       @relation("AccountHolder", fields: [holderUserId], references: [id], onDelete: SetNull)
   beneficiary               User?                       @relation("AccountBeneficiary", fields: [beneficiaryUserId], references: [id], onDelete: SetNull)
@@ -827,7 +895,40 @@ model Account {
   @@unique([familyGroupId, type, institution, maskedNumber])
   @@index([familyGroupId])
   @@index([ownerUserId])
+  @@index([platformAccountId])
   @@map("accounts")
+}
+
+// Investasi R2 — the user's own account AT a platform ("Ajaib milik Budi").
+// The platform itself is a code catalog (INVESTMENT_PLATFORMS in
+// @wealthme/contracts), referenced by `platformKey`; "custom" plus
+// `customName` covers anything not in the catalog. Cash pockets are
+// `Account` rows pointing here; holdings are `Investment` rows pointing here.
+model PlatformAccount {
+  id            String           @id @default(uuid())
+  familyGroupId String
+  // Catalog key ("ajaib", "stockbit", ...) or "custom".
+  platformKey   String           @db.VarChar(40)
+  // Required by the service when platformKey = "custom".
+  customName    String?          @db.VarChar(120)
+  // Null = family-shared, else a Member of the same family (service-checked,
+  // like Account.ownerUserId).
+  ownerUserId   String?
+  label         String?          @db.VarChar(120)
+  // SID / client code / account number at the platform. Stored ENCRYPTED
+  // with CryptoService, exactly like Account.maskedNumber/depositNumber.
+  accountRef    String?
+  syncMode      PlatformSyncMode @default(manual)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  familyGroup   FamilyGroup      @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  owner         User?            @relation("PlatformAccountOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  pockets       Account[]
+  investments   Investment[]
+
+  @@index([familyGroupId])
+  @@index([ownerUserId])
+  @@map("platform_accounts")
 }
 
 // Rekening v3 — "Dibagikan kepada". Grants a member access to one account
@@ -957,6 +1058,11 @@ model Transaction {
   // Revisi K — links a prepayment's principal/penalty transaction rows back
   // to the ledger entry that recorded it (never counts as the month's installment).
   liabilityPrepaymentId String?
+  // Investasi R7 — client-generated key (uuid made when the form opens) so a
+  // double click / retry of a top-up or withdrawal returns the original row
+  // instead of moving money twice. Unique per family; null on every row
+  // written without one (Postgres treats NULLs as distinct).
+  idempotencyKey        String?                 @db.VarChar(64)
   familyGroup           FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   account               Account?                @relation("TransactionSourceAccount", fields: [accountId], references: [id], onDelete: Cascade)
   toAccount             Account?                @relation("TransactionDestinationAccount", fields: [toAccountId], references: [id], onDelete: Restrict)
@@ -969,7 +1075,11 @@ model Transaction {
   // transaction, stored on server disk behind StoragePort.
   attachments           TransactionAttachment[]
   goalContribution      GoalContribution?
+  // The investment ledger row this cash movement settles (buy debit, sell
+  // proceeds, dividend credit).
+  investmentLegs        InvestmentTransaction[]
 
+  @@unique([familyGroupId, idempotencyKey])
   @@index([familyGroupId, occurredAt])
   @@index([accountId])
   @@index([toAccountId])
@@ -1325,11 +1435,16 @@ model NetWorthSnapshot {
 model Investment {
   id                    String                  @id @default(uuid())
   familyGroupId         String
+  // The user's own label for the instrument ("BBCA", "NVDA"). Ticker alone is
+  // not unique across markets; identity is (market, ticker).
   ticker                String
   name                  String
   type                  InvestmentType
+  // Base units, never lots (R4): lembar/shares/units/grams.
   quantity              Decimal                 @db.Decimal(18, 8)
-  costBasisPerUnit      Decimal                 @db.Decimal(18, 2)
+  // Weighted-average cost per base unit (R1). Widened from (18,2) so USD
+  // averages and fractional crypto keep their precision.
+  costBasisPerUnit      Decimal                 @db.Decimal(24, 8)
   currency              String                  @default("IDR")
   notes                 String?
   // EPIC-021 #20: interest rate for interest-bearing instruments (obligasi,
@@ -1343,53 +1458,136 @@ model Investment {
   purchasedAt           DateTime?
   maturityDate          DateTime?
   cryptoExchange        CryptoExchangeKind?
+  // ── Investasi rebuild (R2, R4, R5) ────────────────────────────────────────
+  // Null on legacy rows that could not be classified safely: the UI asks the
+  // user to "Lengkapi pasar" instead of guessing (R5).
+  market                InvestmentMarket?
+  // Base units per lot for display/entry (IDX saham = 100, everything else
+  // 1). Quantity is never stored in lots.
+  lotSize               Int                     @default(1)
+  // Null = the market's default (MARKETS[market].allowFractionDefault).
+  // US shares are fractional only when the platform supports it.
+  allowFraction         Boolean?
+  // Symbol the price provider needs (BBCA.JK, NVDA, bitcoin) — kept apart
+  // from the user's ticker.
+  priceSymbol           String?                 @db.VarChar(64)
+  // Null = family-shared, else a Member of the same family (service-checked).
+  ownerUserId           String?
+  platformAccountId     String?
+  // Default kantong dana for buys/sells of this holding.
+  cashAccountId         String?
+  // Type-specific data, shape per type documented in @wealthme/contracts
+  // (InvestmentDetails): bond coupon/maturity/price convention, gold form/
+  // unit/purity, deposit bank/start/maturity/rate/rollover, other unit +
+  // valuation method.
+  details               Json?
   createdAt             DateTime                @default(now())
   updatedAt             DateTime                @updatedAt
   familyGroup           FamilyGroup             @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  owner                 User?                   @relation("InvestmentOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  // NoAction: a platform account with holdings cannot be deleted silently,
+  // but a family-wide cascade delete still succeeds.
+  platformAccount       PlatformAccount?        @relation(fields: [platformAccountId], references: [id], onDelete: NoAction)
+  cashAccount           Account?                @relation("InvestmentCashAccount", fields: [cashAccountId], references: [id], onDelete: SetNull)
   prices                InvestmentPrice[]
   // EPIC-022 D2 — real buy/sell history, the honest counterpart to the
   // generic "edit" that used to silently overwrite quantity/costBasisPerUnit
   // with no trace of what changed or any realized P/L.
   transactions          InvestmentTransaction[]
+  attachments           InvestmentAttachment[]
   taxFinalIncomeEntries TaxFinalIncomeEntry[]
 
   @@index([familyGroupId])
+  @@index([platformAccountId])
+  @@index([cashAccountId])
+  @@index([ownerUserId])
   @@map("investments")
 }
 
-// EPIC-022 D2 — one buy or sell event against an Investment. `quantity` and
-// `pricePerUnit` are the transaction's own terms (never the holding's
-// post-transaction state); `realizedPnl` is set ONLY for a sell
-// ((pricePerUnit - costBasisPerUnit at the time of sale) × quantity) and is
-// always null for a buy. Additive/append-only: nothing here is ever
-// mutated or deleted by later transactions — this table IS the history the
-// old whole-record "edit" destroyed.
+// EPIC-022 D2 — one ledger event against an Investment. `quantity` and
+// `pricePerUnit` are the event's own terms (never the holding's
+// post-transaction state); `realizedPnl` is set ONLY for a sell.
+//
+// Investasi rebuild (R5–R7): `kind` is canonical; the holding's state is the
+// replay of its `active` rows in the order
+//   effectiveDate, effectiveTime NULLS FIRST, createdAt, id
+// (date-only rows are start-of-day, so they sort before timed rows of the
+// same date). Edits and voids are recorded in AuditLog with
+// entity = "investment_transaction", action = "create" | "edit" | "void",
+// before/after JSON and the acting userId — no separate audit table.
+// Income rows (dividend/coupon/interest): quantity = units entitled,
+// pricePerUnit = amount per unit, amounts in gross/net.
 model InvestmentTransaction {
-  id           String           @id @default(uuid())
-  investmentId String
-  type         InvestmentTxType
-  quantity     Decimal          @db.Decimal(18, 8)
-  pricePerUnit Decimal          @db.Decimal(18, 2)
-  occurredAt   DateTime
-  realizedPnl  Decimal?         @db.Decimal(18, 2)
-  createdAt    DateTime         @default(now())
+  id                String                 @id @default(uuid())
+  investmentId      String
+  // Denormalized for the per-family idempotency key and tenant-scoped reads.
+  familyGroupId     String
+  // Legacy direction column, see InvestmentTxKind.
+  type              InvestmentTxType?
+  kind              InvestmentTxKind
+  quantity          Decimal                @db.Decimal(18, 8)
+  pricePerUnit      Decimal                @db.Decimal(24, 8)
+  // Legacy effective timestamp; still written. New code orders by
+  // effectiveDate/effectiveTime instead.
+  occurredAt        DateTime
+  realizedPnl       Decimal?               @db.Decimal(18, 2)
+  // Effective date of the event (calendar date, Asia/Jakarta for legacy
+  // rows), separate from when it was recorded (createdAt).
+  effectiveDate     DateTime               @db.Date
+  // "HH:MM" (24h) only when the user actually knows it; null = date-only.
+  effectiveTime     String?                @db.VarChar(5)
+  // IANA zone of effectiveTime ("Asia/Jakarta", "America/New_York").
+  timeZone          String?                @db.VarChar(64)
+  // Amounts in `currency`. Buy: netAmount = gross + fee + tax (cash out).
+  // Sell/income: netAmount = gross − fee − tax (cash in). Opening: no cash.
+  grossAmount       Decimal                @db.Decimal(24, 8)
+  fee               Decimal                @default(0) @db.Decimal(24, 8)
+  tax               Decimal                @default(0) @db.Decimal(24, 8)
+  netAmount         Decimal                @db.Decimal(24, 8)
+  currency          String                 @default("IDR") @db.VarChar(10)
+  // Null = fee is in `currency` (crypto fees may be charged in the coin).
+  feeCurrency       String?                @db.VarChar(10)
+  // IDR per 1 unit of `currency` at execution; null when currency = IDR.
+  fxRate            Decimal?               @db.Decimal(24, 6)
+  // R9 — proceeds with settlementDate > today are "held", not available.
+  settlementDate    DateTime?              @db.Date
+  // Kantong dana debited/credited and the cash Transaction row that did it.
+  cashAccountId     String?
+  cashTransactionId String?
+  // R7 — client uuid; a replay returns the original row.
+  idempotencyKey    String?                @db.VarChar(64)
+  status            InvestmentTxStatus     @default(active)
+  voidedAt          DateTime?
+  voidReason        String?                @db.VarChar(500)
+  note              String?                @db.VarChar(1000)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
   // HIGH (EPIC-022 D2 retry) — `onDelete: Cascade` here is safe ONLY
   // because `InvestmentsService.remove()` refuses to delete an Investment
-  // while any InvestmentTransaction row references it (mirrors
+  // while any non-opening InvestmentTransaction row references it (mirrors
   // `LiabilitiesService.remove()`'s budget-line guard). If that
   // service-level guard is ever removed, this FK will silently cascade-
   // delete a holding's entire realized buy/sell/P-L history — do not trust
   // this comment over the actual state of `InvestmentsService.remove()`.
-  investment   Investment       @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  investment        Investment             @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  familyGroup       FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  cashAccount       Account?               @relation("InvestmentTxCashAccount", fields: [cashAccountId], references: [id], onDelete: SetNull)
+  cashTransaction   Transaction?           @relation(fields: [cashTransactionId], references: [id], onDelete: SetNull)
+  attachments       InvestmentAttachment[]
 
+  @@unique([familyGroupId, idempotencyKey])
   @@index([investmentId, occurredAt])
+  @@index([investmentId, effectiveDate])
+  @@index([cashAccountId])
+  @@index([cashTransactionId])
   @@map("investment_transactions")
 }
 
 model InvestmentPrice {
   id           String     @id @default(uuid())
   investmentId String
-  price        Decimal    @db.Decimal(18, 2)
+  // Valuation price per base unit, in `currency`. Widened from (18,2).
+  price        Decimal    @db.Decimal(24, 8)
   source       String     @default("mock")
   // EPIC-023 G1 (D15) — `asOf` is the provider's own quote timestamp (may
   // predate `recordedAt`, e.g. Yahoo's delayed IDX feed); null on legacy rows
@@ -1400,10 +1598,44 @@ model InvestmentPrice {
   asOf         DateTime?
   delayed      Boolean    @default(false)
   recordedAt   DateTime   @default(now())
+  // ── Investasi rebuild (spec §10) ─────────────────────────────────────────
+  // Quote currency; every legacy row was stored in IDR.
+  currency     String     @default("IDR") @db.VarChar(10)
+  // "per lembar", "per gram", "per unit" — what one `price` buys.
+  unitLabel    String?    @db.VarChar(32)
+  // Where a manual price came from (URL, broker statement, NAB date).
+  reference    String?    @db.VarChar(500)
+  // False when only the date of `asOf` is known (manual date-only entry).
+  hasTime      Boolean    @default(true)
   investment   Investment @relation(fields: [investmentId], references: [id], onDelete: Cascade)
 
   @@index([investmentId, recordedAt])
   @@map("investment_prices")
+}
+
+// Investasi spec §9 "Dokumen" — trade confirmations, certificates, bilyet.
+// TransactionAttachment cannot be reused (its transactionId is a required
+// cash Transaction), so this mirrors AssetAttachment: `path` is the
+// server-generated StoragePort key, never a client filename; familyGroupId
+// is denormalized for single-WHERE tenant scoping. A document belongs to
+// the holding and optionally to one ledger row.
+model InvestmentAttachment {
+  id                      String                 @id @default(uuid())
+  investmentId            String
+  investmentTransactionId String?
+  familyGroupId           String
+  path                    String
+  mimeType                String
+  size                    Int
+  createdAt               DateTime               @default(now())
+  investment              Investment             @relation(fields: [investmentId], references: [id], onDelete: Cascade)
+  investmentTransaction   InvestmentTransaction? @relation(fields: [investmentTransactionId], references: [id], onDelete: SetNull)
+  familyGroup             FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+
+  @@index([investmentId, familyGroupId])
+  @@index([investmentTransactionId])
+  @@index([familyGroupId])
+  @@map("investment_attachments")
 }
 
 model AuditLog {

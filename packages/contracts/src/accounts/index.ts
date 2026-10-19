@@ -10,8 +10,13 @@ import {
   RoutingCodeKindSchema,
   ShariaContractSchema,
 } from "./banking.js";
+import { POCKET_KINDS } from "../investments/platforms.js";
 
 export * from "./banking.js";
+
+// Investasi R2 — an `investment` account that is a cash pocket at a platform
+// account (RDN IDR, crypto IDR wallet, USD wallet).
+export const PocketKindSchema = z.enum(POCKET_KINDS);
 
 export const AccountTypeSchema = z.enum([
   "bank",
@@ -32,6 +37,9 @@ export const CreateAccountInputSchema = z.object({
   isPrivate: z.boolean().optional(),
   // EPIC-019 Task A — owning member's user id; omit for family-shared.
   ownerUserId: z.string().uuid().optional(),
+  // Investasi R2 — only for type "investment" (service-checked).
+  platformAccountId: z.string().uuid().optional(),
+  pocketKind: PocketKindSchema.optional(),
 });
 export type CreateAccountInput = z.infer<typeof CreateAccountInputSchema>;
 
@@ -91,6 +99,9 @@ export const AccountDtoSchema = z.object({
   includeInNetWorth: z.boolean().optional(),
   /** ISO timestamp of the last "Cocokkan saldo", or null. */
   lastReconciledAt: z.string().nullable().optional(),
+  /** Investasi R2 — the platform account this pocket belongs to. */
+  platformAccountId: z.string().nullable().optional(),
+  pocketKind: PocketKindSchema.nullable().optional(),
   beneficiaryUserId: z.string().nullable().optional(),
   beneficiaryName: z.string().nullable().optional(),
   depositNumber: z.string().nullable().optional(),

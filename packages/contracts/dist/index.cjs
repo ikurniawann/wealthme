@@ -48,6 +48,7 @@ __export(index_exports, {
   BankInstitutionKindSchema: () => BankInstitutionKindSchema,
   BankProductKindSchema: () => BankProductKindSchema,
   CONTRACTS_VERSION: () => CONTRACTS_VERSION,
+  CUSTOM_PLATFORM_KEY: () => CUSTOM_PLATFORM_KEY,
   CategoryDtoSchema: () => CategoryDtoSchema,
   CategoryKindSchema: () => CategoryKindSchema,
   CreateAccountInputSchema: () => CreateAccountInputSchema,
@@ -74,14 +75,20 @@ __export(index_exports, {
   ID_INTEREST_TAX_FREE_BALANCE: () => ID_INTEREST_TAX_FREE_BALANCE,
   ID_INTEREST_TAX_RATE: () => ID_INTEREST_TAX_RATE,
   INDONESIA: () => INDONESIA,
+  INVESTMENT_MARKET_KEYS: () => INVESTMENT_MARKET_KEYS,
+  INVESTMENT_PLATFORMS: () => INVESTMENT_PLATFORMS,
+  INVESTMENT_PRODUCT_KEYS: () => INVESTMENT_PRODUCT_KEYS,
   LEGACY_ACCESS_PRESETS: () => LEGACY_ACCESS_PRESETS,
   LOGIN_USERNAME_PATTERN: () => LOGIN_USERNAME_PATTERN,
   LoginInputSchema: () => LoginInputSchema,
+  MARKETS: () => MARKETS,
   MAX_LOGIN_USERNAME_LENGTH: () => MAX_LOGIN_USERNAME_LENGTH,
   MEMBER_USERNAME_PATTERN: () => MEMBER_USERNAME_PATTERN,
   MemberAccessInputSchema: () => MemberAccessInputSchema,
   MemberCategoryAllowanceDtoSchema: () => MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema: () => MemberRelationshipSchema,
+  POCKET_KINDS: () => POCKET_KINDS,
+  PocketKindSchema: () => PocketKindSchema,
   REFERENCE_ITEM_DEFAULTS: () => REFERENCE_ITEM_DEFAULTS,
   ReferenceItemDtoSchema: () => ReferenceItemDtoSchema,
   ReferenceItemGroupSchema: () => ReferenceItemGroupSchema,
@@ -111,6 +118,7 @@ __export(index_exports, {
   deriveIdrPerUnit: () => deriveIdrPerUnit,
   divRoundHalfUp: () => divRoundHalfUp,
   estimateNetInterest: () => estimateNetInterest,
+  findInvestmentPlatform: () => findInvestmentPlatform,
   formatScaled: () => formatScaled,
   investmentTypeToAssetClass: () => investmentTypeToAssetClass,
   isFamilyLoginId: () => isFamilyLoginId,
@@ -290,7 +298,184 @@ function estimateNetInterest(balance, ratePct, months, taxed = true) {
   return Math.round(gross - withheld);
 }
 
+// src/investments/platforms.ts
+var INVESTMENT_PRODUCT_KEYS = [
+  "saham_idx",
+  "saham_us",
+  "reksa_dana",
+  "obligasi",
+  "emas",
+  "kripto",
+  "deposito"
+];
+var POCKET_KINDS = ["rdn", "crypto", "usd", "general"];
+var CUSTOM_PLATFORM_KEY = "custom";
+var INVESTMENT_PLATFORMS = [
+  {
+    key: "ajaib",
+    name: "Ajaib",
+    country: "ID",
+    color: "#1E5EFF",
+    mark: "Aj",
+    // Saham, reksa dana, kripto and saham AS (via Ajaib Alpha, Feb 2025)
+    // per ajaib.co.id; obligasi FR via "Ajaib Bond". Fractional US shares
+    // not confirmed.
+    products: ["saham_idx", "saham_us", "reksa_dana", "obligasi", "kripto"],
+    pockets: ["rdn", "crypto", "general"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://ajaib.co.id"
+  },
+  {
+    key: "stockbit",
+    name: "Stockbit Sekuritas",
+    country: "ID",
+    color: "#00AB6B",
+    mark: "Sb",
+    // Only Indonesian equities confirmed (stockbit.com could not be read).
+    products: ["saham_idx"],
+    pockets: ["rdn"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://stockbit.com"
+  },
+  {
+    key: "ipot",
+    name: "IPOT (Indo Premier Sekuritas)",
+    country: "ID",
+    color: "#E31E24",
+    mark: "IP",
+    // Saham/ETF, reksa dana (IPOT Fund) and obligasi (IPOT Bond). US shares
+    // and gold were not confirmed.
+    products: ["saham_idx", "reksa_dana", "obligasi"],
+    pockets: ["rdn"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://www.indopremier.com"
+  },
+  {
+    key: "bibit",
+    name: "Bibit",
+    country: "ID",
+    color: "#00A85A",
+    mark: "Bi",
+    // bibit.id: reksa dana, SBN ritel, obligasi FR, saham.
+    products: ["saham_idx", "reksa_dana", "obligasi"],
+    pockets: ["rdn", "general"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://bibit.id"
+  },
+  {
+    key: "bareksa",
+    name: "Bareksa",
+    country: "ID",
+    color: "#0F9D58",
+    mark: "Bk",
+    // bareksa.com: saham, reksa dana, SBN, emas.
+    products: ["saham_idx", "reksa_dana", "obligasi", "emas"],
+    pockets: ["general"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://www.bareksa.com"
+  },
+  {
+    key: "gotrade",
+    name: "Gotrade",
+    country: "ID",
+    color: "#111827",
+    mark: "Gt",
+    // heygotrade.com/id: 600+ US stocks and ETFs, fractional from $1.
+    products: ["saham_us"],
+    pockets: ["usd"],
+    fractionalUsShares: true,
+    syncMode: "manual",
+    source: "https://www.heygotrade.com/id"
+  },
+  {
+    key: "pluang",
+    name: "Pluang",
+    country: "ID",
+    color: "#2F54EB",
+    mark: "Pl",
+    // pluang.com: saham ID, fractional saham AS, kripto, reksa dana, emas.
+    products: ["saham_idx", "saham_us", "reksa_dana", "emas", "kripto"],
+    pockets: ["general"],
+    fractionalUsShares: true,
+    syncMode: "manual",
+    source: "https://pluang.com"
+  },
+  {
+    key: "pintu",
+    name: "Pintu",
+    country: "ID",
+    color: "#0A68F4",
+    mark: "Pi",
+    // pintu.co.id: crypto only.
+    products: ["kripto"],
+    pockets: ["crypto"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://pintu.co.id"
+  },
+  {
+    key: "indodax",
+    name: "Indodax",
+    country: "ID",
+    color: "#1B3B6F",
+    mark: "Id",
+    products: ["kripto"],
+    pockets: ["crypto"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://indodax.com"
+  },
+  {
+    key: "tokocrypto",
+    name: "Tokocrypto",
+    country: "ID",
+    color: "#0B1E3F",
+    mark: "Tk",
+    // tokocrypto.com: crypto only.
+    products: ["kripto"],
+    pockets: ["crypto"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://www.tokocrypto.com"
+  },
+  {
+    key: "pegadaian",
+    name: "Pegadaian",
+    country: "ID",
+    color: "#00753A",
+    mark: "Pg",
+    // pegadaian.co.id: Tabungan Emas, Cicil Emas.
+    products: ["emas"],
+    pockets: ["general"],
+    fractionalUsShares: false,
+    syncMode: "manual",
+    source: "https://www.pegadaian.co.id"
+  },
+  {
+    key: CUSTOM_PLATFORM_KEY,
+    name: "Platform lain",
+    country: "ID",
+    color: "#64748B",
+    mark: "+",
+    // A user-named platform may hold anything; the user is the source.
+    products: INVESTMENT_PRODUCT_KEYS,
+    pockets: POCKET_KINDS,
+    fractionalUsShares: true,
+    syncMode: "manual",
+    source: null
+  }
+];
+function findInvestmentPlatform(key) {
+  return INVESTMENT_PLATFORMS.find((p) => p.key === key);
+}
+
 // src/accounts/index.ts
+var PocketKindSchema = import_zod4.z.enum(POCKET_KINDS);
 var AccountTypeSchema = import_zod4.z.enum([
   "bank",
   "ewallet",
@@ -307,7 +492,10 @@ var CreateAccountInputSchema = import_zod4.z.object({
   currency: import_zod4.z.string().default("IDR"),
   isPrivate: import_zod4.z.boolean().optional(),
   // EPIC-019 Task A — owning member's user id; omit for family-shared.
-  ownerUserId: import_zod4.z.string().uuid().optional()
+  ownerUserId: import_zod4.z.string().uuid().optional(),
+  // Investasi R2 — only for type "investment" (service-checked).
+  platformAccountId: import_zod4.z.string().uuid().optional(),
+  pocketKind: PocketKindSchema.optional()
 });
 var UpdateAccountInputSchema = CreateAccountInputSchema.partial().extend({
   // Overrides the inherited (non-nullable) optional field: `null` explicitly
@@ -359,6 +547,9 @@ var AccountDtoSchema = import_zod4.z.object({
   includeInNetWorth: import_zod4.z.boolean().optional(),
   /** ISO timestamp of the last "Cocokkan saldo", or null. */
   lastReconciledAt: import_zod4.z.string().nullable().optional(),
+  /** Investasi R2 — the platform account this pocket belongs to. */
+  platformAccountId: import_zod4.z.string().nullable().optional(),
+  pocketKind: PocketKindSchema.nullable().optional(),
   beneficiaryUserId: import_zod4.z.string().nullable().optional(),
   beneficiaryName: import_zod4.z.string().nullable().optional(),
   depositNumber: import_zod4.z.string().nullable().optional(),
@@ -836,6 +1027,151 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   // no assumption
 };
 
+// src/investments/markets.ts
+var INVESTMENT_MARKET_KEYS = [
+  "IDX",
+  "NASDAQ",
+  "NYSE",
+  "CRYPTO",
+  "MUTUAL_FUND_ID",
+  "BOND_ID",
+  "GOLD",
+  "DEPOSIT",
+  "OTHER"
+];
+var MARKETS = {
+  IDX: {
+    key: "IDX",
+    label: "Bursa Efek Indonesia",
+    country: "ID",
+    currency: "IDR",
+    lotSize: 100,
+    allowFractionDefault: false,
+    quantityDecimals: 0,
+    settlementDays: 2,
+    settlementBusinessDays: true,
+    baseUnit: "lembar",
+    displayUnit: "lot",
+    priceUnitLabel: "per lembar"
+  },
+  NASDAQ: {
+    key: "NASDAQ",
+    label: "NASDAQ",
+    country: "US",
+    currency: "USD",
+    lotSize: 1,
+    allowFractionDefault: false,
+    quantityDecimals: 6,
+    settlementDays: 1,
+    settlementBusinessDays: true,
+    baseUnit: "share",
+    displayUnit: "share",
+    priceUnitLabel: "per share"
+  },
+  NYSE: {
+    key: "NYSE",
+    label: "NYSE",
+    country: "US",
+    currency: "USD",
+    lotSize: 1,
+    allowFractionDefault: false,
+    quantityDecimals: 6,
+    settlementDays: 1,
+    settlementBusinessDays: true,
+    baseUnit: "share",
+    displayUnit: "share",
+    priceUnitLabel: "per share"
+  },
+  CRYPTO: {
+    key: "CRYPTO",
+    label: "Aset kripto",
+    country: null,
+    currency: "IDR",
+    lotSize: 1,
+    allowFractionDefault: true,
+    quantityDecimals: 8,
+    settlementDays: 0,
+    settlementBusinessDays: false,
+    baseUnit: "unit",
+    displayUnit: "unit",
+    priceUnitLabel: "per unit"
+  },
+  MUTUAL_FUND_ID: {
+    key: "MUTUAL_FUND_ID",
+    label: "Reksa dana Indonesia",
+    country: "ID",
+    currency: "IDR",
+    lotSize: 1,
+    allowFractionDefault: true,
+    quantityDecimals: 4,
+    settlementDays: 0,
+    settlementBusinessDays: true,
+    baseUnit: "unit",
+    displayUnit: "unit",
+    priceUnitLabel: "NAB per unit"
+  },
+  BOND_ID: {
+    key: "BOND_ID",
+    label: "Obligasi Indonesia",
+    country: "ID",
+    currency: "IDR",
+    lotSize: 1,
+    allowFractionDefault: false,
+    quantityDecimals: 0,
+    settlementDays: null,
+    settlementBusinessDays: true,
+    // Quantity keeps the convention of existing obligasi rows; the price
+    // convention (% of par vs per unit, clean/dirty) lives in
+    // InvestmentDetails.bond.priceConvention.
+    baseUnit: "unit",
+    displayUnit: "unit",
+    priceUnitLabel: "per unit"
+  },
+  GOLD: {
+    key: "GOLD",
+    label: "Emas",
+    country: null,
+    currency: "IDR",
+    lotSize: 1,
+    allowFractionDefault: true,
+    quantityDecimals: 4,
+    settlementDays: null,
+    settlementBusinessDays: false,
+    baseUnit: "gram",
+    displayUnit: "gram",
+    priceUnitLabel: "per gram"
+  },
+  DEPOSIT: {
+    key: "DEPOSIT",
+    label: "Deposito",
+    country: null,
+    currency: "IDR",
+    lotSize: 1,
+    allowFractionDefault: false,
+    quantityDecimals: 0,
+    settlementDays: null,
+    settlementBusinessDays: true,
+    // Legacy deposito rows store quantity = 1 and costBasisPerUnit = nominal.
+    baseUnit: "unit",
+    displayUnit: "unit",
+    priceUnitLabel: "nominal"
+  },
+  OTHER: {
+    key: "OTHER",
+    label: "Lainnya",
+    country: null,
+    currency: "IDR",
+    lotSize: 1,
+    allowFractionDefault: true,
+    quantityDecimals: 8,
+    settlementDays: null,
+    settlementBusinessDays: false,
+    baseUnit: "unit",
+    displayUnit: "unit",
+    priceUnitLabel: "per unit"
+  }
+};
+
 // src/member-category-allowances/index.ts
 var import_zod10 = require("zod");
 var SetMemberCategoryAllowanceInputSchema = import_zod10.z.object({
@@ -1307,6 +1643,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   BankInstitutionKindSchema,
   BankProductKindSchema,
   CONTRACTS_VERSION,
+  CUSTOM_PLATFORM_KEY,
   CategoryDtoSchema,
   CategoryKindSchema,
   CreateAccountInputSchema,
@@ -1333,14 +1670,20 @@ function warisanAssetTypeToAssetClass(assetType) {
   ID_INTEREST_TAX_FREE_BALANCE,
   ID_INTEREST_TAX_RATE,
   INDONESIA,
+  INVESTMENT_MARKET_KEYS,
+  INVESTMENT_PLATFORMS,
+  INVESTMENT_PRODUCT_KEYS,
   LEGACY_ACCESS_PRESETS,
   LOGIN_USERNAME_PATTERN,
   LoginInputSchema,
+  MARKETS,
   MAX_LOGIN_USERNAME_LENGTH,
   MEMBER_USERNAME_PATTERN,
   MemberAccessInputSchema,
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
+  POCKET_KINDS,
+  PocketKindSchema,
   REFERENCE_ITEM_DEFAULTS,
   ReferenceItemDtoSchema,
   ReferenceItemGroupSchema,
@@ -1370,6 +1713,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   deriveIdrPerUnit,
   divRoundHalfUp,
   estimateNetInterest,
+  findInvestmentPlatform,
   formatScaled,
   investmentTypeToAssetClass,
   isFamilyLoginId,

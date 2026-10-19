@@ -7,6 +7,7 @@ import {
   BankProductKind,
   DepositInterestPayout,
   DepositMaturityInstruction,
+  PocketKind,
   ShariaContract,
 } from "@prisma/client";
 
@@ -135,6 +136,10 @@ export class AccountResponseDto {
   @ApiPropertyOptional({ type: Boolean }) includeInNetWorth?: boolean;
   @ApiPropertyOptional({ type: String, nullable: true })
   lastReconciledAt?: string | null;
+  @ApiPropertyOptional({ type: String, nullable: true })
+  platformAccountId?: string | null;
+  @ApiPropertyOptional({ enum: PocketKind, nullable: true })
+  pocketKind?: PocketKind | null;
   @ApiPropertyOptional({ type: String, nullable: true })
   beneficiaryUserId?: string | null;
   @ApiPropertyOptional({ type: String, nullable: true })

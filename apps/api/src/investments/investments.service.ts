@@ -27,7 +27,12 @@ import type { SetManualPriceDto } from "./dto/set-manual-price.dto";
 import type { UpdateInvestmentDto } from "./dto/update-investment.dto";
 import type { MarketDataPort } from "./market-data.port";
 import type { TxClient } from "../common/utils/serializable-retry.util";
-import type { InvestmentType } from "@prisma/client";
+import type {
+  Investment as InvestmentRow,
+  InvestmentPrice as InvestmentPriceRow,
+  InvestmentTransaction as InvestmentTransactionRow,
+  InvestmentType,
+} from "@prisma/client";
 import type {
   InvestmentDto,
   InvestmentPriceDto,
@@ -43,6 +48,102 @@ function startOfDay(date: Date): Date {
   const d = new Date(date);
   d.setUTCHours(0, 0, 0, 0);
   return d;
+}
+
+/**
+ * Investasi R6 — an instant's calendar date in Asia/Jakarta, as a UTC-midnight
+ * Date for a `@db.Date` column. Matches the migration backfill, so a
+ * date-only value sent as UTC midnight keeps its own date.
+ */
+function jakartaDate(instant: Date): Date {
+  const ymd = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(instant);
+  return new Date(`${ymd}T00:00:00.000Z`);
+}
+
+/** Investasi rebuild columns (R2, R4) carried on every InvestmentDto. */
+function holdingRebuildFields(
+  inv: InvestmentRow,
+): Pick<
+  InvestmentDto,
+  | "market"
+  | "lotSize"
+  | "allowFraction"
+  | "priceSymbol"
+  | "ownerUserId"
+  | "platformAccountId"
+  | "cashAccountId"
+  | "details"
+> {
+  return {
+    market: inv.market,
+    lotSize: inv.lotSize,
+    allowFraction: inv.allowFraction,
+    priceSymbol: inv.priceSymbol,
+    ownerUserId: inv.ownerUserId,
+    platformAccountId: inv.platformAccountId,
+    cashAccountId: inv.cashAccountId,
+    details: (inv.details ?? null) as InvestmentDto["details"],
+  };
+}
+
+function toPriceDto(r: InvestmentPriceRow): InvestmentPriceDto {
+  return {
+    id: r.id,
+    investmentId: r.investmentId,
+    price: decimalToString(r.price),
+    source: r.source,
+    asOf: (r.asOf ?? r.recordedAt).toISOString(),
+    delayed: r.delayed,
+    recordedAt: r.recordedAt.toISOString(),
+    currency: r.currency,
+    unitLabel: r.unitLabel,
+    reference: r.reference,
+    hasTime: r.hasTime,
+  };
+}
+
+function dbDateToString(d: Date | null): string | null {
+  return d ? d.toISOString().slice(0, 10) : null;
+}
+
+function toTransactionDto(
+  r: InvestmentTransactionRow,
+): InvestmentTransactionDto {
+  return {
+    id: r.id,
+    investmentId: r.investmentId,
+    type: r.type,
+    quantity: decimalToString(r.quantity),
+    pricePerUnit: decimalToString(r.pricePerUnit),
+    occurredAt: r.occurredAt.toISOString(),
+    realizedPnl: decimalToStringOrNull(r.realizedPnl),
+    createdAt: r.createdAt.toISOString(),
+    kind: r.kind,
+    effectiveDate: r.effectiveDate.toISOString().slice(0, 10),
+    effectiveTime: r.effectiveTime,
+    timeZone: r.timeZone,
+    grossAmount: decimalToString(r.grossAmount),
+    fee: decimalToString(r.fee),
+    tax: decimalToString(r.tax),
+    netAmount: decimalToString(r.netAmount),
+    currency: r.currency,
+    feeCurrency: r.feeCurrency,
+    fxRate: decimalToStringOrNull(r.fxRate),
+    settlementDate: dbDateToString(r.settlementDate),
+    cashAccountId: r.cashAccountId,
+    cashTransactionId: r.cashTransactionId,
+    idempotencyKey: r.idempotencyKey,
+    status: r.status,
+    voidedAt: r.voidedAt?.toISOString() ?? null,
+    voidReason: r.voidReason,
+    note: r.note,
+    updatedAt: r.updatedAt.toISOString(),
+  };
 }
 
 function decimalToString(d: Decimal | null): string {
@@ -290,6 +391,7 @@ export class InvestmentsService {
           realizedPnlRp: decimalToStringOrNull(
             realizedPnlByInvestment.get(inv.id) ?? null,
           ),
+          ...holdingRebuildFields(inv),
           createdAt: inv.createdAt.toISOString(),
           updatedAt: inv.updatedAt.toISOString(),
         } satisfies InvestmentDto;
@@ -344,19 +446,45 @@ export class InvestmentsService {
     this.assertValidCostBasis(dto.costBasisPerUnit);
     const ticker = this.resolveTickerForCreate(dto.type, dto.ticker, dto.name);
 
+    const quantity = new Decimal(dto.quantity);
+    const costBasisPerUnit = new Decimal(dto.costBasisPerUnit);
+    const purchasedAt = dto.purchasedAt ? new Date(dto.purchasedAt) : null;
+    const openedAt = purchasedAt ?? new Date();
+    // Investasi R5 — the starting position is also an `opening` ledger row
+    // (no cash leg), so a replay of the ledger reproduces this holding,
+    // exactly like the migration backfill does for legacy holdings.
+    const openingAmount = quantity.times(costBasisPerUnit).toDecimalPlaces(2);
     const investment = await this.prisma.investment.create({
       data: {
         familyGroupId,
         ticker,
         name: dto.name,
         type: dto.type,
-        quantity: new Decimal(dto.quantity),
-        costBasisPerUnit: new Decimal(dto.costBasisPerUnit),
+        quantity,
+        costBasisPerUnit,
         currency: dto.currency ?? "IDR",
         notes: dto.notes ?? null,
         interestRatePct: dto.interestRatePct ?? null,
-        purchasedAt: dto.purchasedAt ? new Date(dto.purchasedAt) : null,
+        purchasedAt,
         maturityDate: dto.maturityDate ? new Date(dto.maturityDate) : null,
+        ...(quantity.greaterThan(0)
+          ? {
+              transactions: {
+                create: {
+                  familyGroup: { connect: { id: familyGroupId } },
+                  type: "buy",
+                  kind: "opening",
+                  quantity,
+                  pricePerUnit: costBasisPerUnit,
+                  occurredAt: openedAt,
+                  effectiveDate: jakartaDate(openedAt),
+                  grossAmount: openingAmount,
+                  netAmount: openingAmount,
+                  currency: "IDR",
+                },
+              },
+            }
+          : {}),
       },
     });
 
@@ -390,6 +518,7 @@ export class InvestmentsService {
       purchasedAt: investment.purchasedAt?.toISOString() ?? null,
       maturityDate: investment.maturityDate?.toISOString() ?? null,
       realizedPnlRp: null,
+      ...holdingRebuildFields(investment),
       createdAt: investment.createdAt.toISOString(),
       updatedAt: investment.updatedAt.toISOString(),
     };
@@ -497,6 +626,7 @@ export class InvestmentsService {
       purchasedAt: updated.purchasedAt?.toISOString() ?? null,
       maturityDate: updated.maturityDate?.toISOString() ?? null,
       realizedPnlRp: null,
+      ...holdingRebuildFields(updated),
       createdAt: updated.createdAt.toISOString(),
       updatedAt: updated.updatedAt.toISOString(),
     };
@@ -618,8 +748,11 @@ export class InvestmentsService {
       throw new NotFoundException("Investment not found");
     }
 
+    // The `opening` row only restates the holding's own starting position
+    // (written by create() and the migration backfill, no cash leg), so it
+    // alone must not block deletion — it cascades with the holding.
     const txCount = await this.prisma.investmentTransaction.count({
-      where: { investmentId: id },
+      where: { investmentId: id, kind: { not: "opening" } },
     });
     if (txCount > 0) {
       throw new ConflictException(
@@ -662,18 +795,20 @@ export class InvestmentsService {
         source: "manual",
         asOf,
         delayed: false,
+        // The web sends a date-only entry as UTC midnight; record it as
+        // date-only (same rule as the migration backfill) instead of
+        // claiming a 00:00 quote time.
+        hasTime: !(
+          dto.asOf &&
+          asOf.getUTCHours() === 0 &&
+          asOf.getUTCMinutes() === 0 &&
+          asOf.getUTCSeconds() === 0 &&
+          asOf.getUTCMilliseconds() === 0
+        ),
       },
     });
 
-    return {
-      id: created.id,
-      investmentId: created.investmentId,
-      price: decimalToString(created.price),
-      source: created.source,
-      asOf: (created.asOf ?? created.recordedAt).toISOString(),
-      delayed: created.delayed,
-      recordedAt: created.recordedAt.toISOString(),
-    };
+    return toPriceDto(created);
   }
 
   /**
@@ -733,16 +868,7 @@ export class InvestmentsService {
       `Recorded ${dto.type} of ${qty.toString()} unit(s) for investment ${id}`,
     );
 
-    return {
-      id: created.id,
-      investmentId: created.investmentId,
-      type: created.type,
-      quantity: decimalToString(created.quantity),
-      pricePerUnit: decimalToString(created.pricePerUnit),
-      occurredAt: created.occurredAt.toISOString(),
-      realizedPnl: decimalToStringOrNull(created.realizedPnl),
-      createdAt: created.createdAt.toISOString(),
-    };
+    return toTransactionDto(created);
   }
 
   /** The tx-scoped body of recordTransaction() — see that method's doc
@@ -806,6 +932,7 @@ export class InvestmentsService {
       data: { quantity: newQty, costBasisPerUnit: newAvgCost },
     });
 
+    let cashTransactionId: string | null = null;
     // EPIC-033 p28 — money actually moves when a settlement account is
     // named. A buy is an allocation (transfer out, never an expense); a sell
     // returns the cost through a transfer in and books the realised gain as
@@ -821,7 +948,7 @@ export class InvestmentsService {
           where: { id: settleAccount.id },
           data: { balance: { decrement: gross } },
         });
-        await tx.transaction.create({
+        const cashLeg = await tx.transaction.create({
           data: {
             familyGroupId,
             accountId: settleAccount.id,
@@ -831,7 +958,9 @@ export class InvestmentsService {
             description: `Beli ${label}`,
             occurredAt,
           },
+          select: { id: true },
         });
+        cashTransactionId = cashLeg.id;
       } else {
         const pnl = BigInt((realizedPnl ?? new Decimal(0)).toFixed(0));
         const gain = pnl > BigInt(0) ? pnl : BigInt(0);
@@ -840,7 +969,7 @@ export class InvestmentsService {
           where: { id: settleAccount.id },
           data: { balance: { increment: gross } },
         });
-        await tx.transaction.create({
+        const cashLeg = await tx.transaction.create({
           data: {
             familyGroupId,
             accountId: null,
@@ -850,7 +979,9 @@ export class InvestmentsService {
             description: `Jual ${label}`,
             occurredAt,
           },
+          select: { id: true },
         });
+        cashTransactionId = cashLeg.id;
         if (loss > BigInt(0)) {
           // The cost portion transferred back exceeds the proceeds; the
           // difference is a realised loss, booked as an expense so the P&L
@@ -891,13 +1022,25 @@ export class InvestmentsService {
       }
     }
 
+    // Investasi foundation — fill the ledger columns the rebuild reads. This
+    // legacy path has no fee/tax/FX input: amounts are IDR and gross = net.
+    // The replay-based write path replaces this in a later task.
+    const grossAmount = qty.times(price).toDecimalPlaces(2);
     return tx.investmentTransaction.create({
       data: {
         investmentId: id,
+        familyGroupId,
         type,
+        kind: type,
         quantity: qty,
         pricePerUnit: price,
         occurredAt,
+        effectiveDate: jakartaDate(occurredAt),
+        grossAmount,
+        netAmount: grossAmount,
+        currency: "IDR",
+        cashAccountId: settleAccount?.id ?? null,
+        cashTransactionId,
         realizedPnl,
       },
     });
@@ -949,15 +1092,7 @@ export class InvestmentsService {
       orderBy: { recordedAt: "desc" },
       take: 200,
     });
-    return rows.map((r) => ({
-      id: r.id,
-      investmentId: r.investmentId,
-      price: decimalToString(r.price),
-      source: r.source,
-      delayed: r.delayed,
-      asOf: (r.asOf ?? r.recordedAt).toISOString(),
-      recordedAt: r.recordedAt.toISOString(),
-    }));
+    return rows.map(toPriceDto);
   }
 
   /** EPIC-022 D2 — the real buy/sell history for one holding, most recent first. */
@@ -977,15 +1112,6 @@ export class InvestmentsService {
       orderBy: { occurredAt: "desc" },
     });
 
-    return rows.map((r) => ({
-      id: r.id,
-      investmentId: r.investmentId,
-      type: r.type,
-      quantity: decimalToString(r.quantity),
-      pricePerUnit: decimalToString(r.pricePerUnit),
-      occurredAt: r.occurredAt.toISOString(),
-      realizedPnl: decimalToStringOrNull(r.realizedPnl),
-      createdAt: r.createdAt.toISOString(),
-    }));
+    return rows.map(toTransactionDto);
   }
 }
