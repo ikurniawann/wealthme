@@ -684,7 +684,10 @@
     height: 100dvh;
     max-height: none;
     border-radius: 0;
+    right: 0;
     transform: none;
+    /* Tailwind's -translate-x-1/2 emits the standalone `translate` property */
+    translate: none;
   }
   .kwf .kwf-head {
     padding: 16px 16px 24px;

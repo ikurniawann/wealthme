@@ -178,9 +178,11 @@ export function buildKasBody(
     country: s.country,
     currency: s.currency,
     includeInNetWorth: s.includeInNetWorth,
-    storageLocation: kind === "cash" ? s.location.trim() || null : null,
-    notes: kind === "cash" ? s.notes.trim() || null : null,
   };
+  if (kind === "cash") {
+    body.storageLocation = s.location.trim() || null;
+    body.notes = s.notes.trim() || null;
+  }
   if (kind === "ewallet") {
     body.institution = providerName(s);
     body.maskedNumber = storedIdentifier(s);
