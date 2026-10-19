@@ -1,3 +1,4 @@
+import { investmentFormsId } from "./investment-forms";
 import { investasiV3Id } from "./investasi-v3";
 import { danaV3Id } from "./dana-v3";
 import { rekeningV3Id } from "./rekening-v3";
@@ -2057,6 +2058,7 @@ export const id = {
     },
   },
   investasi: {
+    forms: investmentFormsId,
     v3: investasiV3Id,
     v2: {
       allocTitle: "Kepemilikan",

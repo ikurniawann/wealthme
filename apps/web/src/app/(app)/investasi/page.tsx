@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowDownToLine,
   Plus,
@@ -11,6 +11,7 @@ import {
   ChartNoAxesCombined,
 } from "lucide-react";
 import type {
+  AccountDto,
   InvestmentDto,
   InvestmentPortfolioValuationDto,
   InvestmentTransactionDto,
@@ -20,6 +21,10 @@ import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useCanManage } from "@/hooks/use-role-permissions";
+import { PlatformFunds } from "./platform-funds";
+import { PocketTransfer } from "./pocket-transfer";
+import { InvestmentHistory } from "./investment-history";
+import { useMyRole } from "@/hooks/use-my-role";
 import { PortfolioSummary } from "./portfolio-summary";
 import { PortfolioFilterBar } from "./portfolio-filters";
 import type { PortfolioMember } from "./portfolio-filters";
@@ -34,13 +39,30 @@ import { INITIAL_FILTERS, TYPES, queryString } from "./portfolio-model";
 import type { InvestmentAction, PortfolioHistory } from "./portfolio-model";
 import "./investasi.css";
 
-export default function InvestasiPage() {
+function InvestasiContent() {
   const { t } = useLocale();
   const c = t.investasi.v3;
   const { data: session } = useSession();
   const token = session?.accessToken;
   const fg = session?.familyGroupId;
   const { canManage } = useCanManage("Investment");
+  const { myRole } = useMyRole();
+  const queryClient = useQueryClient();
+  const [transferOpen, setTransferOpen] = useState(false);
+  const onSaved = () => {
+    for (const key of [
+      "investments-v3",
+      "platform-accounts",
+      "investment-valuation",
+      "investment-value-history",
+      "investment-activity",
+      "investment-pocket-history",
+      "investment-transfer-accounts",
+      "accounts",
+      "transactions",
+    ])
+      void queryClient.invalidateQueries({ queryKey: [key] });
+  };
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const searchParams = useSearchParams();
   const tab = ["portfolio", "funds", "history"].includes(
@@ -51,6 +73,11 @@ export default function InvestasiPage() {
   const enabled = !!token && !!fg;
   const base = `/family-groups/${fg}`;
   const options = { token };
+  const accounts = useQuery({
+    queryKey: ["investment-transfer-accounts", fg, token],
+    queryFn: () => apiFetch<AccountDto[]>(`${base}/accounts`, options),
+    enabled,
+  });
   const investments = useQuery({
     queryKey: ["investments-v3", fg, token],
     queryFn: () => apiFetch<InvestmentDto[]>(`${base}/investments`, options),
@@ -128,6 +155,10 @@ export default function InvestasiPage() {
   );
   // The action URL is the stable hand-off to the forms added in Tasks 10–13.
   const onAction = (action: InvestmentAction) => {
+    if (action.kind === "topup") {
+      setTransferOpen(true);
+      return;
+    }
     const params = new URLSearchParams(searchParams.toString());
     params.set("action", action.kind);
     if (action.investmentId) params.set("investment", action.investmentId);
@@ -146,8 +177,6 @@ export default function InvestasiPage() {
             <>
               <button
                 className="btn btn--outline"
-                disabled
-                title={c.futureTask}
                 onClick={() => onAction({ kind: "topup" })}
               >
                 <ArrowDownToLine />
@@ -264,17 +293,48 @@ export default function InvestasiPage() {
           />
         </>
       ) : tab === "funds" ? (
-        <PortfolioCashPreview
+        <PlatformFunds
           platforms={visiblePlatforms}
-          onTopup={canManage ? () => onAction({ kind: "topup" }) : undefined}
+          accounts={accounts.data ?? []}
+          members={members.data ?? []}
+          fg={fg!}
+          token={token!}
+          myUserId={session?.userId ?? ""}
+          isMaster={myRole === "owner" || myRole === "spouse"}
+          canManage={!!canManage}
+          onSaved={onSaved}
         />
       ) : (
-        <PortfolioActivityList
+        <InvestmentHistory
           rows={activity.data ?? []}
+          platforms={visiblePlatforms}
+          fg={fg!}
+          token={token!}
           loading={activity.isPending}
           error={activity.isError}
+          canManage={!!canManage}
+          onSaved={onSaved}
+        />
+      )}
+      {transferOpen && enabled && (
+        <PocketTransfer
+          platforms={platforms.data ?? []}
+          accounts={accounts.data ?? []}
+          fg={fg!}
+          token={token!}
+          onClose={() => setTransferOpen(false)}
+          onSaved={onSaved}
         />
       )}
     </div>
+  );
+}
+
+export default function InvestasiPage() {
+  const { t } = useLocale();
+  return (
+    <Suspense fallback={<p role="status">{t.investasi.v3.loading}</p>}>
+      <InvestasiContent />
+    </Suspense>
   );
 }

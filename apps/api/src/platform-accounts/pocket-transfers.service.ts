@@ -25,6 +25,7 @@ import {
   needsFxSnapshot,
   type PocketTransferAmounts,
 } from "./pocket-transfer-amounts";
+import { assertPocketTransferTimeline } from "./pocket-transfer-timeline";
 
 import type { PocketTransferDto } from "./dto/pocket-transfer.dto";
 import type { FxSnapshot } from "../fx/fx-snapshot";
@@ -227,14 +228,16 @@ export class PocketTransfersService {
           ...(sourceFloor !== undefined ? { sourceFloor } : {}),
           // R7 — the native amounts/rate commit atomically with the
           // transfer, so any replay that sees the row also sees them.
-          withinTransaction: (client, id) =>
-            this.recordConversions(
+          withinTransaction: async (client, id) => {
+            await assertPocketTransferTimeline(client, familyGroupId, id);
+            await this.recordConversions(
               client,
               familyGroupId,
               id,
               amounts,
               viewer.userId ?? null,
-            ),
+            );
+          },
         },
       );
       if ("held" in created) {

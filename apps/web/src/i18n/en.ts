@@ -1,3 +1,4 @@
+import { investmentFormsEn } from "./investment-forms";
 import { investasiV3En } from "./investasi-v3";
 import { danaV3En } from "./dana-v3";
 import { rekeningV3En } from "./rekening-v3";
@@ -2014,6 +2015,7 @@ export const en = {
     },
   },
   investasi: {
+    forms: investmentFormsEn,
     v3: investasiV3En,
     v2: {
       allocTitle: "Holdings",

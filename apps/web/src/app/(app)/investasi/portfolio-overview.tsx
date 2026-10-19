@@ -113,12 +113,7 @@ export function PortfolioCashPreview({
       ))}
       <div className="iv-tools">
         {onTopup && (
-          <button
-            className="btn btn--primary"
-            disabled
-            title={c.futureTask}
-            onClick={onTopup}
-          >
+          <button className="btn btn--primary" onClick={onTopup}>
             {c.topUp}
           </button>
         )}
