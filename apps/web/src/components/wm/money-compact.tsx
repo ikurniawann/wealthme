@@ -33,7 +33,11 @@ export function MoneyCompact({
   return (
     <span className={className} title={`${prefix}${fullText}${suffix}`}>
       {prefix}
-      {(compact ?? money.formatCompact)(value)}
+      {/* Task 35 — the figure ("Rp 4,2 jt", "-Rp 800 rb") never breaks
+          across lines; a text prefix may still wrap before it. */}
+      <span className="wm-amount">
+        {(compact ?? money.formatCompact)(value)}
+      </span>
       {suffix}
     </span>
   );
