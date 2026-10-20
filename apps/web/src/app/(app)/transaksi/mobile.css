@@ -57,6 +57,11 @@
     color: var(--wm-ink);
     pointer-events: none;
   }
+  .txm-actions {
+    display: flex;
+    flex: none;
+    gap: 8px;
+  }
   .txm-icon {
     position: relative;
     display: grid;
@@ -116,12 +121,22 @@
     color: var(--wm-muted);
     font-size: 15px;
   }
-  .txm-out b {
+  .txm-out > b {
     color: var(--wm-bad);
     font-size: clamp(24px, 8.4vw, 32px);
     font-weight: 700;
     letter-spacing: -0.025em;
     line-height: 1.1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .txm-out .txm-in {
+    color: var(--wm-muted);
+    font-size: 13px;
+  }
+  .txm-in b {
+    color: var(--txm-pos);
+    font-weight: 600;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }

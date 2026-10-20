@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, ChevronDown, Filter, Search, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  ChevronDown,
+  Download,
+  Filter,
+  Search,
+  X,
+} from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { localIsoDate } from "@/lib/local-date";
@@ -16,6 +23,9 @@ const COPY = {
     outThisMonth: "Keluar bulan ini",
     outIn: "Keluar {month}",
     outTotal: "Total keluar",
+    inThisMonth: "Masuk bulan ini",
+    inIn: "Masuk {month}",
+    inTotal: "Total masuk",
     cashflow: "Lihat arus kas",
     filters: "Filter transaksi",
     search: "Cari transaksi",
@@ -29,6 +39,9 @@ const COPY = {
     outThisMonth: "Out this month",
     outIn: "Out in {month}",
     outTotal: "Total out",
+    inThisMonth: "In this month",
+    inIn: "In {month}",
+    inTotal: "Total in",
     cashflow: "See cash flow",
     filters: "Filter transactions",
     search: "Search transactions",
@@ -73,6 +86,9 @@ export function TxMobileHead({
   onRange,
   hasDeepLink,
   expense,
+  income,
+  onExport,
+  exportLabel,
   filtersOpen,
   onToggleFilters,
   activeFilterCount,
@@ -88,6 +104,11 @@ export function TxMobileHead({
   hasDeepLink: boolean;
   /** Pre-formatted total expense for the active range ("…" while loading). */
   expense: string;
+  /** Pre-formatted total income for the same range ("…" while loading). */
+  income: string;
+  /** The page's CSV export (the hero's button, hidden on phones). */
+  onExport: () => void;
+  exportLabel: string;
   filtersOpen: boolean;
   onToggleFilters: () => void;
   activeFilterCount: number;
@@ -135,6 +156,12 @@ export function TxMobileHead({
       : key
         ? c.outIn.replace("{month}", monthLabel(key))
         : c.outTotal;
+  const inLabel =
+    key === currentKey
+      ? c.inThisMonth
+      : key
+        ? c.inIn.replace("{month}", monthLabel(key))
+        : c.inTotal;
   const tabs: { value: "all" | "expense"; label: string }[] = [
     { value: "all", label: t.transaksi.filterLabels.all },
     { value: "expense", label: t.transaksi.typeLabels.expense },
@@ -174,25 +201,39 @@ export function TxMobileHead({
           </select>
           <ChevronDown aria-hidden="true" />
         </label>
-        <button
-          type="button"
-          className="txm-icon"
-          aria-label={c.filters}
-          aria-controls="transaction-filters"
-          aria-expanded={filtersOpen}
-          onClick={onToggleFilters}
-        >
-          <Filter aria-hidden="true" />
-          {activeFilterCount > 0 && (
-            <span className="txm-badge">{activeFilterCount}</span>
-          )}
-        </button>
+        <div className="txm-actions">
+          <button
+            type="button"
+            className="txm-icon"
+            aria-label={exportLabel}
+            title={exportLabel}
+            onClick={onExport}
+          >
+            <Download aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="txm-icon"
+            aria-label={c.filters}
+            aria-controls="transaction-filters"
+            aria-expanded={filtersOpen}
+            onClick={onToggleFilters}
+          >
+            <Filter aria-hidden="true" />
+            {activeFilterCount > 0 && (
+              <span className="txm-badge">{activeFilterCount}</span>
+            )}
+          </button>
+        </div>
       </div>
 
       <div className="txm-sum">
         <p className="txm-out">
           <span>{outLabel}</span>
           <b className="wm-num">{expense}</b>
+          <small className="txm-in">
+            {inLabel} <b className="wm-num">{income}</b>
+          </small>
         </p>
         <Link href="/laporan?tab=rcashflow" className="txm-link">
           {c.cashflow}

@@ -1863,6 +1863,9 @@ function TransaksiPageInner() {
           searchParams.get("to"),
         )}
         expense={isLoading ? "…" : money.format(totalExpense)}
+        income={isLoading ? "…" : money.format(totalIncome)}
+        onExport={exportCsv}
+        exportLabel={v2.exportCsv}
         filtersOpen={mobileFiltersOpen}
         onToggleFilters={() => setMobileFiltersOpen((open) => !open)}
         activeFilterCount={getActiveTransactionFilterCount({
