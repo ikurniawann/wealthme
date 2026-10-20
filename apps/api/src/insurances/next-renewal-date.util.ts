@@ -4,7 +4,24 @@ const MONTHS_BY_PERIOD: Record<PremiumPeriod, number> = {
   monthly: 1,
   quarterly: 3,
   yearly: 12,
+  semiannual: 6,
+  // No recurring step: a single-pay policy has no next premium, and a custom
+  // schedule is not derived from a fixed period. The create/update DTOs do
+  // not accept these two yet (Asuransi Task 22 adds the premium schedule).
+  single: 0,
+  custom: 0,
 };
+
+/**
+ * The frequencies the create/update DTOs accept today. semiannual / single /
+ * custom exist in the schema (Asuransi rebuild) but stay closed at the API
+ * edge until the premium schedule (Asuransi Task 22) handles them.
+ */
+export const ACCEPTED_PREMIUM_PERIODS: readonly PremiumPeriod[] = [
+  "monthly",
+  "quarterly",
+  "yearly",
+];
 
 /**
  * Advances `current` by exactly one premium period, clamping to the target

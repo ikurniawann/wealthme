@@ -1,11 +1,16 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
-import { InsuranceStatus, InsuranceType, PremiumPeriod } from "@prisma/client";
+import {
+  InsuranceStatus,
+  InsuranceType,
+  type PremiumPeriod,
+} from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   Matches,
@@ -15,6 +20,7 @@ import {
 
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+import { ACCEPTED_PREMIUM_PERIODS } from "../next-renewal-date.util";
 
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
 
@@ -54,9 +60,9 @@ export class UpdateInsuranceDto {
   @Matches(/^\d{1,15}$/, { message: "premiumAmount must be a numeric string" })
   premiumAmount?: string;
 
-  @ApiPropertyOptional({ enum: PremiumPeriod })
+  @ApiPropertyOptional({ enum: ACCEPTED_PREMIUM_PERIODS })
   @IsOptional()
-  @IsEnum(PremiumPeriod)
+  @IsIn(ACCEPTED_PREMIUM_PERIODS)
   premiumPeriod?: PremiumPeriod;
 
   @ApiPropertyOptional()

@@ -253,16 +253,67 @@ enum InsuranceType {
   lainnya
 }
 
+// Asuransi S2 — masa_tenggang/lapse/berakhir/dibatalkan added; the legacy
+// tidak_aktif/kadaluarsa stay readable (kadaluarsa shows as "berakhir").
+// Policy status is never derived from a late payment.
 enum InsuranceStatus {
   aktif
   tidak_aktif
   kadaluarsa
+  masa_tenggang
+  lapse
+  berakhir
+  dibatalkan
 }
 
+// Asuransi — premium frequency. semiannual/single/custom added for the
+// premium schedule; legacy rows only hold monthly/quarterly/yearly.
 enum PremiumPeriod {
   monthly
   quarterly
   yearly
+  semiannual
+  single
+  custom
+}
+
+// Asuransi S2 — user-confirmed product type; never inferred from the name.
+// Null = "belum ditentukan".
+enum InsurancePolicyType {
+  traditional
+  unit_link
+}
+
+// Asuransi S4 — benefits are grouped by kind (+ currency), never summed into
+// one "total protection" figure.
+enum InsuranceBenefitKind {
+  life_sum_assured
+  health_annual_limit
+  per_event
+  daily
+  critical_illness
+  accident
+  other
+}
+
+enum InsuranceBenefitPeriod {
+  per_year
+  per_event
+  per_day
+  per_policy_term
+  lifetime
+}
+
+// Asuransi S5 — where a valuation came from and how far it is trusted.
+enum InsuranceValuationSource {
+  manual
+  report
+}
+
+enum InsuranceValuationStatus {
+  ai_extracted
+  needs_confirmation
+  confirmed
 }
 
 enum SplitStatus {
@@ -496,6 +547,10 @@ model User {
   heldAccounts             Account[]          @relation("AccountHolder")
   beneficiaryAccounts      Account[]          @relation("AccountBeneficiary")
   accountShares            AccountShare[]
+  // Asuransi S3/S9 — policies held / paid by this user, and explicit shares.
+  heldInsurances           Insurance[]        @relation("InsuranceHolder")
+  paidInsurances           Insurance[]        @relation("InsurancePayer")
+  insuranceShares          InsuranceShare[]
   // EPIC-019 Task B — allowance requests this user filed / decided.
   allowanceRequestsMade    AllowanceRequest[] @relation("AllowanceRequestRequester")
   allowanceRequestsDecided AllowanceRequest[] @relation("AllowanceRequestDecider")
@@ -876,6 +931,9 @@ model Account {
   depositsPayingHere        Account[]                   @relation("DepositPayoutAccount")
   // People this account is explicitly shared with ("Dibagikan kepada").
   shares                    AccountShare[]
+  // Asuransi — policies paying from here by default, and premium payments.
+  insurancesPaying          Insurance[]                 @relation("InsurancePaymentAccount")
+  insurancePayments         InsurancePayment[]          @relation("InsurancePaymentAccountUsed")
   // Two relations to Transaction (source leg + transfer destination leg —
   // EPIC-021 Group B / #23/#27/#28) require explicit relation names so Prisma
   // can disambiguate which FK each list represents.
@@ -1078,6 +1136,8 @@ model Transaction {
   // The investment ledger row this cash movement settles (buy debit, sell
   // proceeds, dividend credit).
   investmentLegs        InvestmentTransaction[]
+  // Asuransi S7 — the premium payment row this expense settles.
+  insurancePayment      InsurancePayment?
 
   @@unique([familyGroupId, idempotencyKey])
   @@index([familyGroupId, occurredAt])
@@ -1773,39 +1833,80 @@ model LiabilityPrepayment {
 }
 
 model Insurance {
-  id                String                 @id @default(uuid())
-  familyGroupId     String
-  name              String                 @db.VarChar(150)
-  provider          String?                @db.VarChar(150)
-  type              InsuranceType
-  status            InsuranceStatus        @default(aktif)
-  coverageAmount    BigInt?
-  premiumAmount     BigInt
-  premiumPeriod     PremiumPeriod          @default(monthly)
-  renewalDate       DateTime?
-  autoRenewDate     Boolean                @default(false)
-  policyNumber      String?                @db.VarChar(100)
-  notes             String?                @db.VarChar(500)
-  currency          String                 @default("IDR") @db.VarChar(3)
+  id                    String                 @id @default(uuid())
+  familyGroupId         String
+  name                  String                 @db.VarChar(150)
+  provider              String?                @db.VarChar(150)
+  type                  InsuranceType
+  status                InsuranceStatus        @default(aktif)
+  coverageAmount        BigInt?
+  premiumAmount         BigInt
+  premiumPeriod         PremiumPeriod          @default(monthly)
+  // LEGACY (Asuransi S1): an overloaded date — the UI labelled it "jatuh
+  // tempo" while users also typed coverage end into it. Kept readable; the
+  // migration copied it into nextPremiumDueDate ONLY. New code reads the
+  // split dates below.
+  renewalDate           DateTime?
+  autoRenewDate         Boolean                @default(false)
+  policyNumber          String?                @db.VarChar(100)
+  notes                 String?                @db.VarChar(500)
+  currency              String                 @default("IDR") @db.VarChar(3)
   // EPIC-023 group E retry (HIGH 4) — this policy's OWN premium Category,
   // mirroring Liability.principalCategoryId above (see that field's doc
   // comment for the full reasoning).
-  premiumCategoryId String?
-  premiumCategory   Category?              @relation("InsurancePremiumCategory", fields: [premiumCategoryId], references: [id], onDelete: SetNull)
-  createdAt         DateTime               @default(now())
-  updatedAt         DateTime               @updatedAt
-  familyGroup       FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
-  beneficiaries     InsuranceBeneficiary[]
+  premiumCategoryId     String?
+  premiumCategory       Category?              @relation("InsurancePremiumCategory", fields: [premiumCategoryId], references: [id], onDelete: SetNull)
+  // ── Asuransi rebuild ─────────────────────────────────────────────────────
+  policyType            InsurancePolicyType?
+  // S1 — the four schedule dates are separate. Reminders come only from
+  // nextPremiumDueDate (the premium schedule), never from coverage end.
+  nextPremiumDueDate    DateTime?              @db.Date
+  policyRenewalDate     DateTime?              @db.Date
+  premiumPaymentEndDate DateTime?              @db.Date
+  coverageStartDate     DateTime?              @db.Date
+  coverageEndDate       DateTime?              @db.Date
+  // S3 — roles are separate: holder (pemegang polis), payer (pembayar
+  // premi), insured (InsuranceInsured[]), beneficiaries. A family member
+  // (userId) or free text for someone without a login.
+  holderUserId          String?
+  holderName            String?                @db.VarChar(150)
+  payerUserId           String?
+  payerName             String?                @db.VarChar(150)
+  // Default account premiums are paid from ("Rekening pembayaran").
+  paymentAccountId      String?
+  // S6 — only confirmed policy value of a policy with this flag counts in
+  // net worth. Sum assured and premiums paid never do.
+  includeInNetWorth     Boolean                @default(false)
+  // S9 — who recorded the policy (row scoping); null on legacy rows.
+  createdByUserId       String?
+  holder                User?                  @relation("InsuranceHolder", fields: [holderUserId], references: [id], onDelete: SetNull)
+  payer                 User?                  @relation("InsurancePayer", fields: [payerUserId], references: [id], onDelete: SetNull)
+  paymentAccount        Account?               @relation("InsurancePaymentAccount", fields: [paymentAccountId], references: [id], onDelete: SetNull)
+  insured               InsuranceInsured[]
+  benefits              InsuranceBenefit[]
+  funds                 InsuranceFund[]
+  valuations            InsuranceValuation[]
+  payments              InsurancePayment[]
+  documents             InsuranceDocument[]
+  shares                InsuranceShare[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  familyGroup           FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  beneficiaries         InsuranceBeneficiary[]
   // EPIC-023 E1 — the premium payment transactions posted against this
   // policy (see Transaction.insuranceId above).
-  transactions      Transaction[]
+  transactions          Transaction[]
   // EPIC-023 E2 — the FIXED budget line auto-created for this policy (see
   // Budget.insuranceId above). Restrict-guarded: deleting a policy while a
   // budget line still references it is refused in the app layer.
-  budgets           Budget[]
+  budgets               Budget[]
 
   @@index([familyGroupId])
   @@index([premiumCategoryId])
+  @@index([familyGroupId, nextPremiumDueDate])
+  @@index([holderUserId])
+  @@index([payerUserId])
+  @@index([paymentAccountId])
   @@map("insurances")
 }
 
@@ -1826,6 +1927,169 @@ model InsuranceBeneficiary {
 
   @@index([insuranceId])
   @@map("insurance_beneficiaries")
+}
+
+// Asuransi S3 — the insured person(s) (tertanggung). A family member
+// (memberUserId, unenforced FK like InsuranceBeneficiary) or free text.
+model InsuranceInsured {
+  id           String    @id @default(uuid())
+  insuranceId  String
+  name         String    @db.VarChar(150)
+  relationship String?   @db.VarChar(100)
+  memberUserId String?
+  createdAt    DateTime  @default(now())
+  insurance    Insurance @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+
+  @@index([insuranceId])
+  @@index([memberUserId])
+  @@map("insurance_insured")
+}
+
+// Asuransi S4 — one row per benefit (uang pertanggungan, limit tahunan,
+// manfaat harian, ...). `confirmed = false` marks a row the user has not
+// reviewed (the legacy coverageAmount backfill).
+model InsuranceBenefit {
+  id          String                  @id @default(uuid())
+  insuranceId String
+  kind        InsuranceBenefitKind
+  label       String?                 @db.VarChar(150)
+  amount      Decimal?                @db.Decimal(24, 2)
+  currency    String                  @default("IDR") @db.VarChar(3)
+  period      InsuranceBenefitPeriod?
+  note        String?                 @db.VarChar(500)
+  // The "main benefit" shown in the policy list.
+  isPrimary   Boolean                 @default(false)
+  confirmed   Boolean                 @default(true)
+  sortOrder   Int                     @default(0)
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  insurance   Insurance               @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+
+  @@index([insuranceId])
+  @@map("insurance_benefits")
+}
+
+// Asuransi S5 — a unit-link sub-fund (subdana).
+model InsuranceFund {
+  id          String               @id @default(uuid())
+  insuranceId String
+  code        String?              @db.VarChar(40)
+  name        String               @db.VarChar(150)
+  currency    String               @default("IDR") @db.VarChar(3)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  insurance   Insurance            @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+  valuations  InsuranceValuation[]
+
+  @@index([insuranceId])
+  @@map("insurance_funds")
+}
+
+// Asuransi S5 — a dated value statement for a policy (fundId = null) or one
+// sub-fund. Value per fund = units × navPerUnit (Decimal) only when both are
+// present with compatible dates; a row never carries both a reportedValue and
+// units×NAV (DB CHECK). The latest row by effectiveDate wins, so a backdated
+// upload never overrides a newer value. Traditional policies use cashValue /
+// maturityBenefit only. Value updates never create cash transactions.
+model InsuranceValuation {
+  id                String                   @id @default(uuid())
+  insuranceId       String
+  fundId            String?
+  currency          String                   @default("IDR") @db.VarChar(3)
+  units             Decimal?                 @db.Decimal(24, 8)
+  navPerUnit        Decimal?                 @db.Decimal(24, 8)
+  navDate           DateTime?                @db.Date
+  unitsDate         DateTime?                @db.Date
+  reportedValue     Decimal?                 @db.Decimal(24, 4)
+  cashValue         Decimal?                 @db.Decimal(24, 4)
+  surrenderEstimate Decimal?                 @db.Decimal(24, 4)
+  maturityBenefit   Decimal?                 @db.Decimal(24, 4)
+  // Guaranteed (dijamin) vs non-guaranteed projection.
+  guaranteed        Boolean                  @default(false)
+  effectiveDate     DateTime                 @db.Date
+  source            InsuranceValuationSource @default(manual)
+  documentId        String?
+  page              Int?
+  snippet           String?                  @db.VarChar(1000)
+  status            InsuranceValuationStatus @default(needs_confirmation)
+  confirmedAt       DateTime?
+  confirmedByUserId String?
+  createdByUserId   String?
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
+  insurance         Insurance                @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+  fund              InsuranceFund?           @relation(fields: [fundId], references: [id], onDelete: Cascade)
+  document          InsuranceDocument?       @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([insuranceId, effectiveDate])
+  @@index([fundId, effectiveDate])
+  @@index([documentId])
+  @@map("insurance_valuations")
+}
+
+// Asuransi S7 — one row per premium payment. `pay` creates exactly one
+// expense Transaction + this row; a retry with the same idempotencyKey
+// returns the original. dueDate = the schedule due it settles (null on rows
+// backfilled from legacy transactions, where it is unknown). amount/currency
+// are what left the account.
+model InsurancePayment {
+  id              String       @id @default(uuid())
+  insuranceId     String
+  familyGroupId   String
+  dueDate         DateTime?    @db.Date
+  paidAt          DateTime
+  amount          Decimal      @db.Decimal(24, 2)
+  currency        String       @default("IDR") @db.VarChar(3)
+  accountId       String?
+  transactionId   String?      @unique
+  idempotencyKey  String?      @db.VarChar(64)
+  createdByUserId String?
+  createdAt       DateTime     @default(now())
+  insurance       Insurance    @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+  account         Account?     @relation("InsurancePaymentAccountUsed", fields: [accountId], references: [id], onDelete: SetNull)
+  transaction     Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+
+  @@unique([insuranceId, idempotencyKey])
+  @@index([familyGroupId])
+  @@index([insuranceId, dueDate])
+  @@index([accountId])
+  @@map("insurance_payments")
+}
+
+// Asuransi S8 — policy documents / company reports, stored via StoragePort
+// (path = storage key). Access follows the policy (S9).
+model InsuranceDocument {
+  id               String               @id @default(uuid())
+  insuranceId      String
+  familyGroupId    String
+  path             String
+  fileName         String               @db.VarChar(255)
+  mimeType         String
+  size             Int
+  // Statement / report date printed on the document, separate from upload
+  // time (createdAt).
+  reportDate       DateTime?            @db.Date
+  uploadedByUserId String?
+  createdAt        DateTime             @default(now())
+  insurance        Insurance            @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+  valuations       InsuranceValuation[]
+
+  @@index([insuranceId, familyGroupId])
+  @@map("insurance_documents")
+}
+
+// Asuransi S9 — explicit share: a row-scoped member sees this policy.
+model InsuranceShare {
+  id          String    @id @default(uuid())
+  insuranceId String
+  userId      String
+  createdAt   DateTime  @default(now())
+  insurance   Insurance @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([insuranceId, userId])
+  @@index([userId])
+  @@map("insurance_shares")
 }
 
 model SplitBill {

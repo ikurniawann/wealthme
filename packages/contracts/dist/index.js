@@ -1114,6 +1114,46 @@ var MemberCategoryAllowanceDtoSchema = z10.object({
   categories: z10.array(AllowedCategoryDtoSchema)
 });
 
+// src/insurances/index.ts
+var INSURANCE_STATUSES = [
+  "aktif",
+  "masa_tenggang",
+  "lapse",
+  "berakhir",
+  "dibatalkan",
+  "tidak_aktif",
+  "kadaluarsa"
+];
+var PREMIUM_PERIODS = [
+  "monthly",
+  "quarterly",
+  "semiannual",
+  "yearly",
+  "single",
+  "custom"
+];
+var INSURANCE_POLICY_TYPES = [
+  "traditional",
+  "unit_link"
+];
+var INSURANCE_BENEFIT_KINDS = [
+  "life_sum_assured",
+  "health_annual_limit",
+  "per_event",
+  "daily",
+  "critical_illness",
+  "accident",
+  "other"
+];
+var INSURANCE_BENEFIT_PERIODS = [
+  "per_year",
+  "per_event",
+  "per_day",
+  "per_policy_term",
+  "lifetime"
+];
+var INSURANCE_VALUATION_STATUSES = ["ai_extracted", "needs_confirmation", "confirmed"];
+
 // src/reference-items/index.ts
 import { z as z11 } from "zod";
 var ReferenceItemGroupSchema = z11.enum([
@@ -1597,6 +1637,11 @@ export {
   ID_INTEREST_TAX_FREE_BALANCE,
   ID_INTEREST_TAX_RATE,
   INDONESIA,
+  INSURANCE_BENEFIT_KINDS,
+  INSURANCE_BENEFIT_PERIODS,
+  INSURANCE_POLICY_TYPES,
+  INSURANCE_STATUSES,
+  INSURANCE_VALUATION_STATUSES,
   INVESTMENT_MARKET_KEYS,
   INVESTMENT_PLATFORMS,
   INVESTMENT_PRODUCT_KEYS,
@@ -1613,6 +1658,7 @@ export {
   MemberCategoryAllowanceDtoSchema,
   MemberRelationshipSchema,
   POCKET_KINDS,
+  PREMIUM_PERIODS,
   PRICED_VALUATION_BASES,
   PocketKindSchema,
   REFERENCE_ITEM_DEFAULTS,
