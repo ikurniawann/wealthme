@@ -935,6 +935,114 @@ var ASSET_HISTORY_KINDS = [
 var ASSET_TRANSACTION_KINDS = ["opening", "buy", "sell"];
 var ASSET_EVENT_STATUSES = ["active", "void"];
 
+// src/assets/details.ts
+import { z as z10 } from "zod";
+var ASSET_TYPE_IDS = [
+  "properti",
+  "kendaraan",
+  "elektronik",
+  "perhiasan",
+  "emas",
+  "seni_koleksi",
+  "lainnya"
+];
+var ASSET_CERTIFICATE_TYPES = [
+  "SHM",
+  "HGB",
+  "SHMSRS",
+  "Girik-AJB",
+  "Lainnya"
+];
+var ASSET_CREATE_VALUATION_SOURCES = [
+  "manual",
+  "appraisal",
+  "market"
+];
+var TEXT_MAX = 120;
+var LONG_TEXT_MAX = 300;
+var AREA_RE = /^\d{1,9}(\.\d{1,2})?$/;
+var YEAR_RE = /^\d{4}$/;
+var YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+function isRealYmd(v) {
+  if (!YMD_RE.test(v)) return false;
+  const d = /* @__PURE__ */ new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+function optional(schema) {
+  return z10.preprocess((v) => {
+    if (typeof v !== "string") return v;
+    const s = v.trim();
+    return s === "" ? void 0 : s;
+  }, schema.optional());
+}
+var text = (max = TEXT_MAX) => optional(z10.string().max(max));
+var area = () => optional(z10.string().regex(AREA_RE, "Luas harus angka, maks. 2 desimal"));
+var year = () => optional(
+  z10.string().regex(YEAR_RE, "Tahun harus 4 angka").refine((v) => Number(v) >= 1e3 && Number(v) <= 2200, "Tahun tidak valid")
+);
+var ymd = () => optional(z10.string().refine(isRealYmd, "Tanggal harus yyyy-mm-dd"));
+var AssetDetailsSchemas = {
+  properti: z10.object({
+    landAreaM2: area(),
+    buildingAreaM2: area(),
+    certificateType: optional(z10.enum(ASSET_CERTIFICATE_TYPES)),
+    address: text(LONG_TEXT_MAX)
+  }).strict(),
+  kendaraan: z10.object({
+    brandModel: text(),
+    year: year(),
+    plateNumber: text(20)
+  }).strict(),
+  emas: z10.object({
+    purity: text(40),
+    issuer: text(),
+    serial: text()
+  }).strict(),
+  perhiasan: z10.object({
+    material: text(),
+    stones: text(),
+    serial: text()
+  }).strict(),
+  elektronik: z10.object({
+    brandModel: text(),
+    serial: text(),
+    warrantyUntil: ymd()
+  }).strict(),
+  seni_koleksi: z10.object({
+    artistMaker: text(),
+    year: year(),
+    provenance: text(LONG_TEXT_MAX)
+  }).strict(),
+  lainnya: z10.object({}).strict()
+};
+function parseAssetDetails(type, input) {
+  if (input === null || input === void 0) return { ok: true, details: null };
+  const schema = AssetDetailsSchemas[type];
+  if (!schema) {
+    return { ok: false, field: "details", message: "Kategori tidak dikenal" };
+  }
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const key = issue?.path[0];
+    const unknown = issue?.code === "unrecognized_keys" ? issue.keys[0] : void 0;
+    return {
+      ok: false,
+      field: `details.${String(unknown ?? key ?? "")}`.replace(/\.$/, ""),
+      message: issue?.code === "unrecognized_keys" ? `Spesifikasi "${String(unknown)}" tidak berlaku untuk kategori ini` : issue?.message ?? "Spesifikasi tidak valid"
+    };
+  }
+  const clean = Object.fromEntries(
+    Object.entries(parsed.data).filter(
+      (e) => typeof e[1] === "string"
+    )
+  );
+  return {
+    ok: true,
+    details: Object.keys(clean).length > 0 ? clean : null
+  };
+}
+
 // src/assets/index.ts
 var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   properti: 3,
@@ -947,6 +1055,8 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   // mild appreciation
   emas: 0,
   // valued at the recorded figure; no appreciation assumed
+  seni_koleksi: 0,
+  // no assumption, like "lainnya"
   lainnya: 0
   // no assumption
 };
@@ -1128,18 +1238,18 @@ function effectiveMarketFor(type, market, currency) {
 }
 
 // src/member-category-allowances/index.ts
-import { z as z10 } from "zod";
-var SetMemberCategoryAllowanceInputSchema = z10.object({
-  categoryIds: z10.array(z10.string().uuid())
+import { z as z11 } from "zod";
+var SetMemberCategoryAllowanceInputSchema = z11.object({
+  categoryIds: z11.array(z11.string().uuid())
 });
-var AllowedCategoryDtoSchema = z10.object({
-  id: z10.string(),
-  name: z10.string()
+var AllowedCategoryDtoSchema = z11.object({
+  id: z11.string(),
+  name: z11.string()
 });
-var MemberCategoryAllowanceDtoSchema = z10.object({
-  memberId: z10.string(),
+var MemberCategoryAllowanceDtoSchema = z11.object({
+  memberId: z11.string(),
   // Empty = unrestricted (backward compatible default for every member).
-  categories: z10.array(AllowedCategoryDtoSchema)
+  categories: z11.array(AllowedCategoryDtoSchema)
 });
 
 // src/insurances/index.ts
@@ -1183,8 +1293,8 @@ var INSURANCE_BENEFIT_PERIODS = [
 var INSURANCE_VALUATION_STATUSES = ["ai_extracted", "needs_confirmation", "confirmed"];
 
 // src/reference-items/index.ts
-import { z as z11 } from "zod";
-var ReferenceItemGroupSchema = z11.enum([
+import { z as z12 } from "zod";
+var ReferenceItemGroupSchema = z12.enum([
   "bank",
   "ewallet",
   "txntype",
@@ -1198,18 +1308,18 @@ var ACTIVE_REFERENCE_ITEM_GROUPS = [
   "ewallet",
   "lembaga"
 ];
-var CreateReferenceItemDtoSchema = z11.object({
+var CreateReferenceItemDtoSchema = z12.object({
   group: ReferenceItemGroupSchema,
-  label: z11.string().min(1).max(100)
+  label: z12.string().min(1).max(100)
 });
-var ReferenceItemDtoSchema = z11.object({
-  id: z11.string().uuid(),
-  familyGroupId: z11.string().uuid(),
+var ReferenceItemDtoSchema = z12.object({
+  id: z12.string().uuid(),
+  familyGroupId: z12.string().uuid(),
   group: ReferenceItemGroupSchema,
-  label: z11.string(),
-  sortOrder: z11.number().int(),
-  isSystem: z11.boolean(),
-  createdAt: z11.string()
+  label: z12.string(),
+  sortOrder: z12.number().int(),
+  isSystem: z12.boolean(),
+  createdAt: z12.string()
 });
 var REFERENCE_ITEM_DEFAULTS = {
   bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
@@ -1227,13 +1337,13 @@ function buildReferenceItemSeed() {
 }
 
 // src/attachments/index.ts
-import { z as z12 } from "zod";
-var TransactionAttachmentDtoSchema = z12.object({
-  id: z12.string().uuid(),
-  transactionId: z12.string().uuid(),
-  mimeType: z12.string(),
-  size: z12.number().int().nonnegative(),
-  createdAt: z12.string()
+import { z as z13 } from "zod";
+var TransactionAttachmentDtoSchema = z13.object({
+  id: z13.string().uuid(),
+  transactionId: z13.string().uuid(),
+  mimeType: z13.string(),
+  size: z13.number().int().nonnegative(),
+  createdAt: z13.string()
 });
 var ATTACHMENT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 var ATTACHMENT_ACCEPTED_MIME_TYPES = [
@@ -1244,7 +1354,7 @@ var ATTACHMENT_ACCEPTED_MIME_TYPES = [
 ];
 
 // src/access/index.ts
-import { z as z13 } from "zod";
+import { z as z14 } from "zod";
 var ACCESS_PAGES = [
   "beranda",
   "ringkasan",
@@ -1269,7 +1379,7 @@ var ACCESS_PAGES = [
   "mastercoa",
   "masterdata"
 ];
-var AccessPageSchema = z13.enum(ACCESS_PAGES);
+var AccessPageSchema = z14.enum(ACCESS_PAGES);
 var ALWAYS_OPEN_PAGES = [
   "akun",
   "akses-saya",
@@ -1277,9 +1387,9 @@ var ALWAYS_OPEN_PAGES = [
   "panduan"
 ];
 var ACCESS_LEVELS = ["none", "view", "manage"];
-var AccessLevelSchema = z13.enum(ACCESS_LEVELS);
-var AccessDataScopeSchema = z13.enum(["all", "own"]);
-var AccessPermissionsSchema = z13.record(z13.string(), AccessLevelSchema).transform((raw) => {
+var AccessLevelSchema = z14.enum(ACCESS_LEVELS);
+var AccessDataScopeSchema = z14.enum(["all", "own"]);
+var AccessPermissionsSchema = z14.record(z14.string(), AccessLevelSchema).transform((raw) => {
   const clean = {};
   for (const [page, level] of Object.entries(raw)) {
     if (AccessPageSchema.safeParse(page).success) {
@@ -1376,22 +1486,22 @@ function resolveEffectiveAccess(input) {
 function canAccessPage(access, page, need = "view") {
   return access.isMaster || levelAtLeast(access.permissions[page], need);
 }
-var AccessRoleInputSchema = z13.object({
-  name: z13.string().trim().min(1).max(60),
-  description: z13.string().trim().max(200).nullable().optional(),
+var AccessRoleInputSchema = z14.object({
+  name: z14.string().trim().min(1).max(60),
+  description: z14.string().trim().max(200).nullable().optional(),
   dataScope: AccessDataScopeSchema,
   permissions: AccessPermissionsSchema
 });
-var MemberAccessInputSchema = z13.object({
+var MemberAccessInputSchema = z14.object({
   /** null = no custom role (use the built-in role's preset). */
-  accessRoleId: z13.string().min(1).nullable(),
+  accessRoleId: z14.string().min(1).nullable(),
   /** Sparse overrides on top of the role; {} clears them. */
   overrides: AccessPermissionsSchema,
   /**
    * "Lihat saldo". Omit to leave unchanged. false = member can still record
    * transactions but never sees balance figures.
    */
-  canViewBalances: z13.boolean().optional()
+  canViewBalances: z14.boolean().optional()
 });
 
 // src/family-login/index.ts
@@ -1413,7 +1523,7 @@ function slugifyHandleBase(name) {
 }
 
 // src/fx/index.ts
-import { z as z14 } from "zod";
+import { z as z15 } from "zod";
 
 // src/fx/currencies.ts
 var FX_CURRENCY_CODES = [
@@ -1504,19 +1614,19 @@ function deriveIdrPerUnit(eurToIdr, eurToX) {
 }
 
 // src/fx/index.ts
-var FxCurrencyCodeSchema = z14.enum(FX_CURRENCY_CODES);
-var FxInputSchema = z14.object({
-  field: z14.string().min(1).max(96),
+var FxCurrencyCodeSchema = z15.enum(FX_CURRENCY_CODES);
+var FxInputSchema = z15.object({
+  field: z15.string().min(1).max(96),
   currency: FxCurrencyCodeSchema.exclude(["IDR"]),
-  amount: z14.string().regex(/^-?\d{1,13}(\.\d{1,2})?$/)
+  amount: z15.string().regex(/^-?\d{1,13}(\.\d{1,2})?$/)
 });
-var FxRatesResponseSchema = z14.object({
-  base: z14.string(),
-  rates: z14.record(z14.number()),
-  rateDate: z14.string(),
-  source: z14.enum(["frankfurter", "indicative"]),
-  stale: z14.boolean(),
-  idrPerUnit: z14.record(z14.string())
+var FxRatesResponseSchema = z15.object({
+  base: z15.string(),
+  rates: z15.record(z15.number()),
+  rateDate: z15.string(),
+  source: z15.enum(["frankfurter", "indicative"]),
+  stale: z15.boolean(),
+  idrPerUnit: z15.record(z15.string())
 });
 
 // src/taxonomy/asset-class.ts
@@ -1542,6 +1652,7 @@ function assetTypeToAssetClass(type) {
       return "emas";
     case "elektronik":
     case "perhiasan":
+    case "seni_koleksi":
     case "lainnya":
     default:
       return "lainnya";
@@ -1613,14 +1724,17 @@ export {
   ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES,
+  ASSET_CERTIFICATE_TYPES,
   ASSET_CLASSES,
   ASSET_CLASS_KEYS,
+  ASSET_CREATE_VALUATION_SOURCES,
   ASSET_EVENT_STATUSES,
   ASSET_HISTORY_KINDS,
   PRICED_VALUATION_BASES as ASSET_PRICED_VALUATION_BASES,
   ASSET_SOURCE_MODULES,
   ASSET_STATUSES,
   ASSET_TRANSACTION_KINDS,
+  ASSET_TYPE_IDS,
   INVESTMENT_VALUATION_BASES as ASSET_VALUATION_BASES,
   ASSET_VALUATION_MODELS,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
@@ -1642,6 +1756,7 @@ export {
   AllowanceRequestStatusSchema,
   AllowedCategoryDtoSchema,
   ApproveAllowanceRequestInputSchema,
+  AssetDetailsSchemas,
   AuthUserSchema,
   BANK_COUNTRIES,
   BankInstitutionKindSchema,
@@ -1738,6 +1853,7 @@ export {
   isoDate,
   levelAtLeast,
   nextMaturityDate,
+  parseAssetDetails,
   parseMinor,
   parseScaled,
   resolveEffectiveAccess,

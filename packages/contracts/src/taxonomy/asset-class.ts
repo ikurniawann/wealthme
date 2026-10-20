@@ -53,6 +53,7 @@ export function assetTypeToAssetClass(type: string): AssetClassKey {
       return "emas";
     case "elektronik":
     case "perhiasan":
+    case "seni_koleksi":
     case "lainnya":
     default:
       return "lainnya";

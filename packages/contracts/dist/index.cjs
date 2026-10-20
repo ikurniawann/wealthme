@@ -24,14 +24,17 @@ __export(index_exports, {
   ACCESS_PAGES: () => ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS: () => ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES: () => ALWAYS_OPEN_PAGES,
+  ASSET_CERTIFICATE_TYPES: () => ASSET_CERTIFICATE_TYPES,
   ASSET_CLASSES: () => ASSET_CLASSES,
   ASSET_CLASS_KEYS: () => ASSET_CLASS_KEYS,
+  ASSET_CREATE_VALUATION_SOURCES: () => ASSET_CREATE_VALUATION_SOURCES,
   ASSET_EVENT_STATUSES: () => ASSET_EVENT_STATUSES,
   ASSET_HISTORY_KINDS: () => ASSET_HISTORY_KINDS,
   ASSET_PRICED_VALUATION_BASES: () => PRICED_VALUATION_BASES,
   ASSET_SOURCE_MODULES: () => ASSET_SOURCE_MODULES,
   ASSET_STATUSES: () => ASSET_STATUSES,
   ASSET_TRANSACTION_KINDS: () => ASSET_TRANSACTION_KINDS,
+  ASSET_TYPE_IDS: () => ASSET_TYPE_IDS,
   ASSET_VALUATION_BASES: () => INVESTMENT_VALUATION_BASES,
   ASSET_VALUATION_MODELS: () => ASSET_VALUATION_MODELS,
   ATTACHMENT_ACCEPTED_MIME_TYPES: () => ATTACHMENT_ACCEPTED_MIME_TYPES,
@@ -53,6 +56,7 @@ __export(index_exports, {
   AllowanceRequestStatusSchema: () => AllowanceRequestStatusSchema,
   AllowedCategoryDtoSchema: () => AllowedCategoryDtoSchema,
   ApproveAllowanceRequestInputSchema: () => ApproveAllowanceRequestInputSchema,
+  AssetDetailsSchemas: () => AssetDetailsSchemas,
   AuthUserSchema: () => AuthUserSchema,
   BANK_COUNTRIES: () => BANK_COUNTRIES,
   BankInstitutionKindSchema: () => BankInstitutionKindSchema,
@@ -149,6 +153,7 @@ __export(index_exports, {
   isoDate: () => isoDate,
   levelAtLeast: () => levelAtLeast,
   nextMaturityDate: () => nextMaturityDate,
+  parseAssetDetails: () => parseAssetDetails,
   parseMinor: () => parseMinor,
   parseScaled: () => parseScaled,
   resolveEffectiveAccess: () => resolveEffectiveAccess,
@@ -1094,6 +1099,114 @@ var ASSET_HISTORY_KINDS = [
 var ASSET_TRANSACTION_KINDS = ["opening", "buy", "sell"];
 var ASSET_EVENT_STATUSES = ["active", "void"];
 
+// src/assets/details.ts
+var import_zod10 = require("zod");
+var ASSET_TYPE_IDS = [
+  "properti",
+  "kendaraan",
+  "elektronik",
+  "perhiasan",
+  "emas",
+  "seni_koleksi",
+  "lainnya"
+];
+var ASSET_CERTIFICATE_TYPES = [
+  "SHM",
+  "HGB",
+  "SHMSRS",
+  "Girik-AJB",
+  "Lainnya"
+];
+var ASSET_CREATE_VALUATION_SOURCES = [
+  "manual",
+  "appraisal",
+  "market"
+];
+var TEXT_MAX = 120;
+var LONG_TEXT_MAX = 300;
+var AREA_RE = /^\d{1,9}(\.\d{1,2})?$/;
+var YEAR_RE = /^\d{4}$/;
+var YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+function isRealYmd(v) {
+  if (!YMD_RE.test(v)) return false;
+  const d = /* @__PURE__ */ new Date(`${v}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
+}
+function optional(schema) {
+  return import_zod10.z.preprocess((v) => {
+    if (typeof v !== "string") return v;
+    const s = v.trim();
+    return s === "" ? void 0 : s;
+  }, schema.optional());
+}
+var text = (max = TEXT_MAX) => optional(import_zod10.z.string().max(max));
+var area = () => optional(import_zod10.z.string().regex(AREA_RE, "Luas harus angka, maks. 2 desimal"));
+var year = () => optional(
+  import_zod10.z.string().regex(YEAR_RE, "Tahun harus 4 angka").refine((v) => Number(v) >= 1e3 && Number(v) <= 2200, "Tahun tidak valid")
+);
+var ymd = () => optional(import_zod10.z.string().refine(isRealYmd, "Tanggal harus yyyy-mm-dd"));
+var AssetDetailsSchemas = {
+  properti: import_zod10.z.object({
+    landAreaM2: area(),
+    buildingAreaM2: area(),
+    certificateType: optional(import_zod10.z.enum(ASSET_CERTIFICATE_TYPES)),
+    address: text(LONG_TEXT_MAX)
+  }).strict(),
+  kendaraan: import_zod10.z.object({
+    brandModel: text(),
+    year: year(),
+    plateNumber: text(20)
+  }).strict(),
+  emas: import_zod10.z.object({
+    purity: text(40),
+    issuer: text(),
+    serial: text()
+  }).strict(),
+  perhiasan: import_zod10.z.object({
+    material: text(),
+    stones: text(),
+    serial: text()
+  }).strict(),
+  elektronik: import_zod10.z.object({
+    brandModel: text(),
+    serial: text(),
+    warrantyUntil: ymd()
+  }).strict(),
+  seni_koleksi: import_zod10.z.object({
+    artistMaker: text(),
+    year: year(),
+    provenance: text(LONG_TEXT_MAX)
+  }).strict(),
+  lainnya: import_zod10.z.object({}).strict()
+};
+function parseAssetDetails(type, input) {
+  if (input === null || input === void 0) return { ok: true, details: null };
+  const schema = AssetDetailsSchemas[type];
+  if (!schema) {
+    return { ok: false, field: "details", message: "Kategori tidak dikenal" };
+  }
+  const parsed = schema.safeParse(input);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    const key = issue?.path[0];
+    const unknown = issue?.code === "unrecognized_keys" ? issue.keys[0] : void 0;
+    return {
+      ok: false,
+      field: `details.${String(unknown ?? key ?? "")}`.replace(/\.$/, ""),
+      message: issue?.code === "unrecognized_keys" ? `Spesifikasi "${String(unknown)}" tidak berlaku untuk kategori ini` : issue?.message ?? "Spesifikasi tidak valid"
+    };
+  }
+  const clean = Object.fromEntries(
+    Object.entries(parsed.data).filter(
+      (e) => typeof e[1] === "string"
+    )
+  );
+  return {
+    ok: true,
+    details: Object.keys(clean).length > 0 ? clean : null
+  };
+}
+
 // src/assets/index.ts
 var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   properti: 3,
@@ -1106,6 +1219,8 @@ var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   // mild appreciation
   emas: 0,
   // valued at the recorded figure; no appreciation assumed
+  seni_koleksi: 0,
+  // no assumption, like "lainnya"
   lainnya: 0
   // no assumption
 };
@@ -1287,18 +1402,18 @@ function effectiveMarketFor(type, market, currency) {
 }
 
 // src/member-category-allowances/index.ts
-var import_zod10 = require("zod");
-var SetMemberCategoryAllowanceInputSchema = import_zod10.z.object({
-  categoryIds: import_zod10.z.array(import_zod10.z.string().uuid())
+var import_zod11 = require("zod");
+var SetMemberCategoryAllowanceInputSchema = import_zod11.z.object({
+  categoryIds: import_zod11.z.array(import_zod11.z.string().uuid())
 });
-var AllowedCategoryDtoSchema = import_zod10.z.object({
-  id: import_zod10.z.string(),
-  name: import_zod10.z.string()
+var AllowedCategoryDtoSchema = import_zod11.z.object({
+  id: import_zod11.z.string(),
+  name: import_zod11.z.string()
 });
-var MemberCategoryAllowanceDtoSchema = import_zod10.z.object({
-  memberId: import_zod10.z.string(),
+var MemberCategoryAllowanceDtoSchema = import_zod11.z.object({
+  memberId: import_zod11.z.string(),
   // Empty = unrestricted (backward compatible default for every member).
-  categories: import_zod10.z.array(AllowedCategoryDtoSchema)
+  categories: import_zod11.z.array(AllowedCategoryDtoSchema)
 });
 
 // src/insurances/index.ts
@@ -1342,8 +1457,8 @@ var INSURANCE_BENEFIT_PERIODS = [
 var INSURANCE_VALUATION_STATUSES = ["ai_extracted", "needs_confirmation", "confirmed"];
 
 // src/reference-items/index.ts
-var import_zod11 = require("zod");
-var ReferenceItemGroupSchema = import_zod11.z.enum([
+var import_zod12 = require("zod");
+var ReferenceItemGroupSchema = import_zod12.z.enum([
   "bank",
   "ewallet",
   "txntype",
@@ -1357,18 +1472,18 @@ var ACTIVE_REFERENCE_ITEM_GROUPS = [
   "ewallet",
   "lembaga"
 ];
-var CreateReferenceItemDtoSchema = import_zod11.z.object({
+var CreateReferenceItemDtoSchema = import_zod12.z.object({
   group: ReferenceItemGroupSchema,
-  label: import_zod11.z.string().min(1).max(100)
+  label: import_zod12.z.string().min(1).max(100)
 });
-var ReferenceItemDtoSchema = import_zod11.z.object({
-  id: import_zod11.z.string().uuid(),
-  familyGroupId: import_zod11.z.string().uuid(),
+var ReferenceItemDtoSchema = import_zod12.z.object({
+  id: import_zod12.z.string().uuid(),
+  familyGroupId: import_zod12.z.string().uuid(),
   group: ReferenceItemGroupSchema,
-  label: import_zod11.z.string(),
-  sortOrder: import_zod11.z.number().int(),
-  isSystem: import_zod11.z.boolean(),
-  createdAt: import_zod11.z.string()
+  label: import_zod12.z.string(),
+  sortOrder: import_zod12.z.number().int(),
+  isSystem: import_zod12.z.boolean(),
+  createdAt: import_zod12.z.string()
 });
 var REFERENCE_ITEM_DEFAULTS = {
   bank: ["BCA", "Mandiri", "BRI", "BNI", "CIMB", "OCBC"],
@@ -1386,13 +1501,13 @@ function buildReferenceItemSeed() {
 }
 
 // src/attachments/index.ts
-var import_zod12 = require("zod");
-var TransactionAttachmentDtoSchema = import_zod12.z.object({
-  id: import_zod12.z.string().uuid(),
-  transactionId: import_zod12.z.string().uuid(),
-  mimeType: import_zod12.z.string(),
-  size: import_zod12.z.number().int().nonnegative(),
-  createdAt: import_zod12.z.string()
+var import_zod13 = require("zod");
+var TransactionAttachmentDtoSchema = import_zod13.z.object({
+  id: import_zod13.z.string().uuid(),
+  transactionId: import_zod13.z.string().uuid(),
+  mimeType: import_zod13.z.string(),
+  size: import_zod13.z.number().int().nonnegative(),
+  createdAt: import_zod13.z.string()
 });
 var ATTACHMENT_MAX_FILE_BYTES = 5 * 1024 * 1024;
 var ATTACHMENT_ACCEPTED_MIME_TYPES = [
@@ -1403,7 +1518,7 @@ var ATTACHMENT_ACCEPTED_MIME_TYPES = [
 ];
 
 // src/access/index.ts
-var import_zod13 = require("zod");
+var import_zod14 = require("zod");
 var ACCESS_PAGES = [
   "beranda",
   "ringkasan",
@@ -1428,7 +1543,7 @@ var ACCESS_PAGES = [
   "mastercoa",
   "masterdata"
 ];
-var AccessPageSchema = import_zod13.z.enum(ACCESS_PAGES);
+var AccessPageSchema = import_zod14.z.enum(ACCESS_PAGES);
 var ALWAYS_OPEN_PAGES = [
   "akun",
   "akses-saya",
@@ -1436,9 +1551,9 @@ var ALWAYS_OPEN_PAGES = [
   "panduan"
 ];
 var ACCESS_LEVELS = ["none", "view", "manage"];
-var AccessLevelSchema = import_zod13.z.enum(ACCESS_LEVELS);
-var AccessDataScopeSchema = import_zod13.z.enum(["all", "own"]);
-var AccessPermissionsSchema = import_zod13.z.record(import_zod13.z.string(), AccessLevelSchema).transform((raw) => {
+var AccessLevelSchema = import_zod14.z.enum(ACCESS_LEVELS);
+var AccessDataScopeSchema = import_zod14.z.enum(["all", "own"]);
+var AccessPermissionsSchema = import_zod14.z.record(import_zod14.z.string(), AccessLevelSchema).transform((raw) => {
   const clean = {};
   for (const [page, level] of Object.entries(raw)) {
     if (AccessPageSchema.safeParse(page).success) {
@@ -1535,22 +1650,22 @@ function resolveEffectiveAccess(input) {
 function canAccessPage(access, page, need = "view") {
   return access.isMaster || levelAtLeast(access.permissions[page], need);
 }
-var AccessRoleInputSchema = import_zod13.z.object({
-  name: import_zod13.z.string().trim().min(1).max(60),
-  description: import_zod13.z.string().trim().max(200).nullable().optional(),
+var AccessRoleInputSchema = import_zod14.z.object({
+  name: import_zod14.z.string().trim().min(1).max(60),
+  description: import_zod14.z.string().trim().max(200).nullable().optional(),
   dataScope: AccessDataScopeSchema,
   permissions: AccessPermissionsSchema
 });
-var MemberAccessInputSchema = import_zod13.z.object({
+var MemberAccessInputSchema = import_zod14.z.object({
   /** null = no custom role (use the built-in role's preset). */
-  accessRoleId: import_zod13.z.string().min(1).nullable(),
+  accessRoleId: import_zod14.z.string().min(1).nullable(),
   /** Sparse overrides on top of the role; {} clears them. */
   overrides: AccessPermissionsSchema,
   /**
    * "Lihat saldo". Omit to leave unchanged. false = member can still record
    * transactions but never sees balance figures.
    */
-  canViewBalances: import_zod13.z.boolean().optional()
+  canViewBalances: import_zod14.z.boolean().optional()
 });
 
 // src/family-login/index.ts
@@ -1572,7 +1687,7 @@ function slugifyHandleBase(name) {
 }
 
 // src/fx/index.ts
-var import_zod14 = require("zod");
+var import_zod15 = require("zod");
 
 // src/fx/currencies.ts
 var FX_CURRENCY_CODES = [
@@ -1663,19 +1778,19 @@ function deriveIdrPerUnit(eurToIdr, eurToX) {
 }
 
 // src/fx/index.ts
-var FxCurrencyCodeSchema = import_zod14.z.enum(FX_CURRENCY_CODES);
-var FxInputSchema = import_zod14.z.object({
-  field: import_zod14.z.string().min(1).max(96),
+var FxCurrencyCodeSchema = import_zod15.z.enum(FX_CURRENCY_CODES);
+var FxInputSchema = import_zod15.z.object({
+  field: import_zod15.z.string().min(1).max(96),
   currency: FxCurrencyCodeSchema.exclude(["IDR"]),
-  amount: import_zod14.z.string().regex(/^-?\d{1,13}(\.\d{1,2})?$/)
+  amount: import_zod15.z.string().regex(/^-?\d{1,13}(\.\d{1,2})?$/)
 });
-var FxRatesResponseSchema = import_zod14.z.object({
-  base: import_zod14.z.string(),
-  rates: import_zod14.z.record(import_zod14.z.number()),
-  rateDate: import_zod14.z.string(),
-  source: import_zod14.z.enum(["frankfurter", "indicative"]),
-  stale: import_zod14.z.boolean(),
-  idrPerUnit: import_zod14.z.record(import_zod14.z.string())
+var FxRatesResponseSchema = import_zod15.z.object({
+  base: import_zod15.z.string(),
+  rates: import_zod15.z.record(import_zod15.z.number()),
+  rateDate: import_zod15.z.string(),
+  source: import_zod15.z.enum(["frankfurter", "indicative"]),
+  stale: import_zod15.z.boolean(),
+  idrPerUnit: import_zod15.z.record(import_zod15.z.string())
 });
 
 // src/taxonomy/asset-class.ts
@@ -1701,6 +1816,7 @@ function assetTypeToAssetClass(type) {
       return "emas";
     case "elektronik":
     case "perhiasan":
+    case "seni_koleksi":
     case "lainnya":
     default:
       return "lainnya";
@@ -1773,14 +1889,17 @@ function warisanAssetTypeToAssetClass(assetType) {
   ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES,
+  ASSET_CERTIFICATE_TYPES,
   ASSET_CLASSES,
   ASSET_CLASS_KEYS,
+  ASSET_CREATE_VALUATION_SOURCES,
   ASSET_EVENT_STATUSES,
   ASSET_HISTORY_KINDS,
   ASSET_PRICED_VALUATION_BASES,
   ASSET_SOURCE_MODULES,
   ASSET_STATUSES,
   ASSET_TRANSACTION_KINDS,
+  ASSET_TYPE_IDS,
   ASSET_VALUATION_BASES,
   ASSET_VALUATION_MODELS,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
@@ -1802,6 +1921,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   AllowanceRequestStatusSchema,
   AllowedCategoryDtoSchema,
   ApproveAllowanceRequestInputSchema,
+  AssetDetailsSchemas,
   AuthUserSchema,
   BANK_COUNTRIES,
   BankInstitutionKindSchema,
@@ -1898,6 +2018,7 @@ function warisanAssetTypeToAssetClass(assetType) {
   isoDate,
   levelAtLeast,
   nextMaturityDate,
+  parseAssetDetails,
   parseMinor,
   parseScaled,
   resolveEffectiveAccess,

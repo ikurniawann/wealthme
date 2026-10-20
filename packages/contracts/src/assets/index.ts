@@ -1,16 +1,12 @@
 export * from "./rebuild.js";
+export * from "./details.js";
+import type { AssetCreateValuationSource, ASSET_TYPE_IDS } from "./details.js";
 import type { AssetStatus, AssetValuationModel } from "./rebuild.js";
 // Mirrors Prisma's `AssetType` enum (apps/api/prisma/schema.prisma). Kept as
 // a plain union here rather than importing the Prisma enum so this package
 // stays framework-agnostic; AssetDto.type itself stays a plain `string` for
 // backward compatibility with existing consumers.
-export type AssetTypeId =
-  | "properti"
-  | "kendaraan"
-  | "elektronik"
-  | "perhiasan"
-  | "emas"
-  | "lainnya";
+export type AssetTypeId = (typeof ASSET_TYPE_IDS)[number];
 
 // EPIC-024 D2/US-ASSET-6: mirrors Prisma's `AssetValueChangeMode` enum —
 // which of valueChangeRatePct (percent) or valueChangeAmount (fixed)
@@ -33,6 +29,9 @@ export interface AssetDto {
   costBasisPerUnit?: string | null;
   internalCode?: string | null;
   custodian?: string | null;
+  // Aset fields (2026-10-20): per-category specs, validated by
+  // `AssetDetailsSchemas[type]`; null = none recorded.
+  details?: Record<string, string> | null;
   status?: AssetStatus;
   soldAt?: string | null;
   // EPIC-021 #17/#18: signed annual value-change rate (%), negative =
@@ -75,6 +74,7 @@ export const DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: Record<AssetTypeId, number> =
     elektronik: -20, // fast depreciation
     perhiasan: 2, // mild appreciation
     emas: 0, // valued at the recorded figure; no appreciation assumed
+    seni_koleksi: 0, // no assumption, like "lainnya"
     lainnya: 0, // no assumption
   };
 
@@ -111,6 +111,16 @@ export interface CreateAssetDto {
   // EPIC-023 D19/US-ASSET-4: ISO date string. Falls back to createdAt when
   // omitted.
   acquisitionDate?: string;
+  // Aset fields (2026-10-20). Owner: a member's userId, null = Bersama
+  // (family). A row-scoped member may only record for themselves.
+  ownerUserId?: string | null;
+  // Purchase price in IDR digits (fxInputs field "acquisitionCost" for a
+  // foreign amount). Becomes the opening transaction's cost basis.
+  acquisitionCost?: string;
+  // Opening valuation's calendar date (yyyy-mm-dd, floating) and source.
+  valuationDate?: string;
+  valuationSource?: AssetCreateValuationSource;
+  details?: Record<string, string> | null;
 }
 
 export interface UpdateAssetDto {
@@ -124,4 +134,5 @@ export interface UpdateAssetDto {
   valueChangeAmount?: string;
   categoryId?: string;
   acquisitionDate?: string;
+  details?: Record<string, string> | null;
 }

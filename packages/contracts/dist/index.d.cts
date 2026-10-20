@@ -2204,7 +2204,127 @@ interface AssetLedgerDto {
     todayChange: AssetValueChangeDto;
 }
 
-type AssetTypeId = "properti" | "kendaraan" | "elektronik" | "perhiasan" | "emas" | "lainnya";
+/**
+ * Aset fields (2026-10-20) — structured specifications per physical-asset
+ * category, stored in `Asset.details` (JSONB). Every field is optional; an
+ * empty string counts as absent. Unknown keys are rejected so a spec typed
+ * for one category never lands silently on another. Decimals and years are
+ * strings (no float rounding); dates are calendar dates (yyyy-mm-dd).
+ */
+/** Mirrors Prisma's `AssetType` enum (apps/api/prisma/schema.prisma). */
+declare const ASSET_TYPE_IDS: readonly ["properti", "kendaraan", "elektronik", "perhiasan", "emas", "seni_koleksi", "lainnya"];
+declare const ASSET_CERTIFICATE_TYPES: readonly ["SHM", "HGB", "SHMSRS", "Girik-AJB", "Lainnya"];
+type AssetCertificateType = (typeof ASSET_CERTIFICATE_TYPES)[number];
+/** Where the opening valuation of a new asset came from. */
+declare const ASSET_CREATE_VALUATION_SOURCES: readonly ["manual", "appraisal", "market"];
+type AssetCreateValuationSource = (typeof ASSET_CREATE_VALUATION_SOURCES)[number];
+declare const AssetDetailsSchemas: {
+    readonly properti: z.ZodObject<{
+        landAreaM2: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        buildingAreaM2: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        certificateType: z.ZodEffects<z.ZodOptional<z.ZodEnum<["SHM", "HGB", "SHMSRS", "Girik-AJB", "Lainnya"]>>, "Lainnya" | "SHM" | "HGB" | "SHMSRS" | "Girik-AJB" | undefined, unknown>;
+        address: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+    }, "strict", z.ZodTypeAny, {
+        landAreaM2?: string | undefined;
+        buildingAreaM2?: string | undefined;
+        certificateType?: "Lainnya" | "SHM" | "HGB" | "SHMSRS" | "Girik-AJB" | undefined;
+        address?: string | undefined;
+    }, {
+        landAreaM2?: unknown;
+        buildingAreaM2?: unknown;
+        certificateType?: unknown;
+        address?: unknown;
+    }>;
+    readonly kendaraan: z.ZodObject<{
+        brandModel: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        year: z.ZodEffects<z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>, string | undefined, unknown>;
+        plateNumber: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+    }, "strict", z.ZodTypeAny, {
+        brandModel?: string | undefined;
+        year?: string | undefined;
+        plateNumber?: string | undefined;
+    }, {
+        brandModel?: unknown;
+        year?: unknown;
+        plateNumber?: unknown;
+    }>;
+    readonly emas: z.ZodObject<{
+        purity: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        issuer: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        serial: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+    }, "strict", z.ZodTypeAny, {
+        purity?: string | undefined;
+        issuer?: string | undefined;
+        serial?: string | undefined;
+    }, {
+        purity?: unknown;
+        issuer?: unknown;
+        serial?: unknown;
+    }>;
+    readonly perhiasan: z.ZodObject<{
+        material: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        stones: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        serial: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+    }, "strict", z.ZodTypeAny, {
+        serial?: string | undefined;
+        material?: string | undefined;
+        stones?: string | undefined;
+    }, {
+        serial?: unknown;
+        material?: unknown;
+        stones?: unknown;
+    }>;
+    readonly elektronik: z.ZodObject<{
+        brandModel: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        serial: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        warrantyUntil: z.ZodEffects<z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>, string | undefined, unknown>;
+    }, "strict", z.ZodTypeAny, {
+        brandModel?: string | undefined;
+        serial?: string | undefined;
+        warrantyUntil?: string | undefined;
+    }, {
+        brandModel?: unknown;
+        serial?: unknown;
+        warrantyUntil?: unknown;
+    }>;
+    readonly seni_koleksi: z.ZodObject<{
+        artistMaker: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+        year: z.ZodEffects<z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>, string | undefined, unknown>;
+        provenance: z.ZodEffects<z.ZodOptional<z.ZodString>, string | undefined, unknown>;
+    }, "strict", z.ZodTypeAny, {
+        year?: string | undefined;
+        artistMaker?: string | undefined;
+        provenance?: string | undefined;
+    }, {
+        year?: unknown;
+        artistMaker?: unknown;
+        provenance?: unknown;
+    }>;
+    readonly lainnya: z.ZodObject<{}, "strict", z.ZodTypeAny, {}, {}>;
+};
+type AssetDetailsByType = {
+    [K in keyof typeof AssetDetailsSchemas]: z.infer<(typeof AssetDetailsSchemas)[K]>;
+};
+type AssetDetails = AssetDetailsByType[keyof AssetDetailsByType];
+/** Every spec key of every category (display order is per category). */
+type AssetDetailKey = {
+    [K in keyof AssetDetailsByType]: keyof AssetDetailsByType[K];
+}[keyof AssetDetailsByType] & string;
+type ParseAssetDetailsResult = {
+    ok: true;
+    details: Record<string, string> | null;
+} | {
+    ok: false;
+    field: string;
+    message: string;
+};
+/**
+ * Validates `input` against the category's schema. All-empty → null (no
+ * specs). An unknown category has no specs: anything but empty is refused.
+ */
+declare function parseAssetDetails(type: string, input: unknown): ParseAssetDetailsResult;
+
+type AssetTypeId = (typeof ASSET_TYPE_IDS)[number];
 type AssetValueChangeMode = "percent" | "fixed";
 interface AssetDto {
     id: string;
@@ -2222,6 +2342,7 @@ interface AssetDto {
     costBasisPerUnit?: string | null;
     internalCode?: string | null;
     custodian?: string | null;
+    details?: Record<string, string> | null;
     status?: AssetStatus;
     soldAt?: string | null;
     valueChangeRatePct: string | null;
@@ -2263,6 +2384,11 @@ interface CreateAssetDto {
     valueChangeAmount?: string;
     categoryId?: string;
     acquisitionDate?: string;
+    ownerUserId?: string | null;
+    acquisitionCost?: string;
+    valuationDate?: string;
+    valuationSource?: AssetCreateValuationSource;
+    details?: Record<string, string> | null;
 }
 interface UpdateAssetDto {
     name?: string;
@@ -2275,6 +2401,7 @@ interface UpdateAssetDto {
     valueChangeAmount?: string;
     categoryId?: string;
     acquisitionDate?: string;
+    details?: Record<string, string> | null;
 }
 
 type LiabilityType = "kartu_kredit" | "pinjaman_pribadi" | "kpr" | "kendaraan" | "lainnya";
@@ -4049,4 +4176,4 @@ declare function accountTypeToAssetClass(type: string): AssetClassKey;
  */
 declare function warisanAssetTypeToAssetClass(assetType: string): AssetClassKey;
 
-export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASSES, ASSET_CLASS_KEYS, ASSET_EVENT_STATUSES, ASSET_HISTORY_KINDS, PRICED_VALUATION_BASES as ASSET_PRICED_VALUATION_BASES, ASSET_SOURCE_MODULES, ASSET_STATUSES, ASSET_TRANSACTION_KINDS, INVESTMENT_VALUATION_BASES as ASSET_VALUATION_BASES, ASSET_VALUATION_MODELS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, AUTOMATED_PRICE_SOURCES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClass, type AssetClassKey, type AssetDto, type AssetEventStatus, type AssetHistoryDto, type AssetHistoryEventDto, type AssetHistoryKind, type AssetHoldingStateDto, type AssetLedgerDto, type AssetOverviewRowDto, type AssetPriceDto, type AssetSourceLink, type AssetSourceModule, type AssetStatus, type AssetTransactionDto, type AssetTransactionKind, type AssetTransactionResultDto, type AssetTypeId, type AssetValuationBasis, type AssetValuationInput, type AssetValuationModel, type AssetValuationPreviewDto, type AssetValuationResultDto, type AssetValueChangeDto, type AssetValueChangeMode, type AssetsOverviewDto, type AssetsOverviewQuery, type AssetsOverviewSummaryDto, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type ConfirmInsuranceReportDto, type ConfirmInsuranceReportItemDto, type ConfirmInsuranceReportResultDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateAssetTransactionInput, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceBenefitDto, type CreateInsuranceDto, type CreateInsuranceFundDto, type CreateInsuranceInsuredDto, type CreateInsuranceValuationDto, type CreateInvestmentLedgerInput, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INSURANCE_BENEFIT_KINDS, INSURANCE_BENEFIT_PERIODS, INSURANCE_POLICY_TYPES, INSURANCE_STATUSES, INSURANCE_VALUATION_STATUSES, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, INVESTMENT_VALUATION_BASES, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceBenefitDto, type InsuranceBenefitGroupDto, type InsuranceBenefitKind, type InsuranceBenefitPeriod, type InsuranceConfirmedValueDto, type InsuranceCurrencyTotalDto, type InsuranceDocumentDto, type InsuranceDto, type InsuranceFundDto, type InsuranceInsuredDto, type InsurancePayResultDto, type InsurancePaymentDto, type InsurancePaymentDueStatus, type InsurancePolicyType, type InsuranceReportConflict, type InsuranceReportErrorCode, type InsuranceReportFieldDto, type InsuranceReportFieldKey, type InsuranceReportFieldStatus, type InsuranceReportMissingDto, type InsuranceReportPreviewDto, type InsuranceReportValuationDraftDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InsuranceValuationDto, type InsuranceValuationSource, type InsuranceValuationStatus, type InterestMethod, type InvestmentBaseUnit, type InvestmentBondValuationDto, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDepositAccrualDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentLedgerConflictCode, type InvestmentLedgerConflictDto, type InvestmentLedgerConflictItem, type InvestmentLedgerCreateKind, type InvestmentLedgerHoldingState, type InvestmentLedgerResultDto, type InvestmentMarket, type InvestmentMoneyDto, type InvestmentPlatform, type InvestmentPlatformCashDto, type InvestmentPortfolioTotalsDto, type InvestmentPortfolioValuationDto, type InvestmentPortfolioValuationQuery, type InvestmentPriceBatchInput, type InvestmentPriceBatchResultDto, type InvestmentPriceBatchRowCode, type InvestmentPriceBatchRowInput, type InvestmentPriceBatchRowResult, type InvestmentPriceBatchRowStatus, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type InvestmentValuationBasis, type InvestmentValuationDto, type InvestmentValuationFxDto, type InvestmentValuationMethod, type InvestmentValuationPriceDto, type InvestmentValuationReason, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MANUAL_PRICE_SOURCES, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type ManualPriceSource, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, PREMIUM_PERIODS, PRICED_VALUATION_BASES, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PreviewInsuranceReportDto, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, SIMULATED_PRICE_SOURCE, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateAssetTransactionInput, type UpdateAssetValuationInput, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateInvestmentLedgerInput, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type VoidAssetEventInput, type VoidInvestmentLedgerInput, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, effectiveMarketFor, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };
+export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CERTIFICATE_TYPES, ASSET_CLASSES, ASSET_CLASS_KEYS, ASSET_CREATE_VALUATION_SOURCES, ASSET_EVENT_STATUSES, ASSET_HISTORY_KINDS, PRICED_VALUATION_BASES as ASSET_PRICED_VALUATION_BASES, ASSET_SOURCE_MODULES, ASSET_STATUSES, ASSET_TRANSACTION_KINDS, ASSET_TYPE_IDS, INVESTMENT_VALUATION_BASES as ASSET_VALUATION_BASES, ASSET_VALUATION_MODELS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, AUTOMATED_PRICE_SOURCES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetCertificateType, type AssetClass, type AssetClassKey, type AssetCreateValuationSource, type AssetDetailKey, type AssetDetails, type AssetDetailsByType, AssetDetailsSchemas, type AssetDto, type AssetEventStatus, type AssetHistoryDto, type AssetHistoryEventDto, type AssetHistoryKind, type AssetHoldingStateDto, type AssetLedgerDto, type AssetOverviewRowDto, type AssetPriceDto, type AssetSourceLink, type AssetSourceModule, type AssetStatus, type AssetTransactionDto, type AssetTransactionKind, type AssetTransactionResultDto, type AssetTypeId, type AssetValuationBasis, type AssetValuationInput, type AssetValuationModel, type AssetValuationPreviewDto, type AssetValuationResultDto, type AssetValueChangeDto, type AssetValueChangeMode, type AssetsOverviewDto, type AssetsOverviewQuery, type AssetsOverviewSummaryDto, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type ConfirmInsuranceReportDto, type ConfirmInsuranceReportItemDto, type ConfirmInsuranceReportResultDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateAssetTransactionInput, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceBenefitDto, type CreateInsuranceDto, type CreateInsuranceFundDto, type CreateInsuranceInsuredDto, type CreateInsuranceValuationDto, type CreateInvestmentLedgerInput, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INSURANCE_BENEFIT_KINDS, INSURANCE_BENEFIT_PERIODS, INSURANCE_POLICY_TYPES, INSURANCE_STATUSES, INSURANCE_VALUATION_STATUSES, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, INVESTMENT_VALUATION_BASES, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceBenefitDto, type InsuranceBenefitGroupDto, type InsuranceBenefitKind, type InsuranceBenefitPeriod, type InsuranceConfirmedValueDto, type InsuranceCurrencyTotalDto, type InsuranceDocumentDto, type InsuranceDto, type InsuranceFundDto, type InsuranceInsuredDto, type InsurancePayResultDto, type InsurancePaymentDto, type InsurancePaymentDueStatus, type InsurancePolicyType, type InsuranceReportConflict, type InsuranceReportErrorCode, type InsuranceReportFieldDto, type InsuranceReportFieldKey, type InsuranceReportFieldStatus, type InsuranceReportMissingDto, type InsuranceReportPreviewDto, type InsuranceReportValuationDraftDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InsuranceValuationDto, type InsuranceValuationSource, type InsuranceValuationStatus, type InterestMethod, type InvestmentBaseUnit, type InvestmentBondValuationDto, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDepositAccrualDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentLedgerConflictCode, type InvestmentLedgerConflictDto, type InvestmentLedgerConflictItem, type InvestmentLedgerCreateKind, type InvestmentLedgerHoldingState, type InvestmentLedgerResultDto, type InvestmentMarket, type InvestmentMoneyDto, type InvestmentPlatform, type InvestmentPlatformCashDto, type InvestmentPortfolioTotalsDto, type InvestmentPortfolioValuationDto, type InvestmentPortfolioValuationQuery, type InvestmentPriceBatchInput, type InvestmentPriceBatchResultDto, type InvestmentPriceBatchRowCode, type InvestmentPriceBatchRowInput, type InvestmentPriceBatchRowResult, type InvestmentPriceBatchRowStatus, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type InvestmentValuationBasis, type InvestmentValuationDto, type InvestmentValuationFxDto, type InvestmentValuationMethod, type InvestmentValuationPriceDto, type InvestmentValuationReason, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MANUAL_PRICE_SOURCES, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type ManualPriceSource, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, PREMIUM_PERIODS, PRICED_VALUATION_BASES, type ParseAssetDetailsResult, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PreviewInsuranceReportDto, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, SIMULATED_PRICE_SOURCE, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateAssetTransactionInput, type UpdateAssetValuationInput, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateInvestmentLedgerInput, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type VoidAssetEventInput, type VoidInvestmentLedgerInput, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, effectiveMarketFor, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseAssetDetails, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };
