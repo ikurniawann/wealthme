@@ -1,30 +1,49 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
+import {
+  ChartColumnIncreasing,
+  ChevronDown,
+  Database,
+  Eye,
+  Info,
+  Paperclip,
+  PenLine,
+  Coins,
+  X,
+} from "lucide-react";
+import { MANUAL_PRICE_SOURCES } from "@wealthme/contracts";
 import type {
   InvestmentDto,
   InvestmentValuationDto,
+  ManualPriceSource,
   PlatformAccountDto,
   InvestmentPriceBatchInput,
   InvestmentPriceBatchResultDto,
 } from "@wealthme/contracts";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
-import { apiErrorMessage } from "@/lib/api-error";
+import { investmentErrorMessage } from "./investment-conflict";
 import { priceUnit } from "./price-unit";
-import { amount, today } from "./investment-fields";
+import { amount, today, TIME_ZONES } from "./investment-fields";
 import { investmentWrite, uploadHoldingProof } from "./investment-api";
 import { PriceTable } from "./price-table";
 import type { PriceEntry } from "./price-table";
 import { PriceResults } from "./price-results";
 import type { FeedResult } from "./price-results";
 import { money } from "./portfolio-model";
+import { priceCopy } from "./price-copy";
+import "./trade-position.css";
+import "./price-update.css";
+
+const PROOF_LIMIT = 5 * 1024 * 1024;
 
 export function PriceForm({
   initialId,
@@ -49,20 +68,27 @@ export function PriceForm({
   const p = t.investasi.prices;
   const c = t.investasi.v3;
   const f = t.investasi.forms;
+  const copy = priceCopy(locale);
   const { hideBalance } = useMoney();
   const [mode, setMode] = useState<"manual" | "feed">("manual");
   const [platform, setPlatform] = useState("");
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("");
+  const [zone, setZone] = useState("Asia/Jakarta");
   const [reference, setReference] = useState("");
+  const [bulkSource, setBulkSource] = useState<ManualPriceSource | "">("");
   const [entries, setEntries] = useState<Record<string, PriceEntry>>({});
   const [result, setResult] = useState<InvestmentPriceBatchResultDto | null>(
     null,
   );
   const [previewKey, setPreviewKey] = useState("");
+  const [previewOpen, setPreviewOpen] = useState(true);
   const [feeds, setFeeds] = useState<FeedResult[]>([]);
   const [proof, setProof] = useState<File | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<"" | "preview" | "bulk" | "refresh">(
+    "",
+  );
+  const busy = pending !== "";
   const [error, setError] = useState("");
   const visible = holdings.filter(
     (h) =>
@@ -79,17 +105,35 @@ export function PriceForm({
       source: entries[h.id]?.source ?? "manual",
       asOfDate: date,
       asOfTime: time || null,
-      timeZone: "Asia/Jakarta",
+      timeZone: zone,
       reference: reference.trim() || null,
     })),
   };
   const serialized = JSON.stringify(body);
   const fresh = previewKey === serialized;
   const shownResult = fresh ? result : null;
+  const filled = visible.filter((h) => entries[h.id]?.price.trim()).length;
+  const autoRows = visible.filter(
+    (h) =>
+      (h.type === "saham" || h.type === "kripto") &&
+      !h.details?.manualInstrument,
+  ).length;
+  const fxRows = valuations.filter(
+    (v) => visible.some((h) => h.id === v.investmentId) && v.valuationFx,
+  );
+  const fxByCurrency = [
+    ...new Map(
+      fxRows.map((v) => [v.valuationFx!.currency, v.valuationFx!]),
+    ).values(),
+  ];
+  const saved = !!shownResult?.saved;
+  const platformName = (x: PlatformAccountDto) =>
+    x.label ?? x.platformName ?? x.customName ?? x.platformKey;
+
   async function run(action: "preview" | "bulk" | "refresh") {
     if (busy || !visible.length) return;
     if (action === "bulk" && (!fresh || !result || result.saved)) return;
-    setBusy(true);
+    setPending(action);
     setError("");
     try {
       if (action === "refresh") {
@@ -105,37 +149,62 @@ export function PriceForm({
         setFeeds(rows);
         onSaved();
         toast.success(p.refreshed);
-      } else {
-        const next = await investmentWrite<InvestmentPriceBatchResultDto>(
-          `/family-groups/${fg}/investments/prices/${action}`,
-          { token, method: "POST", body: serialized },
-        );
-        setResult(next);
-        setPreviewKey(serialized);
-        if (action === "bulk") {
-          onSaved();
-          let proofFailed = false;
-          if (proof)
-            for (const row of next.rows)
-              if (row.priceId) {
-                try {
-                  await uploadHoldingProof(fg, row.investmentId, proof, token);
-                } catch {
-                  proofFailed = true;
-                }
-              }
-          if (proofFailed) {
-            setError(p.proofFailed);
-            toast.warning(p.proofFailed);
-          } else toast.success(p.saved);
-        }
+        return;
       }
+      const next = await investmentWrite<InvestmentPriceBatchResultDto>(
+        `/family-groups/${fg}/investments/prices/${action}`,
+        { token, method: "POST", body: serialized },
+      );
+      setResult(next);
+      setPreviewKey(serialized);
+      setPreviewOpen(true);
+      if (action !== "bulk") return;
+      onSaved();
+      let proofFailed = false;
+      if (proof)
+        for (const row of next.rows)
+          if (row.priceId) {
+            try {
+              await uploadHoldingProof(fg, row.investmentId, proof, token);
+            } catch {
+              proofFailed = true;
+            }
+          }
+      if (proofFailed) {
+        setError(p.proofFailed);
+        toast.warning(p.proofFailed);
+      } else toast.success(p.saved);
     } catch (err) {
-      setError(apiErrorMessage(err, f.failed));
+      setError(investmentErrorMessage(err, f.failed, locale));
     } finally {
-      setBusy(false);
+      setPending("");
     }
   }
+
+  const updateEntry = (id: string, entry: PriceEntry) =>
+    setEntries((prev) => ({ ...prev, [id]: entry }));
+  const applySource = (source: ManualPriceSource | "") => {
+    setBulkSource(source);
+    if (!source) return;
+    setEntries((prev) =>
+      Object.fromEntries(
+        visible.map((h) => [h.id, { price: prev[h.id]?.price ?? "", source }]),
+      ),
+    );
+  };
+  const summaryLine = shownResult
+    ? copy.summaryResult(
+        shownResult.updatedCount,
+        shownResult.skippedCount,
+        shownResult.failedCount,
+      )
+    : copy.summaryDraft(filled, visible.length - filled);
+  const feedCounts = {
+    updated: feeds.filter((r) => r.status === "updated").length,
+    skipped: feeds.filter((r) => r.status === "skipped").length,
+    failed: feeds.filter((r) => r.status === "failed").length,
+  };
+
   return (
     <Dialog
       open
@@ -143,209 +212,348 @@ export function PriceForm({
         if (!open && !busy) onClose();
       }}
     >
-      <DialogContent className="iv-dialog iv-price-dialog">
+      <DialogContent showCloseButton={false} className="ivx ivp">
+        <header className="ivx-head wm-dark">
+          <span className="ivx-head-ic" aria-hidden="true">
+            <ChartColumnIncreasing />
+          </span>
+          <div className="ivx-head-text">
+            <DialogTitle className="ivx-title">{p.title}</DialogTitle>
+            <DialogDescription className="ivx-sub">
+              {p.subtitle}
+            </DialogDescription>
+          </div>
+          <DialogClose
+            className="ivx-x"
+            aria-label={copy.close}
+            disabled={busy}
+          >
+            <X aria-hidden="true" />
+          </DialogClose>
+        </header>
         <form
+          className="ivx-form"
           onSubmit={(e) => {
             e.preventDefault();
-            void run("preview");
+            void run(mode === "feed" ? "refresh" : "preview");
           }}
         >
-          <header className="iv-dialog-head">
-            <DialogTitle>{p.title}</DialogTitle>
-            <DialogDescription>{p.subtitle}</DialogDescription>
-          </header>
-          <div className="iv-form-body">
-            <div className="iv-tabs" role="group" aria-label={p.title}>
-              {(["feed", "manual"] as const).map((tab) => (
-                <button
-                  key={tab}
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  aria-pressed={mode === tab}
-                  onClick={() => {
-                    setMode(tab);
-                    setError("");
-                  }}
-                >
-                  {p[tab]}
-                </button>
-              ))}
+          <div className="ivx-body">
+            <div
+              className="ivx-seg ivp-tabs"
+              role="radiogroup"
+              aria-label={p.title}
+            >
+              {(["feed", "manual"] as const).map((tab) => {
+                const Icon = tab === "feed" ? Database : PenLine;
+                return (
+                  <label key={tab}>
+                    <input
+                      type="radio"
+                      name="ivp-mode"
+                      checked={mode === tab}
+                      disabled={busy}
+                      onChange={() => {
+                        setMode(tab);
+                        setError("");
+                      }}
+                    />
+                    <Icon aria-hidden="true" />
+                    {p[tab]}
+                  </label>
+                );
+              })}
             </div>
-            <fieldset disabled={busy} className="iv-price-fields">
-              <label className="field">
-                <span className="label">{c.platform}</span>
+
+            <div className="ivp-controls">
+              <label className="ivx-field ivp-platform">
+                <span className="ivx-label">{copy.platform}</span>
                 <select
                   className="select"
                   value={platform}
+                  disabled={busy || !!initialId}
                   onChange={(e) => setPlatform(e.target.value)}
                 >
-                  <option value="">{c.all}</option>
-                  {platforms.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.label ??
-                        p.platformName ??
-                        p.customName ??
-                        p.platformKey}
+                  <option value="">{copy.allPlatforms}</option>
+                  {platforms.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {platformName(x)}
                     </option>
                   ))}
                 </select>
               </label>
               {mode === "manual" && (
-                <div className="iv-field-row">
-                  <label className="field">
-                    <span className="label">{p.date} *</span>
+                <fieldset className="ivp-when" disabled={busy}>
+                  <legend className="ivx-label">{p.date} *</legend>
+                  <div className="ivp-when-row">
                     <input
                       className="input"
+                      aria-label={p.date}
                       required
                       type="date"
                       max={today()}
+                      enterKeyHint="next"
                       value={date}
                       onChange={(e) => setDate(e.target.value)}
                     />
-                  </label>
-                  <label className="field">
-                    <span className="label">{p.time}</span>
                     <input
                       className="input"
+                      aria-label={p.time}
                       type="time"
+                      enterKeyHint="next"
                       value={time}
                       onChange={(e) => setTime(e.target.value)}
                     />
-                    <small>Asia/Jakarta (WIB)</small>
-                  </label>
-                </div>
+                    <select
+                      className="select"
+                      aria-label={p.zone}
+                      value={zone}
+                      onChange={(e) => setZone(e.target.value)}
+                    >
+                      {TIME_ZONES.map((z) => (
+                        <option key={z} value={z}>
+                          {z}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </fieldset>
               )}
-              {mode === "feed" && <p className="iv-notice">{p.feedNote}</p>}
-              <PriceTable
-                holdings={visible}
-                valuations={valuations}
-                entries={entries}
-                onChange={(id, entry) =>
-                  setEntries({ ...entries, [id]: entry })
-                }
-                mode={mode}
-                result={shownResult}
-                feeds={feeds}
-                disabled={busy}
-              />
-              {mode === "manual" && (
-                <>
-                  <p className="iv-notice">{p.blank}</p>
-                  <label className="field">
-                    <span className="label">{p.reference}</span>
-                    <input
-                      className="input"
-                      maxLength={500}
-                      type="url"
-                      value={reference}
-                      onChange={(e) => setReference(e.target.value)}
-                      placeholder="https://"
-                    />
-                  </label>
-                  <label className="field">
-                    <span className="label">{f.proof}</span>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,application/pdf"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0] ?? null;
-                        if (file && file.size > 5 * 1024 * 1024) {
-                          setError(f.proofLimit);
-                          e.target.value = "";
-                          return;
-                        }
-                        setProof(file);
-                      }}
-                    />
-                    <small>
-                      {f.proofLimit} · {p.proofNote}
-                    </small>
-                  </label>
-                </>
-              )}
-            </fieldset>
-            {mode === "manual" && (
-              <details>
-                <summary>{p.fx}</summary>
-                <p>{p.fxNote}</p>
-                {valuations
-                  .filter(
-                    (v) =>
-                      visible.some((h) => h.id === v.investmentId) &&
-                      v.valuationFx,
-                  )
-                  .map((v) => (
-                    <p key={v.investmentId}>
-                      {v.valuationFx!.currency}:{" "}
-                      {money(
-                        v.valuationFx!.idrPerUnit,
-                        "IDR",
-                        locale,
-                        hideBalance,
-                        8,
-                      )}{" "}
-                      · {v.valuationFx!.rateDate} · {v.valuationFx!.source}
-                    </p>
-                  ))}
-              </details>
-            )}
-            {mode === "feed" && !!feeds.length && (
-              <p role="status">
-                {feeds.filter((r) => r.status === "updated").length} {p.count},{" "}
-                {feeds.filter((r) => r.status === "skipped").length}{" "}
-                {p.skipCount},{" "}
-                {feeds.filter((r) => r.status === "failed").length}{" "}
-                {p.failCount}
+            </div>
+
+            {mode === "feed" && (
+              <p className="ivx-strip">
+                <Info aria-hidden="true" />
+                {autoRows ? p.feedNote : copy.feedNoAuto}
               </p>
             )}
-            {mode === "manual" && shownResult && (
-              <PriceResults result={shownResult} />
+
+            {mode === "feed" && feeds.length > 0 && (
+              <p className="ivx-strip" role="status">
+                <Info aria-hidden="true" />
+                {copy.feedSummary(
+                  feedCounts.updated,
+                  feedCounts.skipped,
+                  feedCounts.failed,
+                )}
+              </p>
+            )}
+
+            <PriceTable
+              holdings={visible}
+              valuations={valuations}
+              entries={entries}
+              onChange={updateEntry}
+              mode={mode}
+              result={shownResult}
+              feeds={feeds}
+              disabled={busy || saved}
+            />
+
+            {mode === "manual" && (
+              <>
+                <p className="ivx-strip ivp-info">
+                  <Info aria-hidden="true" />
+                  {p.blank}
+                </p>
+                <div className="ivp-ref">
+                  <div className="ivx-field">
+                    <span className="ivx-label" id="ivp-ref-label">
+                      {p.reference}
+                    </span>
+                    <div className="ivp-ref-row">
+                      <select
+                        className="select"
+                        aria-label={copy.bulkSource}
+                        value={bulkSource}
+                        disabled={busy || saved}
+                        onChange={(e) =>
+                          applySource(e.target.value as ManualPriceSource | "")
+                        }
+                      >
+                        <option value="">{copy.bulkSourceKeep}</option>
+                        {MANUAL_PRICE_SOURCES.map((s) => (
+                          <option key={s} value={s}>
+                            {p.sources[s]}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        className="input"
+                        aria-labelledby="ivp-ref-label"
+                        aria-describedby="ivp-ref-hint"
+                        maxLength={500}
+                        inputMode="url"
+                        autoComplete="off"
+                        enterKeyHint="done"
+                        disabled={busy || saved}
+                        value={reference}
+                        onChange={(e) => setReference(e.target.value)}
+                        placeholder="https://… / No. laporan"
+                      />
+                    </div>
+                    <small className="ivx-hint" id="ivp-ref-hint">
+                      {copy.referenceHint}
+                    </small>
+                  </div>
+                  <div className="ivx-field">
+                    <span className="ivx-label">{copy.proof}</span>
+                    <label className="ivx-file ivp-file">
+                      <Paperclip aria-hidden="true" />
+                      <span>{proof ? proof.name : copy.chooseFile}</span>
+                      <input
+                        type="file"
+                        disabled={busy || saved}
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] ?? null;
+                          if (file && file.size > PROOF_LIMIT) {
+                            setError(f.proofLimit);
+                            e.target.value = "";
+                            return;
+                          }
+                          setProof(file);
+                        }}
+                      />
+                    </label>
+                    <small className="ivx-hint">
+                      {copy.proofTypes} · {p.proofNote}
+                    </small>
+                  </div>
+                </div>
+
+                <div className="ivp-cards">
+                  <section className="ivp-card" aria-live="polite">
+                    <span className="ivp-card-ic" aria-hidden="true">
+                      <ChartColumnIncreasing />
+                    </span>
+                    <div>
+                      <h3>{copy.summaryTitle}</h3>
+                      <p className="ivp-card-lead">{summaryLine}</p>
+                      <small>
+                        {result && !fresh
+                          ? copy.summaryStale
+                          : copy.summaryNote}
+                      </small>
+                    </div>
+                  </section>
+                  <details className="ivp-card ivp-fx">
+                    <summary>
+                      <span className="ivp-card-ic" aria-hidden="true">
+                        <Coins />
+                      </span>
+                      <span>
+                        <h3>
+                          {copy.fxTitle} <span>{copy.fxOptional}</span>
+                        </h3>
+                        <small>{p.fxNote}</small>
+                      </span>
+                      <ChevronDown className="ivp-chev" aria-hidden="true" />
+                    </summary>
+                    {fxByCurrency.length ? (
+                      <ul>
+                        {fxByCurrency.map((fx) => (
+                          <li key={fx.currency}>
+                            <strong>1 {fx.currency}</strong> ={" "}
+                            {money(
+                              fx.idrPerUnit,
+                              "IDR",
+                              locale,
+                              hideBalance,
+                              4,
+                            )}{" "}
+                            <small>
+                              · {fx.rateDate} · {fx.source}
+                            </small>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="ivp-muted">{copy.fxNone}</p>
+                    )}
+                  </details>
+                </div>
+
+                <section
+                  className="ivp-preview"
+                  aria-labelledby="ivp-preview-title"
+                >
+                  <button
+                    type="button"
+                    className="ivp-preview-head"
+                    aria-expanded={previewOpen}
+                    onClick={() => setPreviewOpen((o) => !o)}
+                  >
+                    <Eye aria-hidden="true" />
+                    <span>
+                      <strong id="ivp-preview-title">
+                        {copy.previewTitle}
+                      </strong>
+                      <small>{copy.previewHint}</small>
+                    </span>
+                    <ChevronDown className="ivp-chev" aria-hidden="true" />
+                  </button>
+                  {previewOpen &&
+                    (shownResult ? (
+                      <PriceResults
+                        result={shownResult}
+                        holdings={visible}
+                        valuations={valuations}
+                      />
+                    ) : (
+                      <p className="ivp-muted ivp-preview-empty">
+                        {result && !fresh
+                          ? copy.summaryStale
+                          : copy.previewEmpty}
+                      </p>
+                    ))}
+                </section>
+              </>
             )}
             {error && (
-              <p role="alert" className="error-text">
+              <p role="alert" className="error-text ivx-error">
                 {error}
               </p>
             )}
           </div>
-          <footer className="iv-form-footer">
+          <footer className="ivx-foot ivp-foot">
             <button
               type="button"
-              className="btn btn--outline"
+              className="btn btn--outline ivx-cancel"
               disabled={busy}
               onClick={onClose}
             >
-              {f.cancel}
+              {saved ? copy.done : f.cancel}
             </button>
             {mode === "feed" ? (
               <button
-                type="button"
-                className="btn btn--primary"
-                disabled={busy || !visible.length}
-                onClick={() => void run("refresh")}
+                type="submit"
+                className="btn btn--primary ivx-save"
+                disabled={busy || !autoRows}
               >
-                {busy ? c.loading : p.refresh}
+                {pending === "refresh" ? c.loading : p.refresh}
               </button>
             ) : (
-              <>
+              <div className="ivp-foot-actions">
                 <button
                   type="submit"
-                  className="btn btn--outline"
-                  disabled={busy || !visible.length}
+                  className="btn btn--outline ivp-preview-btn"
+                  disabled={busy || !visible.length || saved}
                 >
-                  {busy ? c.loading : p.preview}
+                  <Eye aria-hidden="true" />
+                  {pending === "preview" ? c.loading : p.preview}
                 </button>
                 <button
                   type="button"
-                  className="btn btn--primary"
+                  className="btn btn--primary ivx-save"
                   disabled={
                     busy || !fresh || !result?.updatedCount || result.saved
                   }
                   onClick={() => void run("bulk")}
                 >
-                  {busy ? f.saving : p.save}
+                  {pending === "bulk" ? f.saving : saved ? copy.saved : p.save}
                 </button>
-              </>
+              </div>
             )}
           </footer>
         </form>

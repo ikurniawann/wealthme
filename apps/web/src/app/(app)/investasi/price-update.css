@@ -1,0 +1,726 @@
+/*
+ * "Update harga investasi" dialog (Task 33, reference invest-4.jpeg).
+ * Built on the `.ivx` shell from trade-position.css (forest header band,
+ * rounded body lip, sticky footer, phone sheet); this file adds the wide
+ * sizing, the price table (cards below 720px), status chips, summary / FX
+ * cards and the preview list. UNLAYERED for the same reason as
+ * trade-position.css: it must beat `.dialog` (@layer components) and the
+ * popup's Tailwind translate utilities.
+ */
+
+/* ── Shell ─────────────────────────────────────────────── */
+.dialog.ivx.ivp {
+  width: min(1120px, calc(100% - 32px));
+  max-width: none;
+  max-height: 94dvh;
+  border-radius: 26px;
+}
+.ivp .ivx-body {
+  gap: 18px;
+}
+/* the body scrolls; its blocks keep their natural height */
+.ivp .ivx-body > * {
+  flex: none;
+}
+.ivp .ivp-muted {
+  margin: 0;
+  color: var(--wm-muted);
+  font-size: 13px;
+}
+.ivp .ivp-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Tabs: two wide segments, the selected one the commit pair. */
+.ivp .ivp-tabs {
+  max-width: 520px;
+}
+
+/* ── Platform + price date controls ────────────────────── */
+.ivp .ivp-controls {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(0, 1fr);
+  gap: 14px 24px;
+  align-items: end;
+}
+.ivp .ivp-controls > .ivp-platform:only-child {
+  grid-column: 1 / -1;
+  max-width: 320px;
+}
+.ivp .ivp-when {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  justify-self: end;
+  width: min(100%, 520px);
+}
+.ivp .ivp-when legend {
+  margin-bottom: 6px;
+  padding: 0;
+}
+.ivp .ivp-when-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.9fr) minmax(0, 1.25fr);
+  gap: 8px;
+}
+
+/* ── Table ─────────────────────────────────────────────── */
+.ivp .ivp-table-wrap {
+  border: 1px solid var(--wm-line);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.ivp .ivp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.ivp .ivp-table thead th {
+  padding: 11px 14px;
+  background: var(--wm-card-2);
+  color: var(--wm-muted);
+  font-size: 12.5px;
+  font-weight: 650;
+  text-align: left;
+  white-space: nowrap;
+}
+.ivp .ivp-table td {
+  padding: 12px 14px;
+  border-top: 1px solid var(--wm-line);
+  vertical-align: middle;
+  color: var(--wm-ink);
+}
+.ivp .ivp-table td[data-cell="next"] {
+  width: 210px;
+}
+.ivp .ivp-table td[data-cell="source"] {
+  width: 170px;
+}
+.ivp .ivp-table td[data-cell="unit"] {
+  color: var(--wm-muted);
+  white-space: nowrap;
+}
+.ivp .ivp-table td[data-cell="status"] {
+  width: 170px;
+}
+.ivp .ivp-table[data-mode="feed"] td[data-cell="status"] {
+  width: 300px;
+}
+.ivp .ivp-table td[data-cell="status"] small {
+  display: block;
+  margin-top: 4px;
+  color: var(--wm-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.ivp .ivp-table tr[data-status="ok"] td {
+  background: color-mix(in srgb, var(--wm-lime-soft) 45%, transparent);
+}
+.ivp .ivp-table .select {
+  min-height: 42px;
+  font-size: 13.5px;
+}
+
+/* Instrument block (table + preview) */
+.ivp .ivp-inst {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.ivp .ivp-mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+.ivp .ivp-mark svg {
+  width: 19px;
+  height: 19px;
+}
+.ivp .ivp-mark[data-type="saham"] {
+  background: #e3ecfb;
+  color: #2c5aa0;
+}
+.ivp .ivp-mark[data-type="reksa_dana"] {
+  background: #dff3e8;
+  color: #23744d;
+}
+.ivp .ivp-mark[data-type="obligasi"] {
+  background: #e6edf7;
+  color: #3a5c8a;
+}
+.ivp .ivp-mark[data-type="emas"] {
+  background: #f7ecd2;
+  color: #8a6418;
+}
+.ivp .ivp-mark[data-type="kripto"] {
+  background: #fde7cf;
+  color: #b4610f;
+}
+.dark .ivp .ivp-mark[data-type="saham"] {
+  background: rgb(124 170 240 / 0.2);
+  color: #a9c8f5;
+}
+.dark .ivp .ivp-mark[data-type="reksa_dana"] {
+  background: rgb(84 190 140 / 0.2);
+  color: #8fdcb6;
+}
+.dark .ivp .ivp-mark[data-type="obligasi"] {
+  background: rgb(124 170 240 / 0.16);
+  color: #b4cdf3;
+}
+.dark .ivp .ivp-mark[data-type="emas"] {
+  background: rgb(233 199 123 / 0.2);
+  color: #ecd08f;
+}
+.dark .ivp .ivp-mark[data-type="kripto"] {
+  background: rgb(242 162 71 / 0.2);
+  color: #f5b56d;
+}
+.ivp .ivp-inst-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ivp .ivp-inst-text strong {
+  font-size: 14px;
+  font-weight: 750;
+}
+.ivp .ivp-inst-text span,
+.ivp .ivp-inst-text small {
+  overflow: hidden;
+  color: var(--wm-muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+}
+.ivp .ivp-inst-text small {
+  font-size: 12px;
+}
+
+/* Previous price + stale marker */
+.ivp .ivp-prev {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ivp .ivp-prev small {
+  color: var(--wm-muted);
+  font-size: 12px;
+}
+.ivp .ivp-stale {
+  display: inline-flex;
+  white-space: nowrap;
+  align-items: center;
+  align-self: flex-start;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--wm-ink);
+  font-size: 11.5px;
+  font-weight: 650;
+}
+.ivp .ivp-stale svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* Price input with a currency mark */
+.ivp .ivp-adorn {
+  position: relative;
+  min-width: 0;
+}
+.ivp .ivp-adorn .input {
+  width: 100%;
+  min-height: 42px;
+  padding-left: 46px;
+  font-variant-numeric: tabular-nums;
+}
+.ivp .ivp-adorn .input::placeholder {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+  opacity: 0.85;
+}
+.ivp .ivp-adorn-mark {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  transform: translateY(-50%);
+  color: var(--wm-muted);
+  font-size: 13px;
+  font-weight: 650;
+  pointer-events: none;
+}
+
+/* Status chip — icon + word, never colour alone */
+.ivp .ivp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 4px 11px 4px 8px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.ivp .ivp-chip svg {
+  width: 16px;
+  height: 16px;
+}
+.ivp .ivp-chip[data-tone="ok"] {
+  background: var(--wm-lime-soft);
+  color: var(--wm-ink);
+}
+.ivp .ivp-chip[data-tone="ok"] svg {
+  color: var(--success);
+}
+.ivp .ivp-chip[data-tone="idle"],
+.ivp .ivp-chip[data-tone="skip"] {
+  background: var(--wm-card-2);
+  color: var(--wm-muted);
+}
+.ivp .ivp-chip[data-tone="fail"] {
+  background: color-mix(in srgb, var(--destructive) 14%, transparent);
+  color: var(--destructive);
+}
+
+/* ── Reference + proof ─────────────────────────────────── */
+.ivp .ivp-info {
+  background: color-mix(in srgb, var(--info, #3b82f6) 10%, var(--wm-card));
+}
+.ivp .ivp-ref {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+  gap: 16px 24px;
+  align-items: start;
+}
+.ivp .ivp-ref-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1.6fr);
+  gap: 8px;
+}
+.ivp .ivp-file {
+  min-height: 44px;
+  color: var(--wm-ink);
+  font-weight: 600;
+}
+
+/* ── Summary + FX cards ────────────────────────────────── */
+.ivp .ivp-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.ivp .ivp-card {
+  display: flex;
+  gap: 14px;
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--wm-line);
+  border-radius: 16px;
+  background: var(--wm-card);
+}
+.ivp .ivp-card h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 750;
+}
+.ivp .ivp-card h3 span {
+  color: var(--wm-muted);
+  font-weight: 500;
+}
+.ivp .ivp-card small {
+  display: block;
+  color: var(--wm-muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.ivp .ivp-card-lead {
+  margin: 2px 0;
+  font-size: 15px;
+  font-weight: 750;
+}
+.ivp .ivp-card-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--wm-lime-soft);
+  color: var(--success);
+}
+.ivp .ivp-card-ic svg {
+  width: 20px;
+  height: 20px;
+}
+.ivp .ivp-fx {
+  display: block;
+}
+.ivp .ivp-fx summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 44px;
+  list-style: none;
+  cursor: pointer;
+}
+.ivp .ivp-fx summary::-webkit-details-marker {
+  display: none;
+}
+.ivp .ivp-fx summary > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+.ivp .ivp-chev {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--wm-muted);
+  transition: transform 0.15s ease;
+}
+.ivp .ivp-fx[open] .ivp-chev,
+.ivp .ivp-preview-head[aria-expanded="true"] .ivp-chev {
+  transform: rotate(180deg);
+}
+.ivp .ivp-fx ul {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 12px 0 0 54px;
+  border-top: 1px solid var(--wm-line);
+  list-style: none;
+  font-size: 13px;
+}
+.ivp .ivp-fx > p {
+  margin-top: 12px;
+  padding-left: 54px;
+}
+.ivp .ivp-fx li small {
+  display: inline;
+}
+
+/* ── Preview ───────────────────────────────────────────── */
+.ivp .ivp-preview {
+  border: 1px solid var(--wm-line);
+  border-radius: 16px;
+  background: var(--wm-card);
+  overflow: hidden;
+}
+.ivp .ivp-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 56px;
+  padding: 12px 16px;
+  border: 0;
+  background: none;
+  color: var(--wm-ink);
+  text-align: left;
+  cursor: pointer;
+}
+.ivp .ivp-preview-head > svg:first-child {
+  flex: none;
+  width: 22px;
+  height: 22px;
+}
+.ivp .ivp-preview-head span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+.ivp .ivp-preview-head strong {
+  font-size: 14px;
+}
+.ivp .ivp-preview-head small {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+}
+.ivp .ivp-preview-empty,
+.ivp .ivp-blank-note {
+  padding: 0 16px 14px;
+}
+.ivp .ivp-preview-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0 12px 12px;
+  list-style: none;
+}
+.ivp .ivp-preview-row {
+  display: grid;
+  grid-template-columns:
+    minmax(180px, 1.3fr) minmax(0, 1.3fr) minmax(0, 1fr)
+    minmax(0, 1fr);
+  gap: 12px 20px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--wm-card-2);
+}
+.ivp .ivp-preview-row[data-status="updated"] {
+  background: color-mix(in srgb, var(--wm-lime-soft) 70%, var(--wm-card));
+}
+.ivp .ivp-preview-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ivp .ivp-preview-cell + .ivp-preview-cell {
+  padding-left: 20px;
+  border-left: 1px solid var(--wm-line);
+}
+.ivp .ivp-preview-cell small {
+  color: var(--wm-muted);
+  font-size: 12px;
+}
+.ivp .ivp-big {
+  font-size: clamp(16px, 1.4vw, 20px);
+  font-weight: 800;
+}
+.ivp .ivp-preview-cell[data-tone="up"] strong {
+  color: var(--success);
+}
+.ivp .ivp-preview-cell[data-tone="down"] strong {
+  color: var(--destructive);
+}
+.ivp .ivp-preview-why {
+  grid-column: 2 / -1;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.ivp .ivp-foot-actions {
+  display: flex;
+  flex: 0 1 auto;
+  gap: 12px;
+}
+.ivp .ivp-preview-btn {
+  min-height: 48px;
+  padding-inline: 22px;
+  border-radius: 999px;
+}
+.ivp .ivp-preview-btn svg {
+  width: 18px;
+  height: 18px;
+}
+.ivp .ivp-foot-actions .ivx-save {
+  flex: 0 0 auto;
+  min-width: 180px;
+}
+
+/* ── Tablet ────────────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .ivp .ivp-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ivp .ivp-when {
+    justify-self: stretch;
+    width: 100%;
+  }
+  .ivp .ivp-table td[data-cell="unit"],
+  .ivp .ivp-table th:nth-child(2) {
+    display: none;
+  }
+  .ivp .ivp-preview-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .ivp .ivp-preview-row > .ivp-inst {
+    grid-column: 1 / -1;
+  }
+  .ivp .ivp-preview-row > .ivp-preview-cell:nth-child(2) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .ivp .ivp-preview-why {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 860px) {
+  .ivp .ivp-ref,
+  .ivp .ivp-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ── Phone: full-screen sheet, rows become cards ───────── */
+@media (max-width: 768px) {
+  .dialog.ivx.ivp {
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    transform: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+  .ivp .ivp-tabs {
+    max-width: none;
+  }
+  .ivp .ivp-foot {
+    gap: 8px;
+  }
+  .ivp .ivp-foot-actions {
+    flex: 1 1 auto;
+    gap: 8px;
+  }
+  .ivp .ivp-foot-actions .ivx-save {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .ivp .ivp-preview-btn {
+    flex: 1 1 auto;
+    padding-inline: 14px;
+  }
+  .ivp .ivp-adorn .input,
+  .ivp .ivp-table .select {
+    font-size: 16px;
+  }
+}
+/* Tablet and phone: every row is a card (one price input per holding). */
+@media (max-width: 900px) {
+  .ivp .ivp-table-wrap {
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
+  }
+  .ivp .ivp-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .ivp .ivp-table,
+  .ivp .ivp-table tbody {
+    display: block;
+  }
+  .ivp .ivp-table tbody {
+    display: grid;
+    gap: 10px;
+  }
+  .ivp .ivp-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px 12px;
+    padding: 14px;
+    border: 1px solid var(--wm-line);
+    border-radius: 16px;
+    background: var(--wm-card);
+  }
+  .ivp .ivp-table tr[data-status="ok"] td {
+    background: none;
+  }
+  .ivp .ivp-table tr[data-status="ok"] {
+    border-color: color-mix(in srgb, var(--success) 45%, var(--wm-line));
+  }
+  .ivp .ivp-table td {
+    display: block;
+    width: auto !important;
+    padding: 0;
+    border: 0;
+  }
+  .ivp .ivp-table td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--wm-muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .ivp .ivp-table td[data-cell="instrument"] {
+    grid-column: 1 / -1;
+  }
+  .ivp .ivp-table td[data-cell="unit"] {
+    display: none;
+  }
+  /* manual: previous | new price (2) / source | status (2) */
+  .ivp .ivp-table td[data-cell="next"],
+  .ivp .ivp-table td[data-cell="status"] {
+    grid-column: span 2;
+  }
+  /* feed: stored price (2) | result */
+  .ivp .ivp-table[data-mode="feed"] td[data-cell="previous"] {
+    grid-column: span 2;
+  }
+  .ivp .ivp-table[data-mode="feed"] td[data-cell="status"] {
+    grid-column: span 1;
+  }
+}
+@media (max-width: 560px) {
+  /* previous | status / new price / source */
+  .ivp .ivp-table tr {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-auto-flow: row dense;
+  }
+  .ivp .ivp-table td[data-cell="next"],
+  .ivp .ivp-table td[data-cell="source"] {
+    grid-column: 1 / -1;
+  }
+  .ivp .ivp-table td[data-cell="status"],
+  .ivp .ivp-table[data-mode="feed"] td[data-cell="previous"] {
+    grid-column: span 1;
+  }
+}
+@media (max-width: 720px) {
+  .ivp .ivp-when-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .ivp .ivp-when-row .select {
+    grid-column: 1 / -1;
+  }
+  .ivp .ivp-ref-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .ivp .ivp-preview-row {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .ivp .ivp-preview-row > .ivp-preview-cell:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .ivp .ivp-preview-row > .ivp-preview-cell:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+  .ivp .ivp-fx ul,
+  .ivp .ivp-fx > p {
+    padding-left: 0;
+  }
+}
+@media (max-width: 560px) {
+  /* the header's close button already dismisses the sheet: two actions fit */
+  .ivp .ivp-foot > .ivx-cancel {
+    display: none;
+  }
+  .ivp .ivx-head-ic {
+    display: none;
+  }
+}
+@media (pointer: coarse) {
+  .ivp .ivp-adorn .input,
+  .ivp .ivp-table .select,
+  .ivp .ivp-preview-head {
+    min-height: 44px;
+  }
+}
