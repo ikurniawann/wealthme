@@ -264,6 +264,158 @@ export interface InsuranceDocumentDto {
   createdAt: string;
 }
 
+// ── Asuransi S8 — AI report reading (Task 23) ──────────────────────────
+// The AI only transcribes strings with page + verbatim snippet. The server
+// decides the status from checks it can prove; there are NO confidence
+// numbers. `normalized` is the server's deterministic parse (Decimal string,
+// ISO date, currency code or enum) — null when the text does not parse.
+export type InsuranceReportFieldKey =
+  | "policyNumber"
+  | "productName"
+  | "provider"
+  | "policyType"
+  | "holderName"
+  | "insuredName"
+  | "currency"
+  | "premiumAmount"
+  | "premiumPeriod"
+  | "sumAssured"
+  | "coverageStartDate"
+  | "coverageEndDate"
+  | "nextPremiumDueDate"
+  | "reportDate"
+  | "policyValue"
+  | "cashValue"
+  | "surrenderValue"
+  | "maturityBenefit"
+  | "fundCurrency"
+  | "fundUnits"
+  | "fundNav"
+  | "fundNavDate"
+  | "fundUnitsDate"
+  | "fundValue";
+
+/** Preview statuses only; "confirmed" exists only after the confirm call. */
+export type InsuranceReportFieldStatus = "ai_extracted" | "needs_confirmation";
+
+/** Why a field needs the user's attention (never a score). */
+export type InsuranceReportConflict =
+  | "multiple_values"
+  | "not_in_source"
+  | "unparseable"
+  | "ambiguous_number"
+  | "unclear"
+  | "value_mismatch"
+  | "policy_type_mismatch";
+
+export interface InsuranceReportFieldDto {
+  key: InsuranceReportFieldKey;
+  /** Sub-fund name/code as printed; null for policy-level keys. */
+  fund: string | null;
+  /** Exactly as printed. */
+  value: string;
+  normalized: string | null;
+  page: number;
+  snippet: string;
+  status: InsuranceReportFieldStatus;
+  conflict: InsuranceReportConflict | null;
+}
+
+/** "Data belum lengkap": a field required to build a value statement. */
+export interface InsuranceReportMissingDto {
+  key: InsuranceReportFieldKey;
+  fund: string | null;
+}
+
+/**
+ * A ready-to-review value statement assembled DETERMINISTICALLY from the
+ * fields (units × NAV in Decimal, never both reportedValue and units×NAV for
+ * one fund). Nothing is stored until the user confirms it.
+ */
+export interface InsuranceReportValuationDraftDto {
+  fund: string | null;
+  /** Matched existing sub-fund of the policy, else null (confirm can create it). */
+  fundId: string | null;
+  currency: string | null;
+  units: string | null;
+  navPerUnit: string | null;
+  navDate: string | null;
+  unitsDate: string | null;
+  reportedValue: string | null;
+  cashValue: string | null;
+  surrenderEstimate: string | null;
+  maturityBenefit: string | null;
+  effectiveDate: string | null;
+  page: number | null;
+  snippet: string | null;
+  computedValue: string | null;
+  warning: "dates_incompatible" | "incomplete" | "value_mismatch" | null;
+  status: InsuranceReportFieldStatus;
+}
+
+export interface InsuranceReportPreviewDto {
+  insuranceId: string | null;
+  documentId: string | null;
+  pageCount: number;
+  fields: InsuranceReportFieldDto[];
+  missing: InsuranceReportMissingDto[];
+  valuations: InsuranceReportValuationDraftDto[];
+  /** false → show "Data belum lengkap" with `missing`. */
+  complete: boolean;
+}
+
+export interface PreviewInsuranceReportDto {
+  insuranceId?: string;
+  documentId?: string;
+  fileName?: string;
+  /** Text layer per page, extracted in the browser; blank pages omitted. */
+  pages: { page: number; text: string }[];
+}
+
+export interface ConfirmInsuranceReportItemDto {
+  fundId?: string;
+  /** Creates (or reuses by name) a sub-fund on a unit-link policy. */
+  newFundName?: string;
+  newFundCode?: string;
+  currency?: string;
+  units?: string;
+  navPerUnit?: string;
+  navDate?: string;
+  unitsDate?: string;
+  reportedValue?: string;
+  cashValue?: string;
+  surrenderEstimate?: string;
+  maturityBenefit?: string;
+  guaranteed?: boolean;
+  effectiveDate: string;
+  page?: number;
+  snippet?: string;
+}
+
+export interface ConfirmInsuranceReportDto {
+  documentId?: string;
+  items: ConfirmInsuranceReportItemDto[];
+}
+
+export interface ConfirmInsuranceReportResultDto {
+  valuations: InsuranceValuationDto[];
+  /** Created rows that are NOT the current value because a newer confirmed
+   *  statement exists (a backdated report never overrides a newer one). */
+  supersededIds: string[];
+}
+
+/** Typed AI error codes the UI branches on. */
+export type InsuranceReportErrorCode =
+  | "INSURANCE_AI_NOT_CONFIGURED"
+  | "AI_KEY_CORRUPTED"
+  | "INSURANCE_REPORT_NO_TEXT_LAYER"
+  | "INSURANCE_REPORT_TOO_LARGE"
+  | "INSURANCE_AI_AUTH"
+  | "INSURANCE_AI_RATE_LIMITED"
+  | "INSURANCE_AI_TIMEOUT"
+  | "INSURANCE_AI_PARSE_FAILED"
+  | "INSURANCE_AI_UPSTREAM_FAILED";
+
 export interface InsuranceDto {
   id: string;
   familyGroupId: string;
