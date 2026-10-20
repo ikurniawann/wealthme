@@ -1,29 +1,30 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Building2, Info, WalletCards } from "lucide-react";
 import { INVESTMENT_PLATFORMS, FX_CURRENCY_CODES } from "@wealthme/contracts";
 import type {
   PlatformAccountDto,
   PlatformPocketDto,
 } from "@wealthme/contracts";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/api-error";
 import type { PortfolioMember } from "./portfolio-filters";
-import { pocketTransferCopy } from "./pocket-transfer-copy";
-import "./pocket-transfer.css";
+import { Field } from "./investment-fields";
+import { DialogSection, InvestDialogShell } from "./dialog-shell";
+import { dialogCopy } from "./dialog-copy";
 
 /** What a save created, so a caller (the top-up dialog) can select it. */
 export interface PlatformFormResult {
   pocketId?: string;
 }
 
+/**
+ * "Tambah akun platform" (platform + its first cash pocket) or, with a
+ * platform, "Tambah kantong dana". Opened from the funds tab, the top-up
+ * dialog and every pocket picker's empty state.
+ */
 export function PlatformForm({
   platform,
   fg,
@@ -44,7 +45,7 @@ export function PlatformForm({
   onSaved: (created?: PlatformFormResult) => void;
 }) {
   const { t, locale } = useLocale();
-  const copy = pocketTransferCopy(locale);
+  const copy = dialogCopy(locale);
   const c = t.investasi.v3;
   const f = t.investasi.forms;
   const [key, setKey] = useState(
@@ -111,154 +112,182 @@ export function PlatformForm({
     onSaved(created);
     onClose();
   }
-  // New platform: the account label belongs with the platform fields, above
-  // the first-pocket section. Add pocket: it names the pocket.
-  const labelField = (
-    <label className="field">
-      <span className="label">{platform ? f.pocketName : f.label}</span>
-      <input
-        className="input"
-        maxLength={120}
-        value={label}
-        onChange={(e) => setLabel(e.target.value)}
-      />
-    </label>
+  const pocketFields = (
+    <div className="ivx-grid">
+      {platform && (
+        <Field label={f.pocketName} wide>
+          {(id) => (
+            <input
+              id={id}
+              className="input"
+              maxLength={120}
+              autoComplete="off"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+            />
+          )}
+        </Field>
+      )}
+      <Field label={f.pocketKind}>
+        {(id) => (
+          <select
+            id={id}
+            className="select"
+            value={kind}
+            onChange={(e) => {
+              setKind(e.target.value);
+              setCurrency(e.target.value === "usd" ? "USD" : "IDR");
+            }}
+          >
+            {(catalog?.pockets ?? ["general"]).map((k) => (
+              <option key={k} value={k}>
+                {f[k]}
+              </option>
+            ))}
+          </select>
+        )}
+      </Field>
+      <Field
+        label={c.currency}
+        hint={kind !== "general" ? copy.currencyLocked : undefined}
+      >
+        {(id) => (
+          <select
+            id={id}
+            className="select"
+            value={currency}
+            disabled={kind !== "general"}
+            onChange={(e) => setCurrency(e.target.value)}
+          >
+            {FX_CURRENCY_CODES.map((cur) => (
+              <option key={cur}>{cur}</option>
+            ))}
+          </select>
+        )}
+      </Field>
+    </div>
   );
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !busy) onClose();
-      }}
+    <InvestDialogShell
+      title={platform ? f.addPocket : f.addPlatform}
+      subtitle={
+        platform
+          ? copy.pocketSub(
+              platform.label ??
+                platform.platformName ??
+                platform.customName ??
+                platform.platformKey,
+            )
+          : copy.platformSub
+      }
+      icon={platform ? <WalletCards /> : <Building2 />}
+      busy={busy}
+      submitLabel={f.save}
+      onClose={onClose}
+      onSubmit={save}
     >
-      <DialogContent className="iv-dialog">
-        <form onSubmit={save}>
-          <header className="iv-dialog-head wm-dark">
-            <DialogTitle>{platform ? f.addPocket : f.addPlatform}</DialogTitle>
-            <DialogDescription>{c.manual}</DialogDescription>
-          </header>
-          <div className="iv-form-body">
-            {!platform ? (
-              <>
-                <label className="field">
-                  <span className="label">{c.platform}</span>
-                  <select
-                    className="select"
-                    value={key}
-                    onChange={(e) => {
-                      setKey(e.target.value);
-                      const cat = INVESTMENT_PLATFORMS.find(
-                        (p) => p.key === e.target.value,
-                      );
-                      const first = cat?.pockets[0] ?? "general";
-                      setKind(first);
-                      setCurrency(first === "usd" ? "USD" : "IDR");
-                    }}
-                  >
-                    {INVESTMENT_PLATFORMS.map((p) => (
-                      <option key={p.key} value={p.key}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {key === "custom" && (
-                  <label className="field">
-                    <span className="label">{f.customName} *</span>
-                    <input
-                      className="input"
-                      required
-                      maxLength={120}
-                      value={custom}
-                      onChange={(e) => setCustom(e.target.value)}
-                    />
-                  </label>
-                )}
-                <label className="field">
-                  <span className="label">{c.owner}</span>
-                  <select
-                    className="select"
-                    disabled={!isMaster}
-                    value={owner}
-                    onChange={(e) => setOwner(e.target.value)}
-                  >
-                    {isMaster && <option value="">{c.family}</option>}
-                    {members.map((m) => (
-                      <option value={m.userId} key={m.userId}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span className="label">{f.accountRef}</span>
-                  <input
-                    className="input"
-                    maxLength={64}
-                    value={ref}
-                    onChange={(e) => setRef(e.target.value)}
-                  />
-                </label>
-              </>
-            ) : null}
-            {labelField}
-            <>
-              {!platform && (
-                <h3 className="iv-pt-subhead">{copy.firstPocket}</h3>
-              )}
-              <label className="field">
-                <span className="label">{f.pocketKind}</span>
+      {!platform && (
+        <DialogSection title={copy.platformSec}>
+          <div className="ivx-grid">
+            <Field label={c.platform}>
+              {(id) => (
                 <select
+                  id={id}
                   className="select"
-                  value={kind}
+                  value={key}
                   onChange={(e) => {
-                    setKind(e.target.value);
-                    setCurrency(e.target.value === "usd" ? "USD" : "IDR");
+                    setKey(e.target.value);
+                    const cat = INVESTMENT_PLATFORMS.find(
+                      (p) => p.key === e.target.value,
+                    );
+                    const first = cat?.pockets[0] ?? "general";
+                    setKind(first);
+                    setCurrency(first === "usd" ? "USD" : "IDR");
                   }}
                 >
-                  {(catalog?.pockets ?? ["general"]).map((k) => (
-                    <option key={k} value={k}>
-                      {f[k]}
+                  {INVESTMENT_PLATFORMS.map((p) => (
+                    <option key={p.key} value={p.key}>
+                      {p.name}
                     </option>
                   ))}
                 </select>
-              </label>
-              <label className="field">
-                <span className="label">{c.currency}</span>
+              )}
+            </Field>
+            {key === "custom" && (
+              <Field label={f.customName} required>
+                {(id) => (
+                  <input
+                    id={id}
+                    className="input"
+                    required
+                    maxLength={120}
+                    autoComplete="organization"
+                    value={custom}
+                    onChange={(e) => setCustom(e.target.value)}
+                  />
+                )}
+              </Field>
+            )}
+            <Field label={f.label} hint={copy.labelHint}>
+              {(id) => (
+                <input
+                  id={id}
+                  className="input"
+                  maxLength={120}
+                  autoComplete="off"
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                />
+              )}
+            </Field>
+            <Field
+              label={c.owner}
+              hint={isMaster ? copy.ownerHint : copy.ownerLocked}
+            >
+              {(id) => (
                 <select
+                  id={id}
                   className="select"
-                  value={currency}
-                  disabled={kind !== "general"}
-                  onChange={(e) => setCurrency(e.target.value)}
+                  disabled={!isMaster}
+                  value={owner}
+                  onChange={(e) => setOwner(e.target.value)}
                 >
-                  {FX_CURRENCY_CODES.map((cur) => (
-                    <option key={cur}>{cur}</option>
+                  {isMaster && <option value="">{c.family}</option>}
+                  {members.map((m) => (
+                    <option value={m.userId} key={m.userId}>
+                      {m.name}
+                    </option>
                   ))}
                 </select>
-              </label>
-              <p className="iv-notice">{f.openingZero}</p>
-            </>
-            {error && (
-              <p className="error-text" role="alert">
-                {error}
-              </p>
-            )}
+              )}
+            </Field>
+            <Field label={f.accountRef} hint={copy.refHint} wide>
+              {(id) => (
+                <input
+                  id={id}
+                  className="input mono"
+                  maxLength={64}
+                  autoComplete="off"
+                  value={ref}
+                  onChange={(e) => setRef(e.target.value)}
+                />
+              )}
+            </Field>
           </div>
-          <footer className="iv-form-footer">
-            <button
-              type="button"
-              className="btn btn--outline"
-              disabled={busy}
-              onClick={onClose}
-            >
-              {f.cancel}
-            </button>
-            <button className="btn btn--primary" disabled={busy}>
-              {busy ? f.saving : f.save}
-            </button>
-          </footer>
-        </form>
-      </DialogContent>
-    </Dialog>
+        </DialogSection>
+      )}
+      <DialogSection title={platform ? copy.pocketSec : copy.firstPocketSec}>
+        {pocketFields}
+        <p className="ivx-strip">
+          <Info aria-hidden="true" />
+          {f.openingZero}
+        </p>
+      </DialogSection>
+      {error && (
+        <p className="error-text ivx-error" role="alert">
+          {error}
+        </p>
+      )}
+    </InvestDialogShell>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ClipboardCheck, Info, Lock } from "lucide-react";
 import {
   MARKETS,
   effectiveMarketFor,
@@ -11,16 +12,20 @@ import type {
   InvestmentMarket,
   PlatformAccountDto,
 } from "@wealthme/contracts";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
 import { apiErrorMessage } from "@/lib/api-error";
 import { investmentWrite } from "../investment-api";
+import { Field } from "../investment-fields";
+import { DialogSection, InvestDialogShell } from "../dialog-shell";
+import { dialogCopy } from "../dialog-copy";
+import { TradePocketField, platformName } from "../trade-pocket-field";
 import type { PortfolioMember } from "../portfolio-filters";
+
+/**
+ * "Lengkapi data kepemilikan": a legacy holding gets its market, platform
+ * account and cash pocket so new transactions can be recorded. Quantities,
+ * cost basis and history are untouched (the PATCH only sets labels).
+ */
 export function DetailMetadata({
   holding: h,
   platforms,
@@ -40,46 +45,45 @@ export function DetailMetadata({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const c = t.investasi.v3;
   const d = t.investasi.detail;
   const f = t.investasi.forms;
+  const copy = dialogCopy(locale);
+  const markets: readonly InvestmentMarket[] =
+    h.type === "saham"
+      ? (["IDX", "NASDAQ", "NYSE"] as const)
+      : [effectiveMarketFor(h.type, null, h.currency)];
   const [name, setName] = useState(h.name);
   const [owner, setOwner] = useState(h.ownerUserId ?? "");
-  const [market, setMarket] = useState<InvestmentMarket | "">(h.market ?? "");
+  // A non-stock holding has exactly one valid market: start on it.
+  const [market, setMarket] = useState<InvestmentMarket | "">(
+    h.market ?? (markets.length === 1 ? markets[0]! : ""),
+  );
   const [platformId, setPlatform] = useState(h.platformAccountId ?? "");
   const [pocket, setPocket] = useState(h.cashAccountId ?? "");
   const [symbol, setSymbol] = useState(h.priceSymbol ?? "");
   const [manual, setManual] = useState(h.details?.manualInstrument ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const product =
+    h.type === "saham" ? (market === "IDX" ? "saham_idx" : "saham_us") : h.type;
   const available = platforms.filter((p) => {
     const catalog = findInvestmentPlatform(p.platformKey);
-    const product =
-      h.type === "saham"
-        ? market === "IDX"
-          ? "saham_idx"
-          : "saham_us"
-        : h.type;
     return (
       !catalog ||
       catalog.key === "custom" ||
       catalog.products.some((v) => v === product)
     );
   });
-  const pockets =
-    available
-      .find((p) => p.id === platformId)
-      ?.pockets?.filter(
-        (p) =>
-          p.currency === h.currency &&
-          p.status !== "closed" &&
-          !p.balancesHidden,
-      ) ?? [];
-  const markets =
-    h.type === "saham"
-      ? (["IDX", "NASDAQ", "NYSE"] as const)
-      : [effectiveMarketFor(h.type, null, h.currency)];
+  // A pocket created from the empty state arrives without its platform:
+  // resolve the owning account from the pocket.
+  const platformOfPocket = pocket
+    ? platforms.find((p) => p.pockets?.some((k) => k.id === pocket))?.id
+    : undefined;
+  const effectivePlatform = platformId || platformOfPocket || "";
+  const priced = h.type === "saham" || h.type === "kripto";
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
@@ -94,7 +98,7 @@ export function DetailMetadata({
           body: JSON.stringify({
             name: name.trim(),
             market,
-            platformAccountId: platformId || null,
+            platformAccountId: effectivePlatform || null,
             cashAccountId: pocket || null,
             ...(isMaster ? { ownerUserId: owner || null } : {}),
             priceSymbol: symbol.trim() || null,
@@ -110,33 +114,47 @@ export function DetailMetadata({
       setBusy(false);
     }
   }
+
   return (
-    <Dialog
-      open
-      onOpenChange={(open) => {
-        if (!open && !busy) onClose();
-      }}
+    <InvestDialogShell
+      title={d.completeMetadata}
+      subtitle={`${h.name} · ${copy.metaSub}`}
+      icon={<ClipboardCheck />}
+      busy={busy}
+      submitLabel={f.save}
+      onClose={onClose}
+      onSubmit={save}
     >
-      <DialogContent className="iv-dialog">
-        <form onSubmit={save}>
-          <header className="iv-dialog-head">
-            <DialogTitle>{d.completeMetadata}</DialogTitle>
-            <DialogDescription>{d.metadataEffect}</DialogDescription>
-          </header>
-          <fieldset className="iv-form-body iv-event-fields" disabled={busy}>
-            <label className="field">
-              <span className="label">{f.instrumentName} *</span>
+      <div className="ivx-strip" data-multi="">
+        <Info aria-hidden="true" />
+        <p>
+          <strong>{copy.metaWhy}</strong>
+          <span>{copy.metaKeeps}</span>
+        </p>
+      </div>
+      <DialogSection title={copy.identity}>
+        <div className="ivx-grid">
+          <Field label={f.instrumentName} required hint={copy.nameHint}>
+            {(id) => (
               <input
+                id={id}
                 className="input"
                 required
                 maxLength={200}
+                autoComplete="off"
+                enterKeyHint="next"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-            </label>
-            <label className="field">
-              <span className="label">{c.owner}</span>
+            )}
+          </Field>
+          <Field
+            label={c.owner}
+            hint={isMaster ? copy.ownerHint : copy.ownerLocked}
+          >
+            {(id) => (
               <select
+                id={id}
                 className="select"
                 disabled={!isMaster}
                 value={owner}
@@ -149,105 +167,118 @@ export function DetailMetadata({
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="field">
-              <span className="label">{c.market} *</span>
+            )}
+          </Field>
+        </div>
+      </DialogSection>
+      <DialogSection title={copy.marketPlatform}>
+        <div className="ivx-grid">
+          <Field label={c.market} required hint={copy.currencyHint(h.currency)}>
+            {(id) => (
+              <div className="ivx-pair">
+                <select
+                  id={id}
+                  className="select"
+                  value={market}
+                  required
+                  onChange={(e) => {
+                    setMarket(e.target.value as InvestmentMarket);
+                    setPlatform("");
+                    setPocket("");
+                  }}
+                >
+                  <option value="">{f.choose}</option>
+                  {markets.map((m) => (
+                    <option key={m} value={m}>
+                      {m} · {MARKETS[m].currency}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  className="ivx-chip"
+                  role="note"
+                  aria-label={copy.currencyChip(h.currency)}
+                  title={copy.currencyChip(h.currency)}
+                >
+                  <Lock aria-hidden="true" />
+                  {h.currency}
+                </span>
+              </div>
+            )}
+          </Field>
+          <Field label={c.platform} hint={copy.platformHint}>
+            {(id) => (
               <select
+                id={id}
                 className="select"
-                value={market}
-                required
-                onChange={(e) => {
-                  setMarket(e.target.value as InvestmentMarket);
-                  setPlatform("");
-                  setPocket("");
-                }}
-              >
-                <option value="">{f.choose}</option>
-                {markets.map((m) => (
-                  <option key={m} value={m}>
-                    {m} · {MARKETS[m].currency}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <p>
-              {d.currency}: {h.currency}
-            </p>
-            <label className="field">
-              <span className="label">{c.platform}</span>
-              <select
-                className="select"
-                value={platformId}
+                value={effectivePlatform}
                 onChange={(e) => {
                   setPlatform(e.target.value);
                   setPocket("");
                 }}
               >
-                <option value="">{f.choose}</option>
+                <option value="">{copy.platformAny}</option>
                 {available.map((p) => (
                   <option key={p.id} value={p.id}>
-                    {p.label ?? p.platformName ?? p.customName ?? p.platformKey}
+                    {platformName(p)}
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="field">
-              <span className="label">{f.pocket}</span>
-              <select
-                className="select"
+            )}
+          </Field>
+          <Field label={f.pocket} hint={copy.pocketHint} wide>
+            {(id) => (
+              <TradePocketField
+                id={id}
+                platforms={available}
+                currency={h.currency}
+                platformId={effectivePlatform}
                 value={pocket}
-                onChange={(e) => setPocket(e.target.value)}
-              >
-                <option value="">{f.choose}</option>
-                {pockets.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} · {p.currency}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {(h.type === "saham" || h.type === "kripto") && (
-              <>
-                <label className="field">
-                  <span className="label">{f.priceSymbol}</span>
-                  <input
-                    className="input"
-                    maxLength={100}
-                    value={symbol}
-                    onChange={(e) => setSymbol(e.target.value)}
-                  />
-                </label>
-                <label className="iv-check">
-                  <input
-                    type="checkbox"
-                    checked={manual}
-                    onChange={(e) => setManual(e.target.checked)}
-                  />
-                  {f.manualInstrument}
-                </label>
-              </>
+                required={false}
+                onPick={(pocketId, platform) => {
+                  setPocket(pocketId);
+                  if (platform) setPlatform(platform.id);
+                }}
+                fg={fg}
+                token={token}
+              />
             )}
-            {error && (
-              <p role="alert" className="error-text">
-                {error}
-              </p>
-            )}
-          </fieldset>
-          <footer className="iv-form-footer">
-            <button
-              type="button"
-              className="btn btn--outline"
-              disabled={busy}
-              onClick={onClose}
-            >
-              {f.cancel}
-            </button>
-            <button className="btn btn--primary" disabled={busy}>
-              {busy ? f.saving : f.save}
-            </button>
-          </footer>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </Field>
+        </div>
+      </DialogSection>
+      {priced && (
+        <DialogSection title={copy.priceSource}>
+          <div className="ivx-grid">
+            <Field label={f.priceSymbol} hint={copy.symbolHint} wide>
+              {(id) => (
+                <input
+                  id={id}
+                  className="input"
+                  maxLength={100}
+                  autoComplete="off"
+                  autoCapitalize="characters"
+                  enterKeyHint="done"
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value)}
+                />
+              )}
+            </Field>
+          </div>
+          <label className="ivx-check">
+            <input
+              type="checkbox"
+              checked={manual}
+              onChange={(e) => setManual(e.target.checked)}
+            />
+            {f.manualInstrument}
+          </label>
+        </DialogSection>
+      )}
+      {error && (
+        <p role="alert" className="error-text ivx-error">
+          {error}
+        </p>
+      )}
+    </InvestDialogShell>
   );
 }

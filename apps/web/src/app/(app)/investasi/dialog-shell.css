@@ -1,0 +1,99 @@
+/*
+ * Shared investment dialog shell (.ivx-std) — 2026-10-20 polish.
+ * Builds on the `.ivx` system in trade-position.css (forest `.wm-dark` band,
+ * light title, round close, padded body with a rounded lip, grouped
+ * sections, helper text, sticky footer) and adds the size + phone sheet for
+ * the dialogs migrated onto <InvestDialogShell>: complete holding data,
+ * income / corporate action, ledger correction / void, add platform / pocket.
+ * Deliberately UNLAYERED, like trade-position.css: the shared `.dialog`
+ * rules live in `@layer components` and Base UI popups carry Tailwind
+ * translate utilities — unlayered rules beat both.
+ */
+.dialog.ivx.ivx-std {
+  width: min(640px, calc(100% - 32px));
+  max-height: 94dvh;
+  border-radius: 26px;
+}
+.dialog.ivx.ivx-std[data-size="sm"] {
+  width: min(520px, calc(100% - 32px));
+}
+
+/* fieldset wrapper: disables every control while saving, no chrome */
+.ivx .ivx-fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.ivx .ivx-head-ic[data-tone="danger"] {
+  background: rgb(255 120 100 / 0.18);
+  color: #ffb4a6;
+}
+
+/* read-only chip beside a select (market + its transaction currency) */
+.ivx .ivx-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.ivx .ivx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--wm-line);
+  border-radius: 12px;
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ivx .ivx-chip svg {
+  width: 14px;
+  height: 14px;
+  color: var(--wm-muted);
+}
+
+/* two-line explanatory strip: bold lead + muted detail */
+.ivx .ivx-strip[data-multi] {
+  align-items: flex-start;
+}
+.ivx .ivx-strip[data-multi] > svg {
+  margin-top: 2px;
+}
+.ivx .ivx-strip p {
+  margin: 0;
+}
+.ivx .ivx-strip strong {
+  display: block;
+  color: var(--wm-ink);
+}
+.ivx .ivx-strip span {
+  color: var(--wm-muted);
+}
+
+/* Phones: full-screen sheet with a reachable sticky save (768 = the shared
+   dialog's bottom-sheet boundary). Tailwind's -translate-x/y-1/2 drive the
+   standalone `translate` via these variables — zero them, or the sheet sits
+   half off-screen. Head/body/foot paddings come from trade-position.css. */
+@media (max-width: 768px) {
+  .dialog.ivx.ivx-std,
+  .dialog.ivx.ivx-std[data-size="sm"] {
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+    transform: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+}

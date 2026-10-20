@@ -72,6 +72,7 @@ export function TradePocketField({
   fg,
   token,
   invalid = false,
+  required = true,
 }: {
   id: string;
   platforms: PlatformAccountDto[];
@@ -85,6 +86,8 @@ export function TradePocketField({
   fg: string;
   token: string;
   invalid?: boolean;
+  /** "Lengkapi data kepemilikan" may leave the pocket empty. */
+  required?: boolean;
 }) {
   const { t, locale } = useLocale();
   const f = t.investasi.forms;
@@ -176,7 +179,7 @@ export function TradePocketField({
       <select
         id={id}
         className="select"
-        required
+        required={required}
         aria-invalid={invalid || undefined}
         value={chosen ? value : ""}
         onChange={(e) => {
