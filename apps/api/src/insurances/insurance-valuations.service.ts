@@ -10,7 +10,7 @@ import { Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 
 import { toValuationDto } from "./insurance-mapper";
-import { parseDateOnly } from "./premium-schedule.util";
+import { parseDateOnly, todayInTimeZone, ymd } from "./premium-schedule.util";
 
 import type {
   CreateInsuranceFundDto,
@@ -22,6 +22,20 @@ import type {
   InsuranceFundDto,
   InsuranceValuationDto,
 } from "@wealthme/contracts";
+
+/**
+ * A value statement describes a value AS OF a date that has happened: an
+ * effective date after today (Asia/Jakarta) is refused, so a typo can never
+ * become the "latest" value and pin net worth until that date passes.
+ */
+export function assertNotFutureEffectiveDate(effectiveDate: string): void {
+  const today = todayInTimeZone();
+  if (parseDateOnly(effectiveDate) > today) {
+    throw new BadRequestException(
+      `Tanggal efektif ${effectiveDate} melewati hari ini (${ymd(today)}) — nilai polis hanya untuk tanggal yang sudah lewat`,
+    );
+  }
+}
 
 const dec = (v: string | undefined | null) =>
   v === undefined ? undefined : v === null ? null : new Prisma.Decimal(v);
@@ -138,6 +152,7 @@ export class InsuranceValuationsService {
     actorUserId: string | null,
   ): Promise<InsuranceValuationDto> {
     const p = await this.policy(familyGroupId, insuranceId);
+    assertNotFutureEffectiveDate(dto.effectiveDate);
     await this.assertValid(p, insuranceId, dto);
     const currency = await this.valuationCurrency(
       dto.fundId ?? null,
@@ -187,6 +202,9 @@ export class InsuranceValuationsService {
   ): Promise<InsuranceValuationDto> {
     const p = await this.policy(familyGroupId, insuranceId);
     const existing = await this.valuation(insuranceId, valuationId);
+    if (dto.effectiveDate !== undefined) {
+      assertNotFutureEffectiveDate(dto.effectiveDate);
+    }
     const merged = {
       fundId: dto.fundId ?? existing.fundId ?? undefined,
       units: dto.units ?? existing.units?.toString(),

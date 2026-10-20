@@ -12,6 +12,7 @@ import {
   runSerializableWithRetry,
   type TxClient,
 } from "../common/utils/serializable-retry.util";
+import { floatingCashInstant } from "../investments/ledger/ledger-dates";
 import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
@@ -40,7 +41,9 @@ import {
   sameDay,
   scheduleOptionsFor,
   todayInTimeZone,
+  DEFAULT_TIME_ZONE,
   toDateOnly,
+  walkPastPaidDues,
   ymd,
 } from "./premium-schedule.util";
 
@@ -186,6 +189,61 @@ export class InsurancePaymentsService {
         result.categoryId,
       );
     }
+    return this.respond(familyGroupId, id, result.payment, result.replayed);
+  }
+
+  /**
+   * Fix round — an idempotent retry that sends `fxInputs` is compared on the
+   * FOREIGN input recorded for the original payment (fx_conversions), not on
+   * a re-conversion at today's rate: a genuine retry after the rate moved
+   * returns the original; a different foreign amount/currency, account or
+   * due is a different payment → 409. Returns null when the key is new.
+   */
+  async replayForeignInput(
+    familyGroupId: string,
+    id: string,
+    idempotencyKey: string,
+    dto: PayInsuranceDto,
+  ): Promise<InsurancePayResponseDto | null> {
+    const original = await this.prisma.insurancePayment.findUnique({
+      where: {
+        insuranceId_idempotencyKey: { insuranceId: id, idempotencyKey },
+      },
+    });
+    if (!original || original.familyGroupId !== familyGroupId) return null;
+    const recorded = await this.prisma.fxConversion.findMany({
+      where: {
+        familyGroupId,
+        entity: "InsurancePayment",
+        entityId: original.id,
+      },
+    });
+    const inputs = dto.fxInputs ?? [];
+    const sameInputs =
+      recorded.length === inputs.length &&
+      inputs.every((f) =>
+        recorded.some(
+          (r) =>
+            r.field === `pay.${f.field}` &&
+            r.originalCurrency === f.currency &&
+            r.originalAmount.equals(new Prisma.Decimal(f.amount)),
+        ),
+      );
+    const sameTarget =
+      original.accountId === dto.sourceAccountId &&
+      (dto.dueDate === undefined ||
+        (!!original.dueDate &&
+          sameDay(original.dueDate, parseDateOnly(dto.dueDate))));
+    if (!sameInputs || !sameTarget) throw keyReused();
+    return this.respond(familyGroupId, id, original, true);
+  }
+
+  private async respond(
+    familyGroupId: string,
+    id: string,
+    payment: Parameters<typeof toPaymentDto>[0],
+    replayed: boolean,
+  ): Promise<InsurancePayResponseDto> {
     const policy = await this.prisma.insurance.findUniqueOrThrow({
       where: { id, familyGroupId },
       include: INSURANCE_INCLUDE,
@@ -194,8 +252,8 @@ export class InsurancePaymentsService {
     const paid = await this.paidThisPeriodIds(familyGroupId, [policy], today);
     return {
       ...toInsuranceDto(policy, { today, paidThisPeriod: paid.has(policy.id) }),
-      payment: toPaymentDto(result.payment),
-      replayed: result.replayed,
+      payment: toPaymentDto(payment),
+      replayed,
     };
   }
 
@@ -283,7 +341,10 @@ export class InsurancePaymentsService {
         type: "expense",
         insuranceId: id,
         description: `Premi ${insurance.name}`,
-        occurredAt: now,
+        // The app's floating convention for cash rows: Jakarta wall time
+        // written as UTC, so a 00:30 WIB payment lists under TODAY. paidAt
+        // on the payment row below stays the real instant.
+        occurredAt: floatingNow(now),
         createdByUserId: actorUserId,
       },
     });
@@ -303,20 +364,26 @@ export class InsurancePaymentsService {
     });
 
     // Advance only when the CURRENT next due was settled (paying an older,
-    // auto-advanced due records it without moving the schedule). The legacy
-    // renewalDate is mirrored during the rollback window (Task 21 fix).
+    // auto-advanced due records it without moving the schedule) — and then
+    // past EVERY due already paid (e.g. a later due paid before this overdue
+    // one), so the next due never sits on a paid due. Same walk as the
+    // billing worker, inside this transaction (the new row included). The
+    // legacy renewalDate mirrors it, null when the schedule ended.
     if (
       settledDue &&
       insurance.nextPremiumDueDate &&
       sameDay(settledDue, insurance.nextPremiumDueDate)
     ) {
-      const next = nextPremiumDue(
+      const payments = await tx.insurancePayment.findMany({
+        where: { insuranceId: id },
+        select: { dueDate: true, paidAt: true },
+      });
+      const { next } = walkPastPaidDues(
         settledDue,
         insurance.premiumPeriod,
         scheduleOptionsFor(insurance, settledDue),
+        payments,
       );
-      // renewalDate mirrors it, including null when the schedule ended, so
-      // the rollback reconcile can never revive a finished schedule.
       await tx.insurance.update({
         where: { id, familyGroupId },
         data: { nextPremiumDueDate: next, renewalDate: next },
@@ -387,6 +454,16 @@ export class InsurancePaymentsService {
   }
 }
 
+/** Jakarta wall-clock "now" as the floating cash instant (minute precision). */
+export function floatingNow(now: Date): Date {
+  const wall = new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString();
+  return floatingCashInstant(
+    wall.slice(0, 10),
+    wall.slice(11, 16),
+    DEFAULT_TIME_ZONE,
+  );
+}
+
 /**
  * Task 22 review fix — an idempotency key is bound to its first request. A
  * retry with the same key but a different amount, account or due is a
@@ -408,14 +485,16 @@ function assertSameReplay(
     (dto.dueDate !== undefined &&
       (!original.dueDate ||
         !sameDay(original.dueDate, parseDateOnly(dto.dueDate))));
-  if (mismatch) {
-    throw new ConflictException({
-      statusCode: 409,
-      code: "IDEMPOTENCY_KEY_REUSED",
-      message:
-        "Kunci idempoten ini sudah dipakai untuk pembayaran lain (jumlah, rekening atau jatuh tempo berbeda) — muat ulang lalu ulangi pembayaran",
-    });
-  }
+  if (mismatch) throw keyReused();
+}
+
+function keyReused(): ConflictException {
+  return new ConflictException({
+    statusCode: 409,
+    code: "IDEMPOTENCY_KEY_REUSED",
+    message:
+      "Kunci idempoten ini sudah dipakai untuk pembayaran lain (jumlah, rekening atau jatuh tempo berbeda) — muat ulang lalu ulangi pembayaran",
+  });
 }
 
 /**

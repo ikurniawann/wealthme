@@ -305,3 +305,53 @@ export function isScheduledDue(
   }
   return false;
 }
+
+/**
+ * Walks the schedule from `start` over every PAID due and stops at the first
+ * unpaid one (or, with `before`, at the first due on/after that day). A
+ * payment counts for a due when its dueDate is that due; a payment without a
+ * due (legacy/reconciled) counts once, for the due whose window
+ * [due, next due) its paidAt falls in. Shared by pay() (inside its
+ * transaction) and the billing worker, so neither ever leaves the next due
+ * on a due that is already paid, nor skips an unpaid one.
+ * Returns the new next due (null when the schedule ended) and whether it moved.
+ */
+export function walkPastPaidDues(
+  start: Date,
+  period: PremiumPeriod,
+  opts: ScheduleOptions,
+  payments: { dueDate: Date | null; paidAt: Date }[],
+  before?: Date,
+): { next: Date | null; moved: boolean } {
+  const paidDues = new Set(
+    payments.filter((p) => p.dueDate).map((p) => ymd(p.dueDate)),
+  );
+  const undated = payments
+    .filter((p) => !p.dueDate)
+    .map((p) => p.paidAt.getTime());
+  let due: Date | null = toDateOnly(start);
+  let moved = false;
+  for (
+    let i = 0;
+    due && (!before || due < before) && i < MAX_SCHEDULE_STEPS;
+    i++
+  ) {
+    const following: Date | null = nextPremiumDue(due, period, opts);
+    let paid = paidDues.has(ymd(due));
+    if (!paid) {
+      const from = jakartaDayStartInstant(due).getTime();
+      const to = following
+        ? jakartaDayStartInstant(following).getTime()
+        : Number.POSITIVE_INFINITY;
+      const idx = undated.findIndex((t) => t >= from && t < to);
+      if (idx >= 0) {
+        undated.splice(idx, 1);
+        paid = true;
+      }
+    }
+    if (!paid) break;
+    due = following;
+    moved = true;
+  }
+  return { next: due, moved };
+}

@@ -21,6 +21,8 @@ import { parseDateOnly, ymd } from "./premium-schedule.util";
 import type { InsuranceDocumentDto } from "@wealthme/contracts";
 
 export const MAX_INSURANCE_DOCUMENT_BYTES = 5 * 1024 * 1024;
+/** An upload writes its bytes moments before its row; never sweep those. */
+const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
 /** Policy documents are PDF scans or photos; WEBP is not accepted here. */
 const ACCEPTED_MIMES = new Set(["application/pdf", "image/jpeg", "image/png"]);
 
@@ -112,8 +114,12 @@ export class InsuranceDocumentsService {
   }
 
   /**
-   * Deletes the row AND the stored object. Value statements that cited the
-   * document keep their page + snippet (documentId is set null by the FK).
+   * Deletes the stored object FIRST, then the row, so sensitive bytes are
+   * never left behind by a row delete that succeeded. If the storage delete
+   * fails, the row is still removed (the user asked for the document gone)
+   * and the leftover object is logged and removed by `sweepOrphans`.
+   * Value statements that cited the document keep their page + snippet
+   * (documentId is set null by the FK).
    */
   async remove(
     familyGroupId: string,
@@ -121,15 +127,59 @@ export class InsuranceDocumentsService {
     documentId: string,
   ): Promise<void> {
     const row = await this.find(familyGroupId, insuranceId, documentId);
-    await this.prisma.insuranceDocument.delete({ where: { id: row.id } });
     try {
       await this.storage.delete(row.path);
     } catch (err) {
       this.logger.error(
-        `insurance document ${row.id}: row deleted but storage delete failed: ${err instanceof Error ? err.message : String(err)}`,
+        `insurance document ${row.id}: storage delete failed, left for the orphan sweep: ${err instanceof Error ? err.message : String(err)}`,
       );
-      throw err;
     }
+    await this.prisma.insuranceDocument.delete({ where: { id: row.id } });
+  }
+
+  /**
+   * Deletes stored policy documents that no InsuranceDocument row points
+   * at — e.g. rows cascaded away by a family delete or by the PREVIOUS
+   * image's unguarded policy delete during a rollback, or a storage delete
+   * that failed above. Only keys under `<fg>/insurances/` are considered,
+   * and objects younger than `minAgeMs` are kept (an upload writes the
+   * bytes just before its row). Returns the number of objects deleted.
+   */
+  async sweepOrphans(
+    minAgeMs = ORPHAN_MIN_AGE_MS,
+    now: Date = new Date(),
+  ): Promise<number> {
+    const families = await this.prisma.familyGroup.findMany({
+      select: { id: true },
+    });
+    const known = new Set(families.map((f) => f.id));
+    // Families that no longer exist still have folders: list the root's
+    // insurance prefixes by family folder name as well.
+    const roots = await this.storage.list("");
+    for (const o of roots) {
+      const [fg, area] = o.key.split("/");
+      if (fg && area === "insurances") known.add(fg);
+    }
+    let deleted = 0;
+    for (const fg of known) {
+      const objects = await this.storage.list(`${fg}/insurances`);
+      if (objects.length === 0) continue;
+      const rows = await this.prisma.insuranceDocument.findMany({
+        where: { path: { in: objects.map((o) => o.key) } },
+        select: { path: true },
+      });
+      const referenced = new Set(rows.map((r) => r.path));
+      for (const o of objects) {
+        if (referenced.has(o.key)) continue;
+        if (now.getTime() - o.modifiedAt.getTime() < minAgeMs) continue;
+        await this.storage.delete(o.key);
+        deleted++;
+      }
+    }
+    if (deleted > 0) {
+      this.logger.log(`orphan sweep removed ${deleted} insurance document(s)`);
+    }
+    return deleted;
   }
 
   /** The document, only when it belongs to this policy and family. */

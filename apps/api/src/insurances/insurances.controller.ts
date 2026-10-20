@@ -246,17 +246,28 @@ export class InsurancesController {
         "Idempotency-Key must be 8-64 chars of [A-Za-z0-9_.:-]",
       );
     }
+    // A retry with fxInputs is matched on the recorded FOREIGN input, not a
+    // re-conversion at today's rate (which would differ after a rate move).
+    if (key && dto.fxInputs?.length) {
+      const replay = await this.payments.replayForeignInput(
+        familyGroupId,
+        id,
+        key,
+        dto,
+      );
+      if (replay) return replay;
+    }
     return this.fxInputs.run(
       {
         familyGroupId,
         userId: req.tenantContext?.userId ?? null,
-        entity: "Insurance",
-        entityId: id,
+        entity: "InsurancePayment",
         fieldPrefix: "pay",
-        // An idempotent replay wrote nothing — no fx_conversions audit row.
+        // The audit row is keyed to the PAYMENT (so a retry can be matched
+        // on its foreign input); an idempotent replay wrote nothing.
         locate: (result) => ({
-          entity: "Insurance",
-          entityId: result.replayed ? null : id,
+          entity: "InsurancePayment",
+          entityId: result.replayed ? null : result.payment.id,
         }),
         dto: { ...dto, idempotencyKey: key },
         spec: FX_FIELD_SPECS.insurancePayment,

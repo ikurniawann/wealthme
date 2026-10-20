@@ -2,14 +2,14 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InsuranceDocumentsService } from "../insurances/insurance-documents.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InsuranceRemindersService } from "../insurances/insurance-reminders.service";
 import {
   isRecurringPeriod,
-  jakartaDayStartInstant,
-  nextPremiumDue,
   scheduleOptionsFor,
   todayInTimeZone,
-  ymd,
+  walkPastPaidDues,
 } from "../insurances/premium-schedule.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -33,6 +33,7 @@ export class BillingCycleProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reminders: InsuranceRemindersService,
+    private readonly insuranceDocuments: InsuranceDocumentsService,
   ) {
     super();
   }
@@ -96,19 +97,20 @@ export class BillingCycleProcessor extends WorkerHost {
     const reminded = await this.reminders.sweep(now);
     if (reminded > 0) this.logger.log(`Sent ${reminded} premium reminder(s)`);
 
+    // Policy documents whose row is gone (rollback image cascade, family
+    // delete, failed storage delete). Best-effort: never fails the tick.
+    await this.insuranceDocuments.sweepOrphans().catch((err: unknown) => {
+      this.logger.warn(
+        `insurance document orphan sweep failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
+
     if (liabilities.length === 0 && insurances.length === 0) {
       this.logger.log("No due dates needed advancing");
     }
   }
 
-  /**
-   * Walks the schedule from the current due over every PAID past due and
-   * stops at the first unpaid one. Returns the new next due (null when the
-   * schedule ended), or undefined when nothing changes (the current due is
-   * unpaid). A payment counts for a due when its dueDate is that due; a
-   * legacy payment without a due counts once, for the due whose period
-   * window [due, next due) its paidAt falls in.
-   */
+  /** New next due after walking over paid past dues; undefined = unchanged. */
   private async advancePastPaidDues(
     ins: {
       id: string;
@@ -124,37 +126,13 @@ export class BillingCycleProcessor extends WorkerHost {
       where: { insuranceId: ins.id },
       select: { dueDate: true, paidAt: true },
     });
-    const paidDues = new Set(
-      payments.filter((p) => p.dueDate).map((p) => ymd(p.dueDate)),
+    const { next, moved } = walkPastPaidDues(
+      start,
+      ins.premiumPeriod,
+      scheduleOptionsFor(ins, start),
+      payments,
+      today,
     );
-    const undated = payments
-      .filter((p) => !p.dueDate)
-      .map((p) => p.paidAt.getTime());
-    const opts = scheduleOptionsFor(ins, start);
-    let due: Date | null = start;
-    let moved = false;
-    for (let i = 0; due && due < today && i < 1200; i++) {
-      const following: Date | null = nextPremiumDue(
-        due,
-        ins.premiumPeriod,
-        opts,
-      );
-      let paid = paidDues.has(ymd(due));
-      if (!paid) {
-        const from = jakartaDayStartInstant(due).getTime();
-        const to = following
-          ? jakartaDayStartInstant(following).getTime()
-          : Number.POSITIVE_INFINITY;
-        const idx = undated.findIndex((t) => t >= from && t < to);
-        if (idx >= 0) {
-          undated.splice(idx, 1);
-          paid = true;
-        }
-      }
-      if (!paid) break;
-      due = following;
-      moved = true;
-    }
-    return moved ? due : undefined;
+    return moved ? next : undefined;
   }
 }

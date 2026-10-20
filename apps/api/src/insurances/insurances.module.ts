@@ -41,6 +41,10 @@ import { InsuranceValueModule } from "./value/insurance-value.module";
     InsuranceReportService,
     InsuranceReportReaderFactory,
   ],
-  exports: [InsurancesService, InsuranceRemindersService],
+  exports: [
+    InsurancesService,
+    InsuranceRemindersService,
+    InsuranceDocumentsService,
+  ],
 })
 export class InsurancesModule {}

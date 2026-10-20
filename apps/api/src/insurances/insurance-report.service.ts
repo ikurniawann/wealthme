@@ -10,6 +10,7 @@ import { Prisma } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AiKeyService } from "../ai-advisor/ai-key.service";
+import { runSerializableWithRetry } from "../common/utils/serializable-retry.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -18,6 +19,7 @@ import {
   MIN_REPORT_TEXT_CHARS,
 } from "./dto/insurance-report.dto";
 import { toValuationDto } from "./insurance-mapper";
+import { assertNotFutureEffectiveDate } from "./insurance-valuations.service";
 import { parseDateOnly } from "./premium-schedule.util";
 import { build } from "./report-reader/insurance-report-http-error.util";
 import {
@@ -162,62 +164,62 @@ export class InsuranceReportService {
     if (dto.documentId) {
       await this.assertDocument(familyGroupId, insuranceId, dto.documentId);
     }
-    for (const item of dto.items) assertItemShape(policy, item);
+    for (const item of dto.items) {
+      assertItemShape(policy, item);
+      assertNotFutureEffectiveDate(item.effectiveDate);
+    }
 
-    const created = await this.prisma.$transaction(
-      async (tx) => {
-        const rows = [];
-        for (const item of dto.items) {
-          const fund = await this.resolveFund(tx, policy, item);
-          if (dto.documentId) {
-            const dup = await tx.insuranceValuation.findFirst({
-              where: {
-                insuranceId,
-                fundId: fund?.id ?? null,
-                documentId: dto.documentId,
-                effectiveDate: parseDateOnly(item.effectiveDate),
-                source: "report",
-              },
-              select: { id: true },
-            });
-            if (dup) {
-              throw new ConflictException(
-                `Nilai dari laporan ini untuk tanggal ${item.effectiveDate} sudah dikonfirmasi`,
-              );
-            }
-          }
-          rows.push(
-            await tx.insuranceValuation.create({
-              data: {
-                insuranceId,
-                fundId: fund?.id ?? null,
-                currency: fund?.currency ?? item.currency ?? policy.currency,
-                units: dec(item.units),
-                navPerUnit: dec(item.navPerUnit),
-                navDate: date(item.navDate),
-                unitsDate: date(item.unitsDate),
-                reportedValue: dec(item.reportedValue),
-                cashValue: dec(item.cashValue),
-                surrenderEstimate: dec(item.surrenderEstimate),
-                maturityBenefit: dec(item.maturityBenefit),
-                guaranteed: item.guaranteed ?? false,
-                effectiveDate: parseDateOnly(item.effectiveDate),
-                source: "report",
-                documentId: dto.documentId ?? null,
-                page: item.page ?? null,
-                snippet: item.snippet ?? null,
-                status: "confirmed",
-                confirmedAt: new Date(),
-                confirmedByUserId: actorUserId,
-                createdByUserId: actorUserId,
-              },
-            }),
+    const created = await runSerializableWithRetry(this.prisma, async (tx) => {
+      const rows = [];
+      for (const item of dto.items) {
+        const fund = await this.resolveFund(tx, policy, item);
+        // One report statement per fund + date (+ document when given):
+        // a double-submit or a second confirm never stores the value twice.
+        const dup = await tx.insuranceValuation.findFirst({
+          where: {
+            insuranceId,
+            fundId: fund?.id ?? null,
+            effectiveDate: parseDateOnly(item.effectiveDate),
+            source: "report",
+            ...(dto.documentId && { documentId: dto.documentId }),
+          },
+          select: { id: true },
+        });
+        if (dup) {
+          throw new ConflictException(
+            `Nilai dari laporan untuk tanggal ${item.effectiveDate} sudah dikonfirmasi`,
           );
         }
-        return rows;
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+        rows.push(
+          await tx.insuranceValuation.create({
+            data: {
+              insuranceId,
+              fundId: fund?.id ?? null,
+              currency: fund?.currency ?? item.currency ?? policy.currency,
+              units: dec(item.units),
+              navPerUnit: dec(item.navPerUnit),
+              navDate: date(item.navDate),
+              unitsDate: date(item.unitsDate),
+              reportedValue: dec(item.reportedValue),
+              cashValue: dec(item.cashValue),
+              surrenderEstimate: dec(item.surrenderEstimate),
+              maturityBenefit: dec(item.maturityBenefit),
+              guaranteed: item.guaranteed ?? false,
+              effectiveDate: parseDateOnly(item.effectiveDate),
+              source: "report",
+              documentId: dto.documentId ?? null,
+              page: item.page ?? null,
+              snippet: item.snippet ?? null,
+              status: "confirmed",
+              confirmedAt: new Date(),
+              confirmedByUserId: actorUserId,
+              createdByUserId: actorUserId,
+            },
+          }),
+        );
+      }
+      return rows;
+    });
 
     const supersededIds: string[] = [];
     for (const row of created) {

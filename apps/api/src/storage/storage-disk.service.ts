@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 
 import { Injectable } from "@nestjs/common";
@@ -8,7 +8,7 @@ import { Injectable } from "@nestjs/common";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { ConfigService } from "@nestjs/config";
 
-import { StoragePort } from "./storage.port";
+import { StoragePort, type StoredObject } from "./storage.port";
 
 import type { Env } from "../config/env";
 
@@ -69,6 +69,28 @@ export class StorageDiskService extends StoragePort {
   async delete(key: string): Promise<void> {
     const target = this.resolveKey(key);
     await rm(target, { force: true });
+  }
+
+  async list(prefix: string): Promise<StoredObject[]> {
+    const base = this.resolveKey(prefix);
+    let names: string[];
+    try {
+      names = await readdir(base, { recursive: true });
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw err;
+    }
+    const out: StoredObject[] = [];
+    for (const name of names) {
+      const full = resolve(base, name);
+      const info = await stat(full);
+      if (!info.isFile()) continue;
+      out.push({
+        key: relative(this.root, full).split("\\").join("/"),
+        modifiedAt: info.mtime,
+      });
+    }
+    return out;
   }
 
   /** Resolves a storage key to an absolute path INSIDE `root`; throws for
