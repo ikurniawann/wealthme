@@ -1,0 +1,156 @@
+/* Asuransi phone + tablet hardening: the app-wide mobile checklist (Task 35)
+   applied to this module. UNLAYERED on purpose: these rules must beat the
+   shared `.dialog` / `.wm-panel` rules (layered) and Base UI's Tailwind
+   position + translate utilities. Every rule is scoped to phones (≤768px =
+   the shared dialog's bottom-sheet boundary, ≤720px = bento's panel
+   boundary) or to touch screens (`pointer: coarse`), so the desktop design
+   matched to the 2026-10-19 reference is untouched. */
+
+/* ── Form dialogs → full-screen sheets ──
+   Record payment, upload report and the AI read-out are forms, so on a phone
+   they fill the screen like the policy drawer: the body scrolls, the footer
+   stays pinned at the bottom. The root layout resizes the content when the
+   keyboard opens, so the 100dvh sheet shrinks above the keyboard and the
+   focused field is scrolled into view inside the body, never under the
+   footer. Tailwind's translate utilities drive the standalone `translate`
+   through these variables: zero them or the sheet sits half off-screen. */
+@media (max-width: 768px) {
+  .dialog.ins3-pay-dialog,
+  .dialog.ins3-report-dialog,
+  .dialog.ins3f-ai-dialog {
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    overflow: hidden;
+    border-radius: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    transform: none;
+    translate: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+  /* the forest title band starts at the top edge: clear the notch, and drop
+     the bottom-sheet drag handle (a full-screen sheet is not dragged) */
+  :is(.ins3-pay-dialog, .ins3-report-dialog, .ins3f-ai-dialog)
+    > .dialog__title {
+    padding-top: calc(26px + env(safe-area-inset-top, 0px));
+  }
+  :is(.ins3-pay-dialog, .ins3-report-dialog, .ins3f-ai-dialog)
+    > .dialog__title::before {
+    display: none;
+  }
+  .dialog.ins3-pay-dialog > form {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+  :is(.ins3-pay-dialog, .ins3-report-dialog, .ins3f-ai-dialog) .dialog__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scroll-padding-block: 16px;
+  }
+  :is(.ins3-pay-dialog, .ins3-report-dialog, .ins3f-ai-dialog) .dialog__footer {
+    /* the shared sheet footer bleeds into the dialog's bottom padding with
+       negative margins; in this flex column that made it overlap the last
+       field, so it sits flush below the scrolling body instead */
+    position: static;
+    flex: none;
+    margin: auto -16px 0;
+  }
+}
+
+/* ── Filter sheet: full screen on phones (tablet keeps the bottom sheet) ── */
+@media (max-width: 720px) {
+  .dialog.wm-panel.wm-panel--sheet.ins3-fsheet {
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    translate: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+  .wm-panel.ins3-fsheet .wm-panel-head {
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  }
+  .wm-panel.ins3-fsheet .wm-panel-head::before {
+    display: none;
+  }
+  .wm-panel.ins3-fsheet .wm-panel-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* the policy drawer is already full screen (asuransi-form.css); zero the
+     translate variables the same way */
+  .dialog.wm-panel.wm-panel--side.ins3f-panel {
+    translate: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+  .ins3f-panel .wm-panel-body {
+    overscroll-behavior: contain;
+    scroll-padding-block: 16px;
+  }
+}
+
+/* ── No sideways overflow: at 375px "Unggah laporan" + "Catat pembayaran"
+   pushed the header 8px past the screen. Let the two columns shrink and the
+   labels wrap inside the button instead. ── */
+@media (max-width: 640px) {
+  .ins3 .ins3-header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .ins3 .ins3-header-actions .btn {
+    min-width: 0;
+    padding-inline: 10px;
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+/* ── Touch targets ≥ 44px ── */
+@media (pointer: coarse), (max-width: 720px) {
+  /* drawer / sheet close buttons are 40px (36px in the form-panel skin) */
+  .wm-panel.ins3f-panel .wm-panel-x,
+  .wm-panel.ins3-fsheet .wm-panel-x {
+    width: 44px;
+    height: 44px;
+  }
+  /* small inline actions in the policy cards keep their compact look and
+     get an invisible 44px hit area instead (same idiom as `.wm-hit`) */
+  .ins3 .ins3-complete,
+  .ins3 .ins3-due .ins3-link,
+  .ins3 .ins3-name-btn {
+    position: relative;
+  }
+  .ins3 .ins3-complete::before,
+  .ins3 .ins3-due .ins3-link::before,
+  .ins3 .ins3-name-btn::before {
+    content: "";
+    position: absolute;
+    inset-block: min(0px, calc(50% - 22px));
+    inset-inline: min(0px, calc(50% - 22px));
+  }
+  /* the drawer's section tabs are 40px tall from 721px up (tablets) */
+  .ins3f-panel .ins3f-anchors a {
+    min-height: 44px;
+  }
+  /* a switch row is one label: the whole row is the tap target */
+  .ins3f-panel .ins3f-switch-row {
+    min-height: 44px;
+  }
+}

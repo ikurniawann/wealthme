@@ -20,6 +20,7 @@ import "../asuransi.css";
 import "../asuransi-list.css";
 import "../asuransi-responsive.css";
 import "./detail.css";
+import "../asuransi-mobile.css";
 import { statusTone } from "../asuransi-model";
 import { PayDialog } from "../pay-dialog";
 import { InsuranceModal, type FormAnchor } from "../policy-form";

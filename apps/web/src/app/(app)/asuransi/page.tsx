@@ -17,6 +17,7 @@ import "./asuransi-list.css";
 import "./asuransi-filters.css";
 import "./asuransi-bottom.css";
 import "./asuransi-responsive.css";
+import "./asuransi-mobile.css";
 import {
   EMPTY_FILTERS,
   activeFilterCount,
