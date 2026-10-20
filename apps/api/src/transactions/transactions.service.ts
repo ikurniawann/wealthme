@@ -1108,6 +1108,16 @@ export class TransactionsService {
         `Transaksi ini adalah arus kas transaksi investasi "${linkedInvestmentTx.investment.name}" — tidak dapat diedit atau dihapus di sini. Ubah atau batalkan (void) transaksi investasinya di halaman Investasi.`,
       );
     }
+    // Aset Task 18 — same for the cash leg of an asset buy/sell.
+    const linkedAssetTx = await this.prisma.assetTransaction.findFirst({
+      where: { cashTransactionId: tx.id },
+      select: { asset: { select: { name: true } } },
+    });
+    if (linkedAssetTx) {
+      throw new ConflictException(
+        `Transaksi ini adalah arus kas transaksi aset "${linkedAssetTx.asset.name}" — tidak dapat diedit atau dihapus di sini. Ubah atau batalkan (void) transaksinya di halaman Aset.`,
+      );
+    }
   }
 
   /**

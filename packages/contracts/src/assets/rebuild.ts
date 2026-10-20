@@ -238,6 +238,8 @@ export type UpdateAssetTransactionInput = Partial<
  * cash or cost basis.
  */
 export interface AssetValuationInput {
+  /** uuid per form open (R7). Required on POST /valuations; ignored by /preview. */
+  idempotencyKey?: string;
   pricePerUnit?: string;
   value?: string;
   currency: string;
@@ -258,8 +260,22 @@ export interface AssetValuationPreviewDto {
   changeIdr: string | null;
   changePercent: number | null;
   totalImpactIdr: string;
+  /** True when the effective date is before today (Asia/Jakarta). */
   backdated: boolean;
+  /**
+   * False when a newer valuation exists by effective order: the entry is
+   * history only and the asset's current value does not change (A4).
+   */
+  becomesCurrent: boolean;
+  /** Effective date of that newer valuation, when one exists. */
+  newerValuationDate: string | null;
   comparisonDate: string | null;
+  /** previous_valuation, or none when no valid comparison exists (A6). */
+  comparisonPeriod: "previous_valuation" | "none";
+  /** Asset value now and after saving (IDR); impact = after − now. */
+  currentValueIdr: string;
+  currentValueAfterIdr: string;
+  pricePerUnitIdr: string | null;
   currency: string;
   fxRate: string | null;
 }
@@ -325,6 +341,9 @@ export interface AssetHoldingStateDto {
   /** Σ realized P/L of active sells, IDR; null when nothing was sold. */
   realizedPnlIdr: string | null;
   status: AssetStatus;
+  /** Asset value (IDR) = latest history row by effective order (A4). */
+  currentValueIdr: string;
+  valuationModel: AssetValuationModel;
 }
 
 export interface AssetTransactionResultDto {
@@ -332,4 +351,26 @@ export interface AssetTransactionResultDto {
   replayed: boolean;
   transaction: AssetTransactionDto;
   asset: AssetHoldingStateDto;
+}
+
+export interface AssetValuationResultDto {
+  /** True when an earlier request with the same idempotencyKey answered. */
+  replayed: boolean;
+  event: AssetHistoryEventDto;
+  asset: AssetHoldingStateDto;
+}
+
+/**
+ * GET .../assets/:id/events — the detail page's ledger: every history event
+ * (newest first by effective order), the transactions, the holding state
+ * and the A6 changes. `todayChange` is `period: "none"` unless a valuation
+ * exists on the previous Asia/Jakarta calendar day ("Belum ada valuasi
+ * pembanding").
+ */
+export interface AssetLedgerDto {
+  events: AssetHistoryEventDto[];
+  transactions: AssetTransactionDto[];
+  asset: AssetHoldingStateDto;
+  sinceLastValuation: AssetValueChangeDto;
+  todayChange: AssetValueChangeDto;
 }

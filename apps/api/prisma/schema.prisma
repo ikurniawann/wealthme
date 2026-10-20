@@ -1508,8 +1508,12 @@ model AssetHistory {
   // an optional note ("harga taksiran notaris", etc.).
   recordedByUserId   String?
   note               String?
+  // Task 18 — one uuid per Update Nilai form open (R7): a retry with the
+  // same key and payload returns the original row; a different payload 409s.
+  idempotencyKey     String?             @db.VarChar(64)
   asset              Asset               @relation(fields: [assetId], references: [id], onDelete: Cascade)
 
+  @@unique([assetId, idempotencyKey])
   @@index([assetId, recordedAt])
   @@index([assetId, effectiveDate, hasTime, effectiveAt, createdAt, id])
   @@map("asset_history")
