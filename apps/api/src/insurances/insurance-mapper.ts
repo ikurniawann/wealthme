@@ -4,6 +4,7 @@ import { calendarDaysUntil } from "../common/utils/due-window.util";
 
 import {
   daysBetween,
+  dueNeedsConfirmation,
   monthlyEquivalent,
   premiumDueStatus,
   ymd,
@@ -145,6 +146,7 @@ export function toInsuranceDto(
       ? daysBetween(ctx.today, row.nextPremiumDueDate)
       : null,
     premiumDueStatus: premiumDueStatus(row.nextPremiumDueDate, ctx.today),
+    dueNeedsConfirmation: dueNeedsConfirmation(row, ctx.today),
     monthlyEquivalentPremium: monthly?.toDecimalPlaces(2).toFixed(2) ?? null,
     holderUserId: row.holderUserId,
     holderName: holder?.name ?? row.holderName,

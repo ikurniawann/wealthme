@@ -26,7 +26,7 @@ import { apiErrorMessage } from "@/lib/api-error";
 import "./asuransi-form.css";
 import { AiReadButton, type AiApplyPayload } from "./ai-review";
 import { applyAiToForm } from "./ai-apply";
-import { jakartaToday } from "./asuransi-model";
+import { jakartaToday, needsDueConfirmation } from "./asuransi-model";
 import {
   BeneficiaryEditor,
   toBeneficiaryDtos,
@@ -70,6 +70,11 @@ export interface InsuranceModalProps {
   accounts: AccountDto[];
   /** Section to scroll to on open (detail "Perbarui nilai" → invest). */
   initialAnchor?: FormAnchor;
+  /**
+   * Open on the dates: the legacy due needs confirmation, so the user moves
+   * it to coverage end and fills the real next premium due.
+   */
+  focusDates?: boolean;
   onClose: () => void;
   onSaved?: (policy: InsuranceDto) => void;
 }
@@ -132,6 +137,7 @@ function PolicyFormBody({
   membersUnavailable,
   accounts,
   initialAnchor,
+  focusDates,
   onClose,
   onSaved,
   valuations,
@@ -204,6 +210,17 @@ function PolicyFormBody({
       .getElementById(SECTION_ID[a])
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
+
+  useEffect(() => {
+    if (!focusDates) return;
+    const id = window.setTimeout(() => {
+      document
+        .getElementById("ins3f-due-confirm")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById("ins3f-next-due")?.focus({ preventScroll: true });
+    }, 120);
+    return () => window.clearTimeout(id);
+  }, [focusDates]);
 
   useEffect(() => {
     if (initialAnchor && initialAnchor !== "info") {
@@ -339,6 +356,12 @@ function PolicyFormBody({
           <p className="ins3f-form-error" role="alert">
             {formError}
           </p>
+        )}
+        {editing && needsDueConfirmation(editing) && (
+          <div id="ins3f-due-confirm" className="ins3-callout" role="note">
+            <p className="ins3-callout-title">{t.asuransi.v3.dueConfirm}</p>
+            <p>{t.asuransi.v3.dueConfirmHelp}</p>
+          </div>
         )}
         <div className="ins3f-cols">
           <InfoSection

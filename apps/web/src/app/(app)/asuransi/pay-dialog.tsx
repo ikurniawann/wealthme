@@ -25,6 +25,7 @@ import {
   isPayable,
   jakartaToday,
   localizeDates,
+  needsDueConfirmation,
   nextDue,
 } from "./asuransi-model";
 
@@ -100,6 +101,9 @@ export function PayDialog({
   const [error, setError] = useState<string | null>(null);
   const policy = payable.find((p) => p.id === policyId) ?? null;
   const due = policy ? nextDue(policy) : null;
+  // A legacy due that looks like a coverage end is not shown as a premium
+  // due (the API still refuses paying a due that far ahead).
+  const dueUnconfirmed = policy ? needsDueConfirmation(policy) : false;
 
   function pickPolicy(id: string) {
     const p = payable.find((x) => x.id === id) ?? null;
@@ -214,7 +218,11 @@ export function PayDialog({
                   <p className="ins3-pay-due">
                     <span>{c.payDue}</span>
                     <strong>
-                      {due ? formatDay(due, locale, "long") : c.payDueNone}
+                      {dueUnconfirmed
+                        ? c.dueConfirm
+                        : due
+                          ? formatDay(due, locale, "long")
+                          : c.payDueNone}
                     </strong>
                   </p>
                 )}

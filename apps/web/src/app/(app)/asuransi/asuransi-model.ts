@@ -118,7 +118,22 @@ export function nextDue(p: InsuranceDto): string | null {
   return p.nextPremiumDueDate ? p.nextPremiumDueDate.slice(0, 10) : null;
 }
 
+/**
+ * The API's derived flag: a legacy due (the old overloaded renewalDate) that
+ * looks like a coverage end — further out than one premium period. It is
+ * NOT a premium due until the user confirms it: no countdown, no "jatuh
+ * tempo" date, excluded from the schedule and the period totals. Read
+ * defensively: an older API omits it (= not flagged).
+ */
+export function needsDueConfirmation(p: InsuranceDto): boolean {
+  return (
+    (p as InsuranceDto & { dueNeedsConfirmation?: boolean })
+      .dueNeedsConfirmation === true
+  );
+}
+
 export function isOverdue(p: InsuranceDto): boolean {
+  if (needsDueConfirmation(p)) return false;
   return (
     p.premiumDueStatus === "overdue" ||
     (p.daysUntilNextPremium != null && p.daysUntilNextPremium < 0)
@@ -126,7 +141,7 @@ export function isOverdue(p: InsuranceDto): boolean {
 }
 
 function matchesDue(p: InsuranceDto, due: DueWindow, today: string): boolean {
-  const d = nextDue(p);
+  const d = needsDueConfirmation(p) ? null : nextDue(p);
   if (due === "none") return d === null;
   if (!d) return false;
   if (due === "overdue") return isOverdue(p);
@@ -170,8 +185,8 @@ export function applyFilters(
 /** Overdue first, then the soonest due; unscheduled policies last. */
 export function sortByDue(list: InsuranceDto[]): InsuranceDto[] {
   return [...list].sort((a, b) => {
-    const da = nextDue(a);
-    const db = nextDue(b);
+    const da = needsDueConfirmation(a) ? null : nextDue(a);
+    const db = needsDueConfirmation(b) ? null : nextDue(b);
     if (da === db) return a.name.localeCompare(b.name);
     if (!da) return 1;
     if (!db) return -1;
@@ -194,9 +209,19 @@ export function scheduleRows(list: InsuranceDto[], today: string) {
   return sortByDue(
     list.filter((p) => {
       const d = nextDue(p);
-      return isPayable(p) && d !== null && (isOverdue(p) || d <= limit);
+      return (
+        isPayable(p) &&
+        d !== null &&
+        !needsDueConfirmation(p) &&
+        (isOverdue(p) || d <= limit)
+      );
     }),
   );
+}
+
+/** Paying policies whose due needs confirmation (own schedule group). */
+export function dueConfirmRows(list: InsuranceDto[]): InsuranceDto[] {
+  return list.filter((p) => isPayable(p) && needsDueConfirmation(p));
 }
 
 /** The benefit the list shows: the primary one, else the first with an amount. */
@@ -221,7 +246,7 @@ export type DueTone = "overdue" | "soon" | "later" | "none";
 
 export function dueTone(p: InsuranceDto): DueTone {
   const days = p.daysUntilNextPremium;
-  if (!nextDue(p) || days == null) return "none";
+  if (!nextDue(p) || days == null || needsDueConfirmation(p)) return "none";
   if (isOverdue(p)) return "overdue";
   return days <= 14 ? "soon" : "later";
 }

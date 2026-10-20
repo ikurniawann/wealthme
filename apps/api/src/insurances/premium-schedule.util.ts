@@ -228,6 +228,37 @@ export function reminderWindowDays(period: PremiumPeriod): number {
   return period === "monthly" ? 7 : 30;
 }
 
+/** Single/custom premiums have no cadence: a due beyond this is suspect. */
+export const NON_RECURRING_CONFIRM_MONTHS = 13;
+
+/**
+ * Legacy policies had ONE overloaded `renewalDate`, which the S1 migration
+ * copied into nextPremiumDueDate. When it was really a coverage end (e.g.
+ * 2036 on a monthly policy) it must not be presented, totalled or reminded
+ * as a premium due. A due further out than one full premium period after
+ * today (Asia/Jakarta) — plus the reminder lead, so a premium paid early
+ * whose schedule just stepped forward is not flagged — needs the user's
+ * confirmation; single/custom periods use 13 months. There is no "schedule
+ * confirmed since migration" marker, so the period rule alone decides:
+ * editing the due to a plausible date clears the flag. Derived, never stored.
+ */
+export function dueNeedsConfirmation(
+  policy: { nextPremiumDueDate: Date | null; premiumPeriod: PremiumPeriod },
+  today: Date,
+): boolean {
+  const due = policy.nextPremiumDueDate;
+  if (!due) return false;
+  const months = MONTHS_PER_PERIOD[policy.premiumPeriod];
+  const limit =
+    months === null
+      ? addMonthsClamped(today, NON_RECURRING_CONFIRM_MONTHS)
+      : new Date(
+          addMonthsClamped(today, months).getTime() +
+            reminderWindowDays(policy.premiumPeriod) * DAY_MS,
+        );
+  return toDateOnly(due) > limit;
+}
+
 /** Asia/Jakarta is a fixed UTC+07:00 zone (no DST). */
 const JAKARTA_OFFSET_MS = 7 * 3_600_000;
 

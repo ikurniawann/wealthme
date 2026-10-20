@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { PREMIUM_PAYING_STATUSES } from "./insurance-reminders.service";
 import {
   DEFAULT_TIME_ZONE,
+  dueNeedsConfirmation,
   duesInRange,
   monthlyEquivalent,
   scheduleOptionsFor,
@@ -66,6 +67,8 @@ class CurrencyTotals {
  * - premiumDue: every scheduled due in [from, to] (IDR — see
  *   PREMIUM_CURRENCY);
  * - overdue: dues from nextPremiumDueDate up to yesterday (IDR);
+ * - premiumDue/overdue skip a due that needs confirmation (legacy date that
+ *   looks like a coverage end — see dueNeedsConfirmation);
  * - monthlyPremiumNormalized: Decimal per currency, rounded once — a
  *   NORMALIZATION, not a bill (fixes the old per-row integer truncation of
  *   quarterly/yearly premiums and the mixed-currency sum);
@@ -89,9 +92,17 @@ export function buildInsuranceSummary(
   const due = new CurrencyTotals();
   const overdue = new CurrencyTotals();
   const monthly = new CurrencyTotals();
+  let needsConfirmation = 0;
 
   for (const r of paying) {
     const premium = new D(r.premiumAmount.toString());
+    const m = monthlyEquivalent(premium, r.premiumPeriod);
+    if (m) monthly.add(PREMIUM_CURRENCY, m);
+    // A legacy due that looks like a coverage end is not a premium due.
+    if (dueNeedsConfirmation(r, today)) {
+      needsConfirmation++;
+      continue;
+    }
     const sched = scheduleOptionsFor(r, r.nextPremiumDueDate);
     const inPeriod = duesInRange(
       r.nextPremiumDueDate,
@@ -121,8 +132,6 @@ export function buildInsuranceSummary(
         missed.length,
       );
     }
-    const m = monthlyEquivalent(premium, r.premiumPeriod);
-    if (m) monthly.add(PREMIUM_CURRENCY, m);
   }
 
   const idrMonthly = monthly.get("IDR");
@@ -142,6 +151,7 @@ export function buildInsuranceSummary(
     benefitGroups: benefitGroups(paying),
     confirmedValues: confirmedValues(rows),
     netWorthValueIdr: opts.netWorthValueIdr.toString(),
+    dueNeedsConfirmationCount: needsConfirmation,
   };
 }
 

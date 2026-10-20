@@ -24,6 +24,7 @@ import {
   jakartaToday,
   parseFilters,
   personKey,
+  dueConfirmRows,
   scheduleRows,
   sortByDue,
   type AsuransiFilters,
@@ -115,6 +116,7 @@ function AsuransiPageInner() {
   const [formTarget, setFormTarget] = useState<"add" | InsuranceDto | null>(
     null,
   );
+  const [focusDates, setFocusDates] = useState(false);
   const [payFor, setPayFor] = useState<{ policyId: string | null } | null>(
     null,
   );
@@ -198,7 +200,10 @@ function AsuransiPageInner() {
     if (action === "pay") setPayFor({ policyId: policy.id });
     else if (action === "delete") setDeleting(policy);
     else if (action === "detail") router.push(`/asuransi/${policy.id}`);
-    else setFormTarget(policy);
+    else {
+      setFocusDates(action === "confirmDue");
+      setFormTarget(policy);
+    }
   };
   const closeForm = useCallback(() => setFormTarget(null), []);
   const isFiltered = activeFilterCount(filters) > 0 || Boolean(filters.q);
@@ -210,7 +215,10 @@ function AsuransiPageInner() {
         disabled={!enabled}
         onUpload={() => setReportFor({ policyId: null })}
         onPay={() => setPayFor({ policyId: null })}
-        onAdd={() => setFormTarget("add")}
+        onAdd={() => {
+          setFocusDates(false);
+          setFormTarget("add");
+        }}
       />
       <AsuransiSummary summary={summary.data} isLoading={summary.isLoading} />
       <PolicyList
@@ -233,8 +241,10 @@ function AsuransiPageInner() {
       <div className="ins3-bottom">
         <PremiumSchedule
           rows={scheduleRows(policies, today)}
+          confirmRows={dueConfirmRows(policies)}
           isLoading={list.isLoading}
           onPay={(p) => setPayFor({ policyId: p.id })}
+          onConfirm={(p) => onAction("confirmDue", p)}
           onSeeAll={() => {
             setFilters({ due: "d90" });
             document
@@ -262,6 +272,7 @@ function AsuransiPageInner() {
           familyGroupId={familyGroupId}
           token={token}
           editing={formTarget === "add" ? null : formTarget}
+          focusDates={formTarget !== "add" && focusDates}
           familyMembers={familyMembers}
           membersUnavailable={members.isError}
           accounts={accounts.data ?? []}

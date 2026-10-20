@@ -66,6 +66,11 @@ function InsuranceDetail() {
   const tab: DetailTab =
     tabParam && DETAIL_TABS.includes(tabParam) ? tabParam : "ringkasan";
   const [form, setForm] = useState<FormAnchor | null>(null);
+  const [focusDates, setFocusDates] = useState(false);
+  const openForm = (anchor: FormAnchor, dates = false) => {
+    setFocusDates(dates);
+    setForm(anchor);
+  };
   const [paying, setPaying] = useState(false);
   const [showNumber, setShowNumber] = useState(false);
 
@@ -187,7 +192,7 @@ function InsuranceDetail() {
           <button
             type="button"
             className="btn btn--outline"
-            onClick={() => setForm("info")}
+            onClick={() => openForm("info")}
           >
             <Pencil aria-hidden="true" /> {c.edit}
           </button>
@@ -243,6 +248,7 @@ function InsuranceDetail() {
             names={{ member: memberName, account: accountName }}
             showNumber={showNumber}
             onToggleNumber={() => setShowNumber((v) => !v)}
+            onConfirmDue={() => openForm("premium", true)}
           />
         )}
         {tab === "manfaat" && <BenefitsTab policy={p} />}
@@ -256,6 +262,7 @@ function InsuranceDetail() {
             isError={payments.isError}
             accountName={accountName}
             onPay={() => setPaying(true)}
+            onConfirmDue={() => openForm("premium", true)}
           />
         )}
         {tab === "investasi" && (
@@ -266,14 +273,14 @@ function InsuranceDetail() {
             valuations={valuations.data ?? []}
             isLoading={valuations.isLoading}
             isError={valuations.isError}
-            onUpdate={() => setForm("invest")}
+            onUpdate={() => openForm("invest")}
           />
         )}
         {tab === "penerima" && (
           <BeneficiariesTab
             policy={p}
             memberName={memberName}
-            onEdit={() => setForm("info")}
+            onEdit={() => openForm("info")}
           />
         )}
         {tab === "dokumen" && (
@@ -293,7 +300,8 @@ function InsuranceDetail() {
           familyMembers={members.data ?? []}
           membersUnavailable={members.isError}
           accounts={accounts.data ?? []}
-          initialAnchor={form}
+          initialAnchor={focusDates ? undefined : form}
+          focusDates={focusDates}
           onClose={() => setForm(null)}
         />
       )}

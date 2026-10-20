@@ -16,7 +16,9 @@ import {
   formatNative,
   isPayable,
   localizeDates,
+  needsDueConfirmation,
 } from "../asuransi-model";
+import { DueConfirm } from "../policy-row-parts";
 import { projectedDues } from "./detail-model";
 
 import type {
@@ -34,6 +36,8 @@ type Props = {
   isError: boolean;
   accountName: (id: string | null) => string | null;
   onPay: () => void;
+  /** Opens the edit drawer on the dates (legacy due needs confirmation). */
+  onConfirmDue?: () => void;
 };
 
 /**
@@ -51,13 +55,16 @@ export function PaymentsTab({
   isError,
   accountName,
   onPay,
+  onConfirmDue,
 }: Props) {
   const { t, locale } = useLocale();
   const c = t.asuransi.v3.detail;
   const v3 = t.asuransi.v3;
   const queryClient = useQueryClient();
   const [voiding, setVoiding] = useState<InsurancePaymentDto | null>(null);
-  const projected = projectedDues(p, 3);
+  const dueUnconfirmed = needsDueConfirmation(p);
+  // A legacy due that looks like a coverage end projects nothing.
+  const projected = dueUnconfirmed ? [] : projectedDues(p, 3);
 
   const voidPayment = useMutation({
     mutationFn: (paymentId: string) =>
@@ -102,7 +109,7 @@ export function PaymentsTab({
           <h2 id="ins3d-sched" className="ins3-h2">
             {c.scheduleTitle}
           </h2>
-          {isPayable(p) && p.nextPremiumDueDate && (
+          {isPayable(p) && p.nextPremiumDueDate && !dueUnconfirmed && (
             <button
               type="button"
               className="btn btn--primary btn--sm"
@@ -116,8 +123,12 @@ export function PaymentsTab({
           <div className="ins3d-fact">
             <dt>{c.nextDue}</dt>
             <dd>
-              {formatDay(p.nextPremiumDueDate, locale, "long")}
-              {p.premiumDueStatus && (
+              {dueUnconfirmed ? (
+                <DueConfirm onConfirm={onConfirmDue} />
+              ) : (
+                formatDay(p.nextPremiumDueDate, locale, "long")
+              )}
+              {p.premiumDueStatus && !dueUnconfirmed && (
                 <span className="ins3-chip" data-tone={dueTone}>
                   {c.dueStatus[p.premiumDueStatus]}
                 </span>

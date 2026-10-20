@@ -65,6 +65,11 @@ export class InsuranceResponseDto implements InsuranceDto {
   daysUntilNextPremium!: number | null;
   @ApiPropertyOptional({ enum: ["scheduled", "overdue"] })
   premiumDueStatus!: InsuranceDto["premiumDueStatus"];
+  @ApiProperty({
+    description:
+      "Legacy due that looks like a coverage end (further than one premium period ahead): not a premium due until the user confirms it — no countdown, totals or reminders",
+  })
+  dueNeedsConfirmation!: boolean;
   @ApiPropertyOptional({
     description: "Monthly-equivalent premium — a normalization, not a bill",
   })
@@ -108,6 +113,11 @@ export class InsuranceSummaryResponseDto implements InsuranceSummaryDto {
   @ApiPropertyOptional()
   confirmedValues!: InsuranceSummaryDto["confirmedValues"];
   @ApiPropertyOptional() netWorthValueIdr!: string;
+  @ApiProperty({
+    description:
+      "Paying policies whose due needs confirmation — excluded from premiumDue/overdue",
+  })
+  dueNeedsConfirmationCount!: number;
 }
 
 export type { InsuranceValuationDto, InsurancePaymentDto };

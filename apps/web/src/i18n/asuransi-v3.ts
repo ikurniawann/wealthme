@@ -726,6 +726,10 @@ export interface AsuransiV3Copy {
   dueIn: string;
   dueOverdue: string;
   dueUnset: string;
+  dueConfirm: string;
+  dueConfirmHelp: string;
+  dueConfirmAction: string;
+  scheduleConfirmTitle: string;
   paidPeriod: string;
   error: string;
   retry: string;
@@ -909,6 +913,11 @@ export const asuransiV3Id: AsuransiV3Copy = {
   dueIn: "{n} hari lagi",
   dueOverdue: "Terlambat {n} hari",
   dueUnset: "Belum dijadwalkan",
+  dueConfirm: "Perlu dikonfirmasi",
+  dueConfirmHelp:
+    "Tanggal lama mungkin akhir perlindungan. Periksa dan isi jatuh tempo premi berikutnya.",
+  dueConfirmAction: "Periksa tanggal",
+  scheduleConfirmTitle: "Perlu dikonfirmasi",
   paidPeriod: "Lunas periode ini",
   error: "Daftar polis gagal dimuat.",
   retry: "Coba lagi",
@@ -1126,6 +1135,11 @@ export const asuransiV3En: AsuransiV3Copy = {
   dueIn: "in {n} days",
   dueOverdue: "{n} days overdue",
   dueUnset: "Not scheduled",
+  dueConfirm: "Needs confirmation",
+  dueConfirmHelp:
+    "The old date may be the coverage end. Check it and enter the next premium due date.",
+  dueConfirmAction: "Check dates",
+  scheduleConfirmTitle: "Needs confirmation",
   paidPeriod: "Paid this period",
   error: "Could not load policies.",
   retry: "Try again",

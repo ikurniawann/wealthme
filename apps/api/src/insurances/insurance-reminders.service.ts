@@ -11,6 +11,7 @@ import { PrismaService } from "../prisma/prisma.service";
 
 import {
   daysBetween,
+  dueNeedsConfirmation,
   reminderWindowDays,
   todayInTimeZone,
   ymd,
@@ -102,6 +103,8 @@ export class InsuranceRemindersService {
   private async remind(policy: ReminderPolicy, today: Date): Promise<boolean> {
     const due = policy.nextPremiumDueDate;
     if (!due || !PREMIUM_PAYING_STATUSES.includes(policy.status)) return false;
+    // A legacy due that looks like a coverage end is never reminded.
+    if (dueNeedsConfirmation(policy, today)) return false;
     const days = daysBetween(today, due);
     if (days > reminderWindowDays(policy.premiumPeriod)) return false;
 

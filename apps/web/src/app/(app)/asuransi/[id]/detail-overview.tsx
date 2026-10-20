@@ -7,7 +7,9 @@ import {
   formatDay,
   formatNative,
   maskPolicyNumber,
+  needsDueConfirmation,
 } from "../asuransi-model";
+import { DueConfirm } from "../policy-row-parts";
 import { fundViews, statementValue, sumDecimals } from "./detail-model";
 
 import type {
@@ -48,12 +50,15 @@ export function SummaryTab({
   names,
   showNumber,
   onToggleNumber,
+  onConfirmDue,
 }: {
   policy: InsuranceDto;
   valuations: InsuranceValuationDto[];
   names: Names;
   showNumber: boolean;
   onToggleNumber: () => void;
+  /** Opens the edit drawer on the dates (legacy due needs confirmation). */
+  onConfirmDue?: () => void;
 }) {
   const { t, locale } = useLocale();
   const c = t.asuransi.v3.detail;
@@ -137,21 +142,30 @@ export function SummaryTab({
           </p>
         )}
         <dl className="ins3d-facts">
-          <Fact
-            label={c.nextDue}
-            value={day(p.nextPremiumDueDate)}
-            hint={
-              p.daysUntilNextPremium == null
-                ? undefined
-                : p.daysUntilNextPremium < 0
-                  ? fillCopy(v3.dueOverdue, {
-                      n: Math.abs(p.daysUntilNextPremium),
-                    })
-                  : p.daysUntilNextPremium === 0
-                    ? v3.dueToday
-                    : fillCopy(v3.dueIn, { n: p.daysUntilNextPremium })
-            }
-          />
+          {needsDueConfirmation(p) ? (
+            <div className="ins3d-fact">
+              <dt>{c.nextDue}</dt>
+              <dd>
+                <DueConfirm onConfirm={onConfirmDue} />
+              </dd>
+            </div>
+          ) : (
+            <Fact
+              label={c.nextDue}
+              value={day(p.nextPremiumDueDate)}
+              hint={
+                p.daysUntilNextPremium == null
+                  ? undefined
+                  : p.daysUntilNextPremium < 0
+                    ? fillCopy(v3.dueOverdue, {
+                        n: Math.abs(p.daysUntilNextPremium),
+                      })
+                    : p.daysUntilNextPremium === 0
+                      ? v3.dueToday
+                      : fillCopy(v3.dueIn, { n: p.daysUntilNextPremium })
+              }
+            />
+          )}
           <Fact label={c.premiumEnd} value={day(p.premiumPaymentEndDate)} />
           <Fact
             label={c.payAccount}

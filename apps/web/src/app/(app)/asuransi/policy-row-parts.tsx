@@ -34,6 +34,7 @@ import {
   formatDay,
   formatNative,
   isPayable,
+  needsDueConfirmation,
   mainBenefit,
   maskPolicyNumber,
   nextDue,
@@ -42,7 +43,13 @@ import {
 
 import type { InsuranceDto } from "@wealthme/contracts";
 
-export type PolicyAction = "detail" | "edit" | "pay" | "delete";
+export type PolicyAction =
+  | "detail"
+  | "edit"
+  | "pay"
+  | "delete"
+  /** Edit drawer focused on the dates (legacy due needs confirmation). */
+  | "confirmDue";
 
 const TYPE_ICON: Record<string, LucideIcon> = {
   jiwa: Shield,
@@ -157,15 +164,47 @@ export function MainBenefit({ policy }: { policy: InsuranceDto }) {
 }
 
 /** Next PREMIUM due only — coverage end never feeds this countdown. */
+/**
+ * A legacy due that looks like a coverage end: never a countdown or a
+ * "jatuh tempo" date — a "Perlu dikonfirmasi" badge, why, and (optionally)
+ * the quick action that opens the edit drawer on the dates.
+ */
+export function DueConfirm({
+  onConfirm,
+  showHelp = true,
+}: {
+  onConfirm?: () => void;
+  showHelp?: boolean;
+}) {
+  const { t } = useLocale();
+  const c = t.asuransi.v3;
+  return (
+    <span className="ins3-due">
+      <span className="ins3-chip" data-tone="warn">
+        {c.dueConfirm}
+      </span>
+      {showHelp && <small className="ins3-muted">{c.dueConfirmHelp}</small>}
+      {onConfirm && (
+        <button type="button" className="ins3-link" onClick={onConfirm}>
+          {c.dueConfirmAction}
+        </button>
+      )}
+    </span>
+  );
+}
+
 export function DueCell({
   policy,
   showDate = true,
+  onConfirm,
 }: {
   policy: InsuranceDto;
   showDate?: boolean;
+  onConfirm?: () => void;
 }) {
   const { t, locale } = useLocale();
   const c = t.asuransi.v3;
+  if (needsDueConfirmation(policy)) return <DueConfirm onConfirm={onConfirm} />;
   const due = nextDue(policy);
   const tone = dueTone(policy);
   const days = policy.daysUntilNextPremium ?? 0;

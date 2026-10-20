@@ -73,7 +73,10 @@ function PolicyTable({ rows, onAction }: Pick<Props, "rows" | "onAction">) {
                 <MainBenefit policy={p} />
               </td>
               <td>
-                <DueCell policy={p} />
+                <DueCell
+                  policy={p}
+                  onConfirm={() => onAction("confirmDue", p)}
+                />
               </td>
               <td>
                 <StatusPill policy={p} />
@@ -130,7 +133,10 @@ function PolicyCards({ rows, onAction }: Pick<Props, "rows" | "onAction">) {
             <div className="ins3-cardrow-due">
               <dt>{c.colDue}</dt>
               <dd>
-                <DueCell policy={p} />
+                <DueCell
+                  policy={p}
+                  onConfirm={() => onAction("confirmDue", p)}
+                />
               </dd>
             </div>
           </dl>

@@ -21,13 +21,18 @@ import type { InsuranceDto, InsuranceSummaryDto } from "@wealthme/contracts";
 /** Jadwal premi berikutnya — overdue dues + dues within the window. */
 export function PremiumSchedule({
   rows,
+  confirmRows = [],
   isLoading,
   onPay,
+  onConfirm,
   onSeeAll,
 }: {
   rows: InsuranceDto[];
+  /** Legacy dues that look like a coverage end — never scheduled as dues. */
+  confirmRows?: InsuranceDto[];
   isLoading: boolean;
   onPay: (policy: InsuranceDto) => void;
+  onConfirm?: (policy: InsuranceDto) => void;
   onSeeAll: () => void;
 }) {
   const { t, locale } = useLocale();
@@ -92,6 +97,49 @@ export function PremiumSchedule({
             );
           })}
         </ul>
+      )}
+      {!isLoading && confirmRows.length > 0 && (
+        <div className="mt-4" role="group" aria-labelledby="ins3-sched-confirm">
+          <p id="ins3-sched-confirm" className="ins3-callout-title">
+            {c.scheduleConfirmTitle}
+          </p>
+          <small className="ins3-muted">{c.dueConfirmHelp}</small>
+          <ul className="ins3-sched-list">
+            {confirmRows.map((p) => (
+              <li key={p.id} className="ins3-sched-row" data-policy-id={p.id}>
+                <span className="ins3-date" aria-hidden="true">
+                  <strong>?</strong>
+                </span>
+                <span className="ins3-sched-main">
+                  <strong>{p.name}</strong>
+                  <small>{p.provider ?? c.noProvider}</small>
+                  <span className="ins3-chip" data-tone="warn">
+                    {c.dueConfirm}
+                  </span>
+                </span>
+                <span className="ins3-sched-amt">
+                  <span className="ins3-amount">
+                    {money.format(Number(p.premiumAmount))}
+                  </span>
+                  <small>
+                    {t.asuransi.periodOptionLabels[p.premiumPeriod] ??
+                      p.premiumPeriod}
+                  </small>
+                </span>
+                {onConfirm && (
+                  <button
+                    type="button"
+                    className="btn btn--outline btn--sm ins3-pay"
+                    onClick={() => onConfirm(p)}
+                    aria-label={`${c.dueConfirmAction} — ${p.name}`}
+                  >
+                    {c.dueConfirmAction}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   );
