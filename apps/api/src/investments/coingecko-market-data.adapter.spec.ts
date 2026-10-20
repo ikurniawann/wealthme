@@ -2,6 +2,7 @@ import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util
 
 import {
   CoinGeckoMarketDataAdapter,
+  resolveCoinGeckoId,
   toCoinGeckoId,
   UnmappedTickerError,
 } from "./coingecko-market-data.adapter";
@@ -130,5 +131,47 @@ describe("CoinGeckoMarketDataAdapter.getPrice", () => {
     await expect(adapter.getPrice("BTC", "kripto")).rejects.toThrow(
       ExternalRequestTimeoutError,
     );
+  });
+});
+
+// Client report 2026-10-21 — "CoinGecko price unavailable for HBR (hbar)":
+// a typed ticker in "Simbol harga" was used as the coin id.
+describe("resolveCoinGeckoId", () => {
+  it("maps HBAR to hedera-hashgraph, typed any way", () => {
+    expect(toCoinGeckoId("HBAR")).toBe("hedera-hashgraph");
+    expect(resolveCoinGeckoId("HBR", "hbar")).toBe("hedera-hashgraph");
+    expect(resolveCoinGeckoId("HBR", "$HBAR")).toBe("hedera-hashgraph");
+    expect(resolveCoinGeckoId("HBAR", "HBAR-USD")).toBe("hedera-hashgraph");
+  });
+
+  it("keeps an explicit CoinGecko id and falls back to the ticker", () => {
+    expect(resolveCoinGeckoId("XYZ", "hedera-hashgraph")).toBe(
+      "hedera-hashgraph",
+    );
+    expect(resolveCoinGeckoId("BTC", null)).toBe("bitcoin");
+    expect(resolveCoinGeckoId("BTC", "  ")).toBe("bitcoin");
+    expect(resolveCoinGeckoId("NOT_A_REAL_COIN", null)).toBeUndefined();
+  });
+
+  it("requests the mapped id for a typed ticker", async () => {
+    const original = global.fetch;
+    global.fetch = jest.fn().mockResolvedValue(
+      new Response(JSON.stringify({ "hedera-hashgraph": { idr: 4000 } }), {
+        status: 200,
+      }),
+    );
+    try {
+      const quote = await new CoinGeckoMarketDataAdapter().getPrice(
+        "HBR",
+        "kripto",
+        { market: "CRYPTO", priceSymbol: "hbar", currency: "IDR" },
+      );
+      expect(quote.price).toBe(4000);
+      expect(String((global.fetch as jest.Mock).mock.calls[0][0])).toContain(
+        "ids=hedera-hashgraph",
+      );
+    } finally {
+      global.fetch = original;
+    }
   });
 });

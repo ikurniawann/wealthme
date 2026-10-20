@@ -54,14 +54,27 @@ export function toYahooSymbol(
   ticker: string,
   request?: MarketDataRequest,
 ): string {
-  const explicit = request?.priceSymbol?.trim();
-  if (explicit) return explicit.toUpperCase();
+  const explicit = yahooSymbol(request?.priceSymbol);
+  if (explicit) return explicit;
+  const plain = yahooSymbol(ticker) ?? ticker.trim().toUpperCase();
   const market = request?.market ?? null;
-  if (market === "NASDAQ" || market === "NYSE") return ticker.toUpperCase();
+  if (market === "NASDAQ" || market === "NYSE") return plain;
   if (market === null && request && request.currency !== "IDR") {
-    return ticker.toUpperCase();
+    return plain;
   }
-  return toIdxTicker(ticker);
+  return toIdxTicker(plain);
+}
+
+/**
+ * A typed symbol cleaned to Yahoo's alphabet, or null when nothing usable
+ * is left. "Simbol harga" is free text: "$TSLA" (cashtag) and a lone "$"
+ * were sent to Yahoo verbatim ("Market data error for $"), so a cashtag is
+ * unwrapped and anything outside letters, digits and . - ^ = is ignored,
+ * falling back to the ticker/market rule.
+ */
+function yahooSymbol(value: string | null | undefined): string | null {
+  const cleaned = value?.trim().toUpperCase().replace(/^\$+/, "") ?? "";
+  return /^[A-Z0-9][A-Z0-9.\-^=]{0,24}$/.test(cleaned) ? cleaned : null;
 }
 
 /**

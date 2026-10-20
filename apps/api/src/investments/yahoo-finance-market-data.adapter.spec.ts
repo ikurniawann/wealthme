@@ -2,6 +2,7 @@ import { ExternalRequestTimeoutError } from "../common/utils/external-fetch.util
 
 import {
   toIdxTicker,
+  toYahooSymbol,
   YahooFinanceMarketDataAdapter,
 } from "./yahoo-finance-market-data.adapter";
 
@@ -72,5 +73,40 @@ describe("YahooFinanceMarketDataAdapter.getPrice — timeout bound", () => {
     } finally {
       spy.mockRestore();
     }
+  });
+});
+
+// Client report 2026-10-21 — "Price fetch failed for TSLA: Market data error
+// for $": the free-text price symbol was sent to Yahoo verbatim.
+describe("toYahooSymbol — typed price symbols", () => {
+  const us = (priceSymbol: string | null) =>
+    toYahooSymbol("TSLA", { market: "NASDAQ", priceSymbol, currency: "USD" });
+
+  it("ignores a lone $ and falls back to the US ticker", () => {
+    expect(us("$")).toBe("TSLA");
+    expect(us("  ")).toBe("TSLA");
+  });
+
+  it("unwraps a cashtag and keeps a valid explicit symbol", () => {
+    expect(us("$tsla")).toBe("TSLA");
+    expect(us("BRK-B")).toBe("BRK-B");
+  });
+
+  it("routes by market when no symbol is typed", () => {
+    expect(us(null)).toBe("TSLA");
+    expect(
+      toYahooSymbol("$TSLA", {
+        market: "NYSE",
+        priceSymbol: null,
+        currency: "USD",
+      }),
+    ).toBe("TSLA");
+    expect(
+      toYahooSymbol("bbca", {
+        market: "IDX",
+        priceSymbol: "$",
+        currency: "IDR",
+      }),
+    ).toBe("BBCA.JK");
   });
 });

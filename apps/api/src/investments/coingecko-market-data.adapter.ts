@@ -71,10 +71,89 @@ const TICKER_TO_COINGECKO_ID: Readonly<Record<string, string>> = {
   XMR: "monero",
   ALGO: "algorand",
   VET: "vechain",
+  // Client report 2026-10-21 ("CoinGecko price unavailable for HBR (hbar)")
+  // — widened again with coins sold by Indonesian exchanges. Ids verified
+  // against CoinGecko's coin pages; a coin whose id is not the obvious
+  // lowercase name is exactly the case this map exists for.
+  HBAR: "hedera-hashgraph",
+  POL: "polygon-ecosystem-token",
+  DAI: "dai",
+  WBTC: "wrapped-bitcoin",
+  CRO: "crypto-com-chain",
+  KAS: "kaspa",
+  FTM: "fantom",
+  INJ: "injective-protocol",
+  RENDER: "render-token",
+  WLD: "worldcoin-wld",
+  SEI: "sei-network",
+  TIA: "celestia",
+  STX: "blockstack",
+  IMX: "immutable-x",
+  GRT: "the-graph",
+  SAND: "the-sandbox",
+  MANA: "decentraland",
+  AXS: "axie-infinity",
+  APE: "apecoin",
+  GALA: "gala",
+  CHZ: "chiliz",
+  LDO: "lido-dao",
+  QNT: "quant-network",
+  RUNE: "thorchain",
+  CAKE: "pancakeswap-token",
+  EGLD: "elrond-erd-2",
+  SNX: "havven",
+  CRV: "curve-dao-token",
+  EOS: "eos",
+  XTZ: "tezos",
+  THETA: "theta-token",
+  FLOW: "flow",
+  ZEC: "zcash",
+  BONK: "bonk",
+  WIF: "dogwifcoin",
+  FLOKI: "floki",
+  JUP: "jupiter-exchange-solana",
+  TAO: "bittensor",
+  ENA: "ethena",
+  ONDO: "ondo-finance",
+  STRK: "starknet",
+  HYPE: "hyperliquid",
+  TRUMP: "official-trump",
+  PAXG: "pax-gold",
+  XAUT: "tether-gold",
+  IDRT: "rupiah-token",
 };
 
+/** "$HBAR", "hbar-usd", " HBAR/IDR " → "HBAR": the symbol people type. */
+function bareSymbol(value: string): string {
+  return value
+    .trim()
+    .toUpperCase()
+    .replace(/^\$/, "")
+    .replace(/[-/](USD|USDT|IDR)$/, "");
+}
+
 export function toCoinGeckoId(ticker: string): string | undefined {
-  return TICKER_TO_COINGECKO_ID[ticker.toUpperCase()];
+  return TICKER_TO_COINGECKO_ID[bareSymbol(ticker)];
+}
+
+/**
+ * The CoinGecko id for a holding. An explicit `priceSymbol` is the id
+ * ("bitcoin") — unless it is a ticker we map: people type "HBAR" (or
+ * "hbar") there, and "hbar" is not a CoinGecko id, so the price never
+ * resolved. Otherwise the ticker map.
+ */
+export function resolveCoinGeckoId(
+  ticker: string,
+  priceSymbol: string | null | undefined,
+): string | undefined {
+  const explicit = priceSymbol?.trim();
+  if (explicit) {
+    const mapped = toCoinGeckoId(explicit);
+    if (mapped) return mapped;
+    const id = explicit.toLowerCase();
+    if (/^[a-z0-9-]{1,64}$/.test(id)) return id;
+  }
+  return toCoinGeckoId(ticker);
 }
 
 /**
@@ -118,13 +197,9 @@ export class CoinGeckoMarketDataAdapter implements MarketDataPort {
     _type: InvestmentType,
     request?: MarketDataRequest,
   ): Promise<MarketDataQuote> {
-    // Task 8 (R4) — an explicit priceSymbol IS the CoinGecko coin id
-    // ("bitcoin"); otherwise the ticker map below.
-    const explicit = request?.priceSymbol?.trim().toLowerCase();
-    const coinId =
-      explicit && /^[a-z0-9-]{1,64}$/.test(explicit)
-        ? explicit
-        : toCoinGeckoId(ticker);
+    // Task 8 (R4) — an explicit priceSymbol is the CoinGecko coin id
+    // ("bitcoin") or a mapped ticker; otherwise the ticker map.
+    const coinId = resolveCoinGeckoId(ticker, request?.priceSymbol);
     if (!coinId) {
       throw new UnmappedTickerError(ticker);
     }
