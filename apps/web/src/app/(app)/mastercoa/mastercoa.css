@@ -114,3 +114,33 @@
     font-size: 13px;
   }
 }
+
+/* Task 35 — phones: a tile is a flex item, so without min-width: 0 a long
+   account name ("Pendapatan Usaha") pushed its tile and the whole grid past
+   a 375px screen. Tiles now stay in their column and the name may take two
+   lines instead of being clipped. On touch screens the 26px delete button
+   keeps its look and gets an invisible 44px hit area. */
+@layer components {
+  .mc-tilewrap > .wm-btile {
+    min-width: 0;
+  }
+  @media (max-width: 640px) {
+    .mc-cats .wm-btile .mc-tile-name.wm-pv {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      white-space: normal;
+      overflow-wrap: anywhere;
+    }
+  }
+  @media (pointer: coarse) {
+    .mc-tile-del {
+      position: relative;
+    }
+    .mc-tile-del::before {
+      content: "";
+      position: absolute;
+      inset: -9px;
+    }
+  }
+}

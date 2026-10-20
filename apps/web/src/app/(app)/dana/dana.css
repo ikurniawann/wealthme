@@ -1677,3 +1677,27 @@
   line-height: 1.3;
   white-space: normal;
 }
+
+/* Task 35 — touch screens: every Dana control reaches 44px. Text links keep
+   their look; equal padding and negative margin grow only the hit area. */
+@layer components {
+  @media (pointer: coarse) {
+    .kw-eye,
+    .kw-more {
+      min-width: 44px;
+      min-height: 44px;
+    }
+    .kw-eye {
+      margin: -10px 0;
+    }
+    .kw-seg button,
+    .kw-other {
+      min-height: 44px;
+    }
+    a.kw-link,
+    button.kw-link:not(.kw-other) {
+      min-height: 44px;
+      margin-block: -12px;
+    }
+  }
+}

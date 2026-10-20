@@ -445,6 +445,10 @@
     .rk3-rail-btn {
       display: none;
     }
+    .rk3-sheet-btn {
+      width: 44px;
+      height: 44px;
+    }
   }
   .rk3-bp {
     display: flex;

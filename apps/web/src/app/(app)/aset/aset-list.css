@@ -397,3 +397,22 @@
     font-weight: 600;
   }
 }
+
+/* Task 35 — touch screens: the asset name and its "Sumber" badge are links
+   only 21px tall. An invisible 44px hit area grows the tap target without
+   moving a pixel of the row. */
+@layer components {
+  @media (pointer: coarse) {
+    .as3-name-link,
+    a.as3-badge {
+      position: relative;
+    }
+    .as3-name-link::before,
+    a.as3-badge::before {
+      content: "";
+      position: absolute;
+      inset-block: min(0px, calc(50% - 22px));
+      inset-inline: 0;
+    }
+  }
+}

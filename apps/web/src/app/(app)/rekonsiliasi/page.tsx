@@ -2526,7 +2526,7 @@ export default function RekonsiliasiPage() {
                       onClick={() =>
                         setSelectedBankCode(selected ? null : b.code)
                       }
-                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-[12.5px] font-semibold transition-colors pointer-coarse:min-h-11 ${
                         selected
                           ? "border-primary bg-accent"
                           : "bg-card hover:bg-accent/50"
@@ -2629,7 +2629,7 @@ export default function RekonsiliasiPage() {
                   type="button"
                   onClick={() => setShowTips(false)}
                   aria-label={t.rekonsiliasi.closeTipsAriaLabel}
-                  className="absolute right-3 top-2.5 cursor-pointer text-[16px] text-muted-foreground"
+                  className="absolute right-3 top-2.5 cursor-pointer text-[16px] text-muted-foreground pointer-coarse:top-0 pointer-coarse:right-0 pointer-coarse:grid pointer-coarse:size-11 pointer-coarse:place-items-center"
                 >
                   ×
                 </button>

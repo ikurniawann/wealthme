@@ -424,3 +424,13 @@
     }
   }
 }
+
+/* Task 35 — touch screens: "Buat role" and "Lihat cara kerja" reach 44px. */
+@layer components {
+  @media (pointer: coarse) {
+    .iam-role-tile--add,
+    .iam-steps-toggle {
+      min-height: 44px;
+    }
+  }
+}

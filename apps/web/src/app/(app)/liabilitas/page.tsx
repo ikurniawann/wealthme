@@ -2034,7 +2034,7 @@ export default function LiabilitasPage() {
               <Tooltip>
                 <TooltipTrigger
                   aria-label={t.liabilitas.v2.riskTooltip}
-                  className="inline-flex"
+                  className="wm-hit inline-flex"
                 >
                   <Info className="size-3.5 text-muted-foreground" />
                 </TooltipTrigger>

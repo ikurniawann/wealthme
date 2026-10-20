@@ -582,3 +582,12 @@
   background: #2b2c30;
   color: #d0d0cb;
 }
+
+/* Task 35 — touch screens: the back link reaches 44px. */
+@layer components {
+  @media (pointer: coarse) {
+    .iv-detail .ivd-crumb a {
+      min-height: 44px;
+    }
+  }
+}
