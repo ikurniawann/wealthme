@@ -31,6 +31,7 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import { listFromBound, listToBound } from "./list-day-bounds.util";
 import { matchCategoryId } from "./ocr/category-match.util";
 import { OcrNotConfiguredError } from "./ocr/ocr-not-configured.error";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -954,8 +955,8 @@ export class TransactionsService {
       ...(query.categoryId && { categoryId: query.categoryId }),
       ...((query.from ?? query.to) && {
         occurredAt: {
-          ...(query.from && { gte: new Date(query.from) }),
-          ...(query.to && { lte: new Date(query.to) }),
+          ...(query.from && { gte: listFromBound(query.from) }),
+          ...(query.to && { lte: listToBound(query.to) }),
         },
       }),
       AND: andClauses,

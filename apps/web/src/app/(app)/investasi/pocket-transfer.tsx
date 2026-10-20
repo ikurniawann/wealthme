@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AccountDto, PlatformAccountDto } from "@wealthme/contracts";
 import {
@@ -11,6 +13,11 @@ import {
 import { useFxSnapshot } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
+import { useMyAccess } from "@/hooks/use-my-access";
+import { useMyRole } from "@/hooks/use-my-role";
+import { useCanManage } from "@/hooks/use-role-permissions";
+import { useSession } from "@/lib/auth-compat";
+import { apiFetch } from "@/lib/api-client";
 import { investmentWrite } from "./investment-api";
 import { InvestmentConflict } from "./investment-conflict";
 import { apiErrorMessage } from "@/lib/api-error";
@@ -29,6 +36,33 @@ import {
   roundWhole,
 } from "./decimal";
 import { money } from "./portfolio-model";
+import type { PortfolioMember } from "./portfolio-filters";
+import { PlatformForm } from "./platform-form";
+import type { PlatformFormResult } from "./platform-form";
+import { pocketTransferCopy } from "./pocket-transfer-copy";
+import "./pocket-transfer.css";
+
+/** Accounts that can fund / receive a platform transfer (spec §4): active
+ *  bank (not a time deposit), cash or e-wallet with a visible balance, never
+ *  a platform pocket, and — for an "own data" role — only accounts the
+ *  member owns, matching
+ *  TransactionsService.assertAccountOwnedByActingMember. */
+export function eligibleTransferAccounts(
+  accounts: AccountDto[],
+  ownOnlyUserId: string | null,
+): AccountDto[] {
+  return accounts.filter(
+    (a) =>
+      ["bank", "cash", "ewallet"].includes(a.type) &&
+      a.status !== "closed" &&
+      a.balance !== null &&
+      !a.platformAccountId &&
+      // A time deposit is locked until maturity; it pays out to a savings
+      // account rather than funding a platform directly.
+      a.productKind !== "time_deposit" &&
+      (ownOnlyUserId === null || a.ownerUserId === ownOnlyUserId),
+  );
+}
 
 export function PocketTransfer({
   platforms,
@@ -51,18 +85,43 @@ export function PocketTransfer({
 }) {
   const { t, locale } = useLocale();
   const f = t.investasi.forms;
+  const copy = pocketTransferCopy(locale);
   const { hideBalance } = useMoney();
+  const { data: session } = useSession();
+  const myUserId = session?.userId ?? "";
+  const { myRole } = useMyRole();
+  const { access } = useMyAccess();
+  const { canManage } = useCanManage("Investment");
+  const members = useQuery({
+    queryKey: ["investment-members", fg, token],
+    queryFn: () =>
+      apiFetch<PortfolioMember[]>(`/family-groups/${fg}/members`, { token }),
+    enabled: !!canManage,
+  });
+  const [addPocket, setAddPocket] = useState<{
+    platform: PlatformAccountDto | null;
+  } | null>(null);
   const pockets = platforms.flatMap((p) =>
     (p.pockets ?? [])
       .filter((p) => p.status !== "closed" && !p.balancesHidden)
       .map((pocket) => ({ platform: p, pocket })),
   );
-  const banks = accounts.filter(
-    (a) =>
-      ["bank", "cash", "ewallet"].includes(a.type) &&
-      a.status !== "closed" &&
-      a.balance !== null,
+  const banks = eligibleTransferAccounts(
+    accounts,
+    access?.dataScope === "own" ? myUserId : null,
   );
+  const pocketless = platforms.filter(
+    (p) => !(p.pockets ?? []).some((k) => k.status !== "closed"),
+  );
+  const platformName = (p: PlatformAccountDto) =>
+    p.label ?? p.platformName ?? p.customName ?? p.platformKey;
+  const onPocketCreated = (created?: PlatformFormResult) => {
+    onSaved();
+    if (created?.pocketId) {
+      setPocketId(created.pocketId);
+      resetAmounts();
+    }
+  };
   const [pocketId, setPocketId] = useState(
     initialPocketId ?? pockets[0]?.pocket.id ?? "",
   );
@@ -188,52 +247,97 @@ export function PocketTransfer({
     >
       <DialogContent className="iv-dialog iv-transfer">
         <form onSubmit={save}>
-          <header className="iv-dialog-head">
+          <header className="iv-dialog-head wm-dark">
             <DialogTitle>{withdraw ? f.withdraw : f.transferTitle}</DialogTitle>
             <DialogDescription>{f.transferSub}</DialogDescription>
           </header>
           <div className="iv-form-body">
-            <label className="field">
-              <span className="label">
-                {withdraw ? f.destination : f.source} *
-              </span>
-              <select
-                className="select"
-                required
-                value={bankId}
-                onChange={(e) => {
-                  setBankId(e.target.value);
-                  resetAmounts();
-                }}
-              >
-                <option value="">{f.choose}</option>
-                {banks.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name} · {a.currency}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span className="label">{f.pocket} *</span>
-              <select
-                className="select"
-                required
-                value={pocketId}
-                onChange={(e) => {
-                  setPocketId(e.target.value);
-                  resetAmounts();
-                }}
-              >
-                <option value="">{f.choose}</option>
-                {pockets.map(({ platform, pocket }) => (
-                  <option key={pocket.id} value={pocket.id}>
-                    {platform.label ?? platform.platformName} · {pocket.name} ·{" "}
-                    {pocket.currency}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {banks.length === 0 ? (
+              <div className="iv-pt-empty" role="status">
+                <strong>
+                  {withdraw ? f.destination : f.source} · {copy.noBankTitle}
+                </strong>
+                <p>{copy.noBankBody}</p>
+                <div className="iv-pt-empty-actions">
+                  <Link className="btn btn--outline" href="/rekening">
+                    {copy.addBank}
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <label className="field">
+                <span className="label">
+                  {withdraw ? f.destination : f.source} *
+                </span>
+                <select
+                  className="select"
+                  required
+                  value={bankId}
+                  onChange={(e) => {
+                    setBankId(e.target.value);
+                    resetAmounts();
+                  }}
+                >
+                  <option value="">{f.choose}</option>
+                  {banks.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} · {a.currency}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {pockets.length === 0 ? (
+              <div className="iv-pt-empty" role="status">
+                <strong>{copy.noPocketTitle}</strong>
+                <p>{canManage ? copy.noPocketBody : copy.noPocketReadOnly}</p>
+                {canManage && (
+                  <div className="iv-pt-empty-actions">
+                    {pocketless.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="btn btn--primary"
+                        onClick={() => setAddPocket({ platform: p })}
+                      >
+                        {copy.addPocketTo(platformName(p))}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className={`btn ${pocketless.length ? "btn--outline" : "btn--primary"}`}
+                      onClick={() => setAddPocket({ platform: null })}
+                    >
+                      {copy.addPlatformPocket}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <label className="field">
+                <span className="label">{f.pocket} *</span>
+                <select
+                  className="select"
+                  required
+                  value={pocketId}
+                  onChange={(e) => {
+                    setPocketId(e.target.value);
+                    resetAmounts();
+                  }}
+                >
+                  <option value="">{f.choose}</option>
+                  {pockets.map(({ platform, pocket }) => (
+                    <option key={pocket.id} value={pocket.id}>
+                      {platformName(platform)} · {f[pocket.pocketKind]} ·{" "}
+                      {pocket.currency} · {copy.available}{" "}
+                      {pocket.heldIncomplete
+                        ? "—"
+                        : fmt(pocket.availableBalance)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <AmountInput
               label={f.sourceAmount}
               currency={sourceCur}
@@ -336,12 +440,30 @@ export function PocketTransfer({
             </button>
             <button
               className="btn btn--primary"
-              disabled={busy || unsupported || insufficient}
+              disabled={
+                busy ||
+                unsupported ||
+                insufficient ||
+                !banks.length ||
+                !pockets.length
+              }
             >
               {busy ? f.saving : f.save}
             </button>
           </footer>
         </form>
+        {addPocket && (
+          <PlatformForm
+            fg={fg}
+            token={token}
+            members={members.data ?? []}
+            myUserId={myUserId}
+            isMaster={myRole === "owner" || myRole === "spouse"}
+            platform={addPocket.platform}
+            onClose={() => setAddPocket(null)}
+            onSaved={onPocketCreated}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
