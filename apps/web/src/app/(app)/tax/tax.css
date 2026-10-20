@@ -99,4 +99,22 @@
     background: var(--muted);
     text-align: center;
   }
+
+  /* Task 35 — phones: the four marital-status options cannot share one
+     375px row without truncating "K/I (penghasilan istri digabung)", and
+     their min-content width pushed the whole field 120px past the screen.
+     Let the options wrap onto a second row at their natural width. */
+  @media (max-width: 640px) {
+    .tax-calculator-grid > * {
+      min-width: 0;
+    }
+    .wm-seg--full {
+      flex-wrap: wrap;
+      border-radius: 16px;
+    }
+    .wm-seg--full button {
+      flex: 1 1 auto;
+      overflow: visible;
+    }
+  }
 }

@@ -125,7 +125,7 @@ export function FinalIncomePanel({
         <div className="notice notice--info">{t.tax.final.emptyStateNote}</div>
       ) : (
         <div className="table-wrap">
-          <table className="table table--num">
+          <table className="table table--num wm-stack-table">
             <thead>
               <tr>
                 <th></th>
@@ -145,7 +145,7 @@ export function FinalIncomePanel({
                     line.entryId ?? `${line.source}-${line.instrument}-${idx}`
                   }
                 >
-                  <td>
+                  <td data-label="">
                     <span
                       className={`badge ${
                         line.source === "holding"
@@ -166,11 +166,16 @@ export function FinalIncomePanel({
                       </div>
                     )}
                   </td>
-                  <td className="mono">
+                  <td
+                    data-label={t.tax.final.fieldGross}
+                    className="wm-amount mono"
+                  >
                     {formatRupiah(Number(line.grossAmount))}
                   </td>
-                  <td>{formatBps(line.rateBps)}</td>
-                  <td className="mono">
+                  <td data-label={t.tax.ter.colRate}>
+                    {formatBps(line.rateBps)}
+                  </td>
+                  <td data-label={t.tax.umkm.colTax} className="mono">
                     {line.tax === null ? (
                       <>
                         <span>—</span>
@@ -182,13 +187,13 @@ export function FinalIncomePanel({
                       formatRupiah(Number(line.tax))
                     )}
                   </td>
-                  <td>
+                  <td data-label="">
                     {line.caveat ? t.tax.final.caveats[line.caveat] : "—"}
                   </td>
-                  <td>
+                  <td data-label="">
                     <TaxRuleBadge rules={[line.rule]} />
                   </td>
-                  <td>
+                  <td data-label="">
                     {line.source === "entry" && canManage && line.entryId && (
                       <RowActions
                         onEdit={() => openEdit(line)}

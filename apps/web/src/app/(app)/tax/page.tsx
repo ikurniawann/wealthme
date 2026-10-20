@@ -602,7 +602,7 @@ function TaxPageContent() {
           action={
             <Link
               href="/kalkulator"
-              className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+              className="wm-textlink text-xs font-semibold whitespace-nowrap text-primary hover:underline"
             >
               {t.tax.calculatorOtherLink}
             </Link>
@@ -834,7 +834,7 @@ function TaxPageContent() {
       {/* Breakdown Tarif Progresif */}
       <SectionCard title={t.tax.progressiveBreakdownTitle}>
         <div className="w-full overflow-x-auto">
-          <table className="w-full min-w-[420px] border-collapse text-[12.5px]">
+          <table className="wm-stack-table w-full min-w-[420px] border-collapse text-[12.5px]">
             <thead>
               <tr className="border-b">
                 <th className="py-2 text-left font-semibold text-muted-foreground">
@@ -868,11 +868,19 @@ function TaxPageContent() {
                     className="border-b last:border-b-0"
                   >
                     <td className="py-2">{b.label}</td>
-                    <td className="py-2 text-center">{formatBps(b.rateBps)}</td>
-                    <td className="mono py-2 text-right">
+                    <td data-label={t.tax.colRate} className="py-2 text-center">
+                      {formatBps(b.rateBps)}
+                    </td>
+                    <td
+                      data-label={t.tax.colTaxableBase}
+                      className="wm-amount mono py-2 text-right"
+                    >
                       {formatRupiah(Number(b.taxable))}
                     </td>
-                    <td className="mono py-2 text-right">
+                    <td
+                      data-label={t.tax.colTax}
+                      className="wm-amount mono py-2 text-right"
+                    >
                       {formatRupiah(Number(b.tax))}
                     </td>
                   </tr>

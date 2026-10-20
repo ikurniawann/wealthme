@@ -172,7 +172,7 @@ export function TerPanel({
         <button
           type="button"
           onClick={() => setEditMonths((v) => !v)}
-          className="hint text-primary hover:underline"
+          className="hint wm-textlink text-primary hover:underline"
         >
           {t.tax.ter.editMonthsToggle}
         </button>
@@ -302,7 +302,10 @@ export function TerPanel({
           {/* Task 10 carry — full-width regardless of whether the daily-wage
               field beside it is rendered, so this never becomes an orphan
               half row when `employment === "permanent"`. */}
-          <div className="field flex items-center gap-2 pt-5 md:col-span-2">
+          <label
+            htmlFor="ter-dtp-nik"
+            className="field flex items-center gap-2 pt-5 text-[13px] md:col-span-2"
+          >
             <input
               id="ter-dtp-nik"
               type="checkbox"
@@ -310,10 +313,8 @@ export function TerPanel({
               onChange={(e) => setNikValidated(e.target.checked)}
               className="size-4 accent-primary"
             />
-            <label htmlFor="ter-dtp-nik" className="text-[13px]">
-              {t.tax.ter.dtpNikLabel}
-            </label>
-          </div>
+            <span>{t.tax.ter.dtpNikLabel}</span>
+          </label>
         </div>
       </fieldset>
 

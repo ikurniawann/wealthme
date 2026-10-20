@@ -683,7 +683,10 @@ export default function DonationPage() {
                     onChange={setDebt}
                   />
                 </div>
-                <div className="mt-3.5 flex items-center gap-2">
+                <label
+                  htmlFor="donation-zakat-haul"
+                  className="mt-3.5 flex items-center gap-2 text-[12.5px] text-muted-foreground"
+                >
                   <input
                     id="donation-zakat-haul"
                     type="checkbox"
@@ -691,13 +694,8 @@ export default function DonationPage() {
                     onChange={(e) => setHaulConfirmed(e.target.checked)}
                     className="size-4 accent-primary"
                   />
-                  <label
-                    htmlFor="donation-zakat-haul"
-                    className="text-[12.5px] text-muted-foreground"
-                  >
-                    {t.donation.haulCheckboxLabel}
-                  </label>
-                </div>
+                  <span>{t.donation.haulCheckboxLabel}</span>
+                </label>
                 <div className="mt-4 rounded-[12px] border border-primary/15 bg-accent p-4 text-center">
                   <div className="text-[11.5px] text-muted-foreground">
                     {t.donation.zakatDueLabel}
@@ -829,7 +827,7 @@ export default function DonationPage() {
               </InfoTip>
               <Link
                 href="/laporan"
-                className="text-xs font-semibold whitespace-nowrap text-primary hover:underline"
+                className="wm-textlink text-xs font-semibold whitespace-nowrap text-primary hover:underline"
               >
                 {t.donation.historyLaporanLink}
               </Link>

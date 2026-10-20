@@ -53,7 +53,7 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
           </div>
         ) : (
           <div className="table-wrap">
-            <table className="table table--num">
+            <table className="table table--num wm-stack-table">
               <thead>
                 <tr>
                   <th style={{ width: "42%" }}>
@@ -70,17 +70,23 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                 {assetBreakdownRows.map((row) => (
                   <tr key={row.key}>
                     <td className="t-bold">{row.label}</td>
-                    <td>
+                    <td data-label={t.ringkasan.breakdownColJenis}>
                       <StatusBadge variant={row.badgeVariant}>
                         {row.badgeLabel}
                       </StatusBadge>
                     </td>
-                    <td className="t-xs t-muted mono">
+                    <td
+                      data-label={t.ringkasan.breakdownColPorsi}
+                      className="t-xs t-muted mono"
+                    >
                       {totalAssets > 0
                         ? `${formatPercent1((row.amount / totalAssets) * 100, dateLocale)}%`
                         : t.ringkasan.noDataDash}
                     </td>
-                    <td className="mono t-bold t-success private">
+                    <td
+                      data-label={t.ringkasan.breakdownColNilai}
+                      className="wm-amount mono t-bold t-success private"
+                    >
                       {moneyFull(row.amount)}
                     </td>
                   </tr>
@@ -91,8 +97,16 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                       {t.ringkasan.breakdownTotalAssetsRow}
                     </td>
                     <td />
-                    <td className="t-xs t-muted mono">100%</td>
-                    <td className="mono t-black t-success private">
+                    <td
+                      data-label={t.ringkasan.breakdownColPorsi}
+                      className="t-xs t-muted mono"
+                    >
+                      100%
+                    </td>
+                    <td
+                      data-label={t.ringkasan.breakdownColNilai}
+                      className="wm-amount mono t-black t-success private"
+                    >
                       {moneyFull(totalAssets)}
                     </td>
                   </tr>
@@ -101,17 +115,23 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                 {allLiabilities.map((liability) => (
                   <tr key={liability.id}>
                     <td className="t-bold">{liability.name}</td>
-                    <td>
+                    <td data-label={t.ringkasan.breakdownColJenis}>
                       <StatusBadge variant="gray">
                         {t.ringkasan.breakdownBadgeLiabilitas}
                       </StatusBadge>
                     </td>
-                    <td className="t-xs t-muted mono">
+                    <td
+                      data-label={t.ringkasan.breakdownColPorsi}
+                      className="t-xs t-muted mono"
+                    >
                       {totalLiabilities > 0
                         ? `${formatPercent1((Number(liability.remainingBalance) / totalLiabilities) * 100, dateLocale)}%`
                         : t.ringkasan.noDataDash}
                     </td>
-                    <td className="mono t-bold private">
+                    <td
+                      data-label={t.ringkasan.breakdownColNilai}
+                      className="wm-amount mono t-bold private"
+                    >
                       {moneyFull(Number(liability.remainingBalance))}
                     </td>
                   </tr>
@@ -122,8 +142,16 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                       {t.ringkasan.breakdownTotalLiabilitiesRow}
                     </td>
                     <td />
-                    <td className="t-xs t-muted mono">100%</td>
-                    <td className="mono t-black private">
+                    <td
+                      data-label={t.ringkasan.breakdownColPorsi}
+                      className="t-xs t-muted mono"
+                    >
+                      100%
+                    </td>
+                    <td
+                      data-label={t.ringkasan.breakdownColNilai}
+                      className="wm-amount mono t-black private"
+                    >
                       {moneyFull(totalLiabilities)}
                     </td>
                   </tr>
@@ -133,11 +161,12 @@ export function BreakdownTableSection({ data }: { data: RingkasanData }) {
                   <td className="t-black">
                     {t.ringkasan.breakdownNetWorthRow}
                   </td>
-                  <td colSpan={2} className="t-xs t-muted">
+                  <td colSpan={2} data-label="" className="t-xs t-muted">
                     {t.ringkasan.breakdownNetWorthFormula}
                   </td>
                   <td
-                    className="mono t-black t-primary private"
+                    data-label={t.ringkasan.breakdownColNilai}
+                    className="wm-amount mono t-black t-primary private"
                     style={{ fontSize: 15 }}
                   >
                     {moneyFull(totalAssets - totalLiabilities)}
