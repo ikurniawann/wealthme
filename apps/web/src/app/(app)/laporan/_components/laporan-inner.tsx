@@ -82,7 +82,12 @@ function fmtDay(iso: string, locale: string) {
 
 /* ───────────────────────── Page shell ───────────────────────── */
 
-export function LaporanInner() {
+export function LaporanInner({
+  phoneMonth = null,
+}: {
+  /** Phone summary's "YYYY-MM" while its full report is open (page.tsx). */
+  phoneMonth?: string | null;
+} = {}) {
   const sp = useSearchParams();
   const router = useRouter();
   const tab = sp.get("tab") ?? "rsum";
@@ -182,6 +187,18 @@ export function LaporanInner() {
   const [draftPreset, setDraftPreset] =
     useState<ReportRangePreset>(rangePreset);
   const [draftMode, setDraftMode] = useState<"month" | "preset">("preset");
+  // Phones: opening the full report from the month summary shows that month.
+  // Adjusted during render (not in an effect) so the report never paints the
+  // previous period first; closing resets the marker so a reopen re-syncs.
+  const [syncedPhoneMonth, setSyncedPhoneMonth] = useState<string | null>(null);
+  if (phoneMonth !== syncedPhoneMonth) {
+    setSyncedPhoneMonth(phoneMonth);
+    if (phoneMonth) {
+      const [y, m] = phoneMonth.split("-").map(Number);
+      pickMonth(y, m);
+    }
+  }
+
   function openPeriodSheet() {
     setDraftYear(filterYear);
     setDraftMonth(filterMonth);
@@ -685,7 +702,11 @@ export function LaporanInner() {
   }
 
   return (
-    <div className="lp-page">
+    <div
+      className="lp-page"
+      id="laporan-full"
+      data-phone-open={phoneMonth ? true : undefined}
+    >
       {/* ONE Periode control at every width: the button shows the active range
           and opens the sheet holding Tahun / Bulan / Rentang (a bottom sheet on
           phones, a centred dialog on desktop). Replaces the old filter card. */}

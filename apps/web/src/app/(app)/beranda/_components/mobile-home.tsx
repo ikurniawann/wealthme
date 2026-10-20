@@ -1,30 +1,25 @@
 "use client";
 
-import { currencyDisplay } from "@/lib/format";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { Plus } from "lucide-react";
-import type {
-  AccountDto,
-  DashboardSummaryDto,
-  GoalDto,
-} from "@wealthme/contracts";
-import { AccountCard, GoalIcon, Track, useCardLooks } from "@/components/wm";
-import { useCountUp } from "@/components/wm/motion";
-import { useEnterMotionChildren } from "@/components/wm/use-enter-motion";
-import { useShell } from "@/components/shell/shell-context";
-import { useLocale } from "@/hooks/use-locale";
-import { useMyAccess } from "@/hooks/use-my-access";
-import { canRecordTransaction } from "@/lib/nav";
-import { DELTA_ARROW, deltaSrText, deltaTone } from "@/lib/delta";
+import { useState } from "react";
 import {
-  monthCompareCaption,
-  type MonthCompareBase,
-} from "@/lib/month-compare";
-import { initials, memberTint, monthDelta } from "./bento-sections";
-import { bucketDays, useBerandaFlow } from "./use-beranda-flow";
-import type { BerandaMember, MoneyFormatters } from "./use-beranda-data";
+  ArrowLeftRight,
+  ArrowUpRight,
+  ChevronRight,
+  Wallet,
+} from "lucide-react";
+import type {
+  DashboardSummaryDto,
+  LiabilityDto,
+  NetWorthHistoryPointDto,
+} from "@wealthme/contracts";
+import { SparklineChart } from "@/components/charts/apex-presets";
+import { CategoryIcon } from "@/components/shell/tx-pickers";
+import { useLocale } from "@/hooks/use-locale";
+import { dueState, effectiveDueDate } from "@/lib/due-date";
+import { berandaMobileCopy } from "./mobile-copy";
+import type { MoneyFormatters } from "./use-beranda-data";
+import "./mobile-home.css";
 
 const DOTS = 8;
 
@@ -48,278 +43,205 @@ export function dotColumns(
 }
 
 /**
- * Phone-only Beranda (prototype `.mhome`, <= 720px): notched dark card with an
- * account carousel, the net worth and two actions, then spending and latest
- * transaction tiles, a six-month dot chart and goals. The desktop bento is
- * hidden at that width; both read the same data.
+ * The net-worth points to draw: this calendar month when it holds at least two
+ * snapshots, else the last 30 days, else nothing (the sparkline is hidden).
+ * Reads the history the desktop hero already fetched; no extra request.
+ */
+export function monthHistory(
+  points: readonly NetWorthHistoryPointDto[],
+  now: Date,
+): NetWorthHistoryPointDto[] {
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const inMonth = points.filter(
+    (p) => new Date(p.capturedAt).getTime() >= monthStart,
+  );
+  if (inMonth.length >= 2) return inMonth;
+  const since = now.getTime() - 30 * 86_400_000;
+  const recent = points.filter(
+    (p) => new Date(p.capturedAt).getTime() >= since,
+  );
+  return recent.length >= 2 ? recent : [];
+}
+
+/** Installments overdue or due soon, plus pending approvals. */
+function reminderCount(liabilities: LiabilityDto[], approvals: number) {
+  const now = new Date();
+  const due = liabilities.filter((item) => {
+    const date = effectiveDueDate(item);
+    if (!date) return false;
+    const isLate = item.nextDueDate ? item.currentInstallmentLate : null;
+    return dueState(date, { now, isLate }).state !== "later";
+  }).length;
+  return { due, total: due + approvals };
+}
+
+type Recent = DashboardSummaryDto["recentTransactions"][number];
+
+function RecentRow({ tx, fmt }: { tx: Recent; fmt: MoneyFormatters }) {
+  const isTransfer = tx.type === "transfer";
+  const sign = tx.type === "income" ? "+" : tx.type === "expense" ? "-" : "";
+  const amount = `${sign}${fmt.money(Math.abs(tx.amount))}`;
+  return (
+    <li>
+      <Link
+        href={`/transaksi?tx=${encodeURIComponent(tx.id)}`}
+        className="bmh-tx"
+      >
+        <span className="bmh-tile" aria-hidden="true">
+          {isTransfer ? (
+            <ArrowLeftRight />
+          ) : (
+            <CategoryIcon name={tx.categoryName ?? ""} />
+          )}
+        </span>
+        <span className="bmh-tx-t">
+          <b>{tx.description || tx.categoryName || "—"}</b>
+          <small>{tx.accountName ?? tx.categoryName ?? "—"}</small>
+        </span>
+        <span className="bmh-amt wm-num" data-type={tx.type}>
+          {amount}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * Phone-only Beranda (<= 720px), per docs/design/refs/2026-10-20: a lime
+ * "Kekayaan bersih" card with the month's net-worth sparkline, the as-of date,
+ * this month's spending, the last transactions and a reminders row. The
+ * greeting stays in the shell's `PageGreeting`; the desktop bento is hidden at
+ * this width and both read the same data.
  */
 export function MobileHome({
   netWorth,
-  accounts,
-  members,
+  balancesHidden,
+  history,
   currentMonth,
-  cashflow,
-  monthCompare,
   transactions,
-  goals,
+  liabilities,
+  pendingApprovalsCount,
   fmt,
 }: {
   netWorth: number;
-  accounts: AccountDto[];
-  members: BerandaMember[];
+  balancesHidden: boolean;
+  history: NetWorthHistoryPointDto[];
   currentMonth: DashboardSummaryDto["currentMonth"] | undefined;
-  cashflow: DashboardSummaryDto["cashflow"] | undefined;
-  monthCompare?: MonthCompareBase;
   transactions: DashboardSummaryDto["recentTransactions"];
-  goals: GoalDto[];
+  liabilities: LiabilityDto[];
+  pendingApprovalsCount: number;
   fmt: MoneyFormatters;
 }) {
-  const { t } = useLocale();
-  const v2 = t.beranda.v2;
-  const router = useRouter();
-  const { setTxnOpen } = useShell();
-  const { access } = useMyAccess();
-  const [slide, setSlide] = useState(0);
-  const { lookFor } = useCardLooks(accounts);
-  // The balance counts up once it loads (reduced motion: shown at once).
-  const shownNetWorth = useCountUp(netWorth, 900);
-  const homeRef = useRef<HTMLElement>(null);
-  useEnterMotionChildren(homeRef);
-  const ordered = [...accounts]
-    .sort((a, b) => Number(b.balance) - Number(a.balance))
-    .slice(0, 6);
-  const spendDelta = monthDelta(cashflow?.expense, "expense", monthCompare);
-  const last = transactions[0];
-  const flow = useBerandaFlow(7);
-  const days = bucketDays(flow.window, 7, flow.today, (date) =>
-    date.toLocaleDateString(t.beranda.dateLocale, { weekday: "short" }),
-  );
-  const columns = dotColumns(
-    days.map((day) => day.income),
-    days.map((day) => day.expense),
-  );
-  const canAdd = canRecordTransaction(access);
+  const { t, locale } = useLocale();
+  const c = berandaMobileCopy(locale);
+  const [now] = useState(() => new Date());
+  const dateLocale = t.beranda.dateLocale;
+  const points = monthHistory(history, now);
+  const values = points.map((p) => Number(p.netWorth));
+  const tick = (p: NetWorthHistoryPointDto | undefined) =>
+    p
+      ? new Date(p.capturedAt).toLocaleDateString(dateLocale, {
+          day: "numeric",
+          month: "short",
+        })
+      : "";
+  const ticks = [
+    points[0],
+    points[Math.floor((points.length - 1) / 2)],
+    points[points.length - 1],
+  ].map(tick);
+  const value = balancesHidden ? "—" : fmt.money(netWorth);
+  const reminders = reminderCount(liabilities, pendingApprovalsCount);
+  const remindersHref =
+    reminders.due > 0 && pendingApprovalsCount > 0
+      ? "/notifikasi"
+      : reminders.due > 0
+        ? "/liabilitas"
+        : "/persetujuan";
 
   return (
-    <section
-      ref={homeRef}
-      className="beranda-mhome"
-      aria-label={t.beranda.title}
-    >
-      <div className="wm-card wm-dark beranda-mh-card">
-        <span className="beranda-mh-badge" aria-hidden="true">
-          Rp
-        </span>
-        <p className="beranda-mh-total wm-num">
-          <span aria-hidden="true">{fmt.money(shownNetWorth)}</span>
-          <span className="sr-only">{fmt.money(netWorth)}</span>
+    <section className="beranda-mhome bmh" aria-label={t.beranda.title}>
+      <div className="bmh-card">
+        <h2 className="bmh-label">{c.netWorth}</h2>
+        <p
+          className="bmh-value wm-num"
+          data-long={value.length > 15 || undefined}
+          aria-label={balancesHidden ? c.hidden : undefined}
+        >
+          {value}
         </p>
-        <p className="beranda-mh-cap">{v2.heroCaption}</p>
-        {ordered.length > 0 && (
-          <>
-            <div
-              className="beranda-mh-accs"
-              onScroll={(event) => {
-                const el = event.currentTarget;
-                setSlide(
-                  Math.round(el.scrollLeft / Math.max(1, el.clientWidth)),
-                );
-              }}
-            >
-              {ordered.map((account) => (
-                <Link
-                  key={account.id}
-                  href="/rekening"
-                  className="beranda-mh-acc"
-                >
-                  <AccountCard
-                    look={lookFor(account.id, account.type)}
-                    bank={account.institution ?? account.name}
-                    name={account.name}
-                    number={
-                      account.maskedNumber
-                        ? `**** ${account.maskedNumber.slice(-4)}`
-                        : null
-                    }
-                    holder={account.ownerName ?? ""}
-                    balance={fmt.money(Number(account.balance))}
-                  />
-                </Link>
+        {values.length >= 2 && !balancesHidden && (
+          <div className="bmh-spark">
+            <SparklineChart
+              data={values}
+              height={88}
+              ariaLabel={c.sparkAria
+                .replace("{from}", ticks[0])
+                .replace("{to}", ticks[2])}
+            />
+            <div className="bmh-ticks" aria-hidden="true">
+              {ticks.map((label, index) => (
+                <span key={index}>{label}</span>
               ))}
             </div>
-            {ordered.length > 1 && (
-              <div className="beranda-mh-dots" aria-hidden="true">
-                {ordered.map((account, index) => (
-                  <i key={account.id} data-on={index === slide || undefined} />
-                ))}
-              </div>
-            )}
-          </>
+          </div>
         )}
-        <div className="beranda-mh-acts">
-          {canAdd && (
-            <button
-              type="button"
-              data-solid="true"
-              onClick={() => setTxnOpen(true)}
-            >
-              {v2.actRecord}
-            </button>
-          )}
-          <button
-            type="button"
-            data-solid={canAdd ? undefined : "true"}
-            onClick={() => router.push("/transaksi")}
-          >
-            {v2.actHistory}
-          </button>
-        </div>
-      </div>
-
-      <div className="beranda-mh-two">
-        <Link href="/anggaran" className="beranda-mh-tile">
-          <span className="beranda-mh-h">
-            <span className="beranda-mh-d">
-              <i>{currencyDisplay(fmt.currency).symbol}</i>
-              {v2.mExpense}
-            </span>
-          </span>
-          <span className="beranda-mh-v wm-num">
-            {fmt.money(currentMonth?.expense ?? 0)}
-            {spendDelta && (
-              <em data-tone={deltaTone(spendDelta.dir, "lower-better")}>
-                {spendDelta.dir !== "flat" && (
-                  <span aria-hidden="true">{DELTA_ARROW[spendDelta.dir]} </span>
-                )}
-                {Math.round(spendDelta.pct)}%
-                <span className="sr-only">
-                  {deltaSrText(
-                    spendDelta.dir,
-                    deltaTone(spendDelta.dir, "lower-better"),
-                    t.common.delta,
-                  )}
-                </span>
-              </em>
-            )}
-          </span>
-          <small>
-            {spendDelta
-              ? monthCompareCaption(
-                  spendDelta.comparison,
-                  {
-                    window: v2.compareWindow,
-                    fullMonth: v2.compareFullMonth,
-                    lastMonth: t.beranda.thisMonth,
-                  },
-                  t.beranda.dateLocale,
-                )
-              : t.beranda.thisMonth}
-          </small>
+        <Link
+          href="/ringkasan"
+          className="bmh-go"
+          aria-label={c.netWorthDetail}
+        >
+          <ArrowUpRight aria-hidden="true" />
         </Link>
-        <div className="beranda-mh-tile">
-          <span className="beranda-mh-h">{v2.mLastTx}</span>
-          <small
-            className="mt-auto line-clamp-2 tabular-nums"
-            title={last ? fmt.money(Math.abs(last.amount)) : undefined}
-          >
-            {last
-              ? `${last.description || last.categoryName || ""} · ${fmt.money(Math.abs(last.amount))}`
-              : t.beranda.noTransactions}
-          </small>
-          <div className="beranda-mh-av">
-            {members.slice(0, 3).map((member, index) => (
-              <span
-                key={member.id}
-                className="wm-avatar"
-                style={memberTint(index)}
-                title={member.name}
-              >
-                {initials(member.name)}
-              </span>
-            ))}
-            {canAdd && (
-              <button
-                type="button"
-                aria-label={t.shell.addTransaction}
-                onClick={() => setTxnOpen(true)}
-              >
-                <Plus aria-hidden="true" />
-              </button>
-            )}
-          </div>
-        </div>
       </div>
+      <p className="bmh-asof">
+        {c.asOf.replace(
+          "{date}",
+          now.toLocaleDateString(dateLocale, { day: "numeric", month: "long" }),
+        )}
+      </p>
 
-      {columns.length > 0 && (
-        <div className="beranda-mh-stat">
-          <div className="beranda-mh-h">
-            <span>{v2.mStats}</span>
-            <Link href="/ringkasan" className="beranda-more">
-              {v2.detail}
-            </Link>
-          </div>
-          <div
-            className="beranda-mh-matrix"
-            role="img"
-            aria-label={v2.cashflowAria}
-          >
-            {columns.map((column, index) => (
-              <div key={index} className="beranda-mh-col">
-                <span>{days[index].label}</span>
-                {Array.from({ length: DOTS }, (_, dot) => (
-                  <i
-                    key={dot}
-                    data-v={
-                      dot < column.expense
-                        ? "b"
-                        : dot < column.expense + column.income
-                          ? "a"
-                          : undefined
-                    }
-                  />
-                ))}
-              </div>
-            ))}
-          </div>
-          <div className="beranda-mh-leg">
-            <span>
-              <i data-v="a" />
-              {v2.income}
-            </span>
-            <span>
-              <i data-v="b" />
-              {v2.expense}
-            </span>
-          </div>
-        </div>
-      )}
+      <Link href="/laporan" className="bmh-row bmh-spend">
+        <span className="bmh-tile" aria-hidden="true">
+          <Wallet />
+        </span>
+        <span className="bmh-tx-t">
+          <small>{c.spendMonth}</small>
+          <b className="wm-num">
+            {currentMonth ? fmt.money(currentMonth.expense) : "—"}
+          </b>
+        </span>
+        <ChevronRight className="bmh-chev" aria-hidden="true" />
+      </Link>
 
-      <div className="beranda-mh-stat">
-        <div className="beranda-mh-h">
-          <span>{v2.goalsTitle}</span>
-          <Link href="/tujuan" className="beranda-more">
-            {v2.seeAll}
+      <div className="bmh-recent">
+        <div className="bmh-head">
+          <h2>{c.recent}</h2>
+          <Link href="/transaksi" className="bmh-all" aria-label={c.seeAllAria}>
+            {c.seeAll}
+            <ArrowUpRight aria-hidden="true" />
           </Link>
         </div>
-        {goals.length === 0 ? (
-          <p className="wm-cap mt-2">{t.beranda.noGoals}</p>
+        {transactions.length === 0 ? (
+          <p className="wm-cap bmh-empty">{t.beranda.noTransactions}</p>
         ) : (
-          goals.slice(0, 3).map((goal) => (
-            <Link key={goal.id} href="/tujuan" className="beranda-mh-goal">
-              <span className="wm-ic" aria-hidden="true">
-                <GoalIcon icon={goal.icon} name={goal.name} />
-              </span>
-              <span className="min-w-0 flex-1">
-                <b>{goal.name}</b>
-                <Track value={goal.progressPercent} className="mt-1.5" />
-              </span>
-              <span className="wm-num text-[13px]">
-                {Math.round(goal.progressPercent)}%
-              </span>
-            </Link>
-          ))
+          <ul>
+            {transactions.slice(0, 3).map((tx) => (
+              <RecentRow key={tx.id} tx={tx} fmt={fmt} />
+            ))}
+          </ul>
         )}
       </div>
+
+      {reminders.total > 0 && (
+        <Link href={remindersHref} className="bmh-row bmh-remind">
+          <span className="bmh-dot" aria-hidden="true">
+            !
+          </span>
+          <span>{c.reminders.replace("{n}", String(reminders.total))}</span>
+          <ChevronRight className="bmh-chev" aria-hidden="true" />
+        </Link>
+      )}
     </section>
   );
 }

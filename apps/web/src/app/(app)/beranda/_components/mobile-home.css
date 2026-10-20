@@ -1,0 +1,232 @@
+/*
+ * Phone Beranda (<= 720px), docs/design/refs/2026-10-20. Unlayered on purpose:
+ * it must beat Tailwind utilities and the layered bento rules. Colours come
+ * from the app tokens only: lime card = --wm-lime / --wm-lime-ink, negative =
+ * --wm-bad, positive = --wm-good (light) / --wm-lime (dark).
+ */
+.bmh {
+  --bmh-pos: var(--wm-good);
+  --bmh-tile: var(--wm-card-2);
+}
+.dark .bmh {
+  --bmh-pos: var(--wm-lime);
+  --bmh-tile: var(--wm-ghost);
+}
+
+@media (max-width: 720px) {
+  .bmh {
+    gap: 0;
+  }
+  .bmh h2 {
+    margin: 0;
+  }
+
+  /* lime net-worth card */
+  .bmh-card {
+    position: relative;
+    padding: 20px 20px 18px;
+    border-radius: 26px;
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+  }
+  .bmh-label {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+  .bmh-value {
+    margin: 10px 0 0;
+    font-size: clamp(26px, 8.4vw, 32px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .bmh-value[data-long] {
+    font-size: clamp(20px, 6.4vw, 28px);
+  }
+  .bmh-spark {
+    margin: 12px -4px 0;
+    padding-right: 52px;
+  }
+  /* Apex draws the line (fill="none") and its area fill as separate paths. */
+  .bmh-spark path[fill="none"] {
+    stroke: var(--wm-lime-ink) !important;
+  }
+  .bmh-spark .apexcharts-yaxis,
+  .bmh-spark .apexcharts-xcrosshairs,
+  .bmh-spark .apexcharts-ycrosshairs {
+    display: none;
+  }
+  .bmh-spark path:not([fill="none"]) {
+    fill: color-mix(in srgb, var(--wm-lime-ink) 8%, transparent) !important;
+    stroke: none !important;
+  }
+  .bmh-ticks {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+    color: color-mix(in srgb, var(--wm-lime-ink) 70%, transparent);
+    font-size: 12px;
+  }
+  .bmh-go {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    display: grid;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    background: var(--wm-lime-ink);
+    color: var(--wm-lime);
+  }
+  .bmh-go svg {
+    width: 20px;
+    height: 20px;
+  }
+  .bmh-go:focus-visible {
+    outline: 2px solid var(--wm-lime-ink);
+    outline-offset: 3px;
+  }
+  .bmh-asof {
+    margin: 10px 4px 6px;
+    color: var(--wm-muted);
+    font-size: 13px;
+  }
+
+  /* shared rows */
+  .bmh-row,
+  .bmh-tx {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    min-height: 64px;
+    color: var(--wm-ink);
+    text-decoration: none;
+  }
+  .bmh-row {
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--wm-line);
+  }
+  .bmh-tile {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bmh-tile);
+    color: var(--wm-ink);
+  }
+  .bmh-tile svg {
+    width: 20px;
+    height: 20px;
+  }
+  .bmh-tx-t {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .bmh-tx-t b,
+  .bmh-tx-t small {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .bmh-tx-t b {
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .bmh-tx-t small {
+    color: var(--wm-muted);
+    font-size: 13px;
+  }
+  .bmh-spend .bmh-tx-t b {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+  .bmh-chev {
+    width: 20px;
+    height: 20px;
+    color: var(--wm-muted);
+  }
+
+  /* recent transactions */
+  .bmh-recent {
+    padding-top: 8px;
+  }
+  .bmh-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .bmh-head h2 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .bmh-all {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding-left: 12px;
+    color: var(--wm-ink);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .bmh-all svg {
+    width: 16px;
+    height: 16px;
+  }
+  .bmh-recent ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .bmh-tx {
+    padding: 10px 4px;
+    border-bottom: 1px solid var(--wm-line);
+  }
+  .bmh-amt {
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .bmh-amt[data-type="expense"] {
+    color: var(--wm-bad);
+  }
+  .bmh-amt[data-type="income"] {
+    color: var(--bmh-pos);
+  }
+  .bmh-empty {
+    padding: 14px 4px;
+  }
+
+  /* reminders */
+  .bmh-remind {
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    min-height: 52px;
+    border-bottom: 0;
+    font-size: 15px;
+  }
+  .bmh-dot {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--wm-orange);
+    color: var(--wm-lime-ink);
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dark .bmh-remind > span:nth-child(2) {
+    color: var(--wm-orange);
+  }
+}

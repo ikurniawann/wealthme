@@ -1,0 +1,278 @@
+/*
+ * Phone /transaksi (<= 720px), docs/design/refs/2026-10-20. Unlayered so it
+ * beats both the layered page rules in transaksi.css and Tailwind utilities.
+ * Above 720px only the two "hide the phone-only bits" rules apply.
+ */
+.txm,
+.tx-row-meta-m {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .txm,
+  .tx-history {
+    --txm-pos: var(--wm-good);
+  }
+  .txm {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .dark .txm,
+  .dark .tx-history {
+    --txm-pos: var(--wm-lime);
+  }
+
+  .txm-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .txm-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .txm-pill select {
+    min-height: 46px;
+    max-width: 100%;
+    padding: 0 44px 0 20px;
+    border: 1px solid var(--wm-line);
+    border-radius: 99px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    appearance: none;
+    cursor: pointer;
+  }
+  .txm-pill svg {
+    position: absolute;
+    right: 16px;
+    width: 18px;
+    height: 18px;
+    color: var(--wm-ink);
+    pointer-events: none;
+  }
+  .txm-icon {
+    position: relative;
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border: 0;
+    border-radius: 50%;
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+    cursor: pointer;
+  }
+  .txm-icon svg {
+    width: 20px;
+    height: 20px;
+  }
+  .txm-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: grid;
+    place-items: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 99px;
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .txm-pill select:focus-visible,
+  .txm-icon:focus-visible,
+  .txm-tabs button:focus-visible,
+  .txm-link:focus-visible {
+    outline: 2px solid var(--wm-ink);
+    outline-offset: 2px;
+  }
+
+  .txm-sum {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 4px 12px;
+    padding-top: 6px;
+  }
+  .txm-out {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 100%;
+    margin: 0;
+  }
+  .txm-out span {
+    color: var(--wm-muted);
+    font-size: 15px;
+  }
+  .txm-out b {
+    color: var(--wm-bad);
+    font-size: clamp(24px, 8.4vw, 32px);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .txm-link {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    color: var(--wm-muted);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .txm-link svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .txm-bar {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px;
+    border-bottom: 1px solid var(--wm-line);
+  }
+  .txm-tabs {
+    display: flex;
+  }
+  .txm-tabs button {
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    background: none;
+    color: var(--wm-muted);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .txm-tabs button[aria-pressed="true"] {
+    border-bottom-color: var(--wm-lime);
+    color: var(--wm-ink);
+  }
+  .dark .txm-tabs button[aria-pressed="true"] {
+    color: var(--wm-lime);
+  }
+  .txm-bar .txm-icon {
+    margin-bottom: 6px;
+  }
+  .txm-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: 99px;
+    background: var(--wm-card-2);
+  }
+  .txm-search svg {
+    width: 18px;
+    height: 18px;
+    color: var(--wm-muted);
+  }
+  .txm-search input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    color: var(--wm-ink);
+    font: inherit;
+    font-size: 16px;
+    outline: none;
+  }
+
+  /* The phone head replaces the hero and the "Cari & saring" toggle; the
+     filter card itself still opens from the filter icon. */
+  .tx-grid > .tx-hero,
+  .tx-filters-wrap:not(:has([data-open])),
+  .tx-filters-toggle,
+  .tx-filter-body > .tx-search {
+    display: none;
+  }
+
+  /* history: a flat list on the page, grouped by day */
+  .tx-history.wm-card {
+    padding: 0;
+    border: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .tx-history > .wm-card-head {
+    display: none;
+  }
+  .tx-day {
+    margin-top: 4px;
+  }
+  .tx-day > header {
+    padding: 14px 2px 4px;
+    border-bottom: 0;
+    color: var(--wm-ink);
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .tx-day > header > span:last-child {
+    display: none;
+  }
+  .tx-history .tx-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+    gap: 14px;
+    min-height: 72px;
+    padding: 12px 2px;
+  }
+  .tx-history .tx-row-ic,
+  .tx-history .tx-row[data-type] .tx-row-ic {
+    width: 44px;
+    height: 44px;
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+  }
+  .dark .tx-history .tx-row-ic,
+  .dark .tx-history .tx-row[data-type] .tx-row-ic {
+    background: var(--wm-ghost);
+  }
+  .tx-history .tx-row-ic svg {
+    width: 20px;
+    height: 20px;
+  }
+  .tx-history .tx-row b {
+    font-size: 15px;
+  }
+  .tx-history .tx-row small {
+    margin-top: 2px;
+    font-size: 13px;
+  }
+  .tx-history .tx-row-meta {
+    display: none;
+  }
+  .tx-history .tx-row-meta-m {
+    display: block;
+  }
+  .tx-history .tx-row-amt {
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    color: var(--wm-ink);
+  }
+  .tx-history .tx-row[data-type="expense"] .tx-row-amt {
+    color: var(--wm-bad);
+  }
+  .tx-history .tx-row[data-type="income"] .tx-row-amt {
+    color: var(--txm-pos);
+  }
+}

@@ -45,13 +45,12 @@ function BerandaPage() {
     <div className="flex flex-col gap-4">
       <MobileHome
         netWorth={data.netWorth}
-        accounts={data.accounts}
-        members={data.members}
+        balancesHidden={Boolean(data.summary?.balancesHidden)}
+        history={data.historyPoints}
         currentMonth={data.currentMonth}
-        cashflow={data.cashflow}
-        monthCompare={data.monthCompare}
         transactions={data.recentTransactions}
-        goals={data.goals}
+        liabilities={data.liabilities}
+        pendingApprovalsCount={data.pendingApprovalsCount}
         fmt={fmt}
       />
 

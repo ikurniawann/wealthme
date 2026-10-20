@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useState,
   useEffect,
   useId,
@@ -87,6 +88,7 @@ import {
   type TransactionListResponse,
 } from "@wealthme/contracts";
 import { getActiveTransactionFilterCount } from "./filter-count";
+import { TxMobileHead } from "./mobile-head";
 import { localIsoDate } from "@/lib/local-date";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
 
@@ -1349,6 +1351,10 @@ export function HistoryRow({
     : [tx.categoryName ?? typeLabels[tx.type], tx.accountName]
         .filter(Boolean)
         .join(" · ");
+  // Phones (2026-10-20 refs): the account alone, or "from → to" for a transfer.
+  const phoneMeta = withRoute
+    ? `${tx.accountName ?? "—"} → ${tx.toAccountName}`
+    : (tx.accountName ?? tx.categoryName ?? typeLabels[tx.type] ?? "—");
   const icon = isTransfer ? (
     <ArrowLeftRight />
   ) : (
@@ -1406,7 +1412,8 @@ export function HistoryRow({
         </span>
         <span className="min-w-0">
           <b>{title}</b>
-          <small>{meta}</small>
+          <small className="tx-row-meta">{meta}</small>
+          <small className="tx-row-meta-m">{phoneMeta}</small>
         </span>
         <span className="tx-row-amt wm-num">{amountStr}</span>
       </ContextMenu>
@@ -1631,6 +1638,21 @@ function TransaksiPageInner() {
     );
   };
 
+  // Phone head (TxMobileHead) — writes the same state the filter card uses.
+  const handleMobileRange = useCallback((from: string, to: string) => {
+    setDateFrom(from);
+    setDateTo(to);
+    setPage(1);
+  }, []);
+  const handleMobileFilter = (value: FilterValue) => {
+    setFilter(value);
+    setPage(1);
+  };
+  const handleMobileQuery = (value: string) => {
+    setQuery(value);
+    setPage(1);
+  };
+
   const handleResetFilters = () => {
     setFilter("all");
     setCategoryFilter("");
@@ -1825,6 +1847,33 @@ function TransaksiPageInner() {
 
   return (
     <div className="flex flex-col gap-4">
+      <TxMobileHead
+        filter={filter}
+        onFilter={handleMobileFilter}
+        query={query}
+        onQuery={handleMobileQuery}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onRange={handleMobileRange}
+        hasDeepLink={Boolean(
+          accountId ||
+          coaFilter ||
+          openTxId ||
+          searchParams.get("from") ||
+          searchParams.get("to"),
+        )}
+        expense={isLoading ? "…" : money.format(totalExpense)}
+        filtersOpen={mobileFiltersOpen}
+        onToggleFilters={() => setMobileFiltersOpen((open) => !open)}
+        activeFilterCount={getActiveTransactionFilterCount({
+          // The month pill and the Semua/Pengeluaran tabs already show these.
+          hasDateRange: false,
+          hasAccount: Boolean(accountId),
+          hasCategory: Boolean(categoryFilter || coaFilter),
+          hasType: filter !== "all" && filter !== "expense",
+          hasSort: sortOrder !== "newest",
+        })}
+      />
       <BentoGrid className="tx-grid">
         <BentoHero
           collapse={false}

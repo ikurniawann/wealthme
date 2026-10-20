@@ -1,0 +1,180 @@
+/*
+ * Phone /laporan summary (<= 720px), docs/design/refs/2026-10-20. Unlayered so
+ * it beats the layered laporan rules and Tailwind utilities. Above 720px the
+ * summary is hidden and the full report wrapper is layout-neutral.
+ */
+.lpm {
+  display: none;
+}
+/* The hidden summary sits before .lp-page; cancel the shell's sibling gap
+   (`.page > * + *`) so the desktop report keeps its exact position. */
+@media (min-width: 721px) {
+  .lpm + .lp-page {
+    margin-top: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  .lpm {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .lpm h2 {
+    margin: 0;
+  }
+  .lpm + .lp-page:not([data-phone-open]) {
+    display: none;
+  }
+  .lpm + .lp-page[data-phone-open] {
+    margin-top: 28px;
+    scroll-margin-top: 12px;
+  }
+
+  .lpm-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .lpm-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-width: 0;
+  }
+  .lpm-pill select {
+    min-height: 46px;
+    max-width: 100%;
+    padding: 0 44px 0 20px;
+    border: 1px solid var(--wm-line);
+    border-radius: 99px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    appearance: none;
+    cursor: pointer;
+  }
+  .lpm-pill svg {
+    position: absolute;
+    right: 16px;
+    width: 18px;
+    height: 18px;
+    color: var(--wm-ink);
+    pointer-events: none;
+  }
+  .lpm-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    color: var(--wm-ink);
+  }
+  .lpm-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+  .lpm-pill select:focus-visible,
+  .lpm-icon:focus-visible,
+  .lpm-full-btn:focus-visible {
+    outline: 2px solid var(--wm-ink);
+    outline-offset: 2px;
+  }
+
+  .lpm-total {
+    padding-top: 10px;
+  }
+  .lpm-total h2 {
+    font-size: 17px;
+    font-weight: 500;
+  }
+  .lpm-value {
+    margin: 6px 0 0;
+    font-size: clamp(26px, 8.4vw, 32px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .lpm-count {
+    margin: 6px 0 0;
+    color: var(--wm-ink);
+    font-size: 15px;
+  }
+  .lpm-note {
+    padding: 8px 0;
+  }
+
+  .lpm-bar {
+    display: flex;
+    gap: 2px;
+    height: 40px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--wm-card-2);
+  }
+  .lpm-bar span {
+    min-width: 6px;
+  }
+  .lpm-legend {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .lpm-legend li {
+    display: grid;
+    grid-template-columns: 18px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 12px;
+    min-height: 60px;
+    border-bottom: 1px solid var(--wm-line);
+    font-size: 15px;
+  }
+  .lpm-legend li:last-child {
+    border-bottom: 0;
+  }
+  .lpm-legend i {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+  }
+  .lpm-legend span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lpm-legend b {
+    font-weight: 500;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .lpm-full-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 56px;
+    margin-top: 8px;
+    border: 1.5px solid var(--wm-ink);
+    border-radius: 16px;
+    background: none;
+    color: var(--wm-ink);
+    font: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .lpm-full-btn svg {
+    width: 18px;
+    height: 18px;
+  }
+  .lpm-full-btn[aria-expanded="true"] svg {
+    transform: rotate(90deg);
+  }
+}
