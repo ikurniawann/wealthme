@@ -1,0 +1,364 @@
+/*
+ * Tambah transaksi on phones (≤720px): a full-screen, page-like sheet per the
+ * 2026-10-20 reference — back chevron + title, 2×2 type grid, a "Scan struk"
+ * row, big Jumlah field with quick chips, Akun sumber / Kategori pickers,
+ * Tanggal + Waktu side by side, a collapsed "Detail tambahan", the live
+ * "Saldo setelah transaksi" line and a sticky lime Simpan.
+ *
+ * Deliberately UNLAYERED and loaded after transaction-dialog.css: it overrides
+ * that file's phone block and the CenteredDialogContent utilities. Nothing
+ * here applies above 720px, and the elements it introduces are only rendered
+ * on phones (usePhone), so desktop and tablet are unchanged.
+ */
+
+/* the account's masked number is a phone-only addition to the picker face */
+@media (min-width: 721px) {
+  .tx3 .tx3-face-num {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  /* ── full screen: pinned to all four edges, no sheet offset ─────────── */
+  .dialog.tx3.tx3 {
+    inset: 0;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    height: 100dvh;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    background: var(--wm-bg);
+    /* the head carries .wm-dark (desktop forest band), which re-tokens ink;
+       resolve the page's own colours here so the phone head follows the theme */
+    --tx-page-ink: var(--wm-ink);
+    --tx-page-bg: var(--wm-bg);
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+    translate: none;
+  }
+  .dialog.tx3 > [data-slot="dialog-close"] {
+    display: none;
+  }
+
+  /* header: back chevron + title on the page background, no subtitle */
+  .tx3 .tx3-head.tx3-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: max(10px, env(safe-area-inset-top, 0px)) 16px 6px 6px;
+    background: var(--tx-page-bg);
+  }
+  .tx3 .tx3-head .tx3-sub {
+    display: none;
+  }
+  .tx3 .tx3-head .dialog__title {
+    color: var(--tx-page-ink);
+    font-size: clamp(22px, 6.4vw, 26px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+  .tx3 .tx3-back {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--tx-page-ink);
+    cursor: pointer;
+  }
+  .tx3 .tx3-back svg {
+    width: 26px;
+    height: 26px;
+  }
+  .tx3 .tx3-back:focus-visible {
+    outline: 2px solid var(--wm-lime);
+  }
+
+  .dialog.tx3 .tx3-body {
+    gap: 14px;
+    padding: 8px 16px 16px;
+    background: var(--wm-bg);
+  }
+  .tx3 .tx3-cols,
+  .tx3 .tx3-col {
+    gap: 14px;
+  }
+
+  /* ── 2×2 type grid: icon above label, selected = lime outline ────────── */
+  /* `.segmented` flows by column; without row flow the 2 columns would grow
+     two implicit ones and stay a single row of four */
+  .tx3 .tx3-types.segmented.segmented {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-flow: row;
+    gap: 10px;
+  }
+  /* `height`, not `min-height`: Task 35's layered `min-height: 44px
+     !important` on .segmented__item outranks any unlayered min-height */
+  .tx3 .tx3-types .segmented__item.segmented__item {
+    gap: 6px;
+    height: 72px;
+    border: 1.5px solid var(--wm-line);
+    border-radius: 14px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .tx3 .tx3-types .segmented__item[aria-selected="true"].segmented__item {
+    border-color: var(--wm-lime);
+    background: var(--wm-lime-soft);
+    color: var(--wm-good);
+  }
+  .dark .tx3 .tx3-types .segmented__item[aria-selected="true"].segmented__item {
+    color: var(--wm-lime);
+  }
+  .tx3 .tx3-types .tx3-type-long {
+    display: block;
+  }
+  .tx3 .tx3-types .tx3-type-short {
+    display: none;
+  }
+
+  /* ── "Scan struk" row ───────────────────────────────────────────────── */
+  .tx3 .tx3-scanrow {
+    position: relative;
+  }
+  .tx3 .tx3-scanrow-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 72px;
+    padding: 0 14px 18px 14px;
+    border: 1px solid var(--wm-line);
+    border-radius: 16px;
+    background: var(--wm-lime-soft);
+    color: var(--wm-ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tx3 .tx3-scanrow-btn:disabled {
+    cursor: not-allowed;
+  }
+  .tx3 .tx3-scanrow[data-disabled] .tx3-scanrow-btn {
+    background: var(--wm-card);
+  }
+  .tx3 .tx3-scanrow-btn:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+  }
+  .tx3 .tx3-scanrow-ic {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    margin-top: 18px;
+    border: 1.5px solid var(--wm-lime);
+    border-radius: 50%;
+    color: var(--wm-good);
+  }
+  .dark .tx3 .tx3-scanrow-ic {
+    color: var(--wm-lime);
+  }
+  .tx3 .tx3-scanrow[data-disabled] .tx3-scanrow-ic {
+    border-color: var(--wm-line);
+    color: var(--wm-muted);
+  }
+  .tx3 .tx3-scanrow-ic svg {
+    width: 20px;
+    height: 20px;
+  }
+  .tx3 .tx3-scanrow-txt {
+    flex: 1;
+    min-width: 0;
+    padding-top: 2px;
+  }
+  .tx3 .tx3-scanrow-txt b {
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .tx3 .tx3-scanrow-chev {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    margin-top: 18px;
+    color: var(--wm-muted);
+  }
+  /* the hint sits under the title, over the row (so its link stays tappable) */
+  .tx3 .tx3-scanrow-hint {
+    position: absolute;
+    top: 38px;
+    right: 44px;
+    left: 72px;
+    color: var(--wm-muted);
+    font-size: 13px;
+    line-height: 1.3;
+    pointer-events: none;
+  }
+  .tx3 .tx3-scanrow-link {
+    color: var(--wm-good);
+    font-weight: 700;
+    pointer-events: auto;
+  }
+  .dark .tx3 .tx3-scanrow-link {
+    color: var(--wm-lime);
+  }
+
+  /* ── Jumlah: big value, quick chips share the row ───────────────────── */
+  .tx3 .tx-amount {
+    min-height: 68px;
+    background: var(--wm-card);
+  }
+  .tx3 .tx-amount input {
+    font-size: clamp(28px, 8.4vw, 34px);
+  }
+  .tx3 .tx-quick {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px !important;
+  }
+  .tx3 .tx-quick button {
+    height: 44px;
+    padding: 0 6px;
+    font-size: 15px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* pickers + fields on the card surface */
+  .tx3 .tx3-pick-trigger,
+  .tx3 .tx3-body .input,
+  .tx3 .tx3-body .select,
+  .tx3 .tx3-body .textarea {
+    background: var(--wm-card);
+  }
+  .tx3 .tx3-face-num {
+    color: var(--wm-muted);
+    font-weight: 500;
+  }
+  /* the picker trigger already opens every category: no extra link/chips */
+  .tx3 .tx3-recent,
+  .tx3 .tx3-link {
+    display: none;
+  }
+  /* Tanggal + Waktu side by side */
+  .tx3 .tx3-when {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  /* ── Detail tambahan: description + receipt behind one disclosure ────── */
+  .tx3 .tx3-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tx3 .tx3-detail-title {
+    color: var(--wm-ink);
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .tx3 .tx3-detail-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 54px;
+    padding: 0 16px;
+    border: 1.5px solid var(--field-border, var(--wm-line));
+    border-radius: 14px;
+    background: var(--wm-card);
+    color: var(--wm-muted);
+    font: inherit;
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .tx3 .tx3-detail-btn svg {
+    flex: none;
+    width: 20px;
+    height: 20px;
+  }
+  .tx3 .tx3-detail-btn span {
+    flex: 1;
+  }
+  .tx3 .tx3-detail-btn[aria-expanded="true"] .tx3-detail-chev {
+    transform: rotate(180deg);
+  }
+  .tx3 .tx3-detail-btn:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+  }
+  .tx3 .tx3-col[data-detail="closed"] > :not(.tx3-detail) {
+    display: none;
+  }
+  /* the summary card is desktop's read-back; phones show the balance line */
+  .tx3 .tx3-col .tx3-summary {
+    display: none;
+  }
+
+  /* ── sticky footer: balance line, lime Simpan, text "tambah lagi" ───── */
+  .dialog.tx3 .tx3-foot.tx3-foot {
+    gap: 4px;
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--wm-line);
+    background: var(--wm-bg);
+  }
+  .tx3 .tx3-after {
+    display: flex;
+    order: 0;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 6px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: var(--wm-card);
+    color: var(--wm-muted);
+    font-size: 13.5px;
+  }
+  .tx3 .tx3-after svg {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    color: var(--wm-good);
+  }
+  .dark .tx3 .tx3-after svg,
+  .dark .tx3 .tx3-after b {
+    color: var(--wm-lime);
+  }
+  .tx3 .tx3-after span {
+    flex: 1;
+    min-width: 0;
+  }
+  .tx3 .tx3-after b {
+    color: var(--wm-good);
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .dialog.tx3 .tx3-foot .btn--primary.btn--primary {
+    height: 54px;
+    border-color: transparent;
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+    font-weight: 700;
+  }
+  .dialog.tx3 .tx3-foot .btn--ghost.btn--ghost {
+    height: 44px;
+    color: var(--wm-good);
+    font-weight: 600;
+  }
+  .dark .dialog.tx3 .tx3-foot .btn--ghost.btn--ghost {
+    color: var(--wm-lime);
+  }
+}

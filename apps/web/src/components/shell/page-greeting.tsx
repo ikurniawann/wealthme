@@ -6,6 +6,7 @@ import { useSession } from "@/lib/auth-compat";
 import { isPageTitleId } from "@/lib/nav";
 import { useLocale } from "@/hooks/use-locale";
 import type { I18nDictionary } from "@/i18n/types";
+import { registerPhoneHeaderSlot } from "./phone-header";
 
 const DEFAULT_TITLE = "WealthMe, Personal Wealth OS";
 
@@ -16,10 +17,19 @@ export function greetingFor(hour: number, t: I18nDictionary): string {
   return t.shell.v2.greetingNight;
 }
 
+/** Tab/page title for a first path segment; null = no page of its own. */
+function pageTitleFor(seg: string, t: I18nDictionary): string | null {
+  if (seg === "menu") return t.shell.phone.menu.title;
+  return isPageTitleId(seg) ? t.shell.pageTitles[seg] : null;
+}
+
 /**
- * Phone-only page head (bento v2 `.mtitle-wrap`): a small greeting over a big
- * two-line page title. Above 720px it stays in the DOM visually hidden, so the
- * page title is the one `h1` on every viewport and pages never render their own.
+ * Phone-only page head (`.wm-mtitle`). Phones (2026-10-20 references): a large
+ * bold title at the top left and an optional round icon action on the right
+ * (`PhoneHeaderAction`, portalled into `.wm-mtitle-act`). On Beranda the
+ * greeting is the visible line and the title stays for screen readers. Above
+ * 720px it stays in the DOM visually hidden, so the page title is the one
+ * `h1` on every viewport and pages never render their own.
  */
 export function PageGreeting() {
   const pathname = usePathname();
@@ -32,14 +42,10 @@ export function PageGreeting() {
   useEffect(() => setHour(new Date().getHours()), []);
 
   const seg = pathname.split("/")[1] || "beranda";
+  const docTitle = pageTitleFor(seg, t);
   const title =
-    seg === "beranda"
-      ? t.shell.v2.homeTitle
-      : isPageTitleId(seg)
-        ? t.shell.pageTitles[seg]
-        : "WealthMe";
+    seg === "beranda" ? t.shell.v2.homeTitle : (docTitle ?? "WealthMe");
   const firstName = session?.user.name?.split(" ")[0];
-  const docTitle = isPageTitleId(seg) ? t.shell.pageTitles[seg] : null;
   // Pages are client components, so the tab title follows the shell's page
   // title here instead of per-page `metadata` (layout.tsx owns the default).
   useEffect(() => {
@@ -47,15 +53,18 @@ export function PageGreeting() {
   }, [docTitle, pathname]);
 
   return (
-    <div className="wm-mtitle">
-      <small>
-        {hour === null
-          ? " "
-          : firstName
-            ? `${greetingFor(hour, t)}, ${firstName}`
-            : greetingFor(hour, t)}
-      </small>
-      <h1>{title}</h1>
+    <div className="wm-mtitle" data-home={seg === "beranda" || undefined}>
+      <div className="wm-mtitle-text">
+        <small>
+          {hour === null
+            ? " "
+            : firstName
+              ? `${greetingFor(hour, t)}, ${firstName}`
+              : greetingFor(hour, t)}
+        </small>
+        <h1>{title}</h1>
+      </div>
+      <div className="wm-mtitle-act" ref={registerPhoneHeaderSlot} />
     </div>
   );
 }

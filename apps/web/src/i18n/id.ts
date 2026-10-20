@@ -6,6 +6,7 @@ import { danaV3Id } from "./dana-v3";
 import { rekeningV3Id } from "./rekening-v3";
 import { asetV3Id } from "./aset-v3";
 import { asuransiV3Id } from "./asuransi-v3";
+import { phoneChromeId } from "./phone-chrome";
 import type { I18nDictionary } from "./types";
 
 export const id = {
@@ -283,6 +284,7 @@ export const id = {
       settings: "Data Master",
       menu: "Menu",
     },
+    phone: phoneChromeId,
     v2: {
       greetingMorning: "Selamat pagi",
       greetingAfternoon: "Selamat siang",

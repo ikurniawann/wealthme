@@ -171,7 +171,7 @@ export function useHubs() {
 }
 
 /** Pending approvals for the Persetujuan badge, fetched only when that hub is visible. */
-function usePendingApprovals(enabled: boolean) {
+export function usePendingApprovals(enabled: boolean) {
   const { data: session } = useSession();
   const familyGroupId = session?.familyGroupId;
   const token = session?.accessToken;

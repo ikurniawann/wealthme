@@ -6,6 +6,7 @@ import { danaV3En } from "./dana-v3";
 import { rekeningV3En } from "./rekening-v3";
 import { asetV3En } from "./aset-v3";
 import { asuransiV3En } from "./asuransi-v3";
+import { phoneChromeEn } from "./phone-chrome";
 import type { I18nDictionary } from "./types";
 
 export const en = {
@@ -276,6 +277,7 @@ export const en = {
       settings: "Master Data",
       menu: "Menu",
     },
+    phone: phoneChromeEn,
     v2: {
       greetingMorning: "Good morning",
       greetingAfternoon: "Good afternoon",

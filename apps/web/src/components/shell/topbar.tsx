@@ -177,8 +177,20 @@ export function Topbar() {
     refetchInterval: 30_000,
   });
 
+  // Phones (2026-10-20 refs): the brand row (brand · bell · avatar) heads
+  // Beranda and Menu; other top-level pages lead with their own big title
+  // (PageGreeting), so the row is hidden there; nested routes keep it for
+  // the back button. Only read by the ≤720px rules in mobile-chrome.css.
+  const phoneHead = nested
+    ? "nested"
+    : seg === "beranda"
+      ? "home"
+      : seg === "menu"
+        ? "brand"
+        : "page";
+
   return (
-    <header className="wm-top">
+    <header className="wm-top" data-phone-head={phoneHead}>
       <Link href="/beranda" className="wm-mbrand">
         WealthMe
       </Link>

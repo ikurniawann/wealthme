@@ -15,6 +15,8 @@ import { useMyAccess } from "@/hooks/use-my-access";
 import { useVisualViewportInset } from "@/hooks/use-visual-viewport-inset";
 import { useShell } from "./shell-context";
 import { NavSheet } from "./nav-sheet";
+import { usePhone } from "./use-phone";
+import "./mobile-chrome.css";
 
 /** Batch 5 item 1 — first-segment matching so a detail sub-route keeps its tab lit. */
 export function isMobileNavItemActive(pathname: string, href: string): boolean {
@@ -75,6 +77,7 @@ export function MobileNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const reduce = useReducedMotion();
   const hiddenOnScroll = useDockHidden();
+  const phone = usePhone();
   useVisualViewportInset();
 
   const slots = dockSlots(
@@ -120,6 +123,27 @@ export function MobileNav() {
           }
           if (slot.kind === "menu") {
             const active = menuOpen || !inDock;
+            // Phones (2026-10-20 refs): Menu is a page (/menu), not a sheet.
+            // Tablets keep the "Semua menu" sheet.
+            if (phone) {
+              return (
+                <Link
+                  key="menu"
+                  href="/menu"
+                  className="wm-dock-item"
+                  data-active={active || undefined}
+                  aria-label={t.shell.hubs.menu}
+                  aria-current={!inDock ? "page" : undefined}
+                >
+                  <span className="wm-dock-ic">
+                    <Menu aria-hidden="true" />
+                  </span>
+                  <span className="wm-dock-label" aria-hidden="true">
+                    {t.shell.hubs.menu}
+                  </span>
+                </Link>
+              );
+            }
             return (
               <button
                 key="menu"

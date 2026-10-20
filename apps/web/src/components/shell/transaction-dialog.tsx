@@ -86,6 +86,13 @@ import { useMoney } from "@/hooks/use-money";
 import { useMyAccess } from "@/hooks/use-my-access";
 import { useShell } from "./shell-context";
 import "./transaction-dialog.css";
+import {
+  TxPhoneBack,
+  TxPhoneBalanceAfter,
+  TxPhoneDetailToggle,
+  TxPhoneScanRow,
+} from "./tx-phone";
+import { usePhone } from "./use-phone";
 import { findKnownBank } from "@/app/(app)/rekening/bank-directory";
 import { localIsoDate } from "@/lib/local-date";
 import { apiErrorMessage as extractApiErrorMessage } from "@/lib/api-error";
@@ -121,6 +128,8 @@ type AccountDto = {
   institution: string | null;
   balance?: string;
   ownerUserId?: string | null;
+  /** e.g. "•••• 6398"; shown beside the name on phones. */
+  maskedNumber?: string | null;
 };
 type CategoryDto = {
   id: string;
@@ -357,6 +366,10 @@ export function TransactionDialog() {
   const [liabilityId, setLiabilityId] = useState("");
   const [date, setDate] = useState(() => localIsoDate());
   const [description, setDescription] = useState("");
+  // Phones (2026-10-20 ref): description + receipt sit behind "Detail
+  // tambahan"; desktop always shows them (the toggle only renders on phones).
+  const phone = usePhone();
+  const [detailOpen, setDetailOpen] = useState(false);
   // Inline validation: nothing is flagged until the first submit attempt;
   // then the first missing field names its problem and updates as it is fixed.
   const [attempted, setAttempted] = useState(false);
@@ -446,6 +459,7 @@ export function TransactionDialog() {
   const accountFieldId = `${uid}-account`;
   const dateFieldId = `${uid}-date`;
   const descriptionFieldId = `${uid}-description`;
+  const detailColumnId = `${uid}-detail`;
   const timeFieldId = `${uid}-time`;
   const categoryPickerId = `${uid}-category-picker`;
   const attachmentFieldId = `${uid}-attachment`;
@@ -801,6 +815,7 @@ export function TransactionDialog() {
     setAttachmentFile(null);
     setAttempted(false);
     setPrefilled(false);
+    setDetailOpen(false);
   };
 
   // "Simpan & tambah lagi": the amount, description, transfer fee and receipt
@@ -980,6 +995,7 @@ export function TransactionDialog() {
       );
     }
     setScanFilled({ amount: true, date: true, description: true });
+    setDetailOpen(true);
     // D13 — `categoryId` was matched against the family's REAL categories
     // server-side. No match means blank; the raw `categoryHint` is never
     // re-guessed client-side.
@@ -1182,6 +1198,12 @@ export function TransactionDialog() {
         {view === "form" && (
           <>
             <div className="tx3-head wm-dark">
+              {phone && (
+                <TxPhoneBack
+                  label={t.common.back}
+                  onBack={() => handleOpenChange(false)}
+                />
+              )}
               <DialogTitle>{t.shell.transactionDialog.title}</DialogTitle>
               <p className="tx3-sub">{t.shell.transactionDialog.subtitle}</p>
             </div>
@@ -1228,7 +1250,16 @@ export function TransactionDialog() {
               </div>
 
               {/* Receipt scan, promoted: it fills the form, so it comes first. */}
-              {tabKind !== "card" && (
+              {tabKind !== "card" && phone && (
+                <TxPhoneScanRow
+                  t={t}
+                  available={scanAvailable}
+                  hintId={scanHintId}
+                  triggerRef={scanTriggerRef}
+                  onScan={startScan}
+                />
+              )}
+              {tabKind !== "card" && !phone && (
                 <div className="tx3-scan">
                   <span className="tx3-scan-ic" aria-hidden="true">
                     <ScanLine />
@@ -1605,7 +1636,19 @@ export function TransactionDialog() {
                   </div>
                 </div>
 
-                <div className="tx3-col">
+                <div
+                  className="tx3-col"
+                  id={detailColumnId}
+                  data-detail={phone && !detailOpen ? "closed" : undefined}
+                >
+                  {phone && (
+                    <TxPhoneDetailToggle
+                      t={t}
+                      open={detailOpen}
+                      controls={detailColumnId}
+                      onToggle={() => setDetailOpen((open) => !open)}
+                    />
+                  )}
                   <Field
                     label={
                       <>
@@ -1783,6 +1826,16 @@ export function TransactionDialog() {
               className="tx3-foot flex-row flex-wrap"
               data-sticky={tabKind === "transfer" ? "true" : undefined}
             >
+              {phone && (
+                <TxPhoneBalanceAfter
+                  label={t.shell.transactionDialog.balanceAfterLabel}
+                  value={
+                    balanceAfter === null
+                      ? null
+                      : money.formatBalance(balanceAfter)
+                  }
+                />
+              )}
               <button
                 type="button"
                 onClick={() => handleOpenChange(false)}
@@ -1809,7 +1862,11 @@ export function TransactionDialog() {
                   isSaving && "cursor-progress",
                 )}
               >
-                {isSaving ? t.shell.transactionDialog.saving : t.common.save}
+                {isSaving
+                  ? t.shell.transactionDialog.saving
+                  : phone
+                    ? t.shell.phone.tx.saveLong
+                    : t.common.save}
               </button>
             </DialogFooter>
           </>
@@ -2261,6 +2318,15 @@ function PickerShell({
   );
 }
 
+/** Whether the masked number adds anything: many nicknames already end in it. */
+function maskedSuffix(account: {
+  name: string;
+  maskedNumber?: string | null;
+}): boolean {
+  const last4 = (account.maskedNumber ?? "").replace(/\D/g, "").slice(-4);
+  return last4.length > 0 && !account.name.replace(/\D/g, "").includes(last4);
+}
+
 /** The account trigger face: logo chip, name, available balance. */
 function AccountFace({
   account,
@@ -2272,6 +2338,7 @@ function AccountFace({
     name: string;
     institution?: string | null;
     balance?: string | null;
+    maskedNumber?: string | null;
   };
   placeholder: string;
   balanceLabel: string;
@@ -2305,7 +2372,12 @@ function AccountFace({
         {logo}
       </span>
       <span className="min-w-0">
-        <b>{account.name}</b>
+        <b>
+          {account.name}
+          {maskedSuffix(account) && (
+            <span className="tx3-face-num"> · {account.maskedNumber}</span>
+          )}
+        </b>
         {account.balance !== undefined && (
           <small>
             {balanceLabel}{" "}

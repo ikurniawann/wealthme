@@ -433,6 +433,13 @@ export function isNavItemVisibleForAccess(
   return pageAllowed(item.id, access);
 }
 
+/**
+ * Shell-only routes that hold no data of their own, so every signed-in member
+ * may open them: `/menu` (2026-10-20 phone navigation page) lists only the
+ * links this same access already shows. Not an access page — nothing to grant.
+ */
+const SHELL_ROUTES: readonly string[] = ["menu"];
+
 /** Whether `access` may open `pathname` (first path segment). */
 export function isRouteAllowedForAccess(
   pathname: string,
@@ -440,6 +447,7 @@ export function isRouteAllowedForAccess(
 ): boolean {
   if (access === undefined) return true;
   const seg = pathname.split("/").filter(Boolean)[0];
+  if (seg && SHELL_ROUTES.includes(seg)) return true;
   if (access === null) return seg === "akun" || seg === "akses-saya";
   if (!seg) return access.isMaster || canAccessPage(access, "beranda");
   return pageAllowed(seg, access);

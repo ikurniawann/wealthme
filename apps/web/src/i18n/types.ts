@@ -6,6 +6,7 @@ import type { DanaV3Copy } from "./dana-v3";
 import type { RekeningV3Copy } from "./rekening-v3";
 import type { AsetV3Copy } from "./aset-v3";
 import type { AsuransiV3Copy } from "./asuransi-v3";
+import type { PhoneChromeCopy } from "./phone-chrome";
 import type {
   MobileNavId,
   NavItemId,
@@ -696,6 +697,8 @@ export type I18nDictionary = {
       settings: string;
       menu: string;
     };
+    /** Phone chrome (2026-10-20 refs): /menu page + phone Tambah transaksi (phone-chrome.ts). */
+    phone: PhoneChromeCopy;
     // Bento v2 shell: phone greeting + title, launcher, topbar controls.
     v2: {
       greetingMorning: string;

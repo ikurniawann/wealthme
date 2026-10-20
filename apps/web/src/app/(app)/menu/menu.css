@@ -1,0 +1,186 @@
+/*
+ * /menu — phone navigation page (2026-10-20 reference "Menu · halaman
+ * navigasi"): search, the family row, then grouped link cards (2 columns when
+ * a group has more than two links). Bento tokens only, so light and dark both
+ * hold. Above 720px the same list sits in a centred column.
+ */
+@layer components {
+  .mn {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    width: 100%;
+    max-width: 760px;
+    margin-inline: auto;
+  }
+
+  .mn-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  .mn-search svg {
+    position: absolute;
+    left: 18px;
+    width: 20px;
+    height: 20px;
+    color: var(--wm-muted);
+    pointer-events: none;
+  }
+  .mn-search input {
+    width: 100%;
+    min-height: 54px;
+    padding: 0 16px 0 52px;
+    border: 1px solid var(--wm-line);
+    border-radius: 18px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font: inherit;
+    font-size: 16px;
+    outline: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .mn-search input::placeholder {
+    color: var(--wm-muted);
+  }
+  .mn-search input:focus-visible {
+    border-color: var(--wm-lime);
+    box-shadow: 0 0 0 3px var(--wm-lime-soft);
+  }
+
+  .mn-sec {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .mn-sec h2 {
+    margin: 0 2px;
+    color: var(--wm-ink);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* a card of rows; hairlines come from the 1px gaps over the line colour */
+  .mn-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--wm-line);
+    border-radius: 18px;
+    background: var(--wm-line);
+    list-style: none;
+  }
+  .mn-card[data-grid] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .mn-card[data-odd] > li:last-child {
+    grid-column: 1 / -1;
+  }
+  .mn-card > li {
+    display: flex;
+    min-width: 0;
+    background: var(--wm-card);
+  }
+
+  .mn-row {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+    min-height: 60px;
+    padding: 8px 14px 8px 16px;
+    color: var(--wm-ink);
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.15s ease;
+  }
+  .mn-row:hover {
+    background: var(--wm-card-2);
+  }
+  .mn-row:active {
+    background: var(--wm-lime-soft);
+  }
+  .mn-row:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: -2px;
+  }
+  .mn-row-ic {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    color: var(--wm-ink);
+  }
+  .mn-row-ic svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.7;
+  }
+  .mn-row-lbl {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.25;
+    text-overflow: ellipsis;
+  }
+  /* two links share a row: tighter, and a long label wraps between words */
+  .mn-card[data-grid] .mn-row {
+    gap: 10px;
+    padding-inline: 14px 10px;
+  }
+  .mn-card[data-grid] .mn-row-lbl {
+    font-size: 14.5px;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  .mn-card[data-grid] .mn-row-chev {
+    width: 16px;
+    height: 16px;
+  }
+  .mn-row-chev {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    color: var(--wm-muted);
+  }
+  .mn-badge {
+    display: inline-grid;
+    flex: none;
+    place-items: center;
+    min-width: 26px;
+    height: 26px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+    font-size: 13px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mn-empty {
+    margin: 8px 2px;
+    color: var(--wm-muted);
+    font-size: 15px;
+  }
+
+  /* narrow phones: grid cells keep their 44px+ height, slightly tighter */
+  @media (max-width: 380px) {
+    .mn-card[data-grid] .mn-row {
+      gap: 8px;
+      padding-inline: 12px 8px;
+    }
+    .mn-card[data-grid] .mn-row-lbl {
+      font-size: 14px;
+    }
+  }
+}
