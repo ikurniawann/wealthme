@@ -133,6 +133,8 @@ enum AssetType {
   perhiasan
   lainnya
   emas
+  // Aset fields (2026-10-20) — "Seni & koleksi" (was filed under lainnya).
+  seni_koleksi
 }
 
 // Aset rebuild — independent enums; existing enum values are unchanged.
@@ -1459,6 +1461,10 @@ model Asset {
   internalCode       String?              @db.VarChar(64)
   // Where the asset is kept / who holds it (bank safe deposit, Pegadaian, …).
   custodian          String?              @db.VarChar(200)
+  // Aset fields (2026-10-20) — per-category specifications (luas, sertifikat,
+  // nomor polisi, kadar, …), validated by the contracts zod schema for the
+  // asset's type. Null = none recorded; legacy specs stay in `notes`.
+  details            Json?
   // Delete becomes archive; sold/archived rows are excluded from totals.
   status             AssetStatus          @default(active)
   soldAt             DateTime?
