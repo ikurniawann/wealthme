@@ -48,6 +48,35 @@ function extractCode(exception: HttpException): string | undefined {
 }
 
 /**
+ * Structured fields of a 409 ledger conflict (`InvestmentLedgerConflictDto`
+ * in @wealthme/contracts): the failing point, the IDR/unit amounts and the
+ * later rows it breaks. Without them the web can only show the raw message
+ * ("tersedia Rp 1902850"); with them it formats the amounts for the user's
+ * locale and lists the affected rows. Whitelisted by name and forwarded only
+ * on a 409 `HttpException`, so nothing else on an exception body leaks.
+ */
+const CONFLICT_FIELDS = [
+  "at",
+  "needed",
+  "available",
+  "unit",
+  "conflicts",
+] as const;
+
+function extractConflictFields(
+  exception: HttpException,
+): Partial<Record<(typeof CONFLICT_FIELDS)[number], unknown>> {
+  const body = exception.getResponse();
+  if (!body || typeof body !== "object") return {};
+  const source = body as Record<string, unknown>;
+  const fields: Partial<Record<(typeof CONFLICT_FIELDS)[number], unknown>> = {};
+  for (const key of CONFLICT_FIELDS) {
+    if (source[key] !== undefined) fields[key] = source[key];
+  }
+  return fields;
+}
+
+/**
  * Stable `code` for a body that exceeded the transport limit. Mirrored in
  * `apps/web/src/hooks/receipt-scan.ts` so the client can say "the image is
  * too large" instead of a generic failure — rename on one side only and the
@@ -177,6 +206,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? extractCode(exception)
         : undefined;
 
+    const conflict =
+      exception instanceof HttpException && status === HttpStatus.CONFLICT
+        ? extractConflictFields(exception)
+        : {};
+
     response.status(status).json({
       statusCode: status,
       requestId,
@@ -186,6 +220,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           ? extractMessage(exception)
           : "Internal server error",
       ...(code ? { code } : {}),
+      ...conflict,
     });
   }
 }
