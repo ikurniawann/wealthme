@@ -29,6 +29,20 @@ export interface OverviewAccount {
  * recorded balance) but is classed as a physical asset and flagged as a
  * possible duplicate when a `properti` Asset exists (never auto-merged).
  */
+/**
+ * Account.maskedNumber is stored encrypted. The overview shows only the
+ * last four digits ("···5586") and never ciphertext: an undecryptable or
+ * digit-less value is omitted.
+ */
+export function maskAccountNumber(
+  decrypted: { ok: true; value: string } | { ok: false } | null,
+): string | null {
+  if (!decrypted?.ok) return null;
+  const digits = decrypted.value.replace(/\D/g, "");
+  if (digits.length === 0) return null;
+  return `···${digits.slice(-4)}`;
+}
+
 function accountClass(type: AccountType): AssetClass {
   return type === "property" ? "aset_fisik" : "dana_rekening";
 }

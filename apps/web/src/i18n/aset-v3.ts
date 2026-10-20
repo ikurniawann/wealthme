@@ -3,6 +3,9 @@
  * module (wired into id.ts / en.ts as `aset.v3`); the dictionary parity test
  * still checks both locales key by key.
  */
+import { asetDetailEn, asetDetailId } from "./aset-detail";
+import type { AsetDetailCopy } from "./aset-detail";
+
 export interface AsetV3Copy {
   title: string;
   subtitle: string;
@@ -154,6 +157,8 @@ export interface AsetV3Copy {
   formCustodian: string;
   formCustodianPh: string;
   formLoadError: string;
+  // detail page + drawers (Task 20)
+  detail: AsetDetailCopy;
 }
 
 export const asetV3Id: AsetV3Copy = {
@@ -301,6 +306,7 @@ export const asetV3Id: AsetV3Copy = {
   formCustodian: "Lokasi / kustodian (opsional)",
   formCustodianPh: "cth. Safe deposit box BCA",
   formLoadError: "Gagal memuat data aset untuk diedit.",
+  detail: asetDetailId,
 };
 
 export const asetV3En: AsetV3Copy = {
@@ -448,4 +454,5 @@ export const asetV3En: AsetV3Copy = {
   formCustodian: "Location / custodian (optional)",
   formCustodianPh: "e.g. BCA safe deposit box",
   formLoadError: "Could not load the asset for editing.",
+  detail: asetDetailEn,
 };

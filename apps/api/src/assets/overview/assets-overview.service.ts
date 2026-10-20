@@ -7,6 +7,8 @@ import {
   restrictedAccountWhere,
 } from "../../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { CryptoService } from "../../crypto/crypto.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InsuranceNetWorthService } from "../../insurances/value/insurance-net-worth.service";
 import { investmentAccessWhere } from "../../investments/investment-access";
 import { dbDateToYmd } from "../../investments/ledger/ledger-dates";
@@ -20,7 +22,7 @@ import {
 import { PrismaService } from "../../prisma/prisma.service";
 import { assetAccessWhere } from "../asset-access";
 
-import { accountRow } from "./account-rows";
+import { accountRow, maskAccountNumber } from "./account-rows";
 import { insuranceRow } from "./insurance-rows";
 import { investmentRow } from "./investment-rows";
 import { D, displayFn } from "./overview-model";
@@ -77,6 +79,7 @@ export class AssetsOverviewService {
     private readonly prisma: PrismaService,
     private readonly valuation: InvestmentValuationService,
     private readonly insuranceNetWorth: InsuranceNetWorthService,
+    private readonly crypto: CryptoService,
   ) {}
 
   async overview(
@@ -291,6 +294,10 @@ export class AssetsOverviewService {
           accountRow(
             {
               ...a,
+              // Stored encrypted: decrypt, then expose only the last digits.
+              maskedNumber: maskAccountNumber(
+                a.maskedNumber ? this.crypto.tryDecrypt(a.maskedNumber) : null,
+              ),
               institution:
                 a.institution ??
                 (a.platformAccountId

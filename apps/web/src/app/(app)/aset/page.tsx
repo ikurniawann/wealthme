@@ -244,7 +244,7 @@ function AsetPageInner() {
             <ul className="as3-pick">
               {pickable.map((r) => (
                 <li key={r.id}>
-                  <Link href={`/aset/${r.sourceId}`}>
+                  <Link href={`/aset/${r.sourceId}?aksi=update-nilai`}>
                     <span>{r.name}</span>
                     <ChevronRight aria-hidden="true" />
                   </Link>

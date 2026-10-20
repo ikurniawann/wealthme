@@ -249,7 +249,9 @@ export function RowMenu({
             <Eye aria-hidden="true" /> {c.viewDetail}
           </DropdownMenuItem>
           {managed && row.status === "active" && (
-            <DropdownMenuItem onClick={() => router.push(href)}>
+            <DropdownMenuItem
+              onClick={() => router.push(`${href}?aksi=update-nilai`)}
+            >
               <RefreshCw aria-hidden="true" /> {c.updateValue}
             </DropdownMenuItem>
           )}
