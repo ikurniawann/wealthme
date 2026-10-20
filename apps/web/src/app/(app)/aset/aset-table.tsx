@@ -14,7 +14,7 @@ import {
   AssetName,
   ChangeCell,
   QtyText,
-  RowMenu,
+  RowActions,
   TypeChip,
   ValueCell,
   type RowAction,
@@ -174,7 +174,7 @@ export function AsetList({
                   <ChangeCell row={row} />
                 </td>
                 <td className="as3-col-act">
-                  <RowMenu
+                  <RowActions
                     row={row}
                     canManage={canManage}
                     onAction={onAction}
@@ -192,7 +192,6 @@ export function AsetList({
             <div className="as3-cardrow-head">
               <AssetMark row={row} />
               <AssetName row={row} />
-              <RowMenu row={row} canManage={canManage} onAction={onAction} />
             </div>
             <div className="as3-cardrow-value">
               <ValueCell row={row} />
@@ -234,6 +233,9 @@ export function AsetList({
                 </div>
               )}
             </dl>
+            <div className="as3-cardrow-actions">
+              <RowActions row={row} canManage={canManage} onAction={onAction} />
+            </div>
           </li>
         ))}
       </ul>

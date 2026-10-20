@@ -7,7 +7,6 @@ import {
   Archive,
   ArrowDownRight,
   ArrowUpRight,
-  Eye,
   Minus,
   MoreHorizontal,
   Pencil,
@@ -219,7 +218,33 @@ export function ChangeCell({ row }: { row: AssetOverviewRowDto }) {
   );
 }
 
-export function RowMenu({
+/** Row actions: a visible "Lihat detail" button plus the ⋯ manage menu. */
+export function RowActions({
+  row,
+  canManage,
+  onAction,
+}: {
+  row: AssetOverviewRowDto;
+  canManage: boolean;
+  onAction: (action: RowAction, row: AssetOverviewRowDto) => void;
+}) {
+  const { t } = useLocale();
+  const c = t.aset.v3;
+  return (
+    <div className="as3-row-actions">
+      <Link
+        className="btn btn--outline btn--sm"
+        href={detailHref(row)}
+        aria-label={`${c.viewDetail}: ${row.name}`}
+      >
+        {c.viewDetail}
+      </Link>
+      <RowMenu row={row} canManage={canManage} onAction={onAction} />
+    </div>
+  );
+}
+
+function RowMenu({
   row,
   canManage,
   onAction,
@@ -233,11 +258,13 @@ export function RowMenu({
   const router = useRouter();
   const href = detailHref(row);
   const managed = canManage && isManagedAsset(row);
+  // Detail is its own button now; without manage rights the menu is empty.
+  if (!managed) return null;
   const label = fillCopy(c.rowMenu, { name: row.name });
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="btn btn--ghost btn--icon as3-menu-btn"
+        className="btn btn--outline btn--icon as3-menu-btn"
         aria-label={label}
         title={label}
       >
@@ -245,23 +272,18 @@ export function RowMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => router.push(href)}>
-            <Eye aria-hidden="true" /> {c.viewDetail}
-          </DropdownMenuItem>
-          {managed && row.status === "active" && (
+          {row.status === "active" && (
             <DropdownMenuItem
               onClick={() => router.push(`${href}?aksi=update-nilai`)}
             >
               <RefreshCw aria-hidden="true" /> {c.updateValue}
             </DropdownMenuItem>
           )}
-          {managed && (
-            <DropdownMenuItem onClick={() => onAction("edit", row)}>
-              <Pencil aria-hidden="true" /> {c.edit}
-            </DropdownMenuItem>
-          )}
+          <DropdownMenuItem onClick={() => onAction("edit", row)}>
+            <Pencil aria-hidden="true" /> {c.edit}
+          </DropdownMenuItem>
         </DropdownMenuGroup>
-        {managed && row.status !== "archived" && (
+        {row.status !== "archived" && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
