@@ -1,5 +1,6 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import {
   Banknote,
   CalendarClock,
@@ -72,6 +73,18 @@ export function AsuransiHeader({
   );
 }
 
+/** A headline amount that stays on one line: CSS sizes it by its length. */
+function SumValue({ text }: { text: string }) {
+  return (
+    <p
+      className="ins3-sum-value ins3-amount"
+      style={{ "--ins3-len": Math.max(text.length, 12) } as CSSProperties}
+    >
+      {text}
+    </p>
+  );
+}
+
 function Skeleton() {
   return <span className="ins3-bone" aria-hidden="true" />;
 }
@@ -129,9 +142,10 @@ export function AsuransiSummary({
             <Skeleton />
           ) : due.length ? (
             due.map((d) => (
-              <p key={d.currency} className="ins3-sum-value ins3-amount">
-                {idrOrNative(d.total, d.currency)}
-              </p>
+              <SumValue
+                key={d.currency}
+                text={idrOrNative(d.total, d.currency)}
+              />
             ))
           ) : (
             <p className="ins3-sum-empty">{c.dueNone}</p>
@@ -173,9 +187,13 @@ export function AsuransiSummary({
             <Skeleton />
           ) : topBenefit ? (
             <>
-              <p className="ins3-sum-value ins3-amount">
-                {formatNative(topBenefit.total, topBenefit.currency, locale)}
-              </p>
+              <SumValue
+                text={formatNative(
+                  topBenefit.total,
+                  topBenefit.currency,
+                  locale,
+                )}
+              />
               <div className="ins3-chips">
                 <span className="ins3-chip" data-tone="lilac">
                   {fillCopy(c.benefitPolicies, { n: topBenefit.policyCount })}
@@ -225,9 +243,10 @@ export function AsuransiSummary({
           ) : valueTotals.length ? (
             <>
               {valueTotals.map((v) => (
-                <p key={v.currency} className="ins3-sum-value ins3-amount">
-                  {formatNative(String(v.total), v.currency, locale)}
-                </p>
+                <SumValue
+                  key={v.currency}
+                  text={formatNative(String(v.total), v.currency, locale)}
+                />
               ))}
               {latestValue && (
                 <div className="ins3-chips">

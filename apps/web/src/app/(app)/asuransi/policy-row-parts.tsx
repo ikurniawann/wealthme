@@ -10,7 +10,7 @@ import {
   GraduationCap,
   HeartPulse,
   Home,
-  MoreHorizontal,
+  MoreVertical,
   Pencil,
   Shield,
   Trash2,
@@ -95,32 +95,104 @@ export function PolicyName({
   );
 }
 
-export function KindAndType({ policy }: { policy: InsuranceDto }) {
-  const { t } = useLocale();
-  const c = t.asuransi.v3;
-  const pt = policy.policyType ?? "unset";
+/**
+ * Missing data stays visibly missing: a muted "—" whose reason is in the
+ * tooltip and read out to screen readers (never a faked value).
+ */
+export function Missing({ label }: { label: string }) {
   return (
-    <span className="ins3-kind">
-      <span>{t.asuransi.typeLabels[policy.type] ?? policy.type}</span>
-      <span className="ins3-badge" data-ptype={pt}>
-        {c.policyTypes[pt]}
-      </span>
+    <span className="ins3-missing" title={label}>
+      <span aria-hidden="true">—</span>
+      <span className="sr-only">{label}</span>
     </span>
   );
 }
 
-export function People({ policy }: { policy: InsuranceDto }) {
+/** Holder/insured and policy type are the row's fill-in-later fields. */
+function missingParts(policy: InsuranceDto) {
+  const insured = (policy.insured ?? []).length > 0;
+  return {
+    people: !policy.holderName && !insured,
+    type: !policy.policyType,
+  };
+}
+
+/**
+ * One quiet "Lengkapi" per row with missing fields (shown on row hover or
+ * focus with a mouse, always on touch). Opens the edit drawer.
+ */
+function CompleteLink({
+  policy,
+  onComplete,
+}: {
+  policy: InsuranceDto;
+  onComplete: () => void;
+}) {
+  const { t } = useLocale();
+  const c = t.asuransi.v3;
+  return (
+    <button
+      type="button"
+      className="ins3-link ins3-complete"
+      onClick={onComplete}
+      aria-label={fillCopy(c.completeAria, { name: policy.name })}
+    >
+      {c.complete}
+    </button>
+  );
+}
+
+export function KindAndType({
+  policy,
+  onComplete,
+}: {
+  policy: InsuranceDto;
+  onComplete?: () => void;
+}) {
+  const { t } = useLocale();
+  const c = t.asuransi.v3;
+  const pt = policy.policyType;
+  const missing = missingParts(policy);
+  return (
+    <span className="ins3-kind">
+      <span>{t.asuransi.typeLabels[policy.type] ?? policy.type}</span>
+      {pt ? (
+        <span className="ins3-badge" data-ptype={pt}>
+          {c.policyTypes[pt]}
+        </span>
+      ) : (
+        <Missing label={c.policyTypes.unset} />
+      )}
+      {onComplete && missing.type && !missing.people && (
+        <CompleteLink policy={policy} onComplete={onComplete} />
+      )}
+    </span>
+  );
+}
+
+export function People({
+  policy,
+  onComplete,
+}: {
+  policy: InsuranceDto;
+  onComplete?: () => void;
+}) {
   const { t } = useLocale();
   const c = t.asuransi.v3;
   const insured = (policy.insured ?? []).map((i) => i.name).join(", ");
   return (
     <span className="ins3-people">
       {!policy.holderName && !insured ? (
-        <span className="ins3-muted">{c.holderNone}</span>
+        <>
+          <Missing label={c.holderNone} />
+          {onComplete && (
+            <CompleteLink policy={policy} onComplete={onComplete} />
+          )}
+        </>
       ) : (
         <>
           <span>{policy.holderName ?? "—"}</span>
-          <small>/ {insured || c.insuredNone}</small>
+          <small>/ {insured || <Missing label={c.insuredNone} />}</small>
         </>
       )}
     </span>
@@ -174,18 +246,29 @@ export function DueConfirm({
   showHelp = true,
 }: {
   onConfirm?: () => void;
+  /** false: the explanation moves into the tooltip + screen-reader text. */
   showHelp?: boolean;
 }) {
   const { t } = useLocale();
   const c = t.asuransi.v3;
   return (
-    <span className="ins3-due">
-      <span className="ins3-chip" data-tone="warn">
+    <span className="ins3-due" data-compact={showHelp ? undefined : "true"}>
+      <span
+        className="ins3-chip"
+        data-tone="warn"
+        title={showHelp ? undefined : c.dueConfirmHelp}
+      >
         {c.dueConfirm}
+        {!showHelp && <span className="sr-only">. {c.dueConfirmHelp}</span>}
       </span>
       {showHelp && <small className="ins3-muted">{c.dueConfirmHelp}</small>}
       {onConfirm && (
-        <button type="button" className="ins3-link" onClick={onConfirm}>
+        <button
+          type="button"
+          className="ins3-link"
+          onClick={onConfirm}
+          title={showHelp ? undefined : c.dueConfirmHelp}
+        >
           {c.dueConfirmAction}
         </button>
       )}
@@ -204,7 +287,9 @@ export function DueCell({
 }) {
   const { t, locale } = useLocale();
   const c = t.asuransi.v3;
-  if (needsDueConfirmation(policy)) return <DueConfirm onConfirm={onConfirm} />;
+  if (needsDueConfirmation(policy)) {
+    return <DueConfirm onConfirm={onConfirm} showHelp={false} />;
+  }
   const due = nextDue(policy);
   const tone = dueTone(policy);
   const days = policy.daysUntilNextPremium ?? 0;
@@ -266,7 +351,7 @@ export function RowActions({
           aria-label={label}
           title={label}
         >
-          <MoreHorizontal aria-hidden="true" />
+          <MoreVertical aria-hidden="true" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>

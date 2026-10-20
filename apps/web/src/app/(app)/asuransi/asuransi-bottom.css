@@ -1,0 +1,176 @@
+/* Asuransi: "Jadwal premi berikutnya" and "Nilai polis unit link" cards
+   (asuransi-page.png bottom row). Imported after asuransi.css. */
+@layer components {
+  .ins3-bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1.36fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .ins3-schedule,
+  .ins3-ul {
+    padding: 22px 22px 20px;
+  }
+  .ins3-bottom .ins3-h2 {
+    font-size: clamp(19px, 1rem + 0.4vw, 23px);
+  }
+  .ins3-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .ins3 .ins3-card-head small {
+    display: block;
+    margin-top: 6px;
+    font-size: 14px;
+  }
+  .ins3-bottom .ins3-card-head .ins3-link,
+  .ins3-bottom .ins3-card-head .ins3-link svg.lucide {
+    color: color-mix(in srgb, var(--wm-sky) 55%, var(--wm-ink));
+  }
+  .ins3-sched-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--wm-line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .ins3-sched-row,
+  .ins3-sched-head {
+    display: grid;
+    grid-template-columns: 84px minmax(0, 1.5fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 14px;
+  }
+  .ins3-sched-row + .ins3-sched-row {
+    border-top: 1px solid var(--wm-line);
+  }
+  .ins3-sched-head {
+    padding-block: 11px;
+    background: var(--wm-card-2);
+    font-size: 13px;
+    font-weight: 550;
+    color: color-mix(in srgb, var(--wm-ink) 78%, var(--wm-muted));
+  }
+  .ins3-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 52px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--wm-gold) 28%, var(--wm-card));
+    line-height: 1.15;
+  }
+  .ins3-date strong {
+    font-size: 20px;
+    font-weight: 750;
+  }
+  .ins3 .ins3-date small {
+    white-space: nowrap;
+    font-size: 12px;
+    color: var(--wm-ink);
+  }
+  .ins3-sched-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    min-width: 0;
+  }
+  .ins3-sched-main strong {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 650;
+  }
+  .ins3-sched-amt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    font-size: 14px;
+  }
+  .ins3 .ins3-sched-row .ins3-pay {
+    min-height: 40px;
+    border-radius: 10px;
+    border-color: color-mix(in srgb, var(--wm-good) 55%, var(--wm-line));
+    color: color-mix(in srgb, var(--wm-good) 70%, var(--wm-ink));
+    font-weight: 600;
+  }
+  .ins3-sched-confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 16px;
+  }
+  .ins3-sched-confirm-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  .ins3 .ins3-sched-confirm-title small {
+    font-size: 12.5px;
+  }
+  .ins3-sched-row[data-confirm="true"] .ins3-date {
+    background: var(--wm-card-2);
+    color: var(--wm-muted);
+  }
+  .ins3 .ins3-sched-row[data-confirm="true"] .ins3-pay {
+    border-color: var(--wm-line);
+    color: var(--wm-ink);
+  }
+  .ins3-ul-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ins3-info {
+    display: inline-grid;
+    color: var(--wm-muted);
+    cursor: help;
+  }
+  .ins3-ul-values {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+  .ins3 .ins3-ul-amount {
+    font-size: clamp(24px, 1.3rem + 0.7vw, 32px);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+  }
+  .ins3 .ins3-ul-values small {
+    font-size: 14px;
+  }
+  .ins3-ul-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .ins3-ul-foot .ins3-chip {
+    border-radius: 8px;
+    padding: 5px 10px;
+  }
+  .ins3 .ins3-ul-update {
+    min-height: 44px;
+    border-radius: 10px;
+    border-width: 1.5px;
+    border-color: var(--wm-ink);
+    font-weight: 600;
+  }
+  .ins3 .ins3-ul-update:disabled {
+    border-color: var(--wm-line);
+  }
+}

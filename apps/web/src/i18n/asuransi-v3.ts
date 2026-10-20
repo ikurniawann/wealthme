@@ -695,6 +695,10 @@ export interface AsuransiV3Copy {
   all: string;
   moreFilters: string;
   resetFilters: string;
+  otherFilters: string;
+  showResults: string;
+  complete: string;
+  completeAria: string;
   policyTypes: { traditional: string; unit_link: string; unset: string };
   dueOptions: {
     overdue: string;
@@ -878,6 +882,10 @@ export const asuransiV3Id: AsuransiV3Copy = {
   all: "Semua",
   moreFilters: "Filter",
   resetFilters: "Hapus filter",
+  otherFilters: "Filter lainnya",
+  showResults: "Tampilkan {n} polis",
+  complete: "Lengkapi",
+  completeAria: "Lengkapi data {name}",
   policyTypes: {
     traditional: "Tradisional",
     unit_link: "Unit Link",
@@ -1100,6 +1108,10 @@ export const asuransiV3En: AsuransiV3Copy = {
   all: "All",
   moreFilters: "Filters",
   resetFilters: "Clear filters",
+  otherFilters: "More filters",
+  showResults: "Show {n} policies",
+  complete: "Complete",
+  completeAria: "Complete details for {name}",
   policyTypes: {
     traditional: "Traditional",
     unit_link: "Unit link",

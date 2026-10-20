@@ -61,10 +61,13 @@ function PolicyTable({ rows, onAction }: Pick<Props, "rows" | "onAction">) {
                 </span>
               </td>
               <td>
-                <KindAndType policy={p} />
+                <KindAndType
+                  policy={p}
+                  onComplete={() => onAction("edit", p)}
+                />
               </td>
               <td>
-                <People policy={p} />
+                <People policy={p} onComplete={() => onAction("edit", p)} />
               </td>
               <td>
                 <Premium policy={p} />
@@ -109,13 +112,16 @@ function PolicyCards({ rows, onAction }: Pick<Props, "rows" | "onAction">) {
             <div>
               <dt>{c.colTypes}</dt>
               <dd>
-                <KindAndType policy={p} />
+                <KindAndType
+                  policy={p}
+                  onComplete={() => onAction("edit", p)}
+                />
               </dd>
             </div>
             <div>
               <dt>{c.colPeople}</dt>
               <dd>
-                <People policy={p} />
+                <People policy={p} onComplete={() => onAction("edit", p)} />
               </dd>
             </div>
             <div>

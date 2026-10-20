@@ -1,0 +1,101 @@
+/* Asuransi form drawer: fidelity pass against asuransi-form.png. A light
+   header (not the forest band), denser fields, a tinted investment section
+   and a right-aligned compact footer on desktop. These rules must beat
+   bento's layered .wm-panel rules, so they are UNLAYERED; phones keep the
+   full-screen sheet from asuransi-form.css. Imported after it. */
+.ins3f-panel .wm-panel-head {
+  border-bottom: 0;
+  background: var(--wm-card);
+  color: var(--wm-ink);
+}
+.ins3f-panel .wm-panel-title {
+  color: var(--wm-ink);
+  font-weight: 700;
+}
+.ins3f-panel .wm-panel-desc {
+  color: var(--wm-muted);
+}
+.ins3f-panel .wm-panel-x {
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+}
+.ins3f-panel .wm-panel-x:hover {
+  background: color-mix(in srgb, var(--wm-ink) 12%, transparent);
+}
+@media (max-width: 720px) {
+  .ins3f-panel .wm-panel-head {
+    padding-top: calc(18px + env(safe-area-inset-top, 0px));
+    padding-bottom: 4px;
+  }
+}
+@media (min-width: 721px) {
+  .dialog.wm-panel.wm-panel--side.ins3f-panel {
+    width: min(880px, calc(100vw - 24px));
+  }
+  .ins3f-panel .wm-panel-head {
+    padding: 24px 26px 6px;
+  }
+  .ins3f-panel .wm-panel-title {
+    font-size: var(--wm-type-28, 28px);
+  }
+  .ins3f-panel .wm-panel-desc {
+    font-size: 14px;
+  }
+  .ins3f-panel .ins3f-anchors {
+    margin-top: 12px;
+  }
+  .ins3f-panel .ins3f-body {
+    gap: 14px;
+    padding-top: 16px;
+  }
+  .ins3f-panel .ins3f-cols {
+    gap: 14px;
+  }
+  .ins3f-panel .ins3f-section {
+    gap: 10px;
+    padding: 16px;
+    border-radius: 16px;
+  }
+  .ins3f-panel .ins3f-section-head h3 {
+    font-size: 16px;
+  }
+  .ins3f-panel .ins3f-section-head p {
+    font-size: 12.5px;
+  }
+  .ins3f-panel #ins3f-invest {
+    background: color-mix(in srgb, var(--wm-good) 6%, var(--wm-card));
+  }
+  .ins3f-panel .label {
+    margin-bottom: 5px;
+    font-size: 13px;
+    font-weight: 550;
+  }
+  .ins3f-panel :is(.input, .select):not(textarea) {
+    min-height: 40px;
+    height: 40px;
+    padding-block: 8px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  .ins3f-panel input.ins3f-money,
+  .ins3f-panel .ins3f-money {
+    font-size: 16px;
+  }
+  .ins3f-panel .ins3f-more > summary {
+    min-height: 52px;
+    padding: 10px 16px;
+  }
+  .ins3f-panel .wm-panel-foot.ins3f-foot {
+    justify-content: flex-end;
+    padding: 14px 26px calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .ins3f-panel .wm-panel-foot.ins3f-foot > .wm-pill {
+    flex: none;
+    min-width: 120px;
+    min-height: 46px;
+    padding-inline: 24px;
+  }
+  .ins3f-panel .wm-panel-foot.ins3f-foot > .wm-pill[data-variant="primary"] {
+    min-width: 170px;
+  }
+}

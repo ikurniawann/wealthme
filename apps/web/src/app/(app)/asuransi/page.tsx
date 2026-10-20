@@ -14,6 +14,8 @@ import { queryKeys } from "@/lib/query-keys";
 
 import "./asuransi.css";
 import "./asuransi-list.css";
+import "./asuransi-filters.css";
+import "./asuransi-bottom.css";
 import "./asuransi-responsive.css";
 import {
   EMPTY_FILTERS,
@@ -233,6 +235,7 @@ function AsuransiPageInner() {
           <AsuransiFilterBar
             filters={filters}
             options={options}
+            resultCount={rows.length}
             onChange={setFilters}
             onReset={() => setFilters(EMPTY_FILTERS)}
           />

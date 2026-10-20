@@ -24,6 +24,7 @@ import { apiFetch } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/api-error";
 
 import "./asuransi-form.css";
+import "./asuransi-form-ref.css";
 import { AiReadButton, type AiApplyPayload } from "./ai-review";
 import { applyAiToForm } from "./ai-apply";
 import { jakartaToday, needsDueConfirmation } from "./asuransi-model";

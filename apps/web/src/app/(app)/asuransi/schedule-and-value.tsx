@@ -63,6 +63,12 @@ export function PremiumSchedule({
         </p>
       ) : (
         <ul className="ins3-sched-list">
+          <li className="ins3-sched-head" aria-hidden="true">
+            <span>{c.colDate}</span>
+            <span>{c.colPolicy}</span>
+            <span>{c.colPremium}</span>
+            <span>{c.colActions}</span>
+          </li>
           {shown.map((p) => {
             const due = nextDue(p)!;
             return (
@@ -99,23 +105,31 @@ export function PremiumSchedule({
         </ul>
       )}
       {!isLoading && confirmRows.length > 0 && (
-        <div className="mt-4" role="group" aria-labelledby="ins3-sched-confirm">
-          <p id="ins3-sched-confirm" className="ins3-callout-title">
-            {c.scheduleConfirmTitle}
+        <div
+          className="ins3-sched-confirm"
+          role="group"
+          aria-labelledby="ins3-sched-confirm"
+        >
+          <p id="ins3-sched-confirm" className="ins3-sched-confirm-title">
+            <span className="ins3-chip" data-tone="warn">
+              {c.scheduleConfirmTitle}
+            </span>
+            <small>{c.dueConfirmHelp}</small>
           </p>
-          <small className="ins3-muted">{c.dueConfirmHelp}</small>
           <ul className="ins3-sched-list">
             {confirmRows.map((p) => (
-              <li key={p.id} className="ins3-sched-row" data-policy-id={p.id}>
+              <li
+                key={p.id}
+                className="ins3-sched-row"
+                data-confirm="true"
+                data-policy-id={p.id}
+              >
                 <span className="ins3-date" aria-hidden="true">
                   <strong>?</strong>
                 </span>
                 <span className="ins3-sched-main">
                   <strong>{p.name}</strong>
                   <small>{p.provider ?? c.noProvider}</small>
-                  <span className="ins3-chip" data-tone="warn">
-                    {c.dueConfirm}
-                  </span>
                 </span>
                 <span className="ins3-sched-amt">
                   <span className="ins3-amount">

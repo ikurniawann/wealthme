@@ -70,32 +70,25 @@
     justify-self: end;
   }
 
-  @media (max-width: 1560px) {
-    .ins3-summary {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 16px 0;
-    }
-    .ins3-summary .ins3-callout {
-      grid-column: 1 / -1;
-      margin-left: 0;
-    }
-  }
-  @media (max-width: 1500px) {
+  /* Narrow desktop: the row's "Lihat detail" folds into the ⋮ menu. */
+  @media (max-width: 1340px) {
     .ins3-table .ins3-detail {
       display: none;
     }
   }
+  /* Tablet: 2×2 summary (the note card is the 4th cell), cards, 1 column. */
   @media (max-width: 1180px) {
     .ins3-summary {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .ins3-summary .ins3-callout {
-      grid-column: auto;
-      margin-left: 20px;
+      gap: 18px 0;
+      padding: 20px;
     }
     .ins3-summary .ins3-sum:nth-child(3) {
       border-left: 0;
       padding-left: 0;
+    }
+    .ins3-summary .ins3-callout {
+      margin-left: 22px;
     }
     .ins3-table-wrap {
       display: none;
@@ -107,15 +100,6 @@
     .ins3-bottom {
       grid-template-columns: minmax(0, 1fr);
     }
-    .ins3-filter-toggle {
-      display: inline-flex;
-    }
-    .ins3-filters:not([data-open="true"]) .ins3-filter-grid {
-      display: none;
-    }
-    .ins3-filter-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
   }
   /* The shell's PageGreeting already shows the page title on phones. */
   @media (max-width: 720px) {
@@ -124,13 +108,12 @@
     }
   }
   @media (max-width: 640px) {
-    .ins3-summary .ins3-callout {
-      margin-left: 0;
-    }
     .ins3 {
       gap: 12px;
     }
-    .ins3-card {
+    .ins3-card,
+    .ins3-schedule,
+    .ins3-ul {
       padding: 16px;
       border-radius: 18px;
     }
@@ -147,6 +130,7 @@
     .ins3-summary {
       grid-template-columns: minmax(0, 1fr);
       gap: 0;
+      padding: 16px;
     }
     .ins3-sum,
     .ins3-sum + .ins3-sum {
@@ -159,16 +143,36 @@
     .ins3-sum + .ins3-sum {
       border-top: 1px solid var(--wm-line);
     }
+    .ins3-sum-icon {
+      width: 44px;
+      height: 44px;
+    }
+    .ins3-summary .ins3-callout {
+      margin: 6px 0 0;
+    }
+    .ins3-list-head {
+      margin-bottom: 12px;
+    }
     .ins3-cards {
       grid-template-columns: minmax(0, 1fr);
     }
-    .ins3-sched-row {
-      grid-template-columns: 56px minmax(0, 1fr) auto;
+    .ins3-sched-head {
+      display: none;
     }
-    .ins3-sched-row .ins3-pay {
+    .ins3-sched-row {
+      grid-template-columns: 60px minmax(0, 1fr) auto;
+      gap: 10px 12px;
+      padding: 12px;
+    }
+    .ins3-sched-row + .ins3-sched-row {
+      border-top: 1px solid var(--wm-line);
+    }
+    .ins3-sched-amt {
+      align-items: flex-end;
+    }
+    .ins3 .ins3-sched-row .ins3-pay {
       grid-column: 1 / -1;
     }
-    .ins3-filter-grid,
     .ins3-pay-when {
       grid-template-columns: minmax(0, 1fr);
     }

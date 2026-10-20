@@ -1,0 +1,279 @@
+/* Asuransi — list filters per asuransi-page.png: one row with a search box
+   and compact chip dropdowns next to "Daftar polis"; Perusahaan / Jatuh
+   tempo / Mata uang sit behind "Filter lainnya" (menu on desktop, sheet on
+   tablet + phone). Menu and sheet sizing must beat Base UI's Tailwind
+   utilities, so those blocks are UNLAYERED at the bottom. */
+@layer components {
+  .ins3-filters {
+    flex: 1 1 560px;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ins3-search {
+    position: relative;
+    flex: 1 1 220px;
+    min-width: 150px;
+    max-width: 300px;
+  }
+  .ins3-search svg.lucide {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--wm-muted);
+    pointer-events: none;
+  }
+  .ins3 .ins3-search .input {
+    width: 100%;
+    min-height: 40px;
+    padding-left: 38px;
+    border-radius: 10px;
+    font-size: 14px;
+  }
+  .ins3-chiprow {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ins3-fchip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    min-height: 40px;
+    max-width: 180px;
+    padding: 0 9px 0 12px;
+    border: 1px solid var(--wm-line);
+    border-radius: 10px;
+    background: var(--wm-card);
+    color: var(--wm-ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 550;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease;
+  }
+  .ins3-fchip > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .ins3 .ins3-fchip svg.lucide {
+    width: 15px;
+    height: 15px;
+    color: var(--wm-muted);
+  }
+  .ins3-fchip:hover {
+    border-color: color-mix(in srgb, var(--wm-ink) 28%, var(--wm-line));
+  }
+  .ins3-fchip:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+  }
+  .ins3-fchip[data-active="true"] {
+    border-color: color-mix(in srgb, var(--wm-lime) 70%, var(--wm-line));
+    background: color-mix(in srgb, var(--wm-lime) 16%, var(--wm-card));
+  }
+  .ins3-fchip[data-popup-open] {
+    border-color: var(--wm-ink);
+  }
+  .ins3-count {
+    display: inline-grid;
+    place-items: center;
+    min-width: 19px;
+    height: 19px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 700;
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+  }
+  .ins3-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 40px;
+    padding: 0 6px;
+    border: 0;
+    background: none;
+    color: var(--wm-muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .ins3-reset:hover {
+    color: var(--wm-ink);
+  }
+  .ins3 .ins3-reset svg.lucide {
+    width: 14px;
+    height: 14px;
+  }
+  .ins3-sheet-btn,
+  .ins3-phone-only {
+    display: none;
+  }
+
+  /* sheet body: native selects (16px on phones, see responsive.css) */
+  .ins3-fsheet-body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .ins3-fsheet-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .ins3-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+  }
+  .ins3-field > span {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--wm-muted);
+  }
+  .ins3-fsheet-group.ins3-phone-only {
+    display: none;
+  }
+  .ins3-field .select {
+    min-height: 44px;
+  }
+  .ins3-field[data-active="true"] .select {
+    border-color: var(--wm-ink);
+    box-shadow: inset 0 0 0 1px var(--wm-ink);
+  }
+
+  /* narrow desktop / tablet: search gets its own line, chips wrap below */
+  @media (max-width: 1340px) {
+    .ins3-filters,
+    .ins3-chiprow {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+    }
+    .ins3-search {
+      flex-basis: 100%;
+      max-width: none;
+    }
+  }
+  /* desktop shows chips + menu; tablet keeps chips, the 3 others → sheet */
+  @media (max-width: 1180px) {
+    .ins3-filters {
+      flex-basis: 100%;
+    }
+    .ins3-desk {
+      display: none;
+    }
+    .ins3-sheet-btn {
+      display: inline-flex;
+    }
+  }
+  /* phone: search + one Filter button; every filter lives in the sheet */
+  @media (max-width: 640px) {
+    .ins3-filters {
+      flex-wrap: nowrap;
+    }
+    .ins3-search {
+      flex: 1 1 auto;
+      max-width: none;
+    }
+    .ins3-chiprow > .ins3-fchip {
+      display: none;
+    }
+    .ins3-chiprow:not(:has(.ins3-reset)) {
+      display: none;
+    }
+    .ins3-tab-only {
+      display: none;
+    }
+    .ins3-phone-only {
+      display: inline;
+    }
+    .ins3-fsheet-group.ins3-phone-only {
+      display: grid;
+    }
+    .ins3-count.ins3-phone-only {
+      display: inline-grid;
+    }
+    .ins3-fsheet-group {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+  @media (pointer: coarse) {
+    .ins3-fchip,
+    .ins3-reset {
+      min-height: 44px;
+    }
+  }
+}
+
+/* ── Unlayered: beat Base UI's Tailwind utilities ── */
+.ins3-fmenu {
+  width: max-content;
+  min-width: max(var(--anchor-width, 0px), 210px);
+  max-width: min(340px, calc(100vw - 24px));
+  max-height: min(var(--available-height, 420px), 420px);
+  padding: 6px;
+  border-radius: 14px;
+}
+/* tablet + phone: a bottom sheet (bento centres .wm-panel--sheet above 768) */
+@media (max-width: 1180px) {
+  .dialog.wm-panel.wm-panel--sheet.ins3-fsheet {
+    inset: auto 0 0 0;
+    top: auto;
+    left: 0;
+    width: min(640px, 100vw);
+    max-height: 88dvh;
+    margin-inline: auto;
+    border-radius: 22px 22px 0 0;
+    translate: none;
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+  }
+}
+.wm-panel.ins3-fsheet .wm-panel-head {
+  align-items: center;
+  padding: 20px 20px 8px;
+  border-bottom: 0;
+  background: transparent;
+  color: var(--wm-ink);
+}
+.wm-panel.ins3-fsheet .wm-panel-title {
+  color: var(--wm-ink);
+  font-size: var(--wm-type-20, 20px);
+  letter-spacing: -0.02em;
+}
+.wm-panel.ins3-fsheet .wm-panel-head::before {
+  background: color-mix(in srgb, var(--wm-ink) 22%, transparent);
+}
+.wm-panel.ins3-fsheet .wm-panel-x {
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+}
+.wm-panel.ins3-fsheet .wm-panel-body {
+  padding: 8px 20px 12px;
+}
+.wm-panel.ins3-fsheet .wm-panel-foot {
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+}
+.wm-panel.ins3-fsheet .wm-panel-foot > .wm-pill {
+  min-height: 48px;
+}
+@media (max-width: 640px) {
+  .wm-panel.ins3-fsheet :is(input, select) {
+    font-size: 16px;
+  }
+}

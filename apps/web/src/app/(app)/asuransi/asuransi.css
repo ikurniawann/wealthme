@@ -157,18 +157,19 @@
     padding-inline: 16px;
   }
 
-  /* ── Summary ── */
+  /* ── Summary: 3 metric blocks + the "bukan saldo aset" card on the right ── */
   .ins3-summary {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.05fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 0.92fr);
     align-items: stretch;
+    padding: 22px 20px 22px 24px;
   }
   .ins3-sum {
     display: flex;
-    gap: 14px;
+    gap: 16px;
     align-items: flex-start;
     min-width: 0;
-    padding: 4px 20px;
+    padding: 2px 22px;
   }
   .ins3-sum:first-child {
     padding-left: 0;
@@ -179,11 +180,16 @@
   .ins3-sum-icon {
     display: grid;
     place-items: center;
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 52px;
     border-radius: 50%;
     flex-shrink: 0;
-    background: color-mix(in srgb, var(--ins3-tone) 32%, var(--wm-card));
+    color: color-mix(in srgb, var(--ins3-tone) 45%, var(--wm-ink));
+    background: color-mix(in srgb, var(--ins3-tone) 24%, var(--wm-card));
+  }
+  .ins3 .ins3-sum-icon svg.lucide {
+    width: 24px;
+    height: 24px;
   }
   .ins3-sum-icon[data-tone="lime"] {
     --ins3-tone: var(--wm-lime);
@@ -195,166 +201,99 @@
     --ins3-tone: var(--wm-good);
   }
   .ins3-sum-body {
+    flex: 1 1 0;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 8px;
     min-width: 0;
+    container-type: inline-size;
   }
   .ins3-sum-label {
-    font-size: 13.5px;
-    color: var(--wm-muted);
-    font-weight: 600;
+    font-size: 14px;
+    line-height: 1.35;
+    font-weight: 550;
+    color: var(--wm-ink);
   }
+  /* one line at any size: shrink with the block width and the digit count
+     (--ins3-len is the formatted string length, set inline) */
   .ins3 .ins3-sum-value {
-    font-size: clamp(20px, 1.2rem + 0.5vw, 26px);
-    line-height: 1.15;
+    font-size: clamp(16px, calc(100cqi / (var(--ins3-len, 14) * 0.6)), 27px);
+    line-height: 1.12;
     font-weight: 750;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.025em;
   }
   .ins3-sum-empty {
     font-size: 14px;
+    line-height: 1.35;
     color: var(--wm-muted);
   }
   .ins3 .ins3-sum-note {
     font-size: 12px;
     line-height: 1.4;
   }
+  .ins3-summary .ins3-chip {
+    border-radius: 8px;
+    padding: 3px 10px;
+  }
+  .ins3-summary .ins3-chip[data-tone="muted"] {
+    background: transparent;
+    padding-inline: 2px;
+    color: var(--wm-muted);
+    font-weight: 550;
+  }
   .ins3-benefit-list {
     list-style: none;
+    align-self: stretch;
     margin: 0;
-    padding: 8px 0 0;
+    padding: 6px 0 0;
     border-top: 1px dashed var(--wm-line);
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    font-size: 12.5px;
+    gap: 3px;
+    font-size: 12px;
+    color: var(--wm-muted);
   }
   .ins3-benefit-list li {
     display: flex;
     justify-content: space-between;
     gap: 10px;
   }
-  .ins3-benefit-list li > span:first-child {
-    color: var(--wm-muted);
+  .ins3-benefit-list .ins3-amount {
+    font-weight: 600;
+    color: var(--wm-ink);
   }
   .ins3-callout {
     display: flex;
-    gap: 10px;
+    gap: 12px;
     align-items: flex-start;
-    padding: 14px 16px;
+    padding: 16px 18px;
     border-radius: 16px;
     font-size: 12.5px;
-    line-height: 1.45;
-    background: color-mix(in srgb, var(--wm-gold) 22%, var(--wm-card));
+    line-height: 1.5;
+    background: color-mix(in srgb, var(--wm-gold) 24%, var(--wm-card));
+  }
+  .ins3 .ins3-callout > svg.lucide {
+    width: 22px;
+    height: 22px;
+    color: color-mix(in srgb, var(--wm-gold) 40%, var(--wm-bad));
   }
   .ins3-callout[data-tone="info"] {
-    background: color-mix(in srgb, var(--wm-sky) 24%, var(--wm-card));
+    background: color-mix(in srgb, var(--wm-sky) 20%, var(--wm-card));
+  }
+  .ins3 .ins3-callout[data-tone="info"] > svg.lucide {
+    color: color-mix(in srgb, var(--wm-sky) 45%, var(--wm-ink));
   }
   .ins3-callout p:not(.ins3-callout-title) {
     color: var(--wm-muted);
   }
   .ins3-callout-title {
     font-weight: 700;
-    font-size: 13.5px;
-    margin-bottom: 2px;
+    font-size: 14px;
+    line-height: 1.35;
+    margin-bottom: 4px;
   }
   .ins3-summary .ins3-callout {
-    margin-left: 12px;
-  }
-
-  /* ── Schedule + unit link ── */
-  .ins3-bottom {
-    display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-    gap: 16px;
-    align-items: start;
-  }
-  .ins3-card-head {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 12px;
-    margin-bottom: 14px;
-  }
-  .ins3-card-head small {
-    display: block;
-    margin-top: 4px;
-    font-size: 13px;
-  }
-  .ins3-sched-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  .ins3-sched-row {
-    display: grid;
-    grid-template-columns: 72px minmax(0, 1fr) auto auto;
-    align-items: center;
-    gap: 14px;
-    padding: 12px 0;
-    border-top: 1px solid var(--wm-line);
-  }
-  .ins3-date {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 6px 4px;
-    border-radius: 12px;
-    background: color-mix(in srgb, var(--wm-gold) 26%, var(--wm-card));
-    line-height: 1.1;
-  }
-  .ins3-date strong {
-    font-size: 20px;
-  }
-  .ins3 .ins3-date small {
-    white-space: nowrap;
-    font-size: 11px;
-    color: var(--wm-ink);
-  }
-  .ins3-sched-main {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-  .ins3-sched-main strong {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .ins3-sched-amt {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    font-size: 14px;
-  }
-  .ins3-ul-title {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .ins3-info {
-    display: inline-grid;
-    color: var(--wm-muted);
-    cursor: help;
-  }
-  .ins3-ul-values {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 12px;
-  }
-  .ins3 .ins3-ul-amount {
-    font-size: clamp(22px, 1.3rem + 0.6vw, 30px);
-    line-height: 1.1;
-  }
-  .ins3-ul-foot {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-bottom: 14px;
+    margin-left: 4px;
   }
 }
