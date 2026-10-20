@@ -1,218 +1,360 @@
-/* Asuransi (bento v2, docs/design/proto/asuransi.html) */
+/* Asuransi (Task 24) — scoped to .ins3; the app shell owns outer spacing.
+   Header, summary, schedule, unit-link card and dialogs. The list, filters
+   and responsive cards live in asuransi-list.css. */
 @layer components {
-  @media (min-width: 1181px) {
-    .as-grid > .as-hero {
-      grid-column: 1 / 9;
-      grid-row: 1;
-    }
-    .as-grid > .as-side {
-      grid-column: 9 / 13;
-      grid-row: 1;
-    }
-    .as-grid > .as-list {
-      grid-column: 1 / 9;
-      grid-row: 2;
-    }
-    .as-grid > .as-tips {
-      grid-column: 9 / 13;
-      grid-row: 2;
-      align-self: start;
-    }
-    .as-grid > .as-benef {
-      grid-column: 1 / 13;
-      grid-row: 3;
-    }
-  }
-  .as-grid > * {
+  .ins3 {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     min-width: 0;
+    color: var(--wm-ink);
   }
-  .as-plot {
-    position: relative;
-    min-height: 200px;
+  .ins3 p,
+  .ins3 h2 {
+    margin: 0;
   }
-  .as-empty,
-  .as-error {
+  .ins3 svg.lucide,
+  .ins3-pay-dialog svg.lucide {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+  .ins3 small {
     color: var(--wm-muted);
-    font-size: var(--wm-type-13);
   }
-  .as-error {
-    color: var(--wm-bad);
+  .ins3-card {
+    background: var(--wm-card);
+    border: 1px solid var(--wm-line);
+    border-radius: 20px;
+    padding: 20px 22px;
+    min-width: 0;
   }
-  .as-renew {
-    display: block;
-    font-size: var(--wm-type-13);
-    line-height: 1.35;
-    white-space: normal;
-  }
-
-  /* hero controls: Bayar premi / + Polis on the title row (top-right),
-     legend (Kesehatan/Jiwa/…) underneath — matches
-     docs/design/proto/asuransi.html .hero-ctrl + .legend. */
-  .as-hero-ctrl {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+  .ins3 .btn {
+    min-height: 40px;
     gap: 8px;
   }
-  .as-hero-ctrl-row {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 6px;
+  .ins3-amount {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    letter-spacing: -0.01em;
   }
-
-  /* policy grid: 2 columns per proto (`.i-grid .btiles` is a 2-up flex
-     wrap), not the default 3-up `.wm-btiles`. */
-  .as-list .wm-btiles {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .ins3-muted,
+  .ins3-state {
+    color: var(--wm-muted);
+    font-size: 13px;
   }
-  @media (max-width: 640px) {
-    .as-list .wm-btiles {
-      grid-template-columns: minmax(0, 1fr);
-    }
+  .ins3-state {
+    padding: 18px 4px;
   }
-
-  .as-tilewrap {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-height: auto;
-    padding: 14px;
-    border-radius: 18px;
-    background: var(--wm-card-2);
+  .ins3-h2 {
+    font-size: 19px;
+    font-weight: 750;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
   }
-  .as-tile-tt {
-    display: flex;
+  .ins3-link {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-  .as-tile-name {
-    overflow: hidden;
-    flex: 1;
-    min-width: 0;
-    font-size: var(--wm-type-14);
-    font-weight: 500;
-    text-overflow: ellipsis;
+    gap: 6px;
+    min-height: 32px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--wm-sky-ink, var(--primary));
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: none;
     white-space: nowrap;
   }
-  .as-tile-amount {
-    margin-top: 4px;
-    font-size: var(--wm-type-20);
+  .ins3-link:hover {
+    text-decoration: underline;
   }
-  .as-period {
-    margin-left: 2px;
-    color: var(--wm-muted);
-    font-size: var(--wm-type-11);
-    font-weight: 500;
+  .ins3-link:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+    border-radius: 6px;
   }
-  .as-tile-meta {
+  .ins3-bone {
     display: block;
-    color: var(--wm-muted);
-    font-size: var(--wm-type-12);
-    font-variant-numeric: tabular-nums;
+    height: 28px;
+    width: min(220px, 100%);
+    border-radius: 10px;
+    background: var(--wm-card-2);
+    animation: ins3-pulse 1.4s ease-in-out infinite;
   }
-  .as-foot {
+  @keyframes ins3-pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+  .ins3-chips {
     display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 6px;
+    flex-wrap: wrap;
+    gap: 6px;
   }
-  .as-detail {
-    padding: 0 12px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--wm-card);
-    color: var(--wm-muted);
-    font-size: var(--wm-type-12);
-    font-weight: 500;
-    min-height: 32px;
-    cursor: pointer;
-  }
-  .as-pay {
+  .ins3-chip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    margin-left: auto;
-    padding: 0 12px;
-    border: 1px solid var(--wm-line);
+    padding: 3px 10px;
     border-radius: 999px;
-    background: transparent;
-    color: var(--wm-ink);
-    font-size: var(--wm-type-12);
+    font-size: 12px;
     font-weight: 600;
-    min-height: 32px;
-    cursor: pointer;
+    line-height: 1.4;
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
   }
-  .as-pay:disabled {
-    border-color: transparent;
-    background: transparent;
+  .ins3-chip[data-tone="good"] {
+    background: color-mix(in srgb, var(--wm-good) 18%, var(--wm-card));
+  }
+  .ins3-chip[data-tone="bad"] {
+    background: color-mix(in srgb, var(--wm-bad) 16%, var(--wm-card));
+  }
+  .ins3-chip[data-tone="warn"] {
+    background: color-mix(in srgb, var(--wm-gold) 30%, var(--wm-card));
+  }
+  .ins3-chip[data-tone="lilac"] {
+    background: color-mix(in srgb, var(--wm-lilac) 35%, var(--wm-card));
+  }
+  .ins3-chip[data-tone="sky"] {
+    background: color-mix(in srgb, var(--wm-sky) 32%, var(--wm-card));
+  }
+
+  /* ── Header ── */
+  .ins3-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px 24px;
+    flex-wrap: wrap;
+  }
+  .ins3-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .ins3 .ins3-title {
+    font-size: var(--wm-type-28, 28px);
+    line-height: 1.15;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+  }
+  .ins3-heading p:not(.ins3-title) {
     color: var(--wm-muted);
-    cursor: not-allowed;
-    opacity: 1;
+    font-size: 14px;
   }
-  .as-opts {
+  .ins3-header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .ins3-header-actions .btn {
+    min-height: 44px;
+    border-radius: 12px;
+    padding-inline: 16px;
+  }
+
+  /* ── Summary ── */
+  .ins3-summary {
     display: grid;
-    flex: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.05fr);
+    align-items: stretch;
+  }
+  .ins3-sum {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 4px 20px;
+  }
+  .ins3-sum:first-child {
+    padding-left: 0;
+  }
+  .ins3-sum + .ins3-sum {
+    border-left: 1px solid var(--wm-line);
+  }
+  .ins3-sum-icon {
+    display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
-    border: 0;
-    border-radius: 999px;
-    background: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--ins3-tone) 32%, var(--wm-card));
+  }
+  .ins3-sum-icon[data-tone="lime"] {
+    --ins3-tone: var(--wm-lime);
+  }
+  .ins3-sum-icon[data-tone="sky"] {
+    --ins3-tone: var(--wm-sky);
+  }
+  .ins3-sum-icon[data-tone="green"] {
+    --ins3-tone: var(--wm-good);
+  }
+  .ins3-sum-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .ins3-sum-label {
+    font-size: 13.5px;
     color: var(--wm-muted);
-    cursor: pointer;
+    font-weight: 600;
   }
-  .as-opts:hover {
-    background: var(--wm-card);
+  .ins3 .ins3-sum-value {
+    font-size: clamp(20px, 1.2rem + 0.5vw, 26px);
+    line-height: 1.15;
+    font-weight: 750;
+    letter-spacing: -0.02em;
   }
-  @media (max-width: 720px) {
-    .as-foot .as-detail,
-    .as-foot .as-pay {
-      min-height: 44px;
-    }
-    .as-foot .as-detail {
-      min-width: 44px;
-    }
-    .as-opts {
-      width: 44px;
-      height: 44px;
-    }
-  }
-  .as-allocated {
-    margin-bottom: 8px;
+  .ins3-sum-empty {
+    font-size: 14px;
     color: var(--wm-muted);
-    font-size: var(--wm-type-12);
   }
-  .as-benlist {
+  .ins3 .ins3-sum-note {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .ins3-benefit-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px 0 0;
+    border-top: 1px dashed var(--wm-line);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12.5px;
+  }
+  .ins3-benefit-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .ins3-benefit-list li > span:first-child {
+    color: var(--wm-muted);
+  }
+  .ins3-callout {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    border-radius: 16px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    background: color-mix(in srgb, var(--wm-gold) 22%, var(--wm-card));
+  }
+  .ins3-callout[data-tone="info"] {
+    background: color-mix(in srgb, var(--wm-sky) 24%, var(--wm-card));
+  }
+  .ins3-callout p:not(.ins3-callout-title) {
+    color: var(--wm-muted);
+  }
+  .ins3-callout-title {
+    font-weight: 700;
+    font-size: 13.5px;
+    margin-bottom: 2px;
+  }
+  .ins3-summary .ins3-callout {
+    margin-left: 12px;
+  }
+
+  /* ── Schedule + unit link ── */
+  .ins3-bottom {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .ins3-card-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .ins3-card-head small {
+    display: block;
+    margin-top: 4px;
+    font-size: 13px;
+  }
+  .ins3-sched-list {
     list-style: none;
     margin: 0;
     padding: 0;
   }
-  .as-benrow {
-    position: relative;
+  .ins3-sched-row {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 0;
+    border-top: 1px solid var(--wm-line);
   }
-  .as-benrm {
-    position: absolute;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
+  .ins3-date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 4px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--wm-gold) 26%, var(--wm-card));
+    line-height: 1.1;
+  }
+  .ins3-date strong {
+    font-size: 20px;
+  }
+  .ins3 .ins3-date small {
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--wm-ink);
+  }
+  .ins3-sched-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .ins3-sched-main strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ins3-sched-amt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    font-size: 14px;
+  }
+  .ins3-ul-title {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border: 0;
-    border-radius: 999px;
-    background: none;
-    color: var(--wm-bad);
-    cursor: pointer;
+    gap: 6px;
   }
-  .as-benrm:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .ins3-info {
+    display: inline-grid;
+    color: var(--wm-muted);
+    cursor: help;
   }
-  .as-benrow > :first-child {
-    padding-right: 36px;
+  .ins3-ul-values {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .ins3 .ins3-ul-amount {
+    font-size: clamp(22px, 1.3rem + 0.6vw, 30px);
+    line-height: 1.1;
+  }
+  .ins3-ul-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 14px;
   }
 }

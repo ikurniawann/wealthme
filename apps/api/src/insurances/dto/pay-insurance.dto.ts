@@ -51,6 +51,23 @@ export class PayInsuranceDto {
   @IsDateString()
   dueDate?: string;
 
+  @ApiPropertyOptional({
+    description:
+      "Task 24 — the day the premium was paid (YYYY-MM-DD, Asia/Jakarta). Never in the future. Defaults to today.",
+  })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: "paidDate must be YYYY-MM-DD" })
+  @IsDateString()
+  paidDate?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "Task 24 — wall-clock time of the payment (HH:MM, Asia/Jakarta). Only with paidDate.",
+  })
+  @IsOptional()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/, { message: "paidTime must be HH:MM" })
+  paidTime?: string;
+
   @FxInputsProperty()
   fxInputs?: FxInputDto[];
 }

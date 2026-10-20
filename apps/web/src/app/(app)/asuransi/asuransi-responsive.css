@@ -1,0 +1,196 @@
+/* Asuransi (Task 24) — dialog parts and the responsive rules for the whole
+   page. Imported last so its media queries win. */
+@layer components {
+  /* ── Dialogs ── */
+  .ins3-form .field {
+    min-width: 0;
+  }
+  .ins3-pay-due {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--wm-card-2);
+    font-size: 13px;
+  }
+  .ins3-pay-when {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    gap: 0 12px;
+  }
+  .ins3-amount-input {
+    font-variant-numeric: tabular-nums;
+  }
+  .ins3-ai {
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--wm-line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ins3-ai-run {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .ins3-ai-run .input {
+    flex: 1 1 180px;
+  }
+  .ins3-ai-result {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .ins3-ai-fields {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .ins3-ai-fields li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 2px 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--wm-card-2);
+  }
+  .ins3-ai-fields small {
+    color: var(--wm-muted);
+    overflow-wrap: anywhere;
+  }
+  .ins3-ai-fields .ins3-chip {
+    justify-self: end;
+  }
+
+  @media (max-width: 1560px) {
+    .ins3-summary {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px 0;
+    }
+    .ins3-summary .ins3-callout {
+      grid-column: 1 / -1;
+      margin-left: 0;
+    }
+  }
+  @media (max-width: 1500px) {
+    .ins3-table .ins3-detail {
+      display: none;
+    }
+  }
+  @media (max-width: 1180px) {
+    .ins3-summary {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .ins3-summary .ins3-callout {
+      grid-column: auto;
+      margin-left: 20px;
+    }
+    .ins3-summary .ins3-sum:nth-child(3) {
+      border-left: 0;
+      padding-left: 0;
+    }
+    .ins3-table-wrap {
+      display: none;
+    }
+    .ins3-cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .ins3-bottom {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .ins3-filter-toggle {
+      display: inline-flex;
+    }
+    .ins3-filters:not([data-open="true"]) .ins3-filter-grid {
+      display: none;
+    }
+    .ins3-filter-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  /* The shell's PageGreeting already shows the page title on phones. */
+  @media (max-width: 720px) {
+    .ins3 .ins3-title {
+      display: none;
+    }
+  }
+  @media (max-width: 640px) {
+    .ins3-summary .ins3-callout {
+      margin-left: 0;
+    }
+    .ins3 {
+      gap: 12px;
+    }
+    .ins3-card {
+      padding: 16px;
+      border-radius: 18px;
+    }
+    .ins3-header-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .ins3-header-actions .ins3-add {
+      order: -1;
+      grid-column: 1 / -1;
+    }
+    .ins3-summary {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 0;
+    }
+    .ins3-sum,
+    .ins3-sum + .ins3-sum {
+      border-left: 0;
+      padding: 14px 0;
+    }
+    .ins3-sum:first-child {
+      padding-top: 0;
+    }
+    .ins3-sum + .ins3-sum {
+      border-top: 1px solid var(--wm-line);
+    }
+    .ins3-cards {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .ins3-sched-row {
+      grid-template-columns: 56px minmax(0, 1fr) auto;
+    }
+    .ins3-sched-row .ins3-pay {
+      grid-column: 1 / -1;
+    }
+    .ins3-filter-grid,
+    .ins3-pay-when {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .ins3 .input,
+    .ins3 .select,
+    .ins3-pay-dialog .input,
+    .ins3-pay-dialog .select,
+    .ins3-report-dialog .input,
+    .ins3-report-dialog .select {
+      font-size: 16px;
+    }
+  }
+  @media (pointer: coarse) {
+    .ins3 .btn,
+    .ins3 .select,
+    .ins3 .input,
+    .ins3 .ins3-menu-btn,
+    .ins3-link {
+      min-height: 44px;
+    }
+    .ins3 .ins3-menu-btn {
+      width: 44px;
+    }
+  }
+}

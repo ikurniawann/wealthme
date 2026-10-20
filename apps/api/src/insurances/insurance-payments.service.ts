@@ -12,7 +12,10 @@ import {
   runSerializableWithRetry,
   type TxClient,
 } from "../common/utils/serializable-retry.util";
-import { floatingCashInstant } from "../investments/ledger/ledger-dates";
+import {
+  floatingCashInstant,
+  ledgerInstant,
+} from "../investments/ledger/ledger-dates";
 import {
   NOTIFICATION_SENDER_PORT,
   type NotificationSenderPort,
@@ -285,6 +288,7 @@ export class InsurancePaymentsService {
     }
 
     const today = todayInTimeZone();
+    const paidMoment = resolvePaidMoment(dto, today);
     const settledDue = dto.dueDate
       ? parseDateOnly(dto.dueDate)
       : insurance.nextPremiumDueDate;
@@ -331,7 +335,6 @@ export class InsurancePaymentsService {
       );
     }
 
-    const now = new Date();
     const transaction = await tx.transaction.create({
       data: {
         familyGroupId,
@@ -344,7 +347,7 @@ export class InsurancePaymentsService {
         // The app's floating convention for cash rows: Jakarta wall time
         // written as UTC, so a 00:30 WIB payment lists under TODAY. paidAt
         // on the payment row below stays the real instant.
-        occurredAt: floatingNow(now),
+        occurredAt: paidMoment.occurredAt,
         createdByUserId: actorUserId,
       },
     });
@@ -353,7 +356,7 @@ export class InsurancePaymentsService {
         insuranceId: id,
         familyGroupId,
         dueDate: settledDue,
-        paidAt: now,
+        paidAt: paidMoment.paidAt,
         amount: new Prisma.Decimal(amount.toString()),
         currency: "IDR",
         accountId: sourceAccount.id,
@@ -452,6 +455,36 @@ export class InsurancePaymentsService {
     });
     if (existing) throw conflict("sudah dibayar periode ini");
   }
+}
+
+/**
+ * Task 24 — when the premium was paid. Without `paidDate` it is now (floating
+ * Jakarta wall time on the ledger row, the real instant on the payment row).
+ * A user-entered day/time is refused when it lies in the future (Jakarta).
+ */
+export function resolvePaidMoment(
+  dto: Pick<PayInsuranceDto, "paidDate" | "paidTime">,
+  today: Date,
+  now: Date = new Date(),
+): { occurredAt: Date; paidAt: Date } {
+  if (!dto.paidDate) {
+    if (dto.paidTime) {
+      throw new BadRequestException("paidTime requires paidDate");
+    }
+    return { occurredAt: floatingNow(now), paidAt: now };
+  }
+  if (dto.paidDate > (ymd(today) ?? "")) {
+    throw new BadRequestException("Tanggal bayar tidak boleh setelah hari ini");
+  }
+  const time = dto.paidTime ?? null;
+  const paidAt = ledgerInstant(dto.paidDate, time, DEFAULT_TIME_ZONE);
+  if (paidAt.getTime() > now.getTime() + 60_000) {
+    throw new BadRequestException("Jam bayar tidak boleh setelah jam sekarang");
+  }
+  return {
+    occurredAt: floatingCashInstant(dto.paidDate, time, DEFAULT_TIME_ZONE),
+    paidAt,
+  };
 }
 
 /** Jakarta wall-clock "now" as the floating cash instant (minute precision). */
