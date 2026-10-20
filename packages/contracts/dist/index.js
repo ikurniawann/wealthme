@@ -912,12 +912,15 @@ var ASSET_CLASSES = [
   "dana_rekening",
   "investasi",
   "aset_fisik",
+  // Asuransi S6 — confirmed policy value (includeInNetWorth only).
+  "polis_asuransi",
   "lainnya"
 ];
 var ASSET_SOURCE_MODULES = [
   "accounts",
   "investments",
-  "assets"
+  "assets",
+  "insurances"
 ];
 var ASSET_STATUSES = ["active", "sold", "archived"];
 var ASSET_VALUATION_MODELS = ["per_unit", "total"];

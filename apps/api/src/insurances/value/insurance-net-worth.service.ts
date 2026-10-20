@@ -18,6 +18,11 @@ import {
 export interface InsuranceNetWorthPosition {
   insuranceId: string;
   name: string;
+  /** Display metadata for the Aset overview row (not part of the value). */
+  provider: string | null;
+  policyNumber: string | null;
+  policyType: string | null;
+  holderUserId: string | null;
   /** Whole rupiah; null when a component's currency has no FX rate (excluded, never zero). */
   valueIdr: bigint | null;
   components: PolicyValueComponent[];
@@ -26,7 +31,7 @@ export interface InsuranceNetWorthPosition {
 /**
  * Asuransi S6 — the ONE net-worth helper for insurance policy value, used by
  * the dashboard net worth, the reports balance sheet, the /asuransi summary
- * and (later) the Aset overview (`sourceModule: insurances`). Counts ONLY the
+ * and the Aset overview (`sourceModule: insurances`). Counts ONLY the
  * confirmed value of policies with includeInNetWorth=true, once per policy
  * (see confirmedPolicyValue). Sum assured and premiums paid never count;
  * value updates never create cash transactions. Foreign values convert at
@@ -59,6 +64,10 @@ export class InsuranceNetWorthService {
       select: {
         id: true,
         name: true,
+        provider: true,
+        policyNumber: true,
+        policyType: true,
+        holderUserId: true,
         valuations: { where: { status: "confirmed" } },
       },
       orderBy: { createdAt: "asc" },
@@ -77,6 +86,10 @@ export class InsuranceNetWorthService {
       .map(({ p, components }) => ({
         insuranceId: p.id,
         name: p.name,
+        provider: p.provider,
+        policyNumber: p.policyNumber,
+        policyType: p.policyType,
+        holderUserId: p.holderUserId,
         valueIdr: toIdr(components, rates),
         components,
       }));

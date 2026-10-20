@@ -1865,10 +1865,10 @@ interface InvestmentPriceBatchResultDto {
 
 type AssetValuationBasis = InvestmentValuationBasis;
 /** A2 — what the row is (classification), independent of storage/source. */
-declare const ASSET_CLASSES: readonly ["dana_rekening", "investasi", "aset_fisik", "lainnya"];
+declare const ASSET_CLASSES: readonly ["dana_rekening", "investasi", "aset_fisik", "polis_asuransi", "lainnya"];
 type AssetClass = (typeof ASSET_CLASSES)[number];
 /** A2 — the module that owns the record (where edits happen). */
-declare const ASSET_SOURCE_MODULES: readonly ["accounts", "investments", "assets"];
+declare const ASSET_SOURCE_MODULES: readonly ["accounts", "investments", "assets", "insurances"];
 type AssetSourceModule = (typeof ASSET_SOURCE_MODULES)[number];
 /** A5 — mirrors Prisma `AssetStatus`. Delete becomes archive. */
 declare const ASSET_STATUSES: readonly ["active", "sold", "archived"];
@@ -1964,6 +1964,8 @@ interface AssetsOverviewSummaryDto {
     danaRekeningIdr: string;
     investasiIdr: string;
     asetFisikIdr: string;
+    /** Asuransi S6 — confirmed, included policy value (never sum assured). */
+    polisAsuransiIdr: string;
     lainnyaIdr: string;
     netWorthIdr: string | null;
     liabilitiesIdr: string | null;
@@ -1973,6 +1975,7 @@ interface AssetsOverviewSummaryDto {
     displayDanaRekening: string | null;
     displayInvestasi: string | null;
     displayAsetFisik: string | null;
+    displayPolisAsuransi: string | null;
     displayLainnya: string | null;
     displayNetWorth: string | null;
     incomplete: boolean;

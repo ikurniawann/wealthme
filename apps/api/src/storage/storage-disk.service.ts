@@ -93,6 +93,18 @@ export class StorageDiskService extends StoragePort {
     return out;
   }
 
+  async listChildren(prefix: string): Promise<string[]> {
+    try {
+      const entries = await readdir(this.resolveKey(prefix), {
+        withFileTypes: true,
+      });
+      return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw err;
+    }
+  }
+
   /** Resolves a storage key to an absolute path INSIDE `root`; throws for
    * any key that would resolve outside it (`..` segments, absolute paths,
    * etc). */

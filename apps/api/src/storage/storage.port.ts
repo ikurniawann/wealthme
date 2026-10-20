@@ -15,6 +15,8 @@ export abstract class StoragePort {
   // (e.g. after a rollback image cascaded document rows away). Keys are
   // returned exactly as `upload` accepted them; a missing prefix is [].
   abstract list(prefix: string): Promise<StoredObject[]>;
+  /** Names of the IMMEDIATE child folders of `prefix` (no tree walk). */
+  abstract listChildren(prefix: string): Promise<string[]>;
 }
 
 export interface StoredObject {

@@ -195,6 +195,7 @@ export function summarize(s: SummaryInput): AssetsOverviewSummaryDto {
     dana_rekening: ZERO,
     investasi: ZERO,
     aset_fisik: ZERO,
+    polis_asuransi: ZERO,
     lainnya: ZERO,
   };
   let priced = ZERO;
@@ -214,6 +215,7 @@ export function summarize(s: SummaryInput): AssetsOverviewSummaryDto {
   const gross = by.dana_rekening
     .plus(by.investasi)
     .plus(by.aset_fisik)
+    .plus(by.polis_asuransi)
     .plus(by.lainnya);
   const m = (d: Decimal | null) => (d === null ? null : money(d));
   return {
@@ -223,6 +225,7 @@ export function summarize(s: SummaryInput): AssetsOverviewSummaryDto {
     danaRekeningIdr: money(by.dana_rekening),
     investasiIdr: money(by.investasi),
     asetFisikIdr: money(by.aset_fisik),
+    polisAsuransiIdr: money(by.polis_asuransi),
     lainnyaIdr: money(by.lainnya),
     netWorthIdr: m(s.netWorthIdr),
     liabilitiesIdr: m(s.liabilitiesIdr),
@@ -232,6 +235,7 @@ export function summarize(s: SummaryInput): AssetsOverviewSummaryDto {
     displayDanaRekening: s.display(money(by.dana_rekening)),
     displayInvestasi: s.display(money(by.investasi)),
     displayAsetFisik: s.display(money(by.aset_fisik)),
+    displayPolisAsuransi: s.display(money(by.polis_asuransi)),
     displayLainnya: s.display(money(by.lainnya)),
     displayNetWorth: s.display(m(s.netWorthIdr)),
     incomplete,

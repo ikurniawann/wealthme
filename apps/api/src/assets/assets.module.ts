@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 
+import { InsuranceValueModule } from "../insurances/value/insurance-value.module";
 import { InvestmentValuationModule } from "../investments/valuation/investment-valuation.module";
 import { PrismaModule } from "../prisma/prisma.module";
 import { StorageModule } from "../storage/storage.module";
@@ -13,7 +14,12 @@ import { AssetValuationsService } from "./ledger/asset-valuations.service";
 import { AssetsOverviewService } from "./overview/assets-overview.service";
 
 @Module({
-  imports: [PrismaModule, StorageModule, InvestmentValuationModule],
+  imports: [
+    PrismaModule,
+    StorageModule,
+    InvestmentValuationModule,
+    InsuranceValueModule,
+  ],
   controllers: [AssetsController, AssetLedgerController],
   providers: [
     AssetsService,

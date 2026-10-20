@@ -6,6 +6,8 @@ import {
   isRowScoped,
   restrictedAccountWhere,
 } from "../../common/utils/privacy.util";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InsuranceNetWorthService } from "../../insurances/value/insurance-net-worth.service";
 import { investmentAccessWhere } from "../../investments/investment-access";
 import { dbDateToYmd } from "../../investments/ledger/ledger-dates";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -19,6 +21,7 @@ import { PrismaService } from "../../prisma/prisma.service";
 import { assetAccessWhere } from "../asset-access";
 
 import { accountRow } from "./account-rows";
+import { insuranceRow } from "./insurance-rows";
 import { investmentRow } from "./investment-rows";
 import { D, displayFn } from "./overview-model";
 import {
@@ -64,7 +67,8 @@ function acquisitions(
  * Aset A1 — GET …/assets/overview. One server-side source for the Aset page:
  * accounts under the net-worth rule (includeInNetWorth, privacy, row
  * scope), investment holdings through the shared Investasi valuation (no
- * second formula), and physical assets (active, unlinked, row-scoped A7).
+ * second formula), physical assets (active, unlinked, row-scoped A7), and
+ * confirmed insurance policy value through the shared S6 helper.
  * The web no longer sums anything itself.
  */
 @Injectable()
@@ -72,6 +76,7 @@ export class AssetsOverviewService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly valuation: InvestmentValuationService,
+    private readonly insuranceNetWorth: InsuranceNetWorthService,
   ) {}
 
   async overview(
@@ -132,7 +137,7 @@ export class AssetsOverviewService {
   ): Promise<(display: RowContext["display"]) => BuiltRow[]> {
     const member = viewer.member;
     const userId = viewer.userId ?? undefined;
-    const [accounts, holdings, assets] = await Promise.all([
+    const [accounts, holdings, assets, policies] = await Promise.all([
       this.prisma.account.findMany({
         where: {
           familyGroupId,
@@ -155,6 +160,19 @@ export class AssetsOverviewService {
         },
         orderBy: { createdAt: "asc" },
       }),
+      // Asuransi S6 — the same helper (and the same viewer rule) the
+      // dashboard uses, so overview net worth equals dashboard net worth:
+      // a row-scoped viewer counts only the policies they can see.
+      this.insuranceNetWorth.positions(
+        familyGroupId,
+        isRowScoped(member)
+          ? {
+              userId: viewer.userId,
+              role: member?.role ?? null,
+              rowScoped: true,
+            }
+          : undefined,
+      ),
     ]);
     const invIds = holdings.map((h) => h.row.id);
     const assetIds = assets.map((a) => a.id);
@@ -172,6 +190,7 @@ export class AssetsOverviewService {
           ...accounts.map((a) => a.ownerUserId),
           ...holdings.map((h) => h.row.ownerUserId),
           ...assets.map((a) => a.ownerUserId),
+          ...policies.map((p) => p.holderUserId),
         ].filter((v): v is string => !!v),
       ),
     ];
@@ -307,6 +326,7 @@ export class AssetsOverviewService {
               (dupGold && a.type === "emas"),
           ),
         ),
+        ...policies.map((p) => insuranceRow(p, ctx)),
       ];
     };
   }

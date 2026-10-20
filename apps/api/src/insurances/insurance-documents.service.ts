@@ -23,6 +23,8 @@ import type { InsuranceDocumentDto } from "@wealthme/contracts";
 export const MAX_INSURANCE_DOCUMENT_BYTES = 5 * 1024 * 1024;
 /** An upload writes its bytes moments before its row; never sweep those. */
 const ORPHAN_MIN_AGE_MS = 60 * 60 * 1000;
+/** A storage folder name that can be a family id (no dots, no separators). */
+const SAFE_SEGMENT = /^[A-Za-z0-9_-]{1,64}$/;
 /** Policy documents are PDF scans or photos; WEBP is not accepted here. */
 const ACCEPTED_MIMES = new Set(["application/pdf", "image/jpeg", "image/png"]);
 
@@ -138,48 +140,85 @@ export class InsuranceDocumentsService {
   }
 
   /**
-   * Deletes stored policy documents that no InsuranceDocument row points
-   * at — e.g. rows cascaded away by a family delete or by the PREVIOUS
-   * image's unguarded policy delete during a rollback, or a storage delete
-   * that failed above. Only keys under `<fg>/insurances/` are considered,
-   * and objects younger than `minAgeMs` are kept (an upload writes the
-   * bytes just before its row). Returns the number of objects deleted.
+   * Finds stored policy documents that no InsuranceDocument row points at —
+   * rows cascaded away by a family delete or by the PREVIOUS image's
+   * unguarded policy delete during a rollback, or a storage delete that
+   * failed above.
+   *
+   * Safety (staging holds client files):
+   * - DRY-RUN by default: logs the count and a sample of keys, deletes
+   *   nothing. Deletes only when env `INSURANCE_ORPHAN_SWEEP=delete`.
+   * - Strictly the `<fg>/insurances/` prefix; nothing else is ever listed
+   *   below a family folder, and the family folder itself is never removed.
+   * - No tree walk of the storage root: its immediate child folders are the
+   *   family ids, then only `<fg>/insurances/` is listed.
+   * - Objects of a family whose row is gone are candidates only after a
+   *   direct `familyGroup.findUnique` confirms it is absent.
+   * - Objects younger than `minAgeMs` are kept (an upload writes its bytes
+   *   just before its row).
    */
   async sweepOrphans(
-    minAgeMs = ORPHAN_MIN_AGE_MS,
-    now: Date = new Date(),
-  ): Promise<number> {
-    const families = await this.prisma.familyGroup.findMany({
-      select: { id: true },
-    });
-    const known = new Set(families.map((f) => f.id));
-    // Families that no longer exist still have folders: list the root's
-    // insurance prefixes by family folder name as well.
-    const roots = await this.storage.list("");
-    for (const o of roots) {
-      const [fg, area] = o.key.split("/");
-      if (fg && area === "insurances") known.add(fg);
-    }
-    let deleted = 0;
-    for (const fg of known) {
-      const objects = await this.storage.list(`${fg}/insurances`);
+    opts: { mode?: "dry-run" | "delete"; minAgeMs?: number; now?: Date } = {},
+  ): Promise<{
+    mode: "dry-run" | "delete";
+    candidates: string[];
+    deleted: number;
+  }> {
+    const mode =
+      opts.mode ??
+      (process.env.INSURANCE_ORPHAN_SWEEP === "delete" ? "delete" : "dry-run");
+    const minAgeMs = opts.minAgeMs ?? ORPHAN_MIN_AGE_MS;
+    const now = opts.now ?? new Date();
+    const candidates: string[] = [];
+
+    for (const fg of await this.storage.listChildren("")) {
+      if (!SAFE_SEGMENT.test(fg)) continue;
+      const areas = await this.storage.listChildren(fg);
+      if (!areas.includes("insurances")) continue;
+      const prefix = `${fg}/insurances/`;
+      const objects = (await this.storage.list(`${fg}/insurances`)).filter(
+        (o) =>
+          o.key.startsWith(prefix) &&
+          now.getTime() - o.modifiedAt.getTime() >= minAgeMs,
+      );
       if (objects.length === 0) continue;
+      const family = await this.prisma.familyGroup.findUnique({
+        where: { id: fg },
+        select: { id: true },
+      });
+      if (!family) {
+        // Family confirmed absent: every object under its insurance prefix
+        // is unreferenced (its document rows cascaded with it).
+        candidates.push(...objects.map((o) => o.key));
+        continue;
+      }
       const rows = await this.prisma.insuranceDocument.findMany({
         where: { path: { in: objects.map((o) => o.key) } },
         select: { path: true },
       });
       const referenced = new Set(rows.map((r) => r.path));
-      for (const o of objects) {
-        if (referenced.has(o.key)) continue;
-        if (now.getTime() - o.modifiedAt.getTime() < minAgeMs) continue;
-        await this.storage.delete(o.key);
-        deleted++;
-      }
+      candidates.push(
+        ...objects.filter((o) => !referenced.has(o.key)).map((o) => o.key),
+      );
     }
-    if (deleted > 0) {
-      this.logger.log(`orphan sweep removed ${deleted} insurance document(s)`);
+
+    if (candidates.length === 0) return { mode, candidates, deleted: 0 };
+    const sample = candidates.slice(0, 10).join(", ");
+    if (mode !== "delete") {
+      this.logger.warn(
+        `orphan sweep DRY-RUN: ${candidates.length} unreferenced insurance document object(s) would be deleted (set INSURANCE_ORPHAN_SWEEP=delete to delete). Sample: ${sample}`,
+      );
+      return { mode, candidates, deleted: 0 };
     }
-    return deleted;
+    let deleted = 0;
+    for (const key of candidates) {
+      await this.storage.delete(key);
+      deleted++;
+    }
+    this.logger.log(
+      `orphan sweep deleted ${deleted} unreferenced insurance document object(s). Sample: ${sample}`,
+    );
+    return { mode, candidates, deleted };
   }
 
   /** The document, only when it belongs to this policy and family. */
