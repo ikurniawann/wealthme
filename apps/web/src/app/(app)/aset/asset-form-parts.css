@@ -1,0 +1,232 @@
+/* Tambah aset drawer, part 2: step-1 category tiles and the Pratinjau card.
+   UNLAYERED like asset-form.css (imported right after it). */
+/* ── Step 1: category tiles ─────────────────────────────── */
+.as4f-step {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.as4f-step-head h2 {
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.as4f-step-head p {
+  margin-top: 4px;
+  color: var(--wm-muted);
+  font-size: 13.5px;
+}
+.as4f-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.as4f-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 14px;
+  min-height: 132px;
+  padding: 16px;
+  border: 1.5px solid var(--wm-line);
+  border-radius: 18px;
+  background: var(--wm-card);
+  color: var(--wm-ink);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+.as4f-tile:hover {
+  border-color: color-mix(in oklab, var(--wm-lime) 70%, var(--wm-line));
+  transform: translateY(-1px);
+}
+.as4f-tile[aria-checked="true"] {
+  border-color: var(--wm-lime);
+  background: color-mix(in oklab, var(--wm-lime-soft) 60%, var(--wm-card));
+}
+.as4f-tile:focus-visible,
+.as4f-link:focus-visible,
+.as4f-fold > summary:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--wm-ink));
+  outline-offset: 2px;
+}
+.as4f-tile-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.as4f-tile-text strong {
+  font-size: 15px;
+  font-weight: 700;
+}
+.as4f-tile-text small {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.as4f-tile-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: color-mix(
+    in oklab,
+    var(--as4-tone, var(--wm-gold)) 32%,
+    var(--wm-card)
+  );
+  color: var(--wm-ink);
+}
+.as4f-panel .as4f-tile-ic svg.lucide {
+  width: 22px;
+  height: 22px;
+}
+.as4f-panel [data-type="properti"] {
+  --as4-tone: var(--wm-orange);
+}
+.as4f-panel [data-type="kendaraan"] {
+  --as4-tone: var(--wm-sky);
+}
+.as4f-panel [data-type="emas"] {
+  --as4-tone: var(--wm-gold);
+}
+.as4f-panel [data-type="perhiasan"] {
+  --as4-tone: var(--wm-lilac);
+}
+.as4f-panel [data-type="elektronik"] {
+  --as4-tone: var(--wm-lime);
+}
+.as4f-panel [data-type="lainnya"] {
+  --as4-tone: var(--wm-rose);
+}
+
+/* ── Pratinjau ─────────────────────────────────────────── */
+.as4f-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid color-mix(in oklab, var(--wm-sky) 45%, var(--wm-line));
+  border-radius: 18px;
+  background: var(--as4-info-bg);
+}
+.as4f-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15.5px;
+  font-weight: 750;
+}
+.as4f-preview-title svg.lucide {
+  color: var(--as4-info-ink);
+}
+.as4f-preview-idle,
+.as4f-preview-note {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+}
+.as4f-preview-list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  border: 1px solid var(--wm-line);
+  border-radius: 12px;
+  background: var(--wm-card);
+  overflow: hidden;
+}
+.as4f-preview-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  border-top: 1px solid var(--wm-line);
+}
+.as4f-preview-list > div:first-child {
+  border-top: 0;
+}
+.as4f-preview-list dt {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  color: var(--wm-muted);
+  font-size: 13px;
+}
+.as4f-preview-list dt small,
+.as4f-preview-list dd small {
+  display: block;
+  color: var(--wm-muted);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+.as4f-preview-list dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 6px;
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.as4f-preview-list dd[data-tone="up"] {
+  color: var(--wm-good);
+}
+.as4f-preview-list dd[data-tone="down"] {
+  color: var(--wm-bad);
+}
+.as4f-preview-key {
+  background: var(--wm-card-2);
+}
+.as4f-preview-list .as4f-preview-key dt {
+  color: var(--wm-ink);
+  font-weight: 700;
+}
+.as4f-preview-list .as4f-preview-key dd {
+  font-size: clamp(17px, 0.9rem + 0.5vw, 21px);
+  font-weight: 800;
+}
+.as4f-pill {
+  padding: 1px 7px;
+  border-radius: 7px;
+  background: var(--wm-lime-soft);
+  color: var(--wm-ink);
+  font-size: 12px;
+  font-weight: 700;
+}
+.as4f-pill[data-tone="down"] {
+  background: color-mix(in oklab, var(--wm-bad) 14%, transparent);
+}
+.as4f-pill[data-tone="flat"] {
+  background: var(--wm-card-2);
+}
+.as4f-muted {
+  color: var(--wm-muted);
+  font-weight: 500;
+}
+.as4f-projection {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--wm-card);
+  font-size: 12.5px;
+}
+
+@media (max-width: 720px) {
+  .as4f-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .as4f-tile {
+    min-height: 120px;
+    padding: 14px;
+  }
+}

@@ -24,6 +24,7 @@ import { DocumentsCard } from "./detail-documents";
 import { ValueDrawer } from "./value-drawer";
 import { TradeDrawer } from "./trade-drawer";
 import "./detail.css";
+import "./detail-top.css";
 
 type Tab = "summary" | "transactions" | "history" | "documents";
 const TABS: Tab[] = ["summary", "transactions", "history", "documents"];
@@ -188,22 +189,23 @@ function AssetDetail() {
         ownerName={ownerName}
         canManage={!!canManage}
         onAction={openAction}
-      />
-      <div className="ad-tabs" role="tablist" aria-label={d.tabsAria}>
-        {TABS.map((key) => (
-          <button
-            key={key}
-            type="button"
-            role="tab"
-            id={`ad-tab-${key}`}
-            aria-selected={tab === key}
-            aria-controls="ad-panel"
-            onClick={() => setTab(key)}
-          >
-            {tabLabel[key]}
-          </button>
-        ))}
-      </div>
+      >
+        <div className="ad-tabs" role="tablist" aria-label={d.tabsAria}>
+          {TABS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              id={`ad-tab-${key}`}
+              aria-selected={tab === key}
+              aria-controls="ad-panel"
+              onClick={() => setTab(key)}
+            >
+              {tabLabel[key]}
+            </button>
+          ))}
+        </div>
+      </DetailHeader>
       <div
         id="ad-panel"
         role="tabpanel"

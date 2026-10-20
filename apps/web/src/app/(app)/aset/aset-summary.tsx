@@ -14,6 +14,8 @@ import {
 import type { AssetsOverviewSummaryDto } from "@wealthme/contracts";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
+import { InfoTip } from "@/components/wm";
+import "./aset-summary.css";
 import { fillCopy, fmtDate, roundIdr, sharePct } from "./aset-model";
 
 export function AsetHeader({
@@ -161,42 +163,46 @@ export function AsetSummary({
           <span className="as3-scope" data-scope={summary.scope}>
             {summary.scope === "filtered" ? c.scopeFiltered : c.scopeAll}
           </span>
+          {summary.incomplete && (
+            <span className="as3-flag">
+              <CircleAlert aria-hidden="true" />
+              {c.incompleteShort}
+              <InfoTip label={c.incompleteMore} align="start">
+                {c.incomplete}
+                {unpricedCost > BigInt(0) &&
+                  ` ${fillCopy(c.costIncluded, { amount: money.formatExact(unpricedCost) })}`}
+              </InfoTip>
+            </span>
+          )}
+        </div>
+        <p className="as3-summary-meta">
+          <span className="as3-nw">
+            <Scale aria-hidden="true" />
+            {c.netWorth}{" "}
+            {summary.netWorthIdr == null ? (
+              <em>{c.netWorthUnavailable}</em>
+            ) : (
+              <>
+                <strong className="as3-amount">
+                  {money.formatExact(roundIdr(summary.netWorthIdr))}
+                </strong>
+                <InfoTip label={c.netWorth}>
+                  {fillCopy(c.netWorthNote, {
+                    amount: money.formatExact(
+                      roundIdr(summary.liabilitiesIdr ?? "0"),
+                    ),
+                  })}
+                </InfoTip>
+              </>
+            )}
+          </span>
           <span>
             {fillCopy(c.asOf, {
               date: fmtDate(summary.valuationDate, locale),
             })}
           </span>
           <span>{fillCopy(c.currency, { currency: money.currency })}</span>
-          {summary.incomplete && (
-            <span className="as3-warn">
-              <CircleAlert aria-hidden="true" /> {c.incomplete}
-              {unpricedCost > BigInt(0) &&
-                ` ${fillCopy(c.costIncluded, { amount: money.formatExact(unpricedCost) })}`}
-            </span>
-          )}
-        </div>
-        <div className="as3-networth">
-          <Scale aria-hidden="true" />
-          <div>
-            <span>{c.netWorth}</span>
-            {summary.netWorthIdr == null ? (
-              <small>{c.netWorthUnavailable}</small>
-            ) : (
-              <>
-                <strong className="as3-amount">
-                  {money.formatExact(roundIdr(summary.netWorthIdr))}
-                </strong>
-                <small>
-                  {fillCopy(c.netWorthNote, {
-                    amount: money.formatExact(
-                      roundIdr(summary.liabilitiesIdr ?? "0"),
-                    ),
-                  })}
-                </small>
-              </>
-            )}
-          </div>
-        </div>
+        </p>
       </div>
     </section>
   );

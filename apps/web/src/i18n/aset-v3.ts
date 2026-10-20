@@ -5,6 +5,8 @@
  */
 import { asetDetailEn, asetDetailId } from "./aset-detail";
 import type { AsetDetailCopy } from "./aset-detail";
+import { asetFormEn, asetFormId } from "./aset-form";
+import type { AsetFormCopy } from "./aset-form";
 
 export interface AsetV3Copy {
   title: string;
@@ -26,6 +28,8 @@ export interface AsetV3Copy {
   scopeAll: string;
   scopeFiltered: string;
   incomplete: string;
+  incompleteShort: string;
+  incompleteMore: string;
   costIncluded: string;
   netWorth: string;
   netWorthNote: string;
@@ -163,6 +167,8 @@ export interface AsetV3Copy {
   formLoadError: string;
   // detail page + drawers (Task 20)
   detail: AsetDetailCopy;
+  // category-first add/edit drawer (2026-10-20)
+  form: AsetFormCopy;
 }
 
 export const asetV3Id: AsetV3Copy = {
@@ -184,6 +190,8 @@ export const asetV3Id: AsetV3Copy = {
   scopeAll: "Ringkasan mencakup seluruh aset",
   scopeFiltered: "Ringkasan mengikuti filter",
   incomplete: "Total belum lengkap: ada aset yang belum dinilai.",
+  incompleteShort: "Total belum lengkap",
+  incompleteMore: "Kenapa total belum lengkap",
   costIncluded: "{amount} di total memakai biaya perolehan.",
   netWorth: "Kekayaan bersih",
   netWorthNote: "Seluruh aset − liabilitas {amount}, tidak mengikuti filter",
@@ -317,6 +325,7 @@ export const asetV3Id: AsetV3Copy = {
   formCustodianPh: "cth. Safe deposit box BCA",
   formLoadError: "Gagal memuat data aset untuk diedit.",
   detail: asetDetailId,
+  form: asetFormId,
 };
 
 export const asetV3En: AsetV3Copy = {
@@ -338,6 +347,8 @@ export const asetV3En: AsetV3Copy = {
   scopeAll: "Summary covers all assets",
   scopeFiltered: "Summary follows the filters",
   incomplete: "Total incomplete: some assets are not valued yet.",
+  incompleteShort: "Total incomplete",
+  incompleteMore: "Why the total is incomplete",
   costIncluded: "{amount} of the total uses acquisition cost.",
   netWorth: "Net worth",
   netWorthNote: "All assets − liabilities {amount}, ignores filters",
@@ -471,4 +482,5 @@ export const asetV3En: AsetV3Copy = {
   formCustodianPh: "e.g. BCA safe deposit box",
   formLoadError: "Could not load the asset for editing.",
   detail: asetDetailEn,
+  form: asetFormEn,
 };

@@ -1,6 +1,8 @@
 "use client";
 
+import { createElement } from "react";
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import { useQueries } from "@tanstack/react-query";
 import type {
   AssetHistoryEventDto,
@@ -10,7 +12,8 @@ import type {
 import { apiFetch } from "@/lib/api-client";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
-import { fmtDate, fmtQty, fmtTime, roundIdr } from "./aset-model";
+import { fmtDate, fmtQty, fmtTime, rowIcon, roundIdr } from "./aset-model";
+import "./aset-activity.css";
 
 /** Physical assets whose ledgers feed the feed (bounded: API throttle). */
 const MAX_ASSETS = 5;
@@ -20,6 +23,7 @@ interface FeedItem {
   event: AssetHistoryEventDto;
   name: string;
   href: string;
+  icon: LucideIcon;
 }
 
 function orderKey(e: AssetHistoryEventDto): string {
@@ -68,6 +72,7 @@ export function AsetActivity({
         event,
         name: assets[i]!.name,
         href: `/aset/${assets[i]!.sourceId}`,
+        icon: rowIcon(assets[i]!),
       })),
     )
     .sort((a, b) => orderKey(b.event).localeCompare(orderKey(a.event)))
@@ -105,35 +110,53 @@ export function AsetActivity({
       {!items.length ? (
         <p className="as3-muted">{isLoading ? c.loading : c.activityEmpty}</p>
       ) : (
-        <ol className="as3-feed">
-          {items.map(({ event: e, name, href }) => {
-            const imp = impact(e);
-            return (
-              <li key={e.id} data-void={e.status === "void" || undefined}>
-                <span className="as3-feed-when">
-                  {fmtDate(e.effectiveDate, locale)}
-                  <small>
-                    {e.hasTime
-                      ? `${fmtTime(e.effectiveAt, locale)} WIB`
-                      : c.dateOnly}
-                  </small>
-                </span>
-                <span className="as3-feed-main">
-                  <Link href={href}>{name}</Link>
-                  <small>
+        <table className="as3-act">
+          <thead>
+            <tr>
+              <th scope="col">{c.activityWhen}</th>
+              <th scope="col">{c.activityAsset}</th>
+              <th scope="col">{c.activityKind}</th>
+              <th scope="col">{c.activityDetail}</th>
+              <th scope="col" className="as3-act-num">
+                {c.activityImpact}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map(({ event: e, name, href, icon }) => {
+              const imp = impact(e);
+              return (
+                <tr key={e.id} data-void={e.status === "void" || undefined}>
+                  <td className="as3-act-when">
+                    {fmtDate(e.effectiveDate, locale)}
+                    <small>
+                      {e.hasTime
+                        ? `${fmtTime(e.effectiveAt, locale)} WIB`
+                        : c.dateOnly}
+                    </small>
+                  </td>
+                  <td className="as3-act-asset">
+                    <span className="as3-act-asset-in">
+                      <span className="as3-act-ic" aria-hidden="true">
+                        {createElement(icon)}
+                      </span>
+                      <Link href={href}>{name}</Link>
+                    </span>
+                  </td>
+                  <td className="as3-act-kind">
                     {c.activityKinds[e.kind]}
                     {e.status === "void" ? ` · ${c.voided}` : ""}
-                  </small>
-                </span>
-                <span className="as3-feed-detail">{detail(e)}</span>
-                <span className="as3-feed-impact" data-tone={imp.tone}>
-                  <span className="sr-only">{c.activityImpact}: </span>
-                  {imp.text}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
+                  </td>
+                  <td className="as3-act-detail">{detail(e)}</td>
+                  <td className="as3-act-num" data-tone={imp.tone}>
+                    <span className="sr-only">{c.activityImpact}: </span>
+                    {imp.text}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       )}
     </section>
   );

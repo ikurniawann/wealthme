@@ -1,0 +1,256 @@
+/* Aset drawers (Update nilai, Catat beli/jual) on the shared .ivx shell,
+   restyled to the Update nilai drawer in aset-detail.png: light head with a
+   large title and X, blue info callout, leading-icon controls, date | time
+   side by side, a white Pratinjau list with a tinted key row, and a
+   full-width Batal | primary footer. UNLAYERED like the shell it overrides
+   (investasi/trade-position.css); imported after it. */
+.dialog.wm-panel.ivx-pos.ad-drawer {
+  --ad-info-bg: color-mix(in oklab, var(--wm-sky) 20%, var(--wm-card));
+  --ad-info-ink: color-mix(in oklab, var(--wm-sky) 50%, var(--wm-ink));
+  width: min(540px, 100vw);
+}
+
+/* head: light, large title, round X */
+.ivx.ad-drawer .ivx-head {
+  padding: 24px 24px 10px;
+  background: var(--wm-card);
+  color: var(--wm-ink);
+}
+.ivx.ad-drawer .ivx-title {
+  color: var(--wm-ink);
+  font-size: var(--wm-type-28, 28px);
+  font-weight: 750;
+}
+.ivx.ad-drawer .ivx-sub {
+  color: var(--wm-muted);
+}
+.ivx.ad-drawer .ivx-x {
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+}
+.ivx.ad-drawer .ivx-x:hover {
+  background: color-mix(in srgb, var(--wm-ink) 12%, transparent);
+}
+.ivx.ad-drawer .ivx-x:focus-visible {
+  outline-color: var(--focus-ring, var(--wm-ink));
+}
+.ivx.ad-drawer .ivx-form {
+  margin-top: 0;
+  border-radius: 0;
+}
+.ivx.ad-drawer .ivx-body {
+  gap: 18px;
+  padding-top: 12px;
+}
+
+/* blue info callout */
+.ivx.ad-drawer .ad-info {
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--ad-info-bg);
+}
+.ivx.ad-drawer .ad-info > svg {
+  width: 20px;
+  height: 20px;
+  margin-top: 1px;
+  color: var(--ad-info-ink);
+}
+
+/* fields */
+.ivx.ad-drawer .ivx-adorn[data-nomark] .input {
+  padding-left: 14px;
+}
+.ivx.ad-drawer .ivx-adorn .input {
+  font-size: 16px;
+  font-weight: 600;
+}
+.ivx.ad-drawer .ad-file {
+  padding-top: 10px;
+}
+.ivx.ad-drawer .select:disabled {
+  opacity: 0.6;
+}
+.ivx.ad-drawer .ad-pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.ivx.ad-drawer .ad-ic {
+  position: relative;
+  min-width: 0;
+}
+.ivx.ad-drawer .ad-ic > svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: var(--wm-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.ivx.ad-drawer .ad-ic > :is(.input, .select) {
+  padding-left: 44px;
+}
+/* the leading icon replaces the native calendar/clock glyph position */
+.ivx.ad-drawer .ad-ic > input:is([type="date"], [type="time"]) {
+  padding-right: 10px;
+}
+
+/* one icon per control: the native picker glyph becomes a transparent hit
+   area over the whole field (Chromium); the leading icon is the visual */
+.ivx.ad-drawer
+  .ad-ic
+  > input:is([type="date"], [type="time"])::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Pratinjau: white list, tinted key row */
+.ivx.ad-drawer .ad-preview,
+.ivx.ad-drawer .ivx-sum {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--wm-card-2);
+}
+.ivx.ad-drawer .ivx-sum-title {
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+.ivx.ad-drawer .ivx-sum-list {
+  border: 1px solid var(--wm-line);
+  border-radius: 12px;
+  background: var(--wm-card);
+  overflow: hidden;
+}
+.ivx.ad-drawer .ivx-sum-list > div {
+  padding: 9px 14px;
+  border-top: 1px solid var(--wm-line);
+}
+.ivx.ad-drawer .ivx-sum-list > div:first-child {
+  border-top: 0;
+}
+.ivx.ad-drawer .ivx-sum-list dt {
+  color: var(--wm-muted);
+  font-size: 13.5px;
+}
+.ivx.ad-drawer .ivx-sum-list dd {
+  font-size: 14.5px;
+}
+.ivx.ad-drawer .ivx-sum-list > .ivx-sum-key {
+  background: color-mix(in oklab, var(--wm-card-2) 70%, var(--wm-card));
+}
+.ivx.ad-drawer .ivx-sum-list > .ivx-sum-key dt {
+  color: var(--wm-ink);
+  font-weight: 700;
+}
+.ivx.ad-drawer .ivx-sum-list .ivx-sum-key dd {
+  font-size: clamp(17px, 4.4vw, 20px);
+}
+.ivx.ad-drawer .ivx-sum-list dt small {
+  display: block;
+  color: var(--wm-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ivx.ad-drawer .ad-preview-change {
+  margin-top: 10px;
+}
+.ivx.ad-drawer .ad-warn {
+  align-items: flex-start;
+  margin-top: 10px;
+}
+
+/* collapsed extras */
+.ivx.ad-drawer .ad-more {
+  border: 1px solid var(--wm-line);
+  border-radius: 14px;
+}
+.ivx.ad-drawer .ad-more > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 14px;
+  list-style: none;
+  cursor: pointer;
+}
+.ivx.ad-drawer .ad-more > summary::-webkit-details-marker {
+  display: none;
+}
+.ivx.ad-drawer .ad-more > summary > span {
+  display: flex;
+  flex-direction: column;
+}
+.ivx.ad-drawer .ad-more > summary strong {
+  font-size: 14px;
+}
+.ivx.ad-drawer .ad-more > summary small {
+  color: var(--wm-muted);
+  font-size: 12px;
+}
+.ivx.ad-drawer .ad-more > summary svg {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.2s ease;
+}
+.ivx.ad-drawer .ad-more[open] > summary svg {
+  transform: rotate(180deg);
+}
+.ivx.ad-drawer .ad-more > summary:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--wm-ink));
+  outline-offset: 2px;
+  border-radius: 14px;
+}
+.ivx.ad-drawer .ad-more > .ivx-grid {
+  padding: 4px 14px 14px;
+}
+
+/* footer: full-width split */
+.ivx.ad-drawer .ivx-foot {
+  padding: 14px 24px calc(18px + env(safe-area-inset-bottom, 0px));
+}
+.ivx.ad-drawer .ivx-cancel {
+  flex: 1 1 0;
+  min-width: 0;
+  border-radius: 12px;
+}
+.ivx.ad-drawer .ivx-save {
+  flex: 1.25 1 0;
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .ivx.ad-drawer .ivx-head {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 8px;
+  }
+  .ivx.ad-drawer .ivx-title {
+    font-size: 22px;
+  }
+  .ivx.ad-drawer .ivx-foot {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .ivx.ad-drawer .ivx-cancel {
+    flex: 1 1 0;
+  }
+}
+@media (max-width: 560px) {
+  /* date and time stay side by side, like the reference */
+  .ivx.ad-drawer .ad-pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ivx.ad-drawer .ad-more > summary svg {
+    transition: none;
+  }
+}

@@ -767,34 +767,3 @@
     }
   }
 }
-
-/* Drawer additions on the shared .ivx shell — unlayered like the shell. */
-.ivx.ad-drawer .ad-info {
-  align-items: flex-start;
-}
-.ivx.ad-drawer .ad-info > svg {
-  margin-top: 2px;
-}
-.ivx.ad-drawer .ivx-adorn[data-nomark] .input {
-  padding-left: 14px;
-}
-.ivx.ad-drawer .ad-file {
-  padding-top: 10px;
-}
-.ivx.ad-drawer .ivx-sum-list dt small {
-  display: block;
-  color: var(--wm-muted);
-  font-size: 12px;
-}
-.ivx.ad-drawer .ad-preview-change {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--wm-line);
-}
-.ivx.ad-drawer .ad-warn {
-  align-items: flex-start;
-  margin-top: 10px;
-}
-.ivx.ad-drawer .select:disabled {
-  opacity: 0.6;
-}

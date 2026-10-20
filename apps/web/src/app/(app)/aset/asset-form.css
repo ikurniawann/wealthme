@@ -1,0 +1,302 @@
+/* Tambah / edit aset fisik — category-first drawer (fidelity pass against
+   aset-detail.png's "Update nilai" drawer and the Asuransi form). Light head,
+   step-1 tile grid, then two columns of icon-headed section cards with the
+   Pratinjau on the right. UNLAYERED so it beats bento's layered .wm-panel /
+   .wm-form rules and Tailwind's translate utilities. */
+.as4f-panel {
+  --as4-info-bg: color-mix(in oklab, var(--wm-sky) 18%, var(--wm-card));
+  --as4-info-ink: color-mix(in oklab, var(--wm-sky) 55%, var(--wm-ink));
+  --as4-sec-bg: var(--wm-card);
+  background: var(--wm-bg);
+  color: var(--wm-ink);
+}
+.as4f-panel .wm-panel-head {
+  border-bottom: 0;
+  background: var(--wm-card);
+  color: var(--wm-ink);
+  padding: 22px 24px 14px;
+}
+.as4f-panel .wm-panel-title {
+  color: var(--wm-ink);
+  font-size: var(--wm-type-28, 28px);
+  font-weight: 750;
+  letter-spacing: -0.025em;
+}
+.as4f-panel .wm-panel-desc {
+  color: var(--wm-muted);
+  font-size: 14px;
+}
+.as4f-panel .wm-panel-x {
+  width: 44px;
+  height: 44px;
+  background: var(--wm-card-2);
+  color: var(--wm-ink);
+}
+.as4f-panel .wm-panel-x:hover {
+  background: color-mix(in srgb, var(--wm-ink) 12%, transparent);
+}
+.as4f-panel .wm-panel-body.as4f-body {
+  gap: 14px;
+  padding: 16px 24px 20px;
+  background: var(--wm-bg);
+}
+.as4f-panel h2,
+.as4f-panel h3,
+.as4f-panel p {
+  margin: 0;
+}
+.as4f-panel svg.lucide {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* chosen category */
+.as4f-cat {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--wm-line);
+  border-radius: 16px;
+  background: var(--wm-card);
+}
+.as4f-cat .as4f-tile-ic {
+  width: 40px;
+  height: 40px;
+}
+.as4f-cat-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.as4f-cat-text small {
+  color: var(--wm-muted);
+  font-size: 12px;
+}
+.as4f-cat-text strong {
+  font-size: 15px;
+}
+.as4f-link {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--wm-line);
+  border-radius: 999px;
+  background: var(--wm-card);
+  color: var(--wm-ink);
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.as4f-link:hover {
+  background: var(--wm-card-2);
+}
+
+/* ── Step 2: columns + section cards ────────────────────── */
+.as4f-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+.as4f-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.as4f-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--wm-line);
+  border-radius: 18px;
+  background: var(--as4-sec-bg);
+}
+.as4f-sec-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.as4f-sec-ic {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--wm-lime-soft);
+  color: var(--wm-ink);
+}
+.as4f-sec-head h3 {
+  font-size: 15.5px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+.as4f-sec-head p {
+  color: var(--wm-muted);
+  font-size: 12.5px;
+}
+.as4f-panel .wm-form .field {
+  gap: 6px;
+  margin: 0;
+}
+.as4f-panel .wm-form .label {
+  color: var(--wm-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.as4f-req {
+  color: var(--wm-bad);
+}
+.as4f-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 10px;
+}
+.as4f-for {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--wm-card-2);
+  color: var(--wm-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.as4f-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+}
+.as4f-pair--3 {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+.as4f-sub {
+  color: var(--wm-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.as4f-panel .as4f-file {
+  padding-top: 11px;
+}
+
+/* collapsible groups */
+.as4f-fold {
+  border: 1px solid var(--wm-line);
+  border-radius: 14px;
+  background: var(--wm-card-2);
+}
+.as4f-fold > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 52px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  list-style: none;
+  cursor: pointer;
+}
+.as4f-fold > summary::-webkit-details-marker {
+  display: none;
+}
+.as4f-fold > summary > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.as4f-fold > summary strong {
+  font-size: 14px;
+}
+.as4f-fold > summary small {
+  color: var(--wm-muted);
+  font-size: 12px;
+}
+.as4f-fold > summary svg.lucide {
+  transition: transform 0.2s ease;
+}
+.as4f-fold[open] > summary svg.lucide {
+  transform: rotate(180deg);
+}
+.as4f-fold-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 2px 14px 14px;
+}
+
+/* footer: Batal | primary, full-width split */
+.as4f-panel .wm-panel-foot.as4f-foot {
+  flex-wrap: nowrap;
+  gap: 12px;
+  padding: 14px 24px calc(18px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--wm-line);
+  background: var(--wm-card);
+}
+.as4f-panel .wm-panel-foot.as4f-foot > .wm-pill {
+  flex: 1;
+  min-height: 50px;
+}
+.as4f-panel .wm-panel-foot.as4f-foot > .wm-pill[data-variant="primary"] {
+  flex: 1.4;
+}
+
+@media (min-width: 721px) {
+  .dialog.wm-panel.wm-panel--side.as4f-panel {
+    width: min(880px, calc(100vw - 24px));
+  }
+  .as4f-panel .wm-form :is(.input, .select):not(textarea) {
+    min-height: 44px;
+  }
+}
+@media (max-width: 860px) {
+  .as4f-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* preview follows the value section on one column */
+  .as4f-cols > .as4f-col:last-child {
+    display: contents;
+  }
+}
+@media (max-width: 720px) {
+  .dialog.wm-panel.wm-panel--side.as4f-panel {
+    --tw-translate-x: 0;
+    --tw-translate-y: 0;
+    inset: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .as4f-panel .wm-panel-head {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 10px;
+  }
+  .as4f-panel .wm-panel-body.as4f-body {
+    padding: 12px 16px 20px;
+  }
+  .as4f-panel .wm-panel-foot.as4f-foot {
+    padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+  }
+  .as4f-sec {
+    padding: 14px;
+  }
+  .as4f-panel :is(input, select, textarea) {
+    font-size: 16px;
+  }
+}
+@media (pointer: coarse) {
+  .as4f-link {
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .as4f-tile,
+  .as4f-fold > summary svg.lucide {
+    transition: none;
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { CalendarDays, Clock, Globe, type LucideIcon } from "lucide-react";
 import { FX_CURRENCY_CODES } from "@wealthme/contracts";
 import { useFxSnapshot } from "@/components/money";
 import { nowTime, TIME_ZONES, today } from "../../investasi/investment-fields";
@@ -52,6 +53,22 @@ export function Field({
           {error}
         </small>
       )}
+    </div>
+  );
+}
+
+/** A control with a leading icon (reference: the Update nilai drawer). */
+export function IconControl({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+}) {
+  return (
+    <div className="ad-ic">
+      <Icon aria-hidden="true" />
+      {children}
     </div>
   );
 }
@@ -159,44 +176,52 @@ export function WhenFields({
 }) {
   return (
     <>
-      <Field id={`${idBase}-date`} label={dateLabel} required error={error}>
-        <input
-          id={`${idBase}-date`}
-          className="input"
-          type="date"
-          required
-          max={today()}
-          enterKeyHint="next"
-          aria-invalid={error ? true : undefined}
-          value={when.date}
-          onChange={(e) => when.setDate(e.target.value)}
-        />
-      </Field>
-      <Field id={`${idBase}-time`} label={timeLabel} hint={timeHint}>
-        <input
-          id={`${idBase}-time`}
-          className="input"
-          type="time"
-          enterKeyHint="next"
-          aria-describedby={`${idBase}-time-hint`}
-          value={when.time}
-          onChange={(e) => when.setTime(e.target.value)}
-        />
-      </Field>
+      <div className="ad-pair" data-wide>
+        <Field id={`${idBase}-date`} label={dateLabel} required error={error}>
+          <IconControl icon={CalendarDays}>
+            <input
+              id={`${idBase}-date`}
+              className="input"
+              type="date"
+              required
+              max={today()}
+              enterKeyHint="next"
+              aria-invalid={error ? true : undefined}
+              value={when.date}
+              onChange={(e) => when.setDate(e.target.value)}
+            />
+          </IconControl>
+        </Field>
+        <Field id={`${idBase}-time`} label={timeLabel} hint={timeHint}>
+          <IconControl icon={Clock}>
+            <input
+              id={`${idBase}-time`}
+              className="input"
+              type="time"
+              enterKeyHint="next"
+              aria-describedby={`${idBase}-time-hint`}
+              value={when.time}
+              onChange={(e) => when.setTime(e.target.value)}
+            />
+          </IconControl>
+        </Field>
+      </div>
       <Field id={`${idBase}-zone`} label={zoneLabel} wide>
-        <select
-          id={`${idBase}-zone`}
-          className="select"
-          value={when.zone}
-          disabled={!when.time}
-          onChange={(e) => when.setZone(e.target.value)}
-        >
-          {TIME_ZONES.map((z) => (
-            <option key={z} value={z}>
-              {z === "Asia/Jakarta" ? "Asia/Jakarta (WIB)" : z}
-            </option>
-          ))}
-        </select>
+        <IconControl icon={Globe}>
+          <select
+            id={`${idBase}-zone`}
+            className="select"
+            value={when.zone}
+            disabled={!when.time}
+            onChange={(e) => when.setZone(e.target.value)}
+          >
+            {TIME_ZONES.map((z) => (
+              <option key={z} value={z}>
+                {z === "Asia/Jakarta" ? "Asia/Jakarta (WIB)" : z}
+              </option>
+            ))}
+          </select>
+        </IconControl>
       </Field>
     </>
   );

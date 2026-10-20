@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Minus, Plus, X } from "lucide-react";
+import { Wallet, X } from "lucide-react";
 import type {
   AccountDto,
   AssetDto,
@@ -38,11 +38,13 @@ import {
   AmountInput,
   CurrencyFields,
   Field,
+  IconControl,
   useCurrency,
   useWhen,
   WhenFields,
 } from "./drawer-fields";
 import "../../investasi/trade-position.css";
+import "./drawer.css";
 
 /** Accounts a physical asset can be paid from / sold into. */
 export function cashAccounts(accounts: AccountDto[]): AccountDto[] {
@@ -186,7 +188,6 @@ export function TradeDrawer({
   }
 
   const priceLabel = fillCopy(d.tPrice, { unit: unit ?? "unit" });
-  const Icon = buy ? Plus : Minus;
   return (
     <Dialog
       open
@@ -195,10 +196,7 @@ export function TradeDrawer({
       }}
     >
       <PanelContent size="lg" className="ivx ivx-pos ad-drawer">
-        <header className="ivx-head wm-dark">
-          <span className="ivx-head-ic" aria-hidden="true">
-            <Icon />
-          </span>
+        <header className="ivx-head">
           <div className="ivx-head-text">
             <DialogTitle className="ivx-title">
               {buy ? d.tBuyTitle : d.tSellTitle} · {asset.name}
@@ -296,31 +294,33 @@ export function TradeDrawer({
                     {d.tAccountNone}
                   </p>
                 ) : (
-                  <select
-                    id="adt-account"
-                    className="select"
-                    required
-                    aria-invalid={errors.account ? true : undefined}
-                    aria-describedby={
-                      errors.account ? "adt-account-err" : undefined
-                    }
-                    value={accountId}
-                    onChange={(e) => {
-                      setAccountId(e.target.value);
-                      setErrors((x) => ({ ...x, account: undefined }));
-                    }}
-                  >
-                    <option value="">{d.tAccountPick}</option>
-                    {usable.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.name}
-                        {a.institution ? ` · ${a.institution}` : ""} —{" "}
-                        {fillCopy(d.tBalance, {
-                          amount: money.formatExact(idr(a.balance ?? "0")),
-                        })}
-                      </option>
-                    ))}
-                  </select>
+                  <IconControl icon={Wallet}>
+                    <select
+                      id="adt-account"
+                      className="select"
+                      required
+                      aria-invalid={errors.account ? true : undefined}
+                      aria-describedby={
+                        errors.account ? "adt-account-err" : undefined
+                      }
+                      value={accountId}
+                      onChange={(e) => {
+                        setAccountId(e.target.value);
+                        setErrors((x) => ({ ...x, account: undefined }));
+                      }}
+                    >
+                      <option value="">{d.tAccountPick}</option>
+                      {usable.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.name}
+                          {a.institution ? ` · ${a.institution}` : ""} —{" "}
+                          {fillCopy(d.tBalance, {
+                            amount: money.formatExact(idr(a.balance ?? "0")),
+                          })}
+                        </option>
+                      ))}
+                    </select>
+                  </IconControl>
                 )}
               </Field>
               <WhenFields

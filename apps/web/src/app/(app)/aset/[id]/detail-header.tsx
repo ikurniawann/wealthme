@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -40,12 +40,15 @@ export function DetailHeader({
   ownerName,
   canManage,
   onAction,
+  children,
 }: {
   asset: AssetDto;
   ledger: AssetLedgerDto | undefined;
   ownerName: string;
   canManage: boolean;
   onAction: (action: DetailAction) => void;
+  /** The tab bar, closing the top card like the reference. */
+  children?: ReactNode;
 }) {
   const { t } = useLocale();
   const d = t.aset.v3.detail;
@@ -81,82 +84,87 @@ export function DetailHeader({
         <span aria-hidden="true">/</span>
         <span aria-current="page">{asset.name}</span>
       </nav>
-      <header className="ad-head">
-        <div className="ad-identity">
-          <span className="ad-icon" aria-hidden="true">
-            {icon}
-          </span>
-          <div className="ad-identity-text">
-            <div className="ad-title-row">
-              <p className="ad-title">{asset.name}</p>
-              {status === "sold" && <span className="ad-badge">{d.sold}</span>}
-              {status === "archived" && (
-                <span className="ad-badge" data-tone="muted">
-                  {d.archived}
-                </span>
-              )}
+      <section className="ad-top">
+        <header className="ad-head">
+          <div className="ad-identity">
+            <span className="ad-icon" aria-hidden="true">
+              {icon}
+            </span>
+            <div className="ad-identity-text">
+              <div className="ad-title-row">
+                <p className="ad-title">{asset.name}</p>
+                {status === "sold" && (
+                  <span className="ad-badge">{d.sold}</span>
+                )}
+                {status === "archived" && (
+                  <span className="ad-badge" data-tone="muted">
+                    {d.archived}
+                  </span>
+                )}
+              </div>
+              <p className="ad-meta">
+                {meta.map((m, i) => (
+                  <span key={i}>{m}</span>
+                ))}
+              </p>
             </div>
-            <p className="ad-meta">
-              {meta.map((m, i) => (
-                <span key={i}>{m}</span>
-              ))}
-            </p>
           </div>
-        </div>
-        {writable && (
-          <div className="ad-actions" role="group" aria-label={d.actionsAria}>
-            {linked ? (
-              <Link
-                className="btn btn--primary"
-                href={`/investasi/${asset.investmentId}`}
-              >
-                <ExternalLink aria-hidden="true" />
-                {d.openInvestasi}
-              </Link>
-            ) : (
-              <>
-                <button
-                  type="button"
+          {writable && (
+            <div className="ad-actions" role="group" aria-label={d.actionsAria}>
+              {linked ? (
+                <Link
                   className="btn btn--primary"
-                  onClick={() => onAction("buy")}
+                  href={`/investasi/${asset.investmentId}`}
                 >
-                  <Plus aria-hidden="true" />
-                  {d.buy}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--outline"
-                  disabled={!hasUnits}
-                  onClick={() => onAction("sell")}
-                >
-                  <Minus aria-hidden="true" />
-                  {d.sell}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn--outline"
-                  onClick={() => onAction("value")}
-                >
-                  <RefreshCw aria-hidden="true" />
-                  {d.updateValue}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              className="btn btn--ghost ad-edit"
-              onClick={() => onAction("edit")}
-            >
-              <PencilLine aria-hidden="true" />
-              {d.editInfo}
-            </button>
-          </div>
-        )}
-      </header>
-      {linked && <p className="ad-notice">{d.linkedNote}</p>}
-      {status === "archived" && <p className="ad-notice">{d.archivedNote}</p>}
-      {ledger && <KpiStrip asset={asset} ledger={ledger} />}
-      {!ledger && <div className="ad-card ad-kpis ad-skeleton" aria-hidden />}
+                  <ExternalLink aria-hidden="true" />
+                  {d.openInvestasi}
+                </Link>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn--primary"
+                    onClick={() => onAction("buy")}
+                  >
+                    <Plus aria-hidden="true" />
+                    {d.buy}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    disabled={!hasUnits}
+                    onClick={() => onAction("sell")}
+                  >
+                    <Minus aria-hidden="true" />
+                    {d.sell}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--outline"
+                    onClick={() => onAction("value")}
+                  >
+                    <RefreshCw aria-hidden="true" />
+                    {d.updateValue}
+                  </button>
+                </>
+              )}
+              <button
+                type="button"
+                className="btn btn--ghost ad-edit"
+                onClick={() => onAction("edit")}
+              >
+                <PencilLine aria-hidden="true" />
+                {d.editInfo}
+              </button>
+            </div>
+          )}
+        </header>
+        {linked && <p className="ad-notice">{d.linkedNote}</p>}
+        {status === "archived" && <p className="ad-notice">{d.archivedNote}</p>}
+        {ledger && <KpiStrip asset={asset} ledger={ledger} />}
+        {!ledger && <div className="ad-card ad-kpis ad-skeleton" aria-hidden />}
+        {children}
+      </section>
     </>
   );
 }

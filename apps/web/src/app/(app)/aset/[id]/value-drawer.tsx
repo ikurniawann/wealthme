@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { AlertTriangle, Info, RefreshCw, X } from "lucide-react";
+import { ChevronDown, FileText, Info, X } from "lucide-react";
 import type {
   AssetDto,
   AssetHoldingStateDto,
@@ -20,31 +20,24 @@ import {
 } from "@/components/ui/dialog";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useLocale } from "@/hooks/use-locale";
-import { useMoney } from "@/hooks/use-money";
 import { uploadAssetDocument } from "@/lib/asset-attachments";
 import { investmentWrite } from "../../investasi/investment-api";
 import { investmentErrorMessage } from "../../investasi/investment-conflict";
 import { nowTime, today } from "../../investasi/investment-fields";
 import { fillCopy } from "../aset-model";
-import {
-  fmtDay,
-  fmtPctSigned,
-  idr,
-  isPositive,
-  signedIdr,
-  toneOf,
-  typedToDecimal,
-  withUnit,
-} from "./detail-model";
+import { isPositive, typedToDecimal } from "./detail-model";
 import {
   AmountInput,
   CurrencyFields,
   Field,
+  IconControl,
   useCurrency,
   useWhen,
   WhenFields,
 } from "./drawer-fields";
+import { ValuePreview } from "./value-preview";
 import "../../investasi/trade-position.css";
+import "./drawer.css";
 
 const SOURCES = [
   "manual",
@@ -81,7 +74,6 @@ export function ValueDrawer({
 }) {
   const { t, locale } = useLocale();
   const d = t.aset.v3.detail;
-  const money = useMoney();
   const perUnit = state.valuationModel === "per_unit";
   const unit = state.unit ?? asset.unit ?? null;
   const [key] = useState(() => crypto.randomUUID());
@@ -168,7 +160,6 @@ export function ValueDrawer({
     }
   }
 
-  const fmt = (v: string) => money.formatExact(idr(v));
   const priceLabel = fillCopy(d.vPriceLabel, { unit: unit ?? "unit" });
   return (
     <Dialog
@@ -178,10 +169,7 @@ export function ValueDrawer({
       }}
     >
       <PanelContent size="lg" className="ivx ivx-pos ad-drawer">
-        <header className="ivx-head wm-dark">
-          <span className="ivx-head-ic" aria-hidden="true">
-            <RefreshCw />
-          </span>
+        <header className="ivx-head">
           <div className="ivx-head-text">
             <DialogTitle className="ivx-title">{d.vTitle}</DialogTitle>
             <DialogDescription className="ivx-sub">
@@ -224,13 +212,6 @@ export function ValueDrawer({
                   describedBy={errors.amount ? "adv-amount-err" : undefined}
                 />
               </Field>
-              <CurrencyFields
-                idBase="adv"
-                state={cur}
-                currencyLabel={d.vCurrency}
-                rateLabel={d.vFxRate}
-                rateHint={d.vFxHint}
-              />
               <WhenFields
                 idBase="adv"
                 when={when}
@@ -245,203 +226,109 @@ export function ValueDrawer({
                 label={d.vSource}
                 required
                 error={errors.source}
-              >
-                <select
-                  id="adv-source"
-                  className="select"
-                  required
-                  aria-invalid={errors.source ? true : undefined}
-                  value={source}
-                  onChange={(e) => {
-                    setSource(e.target.value);
-                    setErrors((x) => ({ ...x, source: undefined }));
-                  }}
-                >
-                  <option value="">{d.vSourcePick}</option>
-                  {SOURCES.map((s) => (
-                    <option key={s} value={s}>
-                      {d.sources[s]}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field id="adv-ref" label={d.vReference}>
-                <input
-                  id="adv-ref"
-                  className="input"
-                  maxLength={500}
-                  autoComplete="off"
-                  enterKeyHint="next"
-                  placeholder={d.vReferencePh}
-                  value={reference}
-                  onChange={(e) => setReference(e.target.value)}
-                />
-              </Field>
-              <Field
-                id="adv-proof"
-                label={d.vProof}
-                hint={d.vProofHint}
-                error={proofError}
                 wide
               >
-                <input
-                  id="adv-proof"
-                  className="input ad-file"
-                  type="file"
-                  accept=".jpg,.jpeg,.png,.webp,.pdf"
-                  aria-describedby="adv-proof-hint"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] ?? null;
-                    if (file && file.size > PROOF_LIMIT) {
-                      setProofError(d.vProofTooBig);
-                      setProof(null);
-                      e.target.value = "";
-                      return;
-                    }
-                    setProofError("");
-                    setProof(file);
-                  }}
-                />
-              </Field>
-              <Field id="adv-note" label={d.vNote} wide>
-                <textarea
-                  id="adv-note"
-                  className="textarea"
-                  rows={2}
-                  maxLength={1000}
-                  placeholder={d.vNotePh}
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                />
+                <IconControl icon={FileText}>
+                  <select
+                    id="adv-source"
+                    className="select"
+                    required
+                    aria-invalid={errors.source ? true : undefined}
+                    value={source}
+                    onChange={(e) => {
+                      setSource(e.target.value);
+                      setErrors((x) => ({ ...x, source: undefined }));
+                    }}
+                  >
+                    <option value="">{d.vSourcePick}</option>
+                    {SOURCES.map((s) => (
+                      <option key={s} value={s}>
+                        {d.sources[s]}
+                      </option>
+                    ))}
+                  </select>
+                </IconControl>
               </Field>
             </div>
 
-            <section
-              className="ivx-sum ad-preview"
-              aria-live="polite"
-              aria-labelledby="adv-prev"
+            <ValuePreview
+              p={p}
+              isError={preview.isError}
+              error={preview.error}
+              isFetching={preview.isFetching}
+              unit={unit}
+            />
+
+            <details
+              className="ad-more"
+              open={cur.currency !== "IDR" || undefined}
             >
-              <p className="ivx-sum-title" id="adv-prev">
-                {d.vPreviewTitle}
-              </p>
-              {!p ? (
-                <p className="ivx-sum-note">
-                  {preview.isError
-                    ? investmentErrorMessage(preview.error, d.vFailed, locale)
-                    : preview.isFetching
-                      ? d.vPreviewLoading
-                      : d.vPreviewIdle}
-                </p>
-              ) : (
-                <>
-                  <dl className="ivx-sum-list">
-                    {p.valuationModel === "per_unit" && (
-                      <>
-                        <div>
-                          <dt>{d.vQty}</dt>
-                          <dd>
-                            {withUnit(p.quantity, p.unit ?? unit, locale)}
-                          </dd>
-                        </div>
-                        <div>
-                          <dt>
-                            {fillCopy(d.vNewPrice, {
-                              unit: p.unit ?? unit ?? "unit",
-                            })}
-                          </dt>
-                          <dd>
-                            {p.pricePerUnitIdr ? fmt(p.pricePerUnitIdr) : "—"}
-                          </dd>
-                        </div>
-                      </>
-                    )}
-                    <div className="ivx-sum-key">
-                      <dt>
-                        {d.vNewValue}
-                        {p.valuationModel === "per_unit" &&
-                          p.pricePerUnitIdr && (
-                            <small>
-                              {withUnit(p.quantity, p.unit ?? unit, locale)} ×{" "}
-                              {fmt(p.pricePerUnitIdr)}
-                            </small>
-                          )}
-                      </dt>
-                      <dd>{fmt(p.newValueIdr)}</dd>
-                    </div>
-                  </dl>
-                  <dl className="ivx-sum-list ad-preview-change">
-                    <div>
-                      <dt>
-                        {d.vPrevValue}
-                        {p.comparisonDate && (
-                          <small>{fmtDay(p.comparisonDate, locale)}</small>
-                        )}
-                      </dt>
-                      <dd>
-                        {p.previousValueIdr
-                          ? fmt(p.previousValueIdr)
-                          : d.vPrevNone}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>{d.vChange}</dt>
-                      <dd data-tone={toneTo(p.changeIdr)}>
-                        {p.changeIdr
-                          ? signedIdr(p.changeIdr, money.formatExact)
-                          : "—"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>{d.vChangePct}</dt>
-                      <dd data-tone={toneTo(p.changeIdr)}>
-                        {fmtPctSigned(p.changePercent, locale)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>{d.vImpact}</dt>
-                      <dd data-tone={toneTo(p.totalImpactIdr)}>
-                        {signedIdr(p.totalImpactIdr, money.formatExact)}
-                      </dd>
-                    </div>
-                  </dl>
-                  {p.backdated && (
-                    <p
-                      className="ivx-strip ad-warn"
-                      data-tone="warn"
-                      role="status"
-                    >
-                      <AlertTriangle aria-hidden="true" />
-                      <span>
-                        {p.becomesCurrent
-                          ? d.vBackdated
-                          : fillCopy(d.vNotCurrent, {
-                              date: p.newerValuationDate
-                                ? fmtDay(p.newerValuationDate, locale)
-                                : "—",
-                            })}
-                      </span>
-                    </p>
-                  )}
-                  {!p.backdated && !p.becomesCurrent && (
-                    <p
-                      className="ivx-strip ad-warn"
-                      data-tone="warn"
-                      role="status"
-                    >
-                      <AlertTriangle aria-hidden="true" />
-                      <span>
-                        {fillCopy(d.vNotCurrent, {
-                          date: p.newerValuationDate
-                            ? fmtDay(p.newerValuationDate, locale)
-                            : "—",
-                        })}
-                      </span>
-                    </p>
-                  )}
-                </>
-              )}
-              <p className="ivx-sum-note">{d.vNoCash}</p>
-            </section>
+              <summary>
+                <span>
+                  <strong>{d.vMore}</strong>
+                  <small>{d.vMoreHint}</small>
+                </span>
+                <ChevronDown aria-hidden="true" />
+              </summary>
+              <div className="ivx-grid">
+                <CurrencyFields
+                  idBase="adv"
+                  state={cur}
+                  currencyLabel={d.vCurrency}
+                  rateLabel={d.vFxRate}
+                  rateHint={d.vFxHint}
+                />
+                <Field id="adv-ref" label={d.vReference}>
+                  <input
+                    id="adv-ref"
+                    className="input"
+                    maxLength={500}
+                    autoComplete="off"
+                    enterKeyHint="next"
+                    placeholder={d.vReferencePh}
+                    value={reference}
+                    onChange={(e) => setReference(e.target.value)}
+                  />
+                </Field>
+                <Field
+                  id="adv-proof"
+                  label={d.vProof}
+                  hint={d.vProofHint}
+                  error={proofError}
+                  wide
+                >
+                  <input
+                    id="adv-proof"
+                    className="input ad-file"
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp,.pdf"
+                    aria-describedby="adv-proof-hint"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      if (file && file.size > PROOF_LIMIT) {
+                        setProofError(d.vProofTooBig);
+                        setProof(null);
+                        e.target.value = "";
+                        return;
+                      }
+                      setProofError("");
+                      setProof(file);
+                    }}
+                  />
+                </Field>
+                <Field id="adv-note" label={d.vNote} wide>
+                  <textarea
+                    id="adv-note"
+                    className="textarea"
+                    rows={2}
+                    maxLength={1000}
+                    placeholder={d.vNotePh}
+                    value={note}
+                    onChange={(e) => setNote(e.target.value)}
+                  />
+                </Field>
+              </div>
+            </details>
             {failure && (
               <p className="ivx-field-error ivx-error" role="alert">
                 {failure}
@@ -465,9 +352,4 @@ export function ValueDrawer({
       </PanelContent>
     </Dialog>
   );
-}
-
-function toneTo(value: string | null): "good" | "bad" | undefined {
-  const tone = toneOf(value);
-  return tone === "up" ? "good" : tone === "down" ? "bad" : undefined;
 }

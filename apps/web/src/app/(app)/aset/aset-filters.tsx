@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
+import { DateRangeFilterField } from "@/components/wm";
 import { useMoney } from "@/hooks/use-money";
 import {
   activeFilterKeys,
@@ -230,28 +231,19 @@ export function AsetFilterBar({
             />
           </div>
         </fieldset>
-        <fieldset className="as3-field as3-opt as3-range">
-          <legend>{c.acquired}</legend>
-          <div>
-            <input
-              className="input"
-              type="date"
-              aria-label={`${c.acquired} ${c.from}`}
-              value={filters.acquiredFrom}
-              max={filters.acquiredTo || undefined}
-              onChange={(e) => onChange({ acquiredFrom: e.target.value })}
-            />
-            <span aria-hidden="true">–</span>
-            <input
-              className="input"
-              type="date"
-              aria-label={`${c.acquired} ${c.to}`}
-              value={filters.acquiredTo}
-              min={filters.acquiredFrom || undefined}
-              onChange={(e) => onChange({ acquiredTo: e.target.value })}
-            />
-          </div>
-        </fieldset>
+        <div className="as3-field as3-opt as3-dates">
+          <DateRangeFilterField
+            from={filters.acquiredFrom}
+            to={filters.acquiredTo}
+            locale={locale}
+            label={c.acquired}
+            cancelLabel={t.common.cancel}
+            applyLabel={t.common.apply}
+            onApply={(acquiredFrom, acquiredTo) =>
+              onChange({ acquiredFrom, acquiredTo })
+            }
+          />
+        </div>
         <label className="as3-field">
           <span>{c.sort}</span>
           <select

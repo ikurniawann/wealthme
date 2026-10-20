@@ -153,6 +153,8 @@ export interface AsetDetailCopy {
   vNote: string;
   vNotePh: string;
   vPreviewTitle: string;
+  vMore: string;
+  vMoreHint: string;
   vPreviewIdle: string;
   vPreviewLoading: string;
   vQty: string;
@@ -350,6 +352,8 @@ export const asetDetailId: AsetDetailCopy = {
   vNote: "Catatan",
   vNotePh: "Opsional",
   vPreviewTitle: "Pratinjau perubahan nilai",
+  vMore: "Detail tambahan",
+  vMoreHint: "Mata uang, referensi, bukti, dan catatan",
   vPreviewIdle: "Isi harga atau nilai untuk melihat pratinjau.",
   vPreviewLoading: "Menghitung pratinjau…",
   vQty: "Kuantitas",
@@ -551,6 +555,8 @@ export const asetDetailEn: AsetDetailCopy = {
   vNote: "Note",
   vNotePh: "Optional",
   vPreviewTitle: "Value change preview",
+  vMore: "More details",
+  vMoreHint: "Currency, reference, proof and note",
   vPreviewIdle: "Enter a price or value to see the preview.",
   vPreviewLoading: "Calculating preview…",
   vQty: "Quantity",

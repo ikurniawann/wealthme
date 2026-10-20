@@ -1,0 +1,135 @@
+/* Aktivitas aset terbaru — a table per aset-page.png (Tanggal & waktu, Aset,
+   Aktivitas, Detail, Dampak nilai); a card per event below 640px. */
+@layer components {
+  .as3-act {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .as3-act thead th {
+    padding: 9px 14px;
+    background: var(--wm-card-2);
+    color: var(--wm-muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    white-space: nowrap;
+  }
+  .as3-act thead th:first-child {
+    border-radius: 10px 0 0 10px;
+  }
+  .as3-act thead th:last-child {
+    border-radius: 0 10px 10px 0;
+  }
+  .as3-act td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--wm-line);
+    vertical-align: middle;
+  }
+  .as3-act tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .as3-act tr[data-void] td {
+    opacity: 0.6;
+  }
+  .as3-act-when {
+    white-space: nowrap;
+  }
+  .as3-act-when small {
+    display: block;
+    color: var(--wm-muted);
+    font-size: 11.5px;
+  }
+  .as3-act-asset {
+    font-weight: 600;
+  }
+  .as3-act-asset-in {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    font-weight: 600;
+  }
+  .as3-act-asset a {
+    overflow-wrap: anywhere;
+  }
+  .as3-act-asset a:hover {
+    text-decoration: underline;
+  }
+  .as3-act-ic {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+    background: color-mix(in srgb, var(--wm-gold) 30%, var(--wm-card));
+  }
+  .as3 .as3-act-ic svg.lucide {
+    width: 15px;
+    height: 15px;
+  }
+  .as3-act-detail {
+    color: var(--wm-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .as3-act-num {
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .as3-act thead th.as3-act-num {
+    text-align: right;
+  }
+  .as3-act-num[data-tone="up"] {
+    color: var(--wm-good);
+  }
+  .as3-act-num[data-tone="down"] {
+    color: var(--wm-bad);
+  }
+  @media (max-width: 640px) {
+    .as3-act thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+    }
+    .as3-act tbody tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--wm-line);
+    }
+    .as3-act tbody tr:last-child {
+      border-bottom: 0;
+    }
+    .as3-act td {
+      padding: 0;
+      border: 0;
+    }
+    .as3-act-asset {
+      grid-column: 1;
+      grid-row: 1;
+    }
+    .as3-act td.as3-act-num {
+      grid-column: 2;
+      grid-row: 1;
+    }
+    .as3-act-kind,
+    .as3-act-detail,
+    .as3-act-when {
+      grid-column: 1 / -1;
+      font-size: 12px;
+    }
+    .as3-act-when {
+      color: var(--wm-muted);
+    }
+    .as3-act-when small {
+      display: inline;
+      margin-left: 6px;
+    }
+  }
+}

@@ -1,0 +1,46 @@
+/* Aset Saya summary foot: scope chip, compact incomplete flag, net worth
+   and the as-of line (reference aset-page.png). */
+@layer components {
+  /* incomplete total: a compact, still-visible flag; detail in the (i) */
+  .as3-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 2px 1px 9px;
+    border-radius: 99px;
+    background: color-mix(in srgb, var(--wm-orange) 16%, var(--wm-card));
+    color: var(--wm-ink);
+    font-weight: 600;
+  }
+  .as3 .as3-flag svg.lucide {
+    width: 14px;
+    height: 14px;
+    color: var(--wm-orange);
+  }
+  .as3-summary-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px 14px;
+    margin: 0;
+    color: var(--wm-muted);
+    font-size: 12px;
+  }
+  .as3-nw {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .as3-nw .as3-amount {
+    color: var(--wm-ink);
+    font-size: 13px;
+  }
+  .as3-nw em {
+    font-style: normal;
+  }
+  .as3 .as3-nw svg.lucide {
+    width: 14px;
+    height: 14px;
+  }
+}
