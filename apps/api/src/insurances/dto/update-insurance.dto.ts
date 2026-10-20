@@ -26,8 +26,9 @@ import {
 } from "../next-renewal-date.util";
 
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
+import { InsuranceRebuildFieldsDto } from "./insurance-rebuild-fields.dto";
 
-export class UpdateInsuranceDto {
+export class UpdateInsuranceDto extends InsuranceRebuildFieldsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

@@ -26,8 +26,9 @@ import {
 } from "../next-renewal-date.util";
 
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
+import { InsuranceRebuildFieldsDto } from "./insurance-rebuild-fields.dto";
 
-export class CreateInsuranceDto {
+export class CreateInsuranceDto extends InsuranceRebuildFieldsDto {
   @ApiProperty()
   @IsString()
   @IsTrimmedNotEmpty()
@@ -65,7 +66,10 @@ export class CreateInsuranceDto {
   @IsIn(ACCEPTED_PREMIUM_PERIODS)
   premiumPeriod?: PremiumPeriod;
 
-  @ApiPropertyOptional({ description: "Renewal date as ISO 8601 string" })
+  @ApiPropertyOptional({
+    description:
+      "LEGACY renewal date; read as nextPremiumDueDate when that is not sent",
+  })
   @IsOptional()
   @IsDateString()
   renewalDate?: string;

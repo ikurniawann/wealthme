@@ -8,6 +8,8 @@ import {
   transactionPrivacyWhere,
 } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InsuranceNetWorthService } from "../insurances/value/insurance-net-worth.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentValuationService } from "../investments/valuation/investment-valuation.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -108,6 +110,7 @@ export class ReportsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly investmentValuation: InvestmentValuationService,
+    private readonly insuranceNetWorth: InsuranceNetWorthService,
   ) {}
 
   async getSummary(
@@ -862,30 +865,37 @@ export class ReportsService {
     asOfDate: Date,
     canSeePrivate: boolean,
   ): Promise<BalanceSheetDto> {
-    const [accounts, assetsList, liabilitiesList, investmentsList] =
-      await Promise.all([
-        this.prisma.account.findMany({
-          where: {
-            familyGroupId,
-            ...accountPrivacyWhere(canSeePrivate),
-            includeInNetWorth: true,
-          },
-          select: { name: true, type: true, balance: true },
-        }),
-        this.prisma.asset.findMany({
-          where: { familyGroupId },
-          select: { name: true, type: true, currentValue: true },
-        }),
-        this.prisma.liability.findMany({
-          where: { familyGroupId },
-          select: { name: true, type: true, remainingBalance: true },
-        }),
-        // EPIC-022 (adversarial review round 3, finding 1, CRITICAL) — the
-        // portfolio belongs on the balance sheet. Investasi Task 8: valued by
-        // the shared InvestmentValuationService, the same per-holding whole-
-        // rupiah figures DashboardService sums (unpriced at cost, R8).
-        this.investmentValuation.netWorthPositions(familyGroupId),
-      ]);
+    const [
+      accounts,
+      assetsList,
+      liabilitiesList,
+      investmentsList,
+      insurancePositions,
+    ] = await Promise.all([
+      this.prisma.account.findMany({
+        where: {
+          familyGroupId,
+          ...accountPrivacyWhere(canSeePrivate),
+          includeInNetWorth: true,
+        },
+        select: { name: true, type: true, balance: true },
+      }),
+      this.prisma.asset.findMany({
+        where: { familyGroupId },
+        select: { name: true, type: true, currentValue: true },
+      }),
+      this.prisma.liability.findMany({
+        where: { familyGroupId },
+        select: { name: true, type: true, remainingBalance: true },
+      }),
+      // EPIC-022 (adversarial review round 3, finding 1, CRITICAL) — the
+      // portfolio belongs on the balance sheet. Investasi Task 8: valued by
+      // the shared InvestmentValuationService, the same per-holding whole-
+      // rupiah figures DashboardService sums (unpriced at cost, R8).
+      this.investmentValuation.netWorthPositions(familyGroupId),
+      // Asuransi S6 — the same shared helper DashboardService sums.
+      this.insuranceNetWorth.positions(familyGroupId),
+    ]);
 
     // Group account balances into "Kas & Setara Kas"
     const cashTotal = accounts.reduce((s, a) => s + Number(a.balance), 0);
@@ -914,6 +924,18 @@ export class ReportsService {
       assetsGrouped.set("Investasi", {
         amount: investmentItems.reduce((s, i) => s + i.amount, 0),
         items: investmentItems,
+      });
+    }
+
+    // Asuransi S6 — confirmed policy value of included policies, once each;
+    // an unpriced (no FX rate) policy is left out, never shown as zero.
+    const insuranceItems = insurancePositions
+      .filter((p) => p.valueIdr !== null)
+      .map((p) => ({ name: p.name, amount: Number(p.valueIdr) }));
+    if (insuranceItems.length > 0) {
+      assetsGrouped.set("Nilai Polis Asuransi", {
+        amount: insuranceItems.reduce((s, i) => s + i.amount, 0),
+        items: insuranceItems,
       });
     }
 

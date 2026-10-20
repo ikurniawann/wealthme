@@ -308,14 +308,62 @@ export interface InsuranceDto {
   funds?: InsuranceFundDto[];
   // S6 — only confirmed value of a policy with this flag counts in net worth.
   includeInNetWorth?: boolean;
+  // ── Task 22 ──
+  // S2 — payment status of the next due (computed, Asia/Jakarta).
+  premiumDueStatus?: Exclude<InsurancePaymentDueStatus, "paid"> | null;
+  // Monthly-equivalent premium — a NORMALIZATION, not a bill (decimal string;
+  // null for single/custom).
+  monthlyEquivalentPremium?: string | null;
+  // S9 — family members this policy is explicitly shared with.
+  sharedWithUserIds?: string[];
+}
+
+// Result of POST …/insurances/:id/pay (S7). `replayed` = an earlier request
+// with the same idempotency key already paid; nothing was charged again.
+export interface InsurancePayResultDto extends InsuranceDto {
+  payment: InsurancePaymentDto;
+  replayed: boolean;
+}
+
+/** Money grouped by currency (never summed across currencies). */
+export interface InsuranceCurrencyTotalDto {
+  currency: string;
+  total: string;
+  count: number;
+}
+
+/** A policy's confirmed value (S5/S6) with its date and source. */
+export interface InsuranceConfirmedValueDto {
+  insuranceId: string;
+  name: string;
+  currency: string;
+  value: string;
+  effectiveDate: string;
+  source: InsuranceValuationSource;
+  fundId: string | null;
+  includeInNetWorth: boolean;
 }
 
 export interface InsuranceSummaryDto {
   activePolicies: number;
   totalMonthlyPremium: string;
   currency: string;
-  // ── Asuransi rebuild — optional until the API serves them (Task 22) ──
+  // ── Asuransi rebuild (Task 22) ──
   benefitGroups?: InsuranceBenefitGroupDto[];
+  // The period the premium-due figures cover (YYYY-MM-DD, inclusive).
+  period?: { from: string; to: string };
+  timeZone?: string;
+  // Scheduled dues falling in `period`, per currency.
+  premiumDue?: InsuranceCurrencyTotalDto[];
+  // Next dues already past (unpaid), per currency.
+  overdue?: InsuranceCurrencyTotalDto[];
+  // Monthly-equivalent premium per currency — a NORMALIZATION, not a bill.
+  monthlyPremiumNormalized?: (InsuranceCurrencyTotalDto & {
+    isNormalization: true;
+  })[];
+  confirmedValues?: InsuranceConfirmedValueDto[];
+  // S6 — what insurance adds to net worth (whole IDR), the shared helper's total.
+  netWorthValueIdr?: string;
 }
 
 export interface CreateInsuranceDto {
@@ -347,6 +395,7 @@ export interface CreateInsuranceDto {
   paymentAccountId?: string | null;
   benefits?: CreateInsuranceBenefitDto[];
   includeInNetWorth?: boolean;
+  sharedWithUserIds?: string[];
 }
 
 export interface UpdateInsuranceDto {
@@ -378,4 +427,5 @@ export interface UpdateInsuranceDto {
   paymentAccountId?: string | null;
   benefits?: CreateInsuranceBenefitDto[];
   includeInNetWorth?: boolean;
+  sharedWithUserIds?: string[];
 }

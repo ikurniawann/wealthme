@@ -1833,55 +1833,55 @@ model LiabilityPrepayment {
 }
 
 model Insurance {
-  id                    String                 @id @default(uuid())
+  id                    String                     @id @default(uuid())
   familyGroupId         String
-  name                  String                 @db.VarChar(150)
-  provider              String?                @db.VarChar(150)
+  name                  String                     @db.VarChar(150)
+  provider              String?                    @db.VarChar(150)
   type                  InsuranceType
-  status                InsuranceStatus        @default(aktif)
+  status                InsuranceStatus            @default(aktif)
   coverageAmount        BigInt?
   premiumAmount         BigInt
-  premiumPeriod         PremiumPeriod          @default(monthly)
+  premiumPeriod         PremiumPeriod              @default(monthly)
   // LEGACY (Asuransi S1): an overloaded date — the UI labelled it "jatuh
   // tempo" while users also typed coverage end into it. Kept readable; the
   // migration copied it into nextPremiumDueDate ONLY. New code reads the
   // split dates below.
   renewalDate           DateTime?
-  autoRenewDate         Boolean                @default(false)
-  policyNumber          String?                @db.VarChar(100)
-  notes                 String?                @db.VarChar(500)
-  currency              String                 @default("IDR") @db.VarChar(3)
+  autoRenewDate         Boolean                    @default(false)
+  policyNumber          String?                    @db.VarChar(100)
+  notes                 String?                    @db.VarChar(500)
+  currency              String                     @default("IDR") @db.VarChar(3)
   // EPIC-023 group E retry (HIGH 4) — this policy's OWN premium Category,
   // mirroring Liability.principalCategoryId above (see that field's doc
   // comment for the full reasoning).
   premiumCategoryId     String?
-  premiumCategory       Category?              @relation("InsurancePremiumCategory", fields: [premiumCategoryId], references: [id], onDelete: SetNull)
+  premiumCategory       Category?                  @relation("InsurancePremiumCategory", fields: [premiumCategoryId], references: [id], onDelete: SetNull)
   // ── Asuransi rebuild ─────────────────────────────────────────────────────
   policyType            InsurancePolicyType?
   // S1 — the four schedule dates are separate. Reminders come only from
   // nextPremiumDueDate (the premium schedule), never from coverage end.
-  nextPremiumDueDate    DateTime?              @db.Date
-  policyRenewalDate     DateTime?              @db.Date
-  premiumPaymentEndDate DateTime?              @db.Date
-  coverageStartDate     DateTime?              @db.Date
-  coverageEndDate       DateTime?              @db.Date
+  nextPremiumDueDate    DateTime?                  @db.Date
+  policyRenewalDate     DateTime?                  @db.Date
+  premiumPaymentEndDate DateTime?                  @db.Date
+  coverageStartDate     DateTime?                  @db.Date
+  coverageEndDate       DateTime?                  @db.Date
   // S3 — roles are separate: holder (pemegang polis), payer (pembayar
   // premi), insured (InsuranceInsured[]), beneficiaries. A family member
   // (userId) or free text for someone without a login.
   holderUserId          String?
-  holderName            String?                @db.VarChar(150)
+  holderName            String?                    @db.VarChar(150)
   payerUserId           String?
-  payerName             String?                @db.VarChar(150)
+  payerName             String?                    @db.VarChar(150)
   // Default account premiums are paid from ("Rekening pembayaran").
   paymentAccountId      String?
   // S6 — only confirmed policy value of a policy with this flag counts in
   // net worth. Sum assured and premiums paid never do.
-  includeInNetWorth     Boolean                @default(false)
+  includeInNetWorth     Boolean                    @default(false)
   // S9 — who recorded the policy (row scoping); null on legacy rows.
   createdByUserId       String?
-  holder                User?                  @relation("InsuranceHolder", fields: [holderUserId], references: [id], onDelete: SetNull)
-  payer                 User?                  @relation("InsurancePayer", fields: [payerUserId], references: [id], onDelete: SetNull)
-  paymentAccount        Account?               @relation("InsurancePaymentAccount", fields: [paymentAccountId], references: [id], onDelete: SetNull)
+  holder                User?                      @relation("InsuranceHolder", fields: [holderUserId], references: [id], onDelete: SetNull)
+  payer                 User?                      @relation("InsurancePayer", fields: [payerUserId], references: [id], onDelete: SetNull)
+  paymentAccount        Account?                   @relation("InsurancePaymentAccount", fields: [paymentAccountId], references: [id], onDelete: SetNull)
   insured               InsuranceInsured[]
   benefits              InsuranceBenefit[]
   funds                 InsuranceFund[]
@@ -1889,9 +1889,10 @@ model Insurance {
   payments              InsurancePayment[]
   documents             InsuranceDocument[]
   shares                InsuranceShare[]
-  createdAt             DateTime               @default(now())
-  updatedAt             DateTime               @updatedAt
-  familyGroup           FamilyGroup            @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
+  premiumReminders      InsurancePremiumReminder[]
+  createdAt             DateTime                   @default(now())
+  updatedAt             DateTime                   @updatedAt
+  familyGroup           FamilyGroup                @relation(fields: [familyGroupId], references: [id], onDelete: Cascade)
   beneficiaries         InsuranceBeneficiary[]
   // EPIC-023 E1 — the premium payment transactions posted against this
   // policy (see Transaction.insuranceId above).
@@ -2525,4 +2526,18 @@ model FxConversion {
 
   @@index([familyGroupId, entity, entityId])
   @@map("fx_conversions")
+}
+
+// Asuransi Task 22 — reminder dedupe: at most ONE premium reminder per policy
+// per due date (the premium schedule's nextPremiumDueDate, never coverage
+// end). Inserting the row is the atomic "claim" before the notification.
+model InsurancePremiumReminder {
+  id          String    @id @default(uuid())
+  insuranceId String
+  dueDate     DateTime  @db.Date
+  createdAt   DateTime  @default(now())
+  insurance   Insurance @relation(fields: [insuranceId], references: [id], onDelete: Cascade)
+
+  @@unique([insuranceId, dueDate])
+  @@map("insurance_premium_reminders")
 }

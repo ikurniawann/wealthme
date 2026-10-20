@@ -2,15 +2,17 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InsuranceRemindersService } from "../insurances/insurance-reminders.service";
+import {
+  advanceToOnOrAfter,
+  isRecurringPeriod,
+  scheduleOptionsFor,
+  todayInTimeZone,
+} from "../insurances/premium-schedule.util";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
 import type { Job } from "bullmq";
-
-const MONTHS_BY_PERIOD: Record<string, number> = {
-  monthly: 1,
-  quarterly: 3,
-  yearly: 12,
-};
 
 /** Advance a date by whole months, repeating until it's in the future. */
 function advanceUntilFuture(date: Date, months: number, now: Date): Date {
@@ -25,7 +27,10 @@ function advanceUntilFuture(date: Date, months: number, now: Date): Date {
 export class BillingCycleProcessor extends WorkerHost {
   private readonly logger = new Logger(BillingCycleProcessor.name);
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reminders: InsuranceRemindersService,
+  ) {
     super();
   }
 
@@ -50,24 +55,44 @@ export class BillingCycleProcessor extends WorkerHost {
       );
     }
 
+    // Asuransi S1 — the premium schedule lives in nextPremiumDueDate. Only
+    // policies the user opted into auto-advancing (autoRenewDate) move past a
+    // missed due; recurring periods only (single/custom have no step), never
+    // beyond the premium payment end. The legacy renewalDate is mirrored
+    // during the rollback window.
+    const today = todayInTimeZone(now);
     const insurances = await this.prisma.insurance.findMany({
-      // `lte` (not `lt`): a renewal landing exactly at this worker tick
-      // must still be picked up, not skipped until the next run.
-      where: { autoRenewDate: true, renewalDate: { lte: now } },
-      select: { id: true, renewalDate: true, premiumPeriod: true },
+      where: { autoRenewDate: true, nextPremiumDueDate: { lt: today } },
+      select: {
+        id: true,
+        nextPremiumDueDate: true,
+        premiumPeriod: true,
+        coverageStartDate: true,
+        premiumPaymentEndDate: true,
+      },
     });
     for (const ins of insurances) {
-      if (!ins.renewalDate) continue;
-      const months = MONTHS_BY_PERIOD[ins.premiumPeriod] ?? 1;
-      const nextRenewalDate = advanceUntilFuture(ins.renewalDate, months, now);
+      if (!ins.nextPremiumDueDate || !isRecurringPeriod(ins.premiumPeriod)) {
+        continue;
+      }
+      const next = advanceToOnOrAfter(
+        ins.nextPremiumDueDate,
+        ins.premiumPeriod,
+        today,
+        scheduleOptionsFor(ins),
+      );
       await this.prisma.insurance.update({
         where: { id: ins.id },
-        data: { renewalDate: nextRenewalDate },
+        data: { nextPremiumDueDate: next, ...(next && { renewalDate: next }) },
       });
       this.logger.log(
-        `Advanced insurance ${ins.id} renewalDate to ${nextRenewalDate.toISOString()}`,
+        `Advanced insurance ${ins.id} nextPremiumDueDate to ${next?.toISOString().slice(0, 10) ?? "none (schedule ended)"}`,
       );
     }
+
+    // Premium reminders — one per policy per due (deduped), Asia/Jakarta.
+    const reminded = await this.reminders.sweep(now);
+    if (reminded > 0) this.logger.log(`Sent ${reminded} premium reminder(s)`);
 
     if (liabilities.length === 0 && insurances.length === 0) {
       this.logger.log("No due dates needed advancing");
