@@ -2,6 +2,7 @@ import { BullModule } from "@nestjs/bullmq";
 import { Module } from "@nestjs/common";
 import { ConfigModule, ConfigService } from "@nestjs/config";
 
+import { InsurancesModule } from "../insurances/insurances.module";
 import { PrismaModule } from "../prisma/prisma.module";
 
 import { BillingCycleProcessor } from "./billing-cycle.processor";
@@ -12,6 +13,7 @@ import type { Env } from "../config/env";
 @Module({
   imports: [
     PrismaModule,
+    InsurancesModule,
     ConfigModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],

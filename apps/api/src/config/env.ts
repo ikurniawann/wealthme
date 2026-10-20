@@ -41,6 +41,9 @@ const envSchema = z.object({
   // (`attachments_data`), not MinIO — disk now, S3 later without feature
   // changes per the epic's design decision.
   STORAGE_DIR: z.string().default("/data/storage"),
+  // Asuransi — the policy-document orphan sweep only LOGS what it would
+  // delete unless this is exactly "delete" (staging holds client files).
+  INSURANCE_ORPHAN_SWEEP: z.enum(["dry-run", "delete"]).optional(),
   MAIL_HOST: z.string().optional(),
   MAIL_PORT: z.coerce.number().optional(),
   MAIL_USER: z.string().optional(),

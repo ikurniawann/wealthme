@@ -11,4 +11,15 @@ export abstract class StoragePort {
   // implementation can still satisfy this by streaming the object body.
   abstract download(key: string): Promise<NodeJS.ReadableStream>;
   abstract delete(key: string): Promise<void>;
+  // Asuransi fix round — lets an orphan sweep find objects no row points at
+  // (e.g. after a rollback image cascaded document rows away). Keys are
+  // returned exactly as `upload` accepted them; a missing prefix is [].
+  abstract list(prefix: string): Promise<StoredObject[]>;
+  /** Names of the IMMEDIATE child folders of `prefix` (no tree walk). */
+  abstract listChildren(prefix: string): Promise<string[]>;
+}
+
+export interface StoredObject {
+  key: string;
+  modifiedAt: Date;
 }

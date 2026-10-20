@@ -31,6 +31,8 @@ export type FxEntity =
   | "PlatformAccount"
   | "Liability"
   | "Insurance"
+  // Asuransi fix round — premium payment audit keyed to the payment row.
+  | "InsurancePayment"
   | "InheritanceAsset"
   | "Donation"
   | "SplitBill"

@@ -12,6 +12,8 @@ import {
   type ScopeSubject,
 } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { InsuranceNetWorthService } from "../insurances/value/insurance-net-worth.service";
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { InvestmentValuationService } from "../investments/valuation/investment-valuation.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
@@ -30,6 +32,8 @@ interface NetWorthBreakdown {
   totalCash: bigint;
   totalInvestments: bigint;
   totalAssets: bigint;
+  /** Asuransi S6 — confirmed policy value of included policies (whole IDR). */
+  totalInsurance: bigint;
   totalLiabilities: bigint;
   netWorth: bigint;
 }
@@ -64,6 +68,7 @@ export class DashboardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly investmentValuation: InvestmentValuationService,
+    private readonly insuranceNetWorth: InsuranceNetWorthService,
   ) {}
 
   /**
@@ -371,6 +376,25 @@ export class DashboardService {
       ? 0n
       : await this.investmentValuation.netWorthTotal(familyGroupId);
 
+    // Asuransi S6 — the shared helper: only confirmed value of policies with
+    // includeInNetWorth, counted once; never sum assured or premiums paid.
+    // S9 parity with accounts: a row-scoped viewer counts only the policies
+    // they can see (holder/payer/insured/share/creator); everyone else gets
+    // the family-wide figure.
+    const totalInsurance = await this.insuranceNetWorth.total(
+      familyGroupId,
+      isRestricted
+        ? {
+            userId: viewerUserId ?? null,
+            role:
+              viewerRole && typeof viewerRole === "object"
+                ? (viewerRole.role ?? null)
+                : (viewerRole ?? null),
+            rowScoped: true,
+          }
+        : undefined,
+    );
+
     const liabilityRecords = isRestricted
       ? []
       : await this.prisma.liability.findMany({
@@ -383,12 +407,17 @@ export class DashboardService {
     );
 
     const netWorth =
-      totalCash + totalInvestments + totalAssets - totalLiabilities;
+      totalCash +
+      totalInvestments +
+      totalAssets +
+      totalInsurance -
+      totalLiabilities;
 
     return {
       totalCash,
       totalInvestments,
       totalAssets,
+      totalInsurance,
       totalLiabilities,
       netWorth,
     };
@@ -410,6 +439,7 @@ export class DashboardService {
       accountsTotal: b.totalCash.toString(),
       investmentsTotal: b.totalInvestments.toString(),
       assetsTotal: b.totalAssets.toString(),
+      insurancesTotal: b.totalInsurance.toString(),
       liabilitiesTotal: b.totalLiabilities.toString(),
       netWorth: b.netWorth.toString(),
       currency: "IDR",
@@ -445,7 +475,10 @@ export class DashboardService {
         date: startOfDay,
         totalCash: b.totalCash,
         totalInvestments: b.totalInvestments,
-        totalAssets: b.totalAssets,
+        // The snapshot has no insurance column: policy value rides in
+        // totalAssets ("Aset Lainnya" on a historical balance sheet) so
+        // cash + investments + assets − liabilities still equals netWorth.
+        totalAssets: b.totalAssets + b.totalInsurance,
         totalLiabilities: b.totalLiabilities,
         netWorth: b.netWorth,
       },
@@ -508,7 +541,8 @@ export class DashboardService {
         capturedAt: now.toISOString(),
         totalCash: b.totalCash.toString(),
         totalInvestments: b.totalInvestments.toString(),
-        totalAssets: b.totalAssets.toString(),
+        // Same shape as a captured snapshot (insurance inside totalAssets).
+        totalAssets: (b.totalAssets + b.totalInsurance).toString(),
         totalLiabilities: b.totalLiabilities.toString(),
         netWorth: b.netWorth.toString(),
       });

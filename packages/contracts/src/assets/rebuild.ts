@@ -23,6 +23,8 @@ export const ASSET_CLASSES = [
   "dana_rekening",
   "investasi",
   "aset_fisik",
+  // Asuransi S6 — confirmed policy value (includeInNetWorth only).
+  "polis_asuransi",
   "lainnya",
 ] as const;
 export type AssetClass = (typeof ASSET_CLASSES)[number];
@@ -32,6 +34,7 @@ export const ASSET_SOURCE_MODULES = [
   "accounts",
   "investments",
   "assets",
+  "insurances",
 ] as const;
 export type AssetSourceModule = (typeof ASSET_SOURCE_MODULES)[number];
 
@@ -137,6 +140,8 @@ export interface AssetsOverviewSummaryDto {
   danaRekeningIdr: string;
   investasiIdr: string;
   asetFisikIdr: string;
+  /** Asuransi S6 — confirmed, included policy value (never sum assured). */
+  polisAsuransiIdr: string;
   lainnyaIdr: string;
   netWorthIdr: string | null;
   liabilitiesIdr: string | null;
@@ -146,6 +151,7 @@ export interface AssetsOverviewSummaryDto {
   displayDanaRekening: string | null;
   displayInvestasi: string | null;
   displayAsetFisik: string | null;
+  displayPolisAsuransi: string | null;
   displayLainnya: string | null;
   displayNetWorth: string | null;
   incomplete: boolean;

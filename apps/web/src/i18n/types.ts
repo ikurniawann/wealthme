@@ -148,9 +148,22 @@ type AsuransiInsuranceTypeId =
   | "pendidikan"
   | "lainnya";
 
-type AsuransiPremiumPeriodId = "monthly" | "quarterly" | "yearly";
+type AsuransiPremiumPeriodId =
+  | "monthly"
+  | "quarterly"
+  | "yearly"
+  | "semiannual"
+  | "single"
+  | "custom";
 
-type AsuransiStatusId = "aktif" | "tidak_aktif" | "kadaluarsa";
+type AsuransiStatusId =
+  | "aktif"
+  | "tidak_aktif"
+  | "kadaluarsa"
+  | "masa_tenggang"
+  | "lapse"
+  | "berakhir"
+  | "dibatalkan";
 
 /** EPIC-018 Task A4 — `/kalkulator` sub-tool tab ids. */
 type KalkulatorTabId =

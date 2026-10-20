@@ -219,17 +219,17 @@ function PolicyTile({ item, onEdit, onPay, onDelete }: PolicyTileProps) {
           typeLabel
         )}
       </small>
-      {item.renewalDate && (
+      {item.nextPremiumDueDate && (
         <small className="as-tile-meta">
-          {item.daysUntilRenewal !== null && (
+          {item.daysUntilNextPremium != null && (
             <>
               <span>
-                {daysUntilRenewalLabel(item.daysUntilRenewal, t.asuransi)}
+                {daysUntilRenewalLabel(item.daysUntilNextPremium, t.asuransi)}
               </span>{" "}
               ·{" "}
             </>
           )}
-          {formatLocaleDate(item.renewalDate, locale)}
+          {formatLocaleDate(item.nextPremiumDueDate, locale)}
         </small>
       )}
       <div className="as-foot">
@@ -243,10 +243,10 @@ function PolicyTile({ item, onEdit, onPay, onDelete }: PolicyTileProps) {
           disabled={item.paidThisPeriod}
           title={
             item.paidThisPeriod
-              ? item.renewalDate &&
-                item.daysUntilRenewal !== null &&
-                item.daysUntilRenewal >= 0
-                ? `${t.asuransi.payNextDueTooltipPrefix}${formatLocaleDate(item.renewalDate, locale)}`
+              ? item.nextPremiumDueDate &&
+                item.daysUntilNextPremium != null &&
+                item.daysUntilNextPremium >= 0
+                ? `${t.asuransi.payNextDueTooltipPrefix}${formatLocaleDate(item.nextPremiumDueDate, locale)}`
                 : t.asuransi.payAlreadyPaidTooltip
               : undefined
           }
@@ -598,8 +598,10 @@ function InsuranceModal({
       : "",
     isEdit: !!editing,
   });
+  // Asuransi S1 — this field is the next premium due date
+  // (nextPremiumDueDate); the legacy renewalDate is only a fallback.
   const [renewalDate, setRenewalDate] = useState(
-    editing?.renewalDate ? editing.renewalDate.slice(0, 10) : "",
+    editing?.nextPremiumDueDate ?? editing?.renewalDate?.slice(0, 10) ?? "",
   );
   const [autoRenewDate, setAutoRenewDate] = useState(
     editing?.autoRenewDate ?? false,
@@ -725,7 +727,7 @@ function InsuranceModal({
       ...(coverageField.raw && {
         coverageAmount: moneyDigits(coverageField),
       }),
-      ...(renewalDate && { renewalDate, autoRenewDate }),
+      ...(renewalDate && { nextPremiumDueDate: renewalDate, autoRenewDate }),
       ...(policyNumber.trim() && { policyNumber: policyNumber.trim() }),
       ...(notes.trim() && { notes: notes.trim() }),
       beneficiaries: beneficiaryDtos,
@@ -1275,8 +1277,8 @@ export default function AsuransiPage() {
       setPayTarget(null);
       setPaySourceAccountId("");
       toast.success(
-        updated.renewalDate
-          ? `${t.asuransi.toastRenewalRecordedPrefix}${formatLocaleDate(updated.renewalDate, locale)}`
+        updated.nextPremiumDueDate
+          ? `${t.asuransi.toastRenewalRecordedPrefix}${formatLocaleDate(updated.nextPremiumDueDate, locale)}`
           : t.asuransi.toastPaySuccessNoRenewal,
       );
     },
@@ -1426,11 +1428,16 @@ export default function AsuransiPage() {
   // name/date; here it's the actual soonest-renewing active policy, or
   // nothing at all when none is within 30 days.
   const nearestRenewal = (insurances ?? [])
-    .filter((item) => item.status === "aktif" && item.daysUntilRenewal !== null)
-    .sort((a, b) => (a.daysUntilRenewal ?? 0) - (b.daysUntilRenewal ?? 0))[0];
+    .filter(
+      (item) => item.status === "aktif" && item.daysUntilNextPremium != null,
+    )
+    .sort(
+      (a, b) => (a.daysUntilNextPremium ?? 0) - (b.daysUntilNextPremium ?? 0),
+    )[0];
   const showRenewalWarning =
     nearestRenewal &&
-    (nearestRenewal.daysUntilRenewal ?? 999) <= INSURANCE_RENEWAL_WINDOW_DAYS;
+    (nearestRenewal.daysUntilNextPremium ?? 999) <=
+      INSURANCE_RENEWAL_WINDOW_DAYS;
 
   // EPIC-025 N3 restructure — total pertanggungan (real header subtitle
   // segment), summed across active policies from the already-fetched list —
@@ -1493,8 +1500,8 @@ export default function AsuransiPage() {
       ? t.asuransi.v2.tipOkTitle
       : t.asuransi.v2.tipEmptyTitle;
   const tipBody = showRenewalWarning
-    ? `${t.asuransi.renewalWarningSuffix} ${formatLocaleDate(nearestRenewal!.renewalDate, locale)} · ${daysUntilRenewalLabel(
-        nearestRenewal!.daysUntilRenewal!,
+    ? `${t.asuransi.renewalWarningSuffix} ${formatLocaleDate(nearestRenewal!.nextPremiumDueDate ?? null, locale)} · ${daysUntilRenewalLabel(
+        nearestRenewal!.daysUntilNextPremium!,
         t.asuransi,
         t.asuransi.renewalWarningDaysLeftSuffix,
       )}.`
@@ -1605,7 +1612,7 @@ export default function AsuransiPage() {
                 value={
                   <span className="as-renew">
                     {nearestRenewal
-                      ? `${nearestRenewal.name} · ${daysUntilRenewalLabel(nearestRenewal.daysUntilRenewal!, t.asuransi, t.asuransi.renewalWarningDaysLeftSuffix)}`
+                      ? `${nearestRenewal.name} · ${daysUntilRenewalLabel(nearestRenewal.daysUntilNextPremium!, t.asuransi, t.asuransi.renewalWarningDaysLeftSuffix)}`
                       : "—"}
                   </span>
                 }

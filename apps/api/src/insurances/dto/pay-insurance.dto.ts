@@ -1,5 +1,11 @@
 import { ApiPropertyOptional, ApiProperty } from "@nestjs/swagger";
-import { IsOptional, IsString, IsUUID, Matches } from "class-validator";
+import {
+  IsDateString,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Matches,
+} from "class-validator";
 
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
 
@@ -25,6 +31,25 @@ export class PayInsuranceDto {
   @Matches(/^\d{1,15}$/, { message: "amount must be a numeric string" })
   @IsOptional()
   amount?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "S7 — client-generated key (8–64 chars). A retry with the same key returns the original payment instead of paying twice. The Idempotency-Key header is accepted too.",
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^[A-Za-z0-9_.:-]{8,64}$/, {
+    message: "idempotencyKey must be 8-64 chars of [A-Za-z0-9_.:-]",
+  })
+  idempotencyKey?: string;
+
+  @ApiPropertyOptional({
+    description:
+      "The scheduled due (YYYY-MM-DD) this payment settles. Defaults to the policy's nextPremiumDueDate.",
+  })
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
 
   @FxInputsProperty()
   fxInputs?: FxInputDto[];

@@ -1,11 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { InsuranceStatus, InsuranceType, PremiumPeriod } from "@prisma/client";
+import {
+  InsuranceType,
+  type InsuranceStatus,
+  type PremiumPeriod,
+} from "@prisma/client";
 import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   Matches,
@@ -15,10 +20,15 @@ import {
 
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
 import { FxInputsProperty, type FxInputDto } from "../../fx/fx-input.dto";
+import {
+  ACCEPTED_INSURANCE_STATUSES,
+  ACCEPTED_PREMIUM_PERIODS,
+} from "../next-renewal-date.util";
 
 import { CreateInsuranceBeneficiaryDto } from "./create-insurance-beneficiary.dto";
+import { InsuranceRebuildFieldsDto } from "./insurance-rebuild-fields.dto";
 
-export class CreateInsuranceDto {
+export class CreateInsuranceDto extends InsuranceRebuildFieldsDto {
   @ApiProperty()
   @IsString()
   @IsTrimmedNotEmpty()
@@ -35,9 +45,9 @@ export class CreateInsuranceDto {
   @IsEnum(InsuranceType)
   type!: InsuranceType;
 
-  @ApiPropertyOptional({ enum: InsuranceStatus })
+  @ApiPropertyOptional({ enum: ACCEPTED_INSURANCE_STATUSES })
   @IsOptional()
-  @IsEnum(InsuranceStatus)
+  @IsIn(ACCEPTED_INSURANCE_STATUSES)
   status?: InsuranceStatus;
 
   @ApiPropertyOptional({ description: "Coverage amount as numeric string" })
@@ -51,12 +61,15 @@ export class CreateInsuranceDto {
   @Matches(/^\d{1,15}$/, { message: "premiumAmount must be a numeric string" })
   premiumAmount!: string;
 
-  @ApiPropertyOptional({ enum: PremiumPeriod })
+  @ApiPropertyOptional({ enum: ACCEPTED_PREMIUM_PERIODS })
   @IsOptional()
-  @IsEnum(PremiumPeriod)
+  @IsIn(ACCEPTED_PREMIUM_PERIODS)
   premiumPeriod?: PremiumPeriod;
 
-  @ApiPropertyOptional({ description: "Renewal date as ISO 8601 string" })
+  @ApiPropertyOptional({
+    description:
+      "LEGACY renewal date; read as nextPremiumDueDate when that is not sent",
+  })
   @IsOptional()
   @IsDateString()
   renewalDate?: string;

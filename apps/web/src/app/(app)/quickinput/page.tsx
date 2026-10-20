@@ -312,7 +312,7 @@ function buildRequest(
             coverageAmount: v.pertanggungan
               ? String(parseRupiah(v.pertanggungan))
               : undefined,
-            renewalDate: v.jatuhtempo || undefined,
+            nextPremiumDueDate: v.jatuhtempo || undefined,
           },
           v,
           { premi: "premiumAmount", pertanggungan: "coverageAmount" },

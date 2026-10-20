@@ -887,6 +887,7 @@ interface NetWorthDto {
     investmentsTotal: string | null;
     assetsTotal: string | null;
     liabilitiesTotal: string | null;
+    insurancesTotal?: string | null;
     netWorth: string | null;
     currency: string;
     balancesHidden?: boolean;
@@ -1864,10 +1865,10 @@ interface InvestmentPriceBatchResultDto {
 
 type AssetValuationBasis = InvestmentValuationBasis;
 /** A2 — what the row is (classification), independent of storage/source. */
-declare const ASSET_CLASSES: readonly ["dana_rekening", "investasi", "aset_fisik", "lainnya"];
+declare const ASSET_CLASSES: readonly ["dana_rekening", "investasi", "aset_fisik", "polis_asuransi", "lainnya"];
 type AssetClass = (typeof ASSET_CLASSES)[number];
 /** A2 — the module that owns the record (where edits happen). */
-declare const ASSET_SOURCE_MODULES: readonly ["accounts", "investments", "assets"];
+declare const ASSET_SOURCE_MODULES: readonly ["accounts", "investments", "assets", "insurances"];
 type AssetSourceModule = (typeof ASSET_SOURCE_MODULES)[number];
 /** A5 — mirrors Prisma `AssetStatus`. Delete becomes archive. */
 declare const ASSET_STATUSES: readonly ["active", "sold", "archived"];
@@ -1963,6 +1964,8 @@ interface AssetsOverviewSummaryDto {
     danaRekeningIdr: string;
     investasiIdr: string;
     asetFisikIdr: string;
+    /** Asuransi S6 — confirmed, included policy value (never sum assured). */
+    polisAsuransiIdr: string;
     lainnyaIdr: string;
     netWorthIdr: string | null;
     liabilitiesIdr: string | null;
@@ -1972,6 +1975,7 @@ interface AssetsOverviewSummaryDto {
     displayDanaRekening: string | null;
     displayInvestasi: string | null;
     displayAsetFisik: string | null;
+    displayPolisAsuransi: string | null;
     displayLainnya: string | null;
     displayNetWorth: string | null;
     incomplete: boolean;
@@ -2543,8 +2547,20 @@ interface UpdateInheritanceAssetDto {
 }
 
 type InsuranceType = "jiwa" | "kesehatan" | "kendaraan" | "properti" | "pendidikan" | "lainnya";
-type InsuranceStatus = "aktif" | "tidak_aktif" | "kadaluarsa";
-type PremiumPeriod = "monthly" | "quarterly" | "yearly";
+type InsuranceStatus = "aktif" | "tidak_aktif" | "kadaluarsa" | "masa_tenggang" | "lapse" | "berakhir" | "dibatalkan";
+declare const INSURANCE_STATUSES: readonly InsuranceStatus[];
+type PremiumPeriod = "monthly" | "quarterly" | "yearly" | "semiannual" | "single" | "custom";
+declare const PREMIUM_PERIODS: readonly PremiumPeriod[];
+type InsurancePolicyType = "traditional" | "unit_link";
+declare const INSURANCE_POLICY_TYPES: readonly InsurancePolicyType[];
+type InsuranceBenefitKind = "life_sum_assured" | "health_annual_limit" | "per_event" | "daily" | "critical_illness" | "accident" | "other";
+declare const INSURANCE_BENEFIT_KINDS: readonly InsuranceBenefitKind[];
+type InsuranceBenefitPeriod = "per_year" | "per_event" | "per_day" | "per_policy_term" | "lifetime";
+declare const INSURANCE_BENEFIT_PERIODS: readonly InsuranceBenefitPeriod[];
+type InsuranceValuationSource = "manual" | "report";
+type InsuranceValuationStatus = "ai_extracted" | "needs_confirmation" | "confirmed";
+declare const INSURANCE_VALUATION_STATUSES: readonly InsuranceValuationStatus[];
+type InsurancePaymentDueStatus = "scheduled" | "paid" | "overdue";
 interface InsuranceBeneficiaryDto {
     id: string;
     insuranceId: string;
@@ -2560,6 +2576,226 @@ interface CreateInsuranceBeneficiaryDto {
     sharePercent: number;
     memberUserId?: string;
 }
+interface InsuranceInsuredDto {
+    id: string;
+    insuranceId: string;
+    name: string;
+    relationship: string | null;
+    memberUserId: string | null;
+    createdAt: string;
+}
+interface CreateInsuranceInsuredDto {
+    name: string;
+    relationship?: string;
+    memberUserId?: string;
+}
+interface InsuranceBenefitDto {
+    id: string;
+    insuranceId: string;
+    kind: InsuranceBenefitKind;
+    label: string | null;
+    amount: string | null;
+    currency: string;
+    period: InsuranceBenefitPeriod | null;
+    note: string | null;
+    isPrimary: boolean;
+    confirmed: boolean;
+    sortOrder: number;
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreateInsuranceBenefitDto {
+    kind: InsuranceBenefitKind;
+    label?: string;
+    amount?: string;
+    currency?: string;
+    period?: InsuranceBenefitPeriod;
+    note?: string;
+    isPrimary?: boolean;
+}
+interface InsuranceBenefitGroupDto {
+    kind: InsuranceBenefitKind;
+    currency: string;
+    total: string;
+    policyCount: number;
+    hasUnconfirmed: boolean;
+}
+interface InsuranceFundDto {
+    id: string;
+    insuranceId: string;
+    code: string | null;
+    name: string;
+    currency: string;
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreateInsuranceFundDto {
+    code?: string;
+    name: string;
+    currency?: string;
+}
+interface InsuranceValuationDto {
+    id: string;
+    insuranceId: string;
+    fundId: string | null;
+    currency: string;
+    units: string | null;
+    navPerUnit: string | null;
+    navDate: string | null;
+    unitsDate: string | null;
+    reportedValue: string | null;
+    cashValue: string | null;
+    surrenderEstimate: string | null;
+    maturityBenefit: string | null;
+    guaranteed: boolean;
+    effectiveDate: string;
+    source: InsuranceValuationSource;
+    documentId: string | null;
+    page: number | null;
+    snippet: string | null;
+    status: InsuranceValuationStatus;
+    confirmedAt: string | null;
+    computedValue: string | null;
+    warning: "dates_incompatible" | "incomplete" | null;
+    createdAt: string;
+    updatedAt: string;
+}
+interface CreateInsuranceValuationDto {
+    fundId?: string;
+    currency?: string;
+    units?: string;
+    navPerUnit?: string;
+    navDate?: string;
+    unitsDate?: string;
+    reportedValue?: string;
+    cashValue?: string;
+    surrenderEstimate?: string;
+    maturityBenefit?: string;
+    guaranteed?: boolean;
+    effectiveDate: string;
+    source?: InsuranceValuationSource;
+    documentId?: string;
+    page?: number;
+    snippet?: string;
+}
+interface InsurancePaymentDto {
+    id: string;
+    insuranceId: string;
+    dueDate: string | null;
+    paidAt: string;
+    amount: string;
+    currency: string;
+    accountId: string | null;
+    transactionId: string | null;
+    createdAt: string;
+}
+interface InsuranceDocumentDto {
+    id: string;
+    insuranceId: string;
+    fileName: string;
+    mimeType: string;
+    size: number;
+    reportDate: string | null;
+    createdAt: string;
+}
+type InsuranceReportFieldKey = "policyNumber" | "productName" | "provider" | "policyType" | "holderName" | "insuredName" | "currency" | "premiumAmount" | "premiumPeriod" | "sumAssured" | "coverageStartDate" | "coverageEndDate" | "nextPremiumDueDate" | "reportDate" | "policyValue" | "cashValue" | "surrenderValue" | "maturityBenefit" | "fundCurrency" | "fundUnits" | "fundNav" | "fundNavDate" | "fundUnitsDate" | "fundValue";
+/** Preview statuses only; "confirmed" exists only after the confirm call. */
+type InsuranceReportFieldStatus = "ai_extracted" | "needs_confirmation";
+/** Why a field needs the user's attention (never a score). */
+type InsuranceReportConflict = "multiple_values" | "not_in_source" | "unparseable" | "ambiguous_number" | "unclear" | "value_mismatch" | "policy_type_mismatch";
+interface InsuranceReportFieldDto {
+    key: InsuranceReportFieldKey;
+    /** Sub-fund name/code as printed; null for policy-level keys. */
+    fund: string | null;
+    /** Exactly as printed. */
+    value: string;
+    normalized: string | null;
+    page: number;
+    snippet: string;
+    status: InsuranceReportFieldStatus;
+    conflict: InsuranceReportConflict | null;
+}
+/** "Data belum lengkap": a field required to build a value statement. */
+interface InsuranceReportMissingDto {
+    key: InsuranceReportFieldKey;
+    fund: string | null;
+}
+/**
+ * A ready-to-review value statement assembled DETERMINISTICALLY from the
+ * fields (units × NAV in Decimal, never both reportedValue and units×NAV for
+ * one fund). Nothing is stored until the user confirms it.
+ */
+interface InsuranceReportValuationDraftDto {
+    fund: string | null;
+    /** Matched existing sub-fund of the policy, else null (confirm can create it). */
+    fundId: string | null;
+    currency: string | null;
+    units: string | null;
+    navPerUnit: string | null;
+    navDate: string | null;
+    unitsDate: string | null;
+    reportedValue: string | null;
+    cashValue: string | null;
+    surrenderEstimate: string | null;
+    maturityBenefit: string | null;
+    effectiveDate: string | null;
+    page: number | null;
+    snippet: string | null;
+    computedValue: string | null;
+    warning: "dates_incompatible" | "incomplete" | "value_mismatch" | null;
+    status: InsuranceReportFieldStatus;
+}
+interface InsuranceReportPreviewDto {
+    insuranceId: string | null;
+    documentId: string | null;
+    pageCount: number;
+    fields: InsuranceReportFieldDto[];
+    missing: InsuranceReportMissingDto[];
+    valuations: InsuranceReportValuationDraftDto[];
+    /** false → show "Data belum lengkap" with `missing`. */
+    complete: boolean;
+}
+interface PreviewInsuranceReportDto {
+    insuranceId?: string;
+    documentId?: string;
+    fileName?: string;
+    /** Text layer per page, extracted in the browser; blank pages omitted. */
+    pages: {
+        page: number;
+        text: string;
+    }[];
+}
+interface ConfirmInsuranceReportItemDto {
+    fundId?: string;
+    /** Creates (or reuses by name) a sub-fund on a unit-link policy. */
+    newFundName?: string;
+    newFundCode?: string;
+    currency?: string;
+    units?: string;
+    navPerUnit?: string;
+    navDate?: string;
+    unitsDate?: string;
+    reportedValue?: string;
+    cashValue?: string;
+    surrenderEstimate?: string;
+    maturityBenefit?: string;
+    guaranteed?: boolean;
+    effectiveDate: string;
+    page?: number;
+    snippet?: string;
+}
+interface ConfirmInsuranceReportDto {
+    documentId?: string;
+    items: ConfirmInsuranceReportItemDto[];
+}
+interface ConfirmInsuranceReportResultDto {
+    valuations: InsuranceValuationDto[];
+    /** Created rows that are NOT the current value because a newer confirmed
+     *  statement exists (a backdated report never overrides a newer one). */
+    supersededIds: string[];
+}
+/** Typed AI error codes the UI branches on. */
+type InsuranceReportErrorCode = "INSURANCE_AI_NOT_CONFIGURED" | "AI_KEY_CORRUPTED" | "INSURANCE_REPORT_NO_TEXT_LAYER" | "INSURANCE_REPORT_TOO_LARGE" | "INSURANCE_AI_AUTH" | "INSURANCE_AI_RATE_LIMITED" | "INSURANCE_AI_TIMEOUT" | "INSURANCE_AI_PARSE_FAILED" | "INSURANCE_AI_UPSTREAM_FAILED";
 interface InsuranceDto {
     id: string;
     familyGroupId: string;
@@ -2580,11 +2816,64 @@ interface InsuranceDto {
     paidThisPeriod: boolean;
     createdAt: string;
     updatedAt: string;
+    policyType?: InsurancePolicyType | null;
+    nextPremiumDueDate?: string | null;
+    policyRenewalDate?: string | null;
+    premiumPaymentEndDate?: string | null;
+    coverageStartDate?: string | null;
+    coverageEndDate?: string | null;
+    daysUntilNextPremium?: number | null;
+    holderUserId?: string | null;
+    holderName?: string | null;
+    payerUserId?: string | null;
+    payerName?: string | null;
+    insured?: InsuranceInsuredDto[];
+    paymentAccountId?: string | null;
+    benefits?: InsuranceBenefitDto[];
+    funds?: InsuranceFundDto[];
+    includeInNetWorth?: boolean;
+    premiumDueStatus?: Exclude<InsurancePaymentDueStatus, "paid"> | null;
+    monthlyEquivalentPremium?: string | null;
+    sharedWithUserIds?: string[];
+}
+interface InsurancePayResultDto extends InsuranceDto {
+    payment: InsurancePaymentDto;
+    replayed: boolean;
+}
+/** Money grouped by currency (never summed across currencies). */
+interface InsuranceCurrencyTotalDto {
+    currency: string;
+    total: string;
+    count: number;
+}
+/** A policy's confirmed value (S5/S6) with its date and source. */
+interface InsuranceConfirmedValueDto {
+    insuranceId: string;
+    name: string;
+    currency: string;
+    value: string;
+    effectiveDate: string;
+    source: InsuranceValuationSource;
+    fundId: string | null;
+    includeInNetWorth: boolean;
 }
 interface InsuranceSummaryDto {
     activePolicies: number;
     totalMonthlyPremium: string;
     currency: string;
+    benefitGroups?: InsuranceBenefitGroupDto[];
+    period?: {
+        from: string;
+        to: string;
+    };
+    timeZone?: string;
+    premiumDue?: InsuranceCurrencyTotalDto[];
+    overdue?: InsuranceCurrencyTotalDto[];
+    monthlyPremiumNormalized?: (InsuranceCurrencyTotalDto & {
+        isNormalization: true;
+    })[];
+    confirmedValues?: InsuranceConfirmedValueDto[];
+    netWorthValueIdr?: string;
 }
 interface CreateInsuranceDto {
     name: string;
@@ -2600,6 +2889,21 @@ interface CreateInsuranceDto {
     notes?: string;
     currency?: string;
     beneficiaries?: CreateInsuranceBeneficiaryDto[];
+    policyType?: InsurancePolicyType | null;
+    nextPremiumDueDate?: string | null;
+    policyRenewalDate?: string | null;
+    premiumPaymentEndDate?: string | null;
+    coverageStartDate?: string | null;
+    coverageEndDate?: string | null;
+    holderUserId?: string | null;
+    holderName?: string | null;
+    payerUserId?: string | null;
+    payerName?: string | null;
+    insured?: CreateInsuranceInsuredDto[];
+    paymentAccountId?: string | null;
+    benefits?: CreateInsuranceBenefitDto[];
+    includeInNetWorth?: boolean;
+    sharedWithUserIds?: string[];
 }
 interface UpdateInsuranceDto {
     name?: string;
@@ -2615,6 +2919,21 @@ interface UpdateInsuranceDto {
     notes?: string;
     currency?: string;
     beneficiaries?: CreateInsuranceBeneficiaryDto[];
+    policyType?: InsurancePolicyType | null;
+    nextPremiumDueDate?: string | null;
+    policyRenewalDate?: string | null;
+    premiumPaymentEndDate?: string | null;
+    coverageStartDate?: string | null;
+    coverageEndDate?: string | null;
+    holderUserId?: string | null;
+    holderName?: string | null;
+    payerUserId?: string | null;
+    payerName?: string | null;
+    insured?: CreateInsuranceInsuredDto[];
+    paymentAccountId?: string | null;
+    benefits?: CreateInsuranceBenefitDto[];
+    includeInNetWorth?: boolean;
+    sharedWithUserIds?: string[];
 }
 
 type SplitStatus = "open" | "settled";
@@ -3730,4 +4049,4 @@ declare function accountTypeToAssetClass(type: string): AssetClassKey;
  */
 declare function warisanAssetTypeToAssetClass(assetType: string): AssetClassKey;
 
-export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASSES, ASSET_CLASS_KEYS, ASSET_EVENT_STATUSES, ASSET_HISTORY_KINDS, PRICED_VALUATION_BASES as ASSET_PRICED_VALUATION_BASES, ASSET_SOURCE_MODULES, ASSET_STATUSES, ASSET_TRANSACTION_KINDS, INVESTMENT_VALUATION_BASES as ASSET_VALUATION_BASES, ASSET_VALUATION_MODELS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, AUTOMATED_PRICE_SOURCES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClass, type AssetClassKey, type AssetDto, type AssetEventStatus, type AssetHistoryDto, type AssetHistoryEventDto, type AssetHistoryKind, type AssetHoldingStateDto, type AssetLedgerDto, type AssetOverviewRowDto, type AssetPriceDto, type AssetSourceLink, type AssetSourceModule, type AssetStatus, type AssetTransactionDto, type AssetTransactionKind, type AssetTransactionResultDto, type AssetTypeId, type AssetValuationBasis, type AssetValuationInput, type AssetValuationModel, type AssetValuationPreviewDto, type AssetValuationResultDto, type AssetValueChangeDto, type AssetValueChangeMode, type AssetsOverviewDto, type AssetsOverviewQuery, type AssetsOverviewSummaryDto, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateAssetTransactionInput, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceDto, type CreateInvestmentLedgerInput, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, INVESTMENT_VALUATION_BASES, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InterestMethod, type InvestmentBaseUnit, type InvestmentBondValuationDto, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDepositAccrualDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentLedgerConflictCode, type InvestmentLedgerConflictDto, type InvestmentLedgerConflictItem, type InvestmentLedgerCreateKind, type InvestmentLedgerHoldingState, type InvestmentLedgerResultDto, type InvestmentMarket, type InvestmentMoneyDto, type InvestmentPlatform, type InvestmentPlatformCashDto, type InvestmentPortfolioTotalsDto, type InvestmentPortfolioValuationDto, type InvestmentPortfolioValuationQuery, type InvestmentPriceBatchInput, type InvestmentPriceBatchResultDto, type InvestmentPriceBatchRowCode, type InvestmentPriceBatchRowInput, type InvestmentPriceBatchRowResult, type InvestmentPriceBatchRowStatus, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type InvestmentValuationBasis, type InvestmentValuationDto, type InvestmentValuationFxDto, type InvestmentValuationMethod, type InvestmentValuationPriceDto, type InvestmentValuationReason, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MANUAL_PRICE_SOURCES, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type ManualPriceSource, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, PRICED_VALUATION_BASES, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, SIMULATED_PRICE_SOURCE, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateAssetTransactionInput, type UpdateAssetValuationInput, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateInvestmentLedgerInput, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type VoidAssetEventInput, type VoidInvestmentLedgerInput, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, effectiveMarketFor, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };
+export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASSES, ASSET_CLASS_KEYS, ASSET_EVENT_STATUSES, ASSET_HISTORY_KINDS, PRICED_VALUATION_BASES as ASSET_PRICED_VALUATION_BASES, ASSET_SOURCE_MODULES, ASSET_STATUSES, ASSET_TRANSACTION_KINDS, INVESTMENT_VALUATION_BASES as ASSET_VALUATION_BASES, ASSET_VALUATION_MODELS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, AUTOMATED_PRICE_SOURCES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClass, type AssetClassKey, type AssetDto, type AssetEventStatus, type AssetHistoryDto, type AssetHistoryEventDto, type AssetHistoryKind, type AssetHoldingStateDto, type AssetLedgerDto, type AssetOverviewRowDto, type AssetPriceDto, type AssetSourceLink, type AssetSourceModule, type AssetStatus, type AssetTransactionDto, type AssetTransactionKind, type AssetTransactionResultDto, type AssetTypeId, type AssetValuationBasis, type AssetValuationInput, type AssetValuationModel, type AssetValuationPreviewDto, type AssetValuationResultDto, type AssetValueChangeDto, type AssetValueChangeMode, type AssetsOverviewDto, type AssetsOverviewQuery, type AssetsOverviewSummaryDto, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type ConfirmInsuranceReportDto, type ConfirmInsuranceReportItemDto, type ConfirmInsuranceReportResultDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateAssetTransactionInput, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceBenefitDto, type CreateInsuranceDto, type CreateInsuranceFundDto, type CreateInsuranceInsuredDto, type CreateInsuranceValuationDto, type CreateInvestmentLedgerInput, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INSURANCE_BENEFIT_KINDS, INSURANCE_BENEFIT_PERIODS, INSURANCE_POLICY_TYPES, INSURANCE_STATUSES, INSURANCE_VALUATION_STATUSES, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, INVESTMENT_VALUATION_BASES, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceBenefitDto, type InsuranceBenefitGroupDto, type InsuranceBenefitKind, type InsuranceBenefitPeriod, type InsuranceConfirmedValueDto, type InsuranceCurrencyTotalDto, type InsuranceDocumentDto, type InsuranceDto, type InsuranceFundDto, type InsuranceInsuredDto, type InsurancePayResultDto, type InsurancePaymentDto, type InsurancePaymentDueStatus, type InsurancePolicyType, type InsuranceReportConflict, type InsuranceReportErrorCode, type InsuranceReportFieldDto, type InsuranceReportFieldKey, type InsuranceReportFieldStatus, type InsuranceReportMissingDto, type InsuranceReportPreviewDto, type InsuranceReportValuationDraftDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InsuranceValuationDto, type InsuranceValuationSource, type InsuranceValuationStatus, type InterestMethod, type InvestmentBaseUnit, type InvestmentBondValuationDto, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDepositAccrualDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentLedgerConflictCode, type InvestmentLedgerConflictDto, type InvestmentLedgerConflictItem, type InvestmentLedgerCreateKind, type InvestmentLedgerHoldingState, type InvestmentLedgerResultDto, type InvestmentMarket, type InvestmentMoneyDto, type InvestmentPlatform, type InvestmentPlatformCashDto, type InvestmentPortfolioTotalsDto, type InvestmentPortfolioValuationDto, type InvestmentPortfolioValuationQuery, type InvestmentPriceBatchInput, type InvestmentPriceBatchResultDto, type InvestmentPriceBatchRowCode, type InvestmentPriceBatchRowInput, type InvestmentPriceBatchRowResult, type InvestmentPriceBatchRowStatus, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type InvestmentValuationBasis, type InvestmentValuationDto, type InvestmentValuationFxDto, type InvestmentValuationMethod, type InvestmentValuationPriceDto, type InvestmentValuationReason, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MANUAL_PRICE_SOURCES, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type ManualPriceSource, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, PREMIUM_PERIODS, PRICED_VALUATION_BASES, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PreviewInsuranceReportDto, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, SIMULATED_PRICE_SOURCE, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateAssetTransactionInput, type UpdateAssetValuationInput, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateInvestmentLedgerInput, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type VoidAssetEventInput, type VoidInvestmentLedgerInput, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, effectiveMarketFor, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };

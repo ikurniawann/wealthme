@@ -25,6 +25,9 @@ export interface NetWorthDto {
   investmentsTotal: string | null;
   assetsTotal: string | null;
   liabilitiesTotal: string | null;
+  // Asuransi S6 — confirmed policy value of policies included in net worth
+  // (already inside netWorth; never sum assured or premiums paid).
+  insurancesTotal?: string | null;
   netWorth: string | null;
   currency: string;
   balancesHidden?: boolean;

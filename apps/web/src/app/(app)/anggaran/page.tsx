@@ -489,7 +489,7 @@ function toObligations(
       name: i.name,
       amountDue: Number(i.premiumAmount),
       paidThisPeriod: i.paidThisPeriod,
-      dueDate: i.renewalDate,
+      dueDate: i.nextPremiumDueDate ?? null,
       icon: INSURANCE_ICONS[i.type] ?? FileText,
     }));
   return [...fromLiabilities, ...fromInsurances];
