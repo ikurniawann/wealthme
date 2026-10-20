@@ -156,3 +156,90 @@
   font-size: 15px;
   font-weight: 700;
 }
+
+/* Amount fields (2026-10-20 hotfix 2): hint + error sit under the field. */
+.iv-dialog .iv-pt-field .input[aria-invalid="true"],
+.iv-dialog .select[aria-invalid="true"] {
+  border-color: var(--destructive);
+}
+.iv-dialog .iv-pt-hint {
+  color: var(--wm-muted, var(--muted-foreground));
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.iv-dialog .iv-pt-error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.iv-dialog .iv-pt-error::before {
+  content: "! ";
+  font-weight: 700;
+}
+
+/* Read-only "Total keluar = jumlah + biaya". */
+.iv-dialog .iv-pt-total {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid var(--wm-line, var(--border));
+  border-radius: 12px;
+  background: var(--wm-card-2, var(--secondary));
+  font-size: 13.5px;
+}
+.iv-dialog .iv-pt-total small {
+  color: var(--wm-muted, var(--muted-foreground));
+  font-size: 12px;
+}
+.iv-dialog .iv-pt-total strong,
+.iv-dialog .iv-pt-amt,
+.iv-dialog .iv-pt-delta,
+.iv-dialog .iv-pt-fee-line .mono {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.iv-dialog .iv-pt-total strong {
+  margin-left: auto;
+  font-size: clamp(15px, 4.2vw, 18px);
+}
+
+/* Summary: label, before → after, signed delta; each amount one line. */
+.iv-dialog .iv-pt-summary .iv-pt-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--wm-line, var(--border));
+}
+.iv-dialog .iv-pt-row-label {
+  grid-column: 1 / -1;
+  color: var(--wm-muted, var(--muted-foreground));
+  font-size: 12.5px;
+}
+.iv-dialog .iv-pt-row-value {
+  font-size: 14px;
+}
+.iv-dialog .iv-pt-delta {
+  align-self: end;
+  font-size: 13px;
+  font-weight: 700;
+}
+.iv-dialog .iv-pt-delta[data-tone="out"] {
+  color: var(--destructive);
+}
+.iv-dialog .iv-pt-delta[data-tone="in"] {
+  color: var(--success);
+}
+.iv-dialog .iv-pt-fee-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 8px 0;
+  border-top: 1px solid var(--wm-line, var(--border));
+  font-size: 13px;
+}

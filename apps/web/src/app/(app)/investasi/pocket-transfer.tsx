@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useId, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { useFxSnapshot } from "@/components/money";
+import { formatMoneyTyping, useFxSnapshot } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
 import { useMyAccess } from "@/hooks/use-my-access";
@@ -23,26 +23,15 @@ import {
   InvestmentConflict,
   investmentErrorMessage,
 } from "./investment-conflict";
-import {
-  AmountInput,
-  amount,
-  today,
-  nowTime,
-  effectiveInstant,
-} from "./investment-fields";
-import {
-  subtract,
-  multiply,
-  positive,
-  decimal,
-  add,
-  roundWhole,
-} from "./decimal";
+import { today, nowTime, effectiveInstant } from "./investment-fields";
 import { money } from "./portfolio-model";
+import { positive } from "./decimal";
 import type { PortfolioMember } from "./portfolio-filters";
 import { PlatformForm } from "./platform-form";
 import type { PlatformFormResult } from "./platform-form";
 import { pocketTransferCopy } from "./pocket-transfer-copy";
+import { LIVE_ERRORS, fieldOrder, planTransfer } from "./pocket-transfer-model";
+import type { FieldError, FieldKey } from "./pocket-transfer-model";
 import "./pocket-transfer.css";
 
 /** Accounts that can fund / receive a platform transfer (spec §4): active
@@ -129,9 +118,9 @@ export function PocketTransfer({
     initialPocketId ?? pockets[0]?.pocket.id ?? "",
   );
   const [bankId, setBankId] = useState(banks[0]?.id ?? "");
-  const [raw, setRaw] = useState("");
-  const [destRaw, setDestRaw] = useState("");
-  const [feeRaw, setFeeRaw] = useState("0");
+  const [amountRaw, setAmountRaw] = useState("");
+  const [sentRaw, setSentRaw] = useState("");
+  const [feeRaw, setFeeRaw] = useState("");
   const [rateRaw, setRateRaw] = useState("");
   const [date, setDate] = useState(today());
   // New entries dated today carry the current time (spec ruling): a timed
@@ -143,6 +132,9 @@ export function PocketTransfer({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [failure, setFailure] = useState<unknown>(null);
+  const [touched, setTouched] = useState<Partial<Record<FieldKey, true>>>({});
+  const [submitted, setSubmitted] = useState(false);
+  const uid = useId();
   const chosen = pockets.find((p) => p.pocket.id === pocketId);
   const bank = banks.find((a) => a.id === bankId);
   const pocket = chosen?.pocket;
@@ -151,61 +143,66 @@ export function PocketTransfer({
   const cross = sourceCur !== destCur;
   const unsupported = cross && sourceCur !== "IDR" && destCur !== "IDR";
   const rates = useFxSnapshot(sourceCur !== "IDR" && !cross);
-  const source = amount(raw),
-    fee = amount(feeRaw),
-    dest = cross ? amount(destRaw) : subtract(source, fee),
-    rate = amount(rateRaw);
-  const fx = cross
-    ? rate
-    : (rates.data?.idrPerUnit as Record<string, string> | undefined)?.[
-        sourceCur
-      ];
-  const validFx = sourceCur === "IDR" || positive(fx ?? "0");
-  // Match API's admin-fee posting: fee charged at destination, total source includes it.
-  const feeIdr =
-    sourceCur === "IDR" ? fee : roundWhole(multiply(fee, fx ?? "0"));
-  const movedIdr =
-    sourceCur === "IDR"
-      ? source
-      : cross
-        ? add(dest, feeIdr)
-        : roundWhole(multiply(source, fx ?? "0"));
   const sourceBefore = withdraw ? pocket?.availableBalance : bank?.balance;
   const destBefore = withdraw ? bank?.balance : pocket?.recordedBalance;
-  const sourceAfter =
-    sourceBefore == null ? null : subtract(sourceBefore, movedIdr);
-  const destAfter =
-    destBefore == null ? null : add(destBefore, subtract(movedIdr, feeIdr));
-  const insufficient =
-    date === today() &&
-    sourceAfter !== null &&
-    decimal(sourceAfter) < BigInt(0);
+  const plan = planTransfer({
+    bankId: bank ? bankId : "",
+    pocketId: chosen ? pocketId : "",
+    sourceCur,
+    cross,
+    amountRaw,
+    sentRaw,
+    feeRaw,
+    rateRaw,
+    snapshotRate: (
+      rates.data?.idrPerUnit as Record<string, string> | undefined
+    )?.[sourceCur],
+    sourceBefore,
+    destBefore,
+    checkBalance: date === today(),
+  });
+  const fmt = (value: string | null | undefined) =>
+    money(value, "IDR", locale, hideBalance);
+  const errorText = (code: FieldError): string =>
+    code === "insufficient"
+      ? (withdraw
+          ? copy.errors.insufficientPocket
+          : copy.errors.insufficientAccount)(fmt(sourceBefore))
+      : copy.errors[code];
+  /** Message shown under a field: required-type errors wait for a blur or
+   *  a submit; fee/balance errors show as soon as the numbers conflict. */
+  const shown = (key: FieldKey): string | undefined => {
+    const code = plan.errors[key];
+    if (!code) return undefined;
+    return submitted || touched[key] || LIVE_ERRORS.has(code)
+      ? errorText(code)
+      : undefined;
+  };
+  const blur = (key: FieldKey) => () =>
+    setTouched((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  const invalidKeys = fieldOrder(cross).filter((k) => plan.errors[k]);
   const resetAmounts = () => {
-    setRaw("");
-    setDestRaw("");
-    setFeeRaw("0");
+    setAmountRaw("");
+    setSentRaw("");
+    setFeeRaw("");
     setRateRaw("");
+    setTouched({});
+    setSubmitted(false);
   };
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
-    if (
-      !chosen ||
-      !bank ||
-      !positive(source) ||
-      !positive(dest) ||
-      unsupported ||
-      (cross && !positive(rate)) ||
-      !validFx ||
-      insufficient
-    ) {
-      setError(
-        insufficient
-          ? f.insufficient
-          : unsupported
-            ? f.fxUnsupported
-            : f.required,
-      );
+    setSubmitted(true);
+    setError("");
+    const firstInvalid = invalidKeys[0];
+    if (firstInvalid) {
+      const el = document.getElementById(`${uid}-${firstInvalid}`);
+      el?.focus();
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+      return;
+    }
+    if (unsupported || !plan.validFx || !chosen || !bank) {
+      setError(unsupported ? f.fxUnsupported : copy.fxUnavailable);
       return;
     }
     setBusy(true);
@@ -219,12 +216,14 @@ export function PocketTransfer({
           method: "POST",
           body: JSON.stringify({
             counterAccountId: bankId,
-            sourceAmount: source,
+            // The API takes the total that left the source and the net
+            // that landed; the dialog asks for "landed" + a separate fee.
+            sourceAmount: plan.sourceTotal,
             sourceCurrency: sourceCur,
-            destAmount: dest,
+            destAmount: plan.landed,
             destCurrency: destCur,
-            ...(cross ? { fxRate: rate } : {}),
-            fee,
+            ...(cross ? { fxRate: plan.rate } : {}),
+            fee: plan.fee,
             feeCurrency: sourceCur,
             occurredAt: effectiveInstant(date, time),
             description: note.trim() || undefined,
@@ -242,8 +241,6 @@ export function PocketTransfer({
     onSaved();
     onClose();
   }
-  const fmt = (value: string | null | undefined) =>
-    money(value, "IDR", locale, hideBalance);
   return (
     <Dialog
       open
@@ -252,7 +249,8 @@ export function PocketTransfer({
       }}
     >
       <DialogContent className="iv-dialog iv-transfer">
-        <form onSubmit={save}>
+        {/* noValidate: our field-level messages replace the browser bubble. */}
+        <form onSubmit={save} noValidate>
           <header className="iv-dialog-head wm-dark">
             <DialogTitle>{withdraw ? f.withdraw : f.transferTitle}</DialogTitle>
             <DialogDescription>
@@ -273,14 +271,20 @@ export function PocketTransfer({
                 </div>
               </div>
             ) : (
-              <label className="field">
-                <span className="label">
+              <div className="field">
+                <label className="label" htmlFor={`${uid}-bank`}>
                   {withdraw ? f.destination : f.source} *
-                </span>
+                </label>
                 <select
+                  id={`${uid}-bank`}
                   className="select"
                   required
+                  aria-invalid={shown("bank") ? true : undefined}
+                  aria-describedby={
+                    shown("bank") ? `${uid}-bank-err` : undefined
+                  }
                   value={bankId}
+                  onBlur={blur("bank")}
                   onChange={(e) => {
                     setBankId(e.target.value);
                     resetAmounts();
@@ -293,7 +297,8 @@ export function PocketTransfer({
                     </option>
                   ))}
                 </select>
-              </label>
+                <FieldMessage id={`${uid}-bank-err`} text={shown("bank")} />
+              </div>
             )}
             {pockets.length === 0 ? (
               <div className="iv-pt-empty" role="status">
@@ -322,12 +327,20 @@ export function PocketTransfer({
                 )}
               </div>
             ) : (
-              <label className="field">
-                <span className="label">{f.pocket} *</span>
+              <div className="field">
+                <label className="label" htmlFor={`${uid}-pocket`}>
+                  {f.pocket} *
+                </label>
                 <select
+                  id={`${uid}-pocket`}
                   className="select"
                   required
+                  aria-invalid={shown("pocket") ? true : undefined}
+                  aria-describedby={
+                    shown("pocket") ? `${uid}-pocket-err` : undefined
+                  }
                   value={pocketId}
+                  onBlur={blur("pocket")}
                   onChange={(e) => {
                     setPocketId(e.target.value);
                     resetAmounts();
@@ -344,43 +357,67 @@ export function PocketTransfer({
                     </option>
                   ))}
                 </select>
-              </label>
+                <FieldMessage id={`${uid}-pocket-err`} text={shown("pocket")} />
+              </div>
             )}
-            <AmountInput
-              label={f.sourceAmount}
-              currency={sourceCur}
+            {cross && (
+              <MoneyField
+                id={`${uid}-sent`}
+                label={withdraw ? copy.sentPocket : copy.sentAccount}
+                currency={sourceCur}
+                required
+                value={sentRaw}
+                decimals={sourceCur === "IDR" ? 0 : 2}
+                onChange={setSentRaw}
+                onBlur={blur("sent")}
+                error={shown("sent")}
+              />
+            )}
+            <MoneyField
+              id={`${uid}-amount`}
+              label={withdraw ? copy.landedAccount : copy.landedPocket}
+              currency={destCur}
               required
-              value={raw}
-              decimals={sourceCur === "IDR" ? 0 : 2}
-              onChange={setRaw}
+              value={amountRaw}
+              decimals={destCur === "IDR" ? 0 : 2}
+              onChange={setAmountRaw}
+              onBlur={blur("amount")}
+              error={shown("amount")}
             />
             {cross && (
-              <>
-                <AmountInput
-                  label={f.destAmount}
-                  currency={destCur}
-                  required
-                  value={destRaw}
-                  decimals={destCur === "IDR" ? 0 : 2}
-                  onChange={setDestRaw}
-                />
-                <AmountInput
-                  label={f.actualRate}
-                  currency="IDR"
-                  required
-                  value={rateRaw}
-                  decimals={6}
-                  onChange={setRateRaw}
-                />
-              </>
+              <MoneyField
+                id={`${uid}-rate`}
+                label={f.actualRate}
+                currency="IDR"
+                required
+                value={rateRaw}
+                decimals={6}
+                onChange={setRateRaw}
+                onBlur={blur("rate")}
+                error={shown("rate")}
+              />
             )}
-            <AmountInput
-              label={f.fee}
+            <MoneyField
+              id={`${uid}-fee`}
+              label={copy.fee}
               currency={sourceCur}
               value={feeRaw}
+              placeholder="0"
               decimals={sourceCur === "IDR" ? 0 : 2}
               onChange={setFeeRaw}
+              onBlur={blur("fee")}
+              hint={copy.feeHint}
+              error={shown("fee")}
             />
+            <p className="iv-pt-total" aria-live="polite">
+              <span>
+                {withdraw ? copy.totalOutPocket : copy.totalOutAccount}
+                <small> = {copy.totalFormula}</small>
+              </span>
+              <strong className="mono">
+                {money(plan.sourceTotal, sourceCur, locale, false)}
+              </strong>
+            </p>
             <div className="iv-field-row">
               <label className="field">
                 <span className="label">{f.date} *</span>
@@ -422,22 +459,48 @@ export function PocketTransfer({
                 onChange={(e) => setNote(e.target.value)}
               />
             </label>
-            <section className="iv-transfer-preview">
+            <section className="iv-transfer-preview iv-pt-summary">
               <h2>{f.summary} · IDR</h2>
-              <p>
-                {withdraw ? f.pocket : f.source}: {fmt(sourceBefore)} →{" "}
-                {validFx ? fmt(sourceAfter) : "—"}
-              </p>
-              <p>
-                {withdraw ? f.destination : f.pocket}: {fmt(destBefore)} →{" "}
-                {validFx ? fmt(destAfter) : "—"}
+              <SummaryRow
+                label={withdraw ? f.pocket : f.source}
+                before={fmt(sourceBefore)}
+                after={plan.validFx ? fmt(plan.sourceAfter) : "—"}
+                delta={
+                  plan.totalIdr && positive(plan.totalIdr)
+                    ? `−${fmt(plan.totalIdr)}`
+                    : undefined
+                }
+                tone="out"
+              />
+              <SummaryRow
+                label={withdraw ? f.destination : f.pocket}
+                before={fmt(destBefore)}
+                after={plan.validFx ? fmt(plan.destAfter) : "—"}
+                delta={
+                  plan.creditIdr && positive(plan.creditIdr)
+                    ? `+${fmt(plan.creditIdr)}`
+                    : undefined
+                }
+                tone="in"
+              />
+              <p className="iv-pt-fee-line">
+                <span>{copy.summaryFee}</span>
+                <span className="mono">
+                  {plan.feeIdr && positive(plan.feeIdr)
+                    ? fmt(plan.feeIdr)
+                    : copy.noFee}
+                </span>
               </p>
               <small>{f.currentBalance}</small>
             </section>
             <p className="iv-notice">{f.transferNote}</p>
             {unsupported && <p className="error-text">{f.fxUnsupported}</p>}
-            {insufficient && <p className="error-text">{f.insufficient}</p>}
             <InvestmentConflict error={failure} />
+            {submitted && invalidKeys.length > 0 && (
+              <p className="error-text" role="alert">
+                {copy.errorSummary(invalidKeys.length)}
+              </p>
+            )}
             {error && (
               <p className="error-text" role="alert">
                 {error}
@@ -455,13 +518,7 @@ export function PocketTransfer({
             </button>
             <button
               className="btn btn--primary"
-              disabled={
-                busy ||
-                unsupported ||
-                insufficient ||
-                !banks.length ||
-                !pockets.length
-              }
+              disabled={busy || unsupported || !banks.length || !pockets.length}
             >
               {busy ? f.saving : f.save}
             </button>
@@ -481,5 +538,106 @@ export function PocketTransfer({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function FieldMessage({ id, text }: { id: string; text?: string }) {
+  if (!text) return null;
+  return (
+    <p id={id} className="error-text iv-pt-error">
+      {text}
+    </p>
+  );
+}
+
+/** Money input of this dialog: persistent label, decimal keypad, the error
+ *  right under the field and wired to it via aria-describedby. */
+function MoneyField({
+  id,
+  label,
+  currency,
+  value,
+  onChange,
+  onBlur,
+  decimals,
+  required = false,
+  placeholder,
+  hint,
+  error,
+}: {
+  id: string;
+  label: string;
+  currency: string;
+  value: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+  decimals: number;
+  required?: boolean;
+  placeholder?: string;
+  hint?: string;
+  error?: string;
+}) {
+  const described =
+    [hint ? `${id}-hint` : "", error ? `${id}-err` : ""]
+      .filter(Boolean)
+      .join(" ") || undefined;
+  return (
+    <div className="field iv-pt-field">
+      <label className="label" htmlFor={id}>
+        {label}
+        {required ? " *" : ""} · {currency}
+      </label>
+      <input
+        id={id}
+        className="input mono"
+        inputMode="decimal"
+        enterKeyHint="next"
+        autoComplete="off"
+        required={required}
+        placeholder={placeholder}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={described}
+        value={value}
+        onBlur={onBlur}
+        onChange={(e) =>
+          onChange(formatMoneyTyping(e.target.value, decimals, false))
+        }
+      />
+      {hint && (
+        <small id={`${id}-hint`} className="iv-pt-hint">
+          {hint}
+        </small>
+      )}
+      <FieldMessage id={`${id}-err`} text={error} />
+    </div>
+  );
+}
+
+function SummaryRow({
+  label,
+  before,
+  after,
+  delta,
+  tone,
+}: {
+  label: string;
+  before: string;
+  after: string;
+  delta?: string;
+  tone: "in" | "out";
+}) {
+  return (
+    <div className="iv-pt-row">
+      <span className="iv-pt-row-label">{label}</span>
+      <span className="iv-pt-row-value mono">
+        <span className="iv-pt-amt">{before}</span>{" "}
+        <span className="iv-pt-amt">→ {after}</span>
+      </span>
+      {delta && (
+        <span className="iv-pt-delta mono" data-tone={tone}>
+          {delta}
+        </span>
+      )}
+    </div>
   );
 }
