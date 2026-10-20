@@ -1531,3 +1531,12 @@
   background: rgb(156 203 59 / 0.2);
   color: #c9e79a;
 }
+
+/* Task 35 — touch screens: "Lihat semua riwayat" reaches 44px. */
+@layer components {
+  @media (pointer: coarse) {
+    .iv-more-link {
+      min-height: 44px;
+    }
+  }
+}
