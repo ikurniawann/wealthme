@@ -15,6 +15,7 @@ import {
   IsUUID,
   Matches,
   MaxLength,
+  MinLength,
 } from "class-validator";
 
 import { IsTrimmedNotEmpty } from "../../common/decorators/is-trimmed-not-empty.decorator";
@@ -134,9 +135,15 @@ export class CreateAssetDto {
   // Aset fields (2026-10-20) — Pemilik. A member's userId; null or omitted
   // = Bersama (family). A row-scoped member may only record for themselves
   // (AssetsService resolves and checks it).
-  @ApiPropertyOptional({ nullable: true, format: "uuid" })
+  // NOT `@IsUUID()`: better-auth issues 32-char non-UUID ids to every user
+  // who registers through the app, so a UUID check rejected every real
+  // member (400) and only passed seeded users. Membership is enforced by
+  // `resolveCreateOwner`, not by the id's shape (see CreateAccountDto).
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
-  @IsUUID()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
   ownerUserId?: string | null;
 
   // Harga perolehan in IDR digits (or fxInputs field "acquisitionCost").

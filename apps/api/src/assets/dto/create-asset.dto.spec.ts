@@ -56,3 +56,29 @@ describe("CreateAssetDto.currentValue — hardening audit MEDIUM", () => {
     expect(errors.some((e) => e.property === "currentValue")).toBe(true);
   });
 });
+
+// Client bug 2026-10-21 — Pemilik = a registered member failed with 400:
+// better-auth user ids are 32-char alphanumerics, not UUIDs.
+describe("CreateAssetDto.ownerUserId — non-UUID member ids", () => {
+  const owner = (ownerUserId: unknown) =>
+    validate(
+      plainToInstance(CreateAssetDto, { ...BASE, name: "Emas", ownerUserId }),
+    );
+
+  it("accepts a better-auth (non-UUID) user id", async () => {
+    const errors = await owner("Ds9yq8La3yfVTwyTNOkb5P1J4lVTsBn6");
+    expect(errors.some((e) => e.property === "ownerUserId")).toBe(false);
+  });
+
+  it("accepts a seeded UUID and null (Bersama)", async () => {
+    expect(await owner("6f2a1d54-9c3b-4f7e-9a10-2b8c5d4e1f03")).toHaveLength(0);
+    expect(await owner(null)).toHaveLength(0);
+  });
+
+  it("rejects an empty string and a non-string", async () => {
+    for (const bad of ["", 42]) {
+      const errors = await owner(bad);
+      expect(errors.some((e) => e.property === "ownerUserId")).toBe(true);
+    }
+  });
+});

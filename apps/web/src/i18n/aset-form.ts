@@ -51,6 +51,7 @@ export interface AsetFormCopy {
     valuationDateHint: string;
     valuationDateBeforeAcq: string;
     valuationSource: string;
+    fieldRejected: string;
     sources: { manual: string; appraisal: string; market: string };
   };
   notesTooLong: string;
@@ -161,6 +162,7 @@ export const asetFormId: AsetFormCopy = {
     valuationDateBeforeAcq:
       "Tanggal valuasi tidak boleh sebelum tanggal perolehan.",
     valuationSource: "Sumber valuasi",
+    fieldRejected: "Isian {field} ditolak. Periksa lalu simpan lagi.",
     sources: {
       manual: "Manual",
       appraisal: "Penilai / appraisal",
@@ -272,6 +274,7 @@ export const asetFormEn: AsetFormCopy = {
     valuationDateBeforeAcq:
       "The valuation date can't be before the acquisition date.",
     valuationSource: "Valuation source",
+    fieldRejected: "The {field} field was rejected. Check it and save again.",
     sources: {
       manual: "Manual",
       appraisal: "Appraiser",

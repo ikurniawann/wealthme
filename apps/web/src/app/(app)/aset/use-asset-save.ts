@@ -96,9 +96,46 @@ export function useAssetSave({
       const fallback = editing
         ? t.aset.toastUpdateFailed
         : t.aset.toastAddFailed;
-      toast.error(apiErrorMessage(err, fallback));
+      const c = t.aset.v3.form.create;
+      const field = rejectedField(err, {
+        ownerUserId: c.owner,
+        acquisitionCost: c.cost,
+        valuationDate: c.valuationDate,
+        valuationSource: c.valuationSource,
+      });
+      toast.error(
+        field
+          ? c.fieldRejected.replace("{field}", field)
+          : apiErrorMessage(err, fallback),
+      );
     },
   });
+}
+
+/**
+ * A class-validator 400 carries English `message: string[]` that
+ * `apiErrorMessage` (rightly) never shows, so a rejected create-only field
+ * used to surface as the generic "coba lagi" toast and invited blind
+ * retries. Name the field instead when it is one of `labels`.
+ */
+export function rejectedField(
+  err: unknown,
+  labels: Record<string, string>,
+): string | null {
+  if (
+    !err ||
+    typeof err !== "object" ||
+    (err as { status?: unknown }).status !== 400
+  )
+    return null;
+  const raw = (err as { message?: unknown }).message;
+  const lines = Array.isArray(raw) ? raw : [raw];
+  for (const line of lines) {
+    if (typeof line !== "string") continue;
+    const key = /^(\w+)\s/.exec(line.trim())?.[1];
+    if (key && Object.hasOwn(labels, key)) return labels[key];
+  }
+  return null;
 }
 
 /** Same linear 5-year approximation as the API's compute-on-read estimate. */
