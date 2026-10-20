@@ -955,7 +955,14 @@ export class TransactionsService {
       ...((query.from ?? query.to) && {
         occurredAt: {
           ...(query.from && { gte: new Date(query.from) }),
-          ...(query.to && { lte: new Date(query.to) }),
+          // occurredAt is a floating wall-clock value (`${day}T${HH:MM}Z`), so
+          // a plain `to` day must end at that UTC day's last instant — UTC
+          // midnight would drop every timed row of the day.
+          ...(query.to && {
+            lte: /^\d{4}-\d{2}-\d{2}$/.test(query.to)
+              ? new Date(`${query.to}T23:59:59.999Z`)
+              : new Date(query.to),
+          }),
         },
       }),
       AND: andClauses,

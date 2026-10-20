@@ -1,7 +1,7 @@
 import { ConflictException } from "@nestjs/common";
 
 import { findCashViolations } from "../investments/ledger/cash-timeline";
-import { cashKeyParts } from "../investments/ledger/ledger-dates";
+import { floatingKeyParts } from "../investments/ledger/ledger-dates";
 import { loadCashTimeline } from "../investments/ledger/ledger-support";
 import { formatLedgerPoint } from "../investments/ledger/replay";
 
@@ -28,7 +28,7 @@ export async function assertPocketTransferTimeline(
       })
     : null;
   const from = {
-    ...cashKeyParts(transfer.occurredAt),
+    ...floatingKeyParts(transfer.occurredAt),
     createdAt: transfer.createdAt,
     id: transfer.id,
   };

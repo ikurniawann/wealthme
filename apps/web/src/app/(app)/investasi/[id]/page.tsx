@@ -2,6 +2,17 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import {
+  ChevronLeft,
+  FileText,
+  LayoutDashboard,
+  List,
+  PencilLine,
+  RefreshCw,
+  ShoppingCart,
+  UserRound,
+  Wallet,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type {
   InvestmentDto,
@@ -28,6 +39,7 @@ import { DetailTransactions } from "./detail-transactions";
 import { DetailDocuments } from "./detail-documents";
 import { DetailEventForm } from "./detail-events";
 import "../investasi.css";
+import "./detail.css";
 
 export default function InvestmentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -136,46 +148,57 @@ export default function InvestmentDetailPage() {
   };
   return (
     <div className="iv iv-detail">
-      <nav aria-label={c.title}>
-        <Link href="/investasi">← {c.title}</Link> / {h.ticker}
+      <nav className="ivd-crumb" aria-label={c.title}>
+        <Link href="/investasi">
+          <ChevronLeft aria-hidden />
+          {c.title}
+        </Link>
+        <span aria-hidden>/</span>
+        <span aria-current="page">{h.ticker}</span>
       </nav>
-      <header className="iv-header">
-        <div>
-          <p className="iv-title">
-            {h.name} <span className="iv-ticker">{h.ticker}</span>
-          </p>
-          <p>
-            {h.market ?? c.completeMarket} · {c[h.type]} · {h.currency}
-          </p>
-          <p>
-            {c.owner}: <strong>{owner}</strong> · {c.platform}:{" "}
-            <strong>
-              {platform?.label ??
-                platform?.platformName ??
-                platform?.customName ??
-                "—"}
-            </strong>{" "}
-            · {pocket?.name ?? "—"}
+      <header className="ivd-head">
+        <div className="ivd-identity">
+          <div className="ivd-title-row">
+            <p className="iv-title">{h.name}</p>
+            {h.ticker !== h.name && (
+              <span className="iv-ticker">{h.ticker}</span>
+            )}
+            <span className="ivd-chip">
+              {h.market ?? c.completeMarket} · {c[h.type]} · {h.currency}
+            </span>
+          </div>
+          <p className="ivd-meta">
+            <span>
+              <UserRound aria-hidden />
+              {c.owner}: <strong>{owner}</strong>
+            </span>
+            <span>
+              <Wallet aria-hidden />
+              {c.platform}:{" "}
+              <strong>
+                {platform?.label ??
+                  platform?.platformName ??
+                  platform?.customName ??
+                  "—"}
+              </strong>
+              {pocket?.name ? ` · ${pocket.name}` : ""}
+            </span>
           </p>
         </div>
         {canManage && (
-          <div className="iv-header-actions">
-            <button
-              className="btn btn--outline"
-              onClick={() => setAction("metadata")}
-            >
-              {d.completeMetadata}
-            </button>
+          <div className="ivd-actions">
             <button
               className="btn btn--primary"
               onClick={() => setAction("buy")}
             >
+              <ShoppingCart aria-hidden />
               {c.buy}
             </button>
             <button
-              className="btn btn--outline"
+              className="btn btn--outline ivd-sell"
               onClick={() => setAction("sell")}
             >
+              <ShoppingCart aria-hidden />
               {c.sell}
             </button>
             {h.type !== "deposito" && (
@@ -183,14 +206,22 @@ export default function InvestmentDetailPage() {
                 className="btn btn--outline"
                 onClick={() => setAction("price")}
               >
+                <RefreshCw aria-hidden />
                 {c.updatePrice}
               </button>
             )}
+            <button
+              className="btn btn--outline"
+              onClick={() => setAction("metadata")}
+            >
+              <PencilLine aria-hidden />
+              {d.completeMetadata}
+            </button>
           </div>
         )}
       </header>
       {!h.market && <p className="iv-notice">{d.metadataNote}</p>}
-      <section className="iv-card iv-detail-kpis">
+      <section className="iv-card iv-detail-kpis ivd-kpis">
         <div>
           <span>{t.investasi.forms.quantity}</span>
           <strong>{hideBalance ? "••••" : quantity(h, c, locale)}</strong>
@@ -227,7 +258,20 @@ export default function InvestmentDetailPage() {
         </div>
         <div>
           <span>{d.unrealized}</span>
-          <strong>{fmt(v.unrealizedIdr)}</strong>
+          <strong
+            className="ivd-pnl"
+            data-sign={
+              hideBalance
+                ? undefined
+                : v.unrealizedIdr?.startsWith("-")
+                  ? "down"
+                  : v.unrealizedIdr && /[1-9]/.test(v.unrealizedIdr)
+                    ? "up"
+                    : undefined
+            }
+          >
+            {fmt(v.unrealizedIdr)}
+          </strong>
           <small>
             {hideBalance || v.unrealizedPct === null
               ? "—"
@@ -251,17 +295,26 @@ export default function InvestmentDetailPage() {
           {v.price?.delayed && <small>{d.delayed}</small>}
         </div>
       </section>
-      <nav className="iv-tabs" aria-label={d.identity}>
-        {(["summary", "transactions", "documents"] as const).map((key) => (
-          <button
-            className="btn"
-            key={key}
-            aria-pressed={tab === key}
-            onClick={() => setTab(key)}
-          >
-            {d[key]}
-          </button>
-        ))}
+      <nav className="ivd-tabs" aria-label={d.identity}>
+        {(["summary", "transactions", "documents"] as const).map((key) => {
+          const Icon =
+            key === "summary"
+              ? LayoutDashboard
+              : key === "transactions"
+                ? List
+                : FileText;
+          return (
+            <button
+              type="button"
+              key={key}
+              aria-pressed={tab === key}
+              onClick={() => setTab(key)}
+            >
+              <Icon aria-hidden />
+              {d[key]}
+            </button>
+          );
+        })}
       </nav>
       {tab === "summary" ? (
         <>
@@ -291,7 +344,7 @@ export default function InvestmentDetailPage() {
             <DetailCalculation holding={h} valuation={v} />
           </div>
           {canManage && (
-            <div className="iv-tools">
+            <div className="iv-tools ivd-tools">
               <button
                 className="btn btn--primary"
                 onClick={() => setAction("income")}
@@ -307,7 +360,7 @@ export default function InvestmentDetailPage() {
             </div>
           )}
           {h.notes && (
-            <section className="iv-card">
+            <section className="iv-card ivd-note">
               <h2>{d.note}</h2>
               <p>{h.notes}</p>
             </section>

@@ -121,7 +121,18 @@ export function DetailCalculation({
             </dd>
           </div>
         )}
-        <div>
+        <div
+          className="ivd-calc-total"
+          data-sign={
+            hideBalance
+              ? undefined
+              : v.unrealizedIdr?.startsWith("-")
+                ? "down"
+                : v.unrealizedIdr && /[1-9]/.test(v.unrealizedIdr)
+                  ? "up"
+                  : undefined
+          }
+        >
           <dt>
             {d.unrealized}
             <small>{d.difference}</small>
@@ -136,8 +147,8 @@ export function DetailCalculation({
           </dd>
         </div>
       </dl>
-      <p>{d.sellCosts}</p>
-      <small>{d.valuationNote}</small>
+      <p className="ivd-calc-note">{d.sellCosts}</p>
+      <small className="ivd-calc-note">{d.valuationNote}</small>
       {v.costBasisKnown === false && <p className="iv-notice">{d.basisNote}</p>}
     </aside>
   );

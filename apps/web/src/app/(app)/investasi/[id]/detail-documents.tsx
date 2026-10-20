@@ -95,7 +95,7 @@ export function DetailDocuments({
     }
   }
   return (
-    <section className="iv-card">
+    <section className="iv-card ivd-docs">
       <h2>{d.documents}</h2>
       {canManage && (
         <form onSubmit={upload} className="iv-document-upload">

@@ -95,6 +95,10 @@ export interface InvestasiV3Copy {
   displayFx: string;
   unavailableFx: string;
   futureTask: string;
+  colDate: string;
+  colKind: string;
+  colAmount: string;
+  colStatus: string;
 }
 export const investasiV3Id: InvestasiV3Copy = {
   title: "Investasi",
@@ -196,6 +200,10 @@ export const investasiV3Id: InvestasiV3Copy = {
   displayFx: "Kurs tampilan",
   unavailableFx: "Kurs tampilan belum tersedia.",
   futureTask: "Form ini sedang diperbarui.",
+  colDate: "Tanggal",
+  colKind: "Jenis",
+  colAmount: "Jumlah",
+  colStatus: "Status",
 };
 export const investasiV3En: InvestasiV3Copy = {
   title: "Investments",
@@ -297,4 +305,8 @@ export const investasiV3En: InvestasiV3Copy = {
   displayFx: "Display FX",
   unavailableFx: "Display FX is unavailable.",
   futureTask: "This form is being updated.",
+  colDate: "Date",
+  colKind: "Type",
+  colAmount: "Amount",
+  colStatus: "Status",
 };

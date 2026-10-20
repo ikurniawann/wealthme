@@ -2,7 +2,10 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { INVESTMENT_PLATFORMS, FX_CURRENCY_CODES } from "@wealthme/contracts";
-import type { PlatformAccountDto } from "@wealthme/contracts";
+import type {
+  PlatformAccountDto,
+  PlatformPocketDto,
+} from "@wealthme/contracts";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +16,13 @@ import { useLocale } from "@/hooks/use-locale";
 import { apiFetch } from "@/lib/api-client";
 import { apiErrorMessage } from "@/lib/api-error";
 import type { PortfolioMember } from "./portfolio-filters";
+import { pocketTransferCopy } from "./pocket-transfer-copy";
+import "./pocket-transfer.css";
+
+/** What a save created, so a caller (the top-up dialog) can select it. */
+export interface PlatformFormResult {
+  pocketId?: string;
+}
 
 export function PlatformForm({
   platform,
@@ -31,9 +41,10 @@ export function PlatformForm({
   myUserId: string;
   isMaster: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (created?: PlatformFormResult) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
+  const copy = pocketTransferCopy(locale);
   const c = t.investasi.v3;
   const f = t.investasi.forms;
   const [key, setKey] = useState(
@@ -57,8 +68,9 @@ export function PlatformForm({
     }
     setBusy(true);
     setError("");
+    let created: PlatformFormResult = {};
     try {
-      await apiFetch(
+      const result = await apiFetch<PlatformAccountDto | PlatformPocketDto>(
         `/family-groups/${fg}/platform-accounts${platform ? `/${platform.id}/pockets` : ""}`,
         {
           token,
@@ -77,19 +89,41 @@ export function PlatformForm({
                   label: label.trim() || undefined,
                   accountRef: ref.trim() || undefined,
                   ownerUserId: owner || undefined,
+                  // A platform without a pocket is a dead end for top up /
+                  // buy: create its first cash pocket in the same request.
+                  pockets: [{ pocketKind: kind, currency, balance: 0 }],
                 },
           ),
         },
       );
+      created = {
+        pocketId:
+          "pockets" in result
+            ? result.pockets?.[0]?.id
+            : (result.id ?? undefined),
+      };
     } catch (err) {
       setError(apiErrorMessage(err, f.failed));
       setBusy(false);
       return;
     }
     toast.success(f.saved);
-    onSaved();
+    onSaved(created);
     onClose();
   }
+  // New platform: the account label belongs with the platform fields, above
+  // the first-pocket section. Add pocket: it names the pocket.
+  const labelField = (
+    <label className="field">
+      <span className="label">{platform ? f.pocketName : f.label}</span>
+      <input
+        className="input"
+        maxLength={120}
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+      />
+    </label>
+  );
   return (
     <Dialog
       open
@@ -99,7 +133,7 @@ export function PlatformForm({
     >
       <DialogContent className="iv-dialog">
         <form onSubmit={save}>
-          <header className="iv-dialog-head">
+          <header className="iv-dialog-head wm-dark">
             <DialogTitle>{platform ? f.addPocket : f.addPlatform}</DialogTitle>
             <DialogDescription>{c.manual}</DialogDescription>
           </header>
@@ -116,7 +150,9 @@ export function PlatformForm({
                       const cat = INVESTMENT_PLATFORMS.find(
                         (p) => p.key === e.target.value,
                       );
-                      setKind(cat?.pockets[0] ?? "general");
+                      const first = cat?.pockets[0] ?? "general";
+                      setKind(first);
+                      setCurrency(first === "usd" ? "USD" : "IDR");
                     }}
                   >
                     {INVESTMENT_PLATFORMS.map((p) => (
@@ -164,50 +200,44 @@ export function PlatformForm({
                   />
                 </label>
               </>
-            ) : (
-              <>
-                <label className="field">
-                  <span className="label">{f.pocketKind}</span>
-                  <select
-                    className="select"
-                    value={kind}
-                    onChange={(e) => {
-                      setKind(e.target.value);
-                      setCurrency(e.target.value === "usd" ? "USD" : "IDR");
-                    }}
-                  >
-                    {(catalog?.pockets ?? ["general"]).map((k) => (
-                      <option key={k} value={k}>
-                        {f[k]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span className="label">{c.currency}</span>
-                  <select
-                    className="select"
-                    value={currency}
-                    disabled={kind !== "general"}
-                    onChange={(e) => setCurrency(e.target.value)}
-                  >
-                    {FX_CURRENCY_CODES.map((cur) => (
-                      <option key={cur}>{cur}</option>
-                    ))}
-                  </select>
-                </label>
-                <p className="iv-notice">{f.openingZero}</p>
-              </>
-            )}
-            <label className="field">
-              <span className="label">{platform ? f.pocketName : f.label}</span>
-              <input
-                className="input"
-                maxLength={120}
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-              />
-            </label>
+            ) : null}
+            {labelField}
+            <>
+              {!platform && (
+                <h3 className="iv-pt-subhead">{copy.firstPocket}</h3>
+              )}
+              <label className="field">
+                <span className="label">{f.pocketKind}</span>
+                <select
+                  className="select"
+                  value={kind}
+                  onChange={(e) => {
+                    setKind(e.target.value);
+                    setCurrency(e.target.value === "usd" ? "USD" : "IDR");
+                  }}
+                >
+                  {(catalog?.pockets ?? ["general"]).map((k) => (
+                    <option key={k} value={k}>
+                      {f[k]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span className="label">{c.currency}</span>
+                <select
+                  className="select"
+                  value={currency}
+                  disabled={kind !== "general"}
+                  onChange={(e) => setCurrency(e.target.value)}
+                >
+                  {FX_CURRENCY_CODES.map((cur) => (
+                    <option key={cur}>{cur}</option>
+                  ))}
+                </select>
+              </label>
+              <p className="iv-notice">{f.openingZero}</p>
+            </>
             {error && (
               <p className="error-text" role="alert">
                 {error}

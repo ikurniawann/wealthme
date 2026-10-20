@@ -51,8 +51,8 @@ export function DetailTransactions({
   const fmt = (n: string | null | undefined, currency = "IDR") =>
     money(n, currency, locale, hideBalance);
   return (
-    <section className="iv-card">
-      <h2>
+    <section className="iv-card ivd-ledger">
+      <h2 className="ivd-section-title">
         {section === "income"
           ? d.income
           : section === "sales"
@@ -60,7 +60,7 @@ export function DetailTransactions({
             : d.transactions}
       </h2>
       {section === "sales" && (
-        <strong>
+        <strong className="ivd-section-total">
           {fmt(
             selected.length === 0 && v.costBasisKnown !== false
               ? "0"
@@ -68,7 +68,9 @@ export function DetailTransactions({
           )}
         </strong>
       )}
-      {section === "income" && <strong>{fmt(v.incomeIdr)}</strong>}
+      {section === "income" && (
+        <strong className="ivd-section-total">{fmt(v.incomeIdr)}</strong>
+      )}
       {!selected.length ? (
         <p className="iv-empty">
           {section === "income"
@@ -79,7 +81,7 @@ export function DetailTransactions({
         </p>
       ) : (
         <div className="iv-table-scroll">
-          <table className="iv-detail-table">
+          <table className="iv-detail-table ivd-table">
             <thead>
               <tr>
                 <th>{f.date}</th>
@@ -99,8 +101,8 @@ export function DetailTransactions({
                 const unknown =
                   r.costBasisKnown === false && kind === "opening";
                 return (
-                  <tr key={r.id}>
-                    <td>
+                  <tr key={r.id} data-status={r.status ?? undefined}>
+                    <td data-label={f.date}>
                       {r.effectiveDate ?? r.occurredAt.slice(0, 10)}
                       <small>
                         {r.effectiveTime ?? "—"} ·{" "}
@@ -112,12 +114,14 @@ export function DetailTransactions({
                         </small>
                       )}
                     </td>
-                    <td>
-                      {c[kind]}
+                    <td data-label={f.kind} className="ivd-kind">
+                      <span data-kind={kind}>{c[kind]}</span>
                       {r.note && <small>{r.note}</small>}
                     </td>
-                    <td>{hideBalance ? "••••" : r.quantity}</td>
-                    <td>
+                    <td data-label={f.quantity}>
+                      {hideBalance ? "••••" : r.quantity}
+                    </td>
+                    <td data-label={d.unitPrice}>
                       {unknown ||
                       [
                         "dividend",
@@ -132,9 +136,16 @@ export function DetailTransactions({
                             : `${r.pricePerUnit}%`
                           : fmt(r.pricePerUnit, r.currency)}
                     </td>
-                    <td>{unknown ? "—" : fmt(r.grossAmount, r.currency)}</td>
-                    <td>{fmt(add(r.fee ?? "0", r.tax ?? "0"), r.currency)}</td>
-                    <td>
+                    <td data-label={d.gross}>
+                      {unknown ? "—" : fmt(r.grossAmount, r.currency)}
+                    </td>
+                    <td data-label={d.fees}>
+                      {fmt(add(r.fee ?? "0", r.tax ?? "0"), r.currency)}
+                    </td>
+                    <td
+                      data-label={section === "sales" ? d.realized : d.net}
+                      className="ivd-total"
+                    >
                       {unknown
                         ? "—"
                         : fmt(
@@ -142,7 +153,7 @@ export function DetailTransactions({
                             section === "sales" ? "IDR" : r.currency,
                           )}
                     </td>
-                    <td>
+                    <td data-label={f.status}>
                       {r.status === "void"
                         ? c.void
                         : r.settlementDate &&
@@ -154,7 +165,7 @@ export function DetailTransactions({
                           : c.settled}
                     </td>
                     {canManage && (
-                      <td>
+                      <td data-label={c.actions} className="ivd-row-actions">
                         {r.status !== "void" && (
                           <div className="iv-row-actions">
                             <button

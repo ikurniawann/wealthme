@@ -6,9 +6,11 @@ import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowDownToLine,
+  History,
+  ChartPie,
   Plus,
   RefreshCw,
-  ChartNoAxesCombined,
+  Wallet,
 } from "lucide-react";
 import type {
   AccountDto,
@@ -40,6 +42,7 @@ import {
   mergeActivity,
 } from "./portfolio-overview";
 import { INITIAL_FILTERS, TYPES, queryString } from "./portfolio-model";
+import { TYPE_ICONS } from "./type-icons";
 import type { InvestmentAction, PortfolioHistory } from "./portfolio-model";
 import "./investasi.css";
 
@@ -179,13 +182,13 @@ function InvestasiContent() {
   return (
     <div className="iv">
       <header className="iv-header">
-        <div>
+        <div className="iv-heading">
           <p className="iv-title">{c.title}</p>
           <p>{c.subtitle}</p>
         </div>
-        <div className="iv-header-actions">
+        <div className="iv-header-side">
           {canManage && (
-            <>
+            <div className="iv-header-actions">
               <button
                 className="btn btn--outline"
                 onClick={() => onAction({ kind: "topup" })}
@@ -201,13 +204,13 @@ function InvestasiContent() {
                 {c.updatePrice}
               </button>
               <button
-                className="btn btn--primary"
+                className="btn btn--primary iv-add"
                 onClick={() => onAction({ kind: "add" })}
               >
                 <Plus />
                 {c.add}
               </button>
-            </>
+            </div>
           )}
           <span className="iv-manual">{c.manual}</span>
         </div>
@@ -222,15 +225,21 @@ function InvestasiContent() {
         members={members.data ?? []}
       />
       <nav className="iv-tabs" aria-label={c.title}>
-        {(["portfolio", "funds", "history"] as const).map((key) => (
-          <Link
-            key={key}
-            href={`/investasi?tab=${key}`}
-            aria-current={tab === key ? "page" : undefined}
-          >
-            {c[key]}
-          </Link>
-        ))}
+        {(["portfolio", "funds", "history"] as const).map((key) => {
+          const Icon = { portfolio: ChartPie, funds: Wallet, history: History }[
+            key
+          ];
+          return (
+            <Link
+              key={key}
+              href={`/investasi?tab=${key}`}
+              aria-current={tab === key ? "page" : undefined}
+            >
+              <Icon aria-hidden="true" />
+              {c[key]}
+            </Link>
+          );
+        })}
       </nav>
       {error ? (
         <section className="iv-card iv-empty" role="alert">
@@ -274,23 +283,29 @@ function InvestasiContent() {
           />
           <section className="iv-card">
             <h2>{c.typesTitle}</h2>
-            <div className="iv-types">
-              {TYPES.map((type) => (
-                <button
-                  key={type}
-                  className="btn btn--outline"
-                  aria-pressed={filters.type === type}
-                  onClick={() =>
-                    setFilters({
-                      ...filters,
-                      type: filters.type === type ? "" : type,
-                    })
-                  }
-                >
-                  <ChartNoAxesCombined />
-                  {c[type]}
-                </button>
-              ))}
+            <div className="iv-type-grid">
+              {TYPES.map((type) => {
+                const Icon = TYPE_ICONS[type];
+                return (
+                  <button
+                    key={type}
+                    className="iv-type"
+                    data-type={type}
+                    aria-pressed={filters.type === type}
+                    onClick={() =>
+                      setFilters({
+                        ...filters,
+                        type: filters.type === type ? "" : type,
+                      })
+                    }
+                  >
+                    <span className="iv-type-icon" aria-hidden="true">
+                      <Icon />
+                    </span>
+                    {c[type]}
+                  </button>
+                );
+              })}
             </div>
           </section>
           <PortfolioActivityList

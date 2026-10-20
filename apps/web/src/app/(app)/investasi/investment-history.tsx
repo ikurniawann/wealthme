@@ -13,6 +13,7 @@ import { apiFetch } from "@/lib/api-client";
 import { LedgerCorrection } from "./ledger-correction";
 import { money } from "./portfolio-model";
 import { today } from "./investment-fields";
+import { shortDate } from "./portfolio-overview";
 import type { PortfolioActivity } from "./portfolio-overview";
 
 export function InvestmentHistory({
@@ -232,10 +233,12 @@ export function InvestmentHistory({
       ) : !data.length ? (
         <p className="iv-empty">{f.historyEmpty}</p>
       ) : (
-        <ul className="iv-activities">
+        <ul className="iv-activities iv-history-list">
           {data.slice((current - 1) * 20, current * 20).map((row) => (
             <li key={row.id}>
-              <span>{row.date}</span>
+              <span className="iv-activity-date">
+                {shortDate(row.date, locale)}
+              </span>
               <div>
                 <strong>{row.name}</strong>
                 <small>
@@ -249,8 +252,14 @@ export function InvestmentHistory({
                   <small>{c.legacy}</small>
                 )}
               </div>
-              <span>{money(row.value, row.currency, locale, hideBalance)}</span>
-              <span>{c[row.status as "void" | "pending" | "settled"]}</span>
+              <span className="iv-activity-amount">
+                {money(row.value, row.currency, locale, hideBalance)}
+              </span>
+              <span>
+                <span className="iv-status" data-status={row.status}>
+                  {c[row.status as "void" | "pending" | "settled"]}
+                </span>
+              </span>
               <div className="iv-tools">
                 {row.ledger && row.ledger.status !== "void" && canManage && (
                   <>

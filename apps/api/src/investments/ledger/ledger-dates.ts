@@ -113,3 +113,55 @@ export function cashKeyParts(occurredAt: Date): {
     effectiveTime: jakartaMidnight || utcMidnight ? null : iso.slice(11, 16),
   };
 }
+
+/*
+ * Floating occurredAt — the app-wide convention for `Transaction.occurredAt`
+ * (see the add-transaction dialog's `occurredAtIso`): the user's wall-clock
+ * date and time written as if it were UTC, `${date}T${HH:MM}:00.000Z`, and
+ * date-only rows at `${date}T00:00:00.000Z`. Lists and reports bucket rows
+ * by that UTC day, so cash legs and pocket transfers must be written the
+ * same way or a date-only top up lands on the previous day.
+ */
+
+const WALL_CLOCK =
+  /^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/;
+
+/** The literal wall-clock date/time of an ISO string, as a floating value
+ *  (any offset is dropped: "2026-10-20T00:00:00+07:00" → 2026-10-20T00:00Z). */
+export function floatingWallClock(iso: string): Date {
+  const m = WALL_CLOCK.exec(iso);
+  if (!m) return new Date(iso);
+  return new Date(`${m[1]}T${m[2] ?? "00:00"}:00.000Z`);
+}
+
+/** Floating occurredAt of a ledger cash leg: Jakarta wall time of the point. */
+export function floatingCashInstant(
+  ymd: string,
+  time: string | null,
+  timeZone: string | null,
+): Date {
+  if (!time) return new Date(`${ymd}T00:00:00.000Z`);
+  const instant = ledgerInstant(ymd, time, timeZone);
+  const wall = new Date(instant.getTime() + JAKARTA_OFFSET_MS);
+  wall.setUTCSeconds(0, 0);
+  return wall;
+}
+
+/**
+ * R6 key parts of a cash Transaction stored as a floating value. Rows written
+ * before the floating fix stored date-only entries as Jakarta midnight
+ * (previous day 17:00:00.000Z); that exact instant is still read as the
+ * next day's date-only point.
+ */
+export function floatingKeyParts(occurredAt: Date): {
+  effectiveDate: string;
+  effectiveTime: string | null;
+} {
+  const iso = occurredAt.toISOString();
+  if (iso.slice(11, 23) === "17:00:00.000") return cashKeyParts(occurredAt);
+  return {
+    effectiveDate: iso.slice(0, 10),
+    effectiveTime:
+      iso.slice(11, 23) === "00:00:00.000" ? null : iso.slice(11, 16),
+  };
+}
