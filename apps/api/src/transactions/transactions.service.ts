@@ -31,7 +31,6 @@ import {
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
-import { listFromBound, listToBound } from "./list-day-bounds.util";
 import { matchCategoryId } from "./ocr/category-match.util";
 import { OcrNotConfiguredError } from "./ocr/ocr-not-configured.error";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -955,8 +954,15 @@ export class TransactionsService {
       ...(query.categoryId && { categoryId: query.categoryId }),
       ...((query.from ?? query.to) && {
         occurredAt: {
-          ...(query.from && { gte: listFromBound(query.from) }),
-          ...(query.to && { lte: listToBound(query.to) }),
+          ...(query.from && { gte: new Date(query.from) }),
+          // occurredAt is a floating wall-clock value (`${day}T${HH:MM}Z`), so
+          // a plain `to` day must end at that UTC day's last instant — UTC
+          // midnight would drop every timed row of the day.
+          ...(query.to && {
+            lte: /^\d{4}-\d{2}-\d{2}$/.test(query.to)
+              ? new Date(`${query.to}T23:59:59.999Z`)
+              : new Date(query.to),
+          }),
         },
       }),
       AND: andClauses,

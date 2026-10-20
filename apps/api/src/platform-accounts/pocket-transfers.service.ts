@@ -9,6 +9,7 @@ import { Prisma } from "@prisma/client";
 
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { FxPort } from "../fx/fx.port";
+import { floatingWallClock } from "../investments/ledger/ledger-dates";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -175,7 +176,9 @@ export class PocketTransfersService {
     this.assertCurrency("sumber", dto.sourceCurrency, source);
     this.assertCurrency("tujuan", dto.destCurrency, dest);
 
-    const occurredAt = new Date(dto.occurredAt);
+    // Floating wall-clock value (app-wide Transaction.occurredAt convention):
+    // a date-only top up must list under the day the user picked.
+    const occurredAt = floatingWallClock(dto.occurredAt);
     const amountsInput = {
       sourceAmount: dto.sourceAmount,
       sourceCurrency: dto.sourceCurrency,
@@ -409,7 +412,7 @@ export class PocketTransfersService {
       tx.type !== "transfer" ||
       tx.accountId !== legs.sourceId ||
       tx.toAccountId !== legs.destId ||
-      tx.occurredAt.getTime() !== new Date(dto.occurredAt).getTime()
+      tx.occurredAt.getTime() !== floatingWallClock(dto.occurredAt).getTime()
     ) {
       throw new ConflictException(KEY_REUSED);
     }
