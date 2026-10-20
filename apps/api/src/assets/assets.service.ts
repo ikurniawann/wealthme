@@ -5,14 +5,17 @@ import {
 } from "@nestjs/common";
 import { type Decimal } from "@prisma/client/runtime/library";
 
+import { isRowScoped } from "../common/utils/privacy.util";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
+import { viewerAssetWhere } from "./asset-access";
 import {
   historyEffectiveFields,
   nowEffectiveFields,
 } from "./history-effective.util";
 
+import type { AssetViewer } from "./asset-access";
 import type {
   AssetHistoryResponseDto,
   AssetResponseDto,
@@ -173,9 +176,12 @@ function toHistoryDto(
 export class AssetsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(familyGroupId: string): Promise<AssetResponseDto[]> {
+  async findAll(
+    familyGroupId: string,
+    viewer?: AssetViewer,
+  ): Promise<AssetResponseDto[]> {
     const assets = await this.prisma.asset.findMany({
-      where: { familyGroupId },
+      where: { familyGroupId, ...viewerAssetWhere(viewer) },
       orderBy: { createdAt: "asc" },
     });
     return assets.map(toAssetDto);
@@ -184,6 +190,7 @@ export class AssetsService {
   async create(
     familyGroupId: string,
     dto: CreateAssetDto,
+    viewer?: AssetViewer,
   ): Promise<AssetResponseDto> {
     if (!/^\d+$/.test(dto.currentValue)) {
       throw new BadRequestException(
@@ -201,6 +208,10 @@ export class AssetsService {
     const asset = await this.prisma.asset.create({
       data: {
         familyGroupId,
+        // A7 — a row-scoped member owns what she records, or she could
+        // not see it afterwards.
+        ownerUserId:
+          viewer && isRowScoped(viewer.member) ? viewer.userId : null,
         name: dto.name,
         type: dto.type,
         currentValue: BigInt(dto.currentValue),
@@ -233,9 +244,10 @@ export class AssetsService {
     familyGroupId: string,
     id: string,
     dto: UpdateAssetDto,
+    viewer?: AssetViewer,
   ): Promise<AssetResponseDto> {
     const existing = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
+      where: { id, familyGroupId, AND: [viewerAssetWhere(viewer)] },
     });
     if (!existing) {
       throw new NotFoundException("Asset not found");
@@ -370,9 +382,13 @@ export class AssetsService {
     return category.id;
   }
 
-  async remove(familyGroupId: string, id: string): Promise<void> {
+  async remove(
+    familyGroupId: string,
+    id: string,
+    viewer?: AssetViewer,
+  ): Promise<void> {
     const existing = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
+      where: { id, familyGroupId, AND: [viewerAssetWhere(viewer)] },
     });
     if (!existing) {
       throw new NotFoundException("Asset not found");
@@ -383,9 +399,10 @@ export class AssetsService {
   async findHistory(
     familyGroupId: string,
     id: string,
+    viewer?: AssetViewer,
   ): Promise<AssetHistoryResponseDto[]> {
     const asset = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
+      where: { id, familyGroupId, AND: [viewerAssetWhere(viewer)] },
     });
     if (!asset) {
       throw new NotFoundException("Asset not found");
@@ -426,9 +443,10 @@ export class AssetsService {
     id: string,
     dto: RecordAssetValueDto,
     actingUserId: string | null,
+    viewer?: AssetViewer,
   ): Promise<AssetHistoryResponseDto> {
     const asset = await this.prisma.asset.findUnique({
-      where: { id, familyGroupId },
+      where: { id, familyGroupId, AND: [viewerAssetWhere(viewer)] },
     });
     if (!asset) {
       throw new NotFoundException("Asset not found");

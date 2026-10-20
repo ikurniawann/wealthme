@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { CoaDirection } from "@prisma/client";
 
+import { COUNTED_ASSET_WHERE } from "../assets/asset-access";
 import { txCoaDirection } from "../common/utils/coa-classify.util";
 import {
   accountPrivacyWhere,
@@ -97,7 +98,9 @@ export class DashboardService {
     const assetsList = isRestricted
       ? []
       : await this.prisma.asset.findMany({
-          where: { familyGroupId },
+          // Aset A3/A5 — active, unlinked rows only (linked gold is valued
+          // once via its investment; sold/archived is no longer wealth).
+          where: { familyGroupId, ...COUNTED_ASSET_WHERE },
           select: { currentValue: true },
         });
     const assetsTotalBigInt = assetsList.reduce(
@@ -352,7 +355,9 @@ export class DashboardService {
     const assets = isRestricted
       ? []
       : await this.prisma.asset.findMany({
-          where: { familyGroupId },
+          // Aset A3/A5 — active, unlinked rows only (linked gold is valued
+          // once via its investment; sold/archived is no longer wealth).
+          where: { familyGroupId, ...COUNTED_ASSET_WHERE },
           select: { currentValue: true },
         });
     const totalAssets = assets.reduce((sum, a) => sum + a.currentValue, 0n);

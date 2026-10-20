@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { CoaDirection } from "@prisma/client";
 
+import { COUNTED_ASSET_WHERE } from "../assets/asset-access";
 import { txCoaDirection } from "../common/utils/coa-classify.util";
 import {
   accountPrivacyWhere,
@@ -873,7 +874,8 @@ export class ReportsService {
           select: { name: true, type: true, balance: true },
         }),
         this.prisma.asset.findMany({
-          where: { familyGroupId },
+          // Aset A3/A5 — same counted set as the dashboard.
+          where: { familyGroupId, ...COUNTED_ASSET_WHERE },
           select: { name: true, type: true, currentValue: true },
         }),
         this.prisma.liability.findMany({

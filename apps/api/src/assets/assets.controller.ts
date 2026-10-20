@@ -9,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   Res,
   UploadedFile,
@@ -27,6 +28,7 @@ import { memoryStorage } from "multer";
 
 import { CheckAbility } from "../common/decorators/check-ability.decorator";
 import { PageAccess } from "../common/decorators/page-access.decorator";
+import { assertBalancesVisible } from "../common/utils/balance-visibility.util";
 import { FX_FIELD_SPECS } from "../fx/fx-field-specs";
 /* eslint-disable @typescript-eslint/consistent-type-imports */
 import { FxInputService } from "../fx/fx-input.service";
@@ -36,16 +38,28 @@ import {
   MAX_ASSET_ATTACHMENT_BYTES,
 } from "./asset-attachments.service";
 import { AssetsService } from "./assets.service";
+import { AssetsOverviewQueryDto } from "./dto/assets-overview-query.dto";
 import { CreateAssetDto } from "./dto/create-asset.dto";
 import { RecordAssetValueDto } from "./dto/record-asset-value.dto";
 import { UpdateAssetDto } from "./dto/update-asset.dto";
+import { AssetsOverviewService } from "./overview/assets-overview.service";
 /* eslint-enable @typescript-eslint/consistent-type-imports */
 
+import type { AssetViewer } from "./asset-access";
 import type {
   AssetHistoryResponseDto,
   AssetAttachmentResponseDto,
   AssetResponseDto,
 } from "./dto/asset-response.dto";
+import type { AssetsOverviewDto } from "@wealthme/contracts";
+
+/** A7 — the caller's row scope, passed to every asset read/write. */
+function viewerOf(req: ExpressRequest): AssetViewer {
+  return {
+    member: req.tenantContext?.member ?? null,
+    userId: req.tenantContext?.userId ?? null,
+  };
+}
 
 @ApiTags("assets")
 @ApiBearerAuth()
@@ -56,7 +70,30 @@ export class AssetsController {
     private readonly assetsService: AssetsService,
     private readonly attachments: AssetAttachmentsService,
     private readonly fxInputs: FxInputService,
+    private readonly overviewService: AssetsOverviewService,
   ) {}
+
+  // Aset Task 17 (A1) — one server-side valuation for the Aset page.
+  @Get("overview")
+  @CheckAbility((ab) => ab.can("read", "Asset"))
+  @ApiOperation({
+    summary:
+      "Aset overview: accounts, investments and physical assets valued once, with filters and summary",
+  })
+  @ApiResponse({ status: 200, description: "AssetsOverviewDto" })
+  overview(
+    @Request() req: ExpressRequest & { params: { familyGroupId: string } },
+    @Query() query: AssetsOverviewQueryDto,
+  ): Promise<AssetsOverviewDto> {
+    // Every figure here is money: a "Lihat saldo"-off member gets a 403,
+    // like the investments valuation endpoint.
+    assertBalancesVisible(req.tenantContext?.member);
+    return this.overviewService.overview(
+      req.params.familyGroupId,
+      query,
+      viewerOf(req),
+    );
+  }
 
   @Get()
   @CheckAbility((ab) => ab.can("read", "Asset"))
@@ -65,7 +102,7 @@ export class AssetsController {
   findAll(
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
   ): Promise<AssetResponseDto[]> {
-    return this.assetsService.findAll(req.params.familyGroupId);
+    return this.assetsService.findAll(req.params.familyGroupId, viewerOf(req));
   }
 
   @Post()
@@ -85,7 +122,11 @@ export class AssetsController {
         spec: FX_FIELD_SPECS.asset,
       },
       (converted) =>
-        this.assetsService.create(req.params.familyGroupId, converted),
+        this.assetsService.create(
+          req.params.familyGroupId,
+          converted,
+          viewerOf(req),
+        ),
     );
   }
 
@@ -108,7 +149,12 @@ export class AssetsController {
         spec: FX_FIELD_SPECS.asset,
       },
       (converted) =>
-        this.assetsService.update(req.params.familyGroupId, id, converted),
+        this.assetsService.update(
+          req.params.familyGroupId,
+          id,
+          converted,
+          viewerOf(req),
+        ),
     );
   }
 
@@ -121,7 +167,11 @@ export class AssetsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Param("id") id: string,
   ): Promise<void> {
-    return this.assetsService.remove(req.params.familyGroupId, id);
+    return this.assetsService.remove(
+      req.params.familyGroupId,
+      id,
+      viewerOf(req),
+    );
   }
 
   @Post(":id/history")
@@ -149,6 +199,7 @@ export class AssetsController {
           id,
           converted,
           req.tenantContext?.userId ?? null,
+          viewerOf(req),
         ),
     );
   }
@@ -172,10 +223,12 @@ export class AssetsController {
     @UploadedFile() file: Express.Multer.File | undefined,
   ): Promise<AssetAttachmentResponseDto> {
     if (!file) throw new BadRequestException("No file uploaded");
-    return this.attachments.create(req.params.familyGroupId, id, {
-      buffer: file.buffer,
-      size: file.size,
-    });
+    return this.attachments.create(
+      req.params.familyGroupId,
+      id,
+      { buffer: file.buffer, size: file.size },
+      viewerOf(req),
+    );
   }
 
   @Get(":id/attachments")
@@ -185,7 +238,11 @@ export class AssetsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Param("id") id: string,
   ): Promise<AssetAttachmentResponseDto[]> {
-    return this.attachments.findAll(req.params.familyGroupId, id);
+    return this.attachments.findAll(
+      req.params.familyGroupId,
+      id,
+      viewerOf(req),
+    );
   }
 
   @Get(":id/attachments/:attachmentId")
@@ -201,6 +258,7 @@ export class AssetsController {
       req.params.familyGroupId,
       id,
       attachmentId,
+      viewerOf(req),
     );
     res.setHeader("Content-Type", mimeType);
     res.setHeader("Content-Length", String(size));
@@ -227,7 +285,12 @@ export class AssetsController {
     @Param("id") id: string,
     @Param("attachmentId") attachmentId: string,
   ): Promise<void> {
-    return this.attachments.remove(req.params.familyGroupId, id, attachmentId);
+    return this.attachments.remove(
+      req.params.familyGroupId,
+      id,
+      attachmentId,
+      viewerOf(req),
+    );
   }
 
   @Get(":id/history")
@@ -238,6 +301,10 @@ export class AssetsController {
     @Request() req: ExpressRequest & { params: { familyGroupId: string } },
     @Param("id") id: string,
   ): Promise<AssetHistoryResponseDto[]> {
-    return this.assetsService.findHistory(req.params.familyGroupId, id);
+    return this.assetsService.findHistory(
+      req.params.familyGroupId,
+      id,
+      viewerOf(req),
+    );
   }
 }
