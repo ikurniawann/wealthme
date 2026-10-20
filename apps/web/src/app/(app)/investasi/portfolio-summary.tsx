@@ -3,7 +3,7 @@ import { AlertCircle } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
 import type { InvestmentPortfolioValuationDto } from "@wealthme/contracts";
-import { portfolioMoney } from "./portfolio-model";
+import { portfolioMoney, signedPct, tone } from "./portfolio-model";
 
 export function PortfolioSummary({
   data,
@@ -42,24 +42,24 @@ export function PortfolioSummary({
           <strong>{fmt(totals?.costRemaining)}</strong>
           <small>{c.weighted}</small>
         </div>
-        <div>
+        <div
+          data-tone={hideBalance ? undefined : tone(totals?.unrealized?.idr)}
+        >
           <span>{c.unrealized}</span>
-          <strong>
+          <strong className="iv-signed">
             {totals && Number(totals.unrealized?.idr) > 0 && !hideBalance
               ? "+"
               : ""}
             {fmt(totals?.unrealized)}
           </strong>
-          <small>
-            {hideBalance || totals?.unrealizedPct == null
-              ? "—"
-              : `${totals.unrealizedPct > 0 ? "+" : ""}${totals.unrealizedPct}%`}
+          <small className="iv-signed">
+            {signedPct(totals?.unrealizedPct, locale, hideBalance)}
           </small>
-          <span>
+          <span className="iv-realized">
             {c.realized}: {fmt(totals?.realized)}
           </span>
         </div>
-        <div>
+        <div className="iv-last">
           <span>{c.lastPrice}</span>
           <strong className="iv-date">
             {last

@@ -100,3 +100,21 @@ export function compareDecimal(a: string | null, b: string | null): number {
     right = scaled(b);
   return left < right ? -1 : left > right ? 1 : 0;
 }
+/** Signed, locale-formatted percentage ("+5,39%"); "—" when unknown/hidden. */
+export function signedPct(
+  value: number | null | undefined,
+  locale: string,
+  hidden = false,
+) {
+  if (hidden || value == null) return "—";
+  const text = new Intl.NumberFormat(locale === "id" ? "id-ID" : "en-US", {
+    maximumFractionDigits: 2,
+  }).format(value);
+  return `${value > 0 ? "+" : ""}${text}%`;
+}
+/** Gain/loss tone for colouring; never the only signal (sign stays in text). */
+export function tone(value: string | number | null | undefined) {
+  const n = Number(value);
+  if (value == null || !Number.isFinite(n) || n === 0) return undefined;
+  return n > 0 ? "up" : "down";
+}

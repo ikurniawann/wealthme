@@ -17,8 +17,20 @@ import type {
   InvestmentValuationDto,
   PlatformAccountDto,
 } from "@wealthme/contracts";
-import { compareDecimal, money, quantity } from "./portfolio-model";
+import {
+  compareDecimal,
+  money,
+  quantity,
+  signedPct,
+  tone,
+} from "./portfolio-model";
 import type { InvestmentAction } from "./portfolio-model";
+
+const EXCHANGES = new Set(["IDX", "NASDAQ", "NYSE"]);
+/** Exchange prefix ("IDX · "); other market keys repeat the type label. */
+function exchange(market: string | null | undefined) {
+  return market && EXCHANGES.has(market) ? `${market} · ` : "";
+}
 
 export function PortfolioTable({
   holdings,
@@ -103,7 +115,7 @@ export function PortfolioTable({
         <p className="iv-empty">{holdings.length ? c.noResults : c.empty}</p>
       ) : (
         <div className="iv-table-wrap">
-          <table className="iv-table">
+          <table className="iv-table iv-holdings">
             <thead>
               <tr>
                 {[
@@ -131,16 +143,23 @@ export function PortfolioTable({
                   money(s, cur, locale, hideBalance);
                 return (
                   <tr key={h.id}>
-                    <td data-label={c.instrument}>
+                    <td
+                      data-label={c.instrument}
+                      className="iv-cell-instrument"
+                    >
                       <div className="iv-instrument">
-                        <span className="iv-instrument-mark" aria-hidden="true">
+                        <span
+                          className="iv-instrument-mark"
+                          data-type={h.type}
+                          aria-hidden="true"
+                        >
                           {h.ticker.slice(0, 3)}
                         </span>
                         <div>
                           <strong>{h.ticker}</strong>
                           <span>{h.name}</span>
                           <small>
-                            {v?.market ?? h.market ?? c.completeMarket} ·{" "}
+                            {exchange(v?.market ?? h.market)}
                             {c[h.type]}
                           </small>
                           {h.market == null && (
@@ -149,17 +168,17 @@ export function PortfolioTable({
                         </div>
                       </div>
                     </td>
-                    <td data-label={c.platform}>
+                    <td data-label={c.platform} className="iv-cell-platform">
                       {p?.label ??
                         p?.platformName ??
                         p?.customName ??
                         c.unassigned}
                       <small>{pocket?.name ?? "—"}</small>
                     </td>
-                    <td data-label={c.holdings}>
+                    <td data-label={c.holdings} className="iv-num">
                       {hideBalance ? "••••" : quantity(h, c, locale)}
                     </td>
-                    <td data-label={c.average}>
+                    <td data-label={c.average} className="iv-num">
                       {money(
                         h.details?.costBasisKnown === false
                           ? null
@@ -171,7 +190,7 @@ export function PortfolioTable({
                       )}
                       <small>IDR · {c.perUnit}</small>
                     </td>
-                    <td data-label={c.price}>
+                    <td data-label={c.price} className="iv-num">
                       {percentPrice(h) && v?.price
                         ? hideBalance
                           ? "••••"
@@ -196,7 +215,7 @@ export function PortfolioTable({
                         </small>
                       )}
                     </td>
-                    <td data-label={c.value}>
+                    <td data-label={c.value} className="iv-num">
                       {fmt(
                         v?.display?.marketValue ??
                           (v?.display ? null : v?.marketValueIdr),
@@ -209,7 +228,13 @@ export function PortfolioTable({
                         </small>
                       )}
                     </td>
-                    <td data-label={c.pnl}>
+                    <td
+                      data-label={c.pnl}
+                      className="iv-num iv-signed"
+                      data-tone={
+                        hideBalance ? undefined : tone(v?.unrealizedIdr)
+                      }
+                    >
                       {v?.unrealizedIdr &&
                       Number(v.unrealizedIdr) > 0 &&
                       !hideBalance
@@ -221,12 +246,10 @@ export function PortfolioTable({
                         v?.display?.currency ?? "IDR",
                       )}
                       <small>
-                        {hideBalance || v?.unrealizedPct == null
-                          ? "—"
-                          : `${v.unrealizedPct > 0 ? "+" : ""}${v.unrealizedPct}%`}
+                        {signedPct(v?.unrealizedPct, locale, hideBalance)}
                       </small>
                     </td>
-                    <td>
+                    <td className="iv-cell-actions">
                       <div className="iv-row-actions">
                         <Link
                           className="btn btn--outline btn--sm"
@@ -274,25 +297,27 @@ export function PortfolioTable({
           </table>
         </div>
       )}
-      <nav className="iv-pagination" aria-label={c.page}>
-        <button
-          className="btn btn--outline"
-          disabled={current <= 1}
-          onClick={() => setPage(current - 1)}
-        >
-          {c.previous}
-        </button>
-        <span>
-          {c.page} {current} / {pages}
-        </span>
-        <button
-          className="btn btn--outline"
-          disabled={current >= pages}
-          onClick={() => setPage(current + 1)}
-        >
-          {c.next}
-        </button>
-      </nav>
+      {pages > 1 && (
+        <nav className="iv-pagination" aria-label={c.page}>
+          <button
+            className="btn btn--outline"
+            disabled={current <= 1}
+            onClick={() => setPage(current - 1)}
+          >
+            {c.previous}
+          </button>
+          <span>
+            {c.page} {current} / {pages}
+          </span>
+          <button
+            className="btn btn--outline"
+            disabled={current >= pages}
+            onClick={() => setPage(current + 1)}
+          >
+            {c.next}
+          </button>
+        </nav>
+      )}
     </section>
   );
 }
