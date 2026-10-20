@@ -134,6 +134,20 @@ export function today() {
     new Date(),
   );
 }
+/**
+ * Current Asia/Jakarta wall-clock time as "HH:MM". New ledger entries dated
+ * today start with it (editable, clearable) so a same-day sequence — top up
+ * at 09:10, buy at 09:30 — keeps its real order; backdated entries stay
+ * date-only.
+ */
+export function nowTime() {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Jakarta",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date());
+}
 /** A date-only entry stays at start of Jakarta day; no invented timestamp. */
 export function effectiveInstant(date: string, time: string) {
   return `${date}T${time || "00:00"}:00+07:00`;

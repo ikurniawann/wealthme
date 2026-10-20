@@ -17,9 +17,11 @@ import {
 } from "@/components/ui/dialog";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
-import { apiErrorMessage } from "@/lib/api-error";
 import { investmentWrite, uploadInvestmentProof } from "./investment-api";
-import { InvestmentConflict } from "./investment-conflict";
+import {
+  InvestmentConflict,
+  investmentErrorMessage,
+} from "./investment-conflict";
 import { TYPES, money } from "./portfolio-model";
 import type { PortfolioMember } from "./portfolio-filters";
 import {
@@ -197,7 +199,7 @@ export function PositionForm({
       );
       if (conflict?.field === "funds") setPocketError(conflict.text);
       else if (conflict) setError(conflict.text);
-      else setError(apiErrorMessage(err, f.failed));
+      else setError(investmentErrorMessage(err, f.failed, locale));
       setFailure(conflict?.history ? err : null);
       setBusy(false);
       return;

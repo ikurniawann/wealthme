@@ -16,6 +16,7 @@ const ID = {
   addBank: "Kelola rekening",
   available: "tersedia",
   firstPocket: "Kantong dana pertama",
+  withdrawSub: "Catat transfer dari kantong platform kembali ke rekening.",
 };
 
 type Copy = typeof ID;
@@ -34,6 +35,7 @@ const EN: Copy = {
   addBank: "Manage accounts",
   available: "available",
   firstPocket: "First cash pocket",
+  withdrawSub: "Record a transfer from a platform pocket back to an account.",
 };
 
 export function pocketTransferCopy(locale: string): Copy {

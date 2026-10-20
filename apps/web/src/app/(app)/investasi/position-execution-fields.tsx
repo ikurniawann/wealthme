@@ -2,7 +2,7 @@
 import { canonicalToTyping, formatMoneyTyping } from "@/components/money";
 import { useLocale } from "@/hooks/use-locale";
 import { Field, MoneyInput, TIME_ZONES, today } from "./investment-fields";
-import { positionNumbers } from "./position-state";
+import { positionNumbers, withDate } from "./position-state";
 import { divide } from "./decimal";
 import type { PositionState } from "./position-state";
 import { tradeCopy } from "./trade-copy";
@@ -185,7 +185,7 @@ export function PositionExecutionFields({
             required
             max={today()}
             value={s.date}
-            onChange={(e) => set({ ...s, date: e.target.value })}
+            onChange={(e) => set(withDate(s, e.target.value))}
           />
         )}
       </Field>
@@ -198,7 +198,9 @@ export function PositionExecutionFields({
               enterKeyHint="next"
               type="time"
               value={s.time}
-              onChange={(e) => set({ ...s, time: e.target.value })}
+              onChange={(e) =>
+                set({ ...s, time: e.target.value, timeAuto: false })
+              }
             />
             {s.time && (
               <select

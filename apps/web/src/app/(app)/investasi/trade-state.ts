@@ -6,7 +6,7 @@ import type {
   InvestmentMarket,
 } from "@wealthme/contracts";
 import { canonicalToTyping } from "@/components/money";
-import { apiErrorMessage } from "@/lib/api-error";
+import { investmentErrorMessage } from "./investment-conflict";
 import { initialPosition } from "./position-state";
 import type { PositionState } from "./position-state";
 import type { TradeCopy } from "./trade-copy";
@@ -67,7 +67,8 @@ export function conflictMessage(
   const c = err as Partial<InvestmentLedgerConflictDto>;
   // The API's exception filter may keep only `code` + `message` (the
   // Indonesian copy written for users); the structured fields are optional.
-  const server = apiErrorMessage(err, "");
+  // Server copy is Indonesian; group its bare rupiah figures the same way.
+  const server = investmentErrorMessage(err, "", "id");
   if (c.code === "INSUFFICIENT_FUNDS") {
     const text =
       c.at && c.needed && c.available

@@ -19,12 +19,15 @@ import { useCanManage } from "@/hooks/use-role-permissions";
 import { useSession } from "@/lib/auth-compat";
 import { apiFetch } from "@/lib/api-client";
 import { investmentWrite } from "./investment-api";
-import { InvestmentConflict } from "./investment-conflict";
-import { apiErrorMessage } from "@/lib/api-error";
+import {
+  InvestmentConflict,
+  investmentErrorMessage,
+} from "./investment-conflict";
 import {
   AmountInput,
   amount,
   today,
+  nowTime,
   effectiveInstant,
 } from "./investment-fields";
 import {
@@ -131,7 +134,10 @@ export function PocketTransfer({
   const [feeRaw, setFeeRaw] = useState("0");
   const [rateRaw, setRateRaw] = useState("");
   const [date, setDate] = useState(today());
-  const [time, setTime] = useState("");
+  // New entries dated today carry the current time (spec ruling): a timed
+  // top up then sorts before a same-day buy instead of at 00:00.
+  const [time, setTime] = useState(nowTime);
+  const [timeAuto, setTimeAuto] = useState(true);
   const [note, setNote] = useState("");
   const [idempotencyKey] = useState(() => crypto.randomUUID());
   const [busy, setBusy] = useState(false);
@@ -228,7 +234,7 @@ export function PocketTransfer({
       );
     } catch (err) {
       setFailure(err);
-      setError(apiErrorMessage(err, f.failed));
+      setError(investmentErrorMessage(err, f.failed, locale));
       setBusy(false);
       return;
     }
@@ -249,7 +255,9 @@ export function PocketTransfer({
         <form onSubmit={save}>
           <header className="iv-dialog-head wm-dark">
             <DialogTitle>{withdraw ? f.withdraw : f.transferTitle}</DialogTitle>
-            <DialogDescription>{f.transferSub}</DialogDescription>
+            <DialogDescription>
+              {withdraw ? copy.withdrawSub : f.transferSub}
+            </DialogDescription>
           </header>
           <div className="iv-form-body">
             {banks.length === 0 ? (
@@ -382,7 +390,11 @@ export function PocketTransfer({
                   required
                   max={today()}
                   value={date}
-                  onChange={(e) => setDate(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setDate(next);
+                    if (timeAuto) setTime(next === today() ? nowTime() : "");
+                  }}
                 />
               </label>
               <label className="field">
@@ -391,7 +403,10 @@ export function PocketTransfer({
                   className="input"
                   type="time"
                   value={time}
-                  onChange={(e) => setTime(e.target.value)}
+                  onChange={(e) => {
+                    setTime(e.target.value);
+                    setTimeAuto(false);
+                  }}
                 />
               </label>
             </div>
@@ -410,11 +425,11 @@ export function PocketTransfer({
             <section className="iv-transfer-preview">
               <h2>{f.summary} · IDR</h2>
               <p>
-                {f.source}: {fmt(sourceBefore)} →{" "}
+                {withdraw ? f.pocket : f.source}: {fmt(sourceBefore)} →{" "}
                 {validFx ? fmt(sourceAfter) : "—"}
               </p>
               <p>
-                {f.destination}: {fmt(destBefore)} →{" "}
+                {withdraw ? f.destination : f.pocket}: {fmt(destBefore)} →{" "}
                 {validFx ? fmt(destAfter) : "—"}
               </p>
               <small>{f.currentBalance}</small>

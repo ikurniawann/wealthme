@@ -1,0 +1,48 @@
+/* 409 ledger conflict card (investment-conflict.tsx). Unlayered so it reads
+   the same inside the top-up, buy/sell and add-investment dialogs. */
+.iv-conflict {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--destructive) 35%, transparent);
+  border-radius: 12px;
+  background: color-mix(
+    in srgb,
+    var(--destructive) 8%,
+    var(--wm-card, var(--card))
+  );
+  color: var(--wm-ink, var(--foreground));
+  font-size: 13px;
+}
+.iv-conflict > strong {
+  font-size: 14px;
+}
+.iv-conflict dl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 0;
+}
+.iv-conflict dl div {
+  display: flex;
+  flex-direction: column;
+}
+.iv-conflict dt {
+  color: var(--wm-muted, var(--muted-foreground));
+  font-size: 12px;
+}
+.iv-conflict dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.iv-conflict p {
+  margin: 0;
+  font-weight: 600;
+}
+.iv-conflict ul {
+  margin: 0;
+  padding-left: 18px;
+}

@@ -14,9 +14,11 @@ import {
 import { useMoney } from "@/hooks/use-money";
 import { money, quantity } from "./portfolio-model";
 import { useLocale } from "@/hooks/use-locale";
-import { apiErrorMessage } from "@/lib/api-error";
 import { investmentWrite } from "./investment-api";
-import { InvestmentConflict } from "./investment-conflict";
+import {
+  InvestmentConflict,
+  investmentErrorMessage,
+} from "./investment-conflict";
 import { tradeState, settlementDate, conflictMessage } from "./trade-state";
 import { positionNumbers, positionBody } from "./position-state";
 import type { PositionState } from "./position-state";
@@ -159,7 +161,7 @@ export function TradeForm({
       );
       if (conflict?.field === "funds") setPocketError(conflict.text);
       else if (conflict) setError(conflict.text);
-      else setError(apiErrorMessage(err, f.failed));
+      else setError(investmentErrorMessage(err, f.failed, locale));
       setFailure(conflict?.history ? err : null);
       setBusy(false);
       return;

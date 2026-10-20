@@ -6,7 +6,7 @@ import type {
   InvestmentType,
   CreateInvestmentLedgerInput,
 } from "@wealthme/contracts";
-import { amount, today } from "./investment-fields";
+import { amount, nowTime, today } from "./investment-fields";
 import {
   multiply,
   add,
@@ -36,6 +36,8 @@ export interface PositionState {
   fx: string;
   date: string;
   time: string;
+  /** True while `time` is the prefill (not typed): it follows the date. */
+  timeAuto?: boolean;
   timeZone: string;
   knownCost: boolean;
   note: string;
@@ -61,7 +63,8 @@ export function initialPosition(owner: string): PositionState {
     tax: "0",
     fx: "",
     date: today(),
-    time: "",
+    time: nowTime(),
+    timeAuto: true,
     timeZone: "Asia/Jakarta",
     knownCost: true,
     note: "",
@@ -73,6 +76,15 @@ export function initialPosition(owner: string): PositionState {
       rollover: "non_aro",
     },
   };
+}
+/**
+ * New date for an entry. While the time is still the prefill it follows the
+ * date: now for today, none (date-only) for a backdated day. A time the user
+ * typed or cleared is kept.
+ */
+export function withDate(s: PositionState, date: string): PositionState {
+  if (!s.timeAuto) return { ...s, date };
+  return { ...s, date, time: date === today() ? nowTime() : "" };
 }
 export function marketForType(type: InvestmentType): InvestmentMarket {
   return {
