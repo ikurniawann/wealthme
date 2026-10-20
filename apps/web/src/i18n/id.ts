@@ -5,6 +5,7 @@ import { investasiV3Id } from "./investasi-v3";
 import { danaV3Id } from "./dana-v3";
 import { rekeningV3Id } from "./rekening-v3";
 import { asetV3Id } from "./aset-v3";
+import { asuransiV3Id } from "./asuransi-v3";
 import type { I18nDictionary } from "./types";
 
 export const id = {
@@ -1537,6 +1538,7 @@ export const id = {
     },
   },
   asuransi: {
+    v3: asuransiV3Id,
     v2: {
       heroCaption: "Premi bulan ini",
       kpiActive: "Polis aktif",

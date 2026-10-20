@@ -5,6 +5,7 @@ import { investasiV3En } from "./investasi-v3";
 import { danaV3En } from "./dana-v3";
 import { rekeningV3En } from "./rekening-v3";
 import { asetV3En } from "./aset-v3";
+import { asuransiV3En } from "./asuransi-v3";
 import type { I18nDictionary } from "./types";
 
 export const en = {
@@ -1526,6 +1527,7 @@ export const en = {
     },
   },
   asuransi: {
+    v3: asuransiV3En,
     v2: {
       heroCaption: "Premium this month",
       kpiActive: "Active policies",

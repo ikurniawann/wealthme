@@ -5,6 +5,7 @@ import type { InvestasiV3Copy } from "./investasi-v3";
 import type { DanaV3Copy } from "./dana-v3";
 import type { RekeningV3Copy } from "./rekening-v3";
 import type { AsetV3Copy } from "./aset-v3";
+import type { AsuransiV3Copy } from "./asuransi-v3";
 import type {
   MobileNavId,
   NavItemId,
@@ -1550,6 +1551,7 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A4 — `/asuransi` (insurance policies) page copy. */
   asuransi: {
+    v3: AsuransiV3Copy;
     v2: {
       heroCaption: string;
       kpiActive: string;
