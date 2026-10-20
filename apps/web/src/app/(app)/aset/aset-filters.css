@@ -1,0 +1,154 @@
+/* Aset Saya — filter bar. Imported before aset.css so its responsive block wins. */
+@layer components {
+  /* ── Filters ── */
+  .as3-filters {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-block: 16px;
+  }
+  .as3-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 12px;
+  }
+  .as3-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1.4 1 200px;
+    min-width: 0;
+  }
+  .as3 .as3-search > svg.lucide {
+    position: absolute;
+    left: 12px;
+    width: 16px;
+    height: 16px;
+    color: var(--wm-muted);
+    pointer-events: none;
+  }
+  .as3-search .input {
+    width: 100%;
+    padding-left: 36px;
+  }
+  .as3-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1 1 150px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .as3-field > span,
+  .as3-field > legend {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--wm-muted);
+    padding: 0;
+    margin-bottom: 5px;
+  }
+  .as3-field > span {
+    margin-bottom: 0;
+  }
+  .as3-range {
+    flex: 1.5 1 230px;
+  }
+  .as3-range > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .as3-range .input {
+    flex: 1;
+    min-width: 0;
+  }
+  .as3-range > div > span {
+    color: var(--wm-muted);
+  }
+  .as3-qty {
+    flex: 2 1 320px;
+  }
+  .as3-qty .as3-unit {
+    flex: 0 0 96px;
+  }
+  .as3 .input,
+  .as3 .select {
+    min-height: 42px;
+  }
+  .as3-more {
+    flex: 0 0 auto;
+  }
+  .as3 input[type="date"].input {
+    padding-inline: 8px;
+  }
+  @media (min-width: 1181px) {
+    .as3-filter-row:not(.as3-filter-row--more) {
+      display: grid;
+      grid-template-columns:
+        minmax(0, 1.1fr) minmax(0, 0.9fr) minmax(0, 0.9fr) minmax(0, 1.3fr)
+        minmax(0, 1.9fr) minmax(0, 1fr);
+    }
+    .as3-filter-row .as3-more {
+      grid-column: 1 / -1;
+      justify-self: start;
+      min-height: 34px;
+    }
+  }
+  .as3-owner small {
+    display: block;
+    overflow-wrap: anywhere;
+  }
+  .as3-name small,
+  .as3-code {
+    overflow-wrap: anywhere;
+  }
+  .as3-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .as3-chips ul {
+    display: contents;
+    list-style: none;
+  }
+  .as3-chips-label {
+    font-size: 12px;
+    color: var(--wm-muted);
+    font-weight: 600;
+  }
+  .as3-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 32px;
+    padding: 4px 10px 4px 12px;
+    border-radius: 99px;
+    background: var(--wm-lime-soft);
+    color: var(--wm-ink);
+    font-size: 12.5px;
+    font-weight: 600;
+    max-width: 100%;
+  }
+  .as3 .as3-chip svg.lucide {
+    width: 14px;
+    height: 14px;
+  }
+  .as3-chip:focus-visible,
+  .as3-reset:focus-visible,
+  .as3-tabs button:focus-visible {
+    outline: 2px solid var(--wm-ink);
+    outline-offset: 2px;
+  }
+  .as3-reset {
+    font-size: 12.5px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    min-height: 32px;
+    padding-inline: 6px;
+  }
+}

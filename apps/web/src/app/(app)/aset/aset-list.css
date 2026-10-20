@@ -1,0 +1,399 @@
+/* Aset Saya — asset table, phone/tablet cards, pagination, states and the
+   activity feed. Imported before aset.css so its responsive block wins. */
+@layer components {
+  /* ── Table ── */
+  .as3-table-wrap {
+    overflow-x: auto;
+  }
+  .as3-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+  }
+  .as3-table th {
+    text-align: left;
+    font-size: 12px;
+    color: var(--wm-muted);
+    font-weight: 600;
+    background: var(--wm-card-2);
+    padding: 10px 9px;
+    white-space: nowrap;
+  }
+  .as3-table th:first-child {
+    border-radius: 10px 0 0 10px;
+  }
+  .as3-table th:last-child {
+    border-radius: 0 10px 10px 0;
+  }
+  .as3-table td {
+    padding: 13px 9px;
+    border-bottom: 1px solid var(--wm-line);
+    vertical-align: middle;
+    line-height: 1.35;
+  }
+  .as3-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .as3-table tbody tr:hover td {
+    background: color-mix(in srgb, var(--wm-card-2) 60%, transparent);
+  }
+  .as3-table .as3-num {
+    text-align: right;
+  }
+  .as3-table td small {
+    display: block;
+    margin-top: 2px;
+    font-size: 11.5px;
+  }
+  .as3-qty,
+  .as3-acq {
+    font-variant-numeric: tabular-nums;
+  }
+  .as3-acq small {
+    display: block;
+    font-size: 11.5px;
+  }
+  .as3-col-act {
+    width: 48px;
+    text-align: right;
+  }
+  .as3-asset {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 200px;
+  }
+  .as3-mark {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    flex-shrink: 0;
+    color: var(--wm-ink);
+    background: color-mix(
+      in srgb,
+      var(--as3-tone, var(--wm-ghost)) 32%,
+      var(--wm-card)
+    );
+  }
+  [data-class="dana_rekening"] {
+    --as3-tone: var(--as3-dana);
+  }
+  [data-class="investasi"] {
+    --as3-tone: var(--as3-investasi);
+  }
+  [data-class="aset_fisik"] {
+    --as3-tone: var(--as3-fisik);
+  }
+  [data-class="lainnya"] {
+    --as3-tone: var(--as3-lainnya);
+  }
+  .as3-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .as3-name-link {
+    font-weight: 650;
+    font-size: 14px;
+    color: var(--wm-ink);
+    overflow-wrap: anywhere;
+  }
+  .as3-name-link:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .as3-code {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    font-size: 11.5px;
+  }
+  .as3-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .as3-badges:empty {
+    display: none;
+  }
+  .as3-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--wm-card-2);
+    color: var(--wm-muted);
+  }
+  .as3-badge--src {
+    background: color-mix(in srgb, var(--as3-investasi) 26%, var(--wm-card));
+    color: var(--wm-ink);
+  }
+  .as3-badge--src:hover {
+    text-decoration: underline;
+  }
+  .as3-badge--warn {
+    background: color-mix(in srgb, var(--wm-orange) 22%, var(--wm-card));
+    color: var(--wm-ink);
+  }
+  .as3-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    background: color-mix(
+      in srgb,
+      var(--as3-tone, var(--wm-ghost)) 22%,
+      var(--wm-card)
+    );
+  }
+  .as3 .as3-type svg.lucide {
+    width: 15px;
+    height: 15px;
+  }
+  .as3-value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+  .as3-value .as3-amount {
+    font-size: 14px;
+  }
+  .as3-value small {
+    white-space: nowrap;
+  }
+  .as3-unvalued {
+    font-weight: 700;
+    color: var(--wm-ink);
+    white-space: nowrap;
+  }
+  .as3-value small[data-basis="unpriced"],
+  .as3-value small[data-basis="failed"],
+  .as3-value small[data-basis="stale"],
+  .as3-value small[data-basis="cost_basis"] {
+    color: color-mix(in srgb, var(--wm-orange) 70%, var(--wm-ink));
+  }
+  .as3-change {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--wm-muted);
+  }
+  .as3-change[data-tone="up"] {
+    color: var(--wm-good);
+  }
+  .as3-change[data-tone="down"] {
+    color: var(--wm-bad);
+  }
+  .as3-change-body {
+    display: flex;
+    flex-direction: column;
+  }
+  .as3-change-body strong {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+  }
+  .as3-change small {
+    color: inherit;
+    white-space: nowrap;
+  }
+  .as3-change .as3-vs {
+    color: var(--wm-muted);
+  }
+  .as3-menu-btn {
+    width: 40px;
+    min-height: 40px;
+  }
+
+  /* ── Phone / tablet cards ── */
+  .as3-cards {
+    display: none;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    gap: 12px;
+  }
+  .as3-cardrow {
+    border: 1px solid var(--wm-line);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+  .as3-cardrow-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .as3-cardrow-value {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .as3-cardrow-value .as3-value {
+    align-items: flex-start;
+  }
+  .as3-cardrow-value .as3-amount {
+    font-size: clamp(16px, 4.6vw, 20px);
+  }
+  .as3-cardrow-meta {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    margin: 0;
+    font-size: 13px;
+  }
+  .as3-cardrow-meta dt {
+    font-size: 11.5px;
+    color: var(--wm-muted);
+    margin-bottom: 2px;
+  }
+  .as3-cardrow-meta dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ── Pagination / states ── */
+  .as3-pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    font-size: 13px;
+    color: var(--wm-muted);
+  }
+  .as3-pagination > div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .as3-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 36px 12px;
+    text-align: center;
+    color: var(--wm-muted);
+  }
+  .as3-skel {
+    border-radius: 12px;
+    background: linear-gradient(
+      90deg,
+      var(--wm-card-2),
+      var(--wm-ghost),
+      var(--wm-card-2)
+    );
+    background-size: 200% 100%;
+    animation: as3-shimmer 1.4s ease-in-out infinite;
+  }
+  .as3-skel--summary {
+    height: 120px;
+  }
+  .as3-skel--row {
+    height: 56px;
+  }
+  .as3-skel-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  @keyframes as3-shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .as3-skel {
+      animation: none;
+    }
+  }
+
+  /* ── Activity ── */
+  .as3-section-head {
+    margin-bottom: 12px;
+  }
+  .as3-section-head h2 {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .as3-section-head p {
+    font-size: 13px;
+    color: var(--wm-muted);
+    margin-top: 2px;
+  }
+  .as3-feed {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .as3-feed li {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr) minmax(0, 1.4fr) auto;
+    gap: 6px 16px;
+    align-items: center;
+    padding: 11px 0;
+    border-top: 1px solid var(--wm-line);
+    font-size: 13px;
+  }
+  .as3-feed li[data-void] {
+    opacity: 0.6;
+  }
+  .as3-feed small {
+    display: block;
+    font-size: 11.5px;
+  }
+  .as3-feed-main a {
+    font-weight: 600;
+  }
+  .as3-feed-detail {
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+  .as3-feed-impact {
+    white-space: nowrap;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .as3-feed-impact[data-tone="up"] {
+    color: var(--wm-good);
+  }
+  .as3-feed-impact[data-tone="down"] {
+    color: var(--wm-bad);
+  }
+  .as3-pick {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    max-height: 50dvh;
+    overflow-y: auto;
+  }
+  .as3-pick a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 6px;
+    border-bottom: 1px solid var(--wm-line);
+    font-weight: 600;
+  }
+}

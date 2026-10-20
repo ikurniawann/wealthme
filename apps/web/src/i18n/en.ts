@@ -4,6 +4,7 @@ import { investmentFormsEn } from "./investment-forms";
 import { investasiV3En } from "./investasi-v3";
 import { danaV3En } from "./dana-v3";
 import { rekeningV3En } from "./rekening-v3";
+import { asetV3En } from "./aset-v3";
 import type { I18nDictionary } from "./types";
 
 export const en = {
@@ -2285,6 +2286,7 @@ export const en = {
     historyFilterEmpty: "No transactions in this date range.",
   },
   aset: {
+    v3: asetV3En,
     v2: {
       kpiAcc: "Funds & accounts",
       kpiInv: "Investments",

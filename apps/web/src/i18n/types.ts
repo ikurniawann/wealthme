@@ -4,6 +4,7 @@ import type { InvestmentFormsCopy } from "./investment-forms";
 import type { InvestasiV3Copy } from "./investasi-v3";
 import type { DanaV3Copy } from "./dana-v3";
 import type { RekeningV3Copy } from "./rekening-v3";
+import type { AsetV3Copy } from "./aset-v3";
 import type {
   MobileNavId,
   NavItemId,
@@ -2290,6 +2291,7 @@ export type I18nDictionary = {
   };
   /** EPIC-018 Task A5 — `/aset` (consolidated assets) page copy. */
   aset: {
+    v3: AsetV3Copy;
     v2: {
       kpiAcc: string;
       kpiInv: string;

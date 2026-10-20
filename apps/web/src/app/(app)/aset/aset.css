@@ -1,133 +1,390 @@
-/* Aset (bento v2, docs/design/proto/aset.html) */
+/* Aset Saya (Task 19) — scoped to .as3; the app shell owns outer spacing. */
 @layer components {
-  @media (min-width: 1181px) {
-    .as-grid > .as-hero {
-      grid-column: 1 / 9;
-      grid-row: 1;
-    }
-    .as-grid > .as-side {
-      grid-column: 9 / 13;
-      grid-row: 1;
-    }
-    .as-grid > .as-accounts {
-      grid-column: 1 / 9;
-      grid-row: 2;
-    }
-    .as-grid > .as-tips {
-      grid-column: 9 / 13;
-      grid-row: 2;
-      align-self: start;
-    }
-    .as-grid > .as-fisik {
-      grid-column: 1 / 13;
-      grid-row: 3;
-    }
-  }
-  .as-plot {
-    position: relative;
-    flex: 1;
-    min-height: 200px;
-  }
-  .as-priv .wm-money {
-    filter: blur(7px);
-    user-select: none;
-  }
-  .as-empty {
-    color: var(--wm-muted);
-    font-size: var(--wm-type-13);
-    padding: 10px 0;
-  }
-  .as-error {
-    color: var(--wm-bad);
-    font-size: var(--wm-type-13);
-    margin-bottom: 8px;
-  }
-  .as-tilewrap {
-    position: relative;
+  .as3 {
+    --as3-dana: var(--wm-sky);
+    --as3-investasi: var(--wm-lilac);
+    --as3-fisik: var(--wm-gold);
+    --as3-lainnya: var(--wm-rose);
     display: flex;
     flex-direction: column;
+    gap: 16px;
     min-width: 0;
+    color: var(--wm-ink);
   }
-  .as-tilewrap > .wm-btile {
-    flex: 1;
+  .as3 p,
+  .as3 h2 {
+    margin: 0;
   }
-  /* The edit/detail tools sit top-right: reserve room on the title row only,
-     so the full-Rupiah value below can use the whole tile width. */
-  .as-tilewrap .wm-btile-tt {
-    padding-right: 76px;
+  .as3 svg.lucide {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
   }
-  .as-tilewrap .wm-pv {
-    font-size: clamp(14px, 3.6vw, var(--wm-type-28));
-    overflow-wrap: anywhere;
-  }
-  .as-tools {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .as-detail {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-    color: inherit;
-  }
-  .as-detail svg {
-    width: 14px;
-    height: 14px;
-  }
-  .as-tilewrap .wm-pv .is-up {
-    color: var(--wm-good, #15803d);
-  }
-  .as-tilewrap .wm-pv .is-down {
-    color: var(--wm-bad);
-  }
-  .as-proj {
-    display: block;
+  .as3 small {
     color: var(--wm-muted);
   }
-  .as-adopt {
-    align-self: flex-start;
-    margin: 6px 0 0 14px;
-    padding: 0;
-    background: none;
-    border: 0;
-    color: inherit;
-    font-size: var(--wm-type-12);
+  .as3-card {
+    background: var(--wm-card);
+    border: 1px solid var(--wm-line);
+    border-radius: 20px;
+    padding: 20px 22px;
+    min-width: 0;
+  }
+  .as3-muted {
+    color: var(--wm-muted);
+    font-size: 13px;
+  }
+  .as3 .btn {
+    min-height: 42px;
+    gap: 8px;
+  }
+  .as3-amount {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Header ── */
+  .as3-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px 24px;
+    flex-wrap: wrap;
+  }
+  .as3-heading {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .as3 .as3-title {
+    font-size: var(--wm-type-28, 28px);
+    line-height: 1.15;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+  }
+  .as3-heading p:not(.as3-title) {
+    color: var(--wm-muted);
+    font-size: 14px;
+  }
+  .as3-header-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .as3-header-actions .btn {
+    min-height: 44px;
+    border-radius: 12px;
+    padding-inline: 16px;
+  }
+
+  /* ── Summary ── */
+  .as3-summary-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) repeat(3, minmax(0, 1fr));
+  }
+  .as3-summary-grid > div {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 4px 22px;
+  }
+  .as3-summary-grid > div:first-child {
+    padding-left: 0;
+  }
+  .as3-summary-grid > div:last-child {
+    padding-right: 0;
+  }
+  .as3-summary-grid > div + div {
+    border-left: 1px solid var(--wm-line);
+  }
+  .as3-total-icon,
+  .as3-class-icon {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 14px;
+    background: var(--wm-lime-soft);
+    color: var(--wm-ink);
+    flex-shrink: 0;
+  }
+  .as3-class-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    color: var(--wm-ink);
+    background: color-mix(in srgb, var(--as3-tone) 30%, var(--wm-card));
+  }
+  .as3-class[data-tone="dana"] {
+    --as3-tone: var(--as3-dana);
+  }
+  .as3-class[data-tone="investasi"] {
+    --as3-tone: var(--as3-investasi);
+  }
+  .as3-class[data-tone="fisik"] {
+    --as3-tone: var(--as3-fisik);
+  }
+  .as3-class-body {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+    flex: 1;
+  }
+  .as3-class-label {
+    font-size: 13px;
+    color: var(--wm-muted);
     font-weight: 600;
-    text-decoration: underline;
-    cursor: pointer;
   }
-  .as-adopt:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  .as3-class-body .as3-amount {
+    font-size: clamp(15px, 1.25vw, 19px);
   }
-  /* Phones: three 44px tools would swallow a 2-up tile, so they sit in a row
-     under the tile instead of over its title. */
+  .as3-total .as3-amount--hero {
+    font-size: clamp(22px, 2.3vw, 30px);
+    letter-spacing: -0.035em;
+  }
+  .as3-total small {
+    font-size: 12px;
+  }
+  .as3-share {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .as3-share small {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    min-width: 34px;
+    text-align: right;
+  }
+  .as3-bar {
+    flex: 1;
+    height: 6px;
+    border-radius: 99px;
+    background: var(--wm-ghost);
+    overflow: hidden;
+  }
+  .as3-bar i {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--as3-tone);
+  }
+  .as3-summary-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 12px 24px;
+    flex-wrap: wrap;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--wm-line);
+  }
+  .as3-summary-notes {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    font-size: 12px;
+    color: var(--wm-muted);
+    min-width: 0;
+    flex: 1 1 360px;
+  }
+  .as3-scope {
+    padding: 3px 10px;
+    border-radius: 99px;
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+    font-weight: 600;
+  }
+  .as3-scope[data-scope="filtered"] {
+    background: var(--wm-lime-soft);
+    color: var(--wm-ink);
+  }
+  .as3-warn {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--wm-ink);
+    font-size: 12px;
+    line-height: 1.45;
+  }
+  .as3 .as3-warn svg.lucide {
+    width: 15px;
+    height: 15px;
+    color: var(--wm-orange);
+    margin-top: 1px;
+  }
+  .as3-networth {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--wm-card-2);
+    min-width: 0;
+  }
+  .as3-networth > div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .as3-networth span {
+    font-size: 12px;
+    color: var(--wm-muted);
+    font-weight: 600;
+  }
+  .as3-networth .as3-amount {
+    font-size: 16px;
+  }
+  .as3-networth small {
+    font-size: 11.5px;
+  }
+
+  /* ── Tabs ── */
+  .as3-list-card {
+    padding-top: 6px;
+  }
+  .as3-tabs {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-bottom: 1px solid var(--wm-line);
+    margin-bottom: 14px;
+  }
+  .as3-tabs button {
+    flex-shrink: 0;
+    min-height: 46px;
+    padding: 0 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--wm-muted);
+    border-bottom: 3px solid transparent;
+    margin-bottom: -1px;
+  }
+  .as3-tabs button:hover {
+    color: var(--wm-ink);
+  }
+  .as3-tabs button[aria-selected="true"] {
+    color: var(--wm-ink);
+    border-bottom-color: var(--wm-lime);
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 1180px) {
+    .as3-table-wrap {
+      display: none;
+    }
+    .as3-cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    .as3-summary-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px 0;
+    }
+    .as3-summary-grid > .as3-total {
+      grid-column: 1 / -1;
+      padding: 0 0 14px;
+      border-bottom: 1px solid var(--wm-line);
+    }
+    .as3-summary-grid > div:nth-child(2) {
+      border-left: 0;
+      padding-left: 0;
+    }
+  }
+  /* The shell's PageGreeting already shows the page title on phones. */
   @media (max-width: 720px) {
-    .as-tilewrap .wm-btile-tt {
-      padding-right: 0;
-    }
-    .as-tools {
-      position: static;
-      justify-content: flex-end;
-      padding: 2px 2px 0;
-    }
-    .as-tools .as-detail {
-      width: 44px;
-      height: 44px;
-    }
-    .as-adopt {
-      min-height: 44px;
-      padding-inline: 4px;
+    .as3 .as3-title {
+      display: none;
     }
   }
-  .as-tips .wm-mosaic {
-    grid-template-columns: repeat(9, 1fr);
+  @media (max-width: 640px) {
+    .as3 {
+      gap: 12px;
+    }
+    .as3-card {
+      padding: 16px;
+      border-radius: 18px;
+    }
+    .as3-header-actions {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .as3-header-actions .as3-add {
+      order: -1;
+    }
+    .as3-cards {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .as3-summary-grid {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+    .as3-summary-grid > div,
+    .as3-summary-grid > div + div {
+      border-left: 0;
+      padding: 0;
+    }
+    .as3-summary-grid > .as3-class + .as3-class {
+      padding-top: 12px;
+      border-top: 1px solid var(--wm-line);
+    }
+    .as3-networth {
+      width: 100%;
+    }
+    .as3-field,
+    .as3-range,
+    .as3-qty,
+    .as3-search {
+      flex: 1 1 100%;
+    }
+    .as3-more {
+      width: 100%;
+    }
+    /* Phones: search + sort stay up; the rest opens with "Filter lainnya". */
+    .as3-filters:not([data-more="true"]) .as3-opt {
+      display: none;
+    }
+    .as3 .input,
+    .as3 .select {
+      font-size: 16px;
+    }
+    .as3-feed li {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .as3-feed-detail {
+      grid-column: 1 / -1;
+      color: var(--wm-muted);
+      font-size: 12px;
+    }
+    .as3-pagination {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+  }
+  @media (pointer: coarse) {
+    .as3 .btn,
+    .as3-menu-btn,
+    .as3 .input,
+    .as3 .select,
+    .as3-chip,
+    .as3-reset {
+      min-height: 44px;
+    }
+    .as3-menu-btn {
+      width: 44px;
+    }
+    .as3 .input,
+    .as3 .select {
+      font-size: 16px;
+    }
   }
 }

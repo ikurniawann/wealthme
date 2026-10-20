@@ -4,6 +4,7 @@ import { investmentFormsId } from "./investment-forms";
 import { investasiV3Id } from "./investasi-v3";
 import { danaV3Id } from "./dana-v3";
 import { rekeningV3Id } from "./rekening-v3";
+import { asetV3Id } from "./aset-v3";
 import type { I18nDictionary } from "./types";
 
 export const id = {
@@ -2327,6 +2328,7 @@ export const id = {
     historyFilterEmpty: "Tidak ada transaksi pada rentang tanggal ini.",
   },
   aset: {
+    v3: asetV3Id,
     v2: {
       kpiAcc: "Dana & rekening",
       kpiInv: "Investasi",
