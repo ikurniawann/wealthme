@@ -1,4 +1,5 @@
 import {
+  ShieldCheck,
   Banknote,
   BriefcaseBusiness,
   Car,
@@ -264,6 +265,7 @@ const CLASS_ICONS: Record<AssetClass, LucideIcon> = {
   dana_rekening: Landmark,
   investasi: TrendingUp,
   aset_fisik: House,
+  polis_asuransi: ShieldCheck,
   lainnya: Package,
 };
 

@@ -15,6 +15,7 @@ export interface AsetV3Copy {
     dana_rekening: string;
     investasi: string;
     aset_fisik: string;
+    polis_asuransi: string;
     lainnya: string;
   };
   asOf: string;
@@ -166,6 +167,7 @@ export const asetV3Id: AsetV3Copy = {
     dana_rekening: "Dana & rekening",
     investasi: "Investasi",
     aset_fisik: "Aset fisik",
+    polis_asuransi: "Polis asuransi",
     lainnya: "Lainnya",
   },
   asOf: "Semua nilai per {date}",
@@ -312,6 +314,7 @@ export const asetV3En: AsetV3Copy = {
     dana_rekening: "Cash & accounts",
     investasi: "Investments",
     aset_fisik: "Physical assets",
+    polis_asuransi: "Insurance policies",
     lainnya: "Other",
   },
   asOf: "All values as of {date}",
