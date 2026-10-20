@@ -44,6 +44,8 @@ import "./trade-position.css";
 import "./price-update.css";
 
 const PROOF_LIMIT = 5 * 1024 * 1024;
+/** Select value for holdings not linked to any platform account. */
+const UNLINKED = "__unlinked__";
 
 export function PriceForm({
   initialId,
@@ -90,12 +92,16 @@ export function PriceForm({
   );
   const busy = pending !== "";
   const [error, setError] = useState("");
-  const visible = holdings.filter(
-    (h) =>
-      (!initialId || h.id === initialId) &&
-      (!platform || h.platformAccountId === platform) &&
-      h.type !== "deposito",
+  // Every row the dialog can price, before the platform filter. Counts per
+  // option come from this list so they match what each tab would show.
+  const priceable = holdings.filter(
+    (h) => (!initialId || h.id === initialId) && h.type !== "deposito",
   );
+  const onPlatform = (h: InvestmentDto, key: string) =>
+    key === UNLINKED ? !h.platformAccountId : h.platformAccountId === key;
+  const countFor = (key: string) =>
+    priceable.filter((h) => onPlatform(h, key)).length;
+  const visible = priceable.filter((h) => !platform || onPlatform(h, platform));
   const body: InvestmentPriceBatchInput = {
     rows: visible.map((h) => ({
       investmentId: h.id,
@@ -272,15 +278,34 @@ export function PriceForm({
                   className="select"
                   value={platform}
                   disabled={busy || !!initialId}
+                  aria-describedby={
+                    platforms.length ? undefined : "ivp-platform-hint"
+                  }
                   onChange={(e) => setPlatform(e.target.value)}
                 >
                   <option value="">{copy.allPlatforms}</option>
-                  {platforms.map((x) => (
-                    <option key={x.id} value={x.id}>
-                      {platformName(x)}
-                    </option>
-                  ))}
+                  {[
+                    ...platforms.map((x) => ({
+                      key: x.id,
+                      name: platformName(x),
+                    })),
+                    { key: UNLINKED, name: copy.unlinked },
+                  ].map(({ key, name }) => {
+                    const n = countFor(key);
+                    return (
+                      <option key={key} value={key} disabled={!n}>
+                        {n
+                          ? `${name} · ${copy.instrumentCount(n)}`
+                          : `${name} (0)`}
+                      </option>
+                    );
+                  })}
                 </select>
+                {!platforms.length && (
+                  <small className="ivx-hint" id="ivp-platform-hint">
+                    {copy.noPlatforms}
+                  </small>
+                )}
               </label>
               {mode === "manual" && (
                 <fieldset className="ivp-when" disabled={busy}>
