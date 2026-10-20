@@ -5,6 +5,8 @@ import {
 } from "@nestjs/common";
 import { type Decimal } from "@prisma/client/runtime/library";
 
+import { ymdToDbDate } from "../investments/ledger/ledger-dates";
+import { jakartaYmd } from "../investments/valuation/valuation-core";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { PrismaService } from "../prisma/prisma.service";
 
@@ -17,6 +19,27 @@ import type { RecordAssetValueDto } from "./dto/record-asset-value.dto";
 import type { UpdateAssetDto } from "./dto/update-asset.dto";
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+/**
+ * Aset A4 — effective-time fields for an AssetHistory row (Task 16 bridge
+ * until the Task 18 history API). A UTC-midnight instant is how the web
+ * sends a date-only valuation: it is stored date-only on that calendar
+ * date, never as a 00:00 clock time. Any other instant is a real time whose
+ * calendar date is taken in Asia/Jakarta.
+ */
+export function historyEffectiveFields(at: Date): {
+  effectiveAt: Date;
+  effectiveDate: Date;
+  hasTime: boolean;
+} {
+  const ymd = at.toISOString().slice(0, 10);
+  const dateOnly = at.getTime() === Date.parse(`${ymd}T00:00:00.000Z`);
+  return {
+    effectiveAt: at,
+    effectiveDate: ymdToDbDate(dateOnly ? ymd : jakartaYmd(at)),
+    hasTime: !dateOnly,
+  };
+}
 const MIN_RATE_PCT = -100;
 const MAX_RATE_PCT = 100;
 
@@ -215,6 +238,8 @@ export class AssetsService {
       data: {
         assetId: asset.id,
         value: asset.currentValue,
+        kind: "opening",
+        ...historyEffectiveFields(new Date()),
       },
     });
 
@@ -281,7 +306,12 @@ export class AssetsService {
 
     if (dto.currentValue != null && newValue !== existing.currentValue) {
       await this.prisma.assetHistory.create({
-        data: { assetId: id, value: newValue },
+        data: {
+          assetId: id,
+          value: newValue,
+          kind: "valuation",
+          ...historyEffectiveFields(new Date()),
+        },
       });
     }
 
@@ -461,6 +491,7 @@ export class AssetsService {
           assetId: id,
           value,
           recordedAt,
+          ...historyEffectiveFields(recordedAt),
           recordedByUserId: actingUserId,
           note: dto.note ?? null,
         },

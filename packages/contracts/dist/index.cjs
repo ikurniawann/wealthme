@@ -24,7 +24,16 @@ __export(index_exports, {
   ACCESS_PAGES: () => ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS: () => ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES: () => ALWAYS_OPEN_PAGES,
+  ASSET_CLASSES: () => ASSET_CLASSES,
   ASSET_CLASS_KEYS: () => ASSET_CLASS_KEYS,
+  ASSET_EVENT_STATUSES: () => ASSET_EVENT_STATUSES,
+  ASSET_HISTORY_KINDS: () => ASSET_HISTORY_KINDS,
+  ASSET_PRICED_VALUATION_BASES: () => PRICED_VALUATION_BASES,
+  ASSET_SOURCE_MODULES: () => ASSET_SOURCE_MODULES,
+  ASSET_STATUSES: () => ASSET_STATUSES,
+  ASSET_TRANSACTION_KINDS: () => ASSET_TRANSACTION_KINDS,
+  ASSET_VALUATION_BASES: () => INVESTMENT_VALUATION_BASES,
+  ASSET_VALUATION_MODELS: () => ASSET_VALUATION_MODELS,
   ATTACHMENT_ACCEPTED_MIME_TYPES: () => ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES: () => ATTACHMENT_MAX_FILE_BYTES,
   AUTOMATED_PRICE_SOURCES: () => AUTOMATED_PRICE_SOURCES,
@@ -1019,6 +1028,63 @@ var GoalContributionDtoSchema = import_zod9.z.object({
   createdAt: import_zod9.z.string()
 });
 
+// src/investments/valuation.ts
+var INVESTMENT_VALUATION_BASES = [
+  "market",
+  "manual",
+  "stale",
+  "cost_basis",
+  "unpriced",
+  "failed",
+  "zero_valid"
+];
+var PRICED_VALUATION_BASES = [
+  "market",
+  "manual",
+  "stale",
+  "cost_basis",
+  "zero_valid"
+];
+var AUTOMATED_PRICE_SOURCES = [
+  "yahoo-finance",
+  "coingecko",
+  "emasantam"
+];
+var SIMULATED_PRICE_SOURCE = "mock";
+var MANUAL_PRICE_SOURCES = [
+  "manual",
+  "broker_statement",
+  "fund_factsheet",
+  "bank_statement",
+  "exchange_website",
+  "other"
+];
+
+// src/assets/rebuild.ts
+var ASSET_CLASSES = [
+  "dana_rekening",
+  "investasi",
+  "aset_fisik",
+  "lainnya"
+];
+var ASSET_SOURCE_MODULES = [
+  "accounts",
+  "investments",
+  "assets"
+];
+var ASSET_STATUSES = ["active", "sold", "archived"];
+var ASSET_VALUATION_MODELS = ["per_unit", "total"];
+var ASSET_HISTORY_KINDS = [
+  "opening",
+  "valuation",
+  "correction",
+  "buy",
+  "sell",
+  "quantity_change"
+];
+var ASSET_TRANSACTION_KINDS = ["opening", "buy", "sell"];
+var ASSET_EVENT_STATUSES = ["active", "void"];
+
 // src/assets/index.ts
 var DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT = {
   properti: 3,
@@ -1210,38 +1276,6 @@ function effectiveMarketFor(type, market, currency) {
       return "OTHER";
   }
 }
-
-// src/investments/valuation.ts
-var INVESTMENT_VALUATION_BASES = [
-  "market",
-  "manual",
-  "stale",
-  "cost_basis",
-  "unpriced",
-  "failed",
-  "zero_valid"
-];
-var PRICED_VALUATION_BASES = [
-  "market",
-  "manual",
-  "stale",
-  "cost_basis",
-  "zero_valid"
-];
-var AUTOMATED_PRICE_SOURCES = [
-  "yahoo-finance",
-  "coingecko",
-  "emasantam"
-];
-var SIMULATED_PRICE_SOURCE = "mock";
-var MANUAL_PRICE_SOURCES = [
-  "manual",
-  "broker_statement",
-  "fund_factsheet",
-  "bank_statement",
-  "exchange_website",
-  "other"
-];
 
 // src/member-category-allowances/index.ts
 var import_zod10 = require("zod");
@@ -1690,7 +1724,16 @@ function warisanAssetTypeToAssetClass(assetType) {
   ACCESS_PAGES,
   ACTIVE_REFERENCE_ITEM_GROUPS,
   ALWAYS_OPEN_PAGES,
+  ASSET_CLASSES,
   ASSET_CLASS_KEYS,
+  ASSET_EVENT_STATUSES,
+  ASSET_HISTORY_KINDS,
+  ASSET_PRICED_VALUATION_BASES,
+  ASSET_SOURCE_MODULES,
+  ASSET_STATUSES,
+  ASSET_TRANSACTION_KINDS,
+  ASSET_VALUATION_BASES,
+  ASSET_VALUATION_MODELS,
   ATTACHMENT_ACCEPTED_MIME_TYPES,
   ATTACHMENT_MAX_FILE_BYTES,
   AUTOMATED_PRICE_SOURCES,

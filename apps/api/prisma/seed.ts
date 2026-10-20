@@ -1581,6 +1581,13 @@ export async function main(): Promise<void> {
         assetId: ah.assetId,
         value: ah.value,
         recordedAt: ah.at,
+        // Aset A4 — seed rows are real instants (Asia/Jakarta calendar date).
+        effectiveAt: ah.at,
+        effectiveDate: new Date(
+          `${new Date(ah.at.getTime() + 7 * 3_600_000).toISOString().slice(0, 10)}T00:00:00.000Z`,
+        ),
+        hasTime: true,
+        createdAt: ah.at,
       },
     });
   }

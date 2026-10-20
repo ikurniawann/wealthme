@@ -1,3 +1,5 @@
+export * from "./rebuild.js";
+import type { AssetStatus, AssetValuationModel } from "./rebuild.js";
 // Mirrors Prisma's `AssetType` enum (apps/api/prisma/schema.prisma). Kept as
 // a plain union here rather than importing the Prisma enum so this package
 // stays framework-agnostic; AssetDto.type itself stays a plain `string` for
@@ -23,6 +25,16 @@ export interface AssetDto {
   currentValue: string;
   currency: string;
   notes: string | null;
+  investmentId?: string | null;
+  ownerUserId?: string | null;
+  quantity?: string | null;
+  unit?: string | null;
+  valuationModel?: AssetValuationModel;
+  costBasisPerUnit?: string | null;
+  internalCode?: string | null;
+  custodian?: string | null;
+  status?: AssetStatus;
+  soldAt?: string | null;
   // EPIC-021 #17/#18: signed annual value-change rate (%), negative =
   // depreciation, positive = appreciation. Null = no rate set.
   valueChangeRatePct: string | null;
