@@ -30,7 +30,7 @@
 }
 @media (min-width: 721px) {
   .dialog.wm-panel.wm-panel--side.ins3f-panel {
-    width: min(880px, calc(100vw - 24px));
+    width: min(1180px, calc(100vw - 24px));
   }
   .ins3f-panel .wm-panel-head {
     padding: 24px 26px 6px;
