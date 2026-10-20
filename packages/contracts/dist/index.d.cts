@@ -1060,69 +1060,6 @@ interface NotificationDto {
     createdAt: string;
 }
 
-type AssetTypeId = "properti" | "kendaraan" | "elektronik" | "perhiasan" | "emas" | "lainnya";
-type AssetValueChangeMode = "percent" | "fixed";
-interface AssetDto {
-    id: string;
-    familyGroupId: string;
-    name: string;
-    type: string;
-    currentValue: string;
-    currency: string;
-    notes: string | null;
-    valueChangeRatePct: string | null;
-    valueChangeMode: AssetValueChangeMode;
-    valueChangeAmount: string | null;
-    categoryId: string | null;
-    acquisitionDate: string | null;
-    currentEstimatedValue: string;
-    createdAt: string;
-    updatedAt: string;
-}
-declare const DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: Record<AssetTypeId, number>;
-/** EPIC-033 p14 — a document attached to a physical asset. */
-interface AssetAttachmentDto {
-    id: string;
-    assetId: string;
-    mimeType: string;
-    size: number;
-    createdAt: string;
-}
-interface AssetHistoryDto {
-    id: string;
-    assetId: string;
-    value: string;
-    recordedAt: string;
-    /** EPIC-033 group 3 — percent change vs the previous entry (2 decimals), null on the first. */
-    changePercent: string | null;
-    recordedByName: string | null;
-    note: string | null;
-}
-interface CreateAssetDto {
-    name: string;
-    type: string;
-    currentValue: string;
-    currency?: string;
-    notes?: string;
-    valueChangeRatePct?: string;
-    valueChangeMode?: AssetValueChangeMode;
-    valueChangeAmount?: string;
-    categoryId?: string;
-    acquisitionDate?: string;
-}
-interface UpdateAssetDto {
-    name?: string;
-    type?: string;
-    currentValue?: string;
-    currency?: string;
-    notes?: string;
-    valueChangeRatePct?: string;
-    valueChangeMode?: AssetValueChangeMode;
-    valueChangeAmount?: string;
-    categoryId?: string;
-    acquisitionDate?: string;
-}
-
 /**
  * Investasi R4/R9 — per-market instrument rules. Mirrors the Prisma enum
  * `InvestmentMarket` (apps/api/prisma/schema.prisma).
@@ -1244,287 +1181,6 @@ declare const CUSTOM_PLATFORM_KEY = "custom";
 declare const INVESTMENT_PLATFORMS: readonly InvestmentPlatform[];
 /** Catalog lookup; undefined for an unknown key (treat as custom). */
 declare function findInvestmentPlatform(key: string): InvestmentPlatform | undefined;
-
-/**
- * Investasi Task 8 — the ONE investment valuation shape. The API's
- * InvestmentValuationService produces it for /investasi, the investments
- * list, dashboard net worth, reports and (later) /aset.
- *
- * All money is a decimal string. `…Idr` figures are rupiah; native figures
- * carry their own currency field. Percentages are numbers rounded to 2 dp,
- * null when the cost basis is 0 or unknown (never Infinity, never -100%).
- */
-/**
- * How a holding's value was obtained (R8):
- * - market      fresh automated quote (Yahoo, CoinGecko, Antam reference)
- * - manual      fresh user-entered price, family gold price, or deposit
- *               accrual from the user's own terms
- * - stale       a price older than MARKETS[market].staleAfterDays; still
- *               values the holding, with its own date
- * - cost_basis  valued at remaining cost by method (bond without a price,
- *               "lainnya" with valuationMethod fixed_cost, deposit without
- *               rate/start date) — counted, but labelled
- * - unpriced    no usable price: EXCLUDED from market totals, totals are
- *               `incomplete`; net worth keeps it at cost (labelled)
- * - failed      like unpriced, but the automated feed was tried and failed
- * - zero_valid  quantity is 0 (fully sold) — a true zero
- */
-declare const INVESTMENT_VALUATION_BASES: readonly ["market", "manual", "stale", "cost_basis", "unpriced", "failed", "zero_valid"];
-type InvestmentValuationBasis = (typeof INVESTMENT_VALUATION_BASES)[number];
-/** Bases whose market value is included in market-value totals. */
-declare const PRICED_VALUATION_BASES: readonly InvestmentValuationBasis[];
-type InvestmentValuationMethod = 
-/** quantity × latest price */
-"price"
-/** emas × FamilyGroup.goldPricePerGram (owner-entered) */
- | "family_gold_price"
-/** emas × Antam 1 kg bar price / 1000 (reference, emasantam.id) */
- | "antam_reference"
-/** principal + simple accrued interest to today (gross, act/365) */
- | "deposit_accrual"
-/** nominal × clean price % + accrued coupon, or quantity × unit price */
- | "bond_price"
-/** remaining cost basis */
- | "cost_basis" | "none";
-/** Sources written by an automated feed; everything else is manual. */
-declare const AUTOMATED_PRICE_SOURCES: readonly ["yahoo-finance", "coingecko", "emasantam"];
-/** Never a valuation basis (dev/demo MockMarketDataAdapter). */
-declare const SIMULATED_PRICE_SOURCE = "mock";
-/** Why a holding has no usable valuation (unpriced / failed / cost_basis). */
-type InvestmentValuationReason = "no_price" | "no_feed" | "feed_failed" | "fx_unavailable" | "simulated_price_ignored" | "deposit_terms_missing" | "bond_no_price" | "fixed_cost" | "cost_unknown";
-interface InvestmentValuationPriceDto {
-    /** Per `unitLabel`, in `currency`. For bonds in % of par when so labelled. */
-    value: string;
-    currency: string;
-    unitLabel: string;
-    source: string;
-    /** When the price applies (quote time, or the date the user entered). */
-    asOf: string;
-    /** False = only the date of `asOf` is known. */
-    hasTime: boolean;
-    delayed: boolean;
-    reference: string | null;
-    /** Whole days between the price date and today (Asia/Jakarta). */
-    ageDays: number;
-    stale: boolean;
-    /** MARKETS[market].staleAfterDays used for `stale`. */
-    staleAfterDays: number | null;
-}
-/** Valuation FX — today's rate, separate from the execution FX of trades. */
-interface InvestmentValuationFxDto {
-    currency: string;
-    /** IDR per 1 unit of `currency`. */
-    idrPerUnit: string;
-    rateDate: string;
-    source: string;
-    /** Provider down, served older stored/indicative rates. */
-    stale: boolean;
-}
-interface InvestmentDepositAccrualDto {
-    principal: string;
-    currency: string;
-    ratePct: string;
-    /** yyyy-mm-dd */
-    startDate: string;
-    /** yyyy-mm-dd: today, or maturity when already matured. */
-    accruedTo: string;
-    days: number;
-    dayCount: "act/365";
-    /** Gross (before the final tax on deposit interest). */
-    accruedInterest: string;
-    /** Interest already recorded as paid (ledger `interest` rows). */
-    interestPaid: string;
-}
-interface InvestmentBondValuationDto {
-    convention: "percent_of_par" | "per_unit";
-    principal: string | null;
-    cleanValue: string;
-    /** Null when coupon terms are missing (shown as "—", never 0). */
-    accruedCoupon: string | null;
-    pricesIncludeAccrued: boolean;
-}
-interface InvestmentValuationDto {
-    investmentId: string;
-    type: InvestmentType;
-    /** The market used for rules (holding market, or the type fallback). */
-    market: InvestmentMarket;
-    /** True when `market` is a fallback because Investment.market is null. */
-    marketInferred: boolean;
-    holdingCurrency: string;
-    quantity: string;
-    basis: InvestmentValuationBasis;
-    method: InvestmentValuationMethod;
-    reason: InvestmentValuationReason | null;
-    price: InvestmentValuationPriceDto | null;
-    valuationFx: InvestmentValuationFxDto | null;
-    /** In `marketValueCurrency` (the price currency). Null when not valued. */
-    marketValue: string | null;
-    marketValueCurrency: string | null;
-    /** Rupiah at the valuation FX. Null when unpriced/failed (never 0). */
-    marketValueIdr: string | null;
-    /** Present on portfolio responses; converted server-side at displayFx. */
-    display?: {
-        currency: string;
-        marketValue: string | null;
-        unrealized: string | null;
-    };
-    /** Remaining cost basis (weighted average, R1), rupiah. */
-    costRemainingIdr: string | null;
-    costBasisKnown?: boolean;
-    /**
-     * Remaining cost in the price currency when every active ledger row is in
-     * that currency (else null). Lets the UI split price and FX effects.
-     */
-    costRemainingNative: string | null;
-    /** costRemainingIdr / costRemainingNative — average execution FX. */
-    executionFxAvg: string | null;
-    unrealizedIdr: string | null;
-    unrealizedPct: number | null;
-    /** (marketValue − costNative) × valuation FX. */
-    priceEffectIdr: string | null;
-    /** costNative × valuation FX − costRemainingIdr ("0" for IDR holdings). */
-    fxEffectIdr: string | null;
-    /** Σ realized P/L of active sells, rupiah; null when nothing was sold. */
-    realizedIdr: string | null;
-    /** Σ dividend/coupon/interest received (net), rupiah. */
-    incomeIdr: string;
-    /**
-     * What net worth counts: marketValueIdr when valued, else the remaining
-     * cost (R8 — labelled via `netWorthUsesCost`). Whole rupiah.
-     */
-    netWorthIdr: string;
-    netWorthUsesCost: boolean;
-    /** Automated feed state from the price refresh job. */
-    feedStatus: "ok" | "failed" | "no_route" | "simulated" | null;
-    deposit: InvestmentDepositAccrualDto | null;
-    bond: InvestmentBondValuationDto | null;
-}
-/** Money figure in rupiah plus the display currency (null when IDR). */
-interface InvestmentMoneyDto {
-    idr: string;
-    display: string | null;
-}
-interface InvestmentPlatformCashDto {
-    /** Kas tercatat — Σ visible pocket balances. */
-    recorded: InvestmentMoneyDto;
-    /** Dana tertahan (R9). */
-    held: InvestmentMoneyDto;
-    /** Dana tersedia = recorded − held. */
-    available: InvestmentMoneyDto;
-    pocketCount: number;
-    /** Pockets whose balances are hidden from this viewer (not summed). */
-    hiddenPocketCount: number;
-    heldIncomplete: boolean;
-}
-interface InvestmentPortfolioTotalsDto {
-    /**
-     * R8 — true when any holding is unpriced/failed: `assetValue` excludes it
-     * and `unpricedCost` carries its remaining cost separately.
-     */
-    incomplete: boolean;
-    unpricedCount: number;
-    failedCount: number;
-    staleCount: number;
-    costValuedCount: number;
-    holdingCount: number;
-    /** Nilai aset — market value of valued holdings only. */
-    assetValue: InvestmentMoneyDto;
-    platformCash: InvestmentPlatformCashDto;
-    /** assetValue + platformCash.recorded. */
-    total: InvestmentMoneyDto;
-    /** Modal aset tersisa — every holding. */
-    costRemaining: InvestmentMoneyDto | null;
-    costIncomplete?: boolean;
-    /** Remaining cost of the valued holdings (the base of `unrealized`). */
-    pricedCostRemaining: InvestmentMoneyDto;
-    unpricedCost: InvestmentMoneyDto | null;
-    unrealized: InvestmentMoneyDto | null;
-    /** Null when pricedCostRemaining is 0. */
-    unrealizedPct: number | null;
-    realized: InvestmentMoneyDto | null;
-    income: InvestmentMoneyDto;
-    /** What net worth counts for investments (unpriced at cost). */
-    netWorthValue: InvestmentMoneyDto;
-}
-/** GET …/investments/valuation */
-interface InvestmentPortfolioValuationDto {
-    /** ISO instant the valuation was computed. */
-    asOf: string;
-    displayCurrency: string;
-    /** Null when displayCurrency is IDR. */
-    displayFx: InvestmentValuationFxDto | null;
-    holdings: InvestmentValuationDto[];
-    totals: InvestmentPortfolioTotalsDto;
-}
-interface InvestmentPortfolioValuationQuery {
-    displayCurrency?: string;
-    ownerUserId?: string;
-    platformAccountId?: string;
-    type?: InvestmentType;
-    market?: InvestmentMarket;
-}
-/** Sources a manual batch may claim; automated/mock sources are refused. */
-declare const MANUAL_PRICE_SOURCES: readonly ["manual", "broker_statement", "fund_factsheet", "bank_statement", "exchange_website", "other"];
-type ManualPriceSource = (typeof MANUAL_PRICE_SOURCES)[number];
-interface InvestmentPriceBatchRowInput {
-    investmentId: string;
-    /** Empty/null = skipped (the previous price stays). Else > 0. */
-    price?: string | null;
-    /** FX currency code of the price. */
-    currency: string;
-    /** "per lembar", "per unit", "% nominal" … default from MARKETS. */
-    unitLabel?: string | null;
-    /** yyyy-mm-dd, not in the future. */
-    asOfDate: string;
-    /** "HH:MM" when the quote time is known. */
-    asOfTime?: string | null;
-    /** IANA zone of asOfTime; default Asia/Jakarta. */
-    timeZone?: string | null;
-    source: ManualPriceSource;
-    /** URL, statement number, NAB publication … */
-    reference?: string | null;
-}
-interface InvestmentPriceBatchInput {
-    rows: InvestmentPriceBatchRowInput[];
-}
-type InvestmentPriceBatchRowStatus = "updated" | "skipped" | "failed";
-type InvestmentPriceBatchRowCode = "empty_price" | "duplicate" | "older_than_current" | "not_found" | "duplicate_row" | "invalid_price" | "invalid_date" | "future_date" | "invalid_time_zone" | "unsupported_currency" | "fx_unavailable" | "deposit_not_priced";
-interface InvestmentPriceBatchRowResult {
-    index: number;
-    investmentId: string;
-    status: InvestmentPriceBatchRowStatus;
-    /** Machine reason for skipped/failed (null when updated). */
-    code: InvestmentPriceBatchRowCode | null;
-    /** Indonesian message for the row. */
-    message: string | null;
-    /** Non-blocking notes ("currency_differs_from_holding"). */
-    warnings: string[];
-    name: string | null;
-    ticker: string | null;
-    oldPrice: InvestmentValuationPriceDto | null;
-    oldBasis: InvestmentValuationBasis | null;
-    oldValueIdr: string | null;
-    newPrice: string | null;
-    newCurrency: string | null;
-    newValueIdr: string | null;
-    /**
-     * Change in what net worth counts for this holding (new − old netWorthIdr,
-     * whole rupiah). An unpriced holding's old figure is its cost (R8).
-     */
-    impactIdr: string | null;
-    /** Set on a saved row (bulk only). */
-    priceId: string | null;
-}
-interface InvestmentPriceBatchResultDto {
-    /** False for preview. */
-    saved: boolean;
-    rows: InvestmentPriceBatchRowResult[];
-    updatedCount: number;
-    skippedCount: number;
-    failedCount: number;
-    /** Σ impactIdr of updated rows (whole rupiah). */
-    impactIdr: string;
-}
 
 type InvestmentType = "saham" | "reksa_dana" | "obligasi" | "emas" | "kripto" | "lainnya" | "deposito";
 interface InvestmentDto {
@@ -1917,6 +1573,705 @@ interface InvestmentLedgerConflictDto {
     available: string;
     unit: "IDR" | "units";
     conflicts: InvestmentLedgerConflictItem[];
+}
+
+/**
+ * Investasi Task 8 — the ONE investment valuation shape. The API's
+ * InvestmentValuationService produces it for /investasi, the investments
+ * list, dashboard net worth, reports and (later) /aset.
+ *
+ * All money is a decimal string. `…Idr` figures are rupiah; native figures
+ * carry their own currency field. Percentages are numbers rounded to 2 dp,
+ * null when the cost basis is 0 or unknown (never Infinity, never -100%).
+ */
+/**
+ * How a holding's value was obtained (R8):
+ * - market      fresh automated quote (Yahoo, CoinGecko, Antam reference)
+ * - manual      fresh user-entered price, family gold price, or deposit
+ *               accrual from the user's own terms
+ * - stale       a price older than MARKETS[market].staleAfterDays; still
+ *               values the holding, with its own date
+ * - cost_basis  valued at remaining cost by method (bond without a price,
+ *               "lainnya" with valuationMethod fixed_cost, deposit without
+ *               rate/start date) — counted, but labelled
+ * - unpriced    no usable price: EXCLUDED from market totals, totals are
+ *               `incomplete`; net worth keeps it at cost (labelled)
+ * - failed      like unpriced, but the automated feed was tried and failed
+ * - zero_valid  quantity is 0 (fully sold) — a true zero
+ */
+declare const INVESTMENT_VALUATION_BASES: readonly ["market", "manual", "stale", "cost_basis", "unpriced", "failed", "zero_valid"];
+type InvestmentValuationBasis = (typeof INVESTMENT_VALUATION_BASES)[number];
+/** Bases whose market value is included in market-value totals. */
+declare const PRICED_VALUATION_BASES: readonly InvestmentValuationBasis[];
+type InvestmentValuationMethod = 
+/** quantity × latest price */
+"price"
+/** emas × FamilyGroup.goldPricePerGram (owner-entered) */
+ | "family_gold_price"
+/** emas × Antam 1 kg bar price / 1000 (reference, emasantam.id) */
+ | "antam_reference"
+/** principal + simple accrued interest to today (gross, act/365) */
+ | "deposit_accrual"
+/** nominal × clean price % + accrued coupon, or quantity × unit price */
+ | "bond_price"
+/** remaining cost basis */
+ | "cost_basis" | "none";
+/** Sources written by an automated feed; everything else is manual. */
+declare const AUTOMATED_PRICE_SOURCES: readonly ["yahoo-finance", "coingecko", "emasantam"];
+/** Never a valuation basis (dev/demo MockMarketDataAdapter). */
+declare const SIMULATED_PRICE_SOURCE = "mock";
+/** Why a holding has no usable valuation (unpriced / failed / cost_basis). */
+type InvestmentValuationReason = "no_price" | "no_feed" | "feed_failed" | "fx_unavailable" | "simulated_price_ignored" | "deposit_terms_missing" | "bond_no_price" | "fixed_cost" | "cost_unknown";
+interface InvestmentValuationPriceDto {
+    /** Per `unitLabel`, in `currency`. For bonds in % of par when so labelled. */
+    value: string;
+    currency: string;
+    unitLabel: string;
+    source: string;
+    /** When the price applies (quote time, or the date the user entered). */
+    asOf: string;
+    /** False = only the date of `asOf` is known. */
+    hasTime: boolean;
+    delayed: boolean;
+    reference: string | null;
+    /** Whole days between the price date and today (Asia/Jakarta). */
+    ageDays: number;
+    stale: boolean;
+    /** MARKETS[market].staleAfterDays used for `stale`. */
+    staleAfterDays: number | null;
+}
+/** Valuation FX — today's rate, separate from the execution FX of trades. */
+interface InvestmentValuationFxDto {
+    currency: string;
+    /** IDR per 1 unit of `currency`. */
+    idrPerUnit: string;
+    rateDate: string;
+    source: string;
+    /** Provider down, served older stored/indicative rates. */
+    stale: boolean;
+}
+interface InvestmentDepositAccrualDto {
+    principal: string;
+    currency: string;
+    ratePct: string;
+    /** yyyy-mm-dd */
+    startDate: string;
+    /** yyyy-mm-dd: today, or maturity when already matured. */
+    accruedTo: string;
+    days: number;
+    dayCount: "act/365";
+    /** Gross (before the final tax on deposit interest). */
+    accruedInterest: string;
+    /** Interest already recorded as paid (ledger `interest` rows). */
+    interestPaid: string;
+}
+interface InvestmentBondValuationDto {
+    convention: "percent_of_par" | "per_unit";
+    principal: string | null;
+    cleanValue: string;
+    /** Null when coupon terms are missing (shown as "—", never 0). */
+    accruedCoupon: string | null;
+    pricesIncludeAccrued: boolean;
+}
+interface InvestmentValuationDto {
+    investmentId: string;
+    type: InvestmentType;
+    /** The market used for rules (holding market, or the type fallback). */
+    market: InvestmentMarket;
+    /** True when `market` is a fallback because Investment.market is null. */
+    marketInferred: boolean;
+    holdingCurrency: string;
+    quantity: string;
+    basis: InvestmentValuationBasis;
+    method: InvestmentValuationMethod;
+    reason: InvestmentValuationReason | null;
+    price: InvestmentValuationPriceDto | null;
+    valuationFx: InvestmentValuationFxDto | null;
+    /** In `marketValueCurrency` (the price currency). Null when not valued. */
+    marketValue: string | null;
+    marketValueCurrency: string | null;
+    /** Rupiah at the valuation FX. Null when unpriced/failed (never 0). */
+    marketValueIdr: string | null;
+    /** Present on portfolio responses; converted server-side at displayFx. */
+    display?: {
+        currency: string;
+        marketValue: string | null;
+        unrealized: string | null;
+    };
+    /** Remaining cost basis (weighted average, R1), rupiah. */
+    costRemainingIdr: string | null;
+    costBasisKnown?: boolean;
+    /**
+     * Remaining cost in the price currency when every active ledger row is in
+     * that currency (else null). Lets the UI split price and FX effects.
+     */
+    costRemainingNative: string | null;
+    /** costRemainingIdr / costRemainingNative — average execution FX. */
+    executionFxAvg: string | null;
+    unrealizedIdr: string | null;
+    unrealizedPct: number | null;
+    /** (marketValue − costNative) × valuation FX. */
+    priceEffectIdr: string | null;
+    /** costNative × valuation FX − costRemainingIdr ("0" for IDR holdings). */
+    fxEffectIdr: string | null;
+    /** Σ realized P/L of active sells, rupiah; null when nothing was sold. */
+    realizedIdr: string | null;
+    /** Σ dividend/coupon/interest received (net), rupiah. */
+    incomeIdr: string;
+    /**
+     * What net worth counts: marketValueIdr when valued, else the remaining
+     * cost (R8 — labelled via `netWorthUsesCost`). Whole rupiah.
+     */
+    netWorthIdr: string;
+    netWorthUsesCost: boolean;
+    /** Automated feed state from the price refresh job. */
+    feedStatus: "ok" | "failed" | "no_route" | "simulated" | null;
+    deposit: InvestmentDepositAccrualDto | null;
+    bond: InvestmentBondValuationDto | null;
+}
+/** Money figure in rupiah plus the display currency (null when IDR). */
+interface InvestmentMoneyDto {
+    idr: string;
+    display: string | null;
+}
+interface InvestmentPlatformCashDto {
+    /** Kas tercatat — Σ visible pocket balances. */
+    recorded: InvestmentMoneyDto;
+    /** Dana tertahan (R9). */
+    held: InvestmentMoneyDto;
+    /** Dana tersedia = recorded − held. */
+    available: InvestmentMoneyDto;
+    pocketCount: number;
+    /** Pockets whose balances are hidden from this viewer (not summed). */
+    hiddenPocketCount: number;
+    heldIncomplete: boolean;
+}
+interface InvestmentPortfolioTotalsDto {
+    /**
+     * R8 — true when any holding is unpriced/failed: `assetValue` excludes it
+     * and `unpricedCost` carries its remaining cost separately.
+     */
+    incomplete: boolean;
+    unpricedCount: number;
+    failedCount: number;
+    staleCount: number;
+    costValuedCount: number;
+    holdingCount: number;
+    /** Nilai aset — market value of valued holdings only. */
+    assetValue: InvestmentMoneyDto;
+    platformCash: InvestmentPlatformCashDto;
+    /** assetValue + platformCash.recorded. */
+    total: InvestmentMoneyDto;
+    /** Modal aset tersisa — every holding. */
+    costRemaining: InvestmentMoneyDto | null;
+    costIncomplete?: boolean;
+    /** Remaining cost of the valued holdings (the base of `unrealized`). */
+    pricedCostRemaining: InvestmentMoneyDto;
+    unpricedCost: InvestmentMoneyDto | null;
+    unrealized: InvestmentMoneyDto | null;
+    /** Null when pricedCostRemaining is 0. */
+    unrealizedPct: number | null;
+    realized: InvestmentMoneyDto | null;
+    income: InvestmentMoneyDto;
+    /** What net worth counts for investments (unpriced at cost). */
+    netWorthValue: InvestmentMoneyDto;
+}
+/** GET …/investments/valuation */
+interface InvestmentPortfolioValuationDto {
+    /** ISO instant the valuation was computed. */
+    asOf: string;
+    displayCurrency: string;
+    /** Null when displayCurrency is IDR. */
+    displayFx: InvestmentValuationFxDto | null;
+    holdings: InvestmentValuationDto[];
+    totals: InvestmentPortfolioTotalsDto;
+}
+interface InvestmentPortfolioValuationQuery {
+    displayCurrency?: string;
+    ownerUserId?: string;
+    platformAccountId?: string;
+    type?: InvestmentType;
+    market?: InvestmentMarket;
+}
+/** Sources a manual batch may claim; automated/mock sources are refused. */
+declare const MANUAL_PRICE_SOURCES: readonly ["manual", "broker_statement", "fund_factsheet", "bank_statement", "exchange_website", "other"];
+type ManualPriceSource = (typeof MANUAL_PRICE_SOURCES)[number];
+interface InvestmentPriceBatchRowInput {
+    investmentId: string;
+    /** Empty/null = skipped (the previous price stays). Else > 0. */
+    price?: string | null;
+    /** FX currency code of the price. */
+    currency: string;
+    /** "per lembar", "per unit", "% nominal" … default from MARKETS. */
+    unitLabel?: string | null;
+    /** yyyy-mm-dd, not in the future. */
+    asOfDate: string;
+    /** "HH:MM" when the quote time is known. */
+    asOfTime?: string | null;
+    /** IANA zone of asOfTime; default Asia/Jakarta. */
+    timeZone?: string | null;
+    source: ManualPriceSource;
+    /** URL, statement number, NAB publication … */
+    reference?: string | null;
+}
+interface InvestmentPriceBatchInput {
+    rows: InvestmentPriceBatchRowInput[];
+}
+type InvestmentPriceBatchRowStatus = "updated" | "skipped" | "failed";
+type InvestmentPriceBatchRowCode = "empty_price" | "duplicate" | "older_than_current" | "not_found" | "duplicate_row" | "invalid_price" | "invalid_date" | "future_date" | "invalid_time_zone" | "unsupported_currency" | "fx_unavailable" | "deposit_not_priced";
+interface InvestmentPriceBatchRowResult {
+    index: number;
+    investmentId: string;
+    status: InvestmentPriceBatchRowStatus;
+    /** Machine reason for skipped/failed (null when updated). */
+    code: InvestmentPriceBatchRowCode | null;
+    /** Indonesian message for the row. */
+    message: string | null;
+    /** Non-blocking notes ("currency_differs_from_holding"). */
+    warnings: string[];
+    name: string | null;
+    ticker: string | null;
+    oldPrice: InvestmentValuationPriceDto | null;
+    oldBasis: InvestmentValuationBasis | null;
+    oldValueIdr: string | null;
+    newPrice: string | null;
+    newCurrency: string | null;
+    newValueIdr: string | null;
+    /**
+     * Change in what net worth counts for this holding (new − old netWorthIdr,
+     * whole rupiah). An unpriced holding's old figure is its cost (R8).
+     */
+    impactIdr: string | null;
+    /** Set on a saved row (bulk only). */
+    priceId: string | null;
+}
+interface InvestmentPriceBatchResultDto {
+    /** False for preview. */
+    saved: boolean;
+    rows: InvestmentPriceBatchRowResult[];
+    updatedCount: number;
+    skippedCount: number;
+    failedCount: number;
+    /** Σ impactIdr of updated rows (whole rupiah). */
+    impactIdr: string;
+}
+
+/**
+ * Aset rebuild contracts (plan rulings A1–A7). Money is a decimal string;
+ * `…Idr` figures are rupiah. Percentages are numbers rounded to 2 dp and
+ * null when the comparison base is ≤ 0 or unknown — never Infinity, never
+ * -100% from a missing price (same convention as Investasi valuation).
+ */
+
+type AssetValuationBasis = InvestmentValuationBasis;
+/** A2 — what the row is (classification), independent of storage/source. */
+declare const ASSET_CLASSES: readonly ["dana_rekening", "investasi", "aset_fisik", "lainnya"];
+type AssetClass = (typeof ASSET_CLASSES)[number];
+/** A2 — the module that owns the record (where edits happen). */
+declare const ASSET_SOURCE_MODULES: readonly ["accounts", "investments", "assets"];
+type AssetSourceModule = (typeof ASSET_SOURCE_MODULES)[number];
+/** A5 — mirrors Prisma `AssetStatus`. Delete becomes archive. */
+declare const ASSET_STATUSES: readonly ["active", "sold", "archived"];
+type AssetStatus = (typeof ASSET_STATUSES)[number];
+/** A5 — mirrors Prisma `AssetValuationModel`. */
+declare const ASSET_VALUATION_MODELS: readonly ["per_unit", "total"];
+type AssetValuationModel = (typeof ASSET_VALUATION_MODELS)[number];
+/** A4 — mirrors Prisma `AssetHistoryKind`. */
+declare const ASSET_HISTORY_KINDS: readonly ["opening", "valuation", "correction", "buy", "sell", "quantity_change"];
+type AssetHistoryKind = (typeof ASSET_HISTORY_KINDS)[number];
+/** A5 — mirrors Prisma `AssetTransactionKind`. */
+declare const ASSET_TRANSACTION_KINDS: readonly ["opening", "buy", "sell"];
+type AssetTransactionKind = (typeof ASSET_TRANSACTION_KINDS)[number];
+/** Mirrors Prisma `AssetEventStatus` (history rows and transactions). */
+declare const ASSET_EVENT_STATUSES: readonly ["active", "void"];
+type AssetEventStatus = (typeof ASSET_EVENT_STATUSES)[number];
+interface AssetSourceLink {
+    module: AssetSourceModule;
+    id: string;
+    href: string;
+}
+interface AssetPriceDto {
+    value: string;
+    currency: string;
+    unitLabel: string | null;
+    source: string;
+    asOf: string;
+    hasTime: boolean;
+    timeZone: string | null;
+    fxRate?: string | null;
+    fxRateDate?: string | null;
+    fxSource?: string | null;
+}
+/**
+ * A6 — valuation change only (buy/sell effects are never counted as price
+ * change). amount = new − previous by effective order; percent = amount /
+ * previous × 100, null when previous ≤ 0 or unknown. `period: "none"` means
+ * no valid comparison exists ("Belum ada valuasi pembanding"), not 0.
+ */
+interface AssetValueChangeDto {
+    amountIdr: string | null;
+    percent: number | null;
+    /** yyyy-mm-dd of the comparison valuation. */
+    comparisonDate: string | null;
+    period: "previous_valuation" | "previous_day" | "none";
+}
+interface AssetOverviewRowDto {
+    id: string;
+    name: string;
+    internalCode: string | null;
+    ticker: string | null;
+    class: AssetClass;
+    subtype: string;
+    sourceModule: AssetSourceModule;
+    sourceId: string;
+    sources: AssetSourceLink[];
+    ownerUserId: string | null;
+    ownerName: string | null;
+    custodian: string | null;
+    platformAccountId: string | null;
+    quantity: string | null;
+    unit: string | null;
+    acquisition: {
+        date: string | null;
+        multiple: boolean;
+    };
+    status: AssetStatus;
+    valuationBasis: AssetValuationBasis;
+    /** Null is unknown, never coerced into a market-value zero. */
+    valueIdr: string | null;
+    displayValue: string | null;
+    displayCurrency: string;
+    /** Market value, or explicitly labelled cost fallback for net worth. */
+    netWorthValueIdr: string;
+    costBasisIdr: string | null;
+    price: AssetPriceDto | null;
+    change: AssetValueChangeDto;
+    /** A6 — value − remaining cost basis; null when either is unknown. */
+    unrealizedPnlIdr: string | null;
+    unrealizedPnlPercent: number | null;
+    /**
+     * A3 — a possible duplicate the user should review (e.g. an
+     * Account.type=property next to an Asset properti). Never auto-merged.
+     */
+    duplicateWarning: boolean;
+    /** Account rows only: the account is closed (shown with a "Ditutup" badge, still counted). */
+    accountClosed?: boolean;
+}
+interface AssetsOverviewSummaryDto {
+    grossTotalIdr: string;
+    pricedTotalIdr: string;
+    unpricedCostIdr: string;
+    danaRekeningIdr: string;
+    investasiIdr: string;
+    asetFisikIdr: string;
+    lainnyaIdr: string;
+    netWorthIdr: string | null;
+    liabilitiesIdr: string | null;
+    valuationDate: string;
+    displayCurrency: string;
+    displayGrossTotal: string | null;
+    displayDanaRekening: string | null;
+    displayInvestasi: string | null;
+    displayAsetFisik: string | null;
+    displayLainnya: string | null;
+    displayNetWorth: string | null;
+    incomplete: boolean;
+    scope: "filtered" | "all";
+}
+interface AssetsOverviewQuery {
+    q?: string;
+    class?: AssetClass;
+    subtype?: string;
+    ownerUserId?: string;
+    platformAccountId?: string;
+    custodian?: string;
+    minValue?: string;
+    maxValue?: string;
+    minQuantity?: string;
+    maxQuantity?: string;
+    unit?: string;
+    acquiredFrom?: string;
+    acquiredTo?: string;
+    status?: AssetStatus;
+    completeness?: "complete" | "incomplete";
+    sort?: "value_desc" | "value_asc" | "name_asc" | "acquired_desc";
+    displayCurrency?: string;
+    page?: number;
+    limit?: number;
+}
+interface AssetsOverviewDto {
+    rows: AssetOverviewRowDto[];
+    summary: AssetsOverviewSummaryDto;
+    meta: {
+        total: number;
+        page: number;
+        limit: number;
+        totalPages: number;
+    };
+}
+interface AssetTransactionDto {
+    id: string;
+    assetId: string;
+    familyGroupId: string;
+    kind: AssetTransactionKind;
+    status: AssetEventStatus;
+    quantity: string;
+    pricePerUnit: string | null;
+    grossAmount: string | null;
+    fee: string;
+    tax: string;
+    netAmount: string | null;
+    currency: string;
+    fxRate: string | null;
+    costBasisKnown: boolean;
+    realizedPnlIdr: string | null;
+    effectiveDate: string;
+    effectiveTime: string | null;
+    timeZone: string | null;
+    cashAccountId: string | null;
+    cashTransactionId: string | null;
+    idempotencyKey: string;
+    note: string | null;
+    createdByUserId: string | null;
+    createdAt: string;
+    updatedAt: string;
+    voidedAt: string | null;
+    voidReason: string | null;
+}
+/**
+ * POST .../assets/:id/transactions — buy / sell / opening (A5). Same rules
+ * as the Investasi ledger: weighted-average cost (R1), ordering (R6),
+ * `idempotencyKey` uuid per form open (R7; a replay returns the original
+ * result). `opening` never moves cash; buy/sell move `cashAccountId`.
+ */
+interface CreateAssetTransactionInput {
+    kind: AssetTransactionKind;
+    idempotencyKey: string;
+    quantity: string;
+    pricePerUnit?: string;
+    grossAmount?: string;
+    fee?: string;
+    tax?: string;
+    currency: string;
+    fxRate?: string | null;
+    costBasisKnown?: boolean;
+    effectiveDate: string;
+    effectiveTime?: string | null;
+    timeZone?: string | null;
+    cashAccountId?: string | null;
+    note?: string | null;
+}
+type UpdateAssetTransactionInput = Partial<Omit<CreateAssetTransactionInput, "kind" | "idempotencyKey">> & {
+    reason?: string | null;
+};
+/**
+ * POST .../assets/:id/valuations (and /preview). Exactly one of
+ * `pricePerUnit` (valuationModel per_unit) or `value` (total). Never moves
+ * cash or cost basis.
+ */
+interface AssetValuationInput {
+    /** uuid per form open (R7). Required on POST /valuations; ignored by /preview. */
+    idempotencyKey?: string;
+    pricePerUnit?: string;
+    value?: string;
+    currency: string;
+    fxRate?: string | null;
+    effectiveDate: string;
+    effectiveTime?: string | null;
+    timeZone?: string | null;
+    source: string;
+    reference?: string | null;
+    note?: string | null;
+}
+interface AssetValuationPreviewDto {
+    quantity: string | null;
+    unit: string | null;
+    valuationModel: AssetValuationModel;
+    previousValueIdr: string | null;
+    newValueIdr: string;
+    changeIdr: string | null;
+    changePercent: number | null;
+    totalImpactIdr: string;
+    /** True when the effective date is before today (Asia/Jakarta). */
+    backdated: boolean;
+    /**
+     * False when a newer valuation exists by effective order: the entry is
+     * history only and the asset's current value does not change (A4).
+     */
+    becomesCurrent: boolean;
+    /** Effective date of that newer valuation, when one exists. */
+    newerValuationDate: string | null;
+    comparisonDate: string | null;
+    /** previous_valuation, or none when no valid comparison exists (A6). */
+    comparisonPeriod: "previous_valuation" | "none";
+    /** Asset value now and after saving (IDR); impact = after − now. */
+    currentValueIdr: string;
+    currentValueAfterIdr: string;
+    pricePerUnitIdr: string | null;
+    currency: string;
+    fxRate: string | null;
+}
+/**
+ * A4 — one history event. Deterministic order: (effectiveDate, date-only
+ * before timed, effectiveAt, createdAt, id). `recordedAt`/`createdAt` are
+ * when it was written, never used to decide which valuation is newest.
+ */
+interface AssetHistoryEventDto {
+    id: string;
+    assetId: string;
+    value: string;
+    effectiveAt: string;
+    /** yyyy-mm-dd, calendar date in `timeZone` (Asia/Jakarta when null). */
+    effectiveDate: string;
+    /** False = only the date is known; no clock time is shown. */
+    hasTime: boolean;
+    timeZone: string | null;
+    recordedAt: string;
+    createdAt: string;
+    kind: AssetHistoryKind;
+    source: string;
+    reference: string | null;
+    status: AssetEventStatus;
+    valuationModel: AssetValuationModel;
+    pricePerUnit: string | null;
+    currency: string;
+    fxRate: string | null;
+    fxRateDate?: string | null;
+    fxSource?: string | null;
+    quantityBefore: string | null;
+    quantityAfter: string | null;
+    unit: string | null;
+    valueBefore: string | null;
+    changeIdr: string | null;
+    changePercent: number | null;
+    recordedByUserId: string | null;
+    recordedByName: string | null;
+    note: string | null;
+    assetTransactionId: string | null;
+    voidedAt: string | null;
+    voidReason: string | null;
+}
+/** PATCH .../assets/:id/valuations/:historyId — any subset, audited. */
+type UpdateAssetValuationInput = Partial<AssetValuationInput> & {
+    reason?: string | null;
+};
+/** POST .../void on a valuation or transaction; the row is kept, audited. */
+interface VoidAssetEventInput {
+    reason?: string | null;
+}
+/** The asset's ledger state after a transaction replay. */
+interface AssetHoldingStateDto {
+    id: string;
+    quantity: string | null;
+    unit: string | null;
+    /** Weighted-average cost per unit, IDR (R1); null when unknown. */
+    costBasisPerUnit: string | null;
+    costBasisKnown: boolean;
+    /** Σ realized P/L of active sells, IDR; null when nothing was sold. */
+    realizedPnlIdr: string | null;
+    status: AssetStatus;
+    /** Asset value (IDR) = latest history row by effective order (A4). */
+    currentValueIdr: string;
+    valuationModel: AssetValuationModel;
+}
+interface AssetTransactionResultDto {
+    /** True when an earlier request with the same idempotencyKey answered. */
+    replayed: boolean;
+    transaction: AssetTransactionDto;
+    asset: AssetHoldingStateDto;
+}
+interface AssetValuationResultDto {
+    /** True when an earlier request with the same idempotencyKey answered. */
+    replayed: boolean;
+    event: AssetHistoryEventDto;
+    asset: AssetHoldingStateDto;
+}
+/**
+ * GET .../assets/:id/events — the detail page's ledger: every history event
+ * (newest first by effective order), the transactions, the holding state
+ * and the A6 changes. `todayChange` is `period: "none"` unless a valuation
+ * exists on the previous Asia/Jakarta calendar day ("Belum ada valuasi
+ * pembanding").
+ */
+interface AssetLedgerDto {
+    events: AssetHistoryEventDto[];
+    transactions: AssetTransactionDto[];
+    asset: AssetHoldingStateDto;
+    sinceLastValuation: AssetValueChangeDto;
+    todayChange: AssetValueChangeDto;
+}
+
+type AssetTypeId = "properti" | "kendaraan" | "elektronik" | "perhiasan" | "emas" | "lainnya";
+type AssetValueChangeMode = "percent" | "fixed";
+interface AssetDto {
+    id: string;
+    familyGroupId: string;
+    name: string;
+    type: string;
+    currentValue: string;
+    currency: string;
+    notes: string | null;
+    investmentId?: string | null;
+    ownerUserId?: string | null;
+    quantity?: string | null;
+    unit?: string | null;
+    valuationModel?: AssetValuationModel;
+    costBasisPerUnit?: string | null;
+    internalCode?: string | null;
+    custodian?: string | null;
+    status?: AssetStatus;
+    soldAt?: string | null;
+    valueChangeRatePct: string | null;
+    valueChangeMode: AssetValueChangeMode;
+    valueChangeAmount: string | null;
+    categoryId: string | null;
+    acquisitionDate: string | null;
+    currentEstimatedValue: string;
+    createdAt: string;
+    updatedAt: string;
+}
+declare const DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT: Record<AssetTypeId, number>;
+/** EPIC-033 p14 — a document attached to a physical asset. */
+interface AssetAttachmentDto {
+    id: string;
+    assetId: string;
+    mimeType: string;
+    size: number;
+    createdAt: string;
+}
+interface AssetHistoryDto {
+    id: string;
+    assetId: string;
+    value: string;
+    recordedAt: string;
+    /** EPIC-033 group 3 — percent change vs the previous entry (2 decimals), null on the first. */
+    changePercent: string | null;
+    recordedByName: string | null;
+    note: string | null;
+}
+interface CreateAssetDto {
+    name: string;
+    type: string;
+    currentValue: string;
+    currency?: string;
+    notes?: string;
+    valueChangeRatePct?: string;
+    valueChangeMode?: AssetValueChangeMode;
+    valueChangeAmount?: string;
+    categoryId?: string;
+    acquisitionDate?: string;
+}
+interface UpdateAssetDto {
+    name?: string;
+    type?: string;
+    currentValue?: string;
+    currency?: string;
+    notes?: string;
+    valueChangeRatePct?: string;
+    valueChangeMode?: AssetValueChangeMode;
+    valueChangeAmount?: string;
+    categoryId?: string;
+    acquisitionDate?: string;
 }
 
 type LiabilityType = "kartu_kredit" | "pinjaman_pribadi" | "kpr" | "kendaraan" | "lainnya";
@@ -3476,7 +3831,7 @@ type AccessLevel = z.infer<typeof AccessLevelSchema>;
 declare const AccessDataScopeSchema: z.ZodEnum<["all", "own"]>;
 type AccessDataScope = z.infer<typeof AccessDataScopeSchema>;
 /** Sparse page → level map. A page that is absent means `none`. */
-declare const AccessPermissionsSchema: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+declare const AccessPermissionsSchema: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "investasi" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
 type AccessPermissions = Partial<Record<AccessPage, AccessLevel>>;
 type MemberRoleKey = "owner" | "spouse" | "member" | "admin_staff" | "dependant" | "operational";
 /**
@@ -3533,11 +3888,11 @@ declare const AccessRoleInputSchema: z.ZodObject<{
     name: z.ZodString;
     description: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     dataScope: z.ZodEnum<["all", "own"]>;
-    permissions: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+    permissions: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "investasi" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
 }, "strip", z.ZodTypeAny, {
     name: string;
     dataScope: "all" | "own";
-    permissions: Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
+    permissions: Partial<Record<"tax" | "investasi" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
     description?: string | null | undefined;
 }, {
     name: string;
@@ -3559,7 +3914,7 @@ declare const MemberAccessInputSchema: z.ZodObject<{
     /** null = no custom role (use the built-in role's preset). */
     accessRoleId: z.ZodNullable<z.ZodString>;
     /** Sparse overrides on top of the role; {} clears them. */
-    overrides: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
+    overrides: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEnum<["none", "view", "manage"]>>, Partial<Record<"tax" | "investasi" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>, Record<string, "none" | "view" | "manage">>;
     /**
      * "Lihat saldo". Omit to leave unchanged. false = member can still record
      * transactions but never sees balance figures.
@@ -3567,7 +3922,7 @@ declare const MemberAccessInputSchema: z.ZodObject<{
     canViewBalances: z.ZodOptional<z.ZodBoolean>;
 }, "strip", z.ZodTypeAny, {
     accessRoleId: string | null;
-    overrides: Partial<Record<"tax" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "investasi" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
+    overrides: Partial<Record<"tax" | "investasi" | "beranda" | "ringkasan" | "transaksi" | "anggaran" | "laporan" | "tujuan" | "dana" | "rekening" | "aset" | "liabilitas" | "asuransi" | "warisan" | "donation" | "persetujuan" | "splitbill" | "rekonsiliasi" | "ai" | "kalkulator" | "mastercoa" | "masterdata", "none" | "view" | "manage">>;
     canViewBalances?: boolean | undefined;
 }, {
     accessRoleId: string | null;
@@ -3691,4 +4046,4 @@ declare function accountTypeToAssetClass(type: string): AssetClassKey;
  */
 declare function warisanAssetTypeToAssetClass(assetType: string): AssetClassKey;
 
-export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASS_KEYS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, AUTOMATED_PRICE_SOURCES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClassKey, type AssetDto, type AssetHistoryDto, type AssetTypeId, type AssetValueChangeMode, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type ConfirmInsuranceReportDto, type ConfirmInsuranceReportItemDto, type ConfirmInsuranceReportResultDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceBenefitDto, type CreateInsuranceDto, type CreateInsuranceFundDto, type CreateInsuranceInsuredDto, type CreateInsuranceValuationDto, type CreateInvestmentLedgerInput, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INSURANCE_BENEFIT_KINDS, INSURANCE_BENEFIT_PERIODS, INSURANCE_POLICY_TYPES, INSURANCE_STATUSES, INSURANCE_VALUATION_STATUSES, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, INVESTMENT_VALUATION_BASES, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceBenefitDto, type InsuranceBenefitGroupDto, type InsuranceBenefitKind, type InsuranceBenefitPeriod, type InsuranceConfirmedValueDto, type InsuranceCurrencyTotalDto, type InsuranceDocumentDto, type InsuranceDto, type InsuranceFundDto, type InsuranceInsuredDto, type InsurancePayResultDto, type InsurancePaymentDto, type InsurancePaymentDueStatus, type InsurancePolicyType, type InsuranceReportConflict, type InsuranceReportErrorCode, type InsuranceReportFieldDto, type InsuranceReportFieldKey, type InsuranceReportFieldStatus, type InsuranceReportMissingDto, type InsuranceReportPreviewDto, type InsuranceReportValuationDraftDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InsuranceValuationDto, type InsuranceValuationSource, type InsuranceValuationStatus, type InterestMethod, type InvestmentBaseUnit, type InvestmentBondValuationDto, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDepositAccrualDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentLedgerConflictCode, type InvestmentLedgerConflictDto, type InvestmentLedgerConflictItem, type InvestmentLedgerCreateKind, type InvestmentLedgerHoldingState, type InvestmentLedgerResultDto, type InvestmentMarket, type InvestmentMoneyDto, type InvestmentPlatform, type InvestmentPlatformCashDto, type InvestmentPortfolioTotalsDto, type InvestmentPortfolioValuationDto, type InvestmentPortfolioValuationQuery, type InvestmentPriceBatchInput, type InvestmentPriceBatchResultDto, type InvestmentPriceBatchRowCode, type InvestmentPriceBatchRowInput, type InvestmentPriceBatchRowResult, type InvestmentPriceBatchRowStatus, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type InvestmentValuationBasis, type InvestmentValuationDto, type InvestmentValuationFxDto, type InvestmentValuationMethod, type InvestmentValuationPriceDto, type InvestmentValuationReason, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MANUAL_PRICE_SOURCES, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type ManualPriceSource, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, PREMIUM_PERIODS, PRICED_VALUATION_BASES, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PreviewInsuranceReportDto, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, SIMULATED_PRICE_SOURCE, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateInvestmentLedgerInput, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type VoidInvestmentLedgerInput, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, effectiveMarketFor, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };
+export { ACCESS_LEVELS, ACCESS_PAGES, ACTIVE_REFERENCE_ITEM_GROUPS, ALWAYS_OPEN_PAGES, ASSET_CLASSES, ASSET_CLASS_KEYS, ASSET_EVENT_STATUSES, ASSET_HISTORY_KINDS, PRICED_VALUATION_BASES as ASSET_PRICED_VALUATION_BASES, ASSET_SOURCE_MODULES, ASSET_STATUSES, ASSET_TRANSACTION_KINDS, INVESTMENT_VALUATION_BASES as ASSET_VALUATION_BASES, ASSET_VALUATION_MODELS, ATTACHMENT_ACCEPTED_MIME_TYPES, ATTACHMENT_MAX_FILE_BYTES, AUTOMATED_PRICE_SOURCES, type AccessDataScope, AccessDataScopeSchema, type AccessLevel, AccessLevelSchema, type AccessPage, AccessPageSchema, type AccessPermissions, AccessPermissionsSchema, type AccessRoleInput, AccessRoleInputSchema, type AccessRoleResponse, type AccountDto, AccountDtoSchema, type AccountOwnerFilter, AccountOwnerFilterSchema, type AccountOwnershipForm, AccountOwnershipFormSchema, type AccountShareInput, AccountShareInputSchema, type AccountStatus, AccountStatusSchema, type AccountSummaryItemDto, type AccountType, AccountTypeSchema, type ActiveReferenceItemGroup, type AllocationItemDto, type AllowanceRequestDto, AllowanceRequestDtoSchema, type AllowanceRequestKind, AllowanceRequestKindSchema, type AllowanceRequestStatus, AllowanceRequestStatusSchema, AllowedCategoryDtoSchema, type ApproveAllowanceRequestInput, ApproveAllowanceRequestInputSchema, type AssetAttachmentDto, type AssetClass, type AssetClassKey, type AssetDto, type AssetEventStatus, type AssetHistoryDto, type AssetHistoryEventDto, type AssetHistoryKind, type AssetHoldingStateDto, type AssetLedgerDto, type AssetOverviewRowDto, type AssetPriceDto, type AssetSourceLink, type AssetSourceModule, type AssetStatus, type AssetTransactionDto, type AssetTransactionKind, type AssetTransactionResultDto, type AssetTypeId, type AssetValuationBasis, type AssetValuationInput, type AssetValuationModel, type AssetValuationPreviewDto, type AssetValuationResultDto, type AssetValueChangeDto, type AssetValueChangeMode, type AssetsOverviewDto, type AssetsOverviewQuery, type AssetsOverviewSummaryDto, type AttachmentAcceptedMimeType, type AuthUser, AuthUserSchema, BANK_COUNTRIES, type BalanceSheetDto, type BankBreakdownItem, type BankCountry, type BankInstitutionKind, BankInstitutionKindSchema, type BankProductKind, BankProductKindSchema, type BankReportDto, type BondDetails, type BondPriceConvention, type BudgetDto, type BudgetPeriod, type BudgetType, CONTRACTS_VERSION, CUSTOM_PLATFORM_KEY, type CashflowDto, type CashflowStatementDto, type CategoryBreakdownItem, type CategoryDto, CategoryDtoSchema, type CategoryKind, CategoryKindSchema, type CoaChartBudgetType, type CoaChartDirection, type CoaChartEntry, type CoaMatrixCell, type CoaMatrixDto, type ConfirmInsuranceReportDto, type ConfirmInsuranceReportItemDto, type ConfirmInsuranceReportResultDto, type CreateAccountInput, CreateAccountInputSchema, type CreateAllowanceRequestInput, CreateAllowanceRequestInputSchema, type CreateAssetDto, type CreateAssetTransactionInput, type CreateBudgetDto, type CreateDonationDto, type CreateGoalContributionInput, CreateGoalContributionInputSchema, type CreateGoalDto, type CreateHeirDto, type CreateInheritanceAssetDto, type CreateInsuranceBeneficiaryDto, type CreateInsuranceBenefitDto, type CreateInsuranceDto, type CreateInsuranceFundDto, type CreateInsuranceInsuredDto, type CreateInsuranceValuationDto, type CreateInvestmentLedgerInput, type CreateLiabilityDto, type CreateLiabilityFloatingRateDto, type CreatePlatformAccountInput, type CreatePlatformPocketInput, type CreateReferenceItemDto, CreateReferenceItemDtoSchema, type CreateSplitBillDto, type CreateSplitParticipantDto, type CreateTaxFinalIncomeEntryDto, type CreateTaxRecordDto, type CreateTransactionInput, CreateTransactionInputSchema, type CryptoExchangeKind, DEFAULT_ASSET_VALUE_CHANGE_RATE_PCT, DEFAULT_ROLE_BY_RELATIONSHIP, type DashboardSummaryDto, type DepositDetails, type DepositInterestPayout, DepositInterestPayoutSchema, type DepositMaturityInstruction, DepositMaturityInstructionSchema, type DepositRollover, type DetailReportDto, type DetailTransactionItem, type DonationDto, type DonationType, type DtpEmployment, type DtpReason, type DtpSector, type EffectiveAccess, type ExportFormat, type ExportJobRequestDto, type ExportJobStatus, type ExportJobStatusDto, type ExportReportType, FAMILY_HANDLE_PATTERN, FOREIGN_FX_CURRENCY_CODES, FX_CURRENCY_CODES, FX_CURRENCY_DECIMALS, FX_RATE_SCALE, type FinalTaxEstimateDto, type FinalTaxLineDto, type ForeignFxCurrencyCode, type FxCurrencyCode, FxCurrencyCodeSchema, type FxInput, FxInputSchema, type FxRatesResponse, FxRatesResponseSchema, GENERIC_COA_CHART, type GoalContributionDto, GoalContributionDtoSchema, type GoalContributionResult, type GoalContributionSource, GoalContributionSourceSchema, type GoalDto, type GoalStatus, type GoldDetails, type GoldForm, type HeldExpenseResponse, HeldExpenseResponseSchema, ID_INTEREST_TAX_FREE_BALANCE, ID_INTEREST_TAX_RATE, INDONESIA, INSURANCE_BENEFIT_KINDS, INSURANCE_BENEFIT_PERIODS, INSURANCE_POLICY_TYPES, INSURANCE_STATUSES, INSURANCE_VALUATION_STATUSES, INVESTMENT_MARKET_KEYS, INVESTMENT_PLATFORMS, INVESTMENT_PRODUCT_KEYS, INVESTMENT_VALUATION_BASES, type InheritanceAssetDto, type InheritanceHeirDto, type InheritanceVisibility, type InsuranceBeneficiaryDto, type InsuranceBenefitDto, type InsuranceBenefitGroupDto, type InsuranceBenefitKind, type InsuranceBenefitPeriod, type InsuranceConfirmedValueDto, type InsuranceCurrencyTotalDto, type InsuranceDocumentDto, type InsuranceDto, type InsuranceFundDto, type InsuranceInsuredDto, type InsurancePayResultDto, type InsurancePaymentDto, type InsurancePaymentDueStatus, type InsurancePolicyType, type InsuranceReportConflict, type InsuranceReportErrorCode, type InsuranceReportFieldDto, type InsuranceReportFieldKey, type InsuranceReportFieldStatus, type InsuranceReportMissingDto, type InsuranceReportPreviewDto, type InsuranceReportValuationDraftDto, type InsuranceStatus, type InsuranceSummaryDto, type InsuranceType, type InsuranceValuationDto, type InsuranceValuationSource, type InsuranceValuationStatus, type InterestMethod, type InvestmentBaseUnit, type InvestmentBondValuationDto, type InvestmentCalcRequestDto, type InvestmentCalcResultDto, type InvestmentDepositAccrualDto, type InvestmentDetails, type InvestmentDisplayUnit, type InvestmentDto, type InvestmentLedgerConflictCode, type InvestmentLedgerConflictDto, type InvestmentLedgerConflictItem, type InvestmentLedgerCreateKind, type InvestmentLedgerHoldingState, type InvestmentLedgerResultDto, type InvestmentMarket, type InvestmentMoneyDto, type InvestmentPlatform, type InvestmentPlatformCashDto, type InvestmentPortfolioTotalsDto, type InvestmentPortfolioValuationDto, type InvestmentPortfolioValuationQuery, type InvestmentPriceBatchInput, type InvestmentPriceBatchResultDto, type InvestmentPriceBatchRowCode, type InvestmentPriceBatchRowInput, type InvestmentPriceBatchRowResult, type InvestmentPriceBatchRowStatus, type InvestmentPriceDto, type InvestmentProduct, type InvestmentSummaryDto, type InvestmentTransactionDto, type InvestmentTxKind, type InvestmentTxStatus, type InvestmentTxType, type InvestmentType, type InvestmentValuationBasis, type InvestmentValuationDto, type InvestmentValuationFxDto, type InvestmentValuationMethod, type InvestmentValuationPriceDto, type InvestmentValuationReason, type KprCalcRequestDto, type KprCalcResultDto, type KprScheme, LEGACY_ACCESS_PRESETS, LEGACY_RESIDUAL_NOTE, LOGIN_USERNAME_PATTERN, type LiabilityDto, type LiabilityFloatingRateDto, type LiabilityPaymentPreviewDto, type LiabilityPrepaymentDto, type LiabilityPrepaymentPreviewDto, type LiabilityPrepaymentRecordResultDto, type LiabilityRateBandDto, type LiabilityRatePeriodDto, type LiabilityScheduleDto, type LiabilityScheduleRowDto, type LiabilitySummaryDto, type LiabilityType, type LoginInput, LoginInputSchema, MANUAL_PRICE_SOURCES, MARKETS, MAX_LOGIN_USERNAME_LENGTH, MEMBER_USERNAME_PATTERN, type ManualPriceSource, type MarketConfig, type MemberAccessInput, MemberAccessInputSchema, type MemberCategoryAllowanceDto, MemberCategoryAllowanceDtoSchema, type MemberRelationship, MemberRelationshipSchema, type MemberRoleKey, type MyAccessResponse, type NetWorthDto, type NetWorthHistoryDto, type NetWorthHistoryPointDto, type NotificationDto, type OtherDetails, type OtherValuationMethod, POCKET_KINDS, PREMIUM_PERIODS, PRICED_VALUATION_BASES, type ParticipantStatus, type PeriodPoint, type PerpuluhanRequestDto, type PerpuluhanResultDto, type PlatformAccountDto, type PlatformPocketDto, type PlatformSyncMode, type PnlDto, type PocketKind, PocketKindSchema, type PocketTransferInput, type PocketTransferResultDto, type Pph21RequestDto, type Pph21ResultDto, type PphOpBracketDto, type PphOpPreviewRequestDto, type PphOpResultDto, type PpnPreviewRequestDto, type PpnPreviewResultDto, type PremiumPeriod, type PrepaymentMode, type PreviewInsuranceReportDto, type PublicSplitParticipantDto, REFERENCE_ITEM_DEFAULTS, type RatePeriodKind, type ReconciliationBridgeDto, type RecordLiabilityPrepaymentDto, type ReferenceItemDto, ReferenceItemDtoSchema, type ReferenceItemGroup, ReferenceItemGroupSchema, type ReferenceItemSeedEntry, type RejectAllowanceRequestInput, RejectAllowanceRequestInputSchema, type ReportPeriod, type ReportSummaryDto, type RetirementCalcRequestDto, type RetirementCalcResultDto, type Role, RoleSchema, type RoutingCodeKind, RoutingCodeKindSchema, type Rupiah, RupiahSchema, SIMULATED_PRICE_SOURCE, type SankeyDto, type SankeyLink, type SankeyNode, type SearchResponseDto, type SearchResultDto, type SearchResultType, type SetMemberCategoryAllowanceInput, SetMemberCategoryAllowanceInputSchema, type ShariaContract, ShariaContractSchema, type SplitBillDto, type SplitBillPayoutDto, type SplitParticipantDto, type SplitStatus, type SptStatus, type SptTimingDto, type TaxAnnualSummaryDto, type TaxBracketDto, type TaxCalcMode, type TaxDocumentDto, type TaxFinalIncomeEntryDto, type TaxFinalInstrument, type TaxMaritalStatus, type TaxRecordDto, type TaxRuleDetailDto, type TaxRuleRefDto, type TerCategory, type TerMonthDto, type TerPreviewRequestDto, type TerPreviewResultDto, type TransactionAttachmentDto, TransactionAttachmentDtoSchema, type TransactionDto, TransactionDtoSchema, type TransactionListResponse, TransactionListResponseSchema, type TransactionSummary, TransactionSummarySchema, type TransactionType, TransactionTypeSchema, type UmkmMonthDto, type UmkmPreviewRequestDto, type UmkmResultDto, type UpdateAccountInput, UpdateAccountInputSchema, type UpdateAssetDto, type UpdateAssetTransactionInput, type UpdateAssetValuationInput, type UpdateBudgetDto, type UpdateDonationDto, type UpdateGoalDto, type UpdateInheritanceAssetDto, type UpdateInsuranceDto, type UpdateInvestmentLedgerInput, type UpdateLiabilityDto, type UpdatePayoutAccountDto, type UpdatePlatformAccountInput, type UpdateTaxFinalIncomeEntryDto, type UpdateTaxRecordDto, type VoidAssetEventInput, type VoidInvestmentLedgerInput, type ZakatRequestDto, type ZakatResultDto, accountTypeToAssetClass, addMonthsUtc, assetTypeToAssetClass, bankCountry, buildFamilyLoginId, buildReferenceItemSeed, canAccessPage, convertToIdr, daysBetween, defaultCoaCodeForCategory, defaultRoleForRelationship, deriveIdrPerUnit, divRoundHalfUp, effectiveMarketFor, estimateNetInterest, findInvestmentPlatform, formatScaled, investmentTypeToAssetClass, isFamilyLoginId, isFxCurrency, isMasterOrCoMaster, isoDate, levelAtLeast, nextMaturityDate, parseMinor, parseScaled, resolveEffectiveAccess, slugifyHandleBase, warisanAssetTypeToAssetClass };

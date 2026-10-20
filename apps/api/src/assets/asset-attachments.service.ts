@@ -15,6 +15,9 @@ import { PrismaService } from "../prisma/prisma.service";
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { StoragePort } from "../storage/storage.port";
 
+import { viewerAssetWhere } from "./asset-access";
+
+import type { AssetViewer } from "./asset-access";
 import type { AssetAttachmentResponseDto } from "./dto/asset-response.dto";
 
 export const MAX_ASSET_ATTACHMENT_BYTES = 5 * 1024 * 1024;
@@ -31,9 +34,13 @@ export class AssetAttachmentsService {
     private readonly storage: StoragePort,
   ) {}
 
-  private async assertAsset(familyGroupId: string, assetId: string) {
+  private async assertAsset(
+    familyGroupId: string,
+    assetId: string,
+    viewer?: AssetViewer,
+  ) {
     const asset = await this.prisma.asset.findUnique({
-      where: { id: assetId, familyGroupId },
+      where: { id: assetId, familyGroupId, AND: [viewerAssetWhere(viewer)] },
       select: { id: true },
     });
     if (!asset) throw new NotFoundException("Asset not found");
@@ -43,8 +50,9 @@ export class AssetAttachmentsService {
     familyGroupId: string,
     assetId: string,
     file: { buffer: Buffer; size: number },
+    viewer?: AssetViewer,
   ): Promise<AssetAttachmentResponseDto> {
-    await this.assertAsset(familyGroupId, assetId);
+    await this.assertAsset(familyGroupId, assetId, viewer);
     if (file.size > MAX_ASSET_ATTACHMENT_BYTES) {
       throw new BadRequestException("File exceeds 5MB");
     }
@@ -71,8 +79,9 @@ export class AssetAttachmentsService {
   async findAll(
     familyGroupId: string,
     assetId: string,
+    viewer?: AssetViewer,
   ): Promise<AssetAttachmentResponseDto[]> {
-    await this.assertAsset(familyGroupId, assetId);
+    await this.assertAsset(familyGroupId, assetId, viewer);
     const rows = await this.prisma.assetAttachment.findMany({
       where: { assetId, familyGroupId },
       orderBy: { createdAt: "desc" },
@@ -80,7 +89,13 @@ export class AssetAttachmentsService {
     return rows.map((r) => this.toDto(r));
   }
 
-  async stream(familyGroupId: string, assetId: string, attachmentId: string) {
+  async stream(
+    familyGroupId: string,
+    assetId: string,
+    attachmentId: string,
+    viewer?: AssetViewer,
+  ) {
+    await this.assertAsset(familyGroupId, assetId, viewer);
     const row = await this.prisma.assetAttachment.findFirst({
       where: { id: attachmentId, assetId, familyGroupId },
     });
@@ -93,7 +108,9 @@ export class AssetAttachmentsService {
     familyGroupId: string,
     assetId: string,
     attachmentId: string,
+    viewer?: AssetViewer,
   ): Promise<void> {
+    await this.assertAsset(familyGroupId, assetId, viewer);
     const row = await this.prisma.assetAttachment.findFirst({
       where: { id: attachmentId, assetId, familyGroupId },
     });

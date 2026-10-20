@@ -75,6 +75,10 @@ export const RESOURCE_ACCESS = {
     write: ["investasi"],
   },
   assets: { read: ["aset", "warisan"], write: ["aset"] },
+  // Aset Task 17 review — the overview carries every account balance,
+  // holding, liability and net worth: only the Aset page opens it (assets
+  // read alone also opens for Warisan).
+  "assets.overview": { read: ["aset"], write: ["aset"] },
   inheritance: { read: ["warisan"], write: ["warisan"] },
   donations: { read: ["donation"], write: ["donation"] },
   tax: { read: ["tax"], write: ["tax"] },
