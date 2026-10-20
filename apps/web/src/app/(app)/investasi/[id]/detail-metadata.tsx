@@ -117,7 +117,7 @@ export function DetailMetadata({
 
   return (
     <InvestDialogShell
-      title={d.completeMetadata}
+      title={h.market ? d.editHolding : d.completeMetadata}
       subtitle={`${h.name} · ${copy.metaSub}`}
       icon={<ClipboardCheck />}
       busy={busy}

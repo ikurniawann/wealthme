@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -59,9 +59,11 @@ export default function InvestmentDetailPage() {
   const [tab, setTab] = useState<"summary" | "transactions" | "documents">(
     "summary",
   );
+  // `?edit=1` (the list's "Ubah data" row action) opens the edit dialog.
+  const searchParams = useSearchParams();
   const [action, setAction] = useState<
     "buy" | "sell" | "price" | "income" | "corporate" | "metadata" | null
-  >(null);
+  >(() => (searchParams.get("edit") === "1" ? "metadata" : null));
   const holding = useQuery({
     queryKey: ["investments-v3", fg, token, id],
     queryFn: () =>
@@ -215,7 +217,7 @@ export default function InvestmentDetailPage() {
               onClick={() => setAction("metadata")}
             >
               <PencilLine aria-hidden />
-              {d.completeMetadata}
+              {h.market ? d.editHolding : d.completeMetadata}
             </button>
           </div>
         )}

@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { MoreHorizontal, Search } from "lucide-react";
 import {
@@ -46,6 +47,7 @@ export function PortfolioTable({
   onAction: (action: InvestmentAction) => void;
 }) {
   const { t, locale } = useLocale();
+  const router = useRouter();
   const c = t.investasi.v3;
   const { hideBalance } = useMoney();
   const [search, setSearch] = useState("");
@@ -284,6 +286,13 @@ export function PortfolioTable({
                                         : c[kind]}
                                     </DropdownMenuItem>
                                   ))}
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    router.push(`/investasi/${h.id}?edit=1`)
+                                  }
+                                >
+                                  {t.investasi.detail.editHolding}
+                                </DropdownMenuItem>
                               </DropdownMenuGroup>
                             </DropdownMenuContent>
                           </DropdownMenu>

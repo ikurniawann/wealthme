@@ -61,6 +61,7 @@ export const investmentDetailId = {
   fees: "Biaya + pajak",
   unitPrice: "Harga per satuan dasar",
   completeMetadata: "Lengkapi data kepemilikan",
+  editHolding: "Ubah data investasi",
   metadataNote:
     "Data lama yang belum memiliki pasar atau platform harus dilengkapi sebelum mencatat transaksi baru.",
 };
@@ -127,6 +128,7 @@ export const investmentDetailEn: InvestmentDetailCopy = {
   fees: "Fees + taxes",
   unitPrice: "Price per base unit",
   completeMetadata: "Complete holding data",
+  editHolding: "Edit holding",
   metadataNote:
     "Legacy data without a market or platform must be completed before recording new trades.",
 };

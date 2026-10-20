@@ -106,9 +106,15 @@ export class InvestmentMetadataService {
               ? "saham_idx"
               : "saham_us"
             : h.type;
+      // Editing a holding (rename, owner, price source) must not fail on its
+      // own unchanged placement: the catalog may have narrowed since it was
+      // recorded. Only a new platform or market is checked.
+      const unchangedPlacement =
+        platformId === h.platformAccountId && dto.market === h.market;
       if (
         catalog &&
         catalog.key !== "custom" &&
+        !unchangedPlacement &&
         (!product || !catalog.products.includes(product))
       )
         throw new BadRequestException("Produk tidak tersedia di platform ini.");
