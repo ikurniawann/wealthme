@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { NotebookPen, Users, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -11,54 +12,54 @@ import {
   DialogTitle,
   PanelContent,
 } from "@/components/ui/dialog";
-import { Switch } from "@/components/ui/switch";
-import { DateField, PillButton } from "@/components/wm";
-import { AdvancedDisclosure } from "@/components/crud/advanced-disclosure";
-import { useLocale } from "@/hooks/use-locale";
+import { PillButton } from "@/components/wm";
 import {
-  MoneyInput,
   anyMoneyPending,
   moneyDigits,
-  useMoneyField,
+  useControlledMoneyField,
   withFxInputs,
 } from "@/components/money";
+import { useLocale } from "@/hooks/use-locale";
+import { apiFetch } from "@/lib/api-client";
+import { apiErrorMessage } from "@/lib/api-error";
 
-import { usePolicySave, type PolicySaveDto } from "./use-policy-save";
+import "./asuransi-form.css";
+import { AiReadButton, type AiApplyPayload } from "./ai-review";
+import { applyAiToForm } from "./ai-apply";
+import { jakartaToday } from "./asuransi-model";
 import {
   BeneficiaryEditor,
   toBeneficiaryDtos,
   type BeneficiaryFormRow,
   type FamilyMember,
 } from "./beneficiary-editor";
+import { InfoSection } from "./form-section-info";
+import { InvestmentSection } from "./form-section-investment";
+import { PremiumSection } from "./form-section-premium";
+import { PolicyDocuments } from "./policy-documents";
+import {
+  initialFormState,
+  toBenefitDtos,
+  toInsuredDtos,
+  validateForm,
+  type PolicyFormState,
+} from "./policy-form-model";
+import { usePolicySave, type PolicySaveDto } from "./use-policy-save";
 
 import type {
+  AccountDto,
+  FxCurrencyCode,
   InsuranceDto,
-  InsuranceStatus,
-  InsuranceType,
-  PremiumPeriod,
+  InsuranceValuationDto,
 } from "@wealthme/contracts";
 
-/**
- * The existing add/edit policy drawer, moved out of page.tsx unchanged in
- * behaviour (Task 24). Task 25 replaces it with the sectioned drawer.
- */
-
-const TYPE_OPTIONS: InsuranceType[] = [
-  "jiwa",
-  "kesehatan",
-  "kendaraan",
-  "properti",
-  "pendidikan",
-  "lainnya",
-];
-
-const STATUS_OPTIONS: InsuranceStatus[] = [
-  "aktif",
-  "tidak_aktif",
-  "kadaluarsa",
-];
-
-const PERIOD_OPTIONS: PremiumPeriod[] = ["monthly", "quarterly", "yearly"];
+export type FormAnchor = "info" | "premium" | "invest";
+const ANCHORS: FormAnchor[] = ["info", "premium", "invest"];
+const SECTION_ID: Record<FormAnchor, string> = {
+  info: "ins3f-info",
+  premium: "ins3f-premium",
+  invest: "ins3f-invest",
+};
 
 export interface InsuranceModalProps {
   familyGroupId: string;
@@ -66,325 +67,367 @@ export interface InsuranceModalProps {
   editing: InsuranceDto | null;
   familyMembers: FamilyMember[];
   membersUnavailable?: boolean;
+  accounts: AccountDto[];
+  /** Section to scroll to on open (detail "Perbarui nilai" → invest). */
+  initialAnchor?: FormAnchor;
   onClose: () => void;
+  onSaved?: (policy: InsuranceDto) => void;
 }
 
 /**
- * Add + edit policy modal (EPIC-021 Group D #14 unified the previously
- * separate generic edit-modal path into this richer form so beneficiaries —
- * and every other field — are editable in one place, "the policy modal").
+ * Task 25 — the add/edit policy drawer per asuransi-form.png: wide side panel
+ * on desktop, full-screen sheet on phones, one long form with section
+ * anchors (Informasi polis / Premi & manfaat / Investasi — only the section in
+ * view is highlighted; these are anchors, not tabs), collapsible
+ * beneficiaries + documents and notes, sticky footer.
  */
-export function InsuranceModal({
-  familyGroupId,
-  token,
-  editing,
-  familyMembers,
-  membersUnavailable,
-  onClose,
-}: InsuranceModalProps) {
-  const { t, locale } = useLocale();
-
-  const [name, setName] = useState(editing?.name ?? "");
-  const [provider, setProvider] = useState(editing?.provider ?? "");
-  const [type, setType] = useState<InsuranceType>(editing?.type ?? "jiwa");
-  const [status, setStatus] = useState<InsuranceStatus>(
-    editing?.status ?? "aktif",
-  );
-  const premiumField = useMoneyField({
-    initialRaw: editing ? BigInt(editing.premiumAmount).toString() : "",
-    isEdit: !!editing,
+export function InsuranceModal(props: InsuranceModalProps) {
+  const { editing, familyGroupId, token } = props;
+  const { t } = useLocale();
+  const valuations = useQuery<InsuranceValuationDto[]>({
+    queryKey: ["insurances", familyGroupId, "valuations", editing?.id ?? "new"],
+    enabled: Boolean(editing && token),
+    queryFn: () =>
+      apiFetch<InsuranceValuationDto[]>(
+        `/family-groups/${familyGroupId}/insurances/${editing!.id}/valuations`,
+        { token },
+      ),
   });
-  const [premiumPeriod, setPremiumPeriod] = useState<PremiumPeriod>(
-    editing?.premiumPeriod ?? "monthly",
-  );
-  const coverageField = useMoneyField({
-    initialRaw: editing?.coverageAmount
-      ? BigInt(editing.coverageAmount).toString()
-      : "",
-    isEdit: !!editing,
-  });
-  const [renewalDate, setRenewalDate] = useState(
-    editing?.nextPremiumDueDate ?? editing?.renewalDate?.slice(0, 10) ?? "",
-  );
-  const [autoRenewDate, setAutoRenewDate] = useState(
-    editing?.autoRenewDate ?? false,
-  );
-  const [policyNumber, setPolicyNumber] = useState(editing?.policyNumber ?? "");
-  const [notes, setNotes] = useState(editing?.notes ?? "");
-  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryFormRow[]>(
-    editing?.beneficiaries.map((b) => ({
-      id: b.id,
-      name: b.name,
-      relationship: b.relationship,
-      sharePercent: b.sharePercent,
-      memberUserId: b.memberUserId ?? "",
-    })) ?? [],
-  );
-
-  const mutation = usePolicySave(familyGroupId, token, editing, onClose);
-
-  function handleSave() {
-    const trimmedName = name.trim();
-    if (!trimmedName) {
-      toast.warning(t.asuransi.validationNameRequired);
-      return;
-    }
-    if (anyMoneyPending(premiumField, coverageField)) {
-      toast.error(t.money.rateNotReady);
-      return;
-    }
-    const parsedPremium = Number(moneyDigits(premiumField) || "0");
-    if (parsedPremium <= 0) {
-      toast.warning(t.asuransi.validationPremiumPositive);
-      return;
-    }
-
-    const beneficiaryDtos = toBeneficiaryDtos(beneficiaries, t.asuransi);
-    if (!beneficiaryDtos) return;
-
-    const dto: PolicySaveDto = {
-      name: trimmedName,
-      type,
-      status,
-      premiumAmount: String(parsedPremium),
-      premiumPeriod,
-      ...(provider.trim() && { provider: provider.trim() }),
-      ...(coverageField.raw && {
-        coverageAmount: moneyDigits(coverageField),
-      }),
-      ...(renewalDate && { nextPremiumDueDate: renewalDate, autoRenewDate }),
-      ...(policyNumber.trim() && { policyNumber: policyNumber.trim() }),
-      ...(notes.trim() && { notes: notes.trim() }),
-      beneficiaries: beneficiaryDtos,
-    };
-
-    mutation.mutate(
-      withFxInputs(dto, [
-        ["premiumAmount", premiumField],
-        ["coverageAmount", coverageField.raw ? coverageField : null],
-      ]),
-    );
-  }
-
+  const ready = !editing || valuations.isSuccess || valuations.isError;
   return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <PanelContent variant="side" className="wm-form-panel">
+    <Dialog open onOpenChange={(v) => !v && props.onClose()}>
+      <PanelContent variant="side" className="ins3f-panel">
         <header className="wm-panel-head">
           <div className="min-w-0">
             <DialogTitle className="wm-panel-title">
-              {editing ? t.asuransi.modalEditTitle : t.asuransi.modalTitle}
+              {editing
+                ? t.asuransi.v3.form.editTitle
+                : t.asuransi.v3.form.addTitle}
             </DialogTitle>
             <DialogDescription className="wm-panel-desc">
-              {t.asuransi.modalDesc}
+              {t.asuransi.v3.form.desc}
             </DialogDescription>
           </div>
           <DialogClose className="wm-panel-x" aria-label={t.common.close}>
             <X aria-hidden="true" />
           </DialogClose>
         </header>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSave();
-          }}
-          className="flex min-h-0 flex-1 flex-col"
-        >
-          <div className="wm-panel-body wm-form">
-            <div className="wm-form__grid">
-              <div className="wm-form__grid">
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-name">
-                    {t.asuransi.fieldNameLabel}
-                  </label>
-                  <input
-                    id="ins-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={t.asuransi.fieldNamePlaceholder}
-                    className="input"
-                  />
-                </div>
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-provider">
-                    {t.asuransi.fieldProviderLabel}
-                  </label>
-                  <input
-                    id="ins-provider"
-                    type="text"
-                    value={provider}
-                    onChange={(e) => setProvider(e.target.value)}
-                    placeholder={t.asuransi.fieldProviderPlaceholder}
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              <div className="wm-form__grid">
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-type">
-                    {t.asuransi.fieldTypeLabel}
-                  </label>
-                  <select
-                    id="ins-type"
-                    value={type}
-                    onChange={(e) => setType(e.target.value as InsuranceType)}
-                    className="select"
-                  >
-                    {TYPE_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {t.asuransi.typeLabels[opt]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-status">
-                    {t.asuransi.fieldStatusLabel}
-                  </label>
-                  <select
-                    id="ins-status"
-                    value={status}
-                    onChange={(e) =>
-                      setStatus(e.target.value as InsuranceStatus)
-                    }
-                    className="select"
-                  >
-                    {STATUS_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {t.asuransi.statusLabels[opt]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="wm-form__grid--two">
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-premium">
-                    {t.asuransi.fieldPremiumLabel}
-                  </label>
-                  <MoneyInput
-                    field={premiumField}
-                    id="ins-premium"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-period">
-                    {t.asuransi.fieldPeriodLabel}
-                  </label>
-                  <select
-                    id="ins-period"
-                    value={premiumPeriod}
-                    onChange={(e) =>
-                      setPremiumPeriod(e.target.value as PremiumPeriod)
-                    }
-                    className="select"
-                  >
-                    {PERIOD_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt}>
-                        {t.asuransi.periodOptionLabels[opt]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="wm-form__grid--two">
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-coverage">
-                    {t.asuransi.fieldCoverageLabel}
-                  </label>
-                  <MoneyInput
-                    field={coverageField}
-                    id="ins-coverage"
-                    placeholder="0"
-                  />
-                </div>
-                <div className="field mt-0">
-                  <label className="label" htmlFor="ins-renewal">
-                    {t.asuransi.fieldRenewalDateLabel}
-                  </label>
-                  <DateField
-                    id="ins-renewal"
-                    value={renewalDate}
-                    locale={locale}
-                    label={t.asuransi.fieldRenewalDateLabel}
-                    onChange={setRenewalDate}
-                  />
-                </div>
-              </div>
-
-              <div className="field">
-                <label className="label" htmlFor="ins-policy-number">
-                  {t.asuransi.fieldPolicyNumberLabel}
-                </label>
-                <input
-                  id="ins-policy-number"
-                  type="text"
-                  value={policyNumber}
-                  onChange={(e) => setPolicyNumber(e.target.value)}
-                  placeholder={t.asuransi.fieldPolicyNumberPlaceholder}
-                  className="input mono"
-                />
-              </div>
-
-              {renewalDate && (
-                <div className="row mt-3">
-                  <Switch
-                    checked={autoRenewDate}
-                    onCheckedChange={setAutoRenewDate}
-                    aria-labelledby="ins-auto-renew-label"
-                  />
-                  <span className="text-[13px]" id="ins-auto-renew-label">
-                    {t.asuransi.autoRenewLabel}
-                  </span>
-                </div>
-              )}
-
-              <div className="field">
-                <label className="label" htmlFor="ins-notes">
-                  {t.asuransi.fieldNotesLabel}
-                </label>
-                <textarea
-                  id="ins-notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  rows={2}
-                  placeholder={t.asuransi.fieldNotesPlaceholder}
-                  className="textarea resize-none"
-                />
-              </div>
-
-              <AdvancedDisclosure
-                label={t.asuransi.beneficiariesOptionalLabel}
-                defaultOpen={beneficiaries.length > 0}
-              >
-                <BeneficiaryEditor
-                  rows={beneficiaries}
-                  onChange={setBeneficiaries}
-                  familyMembers={familyMembers}
-                  membersUnavailable={membersUnavailable}
-                  showSectionTitle={false}
-                />
-              </AdvancedDisclosure>
-            </div>
-          </div>
-          <div className="wm-panel-foot">
-            <PillButton type="button" onClick={onClose}>
-              {t.common.cancel}
-            </PillButton>
-            <PillButton
-              type="submit"
-              variant="primary"
-              disabled={mutation.isPending}
-            >
-              {mutation.isPending ? t.asuransi.saving : t.asuransi.saveButton}
-            </PillButton>
-          </div>
-        </form>
+        {ready ? (
+          <PolicyFormBody {...props} valuations={valuations.data ?? []} />
+        ) : (
+          <p className="ins3-state wm-panel-body" role="status">
+            {t.asuransi.v3.loading}
+          </p>
+        )}
       </PanelContent>
     </Dialog>
+  );
+}
+
+function PolicyFormBody({
+  familyGroupId,
+  token,
+  editing,
+  familyMembers,
+  membersUnavailable,
+  accounts,
+  initialAnchor,
+  onClose,
+  onSaved,
+  valuations,
+}: InsuranceModalProps & { valuations: InsuranceValuationDto[] }) {
+  const { t } = useLocale();
+  const c = t.asuransi.v3.form;
+  const [state, setState] = useState<PolicyFormState>(() =>
+    initialFormState(editing, valuations),
+  );
+  const [premium, setPremium] = useState<{
+    raw: string;
+    currency: FxCurrencyCode | null;
+  }>(() => ({
+    raw: editing ? BigInt(editing.premiumAmount).toLocaleString("id-ID") : "",
+    currency: editing ? "IDR" : null,
+  }));
+  const premiumField = useControlledMoneyField({
+    ...premium,
+    onChange: setPremium,
+  });
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryFormRow[]>(
+    () =>
+      editing?.beneficiaries.map((b) => ({
+        id: b.id,
+        name: b.name,
+        relationship: b.relationship,
+        sharePercent: b.sharePercent,
+        memberUserId: b.memberUserId ?? "",
+      })) ?? [],
+  );
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [aiFile, setAiFile] = useState<File | null>(null);
+  const [seed, setSeed] = useState(0);
+  const [active, setActive] = useState<FormAnchor>(initialAnchor ?? "info");
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const { mutation, savedPolicyId } = usePolicySave(
+    familyGroupId,
+    token,
+    editing,
+  );
+
+  const set = useCallback(
+    (patch: Partial<PolicyFormState>) => setState((s) => ({ ...s, ...patch })),
+    [],
+  );
+
+  // Highlight only the section in view (anchors, not tabs).
+  useEffect(() => {
+    const root = bodyRef.current;
+    if (!root) return;
+    const onScroll = () => {
+      const top = root.getBoundingClientRect().top + 96;
+      let current: FormAnchor = "info";
+      for (const a of ANCHORS) {
+        const el = document.getElementById(SECTION_ID[a]);
+        if (el && el.getBoundingClientRect().top <= top) current = a;
+      }
+      if (root.scrollTop + root.clientHeight >= root.scrollHeight - 4)
+        current = "invest";
+      setActive(current);
+    };
+    root.addEventListener("scroll", onScroll, { passive: true });
+    return () => root.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const jump = useCallback((a: FormAnchor) => {
+    setActive(a);
+    document
+      .getElementById(SECTION_ID[a])
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  useEffect(() => {
+    if (initialAnchor && initialAnchor !== "info") {
+      const id = window.setTimeout(() => jump(initialAnchor), 120);
+      return () => window.clearTimeout(id);
+    }
+  }, [initialAnchor, jump]);
+
+  function applyAi(payload: AiApplyPayload) {
+    const { next, premium: p } = applyAiToForm(state, payload);
+    setState(next);
+    if (p) setPremium({ raw: p.raw, currency: p.currency as FxCurrencyCode });
+    setAiFile(payload.file);
+    setSeed((n) => n + 1);
+    toast.success(c.aiApplied);
+  }
+
+  function handleSave() {
+    setFormError(null);
+    if (anyMoneyPending(premiumField))
+      return setFormError(t.money.rateNotReady);
+    const digits = moneyDigits(premiumField);
+    const issues = validateForm(state, digits, jakartaToday(), c.issues);
+    setErrors(Object.fromEntries(issues.map((i) => [i.field, i.message])));
+    if (issues.length > 0) {
+      setFormError(c.fixErrors);
+      const first = issues[0].field;
+      const anchor: FormAnchor =
+        first.startsWith("fund") || first === "cash"
+          ? "invest"
+          : first === "name" || first.startsWith("coverage")
+            ? "info"
+            : "premium";
+      jump(anchor);
+      return;
+    }
+    const beneficiaryDtos = toBeneficiaryDtos(beneficiaries, t.asuransi);
+    if (!beneficiaryDtos) return;
+    const isEdit = Boolean(editing || savedPolicyId());
+    const opt = (v: string) =>
+      v.trim() ? v.trim() : isEdit ? null : undefined;
+    const dto = {
+      name: state.name.trim(),
+      type: state.type,
+      status: state.status,
+      premiumAmount: digits,
+      premiumPeriod: state.premiumPeriod,
+      currency: state.currency,
+      ...(state.provider.trim() || isEdit
+        ? { provider: state.provider.trim() }
+        : {}),
+      ...(state.policyNumber.trim() || isEdit
+        ? { policyNumber: state.policyNumber.trim() }
+        : {}),
+      ...(state.notes.trim() || isEdit ? { notes: state.notes.trim() } : {}),
+      policyType: state.policyType || (isEdit ? null : undefined),
+      nextPremiumDueDate: opt(state.nextPremiumDueDate),
+      policyRenewalDate: opt(state.policyRenewalDate),
+      premiumPaymentEndDate: opt(state.premiumPaymentEndDate),
+      coverageStartDate: opt(state.coverageStartDate),
+      coverageEndDate: opt(state.coverageEndDate),
+      autoRenewDate: Boolean(state.nextPremiumDueDate) && state.autoRenewDate,
+      holderUserId: opt(state.holderUserId),
+      holderName: state.holderUserId
+        ? isEdit
+          ? null
+          : undefined
+        : opt(state.holderName),
+      payerUserId: opt(state.payerUserId),
+      payerName: state.payerUserId
+        ? isEdit
+          ? null
+          : undefined
+        : opt(state.payerName),
+      paymentAccountId: opt(state.paymentAccountId),
+      insured: toInsuredDtos(state.insured),
+      benefits: toBenefitDtos(state.benefits),
+      includeInNetWorth: state.includeInNetWorth,
+      beneficiaries: beneficiaryDtos,
+    } as PolicySaveDto;
+    mutation.mutate(
+      {
+        dto: withFxInputs(dto, [["premiumAmount", premiumField]]),
+        funds: state.policyType === "unit_link" ? state.funds : [],
+        cash: state.policyType === "traditional" ? state.cash : null,
+        documentFile: aiFile,
+      },
+      {
+        onSuccess: (policy) => {
+          toast.success(
+            editing ? t.asuransi.toastUpdated : t.asuransi.toastAdded,
+          );
+          onSaved?.(policy);
+          onClose();
+        },
+        onError: (err) => {
+          const msg = apiErrorMessage(err, c.saveFailed);
+          setFormError(
+            savedPolicyId() && !editing ? `${c.savedPartially} ${msg}` : msg,
+          );
+          bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+        },
+      },
+    );
+  }
+
+  return (
+    <form
+      noValidate
+      className="ins3f-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSave();
+      }}
+    >
+      <nav className="ins3f-anchors" aria-label={c.anchorsLabel}>
+        {ANCHORS.map((a) => (
+          <a
+            key={a}
+            href={`#${SECTION_ID[a]}`}
+            aria-current={active === a ? "location" : undefined}
+            onClick={(e) => {
+              e.preventDefault();
+              jump(a);
+            }}
+          >
+            {c.anchors[a]}
+          </a>
+        ))}
+      </nav>
+      <div className="wm-panel-body ins3f-body" ref={bodyRef}>
+        {formError && (
+          <p className="ins3f-form-error" role="alert">
+            {formError}
+          </p>
+        )}
+        <div className="ins3f-cols">
+          <InfoSection
+            state={state}
+            set={set}
+            members={familyMembers}
+            errors={errors}
+            seed={seed}
+          />
+          <PremiumSection
+            state={state}
+            set={set}
+            premiumField={premiumField}
+            accounts={accounts}
+            errors={errors}
+          />
+        </div>
+        <InvestmentSection
+          state={state}
+          set={set}
+          errors={errors}
+          aiAction={
+            <AiReadButton insuranceId={editing?.id ?? null} onApply={applyAi} />
+          }
+        />
+        <details
+          className="ins3f-more"
+          open={beneficiaries.length > 0 || Boolean(aiFile)}
+        >
+          <summary>
+            <Users aria-hidden="true" />
+            <span>
+              <strong>{c.moreTitle}</strong> <em>{c.optional}</em>
+              <small>{c.moreSub}</small>
+            </span>
+          </summary>
+          <div className="ins3f-more-body">
+            <BeneficiaryEditor
+              rows={beneficiaries}
+              onChange={setBeneficiaries}
+              familyMembers={familyMembers}
+              membersUnavailable={membersUnavailable}
+            />
+            <p className="label mt-4">{c.docsTitle}</p>
+            {aiFile && (
+              <p className="hint">{`${c.docsPending} ${aiFile.name}`}</p>
+            )}
+            {editing ? (
+              <PolicyDocuments insuranceId={editing.id} />
+            ) : (
+              <p className="hint">{c.docsAfterSave}</p>
+            )}
+          </div>
+        </details>
+        <details className="ins3f-more" open={Boolean(state.notes)}>
+          <summary>
+            <NotebookPen aria-hidden="true" />
+            <span>
+              <strong>{c.notesTitle}</strong> <em>{c.optional}</em>
+              <small>{c.notesSub}</small>
+            </span>
+          </summary>
+          <div className="ins3f-more-body">
+            <label className="label" htmlFor="ins3f-notes">
+              {t.asuransi.fieldNotesLabel}
+            </label>
+            <textarea
+              id="ins3f-notes"
+              className="textarea ins3f-input"
+              rows={3}
+              value={state.notes}
+              placeholder={t.asuransi.fieldNotesPlaceholder}
+              onChange={(e) => set({ notes: e.target.value })}
+            />
+          </div>
+        </details>
+      </div>
+      <div className="wm-panel-foot ins3f-foot">
+        <PillButton type="button" onClick={onClose}>
+          {t.common.cancel}
+        </PillButton>
+        <PillButton
+          type="submit"
+          variant="primary"
+          disabled={mutation.isPending}
+        >
+          {mutation.isPending ? t.asuransi.saving : c.save}
+        </PillButton>
+      </div>
+    </form>
   );
 }

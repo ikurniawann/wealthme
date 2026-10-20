@@ -197,8 +197,7 @@ function AsuransiPageInner() {
   const onAction = (action: PolicyAction, policy: InsuranceDto) => {
     if (action === "pay") setPayFor({ policyId: policy.id });
     else if (action === "delete") setDeleting(policy);
-    // Until the detail route (Task 25) exists, "Lihat detail" opens the
-    // policy drawer, which shows every stored field.
+    else if (action === "detail") router.push(`/asuransi/${policy.id}`);
     else setFormTarget(policy);
   };
   const closeForm = useCallback(() => setFormTarget(null), []);
@@ -253,7 +252,7 @@ function AsuransiPageInner() {
                 policies.find((p) => p.policyType === "unit_link")?.id ?? null,
             })
           }
-          onDetail={(p) => setFormTarget(p)}
+          onDetail={(p) => router.push(`/asuransi/${p.id}`)}
         />
       </div>
 
@@ -265,6 +264,7 @@ function AsuransiPageInner() {
           editing={formTarget === "add" ? null : formTarget}
           familyMembers={familyMembers}
           membersUnavailable={members.isError}
+          accounts={accounts.data ?? []}
           onClose={closeForm}
         />
       )}
