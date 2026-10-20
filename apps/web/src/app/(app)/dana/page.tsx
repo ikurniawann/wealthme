@@ -24,6 +24,7 @@ import { KasForm, type KasFormOpen } from "./kas-form";
 import {
   applyFilters,
   EMPTY_FILTERS,
+  hasActiveFilters,
   needsCheck,
   toRows,
   totals,
@@ -85,7 +86,12 @@ export default function DanaPage() {
     () => toRows(allAccounts ?? [], rates, new Date(), c.family),
     [allAccounts, rates, c.family],
   );
-  const sum = useMemo(() => totals(rows), [rows]);
+  const [filters, setFilters] = useState<KasFilters>(EMPTY_FILTERS);
+  const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters]);
+  // The summary follows the search and filters (includeInNetWorth still
+  // decides what is counted, inside `totals`).
+  const sum = useMemo(() => totals(filtered), [filtered]);
+  const isFiltered = hasActiveFilters(filters);
   const kasIds = useMemo(() => new Set(rows.map((r) => r.account.id)), [rows]);
 
   const { data: recentResponse } = useQuery<TransactionListResponse>({
@@ -112,7 +118,6 @@ export default function DanaPage() {
     [recentResponse, kasIds],
   );
 
-  const [filters, setFilters] = useState<KasFilters>(EMPTY_FILTERS);
   const [hidden, setHidden] = useState(false);
   const [form, setForm] = useState<KasFormOpen | null>(null);
   const [reconciling, setReconciling] = useState<KasRow | null>(null);
@@ -122,7 +127,6 @@ export default function DanaPage() {
   const myAccounts = (allAccounts ?? []).filter(
     (a) => !!myUserId && a.ownerUserId === myUserId,
   );
-  const filtered = applyFilters(rows, filters);
   const attention = canManage ? needsCheck(rows) : [];
 
   async function refresh() {
@@ -163,8 +167,10 @@ export default function DanaPage() {
         onAdd={addForm}
       />
       <KasSummary
-        rows={rows}
+        rows={filtered}
         totals={sum}
+        filtered={isFiltered}
+        onClearFilters={() => setFilters(EMPTY_FILTERS)}
         rates={rates}
         hidden={hidden}
         onToggleHidden={() => setHidden((h) => !h)}

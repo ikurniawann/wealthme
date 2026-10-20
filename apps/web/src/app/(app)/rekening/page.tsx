@@ -29,6 +29,7 @@ import {
 import {
   EMPTY_FILTERS,
   applyFilters,
+  hasActiveFilters,
   attentionItems,
   groupByBank,
   insuranceExposures,
@@ -155,14 +156,31 @@ export default function RekeningPage() {
     () => toRows(bankAccounts, today, { family: c.page.familyHolder }),
     [bankAccounts, today, c.page.familyHolder],
   );
-  const openRows = rows.filter((r) => r.account.status !== "closed");
+  const filtered = useMemo(() => {
+    const base = applyFilters(rows, filters, myUserId);
+    const focused = focusIds
+      ? base.filter((r) => focusIds.includes(r.account.id))
+      : base;
+    return sortRows(focused, sort);
+  }, [rows, filters, myUserId, focusIds, sort]);
+  // The hero summary follows the search, filters and attention focus — the
+  // same rows the list shows (closed accounts never count toward balances).
+  const isFiltered = hasActiveFilters(filters) || focusIds !== null;
+  const summaryRows = useMemo(
+    () => filtered.filter((r) => r.account.status !== "closed"),
+    [filtered],
+  );
   const exposures = useMemo(
     () => insuranceExposures(rows, rates),
     [rows, rates],
   );
-  const liq = liquidity(rows);
-  const insured = insuredShare(exposures);
-  const uninsured = exposures.reduce(
+  const summaryExposures = useMemo(
+    () => insuranceExposures(summaryRows, rates),
+    [summaryRows, rates],
+  );
+  const liq = liquidity(summaryRows);
+  const insured = insuredShare(summaryExposures);
+  const uninsured = summaryExposures.reduce(
     (s, e) => s + Math.max(0, e.total - e.capIdr),
     0,
   );
@@ -173,16 +191,9 @@ export default function RekeningPage() {
       ? liq.total / usdPerUnit
       : null;
 
-  const filtered = useMemo(() => {
-    const base = applyFilters(rows, filters, myUserId);
-    const focused = focusIds
-      ? base.filter((r) => focusIds.includes(r.account.id))
-      : base;
-    return sortRows(focused, sort);
-  }, [rows, filters, myUserId, focusIds, sort]);
   const groups = groupByBank(filtered, filters.hideEmpty && !focusIds);
   const resultTotal = filtered.reduce((s, r) => s + (r.balance ?? 0), 0);
-  const bankCount = new Set(openRows.map((r) => r.bankKey)).size;
+  const bankCount = new Set(summaryRows.map((r) => r.bankKey)).size;
 
   const { lookFor, setLook } = useCardLooks(accounts);
   const myAccounts = (accounts ?? []).filter(
@@ -231,11 +242,16 @@ export default function RekeningPage() {
     <div className="rk3">
       <div className="rk3-top">
         <RekeningHero
-          rows={openRows}
+          rows={summaryRows}
           liquidity={liq}
           insuredShare={insured}
           uninsured={uninsured}
-          interest={monthlyNetInterest(rows)}
+          interest={monthlyNetInterest(summaryRows)}
+          filtered={isFiltered}
+          onClearFilters={() => {
+            setFilters(EMPTY_FILTERS);
+            setFocusIds(null);
+          }}
           bankCount={bankCount}
           usdTotal={usdTotal}
           loading={isLoading}

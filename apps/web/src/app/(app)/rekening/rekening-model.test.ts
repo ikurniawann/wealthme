@@ -3,6 +3,7 @@ import type { AccountDto, FxRatesResponse } from "@wealthme/contracts";
 import { findKnownBank } from "./bank-directory";
 import {
   EMPTY_FILTERS,
+  hasActiveFilters,
   applyFilters,
   attentionItems,
   composition,
@@ -243,5 +244,18 @@ describe("filters & grouping", () => {
     expect(groups.map((g) => g.bankName)).toEqual(["BCA", "BNI"]);
     expect(groups[0].rows.map((r) => r.account.id)).toEqual(["1"]);
     expect(groups[0].emptyRows.map((r) => r.account.id)).toEqual(["2"]);
+  });
+});
+
+// Client bug 2026-10-21 — the hero summary ignored search and filters.
+describe("hasActiveFilters", () => {
+  it("ignores the defaults and hideEmpty, flags any narrowing", () => {
+    expect(hasActiveFilters(EMPTY_FILTERS)).toBe(false);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, hideEmpty: false })).toBe(
+      false,
+    );
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, query: "bca" })).toBe(true);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, banks: ["bca"] })).toBe(true);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, status: "all" })).toBe(true);
   });
 });

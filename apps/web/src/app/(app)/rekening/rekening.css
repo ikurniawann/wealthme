@@ -44,6 +44,35 @@
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
   }
+  .rk3-filtered {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    font-size: var(--wm-type-13);
+  }
+  .rk3-filtered-chip {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--wm-lime);
+    color: var(--wm-lime-ink);
+    font-weight: 700;
+  }
+  .rk3-filtered button {
+    background: none;
+    border: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
+  .rk3-filtered button:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+  }
   .rk3-sub {
     margin-top: 6px;
     color: var(--wm-muted);

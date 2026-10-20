@@ -14,6 +14,8 @@ export interface DanaV3Copy {
     showBalance: string;
     hideBalance: string;
     accountsCurrencies: string;
+    filteredHint: string;
+    clearFilters: string;
     cash: string;
     ewallet: string;
     accountsN: string;
@@ -164,6 +166,8 @@ export const danaV3Id: DanaV3Copy = {
     showBalance: "Tampilkan saldo",
     hideBalance: "Sembunyikan saldo",
     accountsCurrencies: "{n} akun • {c} mata uang",
+    filteredHint: "Sesuai filter",
+    clearFilters: "Hapus filter",
     cash: "Tunai",
     ewallet: "E-Wallet",
     accountsN: "{n} akun",
@@ -319,6 +323,8 @@ export const danaV3En: DanaV3Copy = {
     showBalance: "Show balances",
     hideBalance: "Hide balances",
     accountsCurrencies: "{n} accounts • {c} currencies",
+    filteredHint: "Matching filters",
+    clearFilters: "Clear filters",
     cash: "Cash",
     ewallet: "E-wallets",
     accountsN: "{n} accounts",

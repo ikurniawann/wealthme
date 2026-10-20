@@ -413,9 +413,7 @@ export function RekeningFilterPanel(props: FiltersProps) {
       <div className="rk3-active">
         <span className="rk3-result">
           <b>{fill(c.page.accountsCount, { n: props.resultCount })}</b> ·{" "}
-          <span className="wm-num">
-            {money.formatCompact(props.resultTotal)}
-          </span>
+          <span className="wm-num">{money.format(props.resultTotal)}</span>
         </span>
         {chips.map((ch) => (
           <button

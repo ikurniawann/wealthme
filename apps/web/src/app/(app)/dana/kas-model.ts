@@ -133,6 +133,17 @@ export const EMPTY_FILTERS: KasFilters = {
   owner: null,
 };
 
+/** True when a search or any filter narrows the rows. */
+export function hasActiveFilters(f: KasFilters): boolean {
+  return (
+    f.q.trim() !== "" ||
+    f.kind !== "all" ||
+    f.country !== "" ||
+    f.currency !== "" ||
+    f.owner !== null
+  );
+}
+
 export function applyFilters(rows: readonly KasRow[], f: KasFilters): KasRow[] {
   const q = f.q.trim().toLowerCase();
   return rows.filter((r) => {

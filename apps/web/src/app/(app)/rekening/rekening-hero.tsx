@@ -40,6 +40,9 @@ interface HeroProps {
   error: boolean;
   canManage: boolean;
   onAdd: () => void;
+  /** A search, filter or focus narrows the rows: say so, offer to clear. */
+  filtered?: boolean;
+  onClearFilters?: () => void;
 }
 
 /**
@@ -62,6 +65,8 @@ export function RekeningHero({
   error,
   canManage,
   onAdd,
+  filtered = false,
+  onClearFilters,
 }: HeroProps) {
   const { t } = useLocale();
   const c = t.rekening.v3;
@@ -91,6 +96,16 @@ export function RekeningHero({
           <p className="wm-big rk3-total">
             {hidden ? money.formatBalance(null) : value}
           </p>
+          {filtered && (
+            <p className="rk3-filtered">
+              <span className="rk3-filtered-chip">{c.page.filteredHint}</span>
+              {onClearFilters && (
+                <button type="button" onClick={onClearFilters}>
+                  {c.page.clearFilters}
+                </button>
+              )}
+            </p>
+          )}
           <p className="rk3-sub">
             {fill(c.page.summary, { accounts: rows.length, banks: bankCount })}
             {usdTotal !== null &&

@@ -355,6 +355,22 @@ export const EMPTY_FILTERS: RekeningFilters = {
   hideEmpty: true,
 };
 
+/**
+ * True when a search or filter narrows the rows. `hideEmpty` only folds
+ * empty bank groups in the list, so it never counts; the default status is
+ * "open" (closed accounts never carry a balance in the totals).
+ */
+export function hasActiveFilters(f: RekeningFilters): boolean {
+  return (
+    f.query.trim() !== "" ||
+    f.banks.length > 0 ||
+    f.holders.length > 0 ||
+    f.kinds.length > 0 ||
+    f.access !== EMPTY_FILTERS.access ||
+    f.status !== EMPTY_FILTERS.status
+  );
+}
+
 export function applyFilters(
   rows: readonly RekeningRow[],
   f: RekeningFilters,

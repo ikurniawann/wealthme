@@ -104,9 +104,15 @@ export function KasSummary({
   onToggleHidden,
   loading,
   error = false,
+  filtered = false,
+  onClearFilters,
 }: {
+  /** The rows the summary describes: already narrowed by search/filters. */
   rows: readonly KasRow[];
   totals: KasTotals;
+  /** A search or filter is active: say so, and offer to clear it. */
+  filtered?: boolean;
+  onClearFilters?: () => void;
   rates: FxRatesResponse | undefined;
   hidden: boolean;
   onToggleHidden: () => void;
@@ -150,6 +156,20 @@ export function KasSummary({
           </button>
         </p>
         <p className="kw-sum-total wm-num">{show(totals.total)}</p>
+        {filtered && (
+          <p className="kw-sum-filtered">
+            <span className="kw-sum-filtered-chip">{c.filteredHint}</span>
+            {onClearFilters && (
+              <button
+                type="button"
+                className="kw-link"
+                onClick={onClearFilters}
+              >
+                {c.clearFilters}
+              </button>
+            )}
+          </p>
+        )}
         <p className="kw-sum-meta">
           {unknown
             ? blank

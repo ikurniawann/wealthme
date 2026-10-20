@@ -152,6 +152,7 @@ export interface RekeningV3Copy {
   page: {
     totalLabel: string;
     summary: string;
+    filteredHint: string;
     axis: Record<"bank" | "kind" | "holder", string>;
     other: string;
     liquid: string;
@@ -420,6 +421,7 @@ export const rekeningV3Id: RekeningV3Copy = {
   page: {
     totalLabel: "Total di bank",
     summary: "{accounts} rekening · {banks} bank",
+    filteredHint: "Sesuai filter",
     axis: { bank: "Per bank", kind: "Per jenis", holder: "Per atas nama" },
     other: "Lainnya",
     liquid: "Likuid",
@@ -699,6 +701,7 @@ export const rekeningV3En: RekeningV3Copy = {
   page: {
     totalLabel: "Total in banks",
     summary: "{accounts} accounts · {banks} banks",
+    filteredHint: "Matching filters",
     axis: { bank: "By bank", kind: "By type", holder: "By holder" },
     other: "Other",
     liquid: "Liquid",

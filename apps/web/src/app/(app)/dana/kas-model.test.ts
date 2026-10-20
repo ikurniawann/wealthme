@@ -3,6 +3,7 @@ import type { AccountDto, FxRatesResponse } from "@wealthme/contracts";
 import {
   EMPTY_FILTERS,
   applyFilters,
+  hasActiveFilters,
   formatNative,
   needsCheck,
   toRows,
@@ -135,5 +136,16 @@ describe("wallet-directory", () => {
   it("masks phone numbers and emails", () => {
     expect(maskIdentifier("+62 812 3456 9012")).toBe("••9012");
     expect(maskIdentifier("christian@mail.com")).toBe("c•••@mail.com");
+  });
+});
+
+// Client bug 2026-10-21 — the /dana summary ignored search and filters.
+describe("hasActiveFilters + totals(applyFilters(...))", () => {
+  it("treats only a non-empty search or filter as active", () => {
+    expect(hasActiveFilters(EMPTY_FILTERS)).toBe(false);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, q: "  " })).toBe(false);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, q: "gopay" })).toBe(true);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, kind: "cash" })).toBe(true);
+    expect(hasActiveFilters({ ...EMPTY_FILTERS, owner: "" })).toBe(true);
   });
 });
