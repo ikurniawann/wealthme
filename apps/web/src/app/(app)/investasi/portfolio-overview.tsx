@@ -1,5 +1,17 @@
 "use client";
 import Link from "next/link";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  ChartLine,
+  ChevronRight,
+  Coins,
+  History,
+  Plus,
+  ShoppingCart,
+  Sparkles,
+} from "lucide-react";
+import { INVESTMENT_PLATFORMS } from "@wealthme/contracts";
 import { TrendChart } from "@/components/charts/apex-presets";
 import { useLocale } from "@/hooks/use-locale";
 import { useMoney } from "@/hooks/use-money";
@@ -43,7 +55,10 @@ export function PortfolioChart({
       ) : hideBalance ? (
         <p className="iv-empty">••••</p>
       ) : (data?.points.length ?? 0) < 2 ? (
-        <p className="iv-empty">{c.chartEmpty}</p>
+        <p className="iv-empty">
+          <ChartLine aria-hidden="true" />
+          {c.chartEmpty}
+        </p>
       ) : (
         <TrendChart
           categories={data!.points.map((p) => p.date)}
@@ -57,7 +72,7 @@ export function PortfolioChart({
           money={{ format, formatAxis: format }}
         />
       )}
-      <small>{c.chartNote}</small>
+      <small className="iv-note">{c.chartNote}</small>
       {data?.historicalFxUnavailable && (
         <p className="iv-notice">{c.fxHistory}</p>
       )}
@@ -78,48 +93,64 @@ export function PortfolioCashPreview({
     (p.pockets ?? []).map((pocket) => ({ platform: p, pocket })),
   );
   return (
-    <section className="iv-card">
+    <section className="iv-card iv-cash">
       <h2>{c.funds}</h2>
       {!pockets.length && <p className="iv-empty">{c.noFunds}</p>}
-      {pockets.slice(0, 3).map(({ platform, pocket }) => (
-        <div key={pocket.id} className="iv-pocket">
-          <strong>
-            {platform.label ??
-              platform.platformName ??
-              platform.customName ??
-              platform.platformKey}{" "}
-            · {pocket.currency}
-          </strong>
-          <span>{pocket.name}</span>
-          <small>{c.available}</small>
-          <strong>
-            {money(
-              pocket.availableBalance,
-              "IDR",
-              locale,
-              hideBalance || pocket.balancesHidden,
-            )}
-          </strong>
-          {pocket.heldBalance !== "0" && (
-            <small>
-              {c.held}:{" "}
-              {money(
-                pocket.heldBalance,
-                "IDR",
-                locale,
-                hideBalance || pocket.balancesHidden,
+      <div className="iv-cash-list">
+        {pockets.slice(0, 3).map(({ platform, pocket }) => (
+          <Link
+            key={pocket.id}
+            className="iv-cash-row"
+            href="/investasi?tab=funds"
+          >
+            <span className="iv-instrument-mark" aria-hidden="true">
+              {INVESTMENT_PLATFORMS.find((v) => v.key === platform.platformKey)
+                ?.mark ?? "P"}
+            </span>
+            <span className="iv-cash-text">
+              <strong>
+                {platform.label ??
+                  platform.platformName ??
+                  platform.customName ??
+                  platform.platformKey}{" "}
+                · {pocket.name}
+              </strong>
+              <small>
+                {c.available} · {pocket.currency}
+              </small>
+              <b>
+                {money(
+                  pocket.availableBalance,
+                  "IDR",
+                  locale,
+                  hideBalance || pocket.balancesHidden,
+                )}
+              </b>
+              {pocket.heldBalance !== "0" && (
+                <small>
+                  {c.held}:{" "}
+                  {money(
+                    pocket.heldBalance,
+                    "IDR",
+                    locale,
+                    hideBalance || pocket.balancesHidden,
+                  )}
+                </small>
               )}
-            </small>
-          )}
-        </div>
-      ))}
-      <div className="iv-tools">
+            </span>
+            <ChevronRight aria-hidden="true" />
+          </Link>
+        ))}
+      </div>
+      <div className="iv-cash-actions">
         {onTopup && (
           <button className="btn btn--primary" onClick={onTopup}>
+            <Plus aria-hidden="true" />
             {c.topUp}
           </button>
         )}
         <Link className="btn btn--outline" href="/investasi?tab=funds">
+          <History aria-hidden="true" />
           {c.funds}
         </Link>
       </div>
@@ -142,7 +173,10 @@ export function PortfolioActivityList({
     <section className="iv-card">
       <div className="iv-section-head">
         <h2>{c.activity}</h2>
-        <Link href="/investasi?tab=history">{c.allHistory}</Link>
+        <Link className="iv-more-link" href="/investasi?tab=history">
+          {c.allHistory}
+          <ChevronRight aria-hidden="true" />
+        </Link>
       </div>
       {error ? (
         <p role="alert">{c.activityError}</p>
@@ -151,51 +185,96 @@ export function PortfolioActivityList({
       ) : !rows.length ? (
         <p className="iv-empty">{c.activityEmpty}</p>
       ) : (
-        <ul className="iv-activities">
-          {rows.slice(0, 5).map((row) => (
-            <li key={row.id}>
-              <span>
-                {row.effectiveDate ?? row.occurredAt.slice(0, 10)}
-                <small>
-                  {row.effectiveTime
-                    ? `${row.effectiveTime} ${row.timeZone ?? "Asia/Jakarta"}`
-                    : ""}
-                </small>
-              </span>
-              <strong>{c[row.kind ?? row.type ?? "opening"]}</strong>
-              <Link href={`/investasi/${row.investmentId}`}>
-                {row.holdingName}
-                {row.note?.includes("legacy-residual") && (
-                  <small>{c.legacy}</small>
-                )}
-              </Link>
-              <span>
-                {money(
-                  row.costBasisKnown === false && row.kind === "opening"
-                    ? null
-                    : (row.netAmount ?? row.grossAmount),
-                  row.currency ?? "IDR",
-                  locale,
-                  hideBalance,
-                )}
-              </span>
-              <small>
-                {row.status === "void"
-                  ? c.void
-                  : row.settlementDate &&
-                      row.settlementDate >
-                        new Intl.DateTimeFormat("sv-SE", {
-                          timeZone: "Asia/Jakarta",
-                        }).format(new Date())
-                    ? c.pending
-                    : c.settled}
-              </small>
-            </li>
-          ))}
-        </ul>
+        <div className="iv-activity" role="table" aria-label={c.activity}>
+          <div className="iv-activity-row iv-activity-head" role="row">
+            <span role="columnheader">{c.colDate}</span>
+            <span role="columnheader">{c.colKind}</span>
+            <span role="columnheader">{c.instrument}</span>
+            <span role="columnheader">{c.colAmount}</span>
+            <span role="columnheader">{c.colStatus}</span>
+          </div>
+          {rows.slice(0, 5).map((row) => {
+            const kind = row.kind ?? row.type ?? "opening";
+            const Icon = KIND_ICONS[kind] ?? Sparkles;
+            const status =
+              row.status === "void"
+                ? "void"
+                : row.settlementDate &&
+                    row.settlementDate >
+                      new Intl.DateTimeFormat("sv-SE", {
+                        timeZone: "Asia/Jakarta",
+                      }).format(new Date())
+                  ? "pending"
+                  : "settled";
+            return (
+              <div className="iv-activity-row" role="row" key={row.id}>
+                <span role="cell" className="iv-activity-date">
+                  {shortDate(
+                    row.effectiveDate ?? row.occurredAt.slice(0, 10),
+                    locale,
+                  )}
+                  {row.effectiveTime && (
+                    <small>
+                      {row.effectiveTime} {row.timeZone ?? "Asia/Jakarta"}
+                    </small>
+                  )}
+                </span>
+                <span role="cell" className="iv-activity-kind" data-kind={kind}>
+                  <span className="iv-kind-icon" aria-hidden="true">
+                    <Icon />
+                  </span>
+                  {c[kind]}
+                </span>
+                <span role="cell" className="iv-activity-desc">
+                  <Link href={`/investasi/${row.investmentId}`}>
+                    {row.holdingName}
+                  </Link>
+                  {row.note?.includes("legacy-residual") && (
+                    <small>{c.legacy}</small>
+                  )}
+                </span>
+                <span role="cell" className="iv-activity-amount">
+                  {money(
+                    row.costBasisKnown === false && row.kind === "opening"
+                      ? null
+                      : (row.netAmount ?? row.grossAmount),
+                    row.currency ?? "IDR",
+                    locale,
+                    hideBalance,
+                  )}
+                </span>
+                <span role="cell">
+                  <span className="iv-status" data-status={status}>
+                    {c[status]}
+                  </span>
+                </span>
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );
+}
+const KIND_ICONS: Partial<Record<string, typeof ShoppingCart>> = {
+  buy: ShoppingCart,
+  sell: ArrowUpRight,
+  opening: Sparkles,
+  dividend: Coins,
+  coupon: Coins,
+  interest: Coins,
+  corporate_action: ArrowDownLeft,
+};
+/** "2026-10-07" -> "7 Okt 2026" (calendar date, no timezone shift). */
+export function shortDate(iso: string, locale: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Intl.DateTimeFormat(locale === "id" ? "id-ID" : "en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 export function mergeActivity(
   holdings: InvestmentDto[],

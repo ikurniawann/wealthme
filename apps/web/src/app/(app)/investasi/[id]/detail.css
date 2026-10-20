@@ -1,0 +1,584 @@
+/* Investasi holding detail — page-local polish on top of investasi.css.
+   Layout follows the reference: identity + actions, KPI strip, tabs,
+   chart + ledgers beside the calculation card. Phones get card lists. */
+@layer components {
+  /* ── Breadcrumb ─────────────────────────────────────── */
+  .iv-detail .ivd-crumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 14px;
+    color: var(--wm-muted);
+  }
+  .iv-detail .ivd-crumb a {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 40px;
+    margin-left: -6px;
+    padding-inline: 6px;
+    border-radius: 10px;
+    color: var(--wm-muted);
+    font-weight: 550;
+  }
+  .iv-detail .ivd-crumb a:hover {
+    color: var(--wm-ink);
+    background: var(--wm-card-2);
+  }
+  .iv-detail .ivd-crumb a:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+  }
+  .iv-detail .ivd-crumb [aria-current] {
+    color: var(--wm-ink);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ── Header: identity + actions ─────────────────────── */
+  .iv-detail .ivd-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px 24px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .iv-detail .ivd-identity {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 360px;
+  }
+  .iv-detail .ivd-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    min-width: 0;
+  }
+  .iv-detail .ivd-title-row .iv-title {
+    font-size: clamp(24px, 1.2rem + 1.4vw, 34px);
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .iv-detail .iv-ticker {
+    font-size: 14px;
+    font-weight: 750;
+    letter-spacing: 0.02em;
+    padding: 5px 12px;
+  }
+  .iv-detail .ivd-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 4px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--wm-line);
+    background: var(--wm-card-2);
+    color: var(--wm-muted);
+    font-size: 13px;
+    font-weight: 550;
+  }
+  .iv-detail .ivd-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    color: var(--wm-muted);
+    font-size: 14px;
+  }
+  .iv-detail .ivd-meta > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .iv-detail .ivd-meta strong {
+    color: var(--wm-ink);
+    font-weight: 650;
+  }
+  .iv-detail .ivd-meta svg.lucide {
+    width: 16px;
+    height: 16px;
+  }
+  .iv-detail .ivd-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .iv-detail .ivd-actions .btn {
+    min-height: 46px;
+    padding-inline: 18px;
+    border-radius: 12px;
+    font-weight: 650;
+  }
+  .iv-detail .ivd-sell {
+    background: #fde8e3;
+    border-color: #f6c9be;
+    color: #a8331a;
+  }
+  .iv-detail .ivd-sell:hover {
+    background: #fbd9d0;
+  }
+
+  /* ── KPI strip ──────────────────────────────────────── */
+  .iv-detail .ivd-kpis {
+    container-type: inline-size;
+    gap: 0;
+    padding: 18px 4px;
+  }
+  .iv-detail .ivd-kpis > div {
+    padding: 2px 14px;
+    border-left: 1px solid var(--wm-line);
+    gap: 4px;
+  }
+  .iv-detail .ivd-kpis > div:first-child {
+    border-left: 0;
+  }
+  .iv-detail .ivd-kpis span {
+    font-size: 13px;
+    color: var(--wm-muted);
+  }
+  /* Sized from the strip's own width so a 13-digit rupiah value stays on
+     one line in a sixth of the card; it only breaks after "Rp". */
+  .iv-detail .ivd-kpis strong {
+    font-size: clamp(14px, 1.35cqi, 19px);
+    font-weight: 750;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: break-word;
+    line-height: 1.25;
+  }
+  .iv-detail .ivd-kpis small {
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .iv-detail .ivd-kpis > div:last-child strong {
+    font-size: 15px;
+  }
+  .iv-detail .ivd-pnl[data-sign="up"],
+  .iv-detail .ivd-calc-total[data-sign="up"] dd {
+    color: var(--iv-up);
+  }
+  .iv-detail .ivd-pnl[data-sign="down"],
+  .iv-detail .ivd-calc-total[data-sign="down"] dd {
+    color: var(--iv-down);
+  }
+
+  /* ── Tabs ───────────────────────────────────────────── */
+  .iv-detail .ivd-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    padding: 5px;
+    min-width: 0;
+    border: 1px solid var(--wm-line);
+    border-radius: 16px;
+    background: var(--wm-card);
+  }
+  .iv-detail .ivd-tabs button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px;
+    border: 1px solid transparent;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--wm-muted);
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
+  }
+  .iv-detail .ivd-tabs button:hover {
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+  }
+  .iv-detail .ivd-tabs button:focus-visible {
+    outline: 2px solid var(--wm-lime);
+    outline-offset: 2px;
+  }
+  .iv-detail .ivd-tabs button[aria-pressed="true"] {
+    background: var(--wm-lime-soft);
+    color: var(--wm-lime-ink);
+    font-weight: 700;
+  }
+
+  /* ── Ledger cards ───────────────────────────────────── */
+  .iv-detail .ivd-ledger {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .iv-detail .ivd-section-title {
+    margin-bottom: 6px;
+  }
+  .iv-detail .ivd-section-total {
+    font-size: 18px;
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 8px;
+  }
+  .iv-detail .ivd-ledger > .iv-empty {
+    min-height: 0;
+    padding: 20px 12px;
+    border: 1px dashed var(--wm-line);
+    border-radius: 14px;
+  }
+  .iv-detail .ivd-table th {
+    background: var(--wm-card-2);
+    color: var(--wm-muted);
+    font-size: 12.5px;
+    font-weight: 650;
+    padding: 10px 12px;
+    border-bottom: 0;
+    vertical-align: middle;
+  }
+  .iv-detail .ivd-table th:first-child {
+    border-radius: 10px 0 0 10px;
+  }
+  .iv-detail .ivd-table th:last-child {
+    border-radius: 0 10px 10px 0;
+  }
+  .iv-detail .ivd-table {
+    min-width: 720px;
+  }
+  .iv-detail .ivd-table th,
+  .iv-detail .ivd-table td {
+    padding-inline: 10px;
+  }
+  .iv-detail .ivd-table td:first-child {
+    white-space: nowrap;
+  }
+  .iv-detail .ivd-table td {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .iv-detail .ivd-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .iv-detail .ivd-table tr[data-status="void"] td {
+    color: var(--wm-muted);
+  }
+  .iv-detail .ivd-table td.ivd-total {
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .iv-detail .ivd-kind > span {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--wm-card-2);
+    font-size: 13px;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .iv-detail .ivd-kind > span[data-kind="buy"] {
+    background: var(--wm-lime-soft);
+    color: var(--wm-lime-ink);
+  }
+  .iv-detail .ivd-kind > span[data-kind="sell"] {
+    background: #fde8e3;
+    color: #a8331a;
+  }
+  .iv-detail .ivd-kind small {
+    margin-top: 4px;
+    max-width: 22ch;
+  }
+  .iv-detail .ivd-row-actions .iv-row-actions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .iv-detail .ivd-row-actions .btn {
+    min-height: 40px;
+  }
+
+  /* ── Calculation card ───────────────────────────────── */
+  .iv-detail .iv-calculation h2 {
+    margin-bottom: 4px;
+  }
+  .iv-detail .iv-calculation dl {
+    margin: 0;
+  }
+  .iv-detail .iv-calculation dt {
+    color: var(--wm-ink);
+    font-size: 14px;
+  }
+  .iv-detail .iv-calculation dd {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .iv-detail .iv-calculation dl > div {
+    gap: 12px;
+  }
+  .iv-detail .ivd-calc-total {
+    margin-top: 10px;
+    padding: 14px !important;
+    border: 0 !important;
+    border-radius: 14px;
+    background: var(--wm-lime-soft);
+  }
+  .iv-detail .ivd-calc-total dt {
+    font-weight: 650;
+  }
+  .iv-detail .ivd-calc-total dd {
+    font-size: 17px;
+    font-weight: 750;
+  }
+  .iv-detail .ivd-calc-note {
+    display: block;
+    margin-top: 12px;
+    font-size: 13px;
+    color: var(--wm-muted);
+  }
+  .iv-detail small.ivd-calc-note {
+    margin-top: 6px;
+    font-size: 12px;
+  }
+
+  /* ── Tools + notes + documents ──────────────────────── */
+  .iv-detail .ivd-tools .btn {
+    border-radius: 12px;
+    padding-inline: 16px;
+  }
+  .iv-detail .ivd-note p {
+    color: var(--wm-muted);
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+  .iv-detail .ivd-docs .iv-document-upload,
+  .iv-detail .ivd-docs .iv-document-upload > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .iv-detail .ivd-docs input[type="file"] {
+    width: 100%;
+    max-width: 100%;
+    min-height: 40px;
+    color: var(--wm-muted);
+    font-size: 13px;
+  }
+  .iv-detail .ivd-docs input[type="file"]::file-selector-button {
+    min-height: 40px;
+    margin-right: 10px;
+    padding: 0 14px;
+    border: 1px solid var(--wm-line);
+    border-radius: 10px;
+    background: var(--wm-card-2);
+    color: var(--wm-ink);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .iv-detail .ivd-docs .iv-documents li {
+    border-bottom: 1px solid var(--wm-line);
+  }
+  .iv-detail .ivd-docs .iv-documents li > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Reference gives the ledgers about two thirds of the row. */
+  .iv-detail .iv-detail-grid {
+    grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr);
+  }
+
+  /* ── Tablet ─────────────────────────────────────────── */
+  @media (max-width: 1100px) {
+    .iv-detail .iv-detail-grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .iv-detail .ivd-actions {
+      justify-content: flex-start;
+    }
+    .iv-detail .ivd-kpis {
+      row-gap: 16px;
+    }
+    .iv-detail .ivd-kpis > div:nth-child(3n + 1) {
+      border-left: 0;
+    }
+    .iv-detail .ivd-kpis strong {
+      font-size: clamp(15px, 2.6cqi, 19px);
+    }
+  }
+
+  /* ── Phone: 2-up actions ─────────────────────────────── */
+  @media (max-width: 720px) {
+    .iv-detail .ivd-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+    }
+    .iv-detail .ivd-actions .btn {
+      min-width: 0;
+      padding-inline: 10px;
+      font-size: 13.5px;
+      white-space: normal;
+      line-height: 1.2;
+      text-align: center;
+    }
+    .iv-detail .ivd-actions .btn:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+  }
+
+  /* ── Ledger card list ───────────────────────────────────
+     Nine ledger columns do not fit the ledger card below ~900px (the
+     1440 desktop column included), so rows become labelled cards instead
+     of hiding columns behind a sideways scroll. Phones get two columns. */
+  .iv-detail .ivd-ledger {
+    container: ivd-ledger / inline-size;
+  }
+  @container ivd-ledger (max-width: 900px) {
+    .iv-detail .ivd-table {
+      min-width: 0;
+      display: block;
+    }
+    .iv-detail .ivd-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+    .iv-detail .ivd-table tbody {
+      display: grid;
+      gap: 10px;
+    }
+    .iv-detail .ivd-table tr {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(min(100%, 140px), 1fr));
+      gap: 10px 12px;
+      padding: 14px;
+      border: 1px solid var(--wm-line);
+      border-radius: 14px;
+      background: var(--wm-card-2);
+    }
+    .iv-detail .ivd-table td,
+    .iv-detail .ivd-table tbody tr:last-child td {
+      display: block;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      overflow-wrap: anywhere;
+    }
+    .iv-detail .ivd-table td::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 2px;
+      color: var(--wm-muted);
+      font-size: 12px;
+      font-weight: 550;
+    }
+    .iv-detail .ivd-table td.ivd-total,
+    .iv-detail .ivd-table td:first-child {
+      white-space: normal;
+    }
+    .iv-detail .ivd-table td.ivd-row-actions {
+      grid-column: 1 / -1;
+    }
+    .iv-detail .ivd-table td.ivd-row-actions::before {
+      display: none;
+    }
+    .iv-detail .ivd-row-actions .iv-row-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      max-width: 360px;
+      margin-left: auto;
+    }
+    .iv-detail .ivd-kind small {
+      max-width: none;
+    }
+    .iv-detail .ivd-kind > span {
+      background: var(--wm-card);
+      border: 1px solid var(--wm-line);
+    }
+  }
+  @media (max-width: 640px) {
+    .iv-detail .ivd-kpis {
+      padding: 14px 0;
+      row-gap: 14px;
+    }
+    .iv-detail .ivd-kpis > div {
+      padding: 2px 14px;
+      border-left: 0;
+    }
+    .iv-detail .ivd-kpis > div:nth-child(even) {
+      border-left: 1px solid var(--wm-line);
+    }
+    .iv-detail .ivd-kpis strong {
+      font-size: clamp(14px, 4.3cqi, 17px);
+    }
+    .iv-detail .ivd-tools {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .iv-detail .ivd-tools .btn {
+      min-width: 0;
+      padding-inline: 10px;
+    }
+    .iv-detail .ivd-docs .iv-document-upload {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .iv-detail .ivd-docs .iv-document-upload .btn {
+      width: 100%;
+    }
+  }
+  @media (max-width: 400px) {
+    .iv-detail .ivd-tabs button {
+      font-size: 13px;
+      gap: 6px;
+      padding-inline: 4px;
+    }
+    .iv-detail .ivd-tabs svg.lucide {
+      display: none;
+    }
+  }
+}
+
+/* Dark theme (unlayered, same idiom as investasi.css `.dark .iv`). */
+.dark .iv-detail .ivd-tabs button[aria-pressed="true"] {
+  background: rgb(156 203 59 / 0.2);
+  border-color: rgb(156 203 59 / 0.45);
+  color: #e4f1c4;
+}
+.dark .iv-detail .ivd-sell {
+  background: rgb(240 122 99 / 0.14);
+  border-color: rgb(240 122 99 / 0.4);
+  color: #f6b3a4;
+}
+.dark .iv-detail .ivd-sell:hover {
+  background: rgb(240 122 99 / 0.22);
+}
+.dark .iv-detail .ivd-kind > span[data-kind="buy"],
+.dark .iv-detail .ivd-calc-total {
+  background: rgb(156 203 59 / 0.16);
+  color: #d7ebac;
+}
+.dark .iv-detail .ivd-calc-total dt {
+  color: #e4f1c4;
+}
+.dark .iv-detail .ivd-kind > span[data-kind="sell"] {
+  background: rgb(240 122 99 / 0.16);
+  color: #f6b3a4;
+}
+.dark .iv-detail .ivd-chip {
+  background: #2b2c30;
+  color: #d0d0cb;
+}

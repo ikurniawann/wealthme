@@ -727,30 +727,45 @@
   .dialog.tx3 .tx3-body {
     padding: 16px 16px 8px;
   }
-  /* 2×2 type grid with icons */
+  /* one row of four: icon over short label (full name = accessible name) */
   .tx3 .tx3-types.segmented {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 10px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 6px;
     padding: 0;
     background: transparent;
   }
   .tx3 .tx3-types .segmented__item {
-    justify-content: flex-start;
-    gap: 12px;
-    min-height: 54px;
-    padding: 0 16px;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    min-width: 0;
+    min-height: 60px;
+    padding: 6px 2px;
     border: 1px solid var(--wm-line);
     background: var(--wm-card-2, #f4f6f2);
-    font-size: 14px;
+    font-size: 12.5px;
+    line-height: 1.15;
   }
+  /* soft-lime fill is translucent in dark, so keep ink text (not lime-ink) */
   .tx3 .tx3-types .segmented__item[aria-selected="true"] {
     border-color: var(--wm-lime);
     background: var(--wm-lime-soft, #eef7dc);
+    color: var(--wm-ink);
   }
   .tx3 .tx3-type-ic {
     display: block;
     width: 22px;
     height: 22px;
+  }
+  .tx3 .tx3-type-long {
+    display: none;
+  }
+  .tx3 .tx3-type-short {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .tx3 .tx3-scan {
     gap: 10px;

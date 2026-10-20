@@ -12,9 +12,9 @@ import {
 } from "../../common/utils/privacy.util";
 
 import {
-  cashKeyParts,
   dbDateToYmd,
-  ledgerInstant,
+  floatingCashInstant,
+  floatingKeyParts,
   ymdToDbDate,
 } from "./ledger-dates";
 import { cashIdr, formatLedgerPoint, INCOME_KINDS } from "./replay";
@@ -246,7 +246,7 @@ export async function loadCashTimeline(
     const link = linkByCash.get(c.id);
     const key: LedgerSortKey = link
       ? rowKey(link)
-      : { ...cashKeyParts(c.occurredAt), createdAt: c.createdAt, id: c.id };
+      : { ...floatingKeyParts(c.occurredAt), createdAt: c.createdAt, id: c.id };
     return {
       id: link?.id ?? c.id,
       key,
@@ -521,7 +521,8 @@ export async function writeCashLeg(
   newLeg: NewCashLeg | null,
   actor: LedgerActor,
 ): Promise<string | null> {
-  const occurredAt = ledgerInstant(
+  // Floating, like every Transaction.occurredAt (lists bucket by UTC day).
+  const occurredAt = floatingCashInstant(
     row.effectiveDate,
     row.effectiveTime,
     row.timeZone,

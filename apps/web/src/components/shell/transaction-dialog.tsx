@@ -1187,7 +1187,7 @@ export function TransactionDialog() {
             </div>
 
             <DialogBody className="tx3-body">
-              {/* Type switch: a light segmented strip (2×2 with icons on phones). */}
+              {/* Type switch: a light segmented strip (icon + short label on phones). */}
               <div
                 className="segmented hide-scrollbar scroll-fade-x max-w-full overflow-x-auto tx3-types max-[720px]:grid max-[720px]:grid-cols-4"
                 role="tablist"
